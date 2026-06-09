@@ -14,14 +14,18 @@
  */
 
 import type { Phantom } from '../../types/phantom/module.f.ts'
-import type { Nominal } from '../../types/nominal/module.f.ts'
+import { type Nominal, asBase as nominalAsBase, asNominal as nominalAsNominal } from '../../types/nominal/module.f.ts'
 import { do_, type Effect } from '../module.f.ts'
 
 /** Nominal brand version for memory keys. */
-export type MemKeyHash = '3f114fa6036a8da026b827f0c3e6d901f5e81ad9a320e431ccce31451892d286'
+type MemKeyHash = '3f114fa6036a8da026b827f0c3e6d901f5e81ad9a320e431ccce31451892d286'
 
 /** Opaque handle for a value stored by the memory interpreter. */
 export type Key<T> = Phantom<Nominal<'MemKey', MemKeyHash, string>, T>
+
+export const asBase = nominalAsBase<'MemKey', MemKeyHash, string>
+
+export const asNominal = nominalAsNominal<'MemKey', MemKeyHash, string>
 
 /** Allocates a fresh memory slot and initializes it with `value`. */
 export type MemCreate = readonly['memCreate', <T>(value: T) => Key<T>]

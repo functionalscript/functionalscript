@@ -1,9 +1,9 @@
-import { asBase, asNominal } from '../../types/nominal/module.f.ts'
 import { run, type MemOperationMap } from '../mock/module.f.ts'
 import { pure } from '../module.f.ts'
 import {
+    asBase, asNominal,
     create, read, write,
-    type Key, type MemKeyHash, type MemOp,
+    type Key, type MemOp,
 } from './module.f.ts'
 
 type MemoryState = {
@@ -16,16 +16,16 @@ const initial: MemoryState = { next: 0, values: {} }
 const mock: MemOperationMap<MemOp, MemoryState> = {
     memCreate: (state, value) => {
         const id = `k${state.next}`
-        const key: Key<unknown> = asNominal<'MemKey', MemKeyHash, string>(id)
+        const key: Key<unknown> = asNominal(id)
         return [{
             next: state.next + 1,
             values: { ...state.values, [id]: value },
         }, key]
     },
     memRead: (state, key) =>
-        [state, state.values[asBase<'MemKey', MemKeyHash, string>(key)]],
+        [state, state.values[asBase(key)]],
     memWrite: (state, key, value) => {
-        const id = asBase<'MemKey', MemKeyHash, string>(key)
+        const id = asBase(key)
         return [{
             ...state,
             values: { ...state.values, [id]: value },
@@ -53,8 +53,8 @@ export const proof = {
         const effect = create('a').step(a =>
             create('b').step(b =>
                 pure([
-                    asBase<'MemKey', MemKeyHash, string>(a),
-                    asBase<'MemKey', MemKeyHash, string>(b),
+                    asBase(a),
+                    asBase(b),
                 ] as const)
             )
         )

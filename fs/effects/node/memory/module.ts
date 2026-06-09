@@ -5,10 +5,9 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { asBase, asNominal } from '../../../types/nominal/module.f.ts'
 import { asyncRun } from '../../module.ts'
 import type { Effect, ToAsyncOperationMap } from '../../module.f.ts'
-import type { Key, MemKeyHash, MemOp } from '../../memory/module.f.ts'
+import { asBase, asNominal, type Key, type MemOp } from '../../memory/module.f.ts'
 
 export type MemoryOperationMap = ToAsyncOperationMap<MemOp>
 
@@ -30,17 +29,17 @@ export const memoryOperationMap = (uuid: Uuid = randomUUID): MemoryOperationMap 
     return {
         memCreate: async value => {
             const id = uuid()
-            const key: Key<unknown> = asNominal<'MemKey', MemKeyHash, string>(id)
+            const key: Key<unknown> = asNominal(id)
             store = new Map([...store, [id, value]])
             return key
         },
         memRead: async key => {
-            const id = asBase<'MemKey', MemKeyHash, string>(key)
+            const id = asBase(key)
             if (!store.has(id)) { throw missingKey(id) }
             return store.get(id)
         },
         memWrite: async (key, value) => {
-            const id = asBase<'MemKey', MemKeyHash, string>(key)
+            const id = asBase(key)
             if (!store.has(id)) { throw missingKey(id) }
             store = new Map([...store, [id, value]])
         },

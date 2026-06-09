@@ -7,10 +7,9 @@ import { todo } from '../../../asserts/module.f.ts'
 import { join, parse } from '../../../path/module.f.ts'
 import { utf8ToString } from '../../../text/module.f.ts'
 import { isVec, type Vec } from '../../../types/bit_vec/module.f.ts'
-import { asBase, asNominal } from '../../../types/nominal/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
-import type { Key, MemKeyHash } from '../../memory/module.f.ts'
+import { asBase, asNominal, type Key } from '../../memory/module.f.ts'
 import type { Dirent, IoResult, Module, NodeOp, SandboxResult } from '../module.f.ts'
 
 /**
@@ -171,7 +170,7 @@ const map: MemOperationMap<NodeOp, State> = {
     },
     memCreate: (state, value) => {
         const id = `mem${state.memoryNext}`
-        const key: Key<unknown> = asNominal<'MemKey', MemKeyHash, string>(id)
+        const key: Key<unknown> = asNominal(id)
         return [{
             ...state,
             memoryNext: state.memoryNext + 1,
@@ -179,9 +178,9 @@ const map: MemOperationMap<NodeOp, State> = {
         }, key]
     },
     memRead: (state, key) =>
-        [state, state.memoryValues[asBase<'MemKey', MemKeyHash, string>(key)]],
+        [state, state.memoryValues[asBase(key)]],
     memWrite: (state, key, value) => {
-        const id = asBase<'MemKey', MemKeyHash, string>(key)
+        const id = asBase(key)
         return [{
             ...state,
             memoryValues: { ...state.memoryValues, [id]: value },

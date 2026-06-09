@@ -4,11 +4,11 @@
  * @module
  */
 
-import { asNominal } from '../../../types/nominal/module.f.ts'
 import { asyncRun } from '../../module.ts'
 import {
+    asNominal,
     create, read, write,
-    type Key, type MemKeyHash, type MemOp,
+    type Key, type MemOp,
 } from '../../memory/module.f.ts'
 import { memoryOperationMap, run } from './module.ts'
 
@@ -29,8 +29,7 @@ export const proof = {
         if (result !== 2) { throw result }
     },
     missingKeyThrows: async () => {
-        const key: Key<number> =
-            asNominal<'MemKey', MemKeyHash, string>('missing')
+        const key: Key<number> = asNominal('missing')
         const result = await run(read(key)).then(
             () => undefined,
             error => error,
