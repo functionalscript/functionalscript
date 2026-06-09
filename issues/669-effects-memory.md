@@ -1,7 +1,7 @@
 # Memory Effect
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 A key-value store effect for mutable state that persists across multiple effect steps within a session or computation.
 
@@ -45,7 +45,7 @@ The initial design stores scalar or plain-object values. In the future we may su
 
 ## Plan
 
-- [ ] Define `Key<T>`, `MemOp`, and the three operation types in `fs/effects/memory/module.f.ts`.
-- [ ] Implement a Node.js interpreter (`Map<string, unknown>` backed, keys generated via `crypto.randomUUID()`).
-- [ ] Add proof tests covering create/read/write round-trips and type safety.
-- [ ] Document how to compose `MemOp` with other operation types (e.g. `IoOp | MemOp`).
+- [x] Define `Key<T>`, `MemOp`, and the three operation types in `fs/effects/memory/module.f.ts`.
+- [x] Implement a Node.js interpreter (`Map<string, unknown>` backed, keys generated via `crypto.randomUUID()`).
+- [x] Add proof tests covering create/read/write round-trips and type safety.
+- [x] Document how to compose `MemOp` with other operation types (e.g. `IoOp | MemOp`).

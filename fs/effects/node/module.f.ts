@@ -9,6 +9,7 @@
  */
 import { utf8 } from '../../text/module.f.ts'
 import type { Vec } from '../../types/bit_vec/module.f.ts'
+import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
 import type { Result } from '../../types/result/module.f.ts'
 import {
@@ -310,6 +311,7 @@ export type NodeOp =
     | Http
     | Forever
     | Import
+    | MemOp
     | Now
     | Sandbox
     | Write
