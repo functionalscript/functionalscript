@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `effects/memory`: add typed `create` / `read` / `write` memory operations, a Node `Map`-backed interpreter using `crypto.randomUUID()` keys, virtual-memory composition support, and proofs for round trips and type safety (i669-effects-memory) [#1008](https://github.com/functionalscript/functionalscript/pull/1008)
 - `json/rpc`: add JSON-RPC spec links to module and request/response JSDoc; destructure `decodeRequest` result and `message` fields in `dispatch`; use shorthand property in `errorResponseOf` [#1002](https://github.com/functionalscript/functionalscript/pull/1002)
 
 ## 0.30.0

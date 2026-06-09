@@ -9,6 +9,7 @@
  */
 import { utf8 } from '../../text/module.f.ts'
 import type { Vec } from '../../types/bit_vec/module.f.ts'
+import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
 import type { Result } from '../../types/result/module.f.ts'
 import {
@@ -22,8 +23,6 @@ export type IoResult<T> = Result<T, unknown>
 
 export type All = ['all', <T>(...effects: Effect<never, T>[]) => readonly T[]]
 
-const doAll: Func<All> = do_('all')
-
 /**
  * To run the operation `O` should be known by the runner/engine.
  * This is the reason why we merge `O` with `All` in the resulted `Effect`.
@@ -32,8 +31,7 @@ const doAll: Func<All> = do_('all')
  * @returns
  */
 export const all =
-    <O extends Operation, T>(...a: readonly Effect<O, T>[]): Effect<O | All, readonly T[]> =>
-    doAll(...a as readonly Effect<never, T>[]) as Effect<O | All, readonly T[]>
+    do_('all') as <O extends Operation, T>(...a: readonly Effect<O, T>[]) => Effect<O | All, readonly T[]>
 
 export const both =
     <O0 extends Operation, T0>(a: Effect<O0, T0>) =>
@@ -310,6 +308,7 @@ export type NodeOp =
     | Http
     | Forever
     | Import
+    | MemOp
     | Now
     | Sandbox
     | Write
