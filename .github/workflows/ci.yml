@@ -4,6 +4,9 @@
     "pull_request": {},
     "merge_group": {}
   },
+  "permissions": {
+    "contents": "read"
+  },
   "jobs": {
     "ubuntu-intel": {
       "runs-on": "ubuntu-24.04",
@@ -15,19 +18,7 @@
           "uses": "dtolnay/rust-toolchain@1.96.0",
           "with": {
             "components": "rustfmt,clippy",
-            "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads,i686-unknown-linux-gnu"
-          }
-        },
-        {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1",
-          "with": {
-            "version": "45.0.0"
-          }
-        },
-        {
-          "uses": "wasmerio/setup-wasmer@v3.1",
-          "with": {
-            "version": "v7.1.0"
+            "targets": "i686-unknown-linux-gnu"
           }
         },
         {
@@ -37,28 +28,10 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
-        },
-        {
-          "uses": "denoland/setup-deno@v2",
-          "with": {
-            "deno-version": "2.8.2"
-          }
-        },
-        {
-          "uses": "oven-sh/setup-bun@v2",
-          "with": {
-            "bun-version": "1.3.14"
-          }
+          "run": "npm install -g functionalscript@0.29.1"
         },
         {
           "uses": "actions/checkout@v6"
-        },
-        {
-          "run": "cargo fmt -- --check"
-        },
-        {
-          "run": "cargo clippy -- -D warnings"
         },
         {
           "run": "cargo test"
@@ -67,52 +40,10 @@
           "run": "cargo test --release"
         },
         {
-          "run": "cargo test --target wasm32-wasip1"
+          "run": "cargo clippy -- -D warnings"
         },
         {
-          "run": "cargo test --target wasm32-wasip1 --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --release"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
+          "run": "cargo clippy --release -- -D warnings"
         },
         {
           "run": "cargo test --target i686-unknown-linux-gnu"
@@ -121,71 +52,238 @@
           "run": "cargo test --target i686-unknown-linux-gnu --release"
         },
         {
+          "run": "cargo clippy --target i686-unknown-linux-gnu -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings"
+        },
+        {
           "run": "npm ci"
         },
         {
-          "run": "npx tsc"
-        },
-        {
-          "run": "npm test"
-        },
-        {
-          "run": "node --test"
-        },
-        {
-          "run": "npm run cov"
-        },
-        {
-          "run": "tsgo"
-        },
-        {
-          "run": "npm pack"
-        },
-        {
-          "run": "npm install -g ./*.tgz"
-        },
-        {
-          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
-        },
-        {
           "run": "fjs t"
-        },
-        {
-          "run": "npm uninstall functionalscript -g"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "run": "deno install --frozen"
-        },
-        {
-          "run": "deno task test"
-        },
-        {
-          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
-        },
-        {
-          "run": "deno task fjs t"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "run": "bun install --frozen-lockfile"
-        },
-        {
-          "run": "bun test --timeout 20000"
-        },
-        {
-          "run": "bun ./fs/fjs/module.ts t"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         }
       ]
     },
     "ubuntu-arm": {
+      "runs-on": "ubuntu-24.04-arm",
+      "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.96.0",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "26.3.0"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.29.1"
+        },
+        {
+          "uses": "actions/checkout@v6"
+        },
+        {
+          "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "fjs t"
+        }
+      ]
+    },
+    "macos-intel": {
+      "runs-on": "macos-26-intel",
+      "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.96.0",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "26.3.0"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.29.1"
+        },
+        {
+          "uses": "actions/checkout@v6"
+        },
+        {
+          "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "fjs t"
+        }
+      ]
+    },
+    "macos-arm": {
+      "runs-on": "macos-26",
+      "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.96.0",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "26.3.0"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.29.1"
+        },
+        {
+          "uses": "actions/checkout@v6"
+        },
+        {
+          "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "fjs t"
+        }
+      ]
+    },
+    "windows-intel": {
+      "runs-on": "windows-2025",
+      "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.96.0",
+          "with": {
+            "components": "rustfmt,clippy",
+            "targets": "i686-pc-windows-msvc"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "26.3.0"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.29.1"
+        },
+        {
+          "uses": "actions/checkout@v6"
+        },
+        {
+          "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "cargo test --target i686-pc-windows-msvc"
+        },
+        {
+          "run": "cargo test --target i686-pc-windows-msvc --release"
+        },
+        {
+          "run": "cargo clippy --target i686-pc-windows-msvc -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --target i686-pc-windows-msvc --release -- -D warnings"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "fjs t"
+        }
+      ]
+    },
+    "windows-arm": {
+      "runs-on": "windows-11-arm",
+      "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.96.0",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "26.3.0"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.29.1"
+        },
+        {
+          "uses": "actions/checkout@v6"
+        },
+        {
+          "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "fjs t"
+        }
+      ]
+    },
+    "wasm": {
       "runs-on": "ubuntu-24.04-arm",
       "steps": [
         {
@@ -208,20 +306,117 @@
           }
         },
         {
-          "uses": "actions/setup-node@v6",
-          "with": {
-            "node-version": "26.3.0"
-          }
+          "uses": "actions/checkout@v6"
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
+          "run": "cargo fmt -- --check"
         },
+        {
+          "run": "cargo test --target wasm32-wasip1"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1 --release"
+        },
+        {
+          "run": "cargo clippy --target wasm32-wasip1 -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --target wasm32-wasip1 --release -- -D warnings"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --release"
+        },
+        {
+          "run": "cargo clippy --target wasm32-wasip2 -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --target wasm32-wasip2 --release -- -D warnings"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown --release"
+        },
+        {
+          "run": "cargo clippy --target wasm32-unknown-unknown -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --target wasm32-unknown-unknown --release -- -D warnings"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --release"
+        },
+        {
+          "run": "cargo clippy --target wasm32-wasip1-threads -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --target wasm32-wasip1-threads --release -- -D warnings"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
+        }
+      ]
+    },
+    "deno": {
+      "runs-on": "ubuntu-24.04-arm",
+      "steps": [
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2.8.2"
           }
         },
+        {
+          "run": "deno install -g -A npm:functionalscript@0.29.1"
+        },
+        {
+          "uses": "actions/checkout@v6"
+        },
+        {
+          "run": "deno install --frozen"
+        },
+        {
+          "run": "deno run -A npm:functionalscript@0.29.1 t"
+        },
+        {
+          "run": "deno test --allow-read --allow-env --coverage && deno coverage --include='.*module\\.f\\.ts'"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        }
+      ]
+    },
+    "bun": {
+      "runs-on": "ubuntu-24.04-arm",
+      "steps": [
         {
           "uses": "oven-sh/setup-bun@v2",
           "with": {
@@ -229,814 +424,45 @@
           }
         },
         {
+          "run": "bun install -g functionalscript@0.29.1"
+        },
+        {
           "uses": "actions/checkout@v6"
-        },
-        {
-          "run": "cargo fmt -- --check"
-        },
-        {
-          "run": "cargo clippy -- -D warnings"
-        },
-        {
-          "run": "cargo test"
-        },
-        {
-          "run": "cargo test --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --release"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "npm ci"
-        },
-        {
-          "run": "npx tsc"
-        },
-        {
-          "run": "npm test"
-        },
-        {
-          "run": "node --test"
-        },
-        {
-          "run": "npm run cov"
-        },
-        {
-          "run": "tsgo"
-        },
-        {
-          "run": "npm pack"
-        },
-        {
-          "run": "npm install -g ./*.tgz"
-        },
-        {
-          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
-        },
-        {
-          "run": "fjs t"
-        },
-        {
-          "run": "npm uninstall functionalscript -g"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "run": "deno install --frozen"
-        },
-        {
-          "run": "deno task test"
-        },
-        {
-          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
-        },
-        {
-          "run": "deno task fjs t"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "run": "bun install --frozen-lockfile"
         },
         {
-          "run": "bun test --timeout 20000"
+          "run": "bunx functionalscript@0.29.1 t"
         },
         {
-          "run": "bun ./fs/fjs/module.ts t"
+          "run": "bun test --coverage"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
         }
       ]
     },
-    "macos-intel": {
-      "runs-on": "macos-26-intel",
+    "node22": {
+      "runs-on": "ubuntu-24.04-arm",
       "steps": [
-        {
-          "uses": "dtolnay/rust-toolchain@1.96.0",
-          "with": {
-            "components": "rustfmt,clippy",
-            "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
-          }
-        },
-        {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1",
-          "with": {
-            "version": "45.0.0"
-          }
-        },
-        {
-          "uses": "wasmerio/setup-wasmer@v3.1",
-          "with": {
-            "version": "v7.1.0"
-          }
-        },
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.3.0"
+            "node-version": "22.22.2"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
-        },
-        {
-          "uses": "denoland/setup-deno@v2",
-          "with": {
-            "deno-version": "2.8.2"
-          }
-        },
-        {
-          "uses": "oven-sh/setup-bun@v2",
-          "with": {
-            "bun-version": "1.3.14"
-          }
+          "run": "npm install -g functionalscript@0.29.1"
         },
         {
           "uses": "actions/checkout@v6"
         },
         {
-          "run": "cargo fmt -- --check"
-        },
-        {
-          "run": "cargo clippy -- -D warnings"
-        },
-        {
-          "run": "cargo test"
-        },
-        {
-          "run": "cargo test --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --release"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
-        },
-        {
           "run": "npm ci"
         },
         {
-          "run": "npx tsc"
-        },
-        {
-          "run": "npm test"
-        },
-        {
-          "run": "node --test"
-        },
-        {
-          "run": "npm run cov"
-        },
-        {
-          "run": "tsgo"
-        },
-        {
-          "run": "npm pack"
-        },
-        {
-          "run": "npm install -g ./*.tgz"
-        },
-        {
-          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
-        },
-        {
           "run": "fjs t"
-        },
-        {
-          "run": "npm uninstall functionalscript -g"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "run": "deno install --frozen"
-        },
-        {
-          "run": "deno task test"
-        },
-        {
-          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
-        },
-        {
-          "run": "deno task fjs t"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "run": "bun install --frozen-lockfile"
-        },
-        {
-          "run": "bun test --timeout 20000"
-        },
-        {
-          "run": "bun ./fs/fjs/module.ts t"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        }
-      ]
-    },
-    "macos-arm": {
-      "runs-on": "macos-26",
-      "steps": [
-        {
-          "uses": "dtolnay/rust-toolchain@1.96.0",
-          "with": {
-            "components": "rustfmt,clippy",
-            "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
-          }
-        },
-        {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1",
-          "with": {
-            "version": "45.0.0"
-          }
-        },
-        {
-          "uses": "wasmerio/setup-wasmer@v3.1",
-          "with": {
-            "version": "v7.1.0"
-          }
-        },
-        {
-          "uses": "actions/setup-node@v6",
-          "with": {
-            "node-version": "26.3.0"
-          }
-        },
-        {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
-        },
-        {
-          "uses": "denoland/setup-deno@v2",
-          "with": {
-            "deno-version": "2.8.2"
-          }
-        },
-        {
-          "uses": "oven-sh/setup-bun@v2",
-          "with": {
-            "bun-version": "1.3.14"
-          }
-        },
-        {
-          "uses": "actions/checkout@v6"
-        },
-        {
-          "run": "cargo fmt -- --check"
-        },
-        {
-          "run": "cargo clippy -- -D warnings"
-        },
-        {
-          "run": "cargo test"
-        },
-        {
-          "run": "cargo test --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --release"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "npm ci"
-        },
-        {
-          "run": "npx tsc"
-        },
-        {
-          "run": "npm test"
-        },
-        {
-          "run": "node --test"
-        },
-        {
-          "run": "npm run cov"
-        },
-        {
-          "run": "tsgo"
-        },
-        {
-          "run": "npm pack"
-        },
-        {
-          "run": "npm install -g ./*.tgz"
-        },
-        {
-          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
-        },
-        {
-          "run": "fjs t"
-        },
-        {
-          "run": "npm uninstall functionalscript -g"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "run": "deno install --frozen"
-        },
-        {
-          "run": "deno task test"
-        },
-        {
-          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
-        },
-        {
-          "run": "deno task fjs t"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "run": "bun install --frozen-lockfile"
-        },
-        {
-          "run": "bun test --timeout 20000"
-        },
-        {
-          "run": "bun ./fs/fjs/module.ts t"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        }
-      ]
-    },
-    "windows-intel": {
-      "runs-on": "windows-2025",
-      "steps": [
-        {
-          "uses": "dtolnay/rust-toolchain@1.96.0",
-          "with": {
-            "components": "rustfmt,clippy",
-            "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads,i686-pc-windows-msvc"
-          }
-        },
-        {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1",
-          "with": {
-            "version": "45.0.0"
-          }
-        },
-        {
-          "uses": "wasmerio/setup-wasmer@v3.1",
-          "with": {
-            "version": "v7.1.0"
-          }
-        },
-        {
-          "uses": "actions/setup-node@v6",
-          "with": {
-            "node-version": "26.3.0"
-          }
-        },
-        {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
-        },
-        {
-          "uses": "denoland/setup-deno@v2",
-          "with": {
-            "deno-version": "2.8.2"
-          }
-        },
-        {
-          "uses": "oven-sh/setup-bun@v2",
-          "with": {
-            "bun-version": "1.3.14"
-          }
-        },
-        {
-          "uses": "actions/checkout@v6"
-        },
-        {
-          "run": "cargo fmt -- --check"
-        },
-        {
-          "run": "cargo clippy -- -D warnings"
-        },
-        {
-          "run": "cargo test"
-        },
-        {
-          "run": "cargo test --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --release"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target i686-pc-windows-msvc"
-        },
-        {
-          "run": "cargo test --target i686-pc-windows-msvc --release"
-        },
-        {
-          "run": "npm ci"
-        },
-        {
-          "run": "npx tsc"
-        },
-        {
-          "run": "npm test"
-        },
-        {
-          "run": "node --test"
-        },
-        {
-          "run": "npm run cov"
-        },
-        {
-          "run": "tsgo"
-        },
-        {
-          "run": "npm pack"
-        },
-        {
-          "run": "npm install -g (Get-ChildItem *.tgz).FullName"
-        },
-        {
-          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
-        },
-        {
-          "run": "fjs t"
-        },
-        {
-          "run": "npm uninstall functionalscript -g"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "run": "deno install --frozen"
-        },
-        {
-          "run": "deno task test"
-        },
-        {
-          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
-        },
-        {
-          "run": "deno task fjs t"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "run": "bun install --frozen-lockfile"
-        },
-        {
-          "run": "bun test --timeout 20000"
-        },
-        {
-          "run": "bun ./fs/fjs/module.ts t"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        }
-      ]
-    },
-    "windows-arm": {
-      "runs-on": "windows-11-arm",
-      "steps": [
-        {
-          "uses": "dtolnay/rust-toolchain@1.96.0",
-          "with": {
-            "components": "rustfmt,clippy",
-            "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
-          }
-        },
-        {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1",
-          "with": {
-            "version": "45.0.0"
-          }
-        },
-        {
-          "uses": "wasmerio/setup-wasmer@v3.1",
-          "with": {
-            "version": "v7.1.0"
-          }
-        },
-        {
-          "uses": "actions/setup-node@v6",
-          "with": {
-            "node-version": "26.3.0"
-          }
-        },
-        {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
-        },
-        {
-          "uses": "denoland/setup-deno@v2",
-          "with": {
-            "deno-version": "2.8.2"
-          }
-        },
-        {
-          "run": "irm bun.sh/install.ps1 | iex; \"$env:USERPROFILE\\.bun\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
-        },
-        {
-          "uses": "actions/checkout@v6"
-        },
-        {
-          "run": "cargo fmt -- --check"
-        },
-        {
-          "run": "cargo clippy -- -D warnings"
-        },
-        {
-          "run": "cargo test"
-        },
-        {
-          "run": "cargo test --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --release"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "npm ci"
-        },
-        {
-          "run": "npx tsc"
-        },
-        {
-          "run": "npm test"
-        },
-        {
-          "run": "node --test"
-        },
-        {
-          "run": "npm run cov"
-        },
-        {
-          "run": "tsgo"
-        },
-        {
-          "run": "npm pack"
-        },
-        {
-          "run": "npm install -g (Get-ChildItem *.tgz).FullName"
-        },
-        {
-          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
-        },
-        {
-          "run": "fjs t"
-        },
-        {
-          "run": "npm uninstall functionalscript -g"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "run": "deno install --frozen"
-        },
-        {
-          "run": "deno task test"
-        },
-        {
-          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
-        },
-        {
-          "run": "deno task fjs t"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "run": "bun install --frozen-lockfile"
-        },
-        {
-          "run": "bun test --timeout 20000"
-        },
-        {
-          "run": "bun ./fs/fjs/module.ts t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -1044,7 +470,7 @@
       ]
     },
     "node24": {
-      "runs-on": "ubuntu-24.04",
+      "runs-on": "ubuntu-24.04-arm",
       "steps": [
         {
           "uses": "actions/setup-node@v6",
@@ -1059,21 +485,50 @@
           "run": "npm ci"
         },
         {
-          "run": "npx tsc"
-        },
-        {
-          "run": "npm test"
-        },
-        {
           "run": "node --test"
         },
         {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        }
+      ]
+    },
+    "node26": {
+      "runs-on": "ubuntu-24.04-arm",
+      "steps": [
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "26.3.0"
+          }
+        },
+        {
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
+        },
+        {
+          "uses": "actions/checkout@v6"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npx tsc"
+        },
+        {
+          "run": "tsgo"
+        },
+        {
           "run": "npm run cov"
+        },
+        {
+          "run": "npm pack"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
         }
       ]
     },
     "playwright": {
-      "runs-on": "ubuntu-24.04",
+      "runs-on": "ubuntu-24.04-arm",
       "steps": [
         {
           "uses": "actions/setup-node@v6",
@@ -1085,7 +540,7 @@
           "uses": "actions/cache@v5",
           "with": {
             "path": "~/.cache/ms-playwright",
-            "key": "ubuntu-24.04-playwright-1.60.0"
+            "key": "ubuntu-24.04-arm-playwright-1.60.0"
           }
         },
         {

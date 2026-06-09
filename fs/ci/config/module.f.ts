@@ -21,6 +21,12 @@ export const images = {
     }
 } as const
 
+// Bootstrap package version used by generated smoke tests. Keep this on a
+// published FunctionalScript release; do not tie it to package.json's current
+// in-repo version. A separate maintenance job advances this pin.
+// https://www.npmjs.com/package/functionalscript
+export const functionalscript = '0.29.1' as const
+
 // https://bun.sh/
 export const bun = '1.3.14'
 
@@ -33,7 +39,8 @@ export const playwright = '1.60.0'
 // https://nodejs.org/en/download
 export const node = {
     default: '26.3.0',
-    others: ['24.16.0'],
+    node22: '22.22.2',
+    node24: '24.16.0',
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases
