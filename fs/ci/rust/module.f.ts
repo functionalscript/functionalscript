@@ -21,6 +21,9 @@ const cargoTest = (target?: string, config?: string): MetaStep =>
 const cargoClippy = (target?: string): MetaStep =>
     test({ run: `${cargoCommand('clippy', target)} -- -D warnings` })
 
+const cargoReleaseClippy = (target?: string): MetaStep =>
+    test({ run: `${cargoCommand('clippy', target)} --release -- -D warnings` })
+
 const cargoTestPair = (target: string, config?: string): readonly MetaStep[] => {
     const main = cargoCommand('test', target, config)
     return [
@@ -35,7 +38,8 @@ const cargoReleaseTest = (target?: string): MetaStep =>
 const targetChecks = (target?: string): readonly MetaStep[] => [
     cargoTest(target),
     cargoReleaseTest(target),
-    cargoClippy(target)
+    cargoClippy(target),
+    cargoReleaseClippy(target)
 ]
 
 const rustTarget = (target: string): readonly MetaStep[] => [

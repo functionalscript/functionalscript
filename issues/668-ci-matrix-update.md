@@ -44,11 +44,13 @@ Dimensions: 6 jobs (`OS x Architecture`).
 Run:
 
 - Rust:
-  - native target checks: `cargo test`, `cargo test --release`, and
-    `cargo clippy -- -D warnings`;
+  - native target checks: `cargo test`, `cargo test --release`,
+    `cargo clippy -- -D warnings`, and
+    `cargo clippy --release -- -D warnings`;
   - 32-bit target checks only on Intel jobs: `cargo test --target ...`,
-    `cargo test --target ... --release`, and
-    `cargo clippy --target ... -- -D warnings`.
+    `cargo test --target ... --release`,
+    `cargo clippy --target ... -- -D warnings`, and
+    `cargo clippy --target ... --release -- -D warnings`.
 - Node 26:
   - `npm ci`, because each Node-based job validates the lock file before tests;
   - `npm install -g functionalscript@{config.functionalscript}`;
@@ -69,8 +71,9 @@ The first iteration may use native GitHub runner images. Later iterations may us
 - WASM (one job, Rust-based):
   - `cargo fmt -- --check` once, because formatting is source-wide and target-independent;
   - for each WASM target, run the target check group: `cargo test --target ...`,
-    `cargo test --target ... --release`, and
-    `cargo clippy --target ... -- -D warnings`;
+    `cargo test --target ... --release`,
+    `cargo clippy --target ... -- -D warnings`, and
+    `cargo clippy --target ... --release -- -D warnings`;
   - `wasmer`,
   - `wasmtime`.
 - Deno (one job):
@@ -105,12 +108,12 @@ Total: 13 jobs.
   runtime setup (`wasmer`/`wasmtime`); `cargo fmt -- --check` lives there only
   because it is target-independent and should run exactly once rather than in
   every platform job.
-- Treat `cargo test`, `cargo test --release`, and `cargo clippy` as the Rust
-  target-check group. Release tests catch optimization/profile-specific issues,
-  and Clippy analyzes the target-specific compile surface, including `cfg(...)`
-  differences. Each native, 32-bit, and WASM target that gets `cargo test` also
-  gets the matching release test and `cargo clippy` invocation for that same
-  target.
+- Treat the Rust target-check group as the matrix of `cargo test` and
+  `cargo clippy` over both debug and release profiles. Release tests and release
+  Clippy catch optimization/profile-specific issues, and Clippy analyzes the
+  target-specific compile surface, including `cfg(...)` differences. Each
+  native, 32-bit, and WASM target gets all four matching invocations for that
+  same target.
 
 ## Related
 
