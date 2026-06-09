@@ -10,6 +10,8 @@
  * `fs/effects/node`, and concrete method sets such as MCP (i665-mcp), which layer
  * on top of `dispatch`.
  *
+ * https://www.jsonrpc.org/specification
+ *
  * @module
  */
 import { number, string, or, option } from '../../types/rtti/module.f.ts'
@@ -26,6 +28,8 @@ const id = or(string, number, null)
 /**
  * A request or notification envelope. `id` present → request (a response is
  * expected); `id` absent → notification (no response). `params` is optional.
+ *
+ * https://www.jsonrpc.org/specification#request_object
  */
 export const request = {
     jsonrpc,
@@ -54,6 +58,8 @@ export const errorResponse = { jsonrpc, error, id } as const
  * runtime decoder and the static type, with no drift. rtti structs are open
  * (extra keys allowed), so "result XOR error" is not enforced at runtime; in
  * practice the dispatcher only ever constructs one or the other.
+ *
+ * https://www.jsonrpc.org/specification#response_object
  */
 export const response = or(successResponse, errorResponse)
 export type Response = Ts<typeof response>
