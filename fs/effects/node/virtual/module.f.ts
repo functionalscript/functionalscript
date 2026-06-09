@@ -129,7 +129,7 @@ const readdir = (base: string, recursive: boolean) => readOperation((dir, path):
             const isFile = typeof content !== 'object'
             result = [...result, { name, parentPath, isFile }]
             if (!isFile && recursive) {
-                result = [...result, ...f(join(parentPath)(name), content as Dir)]
+                result = [...result, ...f(join(parentPath, name), content as Dir)]
             }
         }
         return result

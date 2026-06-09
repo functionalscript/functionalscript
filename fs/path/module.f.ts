@@ -58,13 +58,13 @@ export const concat: Reduce<string>
 }
 
 /**
- * Joins two path fragments with a single POSIX `/` separator, without
+ * Joins path segments with single POSIX `/` separators, without
  * normalization. Unlike {@link concat}, the result is not parsed/collapsed,
  * so absolute roots and `.`/`..` segments are preserved verbatim. Use this
  * for building paths from already-clean segments (directory walks, store
  * layouts); use {@link concat} when normalization is desired.
  */
-export const join: Reduce<string> = a => b => `${a}/${b}`
+export const join = (...list: readonly string[]): string => list.join('/')
 
 /**
  * Returns `path` relative to `base` with a `./` prefix, or `path` unchanged

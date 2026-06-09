@@ -36,7 +36,7 @@ const toPath = (key: Vec): string => {
     const s = vecToCBase32(key)
     const [a, bc] = split(s)
     const [b, c] = split(bc)
-    return join(prefix)(join(a)(join(b)(c)))
+    return join(prefix, a, b, c)
 }
 
 /**
@@ -49,10 +49,10 @@ export const fileKvStore = (path: string): KvStore<Fs> => ({
     write: (key: Vec, value: Vec): Effect<Fs, void> => {
         const p = toPath(key)
         const parts = parse(p)
-        const dir = join(path)(parts.slice(0, -1).join('/'))
+        const dir = join(path, ...parts.slice(0, -1))
         // TODO: error handling
         return mkdir(dir, { recursive: true })
-            .step(() => writeFile(join(path)(p), value))
+            .step(() => writeFile(join(path, p), value))
             .step(() => pure(undefined))
     },
     list: (): Effect<Fs, readonly Vec[]> =>

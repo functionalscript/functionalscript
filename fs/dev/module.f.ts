@@ -57,7 +57,7 @@ const allFiles = (
             for (const i of unwrap(d)) {
                 const { name } = i
                 if (name.startsWith('.')) { continue }
-                const file = join(p)(name)
+                const file = join(p, name)
                 if (!i.isFile) {
                     if (name === 'node_modules') { continue }
                     result = [...result, load(file)]

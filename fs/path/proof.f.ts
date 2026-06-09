@@ -36,20 +36,28 @@ const concatTest = [
 
 const joinTest = [
     () => {
-        const r = join('a')('b')
+        const r = join('a', 'b')
         if (r !== 'a/b') { throw r }
     },
     () => {
-        const r = join('/abs/root')('x')
+        const r = join('/abs/root', 'x')
         if (r !== '/abs/root/x') { throw r }
     },
     () => {
-        const r = join('a')(join('b')('c'))
-        if (r !== 'a/b/c') { throw r }
+        const r = join('a', 'b', 'c', 'd')
+        if (r !== 'a/b/c/d') { throw r }
     },
     () => {
-        const r = join('')('x')
+        const r = join('', 'x')
         if (r !== '/x') { throw r }
+    },
+    () => {
+        const r = join()
+        if (r !== '') { throw r }
+    },
+    () => {
+        const r = join('only')
+        if (r !== 'only') { throw r }
     },
 ]
 
