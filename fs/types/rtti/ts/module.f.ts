@@ -11,6 +11,7 @@ import { type Equal, primitive, union, printer as tsPrinter } from '../../ts/mod
 import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, ConstObject } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
 import type { Assert } from '../../../asserts/module.f.ts'
+import { type phantomKey } from '../../phantom/module.f.ts'
 
 /**
  * The set of primitive literal types representable as rtti `Const` values.
@@ -84,31 +85,24 @@ export type StructTs<T extends Struct> =
     (keyof RequiredFields<T> extends never ? unknown : RequiredFields<T>)
 
 /**
- * Private unique symbol used as the phantom key in WithOut.
- * A symbol key is excluded from string index signatures ({ readonly [K in string]: Type }),
- * so WithOut<Struct, Out> is valid for any Out regardless of whether Out extends Type.
- */
-declare const withOutKey: unique symbol
-
-/**
- * Attaches a phantom output type `Out` to a schema `S`.
- *
- * `Ts<WithOut<S, Out>>` short-circuits to `Out` via the `withOutKey` branch without
- * recursing through the schema body — solving TS2589 for recursive struct schemas
- * where `StructTs` would otherwise expand infinitely.
- *
- * The `withOutKey` field is phantom: it is `undefined` at runtime and only exists in the
- * type system. Using a unique symbol as the key means it cannot conflict with struct
- * schemas' string index signature (`{ readonly [K in string]: Type }`), so `WithOut`
- * is valid for any schema `S`, not just thunks.
- */
-export type WithOut<S, Out> = S & { readonly [withOutKey]?: Out }
-
-/**
  * Converts a schema `Type` to its corresponding TypeScript type.
  *
  * - `Thunk` → evaluates the returned `Info` via `InfoTs`
  * - `Const` → resolves via `ConstTs` (primitives map to themselves; structs/tuples recurse)
+ *
+ * **Recursive schemas and TS2589:** when a schema is self-referential, `StructTs` would
+ * expand infinitely and TypeScript raises TS2589. Break the cycle by annotating the
+ * schema value with `Phantom<typeof myThunk, MyType>` from `fs/types/phantom/module.f.ts`.
+ * `Ts<>` detects the phantom key and returns `MyType` directly without recursing:
+ *
+ * ```ts
+ * import { type Phantom } from '../types/phantom/module.f.ts'
+ *
+ * type MyType = { readonly self?: MyType }
+ * const myThunk = () => ['const', myConst] as const
+ * export const my: Phantom<typeof myThunk, MyType> = myThunk
+ * // Ts<typeof my>  →  MyType
+ * ```
  *
  * @example
  * ```ts
@@ -123,9 +117,9 @@ export type Ts<T extends Type> =
     // to prevent distributive conditional types from expanding across all branches
     // and hitting TS2589 (type instantiation excessively deep).
     unknown extends T ? Unknown :
-    // Phantom output: if the schema carries a `withOutKey` annotation (via WithOut), return
+    // Phantom output: if the schema carries a phantomKey annotation (via WithOut), return
     // it directly — one indexed-access, no structural walk, no TS2589 for recursive schemas.
-    T extends { readonly [withOutKey]?: infer O } ? Exclude<O, undefined> :
+    T extends { readonly [phantomKey]?: infer O } ? Exclude<O, undefined> :
     T extends () => infer I ? (
         I extends readonly['const', infer C] ? ConstTs<C> :
         // Info0

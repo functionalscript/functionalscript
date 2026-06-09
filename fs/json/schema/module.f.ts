@@ -7,13 +7,14 @@
  * @module
  */
 import { type Const, type Type as RttiType, array, option, or, record, string } from '../../types/rtti/module.f.ts'
-import type { Ts, WithOut } from '../../types/rtti/ts/module.f.ts'
+import type { Ts } from '../../types/rtti/ts/module.f.ts'
+import type { Phantom } from '../../types/phantom/module.f.ts'
 import { unknown as jsonUnknown } from '../module.f.ts'
 
 const unknownThunk = () => ['const', unknownConst] as const
 
 /** rtti schema for a JSON Schema (draft 2020-12) document. */
-export const unknown: WithOut<typeof unknownThunk, UnknownConst> = unknownThunk
+export const unknown: Phantom<typeof unknownThunk, UnknownConst> = unknownThunk
 
 /** A JSON Schema (draft 2020-12) document — the subset of keywords that `toJsonSchema` emits. */
 export type Unknown = Ts<typeof unknown>
