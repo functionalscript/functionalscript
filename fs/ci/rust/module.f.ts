@@ -29,8 +29,12 @@ const cargoTestPair = (target: string, config?: string): readonly MetaStep[] => 
     ]
 }
 
+const cargoReleaseTest = (target?: string): MetaStep =>
+    test({ run: `${cargoCommand('test', target)} --release` })
+
 const targetChecks = (target?: string): readonly MetaStep[] => [
     cargoTest(target),
+    cargoReleaseTest(target),
     cargoClippy(target)
 ]
 
@@ -42,7 +46,6 @@ const rustTarget = (target: string): readonly MetaStep[] => [
 const wasmTarget = (target: string): readonly MetaStep[] => [
     { type: 'rust', target },
     ...targetChecks(target),
-    test({ run: `${cargoCommand('test', target)} --release` }),
     ...cargoTestPair(target, '.cargo/config.wasmer.toml')
 ]
 

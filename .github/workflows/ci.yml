@@ -34,10 +34,16 @@
           "run": "cargo test"
         },
         {
+          "run": "cargo test --release"
+        },
+        {
           "run": "cargo clippy -- -D warnings"
         },
         {
           "run": "cargo test --target i686-unknown-linux-gnu"
+        },
+        {
+          "run": "cargo test --target i686-unknown-linux-gnu --release"
         },
         {
           "run": "cargo clippy --target i686-unknown-linux-gnu -- -D warnings"
@@ -78,6 +84,9 @@
           "run": "cargo test"
         },
         {
+          "run": "cargo test --release"
+        },
+        {
           "run": "cargo clippy -- -D warnings"
         },
         {
@@ -116,6 +125,9 @@
           "run": "cargo test"
         },
         {
+          "run": "cargo test --release"
+        },
+        {
           "run": "cargo clippy -- -D warnings"
         },
         {
@@ -152,6 +164,9 @@
         },
         {
           "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
         },
         {
           "run": "cargo clippy -- -D warnings"
@@ -193,10 +208,16 @@
           "run": "cargo test"
         },
         {
+          "run": "cargo test --release"
+        },
+        {
           "run": "cargo clippy -- -D warnings"
         },
         {
           "run": "cargo test --target i686-pc-windows-msvc"
+        },
+        {
+          "run": "cargo test --target i686-pc-windows-msvc --release"
         },
         {
           "run": "cargo clippy --target i686-pc-windows-msvc -- -D warnings"
@@ -235,6 +256,9 @@
         },
         {
           "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
         },
         {
           "run": "cargo clippy -- -D warnings"
@@ -282,10 +306,10 @@
           "run": "cargo test --target wasm32-wasip1"
         },
         {
-          "run": "cargo clippy --target wasm32-wasip1 -- -D warnings"
+          "run": "cargo test --target wasm32-wasip1 --release"
         },
         {
-          "run": "cargo test --target wasm32-wasip1 --release"
+          "run": "cargo clippy --target wasm32-wasip1 -- -D warnings"
         },
         {
           "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
@@ -297,10 +321,10 @@
           "run": "cargo test --target wasm32-wasip2"
         },
         {
-          "run": "cargo clippy --target wasm32-wasip2 -- -D warnings"
+          "run": "cargo test --target wasm32-wasip2 --release"
         },
         {
-          "run": "cargo test --target wasm32-wasip2 --release"
+          "run": "cargo clippy --target wasm32-wasip2 -- -D warnings"
         },
         {
           "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
@@ -312,10 +336,10 @@
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
-          "run": "cargo clippy --target wasm32-unknown-unknown -- -D warnings"
+          "run": "cargo test --target wasm32-unknown-unknown --release"
         },
         {
-          "run": "cargo test --target wasm32-unknown-unknown --release"
+          "run": "cargo clippy --target wasm32-unknown-unknown -- -D warnings"
         },
         {
           "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
@@ -327,10 +351,10 @@
           "run": "cargo test --target wasm32-wasip1-threads"
         },
         {
-          "run": "cargo clippy --target wasm32-wasip1-threads -- -D warnings"
+          "run": "cargo test --target wasm32-wasip1-threads --release"
         },
         {
-          "run": "cargo test --target wasm32-wasip1-threads --release"
+          "run": "cargo clippy --target wasm32-wasip1-threads -- -D warnings"
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
