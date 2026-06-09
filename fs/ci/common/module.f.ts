@@ -39,6 +39,7 @@ export const gitHubActionSchema = {
         pull_request: option({}),
         merge_group: option({})
     },
+    permissions: record(string),
     jobs: jobsSchema
 } as const satisfies unknown
 

@@ -104,6 +104,9 @@ Total: 13 jobs.
 
 ## Decisions
 
+- Set root workflow permissions to `contents: read`. The generated workflow only
+  needs repository checkout access, and declaring the permission explicitly keeps
+  inherited organization/repository defaults from granting broader write scopes.
 - Keep the Rust canonical job named **WASM**. It owns the WASM target matrix and
   runtime setup (`wasmer`/`wasmtime`); `cargo fmt -- --check` lives there only
   because it is target-independent and should run exactly once rather than in

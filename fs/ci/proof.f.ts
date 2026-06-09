@@ -50,6 +50,8 @@ export const proof = {
     matrixShape: () => {
         const gha = run(true)
         assert(Object.keys(gha.jobs).length === 13, 'expected 13 CI jobs')
+        assert(gha.permissions.contents === 'read', 'expected read-only contents permission')
+        assert(Object.keys(gha.permissions).length === 1, 'expected least-privilege workflow permissions')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu --release')(gha), 'expected Ubuntu Intel i686 release check')
         assert(hasRunInJob('ubuntu-intel', 'cargo clippy --target i686-unknown-linux-gnu -- -D warnings')(gha), 'expected Ubuntu Intel i686 lint')

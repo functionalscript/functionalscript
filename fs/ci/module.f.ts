@@ -53,6 +53,9 @@ export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> =>
                 pull_request: {},
                 merge_group: {},
             },
+            permissions: {
+                contents: 'read',
+            },
             jobs,
         }
         return writeFile('.github/workflows/ci.yml', utf8(JSON.stringify(gha, null, '  ')))

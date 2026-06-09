@@ -4,6 +4,9 @@
     "pull_request": {},
     "merge_group": {}
   },
+  "permissions": {
+    "contents": "read"
+  },
   "jobs": {
     "ubuntu-intel": {
       "runs-on": "ubuntu-24.04",
