@@ -4,12 +4,16 @@ This repository contains both Node.js (TypeScript) and Rust code. Check the [./i
 
 ## Requirements
 
-- Use **Node.js 22 or later**.
+### Container
+
+1. **Node.js 22 or later** should be installed.
+2. **FunctionalScript** should be installed. `npm install -g functionalscript`.
+3. **Rust** should be installed. 
+
+### Dependencies
+
 - Install Node dependencies with `npm ci`.
 - Install Rust dependencies with `cargo fetch`.
-- Install FunctionalScript `npm install -g functionalscript`
-
-If either installation fails, skip all test commands.
 
 ## Update
 
