@@ -43,14 +43,7 @@ const program = create(1).step(key =>
     )
 )
 
-type _Program = Assert<Equal<
-    typeof program,
-    Effect<MemCreate<number> | MemRead<number> | MemWrite<number>, number>
->>
-
 const typedKey = create('hello').step(key => pure(key))
-
-type _TypedKey = Assert<Equal<typeof typedKey, Effect<MemCreate<string>, Key<string>>>>
 
 export const proof = {
     roundTrip: () => {

@@ -15,7 +15,7 @@
 
 import type { Phantom } from '../../types/phantom/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
-import { doFull, pure, type Effect } from '../module.f.ts'
+import { do_, type Effect } from '../module.f.ts'
 
 /** Nominal brand version for memory keys. */
 export type MemKeyHash = '3f114fa6036a8da026b827f0c3e6d901f5e81ad9a320e431ccce31451892d286'
@@ -24,37 +24,24 @@ export type MemKeyHash = '3f114fa6036a8da026b827f0c3e6d901f5e81ad9a320e431ccce31
 export type Key<T> = Phantom<Nominal<'MemKey', MemKeyHash, string>, T>
 
 /** Allocates a fresh memory slot and initializes it with `value`. */
-export type MemCreate<T> = readonly['memCreate', (value: T) => Key<T>]
+export type MemCreate = readonly['memCreate', <T>(value: T) => Key<T>]
 
 /** Reads the current value stored at `key`. */
-export type MemRead<T> = readonly['memRead', (key: Key<T>) => T]
+export type MemRead = readonly['memRead', <T>(key: Key<T>) => T]
 
 /** Replaces the current value stored at `key`. */
-export type MemWrite<T> = readonly['memWrite', (key: Key<T>, value: T) => void]
+export type MemWrite = readonly['memWrite', <T>(key: Key<T>, value: T) => void]
 
-/**
- * All memory operations.
- *
- * Use this union when describing an interpreter that can handle memory effects
- * or when composing memory with another operation set, for example
- * `Effect<NodeOp | MemOp, T>`.
- */
-type MemCreateOp = readonly['memCreate', (value: never) => Key<unknown>]
-
-type MemReadOp = readonly['memRead', (key: never) => unknown]
-
-type MemWriteOp = readonly['memWrite', (key: never, value: never) => void]
-
-export type MemOp = MemCreateOp | MemReadOp | MemWriteOp
+export type MemOp = MemCreate | MemRead | MemWrite
 
 /** Creates a new typed memory slot with `value` as its initial contents. */
-export const create = <T>(value: T): Effect<MemCreate<T>, Key<T>> =>
-    doFull('memCreate', [value], pure)
+export const create =
+    do_('memCreate') as <T>(value: T) => Effect<MemCreate, Key<T>>
 
 /** Reads the current contents of a typed memory slot. */
-export const read = <T>(key: Key<T>): Effect<MemRead<T>, T> =>
-    doFull('memRead', [key], pure)
+export const read =
+    do_('memRead') as <T>(ket: Key<T>) => Effect<MemRead, T>
 
 /** Replaces the current contents of a typed memory slot. */
-export const write = <T>(key: Key<T>, value: T): Effect<MemWrite<T>, void> =>
-    doFull('memWrite', [key, value], pure)
+export const write =
+    do_('memWrite') satisfies <T>(key: Key<T>, value: T) => Effect<MemWrite, void>
