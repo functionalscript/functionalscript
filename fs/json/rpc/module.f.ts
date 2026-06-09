@@ -99,11 +99,11 @@ export const dispatch =
     (handlers: Handlers) =>
     (value: Unknown): Response | null =>
 {
-    const decoded = decodeRequest(value)
-    if (decoded[0] === 'error') {
+    const [t, decoded] = decodeRequest(value)
+    if (t === 'error') {
         return errorResponseOf(null)(invalidRequest)
     }
-    const message = decoded[1]
+    const message = decoded
     const id = message.id
     if (id === undefined) {
         return null
@@ -112,8 +112,8 @@ export const dispatch =
     if (handler === undefined) {
         return errorResponseOf(id)(methodNotFound)
     }
-    const result = handler(message.params)
-    return result[0] === 'ok'
-        ? { jsonrpc, result: result[1], id }
-        : errorResponseOf(id)(result[1])
+    const [t2, result] = handler(message.params)
+    return t2 === 'ok'
+        ? { jsonrpc, result, id }
+        : errorResponseOf(id)(result)
 }
