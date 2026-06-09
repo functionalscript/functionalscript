@@ -1,6 +1,6 @@
 import { pure, type Effect } from '../effects/module.f.ts'
-import { capture, type Capture, type NodeProgramOptions, type Sandbox, type SandboxResult } from '../effects/node/module.f.ts'
-import { emptyState, type JsModule, type State } from '../effects/node/virtual/module.f.ts'
+import type { NodeProgramOptions, Sandbox, SandboxResult } from '../effects/node/module.f.ts'
+import { capture, emptyState, type Capture, type JsModule, type State } from '../effects/node/virtual/module.f.ts'
 import { virtual } from '../effects/node/virtual/module.f.ts'
 import { assert, assertEq, todo } from '../asserts/module.f.ts'
 import {

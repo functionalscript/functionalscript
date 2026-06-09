@@ -8,7 +8,7 @@ import { parse } from '../../../path/module.f.ts'
 import { utf8ToString } from '../../../text/module.f.ts'
 import { isVec, type Vec } from '../../../types/bit_vec/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
-import type { Effect } from '../../module.f.ts'
+import { do_, type Effect } from '../../module.f.ts'
 import { run, type MemOperationMap } from '../../mock/module.f.ts'
 import type { Dirent, IoResult, Module, NodeOp, SandboxResult } from '../module.f.ts'
 
@@ -27,6 +27,20 @@ export type Entity = Vec | Dir | JsModule
 export type Dir = {
     readonly[name in string]?: Entity
 }
+
+
+/**
+ * Structured event-capture operation for virtual-runner assertions.
+ *
+ * This is deliberately scoped to the virtual runner instead of `NodeOp`: real
+ * Node programs do not capture events, while proofs can use this operation to
+ * accumulate structured observations in immutable `State`.
+ */
+export type Capture<T = never> = readonly['capture', (event: T) => void]
+
+/** Emits a structured event into virtual-runner state. */
+export const capture = <T>(event: T): Effect<Capture<T>, void> =>
+    do_<Capture<T>>('capture')(event)
 
 export type State<TCapture = never> = {
     stdout: string
@@ -156,7 +170,7 @@ const rm = operation((dir, path): readonly[Dir, IoResult<void>] => {
     return [rest as Dir, okVoid]
 })
 
-const map = <TCapture>(): MemOperationMap<NodeOp<TCapture>, State<TCapture>> => ({
+const map = <TCapture>(): MemOperationMap<NodeOp | Capture<TCapture>, State<TCapture>> => ({
     all: (state, ...a) => {
         let e: readonly unknown[] = []
         for (const i of a) {
@@ -200,5 +214,5 @@ const map = <TCapture>(): MemOperationMap<NodeOp<TCapture>, State<TCapture>> => 
 })
 
 export const virtual = <TCapture>(state: State<TCapture>) =>
-    <O1 extends NodeOp<TCapture>, T>(effect: Effect<O1, T>): readonly[State<TCapture>, T] =>
+    <O1 extends NodeOp | Capture<TCapture>, T>(effect: Effect<O1, T>): readonly[State<TCapture>, T] =>
     run(map<TCapture>())(state)(effect)

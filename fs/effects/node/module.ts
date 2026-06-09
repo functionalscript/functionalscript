@@ -256,7 +256,6 @@ const fromIo = ({
         sandbox,
         await: awaitPromise,
         write,
-        capture: async event => { void event },
         test: async (ctx, name, expectFailure, test) =>
             ctx.test(name, { expectFailure }, async t => result(test(t))),
     })
