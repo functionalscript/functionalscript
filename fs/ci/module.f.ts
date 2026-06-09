@@ -3,12 +3,11 @@
  *
  * @module
  */
-import { utf8, utf8ToString } from '../text/module.f.ts'
-import { validatePackageJsonText, type PackageJson } from '../dev/package_json/module.f.ts'
+import { utf8 } from '../text/module.f.ts'
 import { pure, type Effect } from '../effects/module.f.ts'
-import { access, readFile, writeFile, type NodeOp } from '../effects/node/module.f.ts'
+import { access, writeFile, type NodeOp } from '../effects/node/module.f.ts'
 import { functionalscript, images } from './config/module.f.ts'
-import { type Architecture, type GitHubAction, type Job, type Jobs, type MetaStep, type Os, architecture, os, test, toSteps, ubuntuArm } from './common/module.f.ts'
+import { type Architecture, type GitHubAction, type Job, type Jobs, type MetaStep, type Os, architecture, os, toSteps, ubuntuArm } from './common/module.f.ts'
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.ts'
 import { nodeMainSteps, nodeVersionJobs } from './node/module.f.ts'
 import { playwrightJob } from './playwright/module.f.ts'
@@ -32,28 +31,6 @@ const job = (
 export type Setup = {
     readonly nodeExtra: (os: Os) => readonly MetaStep[],
 }
-
-const functionalscriptPackageName = 'functionalscript' as const
-type PackageInfo = {
-    readonly functionalscript: boolean,
-}
-
-const fallbackPackageInfo: PackageInfo = {
-    functionalscript: false,
-}
-
-const packageInfoFromPackageJson = ({ name }: PackageJson): PackageInfo => ({
-    functionalscript: name === functionalscriptPackageName,
-})
-
-const packageInfoFromText = (text: string): PackageInfo => {
-    const result = validatePackageJsonText(text)
-    return result[0] === 'ok' ? packageInfoFromPackageJson(result[1]) : fallbackPackageInfo
-}
-
-const readPackageInfo: Effect<NodeOp, PackageInfo> =
-    readFile('package.json')
-    .step(result => pure(result[0] === 'ok' ? packageInfoFromText(utf8ToString(result[1])) : fallbackPackageInfo))
 
 const canonicalJobs = (rust: boolean): Jobs => ({
     ...(rust ? { wasm: ubuntuArm(rustWasmSteps) } : {}),
@@ -82,15 +59,4 @@ export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> =>
             .step(() => pure(0))
     })
 
-const demoCompile = [
-    test({ run: 'fjs compile issues/demo/data/tree.json _tree.f.js' }),
-] as const
-
-const defaultNodeExtra = ({ functionalscript }: PackageInfo) => (): readonly MetaStep[] =>
-    functionalscript ? demoCompile : []
-
-const defaultEffect = (info: PackageInfo): Effect<NodeOp, number> => ci({
-    nodeExtra: defaultNodeExtra(info),
-})
-
-export const main = () => readPackageInfo.step(defaultEffect)
+export const main = () => ci({ nodeExtra: () => [] })

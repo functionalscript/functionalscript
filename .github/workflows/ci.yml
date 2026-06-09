@@ -53,9 +53,6 @@
         },
         {
           "run": "fjs t"
-        },
-        {
-          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
         }
       ]
     },
@@ -94,9 +91,6 @@
         },
         {
           "run": "fjs t"
-        },
-        {
-          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
         }
       ]
     },
@@ -135,9 +129,6 @@
         },
         {
           "run": "fjs t"
-        },
-        {
-          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
         }
       ]
     },
@@ -176,9 +167,6 @@
         },
         {
           "run": "fjs t"
-        },
-        {
-          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
         }
       ]
     },
@@ -227,9 +215,6 @@
         },
         {
           "run": "fjs t"
-        },
-        {
-          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
         }
       ]
     },
@@ -268,9 +253,6 @@
         },
         {
           "run": "fjs t"
-        },
-        {
-          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
         }
       ]
     },

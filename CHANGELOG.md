@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.30.0
 
-- `ci`: breaking change to the public CI generator: split generated workflows into lightweight platform jobs and canonical Ubuntu ARM jobs, pin FunctionalScript smoke-test installs, and expand Rust target checks to include release tests (i668-ci-matrix-update).
+- `ci`: breaking change to the public CI generator: split generated workflows into lightweight platform jobs and canonical Ubuntu ARM jobs, pin FunctionalScript smoke-test installs, remove the repository-specific demo compile step, and expand Rust target checks to include release tests (i668-ci-matrix-update).
 
 ## 0.29.1
 
