@@ -4,7 +4,7 @@
  * @module
  */
 import { todo } from '../../../asserts/module.f.ts'
-import { parse } from '../../../path/module.f.ts'
+import { join, parse } from '../../../path/module.f.ts'
 import { utf8ToString } from '../../../text/module.f.ts'
 import { isVec, type Vec } from '../../../types/bit_vec/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
@@ -129,7 +129,7 @@ const readdir = (base: string, recursive: boolean) => readOperation((dir, path):
             const isFile = typeof content !== 'object'
             result = [...result, { name, parentPath, isFile }]
             if (!isFile && recursive) {
-                result = [...result, ...f(`${parentPath}/${name}`, content as Dir)]
+                result = [...result, ...f(join(parentPath, name), content as Dir)]
             }
         }
         return result

@@ -16,7 +16,7 @@ import {
 import { cmp as strCmp } from '../types/string/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { pure, type Effect } from '../effects/module.f.ts'
-import { relativize, toPosix } from '../path/module.f.ts'
+import { join, relativize, toPosix } from '../path/module.f.ts'
 
 export type Module = {
     readonly proof?: unknown
@@ -57,7 +57,7 @@ const allFiles = (
             for (const i of unwrap(d)) {
                 const { name } = i
                 if (name.startsWith('.')) { continue }
-                const file = `${p}/${name}`
+                const file = join(p, name)
                 if (!i.isFile) {
                     if (name === 'node_modules') { continue }
                     result = [...result, load(file)]

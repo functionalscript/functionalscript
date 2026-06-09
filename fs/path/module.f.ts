@@ -5,8 +5,7 @@
  */
 import type { Fold, Reduce, Unary } from '../types/function/operator/module.f.ts'
 import { type List, fold, last, take, length, concat as listConcat, toArray } from '../types/list/module.f.ts'
-import { join } from '../types/string/module.f.ts'
-import { concat as stringConcat } from '../types/string/module.f.ts'
+import { join as listJoin, concat as stringConcat } from '../types/string/module.f.ts'
 
 const foldNormalizeOp: Fold<string, List<string>>
 = input => state => {
@@ -46,7 +45,7 @@ export const parse = (path: string): readonly string[] => {
 export const normalize: Unary<string, string>
 = path => {
     const foldResult = parse(path)
-    return join('/')(foldResult)
+    return listJoin('/')(foldResult)
 }
 
 /**
@@ -57,6 +56,15 @@ export const concat: Reduce<string>
     const s = stringConcat([a, '/', b])
     return normalize(s)
 }
+
+/**
+ * Joins path segments with single POSIX `/` separators, without
+ * normalization. Unlike {@link concat}, the result is not parsed/collapsed,
+ * so absolute roots and `.`/`..` segments are preserved verbatim. Use this
+ * for building paths from already-clean segments (directory walks, store
+ * layouts); use {@link concat} when normalization is desired.
+ */
+export const join = (...list: readonly string[]): string => list.join('/')
 
 /**
  * Returns `path` relative to `base` with a `./` prefix, or `path` unchanged
