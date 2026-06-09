@@ -1,7 +1,7 @@
 # 668-path-join-segments. `fs/path`: own segment joining instead of inline `` `${a}/${b}` ``
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ## Problem
 
