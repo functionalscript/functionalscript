@@ -18,7 +18,7 @@ import { validate } from '../../types/rtti/validate/module.f.ts'
 import type { Result } from '../../types/result/module.f.ts'
 import { unknown, type Unknown } from '../module.f.ts'
 
-const jsonrpc = '2.0' as const
+export const jsonrpc = '2.0' as const
 
 /** Request/response identifier: a string, a number, or `null`. */
 const id = or(string, number, null)

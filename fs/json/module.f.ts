@@ -33,7 +33,7 @@ export const primitive = or(null, rttiBoolean, rttiNumber, rttiString)
 export const unknown = () => ['or', primitive, object, array] as const
 
 /** rtti schema matching a JSON object: `{ readonly [k: string]: Unknown }`. */
-export const object = record(unknown)
+export const object = record(or(unknown, undefined))
 
 /** rtti schema matching a JSON array: `readonly Unknown[]`. */
 export const array = rttiArray(unknown)

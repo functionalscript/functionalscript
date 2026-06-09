@@ -21,6 +21,7 @@ import {
     decodeRequest,
     rpcError, invalidRequest, invalidParams, methodNotFound,
     type Response, type Id, type RpcError,
+    jsonrpc,
 } from '../json/rpc/module.f.ts'
 import { validate } from '../types/rtti/validate/module.f.ts'
 
@@ -113,13 +114,11 @@ export type Handle<O extends Operation> = (value: Unknown) => Effect<O, Response
 
 // ── Lifecycle / capability state machine ───────────────────────────────────────
 
-const _jsonrpc = '2.0' as const
-
 const _errResponse = (id: Id) => (e: RpcError): Response =>
-    ({ jsonrpc: _jsonrpc, error: e, id })
+    ({ jsonrpc, error: e, id })
 
-const _okResponse = (id: Id) => (result: unknown): Response =>
-    ({ jsonrpc: _jsonrpc, result: result as Unknown, id })
+const _okResponse = (id: Id) => (result: Unknown): Response =>
+    ({ jsonrpc, result, id })
 
 /** MCP error -32002: the client called a method before `initialize`. */
 export const notInitialized = rpcError(-32002)('Server not initialized')
@@ -165,24 +164,21 @@ export const mcpStep = <O extends Operation>(config: McpConfig) =>
     (handlers: McpHandlers<O>) =>
     (state: McpSessionState) =>
     (value: Unknown): readonly [McpSessionState, Effect<O, Response | null>] => {
-        const decoded = decodeRequest(value)
-        if (decoded[0] === 'error') {
+        const [t, message] = decodeRequest(value)
+        if (t === 'error') {
             return [state, pure(_errResponse(null)(invalidRequest))]
         }
-        const message = decoded[1]
-        const msgId = message.id
+        const { id, method, params } = message
 
         // Notifications never receive a response; state is unchanged.
-        if (msgId === undefined) {
+        if (id === undefined) {
             return [state, pure(null)]
         }
 
-        const id: Id = msgId
-
         // `initialize` is always handled by the lifecycle layer itself.
-        if (message.method === 'initialize') {
-            const pr = validate(initializeParams)(message.params)
-            if (pr[0] === 'error') {
+        if (method === 'initialize') {
+            const [pr] = validate(initializeParams)(params)
+            if (pr === 'error') {
                 return [state, pure(_errResponse(id)(invalidParams))]
             }
             const newInitialized: InitializedState = {
@@ -208,14 +204,14 @@ export const mcpStep = <O extends Operation>(config: McpConfig) =>
 
         const { capabilities } = state[1]
 
-        if (message.method === 'tools/list') {
+        if (method === 'tools/list') {
             if (capabilities.tools === undefined) {
                 return [state, pure(_errResponse(id)(methodNotFound))]
             }
             return [state, handlers.toolsList().step(r => pure(_okResponse(id)(r)))]
         }
 
-        if (message.method === 'tools/call') {
+        if (method === 'tools/call') {
             if (capabilities.tools === undefined) {
                 return [state, pure(_errResponse(id)(methodNotFound))]
             }

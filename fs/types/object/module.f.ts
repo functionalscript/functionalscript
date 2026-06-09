@@ -18,7 +18,7 @@ export type Map<T> = {
 
 export type Entry<T> = readonly[string, T]
 
-export const at: (name: string) => <T>(object: Map<T>) => T|null
+export const at: (name: string) => <T>(object: Map<T>) => Exclude<T, undefined>|null
     = name => object =>
         map(<T>(d: TypedPropertyDescriptor<T>) => d.value)(fromUndefined(getOwnPropertyDescriptor(object, name)))
 
