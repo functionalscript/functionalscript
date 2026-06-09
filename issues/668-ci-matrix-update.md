@@ -67,9 +67,13 @@ The first iteration may use native GitHub runner images. Later iterations may us
   - `wasmer`,
   - `wasmtime`.
 - Deno (one job):
+  - install/cache `functionalscript@${fs.version}` before checkout with `deno install -g -A npm:functionalscript@${fs.version}`;
+  - `deno install --frozen` to validate the lock file before tests;
   - `deno run -A npm:functionalscript@${fs.version} t`,
   - `deno test -A && deno coverage --include='.*module\\.f\\.ts'`.
 - Bun (one job):
+  - install/cache `functionalscript@${fs.version}` before checkout with `bun install -g functionalscript@${fs.version}`;
+  - `bun install --frozen-lockfile` to validate the lock file before tests;
   - `bunx functionalscript@${fs.version} t`,
   - `bun test --coverage`.
 - Node:

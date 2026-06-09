@@ -97,7 +97,11 @@ export const proof = {
         packageVersion: () => {
             const gha = runDefault('{"name":"other-package","version":"1.2.3"}')
             assert(hasRun('npm install -g functionalscript@1.2.3')(gha), 'expected package-version platform install')
+            assert(hasRun('deno install -g -A npm:functionalscript@1.2.3')(gha), 'expected package-version deno install cache')
+            assert(hasRun('deno install --frozen')(gha), 'expected deno lock install')
             assert(hasRun('deno run -A npm:functionalscript@1.2.3 t')(gha), 'expected package-version deno install')
+            assert(hasRun('bun install -g functionalscript@1.2.3')(gha), 'expected package-version bun cache')
+            assert(hasRun('bun install --frozen-lockfile')(gha), 'expected bun lock install')
             assert(hasRun('bunx functionalscript@1.2.3 t')(gha), 'expected package-version bun install')
         },
         malformedPackageJsonFallback: () => {
