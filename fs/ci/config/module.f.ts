@@ -21,6 +21,9 @@ export const images = {
     }
 } as const
 
+// https://www.npmjs.com/package/functionalscript
+export const functionalscript = '0.29.1' as const
+
 // https://bun.sh/
 export const bun = '1.3.14'
 

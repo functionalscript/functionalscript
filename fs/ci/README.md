@@ -15,7 +15,7 @@ with the latest matrix of jobs and steps.
 - `common/module.f.ts` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`, `clean`).
-- `config/module.f.ts` — runner image matrix (OS × architecture → GitHub-hosted image name).
+- `config/module.f.ts` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests.
 - `node/module.f.ts` — Node.js job steps: `setup-node`, `npm ci`, basic test commands,
   per-version job matrix, and the TypeScript native preview (`tsgo`) step.
 - `rust/module.f.ts` — Rust toolchain setup and `cargo` build/test steps.
@@ -78,11 +78,12 @@ package has been installed. Custom projects that need different runtime setup st
 should use `fjs r <custom-ci-module>` and call `ci(setup)` directly instead of
 modifying the built-in command.
 
-The built-in command reads `package.json` while generating the workflow. The
-FunctionalScript repository keeps an extra demo compile step for
-`issues/demo/data/tree.json`; other packages do not get that repository-specific
-step. The package name is also used when the workflow uninstalls the tarball it
-installed globally during the pack/install self-check.
+The built-in command reads `package.json` while generating the workflow only to
+recognize the FunctionalScript repository package name. The FunctionalScript
+repository keeps an extra demo compile step for `issues/demo/data/tree.json`;
+other packages do not get that repository-specific step. The FunctionalScript
+package version used by generated Node, Deno, and Bun smoke tests is pinned in
+`config/module.f.ts`, not read from `package.json`.
 
 ## Customisation
 
@@ -91,8 +92,6 @@ installed globally during the pack/install self-check.
 ```ts
 export type Setup = {
     readonly nodeExtra: (os: Os) => readonly MetaStep[]
-    readonly denoExtra: readonly MetaStep[]
-    readonly bunExtra: readonly MetaStep[]
 }
 ```
 

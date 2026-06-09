@@ -1,4 +1,5 @@
 import { ci, main } from './module.f.ts'
+import { functionalscript } from './config/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
@@ -34,7 +35,7 @@ const workflow = (state: State): GitHubAction => {
 }
 
 const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): GitHubAction => {
-    const [state, result] = virtual(makeState(rust))(ci({ version: '0.0.0', nodeExtra }))
+    const [state, result] = virtual(makeState(rust))(ci({ nodeExtra }))
     assert(result === 0, result)
     return workflow(state)
 }
@@ -85,44 +86,44 @@ export const proof = {
             const gha = runDefault('{"name":"functionalscript"}')
             assert(hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'expected fjs demo compile')
             assert(hasRun('fjs t')(gha), 'expected fjs self-test')
-            assert(hasRun('deno run -A npm:functionalscript@latest t')(gha), 'expected deno self-test')
-            assert(hasRun('bunx functionalscript@latest t')(gha), 'expected bun self-test')
+            assert(hasRun(`deno run -A npm:functionalscript@${functionalscript} t`)(gha), 'expected deno self-test')
+            assert(hasRun(`bunx functionalscript@${functionalscript} t`)(gha), 'expected bun self-test')
         },
         otherPackageNoDemo: () => {
             const gha = runDefault('{"name":"other-package"}')
             assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(hasRun('deno run -A npm:functionalscript@latest t')(gha), 'expected canonical deno self-test')
-            assert(hasRun('bunx functionalscript@latest t')(gha), 'expected canonical bun self-test')
+            assert(hasRun(`deno run -A npm:functionalscript@${functionalscript} t`)(gha), 'expected canonical deno self-test')
+            assert(hasRun(`bunx functionalscript@${functionalscript} t`)(gha), 'expected canonical bun self-test')
         },
-        packageVersion: () => {
+        configuredPackageVersion: () => {
             const gha = runDefault('{"name":"other-package","version":"1.2.3"}')
-            assert(hasRun('npm install -g functionalscript@1.2.3')(gha), 'expected package-version platform install')
-            assert(hasRun('deno install -g -A npm:functionalscript@1.2.3')(gha), 'expected package-version deno install cache')
+            assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version platform install')
+            assert(hasRun(`deno install -g -A npm:functionalscript@${functionalscript}`)(gha), 'expected configured-version deno install cache')
             assert(hasRun('deno install --frozen')(gha), 'expected deno lock install')
-            assert(hasRun('deno run -A npm:functionalscript@1.2.3 t')(gha), 'expected package-version deno install')
-            assert(hasRun('bun install -g functionalscript@1.2.3')(gha), 'expected package-version bun cache')
+            assert(hasRun(`deno run -A npm:functionalscript@${functionalscript} t`)(gha), 'expected configured-version deno install')
+            assert(hasRun(`bun install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version bun cache')
             assert(hasRun('bun install --frozen-lockfile')(gha), 'expected bun lock install')
-            assert(hasRun('bunx functionalscript@1.2.3 t')(gha), 'expected package-version bun install')
+            assert(hasRun(`bunx functionalscript@${functionalscript} t`)(gha), 'expected configured-version bun install')
         },
         malformedPackageJsonFallback: () => {
             const gha = runDefault('{')
             assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(hasRun('npm install -g functionalscript@latest')(gha), 'expected fallback install')
+            assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected fallback install')
         },
         missingPackageJsonFallback: () => {
             const gha = runDefault()
             assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(hasRun('npm install -g functionalscript@latest')(gha), 'expected fallback install')
+            assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected fallback install')
         },
         missingNameFallback: () => {
             const gha = runDefault('{"version":"1.0.0"}')
             assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(hasRun('npm install -g functionalscript@1.0.0')(gha), 'expected package-version fallback install')
+            assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version fallback install')
         },
         nonObjectFallback: () => {
             const gha = runDefault('[]')
             assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(hasRun('npm install -g functionalscript@latest')(gha), 'expected fallback install')
+            assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected fallback install')
         },
     },
 }

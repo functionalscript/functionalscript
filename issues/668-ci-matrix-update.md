@@ -48,7 +48,7 @@ Run:
   - 32-bit target checks only on Intel jobs: `cargo test --target ...` and
     `cargo clippy --target ... -- -D warnings`.
 - Node 26:
-  - `npm install -g functionalscript@{fs.version}`  
+  - `npm install -g functionalscript@{config.functionalscript}`
   - `fjs t`
 
 `fjs t` exercises FunctionalScript proof discovery, module loading, and
@@ -67,14 +67,14 @@ The first iteration may use native GitHub runner images. Later iterations may us
   - `wasmer`,
   - `wasmtime`.
 - Deno (one job):
-  - install/cache `functionalscript@${fs.version}` before checkout with `deno install -g -A npm:functionalscript@${fs.version}`;
+  - install/cache `functionalscript@${config.functionalscript}` before checkout with `deno install -g -A npm:functionalscript@${config.functionalscript}`;
   - `deno install --frozen` to validate the lock file before tests;
-  - `deno run -A npm:functionalscript@${fs.version} t`,
+  - `deno run -A npm:functionalscript@${config.functionalscript} t`,
   - `deno test -A && deno coverage --include='.*module\\.f\\.ts'`.
 - Bun (one job):
-  - install/cache `functionalscript@${fs.version}` before checkout with `bun install -g functionalscript@${fs.version}`;
+  - install/cache `functionalscript@${config.functionalscript}` before checkout with `bun install -g functionalscript@${config.functionalscript}`;
   - `bun install --frozen-lockfile` to validate the lock file before tests;
-  - `bunx functionalscript@${fs.version} t`,
+  - `bunx functionalscript@${config.functionalscript} t`,
   - `bun test --coverage`.
 - Node:
   - 22 (one job, for environments that cannot yet use Node 24+, including OpenAI Codex. Note, we can't use `node --test --experimental-strip-types` because Node22 doesn't support subtests properly):
