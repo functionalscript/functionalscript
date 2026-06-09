@@ -14,13 +14,15 @@ The scenario type will evolve as more complex cases are encountered rather than 
 
 ```ts
 type Scenario<O extends Operation, R> = {
-    readonly state: InitialState   // files, env vars, network
+    readonly state: InitialState        // pure data description of files, env vars, etc.
     readonly effect: Effect<O, R>
-    readonly expected: R
+    readonly expected: Effect<O, void>  // reads resulting state and checks hypotheses
 }
 ```
 
-`InitialState` is a pure data description of the starting conditions (files, env vars, etc.). The test and scenario runners read it and apply it to either a virtual or real system — the scenario itself has no knowledge of which.
+`InitialState` is a pure data description of the starting conditions. The test and scenario runners read it and apply it to either a virtual or real system — the scenario itself has no knowledge of which.
+
+`expected` is an effect rather than a plain value so it can read the resulting state after `effect` has been applied, allowing complex post-condition checks (e.g. assert a file was written with specific contents).
 
 The two interpreters test different things:
 - The mock tells you the logic is correct.
