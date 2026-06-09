@@ -1,7 +1,7 @@
 # 166. Capture reporter in `./fs/emergent_testing/test.f.ts` must not use mutable arrays
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 

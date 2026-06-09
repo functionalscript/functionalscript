@@ -1,6 +1,6 @@
 import { pure, type Effect } from '../effects/module.f.ts'
-import type { NodeProgramOptions, Sandbox, SandboxResult } from '../effects/node/module.f.ts'
-import { emptyState, type JsModule } from '../effects/node/virtual/module.f.ts'
+import { capture, type Capture, type NodeProgramOptions, type Sandbox, type SandboxResult } from '../effects/node/module.f.ts'
+import { emptyState, type JsModule, type State } from '../effects/node/virtual/module.f.ts'
 import { virtual } from '../effects/node/virtual/module.f.ts'
 import { assert, assertEq, todo } from '../asserts/module.f.ts'
 import {
@@ -17,17 +17,13 @@ type Event =
     | readonly ['result', string, Path, SandboxResult<unknown>]
     | readonly ['summary', number, number, number]
 
-type TestReporter = Reporter<Sandbox>
+type TestReporter = Reporter<Sandbox | Capture<Event>>
 
-const makeReporter = (): readonly [TestReporter, () => readonly Event[]] => {
-    const events: Event[] = []
-    const reporter: TestReporter = {
-        result: (file, path, r, _throws) => { events.push(['result', file, [...path], r]); return pure(undefined) },
-        summary: (pass, fail, time) => { events.push(['summary', pass, fail, time]); return pure(undefined) },
-        test: defaultTest,
-    }
-    return [reporter, () => events]
-}
+const makeReporter = (): TestReporter => ({
+    result: (file, path, r, _throws) => capture<Event>(['result', file, [...path], r]),
+    summary: (pass, fail, time) => capture<Event>(['summary', pass, fail, time]),
+    test: defaultTest,
+})
 
 const noopTestContext = { test: todo }
 
@@ -46,10 +42,10 @@ const fail0 = (): unknown => ({ result: ['error', 'oops'] as const, duration: 0 
 const ok1 = (): unknown => ({ result: ['ok', undefined] as const, duration: 1 })
 
 const run = (dir: Record<string, JsModule>, initCwd = '.'): readonly [readonly Event[], number] => {
-    const [reporter, getEvents] = makeReporter()
-    const state = { ...emptyState, root: dir }
-    const [, exitCode] = virtual(state)(testAll(reporter)(options(initCwd)))
-    return [getEvents(), exitCode]
+    const reporter = makeReporter()
+    const state: State<Event> = { ...emptyState, root: dir, events: [] }
+    const [finalState, exitCode] = virtual(state)(testAll(reporter)(options(initCwd)))
+    return [finalState.events, exitCode]
 }
 
 // Runs the real `defaultReporter` and returns its captured stdout/stderr so the

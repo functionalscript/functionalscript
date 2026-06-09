@@ -2,7 +2,7 @@
  * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
  * `writeFile`, `rm`, `access`), networking (`fetch`, `createServer`, `listen`),
  * subprocess `exec`, `log`/`error` (wrappers over `write`), `import_`, `now`,
- * `sandbox`, `forever`, and `all`/`both` parallelism; defines the
+ * `sandbox`, test-only `capture`, `forever`, and `all`/`both` parallelism; defines the
  * `NodeOp`/`NodeProgram` types used by the Node runner.
  *
  * @module
@@ -271,6 +271,19 @@ const awaitPromise: Func<Await> = do_('await')
 
 export const awaitIfPromise = (p: unknown) => awaitPromise(p).step(([x]) => pure(x))
 
+// capture
+
+/**
+ * Records a structured event in a virtual Node runner. Real Node runners ignore
+ * this operation; it exists so proofs can observe reporter output without
+ * mutable local accumulators or lossy string serialization.
+ */
+export type Capture<T = never> = readonly['capture', (event: T) => void]
+
+/** Emits a structured event for virtual-runner assertions. */
+export const capture = <T>(event: T): Effect<Capture<T>, void> =>
+    do_<Capture<T>>('capture')(event)
+
 // Test registration
 
 /**
@@ -302,7 +315,7 @@ export const test: Func<Test> = do_('test')
 
 // Node
 
-export type NodeOp =
+export type NodeOp<TCapture = never> =
     | All
     | Await
     | Fetch
@@ -313,6 +326,7 @@ export type NodeOp =
     | Now
     | Sandbox
     | Write
+    | Capture<TCapture>
     | Test
 
 export type NodeEffect<T> = Effect<NodeOp, T>

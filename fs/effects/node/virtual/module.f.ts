@@ -8,7 +8,8 @@ import { parse } from '../../../path/module.f.ts'
 import { utf8ToString } from '../../../text/module.f.ts'
 import { isVec, type Vec } from '../../../types/bit_vec/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
-import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
+import type { Effect } from '../../module.f.ts'
+import { run, type MemOperationMap } from '../../mock/module.f.ts'
 import type { Dirent, IoResult, Module, NodeOp, SandboxResult } from '../module.f.ts'
 
 /**
@@ -27,9 +28,10 @@ export type Dir = {
     readonly[name in string]?: Entity
 }
 
-export type State = {
+export type State<TCapture = never> = {
     stdout: string
     stderr: string
+    events: readonly TCapture[]
     root: Dir
     internet: {
         readonly[url: string]: Vec
@@ -40,6 +42,7 @@ export type State = {
 export const emptyState: State = {
     stdout: '',
     stderr: '',
+    events: [],
     root: {},
     internet: {},
     epochNs: 0,
@@ -61,7 +64,7 @@ const operation =
         const [newSubDir, r] = f(subDir, rest)
         return [{ ...dir, [first]: newSubDir }, r]
     }
-    return (state: State, path: string) => {
+    return <TCapture>(state: State<TCapture>, path: string) => {
         const [root, result] = f(state.root, parse(path))
         return [{ ...state, root }, result] as const
     }
@@ -153,7 +156,7 @@ const rm = operation((dir, path): readonly[Dir, IoResult<void>] => {
     return [rest as Dir, okVoid]
 })
 
-const map: MemOperationMap<NodeOp, State> = {
+const map = <TCapture>(): MemOperationMap<NodeOp<TCapture>, State<TCapture>> => ({
     all: (state, ...a) => {
         let e: readonly unknown[] = []
         for (const i of a) {
@@ -189,10 +192,13 @@ const map: MemOperationMap<NodeOp, State> = {
     sandbox: (state, f) => [state, f() as SandboxResult<unknown>],
     await: (state, p) => [state, [p]],
     test: todo,
+    capture: (state, event) => [{ ...state, events: [...state.events, event] }, undefined],
     write: (state, stream, data) => {
         const s = utf8ToString(data)
         return [{ ...state, [stream]: `${state[stream]}${s}` }, undefined] as const
     },
-}
+})
 
-export const virtual: RunInstance<NodeOp, State> = run(map)
+export const virtual = <TCapture>(state: State<TCapture>) =>
+    <O1 extends NodeOp<TCapture>, T>(effect: Effect<O1, T>): readonly[State<TCapture>, T] =>
+    run(map<TCapture>())(state)(effect)
