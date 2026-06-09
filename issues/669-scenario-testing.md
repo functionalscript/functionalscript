@@ -30,6 +30,10 @@ Both failure modes are distinct and complementary — a scenario that passes bot
 
 The mock interpreter must be faithful to the real one. If they drift (e.g. file path casing differences on Windows), scenarios pass locally but fail in CI — the exact problem this design is meant to prevent. Ideally the mock is derived from the same spec as the real interpreter.
 
+## Migration path
+
+Existing proof tests that use the virtual filesystem interpreter are already implicit scenarios — they have a state (`emptyState + root: dir`), an effect (`testAll(reporter)(options(...))`), and an expected result (exit code + events). Once the formal `Scenario` type is defined, these tests can be lifted into it directly, replacing the ad-hoc `run()` / `runMain()` helpers in `proof.f.ts` with typed scenario declarations.
+
 ## Plan
 
 - [ ] Define the `Scenario` type and `InitialState` effect in `fs/testing/scenario/module.f.ts`.
