@@ -41,7 +41,7 @@ The MCP session state itself (`McpSessionState`) is better kept as explicit stat
 
 ## Future extensions
 
-The initial design stores scalar or plain-object values. In the future we may provide richer mutable value types — for example, a mutable map `Key<Map<K, V>>` where individual entries can be updated without replacing the whole value. This would allow more efficient operations on large collections without requiring a full read-modify-write cycle.
+The initial design stores scalar or plain-object values. In the future we may support richer value types — for example, a mutable cell holding an immutable map or set (e.g. `Key<BTree<K, V>>` from `fs/types/btree`). Each `write` replaces the whole value, but because the stored value is itself immutable and structurally shared, this is efficient. In the future we may provide richer mutable value types — for example, a mutable map `Key<Map<K, V>>` where individual entries can be updated without replacing the whole value. This would allow more efficient operations on large collections without requiring a full read-modify-write cycle.
 
 ## Plan
 
