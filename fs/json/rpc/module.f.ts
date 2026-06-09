@@ -84,8 +84,8 @@ export const methodNotFound = rpcError(-32601)('Method not found')
 export const invalidParams = rpcError(-32602)('Invalid params')
 export const internalError = rpcError(-32603)('Internal error')
 
-const errorResponseOf = (id: Id) => (e: RpcError): Response =>
-    ({ jsonrpc, error: e, id })
+const errorResponseOf = (id: Id) => (error: RpcError): Response =>
+    ({ jsonrpc, error, id })
 
 /**
  * Dispatches an already-parsed JSON-RPC value against `handlers`.
@@ -99,20 +99,19 @@ export const dispatch =
     (handlers: Handlers) =>
     (value: Unknown): Response | null =>
 {
-    const [t, decoded] = decodeRequest(value)
+    const [t, message] = decodeRequest(value)
     if (t === 'error') {
         return errorResponseOf(null)(invalidRequest)
     }
-    const message = decoded
-    const id = message.id
+    const { id, method, params } = message
     if (id === undefined) {
         return null
     }
-    const handler: Handler | undefined = handlers[message.method]
+    const handler: Handler | undefined = handlers[method]
     if (handler === undefined) {
         return errorResponseOf(id)(methodNotFound)
     }
-    const [t2, result] = handler(message.params)
+    const [t2, result] = handler(params)
     return t2 === 'ok'
         ? { jsonrpc, result, id }
         : errorResponseOf(id)(result)
