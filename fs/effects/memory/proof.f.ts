@@ -69,4 +69,8 @@ export const proof = {
         // const e = create(1).step(k => write(k, 'bad').step(() => read(k)))
         const e = create(1).step(k => write(k, 5).step(() => read(k)))
     },
+    throw: () => {
+        const key: Key<number> = asNominal('missing')
+        run(mock)(initial)(write(key, 1))
+    },
 }
