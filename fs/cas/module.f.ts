@@ -4,7 +4,7 @@
  * @module
  */
 import { computeSync, sha256, type Sha2 } from '../crypto/sha2/module.f.ts'
-import { parse } from '../path/module.f.ts'
+import { join, parse } from '../path/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
@@ -36,7 +36,7 @@ const toPath = (key: Vec): string => {
     const s = vecToCBase32(key)
     const [a, bc] = split(s)
     const [b, c] = split(bc)
-    return `${prefix}/${a}/${b}/${c}`
+    return join(prefix, a, b, c)
 }
 
 /**
@@ -49,10 +49,10 @@ export const fileKvStore = (path: string): KvStore<Fs> => ({
     write: (key: Vec, value: Vec): Effect<Fs, void> => {
         const p = toPath(key)
         const parts = parse(p)
-        const dir = `${path}/${parts.slice(0, -1).join('/')}`
+        const dir = join(path, ...parts.slice(0, -1))
         // TODO: error handling
         return mkdir(dir, { recursive: true })
-            .step(() => writeFile(`${path}/${p}`, value))
+            .step(() => writeFile(join(path, p), value))
             .step(() => pure(undefined))
     },
     list: (): Effect<Fs, readonly Vec[]> =>
