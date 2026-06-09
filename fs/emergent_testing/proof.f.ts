@@ -1,5 +1,5 @@
 import { pure, type Effect } from '../effects/module.f.ts'
-import type { NodeProgramOptions, Sandbox, SandboxResult } from '../effects/node/module.f.ts'
+import { log, type NodeProgramOptions, type Sandbox, type SandboxResult, type Write } from '../effects/node/module.f.ts'
 import { emptyState, type JsModule } from '../effects/node/virtual/module.f.ts'
 import { virtual } from '../effects/node/virtual/module.f.ts'
 import { assert, assertEq, todo } from '../asserts/module.f.ts'
@@ -17,17 +17,18 @@ type Event =
     | readonly ['result', string, Path, SandboxResult<unknown>]
     | readonly ['summary', number, number, number]
 
-type TestReporter = Reporter<Sandbox>
+type TestReporter = Reporter<Sandbox | Write>
 
-const makeReporter = (): readonly [TestReporter, () => readonly Event[]] => {
-    const events: Event[] = []
-    const reporter: TestReporter = {
-        result: (file, path, r, _throws) => { events.push(['result', file, [...path], r]); return pure(undefined) },
-        summary: (pass, fail, time) => { events.push(['summary', pass, fail, time]); return pure(undefined) },
-        test: defaultTest,
-    }
-    return [reporter, () => events]
-}
+const writeEvent = (event: Event) => log(JSON.stringify(event))
+
+const parseEvents = (stdout: string): readonly Event[] =>
+    stdout === '' ? [] : stdout.trimEnd().split('\n').map(line => JSON.parse(line))
+
+const makeReporter = (): TestReporter => ({
+    result: (file, path, r, _throws) => writeEvent(['result', file, [...path], r]),
+    summary: (pass, fail, time) => writeEvent(['summary', pass, fail, time]),
+    test: defaultTest,
+})
 
 const noopTestContext = { test: todo }
 
@@ -46,10 +47,10 @@ const fail0 = (): unknown => ({ result: ['error', 'oops'] as const, duration: 0 
 const ok1 = (): unknown => ({ result: ['ok', undefined] as const, duration: 1 })
 
 const run = (dir: Record<string, JsModule>, initCwd = '.'): readonly [readonly Event[], number] => {
-    const [reporter, getEvents] = makeReporter()
+    const reporter = makeReporter()
     const state = { ...emptyState, root: dir }
-    const [, exitCode] = virtual(state)(testAll(reporter)(options(initCwd)))
-    return [getEvents(), exitCode]
+    const [finalState, exitCode] = virtual(state)(testAll(reporter)(options(initCwd)))
+    return [parseEvents(finalState.stdout), exitCode]
 }
 
 // Runs the real `defaultReporter` and returns its captured stdout/stderr so the
