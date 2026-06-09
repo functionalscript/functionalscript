@@ -14,6 +14,8 @@ The key insight: it matters far more that the *published package* works on every
 
 Scenarios are expressed as FunctionalScript modules. A scenario module exports a `main` (a `NodeProgram`) that receives the environment and args and returns an effect. The CI generator reads a scenario list and emits one job per scenario.
 
+See [669-scenario-testing.md](669-scenario-testing.md) for the scenario design — each scenario is a declarative description of initial state, an effect, and an expected result that can be run as either a unit test (mock interpreter) or a real CI job.
+
 Open questions:
 - Where do scenario modules live? (`issues/demo/` style, or a dedicated `fs/ci/scenarios/` directory?)
 - How does a scenario declare which runtime(s) it targets (Node, Deno, Bun)?
