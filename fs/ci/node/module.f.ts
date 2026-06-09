@@ -44,7 +44,7 @@ const node24Steps: readonly MetaStep[] = clean([
 
 const node26Steps: readonly MetaStep[] = clean([
     ...nodeInstall(node.default),
-    install({ run: `npm install -g @typescript/native-preview@${tsgo}`}),
+    install({ run: `npm install -g @typescript/native-preview@${tsgo}` }),
     test({ run: 'npx tsc' }),
     test({ run: 'tsgo' }),
     test({ run: 'npm run cov' }),
