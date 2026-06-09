@@ -13,24 +13,30 @@ A key-value store effect for mutable state that persists across multiple effect 
 import type { Phantom } from '../types/phantom/module.f.ts'
 import type { Nominal } from '../types/nominal/module.f.ts'
 
-type Key<T> = Phantom<Nominal<'MemKey', 'key', string>, T>
+type Key<T> = Phantom<Nominal<'MemKey', '3f114fa6036a8da026b827f0c3e6d901f5e81ad9a320e431ccce31451892d286', string>, T>
 ```
 
-- `Nominal<'MemKey', 'key', string>` makes keys opaque — prevents accidental use of arbitrary strings as keys and insulates callers from future representation changes (`number`, `bigint`, etc.).
+- `Nominal<'MemKey', '3f114fa6036a8da026b827f0c3e6d901f5e81ad9a320e431ccce31451892d286', string>` makes keys opaque — prevents accidental use of arbitrary strings as keys and insulates callers from future representation changes (`number`, `bigint`, etc.).
 - `Phantom<…, T>` carries the value type so `read` and `write` are type-safe without a cast.
 - Real collision prevention comes from randomization at runtime (e.g. `crypto.randomUUID()`), not from the nominal type alone.
 
 ### Operations
 
 ```ts
-type MemCreate<T> = (value: T) => Effect<MemOp, Key<T>>
-type MemRead<T>   = (key: Key<T>) => Effect<MemOp, T>
-type MemWrite<T>  = (key: Key<T>, value: T) => Effect<MemOp, void>
+type MemCreate<T> = readonly['memCreate', (value: T) => Key<T>]
+type MemRead<T>   = readonly['memRead', (key: Key<T>) => T]
+type MemWrite<T>  = readonly['memWrite', (key: Key<T>, value: T) => void]
+type MemOp = MemCreateOp | MemReadOp | MemWriteOp
 ```
 
 - `create` allocates a new slot with an initial value and returns its key.
 - `read` retrieves the current value for a key.
 - `write` updates the value for a key.
+
+`MemOp` uses broad, non-exported operation members whose payload positions are
+`never` and whose return positions are `unknown`, so concrete typed operations
+such as `MemCreate<number>` are accepted without introducing `any` into the
+operation union.
 
 ### Intended use cases
 
@@ -46,6 +52,6 @@ The initial design stores scalar or plain-object values. In the future we may su
 ## Plan
 
 - [x] Define `Key<T>`, `MemOp`, and the three operation types in `fs/effects/memory/module.f.ts`.
-- [x] Implement a Node.js interpreter (`Map<string, unknown>` backed, keys generated via `crypto.randomUUID()`).
+- [x] Implement a Node.js interpreter under `fs/effects/node/memory/` (`Map<string, unknown>` backed, keys generated via `crypto.randomUUID()`).
 - [x] Add proof tests covering create/read/write round-trips and type safety.
 - [x] Document how to compose `MemOp` with other operation types (e.g. `IoOp | MemOp`).

@@ -17,8 +17,11 @@ import type { Phantom } from '../../types/phantom/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
 import { doFull, pure, type Effect } from '../module.f.ts'
 
+/** Nominal brand version for memory keys. */
+export type MemKeyHash = '3f114fa6036a8da026b827f0c3e6d901f5e81ad9a320e431ccce31451892d286'
+
 /** Opaque handle for a value stored by the memory interpreter. */
-export type Key<T> = Phantom<Nominal<'MemKey', 'key', string>, T>
+export type Key<T> = Phantom<Nominal<'MemKey', MemKeyHash, string>, T>
 
 /** Allocates a fresh memory slot and initializes it with `value`. */
 export type MemCreate<T> = readonly['memCreate', (value: T) => Key<T>]
@@ -36,7 +39,13 @@ export type MemWrite<T> = readonly['memWrite', (key: Key<T>, value: T) => void]
  * or when composing memory with another operation set, for example
  * `Effect<NodeOp | MemOp, T>`.
  */
-export type MemOp = MemCreate<any> | MemRead<any> | MemWrite<any>
+type MemCreateOp = readonly['memCreate', (value: never) => Key<unknown>]
+
+type MemReadOp = readonly['memRead', (key: never) => unknown]
+
+type MemWriteOp = readonly['memWrite', (key: never, value: never) => void]
+
+export type MemOp = MemCreateOp | MemReadOp | MemWriteOp
 
 /** Creates a new typed memory slot with `value` as its initial contents. */
 export const create = <T>(value: T): Effect<MemCreate<T>, Key<T>> =>
