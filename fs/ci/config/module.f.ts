@@ -39,7 +39,7 @@ export const playwright = '1.60.0'
 // https://nodejs.org/en/download
 export const node = {
     default: '26.3.0',
-    node22: '22.22.2',
+    node22: '22.22.3',
     node24: '24.16.0',
 } as const
 
@@ -50,7 +50,7 @@ export const wasmtime = '45.0.0'
 export const wasmer = '7.1.0'
 
 // https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
-export const tsgo = '7.0.0-dev.20260606.1'
+export const tsgo = '7.0.0-dev.20260609.1'
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as

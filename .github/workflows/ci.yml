@@ -449,7 +449,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "22.22.2"
+            "node-version": "22.22.3"
           }
         },
         {
@@ -502,7 +502,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260609.1"
         },
         {
           "uses": "actions/checkout@v6"
