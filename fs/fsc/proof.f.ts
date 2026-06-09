@@ -1,4 +1,4 @@
-import { init } from './module.f.ts'
+import { init, terminal } from './module.f.ts'
 import { one } from '../text/ascii/module.f.ts'
 import { stringify } from '../json/module.f.ts'
 
@@ -22,6 +22,17 @@ export const proof = {
     a: () => {
         const x = f('1')
         if (x !== '["1"]') { throw x }
+    },
+    b: () => {
+        // exercises toInit: terminal returns empty output and loops back to init
+        const result = init(terminal)
+        if (result[0].length !== 0) { throw result[0] }
+    },
+    c: () => {
+        // exercises unexpectedSymbol: next state after a token returns an error message
+        const next = init(one('1'))[1]
+        const result = next(42)
+        if (result[0][0] !== 'unexpected symbol 42') { throw result[0][0] }
     },
     fn: () => {
         const o = {
