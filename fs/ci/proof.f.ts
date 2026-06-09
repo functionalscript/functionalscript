@@ -55,6 +55,7 @@ export const proof = {
         assert(hasRunInJob('ubuntu-arm', 'cargo clippy -- -D warnings')(gha), 'expected native platform Rust lint')
         assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1 -- -D warnings')(gha), 'expected target-specific WASM Rust lint')
         assert(hasRunInJob('node22', 'fjs t')(gha), 'expected Node 22 FunctionalScript smoke test')
+        assert(hasRunInJob('node26', 'npm pack')(gha), 'expected Node 26 package check')
     },
     rust: () => {
         assert(hasRun('cargo')(run(true)), 'expected Rust steps')

@@ -48,7 +48,7 @@ const node26Steps: readonly MetaStep[] = clean([
     test({ run: 'npx tsc' }),
     test({ run: 'tsgo' }),
     test({ run: 'npm run cov' }),
-    test({ run: 'npm publish --dry-run' }),
+    test({ run: 'npm pack' }),
 ])
 
 const nodeJob = (steps: readonly MetaStep[]): Job => ubuntuArm(steps)

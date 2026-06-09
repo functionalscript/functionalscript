@@ -454,7 +454,7 @@
           "run": "npm run cov"
         },
         {
-          "run": "npm publish --dry-run"
+          "run": "npm pack"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"

@@ -85,7 +85,7 @@ The first iteration may use native GitHub runner images. Later iterations may us
     - `npx tsc`,
     - `tsgo`,
     - `node --test ...coverage...`,
-    - `npm publish --dry-run`.
+    - `npm pack`.
 
 Total: 13 jobs.
 
