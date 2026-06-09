@@ -1,7 +1,7 @@
 # Formal Grammar
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 [eDSL](https://en.wikipedia.org/wiki/Domain-specific_language#External_and_Embedded_Domain_Specific_Languages) for [formal grammars](https://en.wikipedia.org/wiki/Formal_grammar) using a modification of [BNF](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
 
@@ -78,3 +78,19 @@ See [LR parser](https://en.wikipedia.org/wiki/LR_parser).
 ## Example
 
 See [31-json.f.ts](./31-json.f.ts)
+
+## Resolution
+
+The core formal grammar eDSL is implemented in
+[`fs/bnf/module.f.ts`](../fs/bnf/module.f.ts), with documentation in
+[`fs/bnf/README.md`](../fs/bnf/README.md). The serializable rule-set form,
+grammar-to-data conversion, AST output, recursive descent parser, and LL(1)
+parser are implemented in [`fs/bnf/data/module.f.ts`](../fs/bnf/data/module.f.ts)
+and documented in [`fs/bnf/data/README.md`](../fs/bnf/data/README.md).
+
+Remaining parser directions are tracked separately:
+
+- [i032-stupid-parser](./032-stupid-parser.md) — non-deterministic parser.
+- [i046-lr1-parser](./046-lr1-parser.md) — LR(1) parser.
+- [i165-layered-parser](./165-layered-parser.md) — layered tokenizer/parser
+  design.
