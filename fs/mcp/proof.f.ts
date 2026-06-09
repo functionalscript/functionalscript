@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../asserts/module.f.ts'
 import { pure } from '../effects/module.f.ts'
-import type { Operation, Effect } from '../effects/module.f.ts'
+import type { Effect } from '../effects/module.f.ts'
 import type { Unknown } from '../json/module.f.ts'
 import {
     type ToolsListResult, type ToolsCallParams, type ToolsCallResult,
@@ -61,12 +61,12 @@ export const proof = {
         },
 
         initializeTransitionsState: () => {
-            const [newState, _effect] = step(uninitializedState)(initMsg)
+            const [, newState] = step(initMsg, uninitializedState)
             assertEq(newState[0], 'initialized')
         },
 
         initializeReturnsResult: () => {
-            const [, effect] = step(uninitializedState)(initMsg)
+            const [effect] = step(initMsg, uninitializedState)
             const resp = run(effect as Effect<never, unknown>)
             assert(resp !== null && typeof resp === 'object' && 'result' in (resp as object))
             const r = (resp as { result: { protocolVersion: string } }).result
@@ -75,7 +75,7 @@ export const proof = {
 
         initializeWithBadParamsReturnsInvalidParams: () => {
             const bad = { jsonrpc: '2.0', method: 'initialize', id: 2, params: { wrong: true } }
-            const [newState, effect] = step(uninitializedState)(bad)
+            const [effect, newState] = step(bad, uninitializedState)
             assertEq(newState[0], 'uninitialized')
             const resp = run(effect as Effect<never, unknown>) as { error: { code: number } }
             assertEq(resp.error.code, -32602)
@@ -83,7 +83,7 @@ export const proof = {
 
         notificationReturnNull: () => {
             const notif = { jsonrpc: '2.0', method: 'notifications/initialized' }
-            const [newState, effect] = step(uninitializedState)(notif)
+            const [effect, newState] = step(notif, uninitializedState)
             assertEq(newState[0], 'uninitialized')
             assertEq(run(effect as Effect<never, unknown>), null)
         },
@@ -91,13 +91,13 @@ export const proof = {
         notificationAfterInitReturnNull: () => {
             const initialized = doInit(uninitializedState)
             const notif = { jsonrpc: '2.0', method: 'notifications/initialized' }
-            const [, effect] = step(initialized)(notif)
+            const [effect] = step(notif, initialized)
             assertEq(run(effect as Effect<never, unknown>), null)
         },
 
         methodBeforeInitReturnsNotInitialized: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 3 }
-            const [newState, effect] = step(uninitializedState)(msg)
+            const [effect, newState] = step(msg, uninitializedState)
             assertEq(newState[0], 'uninitialized')
             const resp = run(effect as Effect<never, unknown>) as { error: { code: number } }
             assertEq(resp.error.code, notInitialized.code)
@@ -105,7 +105,7 @@ export const proof = {
 
         invalidEnvelopeReturnsInvalidRequest: () => {
             const bad = { jsonrpc: '1.0', method: 'ping', id: 4 }
-            const [, effect] = step(uninitializedState)(bad)
+            const [effect] = step(bad, uninitializedState)
             const resp = run(effect as Effect<never, unknown>) as { error: { code: number }; id: unknown }
             assertEq(resp.error.code, -32600)
             assertEq(resp.id, null)
@@ -116,7 +116,7 @@ export const proof = {
         toolsListSucceeds: () => {
             const initialized = doInit(uninitializedState)
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 5 }
-            const [, effect] = step(initialized)(msg)
+            const [effect] = step(msg, initialized)
             const resp = run(effect as Effect<never, unknown>) as { result: ToolsListResult }
             assertEq(resp.result.tools.length, 1)
             assertEq(resp.result.tools[0].name, 'greet')
@@ -126,7 +126,7 @@ export const proof = {
             const initialized = doInit(uninitializedState)
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 6,
                 params: { name: 'greet', arguments: {} } }
-            const [, effect] = step(initialized)(msg)
+            const [effect] = step(msg, initialized)
             const resp = run(effect as Effect<never, unknown>) as { result: ToolsCallResult }
             assertEq(resp.result.content[0].text, 'hello')
         },
@@ -134,7 +134,7 @@ export const proof = {
         toolsCallBadParamsReturnsInvalidParams: () => {
             const initialized = doInit(uninitializedState)
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 7, params: { missing: true } }
-            const [, effect] = step(initialized)(msg)
+            const [effect] = step(msg, initialized)
             const resp = run(effect as Effect<never, unknown>) as { error: { code: number } }
             assertEq(resp.error.code, -32602)
         },
@@ -142,7 +142,7 @@ export const proof = {
         toolsListWithoutCapabilityReturnsMethodNotFound: () => {
             const initialized = doInitNoTools(uninitializedState)
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 8 }
-            const [, effect] = stepNoTools(initialized)(msg)
+            const [effect] = stepNoTools(msg, initialized)
             const resp = run(effect as Effect<never, unknown>) as { error: { code: number } }
             assertEq(resp.error.code, -32601)
         },
@@ -151,7 +151,7 @@ export const proof = {
             const initialized = doInitNoTools(uninitializedState)
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 9,
                 params: { name: 'greet', arguments: {} } }
-            const [, effect] = stepNoTools(initialized)(msg)
+            const [effect] = stepNoTools(msg, initialized)
             const resp = run(effect as Effect<never, unknown>) as { error: { code: number } }
             assertEq(resp.error.code, -32601)
         },
@@ -159,7 +159,7 @@ export const proof = {
         unknownMethodReturnsMethodNotFound: () => {
             const initialized = doInit(uninitializedState)
             const msg = { jsonrpc: '2.0', method: 'resources/list', id: 10 }
-            const [, effect] = step(initialized)(msg)
+            const [effect] = step(msg, initialized)
             const resp = run(effect as Effect<never, unknown>) as { error: { code: number } }
             assertEq(resp.error.code, -32601)
         },
