@@ -42,8 +42,6 @@ const program = create(1).step(key =>
     )
 )
 
-const typedKey = create('hello').step(key => pure(key))
-
 export const proof = {
     roundTrip: () => {
         const [state, result] = run(mock)(initial)(program)
