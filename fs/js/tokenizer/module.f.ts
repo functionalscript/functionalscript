@@ -913,5 +913,5 @@ export const tokenize
     :(input: List<number>) => (path: string) => List<JsTokenWithMetadata>
     = input => path => {
         const scan = scanTokenize({state: { kind: 'initial' }, metadata: {path, line: 1, column: 1}})
-        return flat(scan(flat<number|null>([input satisfies List<CharCodeOrEof>, [null]])))
+        return flat(scan(flat<number|null>([input /*satisfies List<CharCodeOrEof>*/, [null]])))
     }

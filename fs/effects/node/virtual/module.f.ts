@@ -9,6 +9,7 @@ import { utf8ToString } from '../../../text/module.f.ts'
 import { isVec, type Vec } from '../../../types/bit_vec/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
+import { asBase, asNominal, type Key } from '../../memory/module.f.ts'
 import type { Dirent, IoResult, Module, NodeOp, SandboxResult } from '../module.f.ts'
 
 /**
@@ -35,6 +36,8 @@ export type State = {
         readonly[url: string]: Vec
     }
     epochNs: number
+    memoryNext: number
+    memoryValues: { readonly [key: string]: unknown }
 }
 
 export const emptyState: State = {
@@ -43,6 +46,8 @@ export const emptyState: State = {
     root: {},
     internet: {},
     epochNs: 0,
+    memoryNext: 0,
+    memoryValues: {},
 }
 
 const operation =
@@ -162,6 +167,24 @@ const map: MemOperationMap<NodeOp, State> = {
             e = [...e, ei]
         }
         return [state, e]
+    },
+    memCreate: (state, value) => {
+        const id = `mem${state.memoryNext}`
+        const key: Key<unknown> = asNominal(id)
+        return [{
+            ...state,
+            memoryNext: state.memoryNext + 1,
+            memoryValues: { ...state.memoryValues, [id]: value },
+        }, key]
+    },
+    memRead: (state, key) =>
+        [state, state.memoryValues[asBase(key)]],
+    memWrite: (state, key, value) => {
+        const id = asBase(key)
+        return [{
+            ...state,
+            memoryValues: { ...state.memoryValues, [id]: value },
+        }, undefined]
     },
     fetch: (state, url) => {
         const result = state.internet[url]

@@ -9,6 +9,7 @@ import { concat } from '../../path/module.f.ts'
 import { normalize } from '../../path/module.f.ts'
 import { type Effect } from '../module.f.ts'
 import { asyncRun } from '../module.ts'
+import { memoryOperationMap } from './memory/module.ts'
 import {
     type Server as EffectServer,
     type Headers,
@@ -201,6 +202,7 @@ const fromIo = ({
     await: awaitPromise,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
+        ...memoryOperationMap(),
         all: async (...effects) => await Promise.all(effects.map(result)),
         fetch: async url => tc(async() => {
             const response = await fetch(url)
