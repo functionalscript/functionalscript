@@ -8,8 +8,7 @@ import { parse } from '../../../path/module.f.ts'
 import { utf8ToString } from '../../../text/module.f.ts'
 import { isVec, type Vec } from '../../../types/bit_vec/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
-import { do_, type Effect } from '../../module.f.ts'
-import { run, type MemOperationMap } from '../../mock/module.f.ts'
+import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
 import type { Dirent, IoResult, Module, NodeOp, SandboxResult } from '../module.f.ts'
 
 /**
@@ -28,24 +27,9 @@ export type Dir = {
     readonly[name in string]?: Entity
 }
 
-
-/**
- * Structured event-capture operation for virtual-runner assertions.
- *
- * This is deliberately scoped to the virtual runner instead of `NodeOp`: real
- * Node programs do not capture events, while proofs can use this operation to
- * accumulate structured observations in immutable `State`.
- */
-export type Capture<T = never> = readonly['capture', (event: T) => void]
-
-/** Emits a structured event into virtual-runner state. */
-export const capture = <T>(event: T): Effect<Capture<T>, void> =>
-    do_<Capture<T>>('capture')(event)
-
-export type State<TCapture = never> = {
+export type State = {
     stdout: string
     stderr: string
-    events: readonly TCapture[]
     root: Dir
     internet: {
         readonly[url: string]: Vec
@@ -56,7 +40,6 @@ export type State<TCapture = never> = {
 export const emptyState: State = {
     stdout: '',
     stderr: '',
-    events: [],
     root: {},
     internet: {},
     epochNs: 0,
@@ -78,7 +61,7 @@ const operation =
         const [newSubDir, r] = f(subDir, rest)
         return [{ ...dir, [first]: newSubDir }, r]
     }
-    return <TCapture>(state: State<TCapture>, path: string) => {
+    return (state: State, path: string) => {
         const [root, result] = f(state.root, parse(path))
         return [{ ...state, root }, result] as const
     }
@@ -170,7 +153,7 @@ const rm = operation((dir, path): readonly[Dir, IoResult<void>] => {
     return [rest as Dir, okVoid]
 })
 
-const map = <TCapture>(): MemOperationMap<NodeOp | Capture<TCapture>, State<TCapture>> => ({
+const map: MemOperationMap<NodeOp, State> = {
     all: (state, ...a) => {
         let e: readonly unknown[] = []
         for (const i of a) {
@@ -206,13 +189,10 @@ const map = <TCapture>(): MemOperationMap<NodeOp | Capture<TCapture>, State<TCap
     sandbox: (state, f) => [state, f() as SandboxResult<unknown>],
     await: (state, p) => [state, [p]],
     test: todo,
-    capture: (state, event) => [{ ...state, events: [...state.events, event] }, undefined],
     write: (state, stream, data) => {
         const s = utf8ToString(data)
         return [{ ...state, [stream]: `${state[stream]}${s}` }, undefined] as const
     },
-})
+}
 
-export const virtual = <TCapture>(state: State<TCapture>) =>
-    <O1 extends NodeOp | Capture<TCapture>, T>(effect: Effect<O1, T>): readonly[State<TCapture>, T] =>
-    run(map<TCapture>())(state)(effect)
+export const virtual: RunInstance<NodeOp, State> = run(map)

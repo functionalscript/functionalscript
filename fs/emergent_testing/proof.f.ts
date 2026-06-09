@@ -1,6 +1,6 @@
 import { pure, type Effect } from '../effects/module.f.ts'
-import type { NodeProgramOptions, Sandbox, SandboxResult } from '../effects/node/module.f.ts'
-import { capture, emptyState, type Capture, type JsModule, type State } from '../effects/node/virtual/module.f.ts'
+import { log, type NodeProgramOptions, type Sandbox, type SandboxResult, type Write } from '../effects/node/module.f.ts'
+import { emptyState, type JsModule } from '../effects/node/virtual/module.f.ts'
 import { virtual } from '../effects/node/virtual/module.f.ts'
 import { assert, assertEq, todo } from '../asserts/module.f.ts'
 import {
@@ -17,11 +17,16 @@ type Event =
     | readonly ['result', string, Path, SandboxResult<unknown>]
     | readonly ['summary', number, number, number]
 
-type TestReporter = Reporter<Sandbox | Capture<Event>>
+type TestReporter = Reporter<Sandbox | Write>
+
+const writeEvent = (event: Event) => log(JSON.stringify(event))
+
+const parseEvents = (stdout: string): readonly Event[] =>
+    stdout === '' ? [] : stdout.trimEnd().split('\n').map(line => JSON.parse(line))
 
 const makeReporter = (): TestReporter => ({
-    result: (file, path, r, _throws) => capture<Event>(['result', file, [...path], r]),
-    summary: (pass, fail, time) => capture<Event>(['summary', pass, fail, time]),
+    result: (file, path, r, _throws) => writeEvent(['result', file, [...path], r]),
+    summary: (pass, fail, time) => writeEvent(['summary', pass, fail, time]),
     test: defaultTest,
 })
 
@@ -43,9 +48,9 @@ const ok1 = (): unknown => ({ result: ['ok', undefined] as const, duration: 1 })
 
 const run = (dir: Record<string, JsModule>, initCwd = '.'): readonly [readonly Event[], number] => {
     const reporter = makeReporter()
-    const state: State<Event> = { ...emptyState, root: dir, events: [] }
+    const state = { ...emptyState, root: dir }
     const [finalState, exitCode] = virtual(state)(testAll(reporter)(options(initCwd)))
-    return [finalState.events, exitCode]
+    return [parseEvents(finalState.stdout), exitCode]
 }
 
 // Runs the real `defaultReporter` and returns its captured stdout/stderr so the
