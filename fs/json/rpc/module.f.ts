@@ -10,6 +10,8 @@
  * `fs/effects/node`, and concrete method sets such as MCP (i665-mcp), which layer
  * on top of `dispatch`.
  *
+ * https://www.jsonrpc.org/specification
+ *
  * @module
  */
 import { number, string, or, option } from '../../types/rtti/module.f.ts'
@@ -26,6 +28,8 @@ const id = or(string, number, null)
 /**
  * A request or notification envelope. `id` present → request (a response is
  * expected); `id` absent → notification (no response). `params` is optional.
+ *
+ * https://www.jsonrpc.org/specification#request_object
  */
 export const request = {
     jsonrpc,
@@ -54,6 +58,8 @@ export const errorResponse = { jsonrpc, error, id } as const
  * runtime decoder and the static type, with no drift. rtti structs are open
  * (extra keys allowed), so "result XOR error" is not enforced at runtime; in
  * practice the dispatcher only ever constructs one or the other.
+ *
+ * https://www.jsonrpc.org/specification#response_object
  */
 export const response = or(successResponse, errorResponse)
 export type Response = Ts<typeof response>
@@ -78,8 +84,8 @@ export const methodNotFound = rpcError(-32601)('Method not found')
 export const invalidParams = rpcError(-32602)('Invalid params')
 export const internalError = rpcError(-32603)('Internal error')
 
-const errorResponseOf = (id: Id) => (e: RpcError): Response =>
-    ({ jsonrpc, error: e, id })
+const errorResponseOf = (id: Id) => (error: RpcError): Response =>
+    ({ jsonrpc, error, id })
 
 /**
  * Dispatches an already-parsed JSON-RPC value against `handlers`.
@@ -93,21 +99,20 @@ export const dispatch =
     (handlers: Handlers) =>
     (value: Unknown): Response | null =>
 {
-    const decoded = decodeRequest(value)
-    if (decoded[0] === 'error') {
+    const [t, message] = decodeRequest(value)
+    if (t === 'error') {
         return errorResponseOf(null)(invalidRequest)
     }
-    const message = decoded[1]
-    const id = message.id
+    const { id, method, params } = message
     if (id === undefined) {
         return null
     }
-    const handler: Handler | undefined = handlers[message.method]
+    const handler: Handler | undefined = handlers[method]
     if (handler === undefined) {
         return errorResponseOf(id)(methodNotFound)
     }
-    const result = handler(message.params)
-    return result[0] === 'ok'
-        ? { jsonrpc, result: result[1], id }
-        : errorResponseOf(id)(result[1])
+    const [t2, result] = handler(params)
+    return t2 === 'ok'
+        ? { jsonrpc, result, id }
+        : errorResponseOf(id)(result)
 }

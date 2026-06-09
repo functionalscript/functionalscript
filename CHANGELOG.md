@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `json/rpc`: add JSON-RPC spec links to module and request/response JSDoc; destructure `decodeRequest` result and `message` fields in `dispatch`; use shorthand property in `errorResponseOf` [#1002](https://github.com/functionalscript/functionalscript/pull/1002)
+
 ## 0.30.0
 
 - `ci`: breaking change to the public CI generator: split generated workflows into lightweight platform jobs and canonical Ubuntu ARM jobs, set explicit read-only workflow permissions, pin FunctionalScript smoke-test installs, remove the repository-specific demo compile step, and expand Rust target checks to include release tests and release Clippy (i668-ci-matrix-update).
