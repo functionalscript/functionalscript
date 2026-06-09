@@ -15,9 +15,10 @@ with the latest matrix of jobs and steps.
 - `common/module.f.ts` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`, `clean`).
-- `config/module.f.ts` — runner image matrix (OS × architecture → GitHub-hosted image name).
-- `node/module.f.ts` — Node.js job steps: `setup-node`, `npm ci`, basic test commands,
-  per-version job matrix, and the TypeScript native preview (`tsgo`) step.
+- `config/module.f.ts` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests.
+- `node/module.f.ts` — Node.js job steps: platform smoke tests, canonical
+  per-version jobs, the TypeScript native preview (`tsgo`) step, coverage, and
+  package checks.
 - `rust/module.f.ts` — Rust toolchain setup and `cargo` build/test steps.
 - `deno/module.f.ts` — Deno runtime steps.
 - `bun/module.f.ts` — Bun runtime steps.
@@ -37,15 +38,18 @@ same workflow file.
 
 ### Expected package scripts
 
-The generated Node CI jobs run these basic checks after `npm ci`:
+The generated platform jobs run `npm ci`, install the pinned FunctionalScript
+package globally, and run `fjs t`. Canonical Node jobs run on Ubuntu ARM and are
+split by Node version:
 
-- `npx tsc`
-- `npm test` (`npm t` is npm's built-in alias)
-- `node --test`
-- `npm run cov`
+- Node 22 runs `npm ci`, installs the pinned FunctionalScript package globally,
+  and runs `fjs t`.
+- Node 24 runs `npm ci` and `node --test`.
+- Node 26 runs `npm ci`, `npx tsc`, `tsgo`, `npm run cov`, and `npm pack`.
+- Playwright is also Node-based, so it runs `npm ci` before browser setup.
 
-The commands that must be provided by `package.json` are `test` and `cov`.
-A typical FunctionalScript project can define them like this:
+The command that must be provided by `package.json` for generated CI is `cov`.
+A typical FunctionalScript project can define it like this:
 
 ```json
 {
@@ -56,10 +60,9 @@ A typical FunctionalScript project can define them like this:
 }
 ```
 
-Use `test` for the fast local correctness loop: TypeScript type-checking plus
-FunctionalScript proofs. Use `cov` for Node's built-in test runner with coverage
-enabled. Keep `npx tsc` passing independently because the generated CI runs it as
-its own step before `npm test`.
+Keep `npx tsc` passing independently because the generated CI runs it as its own
+step before `tsgo`, coverage, and package creation. Keep `test` as the fast local
+correctness loop even though generated CI no longer calls `npm test` directly.
 
 For `node --test` and `npm run cov` to execute FunctionalScript proofs, the
 repository must include a Node test entry file, conventionally `all.test.ts`:
@@ -78,11 +81,9 @@ package has been installed. Custom projects that need different runtime setup st
 should use `fjs r <custom-ci-module>` and call `ci(setup)` directly instead of
 modifying the built-in command.
 
-The built-in command reads `package.json` while generating the workflow. The
-FunctionalScript repository keeps an extra demo compile step for
-`issues/demo/data/tree.json`; other packages do not get that repository-specific
-step. The package name is also used when the workflow uninstalls the tarball it
-installed globally during the pack/install self-check.
+The built-in command does not read `package.json` to customize generated steps.
+The FunctionalScript package version used by generated Node, Deno, and Bun smoke
+tests is pinned in `config/module.f.ts`, not read from `package.json`.
 
 ## Customisation
 
@@ -91,8 +92,6 @@ installed globally during the pack/install self-check.
 ```ts
 export type Setup = {
     readonly nodeExtra: (os: Os) => readonly MetaStep[]
-    readonly denoExtra: readonly MetaStep[]
-    readonly bunExtra: readonly MetaStep[]
 }
 ```
 

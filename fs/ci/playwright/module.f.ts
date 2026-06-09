@@ -8,7 +8,7 @@ import { images, node, playwright } from '../config/module.f.ts'
 import { type Job, install, test, toSteps, uses } from '../common/module.f.ts'
 import { basicNode } from '../node/module.f.ts'
 
-const playwrightImage = images.ubuntu.intel
+const playwrightImage = images.ubuntu.arm
 
 export const playwrightJob: Job = {
     'runs-on': playwrightImage,

@@ -1,11 +1,11 @@
 /**
- * CI step builders for Node.js: setup-node installation, common npm
- * install/test sequences, per-version job matrices, and the main TSGO step.
+ * CI step builders for Node.js: setup-node installation, platform smoke tests,
+ * per-version canonical jobs, and the main TSGO step.
  *
  * @module
  */
 import { node, tsgo } from '../config/module.f.ts'
-import { type Jobs, type MetaStep, type Os, clean, findTgz, install, test, ubuntu, uses } from '../common/module.f.ts'
+import { type Job, type Jobs, type MetaStep, type Os, clean, install, test, ubuntuArm, uses } from '../common/module.f.ts'
 
 export const major = (v: string): string => v.split('.')[0]
 
@@ -22,32 +22,41 @@ export const basicNode = (version: string) => (extra: readonly MetaStep[]): read
     ...extra,
 ])
 
-const basicTests = [
-    test({ run: 'npx tsc' }),
-    test({ run: 'npm test' }),
+const fjsGlobalInstall = (version: string): MetaStep =>
+    install({ run: `npm install -g functionalscript@${version}` })
+
+export const platformNodeSteps = (version: string): readonly MetaStep[] => [
+    ...nodeInstall(node.default),
+    fjsGlobalInstall(version),
+    test({ run: 'fjs t' }),
+]
+
+const node22Steps = (version: string): readonly MetaStep[] => clean([
+    ...nodeInstall(node.node22),
+    fjsGlobalInstall(version),
+    test({ run: 'fjs t' }),
+])
+
+const node24Steps: readonly MetaStep[] = clean([
+    ...nodeInstall(node.node24),
     test({ run: 'node --test' }),
-    test({ run: 'npm run cov' }),
-]
-
-export const nodeTests = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => basicNode(version)([
-    ...basicTests,
-    ...extra,
 ])
 
-const nodeSteps = (v: string) => [
-    ...nodeInstall(v),
-    ...basicTests,
-]
-
-export const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [
-    `node${major(v)}`,
-    ubuntu(nodeSteps(v))
-]))
-
-export const nodeMainSteps = (extra: readonly MetaStep[]): readonly MetaStep[] => nodeTests(node.default)([
-    // TypeScript Preview
-    install({ run: `npm install -g @typescript/native-preview@${tsgo}`}),
+const node26Steps: readonly MetaStep[] = clean([
+    ...nodeInstall(node.default),
+    install({ run: `npm install -g @typescript/native-preview@${tsgo}` }),
+    test({ run: 'npx tsc' }),
     test({ run: 'tsgo' }),
-    // extra
-    ...extra,
+    test({ run: 'npm run cov' }),
+    test({ run: 'npm pack' }),
 ])
+
+const nodeJob = (steps: readonly MetaStep[]): Job => ubuntuArm(steps)
+
+export const nodeVersionJobs = (version: string): Jobs => ({
+    [`node${major(node.node22)}`]: nodeJob(node22Steps(version)),
+    [`node${major(node.node24)}`]: nodeJob(node24Steps),
+    [`node${major(node.default)}`]: nodeJob(node26Steps),
+})
+
+export const nodeMainSteps = platformNodeSteps

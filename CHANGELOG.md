@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.30.0
+
+- `ci`: breaking change to the public CI generator: split generated workflows into lightweight platform jobs and canonical Ubuntu ARM jobs, set explicit read-only workflow permissions, pin FunctionalScript smoke-test installs, remove the repository-specific demo compile step, and expand Rust target checks to include release tests and release Clippy (i668-ci-matrix-update).
+
 ## 0.29.1
 
 - `package`: relax the npm `engines.node` requirement from `>=24` to `>=22` for Node 22 compatibility [#987](https://github.com/functionalscript/functionalscript/pull/987)

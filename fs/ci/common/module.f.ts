@@ -39,6 +39,7 @@ export const gitHubActionSchema = {
         pull_request: option({}),
         merge_group: option({})
     },
+    permissions: record(string),
     jobs: jobsSchema
 } as const satisfies unknown
 
@@ -84,7 +85,10 @@ export const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(',')
     return [
         ...(aptGet !== '' ? [{ run: `sudo apt-get update && sudo apt-get install -y ${aptGet}` }] : []),
-        ...(needRust ? [uses('dtolnay/rust-toolchain', { components: 'rustfmt,clippy', targets })] : []),
+        ...(needRust ? [uses('dtolnay/rust-toolchain', {
+            components: 'rustfmt,clippy',
+            ...(targets === '' ? {} : { targets }),
+        })] : []),
         ...filter('install'),
         uses('actions/checkout'),
         ...filter('test'),
@@ -96,4 +100,7 @@ export const ubuntu = (ms: readonly MetaStep[]): Job => ({
     steps: toSteps(ms)
 })
 
-export const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : './*.tgz'
+export const ubuntuArm = (ms: readonly MetaStep[]): Job => ({
+    'runs-on': images.ubuntu.arm,
+    steps: toSteps(ms)
+})

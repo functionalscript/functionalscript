@@ -1,7 +1,7 @@
 # 668-ci-matrix-update. Update generated CI matrix
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -44,11 +44,17 @@ Dimensions: 6 jobs (`OS x Architecture`).
 Run:
 
 - Rust:
-  - native `cargo test`;
-  - 32-bit target checks only on Intel jobs.
+  - native target checks: `cargo test`, `cargo test --release`,
+    `cargo clippy -- -D warnings`, and
+    `cargo clippy --release -- -D warnings`;
+  - 32-bit target checks only on Intel jobs: `cargo test --target ...`,
+    `cargo test --target ... --release`,
+    `cargo clippy --target ... -- -D warnings`, and
+    `cargo clippy --target ... --release -- -D warnings`.
 - Node 26:
-  - `npm install -g functionalscript@{fs.version}`  
-  - `fjs t`
+  - `npm ci`, because each Node-based job validates the lock file before tests;
+  - `npm install -g functionalscript@{config.functionalscript}`;
+  - `fjs t`.
 
 `fjs t` exercises FunctionalScript proof discovery, module loading, and
 filesystem traversal on each OS/path format. Native `node --test` runs in the
@@ -58,28 +64,59 @@ dedicated Node 24 and Node 26 jobs instead of the platform matrix.
 
 The first iteration may use native GitHub runner images. Later iterations may use Docker or Nix to cache a heavier toolchain setup if install time or external tool download reliability becomes the main bottleneck.
 
-- Playwright (one job).
+- Playwright (one Node-based job):
+  - `npm ci`,
+  - browser cache/install steps,
+  - browser tests.
 - WASM (one job, Rust-based):
+  - `cargo fmt -- --check` once, because formatting is source-wide and target-independent;
+  - for each WASM target, run the target check group: `cargo test --target ...`,
+    `cargo test --target ... --release`,
+    `cargo clippy --target ... -- -D warnings`, and
+    `cargo clippy --target ... --release -- -D warnings`;
   - `wasmer`,
   - `wasmtime`.
 - Deno (one job):
-  - `deno run -A npm:functionalscript@${fs.version} t`,
-  - `deno test -A && deno coverage --include='.*module\\.f\\.ts'`.
+  - install/cache `functionalscript@${config.functionalscript}` before checkout with `deno install -g -A npm:functionalscript@${config.functionalscript}`;
+  - `deno install --frozen` to validate the lock file before tests;
+  - `deno run -A npm:functionalscript@${config.functionalscript} t`,
+  - `deno test --allow-read --allow-env --coverage && deno coverage --include='.*module\\.f\\.ts'`, so the non-coverage Deno test command is the shared prefix and permissions stay limited to read/env access.
 - Bun (one job):
-  - `bunx functionalscript@${fs.version} t`,
+  - install/cache `functionalscript@${config.functionalscript}` before checkout with `bun install -g functionalscript@${config.functionalscript}`;
+  - `bun install --frozen-lockfile` to validate the lock file before tests;
+  - `bunx functionalscript@${config.functionalscript} t`,
   - `bun test --coverage`.
 - Node:
   - 22 (one job, for environments that cannot yet use Node 24+, including OpenAI Codex. Note, we can't use `node --test --experimental-strip-types` because Node22 doesn't support subtests properly):
-    - `fjs t`
+    - `npm ci`,
+    - `fjs t`.
   - 24 (one job):
+    - `npm ci`,
     - `node --test`.
   - 26 (one job):
+    - `npm ci`,
     - `npx tsc`,
     - `tsgo`,
     - `node --test ...coverage...`,
-    - `npm publish --dry-run`.
+    - `npm pack`.
 
 Total: 13 jobs.
+
+## Decisions
+
+- Set root workflow permissions to `contents: read`. The generated workflow only
+  needs repository checkout access, and declaring the permission explicitly keeps
+  inherited organization/repository defaults from granting broader write scopes.
+- Keep the Rust canonical job named **WASM**. It owns the WASM target matrix and
+  runtime setup (`wasmer`/`wasmtime`); `cargo fmt -- --check` lives there only
+  because it is target-independent and should run exactly once rather than in
+  every platform job.
+- Treat the Rust target-check group as the matrix of `cargo test` and
+  `cargo clippy` over both debug and release profiles. Release tests and release
+  Clippy catch optimization/profile-specific issues, and Clippy analyzes the
+  target-specific compile surface, including `cfg(...)` differences. Each
+  native, 32-bit, and WASM target gets all four matching invocations for that
+  same target.
 
 ## Related
 

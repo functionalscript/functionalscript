@@ -1,4 +1,5 @@
 import { ci, main } from './module.f.ts'
+import { functionalscript } from './config/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
@@ -34,7 +35,7 @@ const workflow = (state: State): GitHubAction => {
 }
 
 const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): GitHubAction => {
-    const [state, result] = virtual(makeState(rust))(ci({ nodeExtra, denoExtra: [], bunExtra: [] }))
+    const [state, result] = virtual(makeState(rust))(ci({ nodeExtra }))
     assert(result === 0, result)
     return workflow(state)
 }
@@ -46,6 +47,41 @@ const runDefault = (packageJson?: string): GitHubAction => {
 }
 
 export const proof = {
+    matrixShape: () => {
+        const gha = run(true)
+        assert(Object.keys(gha.jobs).length === 13, 'expected 13 CI jobs')
+        assert(gha.permissions.contents === 'read', 'expected read-only contents permission')
+        assert(Object.keys(gha.permissions).length === 1, 'expected least-privilege workflow permissions')
+        assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
+        assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu --release')(gha), 'expected Ubuntu Intel i686 release check')
+        assert(hasRunInJob('ubuntu-intel', 'cargo clippy --target i686-unknown-linux-gnu -- -D warnings')(gha), 'expected Ubuntu Intel i686 lint')
+        assert(hasRunInJob('ubuntu-intel', 'cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings')(gha), 'expected Ubuntu Intel i686 release lint')
+        assert(hasRunInJob('ubuntu-arm', 'cargo test --release')(gha), 'expected native platform Rust release check')
+        assert(hasRunInJob('ubuntu-arm', 'cargo clippy -- -D warnings')(gha), 'expected native platform Rust lint')
+        assert(hasRunInJob('ubuntu-arm', 'cargo clippy --release -- -D warnings')(gha), 'expected native platform Rust release lint')
+        assert(hasRunInJob('wasm', 'cargo test --target wasm32-wasip1 --release')(gha), 'expected target-specific WASM release check')
+        assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1 -- -D warnings')(gha), 'expected target-specific WASM Rust lint')
+        assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1 --release -- -D warnings')(gha), 'expected target-specific WASM release lint')
+        assert(hasRunInJob('node22', 'fjs t')(gha), 'expected Node 22 FunctionalScript smoke test')
+        assert(hasRunInJob('node26', 'npm pack')(gha), 'expected Node 26 package check')
+        assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')
+        for (const id of [
+            'ubuntu-intel',
+            'ubuntu-arm',
+            'macos-intel',
+            'macos-arm',
+            'windows-intel',
+            'windows-arm',
+            'node22',
+            'node24',
+            'node26',
+            'playwright',
+        ] as const) {
+            assert(hasRunInJob(id, 'npm ci')(gha), `expected npm ci in ${id}`)
+        }
+        assert(!hasRunInJob('deno', 'npm ci')(gha), 'unexpected npm ci in deno job')
+        assert(!hasRunInJob('bun', 'npm ci')(gha), 'unexpected npm ci in bun job')
+    },
     rust: () => {
         assert(hasRun('cargo')(run(true)), 'expected Rust steps')
     },
@@ -72,46 +108,31 @@ export const proof = {
         },
     },
     defaultSetup: {
-        functionalscriptDemo: () => {
+        functionalscriptPackage: () => {
             const gha = runDefault('{"name":"functionalscript"}')
-            assert(hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'expected fjs demo compile')
             assert(hasRun('fjs t')(gha), 'expected fjs self-test')
-            assert(hasRun('deno task fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'expected deno demo compile')
-            assert(hasRun('deno task fjs t')(gha), 'expected deno self-test')
-            assert(hasRun('bun ./fs/fjs/module.ts t')(gha), 'expected bun self-test')
+            assert(hasRun(`deno run -A npm:functionalscript@${functionalscript} t`)(gha), 'expected deno self-test')
+            assert(hasRun(`bunx functionalscript@${functionalscript} t`)(gha), 'expected bun self-test')
         },
-        otherPackageNoDemo: () => {
+        otherPackage: () => {
             const gha = runDefault('{"name":"other-package"}')
-            assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(!hasRun('fjs t')(gha), 'unexpected fjs self-test')
-            assert(!hasRun('deno task fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected deno demo compile')
-            assert(!hasRun('deno task fjs t')(gha), 'unexpected deno self-test')
-            assert(!hasRun('bun ./fs/fjs/module.ts t')(gha), 'unexpected bun self-test')
+            assert(hasRun(`deno run -A npm:functionalscript@${functionalscript} t`)(gha), 'expected canonical deno self-test')
+            assert(hasRun(`bunx functionalscript@${functionalscript} t`)(gha), 'expected canonical bun self-test')
         },
-        uninstallPackageName: () => {
-            const gha = runDefault('{"name":"other-package"}')
-            assert(hasRun('npm uninstall other-package -g')(gha), 'expected package-specific uninstall')
-            assert(!hasRun('npm uninstall functionalscript -g')(gha), 'unexpected functionalscript uninstall')
+        configuredPackageVersion: () => {
+            const gha = runDefault('{"name":"other-package","version":"1.2.3"}')
+            assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version platform install')
+            assert(hasRun(`deno install -g -A npm:functionalscript@${functionalscript}`)(gha), 'expected configured-version deno install cache')
+            assert(hasRun('deno install --frozen')(gha), 'expected deno lock install')
+            assert(hasRun(`deno run -A npm:functionalscript@${functionalscript} t`)(gha), 'expected configured-version deno install')
+            assert(hasRun("deno test --allow-read --allow-env --coverage && deno coverage --include='.*module\\.f\\.ts'")(gha), 'expected limited-permission deno coverage')
+            assert(hasRun(`bun install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version bun cache')
+            assert(hasRun('bun install --frozen-lockfile')(gha), 'expected bun lock install')
+            assert(hasRun(`bunx functionalscript@${functionalscript} t`)(gha), 'expected configured-version bun install')
         },
-        malformedPackageJsonFallback: () => {
-            const gha = runDefault('{')
-            assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(hasRun('npm uninstall functionalscript -g')(gha), 'expected fallback uninstall')
-        },
-        missingPackageJsonFallback: () => {
+        missingPackageJson: () => {
             const gha = runDefault()
-            assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(hasRun('npm uninstall functionalscript -g')(gha), 'expected fallback uninstall')
-        },
-        missingNameFallback: () => {
-            const gha = runDefault('{"version":"1.0.0"}')
-            assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(hasRun('npm uninstall functionalscript -g')(gha), 'expected fallback uninstall')
-        },
-        nonObjectFallback: () => {
-            const gha = runDefault('[]')
-            assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(hasRun('npm uninstall functionalscript -g')(gha), 'expected fallback uninstall')
+            assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version install')
         },
     },
 }
