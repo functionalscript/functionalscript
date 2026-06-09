@@ -47,5 +47,5 @@ export const read =
     do_('memRead') as <T>(ket: Key<T>) => Effect<MemRead, T>
 
 /** Replaces the current contents of a typed memory slot. */
-export const write =
-    do_('memWrite') satisfies <T>(key: Key<T>, value: T) => Effect<MemWrite, void>
+export const write: <T>(key: Key<T>, value: T) => Effect<MemWrite, void> =
+    do_('memWrite')

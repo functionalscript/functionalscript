@@ -26,6 +26,7 @@ const mock: MemOperationMap<MemOp, MemoryState> = {
         [state, state.values[asBase(key)]],
     memWrite: (state, key, value) => {
         const id = asBase(key)
+        if (!(id in state.values)) { throw id }
         return [{
             ...state,
             values: { ...state.values, [id]: value },
@@ -63,5 +64,9 @@ export const proof = {
         if (b !== 'k1') { throw b }
         if (state.values.k0 !== 'a') { throw state }
         if (state.values.k1 !== 'b') { throw state }
+    },
+    typeTest: () => {
+        // const e = create(1).step(k => write(k, 'bad').step(() => read(k)))
+        const e = create(1).step(k => write(k, 5).step(() => read(k)))
     },
 }
