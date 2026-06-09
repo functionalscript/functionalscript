@@ -150,8 +150,8 @@ export type McpConfig = {
 /**
  * Pure state-machine step for an MCP session.
  *
- * Given configuration and method handlers, returns a curried function:
- *   `(state) => (value) => [newState, Effect<O, Response | null>]`
+ * Given configuration and method handlers, returns a function:
+ *   `(value, state) => [Effect<O, Response | null>, newState]`
  *
  * Rules:
  * - Notifications (no `id`) are silently accepted in any state; state is unchanged.
@@ -162,24 +162,23 @@ export type McpConfig = {
  */
 export const mcpStep = <O extends Operation>(config: McpConfig) =>
     (handlers: McpHandlers<O>) =>
-    (state: McpSessionState) =>
-    (value: Unknown): readonly [McpSessionState, Effect<O, Response | null>] => {
+    (value: Unknown, state: McpSessionState): readonly [Effect<O, Response | null>, McpSessionState] => {
         const [t, message] = decodeRequest(value)
         if (t === 'error') {
-            return [state, pure(_errResponse(null)(invalidRequest))]
+            return [pure(_errResponse(null)(invalidRequest)), state]
         }
         const { id, method, params } = message
 
         // Notifications never receive a response; state is unchanged.
         if (id === undefined) {
-            return [state, pure(null)]
+            return [pure(null), state]
         }
 
         // `initialize` is always handled by the lifecycle layer itself.
         if (method === 'initialize') {
             const [pr] = validate(initializeParams)(params)
             if (pr === 'error') {
-                return [state, pure(_errResponse(id)(invalidParams))]
+                return [pure(_errResponse(id)(invalidParams)), state]
             }
             const newInitialized: InitializedState = {
                 protocolVersion: config.protocolVersion,
@@ -192,35 +191,35 @@ export const mcpStep = <O extends Operation>(config: McpConfig) =>
                 instructions: undefined,
             }
             return [
-                ['initialized', newInitialized],
                 pure(_okResponse(id)(result)),
+                ['initialized', newInitialized],
             ]
         }
 
         // All other methods require initialized state.
         if (state[0] === 'uninitialized') {
-            return [state, pure(_errResponse(id)(notInitialized))]
+            return [pure(_errResponse(id)(notInitialized)), state]
         }
 
         const { capabilities } = state[1]
 
         if (method === 'tools/list') {
             if (capabilities.tools === undefined) {
-                return [state, pure(_errResponse(id)(methodNotFound))]
+                return [pure(_errResponse(id)(methodNotFound)), state]
             }
-            return [state, handlers.toolsList().step(r => pure(_okResponse(id)(r)))]
+            return [handlers.toolsList().step(r => pure(_okResponse(id)(r))), state]
         }
 
         if (method === 'tools/call') {
             if (capabilities.tools === undefined) {
-                return [state, pure(_errResponse(id)(methodNotFound))]
+                return [pure(_errResponse(id)(methodNotFound)), state]
             }
             const pr = validate(toolsCallParams)(message.params)
             if (pr[0] === 'error') {
-                return [state, pure(_errResponse(id)(invalidParams))]
+                return [pure(_errResponse(id)(invalidParams)), state]
             }
-            return [state, handlers.toolsCall(pr[1]).step(r => pure(_okResponse(id)(r)))]
+            return [handlers.toolsCall(pr[1]).step(r => pure(_okResponse(id)(r))), state]
         }
 
-        return [state, pure(_errResponse(id)(methodNotFound))]
+        return [pure(_errResponse(id)(methodNotFound)), state]
     }

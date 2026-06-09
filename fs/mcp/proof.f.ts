@@ -26,11 +26,11 @@ const handlers: McpHandlers<Op> = {
         pure({ content: [{ type: 'text', text: 'hello' }], isError: undefined }),
 }
 
-const step = (state: McpSessionState) => (value: unknown) =>
-    mcpStep(config)(handlers)(state)(value as Unknown)
+const step = (value: unknown, state: McpSessionState) =>
+    mcpStep(config)(handlers)(value as Unknown, state)
 
-const stepNoTools = (state: McpSessionState) => (value: unknown) =>
-    mcpStep(configNoTools)(handlers)(state)(value as Unknown)
+const stepNoTools = (value: unknown, state: McpSessionState) =>
+    mcpStep(configNoTools)(handlers)(value as Unknown, state)
 
 // Synchronously extract the value from a pure Effect.
 const run = <T>(e: Effect<never, T>): T => {
@@ -45,11 +45,11 @@ const initMsg = { jsonrpc: '2.0', method: 'initialize', id: 1,
     params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'client', version: '0.0.1' } } }
 
 function doInit(s: McpSessionState): McpSessionState {
-    return step(s)(initMsg)[0]
+    return step(initMsg, s)[1]
 }
 
 function doInitNoTools(s: McpSessionState): McpSessionState {
-    return stepNoTools(s)(initMsg)[0]
+    return stepNoTools(initMsg, s)[1]
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
