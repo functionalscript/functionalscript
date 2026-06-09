@@ -1,4 +1,4 @@
-import { concat, normalize, relativize, toPosix } from "./module.f.ts"
+import { concat, join, normalize, relativize, toPosix } from "./module.f.ts"
 
 const normalizeTest = [
     () => {
@@ -31,6 +31,33 @@ const concatTest = [
     () => {
         const c = concat("a/../b/..")("c")
         if (c !== "c") { throw c }
+    },
+]
+
+const joinTest = [
+    () => {
+        const r = join('a', 'b')
+        if (r !== 'a/b') { throw r }
+    },
+    () => {
+        const r = join('/abs/root', 'x')
+        if (r !== '/abs/root/x') { throw r }
+    },
+    () => {
+        const r = join('a', 'b', 'c', 'd')
+        if (r !== 'a/b/c/d') { throw r }
+    },
+    () => {
+        const r = join('', 'x')
+        if (r !== '/x') { throw r }
+    },
+    () => {
+        const r = join()
+        if (r !== '') { throw r }
+    },
+    () => {
+        const r = join('only')
+        if (r !== 'only') { throw r }
     },
 ]
 
@@ -67,4 +94,4 @@ const toPosixTest = [
     },
 ]
 
-export const proof = { normalizeTest, concatTest, relativizeTest, toPosixTest }
+export const proof = { normalizeTest, concatTest, joinTest, relativizeTest, toPosixTest }
