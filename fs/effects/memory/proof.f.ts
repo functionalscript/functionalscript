@@ -1,11 +1,9 @@
-import type { Assert } from '../../asserts/module.f.ts'
 import { asBase, asNominal } from '../../types/nominal/module.f.ts'
-import type { Equal } from '../../types/ts/module.f.ts'
 import { run, type MemOperationMap } from '../mock/module.f.ts'
-import { pure, type Effect } from '../module.f.ts'
+import { pure } from '../module.f.ts'
 import {
     create, read, write,
-    type Key, type MemCreate, type MemKeyHash, type MemOp, type MemRead, type MemWrite,
+    type Key, type MemKeyHash, type MemOp,
 } from './module.f.ts'
 
 type MemoryState = {
