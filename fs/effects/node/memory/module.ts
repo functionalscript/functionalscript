@@ -25,12 +25,12 @@ const missingKey = (id: string): Error =>
  * by default.
  */
 export const memoryOperationMap = (uuid: Uuid = randomUUID): MemoryOperationMap => {
-    let store: ReadonlyMap<string, unknown> = new Map()
+    const store: Map<string, unknown> = new Map()
     return {
         memCreate: async value => {
             const id = uuid()
             const key: Key<unknown> = asNominal(id)
-            store = new Map([...store, [id, value]])
+            store.set(id, value)
             return key
         },
         memRead: async key => {
@@ -41,7 +41,7 @@ export const memoryOperationMap = (uuid: Uuid = randomUUID): MemoryOperationMap 
         memWrite: async (key, value) => {
             const id = asBase(key)
             if (!store.has(id)) { throw missingKey(id) }
-            store = new Map([...store, [id, value]])
+            store.set(id, value)
         },
     }
 }
