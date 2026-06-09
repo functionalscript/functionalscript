@@ -48,8 +48,9 @@ Run:
   - 32-bit target checks only on Intel jobs: `cargo test --target ...` and
     `cargo clippy --target ... -- -D warnings`.
 - Node 26:
-  - `npm install -g functionalscript@{config.functionalscript}`
-  - `fjs t`
+  - `npm ci`, because each Node-based job validates the lock file before tests;
+  - `npm install -g functionalscript@{config.functionalscript}`;
+  - `fjs t`.
 
 `fjs t` exercises FunctionalScript proof discovery, module loading, and
 filesystem traversal on each OS/path format. Native `node --test` runs in the
@@ -59,7 +60,10 @@ dedicated Node 24 and Node 26 jobs instead of the platform matrix.
 
 The first iteration may use native GitHub runner images. Later iterations may use Docker or Nix to cache a heavier toolchain setup if install time or external tool download reliability becomes the main bottleneck.
 
-- Playwright (one job).
+- Playwright (one Node-based job):
+  - `npm ci`,
+  - browser cache/install steps,
+  - browser tests.
 - WASM (one job, Rust-based):
   - `cargo fmt -- --check` once, because formatting is source-wide and target-independent;
   - for each WASM target, run the target check group: `cargo test --target ...`
@@ -78,10 +82,13 @@ The first iteration may use native GitHub runner images. Later iterations may us
   - `bun test --coverage`.
 - Node:
   - 22 (one job, for environments that cannot yet use Node 24+, including OpenAI Codex. Note, we can't use `node --test --experimental-strip-types` because Node22 doesn't support subtests properly):
-    - `fjs t`
+    - `npm ci`,
+    - `fjs t`.
   - 24 (one job):
+    - `npm ci`,
     - `node --test`.
   - 26 (one job):
+    - `npm ci`,
     - `npx tsc`,
     - `tsgo`,
     - `node --test ...coverage...`,

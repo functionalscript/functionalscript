@@ -38,13 +38,15 @@ same workflow file.
 
 ### Expected package scripts
 
-The generated platform jobs install the pinned FunctionalScript package globally
-and run `fjs t` without first running `npm ci`. Canonical Node jobs run on Ubuntu
-ARM and are split by Node version:
+The generated platform jobs run `npm ci`, install the pinned FunctionalScript
+package globally, and run `fjs t`. Canonical Node jobs run on Ubuntu ARM and are
+split by Node version:
 
-- Node 22 installs the pinned FunctionalScript package globally and runs `fjs t`.
+- Node 22 runs `npm ci`, installs the pinned FunctionalScript package globally,
+  and runs `fjs t`.
 - Node 24 runs `npm ci` and `node --test`.
 - Node 26 runs `npm ci`, `npx tsc`, `tsgo`, `npm run cov`, and `npm pack`.
+- Playwright is also Node-based, so it runs `npm ci` before browser setup.
 
 The command that must be provided by `package.json` for generated CI is `cov`.
 A typical FunctionalScript project can define it like this:

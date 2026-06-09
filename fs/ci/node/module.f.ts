@@ -26,13 +26,13 @@ const fjsGlobalInstall = (version: string): MetaStep =>
     install({ run: `npm install -g functionalscript@${version}` })
 
 export const platformNodeSteps = (version: string): readonly MetaStep[] => [
-    install(installNode(node.default)),
+    ...nodeInstall(node.default),
     fjsGlobalInstall(version),
     test({ run: 'fjs t' }),
 ]
 
 const node22Steps = (version: string): readonly MetaStep[] => clean([
-    install(installNode(node.node22)),
+    ...nodeInstall(node.node22),
     fjsGlobalInstall(version),
     test({ run: 'fjs t' }),
 ])

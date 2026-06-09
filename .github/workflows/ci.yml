@@ -43,6 +43,9 @@
           "run": "cargo clippy --target i686-unknown-linux-gnu -- -D warnings"
         },
         {
+          "run": "npm ci"
+        },
+        {
           "run": "fjs t"
         },
         {
@@ -76,6 +79,9 @@
         },
         {
           "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "npm ci"
         },
         {
           "run": "fjs t"
@@ -113,6 +119,9 @@
           "run": "cargo clippy -- -D warnings"
         },
         {
+          "run": "npm ci"
+        },
+        {
           "run": "fjs t"
         },
         {
@@ -146,6 +155,9 @@
         },
         {
           "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "npm ci"
         },
         {
           "run": "fjs t"
@@ -190,6 +202,9 @@
           "run": "cargo clippy --target i686-pc-windows-msvc -- -D warnings"
         },
         {
+          "run": "npm ci"
+        },
+        {
           "run": "fjs t"
         },
         {
@@ -223,6 +238,9 @@
         },
         {
           "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "npm ci"
         },
         {
           "run": "fjs t"
@@ -394,6 +412,9 @@
         },
         {
           "uses": "actions/checkout@v6"
+        },
+        {
+          "run": "npm ci"
         },
         {
           "run": "fjs t"

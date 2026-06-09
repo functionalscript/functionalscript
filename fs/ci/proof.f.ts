@@ -57,6 +57,22 @@ export const proof = {
         assert(hasRunInJob('node22', 'fjs t')(gha), 'expected Node 22 FunctionalScript smoke test')
         assert(hasRunInJob('node26', 'npm pack')(gha), 'expected Node 26 package check')
         assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')
+        for (const id of [
+            'ubuntu-intel',
+            'ubuntu-arm',
+            'macos-intel',
+            'macos-arm',
+            'windows-intel',
+            'windows-arm',
+            'node22',
+            'node24',
+            'node26',
+            'playwright',
+        ] as const) {
+            assert(hasRunInJob(id, 'npm ci')(gha), `expected npm ci in ${id}`)
+        }
+        assert(!hasRunInJob('deno', 'npm ci')(gha), 'unexpected npm ci in deno job')
+        assert(!hasRunInJob('bun', 'npm ci')(gha), 'unexpected npm ci in bun job')
     },
     rust: () => {
         assert(hasRun('cargo')(run(true)), 'expected Rust steps')
