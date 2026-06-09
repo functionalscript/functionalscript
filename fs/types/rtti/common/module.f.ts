@@ -57,8 +57,8 @@ export const verror = (message: string): Error<ValidationError> =>
     error({ path: [], message })
 
 /** Prepends `key` to the error's path, used to build the path bottom-up. */
-export const prependPath = (key: string, r: Error<ValidationError>): Error<ValidationError> =>
-    error({ path: [key, ...r[1].path], message: r[1].message })
+export const prependPath = (key: string, [,r]: Error<ValidationError>): Error<ValidationError> =>
+    error({ path: [key, ...r.path], message: r.message })
 
 /** Validates a `Tag0` primitive schema using `typeof`. */
 export const primitive0Validate = <K extends Primitive0, T extends Info0<K>>(tag: K): Validate<T> =>
