@@ -29,26 +29,30 @@ const cargoTestPair = (target: string, config?: string): readonly MetaStep[] => 
     ]
 }
 
-const customTarget = (target: string): readonly MetaStep[] => [
-    { type: 'rust', target },
+const targetChecks = (target?: string): readonly MetaStep[] => [
     cargoTest(target),
     cargoClippy(target)
 ]
 
+const rustTarget = (target: string): readonly MetaStep[] => [
+    { type: 'rust', target },
+    ...targetChecks(target)
+]
+
 const wasmTarget = (target: string): readonly MetaStep[] => [
     { type: 'rust', target },
-    cargoClippy(target),
-    ...cargoTestPair(target),
+    ...targetChecks(target),
+    test({ run: `${cargoCommand('test', target)} --release` }),
     ...cargoTestPair(target, '.cargo/config.wasmer.toml')
 ]
 
 const i686 = (a: Architecture, v: Os): readonly MetaStep[] => {
     if (a === 'intel') {
         switch (v) {
-            case 'windows': return customTarget('i686-pc-windows-msvc')
+            case 'windows': return rustTarget('i686-pc-windows-msvc')
             case 'ubuntu': return [
                 { type: 'apt-get', package: 'libc6-dev-i386' } as const,
-                ...customTarget('i686-unknown-linux-gnu'),
+                ...rustTarget('i686-unknown-linux-gnu'),
             ]
         }
     }
@@ -57,8 +61,7 @@ const i686 = (a: Architecture, v: Os): readonly MetaStep[] => {
 
 export const rustPlatformSteps = (v: Os, a: Architecture): readonly MetaStep[] => [
     { type: 'rust' },
-    cargoTest(),
-    cargoClippy(),
+    ...targetChecks(),
     ...i686(a, v),
 ]
 

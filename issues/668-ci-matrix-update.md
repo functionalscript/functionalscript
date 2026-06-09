@@ -44,10 +44,9 @@ Dimensions: 6 jobs (`OS x Architecture`).
 Run:
 
 - Rust:
-  - native `cargo test`;
-  - native `cargo clippy -- -D warnings`;
-  - 32-bit target checks only on Intel jobs;
-  - `cargo clippy --target ... -- -D warnings` for each 32-bit target checked.
+  - native target checks: `cargo test` and `cargo clippy -- -D warnings`;
+  - 32-bit target checks only on Intel jobs: `cargo test --target ...` and
+    `cargo clippy --target ... -- -D warnings`.
 - Node 26:
   - `npm install -g functionalscript@{fs.version}`  
   - `fjs t`
@@ -63,7 +62,8 @@ The first iteration may use native GitHub runner images. Later iterations may us
 - Playwright (one job).
 - WASM (one job, Rust-based):
   - `cargo fmt -- --check` once, because formatting is source-wide and target-independent;
-  - `cargo clippy --target ... -- -D warnings` for each WASM target, because Clippy is target-aware and should lint the same target surface that is tested;
+  - for each WASM target, run the target check group: `cargo test --target ...`
+    and `cargo clippy --target ... -- -D warnings`;
   - `wasmer`,
   - `wasmtime`.
 - Deno (one job):
@@ -91,9 +91,10 @@ Total: 13 jobs.
   runtime setup (`wasmer`/`wasmtime`); `cargo fmt -- --check` lives there only
   because it is target-independent and should run exactly once rather than in
   every platform job.
-- Run `cargo clippy` per target. Clippy analyzes the target-specific compile
-  surface, including `cfg(...)` differences, so native platform jobs run native
-  Clippy and every checked 32-bit/WASM target runs `cargo clippy --target ...`.
+- Treat `cargo test` and `cargo clippy` as the Rust target-check group. Clippy
+  analyzes the target-specific compile surface, including `cfg(...)`
+  differences, so each native, 32-bit, and WASM target that gets `cargo test`
+  also gets the matching `cargo clippy` invocation for that same target.
 
 ## Related
 
