@@ -70,7 +70,7 @@ The first iteration may use native GitHub runner images. Later iterations may us
   - install/cache `functionalscript@${config.functionalscript}` before checkout with `deno install -g -A npm:functionalscript@${config.functionalscript}`;
   - `deno install --frozen` to validate the lock file before tests;
   - `deno run -A npm:functionalscript@${config.functionalscript} t`,
-  - `deno test -A && deno coverage --include='.*module\\.f\\.ts'`.
+  - `deno test --allow-read --allow-env --coverage && deno coverage --include='.*module\\.f\\.ts'`, so the non-coverage Deno test command is the shared prefix and permissions stay limited to read/env access.
 - Bun (one job):
   - install/cache `functionalscript@${config.functionalscript}` before checkout with `bun install -g functionalscript@${config.functionalscript}`;
   - `bun install --frozen-lockfile` to validate the lock file before tests;

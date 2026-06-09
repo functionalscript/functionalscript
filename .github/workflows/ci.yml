@@ -344,7 +344,7 @@
           "run": "deno run -A npm:functionalscript@0.29.1 t"
         },
         {
-          "run": "deno test -A && deno coverage --include='.*module\\.f\\.ts'"
+          "run": "deno test --allow-read --allow-env --coverage && deno coverage --include='.*module\\.f\\.ts'"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"

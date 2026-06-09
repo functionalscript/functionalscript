@@ -101,6 +101,7 @@ export const proof = {
             assert(hasRun(`deno install -g -A npm:functionalscript@${functionalscript}`)(gha), 'expected configured-version deno install cache')
             assert(hasRun('deno install --frozen')(gha), 'expected deno lock install')
             assert(hasRun(`deno run -A npm:functionalscript@${functionalscript} t`)(gha), 'expected configured-version deno install')
+            assert(hasRun("deno test --allow-read --allow-env --coverage && deno coverage --include='.*module\\.f\\.ts'")(gha), 'expected limited-permission deno coverage')
             assert(hasRun(`bun install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version bun cache')
             assert(hasRun('bun install --frozen-lockfile')(gha), 'expected bun lock install')
             assert(hasRun(`bunx functionalscript@${functionalscript} t`)(gha), 'expected configured-version bun install')
