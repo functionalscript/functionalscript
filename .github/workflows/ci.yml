@@ -34,7 +34,13 @@
           "run": "cargo test"
         },
         {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
           "run": "cargo test --target i686-unknown-linux-gnu"
+        },
+        {
+          "run": "cargo clippy --target i686-unknown-linux-gnu -- -D warnings"
         },
         {
           "run": "fjs t"
@@ -48,6 +54,12 @@
       "runs-on": "ubuntu-24.04-arm",
       "steps": [
         {
+          "uses": "dtolnay/rust-toolchain@1.96.0",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
+        {
           "uses": "actions/setup-node@v6",
           "with": {
             "node-version": "26.3.0"
@@ -61,6 +73,9 @@
         },
         {
           "run": "cargo test"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
         },
         {
           "run": "fjs t"
@@ -74,6 +89,12 @@
       "runs-on": "macos-26-intel",
       "steps": [
         {
+          "uses": "dtolnay/rust-toolchain@1.96.0",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
+        {
           "uses": "actions/setup-node@v6",
           "with": {
             "node-version": "26.3.0"
@@ -87,6 +108,9 @@
         },
         {
           "run": "cargo test"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
         },
         {
           "run": "fjs t"
@@ -100,6 +124,12 @@
       "runs-on": "macos-26",
       "steps": [
         {
+          "uses": "dtolnay/rust-toolchain@1.96.0",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
+        {
           "uses": "actions/setup-node@v6",
           "with": {
             "node-version": "26.3.0"
@@ -113,6 +143,9 @@
         },
         {
           "run": "cargo test"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
         },
         {
           "run": "fjs t"
@@ -148,7 +181,13 @@
           "run": "cargo test"
         },
         {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
           "run": "cargo test --target i686-pc-windows-msvc"
+        },
+        {
+          "run": "cargo clippy --target i686-pc-windows-msvc -- -D warnings"
         },
         {
           "run": "fjs t"
@@ -161,6 +200,12 @@
     "windows-arm": {
       "runs-on": "windows-11-arm",
       "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.96.0",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
         {
           "uses": "actions/setup-node@v6",
           "with": {
@@ -175,6 +220,9 @@
         },
         {
           "run": "cargo test"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
         },
         {
           "run": "fjs t"
@@ -213,7 +261,7 @@
           "run": "cargo fmt -- --check"
         },
         {
-          "run": "cargo clippy -- -D warnings"
+          "run": "cargo clippy --target wasm32-wasip1 -- -D warnings"
         },
         {
           "run": "cargo test --target wasm32-wasip1"
@@ -228,6 +276,9 @@
           "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
         },
         {
+          "run": "cargo clippy --target wasm32-wasip2 -- -D warnings"
+        },
+        {
           "run": "cargo test --target wasm32-wasip2"
         },
         {
@@ -240,6 +291,9 @@
           "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
+          "run": "cargo clippy --target wasm32-unknown-unknown -- -D warnings"
+        },
+        {
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
@@ -250,6 +304,9 @@
         },
         {
           "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
+        },
+        {
+          "run": "cargo clippy --target wasm32-wasip1-threads -- -D warnings"
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads"

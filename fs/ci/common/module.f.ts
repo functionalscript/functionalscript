@@ -84,7 +84,10 @@ export const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(',')
     return [
         ...(aptGet !== '' ? [{ run: `sudo apt-get update && sudo apt-get install -y ${aptGet}` }] : []),
-        ...(needRust ? [uses('dtolnay/rust-toolchain', { components: 'rustfmt,clippy', targets })] : []),
+        ...(needRust ? [uses('dtolnay/rust-toolchain', {
+            components: 'rustfmt,clippy',
+            ...(targets === '' ? {} : { targets }),
+        })] : []),
         ...filter('install'),
         uses('actions/checkout'),
         ...filter('test'),

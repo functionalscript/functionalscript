@@ -1,24 +1,28 @@
 /**
  * CI step builder for the Rust crate: platform compatibility jobs run native
- * and Intel-only `i686` tests, while the canonical WASM job installs Wasmtime
- * and Wasmer before exercising every WASM target.
+ * tests and Clippy, Intel jobs also run 32-bit target tests and Clippy, and the
+ * canonical WASM job installs Wasmtime and Wasmer before exercising every WASM
+ * target.
  *
  * @module
  */
 import { wasmer, wasmtime } from '../config/module.f.ts'
 import { type Architecture, type MetaStep, type Os, install, test, uses } from '../common/module.f.ts'
 
-const cargoTestCommand = (target?: string, config?: string): string => {
+const cargoCommand = (tool: 'clippy' | 'test', target?: string, config?: string): string => {
     const to = target ? ` --target ${target}` : ''
     const co = config ? ` --config ${config}` : ''
-    return `cargo test${to}${co}`
+    return `cargo ${tool}${to}${co}`
 }
 
 const cargoTest = (target?: string, config?: string): MetaStep =>
-    test({ run: cargoTestCommand(target, config) })
+    test({ run: cargoCommand('test', target, config) })
+
+const cargoClippy = (target?: string): MetaStep =>
+    test({ run: `${cargoCommand('clippy', target)} -- -D warnings` })
 
 const cargoTestPair = (target: string, config?: string): readonly MetaStep[] => {
-    const main = cargoTestCommand(target, config)
+    const main = cargoCommand('test', target, config)
     return [
         cargoTest(target, config),
         test({ run: `${main} --release` })
@@ -27,11 +31,13 @@ const cargoTestPair = (target: string, config?: string): readonly MetaStep[] => 
 
 const customTarget = (target: string): readonly MetaStep[] => [
     { type: 'rust', target },
-    cargoTest(target)
+    cargoTest(target),
+    cargoClippy(target)
 ]
 
 const wasmTarget = (target: string): readonly MetaStep[] => [
     { type: 'rust', target },
+    cargoClippy(target),
     ...cargoTestPair(target),
     ...cargoTestPair(target, '.cargo/config.wasmer.toml')
 ]
@@ -50,13 +56,14 @@ const i686 = (a: Architecture, v: Os): readonly MetaStep[] => {
 }
 
 export const rustPlatformSteps = (v: Os, a: Architecture): readonly MetaStep[] => [
+    { type: 'rust' },
     cargoTest(),
+    cargoClippy(),
     ...i686(a, v),
 ]
 
 export const rustWasmSteps: readonly MetaStep[] = [
     test({ run: 'cargo fmt -- --check' }),
-    test({ run: 'cargo clippy -- -D warnings' }),
     install(uses('bytecodealliance/actions/wasmtime/setup', { version: wasmtime })),
     install(uses('wasmerio/setup-wasmer', { version: `v${wasmer}` })),
     ...wasmTarget('wasm32-wasip1'),
