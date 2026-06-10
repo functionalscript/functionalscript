@@ -1,6 +1,7 @@
 import { empty, isVec, uint, vec8 } from "../../types/bit_vec/module.f.ts"
 import { pure } from "../module.f.ts"
 import { fetch, mkdir, now, readdir, readFile, rm, sandbox, writeFile } from "./module.f.ts"
+import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"
 
 export const proof = {
@@ -244,6 +245,20 @@ export const proof = {
                 sandbox(() => ({ result: ['error', err], duration: 0 }) as never))
             if (result[0] !== 'error') { throw result }
             if (result[1] !== err) { throw result[1] }
+        },
+    },
+    memory: {
+        createAndRead: () => {
+            const effect = memCreate(42).step(key => memRead(key))
+            const [_, value] = virtual(emptyState)(effect)
+            if (value !== 42) { throw value }
+        },
+        createAndWrite: () => {
+            const effect = memCreate(1).step(key =>
+                memWrite(key, 99).step(() => memRead(key))
+            )
+            const [_, value] = virtual(emptyState)(effect)
+            if (value !== 99) { throw value }
         },
     },
 }
