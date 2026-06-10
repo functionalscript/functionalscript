@@ -194,20 +194,6 @@ export const multipleFiles = () => {
     assertEq(fail, 0)
 }
 
-// a function literally named `throw` is a throwing test even when its key is not `throw`
-export const throwByFunctionName = () => {
-    // // `bun` calls the function `named` instead of `throw`
-    // const named = ({ throw: () => fail0() }).throw
-    const x = { throw: () => fail0() }
-    const [events, exit] = run({
-        't.proof.f.ts': () => ({ proof: { here: x.throw } }),
-    })
-    assertEq(exit, 0)
-    const passEvents = events.filter(e => e[0] === 'result')
-    assertEq(passEvents.length, 1)
-    assertEq(passEvents[0][2][0], 'here')
-}
-
 // only the `proof` export is used; other module properties are ignored
 export const namedExports = () => {
     const [events, exit] = run({
@@ -379,7 +365,6 @@ export const proof = {
     arrayKeys,
     nonTestFilesSkipped,
     multipleFiles,
-    throwByFunctionName,
     namedExports,
     defaultReporterOutput,
     defaultReporterFailOutput,

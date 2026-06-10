@@ -82,7 +82,7 @@ export type TestSet = TestEntry | readonly (readonly [string, unknown])[]
  * Converts an arbitrary JS value into a `TestSet`.
  *
  * - Zero-argument functions become a `TestEntry`; the `throws` flag is set if
- *   `throws` is already `true` or the function's `.name === 'throw'`.
+ *   `throws` is already `true` (i.e. a `throw` key appears in the ancestor path).
  * - Non-null objects become an array of `[key, value]` pairs to recurse into.
  * - All other values (including functions with parameters) produce an empty array.
  */
@@ -91,7 +91,7 @@ export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
         case 'function': {
             if (x.length === 0) {
                 const fn = x as TestFn
-                return { fn, throws: throws || fn.name === 'throw' }
+                return { fn, throws }
             }
             break
         }
