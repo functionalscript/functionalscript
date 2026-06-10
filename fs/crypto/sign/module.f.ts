@@ -4,16 +4,16 @@
  * @module
  */
 import type { Array2 } from '../../types/array/module.f.ts'
-import { bitLength, divUp, roundUp, type Unary } from '../../types/bigint/module.f.ts'
+import { bitLength, divUpE2, roundUpE2, type Unary } from '../../types/bigint/module.f.ts'
 import { empty, length, msb, repeat, unpack, vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { hmac } from '../hmac/module.f.ts'
 import type { Curve } from '../secp/module.f.ts'
 import { computeSync, type Sha2 } from '../sha2/module.f.ts'
 
 // qlen to rlen
-const roundUp8: Unary = roundUp(8n)
+const roundUp8: Unary = roundUpE2(3n)
 
-const divUp8 = divUp(8n)
+const divUp8 = divUpE2(3n)
 
 export type All = {
     readonly q: bigint
