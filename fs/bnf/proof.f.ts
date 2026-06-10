@@ -1,7 +1,6 @@
 import { classic, deterministic } from './testlib.f.ts'
 import {
     rangeEncode,
-    rangeDecode,
     str,
     set,
     range,
