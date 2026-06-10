@@ -63,5 +63,6 @@ export type ReadonlyRecord<S extends string, T> = { readonly[K in S]: T }
 
 const { values } = Object
 
+/** Returns only the defined (non-undefined) values of a partial record. */
 export const definedValues = <T>(cmd: { readonly[k in string]?: T}): readonly T[] =>
     values(cmd).filter(v => v !== undefined)
