@@ -12,35 +12,32 @@ type BigFloatWithRemainder = readonly[BigFloat,bigint]
 const twoPow53 = 0b0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 const twoPow54 = 0b0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 
-const increaseMantissa = ([m, e]: BigFloat) => (min: bigint): BigFloat => {
-    if (m === 0n) {
-        return [m, e]
-    }
-    const s = sign(m)
-    m = abs(m)
-    while (true) {
-        if (m >= min) {
-            return [BigInt(s) * m, e]
+/**
+ * Shifts the mantissa magnitude one bit at a time, compensating the exponent,
+ * until `done(magnitude, bound)` holds; the sign is restored on return.
+ * A zero mantissa is returned unchanged: it can never satisfy a lower bound,
+ * so shifting it would not terminate.
+ */
+const normalizeMantissa =
+    (shift: (m: bigint) => bigint, de: number, done: (m: bigint, bound: bigint) => boolean) =>
+    ([m, e]: BigFloat) => (bound: bigint): BigFloat => {
+        if (m === 0n) {
+            return [m, e]
         }
-        m = m << 1n
-        e--
+        const s = sign(m)
+        m = abs(m)
+        while (true) {
+            if (done(m, bound)) {
+                return [BigInt(s) * m, e]
+            }
+            m = shift(m)
+            e += de
+        }
     }
-}
 
-const decreaseMantissa = ([m, e]: BigFloat) => (max: bigint): BigFloat => {
-    if (m === 0n) {
-        return [m, e]
-    }
-    const s = sign(m)
-    m = abs(m)
-    while (true) {
-        if (m < max) {
-            return [BigInt(s) * m, e]
-        }
-        m = m >> 1n
-        e++
-    }
-}
+const increaseMantissa = normalizeMantissa(m => m << 1n, -1, (m, min) => m >= min)
+
+const decreaseMantissa = normalizeMantissa(m => m >> 1n, +1, (m, max) => m < max)
 
 const pow = (base: bigint) => (exp: number) => base ** BigInt(exp)
 
