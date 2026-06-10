@@ -161,7 +161,12 @@ export type McpConfig = {
  * - Methods gated by a capability (e.g. `tools/list`) → -32601 when the capability
  *   is absent.
  */
-export const mcpStep = <O extends Operation>(config: McpConfig) =>
+export const mcpStep =
+    <O extends Operation>({
+        protocolVersion,
+        capabilities,
+        serverInfo,
+    }: McpConfig) =>
     (handlers: McpHandlers<O>) =>
     (stateKey: Key<McpSessionState>) =>
     (value: Unknown): Effect<MemOp | O, Response | null> => {
@@ -183,15 +188,15 @@ export const mcpStep = <O extends Operation>(config: McpConfig) =>
                 return pure(_errResponse(id)(invalidParams))
             }
             const result: InitializeResult = {
-                protocolVersion: config.protocolVersion,
-                capabilities: config.capabilities,
-                serverInfo: config.serverInfo,
+                protocolVersion,
+                capabilities,
+                serverInfo,
                 instructions: undefined,
             }
             return write(stateKey, ['initialized', {
-                protocolVersion: config.protocolVersion,
-                capabilities: config.capabilities,
-            }] as McpSessionState).step(() => pure(_okResponse(id)(result)))
+                protocolVersion,
+                capabilities,
+            }]).step(() => pure(_okResponse(id)(result)))
         }
 
         // All other methods require initialized state — read it first.
@@ -212,7 +217,7 @@ export const mcpStep = <O extends Operation>(config: McpConfig) =>
                 if (capabilities.tools === undefined) {
                     return pure(_errResponse(id)(methodNotFound))
                 }
-                const [t, pr] = validate(toolsCallParams)(message.params)
+                const [t, pr] = validate(toolsCallParams)(params)
                 return t === 'error'
                     ? pure(_errResponse(id)(invalidParams))
                     : handlers.toolsCall(pr).step(r => pure(_okResponse(id)(r)))
