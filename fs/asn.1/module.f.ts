@@ -4,7 +4,7 @@
  *
  * @module
  */
-import { bitLength } from "../types/bigint/module.f.ts"
+import { bitLength, divUpE2 } from "../types/bigint/module.f.ts"
 import {
     empty,
     isVec,
@@ -65,8 +65,10 @@ const parsedTagDecode = (v: Vec): readonly[ParsedTag, Vec] => {
     return [[classPc, number], rest1]
 }
 
+const divUp8 = divUpE2(3n)
+
 const tagEncode = (tag: Tag): Vec =>
-    vec(max((bitLength(tag) + 7n) >> 3n)(1n) << 3n)(tag)
+    vec(max(divUp8(bitLength(tag)))(1n) << 3n)(tag)
 
 const tagDecode = (v: Vec): readonly[Tag, Vec] => {
     const [parsedTag, rest] = parsedTagDecode(v)
@@ -129,7 +131,7 @@ type Round8 = {
 }
 
 const round8 = ({ length, uint }: Unpacked): Round8 => {
-    const byteLen = (length + 7n) >> 3n
+    const byteLen = divUp8(length)
     return { byteLen, v: vec(byteLen << 3n)(uint) }
 }
 

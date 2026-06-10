@@ -8,7 +8,9 @@ import {
     combination,
     factorial,
     divUp,
-    roundUp
+    roundUp,
+    divUpE2,
+    roundUpE2
 } from './module.f.ts'
 import { min } from '../function/compare/module.f.ts'
 
@@ -395,5 +397,20 @@ export const proof = {
         if (roundUp(8n)(0b1000n) !== 0b1000n) { throw new Error("fail") }
         if (roundUp(8n)(0b1111n) !== 0b10000n) { throw new Error("fail") }
         if (roundUp(8n)(3n) !== 8n) { throw new Error("fail") }
+    },
+    divUpE2: () => {
+        if (divUpE2(3n)(0b1000n) !== 1n) { throw new Error("fail") }
+        if (divUpE2(3n)(0b1111n) !== 2n) { throw new Error("fail") }
+        if (divUpE2(3n)(0n) !== 0n) { throw new Error("fail") }
+        if (divUpE2(3n)(8n) !== 1n) { throw new Error("fail") }
+        if (divUpE2(3n)(9n) !== 2n) { throw new Error("fail") }
+    },
+    roundUpE2: () => {
+        if (roundUpE2(3n)(0b1000n) !== 0b1000n) { throw new Error("fail") }
+        if (roundUpE2(3n)(0b1111n) !== 0b10000n) { throw new Error("fail") }
+        if (roundUpE2(3n)(3n) !== 8n) { throw new Error("fail") }
+        if (roundUpE2(3n)(0n) !== 0n) { throw new Error("fail") }
+        if (roundUpE2(3n)(8n) !== 8n) { throw new Error("fail") }
+        if (roundUpE2(3n)(9n) !== 16n) { throw new Error("fail") }
     },
 }

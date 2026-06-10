@@ -250,12 +250,34 @@ export const combination = (...k: readonly bigint[]): bigint => {
 
 export const xor: Reduce = a => b => a ^ b
 
-export const divUp: Reduce = b => {
+export const divUp = (b: bigint): Unary => {
     const m = b - 1n
     return v => (v + m) / b
 }
 
-export const roundUp: Reduce = b => {
+export const roundUp = (b: bigint): Unary => {
     const d = divUp(b)
     return v => d(v) * b
+}
+
+/**
+ * Divides a bigint value up to the nearest multiple of 2^e (shift-based, power-of-two only).
+ *
+ * @param e - The exponent (divisor = 2^e).
+ * @returns A function that rounds a value up by the given power of two.
+ */
+export const divUpE2 = (e: bigint): Unary => {
+    const m = mask(e)
+    return v => (v + m) >> e
+}
+
+/**
+ * Rounds a bigint value up to the nearest multiple of 2^e (shift-based, power-of-two only).
+ *
+ * @param e - The exponent (multiple = 2^e).
+ * @returns A function that rounds a value up to the nearest multiple of the given power of two.
+ */
+export const roundUpE2 = (e: bigint): Unary => {
+    const d = divUpE2(e)
+    return v => d(v) << e
 }
