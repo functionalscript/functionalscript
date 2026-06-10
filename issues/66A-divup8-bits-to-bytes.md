@@ -1,7 +1,7 @@
 # 66A-divup8-bits-to-bytes. Share `divUp8` / `roundUp8` bit→byte rounding in `types/bigint`
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -76,15 +76,15 @@ byte-identical; only the definition site moves.
 
 ## Tasks
 
-- [ ] Add `divUp8` / `roundUp8` exports (with JSDoc) to
+- [x] Add `divUp8` / `roundUp8` exports (with JSDoc) to
       `fs/types/bigint/module.f.ts`, next to `divUpE2` / `roundUpE2`.
-- [ ] Import them in `fs/crypto/sign/module.f.ts` and delete the two local
+- [x] Import them in `fs/crypto/sign/module.f.ts` and delete the two local
       definitions.
-- [ ] Import `divUp8` in `fs/asn.1/module.f.ts` and delete the local
+- [x] Import `divUp8` in `fs/asn.1/module.f.ts` and delete the local
       definition.
-- [ ] Extend `fs/types/bigint/proof.f.ts` to exercise the new exports
+- [x] Extend `fs/types/bigint/proof.f.ts` to exercise the new exports
       (full line/branch coverage).
-- [ ] Run `npx tsc` and `fjs t`; confirm `sign`, `asn.1`, and `bigint` proofs
+- [x] Run `npx tsc` and `fjs t`; confirm `sign`, `asn.1`, and `bigint` proofs
       still pass.
 
 ## Related

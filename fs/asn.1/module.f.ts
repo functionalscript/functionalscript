@@ -4,7 +4,7 @@
  *
  * @module
  */
-import { bitLength, divUpE2 } from "../types/bigint/module.f.ts"
+import { bitLength, divUp8 } from "../types/bigint/module.f.ts"
 import {
     empty,
     isVec,
@@ -64,8 +64,6 @@ const parsedTagDecode = (v: Vec): readonly[ParsedTag, Vec] => {
         : b128decode(rest)
     return [[classPc, number], rest1]
 }
-
-const divUp8 = divUpE2(3n)
 
 const tagEncode = (tag: Tag): Vec =>
     vec(max(divUp8(bitLength(tag)))(1n) << 3n)(tag)

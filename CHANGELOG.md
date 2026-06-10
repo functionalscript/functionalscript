@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `types/bigint`: export `divUp8` / `roundUp8` (bits → bytes, rounding up) and reuse them in `crypto/sign` and `asn.1` instead of locally re-deriving `divUpE2(3n)` / `roundUpE2(3n)` in each consumer (i66A-divup8-bits-to-bytes) [#1018](https://github.com/functionalscript/functionalscript/pull/1018)
 - `types/sorted_list`: export `intersect` and `dropTail`; `types/sorted_set`: delegate `intersect` to `sorted_list.intersect`, mirroring how `union` delegates to `sorted_list.merge` (i180-sorted-set-intersect-symmetry) [#1017](https://github.com/functionalscript/functionalscript/pull/1017)
 - `cas`: drop the private 2-char `split` helper and reuse `splitAt(2)` from `fs/types/string` for the CAS shard path computation (i668-cas-reuse-splitat) [#1014](https://github.com/functionalscript/functionalscript/pull/1014)
 - `types/bigint`: add shift-based `divUpE2(e)` / `roundUpE2(e)` helpers for power-of-two round-up; retype `divUp` / `roundUp` from `Reduce` to `(b: bigint) => Unary`; migrate `asn.1` and `crypto/sign` from hand-coded `>> 3n` shifts and `divUp(8n)` / `roundUp(8n)` to the new helpers ([i187](./issues/187-byte-rounding-divup.md))
