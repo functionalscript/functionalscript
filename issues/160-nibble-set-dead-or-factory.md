@@ -1,9 +1,9 @@
 # 160. `nibble_set` duplicates `byte_set`: delete it, or extract a `bitSet` factory
 
 **Priority:** P3
-**Status:** done
+**Status:** won't fix
 
-**Resolution: won't fix.** `fs/types/nibble_set/` is kept, for one reason:
+**Resolution:** `fs/types/nibble_set/` is kept, for one reason:
 it stores the set in a plain `number`, so a `NibbleSet` round-trips through
 `JSON.stringify`/`JSON.parse` as-is, while `byte_set`'s `bigint` cannot be
 serialized into JSON at all. That makes `nibble_set` the bitmask set to use
