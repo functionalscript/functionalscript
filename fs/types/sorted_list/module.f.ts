@@ -52,7 +52,7 @@ const cmpReduce = <T>(cmp: Cmp<T>): CmpReduceOp<T> => () => a => b => {
 
 const mergeTail = (): <T>(tail: List<T>) => List<T> => identity
 
-export const dropTail: TailReduce<unknown, unknown> = () => () => null
+const tailReduce = () => () => null
 
 const intersectReduce = <T>(cmp: Cmp<T>): ReduceOp<T, null> => () => a => b => {
     const sign = cmp(a)(b)
@@ -60,7 +60,7 @@ const intersectReduce = <T>(cmp: Cmp<T>): ReduceOp<T, null> => () => a => b => {
 }
 
 export const intersect = <T>(cmp: Cmp<T>): (a: SortedList<T>) => (b: SortedList<T>) => SortedList<T> =>
-    genericMerge({ reduceOp: intersectReduce(cmp), tailReduce: dropTail as TailReduce<T, null> })(null)
+    genericMerge({ reduceOp: intersectReduce(cmp), tailReduce: tailReduce })(null)
 
 export const find = <T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>): T|null => {
     const cmpValue = cmp(value)
