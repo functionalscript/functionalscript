@@ -60,7 +60,7 @@ const intersectReduce = <T>(cmp: Cmp<T>): ReduceOp<T, null> => () => a => b => {
 }
 
 export const intersect = <T>(cmp: Cmp<T>): (a: SortedList<T>) => (b: SortedList<T>) => SortedList<T> =>
-    genericMerge({ reduceOp: intersectReduce(cmp), tailReduce: tailReduce })(null)
+    genericMerge({ reduceOp: intersectReduce(cmp), tailReduce })(null)
 
 export const find = <T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>): T|null => {
     const cmpValue = cmp(value)
