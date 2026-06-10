@@ -1,6 +1,10 @@
 import { modSqrt, prime_field, sqrt } from './module.f.ts'
 
 export const proof = {
+    throw: {
+        reciprocal_zero: () => prime_field(7n).reciprocal(0n),
+        sqrt_bad_prime: () => sqrt(prime_field(5n)),
+    },
     prime_field_test: () => {
         const p = 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn;
         const f = prime_field(p)
