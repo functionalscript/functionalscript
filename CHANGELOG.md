@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `cas`: drop the private 2-char `split` helper and reuse `splitAt(2)` from `fs/types/string` for the CAS shard path computation (i668-cas-reuse-splitat) [#1014](https://github.com/functionalscript/functionalscript/pull/1014)
 - `types/bigint`: add shift-based `divUpE2(e)` / `roundUpE2(e)` helpers for power-of-two round-up; retype `divUp` / `roundUp` from `Reduce` to `(b: bigint) => Unary`; migrate `asn.1` and `crypto/sign` from hand-coded `>> 3n` shifts and `divUp(8n)` / `roundUp(8n)` to the new helpers ([i187](./issues/187-byte-rounding-divup.md))
 - `effects/memory`: add typed `create` / `read` / `write` memory operations, a Node `Map`-backed interpreter using `crypto.randomUUID()` keys, virtual-memory composition support, and proofs for round trips and type safety (i669-effects-memory) [#1008](https://github.com/functionalscript/functionalscript/pull/1008)
 - `json/rpc`: add JSON-RPC spec links to module and request/response JSDoc; destructure `decodeRequest` result and `message` fields in `dispatch`; use shorthand property in `errorResponseOf` [#1002](https://github.com/functionalscript/functionalscript/pull/1002)

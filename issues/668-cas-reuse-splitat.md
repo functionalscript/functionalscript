@@ -1,7 +1,7 @@
 # 668-cas-reuse-splitat. `fs/cas`: reuse `string.splitAt` instead of a local `split`
 
 **Priority:** P5
-**Status:** open
+**Status:** done
 
 ## Problem
 
