@@ -63,12 +63,19 @@ Add a GitHub Actions job that:
 4. Saves the image as a GitHub Actions **artifact** so downstream jobs can
    pull it without rebuilding.
 
-### 6. Downstream jobs consume the single cached image
+### 6. Optimise job grouping across the single image
 
-All Ubuntu CI jobs (`needs: docker-build`) restore the artifact, `docker load`
-the image, and run their steps inside the container. One image is built once
-per workflow run and shared by all jobs — including the Playwright job, which
-can be merged back into the main Ubuntu matrix rather than running separately.
+Because every tool is present in one image, the CI generator can freely
+compose which steps run together in each job. Jobs are no longer constrained
+by install time. Example groupings (to be decided during implementation):
+
+- Deno and Bun tests in one job (both are fast runtimes, no reason to fan out)
+- Playwright merged into a general Ubuntu job rather than a standalone job
+- Rust + Wasm in one job as today
+
+The default runner architecture for Docker jobs is **ARM**
+(`ubuntu-24.04-arm`). An Intel (`ubuntu-24.04`) variant is built and cached
+separately only where architecture-specific behaviour needs to be validated.
 
 ## Benefits
 
@@ -86,11 +93,12 @@ can be merged back into the main Ubuntu matrix rather than running separately.
 - [ ] Write the Dockerfile template: Debian base → install Nix → `nix-env -i`
       each tool at the pinned version.
 - [ ] Remove `sccache` install and `RUSTC_WRAPPER` env from the generated file.
-- [ ] Add the `docker-build` GitHub Actions job (Intel + ARM variants) with
-      cache-key computation and artifact upload.
+- [ ] Add the `docker-build` GitHub Actions job for ARM (default) and Intel
+      with cache-key computation and artifact upload.
 - [ ] Update downstream Ubuntu jobs to `docker load` the artifact and run
-      inside the container.
-- [ ] Merge the standalone `playwright` job into the Docker Ubuntu job.
+      inside the container; default to ARM runner.
+- [ ] Decide and implement optimal job groupings (e.g. Deno + Bun in one job,
+      Playwright merged into the general Ubuntu job).
 - [ ] Confirm the generated CI YAML and Dockerfile are regenerated consistently
       by `npm run ci-update` (or equivalent).
 
