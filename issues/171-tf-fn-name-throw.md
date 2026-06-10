@@ -1,7 +1,7 @@
 # 171. `tf`: stop relying on JS function names to detect throw tests
 
 **Priority:** P3
-**Status:** open
+**Status:** won't fix
 
 ## Problem
 
@@ -45,3 +45,17 @@ is `throw`**. No knowledge of engine inferred-name rules required.
 
 Also remove (or simplify) the `throwByFunctionName` workaround test in
 `fs/emergetn-testing/test.f.ts` that was added to guard the Bun inconsistency.
+
+## Decision: won't fix
+
+The canonical authoring pattern is structural: **a test is a throw-test iff its
+key in the object tree is `throw`**. We use only property names to convey the
+throw semantic; relying on an inferred function name is not a supported pattern.
+
+The `fn.name === 'throw'` path in `parseTestSet` is left in place as a legacy
+remnant but is documented (in the JSDoc) as engine-dependent and not to be
+relied upon. No code removal is planned because the secondary check is harmless
+on V8 and the structural-key rule already covers all intended use cases.
+
+Test authors must use the `throw` key to declare throw tests — not extract and
+re-bind a function and rely on the engine inferring its name.
