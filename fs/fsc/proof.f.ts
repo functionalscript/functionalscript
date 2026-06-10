@@ -1,6 +1,7 @@
 import { init, terminal } from './module.f.ts'
 import { one } from '../text/ascii/module.f.ts'
 import { stringify } from '../json/module.f.ts'
+import { assertEq } from '../asserts/module.f.ts'
 
 const s = stringify(i => i)
 
@@ -76,5 +77,35 @@ export const proof = {
         const f: any = id(() => undefined)
         // for `bun` it is `m2`:
         if (f.name !== "") { throw f.name }
-    }
+    },
+    chars: {
+        whitespace: () => {
+            for (const ch of ['\t', ' ', '\n', '\r']) {
+                const [tokens, next] = init(one(ch))
+                assertEq(tokens.length, 0)
+                assertEq(next, init)
+            }
+        },
+        punctuation: () => {
+            for (const ch of ['!', '"', '%', '&', "'", '(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?', '[', ']', '^', '`', '{', '|', '}', '~']) {
+                const [tokens] = init(one(ch))
+                assertEq(tokens.length, 1)
+                assertEq(tokens[0], ch)
+            }
+        },
+        identifier_start: () => {
+            for (const ch of ['$', '_', 'A', 'Z', 'a', 'z']) {
+                const [tokens] = init(one(ch))
+                assertEq(tokens.length, 1)
+                assertEq(tokens[0], ch)
+            }
+        },
+        digits: () => {
+            for (const ch of ['0', '5', '9']) {
+                const [tokens] = init(one(ch))
+                assertEq(tokens.length, 1)
+                assertEq(tokens[0], ch)
+            }
+        },
+    },
 }
