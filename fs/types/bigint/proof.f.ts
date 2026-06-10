@@ -12,6 +12,7 @@ import {
     divUpE2,
     roundUpE2
 } from './module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 import { min } from '../function/compare/module.f.ts'
 
 const oldLog2 = (v: bigint): bigint => {
@@ -390,27 +391,27 @@ export const proof = {
         if (r !== 69300n) { throw r }
     },
     divUp: () => {
-        if (divUp(8n)(0b1000n) !== 1n) { throw new Error("fail") }
-        if (divUp(8n)(0b1111n) !== 2n) { throw new Error("fail") }
+        assertEq(divUp(8n)(0b1000n), 1n)
+        assertEq(divUp(8n)(0b1111n), 2n)
     },
     roundUp: () => {
-        if (roundUp(8n)(0b1000n) !== 0b1000n) { throw new Error("fail") }
-        if (roundUp(8n)(0b1111n) !== 0b10000n) { throw new Error("fail") }
-        if (roundUp(8n)(3n) !== 8n) { throw new Error("fail") }
+        assertEq(roundUp(8n)(0b1000n), 0b1000n)
+        assertEq(roundUp(8n)(0b1111n), 0b10000n)
+        assertEq(roundUp(8n)(3n), 8n)
     },
     divUpE2: () => {
-        if (divUpE2(3n)(0b1000n) !== 1n) { throw new Error("fail") }
-        if (divUpE2(3n)(0b1111n) !== 2n) { throw new Error("fail") }
-        if (divUpE2(3n)(0n) !== 0n) { throw new Error("fail") }
-        if (divUpE2(3n)(8n) !== 1n) { throw new Error("fail") }
-        if (divUpE2(3n)(9n) !== 2n) { throw new Error("fail") }
+        assertEq(divUpE2(3n)(0b1000n), 1n)
+        assertEq(divUpE2(3n)(0b1111n), 2n)
+        assertEq(divUpE2(3n)(0n), 0n)
+        assertEq(divUpE2(3n)(8n), 1n)
+        assertEq(divUpE2(3n)(9n), 2n)
     },
     roundUpE2: () => {
-        if (roundUpE2(3n)(0b1000n) !== 0b1000n) { throw new Error("fail") }
-        if (roundUpE2(3n)(0b1111n) !== 0b10000n) { throw new Error("fail") }
-        if (roundUpE2(3n)(3n) !== 8n) { throw new Error("fail") }
-        if (roundUpE2(3n)(0n) !== 0n) { throw new Error("fail") }
-        if (roundUpE2(3n)(8n) !== 8n) { throw new Error("fail") }
-        if (roundUpE2(3n)(9n) !== 16n) { throw new Error("fail") }
+        assertEq(roundUpE2(3n)(0b1000n), 0b1000n)
+        assertEq(roundUpE2(3n)(0b1111n), 0b10000n)
+        assertEq(roundUpE2(3n)(3n), 8n)
+        assertEq(roundUpE2(3n)(0n), 0n)
+        assertEq(roundUpE2(3n)(8n), 8n)
+        assertEq(roundUpE2(3n)(9n), 16n)
     },
 }
