@@ -45,7 +45,7 @@ Example: 2026-05-29 → `65X`. New issue created today: `65X-kebab-slug.md`.
 # YMD-slug. Title
 
 **Priority:** P1 | P2 | P3 | P4 | P5
-**Status:** open | wip | blocked | on-hold | irrelevant
+**Status:** open | wip | blocked | on-hold | irrelevant | won't fix
 **Blocked by:** [iYMD-kebab-slug](./YMD-kebab-slug.md)
 
 ## Problem
@@ -85,8 +85,9 @@ What we plan to do. Omit if no design yet.
 | `blocked` | Waiting on another issue (pair with **Blocked by**) |
 | `on-hold` | Intentionally deferred |
 | `irrelevant` | Superseded, obsolete, or no longer applicable; keep only if the historical context is useful |
+| `won't fix` | Deliberately will not be implemented; record the reason in the file |
 
-Done → set **Status: done** in the file. Will-not-fix → set **Status: done** and record the decision in the commit message. Done issues are deleted occasionally in a cleanup pass — do not delete them immediately.
+Done → set **Status: done** in the file. Done and won't-fix issues are deleted occasionally in a cleanup pass — do not delete them immediately.
 
 ## Language Specification
 
