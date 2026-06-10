@@ -191,7 +191,7 @@ export const mcpStep =
                 protocolVersion,
                 capabilities,
                 serverInfo,
-                instructions: undefined,
+                // instructions: undefined,
             }
             return write(stateKey, ['initialized', {
                 protocolVersion,
