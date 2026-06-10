@@ -107,6 +107,24 @@ export const proof = {
                 if (root(4n) !== 2n) { throw root(4n) }
                 if (f.pow2(root(2n)) !== 2n) { throw root(2n) }
             },
+            div: () => {
+                if (f.div(6n)(2n) !== 3n) { throw '6/2' }
+                if (f.div(0n)(5n) !== 0n) { throw '0/5' }
+                if (f.div(1n)(1n) !== 1n) { throw '1/1' }
+            },
+            pow3: () => {
+                if (f.pow3(0n) !== 0n) { throw '0^3' }
+                if (f.pow3(1n) !== 1n) { throw '1^3' }
+                if (f.pow3(2n) !== 8n) { throw '2^3' }
+                if (f.pow3(3n) !== 27n) { throw '3^3' }
+                if (f.pow3(10n) !== 1000n) { throw '10^3' }
+            },
+            abs: () => {
+                if (f.abs(0n) !== 0n) { throw 'abs(0)' }
+                if (f.abs(1n) !== 1n) { throw 'abs(1)' }
+                if (f.abs(f.neg(1n)) !== 1n) { throw 'abs(-1)' }
+                if (f.abs(f.middle) !== f.middle) { throw 'abs(middle)' }
+            },
         }
     }
 }

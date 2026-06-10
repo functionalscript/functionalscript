@@ -1,4 +1,4 @@
-import { at, setReplace, setReduce, empty, entries, remove, type OrderedMap } from './module.f.ts'
+import { at, setReplace, setReduce, empty, entries, remove, fromEntries, type OrderedMap } from './module.f.ts'
 import { toArray } from '../list/module.f.ts'
 
 export const proof = {
@@ -56,6 +56,17 @@ export const proof = {
             if (e.length !== 2) { throw 'error' }
         },
     ],
+    fromEntries: () => {
+        const list: readonly (readonly [string, number])[] = [['a', 1], ['b', 2], ['c', 3]]
+        const m = fromEntries(list)
+        if (at('a')(m) !== 1) { throw 'fromEntries a' }
+        if (at('b')(m) !== 2) { throw 'fromEntries b' }
+        if (at('c')(m) !== 3) { throw 'fromEntries c' }
+        if (at('d')(m) !== null) { throw 'fromEntries d' }
+        // duplicate key: last one wins
+        const m2 = fromEntries([['x', 10], ['x', 20]] as const)
+        if (at('x')(m2) !== 20) { throw 'fromEntries duplicate' }
+    },
     stress: () => {
         let m: OrderedMap<number> = empty
         for (let i = 0; i < 100_000; ++i) {
