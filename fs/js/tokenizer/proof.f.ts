@@ -133,6 +133,11 @@ export const proof = {
             if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
         },
         () => {
+            // terminal char after invalidNumber state (covers invalidNumberStateOp terminal branch)
+            const result = stringify(tokenizeString('00,'))
+            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":","},{"kind":"eof"}]') { throw result }
+        },
+        () => {
             const result = stringify(tokenizeString('0abc,'))
             if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"id","value":"abc"},{"kind":","},{"kind":"eof"}]') { throw result }
         },

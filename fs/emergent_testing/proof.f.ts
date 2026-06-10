@@ -235,6 +235,20 @@ export const defaultReporterOutput = () => {
     )
 }
 
+// timeFormat with duration >= 1ms covers the `yl <= 0` branch (no leading zeros needed)
+export const defaultReporterOutputLargeDuration = () => {
+    const [stdout, , exit] = runMain({
+        'a.proof.f.ts': () => ({ proof: { x: ok1 } }),
+    })
+    assertEq(exit, 0)
+    assertEq(
+        stdout,
+        'import("./a.proof.f.ts").proof.x(): ok, 1.0000 ms\n'
+        + 'Number of tests: pass: 1, fail: 0, total: 1\n'
+        + 'Time: 1.0000 ms\n',
+    )
+}
+
 // a failure on the non-GitHub reporter writes the error to stderr, not stdout
 export const defaultReporterFailOutput = () => {
     const [, stderr, exit] = runMain({
@@ -394,6 +408,7 @@ export const proof = {
     throwByFunctionName,
     namedExports,
     defaultReporterOutput,
+    defaultReporterOutputLargeDuration,
     defaultReporterFailOutput,
     githubReporterOutput,
     registerSuffixes,
