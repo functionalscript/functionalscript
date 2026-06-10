@@ -1,12 +1,36 @@
 import { assert, assertEq } from '../asserts/module.f.ts'
-import { pure } from '../effects/module.f.ts'
+import { pure, type Operation } from '../effects/module.f.ts'
 import type { Effect } from '../effects/module.f.ts'
+import { run, type MemOperationMap } from '../effects/mock/module.f.ts'
+import { asBase, asNominal, create, read, type Key, type MemOp } from '../effects/memory/module.f.ts'
 import type { Unknown } from '../json/module.f.ts'
 import {
     type ToolsListResult, type ToolsCallParams, type ToolsCallResult,
     type McpHandlers, type McpConfig, type McpSessionState,
     uninitializedState, mcpStep, notInitialized,
 } from './module.f.ts'
+
+// ── Memory mock ────────────────────────────────────────────────────────────────
+
+type MemoryState = {
+    readonly next: number
+    readonly values: { readonly [key: string]: unknown }
+}
+
+const initial: MemoryState = { next: 0, values: {} }
+
+const mock: MemOperationMap<MemOp, MemoryState> = {
+    memCreate: (state, value) => {
+        const id = `k${state.next}`
+        const key: Key<unknown> = asNominal(id)
+        return [{ next: state.next + 1, values: { ...state.values, [id]: value } }, key]
+    },
+    memRead: (state, key) => [state, state.values[asBase(key)]],
+    memWrite: (state, key, value) => {
+        const id = asBase(key)
+        return [{ ...state, values: { ...state.values, [id]: value } }, undefined]
+    },
+}
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -26,31 +50,39 @@ const handlers: McpHandlers<Op> = {
         pure({ content: [{ type: 'text', text: 'hello' }], isError: undefined }),
 }
 
-const step = (value: unknown, state: McpSessionState) =>
-    mcpStep(config)(handlers)(value as Unknown, state)
+type StepResult = readonly [unknown, McpSessionState]
 
-const stepNoTools = (value: unknown, state: McpSessionState) =>
-    mcpStep(configNoTools)(handlers)(value as Unknown, state)
+// Run a memory effect against the mock, return the result.
+const runMem = <T>(effect: Effect<MemOp, T>): T =>
+    run(mock)(initial)(effect)[1]
 
-// Synchronously extract the value from a pure Effect.
-const run = <T>(e: Effect<never, T>): T => {
-    const v = e.value
-    if (v.length !== 1) { throw new Error('expected pure effect') }
-    return v[0] as T
-}
+// TypeScript infers O = Operation (the upper bound) rather than O = never when
+// O flows through McpHandlers<never>, so we cast the widened type down to MemOp.
+const asMemEffect = <T>(e: Effect<Operation, T>): Effect<MemOp, T> =>
+    e as unknown as Effect<MemOp, T>
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Run one step from uninitializedState, return [response, newState].
+const step1 = (cfg: McpConfig) => (msg: unknown): StepResult =>
+    runMem(asMemEffect(create(uninitializedState as McpSessionState).step(key =>
+        mcpStep(cfg)(handlers)(key)(msg as Unknown).step(resp =>
+            read(key).step(state => pure([resp as unknown, state] as const))
+        )
+    )))
+
+// Run initialize then a second step, return [response, newState] of the second.
+const step2 = (cfg: McpConfig) => (msg1: unknown) => (msg2: unknown): StepResult =>
+    runMem(asMemEffect(create(uninitializedState as McpSessionState).step(key =>
+        mcpStep(cfg)(handlers)(key)(msg1 as Unknown).step(() =>
+            mcpStep(cfg)(handlers)(key)(msg2 as Unknown).step(resp =>
+                read(key).step(state => pure([resp as unknown, state] as const))
+            )
+        )
+    )))
+
+// ── Test messages ─────────────────────────────────────────────────────────────
 
 const initMsg = { jsonrpc: '2.0', method: 'initialize', id: 1,
     params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'client', version: '0.0.1' } } }
-
-function doInit(s: McpSessionState): McpSessionState {
-    return step(initMsg, s)[1]
-}
-
-function doInitNoTools(s: McpSessionState): McpSessionState {
-    return stepNoTools(initMsg, s)[1]
-}
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -61,13 +93,12 @@ export const proof = {
         },
 
         initializeTransitionsState: () => {
-            const [, newState] = step(initMsg, uninitializedState)
+            const [, newState] = step1(config)(initMsg)
             assertEq(newState[0], 'initialized')
         },
 
         initializeReturnsResult: () => {
-            const [effect] = step(initMsg, uninitializedState)
-            const resp = run(effect as Effect<never, unknown>)
+            const [resp] = step1(config)(initMsg)
             assert(resp !== null && typeof resp === 'object' && 'result' in (resp as object))
             const r = (resp as { result: { protocolVersion: string } }).result
             assertEq(r.protocolVersion, '2024-11-05')
@@ -75,93 +106,77 @@ export const proof = {
 
         initializeWithBadParamsReturnsInvalidParams: () => {
             const bad = { jsonrpc: '2.0', method: 'initialize', id: 2, params: { wrong: true } }
-            const [effect, newState] = step(bad, uninitializedState)
+            const [resp, newState] = step1(config)(bad)
             assertEq(newState[0], 'uninitialized')
-            const resp = run(effect as Effect<never, unknown>) as { error: { code: number } }
-            assertEq(resp.error.code, -32602)
+            assertEq((resp as { error: { code: number } }).error.code, -32602)
         },
 
         notificationReturnNull: () => {
             const notif = { jsonrpc: '2.0', method: 'notifications/initialized' }
-            const [effect, newState] = step(notif, uninitializedState)
+            const [resp, newState] = step1(config)(notif)
             assertEq(newState[0], 'uninitialized')
-            assertEq(run(effect as Effect<never, unknown>), null)
+            assertEq(resp, null)
         },
 
         notificationAfterInitReturnNull: () => {
-            const initialized = doInit(uninitializedState)
             const notif = { jsonrpc: '2.0', method: 'notifications/initialized' }
-            const [effect] = step(notif, initialized)
-            assertEq(run(effect as Effect<never, unknown>), null)
+            const [resp] = step2(config)(initMsg)(notif)
+            assertEq(resp, null)
         },
 
         methodBeforeInitReturnsNotInitialized: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 3 }
-            const [effect, newState] = step(msg, uninitializedState)
+            const [resp, newState] = step1(config)(msg)
             assertEq(newState[0], 'uninitialized')
-            const resp = run(effect as Effect<never, unknown>) as { error: { code: number } }
-            assertEq(resp.error.code, notInitialized.code)
+            assertEq((resp as { error: { code: number } }).error.code, notInitialized.code)
         },
 
         invalidEnvelopeReturnsInvalidRequest: () => {
             const bad = { jsonrpc: '1.0', method: 'ping', id: 4 }
-            const [effect] = step(bad, uninitializedState)
-            const resp = run(effect as Effect<never, unknown>) as { error: { code: number }; id: unknown }
-            assertEq(resp.error.code, -32600)
-            assertEq(resp.id, null)
+            const [resp] = step1(config)(bad)
+            assertEq((resp as { error: { code: number }; id: unknown }).error.code, -32600)
+            assertEq((resp as { error: { code: number }; id: unknown }).id, null)
         },
     },
 
     tools: {
         toolsListSucceeds: () => {
-            const initialized = doInit(uninitializedState)
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 5 }
-            const [effect] = step(msg, initialized)
-            const resp = run(effect as Effect<never, unknown>) as { result: ToolsListResult }
-            assertEq(resp.result.tools.length, 1)
-            assertEq(resp.result.tools[0].name, 'greet')
+            const [resp] = step2(config)(initMsg)(msg)
+            assertEq((resp as { result: ToolsListResult }).result.tools.length, 1)
+            assertEq((resp as { result: ToolsListResult }).result.tools[0].name, 'greet')
         },
 
         toolsCallSucceeds: () => {
-            const initialized = doInit(uninitializedState)
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 6,
                 params: { name: 'greet', arguments: {} } }
-            const [effect] = step(msg, initialized)
-            const resp = run(effect as Effect<never, unknown>) as { result: ToolsCallResult }
-            assertEq(resp.result.content[0].text, 'hello')
+            const [resp] = step2(config)(initMsg)(msg)
+            assertEq((resp as { result: ToolsCallResult }).result.content[0].text, 'hello')
         },
 
         toolsCallBadParamsReturnsInvalidParams: () => {
-            const initialized = doInit(uninitializedState)
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 7, params: { missing: true } }
-            const [effect] = step(msg, initialized)
-            const resp = run(effect as Effect<never, unknown>) as { error: { code: number } }
-            assertEq(resp.error.code, -32602)
+            const [resp] = step2(config)(initMsg)(msg)
+            assertEq((resp as { error: { code: number } }).error.code, -32602)
         },
 
         toolsListWithoutCapabilityReturnsMethodNotFound: () => {
-            const initialized = doInitNoTools(uninitializedState)
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 8 }
-            const [effect] = stepNoTools(msg, initialized)
-            const resp = run(effect as Effect<never, unknown>) as { error: { code: number } }
-            assertEq(resp.error.code, -32601)
+            const [resp] = step2(configNoTools)(initMsg)(msg)
+            assertEq((resp as { error: { code: number } }).error.code, -32601)
         },
 
         toolsCallWithoutCapabilityReturnsMethodNotFound: () => {
-            const initialized = doInitNoTools(uninitializedState)
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 9,
                 params: { name: 'greet', arguments: {} } }
-            const [effect] = stepNoTools(msg, initialized)
-            const resp = run(effect as Effect<never, unknown>) as { error: { code: number } }
-            assertEq(resp.error.code, -32601)
+            const [resp] = step2(configNoTools)(initMsg)(msg)
+            assertEq((resp as { error: { code: number } }).error.code, -32601)
         },
 
         unknownMethodReturnsMethodNotFound: () => {
-            const initialized = doInit(uninitializedState)
             const msg = { jsonrpc: '2.0', method: 'resources/list', id: 10 }
-            const [effect] = step(msg, initialized)
-            const resp = run(effect as Effect<never, unknown>) as { error: { code: number } }
-            assertEq(resp.error.code, -32601)
+            const [resp] = step2(config)(initMsg)(msg)
+            assertEq((resp as { error: { code: number } }).error.code, -32601)
         },
     },
 }

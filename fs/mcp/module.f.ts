@@ -17,6 +17,7 @@ import { boolean, string, option, array, record } from '../types/rtti/module.f.t
 import { unknown, type Unknown } from '../json/module.f.ts'
 import type { Ts } from '../types/rtti/ts/module.f.ts'
 import { pure, type Operation, type Effect } from '../effects/module.f.ts'
+import { read, write, type Key, type MemOp } from '../effects/memory/module.f.ts'
 import {
     decodeRequest,
     rpcError, invalidRequest, invalidParams, methodNotFound,
@@ -148,41 +149,38 @@ export type McpConfig = {
 }
 
 /**
- * Pure state-machine step for an MCP session.
+ * State-machine step for an MCP session using memory effects.
  *
- * Given configuration and method handlers, returns a function:
- *   `(value, state) => [Effect<O, Response | null>, newState]`
+ * Given configuration, handlers, and a memory key holding the session state,
+ * returns a function `(value) => Effect<MemOp | O, Response | null>`.
  *
  * Rules:
  * - Notifications (no `id`) are silently accepted in any state; state is unchanged.
- * - `initialize` is accepted in any state and transitions to `initialized`.
+ * - `initialize` is accepted in any state and writes `initialized` to `stateKey`.
  * - Any other method before `initialize` → error -32002 (not initialized).
  * - Methods gated by a capability (e.g. `tools/list`) → -32601 when the capability
  *   is absent.
  */
 export const mcpStep = <O extends Operation>(config: McpConfig) =>
     (handlers: McpHandlers<O>) =>
-    (value: Unknown, state: McpSessionState): readonly [Effect<O, Response | null>, McpSessionState] => {
+    (stateKey: Key<McpSessionState>) =>
+    (value: Unknown): Effect<MemOp | O, Response | null> => {
         const [t, message] = decodeRequest(value)
         if (t === 'error') {
-            return [pure(_errResponse(null)(invalidRequest)), state]
+            return pure(_errResponse(null)(invalidRequest))
         }
         const { id, method, params } = message
 
         // Notifications never receive a response; state is unchanged.
         if (id === undefined) {
-            return [pure(null), state]
+            return pure(null)
         }
 
         // `initialize` is always handled by the lifecycle layer itself.
         if (method === 'initialize') {
             const [pr] = validate(initializeParams)(params)
             if (pr === 'error') {
-                return [pure(_errResponse(id)(invalidParams)), state]
-            }
-            const newInitialized: InitializedState = {
-                protocolVersion: config.protocolVersion,
-                capabilities: config.capabilities,
+                return pure(_errResponse(id)(invalidParams))
             }
             const result: InitializeResult = {
                 protocolVersion: config.protocolVersion,
@@ -190,36 +188,38 @@ export const mcpStep = <O extends Operation>(config: McpConfig) =>
                 serverInfo: config.serverInfo,
                 instructions: undefined,
             }
-            return [
-                pure(_okResponse(id)(result)),
-                ['initialized', newInitialized],
-            ]
+            return write(stateKey, ['initialized', {
+                protocolVersion: config.protocolVersion,
+                capabilities: config.capabilities,
+            }] as McpSessionState).step(() => pure(_okResponse(id)(result)))
         }
 
-        // All other methods require initialized state.
-        if (state[0] === 'uninitialized') {
-            return [pure(_errResponse(id)(notInitialized)), state]
-        }
-
-        const { capabilities } = state[1]
-
-        if (method === 'tools/list') {
-            if (capabilities.tools === undefined) {
-                return [pure(_errResponse(id)(methodNotFound)), state]
+        // All other methods require initialized state — read it first.
+        return read(stateKey).step(state => {
+            if (state[0] === 'uninitialized') {
+                return pure(_errResponse(id)(notInitialized))
             }
-            return [handlers.toolsList().step(r => pure(_okResponse(id)(r))), state]
-        }
 
-        if (method === 'tools/call') {
-            if (capabilities.tools === undefined) {
-                return [pure(_errResponse(id)(methodNotFound)), state]
-            }
-            const pr = validate(toolsCallParams)(message.params)
-            if (pr[0] === 'error') {
-                return [pure(_errResponse(id)(invalidParams)), state]
-            }
-            return [handlers.toolsCall(pr[1]).step(r => pure(_okResponse(id)(r))), state]
-        }
+            const { capabilities } = state[1]
 
-        return [pure(_errResponse(id)(methodNotFound)), state]
+            if (method === 'tools/list') {
+                if (capabilities.tools === undefined) {
+                    return pure(_errResponse(id)(methodNotFound))
+                }
+                return handlers.toolsList().step(r => pure(_okResponse(id)(r)))
+            }
+
+            if (method === 'tools/call') {
+                if (capabilities.tools === undefined) {
+                    return pure(_errResponse(id)(methodNotFound))
+                }
+                const pr = validate(toolsCallParams)(message.params)
+                if (pr[0] === 'error') {
+                    return pure(_errResponse(id)(invalidParams))
+                }
+                return handlers.toolsCall(pr[1]).step(r => pure(_okResponse(id)(r)))
+            }
+
+            return pure(_errResponse(id)(methodNotFound))
+        })
     }
