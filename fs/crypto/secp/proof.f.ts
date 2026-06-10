@@ -119,5 +119,17 @@ export const proof = {
             //secp256r1,
         }
         return Object.fromEntries(Object.entries(c).map(([k, v]) => [k, poker(v)]))
+    },
+    // Cover null (point at infinity) branches in neg, add, and eq.
+    nullPointOps: () => {
+        const c = secp256k1
+        // neg(null) → null  [covers secp:114-115]
+        if (c.neg(null) !== null) { throw 'neg(null) should be null' }
+        // eq null branches  [covers secp:126-127]
+        if (!eq(null)(null)) { throw 'eq(null)(null) should be true' }
+        if (eq(null)(c.g)) { throw 'eq(null)(g) should be false' }
+        if (eq(c.g)(null)) { throw 'eq(g)(null) should be false' }
+        // add with null second argument  [covers secp:86-87]
+        if (!eq(c.add(c.g)(null))(c.g)) { throw 'g + null should equal g' }
     }
 }
