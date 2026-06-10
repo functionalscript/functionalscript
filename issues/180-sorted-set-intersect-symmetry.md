@@ -1,7 +1,7 @@
 # 180. `sorted_set`/`sorted_list`: move `intersect` engine to `sorted_list`
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 `fs/types/sorted_set/module.f.ts` keeps `sorted_set` a thin array wrapper for
 *union* — `union` just calls `toArray` over `sorted_list.merge` — but for
