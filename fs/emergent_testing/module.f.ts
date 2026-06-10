@@ -82,7 +82,12 @@ export type TestSet = TestEntry | readonly (readonly [string, unknown])[]
  * Converts an arbitrary JS value into a `TestSet`.
  *
  * - Zero-argument functions become a `TestEntry`; the `throws` flag is set if
- *   `throws` is already `true` or the function's `.name === 'throw'`.
+ *   `throws` is already `true` (i.e. a `throw` key appears in the ancestor path).
+ *   The canonical way to declare a throw-test is structural: nest it under a
+ *   `throw` property key. The secondary `fn.name === 'throw'` check is a legacy
+ *   path that only fires when a function is extracted from a `throw` key and
+ *   placed under a different key; that pattern is engine-dependent (unreliable on
+ *   Bun) and is not a supported authoring style.
  * - Non-null objects become an array of `[key, value]` pairs to recurse into.
  * - All other values (including functions with parameters) produce an empty array.
  */
