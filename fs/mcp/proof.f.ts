@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../asserts/module.f.ts'
-import { pure } from '../effects/module.f.ts'
+import { pure, type Operation } from '../effects/module.f.ts'
 import type { Effect } from '../effects/module.f.ts'
 import { run, type MemOperationMap } from '../effects/mock/module.f.ts'
 import { asBase, asNominal, create, read, type Key, type MemOp } from '../effects/memory/module.f.ts'
@@ -50,27 +50,34 @@ const handlers: McpHandlers<Op> = {
         pure({ content: [{ type: 'text', text: 'hello' }], isError: undefined }),
 }
 
+type StepResult = readonly [unknown, McpSessionState]
+
 // Run a memory effect against the mock, return the result.
 const runMem = <T>(effect: Effect<MemOp, T>): T =>
     run(mock)(initial)(effect)[1]
 
+// TypeScript infers O = Operation (the upper bound) rather than O = never when
+// O flows through McpHandlers<never>, so we cast the widened type down to MemOp.
+const asMemEffect = <T>(e: Effect<Operation, T>): Effect<MemOp, T> =>
+    e as unknown as Effect<MemOp, T>
+
 // Run one step from uninitializedState, return [response, newState].
-const step1 = (cfg: McpConfig) => (msg: unknown) =>
-    runMem(create(uninitializedState as McpSessionState).step(key =>
+const step1 = (cfg: McpConfig) => (msg: unknown): StepResult =>
+    runMem(asMemEffect(create(uninitializedState as McpSessionState).step(key =>
         mcpStep(cfg)(handlers)(key)(msg as Unknown).step(resp =>
-            read(key).step(state => pure([resp, state] as const))
+            read(key).step(state => pure([resp as unknown, state] as const))
         )
-    ))
+    )))
 
 // Run initialize then a second step, return [response, newState] of the second.
-const step2 = (cfg: McpConfig) => (msg1: unknown) => (msg2: unknown) =>
-    runMem(create(uninitializedState as McpSessionState).step(key =>
+const step2 = (cfg: McpConfig) => (msg1: unknown) => (msg2: unknown): StepResult =>
+    runMem(asMemEffect(create(uninitializedState as McpSessionState).step(key =>
         mcpStep(cfg)(handlers)(key)(msg1 as Unknown).step(() =>
             mcpStep(cfg)(handlers)(key)(msg2 as Unknown).step(resp =>
-                read(key).step(state => pure([resp, state] as const))
+                read(key).step(state => pure([resp as unknown, state] as const))
             )
         )
-    ))
+    )))
 
 // ── Test messages ─────────────────────────────────────────────────────────────
 
