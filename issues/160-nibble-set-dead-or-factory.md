@@ -3,11 +3,17 @@
 **Priority:** P3
 **Status:** done
 
-**Resolution:** Recommendation A — `fs/types/nibble_set/` deleted (module and
-proof). It had no consumer anywhere in the repository and duplicated
-`byte_set`'s algebra. The `bitSet` factory below stays unimplemented until a
-second real consumer of the bitmask-as-set algebra exists (per AGENTS.md, DRY
-extraction is triggered by the second consumer, not by the first duplicate).
+**Resolution: won't fix.** `fs/types/nibble_set/` is kept, for one reason:
+it stores the set in a plain `number`, so a `NibbleSet` round-trips through
+`JSON.stringify`/`JSON.parse` as-is, while `byte_set`'s `bigint` cannot be
+serialized into JSON at all. That makes `nibble_set` the bitmask set to use
+when the set is part of JSON-serialized data, which neither deleting it
+(Recommendation A) nor a shared factory (Recommendation B) accounts for.
+The recommendation is now documented in the module header: prefer
+`byte_set`; use `nibble_set` only when the set has to be serialized into
+JSON. The `bitSet` factory stays unimplemented until a second real consumer
+of the shared algebra exists (per AGENTS.md, DRY extraction is triggered by
+the second consumer, not by the first duplicate).
 
 `fs/types/byte_set/module.f.ts` and `fs/types/nibble_set/module.f.ts` implement
 the same bitmask-as-set algebra. They differ only in the numeric domain
