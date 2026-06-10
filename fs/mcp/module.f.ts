@@ -195,29 +195,27 @@ export const mcpStep = <O extends Operation>(config: McpConfig) =>
         }
 
         // All other methods require initialized state — read it first.
-        return read(stateKey).step(state => {
-            if (state[0] === 'uninitialized') {
+        return read(stateKey).step(([t, state]) => {
+            if (t === 'uninitialized') {
                 return pure(_errResponse(id)(notInitialized))
             }
 
-            const { capabilities } = state[1]
+            const { capabilities } = state
 
             if (method === 'tools/list') {
-                if (capabilities.tools === undefined) {
-                    return pure(_errResponse(id)(methodNotFound))
-                }
-                return handlers.toolsList().step(r => pure(_okResponse(id)(r)))
+                return capabilities.tools === undefined
+                    ? pure(_errResponse(id)(methodNotFound))
+                    : handlers.toolsList().step(r => pure(_okResponse(id)(r)))
             }
 
             if (method === 'tools/call') {
                 if (capabilities.tools === undefined) {
                     return pure(_errResponse(id)(methodNotFound))
                 }
-                const pr = validate(toolsCallParams)(message.params)
-                if (pr[0] === 'error') {
-                    return pure(_errResponse(id)(invalidParams))
-                }
-                return handlers.toolsCall(pr[1]).step(r => pure(_okResponse(id)(r)))
+                const [t, pr] = validate(toolsCallParams)(message.params)
+                return t === 'error'
+                    ? pure(_errResponse(id)(invalidParams))
+                    : handlers.toolsCall(pr).step(r => pure(_okResponse(id)(r)))
             }
 
             return pure(_errResponse(id)(methodNotFound))
