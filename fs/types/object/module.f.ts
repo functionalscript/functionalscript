@@ -7,7 +7,7 @@
  */
 import { isArray } from '../array/module.f.ts'
 import { iterable, type List } from '../list/module.f.ts'
-import { fromUndefined, map } from '../nullable/module.f.ts'
+import { fromUndefined, type Nullable } from '../nullable/module.f.ts'
 import { entries as mapEntries, fromEntries as mapFromEntries, type OrderedMap } from '../ordered_map/module.f.ts'
 
 const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
@@ -18,9 +18,11 @@ export type Map<T> = {
 
 export type Entry<T> = readonly[string, T]
 
-export const at: (name: string) => <T>(object: Map<T>) => Exclude<T, undefined>|null
-    = name => object =>
-        map(<T>(d: TypedPropertyDescriptor<T>) => d.value)(fromUndefined(getOwnPropertyDescriptor(object, name)))
+export const at: (name: string) => <T>(object: Map<T>) => Nullable<Exclude<T, undefined>>
+    = name => object => {
+        const d = getOwnPropertyDescriptor(object, name)
+        return d === undefined ? null : fromUndefined(d.value)
+    }
 
 export const sort: <T>(e: List<Entry<T>>) => List<Entry<T>>
     = e => mapEntries(mapFromEntries(e))
