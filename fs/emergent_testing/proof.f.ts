@@ -395,6 +395,17 @@ export const helpers = {
     },
 }
 
+// a passing throw-test emits '# EXPECTED TO THROW' in its output line
+const defaultReporterExpectedToThrow = () => {
+    // fail0 returns a SandboxResult indicating an error; in a throw context
+    // defaultTest inverts it to ok, so defaultReporter.result sees s==='ok' and throws===true
+    const [stdout, , exit] = runMain({
+        'a.proof.f.ts': () => ({ proof: { throw: { x: fail0 } } }),
+    })
+    assertEq(exit, 0)
+    assert(stdout.includes('# EXPECTED TO THROW'), stdout)
+}
+
 export const proof = {
     flat,
     nested,
@@ -412,5 +423,6 @@ export const proof = {
     defaultReporterFailOutput,
     githubReporterOutput,
     registerSuffixes,
+    defaultReporterExpectedToThrow,
     helpers
 }
