@@ -281,3 +281,13 @@ export const roundUpE2 = (e: bigint): Unary => {
     const d = divUpE2(e)
     return v => d(v) << e
 }
+
+/**
+ * Converts a bit count to a byte count, rounding up — divides by `8` (`2^3` bits per byte).
+ */
+export const divUp8: Unary = divUpE2(3n)
+
+/**
+ * Rounds a bit count up to the nearest whole byte — the nearest multiple of `8` (`2^3` bits per byte).
+ */
+export const roundUp8: Unary = roundUpE2(3n)
