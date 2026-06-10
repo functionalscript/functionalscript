@@ -9,8 +9,10 @@ import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { parse as jsonParse } from '../json/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 
+const values = Object.values as <T>(cmd: { readonly[k in string]?: T}) => readonly T[]
+
 const hasRun = (cmd: string) => (gha: GitHubAction): boolean =>
-    Object.values(gha.jobs).some(job => job.steps.some(step => step.run?.includes(cmd)))
+    values(gha.jobs).some(job => job.steps.some(step => step.run?.includes(cmd)))
 
 const hasRunInJob = (jobId: string, cmd: string) => (gha: GitHubAction): boolean =>
     gha.jobs[jobId]?.steps.some(step => step.run?.includes(cmd)) ?? false

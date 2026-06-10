@@ -130,7 +130,7 @@ export type Ts<T extends Type> =
         I extends readonly['unknown'] ? Unknown :
         // Info1
         I extends readonly['array', infer E extends Type] ? readonly Ts<E>[] :
-        I extends readonly['record', infer E extends Type] ? { readonly[K in string]: Ts<E> } :
+        I extends readonly['record', infer E extends Type] ? { readonly[K in string]?: Ts<E> } :
         // Or
         I extends readonly['or', ...infer A extends readonly Type[]] ? Ts<A[number]> :
         //
@@ -226,7 +226,7 @@ type _array = Assert<Equal<Ts<
 >>
 type _record = Assert<Equal<
     Ts<() => readonly['record', () => readonly['boolean']]>,
-    { readonly[k in string]: boolean }
+    { readonly[k in string]?: boolean }
 >>
 
 type _tupleString = Assert<Equal<
