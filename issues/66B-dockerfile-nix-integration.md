@@ -18,7 +18,9 @@ scratch on every run.
 ### 1. Remove `sccache`
 
 Drop the `cargo install sccache` step and the `RUSTC_WRAPPER=sccache` env var.
-Rust build caching is handled at the CI layer via `actions/cache`.
+`sccache` adds an extra build layer that doesn't integrate well with our setup
+and is unnecessary overhead for the current codebase size. This can be
+reconsidered if the Rust compilation time grows significantly.
 
 ### 2. Replace curl-based installs with Nix
 
