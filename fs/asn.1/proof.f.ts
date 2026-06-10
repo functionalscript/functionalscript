@@ -12,8 +12,12 @@ import {
     constructedSequence,
     octetString,
     boolean,
-    constructedSet
+    constructedSet,
+    encodeObjectIdentifier,
+    decodeObjectIdentifier,
+    type ObjectIdentifier,
 } from "./module.f.ts"
+import { assertEq } from "../asserts/module.f.ts"
 
 const { concat, popFront: pop, listToVec } = msb
 const pop8 = pop(8n)
@@ -226,6 +230,26 @@ export const proof = {
                     encode([integer, 2n])
                 ])
             )
+        },
+    },
+    objectIdentifier: {
+        simple: () => {
+            const oid: ObjectIdentifier = [1n, 2n]
+            const encoded = encodeObjectIdentifier(oid)
+            const decoded = decodeObjectIdentifier(encoded)
+            assertEq(decoded.length, 2)
+            assertEq(decoded[0], 1n)
+            assertEq(decoded[1], 2n)
+        },
+        withArc: () => {
+            // OID 1.2.840.113549 (RSA)
+            const oid: ObjectIdentifier = [1n, 2n, 840n, 113549n]
+            const decoded = decodeObjectIdentifier(encodeObjectIdentifier(oid))
+            assertEq(decoded.length, 4)
+            assertEq(decoded[0], 1n)
+            assertEq(decoded[1], 2n)
+            assertEq(decoded[2], 840n)
+            assertEq(decoded[3], 113549n)
         },
     },
     raw: [
