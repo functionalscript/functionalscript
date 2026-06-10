@@ -1,7 +1,7 @@
 # 666-utf8-continuation-helpers. Name the repeated UTF-8 continuation-byte bit patterns
 
 **Priority:** P5
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -58,9 +58,9 @@ proves natural, but keep the change scoped to utf8 first.
 
 ## Tasks
 
-- [ ] add `contByte` / `contPayload` helpers and named lead-byte constants at module scope
-- [ ] rewrite `codePointToUtf8`, `utf8StateToError`, `utf8ByteToCodePointOp` through them
-- [ ] confirm `utf8/proof.f.ts` still passes unchanged (pure refactor)
+- [x] add `contByte` / `contPayload` helpers and named lead-byte constants at module scope
+- [x] rewrite `codePointToUtf8`, `utf8StateToError`, `utf8ByteToCodePointOp` through them
+- [x] confirm `utf8/proof.f.ts` still passes unchanged (pure refactor)
 
 ## Related
 
