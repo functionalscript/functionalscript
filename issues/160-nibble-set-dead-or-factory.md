@@ -1,7 +1,13 @@
 # 160. `nibble_set` duplicates `byte_set`: delete it, or extract a `bitSet` factory
 
 **Priority:** P3
-**Status:** open
+**Status:** done
+
+**Resolution:** Recommendation A — `fs/types/nibble_set/` deleted (module and
+proof). It had no consumer anywhere in the repository and duplicated
+`byte_set`'s algebra. The `bitSet` factory below stays unimplemented until a
+second real consumer of the bitmask-as-set algebra exists (per AGENTS.md, DRY
+extraction is triggered by the second consumer, not by the first duplicate).
 
 `fs/types/byte_set/module.f.ts` and `fs/types/nibble_set/module.f.ts` implement
 the same bitmask-as-set algebra. They differ only in the numeric domain
