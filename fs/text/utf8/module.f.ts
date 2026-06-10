@@ -39,6 +39,38 @@ export type Utf8NonEmptyState =
 export type Utf8State = null | Utf8NonEmptyState
 
 /**
+ * UTF-8 byte-format constants. Each byte kind is defined by a tag — the fixed
+ * high bits identifying the kind — and a payload mask selecting the code-point
+ * bits the byte carries. The encoder and the decoder are exact inverses, so
+ * both read their bit patterns from this single set of definitions:
+ *
+ * | byte kind   | pattern      | tag       | payload mask |
+ * |-------------|--------------|-----------|--------------|
+ * | continuation| `10xx_xxxx`  | `contTag` | `contMask`   |
+ * | 2-byte lead | `110x_xxxx`  | `lead2Tag`| `lead2Mask`  |
+ * | 3-byte lead | `1110_xxxx`  | `lead3Tag`| `lead3Mask`  |
+ * | 4-byte lead | `1111_0xxx`  | `lead4Tag`| `lead4Mask`  |
+ */
+const contTag = 0b1000_0000
+const contMask = 0b0011_1111
+const lead2Tag = 0b1100_0000
+const lead2Mask = 0b0001_1111
+const lead3Tag = 0b1110_0000
+const lead3Mask = 0b0000_1111
+const lead4Tag = 0b1111_0000
+const lead4Mask = 0b0000_0111
+
+/**
+ * Encodes the low six bits of `x` as a UTF-8 continuation byte.
+ */
+const contByte = (x: number) => x & contMask | contTag
+
+/**
+ * Reads the six payload bits of a continuation byte.
+ */
+const contPayload = (b: number) => b & contMask
+
+/**
  * Converts a Unicode code point to a sequence of UTF-8 bytes.
  * @param input The Unicode code point to be converted. Valid range:
  *   - 0x0000 to 0x007F for 1-byte sequences.
@@ -53,41 +85,41 @@ const codePointToUtf8 = (input: number): readonly U8[] => {
         return [input & 0b01111_1111]
     }
     if (input >= 0x0080 && input <= 0x07ff) {
-        return [input >> 6 | 0b1100_0000, input & 0b0011_1111 | 0b1000_0000]
+        return [input >> 6 | lead2Tag, contByte(input)]
     }
     if (input >= 0x0800 && input <= 0xffff) {
         return [
-            input >> 12 | 0b1110_0000,
-            input >> 6 & 0b0011_1111 | 0b1000_0000,
-            input & 0b0011_1111 | 0b1000_0000,
+            input >> 12 | lead3Tag,
+            contByte(input >> 6),
+            contByte(input),
         ]
     }
     if (input >= 0x10000 && input <= 0x10ffff) {
         return [
-            input >> 18 | 0b1111_0000,
-            input >> 12 & 0b0011_1111 | 0b1000_0000,
-            input >> 6 & 0b0011_1111 | 0b1000_0000,
-            input & 0b0011_1111 | 0b1000_0000,
+            input >> 18 | lead4Tag,
+            contByte(input >> 12),
+            contByte(input >> 6),
+            contByte(input),
         ]
     }
     if ((input & errorMask) !== 0) {
         if ((input & 0b1000_0000_0000_0000) !== 0) {
             return [
-                input >> 12 & 0b0000_0111 | 0b1111_0000,
-                input >> 6 & 0b0011_1111 | 0b1000_0000,
-                input & 0b0011_1111 | 0b1000_0000,
+                input >> 12 & lead4Mask | lead4Tag,
+                contByte(input >> 6),
+                contByte(input),
             ]
         }
         if ((input & 0b0000_0100_0000_0000) !== 0) {
             return [
-                input >> 6 & 0b0000_1111 | 0b1110_0000,
-                input & 0b0011_1111 | 0b1000_0000,
+                input >> 6 & lead3Mask | lead3Tag,
+                contByte(input),
             ]
         }
         if ((input & 0b0000_0010_0000_0000) !== 0) {
             return [
-                input >> 6 & 0b0000_0111 | 0b1111_0000,
-                input & 0b0011_1111 | 0b1000_0000,
+                input >> 6 & lead4Mask | lead4Tag,
+                contByte(input),
             ]
         }
         if ((input & 0b0000_0000_1000_0000) !== 0) return [input & 0b1111_1111]
@@ -120,16 +152,16 @@ const utf8StateToError = (state: Utf8NonEmptyState): I32 => {
         }
         case 2: {
             const [s0, s1] = state
-            x = s0 < 0b1111_0000
-                ? ((s0 & 0b0000_1111) << 6) + (s1 & 0b0011_1111) + 0b0000_0100_0000_0000
-                : ((s0 & 0b0000_0111) << 6) + (s1 & 0b0011_1111) +
+            x = s0 < lead4Tag
+                ? ((s0 & lead3Mask) << 6) + contPayload(s1) + 0b0000_0100_0000_0000
+                : ((s0 & lead4Mask) << 6) + contPayload(s1) +
                     0b0000_0010_0000_0000
             break
         }
         case 3: {
             const [s0, s1, s2] = state
-            x = ((s0 & 0b0000_0111) << 12) + ((s1 & 0b0011_1111) << 6) +
-                (s2 & 0b0011_1111) + 0b1000_0000_0000_0000
+            x = ((s0 & lead4Mask) << 12) + (contPayload(s1) << 6) +
+                contPayload(s2) + 0b1000_0000_0000_0000
             break
         }
         default:
@@ -152,26 +184,26 @@ const utf8ByteToCodePointOp: StateScan<number, Utf8State, List<I32>> = (byte, st
         return [[errorMask], state]
     }
     if (state === null) {
-        if (byte < 0b1000_0000) return [[byte], null]
+        if (byte < contTag) return [[byte], null]
         if (byte >= 0b1100_0010 && byte <= 0b1111_0100) return [[], [byte]]
         return [[byte | errorMask], null]
     }
-    if (byte >= 0b1000_0000 && byte < 0b1100_0000) {
+    if (byte >= contTag && byte < lead2Tag) {
         switch (state.length) {
             case 1: {
                 const [s0] = state
-                if (s0 < 0b1110_0000) {
-                    return [[((s0 & 0b0001_1111) << 6) + (byte & 0b0011_1111)], null]
+                if (s0 < lead3Tag) {
+                    return [[((s0 & lead2Mask) << 6) + contPayload(byte)], null]
                 }
                 if (s0 < 0b1111_1000) return [[], [s0, byte]]
                 break
             }
             case 2: {
                 const [s0, s1] = state
-                if (s0 < 0b1111_0000) {
+                if (s0 < lead4Tag) {
                     return [[
-                        ((s0 & 0b0000_1111) << 12) + ((s1 & 0b0011_1111) << 6) +
-                        (byte & 0b0011_1111),
+                        ((s0 & lead3Mask) << 12) + (contPayload(s1) << 6) +
+                        contPayload(byte),
                     ], null]
                 }
                 if (s0 < 0b1111_1000) return [[], [s0, s1, byte]]
@@ -180,14 +212,14 @@ const utf8ByteToCodePointOp: StateScan<number, Utf8State, List<I32>> = (byte, st
             case 3: {
                 const [s0, s1, s2] = state
                 return [[
-                    ((s0 & 0b0000_0111) << 18) + ((s1 & 0b0011_1111) << 12) +
-                    ((s2 & 0b0011_1111) << 6) + (byte & 0b0011_1111),
+                    ((s0 & lead4Mask) << 18) + (contPayload(s1) << 12) +
+                    (contPayload(s2) << 6) + contPayload(byte),
                 ], null]
             }
         }
     }
     const error = utf8StateToError(state)
-    if (byte < 0b1000_0000) return [[error, byte], null]
+    if (byte < contTag) return [[error, byte], null]
     if (byte >= 0b1100_0010 && byte <= 0b1111_0100) return [[error], [byte]]
     return [[error, byte | errorMask], null]
 }
