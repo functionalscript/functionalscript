@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `types/bigfloat`: collapse the private `increaseMantissa` / `decreaseMantissa` mirror into a single `normalizeMantissa` factory parameterized by shift direction, exponent delta, and stop predicate — pure refactor, behavior-identical (i177-bigfloat-normalize-mantissa) [#1021](https://github.com/functionalscript/functionalscript/pull/1021)
 - `text/utf8`: define the UTF-8 tag/payload-mask constants (`contTag`/`contMask`, `lead2Tag`–`lead4Tag`/`Mask`) and `contByte` / `contPayload` helpers once at module scope and rewrite the encoder/decoder through them — pure refactor, byte-identical behaviour (i666-utf8-continuation-helpers) [#1020](https://github.com/functionalscript/functionalscript/pull/1020)
 - `types/bigint`: export `divUp8` / `roundUp8` (bits → bytes, rounding up) and reuse them in `crypto/sign` and `asn.1` instead of locally re-deriving `divUpE2(3n)` / `roundUpE2(3n)` in each consumer (i66A-divup8-bits-to-bytes) [#1018](https://github.com/functionalscript/functionalscript/pull/1018)
 - `types/sorted_list`: export `intersect` and `dropTail`; `types/sorted_set`: delegate `intersect` to `sorted_list.intersect`, mirroring how `union` delegates to `sorted_list.merge` (i180-sorted-set-intersect-symmetry) [#1017](https://github.com/functionalscript/functionalscript/pull/1017)
