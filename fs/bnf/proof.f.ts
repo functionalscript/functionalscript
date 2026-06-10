@@ -15,23 +15,17 @@ export const proof = {
         classic()
         deterministic()
     },
-    rangeEncodeInvalid: [
-        () => {
-            let threw = false
-            try { rangeEncode(-1, 0) } catch (_) { threw = true }
-            if (!threw) { throw 'expected throw for negative a' }
-        },
-        () => {
-            let threw = false
-            try { rangeEncode(0, -1) } catch (_) { threw = true }
-            if (!threw) { throw 'expected throw for negative b' }
-        },
-        () => {
-            let threw = false
-            try { rangeEncode(5, 3) } catch (_) { threw = true }
-            if (!threw) { throw 'expected throw for a > b' }
-        },
-    ],
+    throw: {
+        rangeEncodeInvalid: [
+            () => { rangeEncode(-1, 0) },
+            () => { rangeEncode(0, -1) },
+            () => { rangeEncode(5, 3) },
+        ],
+        rangeInvalid: [
+            () => { range('a') },
+            () => { range('abc') },
+        ],
+    },
     str: [
         () => {
             const result = str('a')
@@ -51,18 +45,6 @@ export const proof = {
         if (!('b' in result)) { throw result }
         if (!('c' in result)) { throw result }
     },
-    rangeInvalid: [
-        () => {
-            let threw = false
-            try { range('a') } catch (_) { threw = true }
-            if (!threw) { throw 'expected throw for single char' }
-        },
-        () => {
-            let threw = false
-            try { range('abc') } catch (_) { threw = true }
-            if (!threw) { throw 'expected throw for three chars' }
-        },
-    ],
     commaJoin0Plus: () => {
         const ws: Rule = ''
         const item: Rule = 'x'
@@ -71,15 +53,9 @@ export const proof = {
         if (result[0] !== '[') { throw result }
     },
     isEmpty: [
-        () => {
-            if (!isEmpty('')) { throw 'empty string should be empty' }
-        },
-        () => {
-            if (!isEmpty([])) { throw 'empty array should be empty' }
-        },
-        () => {
-            if (isEmpty('a')) { throw 'non-empty string should not be empty' }
-        },
+        () => { if (!isEmpty('')) { throw 'empty string should be empty' } },
+        () => { if (!isEmpty([])) { throw 'empty array should be empty' } },
+        () => { if (isEmpty('a')) { throw 'non-empty string should not be empty' } },
         () => {
             const f: Rule = () => ''
             if (!isEmpty(f)) { throw 'function returning empty string should be empty' }
