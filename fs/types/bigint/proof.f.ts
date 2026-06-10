@@ -7,6 +7,9 @@ import {
     mask,
     combination,
     factorial,
+    xor,
+    multiple,
+    product,
     divUp,
     roundUp,
     divUpE2,
@@ -427,5 +430,18 @@ export const proof = {
         assertEq(roundUp8(1n), 8n)
         assertEq(roundUp8(8n), 8n)
         assertEq(roundUp8(9n), 16n)
+    },
+    xor: () => {
+        assertEq(xor(5n)(3n), 6n)
+        assertEq(xor(0n)(15n), 15n)
+        assertEq(xor(0xFFn)(0xF0n), 0x0Fn)
+    },
+    multiple: () => {
+        assertEq(multiple(3n)(4n), 12n)
+        assertEq(multiple(0n)(100n), 0n)
+    },
+    product: () => {
+        assertEq(product([1n, 2n, 3n, 4n]), 24n)
+        assertEq(product([5n, 6n]), 30n)
     },
 }
