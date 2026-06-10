@@ -5,7 +5,7 @@ import { virtual } from '../effects/node/virtual/module.f.ts'
 import { assert, assertEq, todo } from '../asserts/module.f.ts'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
-    registerModule,
+    registerModule, parseTestSet,
     type Reporter, type Path,
     defaultTest,
 } from './module.f.ts'
@@ -366,6 +366,18 @@ export const helpers = {
         assertEq(ghEscape('a,b'), 'a%2Cb')
         assertEq(ghEscape('a\r\nb'), 'a%0D%0Ab')
         assertEq(ghEscape('a%b:c,d'), 'a%25b%3Ac%2Cd')
+    },
+    parseTestSet: {
+        nullReturnsEmpty: () => {
+            const result = parseTestSet(false, null)
+            assertEq(Array.isArray(result), true)
+            assertEq((result as unknown[]).length, 0)
+        },
+        functionWithParamsReturnsEmpty: () => {
+            const result = parseTestSet(false, (_x: number) => _x)
+            assertEq(Array.isArray(result), true)
+            assertEq((result as unknown[]).length, 0)
+        },
     },
 }
 
