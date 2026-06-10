@@ -12,6 +12,7 @@ import { errorExit, log, mkdir, readdir, readFile, writeFile, type Fs, type Node
 import { dispatch, type Commands } from '../cli/module.f.ts'
 import { toOption } from '../types/nullable/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
+import { splitAt } from '../types/string/module.f.ts'
 
 export type KvStore<O extends Operation> = {
     /** Reads a value by key; returns `undefined` when the key does not exist. */
@@ -27,15 +28,15 @@ export type Kv = readonly[Vec, Vec];
 
 const o = { withFileTypes: true } as const
 
-const split = (s: string) => [s.substring(0, 2), s.substring(2)]
+const split2 = splitAt(2)
 
 const prefix = '.cas'
 
 /** Converts a content key to its sharded relative CAS file path. */
 const toPath = (key: Vec): string => {
     const s = vecToCBase32(key)
-    const [a, bc] = split(s)
-    const [b, c] = split(bc)
+    const [a, bc] = split2(s)
+    const [b, c] = split2(bc)
     return join(prefix, a, b, c)
 }
 
