@@ -4,7 +4,7 @@
 - integer number `123` is a `bigint`.
 - assigning `undefined` to a property should remove the property
   ```ts
-  const x = { a: undefined } // x should be {}
+  const x = { a: undefined } // {}
   ```
 - pipeline operator
 - automatic binding
