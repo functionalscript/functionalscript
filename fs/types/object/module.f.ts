@@ -60,3 +60,8 @@ export const isObject = (value: unknown): value is { readonly[k in string]: unkn
     typeof value === 'object' && !isArray(value) && value !== null
 
 export type ReadonlyRecord<S extends string, T> = { readonly[K in S]: T }
+
+const { values } = Object
+
+export const definedValues = <T>(cmd: { readonly[k in string]?: T}): readonly T[] =>
+    values(cmd).filter(v => v !== undefined)
