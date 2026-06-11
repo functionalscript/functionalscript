@@ -217,19 +217,24 @@ export const encodeObjectIdentifier = (oid: ObjectIdentifier): Vec => {
     return listToVec([vec8(firstByte), ...rest.map(b128encode)])
 }
 
+/**
+ * Drains a bit vector by repeatedly applying a step until the vector is empty,
+ * collecting every decoded item into an array.
+ */
+const decodeAll = <T>(step: (v: Vec) => readonly [T, Vec]) => (v: Vec): readonly T[] => {
+    let result: readonly T[] = []
+    while (length(v) !== 0n) {
+        const [item, rest] = step(v)
+        result = [...result, item]
+        v = rest
+    }
+    return result
+}
+
 /** Decodes an OBJECT IDENTIFIER value. */
 export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => {
     const [firstByte, rest] = pop8(v)
-    const first = firstByte / 40n
-    const second = firstByte % 40n
-    let result: ObjectIdentifier = [first, second]
-    let tail = rest
-    while (length(tail) > 0n) {
-        const [value, next] = b128decode(tail)
-        result = [...result, value]
-        tail = next
-    }
-    return result
+    return [firstByte / 40n, firstByte % 40n, ...decodeAll(b128decode)(rest)]
 }
 
 // sequence
@@ -245,15 +250,7 @@ export const encodeSequence: (...records: Sequence) => Vec =
     genericEncodeSequence(identity)
 
 /** Decodes a SEQUENCE payload into records. */
-export const decodeSequence = (v: Vec): Sequence => {
-    let result: readonly Record[] = []
-    while (length(v) !== 0n) {
-        const [record, rest] = decode(v)
-        result = [...result, record]
-        v = rest
-    }
-    return result
-}
+export const decodeSequence = (v: Vec): Sequence => decodeAll(decode)(v)
 
 // set
 
