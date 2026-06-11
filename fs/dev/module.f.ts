@@ -17,6 +17,7 @@ import { cmp as strCmp } from '../types/string/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { pure, type Effect } from '../effects/module.f.ts'
 import { join, relativize, toPosix } from '../path/module.f.ts'
+import { assert } from '../asserts/module.f.ts'
 
 export type Module = {
     readonly proof?: unknown
@@ -43,7 +44,7 @@ export const shouldLoad = (s: string): boolean =>
     s.endsWith('proof.ts') || s.endsWith('proof.js') ||
     s.endsWith('proof.mts')|| s.endsWith('proof.mjs')
 
-export const isSourceFile = (path: string): boolean =>
+const isSourceFile = (path: string): boolean =>
     path.endsWith('.js') || path.endsWith('.ts') || path.endsWith('.mts') || path.endsWith('.mjs')
 
 const allFiles = (
@@ -111,4 +112,15 @@ export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap>
             .map(([k, v]) => [relativize(prefix, k), v] as const)
             .toSorted(([a], [b]) => strCmp(a)(b))
     )))
+}
+
+export const proof = {
+    isSourceFile: () => {
+        assert(isSourceFile('module.js'))
+        assert(isSourceFile('module.ts'))
+        assert(isSourceFile('module.mts'))
+        assert(isSourceFile('module.mjs'))
+        assert(!isSourceFile('readme.md'))
+        assert(!isSourceFile('module.json'))
+    },
 }
