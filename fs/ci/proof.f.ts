@@ -2,7 +2,7 @@ import { ci, main } from './module.f.ts'
 import { functionalscript } from './config/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
-import { type MetaStep, type Os, test, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
+import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
 import { assert } from '../asserts/module.f.ts'
 import type { State } from '../effects/node/virtual/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
@@ -135,5 +135,10 @@ export const proof = {
             const gha = runDefault()
             assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version install')
         },
+    },
+    ubuntu: () => {
+        const job = ubuntu([test({ run: 'echo hi' })])
+        assert(job['runs-on'] !== undefined, 'expected runs-on')
+        assert(job.steps.length > 0, 'expected steps')
     },
 }

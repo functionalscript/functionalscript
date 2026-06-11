@@ -1,6 +1,17 @@
-import { todo } from '../asserts/module.f.ts'
+import { assert, todo } from '../asserts/module.f.ts'
+import { shouldLoad } from './module.f.ts'
 
 export const proof = {
+    shouldLoad: () => {
+        assert(shouldLoad('foo.f.ts'))
+        assert(shouldLoad('bar.f.js'))
+        assert(shouldLoad('proof.ts'))
+        assert(shouldLoad('proof.js'))
+        assert(shouldLoad('proof.mts'))
+        assert(shouldLoad('proof.mjs'))
+        assert(!shouldLoad('module.ts'))
+        assert(!shouldLoad('readme.md'))
+    },
     shouldPass: () => ({
         then: () => undefined
     }),

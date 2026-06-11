@@ -235,6 +235,20 @@ export const defaultReporterOutput = () => {
     )
 }
 
+// timeFormat with duration >= 1ms covers the `yl <= 0` branch (no leading zeros needed)
+export const defaultReporterOutputLargeDuration = () => {
+    const [stdout, , exit] = runMain({
+        'a.proof.f.ts': () => ({ proof: { x: ok1 } }),
+    })
+    assertEq(exit, 0)
+    assertEq(
+        stdout,
+        'import("./a.proof.f.ts").proof.x(): ok, 1.0000 ms\n'
+        + 'Number of tests: pass: 1, fail: 0, total: 1\n'
+        + 'Time: 1.0000 ms\n',
+    )
+}
+
 // a failure on the non-GitHub reporter writes the error to stderr, not stdout
 export const defaultReporterFailOutput = () => {
     const [, stderr, exit] = runMain({
@@ -381,6 +395,17 @@ export const helpers = {
     },
 }
 
+// a passing throw-test emits '# EXPECTED TO THROW' in its output line
+const defaultReporterExpectedToThrow = () => {
+    // fail0 returns a SandboxResult indicating an error; in a throw context
+    // defaultTest inverts it to ok, so defaultReporter.result sees s==='ok' and throws===true
+    const [stdout, , exit] = runMain({
+        'a.proof.f.ts': () => ({ proof: { throw: { x: fail0 } } }),
+    })
+    assertEq(exit, 0)
+    assert(stdout.includes('# EXPECTED TO THROW'), stdout)
+}
+
 export const proof = {
     flat,
     nested,
@@ -394,8 +419,10 @@ export const proof = {
     throwByFunctionName,
     namedExports,
     defaultReporterOutput,
+    defaultReporterOutputLargeDuration,
     defaultReporterFailOutput,
     githubReporterOutput,
     registerSuffixes,
+    defaultReporterExpectedToThrow,
     helpers
 }

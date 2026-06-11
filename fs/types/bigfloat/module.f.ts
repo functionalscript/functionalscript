@@ -12,35 +12,32 @@ type BigFloatWithRemainder = readonly[BigFloat,bigint]
 const twoPow53 = 0b0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 const twoPow54 = 0b0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 
-const increaseMantissa = ([m, e]: BigFloat) => (min: bigint): BigFloat => {
-    if (m === 0n) {
-        return [m, e]
-    }
-    const s = sign(m)
-    m = abs(m)
-    while (true) {
-        if (m >= min) {
-            return [BigInt(s) * m, e]
+/**
+ * Shifts the mantissa magnitude one bit at a time, compensating the exponent,
+ * until `done(magnitude, bound)` holds; the sign is restored on return.
+ * A zero mantissa is returned unchanged: it can never satisfy a lower bound,
+ * so shifting it would not terminate.
+ */
+const normalizeMantissa =
+    (shift: (m: bigint) => bigint, de: number, done: (m: bigint, bound: bigint) => boolean) =>
+    ([m, e]: BigFloat) => (bound: bigint): BigFloat => {
+        if (m === 0n) {
+            return [m, e]
         }
-        m = m << 1n
-        e--
+        const s = sign(m)
+        m = abs(m)
+        while (true) {
+            if (done(m, bound)) {
+                return [BigInt(s) * m, e]
+            }
+            m = shift(m)
+            e += de
+        }
     }
-}
 
-const decreaseMantissa = ([m, e]: BigFloat) => (max: bigint): BigFloat => {
-    if (m === 0n) {
-        return [m, e]
-    }
-    const s = sign(m)
-    m = abs(m)
-    while (true) {
-        if (m < max) {
-            return [BigInt(s) * m, e]
-        }
-        m = m >> 1n
-        e++
-    }
-}
+const increaseMantissa = normalizeMantissa(m => m << 1n, -1, (m, min) => m >= min)
+
+const decreaseMantissa = normalizeMantissa(m => m >> 1n, +1, (m, max) => m < max)
 
 const pow = (base: bigint) => (exp: number) => base ** BigInt(exp)
 
@@ -52,19 +49,25 @@ export const multiply = ([m, e]: BigFloat) => (mul: bigint): BigFloat =>
 const divide = ([m, e]: BigFloat) => (div: bigint): BigFloatWithRemainder =>
     [[m / div, e], m % div]
 
-const round53 = ([[m, e], r]: BigFloatWithRemainder): BigFloat => {
-    const mabs = abs(m)
-    const s = BigInt(sign(m))
-    const [m54, e54] = decreaseMantissa([mabs, e])(twoPow54)
-    const o54 = m54 & 1n
-    const m53 = m54 >> 1n
-    const e53 = e54 + 1
-    if (o54 === 1n && r === 0n && mabs === m54 >> BigInt(e - e54)) {
-        const odd = m53 & 1n
-        return multiply([m53 + odd, e53])(s)
-    }
-    return multiply([m53 + o54, e53])(s)
-}
+/**
+ * Runs `f` on the magnitude `[abs(m), e]` and restores the sign of `m` on the
+ * result: operations on signed mantissas factor through the magnitude.
+ */
+const withSign = (m: bigint, e: number) => (f: (magnitude: BigFloat) => BigFloat): BigFloat =>
+    multiply(f([abs(m), e]))(BigInt(sign(m)))
+
+const round53 = ([[m, e], r]: BigFloatWithRemainder): BigFloat =>
+    withSign(m, e)(([mAbs]) => {
+        const [m54, e54] = decreaseMantissa([mAbs, e])(twoPow54)
+        const o54 = m54 & 1n
+        const m53 = m54 >> 1n
+        const e53 = e54 + 1
+        if (o54 === 1n && r === 0n && mAbs === m54 >> BigInt(e - e54)) {
+            const odd = m53 & 1n
+            return [m53 + odd, e53]
+        }
+        return [m53 + o54, e53]
+    })
 
 export const decToBin = (dec: BigFloat): BigFloat => {
     if (dec[0] === 0n) {
@@ -77,9 +80,5 @@ export const decToBin = (dec: BigFloat): BigFloat => {
     }
     const p = pow5(-dec[1])
     const [m, e] = increaseMantissa(dec)(p * twoPow53)
-    const mAbs = abs(m)
-    const s = BigInt(sign(m))
-    const qr = divide([mAbs, e])(p)
-    const r53 = round53(qr)
-    return multiply(r53)(s)
+    return withSign(m, e)(magnitude => round53(divide(magnitude)(p)))
 }

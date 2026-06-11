@@ -1,3 +1,4 @@
+import { assertEq } from '../../asserts/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { uint, vec } from '../../types/bit_vec/module.f.ts'
 import { sha256, sha384, sha512 } from '../sha2/module.f.ts'
@@ -26,5 +27,12 @@ export const proof = {
         if (r !== vec(512n)(0xb42af09057bac1e2d41708e48a902e09b5ff7f12ab428a4fe86653c73dd248fb82f948a549f7b791a5b41915ee4d1ec3935357e4e2317250d0372afa2ebeeb3an)) {
             throw r
         }
+    },
+    // RFC 4231 Test Case 6: key (131 bytes of 0xaa = 1048 bits) exceeds SHA-256 block size (512 bits),
+    // so the key is first compressed via the hash function before use.
+    longKey: () => {
+        const key = vec(1048n)(BigInt('0x' + 'aa'.repeat(131)))
+        const r = hmac(sha256)(key)(utf8('Test Using Larger Than Block-Size Key - Hash Key First'))
+        assertEq(uint(r), 0x60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54n)
     }
 }

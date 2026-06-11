@@ -5,6 +5,8 @@ import {
     strictEqual,
     addition,
     increment,
+    counter,
+    stateScanToScan,
     foldToScan,
     reduceToScan,
 } from './module.f.ts'
@@ -55,4 +57,18 @@ const reduceToScanTest = () => {
     if (v1 !== 15) { throw v1 }
 }
 
-export const proof = { joinTest, concatTest, logicalNotTest, strictEqualTest, additionTest, incrementTest, foldToScanTest, reduceToScanTest }
+const counterTest = () => {
+    const fn = counter()
+    if (fn(4) !== 5) { throw 'counter() returned wrong function' }
+}
+
+const stateScanToScanTest = () => {
+    const op = (input: number, state: number) => [input + state, input + state] as const
+    const scan = stateScanToScan(op)(0)
+    const [v1, scan2] = scan(3)
+    if (v1 !== 3) { throw v1 }
+    const [v2] = scan2(4)
+    if (v2 !== 7) { throw v2 }
+}
+
+export const proof = { joinTest, concatTest, logicalNotTest, strictEqualTest, additionTest, incrementTest, counterTest, stateScanToScanTest, foldToScanTest, reduceToScanTest }
