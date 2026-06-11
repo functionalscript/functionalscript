@@ -1,3 +1,4 @@
+import { assert } from '../../asserts/module.f.ts'
 import { prime_field } from '../../types/prime_field/module.f.ts'
 import { curve, secp256k1, secp192r1, secp256r1, eq, type Point, secp384r1, secp521r1, type Curve, type Init } from './module.f.ts'
 
@@ -119,5 +120,14 @@ export const proof = {
             //secp256r1,
         }
         return Object.fromEntries(Object.entries(c).map(([k, v]) => [k, poker(v)]))
+    },
+    // Cover null (point at infinity) branches in neg, add, and eq.
+    nullPointOps: () => {
+        const c = secp256k1
+        assert(c.neg(null) === null)
+        assert(eq(null)(null))
+        assert(!eq(null)(c.g))
+        assert(!eq(c.g)(null))
+        assert(eq(c.add(c.g)(null))(c.g))
     }
 }

@@ -55,6 +55,11 @@ export const proof = {
             type: 'object',
             properties: { x: { anyOf: [{ type: 'string' }, { type: 'number' }] } },
         }),
+        withConst: eq({ x: null, y: string } as const, {
+            type: 'object',
+            properties: { x: { const: null }, y: { type: 'string' } },
+            required: ['x', 'y'],
+        }),
     },
     nested: {
         arrayOfRecords: eq(array(record(boolean)), {

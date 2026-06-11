@@ -1,4 +1,16 @@
-import { fgRed, createConsoleText, backspace } from './module.f.ts'
+import { fgRed, reset, createConsoleText, backspace, csiWrite } from './module.f.ts'
+import { virtual, emptyState } from '../../effects/node/virtual/module.f.ts'
+import type { NodeProgramOptions } from '../../effects/node/module.f.ts'
+
+const makeOptions = (isTTY: boolean): NodeProgramOptions => ({
+    args: [],
+    env: {},
+    std: { stdout: { isTTY }, stderr: { isTTY } },
+    testContext: { test: async () => {} },
+    bunTestContext: { test: async () => {} },
+    playwrightTestContext: { test: async () => {} },
+    engine: 'node',
+})
 
 export const proof = [
     () => {
@@ -16,5 +28,18 @@ export const proof = [
         writer2('hi')
         const expected = backspace.repeat(5) + 'hi' + ' '.repeat(3) + backspace.repeat(3)
         if (output[1] !== expected) { throw output[1] }
-    }
+    },
+    () => {
+        // csiWrite with isTTY=false strips ANSI SGR sequences
+        const writeFn = csiWrite(makeOptions(false))('stdout')
+        const [state] = virtual(emptyState)(writeFn(fgRed + 'hello' + reset))
+        if (state.stdout !== 'hello') { throw ['expected ANSI stripped', state.stdout] }
+    },
+    () => {
+        // csiWrite with isTTY=true preserves ANSI SGR sequences
+        const writeFn = csiWrite(makeOptions(true))('stdout')
+        const [state] = virtual(emptyState)(writeFn(fgRed + 'hello' + reset))
+        const expected = fgRed + 'hello' + reset
+        if (state.stdout !== expected) { throw ['expected ANSI preserved', state.stdout] }
+    },
 ]

@@ -7,6 +7,7 @@ import {
     commaJoin0Plus,
     isEmpty,
     oneEncode,
+    repeat1Plus,
     type Rule,
 } from './module.f.ts'
 
@@ -59,6 +60,20 @@ export const proof = {
         () => {
             const f: Rule = () => ''
             if (!isEmpty(f)) { throw 'function returning empty string should be empty' }
+        },
+    ],
+    repeat1Plus: [
+        () => {
+            const result = repeat1Plus('x')
+            if (result[0] !== 'x') { throw result[0] }
+            if (typeof result[1] !== 'function') { throw 'expected repeat0Plus function' }
+        },
+        () => {
+            const rule: Rule = 'ab'
+            const result = repeat1Plus(rule)
+            if (result[0] !== rule) { throw result[0] }
+            const inner = result[1]()
+            if (!('some' in inner) || !('none' in inner)) { throw 'expected Option shape' }
         },
     ],
 }

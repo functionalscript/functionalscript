@@ -25,7 +25,7 @@ export const images = {
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version. A separate maintenance job advances this pin.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = '0.29.1' as const
+export const functionalscript = '0.30.0' as const
 
 // https://bun.sh/
 export const bun = '1.3.14'
@@ -44,13 +44,13 @@ export const node = {
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases
-export const wasmtime = '45.0.0'
+export const wasmtime = '45.0.1'
 
 // https://github.com/wasmerio/wasmer/releases
 export const wasmer = '7.1.0'
 
 // https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
-export const tsgo = '7.0.0-dev.20260609.1'
+export const tsgo = '7.0.0-dev.20260611.2'
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as

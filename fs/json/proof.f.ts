@@ -3,9 +3,26 @@ import { sort } from '../types/object/module.f.ts'
 import { identity } from '../types/function/module.f.ts'
 
 export const proof = {
-    setProperty: () => {
-        if (setProperty("Hello")([])({}) !== "Hello") { throw 'error' }
-    },
+    setProperty: [
+        () => {
+            if (setProperty("Hello")([])({}) !== "Hello") { throw 'error' }
+        },
+        () => {
+            // src === null: should treat as empty object
+            const x = stringify(sort)(setProperty("Hello")(['a'])(null))
+            if (x !== '{"a":"Hello"}') { throw x }
+        },
+        () => {
+            // typeof src !== 'object': primitive src treated as empty object
+            const x = stringify(sort)(setProperty("Hello")(['a'])(42 as unknown as null))
+            if (x !== '{"a":"Hello"}') { throw x }
+        },
+        () => {
+            // src instanceof Array: array src treated as empty object
+            const x = stringify(sort)(setProperty("Hello")(['a'])([1, 2] as unknown as null))
+            if (x !== '{"a":"Hello"}') { throw x }
+        },
+    ],
     stringify: [
         {
             sort: () => {

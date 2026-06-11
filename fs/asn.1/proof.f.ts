@@ -1,4 +1,4 @@
-import { empty, length, msb, uint, unpack, vec, vec8, type Vec } from "../types/bit_vec/module.f.ts"
+import { empty, isVec, length, msb, uint, unpack, vec, vec8, type Vec } from "../types/bit_vec/module.f.ts"
 import { asBase } from "../types/nominal/module.f.ts"
 import {
     decodeRaw,
@@ -251,6 +251,15 @@ export const proof = {
             assertEq(decoded[2], 840n)
             assertEq(decoded[3], 113549n)
         },
+    },
+    unknownTag: () => {
+        // bitString (0x03) is not in SupportedRecord, exercises the default case in rawToRecord
+        const raw = encodeRaw([0x03n, vec8(0x42n)])
+        const [decoded, rest] = decode(raw)
+        if (!isVec(decoded)) { throw 'expected UnsupportedRecord (Vec)' }
+        if (rest !== empty) { throw 'expected empty rest' }
+        // Re-encoding an UnsupportedRecord returns it unchanged (it is already the TLV bytes)
+        if (encode(decoded) !== raw) { throw 'encode should round-trip UnsupportedRecord' }
     },
     raw: [
         () => {

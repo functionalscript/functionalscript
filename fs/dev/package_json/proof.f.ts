@@ -16,6 +16,11 @@ export const proof = {
         const result = validatePackageJsonText('{')
         assert(result[0] === 'error', result)
     },
+    validationError: () => {
+        // valid JSON but `name` is a number, not a string — validation should fail
+        const result = validatePackageJsonText('{"name": 42}')
+        assert(result[0] === 'error', result)
+    },
     validatePreservesOriginalObject: () => {
         const object = { name: 'x', version: '1.0.0', private: true } as const
         const metadata = unwrap(validatePackageJson(object))
