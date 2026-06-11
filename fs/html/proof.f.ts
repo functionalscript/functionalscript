@@ -60,5 +60,10 @@ export const proof = {
             const s = htmlToString(x)
             if (s !== '<!DOCTYPE html><div id="a&lt;">const a = a&lt;b&gt;c</div>') { throw s }
         },
+        elemChild: () => {
+            const x: Element = ['script', ['span', 'ignored'], 'visible']
+            const s = htmlToString(x)
+            if (s !== '<!DOCTYPE html><script>visible</script>') { throw s }
+        },
     }
 }
