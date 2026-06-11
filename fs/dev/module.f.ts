@@ -43,7 +43,7 @@ export const shouldLoad = (s: string): boolean =>
     s.endsWith('proof.ts') || s.endsWith('proof.js') ||
     s.endsWith('proof.mts')|| s.endsWith('proof.mjs')
 
-const isSourceFile = (path: string): boolean =>
+export const isSourceFile = (path: string): boolean =>
     path.endsWith('.js') || path.endsWith('.ts') || path.endsWith('.mts') || path.endsWith('.mjs')
 
 const allFiles = (

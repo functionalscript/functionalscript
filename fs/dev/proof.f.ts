@@ -1,5 +1,5 @@
 import { assert, todo } from '../asserts/module.f.ts'
-import { shouldLoad } from './module.f.ts'
+import { shouldLoad, isSourceFile } from './module.f.ts'
 
 export const proof = {
     shouldLoad: () => {
@@ -11,6 +11,14 @@ export const proof = {
         assert(shouldLoad('proof.mjs'))
         assert(!shouldLoad('module.ts'))
         assert(!shouldLoad('readme.md'))
+    },
+    isSourceFile: () => {
+        assert(isSourceFile('module.js'))
+        assert(isSourceFile('module.ts'))
+        assert(isSourceFile('module.mts'))
+        assert(isSourceFile('module.mjs'))
+        assert(!isSourceFile('module.f.ts'))
+        assert(!isSourceFile('readme.md'))
     },
     shouldPass: () => ({
         then: () => undefined
