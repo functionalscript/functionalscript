@@ -35,4 +35,11 @@ export const proof = [
         const [state] = virtual(emptyState)(writeFn(fgRed + 'hello' + reset))
         if (state.stdout !== 'hello') { throw ['expected ANSI stripped', state.stdout] }
     },
+    () => {
+        // csiWrite with isTTY=true preserves ANSI SGR sequences
+        const writeFn = csiWrite(makeOptions(true))('stdout')
+        const [state] = virtual(emptyState)(writeFn(fgRed + 'hello' + reset))
+        const expected = fgRed + 'hello' + reset
+        if (state.stdout !== expected) { throw ['expected ANSI preserved', state.stdout] }
+    },
 ]
