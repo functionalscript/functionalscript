@@ -17,8 +17,8 @@ export const proof = {
         assert(isSourceFile('module.ts'))
         assert(isSourceFile('module.mts'))
         assert(isSourceFile('module.mjs'))
-        assert(!isSourceFile('module.f.ts'))
         assert(!isSourceFile('readme.md'))
+        assert(!isSourceFile('module.json'))
     },
     shouldPass: () => ({
         then: () => undefined
