@@ -226,6 +226,12 @@ export const proof = {
             if (result !== '["error","unexpected token"]') { throw result }
         },
         () => {
+            const tokenList = tokenizeString('{"a":1 "b":2}')
+            const obj = parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
+        },
+        () => {
             const tokenList = tokenizeString('[{]}')
             const obj = parse(tokenList)
             const result = stringify(obj)
