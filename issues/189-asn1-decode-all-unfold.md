@@ -1,7 +1,7 @@
 # 189. `asn.1`: a `decodeAll` unfold for "consume a `Vec` until empty"
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 Two `asn.1` decoders grow an array by applying a `(Vec) => [item, Vec]` step until
 the input vector is exhausted — the same imperative unfold, written twice:
