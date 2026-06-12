@@ -80,7 +80,7 @@ const toInit: () => ToResult
 const single = (c: string): State<undefined> =>
     range(c)(() => () => [[c], unexpectedSymbol])
 
-const punctuation = "!\"%&'()*+,-./:;<=>?[]^`{|}~"
+const punctuation = "!\"%&'()*+,-./:;<=>?[]^`{|}~" as const
 
 export const init: ToResult = create([
     codePointRange(one(terminal))(toInit),
