@@ -195,7 +195,7 @@ export const proof = {
         empty: () => assertOk(validate(record(number))({})),
         ok: () => {
             const t = record(string)
-            type _ = Assert<Equal<Ts<typeof t>, { readonly[K in string]: string }>>
+            type _ = Assert<Equal<Ts<typeof t>, { readonly[K in string]?: string }>>
             assertOk(validate(t)({ a: 'hello', b: 'world' }))
         },
         error: () => {
@@ -315,7 +315,7 @@ export const proof = {
         },
         recordOfRecords: () => {
             const tree = () => ['record', tree] as const
-            type A = { readonly[K in string]: A }
+            type A = { readonly[K in string]?: A }
             type _ = Assert<Equal<A, Ts<typeof tree>>>
             const v = validate(tree)
             assertOk(v({}))
