@@ -127,12 +127,16 @@ export const notInitialized = rpcError(-32002)('Server not initialized')
 /** State carried before the peer sends `initialize`. */
 export type Uninitialized = readonly ['uninitialized']
 
+/** State after `initialize` response was sent but before `notifications/initialized` arrives. */
+export type Initializing = readonly ['initializing']
+
 /** State carried after a successful `initialize` exchange. */
 export type InitializedState = true
 
-/** The two phases of an MCP session. */
+/** The three phases of an MCP session. */
 export type McpSessionState =
     | Uninitialized
+    | Initializing
     | readonly ['initialized', InitializedState]
 
 /** Initial session state — always start here. */
@@ -152,10 +156,12 @@ export type McpConfig = {
  * returns a function `(value) => Effect<MemOp | O, Response | null>`.
  *
  * Rules:
- * - Notifications (no `id`) are silently accepted in any state; state is unchanged.
  * - `ping` always returns an empty success regardless of session state.
  * - `initialize` is accepted only while uninitialized; a second call returns -32600.
- * - Any other method before `initialize` → error -32002 (not initialized).
+ *   On success the state moves to `initializing`, not `initialized`.
+ * - `notifications/initialized` (no `id`) transitions `initializing` → `initialized`;
+ *   other notifications are silently ignored in any state.
+ * - Any other method before `notifications/initialized` → error -32002 (not initialized).
  * - Methods gated by a capability (e.g. `tools/list`) → -32601 when the capability
  *   is absent.
  */
@@ -174,8 +180,16 @@ export const mcpStep =
         }
         const { id, method, params } = message
 
-        // Notifications never receive a response; state is unchanged.
+        // Notifications (no `id`) never receive a response.
+        // `notifications/initialized` transitions the session from initializing → initialized.
         if (id === undefined) {
+            if (method === 'notifications/initialized') {
+                return read(stateKey).step(([t]) =>
+                    t === 'initializing'
+                        ? write(stateKey, ['initialized', true as InitializedState]).step(() => pure(null))
+                        : pure(null)
+                )
+            }
             return pure(null)
         }
 
@@ -184,7 +198,7 @@ export const mcpStep =
             return pure(_okResponse(id)({}))
         }
 
-        // `initialize` transitions from uninitialized → initialized; reject if already done.
+        // `initialize` transitions uninitialized → initializing; reject if already done.
         if (method === 'initialize') {
             return read(stateKey).step(([t]) => {
                 if (t !== 'uninitialized') {
@@ -199,13 +213,13 @@ export const mcpStep =
                     capabilities,
                     serverInfo,
                 }
-                return write(stateKey, ['initialized', true as InitializedState]).step(() => pure(_okResponse(id)(result)))
+                return write(stateKey, ['initializing']).step(() => pure(_okResponse(id)(result)))
             })
         }
 
-        // All other methods require initialized state — read it first.
+        // All other methods require fully initialized state — read it first.
         return read(stateKey).step(([t]) => {
-            if (t === 'uninitialized') {
+            if (t !== 'initialized') {
                 return pure(_errResponse(id)(notInitialized))
             }
 

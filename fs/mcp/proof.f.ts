@@ -36,18 +36,18 @@ const mock: MemOperationMap<MemOp, MemoryState> = {
 
 const config: McpConfig = {
     serverInfo: { name: 'test-server', version: '0.1.0' },
-    capabilities: { tools: { listChanged: undefined } },
+    capabilities: { tools: {} },
     protocolVersion: '2024-11-05',
 }
 
-const configNoTools: McpConfig = { ...config, capabilities: { tools: undefined } }
+const configNoTools: McpConfig = { ...config, capabilities: {} }
 
 type Op = never
 const handlers: McpHandlers<Op> = {
     toolsList: (): Effect<Op, ToolsListResult> =>
-        pure({ tools: [{ name: 'greet', description: undefined, inputSchema: {} }], nextCursor: undefined }),
+        pure({ tools: [{ name: 'greet', inputSchema: {} }] }),
     toolsCall: (_p: ToolsCallParams): Effect<Op, ToolsCallResult> =>
-        pure({ content: [{ type: 'text', text: 'hello' }], isError: undefined }),
+        pure({ content: [{ type: 'text', text: 'hello' }] }),
 }
 
 type StepResult = readonly [unknown, McpSessionState]
@@ -79,10 +79,24 @@ const step2 = (cfg: McpConfig) => (msg1: unknown) => (msg2: unknown): StepResult
         )
     )))
 
+// Run initialize, notifications/initialized, then a third step; return [response, newState] of the third.
+const step3 = (cfg: McpConfig) => (msg1: unknown) => (msg2: unknown) => (msg3: unknown): StepResult =>
+    runMem(asMemEffect(create(uninitializedState as McpSessionState).step(key =>
+        mcpStep(cfg)(handlers)(key)(msg1 as Unknown).step(() =>
+            mcpStep(cfg)(handlers)(key)(msg2 as Unknown).step(() =>
+                mcpStep(cfg)(handlers)(key)(msg3 as Unknown).step(resp =>
+                    read(key).step(state => pure([resp as unknown, state] as const))
+                )
+            )
+        )
+    )))
+
 // ── Test messages ─────────────────────────────────────────────────────────────
 
 const initMsg = { jsonrpc: '2.0', method: 'initialize', id: 1,
     params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'client', version: '0.0.1' } } }
+
+const initNotif = { jsonrpc: '2.0', method: 'notifications/initialized' }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -92,8 +106,14 @@ export const proof = {
             assertEq(uninitializedState[0], 'uninitialized')
         },
 
-        initializeTransitionsState: () => {
+        initializeTransitionsToInitializing: () => {
             const [, newState] = step1(config)(initMsg)
+            assertEq(newState[0], 'initializing')
+        },
+
+        initializedNotificationTransitionsToInitialized: () => {
+            const [resp, newState] = step2(config)(initMsg)(initNotif)
+            assertEq(resp, null)
             assertEq(newState[0], 'initialized')
         },
 
@@ -111,16 +131,9 @@ export const proof = {
             assertEq((resp as { error: { code: number } }).error.code, -32602)
         },
 
-        notificationReturnNull: () => {
-            const notif = { jsonrpc: '2.0', method: 'notifications/initialized' }
-            const [resp, newState] = step1(config)(notif)
+        notificationBeforeInitReturnNull: () => {
+            const [resp, newState] = step1(config)(initNotif)
             assertEq(newState[0], 'uninitialized')
-            assertEq(resp, null)
-        },
-
-        notificationAfterInitReturnNull: () => {
-            const notif = { jsonrpc: '2.0', method: 'notifications/initialized' }
-            const [resp] = step2(config)(initMsg)(notif)
             assertEq(resp, null)
         },
 
@@ -132,7 +145,7 @@ export const proof = {
 
         doubleInitializeReturnsInvalidRequest: () => {
             const [resp, newState] = step2(config)(initMsg)(initMsg)
-            assertEq(newState[0], 'initialized')
+            assertEq(newState[0], 'initializing')
             assertEq((resp as { error: { code: number } }).error.code, -32600)
         },
 
@@ -143,9 +156,16 @@ export const proof = {
             assert(!('error' in (resp as object)))
         },
 
-        pingAfterInitSucceeds: () => {
+        pingDuringInitializingSucceeds: () => {
             const msg = { jsonrpc: '2.0', method: 'ping', id: 12 }
-            const [resp] = step2(config)(initMsg)(msg)
+            const [resp, newState] = step2(config)(initMsg)(msg)
+            assertEq(newState[0], 'initializing')
+            assert(!('error' in (resp as object)))
+        },
+
+        pingAfterInitSucceeds: () => {
+            const msg = { jsonrpc: '2.0', method: 'ping', id: 15 }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
             assert(!('error' in (resp as object)))
         },
 
@@ -153,6 +173,13 @@ export const proof = {
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 3 }
             const [resp, newState] = step1(config)(msg)
             assertEq(newState[0], 'uninitialized')
+            assertEq((resp as { error: { code: number } }).error.code, notInitialized.code)
+        },
+
+        methodDuringInitializingReturnsNotInitialized: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/list', id: 16 }
+            const [resp, newState] = step2(config)(initMsg)(msg)
+            assertEq(newState[0], 'initializing')
             assertEq((resp as { error: { code: number } }).error.code, notInitialized.code)
         },
 
@@ -167,7 +194,7 @@ export const proof = {
     tools: {
         toolsListSucceeds: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 5 }
-            const [resp] = step2(config)(initMsg)(msg)
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
             assertEq((resp as { result: ToolsListResult }).result.tools.length, 1)
             assertEq((resp as { result: ToolsListResult }).result.tools[0].name, 'greet')
         },
@@ -175,46 +202,46 @@ export const proof = {
         toolsCallSucceeds: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 6,
                 params: { name: 'greet', arguments: {} } }
-            const [resp] = step2(config)(initMsg)(msg)
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
             assertEq((resp as { result: ToolsCallResult }).result.content[0].text, 'hello')
         },
 
         toolsCallBadParamsReturnsInvalidParams: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 7, params: { missing: true } }
-            const [resp] = step2(config)(initMsg)(msg)
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
             assertEq((resp as { error: { code: number } }).error.code, -32602)
         },
 
         toolsCallAbsentArgumentsSucceeds: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 13,
                 params: { name: 'greet' } }
-            const [resp] = step2(config)(initMsg)(msg)
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
             assertEq((resp as { result: ToolsCallResult }).result.content[0].text, 'hello')
         },
 
         toolsCallNullArgumentsReturnsInvalidParams: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 14,
                 params: { name: 'greet', arguments: null } }
-            const [resp] = step2(config)(initMsg)(msg)
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
             assertEq((resp as { error: { code: number } }).error.code, -32602)
         },
 
         toolsListWithoutCapabilityReturnsMethodNotFound: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 8 }
-            const [resp] = step2(configNoTools)(initMsg)(msg)
+            const [resp] = step3(configNoTools)(initMsg)(initNotif)(msg)
             assertEq((resp as { error: { code: number } }).error.code, -32601)
         },
 
         toolsCallWithoutCapabilityReturnsMethodNotFound: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 9,
                 params: { name: 'greet', arguments: {} } }
-            const [resp] = step2(configNoTools)(initMsg)(msg)
+            const [resp] = step3(configNoTools)(initMsg)(initNotif)(msg)
             assertEq((resp as { error: { code: number } }).error.code, -32601)
         },
 
         unknownMethodReturnsMethodNotFound: () => {
             const msg = { jsonrpc: '2.0', method: 'resources/list', id: 10 }
-            const [resp] = step2(config)(initMsg)(msg)
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
             assertEq((resp as { error: { code: number } }).error.code, -32601)
         },
     },

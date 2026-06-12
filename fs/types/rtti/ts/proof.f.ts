@@ -27,8 +27,8 @@ export const proof = {
             union: () => eq(array(or(number, string)), 'readonly(number|string)[]'),
         },
         record: {
-            primitive: () => eq(record(string), '{readonly[k:string]:string}'),
-            nested: () => eq(record(record(number)), '{readonly[k:string]:{readonly[k:string]:number}}'),
+            primitive: () => eq(record(string), '{readonly[k:string]?:string}'),
+            nested: () => eq(record(record(number)), '{readonly[k:string]?:{readonly[k:string]?:number}}'),
         },
     },
     const: {
@@ -78,7 +78,7 @@ export const proof = {
     mut: {
         array: () => eqMut(array(number), '(number)[]'),
         nestedArray: () => eqMut(array(array(boolean)), '((boolean)[])[]'),
-        record: () => eqMut(record(string), '{[k:string]:string}'),
+        record: () => eqMut(record(string), '{[k:string]?:string}'),
         tuple: () => eqMut([12, true], '[12,true]'),
         struct: () => eqMut({ a: number, b: string }, '{"a":number,"b":string}'),
     },
