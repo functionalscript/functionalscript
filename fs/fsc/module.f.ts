@@ -77,36 +77,15 @@ export const terminal = -1
 const toInit: () => ToResult
     = () => () => [[], init]
 
+const single = (c: string): State<undefined> =>
+    range(c)(() => () => [[c], unexpectedSymbol])
+
+const punctuation = "!\"%&'()*+,-./:;<=>?[]^`{|}~"
+
 export const init: ToResult = create([
     codePointRange(one(terminal))(toInit),
     rangeSet(['\t', ' ', '\n', '\r'])(toInit),
-    range('!')(() => () => [['!'], unexpectedSymbol]),
-    range('"')(() => () => [['"'], unexpectedSymbol]),
     rangeSet(['$', '_', 'AZ', 'az'])(() => c => [[fromCharCode(c)], unexpectedSymbol]),
-    range('%')(() => () => [['%'], unexpectedSymbol]),
-    range('&')(() => () => [['&'], unexpectedSymbol]),
-    range("'")(() => () => [["'"], unexpectedSymbol]),
-    range('(')(() => () => [['('], unexpectedSymbol]),
-    range(')')(() => () => [[')'], unexpectedSymbol]),
-    range('*')(() => () => [['*'], unexpectedSymbol]),
-    range('+')(() => () => [['+'], unexpectedSymbol]),
-    range(',')(() => () => [[','], unexpectedSymbol]),
-    range('-')(() => () => [['-'], unexpectedSymbol]),
-    range('.')(() => () => [['.'], unexpectedSymbol]),
-    range('/')(() => () => [['/'], unexpectedSymbol]),
     range('09')(() => a => [[fromCharCode(a)], unexpectedSymbol]),
-    range(':')(() => () => [[':'], unexpectedSymbol]),
-    range(';')(() => () => [[';'], unexpectedSymbol]),
-    range('<')(() => () => [['<'], unexpectedSymbol]),
-    range('=')(() => () => [['='], unexpectedSymbol]),
-    range('>')(() => () => [['>'], unexpectedSymbol]),
-    range('?')(() => () => [['?'], unexpectedSymbol]),
-    range('[')(() => () => [['['], unexpectedSymbol]),
-    range(']')(() => () => [[']'], unexpectedSymbol]),
-    range('^')(() => () => [['^'], unexpectedSymbol]),
-    range('`')(() => () => [['`'], unexpectedSymbol]),
-    range('{')(() => () => [['{'], unexpectedSymbol]),
-    range('|')(() => () => [['|'], unexpectedSymbol]),
-    range('}')(() => () => [['}'], unexpectedSymbol]),
-    range('~')(() => () => [['~'], unexpectedSymbol]),
+    ...[...punctuation].map(single),
 ])(undefined)

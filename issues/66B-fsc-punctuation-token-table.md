@@ -1,7 +1,7 @@
 # 66B-fsc-punctuation-token-table. `fsc`: collapse 27 single-char punctuation rules into one table
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -101,9 +101,9 @@ character still maps to its own one-character self-emitting rule.
 
 ## Tasks
 
-- [ ] Add the `single` helper and `punctuation` string at module scope.
-- [ ] Replace the 27 punctuation rows in `init` with `...[...punctuation].map(single)`.
-- [ ] Confirm `fs/fsc/proof.f.ts` still passes (`fjs t`) with full branch
+- [x] Add the `single` helper and `punctuation` string at module scope.
+- [x] Replace the 27 punctuation rows in `init` with `...[...punctuation].map(single)`.
+- [x] Confirm `fs/fsc/proof.f.ts` still passes (`fjs t`) with full branch
       coverage and `npx tsc` is clean — the `fsc` tokenizer is exercised by
       `fjs compile`.
 
