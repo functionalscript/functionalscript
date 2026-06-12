@@ -1,29 +1,24 @@
 import { empty, isVec, uint, vec8 } from "../../types/bit_vec/module.f.ts"
 import { utf8, utf8ToString } from "../../text/module.f.ts"
-import { pure } from "../module.f.ts"
+import { decode, pure } from "../module.f.ts"
 import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File } from "./module.f.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"
 
 export const proof = {
     map: () => {
-        let e = readFile('hello').step(([k, v]) => {
+        const e = readFile('hello').step(([k, v]) => {
             if (k === 'error') { throw v }
             return pure(uint(v) * 2n)
         })
         //
-        while (true) {
-            const { value } = e
-            if (value.length === 1) {
-                const [result] = value
-                if (result !== 0x2An) { throw result }
-                return
-            }
-            const [cmd, p, cont] = value
-            if (cmd !== 'readFile') { throw cmd }
-            if (p[0] !== 'hello') { throw p }
-            e = cont(['ok', vec8(0x15n)])
+        let d = decode(e)
+        while (!d.done) {
+            if (d.command !== 'readFile') { throw d.command }
+            if (d.payload[0] !== 'hello') { throw d.payload }
+            d = decode(d.continuation(['ok', vec8(0x15n)]))
         }
+        if (d.result !== 0x2An) { throw d.result }
     },
     fetch: () => {
         const [_, [t, result]] = virtual({

@@ -281,8 +281,8 @@ export const registerSuffixes = () => {
     const noopCtx: TestContext = { test: (_n, _o, _f) => Promise.resolve() }
 
     const makeRunner = () => mockRun<Ops, S>({
-        test: (s, _ctx, name, _xf, _fn) => [[...s, name], undefined],
-        all: (s, ...effects: readonly Effect<Ops, unknown>[]) => {
+        test: (_ctx, name, _xf, _fn) => (s: S) => [[...s, name], undefined],
+        all: (...effects: readonly Effect<Ops, unknown>[]) => (s: S) => {
             let st = s
             const rs: unknown[] = []
             for (const e of effects) {
@@ -292,7 +292,7 @@ export const registerSuffixes = () => {
             }
             return [st, rs]
         },
-        await: (s, p) => [s, [p]],
+        await: p => (s: S) => [s, [p]],
     } as Parameters<typeof mockRun<Ops, S>>[0])
 
     runner = makeRunner()
