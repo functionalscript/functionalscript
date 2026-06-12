@@ -5,7 +5,7 @@ import { run, type MemOperationMap } from '../effects/mock/module.f.ts'
 import { asBase, asNominal, create, read, type Key, type MemOp } from '../effects/memory/module.f.ts'
 import type { Unknown } from '../json/module.f.ts'
 import {
-    type ToolsListResult, type ToolsCallParams, type ToolsCallResult,
+    type ToolsListParams, type ToolsListResult, type ToolsCallParams, type ToolsCallResult,
     type McpHandlers, type McpConfig, type McpSessionState,
     uninitializedState, mcpStep, notInitialized,
 } from './module.f.ts'
@@ -44,8 +44,11 @@ const configNoTools: McpConfig = { ...config, capabilities: {} }
 
 type Op = never
 const handlers: McpHandlers<Op> = {
-    toolsList: (): Effect<Op, ToolsListResult> =>
-        pure({ tools: [{ name: 'greet', inputSchema: {} }] }),
+    // Echoes a received cursor as `nextCursor` so tests can observe pagination params.
+    toolsList: (p: ToolsListParams): Effect<Op, ToolsListResult> =>
+        pure(p.cursor === undefined
+            ? { tools: [{ name: 'greet', inputSchema: {} }] }
+            : { tools: [], nextCursor: p.cursor }),
     toolsCall: (_p: ToolsCallParams): Effect<Op, ToolsCallResult> =>
         pure({ content: [{ type: 'text', text: 'hello' }] }),
 }
@@ -197,6 +200,20 @@ export const proof = {
             const [resp] = step3(config)(initMsg)(initNotif)(msg)
             assertEq((resp as { result: ToolsListResult }).result.tools.length, 1)
             assertEq((resp as { result: ToolsListResult }).result.tools[0].name, 'greet')
+        },
+
+        toolsListPassesCursorToHandler: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/list', id: 17,
+                params: { cursor: 'page-2' } }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
+            assertEq((resp as { result: ToolsListResult }).result.nextCursor, 'page-2')
+        },
+
+        toolsListInvalidCursorReturnsInvalidParams: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/list', id: 18,
+                params: { cursor: 42 } }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
+            assertEq((resp as { error: { code: number } }).error.code, -32602)
         },
 
         toolsCallSucceeds: () => {

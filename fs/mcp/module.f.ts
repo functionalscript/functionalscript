@@ -84,6 +84,15 @@ export const tool = {
 } as const
 export type Tool = Ts<typeof tool>
 
+/**
+ * Params for the `tools/list` request. `cursor` is an opaque pagination token
+ * from a previous `ToolsListResult.nextCursor`.
+ */
+export const toolsListParams = {
+    cursor: option(string),
+} as const
+export type ToolsListParams = Ts<typeof toolsListParams>
+
 export const toolsListResult = {
     tools: array(tool),
     nextCursor: option(string),
@@ -106,7 +115,7 @@ export type ToolsCallResult = Ts<typeof toolsCallResult>
 
 /** Per-method handlers for a hello-world MCP tool server. */
 export type McpHandlers<O extends Operation> = {
-    readonly toolsList: () => Effect<O, ToolsListResult>
+    readonly toolsList: (params: ToolsListParams) => Effect<O, ToolsListResult>
     readonly toolsCall: (params: ToolsCallParams) => Effect<O, ToolsCallResult>
 }
 
@@ -164,6 +173,8 @@ export type McpConfig = {
  * - Any other method before `notifications/initialized` → error -32002 (not initialized).
  * - Methods gated by a capability (e.g. `tools/list`) → -32601 when the capability
  *   is absent.
+ * - `tools/list` params (an optional pagination `cursor`) are validated and passed
+ *   to the handler; invalid params → -32602.
  */
 export const mcpStep =
     <O extends Operation>({
@@ -224,9 +235,14 @@ export const mcpStep =
             }
 
             if (method === 'tools/list') {
-                return capabilities.tools === undefined
-                    ? pure(_errResponse(id)(methodNotFound))
-                    : handlers.toolsList().step(r => pure(_okResponse(id)(r)))
+                if (capabilities.tools === undefined) {
+                    return pure(_errResponse(id)(methodNotFound))
+                }
+                // `params` may be absent — `tools/list` without a cursor.
+                const [t, pr] = validate(toolsListParams)(params === undefined ? {} : params)
+                return t === 'error'
+                    ? pure(_errResponse(id)(invalidParams))
+                    : handlers.toolsList(pr).step(r => pure(_okResponse(id)(r)))
             }
 
             if (method === 'tools/call') {
