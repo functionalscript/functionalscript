@@ -1,7 +1,28 @@
 # 198. `effects/node`: `readUtf8File` / `writeUtf8File` helpers
 
 **Priority:** P3
-**Status:** open
+**Status:** done
+
+## Resolution
+
+Implemented `readUtf8File` and `writeUtf8File` in
+`fs/effects/node/module.f.ts`, next to `readFile`/`writeFile`.
+Notes on how reality diverged from the proposal below:
+
+- **Consumer drift.** The `dev` and `dev/version` consumers listed below
+  were refactored away before this landed. Remaining call sites migrated:
+  `djs/transpiler` (read), `djs` compile output and `ci` (write).
+- **Return shape.** `readUtf8File` returns `Effect<ReadFile, IoResult<string>>`
+  as proposed — `djs/transpiler` pattern-matches the error to build a
+  domain-specific `ParseError`. `writeUtf8File` returns
+  `Effect<WriteFile, IoResult<void>>`, not `Effect<WriteFile, void>` as
+  sketched: `writeFile` itself yields `IoResult<void>`, and the helper is a
+  transparent wrapper.
+- **No dependency cycle.** `fs/effects/node` already imported `utf8` from
+  `fs/text` (for `log`/`error`), so adding `utf8ToString` introduced no new
+  dependency edge.
+- [i176](./176-json-file-effects.md) is now unblocked, but its own consumer
+  base has eroded — see the note added there.
 
 ## Problem
 

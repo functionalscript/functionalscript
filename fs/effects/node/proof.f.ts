@@ -1,6 +1,7 @@
 import { empty, isVec, uint, vec8 } from "../../types/bit_vec/module.f.ts"
+import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { pure } from "../module.f.ts"
-import { both, fetch, mkdir, now, readdir, readFile, rm, sandbox, writeFile } from "./module.f.ts"
+import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File } from "./module.f.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"
 
@@ -91,6 +92,20 @@ export const proof = {
             if (t !== 'error') { throw result }
             if (result !== 'no such file') { throw result }
         }
+    },
+    readUtf8File: {
+        ok: () => {
+            const [_, [t, result]] = virtual({
+                ...emptyState,
+                root: { hello: utf8('Hello, world!') },
+            })(readUtf8File('hello'))
+            if (t !== 'ok') { throw result }
+            if (result !== 'Hello, world!') { throw result }
+        },
+        noSuchFile: () => {
+            const [_, [t, result]] = virtual(emptyState)(readUtf8File('hello'))
+            if (t !== 'error') { throw result }
+        },
     },
     readdir: {
         one: () => {
@@ -189,6 +204,15 @@ export const proof = {
             const tmp = state.root.tmp
             if (tmp === undefined || isVec(tmp)) { throw tmp }
         },
+    },
+    writeUtf8File: () => {
+        const [state, [t, result]] = virtual(emptyState)(
+            writeUtf8File('hello', 'Hello, world!')
+        )
+        if (t !== 'ok') { throw result }
+        const file = state.root.hello
+        if (!isVec(file)) { throw file }
+        if (utf8ToString(file) !== 'Hello, world!') { throw file }
     },
     rm: {
         one: () => {
