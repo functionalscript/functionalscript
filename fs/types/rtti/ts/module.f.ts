@@ -9,7 +9,6 @@
  */
 import { type Equal, primitive, union, printer as tsPrinter } from '../../ts/module.f.ts'
 import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, ConstObject } from '../module.f.ts'
-import type { ReadonlyRecord } from '../../object/module.f.ts'
 import type { Assert } from '../../../asserts/module.f.ts'
 import { type phantomKey } from '../../phantom/module.f.ts'
 
@@ -37,7 +36,7 @@ export type Array = readonly Unknown[]
 
 /** A read-only record of {@link Unknown} values. */
 export type Object = {
-    readonly [k in string]: Unknown
+    readonly [k in string]?: Unknown
 }
 
 /** Maps a `Tag0` to its TypeScript type. */
@@ -64,8 +63,8 @@ export type Info1Ts<K extends Tag1, T extends Type> =
 /** Maps an array schema `T` to `readonly Ts<T>[]`. */
 export type ArrayTs<T extends Type> = ReadonlyArray<Ts<T>>
 
-/** Maps a record schema `T` to `{ readonly[K in string]: Ts<T> }`. */
-export type RecordTs<T extends Type> = ReadonlyRecord<string, Ts<T>>
+/** Maps a record schema `T` to `{ readonly[K in string]?: Ts<T> }`. */
+export type RecordTs<T extends Type> = { readonly[K in string]?: Ts<T> }
 
 /** Maps a tuple schema to a readonly tuple of resolved types. */
 export type TupleTs<T extends Tuple> =
@@ -130,7 +129,7 @@ export type Ts<T extends Type> =
         I extends readonly['unknown'] ? Unknown :
         // Info1
         I extends readonly['array', infer E extends Type] ? readonly Ts<E>[] :
-        I extends readonly['record', infer E extends Type] ? { readonly[K in string]: Ts<E> } :
+        I extends readonly['record', infer E extends Type] ? { readonly[K in string]?: Ts<E> } :
         // Or
         I extends readonly['or', ...infer A extends readonly Type[]] ? Ts<A[number]> :
         //
@@ -155,7 +154,7 @@ export type Ts<T extends Type> =
  * const toTs = printer()
  * toTs(boolean)                    // 'boolean'
  * toTs(array(number))              // 'readonly(number)[]'
- * toTs(record(string))             // '{readonly[k:string]:string}'
+ * toTs(record(string))             // '{readonly[k in string]?:string}'
  * toTs(or(string, number))         // 'string|number'
  * toTs(42)                         // '42'
  * toTs('hello')                    // '"hello"'
@@ -164,7 +163,7 @@ export type Ts<T extends Type> =
  *
  * const toTsMut = printer(true)
  * toTsMut(array(number))           // '(number)[]'
- * toTsMut(record(string))          // '{[k:string]:string}'
+ * toTsMut(record(string))          // '{[k in string]?:string}'
  * ```
  */
 export const printer = (mut?: true): (rtti: Type) => string => {
@@ -226,7 +225,7 @@ type _array = Assert<Equal<Ts<
 >>
 type _record = Assert<Equal<
     Ts<() => readonly['record', () => readonly['boolean']]>,
-    { readonly[k in string]: boolean }
+    { readonly[k in string]?: boolean }
 >>
 
 type _tupleString = Assert<Equal<

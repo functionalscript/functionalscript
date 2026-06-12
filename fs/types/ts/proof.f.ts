@@ -1,4 +1,5 @@
-import { printer, primitive, union } from './module.f.ts'
+import type { Assert } from '../../asserts/module.f.ts'
+import { printer, primitive, union, type Equal } from './module.f.ts'
 
 const ro = printer()
 const mut = printer(true)
@@ -70,7 +71,7 @@ export const printerReadonlyArray = () => {
 
 export const printerReadonlyRecord = () => {
     const r = ro.record('number')
-    if (r !== '{readonly[k:string]:number}') { throw r }
+    if (r !== '{readonly[k in string]?:number}') { throw r }
 }
 
 export const printerMutableTuple = () => {
@@ -90,7 +91,41 @@ export const printerMutableArray = () => {
 
 export const printerMutableRecord = () => {
     const r = mut.record('number')
-    if (r !== '{[k:string]:number}') { throw r }
+    if (r !== '{[k in string]?:number}') { throw r }
 }
 
 export const proof = { primitiveNull,primitiveBigint,primitiveString,primitiveNumberFinite,primitiveNumberInfinite,primitiveUndefined,primitiveBoolean,unionEmpty,unionSingle,unionMulti,printerReadonlyTuple,printerReadonlyStruct,printerReadonlyArray,printerReadonlyRecord,printerMutableTuple,printerMutableStruct,printerMutableArray,printerMutableRecord }
+
+// Don't use!
+
+type T0 = {[k:string]: bigint}
+
+declare const x0: T0
+
+type X0 = Assert<Equal<typeof x0['hello'], bigint>>
+
+// Use for finite sets
+
+type T1 = {[k in 'hello']: bigint}
+
+declare const x1: T1
+
+type X1 = Assert<Equal<typeof x1['hello'], bigint>>
+
+// Don't use it
+
+type T2 = {[k in string]: bigint}
+
+declare const x2: T2
+
+type X2 = Assert<Equal<typeof x2['hello'], bigint>>
+
+// Use it for infinite sets
+
+type T3 = {[k in string]?: bigint}
+
+declare const x3: T3
+
+type X3 = Assert<Equal<typeof x3['hello'], bigint | undefined>>
+
+// type T4 = {[k:string]?: bigint} //< compilation error.

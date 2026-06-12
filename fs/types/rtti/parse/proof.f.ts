@@ -334,7 +334,7 @@ export const proof = {
         },
         recordOfRecords: () => {
             const tree = () => ['record', tree] as const
-            type A = { readonly[K in string]: A }
+            type A = { readonly[K in string]?: A }
             type _ = Assert<Equal<A, Ts<typeof tree>>>
             const v = parse(tree)
             assertOk(v({}))
