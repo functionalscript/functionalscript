@@ -137,9 +137,9 @@ const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly
     return value => {
         for (const i of all) {
             // `i` is Validate<Type>; calling without cast forces Ts<Type> evaluation → TS2589.
-            const r = (i as any)(value)
+            const r = i(value)
             if (r[0] === 'ok') {
-                return r
+                return r as any
             }
         }
         return verror('no match')
