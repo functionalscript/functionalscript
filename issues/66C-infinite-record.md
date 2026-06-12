@@ -103,21 +103,18 @@ Files to audit and update:
 > are technically safe since `undefined ⊆ unknown`, but the `?` is still correct style
 > and should be added for consistency.
 
-### 3 — Fix the runtime `printer` in `fs/types/ts/module.f.ts`
+### 3 — Fix the runtime `printer` in `fs/types/ts/module.f.ts` — **done**
 
-The `record` case in the printer emits `{readonly[k:string]:T}` (non-optional).
-After this issue is resolved it must emit `{readonly[k:string]?:T}`:
+The `record` case in the printer used to emit `{readonly[k:string]:T}` (non-optional);
+it now emits `{readonly[k:string]?:T}`:
 
 ```ts
-// fs/types/ts/module.f.ts line 38 — current
-record: (type: string) => structX([`${ro}[k:string]:${type}`]),
-
-// after fix
+// fs/types/ts/module.f.ts line 38
 record: (type: string) => structX([`${ro}[k:string]?:${type}`]),
 ```
 
-The JSDoc on line 26 (`"Emits … {readonly[k:string]:T}"`) and the `@example` strings
-in `fs/types/rtti/ts/module.f.ts` (lines 157, 166) must be updated to match.
+The JSDoc on line 26 and the `@example` strings in `fs/types/rtti/ts/module.f.ts`
+(lines 157, 166) have been updated to match.
 
 ## Tasks
 
@@ -126,6 +123,6 @@ in `fs/types/rtti/ts/module.f.ts` (lines 157, 166) must be updated to match.
 - [ ] Fix rtti types (`Struct`, `ConstObject`, related) and migrate `ReadonlyRecord<string, …>`
 - [ ] Fix `djs`, `json/serializer`, `bnf`, `html`, `fsm`, `dev`, `effects/node` usages
 - [ ] Update downstream callers that relied on non-optional access (use `at()` or `definedValues`)
-- [ ] Fix `printer` in `fs/types/ts/module.f.ts` to emit `?` for record types
-- [ ] Update JSDoc and `@example` strings in `fs/types/ts/module.f.ts` and `fs/types/rtti/ts/module.f.ts`
+- [x] Fix `printer` in `fs/types/ts/module.f.ts` to emit `?` for record types
+- [x] Update JSDoc and `@example` strings in `fs/types/ts/module.f.ts` and `fs/types/rtti/ts/module.f.ts`
 - [ ] Add proof assertions verifying `FiniteRecord` / `InfiniteRecord` behave correctly
