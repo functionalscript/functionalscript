@@ -124,8 +124,8 @@ export type Handle<O extends Operation> = (value: Unknown) => Effect<O, Response
 
 // ── Lifecycle / capability state machine ───────────────────────────────────────
 
-const _errResponse = (id: Id) => (e: RpcError): Response =>
-    ({ jsonrpc, error: e, id })
+const _errResponse = (id: Id) => (error: RpcError): Response =>
+    ({ jsonrpc, error, id })
 
 const _okResponse = (id: Id) => (result: Unknown): Response =>
     ({ jsonrpc, result, id })
