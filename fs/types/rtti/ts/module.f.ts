@@ -154,7 +154,7 @@ export type Ts<T extends Type> =
  * const toTs = printer()
  * toTs(boolean)                    // 'boolean'
  * toTs(array(number))              // 'readonly(number)[]'
- * toTs(record(string))             // '{readonly[k:string]?:string}'
+ * toTs(record(string))             // '{readonly[k in string]?:string}'
  * toTs(or(string, number))         // 'string|number'
  * toTs(42)                         // '42'
  * toTs('hello')                    // '"hello"'
@@ -163,7 +163,7 @@ export type Ts<T extends Type> =
  *
  * const toTsMut = printer(true)
  * toTsMut(array(number))           // '(number)[]'
- * toTsMut(record(string))          // '{[k:string]?:string}'
+ * toTsMut(record(string))          // '{[k in string]?:string}'
  * ```
  */
 export const printer = (mut?: true): (rtti: Type) => string => {

@@ -71,7 +71,7 @@ export const printerReadonlyArray = () => {
 
 export const printerReadonlyRecord = () => {
     const r = ro.record('number')
-    if (r !== '{readonly[k:string]?:number}') { throw r }
+    if (r !== '{readonly[k in string]?:number}') { throw r }
 }
 
 export const printerMutableTuple = () => {
@@ -91,7 +91,7 @@ export const printerMutableArray = () => {
 
 export const printerMutableRecord = () => {
     const r = mut.record('number')
-    if (r !== '{[k:string]?:number}') { throw r }
+    if (r !== '{[k in string]?:number}') { throw r }
 }
 
 export const proof = { primitiveNull,primitiveBigint,primitiveString,primitiveNumberFinite,primitiveNumberInfinite,primitiveUndefined,primitiveBoolean,unionEmpty,unionSingle,unionMulti,printerReadonlyTuple,printerReadonlyStruct,printerReadonlyArray,printerReadonlyRecord,printerMutableTuple,printerMutableStruct,printerMutableArray,printerMutableRecord }

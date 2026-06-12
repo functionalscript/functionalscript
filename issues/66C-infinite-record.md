@@ -106,11 +106,12 @@ Files to audit and update:
 ### 3 — Fix the runtime `printer` in `fs/types/ts/module.f.ts` — **done**
 
 The `record` case in the printer used to emit `{readonly[k:string]:T}` (non-optional);
-it now emits `{readonly[k:string]?:T}`:
+it now emits `{readonly[k in string]?:T}` — mapped-type syntax, since an optional
+index signature (`[k:string]?:`) is not valid TypeScript:
 
 ```ts
-// fs/types/ts/module.f.ts line 38
-record: (type: string) => structX([`${ro}[k:string]?:${type}`]),
+// fs/types/ts/module.f.ts
+record: (type: string) => structX([`${ro}[k in string]?:${type}`]),
 ```
 
 The JSDoc on line 26 and the `@example` strings in `fs/types/rtti/ts/module.f.ts`

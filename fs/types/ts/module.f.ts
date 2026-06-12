@@ -23,7 +23,7 @@ export type Printer = {
     readonly struct: (fields: readonly (readonly[string, string])[]) => string
     /** Emits an array type: `readonly(T)[]` or `(T)[]` when mutable. */
     readonly array: (type: string) => string
-    /** Emits an index-signature record type: `{readonly[k:string]?:T}` or `{[k:string]?:T}` when mutable. */
+    /** Emits an index-signature record type: `{readonly[k in string]?:T}` or `{[k in string]?:T}` when mutable. */
     readonly record: (type: string) => string
 }
 
@@ -35,7 +35,9 @@ export const printer = (mut?: true): Printer => {
         struct: (fields: readonly (readonly[string, string])[]) =>
             structX(fields.map(([k, v]) => `${ro}${JSON.stringify(k)}:${v}`)),
         array: (type: string) => `${ro}(${type})[]`,
-        record: (type: string) => structX([`${ro}[k:string]?:${type}`]),
+        // `[k:string]?:` is invalid TypeScript — optional keys on an infinite
+        // key set require mapped-type syntax.
+        record: (type: string) => structX([`${ro}[k in string]?:${type}`]),
     }
 }
 
