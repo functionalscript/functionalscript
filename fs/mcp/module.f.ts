@@ -133,6 +133,10 @@ const _okResponse = (id: Id) => (result: Unknown): Response =>
 /** MCP error -32002: the client called a method before `initialize`. */
 export const notInitialized = rpcError(-32002)('Server not initialized')
 
+// Params for methods that take no arguments (`ping`, `notifications/initialized`):
+// absent, or an object (which may carry `_meta`).
+const _noParams = option(record(unknown))
+
 /** State carried before the peer sends `initialize`. */
 export type Uninitialized = readonly ['uninitialized']
 
@@ -165,10 +169,12 @@ export type McpConfig = {
  * returns a function `(value) => Effect<MemOp | O, Response | null>`.
  *
  * Rules:
- * - `ping` always returns an empty success regardless of session state.
+ * - `ping` returns an empty success regardless of session state; non-object
+ *   params → -32602.
  * - `initialize` is accepted only while uninitialized; a second call returns -32600.
  *   On success the state moves to `initializing`, not `initialized`.
  * - `notifications/initialized` (no `id`) transitions `initializing` → `initialized`;
+ *   a malformed one (non-object params) is ignored and the session stays gated;
  *   other notifications are silently ignored in any state.
  * - Any other method before `notifications/initialized` → error -32002 (not initialized).
  * - Methods gated by a capability (e.g. `tools/list`) → -32601 when the capability
@@ -195,6 +201,11 @@ export const mcpStep =
         // `notifications/initialized` transitions the session from initializing → initialized.
         if (id === undefined) {
             if (method === 'notifications/initialized') {
+                const [pt] = validate(_noParams)(params)
+                if (pt === 'error') {
+                    // Malformed handshake — ignore it; the session stays gated.
+                    return pure(null)
+                }
                 return read(stateKey).step(([t]) =>
                     t === 'initializing'
                         ? write(stateKey, ['initialized', true as InitializedState]).step(() => pure(null))
@@ -204,9 +215,13 @@ export const mcpStep =
             return pure(null)
         }
 
-        // `ping` is always valid regardless of session state.
+        // `ping` is always valid regardless of session state, but its params
+        // (if present) must be an object.
         if (method === 'ping') {
-            return pure(_okResponse(id)({}))
+            const [pt] = validate(_noParams)(params)
+            return pt === 'error'
+                ? pure(_errResponse(id)(invalidParams))
+                : pure(_okResponse(id)({}))
         }
 
         // `initialize` transitions uninitialized → initializing; reject if already done.

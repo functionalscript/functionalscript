@@ -172,6 +172,32 @@ export const proof = {
             assert(!('error' in (resp as object)))
         },
 
+        pingWithObjectParamsSucceeds: () => {
+            const msg = { jsonrpc: '2.0', method: 'ping', id: 19, params: {} }
+            const [resp] = step1(config)(msg)
+            assert(!('error' in (resp as object)))
+        },
+
+        pingInvalidParamsReturnsInvalidParams: () => {
+            const msg = { jsonrpc: '2.0', method: 'ping', id: 20, params: 1 }
+            const [resp] = step1(config)(msg)
+            assertEq((resp as { error: { code: number } }).error.code, -32602)
+        },
+
+        initializedNotificationObjectParamsTransitions: () => {
+            const notif = { jsonrpc: '2.0', method: 'notifications/initialized', params: {} }
+            const [resp, newState] = step2(config)(initMsg)(notif)
+            assertEq(resp, null)
+            assertEq(newState[0], 'initialized')
+        },
+
+        initializedNotificationBadParamsIgnored: () => {
+            const notif = { jsonrpc: '2.0', method: 'notifications/initialized', params: 1 }
+            const [resp, newState] = step2(config)(initMsg)(notif)
+            assertEq(resp, null)
+            assertEq(newState[0], 'initializing')
+        },
+
         methodBeforeInitReturnsNotInitialized: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 3 }
             const [resp, newState] = step1(config)(msg)
