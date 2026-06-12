@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `effects/node/virtual`: add proofs covering the virtual `await` handler, the `fetch` not-found branch, and the `import_` invalid-path branch [#1046](https://github.com/functionalscript/functionalscript/pull/1046)
 - `asn.1`: extract a private generic `decodeAll<T>(step)` helper that drains a `Vec` by repeatedly applying a `(Vec) => [T, Vec]` step until empty; rewrite `decodeObjectIdentifier` and `decodeSequence` through it instead of two near-identical `let`/`while` accumulators — pure refactor, behavior-identical (i189-asn1-decode-all-unfold) [#1041](https://github.com/functionalscript/functionalscript/pull/1041)
 - `types/bigfloat`: factor the abs/sign/`multiply` envelope of `round53` and `decToBin`'s negative-exponent branch into a private `withSign` combinator ("operate on the magnitude, restore the sign") — pure refactor, behavior-identical (i191-bigfloat-with-sign) [#1022](https://github.com/functionalscript/functionalscript/pull/1022)
 - `types/bigfloat`: collapse the private `increaseMantissa` / `decreaseMantissa` mirror into a single `normalizeMantissa` factory parameterized by shift direction, exponent delta, and stop predicate — pure refactor, behavior-identical (i177-bigfloat-normalize-mantissa) [#1021](https://github.com/functionalscript/functionalscript/pull/1021)
