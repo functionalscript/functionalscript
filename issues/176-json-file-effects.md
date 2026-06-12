@@ -1,8 +1,17 @@
 # 176. `read`/`write` JSON file effect helpers
 
 **Priority:** P3
-**Status:** open
-**Blocked by:** [i198](./198-utf8-file-effects.md)
+**Status:** on-hold
+
+> **Drift note (2026-06-12).** [i198](./198-utf8-file-effects.md) is done, so
+> this is no longer blocked — but the consumer inventory below is stale. The
+> `dev/version` module is gone and `fs/dev/module.f.ts` no longer reads or
+> writes `deno.json`. The only remaining JSON-file call site is the `ci` write
+> (`writeUtf8File('.github/workflows/ci.yml', JSON.stringify(gha, null, '  '))`),
+> which is below the second-consumer bar for extracting `writeJsonFile`, and
+> there are no production JSON-file reads at all. On hold until a second real
+> consumer appears; the design below (now a one-line composition over
+> `readUtf8File`/`writeUtf8File`) remains valid when it does.
 
 Three modules independently open-code "read a file, UTF-8 decode it, JSON-parse
 it" and "JSON-stringify a value (pretty, 2-space), UTF-8 encode it, write the

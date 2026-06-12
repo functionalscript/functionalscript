@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `effects/node`: add `readUtf8File`/`writeUtf8File` helpers next to the `readFile`/`writeFile` effects — `readUtf8File` decodes a file as UTF-8 text while preserving the `IoResult` for caller-side error handling, `writeUtf8File` encodes a string and writes it; migrate the open-coded UTF-8 sandwiches in `djs/transpiler` (read), `djs` compile output and `ci` (write) to the helpers (i198-utf8-file-effects) [#1052](https://github.com/functionalscript/functionalscript/pull/1052)
 - `effects/node`: drop the private `Io` indirection from the node effect runner — inline the single handler table into a module-level `asyncRun({ … })` wired straight to the Node globals, delete the dead `Io`/`App`/`Run` types and the `io` members the interpreter never read (`console`, `tryCatch`, `asyncTryCatch`, `performance`); pure refactor, `run`/`runEffect` unchanged (i664-drop-io-interface) [#1051](https://github.com/functionalscript/functionalscript/pull/1051)
 - `fjs`: add a `proof.f.ts` covering the CLI command handlers (help output, the `compile` missing-argument error path, and the `run` handler's import-and-invoke and import-failure paths) via the virtual Node-effect interpreter [#1047](https://github.com/functionalscript/functionalscript/pull/1047)
 - `effects/node/virtual`: add proofs covering the virtual `await` handler, the `fetch` not-found branch, and the `import_` invalid-path branch [#1046](https://github.com/functionalscript/functionalscript/pull/1046)
