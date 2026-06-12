@@ -1,6 +1,6 @@
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../../types/rtti/module.f.ts'
 import { stringify, type Unknown as JsonValue } from '../module.f.ts'
-import { toJsonSchema, type Unknown } from './module.f.ts'
+import { toJsonSchema, type Unknown, unknown as schemaUnknown } from './module.f.ts'
 
 const serialize = (v: Unknown) => stringify(e => e)(v as unknown as JsonValue)
 
@@ -60,6 +60,10 @@ export const proof = {
             properties: { x: { const: null }, y: { type: 'string' } },
             required: ['x', 'y'],
         }),
+    },
+    schemaUnknownTag: () => {
+        const r = schemaUnknown()
+        if (r[0] !== 'const') { throw r[0] }
     },
     nested: {
         arrayOfRecords: eq(array(record(boolean)), {

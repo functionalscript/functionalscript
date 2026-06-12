@@ -1,5 +1,5 @@
 import { assertEq } from '../../../asserts/module.f.ts'
-import { rm, writeFile, readFile, readdir, import_ } from '../module.f.ts'
+import { awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_ } from '../module.f.ts'
 import { vec8 } from '../../../types/bit_vec/module.f.ts'
 import { emptyState, virtual, type Dir, type JsModule } from './module.f.ts'
 
@@ -44,6 +44,22 @@ export const proof = {
         const outer: Dir = { 'b': inner }
         const root: Dir = { 'a': outer }
         const [, result] = virtual({ ...emptyState, root })(readFile('a/b'))
+        assertEq(result[0], 'error')
+    },
+    awaitNonPromise: () => {
+        // a non-promise value passes through the virtual `await` handler as-is
+        const [, result] = virtual(emptyState)(awaitIfPromise(42))
+        assertEq(result, 42)
+    },
+    fetchNotFound: () => {
+        // covers the `result === undefined` branch of the `fetch` handler
+        const [, result] = virtual(emptyState)(fetch('https://example.com/missing'))
+        assertEq(result[0], 'error')
+    },
+    importNestedPath: () => {
+        // import_ on a path whose parent does not exist covers the
+        // path.length !== 1 branch of the import_ op
+        const [, result] = virtual(emptyState)(import_('a/b'))
         assertEq(result[0], 'error')
     },
     importNonModule: () => {
