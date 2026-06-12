@@ -9,7 +9,6 @@
  */
 import { type Equal, primitive, union, printer as tsPrinter } from '../../ts/module.f.ts'
 import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, ConstObject } from '../module.f.ts'
-import type { ReadonlyRecord } from '../../object/module.f.ts'
 import type { Assert } from '../../../asserts/module.f.ts'
 import { type phantomKey } from '../../phantom/module.f.ts'
 
@@ -37,7 +36,7 @@ export type Array = readonly Unknown[]
 
 /** A read-only record of {@link Unknown} values. */
 export type Object = {
-    readonly [k in string]: Unknown
+    readonly [k in string]?: Unknown
 }
 
 /** Maps a `Tag0` to its TypeScript type. */
@@ -64,8 +63,8 @@ export type Info1Ts<K extends Tag1, T extends Type> =
 /** Maps an array schema `T` to `readonly Ts<T>[]`. */
 export type ArrayTs<T extends Type> = ReadonlyArray<Ts<T>>
 
-/** Maps a record schema `T` to `{ readonly[K in string]: Ts<T> }`. */
-export type RecordTs<T extends Type> = ReadonlyRecord<string, Ts<T>>
+/** Maps a record schema `T` to `{ readonly[K in string]?: Ts<T> }`. */
+export type RecordTs<T extends Type> = { readonly[K in string]?: Ts<T> }
 
 /** Maps a tuple schema to a readonly tuple of resolved types. */
 export type TupleTs<T extends Tuple> =
