@@ -1,17 +1,18 @@
 /**
  * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
- * `writeFile`, `rm`, `access`), networking (`fetch`, `createServer`, `listen`),
+ * `writeFile`, `rm`, `access`, plus the `readUtf8File`/`writeUtf8File` text
+ * helpers), networking (`fetch`, `createServer`, `listen`),
  * subprocess `exec`, `log`/`error` (wrappers over `write`), `import_`, `now`,
  * `sandbox`, `forever`, and `all`/`both` parallelism; defines the
  * `NodeOp`/`NodeProgram` types used by the Node runner.
  *
  * @module
  */
-import { utf8 } from '../../text/module.f.ts'
+import { utf8, utf8ToString } from '../../text/module.f.ts'
 import type { Vec } from '../../types/bit_vec/module.f.ts'
 import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
-import type { Result } from '../../types/result/module.f.ts'
+import { ok, type Result } from '../../types/result/module.f.ts'
 import {
     type Effect, type Func, type Operation, type ToAsyncOperationMap,
     do_, pure
@@ -61,6 +62,17 @@ export type ReadFile = readonly['readFile', (path: string) => IoResult<Vec>]
 export const readFile: Func<ReadFile> =
     do_('readFile')
 
+/**
+ * Reads a file as UTF-8 text.
+ *
+ * Preserves the `IoResult` instead of unwrapping so callers can pattern-match
+ * on errors (e.g. convert them into domain-specific errors) or `unwrap` at the
+ * call site.
+ */
+export const readUtf8File = (path: string): Effect<ReadFile, IoResult<string>> =>
+    readFile(path).step(r =>
+        pure(r[0] === 'ok' ? ok(utf8ToString(r[1])) : r))
+
 // readdir
 
 /**
@@ -88,6 +100,10 @@ export type WriteFile = readonly['writeFile', (path: string, data: Vec) => IoRes
 
 export const writeFile: Func<WriteFile> =
     do_('writeFile')
+
+/** Writes a string to `path` as UTF-8 bytes. */
+export const writeUtf8File = (path: string, content: string): Effect<WriteFile, IoResult<void>> =>
+    writeFile(path, utf8(content))
 
 // rm
 
