@@ -1,7 +1,7 @@
 # 664-drop-io-interface. Drop the private `Io` interface from the node effect runner
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -37,6 +37,10 @@ Inline the single `io` handler table directly into the runner and remove the
   (`fs`, `fetch`, `http`, `childProcess`, `asyncImport`, `now`, `sandbox`,
   `write`, `await`, `process`, `testContext` / `bunTestContext` /
   `playwrightTestContext`, `engine` are consumed and stay.)
+
+  Implementation note: `performance` was also never consumed via `io` — the
+  `sandbox` handler closes over the global `performance` directly — so it was
+  pruned as well.
 
 End state: a single module-level `asyncRun({ … })` handler table wired straight
 to Node globals, with `run` / `runEffect` unchanged.

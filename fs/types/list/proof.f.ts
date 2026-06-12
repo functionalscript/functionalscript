@@ -40,10 +40,16 @@ const stringifyTest = () => {
     if (s !== '[1,2,3]') { throw s }
 }
 
-const cycleTest = () => {
-    const x = str(toArray(take(10)(cycle([1, 2, 3]))))
-    if (x !== '[1,2,3,1,2,3,1,2,3,1]') { throw x }
-}
+const cycleTest = [
+    () => {
+        const x = str(toArray(take(10)(cycle([1, 2, 3]))))
+        if (x !== '[1,2,3,1,2,3,1,2,3,1]') { throw x }
+    },
+    () => {
+        const x = str(toArray(cycle([])))
+        if (x !== '[]') { throw x }
+    },
+]
 
 const countdownTest = () => {
     const result = str(countdown(10))
