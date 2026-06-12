@@ -128,10 +128,7 @@ export const notInitialized = rpcError(-32002)('Server not initialized')
 export type Uninitialized = readonly ['uninitialized']
 
 /** State carried after a successful `initialize` exchange. */
-export type InitializedState = {
-    readonly protocolVersion: string
-    readonly capabilities: ServerCapabilities
-}
+export type InitializedState = true
 
 /** The two phases of an MCP session. */
 export type McpSessionState =
@@ -156,7 +153,8 @@ export type McpConfig = {
  *
  * Rules:
  * - Notifications (no `id`) are silently accepted in any state; state is unchanged.
- * - `initialize` is accepted in any state and writes `initialized` to `stateKey`.
+ * - `ping` always returns an empty success regardless of session state.
+ * - `initialize` is accepted only while uninitialized; a second call returns -32600.
  * - Any other method before `initialize` → error -32002 (not initialized).
  * - Methods gated by a capability (e.g. `tools/list`) → -32601 when the capability
  *   is absent.
@@ -181,31 +179,35 @@ export const mcpStep =
             return pure(null)
         }
 
-        // `initialize` is always handled by the lifecycle layer itself.
+        // `ping` is always valid regardless of session state.
+        if (method === 'ping') {
+            return pure(_okResponse(id)({}))
+        }
+
+        // `initialize` transitions from uninitialized → initialized; reject if already done.
         if (method === 'initialize') {
-            const [pr] = validate(initializeParams)(params)
-            if (pr === 'error') {
-                return pure(_errResponse(id)(invalidParams))
-            }
-            const result: InitializeResult = {
-                protocolVersion,
-                capabilities,
-                serverInfo,
-                // instructions: undefined,
-            }
-            return write(stateKey, ['initialized', {
-                protocolVersion,
-                capabilities,
-            }]).step(() => pure(_okResponse(id)(result)))
+            return read(stateKey).step(([t]) => {
+                if (t !== 'uninitialized') {
+                    return pure(_errResponse(id)(invalidRequest))
+                }
+                const [pr] = validate(initializeParams)(params)
+                if (pr === 'error') {
+                    return pure(_errResponse(id)(invalidParams))
+                }
+                const result: InitializeResult = {
+                    protocolVersion,
+                    capabilities,
+                    serverInfo,
+                }
+                return write(stateKey, ['initialized', true as InitializedState]).step(() => pure(_okResponse(id)(result)))
+            })
         }
 
         // All other methods require initialized state — read it first.
-        return read(stateKey).step(([t, state]) => {
+        return read(stateKey).step(([t]) => {
             if (t === 'uninitialized') {
                 return pure(_errResponse(id)(notInitialized))
             }
-
-            const { capabilities } = state
 
             if (method === 'tools/list') {
                 return capabilities.tools === undefined

@@ -124,6 +124,31 @@ export const proof = {
             assertEq(resp, null)
         },
 
+        unknownNotificationReturnNull: () => {
+            const notif = { jsonrpc: '2.0', method: 'notifications/unknown' }
+            const [resp] = step2(config)(initMsg)(notif)
+            assertEq(resp, null)
+        },
+
+        doubleInitializeReturnsInvalidRequest: () => {
+            const [resp, newState] = step2(config)(initMsg)(initMsg)
+            assertEq(newState[0], 'initialized')
+            assertEq((resp as { error: { code: number } }).error.code, -32600)
+        },
+
+        pingBeforeInitSucceeds: () => {
+            const msg = { jsonrpc: '2.0', method: 'ping', id: 11 }
+            const [resp, newState] = step1(config)(msg)
+            assertEq(newState[0], 'uninitialized')
+            assert(!('error' in (resp as object)))
+        },
+
+        pingAfterInitSucceeds: () => {
+            const msg = { jsonrpc: '2.0', method: 'ping', id: 12 }
+            const [resp] = step2(config)(initMsg)(msg)
+            assert(!('error' in (resp as object)))
+        },
+
         methodBeforeInitReturnsNotInitialized: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 3 }
             const [resp, newState] = step1(config)(msg)
@@ -156,6 +181,20 @@ export const proof = {
 
         toolsCallBadParamsReturnsInvalidParams: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 7, params: { missing: true } }
+            const [resp] = step2(config)(initMsg)(msg)
+            assertEq((resp as { error: { code: number } }).error.code, -32602)
+        },
+
+        toolsCallAbsentArgumentsSucceeds: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/call', id: 13,
+                params: { name: 'greet' } }
+            const [resp] = step2(config)(initMsg)(msg)
+            assertEq((resp as { result: ToolsCallResult }).result.content[0].text, 'hello')
+        },
+
+        toolsCallNullArgumentsReturnsInvalidParams: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/call', id: 14,
+                params: { name: 'greet', arguments: null } }
             const [resp] = step2(config)(initMsg)(msg)
             assertEq((resp as { error: { code: number } }).error.code, -32602)
         },
