@@ -3,9 +3,8 @@
  *
  * @module
  */
-import { utf8 } from '../text/module.f.ts'
 import { pure, type Effect } from '../effects/module.f.ts'
-import { access, writeFile, type NodeOp } from '../effects/node/module.f.ts'
+import { access, writeUtf8File, type NodeOp } from '../effects/node/module.f.ts'
 import { functionalscript, images } from './config/module.f.ts'
 import { type Architecture, type GitHubAction, type Job, type Jobs, type MetaStep, type Os, architecture, os, toSteps, ubuntuArm } from './common/module.f.ts'
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.ts'
@@ -58,7 +57,7 @@ export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> =>
             },
             jobs,
         }
-        return writeFile('.github/workflows/ci.yml', utf8(JSON.stringify(gha, null, '  ')))
+        return writeUtf8File('.github/workflows/ci.yml', JSON.stringify(gha, null, '  '))
             .step(() => pure(0))
     })
 

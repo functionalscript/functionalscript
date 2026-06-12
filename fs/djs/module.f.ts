@@ -9,12 +9,11 @@ import { stringify, stringifyAsTree } from './serializer/module.f.ts'
 import { sort } from '../types/object/module.f.ts'
 import { type Effect, pure } from '../effects/module.f.ts'
 import {
-    writeFile,
+    writeUtf8File,
     type WriteFile, type ReadFile,
     type Write,
     error,
 } from '../effects/node/module.f.ts'
-import { utf8 } from '../text/module.f.ts'
 
 export type Object = {
    readonly [k in string]: Unknown
@@ -45,7 +44,7 @@ export const compile: (args: readonly string[]) => Effect<CompileOp, number>
             const content = outputFileName.endsWith('.json')
                 ? stringifyAsTree(sort)(result[1])
                 : stringify(sort)(result[1])
-            return writeFile(outputFileName, utf8(content))
+            return writeUtf8File(outputFileName, content)
                 .step(() => pure(0))
         })
     }

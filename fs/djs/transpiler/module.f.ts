@@ -13,8 +13,7 @@ import { concat as pathConcat } from '../../path/module.f.ts'
 import { type ParseError, parseFromTokens } from '../parser/module.f.ts'
 import { run, type AstModule } from '../ast/module.f.ts'
 import { type Effect, foldStep, pure } from '../../effects/module.f.ts'
-import { readFile, type ReadFile } from '../../effects/node/module.f.ts'
-import { utf8ToString } from '../../text/module.f.ts'
+import { readUtf8File, type ReadFile } from '../../effects/node/module.f.ts'
 
 /**
  * State threaded through the recursive transpilation of a DJS module graph.
@@ -47,11 +46,11 @@ const mapDjs
 
 const parseModule
     : (path: string) => Effect<ReadFile, Result<AstModule, ParseError>>
-    = path => readFile(path).step(result => {
+    = path => readUtf8File(path).step(result => {
         if (result[0] === 'error') {
             return pure(error({ message: 'file not found', metadata: null }))
         }
-        const tokens = tokenize(stringToList(utf8ToString(result[1])))(path)
+        const tokens = tokenize(stringToList(result[1]))(path)
         return pure(parseFromTokens(tokens))
     })
 
