@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fjs`: add a `proof.f.ts` covering the CLI command handlers (help output, the `compile` missing-argument error path, and the `run` handler's import-and-invoke and import-failure paths) via the virtual Node-effect interpreter [#1047](https://github.com/functionalscript/functionalscript/pull/1047)
 - `effects/node/virtual`: add proofs covering the virtual `await` handler, the `fetch` not-found branch, and the `import_` invalid-path branch [#1046](https://github.com/functionalscript/functionalscript/pull/1046)
 - `asn.1`: extract a private generic `decodeAll<T>(step)` helper that drains a `Vec` by repeatedly applying a `(Vec) => [T, Vec]` step until empty; rewrite `decodeObjectIdentifier` and `decodeSequence` through it instead of two near-identical `let`/`while` accumulators — pure refactor, behavior-identical (i189-asn1-decode-all-unfold) [#1041](https://github.com/functionalscript/functionalscript/pull/1041)
 - `types/bigfloat`: factor the abs/sign/`multiply` envelope of `round53` and `decToBin`'s negative-exponent branch into a private `withSign` combinator ("operate on the magnitude, restore the sign") — pure refactor, behavior-identical (i191-bigfloat-with-sign) [#1022](https://github.com/functionalscript/functionalscript/pull/1022)
