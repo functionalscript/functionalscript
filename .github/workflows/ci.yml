@@ -395,9 +395,6 @@
           }
         },
         {
-          "run": "deno install -g -A npm:functionalscript@0.30.0"
-        },
-        {
           "uses": "actions/checkout@v6"
         },
         {
