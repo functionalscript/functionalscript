@@ -40,6 +40,7 @@ import {
 import { asBase, asNominal } from '../../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.ts'
+import type { StringMap } from '../../types/object/module.f.ts'
 
 type Server = {
     readonly listen: (port: number) => void
@@ -54,7 +55,7 @@ type IncomingMessage = Readable & {
 }
 
 type ServerResponse = {
-    readonly writeHead: (status: number, headers: Record<string, string>) => ServerResponse
+    readonly writeHead: (status: number, headers: StringMap<string, string>) => ServerResponse
     readonly end: (body: Uint8Array) => void
 }
 

@@ -1,7 +1,7 @@
 # 66C-infinite-record. Use `?` for Infinite-Key Mapped Types
 
 **Priority:** P2
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -50,54 +50,53 @@ When all **defined** values are needed, iterate with `definedValues` (already in
 
 ## Proposal
 
-### 1 — Helper types in `fs/types/object/module.f.ts`
+### 1 — Helper type in `fs/types/object/module.f.ts`
 
-Add two named aliases that make the finite/infinite distinction explicit:
+Instead of two separate aliases, use a single conditional type that handles both cases:
 
 ```ts
-/**
- * A read-only record with a finite key set `K`.
- * Every key is required to be present — `K` must be a string-literal union, not `string`.
- * Passing `string` as `K` produces `never` to prevent the silent runtime lie
- * where TypeScript types every access as `V` but the value is actually `undefined`.
- */
-export type FiniteRecord<K extends string, V> =
-    string extends K ? never : { readonly[P in K]: V }
-
-/**
- * A read-only record with an infinite key set (all strings).
- * Keys are optional (`?`) because TypeScript cannot enforce that every string is set.
- */
-export type InfiniteRecord<V> = { readonly[k in string]?: V }
+export type StringMap<K extends string, T> =
+    string extends K
+    ? { readonly[k in string]?: T }   // infinite key set — optional
+    : { readonly[k in K]: T }          // finite key set — all keys required
 ```
 
-The existing `ReadonlyRecord<S, T>` is `FiniteRecord<S, T>` when `S` is a literal union,
-but allows `string` as `S` today, producing the problematic non-optional form.
-After introducing `FiniteRecord`/`InfiniteRecord`, callers that pass `string` to
-`ReadonlyRecord` should be migrated to `InfiniteRecord`.
+- `StringMap<string, T>` → `{ readonly[k in string]?: T }` (infinite, optional)
+- `StringMap<'a' | 'b', T>` → `{ readonly[k in 'a' | 'b']: T }` (finite, required)
+
+**Status:** implemented in `fs/types/object/module.f.ts`.
+
+The existing `ReadonlyRecord<S, T>` callers that pass `string` should be migrated to
+`StringMap<string, T>`.
+
+> **Note:** `StringMap<string, T>` cannot be used as an alias for mutually-recursive
+> types (e.g. `Object = StringMap<string, Unknown>` where `Unknown` contains `Object`)
+> because TypeScript's circular-reference detection does not resolve through conditional
+> types. Use the inline form `{ readonly[k in string]?: T }` for such cases.
 
 ### 2 — Fix sites in the codebase
 
-Files to audit and update:
+Files to audit and update (migrate inline `{ readonly[k in string]: T }` to `StringMap<string, T>`):
 
-| File | Line(s) | Current | Action |
-|------|---------|---------|--------|
-| `fs/types/object/module.f.ts` | 16 | `Map<T>` = `{ readonly[k in string]: T }` | Add `?` |
-| `fs/types/rtti/module.f.ts` | 61 | `Struct = { readonly[K in string]: Type }` | Add `?` |
-| `fs/types/rtti/module.f.ts` | 54 | `ConstObject` inline `{ readonly[K in string]: Type }` | Add `?` |
-| `fs/types/rtti/proof.f.ts` | 2 | `{ readonly[K in string]: readonly unknown[] }` | Add `?` |
-| `fs/types/rtti/common/module.f.ts` | 105, 112 | `ReadonlyRecord<string, Unknown>` | Change to `InfiniteRecord<Unknown>` |
-| `fs/types/rtti/validate/module.f.ts` | 130 | `ReadonlyRecord<string, Unknown>` | Change to `InfiniteRecord<Unknown>` |
-| `fs/types/rtti/parse/module.f.ts` | 153 | `ReadonlyRecord<string, Unknown>` | Change to `InfiniteRecord<Unknown>` |
-| `fs/djs/module.f.ts` | 20 | `{ readonly[k in string]: Unknown }` | Add `?` |
-| `fs/djs/ast/module.f.ts` | 20 | `{ readonly[k in string]: AstConst }` | Add `?` |
-| `fs/json/serializer/module.f.ts` | 11 | `{ readonly[k in string]: Unknown<T> }` | Add `?` |
-| `fs/bnf/module.f.ts` | 49, 146 | `{ readonly[k in string]: Rule/TerminalRange }` | Add `?` |
-| `fs/bnf/data/module.f.ts` | 35, 53, 75, 77 | various `{ [k in string]: ... }` | Add `?` |
-| `fs/html/module.f.ts` | 65 | `{ readonly[k in string]: string }` | Add `?` |
-| `fs/fsm/module.f.ts` | 28 | `{ readonly[state in string]: RangeMapArray<string> }` | Add `?` |
-| `fs/dev/module.f.ts` | 28 | `{ readonly[k in string]: Module }` | Add `?` |
-| `fs/effects/node/module.f.ts` | 130, 175 | `{ readonly[k in string]: string/unknown }` | Add `?` |
+| File | Line(s) | Current | Action | Status |
+|------|---------|---------|--------|--------|
+| `fs/types/object/module.f.ts` | 16 | `Map<T>` = `{ readonly[k in string]: T }` | `Map<T> = StringMap<string, T>` | done |
+| `fs/types/rtti/module.f.ts` | 61 | `Struct = { readonly[K in string]: Type }` | `StringMap<string, Type>` | done |
+| `fs/types/rtti/module.f.ts` | 54 | `ConstObject` inline `{ readonly[K in string]: Type }` | `StringMap<string, Type>` | done |
+| `fs/types/rtti/proof.f.ts` | 2 | `{ readonly[K in string]: readonly unknown[] }` | `StringMap<string, ...>` | done |
+| `fs/types/rtti/common/module.f.ts` | 105, 112 | `ReadonlyRecord<string, Unknown>` | `StringMap<string, Unknown>` | done |
+| `fs/types/rtti/validate/module.f.ts` | 130 | `ReadonlyRecord<string, Unknown>` | `StringMap<string, Unknown>` | done |
+| `fs/types/rtti/parse/module.f.ts` | 153 | `ReadonlyRecord<string, Unknown>` | `StringMap<string, Unknown>` | done |
+| `fs/djs/module.f.ts` | 20 | `{ readonly[k in string]: Unknown }` | inline `?` (recursive type) | done |
+| `fs/djs/ast/module.f.ts` | 20 | `{ readonly[k in string]: AstConst }` | inline `?` (recursive type) | done |
+| `fs/json/serializer/module.f.ts` | 11 | `{ readonly[k in string]: Unknown<T> }` | inline `?` (recursive type) | done |
+| `fs/bnf/module.f.ts` | 49 | `Variant = { readonly[k in string]: Rule }` | inline `?` (recursive type) | done |
+| `fs/bnf/module.f.ts` | 146 | `RangeVariant = { readonly[k in string]: TerminalRange }` | `StringMap<string, TerminalRange>` | done |
+| `fs/bnf/data/module.f.ts` | 35, 53, 75, 77 | various `{ [k in string]: ... }` | `StringMap<string, ...>` | done |
+| `fs/html/module.f.ts` | 65 | `{ readonly[k in string]: string }` | `StringMap<string, string>` | done |
+| `fs/fsm/module.f.ts` | 28 | `{ readonly[state in string]: RangeMapArray<string> }` | `StringMap<string, ...>` | done |
+| `fs/dev/module.f.ts` | 28 | `{ readonly[k in string]: Module }` | `StringMap<string, Module>` | done |
+| `fs/effects/node/module.f.ts` | 145, 191 | `{ readonly[k in string]: string/unknown }` | `StringMap<string, ...>` | done |
 
 > **Note:** `{ readonly[K in string]: unknown }` and `{ readonly[K in string]: Unknown }`
 > are technically safe since `undefined ⊆ unknown`, but the `?` is still correct style
@@ -119,11 +118,12 @@ The JSDoc on line 26 and the `@example` strings in `fs/types/rtti/ts/module.f.ts
 
 ## Tasks
 
-- [ ] Add `FiniteRecord<K, V>` and `InfiniteRecord<V>` to `fs/types/object/module.f.ts`
-- [ ] Fix `Map<T>` in `fs/types/object/module.f.ts` to use `?`
-- [ ] Fix rtti types (`Struct`, `ConstObject`, related) and migrate `ReadonlyRecord<string, …>`
-- [ ] Fix `djs`, `json/serializer`, `bnf`, `html`, `fsm`, `dev`, `effects/node` usages
-- [ ] Update downstream callers that relied on non-optional access (use `at()` or `definedValues`)
+- [x] Add `StringMap<K, T>` to `fs/types/object/module.f.ts` (alternative to `FiniteRecord`/`InfiniteRecord`)
+- [x] Fix rtti types (`Struct`, `ConstObject`, related) and migrate `ReadonlyRecord<string, …>` to `StringMap<string, …>`
 - [x] Fix `printer` in `fs/types/ts/module.f.ts` to emit `?` for record types
 - [x] Update JSDoc and `@example` strings in `fs/types/ts/module.f.ts` and `fs/types/rtti/ts/module.f.ts`
-- [ ] Add proof assertions verifying `FiniteRecord` / `InfiniteRecord` behave correctly
+- [x] Fix `Map<T>` in `fs/types/object/module.f.ts` (`Map<T> = StringMap<string, T>`)
+- [x] Fix `djs`, `json/serializer`, `bnf`, `html`, `fsm`, `dev`, `effects/node` usages (see table above)
+- [x] Fix `fs/types/rtti/proof.f.ts` inline mapped type
+- [x] Update downstream callers that relied on non-optional access (`!` assertions and `definedValues`/`definedEntries`)
+- [x] Add proof assertions verifying `StringMap` behaves correctly for finite and infinite key sets
