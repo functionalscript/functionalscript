@@ -404,6 +404,9 @@
           "run": "deno run -A npm:functionalscript@0.30.0 t"
         },
         {
+          "run": "deno install --frozen"
+        },
+        {
           "run": "deno test --allow-read --allow-env --coverage && deno coverage --include='.*module\\.f\\.ts'"
         },
         {
