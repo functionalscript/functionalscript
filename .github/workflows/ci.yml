@@ -395,10 +395,10 @@
           }
         },
         {
-          "uses": "actions/checkout@v6"
+          "run": "deno install -g -A npm:functionalscript@0.30.0"
         },
         {
-          "run": "deno install --frozen"
+          "uses": "actions/checkout@v6"
         },
         {
           "run": "deno run -A npm:functionalscript@0.30.0 t"
