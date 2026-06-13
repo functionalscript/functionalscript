@@ -1,7 +1,7 @@
 # 66B-djs-serializer-shared-ref-predicate. `djs/serializer`: name the "shared reference" test
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -88,10 +88,10 @@ threshold) lives in one place.
 
 ## Tasks
 
-- [ ] Add the `sharedRef` helper at module scope in
+- [x] Add the `sharedRef` helper at module scope in
       `fs/djs/serializer/module.f.ts`.
-- [ ] Route `getConstants` and `serializeWithConst` through it.
-- [ ] Confirm `fs/djs` proofs still pass (`fjs t`) with full coverage and
+- [x] Route `getConstants` and `serializeWithConst` through it.
+- [x] Confirm `fs/djs` proofs still pass (`fjs t`) with full coverage and
       `npx tsc` is clean.
 
 ## Related
