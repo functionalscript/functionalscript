@@ -14,6 +14,7 @@ import {
     type Readdir
 } from '../effects/node/module.f.ts'
 import { cmp as strCmp } from '../types/string/module.f.ts'
+import type { StringMap } from '../types/object/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { pure, type Effect } from '../effects/module.f.ts'
 import { join, relativize, toPosix } from '../path/module.f.ts'
@@ -24,9 +25,7 @@ export type Module = {
     readonly [k: string]: unknown
 }
 
-export type ModuleMap = {
-   readonly[k in string]: Module
-}
+export type ModuleMap = StringMap<string, Module>
 
 /**
  * Returns `true` if the file should be loaded for proof discovery.

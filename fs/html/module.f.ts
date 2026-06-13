@@ -6,7 +6,7 @@
  */
 import { map, flatMap, flat, concat as listConcat, type List } from '../types/list/module.f.ts'
 import { concat, concat as stringConcat } from '../types/string/module.f.ts'
-import type { Entry } from '../types/object/module.f.ts'
+import { definedEntries, type Entry, type StringMap } from '../types/object/module.f.ts'
 import { compose } from '../types/function/module.f.ts'
 import { stringToList } from '../text/utf16/module.f.ts'
 import { includes } from '../types/array/module.f.ts'
@@ -14,7 +14,6 @@ import { type Vec } from '../types/bit_vec/module.f.ts'
 import { utf8 } from '../text/module.f.ts'
 
 const { fromCharCode } = String
-const { entries } = Object
 
 type Tag = string
 
@@ -61,9 +60,7 @@ type Element2 = readonly [Tag, Attributes, ...Node[]]
  */
 export type Element = Element1 | Element2
 
-type Attributes = {
-    readonly [k in string]: string
-}
+type Attributes = StringMap<string, string>
 
 export type Node = Element | string
 
@@ -98,7 +95,7 @@ const rawMap = (n: List<Node>) => concat(mr(n)).replaceAll('</', '<\\/')
 const attribute = ([name, value]: Entry<string>) =>
     flat([[' ', name, '="'], escape(value), ['"']])
 
-const attributes = compose(entries)(flatMap(attribute))
+const attributes = (a: Attributes): List<string> => flatMap(attribute)(definedEntries(a))
 
 const parseElement = (e: Element): readonly[string, Attributes, readonly Node[]] => {
     const [tag, item1, ...list] = e

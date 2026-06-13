@@ -20,13 +20,13 @@ type MemoryState = {
 const initial: MemoryState = { next: 0, values: {} }
 
 const mock: MemOperationMap<MemOp, MemoryState> = {
-    memCreate: (state, value) => {
+    memCreate: value => state => {
         const id = `k${state.next}`
         const key: Key<unknown> = asNominal(id)
         return [{ next: state.next + 1, values: { ...state.values, [id]: value } }, key]
     },
-    memRead: (state, key) => [state, state.values[asBase(key)]],
-    memWrite: (state, key, value) => {
+    memRead: key => state => [state, state.values[asBase(key)]],
+    memWrite: (key, value) => state => {
         const id = asBase(key)
         return [{ ...state, values: { ...state.values, [id]: value } }, undefined]
     },

@@ -1,6 +1,6 @@
-type Tests = {
-    readonly[K in string]: readonly unknown[]
-}
+import type { StringMap } from '../object/module.f.ts'
+
+type Tests = StringMap<string, readonly unknown[]>
 
 const tests: Tests = {
     undefined: [undefined],
@@ -13,7 +13,7 @@ const tests: Tests = {
 }
 
 export const proof = {
-    typeof: Object.fromEntries(Object.entries(tests).map(([k, a]) => [k, a.map(v => () => {
+    typeof: Object.fromEntries(Object.entries(tests).map(([k, a]) => [k, a!.map(v => () => {
         if (typeof v !== k) { throw `typeof ${v} !== ${k}` }
     })])),
 }

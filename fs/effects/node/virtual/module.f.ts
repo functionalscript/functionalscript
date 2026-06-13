@@ -66,7 +66,7 @@ const operation =
         const [newSubDir, r] = f(subDir, rest)
         return [{ ...dir, [first]: newSubDir }, r]
     }
-    return (state: State, path: string) => {
+    return (path: string) => (state: State) => {
         const [root, result] = f(state.root, parse(path))
         return [{ ...state, root }, result] as const
     }
@@ -159,7 +159,7 @@ const rm = operation((dir, path): readonly[Dir, IoResult<void>] => {
 })
 
 const map: MemOperationMap<NodeOp, State> = {
-    all: (state, ...a) => {
+    all: (...a) => state => {
         let e: readonly unknown[] = []
         for (const i of a) {
             const [ns, ei] = virtual(state)(i)
@@ -168,7 +168,7 @@ const map: MemOperationMap<NodeOp, State> = {
         }
         return [state, e]
     },
-    memCreate: (state, value) => {
+    memCreate: value => state => {
         const id = `mem${state.memoryNext}`
         const key: Key<unknown> = asNominal(id)
         return [{
@@ -177,23 +177,23 @@ const map: MemOperationMap<NodeOp, State> = {
             memoryValues: { ...state.memoryValues, [id]: value },
         }, key]
     },
-    memRead: (state, key) =>
+    memRead: key => state =>
         [state, state.memoryValues[asBase(key)]],
-    memWrite: (state, key, value) => {
+    memWrite: (key, value) => state => {
         const id = asBase(key)
         return [{
             ...state,
             memoryValues: { ...state.memoryValues, [id]: value },
         }, undefined]
     },
-    fetch: (state, url) => {
+    fetch: url => state => {
         const result = state.internet[url]
         return result === undefined ? [state, error('not found')] : [state, ok(result)]
     },
-    mkdir: (state, path, p) => mkdir(p !== undefined)(state, path),
+    mkdir: (path, p) => mkdir(p !== undefined)(path),
     readFile,
-    readdir: (state, path, { recursive }) => readdir(path, recursive === true)(state, path),
-    writeFile: (state, path, payload) => writeFile(payload)(state, path),
+    readdir: (path, { recursive }) => readdir(path, recursive === true)(path),
+    writeFile: (path, payload) => writeFile(payload)(path),
     access,
     import: import_,
     rm,
@@ -201,7 +201,7 @@ const map: MemOperationMap<NodeOp, State> = {
     createServer: todo,
     listen: todo,
     forever: todo,
-    now: (state) => [state, state.epochNs],
+    now: () => state => [state, state.epochNs],
     // Virtual sandbox is a pass-through: the fixture's test function is
     // expected to return a `SandboxResult` directly (encoding pass/fail and a
     // chosen duration), so the handler invokes it without try/catch or clock
@@ -209,10 +209,10 @@ const map: MemOperationMap<NodeOp, State> = {
     // result instead of the runner measuring real execution. A genuine
     // exception in a fixture propagates loudly as a bug in the fixture.
     // See: issues/156-tf-virtual-tests.md
-    sandbox: (state, f) => [state, f() as SandboxResult<unknown>],
-    await: (state, p) => [state, [p]],
+    sandbox: f => state => [state, f() as SandboxResult<unknown>],
+    await: p => state => [state, [p]],
     test: todo,
-    write: (state, stream, data) => {
+    write: (stream, data) => state => {
         const s = utf8ToString(data)
         return [{ ...state, [stream]: `${state[stream]}${s}` }, undefined] as const
     },

@@ -12,9 +12,7 @@ import { entries as mapEntries, fromEntries as mapFromEntries, type OrderedMap }
 
 const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
 
-export type Map<T> = {
-   readonly [k in string]: T
-}
+export type Map<T> = StringMap<string, T>
 
 export type Entry<T> = readonly[string, T]
 
@@ -40,7 +38,7 @@ export const fromMap: <T>(m: OrderedMap<T>) => Map<T>
  * https://stackoverflow.com/questions/57571664/typescript-type-for-an-object-with-only-one-key-no-union-type-allowed-as-a-key
  */
 export type OneKey<K extends string, V> = {
-    [P in K]: (ReadonlyRecord<P, V> & Partial<ReadonlyRecord<Exclude<K, P>, never>>) extends infer O
+    [P in K]: (StringMap<P, V> & Partial<StringMap<Exclude<K, P>, never>>) extends infer O
         ? { [Q in keyof O]: O[Q] }
         : never
 }[K];
@@ -54,7 +52,7 @@ export type NotUnion<T, U = T> =
     : never
   : never;
 
-export type SingleProperty<T extends ReadonlyRecord<string, never>> =
+export type SingleProperty<T extends StringMap<string, never>> =
   keyof T extends NotUnion<keyof T> ? T
   : never;
 
@@ -62,11 +60,18 @@ export const isObject =
     (value: unknown): value is { readonly[k in string]: unknown } =>
     typeof value === 'object' && !isArray(value) && value !== null
 
-export type ReadonlyRecord<S extends string, T> = { readonly[K in S]: T }
-
-const { values } = Object
+const { values, entries } = Object
 
 /** Returns only the defined (non-undefined) values of a partial record. */
 export const definedValues =
-    <T>(cmd: { readonly[k in string]?: Exclude<T, undefined>}): readonly Exclude<T, undefined>[] =>
-    values(cmd).filter(v => v !== undefined)
+    <T>(map: StringMap<string, Exclude<T, undefined>>): readonly Exclude<T, undefined>[] =>
+    values(map).filter(v => v !== undefined)
+
+export type StringMap<K extends string, T> =
+    string extends K
+    ? { readonly[k in string]?: T }
+    : { readonly[k in K]: T }
+
+export const definedEntries =
+    <T>(cmd: StringMap<string, Exclude<T, undefined>>): readonly (readonly[string, Exclude<T, undefined>])[] =>
+    entries(cmd).flatMap(([a, b]) => b === undefined ? [] : [[a, b]])
