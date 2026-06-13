@@ -17,6 +17,7 @@ import {
     type Rule as FRule,
     type Sequence as FSequence,
 } from '../module.f.ts'
+import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
 
 /**
  * Encoded terminal range value used by BNF data rules.
@@ -31,9 +32,7 @@ export type TerminalRange = number
 export type Sequence = readonly string[]
 
 /** A variant of rule names. */
-export type Variant = {
-    readonly [k in string]: string
-}
+export type Variant = StringMap<string, string>
 
 /**
  * Grammar rule definition.
@@ -50,7 +49,7 @@ export type RuleSet = Readonly<Record<string, Rule>>
 
 //
 
-type FRuleMap = { readonly [k in string]: FRule }
+type FRuleMap = StringMap<string, FRule>
 
 type EmptyTag = string|true|undefined
 
@@ -72,9 +71,9 @@ type DispatchRuleCollection = {
     readonly rules: DispatchRuleOrName[]
 }
 
-type DispatchMap = { readonly[id in string]: DispatchRule }
+type DispatchMap = StringMap<string, DispatchRule>
 
-type EmptyTagMap = { readonly[id in string]: EmptyTagEntry }
+type EmptyTagMap = StringMap<string, EmptyTagEntry>
 
 /**
  * Recursive descent matcher for a single named rule.
@@ -285,7 +284,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
                     result = result.map(x => [addRuleToDispatch(x[0], item), x[1]])
                 } else {
                     dm = dispatchRule(dm, item, newCurrent)
-                    const dr = dm[item]
+                    const dr = dm[item]!
                     if (emptyTag === true) {
                         result = result.map(x => [addRuleToDispatch(x[0], item), x[1]])
                         result = toArray(dispatchOp.merge(result)(dr.rangeMap))
@@ -298,12 +297,12 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
             const dr: DispatchRule = {emptyTag, rangeMap: result}
             return { ...dm, [name]: dr}
         } else {
-            const entries = Object.entries(rule)
+            const entries = definedEntries(rule)
             let result: Dispatch = []
             let emptyTag: EmptyTag = undefined
             for (const [tag, item] of entries) {
                 dm = dispatchRule(dm, item, newCurrent)
-                const dr = dm[item]
+                const dr = dm[item]!
                 if (dr.emptyTag !== undefined) {
                     emptyTag = tag
                 } else {
@@ -326,7 +325,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 
 const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string): readonly [RuleSet, EmptyTagMap, EmptyTagEntry] => {
     if (name in map) {
-        return [ruleSet, map, map[name]]
+        return [ruleSet, map, map[name]!]
     }
 
     const rule = ruleSet[name]
@@ -346,7 +345,7 @@ const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string
         return [ruleSet, { ...map, [name]: emptyTag }, emptyTag]
     } else {
         map = { ...map, [name]: true}
-        const entries = Object.entries(rule)
+        const entries = definedEntries(rule)
         let emptyTag: EmptyTagEntry = false
         for (const [tag, item] of entries) {
             const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
@@ -411,7 +410,7 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
             }
             return mrSuccess(tag, seq, tidx)
         } else {
-            const entries = Object.entries(rule)
+            const entries = definedEntries(rule)
             const emptyTag = getEmptyTag(name)
             let emptyResult = mrFail(emptyTag, [], idx)
             for (const [tag, item] of entries) {
@@ -469,7 +468,7 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
         r = restCp
         const {tag, rules} = dr
         for (const i of rules) {
-            const rule = typeof i === 'string' ? map[i] : i
+            const rule = typeof i === 'string' ? map[i]! : i
             const res = f(rule, r)
             const [astRule, success, newR] = res
             if (success === false) {
@@ -484,5 +483,5 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
         return mrSuccess(tag, seq, r)
     }
 
-    return (name, cp): MatchResult => f(map[name], cp)
+    return (name, cp): MatchResult => f(map[name]!, cp)
 }

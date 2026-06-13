@@ -4,6 +4,7 @@
  * @module
  */
 import { equal, isEmpty, fold, toArray, scan, foldScan, empty as emptyList, type List } from '../types/list/module.f.ts'
+import type { StringMap } from '../types/object/module.f.ts'
 import { toRangeMap, union as byteSetUnion, one, empty, range, type ByteSet } from '../types/byte_set/module.f.ts'
 import { intersect, type SortedSet, union as sortedSetUnion } from '../types/sorted_set/module.f.ts'
 import {
@@ -24,9 +25,7 @@ type Rule = readonly [string, ByteSet, string]
 
 export type Grammar = List<Rule>
 
-type Dfa = {
-    readonly [state in string]: RangeMapArray<string>
-}
+type Dfa = StringMap<string, RangeMapArray<string>>
 
 const stringifyIdentity = stringify(identity)
 
@@ -92,7 +91,7 @@ export const dfa: (grammar: Grammar) => Dfa
 const get = rangeMapGet(emptyStateStringify)
 
 const runOp: (dfa: Dfa) => Fold<number, string>
-    = dfa => input => s => get(input)(dfa[s])
+    = dfa => input => s => get(input)(dfa[s] ?? [])
 
 export const run = (dfa: Dfa) => (input: List<number>): List<string> =>
     foldScan(runOp(dfa))(initialStateStringify)(input)

@@ -13,6 +13,7 @@ import type { Vec } from '../../types/bit_vec/module.f.ts'
 import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
 import { ok, type Result } from '../../types/result/module.f.ts'
+import type { StringMap } from '../../types/object/module.f.ts'
 import {
     type Effect, type Func, type Operation, type ToAsyncOperationMap,
     do_, pure
@@ -142,9 +143,7 @@ export type Server =
 
 // createServer
 
-export type Headers = {
-    readonly [k in string]: string
-}
+export type Headers = StringMap<string, string>
 
 export type IncomingMessage = {
     readonly method: string
@@ -187,9 +186,7 @@ export const forever: Func<Forever> =
 
 // import
 
-export type Module = {
-    readonly [k in string]: unknown
-}
+export type Module = StringMap<string, unknown>
 
 export type Import = ['import', (path: string) => IoResult<Module>]
 
