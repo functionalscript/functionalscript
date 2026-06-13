@@ -34,7 +34,7 @@ import {
     type Type,
 } from '../module.f.ts'
 import { ok, type Error, type Result as CommonResult } from '../../result/module.f.ts'
-import { type ReadonlyRecord } from '../../object/module.f.ts'
+import type { Struct as ObjectStruct } from '../../object/module.f.ts'
 import { find, map as listMap } from '../../list/module.f.ts'
 import {
     constPrimitiveValidate,
@@ -150,7 +150,7 @@ const tupleParse = constContainerParse<ReadonlyArray<Unknown>>(
     arrayRebuild,
 )
 
-const structParse = constContainerParse<ReadonlyRecord<string, Unknown>>(
+const structParse = constContainerParse<ObjectStruct<string, Unknown>>(
     isObject,
     (value, k) => value[k],
     recordRebuild,

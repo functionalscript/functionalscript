@@ -40,7 +40,7 @@ export const fromMap: <T>(m: OrderedMap<T>) => Map<T>
  * https://stackoverflow.com/questions/57571664/typescript-type-for-an-object-with-only-one-key-no-union-type-allowed-as-a-key
  */
 export type OneKey<K extends string, V> = {
-    [P in K]: (ReadonlyRecord<P, V> & Partial<ReadonlyRecord<Exclude<K, P>, never>>) extends infer O
+    [P in K]: (Struct<P, V> & Partial<Struct<Exclude<K, P>, never>>) extends infer O
         ? { [Q in keyof O]: O[Q] }
         : never
 }[K];
@@ -54,7 +54,7 @@ export type NotUnion<T, U = T> =
     : never
   : never;
 
-export type SingleProperty<T extends ReadonlyRecord<string, never>> =
+export type SingleProperty<T extends Struct<string, never>> =
   keyof T extends NotUnion<keyof T> ? T
   : never;
 
@@ -62,11 +62,16 @@ export const isObject =
     (value: unknown): value is { readonly[k in string]: unknown } =>
     typeof value === 'object' && !isArray(value) && value !== null
 
-export type ReadonlyRecord<S extends string, T> = { readonly[K in S]: T }
+// export type ReadonlyRecord<S extends string, T> = { readonly[K in S]: T }
 
 const { values } = Object
 
 /** Returns only the defined (non-undefined) values of a partial record. */
 export const definedValues =
-    <T>(cmd: { readonly[k in string]?: Exclude<T, undefined>}): readonly Exclude<T, undefined>[] =>
+    <T>(cmd: Struct<string, Exclude<T, undefined>>): readonly Exclude<T, undefined>[] =>
     values(cmd).filter(v => v !== undefined)
+
+export type Struct<K extends string, T> =
+    string extends K
+    ? { readonly[k in string]?: T }
+    : { readonly[k in K]: T }

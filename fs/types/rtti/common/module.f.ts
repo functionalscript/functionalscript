@@ -35,7 +35,7 @@ import {
 import { error, ok, type Error, type Result as CommonResult } from '../../result/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
 import { isArray as commonIsArray } from '../../array/module.f.ts'
-import { isObject as commonIsObject, type ReadonlyRecord } from '../../object/module.f.ts'
+import { isObject as commonIsObject, type Struct as ObjectStruct } from '../../object/module.f.ts'
 
 /** A path to a sub-value within the validated structure. Each step is an object key or stringified array index. */
 export type Path = readonly string[]
@@ -102,14 +102,14 @@ export type IsContainer<C extends Unknown> = (value: Unknown) => value is C
 /** Maps a `Tag1` to its runtime container type. */
 export type Container<K extends Tag1> = K extends 'array'
     ? ReadonlyArray<Unknown>
-    : ReadonlyRecord<string, Unknown>
+    : ObjectStruct<string, Unknown>
 
 /** `IsContainer` guard for arrays, shared by `validate` and `parse`. */
 export const isArray: IsContainer<ReadonlyArray<Unknown>> =
     value => commonIsArray(value)
 
 /** `IsContainer` guard for records/structs, shared by `validate` and `parse`. */
-export const isObject: IsContainer<ReadonlyRecord<string, Unknown>> =
+export const isObject: IsContainer<ObjectStruct<string, Unknown>> =
     value => commonIsObject(value)
 
 /**
