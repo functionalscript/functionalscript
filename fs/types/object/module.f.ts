@@ -62,8 +62,6 @@ export const isObject =
     (value: unknown): value is { readonly[k in string]: unknown } =>
     typeof value === 'object' && !isArray(value) && value !== null
 
-// export type ReadonlyRecord<S extends string, T> = { readonly[K in S]: T }
-
 const { values } = Object
 
 /** Returns only the defined (non-undefined) values of a partial record. */
