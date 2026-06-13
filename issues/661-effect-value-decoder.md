@@ -1,7 +1,31 @@
 # 661. `effects`: a single decoder for the `Pure | Do` value representation
 
 **Priority:** P3
-**Status:** open
+**Status:** done
+
+## Resolution
+
+Implemented as proposed: `decode` + `match` in `fs/effects/module.f.ts`, the
+`MemOperationMap` currying landed in the same change (not as a follow-up), and
+both production runners plus the proofs now go through the shared accessor.
+Notes on how reality diverged from the proposal below:
+
+- **`match` is generic in the effect's operation set.** The sketch typed the
+  effect parameter as `Effect<O, T>`, but `Effect` is *not* covariant in `O`
+  (the continuation consumes the operation's result, an input position), so
+  `RunInstance`'s `<O1 extends O>` effects would not be assignable. `match`
+  takes `<O1 extends O, T>(effect: Effect<O1, T>)` instead, mirroring
+  `RunInstance`.
+- **Curried-map consumers.** Besides the virtual filesystem, two proof-local
+  mocks (`fs/effects/memory/proof.f.ts`, `fs/mcp/proof.f.ts`) and the partial
+  map in `fs/emergent_testing/proof.f.ts` (which keeps its pre-existing
+  `as Parameters<…>` cast) were migrated mechanically.
+- `ToAsyncOperationMap` is unchanged — it is a per-key-precise refinement of
+  `OperationMap<O, Promise<…>>` and inference handles the widening at the
+  `match(map)` call.
+- The new exports carry their own proofs (`decode`, `match.done`,
+  `match.cont` in `fs/effects/proof.f.ts`) against a minimal `AddOp`, in
+  addition to the runner proofs that exercise them end to end.
 
 The `Effect` ADT encodes a node as a tuple: a **pure** value is a length-1
 tuple `readonly[T]`, a **do** node is a length-3 tuple

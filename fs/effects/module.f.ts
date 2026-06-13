@@ -81,6 +81,63 @@ export const forEachStep =
     (items: List<T>): Effect<O, void> =>
     foldStep((item: T) => () => f(item))(undefined)(items)
 
+/**
+ * The decoded form of an effect's next step: either a final `result`, or a
+ * `command` to perform with its `payload` and the `continuation` to resume
+ * with the command's output.
+ */
+export type Decoded<O extends Operation, T> =
+    | { readonly done: true, readonly result: T }
+    | {
+        readonly done: false,
+        readonly command: Do<O, T>[0],
+        readonly payload: Do<O, T>[1],
+        readonly continuation: Do<O, T>[2],
+    }
+
+/**
+ * Decodes an effect's next step: a pure result, or a command to perform.
+ *
+ * This is the only function that knows how `Value` is laid out (a length-1
+ * tuple for `Pure`, a `[command, payload, continuation]` tuple for `Do`).
+ * Interpreters and proofs must go through `decode` (or `match`) instead of
+ * inspecting the tuple, so the representation can change without touching
+ * them.
+ */
+export const decode = <O extends Operation, T>({ value }: Effect<O, T>): Decoded<O, T> =>
+    value.length === 1
+        ? { done: true, result: value[0] }
+        : { done: false, command: value[0], payload: value[1], continuation: value[2] }
+
+/**
+ * An operation map whose entries take a command's payload and return some
+ * output `R`. Generalizes `ToAsyncOperationMap` (`R = Promise<…>`) and the
+ * curried `MemOperationMap` (`R = (state) => [state, …]`).
+ */
+export type OperationMap<O extends Operation, R> = {
+    readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => R
+}
+
+export type MatchResult<O extends Operation, T, R> =
+    | readonly['done', T]
+    | readonly['cont', R, Do<O, T>[2]]
+
+/**
+ * Decodes an effect's next step and dispatches its command to `map`,
+ * returning either the final result or the operation's output `R` paired
+ * with the continuation. The one world-specific step — `await` for async
+ * runners, state threading for sync ones — is left to the caller, so every
+ * interpreter loop is this skeleton plus a single eliminator line.
+ */
+export const match =
+    <O extends Operation, R>(map: OperationMap<O, R>) =>
+    <O1 extends O, T>(effect: Effect<O1, T>): MatchResult<O1, T, R> => {
+        const d = decode(effect)
+        return d.done
+            ? ['done', d.result]
+            : ['cont', map[d.command](...d.payload), d.continuation]
+    }
+
 export type ToAsyncOperationMap<O extends Operation> = {
     readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => Promise<Pr<O, K>[1]>
 }
