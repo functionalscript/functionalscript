@@ -15,9 +15,7 @@ import {
     error,
 } from '../effects/node/module.f.ts'
 
-export type Object = {
-   readonly [k in string]: Unknown
-}
+export type Object = { readonly[k in string]?: Unknown }
 
 export type Array = readonly Unknown[]
 

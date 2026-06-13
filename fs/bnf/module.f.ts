@@ -7,6 +7,7 @@
  * @module
  */
 import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.ts'
+import { definedValues, type StringMap } from '../types/object/module.f.ts'
 import { type Array2, isArray2 } from '../types/array/module.f.ts'
 import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
 
@@ -45,9 +46,7 @@ export const unicodeMax: string = codePointListToString([0x10FFFF])
 export type Sequence = readonly Rule[]
 
 /** A variant */
-export type Variant = {
-    readonly[k in string]: Rule
-}
+export type Variant = { readonly[k in string]?: Rule }
 
 /**
  * Data-only grammar rule.
@@ -66,7 +65,7 @@ export type Rule = DataRule | LazyRule
 
 // Internals:
 
-const { fromEntries, values } = Object
+const { fromEntries } = Object
 
 const { fromCodePoint } = String
 
@@ -143,7 +142,7 @@ type RangeList = readonly TerminalRange[]
 /**
  * A set of terminal ranges compatible with the `Variant` rule.
  */
-export type RangeVariant = { readonly [k in string]: TerminalRange }
+export type RangeVariant = StringMap<string, TerminalRange>
 
 const rangeToEntry = (r: TerminalRange): readonly [string, TerminalRange] =>
     ['0x' + r.toString(16), r]
@@ -172,7 +171,7 @@ const removeOne = (list: RangeList, ab: number): RangeList => {
 
 export const remove = (range: TerminalRange, v: RangeVariant): RangeVariant => {
     let result: RangeList = [range]
-    for (const r of values(v)) {
+    for (const r of definedValues(v)) {
         result = removeOne(result, r)
     }
     return toVariantRangeSet(result)

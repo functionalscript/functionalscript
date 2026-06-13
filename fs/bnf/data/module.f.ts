@@ -17,6 +17,7 @@ import {
     type Rule as FRule,
     type Sequence as FSequence,
 } from '../module.f.ts'
+import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
 
 /**
  * Encoded terminal range value used by BNF data rules.
@@ -31,9 +32,7 @@ export type TerminalRange = number
 export type Sequence = readonly string[]
 
 /** A variant of rule names. */
-export type Variant = {
-    readonly [k in string]: string
-}
+export type Variant = StringMap<string, string>
 
 /**
  * Grammar rule definition.
@@ -298,7 +297,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
             const dr: DispatchRule = {emptyTag, rangeMap: result}
             return { ...dm, [name]: dr}
         } else {
-            const entries = Object.entries(rule)
+            const entries = Object.entries(rule) as [string, string][]
             let result: Dispatch = []
             let emptyTag: EmptyTag = undefined
             for (const [tag, item] of entries) {
@@ -346,7 +345,7 @@ const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string
         return [ruleSet, { ...map, [name]: emptyTag }, emptyTag]
     } else {
         map = { ...map, [name]: true}
-        const entries = Object.entries(rule)
+        const entries = definedEntries(rule)
         let emptyTag: EmptyTagEntry = false
         for (const [tag, item] of entries) {
             const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
@@ -411,7 +410,7 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
             }
             return mrSuccess(tag, seq, tidx)
         } else {
-            const entries = Object.entries(rule)
+            const entries = Object.entries(rule) as [string, string][]
             const emptyTag = getEmptyTag(name)
             let emptyResult = mrFail(emptyTag, [], idx)
             for (const [tag, item] of entries) {
