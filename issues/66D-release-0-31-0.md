@@ -1,7 +1,7 @@
 # Release 0.31.0 — Add main Entry Point for Deno npm:functionalscript Support
 
 **Priority:** P1
-**Status:** irrelevant
+**Status:** open
 
 ## Problem
 
