@@ -32,6 +32,7 @@ import {
 import { pure, type Effect, type Operation } from '../effects/module.f.ts'
 import { loadModuleMap, shouldLoad, type LoadModuleOperations, type ModuleMap } from '../dev/module.f.ts'
 import { invert } from '../types/result/module.f.ts'
+import { definedEntries } from '../types/object/module.f.ts'
 
 
 type TestState = {
@@ -214,10 +215,8 @@ const runModule =
     .step(delta => pure(mergeState(ts, delta)))
 }
 
-const { entries } = Object
-
 const proofEntries = (moduleMap: ModuleMap): readonly (readonly [string, unknown])[] =>
-    entries(moduleMap)
+    definedEntries(moduleMap)
         .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
 
 /**
