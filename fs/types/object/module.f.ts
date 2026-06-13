@@ -40,7 +40,7 @@ export const fromMap: <T>(m: OrderedMap<T>) => Map<T>
  * https://stackoverflow.com/questions/57571664/typescript-type-for-an-object-with-only-one-key-no-union-type-allowed-as-a-key
  */
 export type OneKey<K extends string, V> = {
-    [P in K]: (Struct<P, V> & Partial<Struct<Exclude<K, P>, never>>) extends infer O
+    [P in K]: (StringMap<P, V> & Partial<StringMap<Exclude<K, P>, never>>) extends infer O
         ? { [Q in keyof O]: O[Q] }
         : never
 }[K];
@@ -54,7 +54,7 @@ export type NotUnion<T, U = T> =
     : never
   : never;
 
-export type SingleProperty<T extends Struct<string, never>> =
+export type SingleProperty<T extends StringMap<string, never>> =
   keyof T extends NotUnion<keyof T> ? T
   : never;
 
@@ -66,10 +66,10 @@ const { values } = Object
 
 /** Returns only the defined (non-undefined) values of a partial record. */
 export const definedValues =
-    <T>(cmd: Struct<string, Exclude<T, undefined>>): readonly Exclude<T, undefined>[] =>
+    <T>(cmd: StringMap<string, Exclude<T, undefined>>): readonly Exclude<T, undefined>[] =>
     values(cmd).filter(v => v !== undefined)
 
-export type Struct<K extends string, T> =
+export type StringMap<K extends string, T> =
     string extends K
     ? { readonly[k in string]?: T }
     : { readonly[k in K]: T }
