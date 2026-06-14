@@ -39,7 +39,9 @@ the effect itself.
 ### 2. stdio transport loop
 
 A pure-ish combinator that, given an `mcpStep`-shaped step function, produces an
-`Effect<MemOp | Fs, void>` representing the full server loop:
+`Effect<ReadLine | Write | MemOp | O, void>` representing the full server loop.
+`Fs` (filesystem ops) is not included — the loop only uses `ReadLine` (stdin)
+and `Write` (stdout), plus whatever `O` the step function needs:
 
 ```
 loop:
@@ -56,10 +58,12 @@ so it stays in the pure effect model and remains testable without a real process
 
 ### 3. `cas mcp` CLI subcommand (follow-on, in i66E)
 
-Once the transport exists, `fs/cas/mcp/module.f.ts` (i66E) assembles
+Once the transport exists, `fs/cas/mcp/module.f.ts`
+([i66E-mcp-cas-server](./66E-mcp-cas-server.md)) assembles
 `mcpStep(casConfig)(casMcpHandlers(cas(sha256)(fileKvStore('.'))))` and passes it
-to the stdio loop. That wiring lives in i66E, not here; this issue only owns the
-transport primitive.
+to the stdio loop. That wiring lives in i66E-mcp-cas-server and
+[i66E-fjs-cas-mcp-subcommand](./66E-fjs-cas-mcp-subcommand.md), not here;
+this issue only owns the transport primitive.
 
 ## Tasks
 

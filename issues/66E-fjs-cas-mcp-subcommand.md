@@ -9,11 +9,12 @@
 ## Problem
 
 `fjs cas` already dispatches `add` / `get` / `list` subcommands from
-`fs/cas/module.f.ts`. Once `casMcpHandlers` (i66E-mcp-cas-server) and the
-stdio transport loop (i66E-mcp-stdio-transport) are in place, there is no
-entry point to start the MCP server: no subcommand wires them together into a
-running process. A user or agent wanting to connect to the CAS over MCP has
-no way to launch it.
+`fs/cas/module.f.ts`. Once `casMcpHandlers`
+([i66E-mcp-cas-server](./66E-mcp-cas-server.md)) and the stdio transport loop
+([i66E-mcp-stdio-transport](./66E-mcp-stdio-transport.md)) are in place, there
+is no entry point to start the MCP server: no subcommand wires them together
+into a running process. A user or agent wanting to connect to the CAS over MCP
+has no way to launch it.
 
 ## Proposal
 
@@ -35,6 +36,7 @@ The handler assembles the three pieces:
         const handlers = casMcpHandlers(c)
         return create(uninitializedState as McpSessionState).step(key =>
             stdioTransport(mcpStep(casConfig)(handlers)(key))
+                .step(() => pure(0))
         )
     },
 }
@@ -43,8 +45,9 @@ The handler assembles the three pieces:
 `mcpStep(casConfig)(handlers)` takes a `Key<McpSessionState>` before it becomes
 the per-message step function, so the handler must first allocate a session key
 via `create(uninitializedState)` (a `MemCreate` effect) and pass it in.
-`stdioTransport` then runs until EOF; `fjs cas mcp` blocks, serving MCP
-requests on stdin/stdout, and exits cleanly when stdin closes.
+`stdioTransport` produces `Effect<..., void>`; `.step(() => pure(0))` maps EOF
+completion to exit code `0`, satisfying the `Effect<O, number>` contract that
+`Command.handler` requires.
 
 ### Where the change lives
 
