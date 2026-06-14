@@ -10,6 +10,7 @@ import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
 import { errorExit, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp, type NodeProgramOptions } from '../effects/node/module.f.ts'
 import { dispatch, type Commands } from '../cli/module.f.ts'
+import { casMcpServer } from './mcp/module.f.ts'
 import { toOption } from '../types/nullable/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { splitAt } from '../types/string/module.f.ts'
@@ -134,6 +135,12 @@ export const main = (options: NodeProgramOptions): Effect<NodeOp, number> => {
                 c.list()
                     .step(forEachStep<NodeOp, Vec>(j => log(vecToCBase32(j))))
                     .step(() => pure(0)),
+        },
+        {
+            names: ['mcp'],
+            description: 'Run an MCP server over stdio exposing the CAS as tools',
+            handler: () =>
+                casMcpServer(c).step(() => pure(0)),
         },
     ]
     return dispatch(commands)(options)
