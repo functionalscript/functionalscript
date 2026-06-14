@@ -62,11 +62,11 @@ but routed through MCP's in-band error channel.
 
 `casMcpServer(c)` allocates the session-state slot, builds the `mcpStep` for an
 injected `Cas<O>`, and drives the stdio read → parse → dispatch → write loop
-([`fs/mcp/stdio`](../../mcp/stdio/module.f.ts)) until stdin EOF. The CLI exposes
-it as a subcommand:
+([`fs/mcp/stdio`](../../mcp/stdio/module.f.ts)) until stdin EOF. The `cas`
+command (itself a subcommand of the `fjs` binary) exposes it as:
 
 ```
-cas mcp
+fjs cas mcp
 ```
 
 which runs the server over a filesystem-backed CAS rooted at the current
