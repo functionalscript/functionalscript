@@ -95,12 +95,15 @@ const mkdir = (recursive: boolean) => operation((dir, path): readonly[Dir, IoRes
     return [dir, okVoid]
 })
 
-const readFileError = error('no such file')
+/** Absent-path error mirroring Node's `ENOENT`, so `isNotFound` recognizes it. */
+const enoent = error({ code: 'ENOENT' })
 
 const readFile = readOperation((dir, path): IoResult<Vec> => {
-    if (path.length !== 1) { return readFileError }
+    if (path.length !== 1) { return enoent }
     const file = dir[path[0]]
     if (typeof file === 'function') { throw new Error(`'${path[0]}' is a JsModule; readFile not supported`) }
+    if (file === undefined) { return enoent }
+    // exists but is a directory — a real error, not a missing path
     if (!isVec(file)) { return error(`'${path[0]}' is not a file`) }
     return ok(file)
 })
@@ -147,8 +150,8 @@ const readdir = (base: string, recursive: boolean) => readOperation((dir, path):
 
 const access = readOperation((dir, path): IoResult<void> => {
     if (path.length === 0) { return okVoid }
-    if (path.length !== 1) { return error('no such file or directory') }
-    return dir[path[0]] !== undefined ? okVoid : error('no such file or directory')
+    if (path.length !== 1) { return enoent }
+    return dir[path[0]] !== undefined ? okVoid : enoent
 })
 
 const rm = operation((dir, path): readonly[Dir, IoResult<void>] => {

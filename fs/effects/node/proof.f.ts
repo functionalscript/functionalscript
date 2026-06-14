@@ -85,7 +85,7 @@ export const proof = {
         nestedPath: () => {
             const [_, [t, result]] = virtual(emptyState)(readFile('tmp/cache'))
             if (t !== 'error') { throw result }
-            if (result !== 'no such file') { throw result }
+            if ((result as { code?: unknown }).code !== 'ENOENT') { throw result }
         }
     },
     readUtf8File: {
