@@ -33,12 +33,17 @@ The handler assembles the three pieces:
     handler: () => {
         const c = cas(sha256)(fileKvStore('.'))
         const handlers = casMcpHandlers(c)
-        return stdioTransport(mcpStep(casConfig)(handlers))
+        return create(uninitializedState as McpSessionState).step(key =>
+            stdioTransport(mcpStep(casConfig)(handlers)(key))
+        )
     },
 }
 ```
 
-`stdioTransport` runs until EOF; `fjs cas mcp` therefore blocks, serving MCP
+`mcpStep(casConfig)(handlers)` takes a `Key<McpSessionState>` before it becomes
+the per-message step function, so the handler must first allocate a session key
+via `create(uninitializedState)` (a `MemCreate` effect) and pass it in.
+`stdioTransport` then runs until EOF; `fjs cas mcp` blocks, serving MCP
 requests on stdin/stdout, and exits cleanly when stdin closes.
 
 ### Where the change lives

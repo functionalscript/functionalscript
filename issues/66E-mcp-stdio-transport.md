@@ -1,4 +1,4 @@
-# 66F-mcp-stdio-transport. stdio transport for MCP
+# 66E-mcp-stdio-transport. stdio transport for MCP
 
 **Priority:** P3
 **Status:** open
@@ -25,12 +25,16 @@ blocked at the I/O boundary.
 A minimal new effect, parallel to the existing `write`:
 
 ```ts
-type ReadLine = { readonly op: 'readline' }
+export type ReadLine = readonly['readline', () => string | null]
+export const readline: Func<ReadLine> = do_('readline')
 ```
 
-Its Node.js interpreter consumes one newline-delimited chunk from `process.stdin`
-and resolves to `string | null` (null = EOF). The effect is deliberately narrow:
-one line at a time, no buffering policy in the effect itself.
+Following the same tuple pattern as the existing node effects (e.g. `Write =
+readonly['write', (stream, data) => void]`), so `ReadLine` is a valid
+`Operation` that can appear in `NodeOp` and be emitted via `do_`. The
+interpreter calls `process.stdin` and resolves to `string | null` (null = EOF).
+The effect is deliberately narrow: one line at a time, no buffering policy in
+the effect itself.
 
 ### 2. stdio transport loop
 
