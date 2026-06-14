@@ -373,6 +373,8 @@ export const helpers = {
         assertEq(fmtTerm(['math', 'add']), '| | add')
         assertEq(fmtTerm(['a', '0']), '| | 0')
         assertEq(fmtTerm(['x', 'hello world']), '| | "hello world"')
+        // null marks a function-call boundary; fmtTerm filters it out
+        assertEq(fmtTerm(['outer', null, 'inner']), '| | inner')
     },
     ghEscape: () => {
         assertEq(ghEscape('a%b'), 'a%25b')
