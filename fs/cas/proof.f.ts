@@ -67,6 +67,13 @@ export const proof = {
         const [, exitCode] = virtual(state1)(main(makeOptions(['list'])))
         if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
     },
+    mainListEmptyStore: () => {
+        // A fresh directory has no `.cas` yet; listing must succeed (empty),
+        // not crash unwrapping a readdir ENOENT.
+        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['list'])))
+        if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
+        if (finalState.stdout !== '') { throw ['expected empty stdout', finalState.stdout] }
+    },
     mainNoCmd: () => {
         const [finalState, exitCode] = virtual(emptyState)(main(makeOptions([])))
         if (exitCode !== 1) { throw ['expected exit 1', exitCode] }

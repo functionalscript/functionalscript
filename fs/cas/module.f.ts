@@ -58,9 +58,11 @@ export const fileKvStore = (path: string): KvStore<Fs> => ({
             .step(() => pure(undefined))
     },
     list: (): Effect<Fs, readonly Vec[]> =>
-        // TODO: remove unwrap
+        // A fresh store has no `.cas` directory yet; `readdir` then errors with
+        // ENOENT. Treat that as an empty store rather than crashing, mirroring
+        // how `read` maps a missing file to `undefined`.
         readdir('.cas', { recursive: true })
-            .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
+            .step(r => pure(r[0] === 'error' ? [] : r[1].flatMap(({ name, parentPath, isFile }) =>
                 toOption(isFile
                     ? cBase32ToVec(parentPath.substring(prefix.length).replaceAll('/', '') + name)
                     : null)))),
