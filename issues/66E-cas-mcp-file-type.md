@@ -1,4 +1,4 @@
-# 66F-cas-mcp-file-type. Include file type (MIME) in CAS MCP content
+# 66E-cas-mcp-file-type. Include file type (MIME) in CAS MCP content
 
 **Priority:** P2
 **Status:** open
