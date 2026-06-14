@@ -1,7 +1,7 @@
 # 66E-mcp-stdio-transport. stdio transport for MCP
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 **Blocks:** [i66E-mcp-cas-server](./66E-mcp-cas-server.md)
 
 ## Problem
