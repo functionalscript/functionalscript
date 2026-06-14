@@ -28,6 +28,17 @@ type MapEntries = (entries: Entries) => Entries
 
 type Refs = ReadonlyMap<Unknown, RefCounter>
 
+/**
+ * Returns the value's `RefCounter` only if it is *shared* (referenced more
+ * than once) — otherwise `undefined`. Names the single predicate that drives
+ * const hoisting in both `getConstants` (decide which values become consts)
+ * and `serializeWithConst` (emit a `c<N>` reference to one).
+ */
+const sharedRef = (refs: Refs) => (v: Unknown): RefCounter | undefined => {
+    const rc = refs.get(v)
+    return rc !== undefined && rc[1] > 1 ? rc : undefined
+}
+
 type GetConstsState = {
     readonly added: ReadonlySet<Unknown>
     readonly consts: List<Unknown>
@@ -36,11 +47,11 @@ type GetConstsState = {
 const getConstants
     : (refs: Refs) => (djs: Unknown) => List<Unknown>
     = refs => {
+        const shared = sharedRef(refs)
         const checkSelf
             : Fold<Unknown, GetConstsState>
             = djs => state => {
-                const refCounter = refs.get(djs)
-                if (refCounter !== undefined && refCounter[1] > 1 && !state.added.has(djs)) {
+                if (shared(djs) !== undefined && !state.added.has(djs)) {
                     return {
                         added: new Set([...state.added, djs]),
                         consts: { head: state.consts, tail: [djs] }
@@ -129,14 +140,15 @@ export const serializeWithoutConst
 
 const serializeWithConst
     : (sort: MapEntries) => (refs: Refs) => (root: Unknown) => (djs: Unknown) => List<string>
-    = sort => refs => root => buildSerialize(value => {
-        if (value === root) { return null }
-        const refCounter = refs.get(value)
-        if (refCounter !== undefined && refCounter[1] > 1) {
-            return [`c${refCounter[0]}`]
-        }
-        return null
-    })(sort)
+    = sort => refs => {
+        const shared = sharedRef(refs)
+        return root => buildSerialize(value => {
+            if (value === root) { return null }
+            const rc = shared(value)
+            if (rc !== undefined) { return [`c${rc[0]}`] }
+            return null
+        })(sort)
+    }
 
 const countRefsOp
     : Fold<Unknown, Refs>

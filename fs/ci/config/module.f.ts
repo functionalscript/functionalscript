@@ -31,7 +31,7 @@ export const functionalscript = '0.30.0' as const
 export const bun = '1.3.14'
 
 // https://deno.com/
-export const deno = '2.8.2'
+export const deno = '2.8.3'
 
 // https://www.npmjs.com/package/playwright
 export const playwright = '1.60.0'
