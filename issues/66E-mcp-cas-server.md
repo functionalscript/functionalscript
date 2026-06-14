@@ -1,8 +1,10 @@
 # 66E-mcp-cas-server. Design: an MCP server that exposes `fs/cas` as tools
 
 **Priority:** P3
-**Status:** open
-**Blocked by:** [i66E-mcp-stdio-transport](./66E-mcp-stdio-transport.md) — stdio transport not yet built
+**Status:** done
+**Blocked by:** ~~[i66E-mcp-stdio-transport](./66E-mcp-stdio-transport.md)~~ — stdio transport
+has since landed (`fs/mcp/stdio`, byte-level stdin read effect in `fs/effects/node`),
+unblocking this issue including the `cas mcp` CLI subcommand.
 
 ## Problem
 
@@ -145,22 +147,23 @@ before the live loop exists (the proof drives `step` directly, exactly as
 
 ## Tasks
 
-- [ ] Add `fs/cas/mcp/module.f.ts`: `casAddArgs` / `casGetArgs` / `casListArgs`
+- [x] Add `fs/cas/mcp/module.f.ts`: `casAddArgs` / `casGetArgs` / `casListArgs`
       rtti schemas, the three `Tool` descriptors (`inputSchema` via
       `toJsonSchema`), and `casMcpHandlers(c: Cas<O>): McpHandlers<O>`.
-- [ ] Implement `tools/call` dispatch with per-tool `validate`, cBase32
+- [x] Implement `tools/call` dispatch with per-tool `validate`, cBase32
       decode/encode, and the `isError` result convention for bad input / missing
       hash / unknown tool.
-- [ ] Add `casConfig: McpConfig` (capabilities `{ tools: {} }`, `serverInfo`,
+- [x] Add `casConfig: McpConfig` (capabilities `{ tools: {} }`, `serverInfo`,
       pinned `protocolVersion`).
-- [ ] `fs/cas/mcp/proof.f.ts`: drive `mcpStep(casConfig)(casMcpHandlers(c))` over
+- [x] `fs/cas/mcp/proof.f.ts`: drive `mcpStep(casConfig)(casMcpHandlers(c))` over
       an in-memory `Cas<MemOp>` through a full `initialize` →
       `notifications/initialized` → `tools/call` sequence; assert add→get
       round-trips, `cas_list` enumerates, and each error path returns `isError`.
-- [ ] Document the cBase32 content-encoding decision and the protocol-error vs.
-      tool-error split in `fs/cas/README.md` (or a new `fs/cas/mcp/README.md`).
-- [ ] **(blocked)** stdio transport loop once a stdin read effect lands in
-      `fs/effects/node`; add a `cas mcp` CLI subcommand that runs it.
+- [x] Document the cBase32 content-encoding decision and the protocol-error vs.
+      tool-error split in a new `fs/cas/mcp/README.md`.
+- [x] stdio transport loop (now landed in `fs/mcp/stdio`, over the stdin read
+      effect in `fs/effects/node`); added a `cas mcp` CLI subcommand
+      (`casMcpServer`) that runs it.
 
 ## Open questions
 

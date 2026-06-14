@@ -53,5 +53,12 @@ export const proof = {
         if (cBase32ToVec5x("l") !== cBase32ToVec5x("1")) { throw 'l maps to 1' }
         if (cBase32ToVec5x("o") !== cBase32ToVec5x("0")) { throw 'o maps to 0' }
         if (cBase32ToVec5x("u") !== null) { throw 'should error on invalid character' }
+    },
+    unterminated: () => {
+        // No sentinel `1` bit → invalid; must return null, not loop forever.
+        if (cBase32ToVec("") !== null) { throw 'empty must be null' }
+        if (cBase32ToVec("0") !== null) { throw 'single zero symbol must be null' }
+        if (cBase32ToVec("00") !== null) { throw 'all-zero symbols must be null' }
+        if (cBase32ToVec("o") !== null) { throw 'o (maps to 0) must be null' }
     }
 }

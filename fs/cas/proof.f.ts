@@ -67,6 +67,21 @@ export const proof = {
         const [, exitCode] = virtual(state1)(main(makeOptions(['list'])))
         if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
     },
+    mainListEmptyStore: () => {
+        // A fresh directory has no `.cas` yet; listing must succeed (empty),
+        // not crash unwrapping a readdir ENOENT.
+        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['list'])))
+        if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
+        if (finalState.stdout !== '') { throw ['expected empty stdout', finalState.stdout] }
+    },
+    mainListCorruptStore: () => {
+        // `.cas` exists but is a file, not a directory: a real storage error
+        // that must surface, not be masked as an empty list.
+        const state = { ...emptyState, root: { '.cas': vec8(0x2An) } }
+        let threw = false
+        try { virtual(state)(main(makeOptions(['list']))) } catch { threw = true }
+        if (!threw) { throw 'expected list to surface the storage error' }
+    },
     mainNoCmd: () => {
         const [finalState, exitCode] = virtual(emptyState)(main(makeOptions([])))
         if (exitCode !== 1) { throw ['expected exit 1', exitCode] }

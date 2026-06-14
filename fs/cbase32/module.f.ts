@@ -62,11 +62,14 @@ export const cBase32ToVec5x = (s: string): Nullable<Vec> => {
 
 export const cBase32ToVec = (s: string): Nullable<Vec> => {
     let v = cBase32ToVec5x(s)
-    if (v === null || v === empty) { return null }
-    // TODO: replace with a function that computes trailing zeros.
-    while (true) {
-        const [last, v0] = popBack1(v)
-        v = v0
+    if (v === null) { return null }
+    // Strip the padding: trailing zeros up to and including the sentinel `1` bit.
+    // A string with no sentinel — only zero symbols (`0`/`o`), or empty — exhausts
+    // to `empty` and is rejected as `null` rather than looping forever.
+    while (v !== empty) {
+        const [last, rest] = popBack1(v)
+        v = rest
         if (last === 1n) { return v }
     }
+    return null
 }

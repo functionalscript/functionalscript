@@ -24,6 +24,17 @@ import {
 
 export type IoResult<T> = Result<T, unknown>
 
+/**
+ * True if `e` is a "file or directory does not exist" (`ENOENT`) error.
+ *
+ * Node's filesystem rejections are `Error`s carrying `code: 'ENOENT'`; the
+ * virtual interpreter mirrors that shape for absent paths. Lets callers swallow
+ * only the missing-path case (e.g. a fresh store) while propagating genuine
+ * failures (permissions, corruption) rather than masking them.
+ */
+export const isNotFound = (e: unknown): boolean =>
+    typeof e === 'object' && e !== null && (e as { readonly code?: unknown }).code === 'ENOENT'
+
 // all
 
 export type All = ['all', <T>(...effects: Effect<never, T>[]) => readonly T[]]
