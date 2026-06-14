@@ -31,8 +31,8 @@ export type Dir = {
 export type State = {
     stdout: string
     stderr: string
-    /** Remaining stdin lines; each `readline` pops the first, `null` at EOF. */
-    stdin: readonly string[]
+    /** Remaining stdin bytes; each `read` pops the first, `null` at EOF. */
+    stdin: readonly number[]
     root: Dir
     internet: {
         readonly[url: string]: Vec
@@ -219,7 +219,7 @@ const map: MemOperationMap<NodeOp, State> = {
         const s = utf8ToString(data)
         return [{ ...state, [stream]: `${state[stream]}${s}` }, undefined] as const
     },
-    readline: () => state => {
+    read: () => state => {
         const [first, ...rest] = state.stdin
         return state.stdin.length === 0
             ? [state, null]

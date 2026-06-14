@@ -7,12 +7,13 @@
  * effect so it stays in the pure effect model and is fully testable against a
  * mock stdin / stdout (see `fs/effects/node/virtual`) with no real process.
  *
- * The loop only consumes `ReadLine` (stdin) and emits `Write` (stdout) on top
- * of whatever `O` the step needs (e.g. `MemOp`); it is transport-agnostic and
- * carries no filesystem dependency.
+ * The loop only consumes `Read` (stdin, one byte at a time, via the pure
+ * `readLine` combinator) and emits `Write` (stdout) on top of whatever `O` the
+ * step needs (e.g. `MemOp`); it is transport-agnostic and carries no filesystem
+ * dependency.
  *
  * Edge cases, matching the issue's spec:
- * - `readline` yields `null` (EOF) → the loop returns, a clean shutdown.
+ * - `readLine` yields `null` (EOF) → the loop returns, a clean shutdown.
  * - a malformed JSON line → a JSON-RPC parse-error response (`-32700`, `id`
  *   `null`) is written rather than silently discarded, per JSON-RPC 2.0 §5.
  * - the step yields `null` (a notification needing no reply) → nothing is
@@ -21,7 +22,7 @@
  * @module
  */
 import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
-import { readline, write, type ReadLine, type Write } from '../../effects/node/module.f.ts'
+import { readLine, write, type Read, type Write } from '../../effects/node/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { stringify, type Unknown } from '../../json/module.f.ts'
@@ -54,18 +55,18 @@ const writeMaybe = (resp: Response | null): Effect<Write, void> =>
  * Drives the read-parse-dispatch-write loop for `step` over stdin/stdout.
  *
  * Recurses after each handled line; terminates (resolving to `void`) when
- * `readline` reports EOF.
+ * `readLine` reports EOF.
  */
 export const stdioTransport =
-    <O extends Operation>(step: Step<O>): Effect<ReadLine | Write | O, void> =>
-    readline().step(line =>
+    <O extends Operation>(step: Step<O>): Effect<Read | Write | O, void> =>
+    readLine('stdin').step(line =>
         line === null
             ? pure(undefined)
             : handleLine(step)(line))
 
 const handleLine =
     <O extends Operation>(step: Step<O>) =>
-    (line: string): Effect<ReadLine | Write | O, void> => {
+    (line: string): Effect<Read | Write | O, void> => {
         const [t, value] = parse(tokenize(stringToList(line)))
         return (t === 'error'
             ? writeResponse(parseErrorResponse)
