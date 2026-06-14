@@ -150,6 +150,25 @@ const writeAll = async (stream: NodeJS.WritableStream, data: Uint8Array): Promis
 }
 
 /**
+ * Resolves `true` once stdin reaches EOF, or `false` as soon as more data is
+ * readable. Both listeners are removed the moment either fires, so a
+ * long-running server that idles between messages never accumulates leftover
+ * `'readable'`/`'end'` listeners (which would eventually trip
+ * `MaxListenersExceededWarning`).
+ */
+const waitReadableOrEnd = (stdin: NodeJS.ReadStream): Promise<boolean> =>
+    new Promise(resolve => {
+        const cleanup = () => {
+            stdin.removeListener('readable', onReadable)
+            stdin.removeListener('end', onEnd)
+        }
+        const onReadable = () => { cleanup(); resolve(false) }
+        const onEnd = () => { cleanup(); resolve(true) }
+        stdin.once('readable', onReadable)
+        stdin.once('end', onEnd)
+    })
+
+/**
  * Reads one byte from `process.stdin`, or `null` at EOF.
  *
  * `read(1)` returns `null` both at end-of-stream and when no byte is buffered
@@ -167,11 +186,7 @@ const readStdinByte = async (): Promise<number | null> => {
         if (stdin.readableEnded) {
             return null
         }
-        const ended = await Promise.race([
-            once(stdin, 'readable').then(() => false),
-            once(stdin, 'end').then(() => true),
-        ])
-        if (ended) {
+        if (await waitReadableOrEnd(stdin)) {
             return null
         }
     }

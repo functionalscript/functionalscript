@@ -11,7 +11,7 @@
 import { utf8, utf8ToString } from '../../text/module.f.ts'
 import { toCodePointList } from '../../text/utf8/module.f.ts'
 import { codePointListToString } from '../../text/utf16/module.f.ts'
-import type { List } from '../../types/list/module.f.ts'
+import { reverse, type List } from '../../types/list/module.f.ts'
 import type { Vec } from '../../types/bit_vec/module.f.ts'
 import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
@@ -259,16 +259,20 @@ const lf = 0x0a
  * terminator, so no leftover-byte buffer has to survive between calls — each
  * `readLine` is self-contained. Yields `null` only at EOF with nothing
  * buffered; a final line lacking a trailing newline is returned in full.
+ *
+ * Bytes accumulate into a cons-list by prepending (O(1) per byte) and are
+ * reversed and decoded once at the terminator, so a large line costs O(n)
+ * rather than the O(n²) of copying a growing array on every byte.
  */
 export const readLine = (stream: ReadConsoles): Effect<Read, string | null> => {
-    const loop = (acc: readonly number[]): Effect<Read, string | null> =>
+    const loop = (acc: List<number>): Effect<Read, string | null> =>
         read(stream).step(b =>
             b === null
-                ? pure(acc.length === 0 ? null : utf8ListToString(acc))
+                ? pure(acc === null ? null : utf8ListToString(reverse(acc)))
                 : b === lf
-                    ? pure(utf8ListToString(acc))
-                    : loop([...acc, b]))
-    return loop([])
+                    ? pure(utf8ListToString(reverse(acc)))
+                    : loop({ first: b, tail: acc }))
+    return loop(null)
 }
 
 // now
