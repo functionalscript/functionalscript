@@ -59,28 +59,29 @@ Currently `fs/mcp/module.f.ts` only models `textContent`. The `image`,
 
 ## Proposal
 
-### 1. Accept `mimeType` in `cas_add`
+The CAS store is type-agnostic and stores raw bytes only — no metadata is
+added on write. File type is **detected from the blob content** on read, using
+magic-byte signatures, and included in the `cas_get` response. No changes to
+`cas_add` or the underlying store.
 
-Extend `casAddArgs` with an optional `mimeType` field:
+### 1. Magic-byte MIME detector (`fs/mime/module.f.ts`)
+
+A new pure module that maps the leading bytes of a `Vec` to a MIME type
+string (or `null` when unrecognised):
 
 ```ts
-export const casAddArgs = {
-    content: string,       // base64-encoded bytes (after i66E-cas-mcp-base64-content lands)
-    mimeType: option(string),
-} as const
+export const detect = (bytes: Vec): string | null => { … }
 ```
 
-When `mimeType` is provided, store it alongside the content so it can be
-returned by `cas_get`. The simplest storage strategy is a second KV entry
-keyed by `<hash>:mime`, written in the same `cas_add` handler (no changes to
-`Cas<O>` itself — use the underlying `KvStore` directly, or add a parallel
-`CasMeta<O>` wrapper).
+Coverage should include the common formats: PNG, JPEG, GIF, WebP, PDF, ZIP,
+and UTF-8 text (fallback for printable-ASCII content). The function is a
+pure table lookup over the first N bytes — no I/O, no dependencies beyond
+`fs/vec`.
 
-### 2. Return `mimeType` in `cas_get`
+### 2. Return detected `mimeType` in `cas_get`
 
-When a MIME type is stored for a hash, `cas_get` returns an
-`EmbeddedResource` (`BlobResource`) content item instead of bare
-`textContent`:
+After reading the blob, call `detect(value)`. When a MIME type is
+recognised, return an `EmbeddedResource` (`BlobResource`) content item:
 
 ```json
 {
@@ -93,8 +94,8 @@ When a MIME type is stored for a hash, `cas_get` returns an
 }
 ```
 
-When no MIME type is known (content was stored without one), fall back to
-the existing `textContent` response so the tool remains backward compatible.
+When `detect` returns `null` (unrecognised bytes), fall back to the existing
+`textContent` response so the tool remains backward compatible.
 
 ### 3. Extend `fs/mcp/module.f.ts`
 
@@ -119,19 +120,19 @@ embeddedResource` (and `imageContent` / `audioContent` when those land).
 
 ## Tasks
 
+- [ ] Add `fs/mime/module.f.ts`: `detect(bytes: Vec): string | null` with
+      magic-byte table for common formats; `fs/mime/proof.f.ts` with fixture
+      tests per recognised type and the `null` fallback
 - [ ] Add `blobResource` and `embeddedResource` schemas to
       `fs/mcp/module.f.ts`; update `toolsCallResult` content union
-- [ ] Extend `casAddArgs` with `mimeType: option(string)` in
-      `fs/cas/mcp/module.f.ts`
-- [ ] On `cas_add`, when `mimeType` is present, persist it (e.g. a
-      `<hash>:mime` entry in the underlying KV store)
-- [ ] On `cas_get`, look up any stored MIME type and return
-      `EmbeddedResource` when found, plain `textContent` otherwise
-- [ ] Update `fs/cas/mcp/proof.f.ts`: add round-trip tests for typed
-      content (`cas_add` with `mimeType` → `cas_get` returns `EmbeddedResource`)
-      and for untyped content (backward-compat path)
-- [ ] Update `fs/cas/mcp/README.md` to document the `mimeType` field and
-      the two result shapes
+- [ ] In `fs/cas/mcp/module.f.ts`, call `detect` on the retrieved bytes in
+      `cas_get`; return `embeddedResource` when MIME is detected, plain
+      `textContent` otherwise
+- [ ] Update `fs/cas/mcp/proof.f.ts`: add tests for blobs with recognised
+      magic bytes (get → `EmbeddedResource`) and for opaque bytes (get →
+      `textContent`)
+- [ ] Update `fs/cas/mcp/README.md` to document MIME detection and the two
+      result shapes
 
 ## Related
 
