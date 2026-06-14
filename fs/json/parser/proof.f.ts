@@ -96,18 +96,6 @@ export const proof = {
             const obj = parse(tokenList)
             const result = stringify(obj)
             if (result !== '["ok",{"a":{"b":{"c":["d"]}}}]') { throw result }
-        },
-        () => {
-            const tokenList = tokenizeString('[1,]')
-            const obj = parse(tokenList)
-            const result = stringify(obj)
-            if (result !== '["ok",[1]]') { throw result }
-        },
-        () => {
-            const tokenList = tokenizeString('{"a":1,}')
-            const obj = parse(tokenList)
-            const result = stringify(obj)
-            if (result !== '["ok",{"a":1}]') { throw result }
         }
     ],
     invalid: [
@@ -116,6 +104,19 @@ export const proof = {
             const obj = parse(tokenList)
             const result = stringify(obj)
             if (result !== '["error","unexpected end"]') { throw result }
+        },
+        // Trailing commas are not valid JSON — strict parser rejects them.
+        () => {
+            const tokenList = tokenizeString('[1,]')
+            const obj = parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('{"a":1,}')
+            const obj = parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('"123')

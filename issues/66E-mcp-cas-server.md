@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** [i665-mcp](./665-mcp.md) — stdio transport (item 5) is not yet built
+**Blocked by:** [i66E-mcp-stdio-transport](./66E-mcp-stdio-transport.md) — stdio transport not yet built
 
 ## Problem
 
@@ -180,6 +180,8 @@ before the live loop exists (the proof drives `step` directly, exactly as
 
 - [i665-mcp](./665-mcp.md) — the MCP roadmap; this is its "concrete server" by
   way of CAS, and is gated on its stdio-transport item.
+- [i66E-mcp-stdio-transport](./66E-mcp-stdio-transport.md) — the missing stdio
+  transport this issue is blocked on.
 - [i66D-mcp-validate-response-envelope](./66D-mcp-validate-response-envelope.md) —
   the `validated` / `toolMethod` helpers proposed there would also tidy the
   per-tool validate→error/ok envelope this adapter introduces.

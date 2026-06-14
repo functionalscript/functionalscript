@@ -149,6 +149,49 @@ const writeAll = async (stream: NodeJS.WritableStream, data: Uint8Array): Promis
     }
 }
 
+/**
+ * Resolves `true` once stdin reaches EOF, or `false` as soon as more data is
+ * readable. Both listeners are removed the moment either fires, so a
+ * long-running server that idles between messages never accumulates leftover
+ * `'readable'`/`'end'` listeners (which would eventually trip
+ * `MaxListenersExceededWarning`).
+ */
+const waitReadableOrEnd = (stdin: NodeJS.ReadStream): Promise<boolean> =>
+    new Promise(resolve => {
+        const cleanup = () => {
+            stdin.removeListener('readable', onReadable)
+            stdin.removeListener('end', onEnd)
+        }
+        const onReadable = () => { cleanup(); resolve(false) }
+        const onEnd = () => { cleanup(); resolve(true) }
+        stdin.once('readable', onReadable)
+        stdin.once('end', onEnd)
+    })
+
+/**
+ * Reads one byte from `process.stdin`, or `null` at EOF.
+ *
+ * `read(1)` returns `null` both at end-of-stream and when no byte is buffered
+ * yet, so the two are told apart by waiting on `'readable'` (more data) vs
+ * `'end'` (EOF). The line framing lives in the pure `readLine` combinator; this
+ * interpreter is deliberately just "next byte".
+ */
+const readStdinByte = async (): Promise<number | null> => {
+    const stdin = process.stdin
+    while (true) {
+        const chunk = stdin.read(1) as Uint8Array | null
+        if (chunk !== null) {
+            return chunk[0]
+        }
+        if (stdin.readableEnded) {
+            return null
+        }
+        if (await waitReadableOrEnd(stdin)) {
+            return null
+        }
+    }
+}
+
 const runNodeEffect: EffectToPromise = asyncRun({
     ...memoryOperationMap(),
     all: async (...effects) => await Promise.all(effects.map(runNodeEffect)),
@@ -206,6 +249,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
     sandbox,
     await: awaitPromise,
     write: (stream, data) => writeAll(streams[stream], fromVec(data)),
+    read: readStdinByte,
     test: async (ctx, name, expectFailure, test) =>
         ctx.test(name, { expectFailure }, async t => runNodeEffect(test(t))),
 })

@@ -9,6 +9,9 @@
  * @module
  */
 import { utf8, utf8ToString } from '../../text/module.f.ts'
+import { toCodePointList } from '../../text/utf8/module.f.ts'
+import { codePointListToString } from '../../text/utf16/module.f.ts'
+import { reverse, type List } from '../../types/list/module.f.ts'
 import type { Vec } from '../../types/bit_vec/module.f.ts'
 import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
@@ -222,6 +225,56 @@ export const log: Console = writeString('stdout')
 /** Writes a line to `stderr`. Replaces the retired `Error` effect. */
 export const error: Console = writeString('stderr')
 
+// read
+
+/** Named input streams accepted by the `Read` effect. */
+export type ReadConsoles = 'stdin'
+
+/**
+ * Reads a single byte from a named input stream — the byte-granular dual of
+ * {@link write}. Resolves to the byte value (`0`–`255`) or `null` at end of
+ * input (EOF). One byte at a time: the effect carries no buffering or line
+ * policy, so higher-level framing (see {@link readLine}) lives in pure code
+ * rather than the interpreter. Back-pressure is naturally sequential — the next
+ * `read` is only issued once the previous byte is consumed.
+ */
+export type Read = readonly['read', (stream: ReadConsoles) => number | null]
+
+/** Emits a `Read` effect, yielding the next input byte or `null` at EOF. */
+export const read: Func<Read> = do_('read')
+
+/** Decodes accumulated UTF-8 bytes (MSB-first, already in order) into a string. */
+const utf8ListToString = (bytes: List<number>): string =>
+    codePointListToString(toCodePointList(bytes))
+
+/** The line-feed byte (`\n`) that terminates a line. */
+const lf = 0x0a
+
+/**
+ * Reads one line from `stream` as a pure combinator over the byte-level
+ * {@link read}: accumulates bytes until a `\n` terminator or EOF, then
+ * UTF-8-decodes them. The terminator is consumed but excluded from the result.
+ *
+ * Reading a single byte per step means a line never over-reads past its
+ * terminator, so no leftover-byte buffer has to survive between calls — each
+ * `readLine` is self-contained. Yields `null` only at EOF with nothing
+ * buffered; a final line lacking a trailing newline is returned in full.
+ *
+ * Bytes accumulate into a cons-list by prepending (O(1) per byte) and are
+ * reversed and decoded once at the terminator, so a large line costs O(n)
+ * rather than the O(n²) of copying a growing array on every byte.
+ */
+export const readLine = (stream: ReadConsoles): Effect<Read, string | null> => {
+    const loop = (acc: List<number>): Effect<Read, string | null> =>
+        read(stream).step(b =>
+            b === null
+                ? pure(acc === null ? null : utf8ListToString(reverse(acc)))
+                : b === lf
+                    ? pure(utf8ListToString(reverse(acc)))
+                    : loop({ first: b, tail: acc }))
+    return loop(null)
+}
+
 // now
 
 export type Now = readonly['now', () => number]
@@ -323,6 +376,7 @@ export type NodeOp =
     | Import
     | MemOp
     | Now
+    | Read
     | Sandbox
     | Write
     | Test
