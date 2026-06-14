@@ -140,8 +140,9 @@ const parseValueOp
     : (token: JsonToken) => (state: StateParse) => JsonState
     = token => state => {
         switch (token.kind) {
+            // A value is required here (top level, after `[`+`,`, or after `:`),
+            // so `]` is never valid — strict JSON has no trailing commas.
             case ']':
-                if (state.status === '[,') { return endArray(state) }
                 return { status: 'error', message: 'unexpected token' }
             case '[': return startArray(state)
             case '{': return startObject(state)
@@ -195,7 +196,8 @@ const parseObjectNextOp
 const parseObjectCommaOp
     : (token: JsonToken) => (state: StateParse) => JsonState
     = token => state => {
-        if (token.kind === '}') { return endObject(state) }
+        // After a `,` a member (string key) is required — `}` here would be a
+        // trailing comma, which strict JSON rejects.
         if (token.kind === 'string') { return pushKey(state)(token.value) }
         return { status: 'error', message: 'unexpected token' }
     }

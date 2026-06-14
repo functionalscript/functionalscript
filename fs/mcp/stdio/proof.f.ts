@@ -77,6 +77,13 @@ export const proof = {
         assertEq(state.stdout, parseErrorLine)
     },
 
+    // A request that is not strict JSON (trailing comma) must be rejected with
+    // a parse error, never dispatched to the step.
+    trailingCommaWritesParseError: () => {
+        const state = run('{"jsonrpc":"2.0","method":"ping","id":1,}\n')
+        assertEq(state.stdout, parseErrorLine)
+    },
+
     // A multi-line session interleaving all cases: request, notification, and
     // malformed line, ending with an unterminated request. Order is preserved
     // and the notification contributes nothing.
