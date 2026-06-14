@@ -12,6 +12,7 @@ import { stringToList } from '../text/utf16/module.f.ts'
 import { includes } from '../types/array/module.f.ts'
 import { type Vec } from '../types/bit_vec/module.f.ts'
 import { utf8 } from '../text/module.f.ts'
+import { quotationMark, ampersand, lessThanSign, greaterThanSign } from '../text/ascii/module.f.ts'
 
 const { fromCharCode } = String
 
@@ -69,10 +70,10 @@ export type Node = Element | string
  */
 const escapeCharCode = (code: number) => {
     switch (code) {
-        case 0x22: return '&quot;'
-        case 0x26: return '&amp;'
-        case 0x3C: return '&lt;'
-        case 0x3E: return '&gt;'
+        case quotationMark: return '&quot;'
+        case ampersand: return '&amp;'
+        case lessThanSign: return '&lt;'
+        case greaterThanSign: return '&gt;'
         default: return fromCharCode(code)
     }
 }
