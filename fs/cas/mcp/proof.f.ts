@@ -147,6 +147,18 @@ export const proof = {
         assertEq(resultOf(resp).isError, true)
     },
 
+    // An unterminated cBase32 string (all zero symbols) must decode to null and
+    // return an isError result, not spin the single stdio loop forever.
+    addUnterminatedContentIsError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: '0' }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    getUnterminatedHashIsError: () => {
+        const [resp] = session(call(2, 'cas_get', { hash: '0' }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
     addMissingContentIsError: () => {
         const [resp] = session(call(2, 'cas_add', {}))
         assertEq(resultOf(resp).isError, true)

@@ -8,7 +8,7 @@ import { join, parse } from '../path/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
-import { errorExit, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp, type NodeProgramOptions } from '../effects/node/module.f.ts'
+import { access, errorExit, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp, type NodeProgramOptions } from '../effects/node/module.f.ts'
 import { dispatch, type Commands } from '../cli/module.f.ts'
 import { casMcpServer } from './mcp/module.f.ts'
 import { toOption } from '../types/nullable/module.f.ts'
@@ -58,14 +58,17 @@ export const fileKvStore = (path: string): KvStore<Fs> => ({
             .step(() => pure(undefined))
     },
     list: (): Effect<Fs, readonly Vec[]> =>
-        // A fresh store has no `.cas` directory yet; `readdir` then errors with
-        // ENOENT. Treat that as an empty store rather than crashing, mirroring
-        // how `read` maps a missing file to `undefined`.
-        readdir('.cas', { recursive: true })
-            .step(r => pure(r[0] === 'error' ? [] : r[1].flatMap(({ name, parentPath, isFile }) =>
-                toOption(isFile
-                    ? cBase32ToVec(parentPath.substring(prefix.length).replaceAll('/', '') + name)
-                    : null)))),
+        // A fresh store has no `.cas` directory yet. Treat *only* that case as an
+        // empty store (via `access`), mirroring how `read` maps a missing file to
+        // `undefined`. A `.cas` that exists but cannot be read is a genuine
+        // storage error and is surfaced (`unwrap`), not masked as "no hashes".
+        access('.cas').step(a => a[0] === 'error'
+            ? pure([] as readonly Vec[])
+            : readdir('.cas', { recursive: true })
+                .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
+                    toOption(isFile
+                        ? cBase32ToVec(parentPath.substring(prefix.length).replaceAll('/', '') + name)
+                        : null))))),
 })
 
 export type Cas<O extends Operation> = {
