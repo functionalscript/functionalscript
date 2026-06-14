@@ -1,7 +1,7 @@
 # 66D-html-escape-ascii-constants. `html`: name escaped char codes via `fs/text/ascii`
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ## Problem
 
