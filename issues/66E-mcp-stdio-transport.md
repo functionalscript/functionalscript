@@ -70,14 +70,15 @@ transport. This issue owns only the transport primitive.
 
 ## Tasks
 
-- [ ] Add `readline` effect type to `fs/effects/node/module.f.ts` and its Node.js
+- [x] Add `readline` effect type to `fs/effects/node/module.f.ts` and its Node.js
       interpreter (`process.stdin` / `readline` interface or async iterator).
-- [ ] Add `stdioTransport` (or equivalent combinator) that wraps a step function
-      in the read-parse-dispatch-write loop.
-- [ ] Proof / tests: drive `stdioTransport` against a mock stdin sequence (list of
+- [x] Add `stdioTransport` (or equivalent combinator) that wraps a step function
+      in the read-parse-dispatch-write loop (`fs/mcp/stdio/module.f.ts`).
+- [x] Proof / tests: drive `stdioTransport` against a mock stdin sequence (list of
       lines) and assert the correct responses are written to a mock stdout — no
-      real process needed.
-- [ ] Handle edge cases: EOF mid-stream, malformed JSON lines, and `null` response
+      real process needed (`fs/mcp/stdio/proof.f.ts`, plus a `readline` line source
+      in `fs/effects/node/virtual`).
+- [x] Handle edge cases: EOF mid-stream, malformed JSON lines, and `null` response
       from `mcpStep` (notifications that need no reply).
 
 ## Open questions

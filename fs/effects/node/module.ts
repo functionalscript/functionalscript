@@ -17,6 +17,7 @@ import childProcess from 'node:child_process'
 import fs from 'node:fs'
 import process from 'node:process'
 import { once } from 'node:events'
+import readlineModule from 'node:readline'
 import * as testContext from 'node:test'
 
 import { concat } from '../../path/module.f.ts'
@@ -149,6 +150,22 @@ const writeAll = async (stream: NodeJS.WritableStream, data: Uint8Array): Promis
     }
 }
 
+/**
+ * Lazily-created async iterator over `process.stdin` lines. Built on first
+ * `readline` effect so a program that never reads stdin does not open the
+ * stream. `crlfDelay: Infinity` keeps `\r\n` sequences as a single line break.
+ */
+let stdinLines: AsyncIterator<string> | undefined
+
+const nextStdinLine = async (): Promise<string | null> => {
+    if (stdinLines === undefined) {
+        const rl = readlineModule.createInterface({ input: process.stdin, crlfDelay: Infinity })
+        stdinLines = rl[Symbol.asyncIterator]()
+    }
+    const { done, value } = await stdinLines.next()
+    return done === true ? null : value
+}
+
 const runNodeEffect: EffectToPromise = asyncRun({
     ...memoryOperationMap(),
     all: async (...effects) => await Promise.all(effects.map(runNodeEffect)),
@@ -206,6 +223,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
     sandbox,
     await: awaitPromise,
     write: (stream, data) => writeAll(streams[stream], fromVec(data)),
+    readline: nextStdinLine,
     test: async (ctx, name, expectFailure, test) =>
         ctx.test(name, { expectFailure }, async t => runNodeEffect(test(t))),
 })

@@ -222,6 +222,23 @@ export const log: Console = writeString('stdout')
 /** Writes a line to `stderr`. Replaces the retired `Error` effect. */
 export const error: Console = writeString('stderr')
 
+// readline
+
+/**
+ * Reads a single line from `stdin`, the dual of {@link write} for `stdout`.
+ *
+ * Resolves to the line's text **without** the trailing newline, or `null` at
+ * end of input (EOF). One line at a time — the effect carries no buffering
+ * policy; back-pressure is naturally sequential since the next `readline` is
+ * only issued after the previous line is processed. The Node runner drives a
+ * `readline` interface over `process.stdin`; the virtual runner pops from a
+ * fixture-supplied list of lines.
+ */
+export type ReadLine = readonly['readline', () => string | null]
+
+/** Emits a `ReadLine` effect, yielding the next stdin line or `null` at EOF. */
+export const readline: Func<ReadLine> = do_('readline')
+
 // now
 
 export type Now = readonly['now', () => number]
@@ -323,6 +340,7 @@ export type NodeOp =
     | Import
     | MemOp
     | Now
+    | ReadLine
     | Sandbox
     | Write
     | Test
