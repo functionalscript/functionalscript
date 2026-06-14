@@ -1,0 +1,166 @@
+/**
+ * MCP adapter for the content-addressable store.
+ *
+ * Maps the three `Cas<O>` operations onto three MCP tools, so an agent that
+ * speaks MCP can store a blob and get back its hash, fetch a blob by hash, and
+ * enumerate what is stored — without shelling out to the `cas` CLI. The store
+ * itself (`fs/cas/module.f.ts`) stays transport-agnostic; this is an additional
+ * front end alongside the CLI `main`.
+ *
+ * ## The three tools
+ *
+ * | Tool       | args                  | CAS call         | result text          |
+ * |------------|-----------------------|------------------|----------------------|
+ * | `cas_add`  | `{ content: string }` | `c.write(value)` | hash (cBase32)       |
+ * | `cas_get`  | `{ hash: string }`    | `c.read(key)`    | content (cBase32)    |
+ * | `cas_list` | `{}`                  | `c.list()`       | hashes, one per line |
+ *
+ * Each tool's argument schema is an rtti struct declared once and used twice:
+ * `toJsonSchema` derives the `inputSchema` advertised in `tools/list`, and
+ * `validate` decodes the `arguments` object in `tools/call`. No drift between
+ * what we advertise and what we accept.
+ *
+ * ## Content encoding
+ *
+ * `Cas<O>` deals in `Vec` (bit vectors); MCP models only `textContent` today.
+ * Both hash and content cross the protocol as cBase32 (`fs/cbase32`), the same
+ * encoding the CLI uses for hashes — one encoding across the whole CAS surface.
+ * `cBase32ToVec` returns `null` on malformed input, giving free validation.
+ *
+ * ## Error convention
+ *
+ * MCP draws a line the dispatcher already respects: *protocol* failures
+ * (unknown method, malformed JSON-RPC params) are JSON-RPC errors handled by
+ * `mcpStep`. *Tool* failures come back as a normal `tools/call` result with
+ * `isError: true` and a text explanation, so the model can read and react:
+ * - malformed `content` / `hash` (`cBase32ToVec` → `null`) → `isError` result
+ * - `cas_get` on an absent hash (`c.read` → `undefined`) → `isError` result
+ * - unknown tool `name` → `isError` result
+ *
+ * @module
+ */
+import { string } from '../../types/rtti/module.f.ts'
+import { validate } from '../../types/rtti/validate/module.f.ts'
+import { toJsonSchema } from '../../json/schema/module.f.ts'
+import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { create, type MemOp } from '../../effects/memory/module.f.ts'
+import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
+import { type Read, type Write } from '../../effects/node/module.f.ts'
+import { stdioTransport } from '../../mcp/stdio/module.f.ts'
+import {
+    mcpStep, uninitializedState,
+    type McpConfig, type McpHandlers, type Tool,
+    type ToolsCallParams, type ToolsCallResult, type ToolsListResult,
+} from '../../mcp/module.f.ts'
+import type { Cas } from '../module.f.ts'
+
+// ── Argument schemas (declared once, used for both inputSchema and validate) ─────
+
+/** Arguments for `cas_add`: cBase32-encoded content to store. */
+export const casAddArgs = { content: string } as const
+
+/** Arguments for `cas_get`: the cBase32 hash to look up. */
+export const casGetArgs = { hash: string } as const
+
+/** Arguments for `cas_list`: none. */
+export const casListArgs = {} as const
+
+// ── Tool descriptors ────────────────────────────────────────────────────────────
+
+const casAddTool: Tool = {
+    name: 'cas_add',
+    description: 'Store content (cBase32) and return its hash (cBase32).',
+    inputSchema: toJsonSchema(casAddArgs),
+}
+
+const casGetTool: Tool = {
+    name: 'cas_get',
+    description: 'Fetch content (cBase32) by its hash (cBase32).',
+    inputSchema: toJsonSchema(casGetArgs),
+}
+
+const casListTool: Tool = {
+    name: 'cas_list',
+    description: 'List all stored content hashes (cBase32), one per line.',
+    inputSchema: toJsonSchema(casListArgs),
+}
+
+// ── Result helpers ──────────────────────────────────────────────────────────────
+
+/** A successful single-text-block tool result. */
+const okResult = (text: string): ToolsCallResult =>
+    ({ content: [{ type: 'text', text }] })
+
+/** A tool-level failure: in-band `isError` result with a text explanation. */
+const errorResult = (text: string): ToolsCallResult =>
+    ({ content: [{ type: 'text', text }], isError: true })
+
+// ── Handlers ────────────────────────────────────────────────────────────────────
+
+/**
+ * MCP handlers for an injected `Cas<O>` — generic in `O` exactly like `Cas`
+ * itself, so the same handlers run over `Fs` (production) or memory (tests).
+ */
+export const casMcpHandlers = <O extends Operation>(c: Cas<O>): McpHandlers<O> => ({
+    toolsList: (): Effect<O, ToolsListResult> =>
+        pure({ tools: [casAddTool, casGetTool, casListTool] }),
+    toolsCall: ({ name, arguments: args }: ToolsCallParams): Effect<O, ToolsCallResult> => {
+        const a = args === undefined ? {} : args
+        switch (name) {
+            case 'cas_add': {
+                const [t, r] = validate(casAddArgs)(a)
+                if (t === 'error') {
+                    return pure(errorResult(`invalid arguments: ${r.message}`))
+                }
+                const value = cBase32ToVec(r.content)
+                if (value === null) {
+                    return pure(errorResult(`invalid cBase32 content: ${r.content}`))
+                }
+                return c.write(value).step(hash => pure(okResult(vecToCBase32(hash))))
+            }
+            case 'cas_get': {
+                const [t, r] = validate(casGetArgs)(a)
+                if (t === 'error') {
+                    return pure(errorResult(`invalid arguments: ${r.message}`))
+                }
+                const key = cBase32ToVec(r.hash)
+                if (key === null) {
+                    return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
+                }
+                return c.read(key).step(value => pure(value === undefined
+                    ? errorResult(`no such hash: ${r.hash}`)
+                    : okResult(vecToCBase32(value))))
+            }
+            case 'cas_list': {
+                return c.list().step(hashes =>
+                    pure(okResult(hashes.map(vecToCBase32).join('\n'))))
+            }
+            default: {
+                return pure(errorResult(`unknown tool: ${name}`))
+            }
+        }
+    },
+})
+
+// ── Session configuration ───────────────────────────────────────────────────────
+
+/**
+ * Static MCP configuration for the CAS server: advertises the `tools`
+ * capability, identifies the server, and pins the protocol version.
+ */
+export const casConfig: McpConfig = {
+    serverInfo: { name: 'functionalscript-cas', version: '0.30.0' },
+    capabilities: { tools: {} },
+    protocolVersion: '2024-11-05',
+}
+
+// ── Server ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Runs the CAS MCP server over stdio: allocates the session-state slot, builds
+ * the `mcpStep` for `c`, and drives the read → parse → dispatch → write loop
+ * until stdin EOF. Generic in `O` so it composes with any `Cas<O>` backing.
+ */
+export const casMcpServer = <O extends Operation>(c: Cas<O>): Effect<Read | Write | MemOp | O, void> =>
+    create(uninitializedState).step(key =>
+        stdioTransport(mcpStep<O>(casConfig)(casMcpHandlers(c))(key)))

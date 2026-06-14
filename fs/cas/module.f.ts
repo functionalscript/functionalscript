@@ -8,8 +8,9 @@ import { join, parse } from '../path/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
-import { errorExit, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp, type NodeProgramOptions } from '../effects/node/module.f.ts'
+import { access, errorExit, isNotFound, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp, type NodeProgramOptions } from '../effects/node/module.f.ts'
 import { dispatch, type Commands } from '../cli/module.f.ts'
+import { casMcpServer } from './mcp/module.f.ts'
 import { toOption } from '../types/nullable/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { splitAt } from '../types/string/module.f.ts'
@@ -45,8 +46,12 @@ const toPath = (key: Vec): string => {
  */
 export const fileKvStore = (path: string): KvStore<Fs> => ({
     read: (key: Vec): Effect<Fs, Vec|undefined> =>
-        readFile(toPath(key))
-            .step(([status, data]) => pure(status === 'error' ? undefined : data)),
+        readFile(toPath(key)).step(r => {
+            if (r[0] === 'ok') { return pure(r[1]) }
+            // A missing file means "no such content"; surface anything else.
+            if (isNotFound(r[1])) { return pure(undefined) }
+            throw r[1]
+        }),
     write: (key: Vec, value: Vec): Effect<Fs, void> => {
         const p = toPath(key)
         const parts = parse(p)
@@ -57,12 +62,21 @@ export const fileKvStore = (path: string): KvStore<Fs> => ({
             .step(() => pure(undefined))
     },
     list: (): Effect<Fs, readonly Vec[]> =>
-        // TODO: remove unwrap
-        readdir('.cas', { recursive: true })
-            .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
-                toOption(isFile
-                    ? cBase32ToVec(parentPath.substring(prefix.length).replaceAll('/', '') + name)
-                    : null)))),
+        // A fresh store has no `.cas` directory yet. Treat *only* that case as an
+        // empty store, mirroring how `read` maps a missing file to `undefined`.
+        // A `.cas` that exists but cannot be read (permissions, corruption) is a
+        // genuine storage error and is surfaced, not masked as "no hashes".
+        access('.cas').step(a => {
+            if (a[0] === 'error') {
+                if (isNotFound(a[1])) { return pure([] as readonly Vec[]) }
+                throw a[1]
+            }
+            return readdir('.cas', { recursive: true })
+                .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
+                    toOption(isFile
+                        ? cBase32ToVec(parentPath.substring(prefix.length).replaceAll('/', '') + name)
+                        : null))))
+        }),
 })
 
 export type Cas<O extends Operation> = {
@@ -134,6 +148,12 @@ export const main = (options: NodeProgramOptions): Effect<NodeOp, number> => {
                 c.list()
                     .step(forEachStep<NodeOp, Vec>(j => log(vecToCBase32(j))))
                     .step(() => pure(0)),
+        },
+        {
+            names: ['mcp'],
+            description: 'Run an MCP server over stdio exposing the CAS as tools',
+            handler: () =>
+                casMcpServer(c).step(() => pure(0)),
         },
     ]
     return dispatch(commands)(options)
