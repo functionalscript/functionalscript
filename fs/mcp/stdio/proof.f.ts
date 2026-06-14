@@ -11,25 +11,31 @@ import { stdioTransport, type Step } from './module.f.ts'
 
 const stringifyJson = stringify(sort)
 
+// Extracts the request `id` (a request has one; a notification does not).
+const idOf = (value: Unknown): Id | undefined =>
+    value !== null && typeof value === 'object' && !(value instanceof Array)
+        ? (value as { readonly id?: Unknown }).id as Id | undefined
+        : undefined
+
 // A step that mirrors the mcpStep contract closely enough to drive the loop:
 // a message carrying an `id` (a request) gets an echo success response; a
 // message without an `id` (a notification) yields `null` — no reply.
 const echoStep: Step<never> = (value: Unknown): Effect<never, Response | null> => {
-    const id = value !== null && typeof value === 'object' && !(value instanceof Array)
-        ? (value as { readonly id?: Unknown }).id
-        : undefined
+    const id = idOf(value)
     return pure(id === undefined
         ? null
-        : { jsonrpc, result: { ok: true }, id: id as Id })
+        : { jsonrpc, result: { ok: true }, id })
 }
 
 // UTF-8 bytes of `s` as a plain array — the virtual stdin byte stream.
 const toBytes = (s: string): readonly number[] => [...fromVec(utf8(s))]
 
-// Run the transport over `input` fed to stdin one byte at a time; return the
-// final state. `input` is raw text so tests control newline framing exactly.
-const run = (input: string): State =>
-    virtual({ ...emptyState, stdin: toBytes(input) })(stdioTransport(echoStep))[0]
+// Run the transport with `step` over `input` fed to stdin one byte at a time;
+// return the final state. `input` is raw text so tests control newline framing.
+const runStep = (step: Step<never>) => (input: string): State =>
+    virtual({ ...emptyState, stdin: toBytes(input) })(stdioTransport(step))[0]
+
+const run = runStep(echoStep)
 
 const okResponse = (id: Id): string =>
     stringifyJson({ jsonrpc, result: { ok: true }, id } as Unknown) + '\n'
@@ -82,6 +88,20 @@ export const proof = {
     trailingCommaWritesParseError: () => {
         const state = run('{"jsonrpc":"2.0","method":"ping","id":1,}\n')
         assertEq(state.stdout, parseErrorLine)
+    },
+
+    // A response with an optional field explicitly `undefined` serializes like
+    // JSON.stringify — the field is omitted, not a thrown TypeError that would
+    // abort the loop.
+    undefinedFieldOmitted: () => {
+        const step: Step<never> = (value: Unknown): Effect<never, Response | null> => {
+            const id = idOf(value)
+            return pure(id === undefined
+                ? null
+                : { jsonrpc, result: { ok: true, nextCursor: undefined }, id } as unknown as Response)
+        }
+        const state = runStep(step)(ping(1) + '\n')
+        assertEq(state.stdout, okResponse(1))
     },
 
     // A multi-line session interleaving all cases: request, notification, and
