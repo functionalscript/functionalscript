@@ -56,14 +56,17 @@ loop:
 The loop is expressed as a recursive effect (or a small interpreter combinator)
 so it stays in the pure effect model and remains testable without a real process.
 
-### 3. `cas mcp` CLI subcommand (follow-on, in i66E)
+### 3. `cas mcp` CLI subcommand (follow-on)
 
-Once the transport exists, `fs/cas/mcp/module.f.ts`
-([i66E-mcp-cas-server](./66E-mcp-cas-server.md)) assembles
-`mcpStep(casConfig)(casMcpHandlers(cas(sha256)(fileKvStore('.'))))` and passes it
-to the stdio loop. That wiring lives in i66E-mcp-cas-server and
-[i66E-fjs-cas-mcp-subcommand](./66E-fjs-cas-mcp-subcommand.md), not here;
-this issue only owns the transport primitive.
+Once the transport exists, the live process assembly —
+`cas(sha256)(fileKvStore('.'))`, `casMcpHandlers`, `create(uninitializedState)`,
+`mcpStep`, and `stdioTransport` — is wired together in **`fs/cas/module.f.ts`**
+as the `cas mcp` subcommand (see
+[i66E-fjs-cas-mcp-subcommand](./66E-fjs-cas-mcp-subcommand.md)). The adapter
+module `fs/cas/mcp/module.f.ts` ([i66E-mcp-cas-server](./66E-mcp-cas-server.md))
+stays transport-agnostic: it only exports generic `casMcpHandlers(c: Cas<O>)` and
+`casConfig`, so it remains fully testable in-memory without a real filesystem or
+transport. This issue owns only the transport primitive.
 
 ## Tasks
 
