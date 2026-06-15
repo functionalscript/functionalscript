@@ -128,7 +128,9 @@ Once the compiler and content-addressable FunctionalScript are in place:
 
 This makes the MCP server a compute platform: store code in CAS, run it by hash, trust the output because the code is immutable and the sandbox is enforced.
 
-**The full loop:** AI writes FunctionalScript code that references existing CAS blocks by hash as its inputs. Execution is deterministic — same code + same input hashes always produce the same output. The output may be cached in CAS (cache can itself be CAS-backed). To share a result with others, the author must sign and timestamp it: an unsigned block claiming to represent a computation cannot be trusted by anyone outside the author's own process. Trust is then mediated by a web of trust — each participant assigns a relative trust level to signers in their circle.
+**The full loop:** AI writes FunctionalScript code that references existing CAS blocks by hash as its inputs. Execution is deterministic — same code + same input hashes always produce the same output. The output may be cached in CAS (cache can itself be CAS-backed). To share a result with others, the author must sign and timestamp it: an unsigned block claiming to represent a computation cannot be trusted by anyone outside the author's own process.
+
+Because the computation is deterministic, any user can independently re-run it and sign the same result block if they agree. A result block that accumulates signatures from many independent, trusted signers becomes progressively more trustworthy — without any central authority. Trust is mediated by a web of trust where each participant assigns relative trust levels to signers in their circle.
 
 ### Future — Content-addressable FunctionalScript
 
