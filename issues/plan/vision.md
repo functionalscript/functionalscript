@@ -4,17 +4,17 @@
 
 Three principles run through every design decision in this project:
 
+**Simplicity and explainability** — keep things as simple as possible, and be able to explain them. This applies to code, to architecture, and to AI-produced results. A solution that works but cannot be explained is not truly understood. We hold AI to the same standard: an intelligent system must be able to explain what it is doing and why, in terms simple enough for anyone to follow. Complexity that cannot be explained is a sign that the wrong abstraction was chosen — not that the problem is inherently hard.
+
 **Emergence** — complex behavior should arise from the composition of simple, well-understood parts, not from complex primitives. We prefer a small set of minimal building blocks (content-addressed blocks, signatures, trust relations, pure functions) and let richer capabilities — a web of trust, human-readable namespaces, a global DAG, hybrid intelligence — emerge from how those blocks combine.
 
 **Deduplication** — never introduce a new mechanism if an existing one can do the same job. This is the same idea that makes content-addressable storage work, applied to the design itself: one storage model for everything, one language for programming and types and metaprogramming, one trust mechanism for signatures and reputation. Fewer concepts, reused everywhere, beats many specialized ones.
-
-**Simplicity and explainability** — keep things as simple as possible, and be able to explain them. This applies to code, to architecture, and to AI-produced results. A solution that works but cannot be explained is not truly understood. We hold AI to the same standard: an intelligent system must be able to explain what it is doing and why, in terms simple enough for anyone to follow. Complexity that cannot be explained is a sign that the wrong abstraction was chosen — not that the problem is inherently hard.
 
 Deduplication is also why FunctionalScript is a strict subset of JavaScript rather than a new language. The world already has a language that billions of lines of code and millions of engineers know — there is no reason to make people learn a fancy new one. We reuse JavaScript's syntax and semantics and obtain the content-addressable properties by *removing* features (mutation, side effects, identity-based equality), not by inventing new ones.
 
 The same logic applies to data. CAS is fundamentally about data, and the de facto data standard is JSON — which is itself a subset of JavaScript. Because FunctionalScript is built on JavaScript, JSON is its native data format: no separate serialization layer, no schema language to learn, no impedance mismatch between code and data. The data we store in CAS and the language we use to process it are the same notation.
 
-The first two principles reinforce each other: deduplication keeps the set of primitives small, and emergence is what lets a small set of primitives be enough. Simplicity and explainability is the check on both: if the result can't be explained, the primitives aren't simple enough yet.
+Emergence and deduplication reinforce each other: deduplication keeps the set of primitives small, and emergence is what lets a small set of primitives be enough. Simplicity and explainability is the check on both: if the result can't be explained, the primitives aren't simple enough yet.
 
 ## Content-addressable programming languages
 
