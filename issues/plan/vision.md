@@ -10,6 +10,8 @@ Two principles run through every design decision in this project:
 
 Deduplication is also why FunctionalScript is a strict subset of JavaScript rather than a new language. The world already has a language that billions of lines of code and millions of engineers know — there is no reason to make people learn a fancy new one. We reuse JavaScript's syntax and semantics and obtain the content-addressable properties by *removing* features (mutation, side effects, identity-based equality), not by inventing new ones.
 
+The same logic applies to data. CAS is fundamentally about data, and the de facto data standard is JSON — which is itself a subset of JavaScript. Because FunctionalScript is built on JavaScript, JSON is its native data format: no separate serialization layer, no schema language to learn, no impedance mismatch between code and data. The data we store in CAS and the language we use to process it are the same notation.
+
 These two principles reinforce each other: deduplication keeps the set of primitives small, and emergence is what lets a small set of primitives be enough.
 
 ## Why content-addressable programming languages are the future
