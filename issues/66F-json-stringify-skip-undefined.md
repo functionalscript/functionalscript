@@ -34,6 +34,28 @@ const stringifyJson = stringify(e => sort(defined(e)))
 Once `stringify` handles `undefined` natively, `stringifyJson` can simplify back to
 `stringify(sort)` and the `defined` filter can be removed.
 
+## Proposal
+
+`definedEntries` already exists in `fs/types/object/module.f.ts` — it wraps `Object.entries`
+and drops `undefined`-valued pairs. Import it in `fs/json/module.f.ts` and use it in place
+of `entries` inside `objectSerialize`:
+
+```ts
+import { definedEntries, ... } from '../types/object/module.f.ts'
+```
+
+```ts
+const objectSerialize
+    : (object: Object) => List<string>
+    = fn(definedEntries)
+    .map(sort)
+    .map(mapPropertySerialize)
+    .map(objectWrap)
+    .result
+```
+
+No new helper needed. Filtering happens before `mapEntries` so all callers benefit automatically.
+
 ## Tasks
 
 - [ ] Fix `serialize` in `fs/json/module.f.ts` to skip entries where `v === undefined`
