@@ -111,7 +111,7 @@ This is the longest dependency chain. Everything after it depends on it.
 
 Prerequisite: VM complete in `nanvm-lib`.
 
-Canonical serialization where structural equality implies hash equality — same shape, same hash. To be implemented in `nanvm-lib` (Rust); requires canonicalization of property order and a content-hashing layer, neither of which exists yet. SUL's bijective tree structure is the natural fit for the hashing layer; see [architecture.md §SUL](./architecture.md).
+Canonical serialization where structural equality implies hash equality — same shape, same hash. To be implemented in `nanvm-lib` (Rust); requires canonicalization of property order and a content-hashing layer, neither of which exists yet. The canonicalization scheme will be derived from the AST's own grammar — not SUL, which is designed for data of unknown structure and would impose the wrong tree shape onto a semantically structured AST.
 
 ---
 
@@ -140,6 +140,6 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | SUL deduplication | `fs/sul/` L1–L4 ✓ | CAS integration layer |
 | Compiler (parsing) | `fs/djs/` data pipeline ✓, `fs/bnf/` framework ✓ | Function support, FS grammar |
 | Compiler (codegen) | — | Bytecode ISA, emitter, VM loop in `nanvm-lib` |
-| CA FunctionalScript | — | Depends on VM + SUL integration |
+| CA FunctionalScript | — | Depends on VM + AST canonicalization |
 | Sandboxed execution | — | Depends on CA FS |
 | Hybrid intelligence | — | Depends on all above |

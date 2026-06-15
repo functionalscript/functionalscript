@@ -79,8 +79,12 @@ Every hop is verifiable: each directory is a signed DISOT block, so you know exa
 
 `fs/sul/` implements **SUL** (Synthetic Universal Language): a scheme that maps any finite bit sequence to a single 256-bit root ID via a balanced binary tree. For small inputs (up to L3 literal size) the ID is fully self-contained and reversible. For larger inputs the root is a SHA2-based hash ID — a content-addressed reference into backing storage where the tree nodes must be persisted; the original sequence can only be recovered or verified if those nodes are available.
 
+SUL is "synthetic" and "universal" because it imposes a tree structure on data where no structure is known — any raw bit sequence, regardless of its actual internal layout. The tree is synthetic: it is not derived from the data's semantics, just from its bytes. This is precisely its strength for unstructured or opaque data: an array of items where nothing tells you how to group the elements into a tree, a binary BLOB of unknown format, a stream of bytes — SUL gives all of these a stable, content-addressed root ID with structural deduplication across shared sub-sequences.
+
+This also means SUL is **not** appropriate where the structure is known. A FunctionalScript AST has a well-defined, semantically meaningful tree structure that is completely different from the balanced binary byte-tree SUL would impose. Using SUL for an AST would destroy the semantic structure and produce a different, less useful tree. CA FunctionalScript will use its own canonicalization scheme derived from the AST's actual grammar — not SUL.
+
 - **For large BLOBs in DISOT** — structural deduplication without a separate index; shared sub-sequences across different BLOBs are stored once as shared tree nodes
-- **For CA FunctionalScript** — SUL's tree structure naturally content-addresses ASTs; structurally equal sub-expressions collapse to the same node, but the full tree must be stored alongside the root ID
+- **For opaque sequences** — e.g. a flat array of items where the grouping into a tree is not specified by the data format; SUL provides a canonical, stable decomposition
 
 Current state: literal levels (L1–L3) and hash levels (L4+, SHA-2 based) are implemented.
 
