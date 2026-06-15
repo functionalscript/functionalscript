@@ -1,5 +1,13 @@
 # Vision
 
+## Motivation
+
+Today, human communications, connections, and economies are controlled by a small number of large corporations. These platforms extract value from communities rather than returning it to them — they own the social graph, the communication channels, the marketplaces, and the trust infrastructure that people depend on.
+
+A web of trust built on DISOT changes this at the foundation. Trust, identity, communication, and value flow directly between people and communities — without a platform in the middle taking a cut, shaping what you see, or cutting you off. Local economies can strengthen each other through direct trust relationships rather than routing everything through corporations that capture the surplus.
+
+The goal is not to build another platform. It is to build infrastructure that makes platforms unnecessary.
+
 ## What we are building
 
 A layered, universal **DISOT** (Decentralized Immutable Source of Truth) platform accessible via MCP.
