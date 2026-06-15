@@ -3,6 +3,8 @@
 > Part of the [project vision](./vision.md). This document focuses specifically on
 > why a content-addressable (CA) programming language matters and what FunctionalScript's
 > CA design enables.
+>
+> **Implementation status:** The CA properties described here — normalization, content-hash-based identity, structural deduplication — require the FunctionalScript compiler and the nanvm-lib VM, both of which are future work (see [roadmap.md](./roadmap.md)). Current FunctionalScript code runs on standard JavaScript runtimes and does not yet produce content-addressable hashes. The design is CA-ready (purely functional, no mutation, no identity-based equality), but the normalization and hashing layer does not yet exist.
 
 ## Why content-addressable programming languages are the future
 
@@ -58,6 +60,8 @@ FunctionalScript deliberately has no optimization annotations — no `inline`, n
 A VM may optionally accept an external optimization profile — a separate artifact that provides hints about how to run a specific program: which equivalences to prefer, which hardware paths to use, memory/speed trade-offs. This profile is completely decoupled from the program itself: it does not affect the program's hash, its semantics, or its portability. Different deployments of the same program can use different profiles. The profile is like a PGO (profile-guided optimization) configuration, but made explicit, first-class, and composable — it can itself be a signed DISOT block, shared and trusted through the same web of trust as any other content.
 
 **Royalty distribution.** Because identity is based on shape, the system always points back to the original: even if someone copy-pastes or independently rewrites the same code and arrives at the same normalized form, the hash is the same — and the earliest known signed instance of that hash is the original. There is no way to evade authorship by rewriting. This makes fair, automatic royalty distribution possible: usage of a content hash anywhere in the network can be tracked and compensation routed back to the original author, proportional to actual use, without a platform intermediary. Signed license blocks (see DISOT block types) provide the legal layer; content-hash tracking provides the accounting.
+
+**Code is data.** In a CA language, functions are stored in DISOT by their normalized content hash — first-class blocks like any other data. This closes the loop with the storage layer: the same mechanism that stores a document, an image, or a signature block also stores a function. Calling a function via MCP (`cas_run(hash, input)`) is structurally identical to reading any other block. There is no separate "code store" — code and data share the same global DAG, the same addressing scheme, the same trust model. A function written by one agent can be referenced by hash in another agent's code, pulled from any node that has seen it, and executed in a sandboxed VM — without any install step, package manager, or deployment pipeline.
 
 ## Beyond FunctionalScript
 
