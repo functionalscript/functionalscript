@@ -77,10 +77,10 @@ Every hop is verifiable: each directory is a signed DISOT block, so you know exa
 
 ## SUL — structural deduplication
 
-`fs/sul/` implements **SUL** (Synthetic Universal Language): a bijective encoding that maps any finite bit sequence to a single 256-bit root ID via a balanced binary tree. Identical content always produces the same ID; common sub-sequences automatically share tree nodes.
+`fs/sul/` implements **SUL** (Synthetic Universal Language): a scheme that maps any finite bit sequence to a single 256-bit root ID via a balanced binary tree. For small inputs (up to L3 literal size) the ID is fully self-contained and reversible. For larger inputs the root is a SHA2-based hash ID — a content-addressed reference into backing storage where the tree nodes must be persisted; the original sequence can only be recovered or verified if those nodes are available.
 
-- **For large BLOBs in DISOT** — structural deduplication without a separate index; shared sub-sequences across different BLOBs are stored once
-- **For CA FunctionalScript** — SUL's bijective tree structure naturally content-addresses ASTs; structurally equal sub-expressions collapse to the same ID without a separate canonicalization step
+- **For large BLOBs in DISOT** — structural deduplication without a separate index; shared sub-sequences across different BLOBs are stored once as shared tree nodes
+- **For CA FunctionalScript** — SUL's tree structure naturally content-addresses ASTs; structurally equal sub-expressions collapse to the same node, but the full tree must be stored alongside the root ID
 
 Current state: literal levels (L1–L3) and hash levels (L4+, SHA-2 based) are implemented.
 
