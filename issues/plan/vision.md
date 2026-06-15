@@ -1,44 +1,29 @@
 # Vision
 
-## Why content-addressable programming languages are the future
+## Guiding principles
 
-In conventional programming languages, identity is based on origin: when something was created, where it came from, which package version it belongs to. In a content-addressable (CA) programming language, identity is based on **shape**: two values, types, or functions with the same normalized structure are the same thing, regardless of origin.
+Two principles run through every design decision in this project:
 
-This resolves several deep problems in modern software:
+**Emergence** — complex behavior should arise from the composition of simple, well-understood parts, not from complex primitives. We prefer a small set of minimal building blocks (content-addressed blocks, signatures, trust relations, pure functions) and let richer capabilities — a web of trust, human-readable namespaces, a global DAG, hybrid intelligence — emerge from how those blocks combine.
 
-**Deduplication across packages.** Non-CA languages accumulate many copies of the same library code when different packages depend on overlapping versions. A CA language deduplicates automatically — the same normalized shape has one hash, one stored copy, regardless of how many packages reference it.
+**Deduplication** — never introduce a new mechanism if an existing one can do the same job. This is the same idea that makes content-addressable storage work, applied to the design itself: one storage model for everything, one language for programming and types and metaprogramming, one trust mechanism for signatures and reputation. Fewer concepts, reused everywhere, beats many specialized ones.
 
-**Diamond dependency problem.** When two packages depend on different versions of the same library, the types from each version are treated as incompatible — even if their shapes are identical. A CA language normalizes types by content, so structurally identical types from different versions are the same type. Dependency hell disappears when identity is based on shape, not version label.
+Deduplication is also why FunctionalScript is a strict subset of JavaScript rather than a new language. The world already has a language that billions of lines of code and millions of engineers know — there is no reason to make people learn a fancy new one. We reuse JavaScript's syntax and semantics and obtain the content-addressable properties by *removing* features (mutation, side effects, identity-based equality), not by inventing new ones.
 
-**Serialization of everything.** Non-CA languages typically cannot serialize types, classes, or functions. Adapters exist but produce fragile results: deserializing a class may produce a type incompatible with the original (broken `instanceof`, mismatched method tables, etc.). In a CA language, any value — including types and functions — is serializable, because every value is already a content-addressed block. Deserializing a function produces exactly the same hash as the original; deduplication is automatic.
+The same logic applies to data. CAS is fundamentally about data, and the de facto data standard is JSON — which is itself a subset of JavaScript. Because FunctionalScript is built on JavaScript, JSON is its native data format: no separate serialization layer, no schema language to learn, no impedance mismatch between code and data. The data we store in CAS and the language we use to process it are the same notation.
 
-**Checkpoint and restore.** Because the entire runtime state is serializable, a CA program can snapshot itself at any point and resume from that exact state — including the state of all closures, types, and references. This is practically impossible in conventional languages without heroic engineering effort.
+These two principles reinforce each other: deduplication keeps the set of primitives small, and emergence is what lets a small set of primitives be enough.
 
-**Normalization removes superficial differences.** The CA compiler normalizes code before hashing: it strips comments, whitespace, and renames internal variables to canonical forms. Two versions of a package that differ only in comments produce the same hash — they are the same package. This extends to dead code elimination: unused code that differs between versions does not affect the hash of the parts that are actually used.
+## Content-addressable programming languages
 
-FunctionalScript's purely functional, side-effect-free design makes it an ideal foundation for a CA language: without mutation or identity-based equality, normalization is well-defined and deduplication is always safe.
+A content-addressable variation of FunctionalScript — where identity is based on the
+normalized shape of code rather than its origin — is a core long-term goal. It enables
+automatic deduplication, structural provenance, royalty distribution, semantic-equivalence
+proofs, and VM-level optimization.
 
-**Copy-paste is safe and deduplicating.** In conventional languages, copying code creates a new identity — a new type or function that may be structurally identical but is treated as distinct. In a CA language, copying a function or type anywhere produces the same hash, because the hash is of the shape, not the location. This makes AI-generated and copy-pasted code snippets first-class citizens: an AI can emit a function without knowing where it will live, and if it has been defined elsewhere before, it is automatically the same thing.
+This rationale has its own document: **[capl.md](./capl.md)**.
 
-**Memoization is structural.** Because execution is deterministic and every value is identified by content hash, any computation can be cached by `(function_hash, input_hash) → output_hash`. If the same computation has been run before — by anyone, on any machine — the result can be returned instantly from cache. This applies globally across the network.
-
-**The identity problem in conventional languages.** A concrete example in JavaScript:
-
-```js
-const a = []
-const b = []
-if (a !== b) { throw "a !== b" }  // throws — same shape, different identity
-if (a !== a) { throw "a !== a" }  // does not throw
-```
-
-Even though `a` and `b` are structurally identical (both empty arrays), `a !== b` because JavaScript compares by object identity, not shape. In a CA language, `a` and `b` would have the same hash and be the same value. This eliminates an entire class of bugs and incompatibilities — including the type incompatibility in diamond dependencies, where two copies of the same type compare as unequal despite being structurally identical.
-
-More broadly, reference-based object identity makes most modern languages subtly non-deterministic: you can never tell from the code alone whether `b` is a clone of `a` (sharing structure, potentially sharing mutations) or independently reconstructed from scratch (a separate object that happens to look the same). This ambiguity infects testing, serialization, distributed state, and caching. In a CA language the question disappears: `b` is `a` if and only if they have the same hash. Identity is observable, not hidden in a pointer.
-
-**Structural provenance.** Because the system detects duplicates globally, it can also surface provenance: if your implementation of `qsort` normalizes to a hash that already exists in thousands of packages, the system can tell you. You reimplemented it independently — for learning, for fun, from first principles — and the system can confirm your implementation is exactly equivalent to many other known implementations. This builds trust without requiring you to copy anyone's code. It also opens a new kind of learning: browse the existing packages that share your hash, see how others use the same algorithm, discover variations you hadn't considered. Independent rediscovery becomes verifiable.
-
-This also helps keep codebases lean — especially important as AI-generated code becomes ubiquitous. AI tends to produce many redundant implementations of the same thing across a project; a CA system collapses them automatically. And if you forget the name of a function, you don't need to search by name: just implement it, and the system will find the canonical version by hash.
-
+## Strategy
 
 For DISOT to become universal infrastructure, adoption must be frictionless. The core components — the CAS implementation, the MCP server, and the FunctionalScript language — are released under the **MIT license**, free for anyone to use, run, embed, or build on. No subscription, no usage fee, no vendor dependency.
 
