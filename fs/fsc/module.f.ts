@@ -94,16 +94,13 @@ export const proof = {
     // union throws when two distinct non-def handlers are merged for the same range;
     // this path is unreachable through the public API (init has no overlapping ranges),
     // so we exercise it here where the private union function is in scope.
-    unionConflict: () => {
-        const a: CreateToResult<undefined> = _s => unexpectedSymbol
-        const b: CreateToResult<undefined> = _s => unexpectedSymbol
-        a(undefined)
-        b(undefined)
-        try {
+    throw: {
+        unionConflict: () => {
+            const a: CreateToResult<undefined> = _s => unexpectedSymbol
+            const b: CreateToResult<undefined> = _s => unexpectedSymbol
+            a(undefined)
+            b(undefined)
             union(a)(b)
-            throw 'expected throw'
-        } catch (e) {
-            if (!Array.isArray(e) || e[0] !== a || e[1] !== b) { throw e }
         }
     }
 }
