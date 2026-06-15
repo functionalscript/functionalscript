@@ -71,3 +71,13 @@ A sufficiently mature DISOT + web of trust network can effectively replace most 
 The common thread: every centralized service today exists because it solves a trust problem (who do I trust to deliver this message? who do I trust to vouch for this identity?) that a sufficiently rich web of trust solves without a center. DISOT provides the immutable, conflict-free substrate; signatures and timestamps provide the provenance; the web of trust provides the social layer.
 
 This is not a near-term goal — it is the horizon the architecture points toward.
+
+## Interoperability
+
+Because DISOT is built on standard cryptographic primitives (content hashing, public key signatures), it integrates naturally with other decentralized content-addressable and identity systems:
+
+- **NOSTR** — uses the same public/private key model; NOSTR events are signed content that can be stored in DISOT or bridged directly
+- **Blockchains** — content-addressed, cryptographically signed; DISOT blocks and blockchain records share the same trust primitives and can cross-reference each other
+- **ATProto** (Bluesky) — partially compatible; the main divergence is identity: ATProto anchors identity to domain names, while this network uses relative paths through the web of trust (`~/Alice/...`), avoiding dependence on the DNS infrastructure and domain registrars
+
+The goal is not to replace these systems but to be composable with them — a node in this network can also participate in NOSTR, hold blockchain keys, or bridge ATProto content, with DISOT as the common content-addressable substrate.
