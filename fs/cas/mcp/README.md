@@ -13,7 +13,7 @@ additional front end alongside the CLI `main`, exactly as the issue describes.
 | Tool       | args                  | CAS call         | result text          |
 |------------|-----------------------|------------------|----------------------|
 | `cas_add`  | `{ content: string }` | `c.write(value)` | hash (cBase32)       |
-| `cas_get`  | `{ hash: string }`    | `c.read(key)`    | content (cBase32)    |
+| `cas_get`  | `{ hash: string }`    | `c.read(key)`    | content (base64)     |
 | `cas_list` | `{}`                  | `c.list()`       | hashes, one per line |
 
 Each tool's argument schema is an rtti struct declared once and used twice:
@@ -22,24 +22,29 @@ advertised in `tools/list`, and [`validate`](../../types/rtti/validate/module.f.
 decodes the `arguments` object in `tools/call`. There is no drift between what we
 advertise and what we accept.
 
-## Content encoding (cBase32)
+## Encoding split: hashes (cBase32) vs. content (base64)
 
 `Cas<O>` deals in `Vec` (bit vectors); MCP models only `textContent` (a
-`string`) today. Both hash and content cross the protocol as **cBase32**
-([`fs/cbase32`](../../cbase32/module.f.ts)) — the same encoding the CLI uses for
-hashes:
+`string`) today. Two encodings cross the protocol, each chosen for its consumer:
 
-- `cas_add` takes cBase32 `content` → `Vec` → store → returns the cBase32 hash;
-- `cas_get` takes a cBase32 `hash` → `Vec` key → read → returns cBase32 content.
+- **Hashes** travel as **cBase32** ([`fs/cbase32`](../../cbase32/module.f.ts)) —
+  the canonical CAS hash format, shared with the CLI and the on-disk store
+  layout. `cas_add` returns it; `cas_get` and the implicit `cas_list` output
+  consume / produce it.
+- **Content** travels as **standard RFC 4648 base64**
+  ([`fs/base64`](../../base64/module.f.ts)) — the MCP-idiomatic encoding for
+  opaque binary, which external tools and LLMs already understand without
+  project-specific knowledge. `cas_add` takes it as input; `cas_get` returns it.
 
-This keeps a single encoding across the whole CAS surface (the CLI and MCP
-agree), and `cBase32ToVec` already returns `null` on malformed input, giving free
-input validation.
+Both decoders return `null` on malformed input, giving free input validation.
 
-Alternatives considered: base64 (MCP-idiomatic for binary, but a second encoding
-the project does not otherwise use), or adding a `blob`/`resource` content type
-to `fs/mcp` so binary need not be text-shoehorned. Both are follow-ups; cBase32
-is the minimal, consistent start.
+The split was a deliberate revisit of the original "everything in cBase32"
+choice (see [i66E-cas-mcp-base64-content](../../../issues/66E-cas-mcp-base64-content.md)):
+hashes stay cBase32 because that is their canonical identity across the project,
+while content switches to base64 so the MCP surface stays interoperable with the
+broader ecosystem. A follow-up will use base64 again when an `EmbeddedResource`
+`blob` content type lands (see
+[i66E-cas-mcp-file-type](../../../issues/66E-cas-mcp-file-type.md)).
 
 ## Protocol errors vs. tool errors
 
@@ -51,7 +56,8 @@ MCP draws a line the dispatcher already respects:
 - **Tool failures** are *not* JSON-RPC errors. They come back as a normal
   `tools/call` result with `isError: true` and a text explanation, so the model
   can read and react. This adapter returns an `isError` result for:
-  - malformed `content` / `hash` (`cBase32ToVec` → `null`);
+  - malformed `content` (base64 `decode` → `null`);
+  - malformed `hash` (`cBase32ToVec` → `null`);
   - `cas_get` on an absent hash (`c.read` → `undefined`);
   - an unknown tool `name`.
 
