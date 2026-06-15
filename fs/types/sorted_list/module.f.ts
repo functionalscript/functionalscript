@@ -21,6 +21,11 @@ type MergeReduce<T, S> = {
    readonly tailReduce: TailReduce<T,S>
 }
 
+/**
+ * Two-way sorted-list merge.
+ * `reduceOp` returns `[output, sign, nextState]` where sign `-1` advances `a`, `1` advances `b`, `0` advances both; `null` output skips emission.
+ * `tailReduce` drains the non-exhausted list with current state once the other ends.
+ */
 export const genericMerge
     = <T,S>({ reduceOp, tailReduce }: MergeReduce<T,S>)
         : (state: S) => (a: List<T>) => (b: List<T>) => List<T> => {
