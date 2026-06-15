@@ -38,6 +38,8 @@ import { jsonrpc, parseError, type Response } from '../../json/rpc/module.f.ts'
  */
 export type Step<O extends Operation> = (value: Unknown) => Effect<O, Response | null>
 
+const defined = filter(([,v]: Entry) => v !== undefined)
+
 /**
  * Serializes a JSON value with deterministic (sorted) keys, dropping object
  * fields whose value is `undefined` at every level. Response/result types carry
@@ -47,7 +49,7 @@ export type Step<O extends Operation> = (value: Unknown) => Effect<O, Response |
  * `JSON.stringify`. The filter runs at each object level because `stringify`
  * applies this `mapEntries` to every object it serializes.
  */
-const stringifyJson = stringify(e => sort(filter((p: Entry) => p[1] !== undefined)(e)))
+const stringifyJson = stringify(e => sort(defined(e)))
 
 /** The parse-error response (`-32700`, `id: null`) for a malformed input line. */
 const parseErrorResponse: Response = { jsonrpc, error: parseError, id: null }

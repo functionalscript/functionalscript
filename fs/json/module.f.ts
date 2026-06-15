@@ -15,6 +15,8 @@ import { compose, fn } from '../types/function/module.f.ts'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.ts'
 import { boolean as rttiBoolean, number as rttiNumber, string as rttiString, or, record, array as rttiArray } from '../types/rtti/module.f.ts'
 import type { Ts } from '../types/rtti/ts/module.f.ts'
+import type { Assert } from '../asserts/module.f.ts'
+import type { Equal } from '../types/ts/module.f.ts'
 
 // ── rtti schemas ──────────────────────────────────────────────────────────────
 
@@ -43,13 +45,18 @@ export const array = rttiArray(unknown)
 // ── TypeScript types (derived from schemas — single source of truth) ──────────
 
 export type Primitive = Ts<typeof primitive>
-export type Unknown = Ts<typeof unknown>
+
+export type Unknown = Object | Array | Primitive
+
+export type Object = { readonly[k in string]?: Unknown }
+
+export type Array = readonly Unknown[]
+
+type _Unknown = Assert<Equal<Unknown, Ts<typeof unknown>>>
 
 // ── JSON utilities ────────────────────────────────────────────────────────────
 
 const { entries } = Object
-
-type Object = Ts<typeof object>
 
 export const setProperty
     : (value: Unknown) => (path: List<string>) => (src: Unknown) => Unknown

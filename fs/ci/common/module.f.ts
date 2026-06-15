@@ -31,7 +31,7 @@ export const jobSchema = {
     steps: array(stepSchema)
 } as const satisfies unknown
 
-export const jobsSchema = record(jobSchema) satisfies unknown
+export const jobsSchema = record(jobSchema)
 
 export const gitHubActionSchema = {
     name: string,
@@ -41,14 +41,14 @@ export const gitHubActionSchema = {
     },
     permissions: record(string),
     jobs: jobsSchema
-} as const satisfies unknown
+} as const
 
 export type Step = Ts<typeof stepSchema>
 export type Job = Ts<typeof jobSchema>
 export type Jobs = Ts<typeof jobsSchema>
 export type GitHubAction = Ts<typeof gitHubActionSchema>
 
-export const parseGitHubAction = rttiParse(gitHubActionSchema) satisfies unknown
+export const parseGitHubAction = rttiParse(gitHubActionSchema)
 
 export type StepType = 'install' | 'test'
 
