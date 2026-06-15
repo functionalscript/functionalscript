@@ -68,6 +68,9 @@ httpTransport(step, port)        ← remote, future
 Concretely: extract `casMcpStep` from `casMcpServer` in `fs/cas/mcp/module.f.ts` so the
 stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
 
+The HTTP effect infrastructure (`CreateServer`, `Listen`, `Fetch`) already exists in
+`fs/effects/node/module.f.ts` — the transport wrapper is the only missing piece.
+
 ---
 
 ## Priorities
@@ -75,7 +78,8 @@ stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
 ### Now — Layer 1 + 2 + 3
 
 **Layer 1 — Base (done, needs wiring)**
-- `cas_add`, `cas_get`, `cas_list` implemented in `fs/cas/mcp/module.f.ts`
+- `cas_add`, `cas_get`, `cas_list` implemented in `fs/cas/mcp/module.f.ts` ✓
+- stdio transport implemented in `fs/mcp/stdio/module.f.ts` ✓
 - `fjs cas mcp` CLI subcommand to launch the stdio server (tracked: `66E-fjs-cas-mcp-subcommand`)
 - Refactor to extract `casMcpStep` for transport-agnostic shape
 
@@ -93,6 +97,9 @@ stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
 - Tracked: `66E-cas-mcp-file-type`
 
 ### Next — Layer 4 (signing)
+
+Crypto primitives are **already implemented**: ECDSA with RFC 6979 deterministic nonces in
+`fs/crypto/sign/`, `fs/crypto/secp/`, `fs/crypto/sha2/`. Work is MCP wiring only.
 
 - MCP server holds a private key at startup (loaded from config/env)
 - New tools: `cas_public_key()`, `cas_verify(hash, signature, pubkey)`
@@ -113,38 +120,31 @@ stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
 
 ### Future — HTTP transport
 
-- `httpTransport` wraps the same `casMcpStep` over HTTPS
+HTTP effect infrastructure already exists in `fs/effects/node/` (`CreateServer`, `Listen`, `Fetch`).
+Work is writing `httpTransport` to wrap `casMcpStep` — no new effects needed.
+
 - Auth, TLS, session management handled at transport layer only
 - Handlers and protocol logic unchanged
 
 ### Future — FunctionalScript compiler via fs/bnf
 
-Implement a full FunctionalScript compiler using the `fs/bnf` grammar framework:
+**Current state:**
+- `fs/bnf/` — BNF combinator framework exists (terminal ranges, LL(1) dispatch rules); no FunctionalScript grammar written yet
+- `fs/djs/` — Full tokenizer → parser → AST → evaluator pipeline working for data (`const`, `import`, objects, arrays, primitives); **functions not yet supported**
+- `nanvm-lib` (Rust) — Type system implemented (primitives, arrays, objects, bigints, strings); **no bytecode instruction set, no emitter, no execution loop**
 
-- Grammar defined in `fs/bnf` drives both parsing and the formal language specification (spec is generated from the same source as the parser — no drift)
-- Compiler output: nanvm bytecode
-- Bytecode runs on `nanvm-lib` (Rust)
-- Enables FunctionalScript programs to run without a JS/TS runtime
+**Remaining work:**
+1. Function support in `fs/djs/` parser and AST
+2. FunctionalScript grammar in `fs/bnf/` (drives both parser and generated language spec)
+3. Bytecode instruction set in `nanvm-lib`
+4. Bytecode emitter (compiler backend)
+5. VM execution loop in `nanvm-lib`
 
-This closes the loop: FunctionalScript is defined by its grammar, compiled to bytecode, and executed on a native VM — with DISOT as the content-addressed module store.
-
-### Future — Sandboxed code execution via MCP
-
-Once the compiler and content-addressable FunctionalScript are in place:
-
-- FunctionalScript modules are stored in DISOT (addressed by content hash)
-- New MCP tool: `cas_run(hash, input?)` — loads bytecode from DISOT and executes it on nanvm
-- Execution is sandboxed: hard limits on memory and CPU time
-- Pure functions only — no side effects escape the sandbox
-- Enables AI agents to write, store, and invoke FunctionalScript code through the same MCP interface used for storage
-
-This makes the MCP server a compute platform: store code in DISOT, run it by hash.
-
-**The full loop:** AI writes FunctionalScript code that references existing DISOT blocks by hash as its inputs. Execution is deterministic — same code + same input hashes always produce the same output. The output is cached (cache may itself be CAS-backed) but is not DISOT. To share a result with others, the author must sign and timestamp it: an unsigned block claiming to represent a computation cannot be trusted by anyone outside the author's own process.
-
-Because the computation is deterministic, any user can independently re-run it and sign the same result block if they agree. A result block that accumulates signatures from many independent, trusted signers becomes progressively more trustworthy — without any central authority. Trust is mediated by a web of trust where each participant assigns relative trust levels to signers in their circle.
+This is the longest dependency chain in the roadmap. Everything after it (sandboxed execution, CA FunctionalScript) depends on it.
 
 ### Future — Content-addressable FunctionalScript
+
+Prerequisite: VM implementation in `nanvm-lib` complete.
 
 A canonical serialization of FunctionalScript values where structural equality implies hash equality:
 two objects with the same shape and values always produce the same hash.
@@ -160,6 +160,22 @@ Inspired by Unison's hash-addressed codebase model, applied to FunctionalScript'
 
 Implementation home: `nanvm-lib` (Rust).
 
+### Future — Sandboxed code execution via MCP
+
+Prerequisite: compiler + CA FunctionalScript complete.
+
+- FunctionalScript modules are stored in DISOT (addressed by content hash)
+- New MCP tool: `cas_run(hash, input?)` — loads bytecode from DISOT and executes it on nanvm
+- Execution is sandboxed: hard limits on memory and CPU time
+- Pure functions only — no side effects escape the sandbox
+- Enables AI agents to write, store, and invoke FunctionalScript code through the same MCP interface used for storage
+
+This makes the MCP server a compute platform: store code in DISOT, run it by hash.
+
+**The full loop:** AI writes FunctionalScript code that references existing DISOT blocks by hash as its inputs. Execution is deterministic — same code + same input hashes always produce the same output. The output is cached (cache may itself be CAS-backed) but is not DISOT. To share a result with others, the author must sign and timestamp it: an unsigned block claiming to represent a computation cannot be trusted by anyone outside the author's own process.
+
+Because the computation is deterministic, any user can independently re-run it and sign the same result block if they agree. A result block that accumulates signatures from many independent, trusted signers becomes progressively more trustworthy — without any central authority. Trust is mediated by a web of trust where each participant assigns relative trust levels to signers in their circle.
+
 ### Future — Hybrid intelligence network
 
 Each trusted node in the web of trust is a combination of AI and humans — not purely one or the other. Nodes communicate, verify each other's work, and build trust relationships over time.
@@ -172,6 +188,25 @@ Because DISOT is the storage layer, the network can persist:
 This makes the network itself a form of hybrid intelligence: knowledge and reasoning accumulate in DISOT, are signed by their authors, verified by peers, and become progressively more trusted as signatures accumulate. No single node holds the intelligence — it emerges from the signed, timestamped, conflict-free graph of content stored across all nodes.
 
 The web of trust is not just an access-control mechanism — it is the trust topology of the intelligence itself.
+
+---
+
+## Implementation status summary
+
+| Layer | What exists | What's missing |
+|---|---|---|
+| 1. Base MCP (add/get/list) | `fs/cas/mcp/`, `fs/mcp/stdio/` ✓ | CLI subcommand, `casMcpStep` extraction |
+| 2. Content encoding (base64) | — | `fs/base64/` impl, then MCP wiring |
+| 3. Type detection | — | `fs/mime/` magic-byte detection, MCP tool |
+| 4. Signatures | `fs/crypto/sign/`, `fs/crypto/secp/` ✓ | MCP wiring only |
+| 5. Trusted timestamps | — | RFC 3161 client + MCP tool |
+| 6. Revision layer | — | Design + implementation |
+| HTTP transport | `fs/effects/node/` effects ✓ | `httpTransport` wrapper only |
+| Compiler (parsing) | `fs/djs/` data pipeline ✓, `fs/bnf/` framework ✓ | Function support, FS grammar |
+| Compiler (codegen) | — | Bytecode ISA, emitter, VM loop in `nanvm-lib` |
+| CA FunctionalScript | — | Depends on VM |
+| Sandboxed execution | — | Depends on CA FS |
+| Hybrid intelligence | — | Depends on all above |
 
 ---
 
