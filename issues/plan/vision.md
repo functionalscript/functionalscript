@@ -33,6 +33,8 @@ if (a !== a) { throw "a !== a" }  // does not throw
 
 Even though `a` and `b` are structurally identical (both empty arrays), `a !== b` because JavaScript compares by object identity, not shape. In a CA language, `a` and `b` would have the same hash and be the same value. This eliminates an entire class of bugs and incompatibilities — including the type incompatibility in diamond dependencies, where two copies of the same type compare as unequal despite being structurally identical.
 
+More broadly, reference-based object identity makes most modern languages subtly non-deterministic: you can never tell from the code alone whether `b` is a clone of `a` (sharing structure, potentially sharing mutations) or independently reconstructed from scratch (a separate object that happens to look the same). This ambiguity infects testing, serialization, distributed state, and caching. In a CA language the question disappears: `b` is `a` if and only if they have the same hash. Identity is observable, not hidden in a pointer.
+
 
 For DISOT to become universal infrastructure, adoption must be frictionless. The core components — the CAS implementation, the MCP server, and the FunctionalScript language — are released under the **MIT license**, free for anyone to use, run, embed, or build on. No subscription, no usage fee, no vendor dependency.
 
