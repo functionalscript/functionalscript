@@ -6,7 +6,9 @@ Today, human communications, connections, and economies are controlled by a smal
 
 A web of trust built on DISOT changes this at the foundation. Trust, identity, communication, and value flow directly between people and communities — without a platform in the middle taking a cut, shaping what you see, or cutting you off. Local economies can strengthen each other through direct trust relationships rather than routing everything through corporations that capture the surplus.
 
-The goal is not to build another platform. It is to build infrastructure that makes platforms unnecessary.
+The goal is not to build another platform. It is to build infrastructure that makes platforms unnecessary as gatekeepers.
+
+Large corporations can still play a significant role — for example, providing better search and indexing over a vast decentralized CAS, or high-performance compute nodes. But they participate in the network rather than hosting it. Vendor lock-in shrinks dramatically: your data, your identity, and your social graph live in DISOT, not on their servers. If a service provider behaves badly, you switch — without losing anything.
 
 ## What we are building
 
