@@ -1,17 +1,22 @@
 # Architecture
 
-## DISOT vs cache
+## DISOT vs cache vs CAS
 
-DISOT (Decentralized Immutable Source of Truth) holds only content that is original and non-recomputable. A cache CAS may also use content-addressing internally, but it holds derived or computed data and carries no inherent trust.
+**CAS** (Content-Addressable Storage) is the generic mechanism: any content, keyed by its hash. It makes no claims about what is stored or why.
 
-| | DISOT | Cache |
-|---|---|---|
-| Content | Original, signed, timestamped | Derived, computed |
-| Recomputable? | No (requires secret or external act) | Yes |
-| Trust | Inherent — hash is proof | None without signature |
-| Sync | Conflict-free by definition | Rebuild on demand |
+**DISOT** (Decentralized Immutable Source of Truth) is a specific use of CAS: it holds signed content — user-authored blocks, signature blocks, trusted timestamps, license blocks, trust blocks. The social contract of DISOT is that its content is vouched for by identifiable authors. DISOT is CAS with a trust layer on top.
 
-**Rule:** Only original content goes in DISOT. Recomputable derived data (type detection, computation results, metadata) stays in the cache. Non-recomputable original data (signatures, timestamps, user content) goes in DISOT.
+**Cache** is also CAS-backed, but holds derived or computed content with no authorship guarantees. It can be discarded and rebuilt at any time.
+
+| | CAS | DISOT | Cache |
+|---|---|---|---|
+| What's stored | Anything | Signed/trusted content | Derived/computed content |
+| Authorship | Not required | Required | Not applicable |
+| Recomputable? | N/A | No | Yes |
+| Trust | None inherent | From signatures | None |
+| Sync | Conflict-free | Conflict-free | Rebuild on demand |
+
+DISOT and cache are both built on CAS. The difference is the contract around what goes in them.
 
 ## Transport abstraction
 
