@@ -30,7 +30,7 @@ export const proof = {
     threeBytes: () => {
         // 24 bits, no padding
         check('AAAA', vec(24n)(0n))
-        check('////'.replace(/\//g, '/'), vec(24n)(0b111111111111111111111111n))
+        check('////', vec(24n)(0b111111111111111111111111n))
     },
     roundtrip: () => {
         // Various bit lengths
