@@ -37,6 +37,8 @@ More broadly, reference-based object identity makes most modern languages subtly
 
 **Structural provenance.** Because the system detects duplicates globally, it can also surface provenance: if your implementation of `qsort` normalizes to a hash that already exists in thousands of packages, the system can tell you. You reimplemented it independently — for learning, for fun, from first principles — and the system can confirm your implementation is exactly equivalent to many other known implementations. This builds trust without requiring you to copy anyone's code. It also opens a new kind of learning: browse the existing packages that share your hash, see how others use the same algorithm, discover variations you hadn't considered. Independent rediscovery becomes verifiable.
 
+This also helps keep codebases lean — especially important as AI-generated code becomes ubiquitous. AI tends to produce many redundant implementations of the same thing across a project; a CA system collapses them automatically. And if you forget the name of a function, you don't need to search by name: just implement it, and the system will find the canonical version by hash.
+
 
 For DISOT to become universal infrastructure, adoption must be frictionless. The core components — the CAS implementation, the MCP server, and the FunctionalScript language — are released under the **MIT license**, free for anyone to use, run, embed, or build on. No subscription, no usage fee, no vendor dependency.
 
