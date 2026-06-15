@@ -176,6 +176,31 @@ This makes the MCP server a compute platform: store code in DISOT, run it by has
 
 Because the computation is deterministic, any user can independently re-run it and sign the same result block if they agree. A result block that accumulates signatures from many independent, trusted signers becomes progressively more trustworthy — without any central authority. Trust is mediated by a web of trust where each participant assigns relative trust levels to signers in their circle.
 
+### Future — Signed directories and human-readable paths
+
+A directory is a DISOT block that maps names to values — where a value can be:
+- A hash of another DISOT block (a file or subdirectory)
+- A public key
+- A phone number or other contact property
+
+When signed by a user, the directory becomes their personal namespace: a human-readable layer over global content addresses. Directories are themselves immutable DISOT blocks, so any update produces a new block (and a new hash) — history is preserved automatically.
+
+**Path resolution:** Paths traverse chains of signed directories across user boundaries:
+
+```
+~/Alice/Bob/Charlie/plan.md
+```
+
+- `~` — your own root directory (signed by you)
+- `Alice` — an entry in your directory, resolving to Alice's directory hash
+- `Bob` — an entry in Alice's directory, resolving to Bob's directory hash
+- `Charlie` — an entry in Bob's directory, resolving to Charlie's directory hash
+- `plan.md` — an entry in Charlie's directory, resolving to a content hash
+
+Every hop is verifiable: each directory is a signed DISOT block, so you know exactly who vouched for each name-to-hash mapping. Trust propagates through the path — reaching `plan.md` requires trusting the full chain `~ → Alice → Bob → Charlie`.
+
+This gives the network human-readable, trust-anchored addressing without a central DNS or registry. Names are only meaningful relative to a starting trust anchor (`~`), which is always the user's own signed root.
+
 ### Future — SUL-based deduplication for large BLOBs
 
 `fs/sul/` implements **SUL** (Synthetic Universal Language): a bijective encoding that maps any finite bit sequence to a single 256-bit root ID via a balanced binary tree. Identical content always produces the same ID; common sub-sequences automatically share tree nodes.
