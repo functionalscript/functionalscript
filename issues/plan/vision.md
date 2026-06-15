@@ -2,7 +2,7 @@
 
 ## Guiding principles
 
-Two principles run through every design decision in this project:
+Three principles run through every design decision in this project:
 
 **Emergence** — complex behavior should arise from the composition of simple, well-understood parts, not from complex primitives. We prefer a small set of minimal building blocks (content-addressed blocks, signatures, trust relations, pure functions) and let richer capabilities — a web of trust, human-readable namespaces, a global DAG, hybrid intelligence — emerge from how those blocks combine.
 
@@ -14,7 +14,7 @@ Deduplication is also why FunctionalScript is a strict subset of JavaScript rath
 
 The same logic applies to data. CAS is fundamentally about data, and the de facto data standard is JSON — which is itself a subset of JavaScript. Because FunctionalScript is built on JavaScript, JSON is its native data format: no separate serialization layer, no schema language to learn, no impedance mismatch between code and data. The data we store in CAS and the language we use to process it are the same notation.
 
-These two principles reinforce each other: deduplication keeps the set of primitives small, and emergence is what lets a small set of primitives be enough.
+The first two principles reinforce each other: deduplication keeps the set of primitives small, and emergence is what lets a small set of primitives be enough. Simplicity and explainability is the check on both: if the result can't be explained, the primitives aren't simple enough yet.
 
 ## Content-addressable programming languages
 
