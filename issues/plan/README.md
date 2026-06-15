@@ -105,6 +105,17 @@ stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
 - Auth, TLS, session management handled at transport layer only
 - Handlers and protocol logic unchanged
 
+### Future — FunctionalScript compiler via fs/bnf
+
+Implement a full FunctionalScript compiler using the `fs/bnf` grammar framework:
+
+- Grammar defined in `fs/bnf` drives both parsing and the formal language specification (spec is generated from the same source as the parser — no drift)
+- Compiler output: nanvm bytecode
+- Bytecode runs on `nanvm-lib` (Rust)
+- Enables FunctionalScript programs to run without a JS/TS runtime
+
+This closes the loop: FunctionalScript is defined by its grammar, compiled to bytecode, and executed on a native VM — with CAS as the content-addressed module store.
+
 ### Future — Content-addressable FunctionalScript
 
 A canonical serialization of FunctionalScript values where structural equality implies hash equality:
