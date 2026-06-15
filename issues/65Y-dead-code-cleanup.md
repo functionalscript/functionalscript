@@ -96,9 +96,20 @@ const getConstants
   or inline at the call site — there is no behavioural reason to keep
   the wrapper.
 
+### 6. Dead type `Byte` in `fs/types/sorted_set/module.f.ts:35`
+
+```ts
+type Byte = number
+```
+
+- Declared but never referenced anywhere in the file (the only exports —
+  `union`, `intersect`, `has` — are fully generic over `T`) and the type is
+  not `export`ed, so no external consumer exists either. Pure scratch left
+  over from an earlier byte-specific draft. Delete the line.
+
 ## Proposal
 
-Four independent deletions, each a small PR (item 2 above was
+Five independent deletions, each a small PR (item 2 above was
 withdrawn after PR #886 added test coverage for `env`):
 
 1. Delete `ParseContext` and the `import type { Fs } from '../../io/...'`
@@ -110,8 +121,10 @@ withdrawn after PR #886 added test coverage for `env`):
    `fs/djs/serializer/module.f.ts`.
 4. Replace `getConstants` with a direct call to `getConstantsOp` and
    delete the wrapper.
+5. Delete the unused `type Byte = number` in
+   `fs/types/sorted_set/module.f.ts`.
 
-All four satisfy the AGENTS.md rule: *"If you are certain that something
+All five satisfy the AGENTS.md rule: *"If you are certain that something
 is unused, you can delete it completely."*
 
 ## Why this qualifies
@@ -162,3 +175,4 @@ is unused, you can delete it completely."*
 - `fs/json/serializer/module.f.ts:86–90` — dead `Entry`/`Entries`/`MapEntries`.
 - `fs/djs/serializer/module.f.ts:23–25` — dead `Entry`/`Entries`.
 - `fs/djs/serializer/module.f.ts:69–73` — eta-wrapper `getConstants`.
+- `fs/types/sorted_set/module.f.ts:35` — dead `Byte` type.
