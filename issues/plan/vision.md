@@ -18,6 +18,20 @@ This resolves several deep problems in modern software:
 
 FunctionalScript's purely functional, side-effect-free design makes it an ideal foundation for a CA language: without mutation or identity-based equality, normalization is well-defined and deduplication is always safe.
 
+**Copy-paste is safe and deduplicating.** In conventional languages, copying code creates a new identity — a new type or function that may be structurally identical but is treated as distinct. In a CA language, copying a function or type anywhere produces the same hash, because the hash is of the shape, not the location. This makes AI-generated and copy-pasted code snippets first-class citizens: an AI can emit a function without knowing where it will live, and if it has been defined elsewhere before, it is automatically the same thing.
+
+**Memoization is structural.** Because execution is deterministic and every value is identified by content hash, any computation can be cached by `(function_hash, input_hash) → output_hash`. If the same computation has been run before — by anyone, on any machine — the result can be returned instantly from cache. This applies globally across the network.
+
+**The identity problem in conventional languages.** A concrete example in JavaScript:
+
+```js
+const a = []
+const b = []
+if (a !== b) { throw "a !== b" }  // throws — same shape, different identity
+if (a !== a) { throw "a !== a" }  // does not throw
+```
+
+Even though `a` and `b` are structurally identical (both empty arrays), `a !== b` because JavaScript compares by object identity, not shape. In a CA language, `a` and `b` would have the same hash and be the same value. This eliminates an entire class of bugs and incompatibilities — including the type incompatibility in diamond dependencies, where two copies of the same type compare as unequal despite being structurally identical.
 
 
 For DISOT to become universal infrastructure, adoption must be frictionless. The core components — the CAS implementation, the MCP server, and the FunctionalScript language — are released under the **MIT license**, free for anyone to use, run, embed, or build on. No subscription, no usage fee, no vendor dependency.
