@@ -98,8 +98,7 @@ export const toArray = <T>(list: List<T>): readonly T[] => {
 
 const apply = <I, O>(f: (n: NonEmpty<I>) => List<O>) => (input: List<I>): Thunk<O> => () => {
     const n = next(input)
-    if (n === null) { return null }
-    return f(n)
+    return n === null ? null : f(n)
 }
 
 const flatStep = <T>({ first, tail }: NonEmpty<List<T>>) =>
