@@ -22,30 +22,32 @@
 
 ## Now — Layers 1 + 2 + 3
 
-**Layer 1 — Base (done, needs wiring)**
+**Layer 1 — Base (done)**
 - `cas_add`, `cas_get`, `cas_list` implemented in `fs/cas/mcp/module.f.ts` ✓
 - stdio transport implemented in `fs/mcp/stdio/module.f.ts` ✓
-- `fjs cas mcp` CLI subcommand to launch the stdio server (tracked: `66E-fjs-cas-mcp-subcommand`)
-- Refactor to extract `casMcpStep` for transport-agnostic shape
+- `fjs cas mcp` CLI subcommand registered in `fs/cas/module.f.ts` ✓
+- Remaining: refactor to extract `casMcpStep` for transport-agnostic shape
 
 **Layer 2 — Content encoding**
 - Switch `cas_add` / `cas_get` content from cBase32 to base64 (MCP-idiomatic for binary)
 - Hashes stay as cBase32
-- Blocked on `66E-base64`; tracked: `66E-cas-mcp-base64-content`
+- `fs/base64/module.f.ts` (`encode`/`decode`) already implemented ✓; only MCP wiring remains
+- Tracked: [i66E-cas-mcp-base64-content](../66E-cas-mcp-base64-content.md)
 
 **Layer 3 — Type detection**
 - New tool: `cas_type(hash) → MIME type`, on-demand only
-- Detection via magic bytes: PNG, JPEG, GIF, WebP → UTF-8 check → `application/octet-stream`
+- Detection via magic bytes: PNG, JPEG, GIF, WebP, PDF, ZIP → UTF-8 check → `application/octet-stream`
 - Pure logic in new file `fs/mime/module.f.ts`
 - `cas_get` returns `EmbeddedResource` with `mimeType` when type is known
-- Tracked: `66E-cas-mcp-file-type`
+- Tracked: [i66E-cas-mcp-file-type](../66E-cas-mcp-file-type.md)
 
 ---
 
 ## Next — Layer 4 (signing)
 
-Crypto primitives already implemented: ECDSA + RFC 6979 in `fs/crypto/sign/`, `fs/crypto/secp/`, `fs/crypto/sha2/`. Work is MCP wiring only.
+ECDSA signing (RFC 6979 deterministic nonces) already implemented in `fs/crypto/sign/`, `fs/crypto/secp/`, `fs/crypto/sha2/` ✓. ECDSA **verification** is not yet implemented — that is part of this layer's work.
 
+- Implement ECDSA verify in `fs/crypto/sign/`
 - MCP server holds a private key at startup (from config/env)
 - New tools: `cas_public_key()`, `cas_verify(hash, signature, pubkey)`
 - Auto-sign on `cas_add`: signature block `{ content_hash, signature, signer_pubkey }` stored in DISOT
@@ -127,10 +129,10 @@ Prerequisite: compiler + CA FunctionalScript complete.
 
 | Layer | What exists | What's missing |
 |---|---|---|
-| 1. Base MCP (add/get/list) | `fs/cas/mcp/`, `fs/mcp/stdio/` ✓ | CLI subcommand, `casMcpStep` extraction |
-| 2. Content encoding (base64) | — | `fs/base64/` impl, then MCP wiring |
-| 3. Type detection | — | `fs/mime/` magic-byte detection, MCP tool |
-| 4. Signatures | `fs/crypto/sign/`, `fs/crypto/secp/` ✓ | MCP wiring only |
+| 1. Base MCP (add/get/list) | `fs/cas/mcp/`, `fs/mcp/stdio/`, CLI ✓ | `casMcpStep` extraction |
+| 2. Content encoding (base64) | `fs/base64/` ✓ | MCP wiring only |
+| 3. Type detection | — | `fs/mime/` magic-byte detection (PNG/JPEG/GIF/WebP/PDF/ZIP/text), MCP tool |
+| 4. Signatures | `fs/crypto/sign/` (sign only), `fs/crypto/secp/` ✓ | ECDSA verify + MCP wiring |
 | 5. Trusted timestamps | — | RFC 3161 client + MCP tool |
 | 6. Revision layer | — | Design + implementation |
 | HTTP transport | `fs/effects/node/` effects ✓ | `httpTransport` wrapper only |

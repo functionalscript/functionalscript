@@ -18,20 +18,20 @@ DISOT (Decentralized Immutable Source of Truth) holds only content that is origi
 The MCP dispatcher (`mcpStep`) is transport-agnostic — it produces a pure `Step<O>` function. Transport wrappers are separate and interchangeable.
 
 ```
-casMcpStep(c)(stateKey)(value)   ← pure, no transport
+casMcpStep(c)(stateKey)(value)   ← pure, no transport  [planned]
     ↓
 stdioTransport(step)             ← local, current
 httpTransport(step, port)        ← remote, future
 ```
 
-Concretely: `casMcpStep` is extracted from `casMcpServer` in `fs/cas/mcp/module.f.ts` so the stdio server is a one-liner and the HTTP server is additive, not a rewrite.
+Planned refactor: extract `casMcpStep` from `casMcpServer` in `fs/cas/mcp/module.f.ts`. Currently `casMcpServer` wires stdio directly; once extracted, the stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
 
 The HTTP effect infrastructure (`CreateServer`, `Listen`, `Fetch`) already exists in `fs/effects/node/module.f.ts` — only the transport wrapper is missing.
 
 ## Content encoding
 
-All content crosses the MCP wire as **base64** (MCP-idiomatic for binary data).
-Hashes are encoded as **cBase32**.
+**Current:** content crosses the MCP wire as **cBase32** (same encoding as hashes).
+**Target (Layer 2):** switch content to **base64** (MCP-idiomatic for binary data); hashes stay as cBase32. The base64 codec (`fs/base64/module.f.ts`) is already implemented — only the MCP wiring remains.
 
 ## Addressing
 
