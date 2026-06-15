@@ -4,7 +4,7 @@
 
 For DISOT to become universal infrastructure, adoption must be frictionless. The core components — the CAS implementation, the MCP server, and the FunctionalScript language — are released under the **MIT license**, free for anyone to use, run, embed, or build on. No subscription, no usage fee, no vendor dependency.
 
-The goal is for any person or organization to be able to run their own node on a personal computer without asking anyone's permission. Open infrastructure becomes a standard by being universally accessible; it becomes trusted by being open to inspection. This is how Git, Linux, and the internet protocols became universal — not by being sold, but by being free enough that the world built on them.
+The goal is for any person or organization to be able to run their own node on a personal computer without asking anyone's permission. Open infrastructure becomes a standard by being universally accessible; it becomes trusted by being open to inspection.
 
 ## Motivation
 
