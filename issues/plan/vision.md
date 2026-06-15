@@ -47,6 +47,8 @@ A practical application: codebases can be systematically reduced by using these 
 
 The implementation strategy follows the classic principle: build a simple, correct VM first, then introduce optimizations and pattern recognition incrementally. Correctness is the foundation; performance is layered on top, always guarded by the semantic equivalence proofs that guarantee the optimized path produces the same result.
 
+FunctionalScript deliberately has no optimization annotations — no `inline`, no `#pragma`, no `__attribute__`. Such hints lock in optimization decisions at write time, when the programmer has the least information about actual runtime behavior, and frequently point in the wrong direction (C and C++'s `inline` is a well-known example of this). All optimization decisions belong to the VM, which can observe actual usage patterns, hardware capabilities, and available equivalence proofs at runtime — information no programmer has at write time.
+
 **Royalty distribution.** Because identity is based on shape, the system always points back to the original: even if someone copy-pastes or independently rewrites the same code and arrives at the same normalized form, the hash is the same — and the earliest known signed instance of that hash is the original. There is no way to evade authorship by rewriting. This makes fair, automatic royalty distribution possible: usage of a content hash anywhere in the network can be tracked and compensation routed back to the original author, proportional to actual use, without a platform intermediary. Signed license blocks (see DISOT block types) provide the legal layer; content-hash tracking provides the accounting.
 
 
