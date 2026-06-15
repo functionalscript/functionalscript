@@ -160,6 +160,19 @@ Inspired by Unison's hash-addressed codebase model, applied to FunctionalScript'
 
 Implementation home: `nanvm-lib` (Rust).
 
+### Future — Hybrid intelligence network
+
+Each trusted node in the web of trust is a combination of AI and humans — not purely one or the other. Nodes communicate, verify each other's work, and build trust relationships over time.
+
+Because DISOT is the storage layer, the network can persist:
+- Conversations between humans and AI
+- Reasoning trajectories (the chain of thought, not just the conclusion)
+- Computation results with their full provenance (code hash + input hashes + signatures)
+
+This makes the network itself a form of hybrid intelligence: knowledge and reasoning accumulate in DISOT, are signed by their authors, verified by peers, and become progressively more trusted as signatures accumulate. No single node holds the intelligence — it emerges from the signed, timestamped, conflict-free graph of content stored across all nodes.
+
+The web of trust is not just an access-control mechanism — it is the trust topology of the intelligence itself.
+
 ---
 
 ## Key design rules
