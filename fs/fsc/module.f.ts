@@ -89,3 +89,18 @@ export const init: ToResult = create([
     range('09')(() => a => [[fromCharCode(a)], unexpectedSymbol]),
     ...[...punctuation].map(single),
 ])(undefined)
+
+export const proof = {
+    // union throws when two distinct non-def handlers are merged for the same range;
+    // this path is unreachable through the public API (init has no overlapping ranges),
+    // so we exercise it here where the private union function is in scope.
+    throw: {
+        unionConflict: () => {
+            const a: CreateToResult<undefined> = _s => unexpectedSymbol
+            const b: CreateToResult<undefined> = _s => unexpectedSymbol
+            a(undefined)
+            b(undefined)
+            union(a)(b)
+        }
+    }
+}
