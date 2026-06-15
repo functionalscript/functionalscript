@@ -24,6 +24,8 @@ CAS synchronization requires no specific protocol. Blocks can be exchanged over 
 
 This means the network is resilient by construction: no single protocol to block, no single infrastructure to take down. Two nodes can sync by emailing each other a file, and the result is just as trustworthy as a direct HTTPS transfer.
 
+This also makes it censorship-resistant. In countries where the internet is controlled or filtered, content can travel via USB drives, offline sync, Bluetooth, or any other side channel — and recipients can still cryptographically verify that it is authentic and unmodified. Firewalls can block protocols; they cannot invalidate a signature.
+
 ## Transport abstraction
 
 The MCP dispatcher (`mcpStep`) is transport-agnostic — it produces a pure `Step<O>` function. Transport wrappers are separate and interchangeable.
