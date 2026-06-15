@@ -35,9 +35,9 @@
 - Tracked: [i66E-cas-mcp-base64-content](../66E-cas-mcp-base64-content.md)
 
 **Layer 3 — Type detection**
-- Detection via magic bytes: PNG, JPEG, GIF, WebP, PDF, ZIP → UTF-8 check → `application/octet-stream`
+- Detection via magic bytes: PNG, JPEG, GIF, WebP, PDF, ZIP → `null` for unrecognized bytes (per [i66E-cas-mcp-file-type](../66E-cas-mcp-file-type.md))
 - Pure logic in new file `fs/mime/module.f.ts`
-- [i66E-cas-mcp-file-type](../66E-cas-mcp-file-type.md) scopes MIME detection to `cas_get` (returns `EmbeddedResource` with `mimeType`) — implement per that design
+- `cas_get`: when type is detected → return `EmbeddedResource` with `mimeType`; when `null` → fall back to existing `textContent` response for backward compatibility
 - A separate on-demand `cas_type` tool is a possible extension; needs its own design issue before implementation
 
 ---
