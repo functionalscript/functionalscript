@@ -1,6 +1,24 @@
 # Vision
 
-## Strategy
+## Why content-addressable programming languages are the future
+
+In conventional programming languages, identity is based on origin: when something was created, where it came from, which package version it belongs to. In a content-addressable (CA) programming language, identity is based on **shape**: two values, types, or functions with the same normalized structure are the same thing, regardless of origin.
+
+This resolves several deep problems in modern software:
+
+**Deduplication across packages.** Non-CA languages accumulate many copies of the same library code when different packages depend on overlapping versions. A CA language deduplicates automatically — the same normalized shape has one hash, one stored copy, regardless of how many packages reference it.
+
+**Diamond dependency problem.** When two packages depend on different versions of the same library, the types from each version are treated as incompatible — even if their shapes are identical. A CA language normalizes types by content, so structurally identical types from different versions are the same type. Dependency hell disappears when identity is based on shape, not version label.
+
+**Serialization of everything.** Non-CA languages typically cannot serialize types, classes, or functions. Adapters exist but produce fragile results: deserializing a class may produce a type incompatible with the original (broken `instanceof`, mismatched method tables, etc.). In a CA language, any value — including types and functions — is serializable, because every value is already a content-addressed block. Deserializing a function produces exactly the same hash as the original; deduplication is automatic.
+
+**Checkpoint and restore.** Because the entire runtime state is serializable, a CA program can snapshot itself at any point and resume from that exact state — including the state of all closures, types, and references. This is practically impossible in conventional languages without heroic engineering effort.
+
+**Normalization removes superficial differences.** The CA compiler normalizes code before hashing: it strips comments, whitespace, and renames internal variables to canonical forms. Two versions of a package that differ only in comments produce the same hash — they are the same package. This extends to dead code elimination: unused code that differs between versions does not affect the hash of the parts that are actually used.
+
+FunctionalScript's purely functional, side-effect-free design makes it an ideal foundation for a CA language: without mutation or identity-based equality, normalization is well-defined and deduplication is always safe.
+
+
 
 For DISOT to become universal infrastructure, adoption must be frictionless. The core components — the CAS implementation, the MCP server, and the FunctionalScript language — are released under the **MIT license**, free for anyone to use, run, embed, or build on. No subscription, no usage fee, no vendor dependency.
 
