@@ -30,7 +30,14 @@ To share a result with others, the author must sign and timestamp it: an unsigne
 
 Because the computation is deterministic, any user can independently re-run it and sign the same result block if they agree. A result block that accumulates signatures from many independent, trusted signers becomes progressively more trustworthy — without any central authority. Conversely, if a user re-runs the computation and gets a different result, they can label the original block as suspicious and decrease their trust level for its author. Trust is not just additive — it degrades when claims fail independent verification.
 
-Trust is also multidimensional. You may trust your doctor highly for health advice but not for financial advice. Trust ratings are therefore domain-specific: a signer's credibility is evaluated relative to the topic of the signed block, not as a single global score. This means the web of trust can model real-world expertise and authority naturally — the same person can be a highly trusted source in one domain and an untrusted one in another.
+Trust is also multidimensional. You may trust your doctor highly for health advice but not for financial advice.
+
+Two distinct DISOT block types handle this cleanly:
+
+- **Signature block** — simple cryptographic attestation: `{ content_hash, signature, signer_pubkey }`. Says "I authored or attest to this content." No domain information needed.
+- **Trust block** — a social assertion signed by its author. Describes a trust relationship to a node (person/AI) or to specific content (an article, a computation result), optionally scoped to a domain. Says "I trust/distrust this entity or this content, in this context."
+
+Trust blocks form the social graph of the network. They are themselves content in DISOT — signed, timestamped, and subject to their own trust evaluations. The web of trust emerges from the graph of trust blocks, not from any central authority assigning scores.
 
 ## Hybrid intelligence network
 
