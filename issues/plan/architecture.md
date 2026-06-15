@@ -18,6 +18,14 @@
 
 DISOT is built on CAS. Cache is independent of the storage mechanism.
 
+## The global DAG
+
+DISOT is a globally shared, append-only **directed acyclic graph (DAG)**. Each block is a node; references from a block to other blocks are edges that always point into the past (toward older blocks). New blocks can be added freely — nothing is ever modified or deleted.
+
+This structure has a powerful consequence for interoperability: any application can contribute blocks to the same graph, and any other application can read them. The same content can be created by one app and viewed or processed by another, with no data migration required. Applications compete on the quality of their interface to the graph, not on owning the data inside it.
+
+This eliminates data vendor lock-in at the foundation: your data lives in the DAG, not in any application's proprietary storage. Switching apps means changing your view of the graph, not moving your data.
+
 ## Protocol independence
 
 CAS synchronization requires no specific protocol. Blocks can be exchanged over HTTP, P2P, Bluetooth, USB, physical media (sneakernet), or any other channel — because authenticity is proven cryptographically, not by the delivery mechanism. If a block's hash matches its content and its signature verifies against a trusted public key, it is authentic regardless of how it arrived.
