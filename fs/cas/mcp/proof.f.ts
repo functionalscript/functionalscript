@@ -6,6 +6,7 @@ import type { Unknown } from '../../json/module.f.ts'
 import type { Response } from '../../json/rpc/module.f.ts'
 import { vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
+import { encode as base64Encode } from '../../base64/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
 import { cas, type KvStore } from '../module.f.ts'
 import {
@@ -97,8 +98,8 @@ const resultOf = (resp: unknown): ToolsCallResult =>
 
 const textOf = (resp: unknown): string => resultOf(resp).content[0].text
 
-// A valid cBase32 payload to store and round-trip.
-const sample = vecToCBase32(vec8(0x2An))
+// A valid base64 payload to store and round-trip.
+const sample = base64Encode(vec8(0x2An)) as string
 
 // ── Tests ───────────────────────────────────────────────────────────────────────
 
@@ -147,10 +148,9 @@ export const proof = {
         assertEq(resultOf(resp).isError, true)
     },
 
-    // An unterminated cBase32 string (all zero symbols) must decode to null and
-    // return an isError result, not spin the single stdio loop forever.
-    addUnterminatedContentIsError: () => {
-        const [resp] = session(call(2, 'cas_add', { content: '0' }))
+    // base64 length must be a multiple of 4 — a single character is malformed.
+    addBadLengthContentIsError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'A' }))
         assertEq(resultOf(resp).isError, true)
     },
 
