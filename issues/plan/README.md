@@ -105,6 +105,20 @@ stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
 - Auth, TLS, session management handled at transport layer only
 - Handlers and protocol logic unchanged
 
+### Future — Content-addressable FunctionalScript
+
+A canonical serialization of FunctionalScript values where structural equality implies hash equality:
+two objects with the same shape and values always produce the same CAS hash.
+
+This turns FunctionalScript itself into a content-addressable language:
+- Functions, modules, and data structures are addressed by hash
+- Identical sub-expressions are deduplicated automatically (structural sharing)
+- Immutable by definition — same hash always means same value
+- Enables a global, conflict-free object graph across devices and users
+- Natural foundation for a distributed module system and memoization cache
+
+Inspired by Unison's hash-addressed codebase model, applied to FunctionalScript's purely functional subset of JavaScript.
+
 ---
 
 ## Key design rules
