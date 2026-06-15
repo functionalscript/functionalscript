@@ -58,6 +58,7 @@ The web of trust is not just an access-control mechanism — it is the trust top
 A sufficiently mature DISOT + web of trust network can effectively replace most modern centralized services:
 
 - **Communications** — messages are signed DISOT blocks; delivery is routing between trusted nodes, not through a central server
+- **Spam** — users can opt out of receiving messages from outside their trust circles or from nodes with bad reputation. Spam becomes structurally hard: a spammer must first earn trust to reach you, and sending spam destroys that trust instantly.
 - **Email & messaging** — same model: content-addressed, signed, delivered peer-to-peer within trust circles
 - **Social networks** — the social graph is the web of trust itself; content is DISOT blocks signed by authors; no platform owns the graph
 - **Advertising** — trusted advertisement using relative ratings within trust circles; content surfaces based on vouching from people you trust, not opaque algorithmic targeting by a platform
