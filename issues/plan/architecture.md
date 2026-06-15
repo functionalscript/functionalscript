@@ -18,6 +18,12 @@
 
 DISOT is built on CAS. Cache is independent of the storage mechanism.
 
+## Protocol independence
+
+CAS synchronization requires no specific protocol. Blocks can be exchanged over HTTP, P2P, Bluetooth, USB, physical media (sneakernet), or any other channel — because authenticity is proven cryptographically, not by the delivery mechanism. If a block's hash matches its content and its signature verifies against a trusted public key, it is authentic regardless of how it arrived.
+
+This means the network is resilient by construction: no single protocol to block, no single infrastructure to take down. Two nodes can sync by emailing each other a file, and the result is just as trustworthy as a direct HTTPS transfer.
+
 ## Transport abstraction
 
 The MCP dispatcher (`mcpStep`) is transport-agnostic — it produces a pure `Step<O>` function. Transport wrappers are separate and interchangeable.
