@@ -12,7 +12,7 @@
  * | Tool       | args                  | CAS call         | result text          |
  * |------------|-----------------------|------------------|----------------------|
  * | `cas_add`  | `{ content: string }` | `c.write(value)` | hash (cBase32)       |
- * | `cas_get`  | `{ hash: string }`    | `c.read(key)`    | content (cBase32)    |
+ * | `cas_get`  | `{ hash: string }`    | `c.read(key)`    | content (base64)     |
  * | `cas_list` | `{}`                  | `c.list()`       | hashes, one per line |
  *
  * Each tool's argument schema is an rtti struct declared once and used twice:
@@ -20,12 +20,17 @@
  * `validate` decodes the `arguments` object in `tools/call`. No drift between
  * what we advertise and what we accept.
  *
- * ## Content encoding
+ * ## Encoding split: hashes vs. content
  *
  * `Cas<O>` deals in `Vec` (bit vectors); MCP models only `textContent` today.
- * Both hash and content cross the protocol as cBase32 (`fs/cbase32`), the same
- * encoding the CLI uses for hashes — one encoding across the whole CAS surface.
- * `cBase32ToVec` returns `null` on malformed input, giving free validation.
+ * Two encodings cross the protocol, each chosen for its consumer:
+ * - **Hashes** travel as cBase32 (`fs/cbase32`) — the canonical CAS hash format,
+ *   shared with the CLI and the on-disk store layout.
+ * - **Content** travels as standard RFC 4648 base64 (`fs/base64`) — the
+ *   MCP-idiomatic encoding for opaque binary, which external tools and LLMs
+ *   already understand without project-specific knowledge.
+ *
+ * Both decoders return `null` on malformed input, giving free validation.
  *
  * ## Error convention
  *
@@ -33,7 +38,8 @@
  * (unknown method, malformed JSON-RPC params) are JSON-RPC errors handled by
  * `mcpStep`. *Tool* failures come back as a normal `tools/call` result with
  * `isError: true` and a text explanation, so the model can read and react:
- * - malformed `content` / `hash` (`cBase32ToVec` → `null`) → `isError` result
+ * - malformed `content` (base64 `decode` → `null`) → `isError` result
+ * - malformed `hash` (`cBase32ToVec` → `null`) → `isError` result
  * - `cas_get` on an absent hash (`c.read` → `undefined`) → `isError` result
  * - unknown tool `name` → `isError` result
  *
@@ -45,6 +51,7 @@ import { toJsonSchema } from '../../json/schema/module.f.ts'
 import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
+import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
 import { type Read, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
@@ -56,7 +63,7 @@ import type { Cas } from '../module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
-/** Arguments for `cas_add`: cBase32-encoded content to store. */
+/** Arguments for `cas_add`: base64-encoded content to store. */
 export const casAddArgs = { content: string } as const
 
 /** Arguments for `cas_get`: the cBase32 hash to look up. */
@@ -69,13 +76,13 @@ export const casListArgs = {} as const
 
 const casAddTool: Tool = {
     name: 'cas_add',
-    description: 'Store content (cBase32) and return its hash (cBase32).',
+    description: 'Store content (base64) and return its hash (cBase32).',
     inputSchema: toJsonSchema(casAddArgs),
 }
 
 const casGetTool: Tool = {
     name: 'cas_get',
-    description: 'Fetch content (cBase32) by its hash (cBase32).',
+    description: 'Fetch content (base64) by its hash (cBase32).',
     inputSchema: toJsonSchema(casGetArgs),
 }
 
@@ -112,9 +119,9 @@ export const casMcpHandlers = <O extends Operation>(c: Cas<O>): McpHandlers<O> =
                 if (t === 'error') {
                     return pure(errorResult(`invalid arguments: ${r.message}`))
                 }
-                const value = cBase32ToVec(r.content)
+                const value = base64Decode(r.content)
                 if (value === null) {
-                    return pure(errorResult(`invalid cBase32 content: ${r.content}`))
+                    return pure(errorResult(`invalid base64 content: ${r.content}`))
                 }
                 return c.write(value).step(hash => pure(okResult(vecToCBase32(hash))))
             }
@@ -127,9 +134,17 @@ export const casMcpHandlers = <O extends Operation>(c: Cas<O>): McpHandlers<O> =
                 if (key === null) {
                     return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
                 }
-                return c.read(key).step(value => pure(value === undefined
-                    ? errorResult(`no such hash: ${r.hash}`)
-                    : okResult(vecToCBase32(value))))
+                return c.read(key).step(value => {
+                    if (value === undefined) {
+                        return pure(errorResult(`no such hash: ${r.hash}`))
+                    }
+                    // base64Encode returns null only on a non-octet Vec; the filesystem
+                    // store can never produce that, but the contract permits it.
+                    const text = base64Encode(value)
+                    return pure(text === null
+                        ? errorResult(`content is not byte-aligned: ${r.hash}`)
+                        : okResult(text))
+                })
             }
             case 'cas_list': {
                 return c.list().step(hashes =>

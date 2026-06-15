@@ -1,7 +1,7 @@
 # 66E-base64. Implement base64 encoding/decoding
 
 **Priority:** P2
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -26,8 +26,8 @@ easy to audit. Export from `fs/base64/module.f.ts`; proof in
 
 ## Tasks
 
-- [ ] Add `fs/base64/module.f.ts` with `encode` and `decode`
-- [ ] Add `fs/base64/proof.f.ts` with round-trip tests and edge cases
+- [x] Add `fs/base64/module.f.ts` with `encode` and `decode`
+- [x] Add `fs/base64/proof.f.ts` with round-trip tests and edge cases
       (empty input, single byte, two bytes, padding variants `==` / `=`, invalid
       characters, wrong padding length)
 

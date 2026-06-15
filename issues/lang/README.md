@@ -21,6 +21,7 @@ File Types:
 ## 1. JSON
 
 - [ ] [JSON](./1000-json.md).
+- [ ] [undefined-property](./1010-undefined-property.md).
 
 **VM**:
 
