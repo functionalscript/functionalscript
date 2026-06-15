@@ -116,6 +116,18 @@ Implement a full FunctionalScript compiler using the `fs/bnf` grammar framework:
 
 This closes the loop: FunctionalScript is defined by its grammar, compiled to bytecode, and executed on a native VM — with CAS as the content-addressed module store.
 
+### Future — Sandboxed code execution via MCP
+
+Once the compiler and content-addressable FunctionalScript are in place:
+
+- FunctionalScript modules are stored in CAS (addressed by content hash)
+- New MCP tool: `cas_run(hash, input?)` — loads bytecode from CAS and executes it on nanvm
+- Execution is sandboxed: hard limits on memory and CPU time
+- Pure functions only — no side effects escape the sandbox
+- Enables AI agents to write, store, and invoke FunctionalScript code through the same MCP interface used for storage
+
+This makes the MCP server a compute platform: store code in CAS, run it by hash, trust the output because the code is immutable and the sandbox is enforced.
+
 ### Future — Content-addressable FunctionalScript
 
 A canonical serialization of FunctionalScript values where structural equality implies hash equality:
