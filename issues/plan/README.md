@@ -128,6 +128,8 @@ Once the compiler and content-addressable FunctionalScript are in place:
 
 This makes the MCP server a compute platform: store code in CAS, run it by hash, trust the output because the code is immutable and the sandbox is enforced.
 
+**The full loop:** AI writes FunctionalScript code that references existing CAS blocks by hash as its inputs. Execution is deterministic — same code + same input hashes always produce the same output. The output is itself stored in CAS. The entire computation (code, inputs, output) is an auditable, reproducible hash chain. Trust follows from the hashes, not from trusting any particular actor.
+
 ### Future — Content-addressable FunctionalScript
 
 A canonical serialization of FunctionalScript values where structural equality implies hash equality:
