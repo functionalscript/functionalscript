@@ -24,6 +24,9 @@ Object.values(a).filter(v => v !== undefined)
 
 Bare `Object.entries(a)` or `Object.values(a)` without the filter is a compile-time error.
 
+The `in` operator is also prohibited, because `'x' in { x: undefined }` returns `true`
+in JavaScript despite the property being non-existent under the FS model.
+
 ## Motivation
 
 In JavaScript, `{ x: undefined }` and `{}` behave differently under `Object.entries`
