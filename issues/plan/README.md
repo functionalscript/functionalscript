@@ -119,6 +119,8 @@ This turns FunctionalScript itself into a content-addressable language:
 
 Inspired by Unison's hash-addressed codebase model, applied to FunctionalScript's purely functional subset of JavaScript.
 
+Implementation home: `nanvm-lib` (Rust).
+
 ---
 
 ## Key design rules
