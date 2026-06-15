@@ -176,6 +176,22 @@ This makes the MCP server a compute platform: store code in DISOT, run it by has
 
 Because the computation is deterministic, any user can independently re-run it and sign the same result block if they agree. A result block that accumulates signatures from many independent, trusted signers becomes progressively more trustworthy — without any central authority. Trust is mediated by a web of trust where each participant assigns relative trust levels to signers in their circle.
 
+### Future — SUL-based deduplication for large BLOBs
+
+`fs/sul/` implements **SUL** (Synthetic Universal Language): a bijective encoding that maps any finite bit sequence to a single 256-bit root ID via a balanced binary tree. Identical content always produces the same ID; common sub-sequences automatically share tree nodes.
+
+Current state: literal levels (L1–L3) and hash levels (L4+, SHA-2 based) are implemented. The `Id` type encodes three cases: L3 literal (≤254 bits inline), raw bit vector, or hash identifier.
+
+**Connection to DISOT:**
+- SUL IDs are content addresses by construction — same content, same ID, globally
+- Large BLOBs stored in DISOT via SUL get automatic structural deduplication: shared sub-sequences across different BLOBs are stored once
+- The 256-bit fixed-size ID integrates naturally with the existing CAS hash scheme
+
+**Connection to CA FunctionalScript:**
+- SUL's bijective tree structure is a natural fit for content-addressing FunctionalScript ASTs — structurally equal sub-expressions collapse to the same ID without any separate canonicalization step
+
+Work needed: integration layer between `fs/sul/` and `fs/cas/`, defining how SUL IDs map to CAS block addresses for large-BLOB storage.
+
 ### Future — Hybrid intelligence network
 
 Each trusted node in the web of trust is a combination of AI and humans — not purely one or the other. Nodes communicate, verify each other's work, and build trust relationships over time.
@@ -204,7 +220,8 @@ The web of trust is not just an access-control mechanism — it is the trust top
 | HTTP transport | `fs/effects/node/` effects ✓ | `httpTransport` wrapper only |
 | Compiler (parsing) | `fs/djs/` data pipeline ✓, `fs/bnf/` framework ✓ | Function support, FS grammar |
 | Compiler (codegen) | — | Bytecode ISA, emitter, VM loop in `nanvm-lib` |
-| CA FunctionalScript | — | Depends on VM |
+| SUL deduplication | `fs/sul/` L1–L4 implemented ✓ | CAS integration layer |
+| CA FunctionalScript | — | Depends on VM + SUL integration |
 | Sandboxed execution | — | Depends on CA FS |
 | Hybrid intelligence | — | Depends on all above |
 
