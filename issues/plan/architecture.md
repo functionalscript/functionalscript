@@ -6,7 +6,7 @@
 
 **DISOT** (Decentralized Immutable Source of Truth) is a specific use of CAS: it holds signed content — user-authored blocks, signature blocks, trusted timestamps, license blocks, trust blocks. The social contract of DISOT is that its content is vouched for by identifiable authors. DISOT is CAS with a trust layer on top.
 
-**Cache** is also CAS-backed, but holds derived or computed content with no authorship guarantees. It can be discarded and rebuilt at any time.
+**Cache** is a broader concept — derived or computed content that can be discarded and rebuilt. CAS can be used as a cache backend, but cache can also use other mechanisms, such as vector embeddings for semantic search and indexing. The defining property of cache is not its storage mechanism but that its content carries no authorship guarantee.
 
 | | CAS | DISOT | Cache |
 |---|---|---|---|
@@ -14,9 +14,9 @@
 | Authorship | Not required | Required | Not applicable |
 | Recomputable? | N/A | No | Yes |
 | Trust | None inherent | From signatures | None |
-| Sync | Conflict-free | Conflict-free | Rebuild on demand |
+| Storage mechanism | Hash → content | Hash → content (via CAS) | CAS, vector DB, or other |
 
-DISOT and cache are both built on CAS. The difference is the contract around what goes in them.
+DISOT is built on CAS. Cache is independent of the storage mechanism.
 
 ## Transport abstraction
 
