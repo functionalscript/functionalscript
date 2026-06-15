@@ -205,6 +205,20 @@ This makes the network itself a form of hybrid intelligence: knowledge and reaso
 
 The web of trust is not just an access-control mechanism — it is the trust topology of the intelligence itself.
 
+### Long-term societal impact
+
+A sufficiently mature DISOT + web of trust network can effectively replace most modern centralized services:
+
+- **Communications** — messages are signed DISOT blocks; delivery is routing between trusted nodes, not through a central server
+- **Email & messaging** — same model: content-addressed, signed, delivered peer-to-peer within trust circles
+- **Social networks** — the social graph is the web of trust itself; content is DISOT blocks signed by authors; no platform owns the graph
+- **Advertising** — reputation and trust signals replace opaque algorithmic targeting; participants choose what they trust, not what an ad platform decides
+- **Identity** — public keys are identity; trust is earned through signatures and vouching, not granted by a central authority
+
+The common thread: every centralized service today exists because it solves a trust problem (who do I trust to deliver this message? who do I trust to vouch for this identity?) that a sufficiently rich web of trust solves without a center. DISOT provides the immutable, conflict-free substrate; signatures and timestamps provide the provenance; the web of trust provides the social layer.
+
+This is not a near-term goal — it is the horizon the architecture points toward.
+
 ---
 
 ## Implementation status summary
