@@ -2,42 +2,54 @@
 
 ## Vision
 
-A layered, universal content-addressable storage (CAS) platform accessible via MCP.
-All original content (primary source of truth) is stored in CAS, keyed by content hash.
-Derived/computed information lives only in the MCP server's cache, not in CAS.
-The server runs locally over stdio first, with HTTP/HTTPS added later via clean transport abstraction.
+A layered, universal **DISOT** (Decentralized Immutable Source of Truth) platform accessible via MCP.
 
-### Why CAS as foundation
+DISOT is a content-addressable store (CAS) that holds only original, non-recomputable content, keyed by content hash. It is distinct from a cache CAS, which may also be CAS-backed but holds derived or computed data.
 
-CAS blocks are globally addressed by content hash. This means synchronization between any two CAS stores is always conflict-free: same hash = same content, so merging is a pure set union — no reconciliation, no conflict resolution, no ordering required.
+The MCP server runs locally over stdio first, with HTTP/HTTPS added later via clean transport abstraction.
+
+### Why DISOT as foundation
+
+DISOT blocks are globally addressed by content hash. Synchronization between any two DISOT stores is always conflict-free: same hash = same content, so merging is a pure set union — no reconciliation, no conflict resolution, no ordering required.
 
 This property is the foundation for:
 - **Multi-device** — sync any two stores, online or offline, always consistent
 - **Multi-user** — multiple agents (human or AI) write independently, merge freely
-- **Web of trust** — signatures and timestamps are themselves CAS blocks, so trust chains are verifiable content, not metadata; each participant assigns relative trust levels to signers in their circle
+- **Web of trust** — signatures and timestamps are themselves DISOT blocks, so trust chains are verifiable content, not metadata; each participant assigns relative trust levels to signers in their circle
 - **Scalability** — stores can be sharded, replicated, or federated without coordination
+
+### DISOT vs cache
+
+| | DISOT | Cache |
+|---|---|---|
+| Content | Original, signed, timestamped | Derived, computed |
+| Recomputable? | No (requires secret or external act) | Yes |
+| Trust | Inherent — hash is proof | None without signature |
+| Sync | Conflict-free by definition | Rebuild on demand |
+
+The cache may internally use CAS for storage, but it is not DISOT.
 
 ---
 
 ## Layers
 
 ```
-┌─────────────────────────────────────────────┐
-│  6. Revision layer (Git-like commits in CAS) │
-├─────────────────────────────────────────────┤
-│  5. Trusted timestamps (RFC 3161 → CAS)      │
-├─────────────────────────────────────────────┤
-│  4. Digital signatures (server key → CAS)    │
-├─────────────────────────────────────────────┤
-│  3. Type detection (magic bytes → cache)     │
-├─────────────────────────────────────────────┤
-│  2. Content encoding (base64 for MCP)        │
-├─────────────────────────────────────────────┤
-│  1. Base: cas_add / cas_get / cas_list       │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│  6. Revision layer (Git-like commits in DISOT)    │
+├──────────────────────────────────────────────────┤
+│  5. Trusted timestamps (RFC 3161 → DISOT)         │
+├──────────────────────────────────────────────────┤
+│  4. Digital signatures (server key → DISOT)       │
+├──────────────────────────────────────────────────┤
+│  3. Type detection (magic bytes → cache only)     │
+├──────────────────────────────────────────────────┤
+│  2. Content encoding (base64 for MCP)             │
+├──────────────────────────────────────────────────┤
+│  1. Base: cas_add / cas_get / cas_list            │
+└──────────────────────────────────────────────────┘
 ```
 
-**Rule:** Only original content goes in CAS. Recomputable derived data (type, metadata) stays in the MCP server cache. Non-recomputable original data (signatures, timestamps) goes in CAS.
+**Rule:** Only original content goes in DISOT. Recomputable derived data (type, metadata, computation results) stays in the cache. Non-recomputable original data (signatures, timestamps) goes in DISOT.
 
 ---
 
@@ -84,18 +96,18 @@ stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
 
 - MCP server holds a private key at startup (loaded from config/env)
 - New tools: `cas_public_key()`, `cas_verify(hash, signature, pubkey)`
-- Auto-sign on `cas_add`: signature block `{ content_hash, signature, signer_pubkey }` stored in CAS as its own block
+- Auto-sign on `cas_add`: signature block `{ content_hash, signature, signer_pubkey }` stored in DISOT as its own block
 - Return the signature block hash alongside the content hash on add
 
 ### Later — Layer 5 (trusted timestamps)
 
 - New tool: `cas_timestamp(hash)` — calls external RFC 3161 TSA
-- Timestamp token stored in CAS as its own block; tool returns its hash
+- Timestamp token stored in DISOT as its own block; tool returns its hash
 - Server config specifies which TSA URL(s) to use
 
 ### Future — Layer 6 (revisions)
 
-- Git-like commit structures stored in CAS
+- Git-like commit structures stored in DISOT
 - A commit block references parent commit hash(es) + content hash + metadata
 - Tools: `cas_commit`, `cas_log`, `cas_diff`
 
@@ -114,28 +126,28 @@ Implement a full FunctionalScript compiler using the `fs/bnf` grammar framework:
 - Bytecode runs on `nanvm-lib` (Rust)
 - Enables FunctionalScript programs to run without a JS/TS runtime
 
-This closes the loop: FunctionalScript is defined by its grammar, compiled to bytecode, and executed on a native VM — with CAS as the content-addressed module store.
+This closes the loop: FunctionalScript is defined by its grammar, compiled to bytecode, and executed on a native VM — with DISOT as the content-addressed module store.
 
 ### Future — Sandboxed code execution via MCP
 
 Once the compiler and content-addressable FunctionalScript are in place:
 
-- FunctionalScript modules are stored in CAS (addressed by content hash)
-- New MCP tool: `cas_run(hash, input?)` — loads bytecode from CAS and executes it on nanvm
+- FunctionalScript modules are stored in DISOT (addressed by content hash)
+- New MCP tool: `cas_run(hash, input?)` — loads bytecode from DISOT and executes it on nanvm
 - Execution is sandboxed: hard limits on memory and CPU time
 - Pure functions only — no side effects escape the sandbox
 - Enables AI agents to write, store, and invoke FunctionalScript code through the same MCP interface used for storage
 
-This makes the MCP server a compute platform: store code in CAS, run it by hash, trust the output because the code is immutable and the sandbox is enforced.
+This makes the MCP server a compute platform: store code in DISOT, run it by hash.
 
-**The full loop:** AI writes FunctionalScript code that references existing CAS blocks by hash as its inputs. Execution is deterministic — same code + same input hashes always produce the same output. The output may be cached in CAS (cache can itself be CAS-backed). To share a result with others, the author must sign and timestamp it: an unsigned block claiming to represent a computation cannot be trusted by anyone outside the author's own process.
+**The full loop:** AI writes FunctionalScript code that references existing DISOT blocks by hash as its inputs. Execution is deterministic — same code + same input hashes always produce the same output. The output is cached (cache may itself be CAS-backed) but is not DISOT. To share a result with others, the author must sign and timestamp it: an unsigned block claiming to represent a computation cannot be trusted by anyone outside the author's own process.
 
 Because the computation is deterministic, any user can independently re-run it and sign the same result block if they agree. A result block that accumulates signatures from many independent, trusted signers becomes progressively more trustworthy — without any central authority. Trust is mediated by a web of trust where each participant assigns relative trust levels to signers in their circle.
 
 ### Future — Content-addressable FunctionalScript
 
 A canonical serialization of FunctionalScript values where structural equality implies hash equality:
-two objects with the same shape and values always produce the same CAS hash.
+two objects with the same shape and values always produce the same hash.
 
 This turns FunctionalScript itself into a content-addressable language:
 - Functions, modules, and data structures are addressed by hash
@@ -152,8 +164,10 @@ Implementation home: `nanvm-lib` (Rust).
 
 ## Key design rules
 
-1. CAS stores only content that cannot be recomputed without a secret (signatures, timestamps) or original user/AI content. Never cached derivations.
-2. Transport is a wrapper around the pure step function — swappable without touching handlers.
-3. All content crosses the MCP wire as base64; hashes as cBase32.
-4. Type detection is always lazy (on-demand tool call); caching is a later optimization.
-5. Working version first, then cache, then performance.
+1. **DISOT holds only originals.** Content that cannot be recomputed without a secret (signatures, timestamps) or original user/AI content. Never cached derivations.
+2. **Cache is not DISOT.** Computation results, type detection, and other derived data live in the cache. Cache may be CAS-backed but carries no inherent trust.
+3. **Trust requires signatures.** A block shared outside its author's process must be signed and timestamped to be trusted. Multiple independent signatures on the same block accumulate trust.
+4. Transport is a wrapper around the pure step function — swappable without touching handlers.
+5. All content crosses the MCP wire as base64; hashes as cBase32.
+6. Type detection is always lazy (on-demand tool call); caching is a later optimization.
+7. Working version first, then cache, then performance.
