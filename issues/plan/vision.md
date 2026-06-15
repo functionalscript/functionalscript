@@ -28,7 +28,7 @@ AI writes FunctionalScript code that references existing DISOT blocks by hash as
 
 To share a result with others, the author must sign and timestamp it: an unsigned block claiming to represent a computation cannot be trusted by anyone outside the author's own process.
 
-Because the computation is deterministic, any user can independently re-run it and sign the same result block if they agree. A result block that accumulates signatures from many independent, trusted signers becomes progressively more trustworthy — without any central authority.
+Because the computation is deterministic, any user can independently re-run it and sign the same result block if they agree. A result block that accumulates signatures from many independent, trusted signers becomes progressively more trustworthy — without any central authority. Conversely, if a user re-runs the computation and gets a different result, they can label the original block as suspicious and decrease their trust level for its author. Trust is not just additive — it degrades when claims fail independent verification.
 
 ## Hybrid intelligence network
 
