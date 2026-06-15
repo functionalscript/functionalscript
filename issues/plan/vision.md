@@ -39,6 +39,8 @@ More broadly, reference-based object identity makes most modern languages subtly
 
 This also helps keep codebases lean — especially important as AI-generated code becomes ubiquitous. AI tends to produce many redundant implementations of the same thing across a project; a CA system collapses them automatically. And if you forget the name of a function, you don't need to search by name: just implement it, and the system will find the canonical version by hash.
 
+**Royalty distribution.** Because the system knows which content hashes are used where, it can track the real-world usage of any piece of code, algorithm, or creative work across the network. This enables fair, automatic royalty distribution: if your implementation of a function is used across thousands of projects, the network can measure that usage and route compensation back to the original authors — proportional to actual use, without a platform intermediary taking a cut. Signed license blocks (see DISOT block types) provide the legal layer; content-hash tracking provides the accounting.
+
 
 For DISOT to become universal infrastructure, adoption must be frictionless. The core components — the CAS implementation, the MCP server, and the FunctionalScript language — are released under the **MIT license**, free for anyone to use, run, embed, or build on. No subscription, no usage fee, no vendor dependency.
 
