@@ -14,7 +14,7 @@ CAS blocks are globally addressed by content hash. This means synchronization be
 This property is the foundation for:
 - **Multi-device** — sync any two stores, online or offline, always consistent
 - **Multi-user** — multiple agents (human or AI) write independently, merge freely
-- **Web of trust** — signatures and timestamps are themselves CAS blocks, so trust chains are verifiable content, not metadata
+- **Web of trust** — signatures and timestamps are themselves CAS blocks, so trust chains are verifiable content, not metadata; each participant assigns relative trust levels to signers in their circle
 - **Scalability** — stores can be sharded, replicated, or federated without coordination
 
 ---
@@ -128,7 +128,7 @@ Once the compiler and content-addressable FunctionalScript are in place:
 
 This makes the MCP server a compute platform: store code in CAS, run it by hash, trust the output because the code is immutable and the sandbox is enforced.
 
-**The full loop:** AI writes FunctionalScript code that references existing CAS blocks by hash as its inputs. Execution is deterministic — same code + same input hashes always produce the same output. The output is itself stored in CAS. The entire computation (code, inputs, output) is an auditable, reproducible hash chain. Trust follows from the hashes, not from trusting any particular actor.
+**The full loop:** AI writes FunctionalScript code that references existing CAS blocks by hash as its inputs. Execution is deterministic — same code + same input hashes always produce the same output. The output may be cached in CAS (cache can itself be CAS-backed). To share a result with others, the author must sign and timestamp it: an unsigned block claiming to represent a computation cannot be trusted by anyone outside the author's own process. Trust is then mediated by a web of trust — each participant assigns a relative trust level to signers in their circle.
 
 ### Future — Content-addressable FunctionalScript
 
