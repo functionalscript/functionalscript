@@ -8,6 +8,8 @@ Two principles run through every design decision in this project:
 
 **Deduplication** — never introduce a new mechanism if an existing one can do the same job. This is the same idea that makes content-addressable storage work, applied to the design itself: one storage model for everything, one language for programming and types and metaprogramming, one trust mechanism for signatures and reputation. Fewer concepts, reused everywhere, beats many specialized ones.
 
+Deduplication is also why FunctionalScript is a strict subset of JavaScript rather than a new language. The world already has a language that billions of lines of code and millions of engineers know — there is no reason to make people learn a fancy new one. We reuse JavaScript's syntax and semantics and obtain the content-addressable properties by *removing* features (mutation, side effects, identity-based equality), not by inventing new ones.
+
 These two principles reinforce each other: deduplication keeps the set of primitives small, and emergence is what lets a small set of primitives be enough.
 
 ## Why content-addressable programming languages are the future
