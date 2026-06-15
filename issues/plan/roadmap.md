@@ -35,11 +35,10 @@
 - Tracked: [i66E-cas-mcp-base64-content](../66E-cas-mcp-base64-content.md)
 
 **Layer 3 — Type detection**
-- New tool: `cas_type(hash) → MIME type`, on-demand only
 - Detection via magic bytes: PNG, JPEG, GIF, WebP, PDF, ZIP → UTF-8 check → `application/octet-stream`
 - Pure logic in new file `fs/mime/module.f.ts`
-- `cas_get` returns `EmbeddedResource` with `mimeType` when type is known
-- Tracked: [i66E-cas-mcp-file-type](../66E-cas-mcp-file-type.md)
+- [i66E-cas-mcp-file-type](../66E-cas-mcp-file-type.md) scopes MIME detection to `cas_get` (returns `EmbeddedResource` with `mimeType`) — implement per that design
+- A separate on-demand `cas_type` tool is a possible extension; needs its own design issue before implementation
 
 ---
 
@@ -111,7 +110,7 @@ This is the longest dependency chain. Everything after it depends on it.
 
 Prerequisite: VM complete in `nanvm-lib`.
 
-Canonical serialization where structural equality implies hash equality — same shape, same hash. Implemented in `nanvm-lib` (Rust). SUL's bijective tree structure is the natural fit; see [architecture.md §SUL](./architecture.md).
+Canonical serialization where structural equality implies hash equality — same shape, same hash. To be implemented in `nanvm-lib` (Rust); requires canonicalization of property order and a content-hashing layer, neither of which exists yet. SUL's bijective tree structure is the natural fit for the hashing layer; see [architecture.md §SUL](./architecture.md).
 
 ---
 
