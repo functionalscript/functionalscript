@@ -25,11 +25,10 @@ import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { readLine, write, type Read, type Write } from '../../effects/node/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
-import { stringify, type Unknown, type Entry } from '../../json/module.f.ts'
+import { stringify, type Unknown } from '../../json/module.f.ts'
 import { tokenize } from '../../json/tokenizer/module.f.ts'
 import { parse } from '../../json/parser/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { filter } from '../../types/list/module.f.ts'
 import { jsonrpc, parseError, type Response } from '../../json/rpc/module.f.ts'
 
 /**
@@ -38,18 +37,7 @@ import { jsonrpc, parseError, type Response } from '../../json/rpc/module.f.ts'
  */
 export type Step<O extends Operation> = (value: Unknown) => Effect<O, Response | null>
 
-const defined = filter(([,v]: Entry) => v !== undefined)
-
-/**
- * Serializes a JSON value with deterministic (sorted) keys, dropping object
- * fields whose value is `undefined` at every level. Response/result types carry
- * optional fields (`error.data`, `nextCursor`, …) that a step may leave
- * explicitly `undefined`; the repo serializer would otherwise try to descend
- * into `undefined` and throw, aborting the loop. Omitting them matches
- * `JSON.stringify`. The filter runs at each object level because `stringify`
- * applies this `mapEntries` to every object it serializes.
- */
-const stringifyJson = stringify(e => sort(defined(e)))
+const stringifyJson = stringify(sort)
 
 /** The parse-error response (`-32700`, `id: null`) for a malformed input line. */
 const parseErrorResponse: Response = { jsonrpc, error: parseError, id: null }

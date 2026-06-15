@@ -1,6 +1,7 @@
 import { setProperty, stringify } from './module.f.ts'
 import { sort } from '../types/object/module.f.ts'
 import { identity } from '../types/function/module.f.ts'
+import { assertEq } from '../asserts/module.f.ts'
 
 export const proof = {
     setProperty: [
@@ -59,5 +60,8 @@ export const proof = {
                 if (_2 !== '{"a":{"y":[24],"x":"Hello"},"c":[],"b":12}') { throw _2 }
             }
         }
-    ]
+    ],
+    undefined: () => {
+        assertEq(stringify(sort)({ x: undefined }), '{}')
+    }
 }

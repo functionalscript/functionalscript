@@ -5,6 +5,8 @@ Two main FunctionalScript principles:
 1. if FS code passes validation/compilation, then it doesn't have side-effects,
 2. the code that passed validation/compilation should behave on FunctionalScript VM the same way as on any other modern JavaScript engine.
 
+FunctionalScript does not whitelist individual JavaScript operations in isolation. It whitelists complete semantic patterns. Some otherwise-forbidden JavaScript constructs may appear only as components of recognized patterns that lower to FunctionalScript primitives.
+
 When we implement features of FunctionalScript, the first priority is a simplification of the VM.
 
 File Types:
@@ -19,6 +21,7 @@ File Types:
 ## 1. JSON
 
 - [ ] [JSON](./1000-json.md).
+- [ ] [undefined-property](./1010-undefined-property.md).
 
 **VM**:
 
