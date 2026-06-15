@@ -71,10 +71,11 @@ ECDSA signing (RFC 6979 deterministic nonces) already implemented in `fs/crypto/
 
 ## Future — HTTP transport
 
-HTTP effects already exist in `fs/effects/node/` (`CreateServer`, `Listen`, `Fetch`). Only the transport wrapper is missing.
+Plain HTTP effects already exist in `fs/effects/node/` (`CreateServer`, `Listen`, `Fetch`) backed by `node:http`. The initial transport target is **HTTP** (not HTTPS — no certificate/key inputs or `https.createServer` support exist yet).
 
-- `httpTransport` wraps `casMcpStep` over HTTPS
-- Auth, TLS, session management at transport layer only; handlers unchanged
+- `httpTransport` wraps `casMcpStep` over plain HTTP
+- TLS/HTTPS support is separate work: requires HTTPS effects + certificate config
+- Auth and session management at transport layer only; handlers unchanged
 
 ---
 
@@ -130,7 +131,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 |---|---|---|
 | 1. Base MCP (add/get/list) | `fs/cas/mcp/`, `fs/mcp/stdio/`, CLI ✓ | `casMcpStep` extraction |
 | 2. Content encoding (base64) | `fs/base64/` ✓ | MCP wiring only |
-| 3. Type detection | — | `fs/mime/` magic-byte detection (PNG/JPEG/GIF/WebP/PDF/ZIP/text), MCP tool |
+| 3. Type detection | — | `fs/mime/` magic-byte detection (PNG/JPEG/GIF/WebP/PDF/ZIP), `cas_get` wiring |
 | 4. Signatures | `fs/crypto/sign/` (sign only), `fs/crypto/secp/` ✓ | ECDSA verify + MCP wiring |
 | 5. Trusted timestamps | — | RFC 3161 client + MCP tool |
 | 6. Revision layer | — | Design + implementation |
