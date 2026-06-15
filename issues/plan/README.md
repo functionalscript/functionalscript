@@ -7,6 +7,16 @@ All original content (primary source of truth) is stored in CAS, keyed by conten
 Derived/computed information lives only in the MCP server's cache, not in CAS.
 The server runs locally over stdio first, with HTTP/HTTPS added later via clean transport abstraction.
 
+### Why CAS as foundation
+
+CAS blocks are globally addressed by content hash. This means synchronization between any two CAS stores is always conflict-free: same hash = same content, so merging is a pure set union — no reconciliation, no conflict resolution, no ordering required.
+
+This property is the foundation for:
+- **Multi-device** — sync any two stores, online or offline, always consistent
+- **Multi-user** — multiple agents (human or AI) write independently, merge freely
+- **Web of trust** — signatures and timestamps are themselves CAS blocks, so trust chains are verifiable content, not metadata
+- **Scalability** — stores can be sharded, replicated, or federated without coordination
+
 ---
 
 ## Layers
