@@ -58,7 +58,8 @@ export const decode = (input: string): Nullable<Vec> => {
     if (removeBits > totalBits) { return null }
     const targetLen = totalBits - removeBits
     if (targetLen === 0n) { return empty }
-    // Trim by re-constructing from the front.
-    const [kept, _] = popFront(targetLen)(result)
+    const [kept, padVec] = popFront(targetLen)(result)
+    // Padding bits must be zero (RFC 4648 §3.5).
+    if (removeBits > 0n && padVec !== vec(removeBits)(0n)) { return null }
     return vec(targetLen)(kept)
 }

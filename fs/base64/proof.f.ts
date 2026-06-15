@@ -56,6 +56,9 @@ export const proof = {
         if (decode('AA') !== null) { throw 'length 2 (no padding) should return null' }
         if (decode('AAA') !== null) { throw 'length 3 (no padding) should return null' }
         if (decode('=AAA') !== null) { throw 'padding not at end should return null' }
+        // Non-zero padding bits must be rejected (RFC 4648 §3.5)
+        if (decode('AB==') !== null) { throw 'non-zero 4-pad-bit should return null' }
+        if (decode('AAB=') !== null) { throw 'non-zero 2-pad-bit should return null' }
     },
     validPadding: () => {
         // "==" padding
