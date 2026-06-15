@@ -189,7 +189,10 @@ When signed by a user, the directory becomes their personal namespace: a human-r
 
 ```
 ~/Alice/Bob/Charlie/plan.md
+/secp256k1:hsiebduw..../Alice/Bob/Charlie/plan.md
 ```
+
+Global paths start with a public key in `/<curve>:<key>/` form — this is the universal root, addressable by anyone who knows the key. `~` is syntactic sugar for the current user's own public key. Both forms resolve identically; `~` just avoids repeating your own key.
 
 - `~` — your own root directory (signed by you)
 - `Alice` — an entry in your directory, resolving to Alice's directory hash
