@@ -36,6 +36,7 @@ Two distinct DISOT block types handle this cleanly:
 
 - **Signature block** — simple cryptographic attestation: `{ content_hash, signature, signer_pubkey }`. Says "I authored or attest to this content." No domain information needed.
 - **Trust block** — a social assertion signed by its author. Describes a trust relationship to a node (person/AI) or to specific content (an article, a computation result), optionally scoped to a domain. Says "I trust/distrust this entity or this content, in this context."
+- **License block** — signed by the content author, references a content hash and declares usage terms (e.g. CC BY, MIT, proprietary). Says "here is how others may use this content." Because it is a signed DISOT block, the license is permanently and verifiably attached to the content it covers.
 
 Trust blocks form the social graph of the network. They are themselves content in DISOT — signed, timestamped, and subject to their own trust evaluations. The web of trust emerges from the graph of trust blocks, not from any central authority assigning scores.
 
