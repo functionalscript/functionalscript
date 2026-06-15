@@ -3,9 +3,9 @@ import { encode, decode } from "./module.f.ts"
 
 const check = (s: string, v: Vec) => {
     const sr = encode(v)
-    if (sr !== s) { throw [sr, s] }
+    if (sr !== s) { throw ['encode', sr, s] }
     const vr = decode(s)
-    if (vr !== v) { throw [vr, v] }
+    if (vr !== v) { throw ['decode', vr, v] }
 }
 
 export const proof = {
@@ -41,6 +41,12 @@ export const proof = {
         check('AAAAAA==', vec(32n)(0n))
         // 40 bits (5 bytes: AAAA + AAA=)
         check('AAAAAAA=', vec(40n)(0n))
+    },
+    nonOctet: () => {
+        // encode rejects bit vectors whose length is not a multiple of 8
+        if (encode(vec(1n)(0n)) !== null) { throw '1-bit input should return null' }
+        if (encode(vec(6n)(0n)) !== null) { throw '6-bit input should return null' }
+        if (encode(vec(12n)(0n)) !== null) { throw '12-bit input should return null' }
     },
     invalidInput: () => {
         if (decode('!') !== null) { throw 'invalid char should return null' }

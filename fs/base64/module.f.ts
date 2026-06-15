@@ -14,10 +14,11 @@ const popFront6 = popFront(6n)
 
 const vec6 = vec(6n)
 
-export const encode = (input: Vec): string => {
+export const encode = (input: Vec): Nullable<string> => {
     const len = length(input)
+    // Base64 is a byte codec; reject non-octet-aligned inputs.
+    if (len % 8n !== 0n) { return null }
     const rem = len % 24n
-    // Pad to a multiple of 6 bits, tracking how many zero bits were added.
     const padBits = rem === 0n ? 0n : 6n - rem % 6n === 6n ? 0n : 6n - rem % 6n
     let v = padBits > 0n ? concat(input)(vec(padBits)(0n)) : input
     let result = ''
