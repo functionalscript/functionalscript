@@ -1,5 +1,15 @@
 # Vision
 
+## Guiding principles
+
+Two principles run through every design decision in this project:
+
+**Emergence** — complex behavior should arise from the composition of simple, well-understood parts, not from complex primitives. We prefer a small set of minimal building blocks (content-addressed blocks, signatures, trust relations, pure functions) and let richer capabilities — a web of trust, human-readable namespaces, a global DAG, hybrid intelligence — emerge from how those blocks combine.
+
+**Deduplication** — never introduce a new mechanism if an existing one can do the same job. This is the same idea that makes content-addressable storage work, applied to the design itself: one storage model for everything, one language for programming and types and metaprogramming, one trust mechanism for signatures and reputation. Fewer concepts, reused everywhere, beats many specialized ones.
+
+These two principles reinforce each other: deduplication keeps the set of primitives small, and emergence is what lets a small set of primitives be enough.
+
 ## Why content-addressable programming languages are the future
 
 In conventional programming languages, identity is based on origin: when something was created, where it came from, which package version it belongs to. In a content-addressable (CA) programming language, identity is based on **shape**: two values, types, or functions with the same normalized structure are the same thing, regardless of origin.
