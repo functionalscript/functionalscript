@@ -1,8 +1,7 @@
 # 66E-cas-mcp-base64-content. Change CAS MCP to use base64 for file content
 
 **Priority:** P2
-**Status:** blocked
-**Blocked by:** [i66E-base64](./66E-base64.md)
+**Status:** done
 
 ## Problem
 
@@ -39,11 +38,11 @@ content = base64**.
 
 ## Tasks
 
-- [ ] Replace cBase32 content encode/decode in `fs/cas/mcp/module.f.ts` with
+- [x] Replace cBase32 content encode/decode in `fs/cas/mcp/module.f.ts` with
       `fs/base64` `encode` / `decode`
-- [ ] Update `fs/cas/mcp/proof.f.ts`: change test fixtures from cBase32 to
+- [x] Update `fs/cas/mcp/proof.f.ts`: change test fixtures from cBase32 to
       base64-encoded content strings; keep hash assertions as cBase32
-- [ ] Update `fs/cas/mcp/README.md` to document the hashes/content encoding split
+- [x] Update `fs/cas/mcp/README.md` to document the hashes/content encoding split
 
 ## Related
 
