@@ -10,7 +10,7 @@
  */
 import { next, flat, map, type List } from '../types/list/module.f.ts'
 import { concat } from '../types/string/module.f.ts'
-import { at, type Entry as ObjectEntry } from '../types/object/module.f.ts'
+import { at, definedEntries, type Entry as ObjectEntry } from '../types/object/module.f.ts'
 import { compose, fn } from '../types/function/module.f.ts'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.ts'
 import { boolean as rttiBoolean, number as rttiNumber, string as rttiString, or, record, array as rttiArray } from '../types/rtti/module.f.ts'
@@ -56,22 +56,16 @@ type _Unknown = Assert<Equal<Unknown, Ts<typeof unknown>>>
 
 // ── JSON utilities ────────────────────────────────────────────────────────────
 
-const { entries } = Object
-
-export const setProperty
-    : (value: Unknown) => (path: List<string>) => (src: Unknown) => Unknown
-    = value => {
-        const f
-            : (path: List<string>) => (src: Unknown) => Unknown
-            = path => src => {
-            const result = next(path)
-            if (result === null) { return value }
-            const srcObject = (src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
-            const { first, tail } = result
-            return { ...srcObject, [first]: f(tail)(at(first)(srcObject)) }
-        }
-        return f
+export const setProperty = (value: Unknown) => {
+    const f = (path: List<string>) => (src: Unknown): Unknown =>{
+        const result = next(path)
+        if (result === null) { return value }
+        const srcObject = (src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
+        const { first, tail } = result
+        return { ...srcObject, [first]: f(tail)(at(first)(srcObject)) }
     }
+    return f
+}
 
 const colon = [':']
 
@@ -94,14 +88,12 @@ export const serialize
         const mapPropertySerialize = map(propertySerialize)
         const objectSerialize
             : (object: Object) => List<string>
-            = fn(entries)
+            = fn(definedEntries<Unknown>)
             .map(sort)
             .map(mapPropertySerialize)
             .map(objectWrap)
             .result
-        const f
-            : (value: Unknown) => List<string>
-            = value => {
+        const f = (value: Unknown): List<string> => {
             switch (typeof value) {
                 case 'boolean': { return boolSerialize(value) }
                 case 'number': { return numberSerialize(value) }
@@ -120,6 +112,7 @@ export const serialize
 /**
  * The standard `JSON.stringify` rules determined by
  * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
+ * https://tc39.es/ecma262/#sec-serializejsonproperty
  */
 export const stringify
     : (mapEntries: MapEntries) => (value: Unknown) => string
