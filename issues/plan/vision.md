@@ -16,6 +16,8 @@ This resolves several deep problems in modern software:
 
 **Normalization removes superficial differences.** The CA compiler normalizes code before hashing: it strips comments, whitespace, and renames internal variables to canonical forms. Two versions of a package that differ only in comments produce the same hash — they are the same package. This extends to dead code elimination: unused code that differs between versions does not affect the hash of the parts that are actually used.
 
+Other CA languages exist — Unison is the most notable — but they require learning a new language and ecosystem from scratch. FunctionalScript is a strict subset of JavaScript: any software engineer who already knows JavaScript can read and write it immediately. The CA properties come from what FunctionalScript removes (mutation, side effects, identity-based equality) rather than from new syntax or concepts. This makes adoption frictionless for the world's largest developer community.
+
 FunctionalScript's purely functional, side-effect-free design makes it an ideal foundation for a CA language: without mutation or identity-based equality, normalization is well-defined and deduplication is always safe.
 
 **Copy-paste is safe and deduplicating.** In conventional languages, copying code creates a new identity — a new type or function that may be structurally identical but is treated as distinct. In a CA language, copying a function or type anywhere produces the same hash, because the hash is of the shape, not the location. This makes AI-generated and copy-pasted code snippets first-class citizens: an AI can emit a function without knowing where it will live, and if it has been defined elsewhere before, it is automatically the same thing.
