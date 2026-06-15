@@ -19,7 +19,7 @@ export const encode = (input: Vec): Nullable<string> => {
     // Base64 is a byte codec; reject non-octet-aligned inputs.
     if (len % 8n !== 0n) { return null }
     const rem = len % 24n
-    const padBits = rem === 0n ? 0n : 6n - rem % 6n === 6n ? 0n : 6n - rem % 6n
+    const padBits = rem === 0n ? 0n : 6n - rem % 6n
     let v = padBits > 0n ? concat(input)(vec(padBits)(0n)) : input
     let result = ''
     while (length(v) > 0n) {
@@ -55,7 +55,6 @@ export const decode = (input: string): Nullable<Vec> => {
     // padChars=1 → 2 padding bits removed, padChars=2 → 4 padding bits removed.
     const removeBits = BigInt(padChars * 2)
     const totalBits = length(result)
-    if (removeBits > totalBits) { return null }
     const targetLen = totalBits - removeBits
     if (targetLen === 0n) { return empty }
     const [kept, padVec] = popFront(targetLen)(result)
