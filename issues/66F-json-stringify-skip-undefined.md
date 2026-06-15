@@ -1,7 +1,7 @@
 # 66F-json-stringify-skip-undefined. `stringify` should skip `undefined`-valued properties
 
 **Priority:** P2
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -58,9 +58,9 @@ No new helper needed. Filtering happens before `mapEntries` so all callers benef
 
 ## Tasks
 
-- [ ] Fix `serialize` in `fs/json/module.f.ts` to skip entries where `v === undefined`
+- [x] Fix `serialize` in `fs/json/module.f.ts` to skip entries where `v === undefined`
 - [ ] Confirm the `proof.undefined` test passes
-- [ ] Remove the `defined` workaround from `fs/mcp/stdio/module.f.ts`
+- [x] Remove the `defined` workaround from `fs/mcp/stdio/module.f.ts`
 
 ## Related
 

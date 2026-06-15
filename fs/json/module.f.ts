@@ -10,7 +10,7 @@
  */
 import { next, flat, map, type List } from '../types/list/module.f.ts'
 import { concat } from '../types/string/module.f.ts'
-import { at, type Entry as ObjectEntry } from '../types/object/module.f.ts'
+import { at, definedEntries, type Entry as ObjectEntry } from '../types/object/module.f.ts'
 import { compose, fn } from '../types/function/module.f.ts'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.ts'
 import { boolean as rttiBoolean, number as rttiNumber, string as rttiString, or, record, array as rttiArray } from '../types/rtti/module.f.ts'
@@ -56,8 +56,6 @@ type _Unknown = Assert<Equal<Unknown, Ts<typeof unknown>>>
 
 // ── JSON utilities ────────────────────────────────────────────────────────────
 
-const { entries } = Object
-
 export const setProperty = (value: Unknown) => {
     const f = (path: List<string>) => (src: Unknown): Unknown =>{
         const result = next(path)
@@ -90,7 +88,7 @@ export const serialize
         const mapPropertySerialize = map(propertySerialize)
         const objectSerialize
             : (object: Object) => List<string>
-            = fn(entries)
+            = fn(definedEntries<Unknown>)
             .map(sort)
             .map(mapPropertySerialize)
             .map(objectWrap)
