@@ -10,6 +10,15 @@ The goal is not to build another platform. It is to build infrastructure that ma
 
 Large corporations can still play a significant role — for example, providing better search and indexing over a vast decentralized CAS, or high-performance compute nodes. But they participate in the network rather than hosting it. Vendor lock-in shrinks dramatically: your data, your identity, and your social graph live in DISOT, not on their servers. If a service provider behaves badly, you switch — without losing anything.
 
+## Economic impact
+
+Vendor lock-in is not just a technical inconvenience — it destroys competition and, as a consequence, proper wealth redistribution. When a platform owns your data and your social graph, competitors cannot enter the market on merit alone, and value extracted from communities flows to the platform rather than staying in the community.
+
+A trust-based network restores two forces that healthy economies depend on:
+
+- **Competition** — any application or service can participate in the same DAG. Better service, better interface, better tools earn more trust and more business. No moat built from data ownership, only from quality.
+- **Locality** — people naturally prefer to do business with those they trust: local businesses, community members, friends. The web of trust makes this preference actionable at scale. Economic value flows along trust relationships, keeping more of it within communities rather than routing it through distant platforms that extract a toll.
+
 ## What we are building
 
 A layered, universal **DISOT** (Decentralized Immutable Source of Truth) platform accessible via MCP.
