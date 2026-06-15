@@ -35,6 +35,8 @@ Even though `a` and `b` are structurally identical (both empty arrays), `a !== b
 
 More broadly, reference-based object identity makes most modern languages subtly non-deterministic: you can never tell from the code alone whether `b` is a clone of `a` (sharing structure, potentially sharing mutations) or independently reconstructed from scratch (a separate object that happens to look the same). This ambiguity infects testing, serialization, distributed state, and caching. In a CA language the question disappears: `b` is `a` if and only if they have the same hash. Identity is observable, not hidden in a pointer.
 
+**Structural provenance.** Because the system detects duplicates globally, it can also surface provenance: if your implementation of `qsort` normalizes to a hash that already exists in thousands of packages, the system can tell you. You reimplemented it independently — for learning, for fun, from first principles — and the system can confirm your implementation is exactly equivalent to many other known implementations. This builds trust without requiring you to copy anyone's code. It also opens a new kind of learning: browse the existing packages that share your hash, see how others use the same algorithm, discover variations you hadn't considered. Independent rediscovery becomes verifiable.
+
 
 For DISOT to become universal infrastructure, adoption must be frictionless. The core components — the CAS implementation, the MCP server, and the FunctionalScript language — are released under the **MIT license**, free for anyone to use, run, embed, or build on. No subscription, no usage fee, no vendor dependency.
 
