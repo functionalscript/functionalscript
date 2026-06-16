@@ -95,4 +95,20 @@ export const proof = {
         if (code !== 0) { throw ['expected exit 0', code] }
         if (!state.stdout.includes('ping')) { throw 'expected inner command in help' }
     },
+    helpWithTarget: () => {
+        const inner: Commands<NodeOp> = [{
+            names: ['ping'],
+            description: 'Inner ping',
+            handler: () => pure(0),
+        }]
+        const outer: Commands<NodeOp> = [{
+            names: ['sub'],
+            description: 'Subcommand group',
+            handler: inner,
+        }]
+        const [state, code] = run(outer)(['help', 'sub'])
+        if (code !== 0) { throw ['expected exit 0', code] }
+        if (!state.stdout.includes('ping')) { throw 'expected inner command in help' }
+        if (state.stdout.includes('Subcommand group')) { throw 'expected inner help, not outer' }
+    },
 }

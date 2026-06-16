@@ -22,14 +22,19 @@ export const dispatch = <O extends NodeOp>(commands: Commands<O>) => (options: N
         'Available commands:',
         ...rows.map(({description}, i) => `  ${nameCol[i].padEnd(width)}  ${description}`)
     ].join('\n')
-    const helpCommand: Command<O | Write> = {
-        ...helpMeta,
-        handler: () => log(helpText).step(() => pure(0)),
-    }
-    const allCommands = [...commands, helpCommand]
-    const map = Object.fromEntries(allCommands.flatMap(c => c.names.map(n => [n, c] as const)))
+    const map = Object.fromEntries(commands.flatMap(c => c.names.map(n => [n, c] as const)))
     if (cmd === undefined) {
         return errorExit(`Error: command is required.\n${helpText}`)
+    }
+    if (helpMeta.names.includes(cmd)) {
+        const [target] = rest
+        if (target !== undefined) {
+            const targetCmd = map[target]
+            if (targetCmd !== undefined && typeof targetCmd.handler !== 'function') {
+                return dispatch(targetCmd.handler)({ ...options, args: ['help'] })
+            }
+        }
+        return log(helpText).step(() => pure(0))
     }
     const found = map[cmd]
     if (found === undefined) {
