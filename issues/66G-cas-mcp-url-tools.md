@@ -48,6 +48,9 @@ Example `cas_get_meta` result:
 }
 ```
 
+`length` is the **byte count** (`Number(bitVecLength(v) / 8n)`), not the bit
+count returned by `length` from `fs/types/bit_vec`.
+
 ### Client decision protocol
 
 1. Call `cas_get_meta` to inspect `length` and `mime_type`.
@@ -101,7 +104,9 @@ sharding logic. The export is added as a task below.
       call `c.write`, return hash.
 - [ ] Implement `cas_get_meta` in `fs/cas/mcp/module.f.ts`: call `c.read`,
       return `{ url?, mime_type, length }` using the `toUrl` resolver when
-      available.
+      available. `length` must be the **byte count**: `Number(bitVecLength(v) / 8n)`
+      where `bitVecLength` is `length` from `fs/types/bit_vec` — not the raw bit
+      count that `length(v)` returns directly.
 - [ ] Extend `casMcpHandlers` signature to accept an optional `toUrl` resolver.
 - [ ] Extend `casMcpServer` signature to accept the same optional `toUrl`
       resolver and forward it to `casMcpHandlers`.
