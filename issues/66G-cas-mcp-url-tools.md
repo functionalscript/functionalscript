@@ -87,7 +87,8 @@ CAS root from `home`), `cas_get_meta` includes the `url` field. When absent
 (e.g. in memory-backed tests), `url` is omitted. The CAS root is supplied by
 [i66G-cas-mcp-cwd-home](./66G-cas-mcp-cwd-home.md), which threads `home`
 through to the call site; the `toUrl` resolver is constructed there as
-`hash => path.join(home, '.cas', toPath(hash))`.
+`hash => toPath(hash, home)` — where `toPath` already incorporates the `.cas`
+segment, so no extra prefix should be added.
 
 ## Tasks
 

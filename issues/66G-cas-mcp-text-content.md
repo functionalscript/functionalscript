@@ -69,10 +69,15 @@ Latin-1, etc.) are considered.
 export const fromVec: (v: Vec) => string | null
 ```
 
-This converts the `Vec` to a byte list, runs `toCodePointList`, checks that no
-code point has the `errorMask` bit set, and builds a JS `string` from the valid
-code points. `cas_get` and `cas_get_meta` both call `fromVec` to determine
-whether the blob is text.
+The implementation should use the platform `TextDecoder` with `fatal: true`,
+which throws on any invalid UTF-8 byte sequence — including overlong encodings,
+surrogate halves, and out-of-range code points that the existing `toCodePointList`
+decoder does not mark with `errorMask`. `fromVec` converts the `Vec` to a
+`Uint8Array`, passes it to `new TextDecoder('utf-8', { fatal: true }).decode()`,
+and returns the resulting string on success or `null` if it throws.
+
+`cas_get` and `cas_get_meta` both call `fromVec` to determine whether the blob
+is text.
 
 ### Consistency with `cas_get_meta`
 
@@ -83,8 +88,10 @@ inference logic but does not need the `type` / encoding field.
 ## Tasks
 
 - [ ] Add `fromVec: (v: Vec) => string | null` to `fs/text/utf8/module.f.ts`:
-      convert `Vec` to byte list, run `toCodePointList`, reject on any
-      `errorMask` code point, return the decoded JS string or `null`.
+      convert `Vec` to `Uint8Array`, decode with
+      `new TextDecoder('utf-8', { fatal: true })`, return the string or `null`
+      on failure. This correctly rejects overlongs, surrogates, and out-of-range
+      code points that the streaming decoder does not flag with `errorMask`.
 - [ ] Add proof cases to `fs/text/utf8/proof.f.ts` for `fromVec`: valid ASCII,
       valid multi-byte UTF-8, and invalid byte sequences each returning `null`.
 - [ ] Extend `casAddArgs` in `fs/cas/mcp/module.f.ts` with an optional `type`
