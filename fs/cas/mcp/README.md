@@ -1,20 +1,22 @@
 # CAS MCP server
 
 An [MCP](../../mcp/) front end for the content-addressable store ([`fs/cas`](../)).
-It exposes the three `Cas<O>` operations as MCP tools, so an agent that speaks
-MCP can store a blob and get back its hash, fetch a blob by hash, and enumerate
-what is stored — without shelling out to the `cas` CLI.
+It exposes `Cas<O>` operations as MCP tools, so an agent that speaks MCP can
+store a blob and get back its hash, fetch a blob by hash, and enumerate what is
+stored — without shelling out to the `cas` CLI.
 
 The store (`fs/cas/module.f.ts`) stays transport-agnostic; this adapter is an
-additional front end alongside the CLI `main`, exactly as the issue describes.
+additional front end alongside the CLI `main`.
 
-## The three tools
+## Tools
 
-| Tool       | args                  | CAS call         | result                       |
-|------------|-----------------------|------------------|------------------------------|
-| `cas_add`  | `{ content: string }` | `c.write(value)` | hash (cBase32)               |
-| `cas_get`  | `{ hash: string }`    | `c.read(key)`    | content (base64; see below)  |
-| `cas_list` | `{}`                  | `c.list()`       | hashes, one per line         |
+| Tool           | args                                    | CAS call           | result                         |
+|----------------|-----------------------------------------|--------------------|--------------------------------|
+| `cas_add`      | `{ content, type? }`                    | `c.write(value)`   | hash (cBase32)                 |
+| `cas_get`      | `{ hash: string }`                      | `c.read(key)`      | JSON `{content,type,mime_type}`|
+| `cas_list`     | `{}`                                    | `c.list()`         | hashes, one per line           |
+| `cas_add_url`  | `{ url: string }`                       | `c.write(value)`   | hash (cBase32)                 |
+| `cas_get_meta` | `{ hash: string }`                      | `c.read(key)`      | JSON `{length,mime_type[,url]}`|
 
 Each tool's argument schema is an rtti struct declared once and used twice:
 [`toJsonSchema`](../../json/schema/module.f.ts) derives the `inputSchema`
@@ -22,84 +24,82 @@ advertised in `tools/list`, and [`validate`](../../types/rtti/validate/module.f.
 decodes the `arguments` object in `tools/call`. There is no drift between what we
 advertise and what we accept.
 
-## Encoding split: hashes (cBase32) vs. content (base64)
+## `cas_add`: text or base64 input
 
-`Cas<O>` deals in `Vec` (bit vectors); MCP models only `textContent` (a
-`string`) today. Two encodings cross the protocol, each chosen for its consumer:
+`cas_add` accepts a `type` field that controls how `content` is interpreted:
 
-- **Hashes** travel as **cBase32** ([`fs/cbase32`](../../cbase32/module.f.ts)) —
-  the canonical CAS hash format, shared with the CLI and the on-disk store
-  layout. `cas_add` returns it; `cas_get` and the implicit `cas_list` output
-  consume / produce it.
-- **Content** travels as **standard RFC 4648 base64**
-  ([`fs/base64`](../../base64/module.f.ts)) — the MCP-idiomatic encoding for
-  opaque binary, which external tools and LLMs already understand without
-  project-specific knowledge. `cas_add` takes it as input; `cas_get` returns it.
+| `type` value        | `content` interpretation                       |
+|---------------------|------------------------------------------------|
+| `'text'` (default)  | UTF-8 string — stored as raw UTF-8 bytes       |
+| `'base64'`          | RFC 4648 base64 — decoded to bytes before store|
 
-Both decoders return `null` on malformed input, giving free input validation.
+Omitting `type` defaults to `'text'`, so most agent-generated content (scripts,
+JSON, prompts) can be stored without any encoding step. Pass `type: 'base64'`
+for pre-encoded binary payloads.
 
-The split was a deliberate revisit of the original "everything in cBase32"
-choice (see [i66E-cas-mcp-base64-content](../../../issues/66E-cas-mcp-base64-content.md)):
-hashes stay cBase32 because that is their canonical identity across the project,
-while content switches to base64 so the MCP surface stays interoperable with the
-broader ecosystem.
+## `cas_get`: smart text/binary output
 
-## File-type detection on `cas_get`
+`cas_get` always returns a JSON object in a `text` block:
 
-The store keeps raw bytes with no type metadata, so type is recovered on read
-rather than stored on write. `cas_get` sniffs the retrieved bytes with
-[`fs/mime`](../../mime/module.f.ts) `detect` and returns one of two shapes:
+```json
+{ "content": "<value>", "type": "text"|"base64", "mime_type": "<mime>" }
+```
 
-- **Recognised** magic-byte signature (PNG, JPEG, GIF, WebP, PDF, ZIP) → an MCP
-  [`EmbeddedResource`](../../mcp/module.f.ts) (`BlobResource`) carrying the
-  detected `mimeType`, the base64 `blob`, and a `cas://sha256/<hash>` URI:
+The encoding is determined by two-phase MIME detection on the retrieved bytes:
 
-  ```json
-  { "type": "resource",
-    "resource": { "uri": "cas://sha256/<hash>", "mimeType": "image/png", "blob": "<base64>" } }
-  ```
+1. **Magic-byte sniffing** ([`fs/mime`](../../mime/module.f.ts) `detect`): if the
+   leading bytes match a known signature (PNG, JPEG, GIF, WebP, PDF, ZIP),
+   `content` is RFC 4648 base64 and `type` is `'base64'`.
 
-- **Unrecognised** bytes (`detect` → `null`) → the plain `textContent` block, so
-  the tool stays backward compatible:
+2. **UTF-8 validation** ([`fs/text/utf8`](../../text/utf8/module.f.ts) `fromVec`):
+   if the blob decodes as valid UTF-8 with no error code points, surrogates, or
+   out-of-range values, `content` is the decoded string and `type` is `'text'`
+   with `mime_type: 'text/plain'`.
 
-  ```json
-  { "type": "text", "text": "<base64>" }
-  ```
+3. **Fallback**: bytes that pass neither test are returned as base64 with
+   `mime_type: 'application/octet-stream'`.
 
-`cas_add` is unchanged — no type is attached on write; the store stays a pure
-`hash → bytes` map.
+Examples:
+
+```json
+{ "content": "hello world\n", "type": "text",   "mime_type": "text/plain" }
+{ "content": "iVBOR...",       "type": "base64", "mime_type": "image/png"  }
+{ "content": "/v8A...",        "type": "base64", "mime_type": "application/octet-stream" }
+```
+
+## Encoding split: hashes (cBase32) vs. content
+
+`Cas<O>` deals in `Vec` (bit vectors); MCP models only `textContent` today.
+Hashes travel as **cBase32** ([`fs/cbase32`](../../cbase32/module.f.ts)) — the
+canonical CAS hash format shared with the CLI and the on-disk store layout.
+Content encoding is determined at read time as described above.
 
 ## Protocol errors vs. tool errors
 
 MCP draws a line the dispatcher already respects:
 
-- **Protocol failures** — an unknown method, or malformed params at the
-  JSON-RPC layer — are JSON-RPC errors. [`mcpStep`](../../mcp/module.f.ts) handles
-  those; this adapter never produces them.
-- **Tool failures** are *not* JSON-RPC errors. They come back as a normal
-  `tools/call` result with `isError: true` and a text explanation, so the model
-  can read and react. This adapter returns an `isError` result for:
-  - malformed `content` (base64 `decode` → `null`);
+- **Protocol failures** — unknown method, malformed JSON-RPC params — are
+  JSON-RPC errors. [`mcpStep`](../../mcp/module.f.ts) handles those.
+- **Tool failures** come back as a normal `tools/call` result with
+  `isError: true` and a text explanation. This adapter returns `isError` for:
+  - `type: 'base64'` with malformed base64 `content`;
   - malformed `hash` (`cBase32ToVec` → `null`);
   - `cas_get` on an absent hash (`c.read` → `undefined`);
   - an unknown tool `name`.
-
-This mirrors the CLI's distinction (`errorExit` for bad input vs. a real result)
-but routed through MCP's in-band error channel.
 
 ## Running it
 
 `casMcpServer(c)` allocates the session-state slot, builds the `mcpStep` for an
 injected `Cas<O>`, and drives the stdio read → parse → dispatch → write loop
 ([`fs/mcp/stdio`](../../mcp/stdio/module.f.ts)) until stdin EOF. The `cas`
-command (itself a subcommand of the `fjs` binary) exposes it as:
+command exposes it as:
 
 ```
 fjs cas mcp
 ```
 
 which runs the server over a filesystem-backed CAS rooted at the current
-directory (`MemOp | Fs` effects). Because the adapter is generic in `O`, the same
-handlers run over an in-memory `Cas<MemOp>` in `proof.f.ts`, driven through a full
+directory. Because the adapter is generic in `O`, the same handlers run over an
+in-memory `Cas<MemOp>` in `proof.f.ts`, driven through a full
 `initialize` → `notifications/initialized` → `tools/call` sequence with no live
 process.
