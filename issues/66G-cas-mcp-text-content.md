@@ -62,18 +62,31 @@ Latin-1, etc.) are considered.
 
 ### Required addition to `fs/text/utf8`
 
-`fs/text/utf8` currently works with `List<U8>` streams. A new export is needed:
+`fs/text/module.f.ts` already has `utf8ToString` which converts a `Vec` to a
+`string` unconditionally. `fromVec` is the validating variant: it returns `null`
+if the bytes are not valid UTF-8 instead of propagating error code points.
 
 ```ts
 /** Returns the decoded string if `v` is valid UTF-8, or `null` otherwise. */
 export const fromVec: (v: Vec) => string | null
 ```
 
-The implementation should first check that the `Vec` bit-length is divisible by
-8 (returning `null` immediately if not, matching the existing `base64Encode`
-guard in `cas_get`), then convert to a `Uint8Array` and pass it to
-`new TextDecoder('utf-8', { fatal: true }).decode()`, returning the string on
-success or `null` if it throws.
+Implementation using existing FS primitives only (`Vec`, `List`, `string`,
+`bigint` — no `TextDecoder`, `Uint8Array`, or other JS platform types):
+
+1. If `length(v) % 8n !== 0n` → return `null` (non-octet Vec).
+2. Convert to bytes: `u8List(msb)(v)` → `List<U8>`.
+3. Decode: `toCodePointList(bytes)` → `List<I32>`.
+4. Walk the code-point list; for each value:
+   - if `(cp & errorMask) !== 0` → return `null` (invalid byte sequence).
+   - if `cp > 0x10FFFF` → return `null` (out of Unicode range).
+   - if `cp >= 0xD800 && cp <= 0xDFFF` → return `null` (surrogate half).
+5. Convert valid code points to a JS `string` via `codePointListToString`.
+
+Note: the existing `toCodePointList` decoder does not reject overlong encodings
+(e.g. `E0 80 80` decodes to code point `0` without an error bit). Hardening the
+decoder to reject overlongs is left as a separate task in `fs/text/utf8`; for the
+purposes of MIME detection this is an acceptable known limitation.
 
 `cas_get` and `cas_get_meta` both call `fromVec` to determine whether the blob
 is text.
@@ -86,11 +99,11 @@ inference logic but does not need the `type` / encoding field.
 
 ## Tasks
 
-- [ ] Add `fromVec: (v: Vec) => string | null` to `fs/text/utf8/module.f.ts`:
-      return `null` if the bit-length is not divisible by 8; otherwise convert
-      to `Uint8Array` and decode with `new TextDecoder('utf-8', { fatal: true })`,
-      returning the string or `null` on failure. This correctly rejects
-      non-octet Vecs, overlongs, surrogates, and out-of-range code points.
+- [ ] Add `fromVec: (v: Vec) => string | null` to `fs/text/utf8/module.f.ts`
+      using only FS primitives (`Vec`, `List`, `bigint`, `string`): return
+      `null` for non-octet Vecs, then run `toCodePointList` and reject on any
+      `errorMask` code point, surrogate, or value above `0x10FFFF`; otherwise
+      return the string via `codePointListToString`.
 - [ ] Add proof cases to `fs/text/utf8/proof.f.ts` for `fromVec`: valid ASCII,
       valid multi-byte UTF-8, and invalid byte sequences each returning `null`.
 - [ ] Extend `casAddArgs` in `fs/cas/mcp/module.f.ts` with an optional `type`
