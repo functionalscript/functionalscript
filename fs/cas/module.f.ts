@@ -4,7 +4,7 @@
  * @module
  */
 import { computeSync, sha256, type Sha2 } from '../crypto/sha2/module.f.ts'
-import { join, parse } from '../path/module.f.ts'
+import { join, normalize, parse } from '../path/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
@@ -49,6 +49,7 @@ export type FileKvStoreOperation = ReadFile | Mkdir | WriteFile | Access | Readd
  */
 export const fileKvStore = (path: string): KvStore<FileKvStoreOperation> => {
     const storePrefix = join(path, prefix)
+    const normalizedStorePrefix = normalize(storePrefix)
     return {
         read: (key: Vec): Effect<FileKvStoreOperation, Vec|undefined> =>
             readFile(join(path, toPath(key))).step(r => {
@@ -79,7 +80,7 @@ export const fileKvStore = (path: string): KvStore<FileKvStoreOperation> => {
                 return readdir(storePrefix, { recursive: true })
                     .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
                         toOption(isFile
-                            ? cBase32ToVec(parentPath.substring(storePrefix.length).replaceAll('/', '') + name)
+                            ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
                             : null))))
             }),
     }
