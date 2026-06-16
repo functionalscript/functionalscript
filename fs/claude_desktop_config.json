@@ -1,9 +1,0 @@
-{
-    "mcpServers": {
-        "cas": {
-            "command": "node",
-            "args": ["fs/fjs/module.ts", "cas", "mcp"],
-            "cwd": ".."
-        }
-    }
-}
