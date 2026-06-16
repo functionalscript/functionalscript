@@ -5,14 +5,13 @@
  */
 import { msb, type Vec, length, vec, empty } from "../types/bit_vec/module.f.ts"
 import type { Nullable } from "../types/nullable/module.f.ts"
+import { baseN } from "../base_n/module.f.ts"
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 
 const { popFront, concat } = msb
 
-const popFront6 = popFront(6n)
-
-const vec6 = vec(6n)
+const { vecToString, stringToVec } = baseN(6n, alphabet)
 
 export const encode = (input: Vec): Nullable<string> => {
     const len = length(input)
@@ -20,13 +19,8 @@ export const encode = (input: Vec): Nullable<string> => {
     if (len % 8n !== 0n) { return null }
     const rem = len % 24n
     const padBits = rem === 0n ? 0n : 6n - rem % 6n
-    let v = padBits > 0n ? concat(input)(vec(padBits)(0n)) : input
-    let result = ''
-    while (length(v) > 0n) {
-        const [r, rest] = popFront6(v)
-        result += alphabet[Number(r)]
-        v = rest
-    }
+    const v = padBits > 0n ? concat(input)(vec(padBits)(0n)) : input
+    let result = vecToString(v)
     // Append `=` padding to make total length a multiple of 4.
     while (result.length % 4 !== 0) { result += '=' }
     return result
@@ -44,12 +38,8 @@ export const decode = (input: string): Nullable<Vec> => {
     if ((body.length + padChars) % 4 !== 0) { return null }
 
     // Decode each character to 6 bits.
-    let result: Vec = empty
-    for (const c of body) {
-        const index = alphabet.indexOf(c)
-        if (index < 0) { return null }
-        result = concat(result)(vec6(BigInt(index)))
-    }
+    const result = stringToVec(body)
+    if (result === null) { return null }
 
     // Remove the zero-padding bits introduced during encode.
     // padChars=1 → 2 padding bits removed, padChars=2 → 4 padding bits removed.
