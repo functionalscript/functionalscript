@@ -1,7 +1,7 @@
 # 66G-cas-mcp-text-content. Smart text/binary encoding for `cas_add` / `cas_get`
 
 **Priority:** P3
-**Status:** open
+**Status:** closed — [#1104](https://github.com/functionalscript/functionalscript/pull/1104)
 
 ## Problem
 
