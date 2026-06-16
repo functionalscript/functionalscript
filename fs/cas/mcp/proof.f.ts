@@ -102,7 +102,7 @@ const runSession = (msgs: readonly unknown[]): readonly unknown[] =>
 const runSessionWithFiles =
     (files: { readonly [path: string]: Vec }) =>
     (msgs: readonly unknown[]): readonly unknown[] =>
-        runMemWithFiles(files)(
+        runMemWithFiles(files)<readonly unknown[]>(
             create({} as VecMap).step(mapKey =>
                 create(uninitializedState as McpSessionState).step(sessionKey => {
                     const c = cas(sha256)(memKvStore(mapKey))
