@@ -1,5 +1,6 @@
 import { errorExit, log, type NodeOp, type NodeProgramOptions, type Write } from '../effects/node/module.f.ts'
 import { pure, type Effect } from '../effects/module.f.ts'
+import { at, fromEntries } from '../types/object/module.f.ts'
 
 type Handler<O extends NodeOp> = (options: NodeProgramOptions) => Effect<O, number>
 
@@ -22,22 +23,22 @@ export const dispatch = <O extends NodeOp>(commands: Commands<O>) => (options: N
         'Available commands:',
         ...rows.map(({description}, i) => `  ${nameCol[i].padEnd(width)}  ${description}`)
     ].join('\n')
-    const map = new Map(commands.flatMap(c => c.names.map(n => [n, c] as const)))
+    const map = fromEntries(commands.flatMap(c => c.names.map(n => [n, c] as const)))
     if (cmd === undefined) {
         return errorExit(`Error: command is required.\n${helpText}`)
     }
     if (helpMeta.names.includes(cmd)) {
         const [target] = rest
         if (target !== undefined) {
-            const targetCmd = map.get(target)
-            if (targetCmd !== undefined && typeof targetCmd.handler !== 'function') {
+            const targetCmd = at(target)(map)
+            if (targetCmd !== null && typeof targetCmd.handler !== 'function') {
                 return dispatch(targetCmd.handler)({ ...options, args: ['help'] })
             }
         }
         return log(helpText).step(() => pure(0))
     }
-    const found = map.get(cmd)
-    if (found === undefined) {
+    const found = at(cmd)(map)
+    if (found === null) {
         return errorExit(`Error: unknown command "${cmd}".\n${helpText}`)
     }
     const { handler } = found
