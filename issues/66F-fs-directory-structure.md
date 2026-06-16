@@ -50,7 +50,34 @@ Create `fs/common/` for cross-cutting reusable algorithms, starting by moving
 > type-level utility — those stay in `types/`). Revisit the name/criterion if it
 > starts collecting unrelated modules.
 
-### 3. Stay at root for now
+### 3. `fs/module.ts` — promote the `fjs` bin to the `fs/` root
+
+The `fjs` bin is the entry point for the entire `fs/` tree:
+`fs/fjs/module.f.ts` is purely the top-level CLI dispatcher — it wires together
+the subcommand `main`s from `djs` (`compile`), `emergent_testing` (`test`),
+`cas`, and `ci`, plus `run`/`help`. Nothing imports it as a library; it is the
+root application. So it belongs at the root as `fs/module.ts` (Node entry) +
+`fs/module.f.ts` (dispatcher), rather than nested one level down in `fs/fjs/`.
+
+Prefer **promoting the files to `fs/` root** over creating "one more
+directory": a new directory would just reproduce the `fjs/` nesting under a
+different name, whereas the point is that this *is* the package root. Move
+`fs/fjs/{module.ts, module.f.ts, proof.f.ts, README.md}` up to
+`fs/{module.ts, module.f.ts, proof.f.ts, README.md}`. The `bin` name stays
+`fjs` in `package.json`; only the file path changes.
+
+Reference updates this entails:
+
+- `package.json`: `bin.fjs` `fs/fjs/module.js` → `fs/module.js`; the `test`,
+  `start`, `ci-update`, `index-html` scripts `./fs/fjs/module.ts` →
+  `./fs/module.ts`.
+- `deno.json`: the `fjs` task `./fs/fjs/module.ts` → `./fs/module.ts`.
+- The moved dispatcher's relative imports lose one `../` level
+  (`../djs/` → `./djs/`, etc.).
+- Inbound references are only in docs/scripts (no library importers), so churn
+  is low.
+
+### 4. Stay at root for now
 
 `crypto`, `mcp`, and `html` remain top-level — `crypto` is already a cohesive
 namespace, and `mcp`/`html` are self-contained leaf domains.
@@ -69,6 +96,10 @@ namespace, and `mcp`/`html` are self-contained leaf domains.
       coordinate the directory name with
       [i66F-base-n-codec-factory](./66F-base-n-codec-factory.md).
 - [ ] Create `fs/common/` and move `monoid` from `fs/types/` into it.
+- [ ] Promote the `fjs` bin to the root: move `fs/fjs/{module.ts, module.f.ts,
+      proof.f.ts, README.md}` to `fs/`; update `bin.fjs` and the `package.json`
+      / `deno.json` script paths from `fs/fjs/module.*` to `fs/module.*`; fix
+      the dispatcher's relative imports (drop one `../`).
 - [ ] Update all relative imports referencing the moved modules.
 - [ ] Update the `deno.json` `exports` map for the moved modules and run
       `npm run update`.
