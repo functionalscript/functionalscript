@@ -64,7 +64,8 @@ import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
 import { detect } from '../../mime/module.f.ts'
-import { type Read, type Write } from '../../effects/node/module.f.ts'
+import { length as bitVecLength, type Vec } from '../../types/bit_vec/module.f.ts'
+import { readFile, type Read, type ReadFile, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
@@ -72,6 +73,7 @@ import {
     type ToolsCallParams, type ToolsCallResult, type ToolsListResult,
 } from '../../mcp/module.f.ts'
 import type { Cas } from '../module.f.ts'
+import { fromVec } from '../../text/utf8/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
@@ -83,6 +85,12 @@ export const casGetArgs = { hash: string } as const
 
 /** Arguments for `cas_list`: none. */
 export const casListArgs = {} as const
+
+/** Arguments for `cas_add_url`: filesystem path to read and store. */
+export const casAddUrlArgs = { url: string } as const
+
+/** Arguments for `cas_get_meta`: the cBase32 hash to inspect. */
+export const casGetMetaArgs = { hash: string } as const
 
 // ── Tool descriptors ────────────────────────────────────────────────────────────
 
@@ -102,6 +110,18 @@ const casListTool: Tool = {
     name: 'cas_list',
     description: 'List all stored content hashes (cBase32), one per line.',
     inputSchema: toJsonSchema(casListArgs),
+}
+
+const casAddUrlTool: Tool = {
+    name: 'cas_add_url',
+    description: 'Read the file at the given path (url), store it, and return its hash (cBase32).',
+    inputSchema: toJsonSchema(casAddUrlArgs),
+}
+
+const casGetMetaTool: Tool = {
+    name: 'cas_get_meta',
+    description: 'Return metadata (length, mime_type, url) for a blob by hash — no content transfer.',
+    inputSchema: toJsonSchema(casGetMetaArgs),
 }
 
 // ── Result helpers ──────────────────────────────────────────────────────────────
@@ -126,11 +146,18 @@ const errorResult = (text: string): ToolsCallResult =>
 /**
  * MCP handlers for an injected `Cas<O>` — generic in `O` exactly like `Cas`
  * itself, so the same handlers run over `Fs` (production) or memory (tests).
+ *
+ * When `toUrl` is provided, `cas_get_meta` includes the `url` field pointing to
+ * the blob on the local filesystem. When absent (e.g. memory-backed tests),
+ * `url` is omitted.
  */
-export const casMcpHandlers = <O extends Operation>(c: Cas<O>): McpHandlers<O> => ({
-    toolsList: (): Effect<O, ToolsListResult> =>
-        pure({ tools: [casAddTool, casGetTool, casListTool] }),
-    toolsCall: ({ name, arguments: args }: ToolsCallParams): Effect<O, ToolsCallResult> => {
+export const casMcpHandlers = <O extends Operation>(
+    c: Cas<O>,
+    toUrl?: (hash: Vec) => string,
+): McpHandlers<ReadFile | O> => ({
+    toolsList: (): Effect<ReadFile | O, ToolsListResult> =>
+        pure({ tools: [casAddTool, casGetTool, casListTool, casAddUrlTool, casGetMetaTool] }),
+    toolsCall: ({ name, arguments: args }: ToolsCallParams): Effect<ReadFile | O, ToolsCallResult> => {
         const a = args === undefined ? {} : args
         switch (name) {
             case 'cas_add': {
@@ -178,6 +205,40 @@ export const casMcpHandlers = <O extends Operation>(c: Cas<O>): McpHandlers<O> =
                 return c.list().step(hashes =>
                     pure(okResult(hashes.map(vecToCBase32).join('\n'))))
             }
+            case 'cas_add_url': {
+                const [t, r] = validate(casAddUrlArgs)(a)
+                if (t === 'error') {
+                    return pure(errorResult(`invalid arguments: ${r.message}`))
+                }
+                return readFile(r.url).step(result => {
+                    if (result[0] === 'error') {
+                        return pure(errorResult(`cannot read file: ${r.url}: ${result[1]}`))
+                    }
+                    return c.write(result[1]).step(hash => pure(okResult(vecToCBase32(hash))))
+                })
+            }
+            case 'cas_get_meta': {
+                const [t, r] = validate(casGetMetaArgs)(a)
+                if (t === 'error') {
+                    return pure(errorResult(`invalid arguments: ${r.message}`))
+                }
+                const key = cBase32ToVec(r.hash)
+                if (key === null) {
+                    return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
+                }
+                return c.read(key).step(value => {
+                    if (value === undefined) {
+                        return pure(errorResult(`no such hash: ${r.hash}`))
+                    }
+                    const byteLength = Number(bitVecLength(value) / 8n)
+                    const mimeType = detect(value) ?? (fromVec(value) !== null ? 'text/plain' : 'application/octet-stream')
+                    const url = toUrl?.(key)
+                    const meta = url !== undefined
+                        ? { length: byteLength, mime_type: mimeType, url }
+                        : { length: byteLength, mime_type: mimeType }
+                    return pure(okResult(JSON.stringify(meta)))
+                })
+            }
             default: {
                 return pure(errorResult(`unknown tool: ${name}`))
             }
@@ -203,7 +264,12 @@ export const casConfig: McpConfig = {
  * Runs the CAS MCP server over stdio: allocates the session-state slot, builds
  * the `mcpStep` for `c`, and drives the read → parse → dispatch → write loop
  * until stdin EOF. Generic in `O` so it composes with any `Cas<O>` backing.
+ *
+ * When `toUrl` is provided, `cas_get_meta` includes the blob's filesystem URL.
  */
-export const casMcpServer = <O extends Operation>(c: Cas<O>): Effect<Read | Write | MemOp | O, void> =>
+export const casMcpServer = <O extends Operation>(
+    c: Cas<O>,
+    toUrl?: (hash: Vec) => string,
+): Effect<Read | Write | MemOp | ReadFile | O, void> =>
     create(uninitializedState).step(key =>
-        stdioTransport(mcpStep<O>(casConfig)(casMcpHandlers(c))(key)))
+        stdioTransport(mcpStep<ReadFile | O>(casConfig)(casMcpHandlers(c, toUrl))(key)))

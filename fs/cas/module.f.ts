@@ -35,7 +35,7 @@ const split2 = splitAt(2)
 const prefix = '.cas'
 
 /** Converts a content key to its sharded relative CAS file path. */
-const toPath = (key: Vec): string => {
+export const toPath = (key: Vec): string => {
     const s = vecToCBase32(key)
     const [a, bc] = split2(s)
     const [b, c] = split2(bc)
@@ -163,7 +163,7 @@ export const commands: Commands<FileKvStoreOperation | Write | All | MemOp | Rea
         description: 'Run an MCP server over stdio exposing the CAS as tools',
         handler: ({ home }) => {
             const c = cas(sha256)(fileKvStore(home))
-            return casMcpServer(c).step(() => pure(0))
+            return casMcpServer(c, hash => join(home, toPath(hash))).step(() => pure(0))
         },
     },
 ]
