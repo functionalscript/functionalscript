@@ -56,13 +56,14 @@
  *
  * @module
  */
-import { string } from '../../types/rtti/module.f.ts'
+import { string, option, or } from '../../types/rtti/module.f.ts'
 import { validate } from '../../types/rtti/validate/module.f.ts'
 import { toJsonSchema } from '../../json/schema/module.f.ts'
 import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
+import { utf8 } from '../../text/module.f.ts'
 import { detect } from '../../mime/module.f.ts'
 import { length as bitVecLength, type Vec } from '../../types/bit_vec/module.f.ts'
 import { readFile, type Read, type ReadFile, type Write } from '../../effects/node/module.f.ts'
@@ -77,8 +78,8 @@ import { fromVec } from '../../text/utf8/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
-/** Arguments for `cas_add`: base64-encoded content to store. */
-export const casAddArgs = { content: string } as const
+/** Arguments for `cas_add`: content to store, with optional encoding type. */
+export const casAddArgs = { content: string, type: option(or('text' as const, 'base64' as const)) } as const
 
 /** Arguments for `cas_get`: the cBase32 hash to look up. */
 export const casGetArgs = { hash: string } as const
@@ -96,13 +97,13 @@ export const casGetMetaArgs = { hash: string } as const
 
 const casAddTool: Tool = {
     name: 'cas_add',
-    description: 'Store content (base64) and return its hash (cBase32).',
+    description: 'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default).',
     inputSchema: toJsonSchema(casAddArgs),
 }
 
 const casGetTool: Tool = {
     name: 'cas_get',
-    description: 'Fetch content (base64) by its hash (cBase32).',
+    description: 'Fetch content by its hash (cBase32). Returns JSON {content,type,mime_type}: type is "text" for valid UTF-8 or known binary formats, "base64" otherwise.',
     inputSchema: toJsonSchema(casGetArgs),
 }
 
@@ -129,13 +130,6 @@ const casGetMetaTool: Tool = {
 /** A successful single-text-block tool result. */
 const okResult = (text: string): ToolsCallResult =>
     ({ content: [{ type: 'text', text }] })
-
-/**
- * A successful typed-binary result: an `EmbeddedResource` carrying the base64
- * `blob`, its detected `mimeType`, and a `cas://sha256/<hash>` addressing URI.
- */
-const resourceResult = (hash: string, mimeType: string, blob: string): ToolsCallResult =>
-    ({ content: [{ type: 'resource', resource: { uri: `cas://sha256/${hash}`, mimeType, blob } }] })
 
 /** A tool-level failure: in-band `isError` result with a text explanation. */
 const errorResult = (text: string): ToolsCallResult =>
@@ -165,9 +159,15 @@ export const casMcpHandlers = <O extends Operation>(
                 if (t === 'error') {
                     return pure(errorResult(`invalid arguments: ${r.message}`))
                 }
-                const value = base64Decode(r.content)
-                if (value === null) {
-                    return pure(errorResult(`invalid base64 content: ${r.content}`))
+                const encoding = r.type ?? 'text'
+                let value: Vec | null
+                if (encoding === 'base64') {
+                    value = base64Decode(r.content)
+                    if (value === null) {
+                        return pure(errorResult(`invalid base64 content: ${r.content}`))
+                    }
+                } else {
+                    value = utf8(r.content)
                 }
                 return c.write(value).step(hash => pure(okResult(vecToCBase32(hash))))
             }
@@ -184,21 +184,25 @@ export const casMcpHandlers = <O extends Operation>(
                     if (value === undefined) {
                         return pure(errorResult(`no such hash: ${r.hash}`))
                     }
-                    // base64Encode returns null only on a non-octet Vec; the filesystem
-                    // store can never produce that, but the contract permits it.
-                    const text = base64Encode(value)
-                    if (text === null) {
+                    // Phase 1: magic-byte sniffing for known binary formats.
+                    const detectedMime = detect(value)
+                    if (detectedMime !== null) {
+                        const blob = base64Encode(value)
+                        if (blob === null) {
+                            return pure(errorResult(`content is not byte-aligned: ${r.hash}`))
+                        }
+                        return pure(okResult(JSON.stringify({ content: blob, type: 'base64', mime_type: detectedMime })))
+                    }
+                    // Phase 2: UTF-8 validation — text if valid, octet-stream otherwise.
+                    const str = fromVec(value)
+                    if (str !== null) {
+                        return pure(okResult(JSON.stringify({ content: str, type: 'text', mime_type: 'text/plain' })))
+                    }
+                    const blob = base64Encode(value)
+                    if (blob === null) {
                         return pure(errorResult(`content is not byte-aligned: ${r.hash}`))
                     }
-                    // When the bytes carry a recognised magic-byte signature, return a
-                    // typed EmbeddedResource so the mimeType travels with the content;
-                    // otherwise fall back to a plain text block for backward compatibility.
-                    const mimeType = detect(value)
-                    // URI carries the canonical cBase32 (from the decoded key), not the
-                    // caller's spelling, so the same content always gets the same identity.
-                    return pure(mimeType === null
-                        ? okResult(text)
-                        : resourceResult(vecToCBase32(key), mimeType, text))
+                    return pure(okResult(JSON.stringify({ content: blob, type: 'base64', mime_type: 'application/octet-stream' })))
                 })
             }
             case 'cas_list': {
