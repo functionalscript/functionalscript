@@ -4,7 +4,7 @@ import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
 import type { Response } from '../../json/rpc/module.f.ts'
-import { vec8, type Vec } from '../../types/bit_vec/module.f.ts'
+import { msb, u8ListToVec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
@@ -96,10 +96,22 @@ const session = (...msgs: readonly unknown[]): readonly unknown[] =>
 const resultOf = (resp: unknown): ToolsCallResult =>
     (resp as { readonly result: ToolsCallResult }).result
 
-const textOf = (resp: unknown): string => resultOf(resp).content[0].text
+const item0 = (resp: unknown): unknown => resultOf(resp).content[0]
+
+const textOf = (resp: unknown): string => (item0(resp) as { readonly text: string }).text
+
+type BlobResource = { readonly uri: string, readonly mimeType?: string, readonly blob: string }
+
+const resourceOf = (resp: unknown): BlobResource =>
+    (item0(resp) as { readonly type: string, readonly resource: BlobResource }).resource
 
 // A valid base64 payload to store and round-trip.
 const sample = base64Encode(vec8(0x2An)) as string
+
+// A base64 blob whose leading bytes are the PNG magic-byte signature, so
+// `cas_get` detects its type and returns an EmbeddedResource.
+const pngSample = base64Encode(
+    u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])) as string
 
 // ── Tests ───────────────────────────────────────────────────────────────────────
 
@@ -131,6 +143,35 @@ export const proof = {
         )
         assert(!resultOf(getResp).isError)
         assertEq(textOf(getResp), sample)
+    },
+
+    // Opaque bytes (no magic-byte match) come back as a plain text block.
+    getUntypedReturnsText: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: sample }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: sample }),
+            call(3, 'cas_get', { hash }),
+        )
+        assertEq(item0(getResp) === null ? null : (item0(getResp) as { type: string }).type, 'text')
+        assertEq(textOf(getResp), sample)
+    },
+
+    // Bytes with a recognised PNG signature come back as an EmbeddedResource
+    // carrying the mimeType, the base64 blob, and a cas:// URI.
+    getTypedReturnsEmbeddedResource: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: pngSample }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: pngSample }),
+            call(3, 'cas_get', { hash }),
+        )
+        assert(!resultOf(getResp).isError)
+        assertEq((item0(getResp) as { type: string }).type, 'resource')
+        const resource = resourceOf(getResp)
+        assertEq(resource.mimeType, 'image/png')
+        assertEq(resource.blob, pngSample)
+        assertEq(resource.uri, `cas://sha256/${hash}`)
     },
 
     listEnumeratesStoredHashes: () => {
