@@ -1,7 +1,8 @@
-import { toCodePointList, fromCodePointList } from './module.f.ts'
+import { toCodePointList, fromCodePointList, fromVec } from './module.f.ts'
 import { stringify as jsonStringify } from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
+import { msb, u8ListToVec } from '../../types/bit_vec/module.f.ts'
 
 const stringify = jsonStringify(sort)
 
@@ -120,5 +121,47 @@ export const proof = {
             const result = stringify(toArray(fromCodePointList(codePointList)))
             if (result !== '[240,160,160,244,160,160]') { throw result }
         }
+    ],
+    fromVec: [
+        // Valid ASCII → decoded string
+        () => {
+            const v = u8ListToVec(msb)([0x68, 0x65, 0x6c, 0x6c, 0x6f]) // "hello"
+            if (fromVec(v) !== 'hello') { throw 'expected "hello"' }
+        },
+        // Valid multi-byte UTF-8 → decoded string (U+00A9 COPYRIGHT SIGN, 2-byte)
+        () => {
+            const v = u8ListToVec(msb)([0xc2, 0xa9]) // "©"
+            if (fromVec(v) !== '©') { throw 'expected copyright sign' }
+        },
+        // Valid 3-byte UTF-8 (U+4E2D CJK)
+        () => {
+            const v = u8ListToVec(msb)([0xe4, 0xb8, 0xad]) // "中"
+            if (fromVec(v) !== '中') { throw 'expected CJK character' }
+        },
+        // Valid 4-byte UTF-8 (U+1F600 GRINNING FACE)
+        () => {
+            const v = u8ListToVec(msb)([0xf0, 0x9f, 0x98, 0x80])
+            if (fromVec(v) !== '\u{1f600}') { throw 'expected emoji' }
+        },
+        // Invalid byte sequence → null
+        () => {
+            const v = u8ListToVec(msb)([0xff, 0xfe]) // not valid UTF-8
+            if (fromVec(v) !== null) { throw 'expected null for invalid UTF-8' }
+        },
+        // Lone continuation byte → null
+        () => {
+            const v = u8ListToVec(msb)([0x80])
+            if (fromVec(v) !== null) { throw 'expected null for lone continuation byte' }
+        },
+        // Surrogate half (U+D800, encoded as CESU-8 0xED 0xA0 0x80) → null
+        () => {
+            const v = u8ListToVec(msb)([0xed, 0xa0, 0x80])
+            if (fromVec(v) !== null) { throw 'expected null for surrogate' }
+        },
+        // Empty Vec → empty string
+        () => {
+            const v = u8ListToVec(msb)([])
+            if (fromVec(v) !== '') { throw 'expected empty string' }
+        },
     ]
 }
