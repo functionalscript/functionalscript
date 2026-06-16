@@ -52,16 +52,27 @@ Detection runs in two phases:
    bytes against known signatures (PNG, JPEG, GIF, WebP, PDF, ZIP). If a
    signature matches, that MIME type is used and phase 2 is skipped.
 
-2. **Text detection** (null-byte scan): scan the first 8 192 bytes of the
-   blob. If no null byte (`0x00`) is found, classify the blob as `text/plain`.
-   This is the same heuristic used by `git` and the Unix `file` command —
-   null bytes reliably distinguish binary data from UTF-8 / ASCII text. If a
-   null byte is found and no magic-byte matched, fall back to
-   `application/octet-stream`.
+2. **UTF-8 validation** (`fs/text/utf8`): attempt to decode the entire blob as
+   UTF-8. If decoding succeeds (no error code points), classify as `text/plain`.
+   If any invalid byte sequence is found, fall back to `application/octet-stream`.
 
-The 8 192-byte scan window is a performance bound, not a correctness guarantee:
-blobs with a null byte beyond that window are rare in practice and are safely
-handled by the `application/octet-stream` fallback.
+This replaces heuristics (null-byte scanning) with a strict correctness check:
+a blob is text if and only if it is valid UTF-8. No other text encodings (UTF-16,
+Latin-1, etc.) are considered.
+
+### Required addition to `fs/text/utf8`
+
+`fs/text/utf8` currently works with `List<U8>` streams. A new export is needed:
+
+```ts
+/** Returns the decoded string if `v` is valid UTF-8, or `null` otherwise. */
+export const fromVec: (v: Vec) => string | null
+```
+
+This converts the `Vec` to a byte list, runs `toCodePointList`, checks that no
+code point has the `errorMask` bit set, and builds a JS `string` from the valid
+code points. `cas_get` and `cas_get_meta` both call `fromVec` to determine
+whether the blob is text.
 
 ### Consistency with `cas_get_meta`
 
@@ -71,12 +82,15 @@ inference logic but does not need the `type` / encoding field.
 
 ## Tasks
 
+- [ ] Add `fromVec: (v: Vec) => string | null` to `fs/text/utf8/module.f.ts`:
+      convert `Vec` to byte list, run `toCodePointList`, reject on any
+      `errorMask` code point, return the decoded JS string or `null`.
+- [ ] Add proof cases to `fs/text/utf8/proof.f.ts` for `fromVec`: valid ASCII,
+      valid multi-byte UTF-8, and invalid byte sequences each returning `null`.
 - [ ] Extend `casAddArgs` in `fs/cas/mcp/module.f.ts` with an optional `type`
       field; update the `cas_add` handler to branch on `'text'` vs `'base64'`.
-- [ ] Implement MIME-type inference (magic bytes) for `cas_get`; determine
-      whether the result is text or binary.
-- [ ] Update the `cas_get` handler to return a structured result object with
-      `content`, `type`, and `mime_type` fields.
+- [ ] Update the `cas_get` handler: run `fs/mime` `detect` first (phase 1),
+      then `fromVec` (phase 2); return structured `{ content, type, mime_type }`.
 - [ ] Update `fs/cas/mcp/proof.f.ts`: add round-trip tests for text add→get and
       binary add→get; verify the `type` field in each result.
 - [ ] Update `fs/cas/mcp/README.md` to document the new encoding behaviour.

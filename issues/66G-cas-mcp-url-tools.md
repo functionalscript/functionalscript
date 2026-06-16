@@ -58,14 +58,12 @@ Example `cas_get_meta` result:
 ### MIME type handling
 
 CAS stores only content — no metadata about blobs. `cas_get_meta` must therefore
-infer `mime_type` at read time from the blob itself. This requires both
-magic-byte sniffing for binary formats (PNG, JPEG, etc.) and text detection for
-plain-text content — without text detection, unknown blobs fall back to
-`application/octet-stream`, causing clients to incorrectly treat small text
-files as binary. The full inference strategy is specified in
-[i66G-cas-mcp-text-content](./66G-cas-mcp-text-content.md); `cas_get_meta`
-reuses that same logic. If the type still cannot be determined after both
-checks, `application/octet-stream` is the fallback.
+infer `mime_type` at read time from the blob itself. The two-phase algorithm
+(magic-byte sniffing, then UTF-8 validation via `fs/text/utf8` `fromVec`) is
+specified in [i66G-cas-mcp-text-content](./66G-cas-mcp-text-content.md);
+`cas_get_meta` reuses that same logic. A blob is classified as `text/plain` if
+and only if it is valid UTF-8 and no binary magic-byte signature matched. If
+neither phase matches, `application/octet-stream` is the fallback.
 
 ### Blob URL and the `toUrl` resolver
 
