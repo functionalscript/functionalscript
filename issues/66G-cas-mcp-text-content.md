@@ -69,12 +69,11 @@ Latin-1, etc.) are considered.
 export const fromVec: (v: Vec) => string | null
 ```
 
-The implementation should use the platform `TextDecoder` with `fatal: true`,
-which throws on any invalid UTF-8 byte sequence — including overlong encodings,
-surrogate halves, and out-of-range code points that the existing `toCodePointList`
-decoder does not mark with `errorMask`. `fromVec` converts the `Vec` to a
-`Uint8Array`, passes it to `new TextDecoder('utf-8', { fatal: true }).decode()`,
-and returns the resulting string on success or `null` if it throws.
+The implementation should first check that the `Vec` bit-length is divisible by
+8 (returning `null` immediately if not, matching the existing `base64Encode`
+guard in `cas_get`), then convert to a `Uint8Array` and pass it to
+`new TextDecoder('utf-8', { fatal: true }).decode()`, returning the string on
+success or `null` if it throws.
 
 `cas_get` and `cas_get_meta` both call `fromVec` to determine whether the blob
 is text.
@@ -88,10 +87,10 @@ inference logic but does not need the `type` / encoding field.
 ## Tasks
 
 - [ ] Add `fromVec: (v: Vec) => string | null` to `fs/text/utf8/module.f.ts`:
-      convert `Vec` to `Uint8Array`, decode with
-      `new TextDecoder('utf-8', { fatal: true })`, return the string or `null`
-      on failure. This correctly rejects overlongs, surrogates, and out-of-range
-      code points that the streaming decoder does not flag with `errorMask`.
+      return `null` if the bit-length is not divisible by 8; otherwise convert
+      to `Uint8Array` and decode with `new TextDecoder('utf-8', { fatal: true })`,
+      returning the string or `null` on failure. This correctly rejects
+      non-octet Vecs, overlongs, surrogates, and out-of-range code points.
 - [ ] Add proof cases to `fs/text/utf8/proof.f.ts` for `fromVec`: valid ASCII,
       valid multi-byte UTF-8, and invalid byte sequences each returning `null`.
 - [ ] Extend `casAddArgs` in `fs/cas/mcp/module.f.ts` with an optional `type`
