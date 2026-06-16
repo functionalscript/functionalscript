@@ -66,4 +66,33 @@ export const proof = {
         run(commands)(['grab', 'a', 'b', 'c'])
         if (captured.join(',') !== 'a,b,c') { throw ['unexpected args', captured] }
     },
+    nestedCommands: () => {
+        const inner: Commands<NodeOp> = [{
+            names: ['ping'],
+            description: 'Inner ping',
+            handler: () => pure(42),
+        }]
+        const outer: Commands<NodeOp> = [{
+            names: ['sub'],
+            description: 'Subcommand group',
+            handler: inner,
+        }]
+        const [, code] = run(outer)(['sub', 'ping'])
+        if (code !== 42) { throw ['expected 42', code] }
+    },
+    nestedHelp: () => {
+        const inner: Commands<NodeOp> = [{
+            names: ['ping'],
+            description: 'Inner ping',
+            handler: () => pure(0),
+        }]
+        const outer: Commands<NodeOp> = [{
+            names: ['sub'],
+            description: 'Subcommand group',
+            handler: inner,
+        }]
+        const [state, code] = run(outer)(['sub', 'help'])
+        if (code !== 0) { throw ['expected exit 0', code] }
+        if (!state.stdout.includes('ping')) { throw 'expected inner command in help' }
+    },
 }

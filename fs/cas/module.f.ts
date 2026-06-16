@@ -104,57 +104,57 @@ export const cas = (sha2: Sha2): <O extends Operation>(_: KvStore<O>) => Cas<O> 
     })
 }
 
-export const main = (options: NodeProgramOptions): Effect<NodeOp, number> => {
-    const c = cas(sha256)(fileKvStore('.'))
-    const commands: Commands<NodeOp> = [
-        {
-            names: ['add'],
-            description: 'Store file content and print its hash',
-            handler: ({ args: [path, ...rest] }) => {
-                if (path === undefined || rest.length !== 0) {
-                    return errorExit("'cas add' expects one parameter")
-                }
-                return readFile(path)
-                    .step(v => c.write(unwrap(v)))
-                    .step(hash => log(vecToCBase32(hash)))
-                    .step(() => pure(0))
-            },
+const c = cas(sha256)(fileKvStore('.'))
+
+export const commands: Commands<NodeOp> = [
+    {
+        names: ['add'],
+        description: 'Store file content and print its hash',
+        handler: ({ args: [path, ...rest] }) => {
+            if (path === undefined || rest.length !== 0) {
+                return errorExit("'cas add' expects one parameter")
+            }
+            return readFile(path)
+                .step(v => c.write(unwrap(v)))
+                .step(hash => log(vecToCBase32(hash)))
+                .step(() => pure(0))
         },
-        {
-            names: ['get'],
-            description: 'Restore content by hash into a file',
-            handler: ({ args: [hashCBase32, path, ...rest] }) => {
-                if (hashCBase32 === undefined || path === undefined || rest.length !== 0) {
-                    return errorExit("'cas get' expects two parameters")
-                }
-                const hash = cBase32ToVec(hashCBase32)
-                if (hash === null) {
-                    return errorExit(`invalid hash format: ${hashCBase32}`)
-                }
-                return c.read(hash)
-                    .step(v => {
-                        const result: Effect<NodeOp, number> = v === undefined
-                            ? errorExit(`no such hash: ${hashCBase32}`)
-                            : writeFile(path, v)
-                                .step(() => pure(0))
-                        return result
-                    })
-            },
+    },
+    {
+        names: ['get'],
+        description: 'Restore content by hash into a file',
+        handler: ({ args: [hashCBase32, path, ...rest] }) => {
+            if (hashCBase32 === undefined || path === undefined || rest.length !== 0) {
+                return errorExit("'cas get' expects two parameters")
+            }
+            const hash = cBase32ToVec(hashCBase32)
+            if (hash === null) {
+                return errorExit(`invalid hash format: ${hashCBase32}`)
+            }
+            return c.read(hash)
+                .step(v => {
+                    const result: Effect<NodeOp, number> = v === undefined
+                        ? errorExit(`no such hash: ${hashCBase32}`)
+                        : writeFile(path, v)
+                            .step(() => pure(0))
+                    return result
+                })
         },
-        {
-            names: ['list'],
-            description: 'List all stored content hashes',
-            handler: () =>
-                c.list()
-                    .step(forEachStep<NodeOp, Vec>(j => log(vecToCBase32(j))))
-                    .step(() => pure(0)),
-        },
-        {
-            names: ['mcp'],
-            description: 'Run an MCP server over stdio exposing the CAS as tools',
-            handler: () =>
-                casMcpServer(c).step(() => pure(0)),
-        },
-    ]
-    return dispatch(commands)(options)
-}
+    },
+    {
+        names: ['list'],
+        description: 'List all stored content hashes',
+        handler: () =>
+            c.list()
+                .step(forEachStep<NodeOp, Vec>(j => log(vecToCBase32(j))))
+                .step(() => pure(0)),
+    },
+    {
+        names: ['mcp'],
+        description: 'Run an MCP server over stdio exposing the CAS as tools',
+        handler: () =>
+            casMcpServer(c).step(() => pure(0)),
+    },
+]
+
+export const main = dispatch(commands)

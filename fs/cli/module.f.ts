@@ -1,10 +1,12 @@
 import { errorExit, log, type NodeOp, type NodeProgramOptions, type Write } from '../effects/node/module.f.ts'
 import { pure, type Effect } from '../effects/module.f.ts'
 
+type Handler<O extends NodeOp> = (options: NodeProgramOptions) => Effect<O, number>
+
 export type Command<O extends NodeOp> = {
     readonly names: readonly string[]
     readonly description: string
-    readonly handler: (options: NodeProgramOptions) => Effect<O, number>
+    readonly handler: Handler<O> | Commands<O>
 }
 
 export type Commands<O extends NodeOp> = readonly Command<O>[]
@@ -30,5 +32,9 @@ export const dispatch = <O extends NodeOp>(commands: Commands<O>) => (options: N
     if (found === undefined) {
         return errorExit(`Error: unknown command "${cmd}".\n${helpText}`)
     }
-    return found.handler({ ...options, args: rest })
+    const { handler } = found
+    if (typeof handler === 'function') {
+        return handler({ ...options, args: rest })
+    }
+    return dispatch(handler as Commands<O | Write>)({ ...options, args: rest })
 }
