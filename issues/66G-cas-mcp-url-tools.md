@@ -103,6 +103,12 @@ sharding logic. The export is added as a task below.
       return `{ url?, mime_type, length }` using the `toUrl` resolver when
       available.
 - [ ] Extend `casMcpHandlers` signature to accept an optional `toUrl` resolver.
+- [ ] Extend `casMcpServer` signature to accept the same optional `toUrl`
+      resolver and forward it to `casMcpHandlers`.
+- [ ] Update the `mcp` CLI handler in `fs/cas/module.f.ts` to pass
+      `hash => join(home, toPath(hash))` as the `toUrl` resolver to
+      `casMcpServer`, so the filesystem-backed stdio server returns absolute
+      blob URLs in `cas_get_meta`.
 - [ ] Add the two tools to `casMcpHandlers`.
 - [ ] Extend `fs/cas/mcp/proof.f.ts` with round-trip tests for the new tools.
 
