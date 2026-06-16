@@ -35,8 +35,7 @@ For a **local server** (the current `fjs cas mcp` stdio server):
   from the file extension or stored separately (see open questions below),
   mirroring the metadata pattern already established by `cas_get`.
 
-Example `cas_get_url` result (JSON embedded in the text block or as a structured
-resource):
+Example `cas_get_url` result:
 
 ```json
 {
@@ -44,29 +43,6 @@ resource):
   "mime_type": "image/jpeg"
 }
 ```
-
-### Open question: tools or resources?
-
-MCP has a first-class **resource** abstraction (`resources/read`,
-`resources/list`) designed for exposing addressable content — each resource has a
-URI and an optional MIME type. This fits `cas_get_url` naturally: every stored
-hash is a CAS resource with a `cas://` URI and a known (or inferred) MIME type.
-
-Arguments for using **resources**:
-- Semantically correct: CAS content is read-only, addressed by hash — exactly
-  what resources model.
-- Clients (Claude Desktop, etc.) may display resources differently from tool
-  outputs (inline preview, download link).
-- `resources/list` could replace `cas_list` entirely.
-
-Arguments for keeping **tools**:
-- Simpler: no new protocol surface in `fs/mcp/module.f.ts`.
-- Resources require the client to support `resources/read`; tools are universal.
-- The asymmetry between `cas_add_url` (write → tool) and `cas_get_url` (read →
-  resource) is awkward UX for the model.
-
-Decision pending. Start with tools for both; revisit if a client integration
-demands the resource interface.
 
 ### MIME type handling
 
@@ -79,15 +55,12 @@ same way a web server would serve an unknown file. The tool result includes
 ## Tasks
 
 - [ ] Design the `cas_add_url` / `cas_get_url` argument rtti schemas.
-- [ ] Decide tools vs. resources (see open question above); update `fs/mcp/module.f.ts`
-      if resources are chosen.
-- [ ] Decide MIME-type strategy (infer vs. store); design sidecar if needed.
 - [ ] Implement `cas_add_url` in `fs/cas/mcp/module.f.ts`: read file at path,
       call `c.write`, return hash.
 - [ ] Implement `cas_get_url` in `fs/cas/mcp/module.f.ts`: call `c.read`, write
       to a temporary location or return the existing blob path, return path +
       `mime_type`.
-- [ ] Add the two tools (or resource handlers) to `casMcpHandlers`.
+- [ ] Add the two tools to `casMcpHandlers`.
 - [ ] Extend `fs/cas/mcp/proof.f.ts` with round-trip tests for the new tools.
 
 ## Related
@@ -97,4 +70,3 @@ same way a web server would serve an unknown file. The tool result includes
 - [i66G-cas-mcp-cwd-home](./66G-cas-mcp-cwd-home.md) — CAS root must be a known
   path before `cas_get_url` can return a meaningful blob path.
 - `fs/cas/mcp/module.f.ts` — `casMcpHandlers` to be extended with the new tools.
-- `fs/mcp/module.f.ts` — MCP protocol core; `resources/*` handlers would live here.
