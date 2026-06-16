@@ -1,7 +1,7 @@
 # 66F-base-n-codec-factory. Extract a shared `base_n` bit-codec factory for `base64` and `cbase32`
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 

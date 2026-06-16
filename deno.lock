@@ -1,13 +1,13 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:@playwright/test@1.60.0": "1.60.0",
+    "npm:@playwright/test@1.61.0": "1.61.0",
     "npm:@types/node@25.9.3": "25.9.3",
     "npm:typescript@6.0.3": "6.0.3"
   },
   "npm": {
-    "@playwright/test@1.60.0": {
-      "integrity": "sha512-O71yZIbAh/PxDMNGns37GHBIfrVkEVyn+AXyIa5dOTfb4/xNvRWV+Vv/NMbNCtODB/pO7vLlF2OTmMVLhmr7Ag==",
+    "@playwright/test@1.61.0": {
+      "integrity": "sha512-cKA5B6lpFEMyMGjxF54QihfYpB4FkEGH+qZhtArDEG+wezQAJY8Pq6C7T1SjWz+FFzt3TbyoXBQYk/0292TdJA==",
       "dependencies": [
         "playwright"
       ],
@@ -24,12 +24,12 @@
       "os": ["darwin"],
       "scripts": true
     },
-    "playwright-core@1.60.0": {
-      "integrity": "sha512-9bW6zvX/m0lEbgTKJ6YppOKx8H3VOPBMOCFh2irXFOT4BbHgrx5hPjwJYLT40Lu+4qtD36qKc/Hn56StUW57IA==",
+    "playwright-core@1.61.0": {
+      "integrity": "sha512-caX7TrY3Ml6egyDX0WUcTHDxodl/b51y5wJOdCEA36QviK/s2g081hvmGs8eaE3DWb6NYZQ6BjO/QkNRPenoPA==",
       "bin": true
     },
-    "playwright@1.60.0": {
-      "integrity": "sha512-hheHdokM8cdqCb0lcE3s+zT4t4W+vvjpGxsZlDnikarzx8tSzMebh3UiFtgqwFwnTnjYQcsyMF8ei2mCO/tpeA==",
+    "playwright@1.61.0": {
+      "integrity": "sha512-Z+7BeeqQPRRzklHsVFP4KTGIyMxKUmfeRA4WisM6G3/XW6nwGeX6fX9qYaDa+CiUqpOkb2f6X3nar05R3kSuJQ==",
       "dependencies": [
         "playwright-core"
       ],
@@ -49,7 +49,7 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
-        "npm:@playwright/test@1.60.0",
+        "npm:@playwright/test@1.61.0",
         "npm:@types/node@25.9.3",
         "npm:typescript@6.0.3"
       ]
