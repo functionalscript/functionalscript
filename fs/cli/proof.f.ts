@@ -95,6 +95,11 @@ export const proof = {
         if (code !== 0) { throw ['expected exit 0', code] }
         if (!state.stdout.includes('ping')) { throw 'expected inner command in help' }
     },
+    prototypeNameIsUnknownCommand: () => {
+        const [state, code] = run(echoCommands)(['toString'])
+        if (code !== 1) { throw ['expected exit 1 for prototype-name command', code] }
+        if (!state.stderr.includes('unknown command')) { throw 'expected unknown-command error in stderr' }
+    },
     helpPrototypeSafe: () => {
         const [state, code] = run(echoCommands)(['help', 'toString'])
         if (code !== 0) { throw ['expected exit 0, not a throw', code] }
