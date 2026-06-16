@@ -16,9 +16,12 @@ const helpMeta = { names: ['help', 'h', '?'], description: 'Print this help mess
 export const dispatch = <O extends NodeOp>(commands: Commands<O>) => (options: NodeProgramOptions): Effect<O | Write, number> => {
     const [cmd, ...rest] = options.args
     const rows = [...commands, helpMeta]
-    const nameCol = rows.map(c => c.names.join(', '))
-    const width = Math.max(...nameCol.map(s => s.length))
-    const helpText = ['Available commands:', ...rows.map((c, i) => `  ${nameCol[i].padEnd(width)}  ${c.description}`)].join('\n')
+    const nameCol = rows.map(({names}) => names.join(', '))
+    const width = Math.max(...nameCol.map(({length}) => length))
+    const helpText = [
+        'Available commands:',
+        ...rows.map(({description}, i) => `  ${nameCol[i].padEnd(width)}  ${description}`)
+    ].join('\n')
     const helpCommand: Command<O | Write> = {
         ...helpMeta,
         handler: () => log(helpText).step(() => pure(0)),
@@ -33,8 +36,5 @@ export const dispatch = <O extends NodeOp>(commands: Commands<O>) => (options: N
         return errorExit(`Error: unknown command "${cmd}".\n${helpText}`)
     }
     const { handler } = found
-    if (typeof handler === 'function') {
-        return handler({ ...options, args: rest })
-    }
-    return dispatch(handler as Commands<O | Write>)({ ...options, args: rest })
+    return (typeof handler === 'function' ? handler : dispatch(handler))({ ...options, args: rest })
 }
