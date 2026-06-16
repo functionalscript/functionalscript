@@ -62,6 +62,12 @@ This property is the foundation for:
 - **Web of trust** — signatures and timestamps are themselves DISOT blocks, so trust chains are verifiable content, not metadata; each participant assigns relative trust levels to signers in their circle
 - **Scalability** — stores can be sharded, replicated, or federated without coordination
 
+## Protocol-agnostic synchronization
+
+Synchronizing CAS is protocol agnostic. Synchronization still needs a communication protocol to move data between stores, but it can be *any* communication protocol — the conflict-free property of CAS does not depend on which one is used. Because same hash = same content, merging is always a pure set union: a store only ever needs to receive blobs it didn't already have, and it never has to care about losing anything.
+
+The simplest example: if a CAS is stored as files, synchronization can be nothing more than copying one CAS on top of another *without overwriting existing files*. We call this **synchronization by copying files**. No destruction is possible — files that already exist are never overwritten, and the receiver simply gains the blobs it was missing. The same logic generalizes to any transport: HTTP, peer-to-peer gossip, a USB drive, email attachments. The protocol only determines how blobs travel; the correctness of the merge is guaranteed by content addressing alone.
+
 ## The compute loop
 
 AI writes FunctionalScript code that references existing DISOT blocks by hash as its inputs. Execution is deterministic — same code + same input hashes always produce the same output. The output is cached (cache may itself be CAS-backed) but is not DISOT.
