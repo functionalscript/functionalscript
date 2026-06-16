@@ -46,17 +46,25 @@ Add one combinator beside `isNotFound` in `fs/effects/node/module.f.ts`:
 
 ```ts
 /**
- * Steps an `IoResult`-returning effect under the missing-path policy: maps an
- * `ok` value through `onOk`, substitutes `notFound` when the error satisfies
- * `isNotFound` (`ENOENT`), and rethrows every other error. Centralizes the
- * "swallow the missing-path case, surface genuine failures" rule that
- * filesystem callers otherwise re-spell at each site.
+ * Runs an `IoResult`-returning effect under the missing-path policy: when the
+ * result is `ok`, continues through `onOk`; when the error is a missing path
+ * (`isNotFound` / `ENOENT`), substitutes the `notFound` default; any other
+ * error is rethrown. Centralizes the "swallow the missing-path case, surface
+ * genuine failures" rule that filesystem callers otherwise re-spell at each
+ * site.
+ *
+ * The probe effect's operations (`O`) and the success continuation's
+ * operations (`Q`) are independent and unioned in the result, so the success
+ * branch may perform *different* operations than the probe — e.g. `access`
+ * then `readdir`. The default's type (`N`) is also independent of `onOk`'s
+ * result (`R`); the result is `R | N`, which is what lets `read` map `ok` to a
+ * `Vec` while defaulting to `undefined`.
  */
 export const orNotFound =
-    <R>(notFound: R) =>
-    <O extends Operation, T>(onOk: (value: T) => Effect<O, R>) =>
-    (effect: Effect<O, IoResult<T>>): Effect<O, R> =>
-        effect.step(r => {
+    <O extends Operation, T>(effect: Effect<O, IoResult<T>>) =>
+    <N>(notFound: N) =>
+    <Q extends Operation, R>(onOk: (value: T) => Effect<Q, R>): Effect<O | Q, R | N> =>
+        effect.step<Q, R | N>(r => {
             if (r[0] === 'ok') { return onOk(r[1]) }
             if (isNotFound(r[1])) { return pure(notFound) }
             throw r[1]
@@ -67,22 +75,31 @@ The two CAS sites then carry only their differences:
 
 ```ts
 read: (key: Vec): Effect<FileKvStoreOperation, Vec | undefined> =>
-    orNotFound<Vec | undefined>(undefined)(pure)(readFile(toPath(key))),
+    orNotFound(readFile(toPath(key)))(undefined)(pure),
 
 list: (): Effect<FileKvStoreOperation, readonly Vec[]> =>
-    orNotFound<readonly Vec[]>([])(() =>
+    orNotFound(access('.cas'))<readonly Vec[]>([])(() =>
         readdir('.cas', { recursive: true }).step(r =>
             pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
                 toOption(isFile
                     ? cBase32ToVec(parentPath.substring(prefix.length).replaceAll('/', '') + name)
-                    : null)))))(access('.cas')),
+                    : null))))),
 ```
 
-`read` passes `pure` directly as `onOk` (the `ok` value is the result);
-`list` ignores the `void` from `access` and runs the directory walk. The
-explicit type argument (`orNotFound<readonly Vec[]>`) pins the `[]` / `undefined`
-default literal per the AGENTS.md literal-typing rule, so no `as const` is
-needed at the call site.
+`read` passes `pure` directly as `onOk` (the `ok` value is the result, the
+default is `undefined`, and `T` is inferred from `readFile` so `pure` needs no
+annotation); `list` ignores the `void` from `access` and runs the directory
+walk. The `<readonly Vec[]>` argument on `list` pins the empty-array default's
+type per the AGENTS.md literal-typing rule (`[]` would otherwise infer
+`never[]`), so no `as const` is needed.
+
+The three-stage currying (`effect → notFound → onOk`) is deliberate: `T` is
+fixed by the probe effect first, so `onOk` (and a bare `pure`) infer cleanly;
+the result type is `Effect<O | Q, R | N>`. This shape was type-checked against
+a model of the `Effect`/`step`/`pure` signatures (`step<Q, R | N>` must be
+annotated explicitly, because the `ok` and `notFound` branches return different
+`Effect` instantiations that TypeScript will not unify on its own when `R`/`N`
+are still free).
 
 ## Tasks
 
@@ -117,10 +134,13 @@ needed at the call site.
   than introducing a new one. If the project later prefers surfacing the error
   through the effect channel instead of `throw`, that is a separate change and
   this combinator is the single place to make it.
-- **Currying order.** The shape above is `notFound → onOk → effect` so the
-  subject effect comes last. An `effect → …` order or a single uncurried
-  `(notFound, onOk, effect)` form may read better at the two sites; pick
-  whichever the maintainer prefers — the win is one definition either way.
+- **Currying order / operation sets.** An earlier draft used a single `O` for
+  both the probe and the success handler and applied the effect last; that does
+  not type-check — `list` probes with `access` (`Access`) but its success
+  branch runs `readdir` (`Readdir`), so the two operation sets must be separate
+  type parameters (`O` and `Q`) and unioned in the result. The signature above
+  reflects that fix. An uncurried `(effect, notFound, onOk)` form is also
+  viable; the win is one definition either way.
 - **Scope.** Only `read` and `list` apply. `write` (line 58) does not decode an
   `IoResult` this way, and the CLI/MCP layers use `unwrap`/`errorExit` for a
   different (fail-loud) policy — leave those untouched.
