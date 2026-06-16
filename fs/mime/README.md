@@ -24,7 +24,7 @@ edge that needs it (the MCP adapter's `cas_get`).
 |-------------------|----------------------------------------|
 | `image/png`       | `89 50 4E 47 0D 0A 1A 0A`              |
 | `image/jpeg`      | `FF D8 FF`                             |
-| `image/gif`       | `47 49 46 38` (`"GIF8"`, covers 87a/89a) |
+| `image/gif`       | `47 49 46 38 37 61` / `…39 61` (`"GIF87a"` / `"GIF89a"`) |
 | `image/webp`      | `52 49 46 46 .. .. .. .. 57 45 42 50` (`"RIFF"…"WEBP"`) |
 | `application/pdf` | `25 50 44 46 2D` (`"%PDF-"`)           |
 | `application/zip` | `50 4B 03 04` / `05 06` / `07 08` (`"PK"` entry, empty, or spanned) |

@@ -1,7 +1,7 @@
 import { mask } from '../bigint/module.f.ts'
 import type { Sign } from '../function/compare/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, u8ListToVec, u8List, chunkList } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, u8ListToVec, u8List, chunkList, fromSentinel } from './module.f.ts'
 import { repeat as listRepeat, toArray } from '../list/module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
@@ -63,6 +63,18 @@ const concat = (e: BitOrder) => (r: Vec) => () => {
 }
 
 export const proof = {
+    fromSentinel: () => {
+        // Two data bytes; the leading 0x1 nibble is the sentinel, stripped out.
+        const v = fromSentinel(0x1_89_50n)
+        assertEq(length(v), 16n)
+        assertEq(uint(v), 0x8950n)
+        // Leading zero bytes survive because the sentinel pins the length.
+        const z = fromSentinel(0x1_00_05n)
+        assertEq(length(z), 16n)
+        assertEq(uint(z), 0x0005n)
+        // A bare sentinel yields the empty vector.
+        assertEq(fromSentinel(0x1n), empty)
+    },
     examples: {
         vec: () => {
             const vec4 = vec(4n)

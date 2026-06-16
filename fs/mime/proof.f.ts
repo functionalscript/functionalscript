@@ -13,9 +13,15 @@ export const proof = {
     jpeg: () =>
         assertEq(detect(bytes(0xff, 0xd8, 0xff, 0xe0)), 'image/jpeg'),
 
-    gif: () =>
-        // "GIF89a"
+    gif89a: () =>
         assertEq(detect(bytes(0x47, 0x49, 0x46, 0x38, 0x39, 0x61)), 'image/gif'),
+
+    gif87a: () =>
+        assertEq(detect(bytes(0x47, 0x49, 0x46, 0x38, 0x37, 0x61)), 'image/gif'),
+
+    // "GIF8" alone, without a valid version suffix, is not a GIF.
+    gif8NotGif: () =>
+        assertEq(detect(bytes(0x47, 0x49, 0x46, 0x38, 0x30, 0x30)), null),
 
     pdf: () =>
         // "%PDF-1.4"

@@ -16,10 +16,10 @@
  * |-------------------|----------------------------------------|
  * | `image/png`       | `89 50 4E 47 0D 0A 1A 0A`              |
  * | `image/jpeg`      | `FF D8 FF`                             |
- * | `image/gif`       | `47 49 46 38` (`"GIF8"`)               |
+ * | `image/gif`       | `47 49 46 38 37 61` / `…39 61` (`"GIF87a"` / `"GIF89a"`) |
  * | `image/webp`      | `52 49 46 46 .. .. .. .. 57 45 42 50` (`"RIFF"…"WEBP"`) |
  * | `application/pdf` | `25 50 44 46 2D` (`"%PDF-"`)           |
- * | `application/zip` | `50 4B 03 04` (`"PK\x03\x04"`)         |
+ * | `application/zip` | `50 4B 03 04` / `05 06` / `07 08` (`"PK"` entry, empty, or spanned) |
  *
  * WebP is the one signature with a gap: the four-byte little-endian file size
  * sits between the `RIFF` and `WEBP` markers, so it is matched as a prefix plus
@@ -27,23 +27,15 @@
  *
  * @module
  */
-import { msb, vec, length, type Vec } from '../types/bit_vec/module.f.ts'
-import { bitLength } from '../types/bigint/module.f.ts'
+import { msb, fromSentinel, length, type Vec } from '../types/bit_vec/module.f.ts'
 import type { Nullable } from '../types/nullable/module.f.ts'
 
 const { startsWith, removeFront } = msb
 
-/**
- * Builds a big-endian signature `Vec` from a hex literal. The leading `1`
- * nibble is a sentinel: it marks where the byte run starts — so leading zero
- * bytes are not swallowed — and fixes the length. `bitLength(raw) - 1` is the
- * signature's bit length, and `vec` masks the sentinel back off.
- *
- * ```
- * sig(0x1_89_50_4e_47n)  // the 4-byte run 89 50 4E 47
- * ```
- */
-const sig = (raw: bigint): Vec => vec(bitLength(raw) - 1n)(raw)
+// Each signature is written as a hex literal whose leading `1` nibble is a
+// sentinel marking the start of the byte run (so leading zero bytes survive)
+// and fixing the length — see `bit_vec` `fromSentinel`.
+const sig = fromSentinel
 
 /**
  * Contiguous magic-byte signatures, checked in order; the first prefix match
@@ -52,7 +44,10 @@ const sig = (raw: bigint): Vec => vec(bitLength(raw) - 1n)(raw)
 const table: readonly (readonly [Vec, string])[] = [
     [sig(0x1_89_50_4e_47_0d_0a_1a_0an), 'image/png'],
     [sig(0x1_ff_d8_ffn), 'image/jpeg'],
-    [sig(0x1_47_49_46_38n), 'image/gif'],
+    // Match the full GIF version headers ("GIF87a" / "GIF89a"), not just "GIF8",
+    // so opaque bytes that merely start with "GIF8" are not mistyped.
+    [sig(0x1_47_49_46_38_37_61n), 'image/gif'],
+    [sig(0x1_47_49_46_38_39_61n), 'image/gif'],
     [sig(0x1_25_50_44_46_2dn), 'application/pdf'],
     // ZIP has three "PK" local-header variants: a normal entry, an empty
     // archive (end-of-central-directory only), and a spanned archive.
