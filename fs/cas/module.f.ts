@@ -9,7 +9,7 @@ import type { Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
 import { access, errorExit, isNotFound, log, mkdir, readdir, readFile, writeFile, type Access, type All, type Await, type Exec, type Fs, type Mkdir, type NodeEffect, type NodeOp, type NodeProgramOptions, type Read, type Readdir, type ReadFile, type Rm, type Write, type WriteFile } from '../effects/node/module.f.ts'
-import type { Commands } from '../cli/module.f.ts'
+import { dispatch, type Commands } from '../cli/module.f.ts'
 import { casMcpServer } from './mcp/module.f.ts'
 import { toOption } from '../types/nullable/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
@@ -159,3 +159,5 @@ export const commands: Commands<FileKvStoreOperation | Write | All | MemOp | Rea
             casMcpServer(c).step(() => pure(0)),
     },
 ]
+
+export const main = dispatch(commands)
