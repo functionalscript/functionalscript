@@ -15,6 +15,7 @@
 import http from 'node:http'
 import childProcess from 'node:child_process'
 import fs from 'node:fs'
+import os from 'node:os'
 import process from 'node:process'
 import { once } from 'node:events'
 import * as testContext from 'node:test'
@@ -283,6 +284,7 @@ const playwrightTestContext = wrapInlineTest(pwTest!)
 const options: NodeProgramOptions = {
     args: process.argv.slice(2),
     env: process.env,
+    home: os.homedir(),
     std: { stdout: process.stdout, stderr: process.stderr },
     testContext,
     bunTestContext,

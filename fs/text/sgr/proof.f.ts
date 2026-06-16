@@ -5,6 +5,7 @@ import type { NodeProgramOptions } from '../../effects/node/module.f.ts'
 const makeOptions = (isTTY: boolean): NodeProgramOptions => ({
     args: [],
     env: {},
+    home: '.',
     std: { stdout: { isTTY }, stderr: { isTTY } },
     testContext: { test: async () => {} },
     bunTestContext: { test: async () => {} },

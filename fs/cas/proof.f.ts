@@ -11,6 +11,7 @@ import { dispatch } from '../cli/module.f.ts'
 const makeOptions = (args: readonly string[]): NodeProgramOptions => ({
     args,
     env: {},
+    home: '.',
     std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
     testContext: { test: async () => {} },
     bunTestContext: { test: async () => {} },
