@@ -1,7 +1,7 @@
 # 66G-cas-mcp-url-tools. `cas_add_url` / `cas_get_meta` — file-path alternatives to avoid token-heavy binary transfers
 
 **Priority:** P3
-**Status:** open
+**Status:** closed — implemented in [#1102](https://github.com/functionalscript/functionalscript/pull/1102)
 
 ## Problem
 
@@ -97,25 +97,25 @@ sharding logic. The export is added as a task below.
 
 ## Tasks
 
-- [ ] Export `toPath` from `fs/cas/module.f.ts` so the MCP layer can construct
+- [x] Export `toPath` from `fs/cas/module.f.ts` so the MCP layer can construct
       absolute blob URLs without duplicating the sharding logic.
-- [ ] Design the `cas_add_url` / `cas_get_meta` argument rtti schemas.
-- [ ] Implement `cas_add_url` in `fs/cas/mcp/module.f.ts`: read file at path,
+- [x] Design the `cas_add_url` / `cas_get_meta` argument rtti schemas.
+- [x] Implement `cas_add_url` in `fs/cas/mcp/module.f.ts`: read file at path,
       call `c.write`, return hash.
-- [ ] Implement `cas_get_meta` in `fs/cas/mcp/module.f.ts`: call `c.read`,
+- [x] Implement `cas_get_meta` in `fs/cas/mcp/module.f.ts`: call `c.read`,
       return `{ url?, mime_type, length }` using the `toUrl` resolver when
       available. `length` must be the **byte count**: `Number(bitVecLength(v) / 8n)`
       where `bitVecLength` is `length` from `fs/types/bit_vec` — not the raw bit
       count that `length(v)` returns directly.
-- [ ] Extend `casMcpHandlers` signature to accept an optional `toUrl` resolver.
-- [ ] Extend `casMcpServer` signature to accept the same optional `toUrl`
+- [x] Extend `casMcpHandlers` signature to accept an optional `toUrl` resolver.
+- [x] Extend `casMcpServer` signature to accept the same optional `toUrl`
       resolver and forward it to `casMcpHandlers`.
-- [ ] Update the `mcp` CLI handler in `fs/cas/module.f.ts` to pass
+- [x] Update the `mcp` CLI handler in `fs/cas/module.f.ts` to pass
       `hash => join(home, toPath(hash))` as the `toUrl` resolver to
       `casMcpServer`, so the filesystem-backed stdio server returns absolute
       blob URLs in `cas_get_meta`.
-- [ ] Add the two tools to `casMcpHandlers`.
-- [ ] Extend `fs/cas/mcp/proof.f.ts` with round-trip tests for the new tools.
+- [x] Add the two tools to `casMcpHandlers`.
+- [x] Extend `fs/cas/mcp/proof.f.ts` with round-trip tests for the new tools.
 
 ## Related
 
