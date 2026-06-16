@@ -102,7 +102,7 @@ const runSession = (msgs: readonly unknown[]): readonly unknown[] =>
 const runSessionWithFiles =
     (files: { readonly [path: string]: Vec }) =>
     (msgs: readonly unknown[]): readonly unknown[] =>
-        runMemWithFiles(files)<readonly unknown[]>(
+        runMemWithFiles<readonly unknown[]>(files)(
             create({} as VecMap).step(mapKey =>
                 create(uninitializedState as McpSessionState).step(sessionKey => {
                     const c = cas(sha256)(memKvStore(mapKey))
@@ -276,10 +276,9 @@ export const proof = {
 
     addUrlStoresFileAndReturnsHash: () => {
         const fileContent = utf8('hello from file')
-        const [addUrlResp, getMetaResp] = runSessionWithFiles({ '/tmp/hello.txt': fileContent })([
+        const [addUrlResp] = runSessionWithFiles({ '/tmp/hello.txt': fileContent })([
             init, initialized,
             call(2, 'cas_add_url', { url: '/tmp/hello.txt' }),
-            call(3, 'cas_get', { hash: '' }), // placeholder; we use the hash from addUrl
         ]).slice(2) as readonly unknown[]
         assert(!resultOf(addUrlResp).isError)
         assert(textOf(addUrlResp).length > 0)
@@ -316,10 +315,9 @@ export const proof = {
 
     getMetaReturnsLengthAndMimeType: () => {
         const fileContent = utf8('text content')
-        const [addResp, metaResp] = runSessionWithFiles({ '/f': fileContent })([
+        const [addResp] = runSessionWithFiles({ '/f': fileContent })([
             init, initialized,
             call(2, 'cas_add_url', { url: '/f' }),
-            call(3, 'cas_get_meta', { hash: '' }), // placeholder
         ]).slice(2) as readonly unknown[]
         const hash = textOf(addResp)
         // Re-run with correct hash.
@@ -335,7 +333,6 @@ export const proof = {
     },
 
     getMetaBinaryBlob: () => {
-        const pngVec = u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])
         const [addResp] = session(call(2, 'cas_add', { content: pngSample }))
         const hash = textOf(addResp)
         const [, metaResp] = session(
