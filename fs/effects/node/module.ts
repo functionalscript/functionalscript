@@ -283,6 +283,7 @@ const playwrightTestContext = wrapInlineTest(pwTest!)
 const options: NodeProgramOptions = {
     args: process.argv.slice(2),
     env: process.env,
+    home: process.env.HOME ?? process.cwd(),
     std: { stdout: process.stdout, stderr: process.stderr },
     testContext,
     bunTestContext,
