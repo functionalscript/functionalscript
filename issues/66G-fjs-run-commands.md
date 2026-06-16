@@ -25,15 +25,21 @@ runtime. Every downstream caller (`fjs run`, bin scripts) already goes through
 export type NodeMain = NodeProgram | Commands<NodeOp>
 ```
 
-```ts
-// fs/effects/node/module.ts
-export const runEffect = (p: NodeMain): Promise<number> => {
-    const program = Array.isArray(p) ? dispatch(p as Commands<NodeOp>) : p
-    return runNodeEffect(program(options))
-}
+Widen `dispatch` in `fs/cli/module.f.ts` to accept either a `Commands` array
+or a `Program` function, and short-circuit to the function when it receives one:
 
-export const run = async (p: NodeMain): Promise<never> =>
-    process.exit(await runEffect(p))
+```ts
+export const dispatch = <O extends NodeOp>(p: Commands<O> | Program<O>) =>
+    (options: NodeProgramOptions): Effect<O | Write, number> =>
+        typeof p === 'function' ? p(options) : /* existing dispatch logic */
+```
+
+Then `runEffect` and `run` simply widen their parameter to `NodeMain` and
+always go through `dispatch` — no `Array.isArray` check needed at the call site:
+
+```ts
+export const runEffect = (p: NodeMain): Promise<number> =>
+    runNodeEffect(dispatch(p)(options))
 ```
 
 `fjs run` in `fs/fjs/module.f.ts` passes `v.main` straight to the effect
