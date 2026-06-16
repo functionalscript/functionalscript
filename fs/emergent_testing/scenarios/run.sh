@@ -26,7 +26,7 @@ case "$runner" in
     fjs)        cmd="npm run fst" ;;
     bun)        cmd="bun test" ;;
     node)       cmd="node --test" ;;
-    deno)       cmd="deno test --allow-read --allow-env" ;;
+    deno)       cmd="deno test --allow-read --allow-env --allow-sys" ;;
     playwright) cmd="npx playwright test" ;;
     *) echo "unknown runner: $runner" >&2; exit 2 ;;
 esac

@@ -430,6 +430,7 @@ export type Engine = 'node' | 'bun' | 'playwright'
 export type NodeProgramOptions = {
     readonly args: readonly string[]
     readonly env: Env
+    readonly home: string
     readonly std: { readonly [k in WriteConsoles]: { readonly isTTY: boolean } }
     readonly testContext: TestContext
     readonly bunTestContext: TestContext
