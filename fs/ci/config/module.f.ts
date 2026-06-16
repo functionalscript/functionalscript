@@ -34,7 +34,7 @@ export const bun = '1.3.14'
 export const deno = '2.8.3'
 
 // https://www.npmjs.com/package/playwright
-export const playwright = '1.60.0'
+export const playwright = '1.61.0'
 
 // https://nodejs.org/en/download
 export const node = {
@@ -44,13 +44,13 @@ export const node = {
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases
-export const wasmtime = '45.0.1'
+export const wasmtime = '45.0.2'
 
 // https://github.com/wasmerio/wasmer/releases
 export const wasmer = '7.1.0'
 
 // https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
-export const tsgo = '7.0.0-dev.20260612.1'
+export const tsgo = '7.0.0-dev.20260615.1'
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as
