@@ -95,6 +95,11 @@ export const proof = {
         if (code !== 0) { throw ['expected exit 0', code] }
         if (!state.stdout.includes('ping')) { throw 'expected inner command in help' }
     },
+    helpPrototypeSafe: () => {
+        const [state, code] = run(echoCommands)(['help', 'toString'])
+        if (code !== 0) { throw ['expected exit 0, not a throw', code] }
+        if (!state.stdout.includes('echo')) { throw 'expected top-level help for unknown target' }
+    },
     helpWithTarget: () => {
         const inner: Commands<NodeOp> = [{
             names: ['ping'],

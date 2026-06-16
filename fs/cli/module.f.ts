@@ -22,7 +22,10 @@ export const dispatch = <O extends NodeOp>(commands: Commands<O>) => (options: N
         'Available commands:',
         ...rows.map(({description}, i) => `  ${nameCol[i].padEnd(width)}  ${description}`)
     ].join('\n')
-    const map = Object.fromEntries(commands.flatMap(c => c.names.map(n => [n, c] as const)))
+    const map: Record<string, Command<O>> = Object.assign(
+        Object.create(null),
+        Object.fromEntries(commands.flatMap(c => c.names.map(n => [n, c] as const)))
+    )
     if (cmd === undefined) {
         return errorExit(`Error: command is required.\n${helpText}`)
     }
