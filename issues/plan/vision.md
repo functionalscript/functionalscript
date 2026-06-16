@@ -54,7 +54,9 @@ A trust-based network restores two forces that healthy economies depend on:
 
 A layered, universal **DISOT** (Decentralized Immutable Source of Truth) platform accessible via MCP.
 
-DISOT is a content-addressable store that holds only original, non-recomputable content, keyed by content hash. Synchronization between any two DISOT stores is always conflict-free: same hash = same content, so merging is a pure set union — no reconciliation, no conflict resolution, no ordering required.
+DISOT is a content-addressable store that holds only original, non-recomputable content, keyed by content hash. The main benefit of CAS is **global addressing based on content**: a content hash is a universal address, the same everywhere and forever, derived from the content itself rather than assigned by any authority, location, or server. Anyone, anywhere, refers to the same content by the same name — no coordination, no registry, no central allocator. Every other property below follows from this.
+
+Because addresses come from content, synchronization between any two DISOT stores is always conflict-free: same hash = same content, so merging is a pure set union — no reconciliation, no conflict resolution, no ordering required.
 
 This property is the foundation for:
 - **Multi-device** — sync any two stores, online or offline, always consistent
