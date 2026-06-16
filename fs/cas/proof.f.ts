@@ -1,4 +1,4 @@
-import { cas, main } from './module.f.ts'
+import { cas, commands } from './module.f.ts'
 import { sha256 } from '../crypto/sha2/module.f.ts'
 import { empty, length, vec8 } from '../types/bit_vec/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
@@ -6,6 +6,7 @@ import { pure } from '../effects/module.f.ts'
 import { run } from '../effects/mock/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import type { NodeProgramOptions } from '../effects/node/module.f.ts'
+import { dispatch } from '../cli/module.f.ts'
 
 const makeOptions = (args: readonly string[]): NodeProgramOptions => ({
     args,
@@ -16,6 +17,8 @@ const makeOptions = (args: readonly string[]): NodeProgramOptions => ({
     playwrightTestContext: { test: async () => {} },
     engine: 'node' as const,
 })
+
+const main = dispatch(commands)
 
 export const proof = {
     mainAdd: () => {
