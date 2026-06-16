@@ -22,24 +22,21 @@ export const dispatch = <O extends NodeOp>(commands: Commands<O>) => (options: N
         'Available commands:',
         ...rows.map(({description}, i) => `  ${nameCol[i].padEnd(width)}  ${description}`)
     ].join('\n')
-    const map: Record<string, Command<O>> = Object.assign(
-        Object.create(null),
-        Object.fromEntries(commands.flatMap(c => c.names.map(n => [n, c] as const)))
-    )
+    const map = new Map(commands.flatMap(c => c.names.map(n => [n, c] as const)))
     if (cmd === undefined) {
         return errorExit(`Error: command is required.\n${helpText}`)
     }
     if (helpMeta.names.includes(cmd)) {
         const [target] = rest
         if (target !== undefined) {
-            const targetCmd = map[target]
+            const targetCmd = map.get(target)
             if (targetCmd !== undefined && typeof targetCmd.handler !== 'function') {
                 return dispatch(targetCmd.handler)({ ...options, args: ['help'] })
             }
         }
         return log(helpText).step(() => pure(0))
     }
-    const found = map[cmd]
+    const found = map.get(cmd)
     if (found === undefined) {
         return errorExit(`Error: unknown command "${cmd}".\n${helpText}`)
     }
