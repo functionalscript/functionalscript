@@ -10,11 +10,11 @@ additional front end alongside the CLI `main`, exactly as the issue describes.
 
 ## The three tools
 
-| Tool       | args                  | CAS call         | result text          |
-|------------|-----------------------|------------------|----------------------|
-| `cas_add`  | `{ content: string }` | `c.write(value)` | hash (cBase32)       |
-| `cas_get`  | `{ hash: string }`    | `c.read(key)`    | content (base64)     |
-| `cas_list` | `{}`                  | `c.list()`       | hashes, one per line |
+| Tool       | args                  | CAS call         | result                       |
+|------------|-----------------------|------------------|------------------------------|
+| `cas_add`  | `{ content: string }` | `c.write(value)` | hash (cBase32)               |
+| `cas_get`  | `{ hash: string }`    | `c.read(key)`    | content (base64; see below)  |
+| `cas_list` | `{}`                  | `c.list()`       | hashes, one per line         |
 
 Each tool's argument schema is an rtti struct declared once and used twice:
 [`toJsonSchema`](../../json/schema/module.f.ts) derives the `inputSchema`
@@ -42,9 +42,32 @@ The split was a deliberate revisit of the original "everything in cBase32"
 choice (see [i66E-cas-mcp-base64-content](../../../issues/66E-cas-mcp-base64-content.md)):
 hashes stay cBase32 because that is their canonical identity across the project,
 while content switches to base64 so the MCP surface stays interoperable with the
-broader ecosystem. A follow-up will use base64 again when an `EmbeddedResource`
-`blob` content type lands (see
-[i66E-cas-mcp-file-type](../../../issues/66E-cas-mcp-file-type.md)).
+broader ecosystem.
+
+## File-type detection on `cas_get`
+
+The store keeps raw bytes with no type metadata, so type is recovered on read
+rather than stored on write. `cas_get` sniffs the retrieved bytes with
+[`fs/mime`](../../mime/module.f.ts) `detect` and returns one of two shapes:
+
+- **Recognised** magic-byte signature (PNG, JPEG, GIF, WebP, PDF, ZIP) → an MCP
+  [`EmbeddedResource`](../../mcp/module.f.ts) (`BlobResource`) carrying the
+  detected `mimeType`, the base64 `blob`, and a `cas://sha256/<hash>` URI:
+
+  ```json
+  { "type": "resource",
+    "resource": { "uri": "cas://sha256/<hash>", "mimeType": "image/png", "blob": "<base64>" } }
+  ```
+
+- **Unrecognised** bytes (`detect` → `null`) → the plain `textContent` block, so
+  the tool stays backward compatible:
+
+  ```json
+  { "type": "text", "text": "<base64>" }
+  ```
+
+`cas_add` is unchanged — no type is attached on write; the store stays a pure
+`hash → bytes` map.
 
 ## Protocol errors vs. tool errors
 

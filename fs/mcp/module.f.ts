@@ -13,7 +13,7 @@
  *
  * @module
  */
-import { boolean, string, option, array, record } from '../types/rtti/module.f.ts'
+import { boolean, string, option, array, record, or } from '../types/rtti/module.f.ts'
 import { unknown, type Unknown } from '../json/module.f.ts'
 import type { Ts } from '../types/rtti/ts/module.f.ts'
 import { pure, type Operation, type Effect } from '../effects/module.f.ts'
@@ -70,6 +70,34 @@ export type InitializeResult = Ts<typeof initializeResult>
 export const textContent = { type: 'text', text: string } as const
 export type TextContent = Ts<typeof textContent>
 
+/**
+ * A binary resource carried inside an {@link embeddedResource}: a base64
+ * `blob`, an addressing `uri`, and an optional `mimeType`. This is MCP's
+ * `BlobResource` shape — the idiomatic way to return typed binary content so a
+ * `mimeType` travels alongside the bytes and clients know how to route them.
+ */
+export const blobResource = {
+    uri: string,
+    mimeType: option(string),
+    blob: string,
+} as const
+export type BlobResource = Ts<typeof blobResource>
+
+/** An `EmbeddedResource` content item wrapping a {@link blobResource}. */
+export const embeddedResource = {
+    type: 'resource',
+    resource: blobResource,
+} as const
+export type EmbeddedResource = Ts<typeof embeddedResource>
+
+/**
+ * A single item in a `tools/call` result's `content` array: either plain
+ * {@link textContent} or an {@link embeddedResource} for typed binary. The
+ * `image` and `audio` variants are not modelled yet.
+ */
+export const contentItem = or(textContent, embeddedResource)
+export type ContentItem = Ts<typeof contentItem>
+
 // ── Tools ──────────────────────────────────────────────────────────────────────
 
 /**
@@ -106,7 +134,7 @@ export const toolsCallParams = {
 export type ToolsCallParams = Ts<typeof toolsCallParams>
 
 export const toolsCallResult = {
-    content: array(textContent),
+    content: array(contentItem),
     isError: option(boolean),
 } as const
 export type ToolsCallResult = Ts<typeof toolsCallResult>

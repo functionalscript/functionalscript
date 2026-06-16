@@ -81,6 +81,25 @@ export const vec = (len: bigint): (ui: bigint) => Vec => {
 export const vec8: (ui: bigint) => Vec = vec(8n)
 
 /**
+ * Builds a vector from a bigint whose most-significant set bit is a sentinel
+ * marking the start of the data.
+ *
+ * The sentinel does double duty: it fixes the length (`bitLength - 1`) and is
+ * stripped from the result. This lets a plain hex literal carry leading zero
+ * bits that would otherwise be lost — write `0x1` ahead of the data and the
+ * `1` both delimits and disappears.
+ *
+ * @example
+ *
+ * ```js
+ * uint(fromSentinel(0x1_89_50n))   // 0x8950n
+ * length(fromSentinel(0x1_89_50n)) // 16n — the two data bytes, sentinel gone
+ * fromSentinel(0x1_00_05n)         // a 16-bit vector holding 0x0005
+ * ```
+ */
+export const fromSentinel = (raw: bigint): Vec => vec(bitLength(raw) - 1n)(raw)
+
+/**
  * Returns the unsigned integer representation of the vector by clearing the stop bit.
  *
  * @example
