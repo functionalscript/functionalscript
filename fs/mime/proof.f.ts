@@ -24,6 +24,10 @@ export const proof = {
     zip: () =>
         assertEq(detect(bytes(0x50, 0x4b, 0x03, 0x04, 0x14, 0x00)), 'application/zip'),
 
+    // An empty ZIP archive starts with the end-of-central-directory record.
+    emptyZip: () =>
+        assertEq(detect(bytes(0x50, 0x4b, 0x05, 0x06, 0x00, 0x00)), 'application/zip'),
+
     webp: () =>
         // "RIFF" + 4-byte size + "WEBP"
         assertEq(

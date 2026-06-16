@@ -27,7 +27,7 @@ edge that needs it (the MCP adapter's `cas_get`).
 | `image/gif`       | `47 49 46 38` (`"GIF8"`, covers 87a/89a) |
 | `image/webp`      | `52 49 46 46 .. .. .. .. 57 45 42 50` (`"RIFF"…"WEBP"`) |
 | `application/pdf` | `25 50 44 46 2D` (`"%PDF-"`)           |
-| `application/zip` | `50 4B 03 04` (`"PK\x03\x04"`)         |
+| `application/zip` | `50 4B 03 04` / `05 06` / `07 08` (`"PK"` entry, empty, or spanned) |
 
 Anything else — text, unknown binary, or a `Vec` shorter than the signature it
 might match — returns `null`. There is deliberately no text/`charset` fallback:

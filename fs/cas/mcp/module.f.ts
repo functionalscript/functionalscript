@@ -167,9 +167,11 @@ export const casMcpHandlers = <O extends Operation>(c: Cas<O>): McpHandlers<O> =
                     // typed EmbeddedResource so the mimeType travels with the content;
                     // otherwise fall back to a plain text block for backward compatibility.
                     const mimeType = detect(value)
+                    // URI carries the canonical cBase32 (from the decoded key), not the
+                    // caller's spelling, so the same content always gets the same identity.
                     return pure(mimeType === null
                         ? okResult(text)
-                        : resourceResult(r.hash, mimeType, text))
+                        : resourceResult(vecToCBase32(key), mimeType, text))
                 })
             }
             case 'cas_list': {

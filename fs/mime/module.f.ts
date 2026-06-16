@@ -27,30 +27,44 @@
  *
  * @module
  */
-import { msb, u8ListToVec, length, type Vec } from '../types/bit_vec/module.f.ts'
+import { msb, vec, length, type Vec } from '../types/bit_vec/module.f.ts'
+import { bitLength } from '../types/bigint/module.f.ts'
 import type { Nullable } from '../types/nullable/module.f.ts'
 
 const { startsWith, removeFront } = msb
 
-/** Builds a big-endian signature `Vec` from a list of byte values. */
-const sig = (bytes: readonly number[]): Vec => u8ListToVec(msb)(bytes)
+/**
+ * Builds a big-endian signature `Vec` from a hex literal. The leading `1`
+ * nibble is a sentinel: it marks where the byte run starts — so leading zero
+ * bytes are not swallowed — and fixes the length. `bitLength(raw) - 1` is the
+ * signature's bit length, and `vec` masks the sentinel back off.
+ *
+ * ```
+ * sig(0x1_89_50_4e_47n)  // the 4-byte run 89 50 4E 47
+ * ```
+ */
+const sig = (raw: bigint): Vec => vec(bitLength(raw) - 1n)(raw)
 
 /**
  * Contiguous magic-byte signatures, checked in order; the first prefix match
  * wins. Ordering is irrelevant here — no signature is a prefix of another.
  */
 const table: readonly (readonly [Vec, string])[] = [
-    [sig([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), 'image/png'],
-    [sig([0xff, 0xd8, 0xff]), 'image/jpeg'],
-    [sig([0x47, 0x49, 0x46, 0x38]), 'image/gif'],
-    [sig([0x25, 0x50, 0x44, 0x46, 0x2d]), 'application/pdf'],
-    [sig([0x50, 0x4b, 0x03, 0x04]), 'application/zip'],
+    [sig(0x1_89_50_4e_47_0d_0a_1a_0an), 'image/png'],
+    [sig(0x1_ff_d8_ffn), 'image/jpeg'],
+    [sig(0x1_47_49_46_38n), 'image/gif'],
+    [sig(0x1_25_50_44_46_2dn), 'application/pdf'],
+    // ZIP has three "PK" local-header variants: a normal entry, an empty
+    // archive (end-of-central-directory only), and a spanned archive.
+    [sig(0x1_50_4b_03_04n), 'application/zip'],
+    [sig(0x1_50_4b_05_06n), 'application/zip'],
+    [sig(0x1_50_4b_07_08n), 'application/zip'],
 ]
 
 // WebP: "RIFF" at offset 0, "WEBP" at offset 8 (the 4 bytes between are the
 // file size). 12 bytes = 96 bits is the minimum to carry both markers.
-const riff = sig([0x52, 0x49, 0x46, 0x46])
-const webp = sig([0x57, 0x45, 0x42, 0x50])
+const riff = sig(0x1_52_49_46_46n)
+const webp = sig(0x1_57_45_42_50n)
 
 const isWebp = (bytes: Vec): boolean =>
     length(bytes) >= 96n
