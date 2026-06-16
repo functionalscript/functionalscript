@@ -87,11 +87,15 @@ CAS root from `home`), `cas_get_meta` includes the `url` field. When absent
 (e.g. in memory-backed tests), `url` is omitted. The CAS root is supplied by
 [i66G-cas-mcp-cwd-home](./66G-cas-mcp-cwd-home.md), which threads `home`
 through to the call site; the `toUrl` resolver is constructed there as
-`hash => toPath(hash, home)` — where `toPath` already incorporates the `.cas`
-segment, so no extra prefix should be added.
+`hash => join(home, toPath(hash))`, where `toPath` is the existing private
+helper in `fs/cas/module.f.ts` that already includes the `.cas` segment.
+`toPath` must be exported so the MCP server can use it without duplicating the
+sharding logic. The export is added as a task below.
 
 ## Tasks
 
+- [ ] Export `toPath` from `fs/cas/module.f.ts` so the MCP layer can construct
+      absolute blob URLs without duplicating the sharding logic.
 - [ ] Design the `cas_add_url` / `cas_get_meta` argument rtti schemas.
 - [ ] Implement `cas_add_url` in `fs/cas/mcp/module.f.ts`: read file at path,
       call `c.write`, return hash.
