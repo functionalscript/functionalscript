@@ -1,7 +1,7 @@
 # 66G-cas-mcp-url-tools. `cas_add_url` / `cas_get_meta` — file-path alternatives to avoid token-heavy binary transfers
 
 **Priority:** P3
-**Status:** closed — implemented in [#1102](https://github.com/functionalscript/functionalscript/pull/1102)
+**Status:** done
 
 ## Problem
 
