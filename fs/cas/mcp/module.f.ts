@@ -9,11 +9,11 @@
  *
  * ## The three tools
  *
- * | Tool       | args                  | CAS call         | result text          |
- * |------------|-----------------------|------------------|----------------------|
- * | `cas_add`  | `{ content: string }` | `c.write(value)` | hash (cBase32)       |
- * | `cas_get`  | `{ hash: string }`    | `c.read(key)`    | content (base64)     |
- * | `cas_list` | `{}`                  | `c.list()`       | hashes, one per line |
+ * | Tool       | args                  | CAS call         | result                          |
+ * |------------|-----------------------|------------------|---------------------------------|
+ * | `cas_add`  | `{ content: string }` | `c.write(value)` | hash (cBase32)                  |
+ * | `cas_get`  | `{ hash: string }`    | `c.read(key)`    | content (base64; see below)     |
+ * | `cas_list` | `{}`                  | `c.list()`       | hashes, one per line            |
  *
  * Each tool's argument schema is an rtti struct declared once and used twice:
  * `toJsonSchema` derives the `inputSchema` advertised in `tools/list`, and
@@ -31,6 +31,17 @@
  *   already understand without project-specific knowledge.
  *
  * Both decoders return `null` on malformed input, giving free validation.
+ *
+ * ## File-type detection on `cas_get`
+ *
+ * The store is type-agnostic — it keeps raw bytes only — so type is recovered
+ * on read, not stored. `cas_get` sniffs the retrieved bytes with `fs/mime`
+ * `detect`:
+ * - a recognised magic-byte signature (PNG, JPEG, GIF, WebP, PDF, ZIP) →
+ *   an MCP `EmbeddedResource` (`BlobResource`) with the base64 `blob`, the
+ *   detected `mimeType`, and a `cas://sha256/<hash>` URI;
+ * - unrecognised bytes (`detect` → `null`) → the plain `textContent` block,
+ *   so the tool stays backward compatible.
  *
  * ## Error convention
  *
@@ -52,6 +63,7 @@ import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
+import { detect } from '../../mime/module.f.ts'
 import { type Read, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
@@ -98,6 +110,13 @@ const casListTool: Tool = {
 const okResult = (text: string): ToolsCallResult =>
     ({ content: [{ type: 'text', text }] })
 
+/**
+ * A successful typed-binary result: an `EmbeddedResource` carrying the base64
+ * `blob`, its detected `mimeType`, and a `cas://sha256/<hash>` addressing URI.
+ */
+const resourceResult = (hash: string, mimeType: string, blob: string): ToolsCallResult =>
+    ({ content: [{ type: 'resource', resource: { uri: `cas://sha256/${hash}`, mimeType, blob } }] })
+
 /** A tool-level failure: in-band `isError` result with a text explanation. */
 const errorResult = (text: string): ToolsCallResult =>
     ({ content: [{ type: 'text', text }], isError: true })
@@ -141,9 +160,16 @@ export const casMcpHandlers = <O extends Operation>(c: Cas<O>): McpHandlers<O> =
                     // base64Encode returns null only on a non-octet Vec; the filesystem
                     // store can never produce that, but the contract permits it.
                     const text = base64Encode(value)
-                    return pure(text === null
-                        ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                        : okResult(text))
+                    if (text === null) {
+                        return pure(errorResult(`content is not byte-aligned: ${r.hash}`))
+                    }
+                    // When the bytes carry a recognised magic-byte signature, return a
+                    // typed EmbeddedResource so the mimeType travels with the content;
+                    // otherwise fall back to a plain text block for backward compatibility.
+                    const mimeType = detect(value)
+                    return pure(mimeType === null
+                        ? okResult(text)
+                        : resourceResult(r.hash, mimeType, text))
                 })
             }
             case 'cas_list': {

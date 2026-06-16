@@ -34,10 +34,11 @@
 - `fs/base64/module.f.ts` (`encode`/`decode`) already implemented ✓; only MCP wiring remains
 - Tracked: [i66E-cas-mcp-base64-content](../66E-cas-mcp-base64-content.md)
 
-**Layer 3 — Type detection**
-- Detection via magic bytes: PNG, JPEG, GIF, WebP, PDF, ZIP → `null` for unrecognized bytes (per [i66E-cas-mcp-file-type](../66E-cas-mcp-file-type.md))
-- Pure logic in new file `fs/mime/module.f.ts`
-- `cas_get`: when type is detected → return `EmbeddedResource` with `mimeType`; when `null` → fall back to existing `textContent` response for backward compatibility
+**Layer 3 — Type detection (done)**
+- Detection via magic bytes: PNG, JPEG, GIF, WebP, PDF, ZIP → `null` for unrecognized bytes ✓
+- Pure logic in `fs/mime/module.f.ts` ✓
+- `cas_get`: when type is detected → returns `EmbeddedResource` with `mimeType`; when `null` → falls back to existing `textContent` response for backward compatibility ✓
+- `fs/mcp/module.f.ts` gained `blobResource` / `embeddedResource` schemas and a `contentItem` union ✓
 - A separate on-demand `cas_type` tool is a possible extension; needs its own design issue before implementation
 
 ---
@@ -131,7 +132,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 |---|---|---|
 | 1. Base MCP (add/get/list) | `fs/cas/mcp/`, `fs/mcp/stdio/`, CLI ✓ | `casMcpStep` extraction |
 | 2. Content encoding (base64) | `fs/base64/` ✓ | MCP wiring only |
-| 3. Type detection | — | `fs/mime/` magic-byte detection (PNG/JPEG/GIF/WebP/PDF/ZIP), `cas_get` wiring |
+| 3. Type detection | `fs/mime/` magic-byte detection (PNG/JPEG/GIF/WebP/PDF/ZIP), `cas_get` wiring, `embeddedResource` schema ✓ | — |
 | 4. Signatures | `fs/crypto/sign/` (sign only), `fs/crypto/secp/` ✓ | ECDSA verify + MCP wiring |
 | 5. Trusted timestamps | — | RFC 3161 client + MCP tool |
 | 6. Revision layer | — | Design + implementation |
