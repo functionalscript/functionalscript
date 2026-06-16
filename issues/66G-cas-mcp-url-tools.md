@@ -58,10 +58,14 @@ Example `cas_get_meta` result:
 ### MIME type handling
 
 CAS stores only content — no metadata about blobs. `cas_get_meta` must therefore
-infer `mime_type` at read time from the blob itself (magic-byte sniffing), the
-same way a web server would serve an unknown file. The tool result includes
-`mime_type` as a best-effort field; if the type cannot be determined,
-`application/octet-stream` is the fallback.
+infer `mime_type` at read time from the blob itself. This requires both
+magic-byte sniffing for binary formats (PNG, JPEG, etc.) and text detection for
+plain-text content — without text detection, unknown blobs fall back to
+`application/octet-stream`, causing clients to incorrectly treat small text
+files as binary. The full inference strategy is specified in
+[i66G-cas-mcp-text-content](./66G-cas-mcp-text-content.md); `cas_get_meta`
+reuses that same logic. If the type still cannot be determined after both
+checks, `application/octet-stream` is the fallback.
 
 ## Tasks
 
@@ -77,6 +81,8 @@ same way a web server would serve an unknown file. The tool result includes
 
 - [i66E-mcp-cas-server](./66E-mcp-cas-server.md) — original CAS MCP design;
   `cas_add` / `cas_get` encoding decisions live there.
+- [i66G-cas-mcp-text-content](./66G-cas-mcp-text-content.md) — text/binary
+  detection logic reused by `cas_get_meta` for `mime_type` inference.
 - [i66G-cas-mcp-cwd-home](./66G-cas-mcp-cwd-home.md) — CAS root must be a known
   path before `cas_get_meta` can return a meaningful blob URL.
 - `fs/cas/mcp/module.f.ts` — `casMcpHandlers` to be extended with the new tools.

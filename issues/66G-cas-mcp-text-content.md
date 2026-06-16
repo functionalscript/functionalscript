@@ -45,10 +45,10 @@ return the content as a UTF-8 string. Otherwise return it as base64. Include
 The result is always a single JSON object encoded in the `text` block (or a
 structured content block if the MCP client supports it).
 
-### Consistency with `cas_get_url`
+### Consistency with `cas_get_meta`
 
-`cas_get_url` (see [i66G-cas-mcp-url-tools](./66G-cas-mcp-url-tools.md)) returns
-a path rather than inline content, so its `mime_type` field uses the same
+`cas_get_meta` (see [i66G-cas-mcp-url-tools](./66G-cas-mcp-url-tools.md)) returns
+metadata rather than inline content, so its `mime_type` field uses the same
 inference logic but does not need the `type` / encoding field.
 
 ## Tasks
