@@ -205,6 +205,11 @@ export const proof = {
         assertEq(resultOf(resp).isError, true)
     },
 
+    getMissingHashArgumentIsError: () => {
+        const [resp] = session(call(2, 'cas_get', {}))
+        assertEq(resultOf(resp).isError, true)
+    },
+
     getInvalidHashIsError: () => {
         const [resp] = session(call(2, 'cas_get', { hash: 'not valid!' }))
         assertEq(resultOf(resp).isError, true)
