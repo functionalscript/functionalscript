@@ -7,7 +7,7 @@
 import { deno } from '../config/module.f.ts'
 import { type MetaStep, clean, install, test, uses } from '../common/module.f.ts'
 
-const denoTest = 'deno test --allow-read --allow-env' as const
+const denoTest = 'deno test --allow-read --allow-env --allow-sys' as const
 
 export const denoSteps = (version: string): readonly MetaStep[] => clean([
     install(uses('denoland/setup-deno', { 'deno-version': deno })),

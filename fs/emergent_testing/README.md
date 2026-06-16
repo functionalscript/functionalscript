@@ -80,7 +80,7 @@ Then invoke the runner:
 
 - `node --test`
 - `bun test`
-- `deno test --allow-read --allow-env`
+- `deno test --allow-read --allow-env --allow-sys`
 - `npx playwright test`
 
 You can also implement your own runner, as long as it follows the proof-tree
