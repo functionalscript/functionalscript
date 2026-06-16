@@ -103,7 +103,7 @@ const casAddTool: Tool = {
 
 const casGetTool: Tool = {
     name: 'cas_get',
-    description: 'Fetch content by its hash (cBase32). Returns JSON {content,type,mime_type}: type is "text" for valid UTF-8 or known binary formats, "base64" otherwise.',
+    description: 'Fetch content by its hash (cBase32). Returns JSON {content,type,mime_type}: type is "text" for valid UTF-8 (no magic-byte signature), "base64" for binary blobs (known magic bytes or invalid UTF-8).',
     inputSchema: toJsonSchema(casGetArgs),
 }
 
