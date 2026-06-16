@@ -246,7 +246,7 @@ export const proof = {
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 6,
                 params: { name: 'greet', arguments: {} } }
             const [resp] = step3(config)(initMsg)(initNotif)(msg)
-            assertEq((resp as { result: ToolsCallResult }).result.content[0].text, 'hello')
+            assertEq(((resp as { result: ToolsCallResult }).result.content[0] as { text: string }).text, 'hello')
         },
 
         toolsCallBadParamsReturnsInvalidParams: () => {
@@ -259,7 +259,7 @@ export const proof = {
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 13,
                 params: { name: 'greet' } }
             const [resp] = step3(config)(initMsg)(initNotif)(msg)
-            assertEq((resp as { result: ToolsCallResult }).result.content[0].text, 'hello')
+            assertEq(((resp as { result: ToolsCallResult }).result.content[0] as { text: string }).text, 'hello')
         },
 
         toolsCallNullArgumentsReturnsInvalidParams: () => {

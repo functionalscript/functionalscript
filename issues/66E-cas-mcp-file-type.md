@@ -1,8 +1,7 @@
 # 66E-cas-mcp-file-type. Include file type (MIME) in CAS MCP content
 
 **Priority:** P2
-**Status:** open
-**Blocked by:** [i66E-cas-mcp-base64-content](./66E-cas-mcp-base64-content.md)
+**Status:** done
 
 ## Problem
 
@@ -120,19 +119,31 @@ embeddedResource` (and `imageContent` / `audioContent` when those land).
 
 ## Tasks
 
-- [ ] Add `fs/mime/module.f.ts`: `detect(bytes: Vec): string | null` with
+- [x] Add `fs/mime/module.f.ts`: `detect(bytes: Vec): Nullable<string>` with
       magic-byte table for common formats; `fs/mime/proof.f.ts` with fixture
       tests per recognised type and the `null` fallback
-- [ ] Add `blobResource` and `embeddedResource` schemas to
+- [x] Add `blobResource` and `embeddedResource` schemas to
       `fs/mcp/module.f.ts`; update `toolsCallResult` content union
-- [ ] In `fs/cas/mcp/module.f.ts`, call `detect` on the retrieved bytes in
+      (`contentItem = or(textContent, embeddedResource)`)
+- [x] In `fs/cas/mcp/module.f.ts`, call `detect` on the retrieved bytes in
       `cas_get`; return `embeddedResource` when MIME is detected, plain
       `textContent` otherwise
-- [ ] Update `fs/cas/mcp/proof.f.ts`: add tests for blobs with recognised
+- [x] Update `fs/cas/mcp/proof.f.ts`: add tests for blobs with recognised
       magic bytes (get → `EmbeddedResource`) and for opaque bytes (get →
       `textContent`)
-- [ ] Update `fs/cas/mcp/README.md` to document MIME detection and the two
-      result shapes
+- [x] Update `fs/cas/mcp/README.md` to document MIME detection and the two
+      result shapes; add `fs/mime/README.md`
+
+## Resolution notes
+
+Scope followed the roadmap (Layer 3): magic-byte detection only (PNG, JPEG,
+GIF, WebP, PDF, ZIP) with `null` for everything else. The UTF-8 text fallback
+floated in the original proposal was **dropped** — distinguishing UTF-8 from
+arbitrary bytes is not a magic-byte test, and the caller's `null` branch
+already routes unrecognised bytes to the plain `textContent` result. The
+rationale lives in `fs/mime/README.md`. WebP is the one non-contiguous
+signature (`RIFF`…`WEBP` with a 4-byte size in between), handled as a prefix
+plus a marker at offset 8.
 
 ## Related
 
