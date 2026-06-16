@@ -31,11 +31,10 @@ strings without a type field.
 
 ### `cas_get`: return string or base64, driven by inferred MIME type
 
-After reading the blob, infer the MIME type from the content (magic-byte
-sniffing; see [i66G-cas-mcp-url-tools](./66G-cas-mcp-url-tools.md)). If the
-inferred type is text (e.g. `text/*`, `application/json`, `application/xml`),
-return the content as a UTF-8 string. Otherwise return it as base64. Include
-`type` in the result so the caller knows which encoding was used:
+After reading the blob, infer the MIME type using the two-phase algorithm below.
+If the inferred type is text, return the content as a UTF-8 string; otherwise
+return it as base64. Include `type` in the result so the caller knows which
+encoding was used:
 
 ```json
 { "content": "hello world\n", "type": "text", "mime_type": "text/plain" }
@@ -44,6 +43,25 @@ return the content as a UTF-8 string. Otherwise return it as base64. Include
 
 The result is always a single JSON object encoded in the `text` block (or a
 structured content block if the MCP client supports it).
+
+### MIME inference algorithm
+
+Detection runs in two phases:
+
+1. **Binary magic-byte sniffing** (`fs/mime` `detect`): checks the leading
+   bytes against known signatures (PNG, JPEG, GIF, WebP, PDF, ZIP). If a
+   signature matches, that MIME type is used and phase 2 is skipped.
+
+2. **Text detection** (null-byte scan): scan the first 8 192 bytes of the
+   blob. If no null byte (`0x00`) is found, classify the blob as `text/plain`.
+   This is the same heuristic used by `git` and the Unix `file` command —
+   null bytes reliably distinguish binary data from UTF-8 / ASCII text. If a
+   null byte is found and no magic-byte matched, fall back to
+   `application/octet-stream`.
+
+The 8 192-byte scan window is a performance bound, not a correctness guarantee:
+blobs with a null byte beyond that window are rare in practice and are safely
+handled by the `application/octet-stream` fallback.
 
 ### Consistency with `cas_get_meta`
 

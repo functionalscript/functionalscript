@@ -67,13 +67,39 @@ files as binary. The full inference strategy is specified in
 reuses that same logic. If the type still cannot be determined after both
 checks, `application/octet-stream` is the fallback.
 
+### Blob URL and the `toUrl` resolver
+
+`Cas<O>` exposes only `read`, `write`, and `list` — it has no concept of an
+on-disk path. The sharded path helper (`toPath`) that maps a hash to a file
+inside `.cas/` is private to `fileKvStore`. `cas_get_meta` therefore cannot
+derive the blob URL from `Cas<O>` alone.
+
+The fix is to extend `casMcpHandlers` to accept an optional `toUrl` resolver
+alongside the `Cas<O>`:
+
+```ts
+export const casMcpHandlers = <O extends Operation>(
+    c: Cas<O>,
+    toUrl?: (hash: Vec) => string,
+): McpHandlers<O>
+```
+
+When `toUrl` is provided (e.g. by the filesystem-backed server which knows the
+CAS root from `home`), `cas_get_meta` includes the `url` field. When absent
+(e.g. in memory-backed tests), `url` is omitted. The CAS root is supplied by
+[i66G-cas-mcp-cwd-home](./66G-cas-mcp-cwd-home.md), which threads `home`
+through to the call site; the `toUrl` resolver is constructed there as
+`hash => path.join(home, '.cas', toPath(hash))`.
+
 ## Tasks
 
 - [ ] Design the `cas_add_url` / `cas_get_meta` argument rtti schemas.
 - [ ] Implement `cas_add_url` in `fs/cas/mcp/module.f.ts`: read file at path,
       call `c.write`, return hash.
 - [ ] Implement `cas_get_meta` in `fs/cas/mcp/module.f.ts`: call `c.read`,
-      return `{ url, mime_type, length }` without transferring content.
+      return `{ url?, mime_type, length }` using the `toUrl` resolver when
+      available.
+- [ ] Extend `casMcpHandlers` signature to accept an optional `toUrl` resolver.
 - [ ] Add the two tools to `casMcpHandlers`.
 - [ ] Extend `fs/cas/mcp/proof.f.ts` with round-trip tests for the new tools.
 
