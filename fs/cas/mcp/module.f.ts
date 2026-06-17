@@ -100,7 +100,7 @@ export const casListArgs = {} as const
 type ToolEntry<O extends Operation> = {
     readonly name: string
     readonly description: string
-    readonly inputSchema: ReturnType<typeof toJsonSchema>
+    readonly inputRtti: unknown
     readonly handle: (c: Cas<O>, toUrl: ((hash: Vec) => string) | undefined, args: unknown) => Effect<ReadFile | O, ToolsCallResult>
 }
 
@@ -109,7 +109,7 @@ const toolRegistry: readonly ToolEntry<any>[] = [
     {
         name: 'cas_add',
         description: 'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path; omit or pass type:"text" for UTF-8 text (default).',
-        inputSchema: toJsonSchema(casAddArgs),
+        inputRtti: casAddArgs,
         handle: (c, _toUrl, args: unknown) => {
             const [t, r] = validate(casAddArgs)(args as Unknown)
             if (t === 'error') {
@@ -139,7 +139,7 @@ const toolRegistry: readonly ToolEntry<any>[] = [
     {
         name: 'cas_get',
         description: 'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string.',
-        inputSchema: toJsonSchema(casGetArgs),
+        inputRtti: casGetArgs,
         handle: (c, toUrl, args: unknown) => {
             const [t, r] = validate(casGetArgs)(args as Unknown)
             if (t === 'error') {
@@ -193,7 +193,7 @@ const toolRegistry: readonly ToolEntry<any>[] = [
     {
         name: 'cas_list',
         description: 'List all stored content hashes (cBase32), one per line.',
-        inputSchema: toJsonSchema(casListArgs),
+        inputRtti: casListArgs,
         handle: (c, _toUrl, args: unknown) => {
             const [t, r] = validate(casListArgs)(args as Unknown)
             if (t === 'error') {
@@ -233,7 +233,7 @@ export const casMcpHandlers = <O extends Operation>(
         const tools: Tool[] = toolRegistry.map(entry => ({
             name: entry.name,
             description: entry.description,
-            inputSchema: entry.inputSchema,
+            inputSchema: toJsonSchema(entry.inputRtti as any),
         }))
         return pure({ tools })
     },
