@@ -62,7 +62,7 @@
  *
  * @module
  */
-import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
+import { string, option, or, boolean, type Type } from '../../types/rtti/module.f.ts'
 import { validate } from '../../types/rtti/validate/module.f.ts'
 import { toJsonSchema } from '../../json/schema/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
@@ -100,7 +100,7 @@ export const casListArgs = {} as const
 type ToolEntry<O extends Operation> = {
     readonly name: string
     readonly description: string
-    readonly inputRtti: unknown
+    readonly inputRtti: Type
     readonly handle: (c: Cas<O>, toUrl: ((hash: Vec) => string) | undefined, args: unknown) => Effect<ReadFile | O, ToolsCallResult>
 }
 
