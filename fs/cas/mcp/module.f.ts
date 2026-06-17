@@ -105,7 +105,7 @@ type ToolEntry<O extends Operation> = {
     readonly handle: (args: Unknown) => Effect<O, ToolsCallResult>
 }
 
-const create = <T extends Type, O extends Operation>(
+const toolEntry = <T extends Type, O extends Operation>(
     name: string,
     description: string,
     inputRtti: T,
@@ -127,7 +127,7 @@ const create = <T extends Type, O extends Operation>(
 const toolRegistry =
 <O extends Operation>(c: Cas<O>, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|ReadFile>[] =>
 [
-    create(
+    toolEntry(
         'cas_add',
         'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path; omit or pass type:"text" for UTF-8 text (default).',
         casAddArgs,
@@ -153,7 +153,7 @@ const toolRegistry =
             return c.write(value).step(hash => pure(okResult(vecToCBase32(hash))))
         },
     ),
-    create(
+    toolEntry(
         'cas_get',
         'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string.',
         casGetArgs,
@@ -203,7 +203,7 @@ const toolRegistry =
             })
         },
     ),
-    create(
+    toolEntry(
         'cas_list',
         'List all stored content hashes (cBase32), one per line.',
         casListArgs,
