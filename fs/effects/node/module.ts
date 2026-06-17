@@ -284,7 +284,7 @@ const playwrightTestContext = wrapInlineTest(pwTest!)
 const options: NodeProgramOptions = {
     args: process.argv.slice(2),
     env: process.env,
-    home: os.homedir(),
+    home: os.homedir().replaceAll('\\', '/'),
     std: { stdout: process.stdout, stderr: process.stderr },
     testContext,
     bunTestContext,
