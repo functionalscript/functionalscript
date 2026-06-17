@@ -101,7 +101,7 @@ type ToolEntry<O extends Operation> = {
     readonly name: string
     readonly description: string
     readonly inputRtti: Type
-    readonly handle: (c: Cas<O>, toUrl: ((hash: Vec) => string) | undefined, args: unknown) => Effect<ReadFile | O, ToolsCallResult>
+    readonly handle: (c: Cas<O>, toUrl: ((hash: Vec) => string) | undefined, args: Unknown) => Effect<ReadFile | O, ToolsCallResult>
 }
 
 /** Registry of all CAS tools. */
@@ -110,8 +110,8 @@ const toolRegistry: readonly ToolEntry<any>[] = [
         name: 'cas_add',
         description: 'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path; omit or pass type:"text" for UTF-8 text (default).',
         inputRtti: casAddArgs,
-        handle: (c, _toUrl, args: unknown) => {
-            const [t, r] = validate(casAddArgs)(args as Unknown)
+        handle: (c, _toUrl, args: Unknown) => {
+            const [t, r] = validate(casAddArgs)(args)
             if (t === 'error') {
                 return pure(errorResult(`invalid arguments: ${r.message}`))
             }
