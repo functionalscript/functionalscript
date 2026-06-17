@@ -117,13 +117,19 @@ MCP draws a line the dispatcher already respects:
 injected `Cas<O>`, and drives the stdio read → parse → dispatch → write loop
 ([`fs/mcp/stdio`](../../mcp/stdio/module.f.ts)) until stdin EOF.
 
-Start the server without a local install using `npx`:
+Start the server using `fjs mcp`:
 
 ```sh
-npx functionalscript cas mcp
+fjs mcp
 ```
 
-Or, if `fjs` is already on your `PATH` (e.g. after `npm install -g functionalscript`):
+Or without a local install using `npx`:
+
+```sh
+npx functionalscript mcp
+```
+
+The server can also be invoked via the legacy `cas` subcommand for backwards compatibility:
 
 ```sh
 fjs cas mcp
