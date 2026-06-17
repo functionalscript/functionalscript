@@ -97,20 +97,22 @@ export const casListArgs = {} as const
 // ── Tool registry ──────────────────────────────────────────────────────────────
 
 /** A single tool entry combining metadata, schema, and handler. */
-type ToolEntry = {
+type ToolEntry<O extends Operation> = {
     readonly name: string
     readonly description: string
     readonly inputRtti: Type
-    readonly handle: <O extends Operation>(c: Cas<O>, toUrl: ((hash: Vec) => string) | undefined) => (args: Unknown) => Effect<ReadFile | O, ToolsCallResult>
+    readonly handle: (args: Unknown) => Effect<ReadFile | O, ToolsCallResult>
 }
 
 /** Registry of all CAS tools. */
-const toolRegistry: readonly ToolEntry[] = [
+const toolRegistry =
+<O extends Operation>(c: Cas<O>, toUrl?: (hash: Vec) => string): readonly ToolEntry<O>[] =>
+[
     {
         name: 'cas_add',
         description: 'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path; omit or pass type:"text" for UTF-8 text (default).',
         inputRtti: casAddArgs,
-        handle: (c, _toUrl) => (args: Unknown) => {
+        handle: args => {
             const [t, r] = validate(casAddArgs)(args)
             if (t === 'error') {
                 return pure(errorResult(`invalid arguments: ${r.message}`))
@@ -140,8 +142,8 @@ const toolRegistry: readonly ToolEntry[] = [
         name: 'cas_get',
         description: 'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string.',
         inputRtti: casGetArgs,
-        handle: (c, toUrl) => (args: unknown) => {
-            const [t, r] = validate(casGetArgs)(args as Unknown)
+        handle: args => {
+            const [t, r] = validate(casGetArgs)(args)
             if (t === 'error') {
                 return pure(errorResult(`invalid arguments: ${r.message}`))
             }
@@ -194,8 +196,8 @@ const toolRegistry: readonly ToolEntry[] = [
         name: 'cas_list',
         description: 'List all stored content hashes (cBase32), one per line.',
         inputRtti: casListArgs,
-        handle: (c, _toUrl) => (args: unknown) => {
-            const [t, r] = validate(casListArgs)(args as Unknown)
+        handle: args => {
+            const [t, r] = validate(casListArgs)(args)
             if (t === 'error') {
                 return pure(errorResult(`invalid arguments: ${r.message}`))
             }
@@ -228,24 +230,27 @@ const errorResult = (text: string): ToolsCallResult =>
 export const casMcpHandlers = <O extends Operation>(
     c: Cas<O>,
     toUrl?: (hash: Vec) => string,
-): McpHandlers<ReadFile | O> => ({
-    toolsList: (): Effect<ReadFile | O, ToolsListResult> => {
-        const tools: Tool[] = toolRegistry.map(entry => ({
-            name: entry.name,
-            description: entry.description,
-            inputSchema: toJsonSchema(entry.inputRtti),
-        }))
-        return pure({ tools })
-    },
-    toolsCall: ({ name, arguments: args }: ToolsCallParams): Effect<ReadFile | O, ToolsCallResult> => {
-        const entry = toolRegistry.find(e => e.name === name)
-        if (entry === undefined) {
-            return pure(errorResult(`unknown tool: ${name}`))
-        }
-        const a = args === undefined ? {} : args
-        return entry.handle(c, toUrl)(a)
-    },
-})
+): McpHandlers<ReadFile | O> => {
+    const tr = toolRegistry(c, toUrl)
+    return {
+        toolsList: (): Effect<ReadFile | O, ToolsListResult> => {
+            const tools: Tool[] = tr.map(entry => ({
+                name: entry.name,
+                description: entry.description,
+                inputSchema: toJsonSchema(entry.inputRtti),
+            }))
+            return pure({ tools })
+        },
+        toolsCall: ({ name, arguments: args }: ToolsCallParams): Effect<ReadFile | O, ToolsCallResult> => {
+            const entry = tr.find(e => e.name === name)
+            if (entry === undefined) {
+                return pure(errorResult(`unknown tool: ${name}`))
+            }
+            const a = args === undefined ? {} : args
+            return entry.handle(a)
+        },
+    }
+}
 
 // ── Session configuration ───────────────────────────────────────────────────────
 
