@@ -21,7 +21,6 @@ import {
     type Effect, type Func, type Operation, type ToAsyncOperationMap,
     do_, pure
 } from '../module.f.ts'
-import { todo } from '../../asserts/module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
 
