@@ -60,7 +60,7 @@ themselves. The typical decision protocol:
    and `type`.
 2. If `type: 'text'` and `length` is small → call again with `content: true`.
 3. If `type: 'base64'` or `length` is large → use `url` from the response
-   to download directly.
+   to download directly (when present; see below).
 
 `url` is present only when the server was started with a `toUrl` resolver
 (production filesystem-backed server); it is omitted in memory-backed contexts
@@ -104,7 +104,8 @@ MCP draws a line the dispatcher already respects:
   JSON-RPC errors. [`mcpStep`](../../mcp/module.f.ts) handles those.
 - **Tool failures** come back as a normal `tools/call` result with
   `isError: true` and a text explanation. This adapter returns `isError` for:
-  - `type: 'base64'` with malformed base64 `content`;
+  - invalid arguments to any tool (`validate` rejects the argument object);
+  - `type: 'base64'` with malformed base64 `content` (`base64Decode` → `null`);
   - `type: 'url'` with an unreadable or missing file;
   - malformed `hash` (`cBase32ToVec` → `null`);
   - `cas_get` on an absent hash (`c.read` → `undefined`);
