@@ -48,6 +48,7 @@ where `<...Module documentation...>` should be documentation for the module.
 - Before implementing a non-trivial feature, ensure the corresponding issue document in `./issues/` contains a concrete design. If the issue exists but the design is absent, vague, or contradicts the codebase or runtime behaviour, update the issue first and wait for review — do not write code against an incomplete or incorrect design.
 - When a discrepancy is found between an issue's design and reality (a missing API, a wrong environment variable, an incompatible type), correct the design document and surface the problem rather than silently working around it.
 - Before relying on an undocumented or assumed runtime behaviour (environment variable names, API shape, framework detection), verify it with a small test or source check rather than assuming.
+- **Prefer declarative style over imperative.** When defining tools, handlers, dispatchers, or similar abstractions, favor data-driven definitions (metadata + schema + handler together in an array or registry) over imperative switch statements or hardcoded conditionals. Declarative patterns are easier to extend, test, and reason about. For example: define tools as an array of self-descriptive objects (name, description, schema, handler) and dispatch generically over them, rather than hardcoding a switch on tool name. See [i66H-declarative-tool-definitions](./issues/66H-declarative-tool-definitions.md) for an example refactoring from imperative to declarative.
 
 ## Pull Requests
 
