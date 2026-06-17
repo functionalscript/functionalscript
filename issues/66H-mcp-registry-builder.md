@@ -31,7 +31,7 @@ Extract the tool registry pattern into `fs/mcp` as a reusable builder/factory:
    type ToolEntry<O extends Operation> = {
        readonly name: string
        readonly description: string
-       readonly inputSchema: unknown  // JSON schema
+       readonly inputRtti: unknown  // RTTI definition; JSON schema derived on-demand
        readonly handle: (c: Context, args: unknown) => Effect<O, ToolsCallResult>
    }
    
@@ -44,7 +44,13 @@ Extract the tool registry pattern into `fs/mcp` as a reusable builder/factory:
        context: C,
        registry: ToolRegistry<C, O>,
    ): McpHandlers<O> => ({
-       toolsList: () => pure({ tools: registry.map(entry => ...) }),
+       toolsList: () => pure({ 
+           tools: registry.map(entry => ({
+               name: entry.name,
+               description: entry.description,
+               inputSchema: toJsonSchema(entry.inputRtti),  // Derive JSON schema from RTTI
+           }))
+       }),
        toolsCall: ({ name, arguments: args }) => {
            const entry = registry.find(e => e.name === name)
            // Generic dispatch
