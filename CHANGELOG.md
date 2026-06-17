@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `effects/node`: normalize the home directory path on Windows using `toPosix` so `home` always uses forward slashes (`C:/Users/x/` instead of `C:\Users\x\`) [#1108](https://github.com/functionalscript/functionalscript/pull/1108)
+
 ## 0.31.0
 
 - `cas/mcp`: unify `cas_add`/`cas_add_url` and `cas_get`/`cas_get_meta` into three tools — `cas_add` gains `type:'url'` so passing a filesystem path as `content` stores the file directly (replaces `cas_add_url`); `cas_get` gains `content?: boolean` and always returns `{ length, mime_type, type, url? }` (metadata + encoding type) so the agent can decide whether to fetch inline content without paying the token cost; pass `content: true` to also get the inline payload; `cas_add_url` and `cas_get_meta` removed (i66H-cas-mcp-unified-get-add) [#1106](https://github.com/functionalscript/functionalscript/pull/1106)
