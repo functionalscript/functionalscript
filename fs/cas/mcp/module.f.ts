@@ -28,9 +28,10 @@
  *
  * ## `cas_get` output
  *
- * Always returns a JSON object `{ length, mime_type[, url][, content, type] }`.
- * When `content: true` is requested, two-phase MIME detection determines the
- * inline encoding:
+ * Always returns a JSON object `{ length, mime_type, type[, url][, content] }`.
+ * `type` is always present (`'text'` or `'base64'`). When `content: true` is
+ * requested, the inline payload is also included. Two-phase MIME detection
+ * determines the encoding:
  *
  * 1. **Magic-byte sniffing** (`fs/mime` `detect`): PNG/JPEG/GIF/WebP/PDF/ZIP →
  *    `type: 'base64'` with the detected `mime_type`.
@@ -102,7 +103,7 @@ const casAddTool: Tool = {
 
 const casGetTool: Tool = {
     name: 'cas_get',
-    description: 'Inspect a blob by hash. Always returns JSON {length,mime_type[,url]}. Pass content:true to also get {content,type} inline (type is "text" or "base64").',
+    description: 'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string.',
     inputSchema: toJsonSchema(casGetArgs),
 }
 
@@ -180,31 +181,37 @@ export const casMcpHandlers = <O extends Operation>(
                         return pure(errorResult(`no such hash: ${r.hash}`))
                     }
                     const byteLength = Number(bitVecLength(value) / 8n)
-                    const mimeType = detect(value) ?? (fromVec(value) !== null ? 'text/plain' : 'application/octet-stream')
-                    const url = toUrl?.(key)
-                    const meta: Record<string, unknown> = url !== undefined
-                        ? { length: byteLength, mime_type: mimeType, url }
-                        : { length: byteLength, mime_type: mimeType }
-                    if (r.content === true) {
-                        // Phase 1: magic-byte sniffing for known binary formats.
-                        const detectedMime = detect(value)
-                        if (detectedMime !== null) {
+                    // Phase 1: magic-byte sniffing for known binary formats.
+                    const detectedMime = detect(value)
+                    if (detectedMime !== null) {
+                        const url = toUrl?.(key)
+                        const meta: Record<string, unknown> = { length: byteLength, mime_type: detectedMime, type: 'base64', ...(url !== undefined && { url }) }
+                        if (r.content === true) {
                             const blob = base64Encode(value)
                             if (blob === null) {
                                 return pure(errorResult(`content is not byte-aligned: ${r.hash}`))
                             }
-                            return pure(okResult(JSON.stringify({ ...meta, content: blob, type: 'base64' })))
+                            return pure(okResult(JSON.stringify({ ...meta, content: blob })))
                         }
-                        // Phase 2: UTF-8 validation — text if valid, octet-stream otherwise.
-                        const str = fromVec(value)
-                        if (str !== null) {
-                            return pure(okResult(JSON.stringify({ ...meta, content: str, type: 'text' })))
+                        return pure(okResult(JSON.stringify(meta)))
+                    }
+                    // Phase 2: UTF-8 validation — text if valid, octet-stream otherwise.
+                    const str = fromVec(value)
+                    const url = toUrl?.(key)
+                    if (str !== null) {
+                        const meta: Record<string, unknown> = { length: byteLength, mime_type: 'text/plain', type: 'text', ...(url !== undefined && { url }) }
+                        if (r.content === true) {
+                            return pure(okResult(JSON.stringify({ ...meta, content: str })))
                         }
+                        return pure(okResult(JSON.stringify(meta)))
+                    }
+                    const meta: Record<string, unknown> = { length: byteLength, mime_type: 'application/octet-stream', type: 'base64', ...(url !== undefined && { url }) }
+                    if (r.content === true) {
                         const blob = base64Encode(value)
                         if (blob === null) {
                             return pure(errorResult(`content is not byte-aligned: ${r.hash}`))
                         }
-                        return pure(okResult(JSON.stringify({ ...meta, content: blob, type: 'base64' })))
+                        return pure(okResult(JSON.stringify({ ...meta, content: blob })))
                     }
                     return pure(okResult(JSON.stringify(meta)))
                 })

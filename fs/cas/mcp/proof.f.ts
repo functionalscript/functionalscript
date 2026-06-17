@@ -19,9 +19,9 @@ import { casConfig, casMcpHandlers } from './module.f.ts'
 type CasGetResult = {
     readonly length: number
     readonly mime_type: string
+    readonly type: string
     readonly url?: string
     readonly content?: string
-    readonly type?: string
 }
 
 // ── Memory mock (mirrors fs/mcp/proof.f.ts) ─────────────────────────────────────
@@ -181,9 +181,9 @@ export const proof = {
         assert(!resultOf(getResp).isError)
         const result = JSON.parse(textOf(getResp)) as CasGetResult
         assertEq(result.mime_type, 'text/plain')
+        assertEq(result.type, 'text')
         assertEq(result.length, textSample.length)
         assertEq(result.content, undefined)
-        assertEq(result.type, undefined)
     },
 
     // cas_get with content:true returns inline content.
@@ -212,6 +212,7 @@ export const proof = {
         assert(!resultOf(getResp).isError)
         const result = JSON.parse(textOf(getResp)) as CasGetResult
         assertEq(result.content, undefined)
+        assertEq(result.type, 'text')
         assertEq(result.mime_type, 'text/plain')
     },
 
@@ -381,6 +382,7 @@ export const proof = {
         assert(!resultOf(metaResp2).isError)
         const meta = JSON.parse(textOf(metaResp2)) as CasGetResult
         assertEq(meta.mime_type, 'text/plain')
+        assertEq(meta.type, 'text')
         assertEq(meta.length, Number(BigInt(/* 'text content'.length */ 12)))
         assertEq(meta.content, undefined)
     },
@@ -395,6 +397,7 @@ export const proof = {
         assert(!resultOf(metaResp).isError)
         const meta = JSON.parse(textOf(metaResp)) as CasGetResult
         assertEq(meta.mime_type, 'image/png')
+        assertEq(meta.type, 'base64')
         assertEq(meta.length, 10)
         assertEq(meta.content, undefined)
     },
@@ -411,6 +414,7 @@ export const proof = {
         assert(!resultOf(metaResp).isError)
         const meta = JSON.parse(textOf(metaResp)) as CasGetResult
         assertEq(meta.mime_type, 'application/octet-stream')
+        assertEq(meta.type, 'base64')
         assertEq(meta.content, undefined)
     },
 
