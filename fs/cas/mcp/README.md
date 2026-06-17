@@ -115,15 +115,37 @@ MCP draws a line the dispatcher already respects:
 
 `casMcpServer(c)` allocates the session-state slot, builds the `mcpStep` for an
 injected `Cas<O>`, and drives the stdio read → parse → dispatch → write loop
-([`fs/mcp/stdio`](../../mcp/stdio/module.f.ts)) until stdin EOF. The `cas`
-command exposes it as:
+([`fs/mcp/stdio`](../../mcp/stdio/module.f.ts)) until stdin EOF.
 
+Start the server without a local install using `npx`:
+
+```sh
+npx functionalscript cas mcp
 ```
+
+Or, if `fjs` is already on your `PATH` (e.g. after `npm install -g functionalscript`):
+
+```sh
 fjs cas mcp
 ```
 
-which runs the server over a filesystem-backed CAS rooted at the current
-directory. Because the adapter is generic in `O`, the same handlers run over an
+### Store location
+
+Blobs are stored under **`~/.cas/`** (the user's home directory as returned by
+`os.homedir()`). Each blob is written to a two-level sharded path derived from
+its cBase32 hash:
+
+```
+~/.cas/<AB>/<CD>/<rest-of-hash>
+```
+
+where `AB`, `CD`, and `<rest-of-hash>` are the first two, next two, and
+remaining characters of the cBase32 hash. The `url` field returned by
+`cas_get` contains the full absolute path to the blob file.
+
+### Testing without a live process
+
+Because the adapter is generic in `O`, the same handlers run over an
 in-memory `Cas<MemOp>` in `proof.f.ts`, driven through a full
 `initialize` → `notifications/initialized` → `tools/call` sequence with no live
 process.
