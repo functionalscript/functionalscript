@@ -69,6 +69,7 @@ import {
     rightCurlyBracket,
     dollarSign
 }  from '../../text/ascii/module.f.ts'
+import { todo } from '../../asserts/module.f.ts'
 
 const { fromCharCode } = String
 
@@ -921,9 +922,9 @@ export const proof = {
         // union throws when two distinct non-default handlers are merged for the same range;
         // this path is unreachable through the public API (no overlapping ranges in practice).
         unionConflict: () => {
-            const def = (_: undefined) => (_n: number): never => { throw undefined }
-            const a = (_: undefined) => (_n: number): never => { throw undefined }
-            const b = (_: undefined) => (_n: number): never => { throw undefined }
+            const def = (_: undefined) => todo
+            const a = (_: undefined) => todo
+            const b = (_: undefined) => todo
             union(def)(a)(b)
         }
     }
