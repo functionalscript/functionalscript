@@ -915,3 +915,16 @@ export const tokenize
         const scan = scanTokenize({state: { kind: 'initial' }, metadata: {path, line: 1, column: 1}})
         return flat(scan(flat<number|null>([input /*satisfies List<CharCodeOrEof>*/, [null]])))
     }
+
+export const proof = {
+    throw: {
+        // union throws when two distinct non-default handlers are merged for the same range;
+        // this path is unreachable through the public API (no overlapping ranges in practice).
+        unionConflict: () => {
+            const def = (_: undefined) => (_n: number): never => { throw undefined }
+            const a = (_: undefined) => (_n: number): never => { throw undefined }
+            const b = (_: undefined) => (_n: number): never => { throw undefined }
+            union(def)(a)(b)
+        }
+    }
+}
