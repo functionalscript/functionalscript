@@ -25,6 +25,7 @@ fjs <command> [args]
 | `test`   | `t`   | Run the FunctionalScript test suite |
 | `compile`| `c`   | Compile a FunctionalScript module to JavaScript |
 | `cas`    | `s`   | Content-addressable storage operations |
+| `mcp`    | `m`   | Run an MCP server over stdio exposing the CAS as tools |
 | `ci`     | `i`   | Generate the GitHub Actions CI workflow |
 | `run`    | `r`   | Run a FunctionalScript module as a program |
 | `help`   | `h`, `?` | Print available commands |
