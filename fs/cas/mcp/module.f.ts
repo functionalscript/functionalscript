@@ -12,7 +12,7 @@
  * | Tool       | args                          | CAS call         | result                              |
  * |------------|-------------------------------|------------------|-------------------------------------|
  * | `cas_add`  | `{ content, type? }`          | `c.write(value)` | hash (cBase32)                      |
- * | `cas_get`  | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mime_type[,content]}` |
+ * | `cas_get`  | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mime_type,type[,content]}` |
  * | `cas_list` | `{}`                          | `c.list()`       | hashes, one per line                |
  *
  * ## `cas_add` input encoding
@@ -39,7 +39,7 @@
  *    `type: 'text'`, `mime_type: 'text/plain'`.
  * 3. **Fallback**: `type: 'base64'`, `mime_type: 'application/octet-stream'`.
  *
- * When `content: false` (default), only `{ length, mime_type[, url] }` is
+ * When `content: false` (default), only `{ length, mime_type, type[, url] }` is
  * returned — no content transfer.
  *
  * ## Encoding split: hashes vs. content
