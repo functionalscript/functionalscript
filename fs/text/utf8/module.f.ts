@@ -3,10 +3,12 @@
  *
  * @module
  */
-import { flatMap, type List, type Thunk } from '../../types/list/module.f.ts'
+import { flatMap, toArray, type List, type Thunk } from '../../types/list/module.f.ts'
 import type { StateScan } from '../../types/function/operator/module.f.ts'
 import type { Array1, Array2, Array3 } from '../../types/array/module.f.ts'
 import { decoder, errorMask } from '../code_point/module.f.ts'
+import { msb, u8List, length, type Vec } from '../../types/bit_vec/module.f.ts'
+import { codePointListToString } from '../utf16/module.f.ts'
 
 /**
  * An unsigned 8-bit integer, represents a single byte.
@@ -247,3 +249,19 @@ const utf8EofToCodePointOp = (
  */
 export const toCodePointList: (input: List<U8>) => List<I32> =
     decoder(utf8ByteToCodePointOp, utf8EofToCodePointOp)
+
+/**
+ * Returns the decoded string if `v` is valid UTF-8, or `null` otherwise.
+ * Rejects non-octet Vecs, invalid byte sequences, surrogates, and out-of-range
+ * code points.
+ */
+export const fromVec = (v: Vec): string | null => {
+    if (length(v) % 8n !== 0n) { return null }
+    const arr = toArray(toCodePointList(u8List(msb)(v)))
+    for (const cp of arr) {
+        if (cp < 0) { return null }
+        if (cp > 0x10FFFF) { return null }
+        if (cp >= 0xD800 && cp <= 0xDFFF) { return null }
+    }
+    return codePointListToString(arr)
+}

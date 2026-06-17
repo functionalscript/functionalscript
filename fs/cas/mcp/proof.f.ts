@@ -8,11 +8,15 @@ import { msb, u8ListToVec, vec8, type Vec } from '../../types/bit_vec/module.f.t
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
+import { utf8 } from '../../text/module.f.ts'
 import { cas, type KvStore } from '../module.f.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
 } from '../../mcp/module.f.ts'
+import { type ReadFile } from '../../effects/node/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
+
+type CasGetResult = { readonly content: string, readonly type: string, readonly mime_type: string }
 
 // ── Memory mock (mirrors fs/mcp/proof.f.ts) ─────────────────────────────────────
 
@@ -21,22 +25,41 @@ type MemoryState = {
     readonly values: { readonly [key: string]: unknown }
 }
 
-const initial: MemoryState = { next: 0, values: {} }
+type TestState = {
+    readonly memory: MemoryState
+    readonly files: { readonly [path: string]: Vec }
+}
 
-const mock: MemOperationMap<MemOp, MemoryState> = {
+const initialTestState: TestState = { memory: { next: 0, values: {} }, files: {} }
+
+const mock: MemOperationMap<MemOp | ReadFile, TestState> = {
     memCreate: value => state => {
-        const id = `k${state.next}`
+        const id = `k${state.memory.next}`
         const key: Key<unknown> = asNominal(id)
-        return [{ next: state.next + 1, values: { ...state.values, [id]: value } }, key]
+        return [
+            { ...state, memory: { next: state.memory.next + 1, values: { ...state.memory.values, [id]: value } } },
+            key,
+        ]
     },
-    memRead: key => state => [state, state.values[asBase(key)]],
+    memRead: key => state => [state, state.memory.values[asBase(key)]],
     memWrite: (key, value) => state => {
         const id = asBase(key)
-        return [{ ...state, values: { ...state.values, [id]: value } }, undefined]
+        return [{ ...state, memory: { ...state.memory, values: { ...state.memory.values, [id]: value } } }, undefined]
+    },
+    readFile: path => state => {
+        const v = state.files[path]
+        return v !== undefined
+            ? [state, ['ok', v] as const]
+            : [state, ['error', new Error(`ENOENT: ${path}`)] as readonly ['error', unknown]]
     },
 }
 
-const runMem = <T>(effect: Effect<MemOp, T>): T => run(mock)(initial)(effect)[1]
+const runMem = <T>(effect: Effect<MemOp | ReadFile, T>): T =>
+    run(mock)(initialTestState)(effect)[1]
+
+const runMemWithFiles = <T>(files: { readonly [path: string]: Vec }) =>
+    (effect: Effect<MemOp | ReadFile, T>): T =>
+        run(mock)({ memory: { next: 0, values: {} }, files })(effect)[1]
 
 // ── In-memory KvStore backed by a single memory slot ────────────────────────────
 // Persists writes across steps so add → get round-trips, keyed by cBase32 hash.
@@ -58,9 +81,9 @@ const memKvStore = (mapKey: Key<VecMap>): KvStore<MemOp> => ({
 
 // Feeds each message to `step` in order, collecting every response.
 const feed =
-    (step: (v: Unknown) => Effect<MemOp, Response | null>) =>
-    (msgs: readonly unknown[]): Effect<MemOp, readonly unknown[]> => {
-        const go = (i: number, acc: readonly unknown[]): Effect<MemOp, readonly unknown[]> =>
+    (step: (v: Unknown) => Effect<MemOp | ReadFile, Response | null>) =>
+    (msgs: readonly unknown[]): Effect<MemOp | ReadFile, readonly unknown[]> => {
+        const go = (i: number, acc: readonly unknown[]): Effect<MemOp | ReadFile, readonly unknown[]> =>
             i === msgs.length
                 ? pure(acc)
                 : step(msgs[i] as Unknown).step(r => go(i + 1, [...acc, r]))
@@ -73,9 +96,21 @@ const runSession = (msgs: readonly unknown[]): readonly unknown[] =>
         create({} as VecMap).step(mapKey =>
             create(uninitializedState as McpSessionState).step(sessionKey => {
                 const c = cas(sha256)(memKvStore(mapKey))
-                const step = mcpStep<MemOp>(casConfig)(casMcpHandlers(c))(sessionKey)
+                const step = mcpStep<MemOp | ReadFile>(casConfig)(casMcpHandlers(c))(sessionKey)
                 return feed(step)(msgs)
             })))
+
+// Runs a session with a mocked filesystem (for cas_add_url tests).
+const runSessionWithFiles =
+    (files: { readonly [path: string]: Vec }) =>
+    (msgs: readonly unknown[]): readonly unknown[] =>
+        runMemWithFiles<readonly unknown[]>(files)(
+            create({} as VecMap).step(mapKey =>
+                create(uninitializedState as McpSessionState).step(sessionKey => {
+                    const c = cas(sha256)(memKvStore(mapKey))
+                    const step = mcpStep<MemOp | ReadFile>(casConfig)(casMcpHandlers(c))(sessionKey)
+                    return feed(step)(msgs)
+                })))
 
 // ── Messages ────────────────────────────────────────────────────────────────────
 
@@ -100,16 +135,14 @@ const item0 = (resp: unknown): unknown => resultOf(resp).content[0]
 
 const textOf = (resp: unknown): string => (item0(resp) as { readonly text: string }).text
 
-type BlobResource = { readonly uri: string, readonly mimeType?: string, readonly blob: string }
+// A plain text sample for text add→get round-trips.
+const textSample = 'hello, world!'
 
-const resourceOf = (resp: unknown): BlobResource =>
-    (item0(resp) as { readonly type: string, readonly resource: BlobResource }).resource
-
-// A valid base64 payload to store and round-trip.
-const sample = base64Encode(vec8(0x2An)) as string
+// A base64-encoded binary payload for binary add→get round-trips.
+const binarySample = base64Encode(vec8(0x2An)) as string
 
 // A base64 blob whose leading bytes are the PNG magic-byte signature, so
-// `cas_get` detects its type and returns an EmbeddedResource.
+// `cas_get` detects its type and returns base64 with mime_type image/png.
 const pngSample = base64Encode(
     u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])) as string
 
@@ -119,64 +152,94 @@ export const proof = {
     toolsListAdvertisesThreeTools: () => {
         const [resp] = runSession([init, initialized, list(2)]).slice(2)
         const tools = (resp as { result: { tools: readonly { name: string }[] } }).result.tools
-        assertEq(tools.length, 3)
-        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list')
+        assertEq(tools.length, 5)
+        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list,cas_add_url,cas_get_meta')
         // Each tool advertises an object inputSchema derived from its rtti args.
         const add = (resp as { result: { tools: readonly { inputSchema: { type?: string } }[] } }).result.tools[0]
         assertEq(add.inputSchema.type, 'object')
     },
 
     addReturnsHash: () => {
-        const [resp] = session(call(2, 'cas_add', { content: sample }))
+        const [resp] = session(call(2, 'cas_add', { content: textSample }))
         assert(!resultOf(resp).isError)
         assert(textOf(resp).length > 0)
     },
 
-    addGetRoundTrips: () => {
-        // First learn the hash from a standalone add...
-        const [addResp] = session(call(2, 'cas_add', { content: sample }))
+    // Text add→get round-trip: store as UTF-8 text, retrieve as text.
+    textAddGetRoundTrips: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: textSample }))
         const hash = textOf(addResp)
-        // ...then add + get in one session so the store is shared.
         const [, getResp] = session(
-            call(2, 'cas_add', { content: sample }),
+            call(2, 'cas_add', { content: textSample }),
             call(3, 'cas_get', { hash }),
         )
         assert(!resultOf(getResp).isError)
-        assertEq(textOf(getResp), sample)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        assertEq(result.type, 'text')
+        assertEq(result.mime_type, 'text/plain')
+        assertEq(result.content, textSample)
     },
 
-    // Opaque bytes (no magic-byte match) come back as a plain text block.
-    getUntypedReturnsText: () => {
-        const [addResp] = session(call(2, 'cas_add', { content: sample }))
+    // Binary add→get round-trip: store as base64, retrieve as base64.
+    binaryAddGetRoundTrips: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: binarySample, type: 'base64' }))
         const hash = textOf(addResp)
         const [, getResp] = session(
-            call(2, 'cas_add', { content: sample }),
+            call(2, 'cas_add', { content: binarySample, type: 'base64' }),
+            call(3, 'cas_get', { hash }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        assertEq(result.type, 'text')
+        assertEq(result.content, '*')
+    },
+
+    addGetRoundTrips: () => {
+        // Backward-compatible: default type is 'text', content is stored as UTF-8.
+        const [addResp] = session(call(2, 'cas_add', { content: textSample }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: textSample }),
+            call(3, 'cas_get', { hash }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        assertEq(result.content, textSample)
+    },
+
+    // Text content (no magic-byte match, valid UTF-8) comes back with type:'text'.
+    getUntypedReturnsText: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: textSample }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: textSample }),
             call(3, 'cas_get', { hash }),
         )
         assertEq(item0(getResp) === null ? null : (item0(getResp) as { type: string }).type, 'text')
-        assertEq(textOf(getResp), sample)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        assertEq(result.type, 'text')
+        assertEq(result.mime_type, 'text/plain')
     },
 
-    // Bytes with a recognised PNG signature come back as an EmbeddedResource
-    // carrying the mimeType, the base64 blob, and a cas:// URI.
-    getTypedReturnsEmbeddedResource: () => {
-        const [addResp] = session(call(2, 'cas_add', { content: pngSample }))
+    // Bytes with a recognised PNG signature come back as JSON with type:'base64' and mime_type:'image/png'.
+    getTypedReturnsBinaryJson: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: pngSample, type: 'base64' }))
         const hash = textOf(addResp)
         const [, getResp] = session(
-            call(2, 'cas_add', { content: pngSample }),
+            call(2, 'cas_add', { content: pngSample, type: 'base64' }),
             call(3, 'cas_get', { hash }),
         )
         assert(!resultOf(getResp).isError)
-        assertEq((item0(getResp) as { type: string }).type, 'resource')
-        const resource = resourceOf(getResp)
-        assertEq(resource.mimeType, 'image/png')
-        assertEq(resource.blob, pngSample)
-        assertEq(resource.uri, `cas://sha256/${hash}`)
+        assertEq((item0(getResp) as { type: string }).type, 'text')
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        assertEq(result.type, 'base64')
+        assertEq(result.mime_type, 'image/png')
+        assertEq(result.content, pngSample)
     },
 
     listEnumeratesStoredHashes: () => {
         const [addResp, listResp] = session(
-            call(2, 'cas_add', { content: sample }),
+            call(2, 'cas_add', { content: textSample }),
             call(3, 'cas_list', {}),
         )
         const hash = textOf(addResp)
@@ -185,13 +248,14 @@ export const proof = {
     },
 
     addInvalidContentIsError: () => {
-        const [resp] = session(call(2, 'cas_add', { content: 'not valid!' }))
+        // Only base64 type can produce an error for content encoding.
+        const [resp] = session(call(2, 'cas_add', { content: 'not valid!', type: 'base64' }))
         assertEq(resultOf(resp).isError, true)
     },
 
     // base64 length must be a multiple of 4 — a single character is malformed.
     addBadLengthContentIsError: () => {
-        const [resp] = session(call(2, 'cas_add', { content: 'A' }))
+        const [resp] = session(call(2, 'cas_add', { content: 'A', type: 'base64' }))
         assertEq(resultOf(resp).isError, true)
     },
 
@@ -223,14 +287,135 @@ export const proof = {
     },
 
     unknownToolIsError: () => {
-        const [resp] = session(call(2, 'cas_remove', { hash: sample }))
+        const [resp] = session(call(2, 'cas_remove', { hash: binarySample }))
         assertEq(resultOf(resp).isError, true)
     },
 
     // Tool failures are in-band results, never JSON-RPC errors.
     toolErrorIsNotJsonRpcError: () => {
-        const [resp] = session(call(2, 'cas_add', { content: 'not valid!' }))
+        const [resp] = session(call(2, 'cas_add', { content: 'not valid!', type: 'base64' }))
         assert(!('error' in (resp as object)))
         assert('result' in (resp as object))
+    },
+
+    toolsListAdvertisesFiveTools: () => {
+        const [resp] = runSession([init, initialized, list(2)]).slice(2)
+        const tools = (resp as { result: { tools: readonly { name: string }[] } }).result.tools
+        assertEq(tools.length, 5)
+        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list,cas_add_url,cas_get_meta')
+    },
+
+    addUrlStoresFileAndReturnsHash: () => {
+        const fileContent = utf8('hello from file')
+        const [addUrlResp] = runSessionWithFiles({ '/tmp/hello.txt': fileContent })([
+            init, initialized,
+            call(2, 'cas_add_url', { url: '/tmp/hello.txt' }),
+        ]).slice(2) as readonly unknown[]
+        assert(!resultOf(addUrlResp).isError)
+        assert(textOf(addUrlResp).length > 0)
+    },
+
+    addUrlRoundTrips: () => {
+        const fileContent = utf8('round-trip content')
+        const msgs = runSessionWithFiles({ '/tmp/rt.txt': fileContent })([
+            init, initialized,
+            call(2, 'cas_add_url', { url: '/tmp/rt.txt' }),
+        ]).slice(2) as readonly unknown[]
+        const hash = textOf(msgs[0])
+        // Now add_url then get in one session to verify the stored content.
+        const msgs2 = runSessionWithFiles({ '/tmp/rt.txt': fileContent })([
+            init, initialized,
+            call(2, 'cas_add_url', { url: '/tmp/rt.txt' }),
+            call(3, 'cas_get', { hash }),
+        ]).slice(2) as readonly unknown[]
+        assert(!resultOf(msgs2[1]).isError)
+        const result = JSON.parse(textOf(msgs2[1])) as CasGetResult
+        assertEq(result.type, 'text')
+        assertEq(result.content, 'round-trip content')
+    },
+
+    addUrlMissingFileIsError: () => {
+        const [resp] = runSessionWithFiles({})([
+            init, initialized,
+            call(2, 'cas_add_url', { url: '/nonexistent/path.txt' }),
+        ]).slice(2) as readonly unknown[]
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    addUrlMissingUrlArgumentIsError: () => {
+        const [resp] = session(call(2, 'cas_add_url', {}))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    getMetaReturnsLengthAndMimeType: () => {
+        const fileContent = utf8('text content')
+        const [addResp] = runSessionWithFiles({ '/f': fileContent })([
+            init, initialized,
+            call(2, 'cas_add_url', { url: '/f' }),
+        ]).slice(2) as readonly unknown[]
+        const hash = textOf(addResp)
+        // Re-run with correct hash.
+        const [, metaResp2] = runSessionWithFiles({ '/f': fileContent })([
+            init, initialized,
+            call(2, 'cas_add_url', { url: '/f' }),
+            call(3, 'cas_get_meta', { hash }),
+        ]).slice(2) as readonly unknown[]
+        assert(!resultOf(metaResp2).isError)
+        const meta = JSON.parse(textOf(metaResp2)) as { length: number, mime_type: string }
+        assertEq(meta.mime_type, 'text/plain')
+        assertEq(meta.length, Number(BigInt(/* 'text content'.length */ 12)))
+    },
+
+    getMetaBinaryBlob: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: pngSample, type: 'base64' }))
+        const hash = textOf(addResp)
+        const [, metaResp] = session(
+            call(2, 'cas_add', { content: pngSample, type: 'base64' }),
+            call(3, 'cas_get_meta', { hash }),
+        )
+        assert(!resultOf(metaResp).isError)
+        const meta = JSON.parse(textOf(metaResp)) as { length: number, mime_type: string }
+        assertEq(meta.mime_type, 'image/png')
+        assertEq(meta.length, 10)
+    },
+
+    getMetaOctetStreamForUnknownBinary: () => {
+        // A Vec with high bytes that aren't valid UTF-8 and no magic signature.
+        const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
+        const binaryB64 = base64Encode(binaryContent) as string
+        const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
+        const hash = textOf(addResp)
+        const [, metaResp] = session(
+            call(2, 'cas_add', { content: binaryB64, type: 'base64' }),
+            call(3, 'cas_get_meta', { hash }),
+        )
+        assert(!resultOf(metaResp).isError)
+        const meta = JSON.parse(textOf(metaResp)) as { length: number, mime_type: string }
+        assertEq(meta.mime_type, 'application/octet-stream')
+    },
+
+    getMetaNoUrlWhenToUrlAbsent: () => {
+        const content = utf8('no url')
+        const binaryB64 = base64Encode(content) as string
+        const [addResp] = session(call(2, 'cas_add', { content: binaryB64 }))
+        const hash = textOf(addResp)
+        const [, metaResp] = session(
+            call(2, 'cas_add', { content: binaryB64 }),
+            call(3, 'cas_get_meta', { hash }),
+        )
+        assert(!resultOf(metaResp).isError)
+        const meta = JSON.parse(textOf(metaResp)) as { url?: string }
+        assertEq(meta.url, undefined)
+    },
+
+    getMetaMissingHashIsError: () => {
+        const absent = vecToCBase32(vec8(0x77n))
+        const [resp] = session(call(2, 'cas_get_meta', { hash: absent }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    getMetaInvalidHashIsError: () => {
+        const [resp] = session(call(2, 'cas_get_meta', { hash: 'bad!' }))
+        assertEq(resultOf(resp).isError, true)
     },
 }
