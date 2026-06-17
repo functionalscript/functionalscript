@@ -132,25 +132,23 @@ const toolRegistry =
         'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path; omit or pass type:"text" for UTF-8 text (default).',
         casAddArgs,
         r => {
-            const encoding = r.type ?? 'text'
-            if (encoding === 'url') {
-                return readFile(r.content).step(result => {
-                    if (result[0] === 'error') {
-                        return pure(errorResult(`cannot read file: ${r.content}: ${result[1]}`))
-                    }
-                    return c.write(result[1]).step(hash => pure(okResult(vecToCBase32(hash))))
-                })
+            const f = (value: Vec) =>
+                c.write(value).step(hash => pure(okResult(vecToCBase32(hash))))
+            switch(r.type ?? 'text') {
+                case 'url':
+                    return readFile(r.content).step(([t, v]) =>
+                        t === 'error'
+                            ? pure(errorResult(`cannot read file: ${r.content}: ${v}`))
+                            : f(v)
+                    )
+                case 'base64':
+                    const value = base64Decode(r.content)
+                    return value === null
+                        ? pure(errorResult(`invalid base64 content: ${r.content}`))
+                        : f(value)
+                default:
+                    return f(utf8(r.content))
             }
-            let value: Vec | null
-            if (encoding === 'base64') {
-                value = base64Decode(r.content)
-                if (value === null) {
-                    return pure(errorResult(`invalid base64 content: ${r.content}`))
-                }
-            } else {
-                value = utf8(r.content)
-            }
-            return c.write(value).step(hash => pure(okResult(vecToCBase32(hash))))
         },
     ),
     toolEntry(
