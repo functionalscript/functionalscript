@@ -157,15 +157,7 @@ export const commands: Commands<FileKvStoreOperation | Write | All | MemOp | Rea
                 .step(forEachStep(j => log(vecToCBase32(j))))
                 .step(() => pure(0))
         },
-    },
-    {
-        names: ['mcp'],
-        description: 'Run an MCP server over stdio exposing the CAS as tools',
-        handler: ({ home }) => {
-            const c = cas(sha256)(fileKvStore(home))
-            return casMcpServer(c, hash => join(home, toPath(hash))).step(() => pure(0))
-        },
-    },
+    }
 ]
 
 export const main = dispatch(commands)
