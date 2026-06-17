@@ -16,7 +16,13 @@ import {
 import { type ReadFile } from '../../effects/node/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
 
-type CasGetResult = { readonly content: string, readonly type: string, readonly mime_type: string }
+type CasGetResult = {
+    readonly length: number
+    readonly mime_type: string
+    readonly url?: string
+    readonly content?: string
+    readonly type?: string
+}
 
 // ── Memory mock (mirrors fs/mcp/proof.f.ts) ─────────────────────────────────────
 
@@ -100,7 +106,7 @@ const runSession = (msgs: readonly unknown[]): readonly unknown[] =>
                 return feed(step)(msgs)
             })))
 
-// Runs a session with a mocked filesystem (for cas_add_url tests).
+// Runs a session with a mocked filesystem (for cas_add with type:'url' tests).
 const runSessionWithFiles =
     (files: { readonly [path: string]: Vec }) =>
     (msgs: readonly unknown[]): readonly unknown[] =>
@@ -152,9 +158,8 @@ export const proof = {
     toolsListAdvertisesThreeTools: () => {
         const [resp] = runSession([init, initialized, list(2)]).slice(2)
         const tools = (resp as { result: { tools: readonly { name: string }[] } }).result.tools
-        assertEq(tools.length, 5)
-        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list,cas_add_url,cas_get_meta')
-        // Each tool advertises an object inputSchema derived from its rtti args.
+        assertEq(tools.length, 3)
+        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list')
         const add = (resp as { result: { tools: readonly { inputSchema: { type?: string } }[] } }).result.tools[0]
         assertEq(add.inputSchema.type, 'object')
     },
@@ -165,8 +170,8 @@ export const proof = {
         assert(textOf(resp).length > 0)
     },
 
-    // Text add→get round-trip: store as UTF-8 text, retrieve as text.
-    textAddGetRoundTrips: () => {
+    // Text add→get round-trip: store as UTF-8 text, retrieve metadata.
+    textAddGetMetaRoundTrips: () => {
         const [addResp] = session(call(2, 'cas_add', { content: textSample }))
         const hash = textOf(addResp)
         const [, getResp] = session(
@@ -175,13 +180,29 @@ export const proof = {
         )
         assert(!resultOf(getResp).isError)
         const result = JSON.parse(textOf(getResp)) as CasGetResult
+        assertEq(result.mime_type, 'text/plain')
+        assertEq(result.length, textSample.length)
+        assertEq(result.content, undefined)
+        assertEq(result.type, undefined)
+    },
+
+    // cas_get with content:true returns inline content.
+    textAddGetContentRoundTrips: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: textSample }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: textSample }),
+            call(3, 'cas_get', { hash, content: true }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
         assertEq(result.type, 'text')
         assertEq(result.mime_type, 'text/plain')
         assertEq(result.content, textSample)
     },
 
-    // Binary add→get round-trip: store as base64, retrieve as base64.
-    binaryAddGetRoundTrips: () => {
+    // Binary add→get round-trip: store as base64, retrieve metadata without content.
+    binaryAddGetMetaRoundTrips: () => {
         const [addResp] = session(call(2, 'cas_add', { content: binarySample, type: 'base64' }))
         const hash = textOf(addResp)
         const [, getResp] = session(
@@ -190,30 +211,43 @@ export const proof = {
         )
         assert(!resultOf(getResp).isError)
         const result = JSON.parse(textOf(getResp)) as CasGetResult
+        assertEq(result.content, undefined)
+        assertEq(result.mime_type, 'text/plain')
+    },
+
+    // Binary add→get with content:true returns inline base64 content.
+    binaryAddGetContentRoundTrips: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: binarySample, type: 'base64' }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: binarySample, type: 'base64' }),
+            call(3, 'cas_get', { hash, content: true }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
         assertEq(result.type, 'text')
         assertEq(result.content, '*')
     },
 
     addGetRoundTrips: () => {
-        // Backward-compatible: default type is 'text', content is stored as UTF-8.
         const [addResp] = session(call(2, 'cas_add', { content: textSample }))
         const hash = textOf(addResp)
         const [, getResp] = session(
             call(2, 'cas_add', { content: textSample }),
-            call(3, 'cas_get', { hash }),
+            call(3, 'cas_get', { hash, content: true }),
         )
         assert(!resultOf(getResp).isError)
         const result = JSON.parse(textOf(getResp)) as CasGetResult
         assertEq(result.content, textSample)
     },
 
-    // Text content (no magic-byte match, valid UTF-8) comes back with type:'text'.
+    // Text content (no magic-byte match, valid UTF-8) comes back with type:'text' when content requested.
     getUntypedReturnsText: () => {
         const [addResp] = session(call(2, 'cas_add', { content: textSample }))
         const hash = textOf(addResp)
         const [, getResp] = session(
             call(2, 'cas_add', { content: textSample }),
-            call(3, 'cas_get', { hash }),
+            call(3, 'cas_get', { hash, content: true }),
         )
         assertEq(item0(getResp) === null ? null : (item0(getResp) as { type: string }).type, 'text')
         const result = JSON.parse(textOf(getResp)) as CasGetResult
@@ -221,13 +255,13 @@ export const proof = {
         assertEq(result.mime_type, 'text/plain')
     },
 
-    // Bytes with a recognised PNG signature come back as JSON with type:'base64' and mime_type:'image/png'.
+    // Bytes with a recognised PNG signature come back as base64 with mime_type image/png when content requested.
     getTypedReturnsBinaryJson: () => {
         const [addResp] = session(call(2, 'cas_add', { content: pngSample, type: 'base64' }))
         const hash = textOf(addResp)
         const [, getResp] = session(
             call(2, 'cas_add', { content: pngSample, type: 'base64' }),
-            call(3, 'cas_get', { hash }),
+            call(3, 'cas_get', { hash, content: true }),
         )
         assert(!resultOf(getResp).isError)
         assertEq((item0(getResp) as { type: string }).type, 'text')
@@ -248,12 +282,10 @@ export const proof = {
     },
 
     addInvalidContentIsError: () => {
-        // Only base64 type can produce an error for content encoding.
         const [resp] = session(call(2, 'cas_add', { content: 'not valid!', type: 'base64' }))
         assertEq(resultOf(resp).isError, true)
     },
 
-    // base64 length must be a multiple of 4 — a single character is malformed.
     addBadLengthContentIsError: () => {
         const [resp] = session(call(2, 'cas_add', { content: 'A', type: 'base64' }))
         assertEq(resultOf(resp).isError, true)
@@ -280,7 +312,6 @@ export const proof = {
     },
 
     getMissingHashIsError: () => {
-        // valid cBase32 that was never stored
         const absent = vecToCBase32(vec8(0x99n))
         const [resp] = session(call(2, 'cas_get', { hash: absent }))
         assertEq(resultOf(resp).isError, true)
@@ -291,25 +322,18 @@ export const proof = {
         assertEq(resultOf(resp).isError, true)
     },
 
-    // Tool failures are in-band results, never JSON-RPC errors.
     toolErrorIsNotJsonRpcError: () => {
         const [resp] = session(call(2, 'cas_add', { content: 'not valid!', type: 'base64' }))
         assert(!('error' in (resp as object)))
         assert('result' in (resp as object))
     },
 
-    toolsListAdvertisesFiveTools: () => {
-        const [resp] = runSession([init, initialized, list(2)]).slice(2)
-        const tools = (resp as { result: { tools: readonly { name: string }[] } }).result.tools
-        assertEq(tools.length, 5)
-        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list,cas_add_url,cas_get_meta')
-    },
-
+    // cas_add with type:'url' reads a file and stores it.
     addUrlStoresFileAndReturnsHash: () => {
         const fileContent = utf8('hello from file')
         const [addUrlResp] = runSessionWithFiles({ '/tmp/hello.txt': fileContent })([
             init, initialized,
-            call(2, 'cas_add_url', { url: '/tmp/hello.txt' }),
+            call(2, 'cas_add', { content: '/tmp/hello.txt', type: 'url' }),
         ]).slice(2) as readonly unknown[]
         assert(!resultOf(addUrlResp).isError)
         assert(textOf(addUrlResp).length > 0)
@@ -319,14 +343,13 @@ export const proof = {
         const fileContent = utf8('round-trip content')
         const msgs = runSessionWithFiles({ '/tmp/rt.txt': fileContent })([
             init, initialized,
-            call(2, 'cas_add_url', { url: '/tmp/rt.txt' }),
+            call(2, 'cas_add', { content: '/tmp/rt.txt', type: 'url' }),
         ]).slice(2) as readonly unknown[]
         const hash = textOf(msgs[0])
-        // Now add_url then get in one session to verify the stored content.
         const msgs2 = runSessionWithFiles({ '/tmp/rt.txt': fileContent })([
             init, initialized,
-            call(2, 'cas_add_url', { url: '/tmp/rt.txt' }),
-            call(3, 'cas_get', { hash }),
+            call(2, 'cas_add', { content: '/tmp/rt.txt', type: 'url' }),
+            call(3, 'cas_get', { hash, content: true }),
         ]).slice(2) as readonly unknown[]
         assert(!resultOf(msgs2[1]).isError)
         const result = JSON.parse(textOf(msgs2[1])) as CasGetResult
@@ -337,33 +360,29 @@ export const proof = {
     addUrlMissingFileIsError: () => {
         const [resp] = runSessionWithFiles({})([
             init, initialized,
-            call(2, 'cas_add_url', { url: '/nonexistent/path.txt' }),
+            call(2, 'cas_add', { content: '/nonexistent/path.txt', type: 'url' }),
         ]).slice(2) as readonly unknown[]
         assertEq(resultOf(resp).isError, true)
     },
 
-    addUrlMissingUrlArgumentIsError: () => {
-        const [resp] = session(call(2, 'cas_add_url', {}))
-        assertEq(resultOf(resp).isError, true)
-    },
-
+    // cas_get without content:true returns only metadata.
     getMetaReturnsLengthAndMimeType: () => {
         const fileContent = utf8('text content')
         const [addResp] = runSessionWithFiles({ '/f': fileContent })([
             init, initialized,
-            call(2, 'cas_add_url', { url: '/f' }),
+            call(2, 'cas_add', { content: '/f', type: 'url' }),
         ]).slice(2) as readonly unknown[]
         const hash = textOf(addResp)
-        // Re-run with correct hash.
         const [, metaResp2] = runSessionWithFiles({ '/f': fileContent })([
             init, initialized,
-            call(2, 'cas_add_url', { url: '/f' }),
-            call(3, 'cas_get_meta', { hash }),
+            call(2, 'cas_add', { content: '/f', type: 'url' }),
+            call(3, 'cas_get', { hash }),
         ]).slice(2) as readonly unknown[]
         assert(!resultOf(metaResp2).isError)
-        const meta = JSON.parse(textOf(metaResp2)) as { length: number, mime_type: string }
+        const meta = JSON.parse(textOf(metaResp2)) as CasGetResult
         assertEq(meta.mime_type, 'text/plain')
         assertEq(meta.length, Number(BigInt(/* 'text content'.length */ 12)))
+        assertEq(meta.content, undefined)
     },
 
     getMetaBinaryBlob: () => {
@@ -371,27 +390,28 @@ export const proof = {
         const hash = textOf(addResp)
         const [, metaResp] = session(
             call(2, 'cas_add', { content: pngSample, type: 'base64' }),
-            call(3, 'cas_get_meta', { hash }),
+            call(3, 'cas_get', { hash }),
         )
         assert(!resultOf(metaResp).isError)
-        const meta = JSON.parse(textOf(metaResp)) as { length: number, mime_type: string }
+        const meta = JSON.parse(textOf(metaResp)) as CasGetResult
         assertEq(meta.mime_type, 'image/png')
         assertEq(meta.length, 10)
+        assertEq(meta.content, undefined)
     },
 
     getMetaOctetStreamForUnknownBinary: () => {
-        // A Vec with high bytes that aren't valid UTF-8 and no magic signature.
         const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
         const binaryB64 = base64Encode(binaryContent) as string
         const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
         const hash = textOf(addResp)
         const [, metaResp] = session(
             call(2, 'cas_add', { content: binaryB64, type: 'base64' }),
-            call(3, 'cas_get_meta', { hash }),
+            call(3, 'cas_get', { hash }),
         )
         assert(!resultOf(metaResp).isError)
-        const meta = JSON.parse(textOf(metaResp)) as { length: number, mime_type: string }
+        const meta = JSON.parse(textOf(metaResp)) as CasGetResult
         assertEq(meta.mime_type, 'application/octet-stream')
+        assertEq(meta.content, undefined)
     },
 
     getMetaNoUrlWhenToUrlAbsent: () => {
@@ -401,21 +421,21 @@ export const proof = {
         const hash = textOf(addResp)
         const [, metaResp] = session(
             call(2, 'cas_add', { content: binaryB64 }),
-            call(3, 'cas_get_meta', { hash }),
+            call(3, 'cas_get', { hash }),
         )
         assert(!resultOf(metaResp).isError)
-        const meta = JSON.parse(textOf(metaResp)) as { url?: string }
+        const meta = JSON.parse(textOf(metaResp)) as CasGetResult
         assertEq(meta.url, undefined)
     },
 
     getMetaMissingHashIsError: () => {
         const absent = vecToCBase32(vec8(0x77n))
-        const [resp] = session(call(2, 'cas_get_meta', { hash: absent }))
+        const [resp] = session(call(2, 'cas_get', { hash: absent }))
         assertEq(resultOf(resp).isError, true)
     },
 
     getMetaInvalidHashIsError: () => {
-        const [resp] = session(call(2, 'cas_get_meta', { hash: 'bad!' }))
+        const [resp] = session(call(2, 'cas_get', { hash: 'bad!' }))
         assertEq(resultOf(resp).isError, true)
     },
 }
