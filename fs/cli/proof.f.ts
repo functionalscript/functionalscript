@@ -1,6 +1,6 @@
 import { pure } from '../effects/module.f.ts'
-import { defaultNodeProgramOptions, type NodeOp, type NodeProgramOptions } from '../effects/node/module.f.ts'
-import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
+import type { NodeOp, NodeProgramOptions } from '../effects/node/module.f.ts'
+import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { dispatch, type Commands } from './module.f.ts'
 
 const makeOptions = (args: readonly string[]): NodeProgramOptions =>

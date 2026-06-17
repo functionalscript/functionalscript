@@ -4,8 +4,8 @@ import { empty, length, vec8 } from '../types/bit_vec/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { pure } from '../effects/module.f.ts'
 import { run } from '../effects/mock/module.f.ts'
-import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
-import { defaultNodeProgramOptions, type NodeProgramOptions } from '../effects/node/module.f.ts'
+import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.ts'
+import type { NodeProgramOptions } from '../effects/node/module.f.ts'
 import { dispatch } from '../cli/module.f.ts'
 
 const makeOptions = (args: readonly string[]): NodeProgramOptions =>

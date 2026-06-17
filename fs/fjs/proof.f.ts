@@ -1,7 +1,7 @@
 import { assert, assertEq } from '../asserts/module.f.ts'
 import { pure } from '../effects/module.f.ts'
-import { defaultNodeProgramOptions, type NodeProgram, type NodeProgramOptions } from '../effects/node/module.f.ts'
-import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
+import type { NodeProgram, NodeProgramOptions } from '../effects/node/module.f.ts'
+import { defaultNodeProgramOptions, emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 import { main } from './module.f.ts'
 
 const makeOptions = (args: readonly string[]): NodeProgramOptions =>
