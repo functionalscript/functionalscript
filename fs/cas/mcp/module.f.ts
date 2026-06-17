@@ -171,13 +171,18 @@ const toolRegistry =
                 const detectedMime = detect(value)
                 if (detectedMime !== null) {
                     const url = toUrl?.(key)
-                    const meta: Record<string, unknown> = { length: byteLength, mime_type: detectedMime, type: 'base64', ...(url !== undefined && { url }) }
+                    const meta: Record<string, unknown> = {
+                        length: byteLength,
+                        mime_type: detectedMime,
+                        type: 'base64',
+                        ...(url !== undefined && { url })
+                    }
                     if (r.content === true) {
                         const blob = base64Encode(value)
-                        if (blob === null) {
-                            return pure(errorResult(`content is not byte-aligned: ${r.hash}`))
-                        }
-                        return pure(okResult(JSON.stringify({ ...meta, content: blob })))
+                        return pure(blob === null
+                            ? errorResult(`content is not byte-aligned: ${r.hash}`)
+                            : okResult(JSON.stringify({ ...meta, content: blob }))
+                        )
                     }
                     return pure(okResult(JSON.stringify(meta)))
                 }
@@ -185,19 +190,29 @@ const toolRegistry =
                 const str = fromVec(value)
                 const url = toUrl?.(key)
                 if (str !== null) {
-                    const meta: Record<string, unknown> = { length: byteLength, mime_type: 'text/plain', type: 'text', ...(url !== undefined && { url }) }
-                    if (r.content === true) {
-                        return pure(okResult(JSON.stringify({ ...meta, content: str })))
+                    const meta: Record<string, unknown> = {
+                        length: byteLength,
+                        mime_type: 'text/plain',
+                        type: 'text',
+                        ...(url !== undefined && { url })
                     }
-                    return pure(okResult(JSON.stringify(meta)))
+                    return pure(r.content === true
+                        ? okResult(JSON.stringify({ ...meta, content: str }))
+                        : okResult(JSON.stringify(meta))
+                    )
                 }
-                const meta: Record<string, unknown> = { length: byteLength, mime_type: 'application/octet-stream', type: 'base64', ...(url !== undefined && { url }) }
+                const meta: Record<string, unknown> = {
+                    length: byteLength,
+                    mime_type: 'application/octet-stream',
+                    type: 'base64',
+                    ...(url !== undefined && { url })
+                }
                 if (r.content === true) {
                     const blob = base64Encode(value)
-                    if (blob === null) {
-                        return pure(errorResult(`content is not byte-aligned: ${r.hash}`))
-                    }
-                    return pure(okResult(JSON.stringify({ ...meta, content: blob })))
+                    return pure(blob === null
+                        ? errorResult(`content is not byte-aligned: ${r.hash}`)
+                        : okResult(JSON.stringify({ ...meta, content: blob }))
+                    )
                 }
                 return pure(okResult(JSON.stringify(meta)))
             })
