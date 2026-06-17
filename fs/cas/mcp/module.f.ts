@@ -233,7 +233,7 @@ export const casMcpHandlers = <O extends Operation>(
         const tools: Tool[] = toolRegistry.map(entry => ({
             name: entry.name,
             description: entry.description,
-            inputSchema: toJsonSchema(entry.inputRtti as any),
+            inputSchema: toJsonSchema(entry.inputRtti),
         }))
         return pure({ tools })
     },
