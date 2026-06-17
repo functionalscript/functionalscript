@@ -1,7 +1,7 @@
 # 66H-cas-mcp-unified-get-add. Unify `cas_add`/`cas_add_url` and `cas_get`/`cas_get_meta`
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -47,11 +47,11 @@ casGetArgs = { hash: string, content?: boolean }  // content defaults to false
 
 // output
 {
-  length: number,       // byte count, always present
-  mime_type: string,    // always present
-  url?: string,         // present when toUrl resolver is available
-  content?: string,     // present only when content: true was requested
-  type?: 'text' | 'base64'  // present only alongside content
+  length: number,              // byte count, always present
+  mime_type: string,           // always present
+  type: 'text' | 'base64',    // always present — lets agent decide whether to fetch content
+  url?: string,                // present when toUrl resolver is available
+  content?: string,            // present only when content: true was requested
 }
 ```
 
@@ -80,20 +80,20 @@ Callers that genuinely need the raw content pass `content: true` explicitly.
 
 ### Client decision protocol (unchanged)
 
-1. Call `cas_get` (default `content: false`) to inspect `length` and `mime_type`.
-2. If content is small and text-based → call `cas_get` again with `content: true`.
-3. If content is large or binary → use `url` from the first call directly.
+1. Call `cas_get` (default `content: false`) to inspect `length`, `mime_type`, and `type`.
+2. If `type: 'text'` and `length` is small → call `cas_get` again with `content: true`.
+3. If `type: 'base64'` or `length` is large → use `url` from the first call directly.
 
 ## Tasks
 
-- [ ] Extend `casAddArgs` type to `'text' | 'base64' | 'url'` and handle the
+- [x] Extend `casAddArgs` type to `'text' | 'base64' | 'url'` and handle the
       `'url'` branch in the `cas_add` tool handler (same logic as `cas_add_url`).
-- [ ] Remove `casAddUrlArgs` and the `cas_add_url` tool handler.
-- [ ] Extend `casGetArgs` with `content?: boolean`.
-- [ ] Rewrite the `cas_get` handler to always return `{ length, mime_type, url? }`
-      and include `{ content, type }` only when `content: true` is requested.
-- [ ] Remove `casGetMetaArgs` and the `cas_get_meta` tool handler.
-- [ ] Update `fs/cas/mcp/proof.f.ts` tests to cover `cas_add` with `type: 'url'`
+- [x] Remove `casAddUrlArgs` and the `cas_add_url` tool handler.
+- [x] Extend `casGetArgs` with `content?: boolean`.
+- [x] Rewrite the `cas_get` handler to always return `{ length, mime_type, type[, url] }`
+      and include `content` only when `content: true` is requested.
+- [x] Remove `casGetMetaArgs` and the `cas_get_meta` tool handler.
+- [x] Update `fs/cas/mcp/proof.f.ts` tests to cover `cas_add` with `type: 'url'`
       and `cas_get` with and without `content: true`.
 
 ## Related
