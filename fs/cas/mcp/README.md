@@ -60,7 +60,7 @@ themselves. The typical decision protocol:
    and `type`.
 2. If `type: 'text'` and `length` is small → call again with `content: true`.
 3. If `type: 'base64'` or `length` is large → use `url` from the response
-   to download directly.
+   to download directly (when present; see below).
 
 `url` is present only when the server was started with a `toUrl` resolver
 (production filesystem-backed server); it is omitted in memory-backed contexts
@@ -104,7 +104,8 @@ MCP draws a line the dispatcher already respects:
   JSON-RPC errors. [`mcpStep`](../../mcp/module.f.ts) handles those.
 - **Tool failures** come back as a normal `tools/call` result with
   `isError: true` and a text explanation. This adapter returns `isError` for:
-  - `type: 'base64'` with malformed base64 `content`;
+  - invalid arguments to any tool (`validate` rejects the argument object);
+  - `type: 'base64'` with malformed base64 `content` (`base64Decode` → `null`);
   - `type: 'url'` with an unreadable or missing file;
   - malformed `hash` (`cBase32ToVec` → `null`);
   - `cas_get` on an absent hash (`c.read` → `undefined`);
@@ -114,15 +115,37 @@ MCP draws a line the dispatcher already respects:
 
 `casMcpServer(c)` allocates the session-state slot, builds the `mcpStep` for an
 injected `Cas<O>`, and drives the stdio read → parse → dispatch → write loop
-([`fs/mcp/stdio`](../../mcp/stdio/module.f.ts)) until stdin EOF. The `cas`
-command exposes it as:
+([`fs/mcp/stdio`](../../mcp/stdio/module.f.ts)) until stdin EOF.
 
+Start the server without a local install using `npx`:
+
+```sh
+npx functionalscript cas mcp
 ```
+
+Or, if `fjs` is already on your `PATH` (e.g. after `npm install -g functionalscript`):
+
+```sh
 fjs cas mcp
 ```
 
-which runs the server over a filesystem-backed CAS rooted at the current
-directory. Because the adapter is generic in `O`, the same handlers run over an
+### Store location
+
+Blobs are stored under **`~/.cas/`** (the user's home directory as returned by
+`os.homedir()`). Each blob is written to a two-level sharded path derived from
+its cBase32 hash:
+
+```
+~/.cas/<AB>/<CD>/<rest-of-hash>
+```
+
+where `AB`, `CD`, and `<rest-of-hash>` are the first two, next two, and
+remaining characters of the cBase32 hash. The `url` field returned by
+`cas_get` contains the full absolute path to the blob file.
+
+### Testing without a live process
+
+Because the adapter is generic in `O`, the same handlers run over an
 in-memory `Cas<MemOp>` in `proof.f.ts`, driven through a full
 `initialize` → `notifications/initialized` → `tools/call` sequence with no live
 process.
