@@ -1,17 +1,9 @@
 import { fgRed, reset, createConsoleText, backspace, csiWrite } from './module.f.ts'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.ts'
-import type { NodeProgramOptions } from '../../effects/node/module.f.ts'
+import { defaultNodeProgramOptions, type NodeProgramOptions } from '../../effects/node/module.f.ts'
 
-const makeOptions = (isTTY: boolean): NodeProgramOptions => ({
-    args: [],
-    env: {},
-    home: '.',
-    std: { stdout: { isTTY }, stderr: { isTTY } },
-    testContext: { test: async () => {} },
-    bunTestContext: { test: async () => {} },
-    playwrightTestContext: { test: async () => {} },
-    engine: 'node',
-})
+const makeOptions = (isTTY: boolean): NodeProgramOptions =>
+    ({ ...defaultNodeProgramOptions, std: { stdout: { isTTY }, stderr: { isTTY } } })
 
 export const proof = [
     () => {

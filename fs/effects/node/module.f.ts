@@ -441,3 +441,27 @@ export type NodeProgramOptions = {
 export type Program<O extends Operation> = (options: NodeProgramOptions) => Effect<O, number>
 
 export type NodeProgram = Program<NodeOp>
+
+/**
+ * Safe, inert defaults for every {@link NodeProgramOptions} field, intended for
+ * proof files that need to call a program without owning the full literal.
+ *
+ * Proofs spread-override only what their test cares about:
+ *
+ * ```ts
+ * const opts: NodeProgramOptions = { ...defaultNodeProgramOptions, args }
+ * ```
+ *
+ * Future additions to `NodeProgramOptions` only need a default added here,
+ * keeping unrelated proof files from churning.
+ */
+export const defaultNodeProgramOptions: NodeProgramOptions = {
+    args: [],
+    env: {},
+    home: '.',
+    std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
+    testContext: { test: async () => {} },
+    bunTestContext: { test: async () => {} },
+    playwrightTestContext: { test: async () => {} },
+    engine: 'node',
+}

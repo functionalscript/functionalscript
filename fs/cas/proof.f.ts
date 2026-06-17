@@ -5,19 +5,11 @@ import type { Vec } from '../types/bit_vec/module.f.ts'
 import { pure } from '../effects/module.f.ts'
 import { run } from '../effects/mock/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
-import type { NodeProgramOptions } from '../effects/node/module.f.ts'
+import { defaultNodeProgramOptions, type NodeProgramOptions } from '../effects/node/module.f.ts'
 import { dispatch } from '../cli/module.f.ts'
 
-const makeOptions = (args: readonly string[]): NodeProgramOptions => ({
-    args,
-    env: {},
-    home: '.',
-    std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
-    testContext: { test: async () => {} },
-    bunTestContext: { test: async () => {} },
-    playwrightTestContext: { test: async () => {} },
-    engine: 'node' as const,
-})
+const makeOptions = (args: readonly string[]): NodeProgramOptions =>
+    ({ ...defaultNodeProgramOptions, args })
 
 const main = dispatch(commands)
 
