@@ -8,6 +8,18 @@ stored — without shelling out to the `cas` CLI.
 The store (`fs/cas/module.f.ts`) stays transport-agnostic; this adapter is an
 additional front end alongside the CLI `main`.
 
+## Running it
+
+`casMcpServer(c)` allocates the session-state slot, builds the `mcpStep` for an
+injected `Cas<O>`, and drives the stdio read → parse → dispatch → write loop
+([`fs/mcp/stdio`](../../mcp/stdio/module.f.ts)) until stdin EOF.
+
+Start the server using `npx`:
+
+```sh
+npx functionalscript mcp
+```
+
 ## Tools
 
 | Tool       | args                                    | CAS call         | result                                    |
@@ -110,30 +122,6 @@ MCP draws a line the dispatcher already respects:
   - malformed `hash` (`cBase32ToVec` → `null`);
   - `cas_get` on an absent hash (`c.read` → `undefined`);
   - an unknown tool `name`.
-
-## Running it
-
-`casMcpServer(c)` allocates the session-state slot, builds the `mcpStep` for an
-injected `Cas<O>`, and drives the stdio read → parse → dispatch → write loop
-([`fs/mcp/stdio`](../../mcp/stdio/module.f.ts)) until stdin EOF.
-
-Start the server using `fjs mcp`:
-
-```sh
-fjs mcp
-```
-
-Or without a local install using `npx`:
-
-```sh
-npx functionalscript mcp
-```
-
-The server can also be invoked via the legacy `cas` subcommand for backwards compatibility:
-
-```sh
-fjs cas mcp
-```
 
 ### Store location
 
