@@ -8,11 +8,11 @@ stored — without shelling out to the `cas` CLI.
 The store (`fs/cas/module.f.ts`) stays transport-agnostic; this adapter is an
 additional front end alongside the CLI `main`.
 
-## Running it
-
 `casMcpServer(c)` allocates the session-state slot, builds the `mcpStep` for an
 injected `Cas<O>`, and drives the stdio read → parse → dispatch → write loop
 ([`fs/mcp/stdio`](../../mcp/stdio/module.f.ts)) until stdin EOF.
+
+## Running it
 
 Start the server using `npx`:
 
