@@ -97,15 +97,15 @@ export const casListArgs = {} as const
 // ── Tool registry ──────────────────────────────────────────────────────────────
 
 /** A single tool entry combining metadata, schema, and handler. */
-type ToolEntry<O extends Operation> = {
+type ToolEntry = {
     readonly name: string
     readonly description: string
     readonly inputRtti: Type
-    readonly handle: (c: Cas<O>, toUrl: ((hash: Vec) => string) | undefined) => (args: Unknown) => Effect<ReadFile | O, ToolsCallResult>
+    readonly handle: <O extends Operation>(c: Cas<O>, toUrl: ((hash: Vec) => string) | undefined) => (args: Unknown) => Effect<ReadFile | O, ToolsCallResult>
 }
 
 /** Registry of all CAS tools. */
-const toolRegistry: readonly ToolEntry<any>[] = [
+const toolRegistry: readonly ToolEntry[] = [
     {
         name: 'cas_add',
         description: 'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path; omit or pass type:"text" for UTF-8 text (default).',
