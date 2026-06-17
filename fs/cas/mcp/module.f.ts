@@ -105,14 +105,12 @@ type ToolEntry<O extends Operation> = {
     readonly handle: (args: Unknown) => Effect<O, ToolsCallResult>
 }
 
-type ValidToolEntry<T extends Type, O extends Operation> = {
-    readonly name: string
-    readonly description: string
-    readonly handle: (args: Ts<T>) => Effect<O, ToolsCallResult>
-}
-
-const check =
-<T extends Type, O extends Operation>(inputRtti: T, {name, description, handle}: ValidToolEntry<T, O>): ToolEntry<O> => ({
+const create = <T extends Type, O extends Operation>(
+    name: string,
+    description: string,
+    inputRtti: T,
+    handle: (args: Ts<T>) => Effect<O, ToolsCallResult>
+): ToolEntry<O> => ({
     name,
     description,
     inputRtti,
@@ -121,7 +119,7 @@ const check =
         if (t === 'error') {
             return pure(errorResult(`invalid arguments: ${r.message}`))
         }
-        return handle(r as any)
+        return handle(r as Ts<T>)
     }
 })
 
@@ -129,10 +127,11 @@ const check =
 const toolRegistry =
 <O extends Operation>(c: Cas<O>, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|ReadFile>[] =>
 [
-    check(casAddArgs, {
-        name: 'cas_add',
-        description: 'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path; omit or pass type:"text" for UTF-8 text (default).',
-        handle: r => {
+    create(
+        'cas_add',
+        'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path; omit or pass type:"text" for UTF-8 text (default).',
+        casAddArgs,
+        r => {
             const encoding = r.type ?? 'text'
             if (encoding === 'url') {
                 return readFile(r.content).step(result => {
@@ -153,12 +152,12 @@ const toolRegistry =
             }
             return c.write(value).step(hash => pure(okResult(vecToCBase32(hash))))
         },
-    }),
-    check(casGetArgs,
-    {
-        name: 'cas_get',
-        description: 'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string.',
-        handle: r => {
+    ),
+    create(
+        'cas_get',
+        'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string.',
+        casGetArgs,
+        r => {
             const key = cBase32ToVec(r.hash)
             if (key === null) {
                 return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
@@ -203,13 +202,14 @@ const toolRegistry =
                 return pure(okResult(JSON.stringify(meta)))
             })
         },
-    }),
-    check(casListArgs, {
-        name: 'cas_list',
-        description: 'List all stored content hashes (cBase32), one per line.',
-        handle: _ => c.list().step(hashes =>
+    ),
+    create(
+        'cas_list',
+        'List all stored content hashes (cBase32), one per line.',
+        casListArgs,
+        () => c.list().step(hashes =>
             pure(okResult(hashes.map(vecToCBase32).join('\n')))),
-    }),
+    ),
 ]
 
 // ── Result helpers ──────────────────────────────────────────────────────────────
