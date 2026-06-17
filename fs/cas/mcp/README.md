@@ -10,13 +10,11 @@ additional front end alongside the CLI `main`.
 
 ## Tools
 
-| Tool           | args                                    | CAS call           | result                         |
-|----------------|-----------------------------------------|--------------------|--------------------------------|
-| `cas_add`      | `{ content, type? }`                    | `c.write(value)`   | hash (cBase32)                 |
-| `cas_get`      | `{ hash: string }`                      | `c.read(key)`      | JSON `{content,type,mime_type}`|
-| `cas_list`     | `{}`                                    | `c.list()`         | hashes, one per line           |
-| `cas_add_url`  | `{ url: string }`                       | `c.write(value)`   | hash (cBase32)                 |
-| `cas_get_meta` | `{ hash: string }`                      | `c.read(key)`      | JSON `{length,mime_type[,url]}`|
+| Tool       | args                                    | CAS call         | result                                    |
+|------------|-----------------------------------------|------------------|-------------------------------------------|
+| `cas_add`  | `{ content, type? }`                    | `c.write(value)` | hash (cBase32)                            |
+| `cas_get`  | `{ hash, content?: boolean }`           | `c.read(key)`    | JSON `{length,mime_type,type[,url,content]}` |
+| `cas_list` | `{}`                                    | `c.list()`       | hashes, one per line                      |
 
 Each tool's argument schema is an rtti struct declared once and used twice:
 [`toJsonSchema`](../../json/schema/module.f.ts) derives the `inputSchema`
@@ -24,37 +22,61 @@ advertised in `tools/list`, and [`validate`](../../types/rtti/validate/module.f.
 decodes the `arguments` object in `tools/call`. There is no drift between what we
 advertise and what we accept.
 
-## `cas_add`: text or base64 input
+## `cas_add`: text, base64, or file input
 
 `cas_add` accepts a `type` field that controls how `content` is interpreted:
 
-| `type` value        | `content` interpretation                       |
-|---------------------|------------------------------------------------|
-| `'text'` (default)  | UTF-8 string — stored as raw UTF-8 bytes       |
-| `'base64'`          | RFC 4648 base64 — decoded to bytes before store|
+| `type` value        | `content` interpretation                          |
+|---------------------|---------------------------------------------------|
+| `'text'` (default)  | UTF-8 string — stored as raw UTF-8 bytes          |
+| `'base64'`          | RFC 4648 base64 — decoded to bytes before store   |
+| `'url'`             | Filesystem path — file is read and stored as-is   |
 
 Omitting `type` defaults to `'text'`, so most agent-generated content (scripts,
 JSON, prompts) can be stored without any encoding step. Pass `type: 'base64'`
-for pre-encoded binary payloads.
+for pre-encoded binary payloads, or `type: 'url'` to store a file directly from
+the filesystem.
 
-## `cas_get`: smart text/binary output
+## `cas_get`: metadata + optional inline content
 
-`cas_get` always returns a JSON object in a `text` block:
+`cas_get` always returns a JSON object in a `text` block with metadata and
+content type:
 
 ```json
-{ "content": "<value>", "type": "text"|"base64", "mime_type": "<mime>" }
+{ "length": 42, "mime_type": "text/plain", "type": "text" }
 ```
 
-The encoding is determined by two-phase MIME detection on the retrieved bytes:
+When `content: true` is passed, the inline payload is also included:
+
+```json
+{ "length": 42, "mime_type": "text/plain", "type": "text", "content": "hello world\n" }
+```
+
+The `type` field (`'text'` or `'base64'`) is always present and lets the agent
+decide whether to fetch the content without paying token cost for the bytes
+themselves. The typical decision protocol:
+
+1. Call `cas_get` (default `content: false`) — inspect `length`, `mime_type`,
+   and `type`.
+2. If `type: 'text'` and `length` is small → call again with `content: true`.
+3. If `type: 'base64'` or `length` is large → use `url` from the response
+   to download directly.
+
+`url` is present only when the server was started with a `toUrl` resolver
+(production filesystem-backed server); it is omitted in memory-backed contexts
+such as tests.
+
+### Content encoding (when `content: true`)
+
+Two-phase MIME detection determines the encoding:
 
 1. **Magic-byte sniffing** ([`fs/mime`](../../mime/module.f.ts) `detect`): if the
    leading bytes match a known signature (PNG, JPEG, GIF, WebP, PDF, ZIP),
    `content` is RFC 4648 base64 and `type` is `'base64'`.
 
 2. **UTF-8 validation** ([`fs/text/utf8`](../../text/utf8/module.f.ts) `fromVec`):
-   if the blob decodes as valid UTF-8 with no error code points, surrogates, or
-   out-of-range values, `content` is the decoded string and `type` is `'text'`
-   with `mime_type: 'text/plain'`.
+   if the blob decodes as valid UTF-8, `content` is the decoded string and
+   `type` is `'text'` with `mime_type: 'text/plain'`.
 
 3. **Fallback**: bytes that pass neither test are returned as base64 with
    `mime_type: 'application/octet-stream'`.
@@ -62,9 +84,9 @@ The encoding is determined by two-phase MIME detection on the retrieved bytes:
 Examples:
 
 ```json
-{ "content": "hello world\n", "type": "text",   "mime_type": "text/plain" }
-{ "content": "iVBOR...",       "type": "base64", "mime_type": "image/png"  }
-{ "content": "/v8A...",        "type": "base64", "mime_type": "application/octet-stream" }
+{ "length": 12, "mime_type": "text/plain",               "type": "text",   "content": "hello world\n" }
+{ "length": 10, "mime_type": "image/png",                 "type": "base64", "content": "iVBOR..."      }
+{ "length":  4, "mime_type": "application/octet-stream",  "type": "base64", "content": "/v8A..."       }
 ```
 
 ## Encoding split: hashes (cBase32) vs. content
@@ -83,6 +105,7 @@ MCP draws a line the dispatcher already respects:
 - **Tool failures** come back as a normal `tools/call` result with
   `isError: true` and a text explanation. This adapter returns `isError` for:
   - `type: 'base64'` with malformed base64 `content`;
+  - `type: 'url'` with an unreadable or missing file;
   - malformed `hash` (`cBase32ToVec` → `null`);
   - `cas_get` on an absent hash (`c.read` → `undefined`);
   - an unknown tool `name`.
