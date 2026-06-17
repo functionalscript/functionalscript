@@ -117,10 +117,11 @@ const check =
     description,
     inputRtti,
     handle: a => {
-        const [t, r] = validate(inputRtti)(a)
-        return t === 'error'
-            ? pure(errorResult(`invalid arguments: ${r.message}`))
-            : handle(r as any)
+        const [t, r] = validate(inputRtti as any)(a)
+        if (t === 'error') {
+            return pure(errorResult(`invalid arguments: ${r.message}`))
+        }
+        return handle(r as any)
     }
 })
 
