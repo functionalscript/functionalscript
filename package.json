@@ -44,7 +44,7 @@
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
     "@playwright/test": "1.61.0",
-    "@types/node": "^25.9.3",
+    "@types/node": "25.9.3",
     "typescript": "6.0.3"
   }
 }
