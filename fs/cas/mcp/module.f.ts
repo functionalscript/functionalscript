@@ -82,6 +82,7 @@ import {
 } from '../../mcp/module.f.ts'
 import type { Cas } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
+import type { Ts } from '../../types/rtti/ts/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
@@ -107,23 +108,30 @@ type ToolEntry<O extends Operation> = {
 type ValidToolEntry<T extends Type, O extends Operation> = {
     readonly name: string
     readonly description: string
-    readonly inputRtti: T
-    readonly handle: (args: T) => Effect<O, ToolsCallResult>
+    readonly handle: (args: Ts<T>) => Effect<O, ToolsCallResult>
 }
+
+const check =
+<T extends Type, O extends Operation>(inputRtti: T, {name, description, handle}: ValidToolEntry<T, O>): ToolEntry<O> => ({
+    name,
+    description,
+    inputRtti,
+    handle: a => {
+        const [t, r] = validate(inputRtti)(a)
+        return t === 'error'
+            ? pure(errorResult(`invalid arguments: ${r.message}`))
+            : handle(r as any)
+    }
+})
 
 /** Registry of all CAS tools. */
 const toolRegistry =
 <O extends Operation>(c: Cas<O>, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|ReadFile>[] =>
 [
-    {
+    check(casAddArgs, {
         name: 'cas_add',
         description: 'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path; omit or pass type:"text" for UTF-8 text (default).',
-        inputRtti: casAddArgs,
-        handle: args => {
-            const [t, r] = validate(casAddArgs)(args)
-            if (t === 'error') {
-                return pure(errorResult(`invalid arguments: ${r.message}`))
-            }
+        handle: r => {
             const encoding = r.type ?? 'text'
             if (encoding === 'url') {
                 return readFile(r.content).step(result => {
@@ -144,16 +152,12 @@ const toolRegistry =
             }
             return c.write(value).step(hash => pure(okResult(vecToCBase32(hash))))
         },
-    },
+    }),
+    check(casGetArgs,
     {
         name: 'cas_get',
         description: 'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string.',
-        inputRtti: casGetArgs,
-        handle: args => {
-            const [t, r] = validate(casGetArgs)(args)
-            if (t === 'error') {
-                return pure(errorResult(`invalid arguments: ${r.message}`))
-            }
+        handle: r => {
             const key = cBase32ToVec(r.hash)
             if (key === null) {
                 return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
@@ -198,20 +202,13 @@ const toolRegistry =
                 return pure(okResult(JSON.stringify(meta)))
             })
         },
-    },
-    {
+    }),
+    check(casListArgs, {
         name: 'cas_list',
         description: 'List all stored content hashes (cBase32), one per line.',
-        inputRtti: casListArgs,
-        handle: args => {
-            const [t, r] = validate(casListArgs)(args)
-            if (t === 'error') {
-                return pure(errorResult(`invalid arguments: ${r.message}`))
-            }
-            return c.list().step(hashes =>
-                pure(okResult(hashes.map(vecToCBase32).join('\n'))))
-        },
-    },
+        handle: _ => c.list().step(hashes =>
+            pure(okResult(hashes.map(vecToCBase32).join('\n')))),
+    }),
 ]
 
 // ── Result helpers ──────────────────────────────────────────────────────────────
