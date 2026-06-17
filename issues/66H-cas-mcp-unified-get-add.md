@@ -60,6 +60,24 @@ metadata first and decides whether to pay the token cost of fetching content.
 Passing `content: true` gives the full inline payload in a single round-trip.
 `cas_get_meta` is removed.
 
+#### Why `content` defaults to `false`
+
+The old default — returning content unconditionally — is problematic for two
+reasons:
+
+1. **Token cost.** Blob content can be arbitrarily large. Returning it by
+   default wastes tokens on every `cas_get` call, even when the caller only
+   needs to know the size or MIME type before deciding what to do next.
+
+2. **Structured substitution.** For well-known formats (e.g. a stored Git
+   commit), the server can parse and return structured data — author, message,
+   signature verification — instead of raw bytes. In those cases the raw
+   content is not just expensive but also less useful than the decoded
+   representation. `content: false` leaves the door open for this kind of
+   format-aware response without forcing the raw payload through every time.
+
+Callers that genuinely need the raw content pass `content: true` explicitly.
+
 ### Client decision protocol (unchanged)
 
 1. Call `cas_get` (default `content: false`) to inspect `length` and `mime_type`.
