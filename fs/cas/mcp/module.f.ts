@@ -101,12 +101,19 @@ type ToolEntry<O extends Operation> = {
     readonly name: string
     readonly description: string
     readonly inputRtti: Type
-    readonly handle: (args: Unknown) => Effect<ReadFile | O, ToolsCallResult>
+    readonly handle: (args: Unknown) => Effect<O, ToolsCallResult>
+}
+
+type ValidToolEntry<T extends Type, O extends Operation> = {
+    readonly name: string
+    readonly description: string
+    readonly inputRtti: T
+    readonly handle: (args: T) => Effect<O, ToolsCallResult>
 }
 
 /** Registry of all CAS tools. */
 const toolRegistry =
-<O extends Operation>(c: Cas<O>, toUrl?: (hash: Vec) => string): readonly ToolEntry<O>[] =>
+<O extends Operation>(c: Cas<O>, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|ReadFile>[] =>
 [
     {
         name: 'cas_add',
