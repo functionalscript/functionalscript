@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.31.1
+
 - `effects/node`: normalize the home directory path on Windows using `toPosix` so `home` always uses forward slashes (`C:/Users/x/` instead of `C:\Users\x\`) [#1108](https://github.com/functionalscript/functionalscript/pull/1108)
 
 ## 0.31.0
