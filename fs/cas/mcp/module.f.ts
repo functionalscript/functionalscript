@@ -23,8 +23,9 @@
  *   without any encoding step.
  * - `'base64'`: `content` is RFC 4648 base64, decoded to bytes before storage.
  *   Use this for pre-encoded binary payloads.
- * - `'url'`: `content` is a filesystem path; the server reads the file at that
- *   path and stores its raw bytes.
+ * - `'url'`: `content` is a filesystem path within `~/cas_upload/`; the server
+ *   reads the file at that path and stores its raw bytes. Paths outside
+ *   `~/cas_upload/` are rejected for security.
  *
  * ## `cas_get` output
  *
@@ -107,9 +108,13 @@ const casToolRegistry =
             let x: Effect<O|ReadFile, Vec|string>
             switch(type) {
                 case 'url':
-                    x = readFile(content).step(([t, v]) => pure(t === 'error'
-                        ? `cannot read file: ${content}: ${v}`
-                        : v))
+                    if (!content.startsWith('~/cas_upload/')) {
+                        x = pure(`cas_add type:url paths must be within ~/cas_upload/ — got: ${content}`)
+                    } else {
+                        x = readFile(content).step(([t, v]) => pure(t === 'error'
+                            ? `cannot read file: ${content}: ${v}`
+                            : v))
+                    }
                     break
                 case 'base64':
                     const value = base64Decode(content)
