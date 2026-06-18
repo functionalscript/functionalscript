@@ -212,6 +212,7 @@ export const mask = (len: bigint): bigint => {
 
 export const maxLength = 0x100000n
 
+// max + 1n // bun throws an error
 export const max = mask(maxLength)
 
 /**
