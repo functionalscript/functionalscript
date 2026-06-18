@@ -19,14 +19,14 @@ An attacker could call `cas_add({ type: 'url', content: '/etc/passwd' })` to ext
 
 ## Proposal
 
-Restrict `cas_add` with `type: 'url'` to only read from `~/cas_upload/`. 
+Restrict `cas_add` with `type: 'url'` to only read from `$HOME/cas_upload/` (where `$HOME` is the `home` field from `NodeProgramOptions`).
 
-**Implementation**: Add a path validation check that rejects any path not starting with `~/cas_upload/`. On validation failure, return an `isError` result with a clear message:
+**Implementation**: Add a path validation check that rejects any path not starting with `${home}/cas_upload/` or containing `..`. On validation failure, return an `isError` result with a clear message:
 ```
-"cas_add type:url paths must be within ~/cas_upload/ — got: /etc/passwd"
+"cas_add type:url paths must be within /home/user/cas_upload/ — got: /etc/passwd"
 ```
 
-This is the simplest fix and blocks the security hole immediately.
+This is the simplest fix and blocks the security hole immediately. Uses `home` from `NodeProgramOptions` for testability and environment flexibility.
 
 ## Tasks
 

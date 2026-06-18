@@ -5,13 +5,13 @@
 
 ## Problem
 
-The current path validation in `cas_add` rejects paths with `..`, which blocks common directory escape attempts. However, this is a string-based check that doesn't account for:
+The current path validation in `cas_add` uses the `home` parameter from `NodeProgramOptions` and rejects paths with `..`, which blocks common directory escape attempts. However, this is a string-based check that doesn't account for:
 - Symlinks that point outside the directory
 - Case-insensitive filesystems where directory boundaries are ambiguous
 - Relative paths like `./subdir/../../../etc/passwd` that contain `..` in a less obvious way
 - Future edge cases with canonical path resolution
 
-**Better approach**: Normalize the path (expand `~`, resolve `..` and `.`, handle symlinks) into a canonical absolute path, then verify containment using filesystem semantics rather than string matching.
+**Better approach**: Normalize the path (resolve `..` and `.`, handle symlinks) into a canonical absolute path, then verify containment using filesystem semantics rather than string matching.
 
 ## Proposal
 
