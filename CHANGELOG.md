@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `mcp`: extract declarative tool registry pattern into reusable builders for all MCP servers — `ToolEntry<O>` type combines name, description, input schema, and handler; `toolEntry` builder binds an RTTI schema with a type-safe handler that receives pre-validated arguments (typed as `Ts<T>`, no manual casting needed); `fromRegistry` factory generates complete `McpHandlers<O>` with `toolsList` and `toolsCall` dispatcher from a registry; `errorResult` helper exported for consistent error construction; eliminates ~100 lines of boilerplate dispatch logic that was duplicated per MCP server; refactor `cas/mcp` to use `fromRegistry`, reducing implementation from 65+ lines to a single factory call; add comprehensive `fs/mcp/README.md` with pattern guide, type-safety model, examples, and migration guide (i66H-mcp-registry-builder) [#1119](https://github.com/functionalscript/functionalscript/pull/1119)
+- `cas/mcp`: refactor tool definitions from imperative (hardcoded array + switch statement) to declarative data-driven approach using a tool registry — each tool entry combines metadata (name, description), input schema, and handler function; `toolsList` and `toolsCall` now use generic dispatch over the registry instead of manual pattern-matching; eliminates the mismatch between `toolsList` signature and `McpHandlers<O>` type; makes adding new tools additive rather than scattered edits; follow-up issue 66H-mcp-registry-builder proposes extracting this pattern into a reusable factory in `fs/mcp` for all MCP servers (i66H-declarative-tool-definitions) [#1118](https://github.com/functionalscript/functionalscript/pull/1118)
+
 ## 0.32.0
 
 - BREAKING CHANGE: the MCP server as top-level CLI command. PR [#1115](https://github.com/functionalscript/functionalscript/pull/1115)
