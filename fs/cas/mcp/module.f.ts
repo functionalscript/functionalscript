@@ -62,9 +62,7 @@
  *
  * @module
  */
-import { string, option, or, boolean, type Type } from '../../types/rtti/module.f.ts'
-import { validate } from '../../types/rtti/validate/module.f.ts'
-import { toJsonSchema } from '../../json/schema/module.f.ts'
+import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
 import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
@@ -77,12 +75,12 @@ import { readFile, type Read, type ReadFile, type Write } from '../../effects/no
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
-    type McpConfig, type McpHandlers, type Tool,
-    type ToolsCallParams, type ToolsCallResult, type ToolsListResult,
+    toolEntry, fromRegistry, errorResult,
+    type McpConfig, type McpHandlers, type ToolEntry,
+    type ToolsCallResult,
 } from '../../mcp/module.f.ts'
 import type { Cas } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
-import type { Ts } from '../../types/rtti/ts/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
@@ -97,34 +95,8 @@ export const casListArgs = {} as const
 
 // ── Tool registry ──────────────────────────────────────────────────────────────
 
-/** A single tool entry combining metadata, schema, and handler. */
-type ToolEntry<O extends Operation> = {
-    readonly name: string
-    readonly description: string
-    readonly inputRtti: Type
-    readonly handle: (args: Unknown) => Effect<O, ToolsCallResult>
-}
-
-const toolEntry = <T extends Type, O extends Operation>(
-    name: string,
-    description: string,
-    inputRtti: T,
-    handle: (args: Ts<T>) => Effect<O, ToolsCallResult>
-): ToolEntry<O> => ({
-    name,
-    description,
-    inputRtti,
-    handle: a => {
-        const [t, r] = validate(inputRtti as any)(a)
-        if (t === 'error') {
-            return pure(errorResult(`invalid arguments: ${r.message}`))
-        }
-        return handle(r as Ts<T>)
-    }
-})
-
 /** Registry of all CAS tools. */
-const toolRegistry =
+const casToolRegistry =
 <O extends Operation>(c: Cas<O>, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|ReadFile>[] =>
 [
     toolEntry(
@@ -233,10 +205,6 @@ const toolRegistry =
 const okResult = (text: string): ToolsCallResult =>
     ({ content: [{ type: 'text', text }] })
 
-/** A tool-level failure: in-band `isError` result with a text explanation. */
-const errorResult = (text: string): ToolsCallResult =>
-    ({ content: [{ type: 'text', text }], isError: true })
-
 // ── Handlers ────────────────────────────────────────────────────────────────────
 
 /**
@@ -250,27 +218,8 @@ const errorResult = (text: string): ToolsCallResult =>
 export const casMcpHandlers = <O extends Operation>(
     c: Cas<O>,
     toUrl?: (hash: Vec) => string,
-): McpHandlers<ReadFile | O> => {
-    const tr = toolRegistry(c, toUrl)
-    return {
-        toolsList: (): Effect<ReadFile | O, ToolsListResult> => {
-            const tools: Tool[] = tr.map(entry => ({
-                name: entry.name,
-                description: entry.description,
-                inputSchema: toJsonSchema(entry.inputRtti),
-            }))
-            return pure({ tools })
-        },
-        toolsCall: ({ name, arguments: args }: ToolsCallParams): Effect<ReadFile | O, ToolsCallResult> => {
-            const entry = tr.find(e => e.name === name)
-            if (entry === undefined) {
-                return pure(errorResult(`unknown tool: ${name}`))
-            }
-            const a = args === undefined ? {} : args
-            return entry.handle(a)
-        },
-    }
-}
+): McpHandlers<ReadFile | O> =>
+    fromRegistry(casToolRegistry(c, toUrl))
 
 // ── Session configuration ───────────────────────────────────────────────────────
 
