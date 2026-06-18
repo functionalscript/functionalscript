@@ -17,7 +17,7 @@ injected `Cas<O>`, and drives the stdio read → parse → dispatch → write lo
 Start the server using `npx`:
 
 ```sh
-npx functionalscript mcp
+npx functionalscript m
 ```
 
 ## Tools
