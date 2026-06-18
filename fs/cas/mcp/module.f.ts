@@ -108,7 +108,7 @@ const casToolRegistry =
             let x: Effect<O|ReadFile, Vec|string>
             switch(type) {
                 case 'url':
-                    if (!content.startsWith('~/cas_upload/')) {
+                    if (!content.startsWith('~/cas_upload/') || content.includes('..')) {
                         x = pure(`cas_add type:url paths must be within ~/cas_upload/ — got: ${content}`)
                     } else {
                         x = readFile(content).step(([t, v]) => pure(t === 'error'

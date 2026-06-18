@@ -464,4 +464,15 @@ export const proof = {
         assert(resultOf(resp).isError === true)
         assert(textOf(resp).includes('~/cas_upload/'))
     },
+
+    // cas_add with type:'url' rejects path traversal attempts with ..
+    addUrlWithPathTraversalIsRejected: () => {
+        const fileContent = utf8('secret content')
+        const [resp] = runSessionWithFiles({ '~/cas_upload/../../etc/passwd': fileContent })([
+            init, initialized,
+            call(2, 'cas_add', { content: '~/cas_upload/../../etc/passwd', type: 'url' }),
+        ]).slice(2) as readonly unknown[]
+        assert(resultOf(resp).isError === true)
+        assert(textOf(resp).includes('~/cas_upload/'))
+    },
 }
