@@ -1,11 +1,18 @@
-# 66J-cas-streaming-upload-design. Streaming upload design for large files
+# 66J-cas-large-file-support. Support files larger than 131 KB via streaming upload
 
 **Priority:** P3
 **Status:** open
 
 ## Problem
 
-Related to [i66J-cas-large-file-support](./66J-cas-large-file-support.md): storing files in memory before computing their hash is infeasible for large files (GBs+).
+CAS currently has a hard limit of 131 KB per file and stores content in memory before computing hashes. This prevents storing practical file sizes:
+- Binary artifacts (compiled executables, archives)
+- High-resolution images
+- Video thumbnails
+- Large datasets or JSON exports
+- Generated code files
+
+Storing files in memory is infeasible for large files (GBs+), and the 131 KB artificial ceiling must be removed or significantly increased.
 
 ## Proposal
 
@@ -45,5 +52,4 @@ Two-phase staged move for `cas_upload_dir` (or `cas_add` with restricted paths):
 
 ## Related
 
-- [i66J-cas-large-file-support](./66J-cas-large-file-support.md) — remove 131 KB limit
 - [i66J-cas-add-path-restriction](./66J-cas-add-path-restriction.md) — restrict paths to approved directories
