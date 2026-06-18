@@ -1,6 +1,6 @@
 # 66J-cas-add-path-restriction. Restrict `cas_add` URL paths to approved directory
 
-**Priority:** P2
+**Priority:** P1
 **Status:** open
 
 ## Problem
