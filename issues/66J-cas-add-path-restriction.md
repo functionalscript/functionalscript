@@ -19,26 +19,20 @@ An attacker could call `cas_add({ type: 'url', content: '/etc/passwd' })` to ext
 
 ## Proposal
 
-Restrict `cas_add` to only read from an approved staging directory. Two approaches:
+Restrict `cas_add` with `type: 'url'` to only read from `~/cas_upload/`. 
 
-### Option A: Restricted directory for `cas_add`
-Modify `cas_add` to enforce that file paths must be within `~/cas_upload/`. Paths outside this directory are rejected with a clear error.
+**Implementation**: Add a path validation check that rejects any path not starting with `~/cas_upload/`. On validation failure, return an `isError` result with a clear message:
+```
+"cas_add type:url paths must be within ~/cas_upload/ — got: /etc/passwd"
+```
 
-### Option B: Separate upload-all command
-Keep `cas_add` URL support but add a new command (e.g., `cas_upload_dir`) that automatically ingests all files from `~/cas_upload/` into CAS, without accepting arbitrary paths.
-
-### Directory naming
-Proposed name: `cas_upload`
-- Clear purpose: "upload to CAS"
-- Mirrors common patterns: `Downloads`, `Uploads`, `Desktop`
-- Alternatives: `cas_staging`, `cas_inbox`, `cas_sources`
+This is the simplest fix and blocks the security hole immediately.
 
 ## Tasks
 
-- [ ] Decide between Option A and Option B
-- [ ] Implement path validation or new command
+- [ ] Implement path validation check in `cas_add` (line 109 in `fs/cas/mcp/module.f.ts`)
 - [ ] Add JSDoc note to `casAddArgs` explaining the restriction
-- [ ] Add integration tests for path boundary enforcement
+- [ ] Add test cases for valid paths (`~/cas_upload/*`) and rejected paths (`/etc/*`, `~/*`)
 - [ ] Document the `~/cas_upload/` requirement in `fs/cas/mcp/README.md`
 
 ## Related
