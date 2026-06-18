@@ -1,4 +1,4 @@
-import { vec } from '../bit_vec/module.f.ts'
+import { maxLength, maxLengthBytes, vec } from '../bit_vec/module.f.ts'
 import { toVec, fromVec, listToVec, decodeUtf8, encodeUtf8 } from './module.f.ts'
 import { strictEqual } from '../function/operator/module.f.ts'
 import { equal, fromArrayLike } from '../list/module.f.ts'
@@ -59,5 +59,7 @@ export const proof = {
     listToVec: () => {
         const result = listToVec([Uint8Array.from([1, 2]), Uint8Array.from([3])])
         assertArrayEq(fromVec(result), Uint8Array.from([1, 2, 3]))
-    }
+    },
+    maxLength: () => toVec(new Uint8Array(Number(maxLengthBytes))),
+    throw: () => toVec(new Uint8Array(Number(maxLengthBytes) + 1)),
 }
