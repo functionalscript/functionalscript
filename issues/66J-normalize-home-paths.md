@@ -1,23 +1,17 @@
 # 66J-normalize-home-paths. Normalize `~/` to absolute paths and validate directory containment
 
-**Priority:** P1
+**Priority:** P3
 **Status:** open
 
 ## Problem
 
-The current path validation in `cas_add` (line 109 in `fs/cas/mcp/module.f.ts`) checks if a path *starts with* the string `~/cas_upload/`:
+The current path validation in `cas_add` rejects paths with `..`, which blocks common directory escape attempts. However, this is a string-based check that doesn't account for:
+- Symlinks that point outside the directory
+- Case-insensitive filesystems where directory boundaries are ambiguous
+- Relative paths like `./subdir/../../../etc/passwd` that contain `..` in a less obvious way
+- Future edge cases with canonical path resolution
 
-```ts
-if (!content.startsWith('~/cas_upload/')) {
-    x = pure(`cas_add type:url paths must be within ~/cas_upload/ — got: ${content}`)
-}
-```
-
-This is vulnerable to path traversal attacks:
-- `~/cas_upload/../../etc/passwd` passes the prefix check but accesses files outside the directory
-- `~/cas_upload/../secret.txt` similarly escapes the sandbox
-
-**Proper fix**: Normalize the path (expand `~`, resolve `..` and `.`, remove symlinks) into an absolute path, then check if it lies within the approved directory.
+**Better approach**: Normalize the path (expand `~`, resolve `..` and `.`, handle symlinks) into a canonical absolute path, then verify containment using filesystem semantics rather than string matching.
 
 ## Proposal
 
