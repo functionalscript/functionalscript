@@ -25,6 +25,8 @@ import {
     jsonrpc,
 } from '../json/rpc/module.f.ts'
 import { validate } from '../types/rtti/validate/module.f.ts'
+import { toJsonSchema } from '../json/schema/module.f.ts'
+import type { Type } from '../types/rtti/module.f.ts'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 
@@ -146,6 +148,88 @@ export type McpHandlers<O extends Operation> = {
     readonly toolsList: (params: ToolsListParams) => Effect<O, ToolsListResult>
     readonly toolsCall: (params: ToolsCallParams) => Effect<O, ToolsCallResult>
 }
+
+/**
+ * A single declarative tool entry combining metadata, input schema, and type-safe handler.
+ *
+ * The handler receives pre-validated arguments of type `Ts<inputRtti>`, eliminating the need
+ * for manual validation or type casting. All validation is encapsulated in the entry.
+ */
+export type ToolEntry<O extends Operation> = {
+    readonly name: string
+    readonly description: string
+    readonly inputRtti: Type
+    readonly handle: (args: Unknown) => Effect<O, ToolsCallResult>
+}
+
+/**
+ * Creates a type-safe tool entry that binds an RTTI schema with a handler.
+ *
+ * The builder validates arguments at runtime using the RTTI and passes pre-validated
+ * arguments (typed as `Ts<T>`) to the handler. This eliminates manual validation
+ * boilerplate and type assertions.
+ *
+ * @param name - The tool name (used in `tools/call` requests)
+ * @param description - Human-readable description for `tools/list`
+ * @param inputRtti - Runtime type info for input validation
+ * @param handle - Handler receiving validated arguments of type `Ts<inputRtti>`
+ * @returns A `ToolEntry` ready to be added to a registry
+ */
+export const toolEntry = <T extends Type, O extends Operation>(
+    name: string,
+    description: string,
+    inputRtti: T,
+    handle: (args: Ts<T>) => Effect<O, ToolsCallResult>
+): ToolEntry<O> => ({
+    name,
+    description,
+    inputRtti,
+    handle: (a: Unknown) => {
+        const [t, r] = validate(inputRtti as any)(a)
+        return t === 'error'
+            ? pure(errorResult(`invalid arguments: ${r.message}`))
+            : handle(r as Ts<T>)
+    }
+})
+
+/**
+ * Helper to create a tool-level error result with plain text explanation.
+ *
+ * @param text - The error message to return to the client
+ * @returns A `ToolsCallResult` with `isError: true` and the text explanation
+ */
+export const errorResult = (text: string): ToolsCallResult =>
+    ({ content: [{ type: 'text', text }], isError: true })
+
+/**
+ * Builds `McpHandlers` from a registry of tool entries.
+ *
+ * This factory generates `toolsList` and `toolsCall` handlers that work with a
+ * declarative registry, eliminating boilerplate. The `toolsList` handler converts
+ * entries into MCP `Tool` descriptors, and `toolsCall` dispatches by name and
+ * delegates to the appropriate handler.
+ *
+ * @param registry - Array of tool entries
+ * @returns Complete `McpHandlers` ready for use with `mcpStep`
+ */
+export const fromRegistry = <O extends Operation>(
+    registry: readonly ToolEntry<O>[],
+): McpHandlers<O> => ({
+    toolsList: () => {
+        const tools: Tool[] = registry.map(entry => ({
+            name: entry.name,
+            description: entry.description,
+            inputSchema: toJsonSchema(entry.inputRtti),
+        }))
+        return pure({ tools })
+    },
+    toolsCall: ({ name, arguments: args }) => {
+        const entry = registry.find(e => e.name === name)
+        return entry === undefined
+            ? pure(errorResult(`unknown tool: ${name}`))
+            : entry.handle(args === undefined ? {} : args)
+    },
+})
 
 /** Top-level handler: maps a raw JSON value to a JSON-RPC response (or `null` for notifications). */
 export type Handle<O extends Operation> = (value: Unknown) => Effect<O, Response | null>
