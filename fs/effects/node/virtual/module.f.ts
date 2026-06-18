@@ -6,7 +6,8 @@
 import { todo } from '../../../asserts/module.f.ts'
 import { join, parse } from '../../../path/module.f.ts'
 import { utf8ToString } from '../../../text/module.f.ts'
-import { isVec, type Vec } from '../../../types/bit_vec/module.f.ts'
+import { isVec, length as vecLength, type Vec } from '../../../types/bit_vec/module.f.ts'
+import { maxBits } from '../../../types/bigint/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
 import { asBase, asNominal, type Key } from '../../memory/module.f.ts'
@@ -105,6 +106,10 @@ const readFile = readOperation((dir, path): IoResult<Vec> => {
     if (file === undefined) { return enoent }
     // exists but is a directory — a real error, not a missing path
     if (!isVec(file)) { return error(`'${path[0]}' is not a file`) }
+    // validate against Bun's bigint size constraint
+    if (vecLength(file) > maxBits) {
+        return error(`File size exceeds maximum allowed size of ${maxBits} bits (131,072 bytes)`)
+    }
     return ok(file)
 })
 

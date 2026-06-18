@@ -38,6 +38,13 @@ export type Vec = Nominal<
     bigint>
 
 /**
+ * Maximum length of a bit vector in bits (1,048,575 bits = 131,072 bytes).
+ * This limit is enforced by Bun's `bigint` size constraint, the minimal limit
+ * across all runtime environments supported by FunctionalScript.
+ */
+export const maxLength = 1_048_575n
+
+/**
  * An empty vector of bits.
  */
 export const empty: Vec = asNominal(0n)

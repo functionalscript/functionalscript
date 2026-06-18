@@ -87,9 +87,11 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
     return result
 }
 
-const { mkdir, readFile, readdir, writeFile, rm, access } = fs.promises
+const { mkdir, readFile, readdir, writeFile, rm, access, stat } = fs.promises
 
 const { exec } = childProcess
+
+const MAX_FILE_SIZE_BYTES = 131_072n
 
 const prefix = 'file:///' as const
 
@@ -203,7 +205,13 @@ const runNodeEffect: EffectToPromise = asyncRun({
         return toVec(new Uint8Array(await response.arrayBuffer()))
     }),
     mkdir: (...p) => tc(async() => { await mkdir(...p) }),
-    readFile: path => tc(async() => toVec(await readFile(path))),
+    readFile: path => tc(async() => {
+        const fileStats = await stat(path)
+        if (fileStats.size > Number(MAX_FILE_SIZE_BYTES)) {
+            throw new Error(`File size ${fileStats.size} exceeds maximum allowed size of ${Number(MAX_FILE_SIZE_BYTES)} bytes`)
+        }
+        return toVec(await readFile(path))
+    }),
     readdir: (path, r) => tc(async() =>
         (await readdir(path, { ...r, withFileTypes: true }))
         .map(v => ({
