@@ -1,4 +1,4 @@
-import { empty, isVec, length as vecLength, uint, vec8, vec } from "../../types/bit_vec/module.f.ts"
+import { empty, isVec, uint, vec8 } from "../../types/bit_vec/module.f.ts"
 import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { decode, pure } from "../module.f.ts"
 import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File } from "./module.f.ts"

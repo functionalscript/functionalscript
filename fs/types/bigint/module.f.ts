@@ -210,8 +210,12 @@ export const bitLength = (v: bigint): bigint => log2(abs(v)) + 1n
  * const result = mask(3n) // 7n
  * ```
  */
-export const mask = (len: bigint): bigint =>
-    (1n << len) - 1n
+export const mask = (len: bigint): bigint => {
+    const r = len & 1n
+    const h = len >> 1n
+    const x = (((1n << h) - 1n) << r) | r
+    return (x << h) | x
+}
 
 /**
  * Calculates the partial factorial `b!/a!`.
