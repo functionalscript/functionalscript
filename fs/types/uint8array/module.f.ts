@@ -10,7 +10,7 @@
  * @module
  */
 import { utf8, utf8ToString } from '../../text/module.f.ts'
-import { msb, u8List, u8ListToVec, type Vec } from '../bit_vec/module.f.ts'
+import { maxLengthBytes, msb, u8List, u8ListToVec, type Vec } from '../bit_vec/module.f.ts'
 import { compose } from '../function/module.f.ts'
 import { flat, fromArrayLike, iterable, map, type List } from '../list/module.f.ts'
 
@@ -20,8 +20,12 @@ const u8ListMsb = u8List(msb)
 /**
  * Converts a Uint8Array into an MSB-first bit vector.
  */
-export const toVec = (input: Uint8Array): Vec =>
-    u8ListToVecMsb(fromArrayLike(input))
+export const toVec = (input: Uint8Array): Vec => {
+    if (input.length > maxLengthBytes) {
+        throw "the array is too big"
+    }
+    return u8ListToVecMsb(fromArrayLike(input))
+}
 
 const m = map(fromArrayLike)
 

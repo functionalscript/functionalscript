@@ -31,17 +31,13 @@ export type Unary = OpUnary<bigint, bigint>
  */
 export type Reduce = OpReduce<bigint>
 
-/**
- * Bun's `bigint` size limitation: maximum 1,048,575 bits (131,072 bytes).
- * This is the minimal limit across all runtime environments supported by FunctionalScript.
- */
-export const maxBits = 1_048_575n
+const halfMaxLen = 0x80000n
 
-/**
- * Bun's `bigint` size limitation in bytes: 131,072 bytes (128 KiB).
- * Equivalent to the maximum number of bits (1,048,575) divided by 8.
- */
-export const maxBytes = 131_072n
+export const maxLength = halfMaxLen << 1n
+
+const halfMax = (1n << halfMaxLen) - 1n
+
+export const max = (halfMax << halfMaxLen) | halfMax
 
 /**
  * Adds two `bigint` values.

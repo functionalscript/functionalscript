@@ -41,6 +41,7 @@ import { asBase, asNominal } from '../../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.ts'
 
 type Server = {
     readonly listen: (port: number) => void
@@ -91,7 +92,7 @@ const { mkdir, readFile, readdir, writeFile, rm, access, stat } = fs.promises
 
 const { exec } = childProcess
 
-const MAX_FILE_SIZE_BYTES = 131_072n
+const maxFileSizeBytes = Number(maxLengthBytes)
 
 const prefix = 'file:///' as const
 
@@ -207,8 +208,9 @@ const runNodeEffect: EffectToPromise = asyncRun({
     mkdir: (...p) => tc(async() => { await mkdir(...p) }),
     readFile: path => tc(async() => {
         const fileStats = await stat(path)
-        if (fileStats.size > Number(MAX_FILE_SIZE_BYTES)) {
-            throw new Error(`File size ${fileStats.size} exceeds maximum allowed size of ${Number(MAX_FILE_SIZE_BYTES)} bytes`)
+        // if the file is too big, toVec should fail anyway but we don't want to load the file anyway.
+        if (fileStats.size > maxFileSizeBytes) {
+            throw new Error(`File size ${fileStats.size} exceeds maximum allowed size of ${Number(maxFileSizeBytes)} bytes`)
         }
         return toVec(await readFile(path))
     }),
