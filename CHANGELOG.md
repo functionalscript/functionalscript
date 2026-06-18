@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `cas/mcp`: restrict `cas_add` with `type: 'url'` to paths within `~/cas_upload/` directory — reject any path not starting with `~/cas_upload/` or containing `..` to prevent arbitrary file read and path traversal attacks; MCP clients can no longer exfiltrate sensitive files via `cas_add({ type: 'url', content: '/etc/passwd' })`; add comprehensive proofs for valid paths (approve `~/cas_upload/*`), invalid directories (reject `/tmp/*`), and traversal attempts (reject `~/cas_upload/../../etc/passwd`); future issues track full path normalization for symlink handling (i66J-cas-add-path-restriction, i66J-normalize-home-paths) [#1122](https://github.com/functionalscript/functionalscript/pull/1122)
+
 ## 0.32.1
 
 - `effects/node`: enforce cross-runtime compatibility by limiting `ReadFile` to Bun's `bigint` size constraint (1,048,576 bits / 131,072 bytes); add `maxLength` constant to `fs/types/bigint/module.f.ts` (computed as `0x80000n << 1n` = 2^20) and export `maxLengthBytes = maxLength >> 3n` from `fs/types/bit_vec/module.f.ts`; validate file size before reading in Node.js implementation via `stat()` to avoid loading oversized files into memory, and validate vector length in virtual implementation; all existing proofs remain below the limit (i66H-limit-readfile-by-bun-bigint) [#1121](https://github.com/functionalscript/functionalscript/pull/1121)
