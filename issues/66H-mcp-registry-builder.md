@@ -1,7 +1,7 @@
 # 66H-mcp-registry-builder. Extract and generalize MCP tool registry pattern
 
 **Priority:** P2
-**Status:** open
+**Status:** done
 **Related:** 66H-declarative-tool-definitions (just implemented in CAS MCP)
 
 ## Problem
