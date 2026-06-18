@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.32.2
+
 - `cas/mcp`: restrict `cas_add` with `type: 'url'` to paths within `~/cas_upload/` directory — reject any path not starting with `~/cas_upload/` or containing `..` to prevent arbitrary file read and path traversal attacks; MCP clients can no longer exfiltrate sensitive files via `cas_add({ type: 'url', content: '/etc/passwd' })`; add comprehensive proofs for valid paths (approve `~/cas_upload/*`), invalid directories (reject `/tmp/*`), and traversal attempts (reject `~/cas_upload/../../etc/passwd`); future issues track full path normalization for symlink handling (i66J-cas-add-path-restriction, i66J-normalize-home-paths) [#1122](https://github.com/functionalscript/functionalscript/pull/1122)
 
 ## 0.32.1
