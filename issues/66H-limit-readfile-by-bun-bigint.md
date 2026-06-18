@@ -15,17 +15,21 @@ This was discovered during proofs in `fs/types/bigint/proof.f.ts` where test cas
 
 Implement a limit on `ReadFile` that caps file size at 131,072 bytes (`0x20000`, 128 KiB) to ensure cross-runtime compatibility. This should be:
 
-1. Documented in the `ReadFile` type and module documentation
-2. Enforced at the `readFile` function level or at the call site
-3. Validated with tests that verify files exceeding the limit are rejected
-4. Referenced in `fs/types/bigint/README.md` alongside the existing Bun limit documentation
+1. Add `min` and `max` constants to `fs/types/bigint/module.f.ts` representing the Bun constraint (1,048,575 bits max)
+2. Add `max` length constant for `bit_vec` to document the maximum allowed bit vector size
+3. Documented in the `ReadFile` type and module documentation
+4. Enforced at the `readFile` function level or at the call site
+5. Validated with tests that verify files exceeding the limit are rejected
+6. Referenced in `fs/types/bigint/README.md` alongside the existing Bun limit documentation
 
 ## Tasks
 
+- [ ] Add `min` and `max` constants to `fs/types/bigint/module.f.ts` for the Bun bigint constraint
+- [ ] Add `max` length constant to `fs/types/bit_vec/module.f.ts` for maximum bit vector size
 - [ ] Document the 131,072 byte limit (`0x20000`) in `fs/effects/node/module.f.ts` (`ReadFile` type and `readFile` function JSDoc)
-- [ ] Add validation to enforce the limit at file read time
+- [ ] Add validation to enforce the limit at file read time using the new constants
 - [ ] Create test cases verifying that files at the limit work and oversized files fail appropriately
-- [ ] Update `fs/types/bigint/README.md` with cross-reference to this limit
+- [ ] Update `fs/types/bigint/README.md` with cross-reference to this limit and the new constants
 - [ ] Verify no proof files or internal code reads files larger than 131,072 bytes
 
 ## Related
