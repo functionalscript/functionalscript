@@ -31,14 +31,6 @@ export type Unary = OpUnary<bigint, bigint>
  */
 export type Reduce = OpReduce<bigint>
 
-const halfMaxLen = 0x80000n
-
-export const maxLength = halfMaxLen << 1n
-
-const halfMax = (1n << halfMaxLen) - 1n
-
-export const max = (halfMax << halfMaxLen) | halfMax
-
 /**
  * Adds two `bigint` values.
  *
@@ -217,6 +209,10 @@ export const mask = (len: bigint): bigint => {
     const x = (((1n << h) - 1n) << r) | r
     return (x << h) | x
 }
+
+export const maxLength = 0x100000n
+
+export const max = mask(maxLength)
 
 /**
  * Calculates the partial factorial `b!/a!`.
