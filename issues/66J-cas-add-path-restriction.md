@@ -37,5 +37,5 @@ This is the simplest fix and blocks the security hole immediately. Uses `home` f
 
 ## Related
 
-- [i66H-cas-mcp-unified-get-add](./66H-cas-mcp-unified-get-add.md) — broader CAS MCP design
-- [i66E-mcp-cas-server](./66E-mcp-cas-server.md) — CAS server implementation
+- [i66J-cas-symlink-escape](./66J-cas-symlink-escape.md) — symlink-escape vulnerability (P2, requires write access to approved directory)
+- [i66J-normalize-home-paths](./66J-normalize-home-paths.md) — defense-in-depth path normalization (future enhancement)
