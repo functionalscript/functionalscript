@@ -211,6 +211,7 @@ export const bitLength = (v: bigint): bigint => log2(abs(v)) + 1n
  * ```
  */
 export const mask = (len: bigint): bigint => {
+    // we compute this wat to avoid overflowing.
     const r = len & 1n
     const h = len >> 1n
     const x = (((1n << h) - 1n) << r) | r

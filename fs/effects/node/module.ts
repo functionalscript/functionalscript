@@ -208,7 +208,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
     mkdir: (...p) => tc(async() => { await mkdir(...p) }),
     readFile: path => tc(async() => {
         const fileStats = await stat(path)
-        // if the file is too big, toVec should fail anyway but we don't want to load the file anyway.
+        // if the file is too big, toVec should fail anyway but in this case we don't want to load the file.
         if (fileStats.size > maxFileSizeBytes) {
             throw new Error(`File size ${fileStats.size} exceeds maximum allowed size of ${Number(maxFileSizeBytes)} bytes`)
         }
@@ -247,8 +247,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
                 .writeHead(status, outHeaders)
                 .end(fromVec(outBody))
         }
-        const server: EffectServer = asNominal(createServer(nodeRl))
-        return server
+        return asNominal(createServer(nodeRl)) satisfies EffectServer
     },
     listen: async (server, port) => {
         const s = asBase(server) as Server
