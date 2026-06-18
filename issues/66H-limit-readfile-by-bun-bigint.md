@@ -11,9 +11,11 @@ Reading large files via `ReadFile` effect can produce `Vec` (represented as `big
 
 This was discovered during proofs in `fs/types/bigint/proof.f.ts` where test cases are commented as "max for Bun (131_072 Bytes)".
 
+With an additional `0x20000` bytes buffer, the effective limit becomes `262,144 bytes` (`0x40000`).
+
 ## Proposal
 
-Implement a limit on `ReadFile` that caps file size at 131,072 bytes (128 KiB) to ensure cross-runtime compatibility. This should be:
+Implement a limit on `ReadFile` that caps file size at 262,144 bytes (256 KiB, or `0x40000` hex = `0x20000 + 131072`) to ensure cross-runtime compatibility. This should be:
 
 1. Documented in the `ReadFile` type and module documentation
 2. Enforced at the `readFile` function level or at the call site
@@ -22,11 +24,11 @@ Implement a limit on `ReadFile` that caps file size at 131,072 bytes (128 KiB) t
 
 ## Tasks
 
-- [ ] Document the 131,072 byte limit in `fs/effects/node/module.f.ts` (`ReadFile` type and `readFile` function JSDoc)
+- [ ] Document the 262,144 byte limit (0x40000) in `fs/effects/node/module.f.ts` (`ReadFile` type and `readFile` function JSDoc)
 - [ ] Add validation to enforce the limit at file read time
 - [ ] Create test cases verifying that files at the limit work and oversized files fail appropriately
-- [ ] Update `fs/types/bigint/README.md` with cross-reference to this limit
-- [ ] Verify no proof files or internal code reads files larger than 131,072 bytes
+- [ ] Update `fs/types/bigint/README.md` with cross-reference to this limit and its relationship to Bun's bigint constraint
+- [ ] Verify no proof files or internal code reads files larger than 262,144 bytes
 
 ## Related
 
