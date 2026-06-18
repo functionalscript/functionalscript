@@ -95,11 +95,17 @@ Extract the tool registry pattern into `fs/mcp` as a reusable builder/factory wi
 
 ## Tasks
 
-- [ ] Extract `ToolEntry` type to `fs/mcp/module.f.ts`
-- [ ] Export `toolEntry` builder function from `fs/mcp/module.f.ts`
-- [ ] Implement `fromRegistry` factory function in `fs/mcp/module.f.ts`
-- [ ] Refactor `fs/cas/mcp/module.f.ts` to use the shared factory (already implemented locally)
-- [ ] Document the pattern as the recommended way to build MCP servers in `fs/mcp/README.md`
-- [ ] Add JSDoc to `toolEntry`, `fromRegistry`, and the types explaining the type-safety model
+- [x] Extract `ToolEntry` type to `fs/mcp/module.f.ts`
+- [x] Export `toolEntry` builder function from `fs/mcp/module.f.ts`
+- [x] Implement `fromRegistry` factory function in `fs/mcp/module.f.ts`
+- [x] Refactor `fs/cas/mcp/module.f.ts` to use the shared factory
+- [x] Document the pattern as the recommended way to build MCP servers in `fs/mcp/README.md`
+- [x] Add JSDoc to `toolEntry`, `fromRegistry`, and the types explaining the type-safety model
 - [ ] (Optional) Consider allowing dynamic registry composition/merging (e.g., `mergeRegistries`)
 - [ ] (Optional) Add compile-time validation that all registry entries are unique by name
+
+## Completion
+
+Implemented in PR [#1119](https://github.com/functionalscript/functionalscript/pull/1119).
+
+The MCP tool registry pattern is now the standard way to build MCP servers. All type-safe handler definitions go through `toolEntry` builder → `fromRegistry` factory → `mcpStep` dispatcher pipeline.
