@@ -329,12 +329,12 @@ export const proof = {
         assert('result' in (resp as object))
     },
 
-    // cas_add with type:'url' reads a file and stores it.
+    // cas_add with type:'url' reads a file from ~/cas_upload/ and stores it.
     addUrlStoresFileAndReturnsHash: () => {
         const fileContent = utf8('hello from file')
-        const [addUrlResp] = runSessionWithFiles({ '/tmp/hello.txt': fileContent })([
+        const [addUrlResp] = runSessionWithFiles({ '~/cas_upload/hello.txt': fileContent })([
             init, initialized,
-            call(2, 'cas_add', { content: '/tmp/hello.txt', type: 'url' }),
+            call(2, 'cas_add', { content: '~/cas_upload/hello.txt', type: 'url' }),
         ]).slice(2) as readonly unknown[]
         assert(!resultOf(addUrlResp).isError)
         assert(textOf(addUrlResp).length > 0)
@@ -342,14 +342,14 @@ export const proof = {
 
     addUrlRoundTrips: () => {
         const fileContent = utf8('round-trip content')
-        const msgs = runSessionWithFiles({ '/tmp/rt.txt': fileContent })([
+        const msgs = runSessionWithFiles({ '~/cas_upload/rt.txt': fileContent })([
             init, initialized,
-            call(2, 'cas_add', { content: '/tmp/rt.txt', type: 'url' }),
+            call(2, 'cas_add', { content: '~/cas_upload/rt.txt', type: 'url' }),
         ]).slice(2) as readonly unknown[]
         const hash = textOf(msgs[0])
-        const msgs2 = runSessionWithFiles({ '/tmp/rt.txt': fileContent })([
+        const msgs2 = runSessionWithFiles({ '~/cas_upload/rt.txt': fileContent })([
             init, initialized,
-            call(2, 'cas_add', { content: '/tmp/rt.txt', type: 'url' }),
+            call(2, 'cas_add', { content: '~/cas_upload/rt.txt', type: 'url' }),
             call(3, 'cas_get', { hash, content: true }),
         ]).slice(2) as readonly unknown[]
         assert(!resultOf(msgs2[1]).isError)
@@ -361,7 +361,7 @@ export const proof = {
     addUrlMissingFileIsError: () => {
         const [resp] = runSessionWithFiles({})([
             init, initialized,
-            call(2, 'cas_add', { content: '/nonexistent/path.txt', type: 'url' }),
+            call(2, 'cas_add', { content: '~/cas_upload/nonexistent.txt', type: 'url' }),
         ]).slice(2) as readonly unknown[]
         assertEq(resultOf(resp).isError, true)
     },
@@ -369,14 +369,14 @@ export const proof = {
     // cas_get without content:true returns only metadata.
     getMetaReturnsLengthAndMimeType: () => {
         const fileContent = utf8('text content')
-        const [addResp] = runSessionWithFiles({ '/f': fileContent })([
+        const [addResp] = runSessionWithFiles({ '~/cas_upload/f': fileContent })([
             init, initialized,
-            call(2, 'cas_add', { content: '/f', type: 'url' }),
+            call(2, 'cas_add', { content: '~/cas_upload/f', type: 'url' }),
         ]).slice(2) as readonly unknown[]
         const hash = textOf(addResp)
-        const [, metaResp2] = runSessionWithFiles({ '/f': fileContent })([
+        const [, metaResp2] = runSessionWithFiles({ '~/cas_upload/f': fileContent })([
             init, initialized,
-            call(2, 'cas_add', { content: '/f', type: 'url' }),
+            call(2, 'cas_add', { content: '~/cas_upload/f', type: 'url' }),
             call(3, 'cas_get', { hash }),
         ]).slice(2) as readonly unknown[]
         assert(!resultOf(metaResp2).isError)
@@ -441,5 +441,27 @@ export const proof = {
     getMetaInvalidHashIsError: () => {
         const [resp] = session(call(2, 'cas_get', { hash: 'bad!' }))
         assertEq(resultOf(resp).isError, true)
+    },
+
+    // cas_add with type:'url' accepts paths within ~/cas_upload/
+    addUrlFromApprovedDirectorySucceeds: () => {
+        const fileContent = utf8('approved file')
+        const [resp] = runSessionWithFiles({ '~/cas_upload/test.txt': fileContent })([
+            init, initialized,
+            call(2, 'cas_add', { content: '~/cas_upload/test.txt', type: 'url' }),
+        ]).slice(2) as readonly unknown[]
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
+    },
+
+    // cas_add with type:'url' rejects paths outside ~/cas_upload/
+    addUrlFromRandomDirectoryIsRejected: () => {
+        const fileContent = utf8('forbidden file')
+        const [resp] = runSessionWithFiles({ '/tmp/secret.txt': fileContent })([
+            init, initialized,
+            call(2, 'cas_add', { content: '/tmp/secret.txt', type: 'url' }),
+        ]).slice(2) as readonly unknown[]
+        assert(resultOf(resp).isError === true)
+        assert(textOf(resp).includes('~/cas_upload/'))
     },
 }
