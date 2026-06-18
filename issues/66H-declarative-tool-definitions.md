@@ -1,7 +1,7 @@
 # 66H-declarative-tool-definitions. Refactor MCP tool definitions from imperative to declarative
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 

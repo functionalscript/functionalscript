@@ -63,8 +63,7 @@
  * @module
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
-import { validate } from '../../types/rtti/validate/module.f.ts'
-import { toJsonSchema } from '../../json/schema/module.f.ts'
+import type { Unknown } from '../../json/module.f.ts'
 import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
@@ -76,8 +75,9 @@ import { readFile, type Read, type ReadFile, type Write } from '../../effects/no
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
-    type McpConfig, type McpHandlers, type Tool,
-    type ToolsCallParams, type ToolsCallResult, type ToolsListResult,
+    toolEntry, fromRegistry, errorResult,
+    type McpConfig, type McpHandlers, type ToolEntry,
+    type ToolsCallResult,
 } from '../../mcp/module.f.ts'
 import type { Cas } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
@@ -93,35 +93,117 @@ export const casGetArgs = { hash: string, content: option(boolean) } as const
 /** Arguments for `cas_list`: none. */
 export const casListArgs = {} as const
 
-// ── Tool descriptors ────────────────────────────────────────────────────────────
+// ── Tool registry ──────────────────────────────────────────────────────────────
 
-const casAddTool: Tool = {
-    name: 'cas_add',
-    description: 'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path; omit or pass type:"text" for UTF-8 text (default).',
-    inputSchema: toJsonSchema(casAddArgs),
-}
-
-const casGetTool: Tool = {
-    name: 'cas_get',
-    description: 'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string.',
-    inputSchema: toJsonSchema(casGetArgs),
-}
-
-const casListTool: Tool = {
-    name: 'cas_list',
-    description: 'List all stored content hashes (cBase32), one per line.',
-    inputSchema: toJsonSchema(casListArgs),
-}
+/** Registry of all CAS tools. */
+const casToolRegistry =
+<O extends Operation>(c: Cas<O>, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|ReadFile>[] =>
+[
+    toolEntry(
+        'cas_add',
+        'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path; omit or pass type:"text" for UTF-8 text (default).',
+        casAddArgs,
+        ({ type, content }) => {
+            let x: Effect<O|ReadFile, Vec|string>
+            switch(type) {
+                case 'url':
+                    x = readFile(content).step(([t, v]) => pure(t === 'error'
+                        ? `cannot read file: ${content}: ${v}`
+                        : v))
+                    break
+                case 'base64':
+                    const value = base64Decode(content)
+                    x = pure(value === null ? `invalid base64 content: ${content}` : value)
+                    break
+                default:
+                    x = pure(utf8(content))
+                    break
+            }
+            return x.step(value => typeof value === 'string'
+                ? pure(errorResult(value))
+                : c.write(value).step(hash => pure(okResult(vecToCBase32(hash))))
+            )
+        },
+    ),
+    toolEntry(
+        'cas_get',
+        'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string.',
+        casGetArgs,
+        r => {
+            const key = cBase32ToVec(r.hash)
+            if (key === null) {
+                return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
+            }
+            return c.read(key).step(value => {
+                if (value === undefined) {
+                    return pure(errorResult(`no such hash: ${r.hash}`))
+                }
+                const byteLength = Number(bitVecLength(value) / 8n)
+                // Phase 1: magic-byte sniffing for known binary formats.
+                const detectedMime = detect(value)
+                if (detectedMime !== null) {
+                    const url = toUrl?.(key)
+                    const meta: Record<string, unknown> = {
+                        length: byteLength,
+                        mime_type: detectedMime,
+                        type: 'base64',
+                        ...(url !== undefined && { url })
+                    }
+                    if (r.content === true) {
+                        const blob = base64Encode(value)
+                        return pure(blob === null
+                            ? errorResult(`content is not byte-aligned: ${r.hash}`)
+                            : okResult(JSON.stringify({ ...meta, content: blob }))
+                        )
+                    }
+                    return pure(okResult(JSON.stringify(meta)))
+                }
+                // Phase 2: UTF-8 validation — text if valid, octet-stream otherwise.
+                const str = fromVec(value)
+                const url = toUrl?.(key)
+                if (str !== null) {
+                    const meta: Record<string, unknown> = {
+                        length: byteLength,
+                        mime_type: 'text/plain',
+                        type: 'text',
+                        ...(url !== undefined && { url })
+                    }
+                    return pure(r.content === true
+                        ? okResult(JSON.stringify({ ...meta, content: str }))
+                        : okResult(JSON.stringify(meta))
+                    )
+                }
+                const meta: Record<string, unknown> = {
+                    length: byteLength,
+                    mime_type: 'application/octet-stream',
+                    type: 'base64',
+                    ...(url !== undefined && { url })
+                }
+                if (r.content === true) {
+                    const blob = base64Encode(value)
+                    return pure(blob === null
+                        ? errorResult(`content is not byte-aligned: ${r.hash}`)
+                        : okResult(JSON.stringify({ ...meta, content: blob }))
+                    )
+                }
+                return pure(okResult(JSON.stringify(meta)))
+            })
+        },
+    ),
+    toolEntry(
+        'cas_list',
+        'List all stored content hashes (cBase32), one per line.',
+        casListArgs,
+        () => c.list().step(hashes =>
+            pure(okResult(hashes.map(vecToCBase32).join('\n')))),
+    ),
+]
 
 // ── Result helpers ──────────────────────────────────────────────────────────────
 
 /** A successful single-text-block tool result. */
 const okResult = (text: string): ToolsCallResult =>
     ({ content: [{ type: 'text', text }] })
-
-/** A tool-level failure: in-band `isError` result with a text explanation. */
-const errorResult = (text: string): ToolsCallResult =>
-    ({ content: [{ type: 'text', text }], isError: true })
 
 // ── Handlers ────────────────────────────────────────────────────────────────────
 
@@ -136,96 +218,8 @@ const errorResult = (text: string): ToolsCallResult =>
 export const casMcpHandlers = <O extends Operation>(
     c: Cas<O>,
     toUrl?: (hash: Vec) => string,
-): McpHandlers<ReadFile | O> => ({
-    toolsList: (): Effect<ReadFile | O, ToolsListResult> =>
-        pure({ tools: [casAddTool, casGetTool, casListTool] }),
-    toolsCall: ({ name, arguments: args }: ToolsCallParams): Effect<ReadFile | O, ToolsCallResult> => {
-        const a = args === undefined ? {} : args
-        switch (name) {
-            case 'cas_add': {
-                const [t, r] = validate(casAddArgs)(a)
-                if (t === 'error') {
-                    return pure(errorResult(`invalid arguments: ${r.message}`))
-                }
-                const encoding = r.type ?? 'text'
-                if (encoding === 'url') {
-                    return readFile(r.content).step(result => {
-                        if (result[0] === 'error') {
-                            return pure(errorResult(`cannot read file: ${r.content}: ${result[1]}`))
-                        }
-                        return c.write(result[1]).step(hash => pure(okResult(vecToCBase32(hash))))
-                    })
-                }
-                let value: Vec | null
-                if (encoding === 'base64') {
-                    value = base64Decode(r.content)
-                    if (value === null) {
-                        return pure(errorResult(`invalid base64 content: ${r.content}`))
-                    }
-                } else {
-                    value = utf8(r.content)
-                }
-                return c.write(value).step(hash => pure(okResult(vecToCBase32(hash))))
-            }
-            case 'cas_get': {
-                const [t, r] = validate(casGetArgs)(a)
-                if (t === 'error') {
-                    return pure(errorResult(`invalid arguments: ${r.message}`))
-                }
-                const key = cBase32ToVec(r.hash)
-                if (key === null) {
-                    return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
-                }
-                return c.read(key).step(value => {
-                    if (value === undefined) {
-                        return pure(errorResult(`no such hash: ${r.hash}`))
-                    }
-                    const byteLength = Number(bitVecLength(value) / 8n)
-                    // Phase 1: magic-byte sniffing for known binary formats.
-                    const detectedMime = detect(value)
-                    if (detectedMime !== null) {
-                        const url = toUrl?.(key)
-                        const meta: Record<string, unknown> = { length: byteLength, mime_type: detectedMime, type: 'base64', ...(url !== undefined && { url }) }
-                        if (r.content === true) {
-                            const blob = base64Encode(value)
-                            if (blob === null) {
-                                return pure(errorResult(`content is not byte-aligned: ${r.hash}`))
-                            }
-                            return pure(okResult(JSON.stringify({ ...meta, content: blob })))
-                        }
-                        return pure(okResult(JSON.stringify(meta)))
-                    }
-                    // Phase 2: UTF-8 validation — text if valid, octet-stream otherwise.
-                    const str = fromVec(value)
-                    const url = toUrl?.(key)
-                    if (str !== null) {
-                        const meta: Record<string, unknown> = { length: byteLength, mime_type: 'text/plain', type: 'text', ...(url !== undefined && { url }) }
-                        if (r.content === true) {
-                            return pure(okResult(JSON.stringify({ ...meta, content: str })))
-                        }
-                        return pure(okResult(JSON.stringify(meta)))
-                    }
-                    const meta: Record<string, unknown> = { length: byteLength, mime_type: 'application/octet-stream', type: 'base64', ...(url !== undefined && { url }) }
-                    if (r.content === true) {
-                        const blob = base64Encode(value)
-                        if (blob === null) {
-                            return pure(errorResult(`content is not byte-aligned: ${r.hash}`))
-                        }
-                        return pure(okResult(JSON.stringify({ ...meta, content: blob })))
-                    }
-                    return pure(okResult(JSON.stringify(meta)))
-                })
-            }
-            case 'cas_list': {
-                return c.list().step(hashes =>
-                    pure(okResult(hashes.map(vecToCBase32).join('\n'))))
-            }
-            default: {
-                return pure(errorResult(`unknown tool: ${name}`))
-            }
-        }
-    },
-})
+): McpHandlers<ReadFile | O> =>
+    fromRegistry(casToolRegistry(c, toUrl))
 
 // ── Session configuration ───────────────────────────────────────────────────────
 
