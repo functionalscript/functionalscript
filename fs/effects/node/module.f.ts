@@ -72,6 +72,12 @@ export const mkdir: Func<Mkdir> =
 
 // readFile
 
+/**
+ * Reads a file as a bit vector. File size is limited to 131,072 bytes (128 KiB)
+ * to respect Bun's `bigint` size constraint (1,048,575 bits), which is the
+ * minimal limit across all runtime environments supported by FunctionalScript.
+ * Files exceeding this limit will fail with a validation error.
+ */
 export type ReadFile = readonly['readFile', (path: string) => IoResult<Vec>]
 
 export const readFile: Func<ReadFile> =

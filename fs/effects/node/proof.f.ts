@@ -86,6 +86,18 @@ export const proof = {
             const [_, [t, result]] = virtual(emptyState)(readFile('tmp/cache'))
             if (t !== 'error') { throw result }
             if ((result as { code?: unknown }).code !== 'ENOENT') { throw result }
+        },
+        withinLimit: () => {
+            // Test with a small file well within the 131,072 byte limit
+            const initial = {
+                ...emptyState,
+                root: {
+                    smallFile: vec8(0x2An),
+                },
+            }
+            const [_, [t, result]] = virtual(initial)(readFile('smallFile'))
+            if (t === 'error') { throw result }
+            if (!isVec(result)) { throw result }
         }
     },
     readUtf8File: {

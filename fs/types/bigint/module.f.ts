@@ -202,8 +202,18 @@ export const bitLength = (v: bigint): bigint => log2(abs(v)) + 1n
  * const result = mask(3n) // 7n
  * ```
  */
-export const mask = (len: bigint): bigint =>
-    (1n << len) - 1n
+export const mask = (len: bigint): bigint => {
+    // we compute this way to avoid overflowing in Bun when len === maxLength.
+    const r = len & 1n
+    const h = len >> 1n
+    const x = (((1n << h) - 1n) << r) | r
+    return (x << h) | x
+}
+
+export const maxLength = 0x100000n
+
+// max + 1n // bun throws an error
+export const max = mask(maxLength)
 
 /**
  * Calculates the partial factorial `b!/a!`.
