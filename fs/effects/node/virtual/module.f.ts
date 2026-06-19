@@ -6,7 +6,7 @@
 import { todo } from '../../../asserts/module.f.ts'
 import { join, parse } from '../../../path/module.f.ts'
 import { utf8ToString } from '../../../text/module.f.ts'
-import { isVec, length, msb, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
+import { isVec, length, maxLengthBytes, msb, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
 import { asBase, asNominal, type Key } from '../../memory/module.f.ts'
@@ -189,8 +189,15 @@ const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): read
     if (path.length === 1) {
         const [name] = path
         const existing = dir[name]
-        if (existing !== undefined && !isVec(existing)) {
-            return [dir, error(`'${name}' is a directory`)]
+        if (existing !== undefined) {
+            const entityIsDir = typeof entity === 'object'
+            const existingIsDir = typeof existing === 'object'
+            if (entityIsDir && !existingIsDir) {
+                return [dir, error(`cannot overwrite file '${name}' with a directory`)]
+            }
+            if (!entityIsDir && existingIsDir) {
+                return [dir, error(`'${name}' is a directory`)]
+            }
         }
         return [{ ...dir, [name]: entity }, okVoid]
     }
@@ -206,19 +213,7 @@ const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): read
 const rename = (src: string, dst: string) => (state: State): readonly[State, IoResult<void>] => {
     const [srcRoot, srcResult] = extractEntity(state.root, parse(src))
     if (srcResult[0] === 'error') { return [state, srcResult] }
-    const srcEntity = srcResult[1]
-    const isSourceDir = typeof srcEntity === 'object'
-
-    const dstParsed = parse(dst)
-    if (dstParsed.length === 1) {
-        const [name] = dstParsed
-        const existing = srcRoot[name]
-        if (existing !== undefined && isSourceDir && isVec(existing)) {
-            return [state, error(`cannot rename directory onto file '${name}'`)]
-        }
-    }
-
-    const [dstRoot, dstResult] = insertEntityAt(srcRoot, dstParsed, srcEntity)
+    const [dstRoot, dstResult] = insertEntityAt(srcRoot, parse(dst), srcResult[1])
     if (dstResult[0] === 'error') { return [state, dstResult] }
     return [{ ...state, root: dstRoot }, okVoid]
 }
@@ -229,6 +224,7 @@ const readBytesOp = (path: string, offset: number, size: number) => readOperatio
     if (typeof file === 'function') { throw new Error(`'${p[0]}' is a JsModule; readBytes not supported`) }
     if (file === undefined) { return enoent }
     if (!isVec(file)) { return error(`'${p[0]}' is not a file`) }
+    if (BigInt(size) > maxLengthBytes) { return error(`Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes`) }
     const offsetBits = BigInt(offset) * 8n
     const sizeBits = BigInt(size) * 8n
     const remaining = msb.removeFront(offsetBits)(file)
