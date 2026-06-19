@@ -120,4 +120,35 @@ export const proof = {
         const [, listResult] = run<never, undefined>({})(undefined)(c.list())
         if (listResult.length !== 1) { throw ['list should pass through', listResult] }
     },
+    mainUpload: () => {
+        const content = vec8(0x2An)
+        const state = { ...emptyState, root: { 'cas_upload': { 'myfile': content } } }
+        const [state1, exitCode] = virtual(state)(main(makeOptions(['upload', 'myfile'])))
+        if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
+        if (state1.stdout.trim() === '') { throw 'expected hash in stdout' }
+        // file should be gone from cas_upload
+        const uploadDir = (state1.root as Record<string, Record<string, unknown>>)['cas_upload']
+        if (uploadDir?.['myfile'] !== undefined) { throw 'expected file to be moved out of cas_upload' }
+    },
+    mainUploadAndGet: () => {
+        const content = vec8(0x2An)
+        const state = { ...emptyState, root: { 'cas_upload': { 'myfile': content } } }
+        const [state1, exitCode1] = virtual(state)(main(makeOptions(['upload', 'myfile'])))
+        if (exitCode1 !== 0) { throw ['expected upload exit 0', exitCode1] }
+        const hashStr = state1.stdout.trim()
+        const [state2, exitCode2] = virtual(state1)(main(makeOptions(['get', hashStr, 'output'])))
+        if (exitCode2 !== 0) { throw ['expected get exit 0', exitCode2] }
+        const outputFile = (state2.root as Record<string, unknown>)['output']
+        if (outputFile === undefined) { throw 'expected output file to exist after get' }
+    },
+    mainUploadWrongArgs: () => {
+        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['upload'])))
+        if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
+        if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
+    },
+    mainUploadMissingFile: () => {
+        let threw = false
+        try { virtual(emptyState)(main(makeOptions(['upload', 'nonexistent']))) } catch { threw = true }
+        if (!threw) { throw 'expected upload to throw when source file is missing' }
+    },
 }
