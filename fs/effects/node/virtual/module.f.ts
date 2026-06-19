@@ -198,6 +198,13 @@ const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): read
             if (!entityIsDir && existingIsDir) {
                 return [dir, error(`'${name}' is a directory`)]
             }
+            if (entityIsDir && existingIsDir) {
+                const existingDir = existing as Dir
+                const hasContent = Object.values(existingDir).some(v => v !== undefined)
+                if (hasContent) {
+                    return [dir, error(`cannot overwrite non-empty directory '${name}'`)]
+                }
+            }
         }
         return [{ ...dir, [name]: entity }, okVoid]
     }
