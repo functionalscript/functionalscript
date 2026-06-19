@@ -21,7 +21,7 @@
  *
  * @module
  */
-import { bitLength, divUp, mask, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
+import { bitLength, divUp, mask, maxLength, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
 import { flip, identity } from '../function/module.f.ts'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
 import { fold, iterable, map, type List, type Thunk } from '../list/module.f.ts'
@@ -36,6 +36,15 @@ export type Vec = Nominal<
     'bit_vec',
     '1a23a4336197e6158b6936cad34e90d146cd84b9b40ff7ab75a17c6d79e31d89',
     bigint>
+
+/**
+ * Maximum length of a bit vector in bits (1_048_576 = 0x10_0000).
+ * This limit is enforced by Bun's `bigint` size constraint, the minimal limit
+ * across all runtime environments supported by FunctionalScript.
+ */
+export { maxLength }
+
+export const maxLengthBytes = maxLength >> 3n
 
 /**
  * An empty vector of bits.

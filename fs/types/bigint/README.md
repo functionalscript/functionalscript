@@ -2,6 +2,14 @@
 
 Bun has a `bigint` size limitation. It's `1_048_575` bits (`1024 ** 2`) or `131_072` Bytes.
 
+## Size Constraints
+
+The `module.f.ts` exports two constants documenting this limit:
+- `maxBits` = `1,048,575n` — the maximum number of bits in a bigint value
+- `maxBytes` = `131,072n` — the maximum file size in bytes (equivalent to maxBits ÷ 8)
+
+This limit applies to all bigint-backed types, including `bit_vec` and `ReadFile` effects. The `ReadFile` effect enforces this limit on file reads to ensure cross-runtime compatibility — files larger than 131,072 bytes will be rejected with a validation error.
+
 ## Benchmarks
 
 ### Aligned Shift (2025/01/11)
