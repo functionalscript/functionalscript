@@ -3,7 +3,7 @@ import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { decode, pure } from "../module.f.ts"
 import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt } from "./module.f.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
-import { emptyState, virtual } from "./virtual/module.f.ts"
+import { emptyState, virtual, type Dir } from "./virtual/module.f.ts"
 
 export const proof = {
     map: () => {
@@ -45,7 +45,7 @@ export const proof = {
             if (t !== 'ok') { throw result }
             const tmp = state.root.tmp
             if (typeof tmp !== 'object' || Array.isArray(tmp)) { throw state.root }
-            const cache = tmp.cache
+            const cache = (tmp as Dir).cache
             if (typeof cache !== 'object' || Array.isArray(cache)) { throw tmp }
         },
         nonRec: () => {
@@ -238,7 +238,7 @@ export const proof = {
             if (t !== 'ok') { throw result }
             const tmp = state.root.tmp
             if (typeof tmp !== 'object' || Array.isArray(tmp)) { throw state.root }
-            if (tmp.cache !== undefined) { throw tmp }
+            if ((tmp as Dir).cache !== undefined) { throw tmp }
         },
         noSuchFile: () => {
             const [_, [t, result]] = virtual(emptyState)(rm('hello'))
@@ -324,7 +324,7 @@ export const proof = {
             if (t !== 'ok') { throw result }
             const tmp = state.root.tmp
             if (typeof tmp !== 'object' || Array.isArray(tmp)) { throw state.root }
-            if (tmp.src !== undefined) { throw tmp }
+            if ((tmp as Dir).src !== undefined) { throw tmp }
         },
         dirOverFile: () => {
             const [state, [t, result]] = virtual({

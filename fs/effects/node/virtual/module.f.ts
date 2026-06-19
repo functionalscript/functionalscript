@@ -69,7 +69,7 @@ const operation =
         if (typeof subDir !== 'object' || Array.isArray(subDir)) {
             return op(dir, path)
         }
-        const [newSubDir, r] = f(subDir, rest)
+        const [newSubDir, r] = f(subDir as Dir, rest)
         return [{ ...dir, [first]: newSubDir }, r]
     }
     return (path: string) => (state: State) => {
@@ -188,7 +188,7 @@ const extractEntity = (dir: Dir, path: readonly string[]): readonly[Dir, IoResul
     const [first, ...rest] = path
     const sub = dir[first]
     if (sub === undefined || Array.isArray(sub) || typeof sub === 'function') { return [dir, enoent] }
-    const [newSub, result] = extractEntity(sub, rest)
+    const [newSub, result] = extractEntity(sub as Dir, rest)
     if (result[0] === 'error') { return [dir, result] }
     return [{ ...dir, [first]: newSub }, result]
 }
