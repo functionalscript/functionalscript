@@ -1,5 +1,5 @@
 import { assertEq } from '../../../asserts/module.f.ts'
-import { awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_ } from '../module.f.ts'
+import { awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes } from '../module.f.ts'
 import { vec8 } from '../../../types/bit_vec/module.f.ts'
 import { emptyState, virtual, type Dir, type JsModule } from './module.f.ts'
 
@@ -74,5 +74,47 @@ export const proof = {
             const root: Dir = { 'a.f.ts': (() => ({})) as JsModule }
             virtual({ ...emptyState, root })(readFile('a.f.ts'))
         },
+    },
+    renameSamePath: () => {
+        // rename('a', 'a') should succeed as a no-op, not reject
+        const root: Dir = { 'a': vec8(0x42n) }
+        const [, result] = virtual({ ...emptyState, root })(rename('a', 'a'))
+        assertEq(result[0], 'ok')
+    },
+    renameIntoOwnSubtree: () => {
+        // rename('a', 'a/b') should fail (dst inside src's subtree)
+        const root: Dir = { 'a': { 'b': vec8(0x42n) } }
+        const [, result] = virtual({ ...emptyState, root })(rename('a', 'a/b'))
+        assertEq(result[0], 'error')
+    },
+    renameOntoOwnAncestor: () => {
+        // rename('a/b', 'a') should fail (src inside dst's subtree)
+        const root: Dir = { 'a': { 'b': vec8(0x42n) } }
+        const [, result] = virtual({ ...emptyState, root })(rename('a/b', 'a'))
+        assertEq(result[0], 'error')
+    },
+    renameNonEmptyDirOverEmptyDir: () => {
+        // rename a directory onto an empty directory should succeed
+        const root: Dir = { 'src': { 'file': vec8(0x42n) }, 'dst': {} }
+        const [, result] = virtual({ ...emptyState, root })(rename('src', 'dst'))
+        assertEq(result[0], 'ok')
+    },
+    renameEmptyDirOverNonEmptyDir: () => {
+        // rename an empty directory onto a non-empty directory should fail
+        const root: Dir = { 'src': {}, 'dst': { 'file': vec8(0x42n) } }
+        const [, result] = virtual({ ...emptyState, root })(rename('src', 'dst'))
+        assertEq(result[0], 'error')
+    },
+    readBytesNegativeSize: () => {
+        // readBytes with negative size should fail
+        const root: Dir = { 'file': vec8(0x42n) }
+        const [, result] = virtual({ ...emptyState, root })(readBytes('file', 0, -1))
+        assertEq(result[0], 'error')
+    },
+    readBytesZeroSize: () => {
+        // readBytes with zero size should succeed and return empty vec
+        const root: Dir = { 'file': vec8(0x42n) }
+        const [, result] = virtual({ ...emptyState, root })(readBytes('file', 0, 0))
+        assertEq(result[0], 'ok')
     },
 }
