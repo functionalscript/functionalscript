@@ -223,14 +223,14 @@ const isProperPrefix = (prefix: readonly string[], path: readonly string[]): boo
 const rename = (src: string, dst: string) => (state: State): readonly[State, IoResult<void>] => {
     const srcParsed = parse(src)
     const dstParsed = parse(dst)
-    // reject if dst is strictly inside src's subtree (rename into own descendant)
-    // or if src is strictly inside dst's subtree (rename onto own ancestor, which
-    // would appear empty after extractEntity strips the child)
+    // extract source first to report ENOENT if it's missing, before checking subtree guards
+    const [srcRoot, srcResult] = extractEntity(state.root, srcParsed)
+    if (srcResult[0] === 'error') { return [state, srcResult] }
+    // now that source exists, reject if dst is strictly inside src's subtree (rename into own descendant)
+    // or if src is strictly inside dst's subtree (rename onto own ancestor)
     if (isProperPrefix(srcParsed, dstParsed) || isProperPrefix(dstParsed, srcParsed)) {
         return [state, error('cannot rename a directory into its own subtree or onto an ancestor')]
     }
-    const [srcRoot, srcResult] = extractEntity(state.root, srcParsed)
-    if (srcResult[0] === 'error') { return [state, srcResult] }
     const [dstRoot, dstResult] = insertEntityAt(srcRoot, dstParsed, srcResult[1])
     if (dstResult[0] === 'error') { return [state, dstResult] }
     return [{ ...state, root: dstRoot }, okVoid]
