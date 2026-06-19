@@ -1,7 +1,7 @@
 import { empty, isVec, uint, vec8 } from "../../types/bit_vec/module.f.ts"
 import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { decode, pure } from "../module.f.ts"
-import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File } from "./module.f.ts"
+import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt } from "./module.f.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"
 
@@ -303,6 +303,79 @@ export const proof = {
             )
             const [_, value] = virtual(emptyState)(effect)
             if (value !== 99) { throw value }
+        },
+    },
+    rename: {
+        fileOverFile: () => {
+            const [state, [t, result]] = virtual({
+                ...emptyState,
+                root: { src: vec8(0x2An), dst: vec8(0x15n) },
+            })(rename('src', 'dst'))
+            if (t !== 'ok') { throw result }
+            if (state.root.src !== undefined) { throw state.root }
+            if (!isVec(state.root.dst)) { throw state.root }
+            if (uint(state.root.dst) !== 0x2An) { throw state.root }
+        },
+        nestedRename: () => {
+            const [state, [t, result]] = virtual({
+                ...emptyState,
+                root: { tmp: { src: vec8(0x2An) } },
+            })(rename('tmp/src', 'tmp/dst'))
+            if (t !== 'ok') { throw result }
+            const tmp = state.root.tmp
+            if (typeof tmp !== 'object') { throw state.root }
+            if (tmp.src !== undefined) { throw tmp }
+        },
+        dirOverFile: () => {
+            const [state, [t, result]] = virtual({
+                ...emptyState,
+                root: { src: {}, dst: vec8(0x15n) },
+            })(rename('src', 'dst'))
+            if (t !== 'error') { throw result }
+            if (!isVec(state.root.dst)) { throw state.root }
+        },
+        missingSource: () => {
+            const [_, [t, result]] = virtual(emptyState)(rename('missing', 'dst'))
+            if (t !== 'error') { throw result }
+        },
+    },
+    readBytes: {
+        simple: () => {
+            const [_, [t, result]] = virtual({
+                ...emptyState,
+                root: { file: vec8(0xABCDn) },
+            })(readBytes('file', 0, 2))
+            if (t !== 'ok') { throw result }
+            if (!isVec(result)) { throw result }
+        },
+        withOffset: () => {
+            const [_, [t, result]] = virtual({
+                ...emptyState,
+                root: { file: vec8(0xABCDn) },
+            })(readBytes('file', 1, 1))
+            if (t !== 'ok') { throw result }
+            if (!isVec(result)) { throw result }
+        },
+        oversizeChunk: () => {
+            const [_, [t, result]] = virtual({
+                ...emptyState,
+                root: { file: vec8(0x2An) },
+            })(readBytes('file', 0, Number(2n ** 32n)))
+            if (t !== 'error') { throw result }
+        },
+        missingFile: () => {
+            const [_, [t, result]] = virtual(emptyState)(readBytes('missing', 0, 4))
+            if (t !== 'error') { throw result }
+        },
+    },
+    randomInt: {
+        increments: () => {
+            const [state1, r1] = virtual(emptyState)(randomInt())
+            if (r1 !== 0) { throw r1 }
+            const [state2, r2] = virtual(state1)(randomInt())
+            if (r2 !== 1) { throw r2 }
+            const [_, r3] = virtual(state2)(randomInt())
+            if (r3 !== 2) { throw r3 }
         },
     },
 }
