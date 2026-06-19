@@ -1,7 +1,7 @@
 # 66K-virtual-large-file-support. Virtual filesystem should support files larger than `maxLengthBytes`
 
 **Priority:** P3
-**Status:** closed
+**Status:** done
 **PR:** [#1130](https://github.com/functionalscript/functionalscript/pull/1130)
 
 ## Problem
