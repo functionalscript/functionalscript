@@ -330,7 +330,7 @@ export const proof = {
                 root: { src: {}, dst: vec8(0x15n) },
             })(rename('src', 'dst'))
             if (t !== 'error') { throw result }
-            if (state.root.dst === undefined || isVec(state.root.dst)) { throw state.root }
+            if (!isVec(state.root.dst)) { throw state.root }
         },
         missingSource: () => {
             const [_, [t, result]] = virtual(emptyState)(rename('missing', 'dst'))
