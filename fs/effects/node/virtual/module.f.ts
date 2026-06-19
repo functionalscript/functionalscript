@@ -111,12 +111,12 @@ const readFile = readOperation((dir, path): IoResult<Vec> => {
     const capBits = maxLengthBytes * 8n
     let result = empty
     for (const chunk of chunks) {
-        const resultLen = length(result)
-        if (resultLen >= capBits) { break }
         const chunkLen = length(chunk)
-        const remaining = capBits - resultLen
-        const part = chunkLen <= remaining ? chunk : vec(remaining)(msb.front(remaining)(chunk))
-        result = msb.concat(result)(part)
+        if (chunkLen === 0n) { continue }
+        if (length(result) + chunkLen > capBits) {
+            return error(`File size exceeds maximum allowed size of ${maxLengthBytes} bytes`)
+        }
+        result = msb.concat(result)(chunk)
     }
     return ok(result)
 })
