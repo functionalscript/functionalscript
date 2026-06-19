@@ -14,6 +14,7 @@
  */
 import http from 'node:http'
 import childProcess from 'node:child_process'
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import process from 'node:process'
@@ -88,7 +89,7 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
     return result
 }
 
-const { mkdir, readFile, readdir, writeFile, rm, access, stat } = fs.promises
+const { mkdir, open, readFile, readdir, rename, writeFile, rm, access, stat } = fs.promises
 
 const { exec } = childProcess
 
@@ -224,6 +225,18 @@ const runNodeEffect: EffectToPromise = asyncRun({
     ),
     writeFile: (path, data) => tc(() => writeFile(path, fromVec(data))),
     rm: path => tc(() => rm(path)),
+    rename: (src, dst) => tc(() => rename(src, dst)),
+    readChunk: (path, offset, size) => tc(async () => {
+        const fh = await open(path, 'r')
+        try {
+            const buffer = Buffer.alloc(size)
+            const { bytesRead } = await fh.read(buffer, 0, size, offset)
+            return toVec(buffer.subarray(0, bytesRead))
+        } finally {
+            await fh.close()
+        }
+    }),
+    randomBytes: async size => toVec(crypto.randomBytes(size)),
     access: path => tc(() => access(path)),
     import: path => tc(() => asyncImport(path)),
     exec: (command, stdin) => new Promise(resolve => {

@@ -7,6 +7,7 @@ import { todo } from '../../../asserts/module.f.ts'
 import { join, parse } from '../../../path/module.f.ts'
 import { utf8ToString } from '../../../text/module.f.ts'
 import { isVec, type Vec } from '../../../types/bit_vec/module.f.ts'
+import { fromVec, toVec } from '../../../types/uint8array/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
 import { asBase, asNominal, type Key } from '../../memory/module.f.ts'
@@ -164,6 +165,55 @@ const rm = operation((dir, path): readonly[Dir, IoResult<void>] => {
     return [rest as Dir, okVoid]
 })
 
+const extractEntity = (dir: Dir, path: readonly string[]): readonly[Dir, IoResult<Entity>] => {
+    if (path.length === 0) { return [dir, error('cannot extract root')] }
+    if (path.length === 1) {
+        const [name] = path
+        const entry = dir[name]
+        if (entry === undefined) { return [dir, enoent] }
+        const { [name]: _, ...rest } = dir
+        return [rest as Dir, ok(entry)]
+    }
+    const [first, ...rest] = path
+    const sub = dir[first]
+    if (sub === undefined || isVec(sub) || typeof sub === 'function') { return [dir, enoent] }
+    const [newSub, result] = extractEntity(sub, rest)
+    if (result[0] === 'error') { return [dir, result] }
+    return [{ ...dir, [first]: newSub }, result]
+}
+
+const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): readonly[Dir, IoResult<void>] => {
+    if (path.length === 0) { return [dir, error('cannot insert at root')] }
+    if (path.length === 1) {
+        const [name] = path
+        return [{ ...dir, [name]: entity }, okVoid]
+    }
+    const [first, ...rest] = path
+    const sub = dir[first] ?? {}
+    if (isVec(sub) || typeof sub === 'function') { return [dir, error('not a directory')] }
+    const [newSub, result] = insertEntityAt(sub as Dir, rest, entity)
+    if (result[0] === 'error') { return [dir, result] }
+    return [{ ...dir, [first]: newSub }, result]
+}
+
+const rename = (src: string, dst: string) => (state: State): readonly[State, IoResult<void>] => {
+    const [srcRoot, srcResult] = extractEntity(state.root, parse(src))
+    if (srcResult[0] === 'error') { return [state, srcResult] }
+    const [dstRoot, dstResult] = insertEntityAt(srcRoot, parse(dst), srcResult[1])
+    if (dstResult[0] === 'error') { return [state, dstResult] }
+    return [{ ...state, root: dstRoot }, okVoid]
+}
+
+const readChunkOp = (path: string, offset: number, size: number) => readOperation((dir, p): IoResult<Vec> => {
+    if (p.length !== 1) { return enoent }
+    const file = dir[p[0]]
+    if (typeof file === 'function') { throw new Error(`'${p[0]}' is a JsModule; readChunk not supported`) }
+    if (file === undefined) { return enoent }
+    if (!isVec(file)) { return error(`'${p[0]}' is not a file`) }
+    const chunk = fromVec(file).subarray(offset, offset + size)
+    return ok(toVec(chunk))
+})(path)
+
 const map: MemOperationMap<NodeOp, State> = {
     all: (...a) => state => {
         let e: readonly unknown[] = []
@@ -203,6 +253,9 @@ const map: MemOperationMap<NodeOp, State> = {
     access,
     import: import_,
     rm,
+    rename,
+    readChunk: readChunkOp,
+    randomBytes: size => state => [state, toVec(new Uint8Array(size))],
     exec: todo,
     createServer: todo,
     listen: todo,

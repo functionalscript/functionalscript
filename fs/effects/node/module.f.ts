@@ -133,6 +133,27 @@ export type Rm = readonly['rm', (path: string) => IoResult<void>]
 export const rm: Func<Rm> =
     do_('rm')
 
+// rename
+
+export type Rename = readonly['rename', (src: string, dst: string) => IoResult<void>]
+
+export const rename: Func<Rename> =
+    do_('rename')
+
+// readChunk
+
+export type ReadChunk = readonly['readChunk', (path: string, offset: number, size: number) => IoResult<Vec>]
+
+export const readChunk: Func<ReadChunk> =
+    do_('readChunk')
+
+// randomBytes
+
+export type RandomBytes = readonly['randomBytes', (size: number) => Vec]
+
+export const randomBytes: Func<RandomBytes> =
+    do_('randomBytes')
+
 // exec
 
 export type ExecResult = {
@@ -154,7 +175,7 @@ export const access: Func<Access> =
 
 // Fs
 
-export type Fs = Mkdir | ReadFile | Readdir | WriteFile | Rm | Exec | Access
+export type Fs = Mkdir | ReadFile | ReadChunk | Readdir | WriteFile | Rm | Rename | Exec | Access
 
 // Server
 
@@ -393,6 +414,7 @@ export type NodeOp =
     | Import
     | MemOp
     | Now
+    | RandomBytes
     | Read
     | Sandbox
     | Write
