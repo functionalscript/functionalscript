@@ -206,7 +206,19 @@ const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): read
 const rename = (src: string, dst: string) => (state: State): readonly[State, IoResult<void>] => {
     const [srcRoot, srcResult] = extractEntity(state.root, parse(src))
     if (srcResult[0] === 'error') { return [state, srcResult] }
-    const [dstRoot, dstResult] = insertEntityAt(srcRoot, parse(dst), srcResult[1])
+    const srcEntity = srcResult[1]
+    const isSourceDir = typeof srcEntity === 'object'
+
+    const dstParsed = parse(dst)
+    if (dstParsed.length === 1) {
+        const [name] = dstParsed
+        const existing = srcRoot[name]
+        if (existing !== undefined && isSourceDir && isVec(existing)) {
+            return [state, error(`cannot rename directory onto file '${name}'`)]
+        }
+    }
+
+    const [dstRoot, dstResult] = insertEntityAt(srcRoot, dstParsed, srcEntity)
     if (dstResult[0] === 'error') { return [state, dstResult] }
     return [{ ...state, root: dstRoot }, okVoid]
 }
