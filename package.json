@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.32.3",
+  "version": "0.32.4",
   "type": "module",
   "files": [
     "**/*.js",
@@ -44,7 +44,7 @@
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
     "@playwright/test": "1.61.0",
-    "@types/node": "25.9.3",
+    "@types/node": "26.0.0",
     "typescript": "6.0.3"
   }
 }

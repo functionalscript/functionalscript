@@ -1,7 +1,7 @@
 # 66J-cas-large-file-support. Support files larger than 131 KB via streaming upload
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ## Problem
 
@@ -16,13 +16,13 @@ Storing files in memory is infeasible for large files (GBs+), and the 131 KB art
 
 ## Proposal
 
-Two-phase staged move for `cas_upload_dir` (or `cas_add` with restricted paths):
+Two-phase staged move for `cas upload` (or `cas_add` with restricted paths):
 
 1. **Move from `~/cas_upload/` to staging**: File is atomically moved from `~/cas_upload/${fileName}` to `~/.cas/.stage/${rnd}-${fileName}`, where `rnd` is a random 256-bit number in CBase32.
 
-2. **Stream-hash the staged file**: Read the file in chunks (e.g., 64 KB blocks) and incrementally compute the content hash, avoiding large memory allocations.
+2. **Stream-hash the staged file**: Read the file in `maxLengthBytes` (128 KiB) chunks via `readBytes` and incrementally compute the SHA-256 hash, avoiding large memory allocations.
 
-3. **Move to final location**: Once hash is computed, rename the staged file to `~/.cas/${hash}` (or appropriate layout).
+3. **Move to final location**: Once hash is computed, rename the staged file to `~/.cas/<shard>/<hash>` using the existing sharded layout.
 
 ### Rationale
 
@@ -42,14 +42,18 @@ Two-phase staged move for `cas_upload_dir` (or `cas_add` with restricted paths):
 
 ## Tasks
 
-- [ ] Define streaming hash-computation interface (read in chunks, accumulate hash)
-- [ ] Add `RND` effect for 256-bit random numbers in CBase32
-- [ ] Implement `cas_upload_dir` command that orchestrates the move-hash-move pipeline
-- [ ] Define `~/.cas/.stage/` layout and cleanup policy
-- [ ] Add error handling and logging for each phase
+- [x] Add `randomInt`, `readBytes`, and `rename` primitives to `fs/effects/node`
+- [x] Implement `random256` helper — 8 × `randomInt` calls folded into a 256-bit `Vec`
+- [x] Implement `streamHash` — chunk-loop over `readBytes` feeding an incremental `Sha2` state
+- [x] Add `cas upload <fileName>` command that orchestrates the move-hash-move pipeline
+- [x] Add proof tests: happy path, upload-then-get roundtrip, wrong args, missing source file
+- [ ] Reject symlinks in `~/cas_upload/` before the first rename (i66K-cas-upload-reject-symlinks)
+- [ ] `cas get` is still limited by `readFile`'s 128 KiB cap — return path/URL instead (i66K-cas-get-return-path)
+- [ ] Define cleanup policy and CLI command for `~/.cas/.stage/` abandoned files
 - [ ] Document the upload flow in `fs/cas/README.md`
-- [ ] Add integration tests for interrupted uploads and cleanup
 
 ## Related
 
 - [i66J-cas-add-path-restriction](./66J-cas-add-path-restriction.md) — restrict paths to approved directories
+- [i66K-cas-upload-reject-symlinks](./66K-cas-upload-reject-symlinks.md) — reject symlinks before staging
+- [i66K-cas-get-return-path](./66K-cas-get-return-path.md) — `cas get` should return path/URL for large-file support
