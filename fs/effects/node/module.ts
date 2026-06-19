@@ -41,6 +41,7 @@ import { asBase, asNominal } from '../../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.ts'
 
 type Server = {
     readonly listen: (port: number) => void
@@ -87,9 +88,11 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
     return result
 }
 
-const { mkdir, readFile, readdir, writeFile, rm, access } = fs.promises
+const { mkdir, readFile, readdir, writeFile, rm, access, stat } = fs.promises
 
 const { exec } = childProcess
+
+const maxFileSizeBytes = Number(maxLengthBytes)
 
 const prefix = 'file:///' as const
 
@@ -203,7 +206,14 @@ const runNodeEffect: EffectToPromise = asyncRun({
         return toVec(new Uint8Array(await response.arrayBuffer()))
     }),
     mkdir: (...p) => tc(async() => { await mkdir(...p) }),
-    readFile: path => tc(async() => toVec(await readFile(path))),
+    readFile: path => tc(async() => {
+        const fileStats = await stat(path)
+        // if the file is too big, toVec should fail anyway but in this case we don't want to load the file.
+        if (fileStats.size > maxFileSizeBytes) {
+            throw new Error(`File size ${fileStats.size} exceeds maximum allowed size of ${Number(maxFileSizeBytes)} bytes`)
+        }
+        return toVec(await readFile(path))
+    }),
     readdir: (path, r) => tc(async() =>
         (await readdir(path, { ...r, withFileTypes: true }))
         .map(v => ({
@@ -237,8 +247,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
                 .writeHead(status, outHeaders)
                 .end(fromVec(outBody))
         }
-        const server: EffectServer = asNominal(createServer(nodeRl))
-        return server
+        return asNominal(createServer(nodeRl)) satisfies EffectServer
     },
     listen: async (server, port) => {
         const s = asBase(server) as Server
