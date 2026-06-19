@@ -89,11 +89,6 @@ What we plan to do. Omit if no design yet.
 
 Done → set **Status: done** in the file. Done and won't-fix issues are deleted occasionally in a cleanup pass — do not delete them immediately.
 
-## Open Issues
-
-- [i66A-unified-operator-tests](./66A-unified-operator-tests.md) — single `module.f.ts` as source of truth for operator tests; generate `test.rs` and `proof.f.ts` from it.
-- [i66K-cas-cli-mcp-shared-core](./66K-cas-cli-mcp-shared-core.md) — share transport-agnostic operation layer between CAS CLI and MCP to eliminate duplicated hash codec, store construction, and encoding logic.
-
 ## Language Specification
 
 See [lang/README.md](./lang/README.md).
