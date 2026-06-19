@@ -23,8 +23,9 @@
  *   without any encoding step.
  * - `'base64'`: `content` is RFC 4648 base64, decoded to bytes before storage.
  *   Use this for pre-encoded binary payloads.
- * - `'url'`: `content` is a filesystem path; the server reads the file at that
- *   path and stores its raw bytes.
+ * - `'url'`: `content` is a filesystem path within `$HOME/cas_upload/`; the server
+ *   reads the file at that path and stores its raw bytes. Paths outside
+ *   `$HOME/cas_upload/` or containing `..` are rejected for security.
  *
  * ## `cas_get` output
  *
@@ -97,19 +98,24 @@ export const casListArgs = {} as const
 
 /** Registry of all CAS tools. */
 const casToolRegistry =
-<O extends Operation>(c: Cas<O>, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|ReadFile>[] =>
-[
+<O extends Operation>(c: Cas<O>, home: string, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|ReadFile>[] => {
+    const casUploadDir = `${home}/cas_upload`
+    return [
     toolEntry(
         'cas_add',
-        'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path; omit or pass type:"text" for UTF-8 text (default).',
+        'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path within $HOME/cas_upload/; omit or pass type:"text" for UTF-8 text (default).',
         casAddArgs,
         ({ type, content }) => {
             let x: Effect<O|ReadFile, Vec|string>
             switch(type) {
                 case 'url':
-                    x = readFile(content).step(([t, v]) => pure(t === 'error'
-                        ? `cannot read file: ${content}: ${v}`
-                        : v))
+                    if (!content.startsWith(`${casUploadDir}/`) || content.includes('..')) {
+                        x = pure(`cas_add type:url paths must be within ${casUploadDir}/ — got: ${content}`)
+                    } else {
+                        x = readFile(content).step(([t, v]) => pure(t === 'error'
+                            ? `cannot read file: ${content}: ${v}`
+                            : v))
+                    }
                     break
                 case 'base64':
                     const value = base64Decode(content)
@@ -197,7 +203,8 @@ const casToolRegistry =
         () => c.list().step(hashes =>
             pure(okResult(hashes.map(vecToCBase32).join('\n')))),
     ),
-]
+    ]
+}
 
 // ── Result helpers ──────────────────────────────────────────────────────────────
 
@@ -217,9 +224,10 @@ const okResult = (text: string): ToolsCallResult =>
  */
 export const casMcpHandlers = <O extends Operation>(
     c: Cas<O>,
+    home: string,
     toUrl?: (hash: Vec) => string,
 ): McpHandlers<ReadFile | O> =>
-    fromRegistry(casToolRegistry(c, toUrl))
+    fromRegistry(casToolRegistry(c, home, toUrl))
 
 // ── Session configuration ───────────────────────────────────────────────────────
 
@@ -244,7 +252,8 @@ export const casConfig: McpConfig = {
  */
 export const casMcpServer = <O extends Operation>(
     c: Cas<O>,
+    home: string,
     toUrl?: (hash: Vec) => string,
 ): Effect<Read | Write | MemOp | ReadFile | O, void> =>
     create(uninitializedState).step(key =>
-        stdioTransport(mcpStep<ReadFile | O>(casConfig)(casMcpHandlers(c, toUrl))(key)))
+        stdioTransport(mcpStep<ReadFile | O>(casConfig)(casMcpHandlers(c, home, toUrl))(key)))

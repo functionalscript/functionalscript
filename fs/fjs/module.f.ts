@@ -36,7 +36,7 @@ const commands: Commands<NodeOp> = [
         description: 'Run an MCP server over stdio exposing the CAS as tools',
         handler: ({ home }) => {
             const c = cas(sha256)(fileKvStore(home))
-            return casMcpServer(c, hash => join(home, toPath(hash))).step(() => pure(0))
+            return casMcpServer(c, home, hash => join(home, toPath(hash))).step(() => pure(0))
         },
     },
     {
