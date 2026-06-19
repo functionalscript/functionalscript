@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
-import { pure, type Effect } from '../../effects/module.f.ts'
+import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
@@ -9,12 +9,14 @@ import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
-import { cas, type KvStore } from '../module.f.ts'
+import { cas, fileKvStore, type FileKvStoreOperation, type KvStore } from '../module.f.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { type ReadFile } from '../../effects/node/module.f.ts'
+import { type MakeDirectoryOptions, type Mkdir, type RandomInt, type ReadBytes, type Rename } from '../../effects/node/module.f.ts'
+import { emptyState, virtual, type Dir } from '../../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
+import { ok as resultOk } from '../../types/result/module.f.ts'
 
 type CasGetResult = {
     readonly length: number
@@ -33,12 +35,16 @@ type MemoryState = {
 
 type TestState = {
     readonly memory: MemoryState
-    readonly files: { readonly [path: string]: Vec }
 }
 
-const initialTestState: TestState = { memory: { next: 0, values: {} }, files: {} }
+const initialTestState: TestState = { memory: { next: 0, values: {} } }
 
-const mock: MemOperationMap<MemOp | ReadFile, TestState> = {
+// The in-memory session helpers only exercise text/base64 paths (MemOp) and the
+// path-rejection branch of type:'url' (no file I/O). The upload ops are only
+// reached via runSessionVirtual.
+type MockOp = MemOp | Mkdir | Rename | RandomInt | ReadBytes
+
+const mock: MemOperationMap<MockOp, TestState> = {
     memCreate: value => state => {
         const id = `k${state.memory.next}`
         const key: Key<unknown> = asNominal(id)
@@ -52,20 +58,14 @@ const mock: MemOperationMap<MemOp | ReadFile, TestState> = {
         const id = asBase(key)
         return [{ ...state, memory: { ...state.memory, values: { ...state.memory.values, [id]: value } } }, undefined]
     },
-    readFile: path => state => {
-        const v = state.files[path]
-        return v !== undefined
-            ? [state, ['ok', v] as const]
-            : [state, ['error', new Error(`ENOENT: ${path}`)] as readonly ['error', unknown]]
-    },
+    mkdir: (_path: string, _opts?: MakeDirectoryOptions) => state => [state, resultOk(undefined)],
+    rename: (_src: string, _dst: string) => _ => { throw new Error('rename not supported in memory mock') },
+    readBytes: (_path: string, _offset: number, _size: number) => _ => { throw new Error('readBytes not supported in memory mock') },
+    randomInt: () => _ => { throw new Error('randomInt not supported in memory mock') },
 }
 
-const runMem = <T>(effect: Effect<MemOp | ReadFile, T>): T =>
+const runMem = <T>(effect: Effect<MockOp, T>): T =>
     run(mock)(initialTestState)(effect)[1]
-
-const runMemWithFiles = <T>(files: { readonly [path: string]: Vec }) =>
-    (effect: Effect<MemOp | ReadFile, T>): T =>
-        run(mock)({ memory: { next: 0, values: {} }, files })(effect)[1]
 
 // ── In-memory KvStore backed by a single memory slot ────────────────────────────
 // Persists writes across steps so add → get round-trips, keyed by cBase32 hash.
@@ -86,15 +86,15 @@ const memKvStore = (mapKey: Key<VecMap>): KvStore<MemOp> => ({
 // ── Session driver ──────────────────────────────────────────────────────────────
 
 // Feeds each message to `step` in order, collecting every response.
-const feed =
-    (step: (v: Unknown) => Effect<MemOp | ReadFile, Response | null>) =>
-    (msgs: readonly unknown[]): Effect<MemOp | ReadFile, readonly unknown[]> => {
-        const go = (i: number, acc: readonly unknown[]): Effect<MemOp | ReadFile, readonly unknown[]> =>
-            i === msgs.length
-                ? pure(acc)
-                : step(msgs[i] as Unknown).step(r => go(i + 1, [...acc, r]))
-        return go(0, [])
-    }
+const feed = <O extends Operation>(
+    step: (v: Unknown) => Effect<O, Response | null>,
+) => (msgs: readonly unknown[]): Effect<O, readonly unknown[]> => {
+    const go = (i: number, acc: readonly unknown[]): Effect<O, readonly unknown[]> =>
+        i === msgs.length
+            ? pure(acc)
+            : step(msgs[i] as Unknown).step(r => go(i + 1, [...acc, r]))
+    return go(0, [])
+}
 
 // Runs a full session over a fresh in-memory CAS, returning all responses.
 const runSession = (msgs: readonly unknown[], home = '/home/user'): readonly unknown[] =>
@@ -102,21 +102,25 @@ const runSession = (msgs: readonly unknown[], home = '/home/user'): readonly unk
         create({} as VecMap).step(mapKey =>
             create(uninitializedState as McpSessionState).step(sessionKey => {
                 const c = cas(sha256)(memKvStore(mapKey))
-                const step = mcpStep<MemOp | ReadFile>(casConfig)(casMcpHandlers(c, home))(sessionKey)
+                const step = mcpStep<MockOp>(casConfig)(casMcpHandlers(c, home))(sessionKey)
                 return feed(step)(msgs)
             })))
 
-// Runs a session with a mocked filesystem (for cas_add with type:'url' tests).
-const runSessionWithFiles =
-    (files: { readonly [path: string]: Vec }, home = '/home/user') =>
-    (msgs: readonly unknown[]): readonly unknown[] =>
-        runMemWithFiles<readonly unknown[]>(files)(
-            create({} as VecMap).step(mapKey =>
-                create(uninitializedState as McpSessionState).step(sessionKey => {
-                    const c = cas(sha256)(memKvStore(mapKey))
-                    const step = mcpStep<MemOp | ReadFile>(casConfig)(casMcpHandlers(c, home))(sessionKey)
-                    return feed(step)(msgs)
-                })))
+
+// Runs a session backed by the virtual node runner (for cas_upload which uses
+// Rename/ReadBytes/RandomInt/Mkdir). Uses fileKvStore so upload and get share
+// the same filesystem-backed CAS.
+const runSessionVirtual =
+    (root: Dir, home = '/home/user') =>
+    (msgs: readonly unknown[]): readonly unknown[] => {
+        type UploadOp = FileKvStoreOperation | Rename | RandomInt | ReadBytes
+        const effect = create(uninitializedState as McpSessionState).step(sessionKey => {
+            const c = cas(sha256)(fileKvStore(home))
+            const step = mcpStep<UploadOp>(casConfig)(casMcpHandlers(c, home))(sessionKey)
+            return feed(step)(msgs)
+        })
+        return virtual({ ...emptyState, root })(effect)[1]
+    }
 
 // ── Messages ────────────────────────────────────────────────────────────────────
 
@@ -329,10 +333,11 @@ export const proof = {
         assert('result' in (resp as object))
     },
 
-    // cas_add with type:'url' reads a file from /home/user/cas_upload/ and stores it.
+    // cas_add with type:'url' streams a file from /home/user/cas_upload/ into CAS.
     addUrlStoresFileAndReturnsHash: () => {
         const fileContent = utf8('hello from file')
-        const [addUrlResp] = runSessionWithFiles({ '/home/user/cas_upload/hello.txt': fileContent })([
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'hello.txt': fileContent } } } }
+        const [addUrlResp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/hello.txt', type: 'url' }),
         ]).slice(2) as readonly unknown[]
@@ -342,24 +347,27 @@ export const proof = {
 
     addUrlRoundTrips: () => {
         const fileContent = utf8('round-trip content')
-        const msgs = runSessionWithFiles({ '/home/user/cas_upload/rt.txt': fileContent })([
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'rt.txt': fileContent } } } }
+        // First pass: add to get the hash (deterministic for same content).
+        const [addResp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/rt.txt', type: 'url' }),
         ]).slice(2) as readonly unknown[]
-        const hash = textOf(msgs[0])
-        const msgs2 = runSessionWithFiles({ '/home/user/cas_upload/rt.txt': fileContent })([
+        const hash = textOf(addResp)
+        // Second pass: add again + get in one session (file re-present in fresh virtual state).
+        const [, getResp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/rt.txt', type: 'url' }),
             call(3, 'cas_get', { hash, content: true }),
         ]).slice(2) as readonly unknown[]
-        assert(!resultOf(msgs2[1]).isError)
-        const result = JSON.parse(textOf(msgs2[1])) as CasGetResult
+        assert(!resultOf(getResp).isError)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
         assertEq(result.type, 'text')
         assertEq(result.content, 'round-trip content')
     },
 
     addUrlMissingFileIsError: () => {
-        const [resp] = runSessionWithFiles({})([
+        const [resp] = runSessionVirtual({})([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/nonexistent.txt', type: 'url' }),
         ]).slice(2) as readonly unknown[]
@@ -369,18 +377,21 @@ export const proof = {
     // cas_get without content:true returns only metadata.
     getMetaReturnsLengthAndMimeType: () => {
         const fileContent = utf8('text content')
-        const [addResp] = runSessionWithFiles({ '/home/user/cas_upload/f': fileContent })([
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'f': fileContent } } } }
+        // First pass: add to get the hash.
+        const [addResp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/f', type: 'url' }),
         ]).slice(2) as readonly unknown[]
         const hash = textOf(addResp)
-        const [, metaResp2] = runSessionWithFiles({ '/home/user/cas_upload/f': fileContent })([
+        // Second pass: add + get metadata.
+        const [, metaResp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/f', type: 'url' }),
             call(3, 'cas_get', { hash }),
         ]).slice(2) as readonly unknown[]
-        assert(!resultOf(metaResp2).isError)
-        const meta = JSON.parse(textOf(metaResp2)) as CasGetResult
+        assert(!resultOf(metaResp).isError)
+        const meta = JSON.parse(textOf(metaResp)) as CasGetResult
         assertEq(meta.mime_type, 'text/plain')
         assertEq(meta.type, 'text')
         assertEq(meta.length, Number(BigInt(/* 'text content'.length */ 12)))
@@ -443,10 +454,23 @@ export const proof = {
         assertEq(resultOf(resp).isError, true)
     },
 
+    // cas_add type:'url' with a subdirectory path flattens slashes to '-' in staging.
+    addUrlFromSubdirectorySucceeds: () => {
+        const fileContent = utf8('nested file content')
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'subdir': { 'file.txt': fileContent } } } } }
+        const [resp] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_add', { content: '/home/user/cas_upload/subdir/file.txt', type: 'url' }),
+        ]).slice(2) as readonly unknown[]
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
+    },
+
     // cas_add with type:'url' accepts paths within /home/user/cas_upload/
     addUrlFromApprovedDirectorySucceeds: () => {
         const fileContent = utf8('approved file')
-        const [resp] = runSessionWithFiles({ '/home/user/cas_upload/test.txt': fileContent })([
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'test.txt': fileContent } } } }
+        const [resp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/test.txt', type: 'url' }),
         ]).slice(2) as readonly unknown[]
@@ -456,22 +480,14 @@ export const proof = {
 
     // cas_add with type:'url' rejects paths outside /home/user/cas_upload/
     addUrlFromRandomDirectoryIsRejected: () => {
-        const fileContent = utf8('forbidden file')
-        const [resp] = runSessionWithFiles({ '/tmp/secret.txt': fileContent })([
-            init, initialized,
-            call(2, 'cas_add', { content: '/tmp/secret.txt', type: 'url' }),
-        ]).slice(2) as readonly unknown[]
+        const [resp] = session(call(2, 'cas_add', { content: '/tmp/secret.txt', type: 'url' }))
         assert(resultOf(resp).isError === true)
         assert(textOf(resp).includes('/home/user/cas_upload/'))
     },
 
     // cas_add with type:'url' rejects path traversal attempts with ..
     addUrlWithPathTraversalIsRejected: () => {
-        const fileContent = utf8('secret content')
-        const [resp] = runSessionWithFiles({ '/home/user/cas_upload/../../etc/passwd': fileContent })([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/../../etc/passwd', type: 'url' }),
-        ]).slice(2) as readonly unknown[]
+        const [resp] = session(call(2, 'cas_add', { content: '/home/user/cas_upload/../../etc/passwd', type: 'url' }))
         assert(resultOf(resp).isError === true)
         assert(textOf(resp).includes('/home/user/cas_upload/'))
     },
