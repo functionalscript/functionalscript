@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.32.3
+
+- `cas/mcp`: add temporary fix for large file handling — `cas_get` no longer crashes when encountering files larger than `readFile`'s size limit; issue created with proposal for proper `'toobig'` error handling in `readFile` (i66J-cas-readfile-size-limit) [#1124](https://github.com/functionalscript/functionalscript/pull/1124)
+- `fs/cas/mcp`: improve documentation with clearer setup instructions for Claude CLI and Codex, explaining that `npx functionalscript m` automatically downloads the latest version on startup [#1123](https://github.com/functionalscript/functionalscript/pull/1123)
+
 ## 0.32.2
 
 - `cas/mcp`: restrict `cas_add` with `type: 'url'` to paths within `~/cas_upload/` directory — reject any path not starting with `~/cas_upload/` or containing `..` to prevent arbitrary file read and path traversal attacks; MCP clients can no longer exfiltrate sensitive files via `cas_add({ type: 'url', content: '/etc/passwd' })`; add comprehensive proofs for valid paths (approve `~/cas_upload/*`), invalid directories (reject `/tmp/*`), and traversal attempts (reject `~/cas_upload/../../etc/passwd`); future issues track full path normalization for symlink handling (i66J-cas-add-path-restriction, i66J-normalize-home-paths) [#1122](https://github.com/functionalscript/functionalscript/pull/1122)
