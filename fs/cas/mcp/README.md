@@ -14,36 +14,28 @@ injected `Cas<O>`, and drives the stdio read → parse → dispatch → write lo
 
 ## Running it
 
-### With Claude CLI
-
-Register the CAS MCP server with your Claude CLI installation:
+Register the CAS MCP server with your client:
 
 ```sh
 claude mcp add cas -- npx functionalscript m
+codex mcp add cas -- npx functionalscript m
 ```
 
 This command uses `npx` to run the latest version of functionalscript, downloading it on startup if needed.
 
-Then start Claude and interact with CAS:
+Then start your client and interact with CAS:
 
 ```sh
 claude
+codex
 ```
 
-You can now ask Claude questions like:
+You can now ask questions like:
 - "Show all records in CAS"
 - "What's stored in the content-addressable store?"
 - "List the available CAS hashes"
 
-Claude will use the `cas_add`, `cas_get`, and `cas_list` tools to interact with your CAS instance.
-
-### Other LLM Clients
-
-CAS MCP also works with Codex and other MCP-compatible LLM clients. Refer to your client's documentation to configure:
-
-```sh
-npx functionalscript m
-```
+Your client will use the `cas_add`, `cas_get`, and `cas_list` tools to interact with your CAS instance.
 
 ## Tools
 
