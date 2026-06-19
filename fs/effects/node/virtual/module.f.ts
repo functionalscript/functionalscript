@@ -189,10 +189,15 @@ const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): read
     if (path.length === 0) { return [dir, error('cannot insert at root')] }
     if (path.length === 1) {
         const [name] = path
+        const existing = dir[name]
+        if (existing !== undefined) {
+            return [dir, error(`'${name}' already exists`)]
+        }
         return [{ ...dir, [name]: entity }, okVoid]
     }
     const [first, ...rest] = path
-    const sub = dir[first] ?? {}
+    const sub = dir[first]
+    if (sub === undefined) { return [dir, enoent] }
     if (isVec(sub) || typeof sub === 'function') { return [dir, error('not a directory')] }
     const [newSub, result] = insertEntityAt(sub as Dir, rest, entity)
     if (result[0] === 'error') { return [dir, result] }
