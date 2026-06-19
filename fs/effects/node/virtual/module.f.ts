@@ -218,9 +218,16 @@ const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): read
 }
 
 const rename = (src: string, dst: string) => (state: State): readonly[State, IoResult<void>] => {
-    const [srcRoot, srcResult] = extractEntity(state.root, parse(src))
+    const srcParsed = parse(src)
+    const dstParsed = parse(dst)
+    // reject if dst is an ancestor of src (src is nested inside dst)
+    if (dstParsed.length <= srcParsed.length &&
+        dstParsed.every((seg, i) => seg === srcParsed[i])) {
+        return [state, error('cannot rename a directory onto itself or an ancestor')]
+    }
+    const [srcRoot, srcResult] = extractEntity(state.root, srcParsed)
     if (srcResult[0] === 'error') { return [state, srcResult] }
-    const [dstRoot, dstResult] = insertEntityAt(srcRoot, parse(dst), srcResult[1])
+    const [dstRoot, dstResult] = insertEntityAt(srcRoot, dstParsed, srcResult[1])
     if (dstResult[0] === 'error') { return [state, dstResult] }
     return [{ ...state, root: dstRoot }, okVoid]
 }
