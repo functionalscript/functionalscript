@@ -1,4 +1,4 @@
-import { empty, isVec, uint, vec8 } from "../../types/bit_vec/module.f.ts"
+import { empty, isVec, uint, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { decode, pure } from "../module.f.ts"
 import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt } from "./module.f.ts"
@@ -36,7 +36,7 @@ export const proof = {
             const [state, [t, result]] = virtual(emptyState)(mkdir('a'))
             if (t === 'error') { throw result }
             const a = state.root.a
-            if (a === undefined || isVec(a)) { throw a }
+            if (a === undefined || Array.isArray(a)) { throw a }
         },
         rec: () => {
             const [state, [t, result]] = virtual(emptyState)(
@@ -44,9 +44,9 @@ export const proof = {
             )
             if (t !== 'ok') { throw result }
             const tmp = state.root.tmp
-            if (typeof tmp !== 'object') { throw state.root }
+            if (typeof tmp !== 'object' || Array.isArray(tmp)) { throw state.root }
             const cache = tmp.cache
-            if (typeof cache !== 'object') { throw tmp }
+            if (typeof cache !== 'object' || Array.isArray(cache)) { throw tmp }
         },
         nonRec: () => {
             const [state, [t, result]] = virtual(emptyState)(
@@ -61,7 +61,7 @@ export const proof = {
             const initial = {
                 ...emptyState,
                 root: {
-                    hello: vec8(0x2An),
+                    hello: [vec8(0x2An)],
                 },
             }
             const [state, [t, result]] = virtual(initial)(readFile('hello'))
@@ -73,7 +73,7 @@ export const proof = {
         nested: () => {
             const [_, [tag, result]] = virtual({
                 ...emptyState,
-                root: { tmp: { cache: vec8(0x15n) } }
+                root: { tmp: { cache: [vec8(0x15n)] } }
             })(readFile('tmp/cache'))
             if (tag === 'error') { throw result }
             if (uint(result) !== 0x15n) { throw result }
@@ -92,7 +92,7 @@ export const proof = {
             const initial = {
                 ...emptyState,
                 root: {
-                    smallFile: vec8(0x2An),
+                    smallFile: [vec8(0x2An)],
                 },
             }
             const [_, [t, result]] = virtual(initial)(readFile('smallFile'))
@@ -104,7 +104,7 @@ export const proof = {
         ok: () => {
             const [_, [t, result]] = virtual({
                 ...emptyState,
-                root: { hello: utf8('Hello, world!') },
+                root: { hello: [utf8('Hello, world!')] },
             })(readUtf8File('hello'))
             if (t !== 'ok') { throw result }
             if (result !== 'Hello, world!') { throw result }
@@ -119,9 +119,9 @@ export const proof = {
             const [_, [t, result]] = virtual({
                 ...emptyState,
                 root: {
-                    file: vec8(0x2An),
+                    file: [vec8(0x2An)],
                     dir: {
-                        a: empty
+                        a: [empty]
                     },
                 },
             })(readdir('', { recursive: true }))
@@ -135,9 +135,9 @@ export const proof = {
             const [_, [t, result]] = virtual({
                 ...emptyState,
                 root: {
-                    file: vec8(0x2An),
+                    file: [vec8(0x2An)],
                     dir: {
-                        a: empty
+                        a: [empty]
                     },
                 },
             })(readdir('', { }))
@@ -151,7 +151,7 @@ export const proof = {
         nested: () => {
             const [_, [t, result]] = virtual({
                 ...emptyState,
-                root: { tmp: { cache: vec8(0x15n) } }
+                root: { tmp: { cache: [vec8(0x15n)] } }
             })(readdir('tmp', { recursive: true }))
             if (t !== 'ok') { throw result }
             if (result.length !== 1) { throw result }
@@ -172,22 +172,22 @@ export const proof = {
             )
             if (t !== 'ok') { throw result }
             const file = state.root.hello
-            if (!isVec(file)) { throw file }
-            if (uint(file) !== 0x2An) { throw file }
+            if (!Array.isArray(file)) { throw file }
+            if (uint(file[0]) !== 0x2An) { throw file }
         },
         overwrite: () => {
             const [state, [t, result]] = virtual({
                 ...emptyState,
                 root: {
-                    hello: vec8(0x15n),
+                    hello: [vec8(0x15n)],
                 },
             })(
                 writeFile('hello', vec8(0x2An))
             )
             if (t !== 'ok') { throw result }
             const file = state.root.hello
-            if (!isVec(file)) { throw file }
-            if (uint(file) !== 0x2An) { throw file }
+            if (!Array.isArray(file)) { throw file }
+            if (uint(file[0]) !== 0x2An) { throw file }
         },
         nestedPath: () => {
             const [state, [t, result]] = virtual(emptyState)(
@@ -209,7 +209,7 @@ export const proof = {
             if (t !== 'error') { throw result }
             if (result !== 'invalid file') { throw result }
             const tmp = state.root.tmp
-            if (tmp === undefined || isVec(tmp)) { throw tmp }
+            if (tmp === undefined || Array.isArray(tmp)) { throw tmp }
         },
     },
     writeUtf8File: () => {
@@ -218,14 +218,14 @@ export const proof = {
         )
         if (t !== 'ok') { throw result }
         const file = state.root.hello
-        if (!isVec(file)) { throw file }
-        if (utf8ToString(file) !== 'Hello, world!') { throw file }
+        if (!Array.isArray(file)) { throw file }
+        if (utf8ToString(file[0]) !== 'Hello, world!') { throw file }
     },
     rm: {
         one: () => {
             const [state, [t, result]] = virtual({
                 ...emptyState,
-                root: { hello: vec8(0x2An) },
+                root: { hello: [vec8(0x2An)] },
             })(rm('hello'))
             if (t !== 'ok') { throw result }
             if (state.root.hello !== undefined) { throw state.root }
@@ -233,11 +233,11 @@ export const proof = {
         nested: () => {
             const [state, [t, result]] = virtual({
                 ...emptyState,
-                root: { tmp: { cache: vec8(0x15n) } },
+                root: { tmp: { cache: [vec8(0x15n)] } },
             })(rm('tmp/cache'))
             if (t !== 'ok') { throw result }
             const tmp = state.root.tmp
-            if (typeof tmp !== 'object') { throw state.root }
+            if (typeof tmp !== 'object' || Array.isArray(tmp)) { throw state.root }
             if (tmp.cache !== undefined) { throw tmp }
         },
         noSuchFile: () => {
@@ -259,8 +259,8 @@ export const proof = {
         const [_, results] = virtual({
             ...emptyState,
             root: {
-                a: vec8(0x2An),
-                b: vec8(0x15n),
+                a: [vec8(0x2An)],
+                b: [vec8(0x15n)],
             },
         })(both(readFile('a'))(readFile('b')))
         if (results[0][0] !== 'ok') { throw results[0] }
@@ -309,30 +309,30 @@ export const proof = {
         fileOverFile: () => {
             const [state, [t, result]] = virtual({
                 ...emptyState,
-                root: { src: vec8(0x2An), dst: vec8(0x15n) },
+                root: { src: [vec8(0x2An)], dst: [vec8(0x15n)] },
             })(rename('src', 'dst'))
             if (t !== 'ok') { throw result }
             if (state.root.src !== undefined) { throw state.root }
-            if (!isVec(state.root.dst)) { throw state.root }
-            if (uint(state.root.dst) !== 0x2An) { throw state.root }
+            if (!Array.isArray(state.root.dst)) { throw state.root }
+            if (uint((state.root.dst as readonly Vec[])[0]) !== 0x2An) { throw state.root }
         },
         nestedRename: () => {
             const [state, [t, result]] = virtual({
                 ...emptyState,
-                root: { tmp: { src: vec8(0x2An) } },
+                root: { tmp: { src: [vec8(0x2An)] } },
             })(rename('tmp/src', 'tmp/dst'))
             if (t !== 'ok') { throw result }
             const tmp = state.root.tmp
-            if (typeof tmp !== 'object') { throw state.root }
+            if (typeof tmp !== 'object' || Array.isArray(tmp)) { throw state.root }
             if (tmp.src !== undefined) { throw tmp }
         },
         dirOverFile: () => {
             const [state, [t, result]] = virtual({
                 ...emptyState,
-                root: { src: {}, dst: vec8(0x15n) },
+                root: { src: {}, dst: [vec8(0x15n)] },
             })(rename('src', 'dst'))
             if (t !== 'error') { throw result }
-            if (!isVec(state.root.dst)) { throw state.root }
+            if (!Array.isArray(state.root.dst)) { throw state.root }
         },
         missingSource: () => {
             const [_, [t, result]] = virtual(emptyState)(rename('missing', 'dst'))
@@ -343,15 +343,15 @@ export const proof = {
         simple: () => {
             const [_, [t, result]] = virtual({
                 ...emptyState,
-                root: { file: vec8(0xABCDn) },
-            })(readBytes('file', 0, 2))
+                root: { file: [vec8(0xABn)] },
+            })(readBytes('file', 0, 1))
             if (t !== 'ok') { throw result }
             if (!isVec(result)) { throw result }
         },
         withOffset: () => {
             const [_, [t, result]] = virtual({
                 ...emptyState,
-                root: { file: vec8(0xABCDn) },
+                root: { file: [vec8(0xABn), vec8(0xCDn)] },
             })(readBytes('file', 1, 1))
             if (t !== 'ok') { throw result }
             if (!isVec(result)) { throw result }
@@ -359,7 +359,7 @@ export const proof = {
         oversizeChunk: () => {
             const [_, [t, result]] = virtual({
                 ...emptyState,
-                root: { file: vec8(0x2An) },
+                root: { file: [vec8(0x2An)] },
             })(readBytes('file', 0, Number(2n ** 32n)))
             if (t !== 'error') { throw result }
         },

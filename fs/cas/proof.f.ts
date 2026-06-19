@@ -24,7 +24,7 @@ const main = dispatch(commands)
 export const proof = {
     mainAdd: () => {
         const content = vec8(0x2An)
-        const state = { ...emptyState, root: { myfile: content } }
+        const state = { ...emptyState, root: { myfile: [content] } }
         const [finalState, exitCode] = virtual(state)(main(makeOptions(['add', 'myfile'])))
         if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
         if (finalState.stdout.length === 0) { throw 'expected hash in stdout' }
@@ -36,7 +36,7 @@ export const proof = {
     },
     mainGetFound: () => {
         const content = vec8(0x2An)
-        const state = { ...emptyState, root: { myfile: content } }
+        const state = { ...emptyState, root: { myfile: [content] } }
         const [state1, exitCode1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
         if (exitCode1 !== 0) { throw ['expected add exit 0', exitCode1] }
         const hashStr = state1.stdout.trim()
@@ -46,7 +46,7 @@ export const proof = {
     mainGetNotFound: () => {
         // valid cBase32 hash that has not been stored
         const content = vec8(0x2An)
-        const state = { ...emptyState, root: { myfile: content } }
+        const state = { ...emptyState, root: { myfile: [content] } }
         const [state1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
         const hashStr = state1.stdout.trim()
         // use an empty store so the hash is not found
@@ -66,7 +66,7 @@ export const proof = {
     },
     mainList: () => {
         const content = vec8(0x2An)
-        const state = { ...emptyState, root: { myfile: content } }
+        const state = { ...emptyState, root: { myfile: [content] } }
         const [state1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
         const [, exitCode] = virtual(state1)(main(makeOptions(['list'])))
         if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
@@ -81,7 +81,7 @@ export const proof = {
     mainListCorruptStore: () => {
         // `.cas` exists but is a file, not a directory: a real storage error
         // that must surface, not be masked as an empty list.
-        const state = { ...emptyState, root: { '.cas': vec8(0x2An) } }
+        const state = { ...emptyState, root: { '.cas': [vec8(0x2An)] } }
         let threw = false
         try { virtual(state)(main(makeOptions(['list']))) } catch { threw = true }
         if (!threw) { throw 'expected list to surface the storage error' }
