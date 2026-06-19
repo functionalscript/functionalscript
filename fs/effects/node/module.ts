@@ -227,6 +227,9 @@ const runNodeEffect: EffectToPromise = asyncRun({
     rm: path => tc(() => rm(path)),
     rename: (src, dst) => tc(() => rename(src, dst)),
     readBytes: (path, offset, size) => tc(async () => {
+        if (offset < 0) {
+            throw new Error(`Offset ${offset} is negative`)
+        }
         if (size > maxFileSizeBytes) {
             throw new Error(`Chunk size ${size} exceeds maximum allowed size of ${maxFileSizeBytes} bytes`)
         }
