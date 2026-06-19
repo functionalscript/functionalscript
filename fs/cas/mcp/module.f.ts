@@ -9,9 +9,9 @@
  *
  * ## Tools
  *
- * | Tool       | args                          | CAS call         | result                              |
+ * | Tool       | args                          | action           | result                              |
  * |------------|-------------------------------|------------------|-------------------------------------|
- * | `cas_add`  | `{ content, type? }`          | `c.write(value)` | hash (cBase32)                      |
+ * | `cas_add`  | `{ content, type? }`          | write/upload     | hash (cBase32)                      |
  * | `cas_get`  | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mime_type,type[,content]}` |
  * | `cas_list` | `{}`                          | `c.list()`       | hashes, one per line                |
  *
@@ -24,8 +24,8 @@
  * - `'base64'`: `content` is RFC 4648 base64, decoded to bytes before storage.
  *   Use this for pre-encoded binary payloads.
  * - `'url'`: `content` is a filesystem path within `$HOME/cas_upload/`; the server
- *   reads the file at that path and stores its raw bytes. Paths outside
- *   `$HOME/cas_upload/` or containing `..` are rejected for security.
+ *   moves the file via the streaming move-hash-move pipeline (no size limit).
+ *   Paths outside `$HOME/cas_upload/` or containing `..` are rejected for security.
  *
  * ## `cas_get` output
  *
@@ -72,7 +72,7 @@ import { decode as base64Decode, encode as base64Encode } from '../../base64/mod
 import { utf8 } from '../../text/module.f.ts'
 import { detect } from '../../mime/module.f.ts'
 import { length as bitVecLength, type Vec } from '../../types/bit_vec/module.f.ts'
-import { readFile, type Read, type ReadFile, type Write } from '../../effects/node/module.f.ts'
+import { type Mkdir, type RandomInt, type Read, type ReadBytes, type Rename, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
@@ -80,7 +80,7 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import type { Cas } from '../module.f.ts'
+import { casUpload, type Cas } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
@@ -98,25 +98,30 @@ export const casListArgs = {} as const
 
 /** Registry of all CAS tools. */
 const casToolRegistry =
-<O extends Operation>(c: Cas<O>, home: string, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|ReadFile>[] => {
+<O extends Operation>(c: Cas<O>, home: string, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|Mkdir|Rename|RandomInt|ReadBytes>[] => {
     const casUploadDir = `${home}/cas_upload`
     return [
     toolEntry(
         'cas_add',
-        'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to read from a filesystem path within $HOME/cas_upload/; omit or pass type:"text" for UTF-8 text (default).',
+        'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to stream a file from $HOME/cas_upload/ (no size limit); omit or pass type:"text" for UTF-8 text (default).',
         casAddArgs,
-        ({ type, content }) => {
-            let x: Effect<O|ReadFile, Vec|string>
+        ({ type, content }): Effect<O | Mkdir | Rename | RandomInt | ReadBytes, ToolsCallResult> => {
+            // type:'url' — streaming move-hash-move pipeline (no size limit)
+            if (type === 'url') {
+                if (!content.startsWith(`${casUploadDir}/`) || content.includes('..')) {
+                    return pure(errorResult(`cas_add type:url paths must be within ${casUploadDir}/ — got: ${content}`))
+                }
+                const fileName = content.slice(`${casUploadDir}/`.length)
+                return casUpload(home)(fileName).step(result =>
+                    pure(result[0] === 'error'
+                        ? errorResult(`upload failed: ${result[1]}`)
+                        : okResult(vecToCBase32(result[1]))
+                    )
+                )
+            }
+            // type:'text' or 'base64' — resolve content to Vec, store via c.write()
+            let x: Effect<O, Vec|string>
             switch(type) {
-                case 'url':
-                    if (!content.startsWith(`${casUploadDir}/`) || content.includes('..')) {
-                        x = pure(`cas_add type:url paths must be within ${casUploadDir}/ — got: ${content}`)
-                    } else {
-                        x = readFile(content).step(([t, v]) => pure(t === 'error'
-                            ? `cannot read file: ${content}: ${v}`
-                            : v))
-                    }
-                    break
                 case 'base64':
                     const value = base64Decode(content)
                     x = pure(value === null ? `invalid base64 content: ${content}` : value)
@@ -226,7 +231,7 @@ export const casMcpHandlers = <O extends Operation>(
     c: Cas<O>,
     home: string,
     toUrl?: (hash: Vec) => string,
-): McpHandlers<ReadFile | O> =>
+): McpHandlers<Mkdir | Rename | RandomInt | ReadBytes | O> =>
     fromRegistry(casToolRegistry(c, home, toUrl))
 
 // ── Session configuration ───────────────────────────────────────────────────────
@@ -254,6 +259,6 @@ export const casMcpServer = <O extends Operation>(
     c: Cas<O>,
     home: string,
     toUrl?: (hash: Vec) => string,
-): Effect<Read | Write | MemOp | ReadFile | O, void> =>
+): Effect<Read | Write | MemOp | Mkdir | Rename | RandomInt | ReadBytes | O, void> =>
     create(uninitializedState).step(key =>
-        stdioTransport(mcpStep<ReadFile | O>(casConfig)(casMcpHandlers(c, home, toUrl))(key)))
+        stdioTransport(mcpStep<Mkdir | Rename | RandomInt | ReadBytes | O>(casConfig)(casMcpHandlers(c, home, toUrl))(key)))
