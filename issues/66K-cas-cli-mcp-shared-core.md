@@ -62,10 +62,27 @@ and to mark blobs read-only before they enter the store:
 The staging step is the same in both cases; only the initial acquire differs
 (move vs copy) and MCP enforces the path restriction before staging begins.
 
+### `KvStore` interface change
+
+The current `KvStore.write` accepts a `(key, value: Vec)` pair and writes the
+bytes directly. To support the staging pipeline, `KvStore` needs a second entry
+point:
+
+```ts
+move: (stagePath: string, key: Vec) => Effect<O, void>
+```
+
+`move` assumes the blob is already on disk at `stagePath` (inside
+`./cas/stage/`), marked read-only, and simply renames it into its final CAS
+location. This avoids re-reading large files into memory and keeps the
+`write`-by-value path for inline content.
+
 ## Tasks
 
 - [ ] Identify all logic duplicated between `commands` (CLI) and
       `casToolRegistry` (MCP) — hash codec, store construction, encoding rules.
+- [ ] Add `move: (stagePath: string, key: Vec) => Effect<O, void>` to `KvStore`
+      and implement it in `fileKvStore`.
 - [ ] Design the staging directory (`./cas/stage/`) and the acquire-stage-store
       pipeline; add `Rename` / `Copy` effects if missing from
       `fs/effects/node/module.f.ts`.
