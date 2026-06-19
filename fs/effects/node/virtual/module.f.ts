@@ -6,8 +6,7 @@
 import { todo } from '../../../asserts/module.f.ts'
 import { join, parse } from '../../../path/module.f.ts'
 import { utf8ToString } from '../../../text/module.f.ts'
-import { isVec, type Vec } from '../../../types/bit_vec/module.f.ts'
-import { fromVec, toVec } from '../../../types/uint8array/module.f.ts'
+import { isVec, length, msb, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
 import { asBase, asNominal, type Key } from '../../memory/module.f.ts'
@@ -218,8 +217,11 @@ const readBytesOp = (path: string, offset: number, size: number) => readOperatio
     if (typeof file === 'function') { throw new Error(`'${p[0]}' is a JsModule; readBytes not supported`) }
     if (file === undefined) { return enoent }
     if (!isVec(file)) { return error(`'${p[0]}' is not a file`) }
-    const chunk = fromVec(file).subarray(offset, offset + size)
-    return ok(toVec(chunk))
+    const offsetBits = BigInt(offset) * 8n
+    const sizeBits = BigInt(size) * 8n
+    const remaining = msb.removeFront(offsetBits)(file)
+    const actualSizeBits = sizeBits < length(remaining) ? sizeBits : length(remaining)
+    return ok(vec(actualSizeBits)(msb.front(actualSizeBits)(remaining)))
 })(path)
 
 const map: MemOperationMap<NodeOp, State> = {
