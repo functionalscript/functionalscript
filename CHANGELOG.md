@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- `cas`: add `cas upload <fileName>` command implementing a streaming move-hash-move pipeline for files of any size — moves the source from `~/cas_upload/<name>` to a randomized staging path `~/.cas/.stage/<rnd256>-<name>`, stream-hashes it in `maxLengthBytes` (128 KiB) chunks via `readBytes` without loading the whole file into memory, then renames the staged file to its final sharded CAS location and prints the CBase32 hash; `random256` helper composes 8 × `randomInt` (32-bit) calls into a 256-bit `Vec` for collision-resistant staging names; `streamHash` is a generic chunk-loop parameterised on any `Sha2` implementation; adds proof tests for the happy path, upload-then-get roundtrip, wrong-args error, and missing-source-file error (i66J-cas-large-file-support)
+## 0.32.4
+
+- `cas`: add `cas upload <fileName>` command implementing a streaming move-hash-move pipeline for files of any size — moves the source from `~/cas_upload/<name>` to a randomized staging path `~/.cas/.stage/<rnd256>-<name>`, stream-hashes it in `maxLengthBytes` (128 KiB) chunks via `readBytes` without loading the whole file into memory, then renames the staged file to its final sharded CAS location and prints the CBase32 hash; `random256` helper composes 8 × `randomInt` (32-bit) calls into a 256-bit `Vec` for collision-resistant staging names; `streamHash` is a generic chunk-loop parameterised on any `Sha2` implementation; adds proof tests for the happy path, upload-then-get roundtrip, wrong-args error, and missing-source-file error (i66J-cas-large-file-support), PR [#1127](https://github.com/functionalscript/functionalscript/pull/1127)
 
 ## 0.32.3
 
