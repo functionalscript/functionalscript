@@ -242,6 +242,8 @@ const readBytesOp = (path: string, offset: number, size: number) => readOperatio
     if (typeof file === 'function') { throw new Error(`'${p[0]}' is a JsModule; readBytes not supported`) }
     if (file === undefined) { return enoent }
     if (!isVec(file)) { return error(`'${p[0]}' is not a file`) }
+    if (!Number.isInteger(offset)) { return error(`Offset ${offset} is not an integer`) }
+    if (!Number.isInteger(size)) { return error(`Chunk size ${size} is not an integer`) }
     if (offset < 0) { return error(`Offset ${offset} is negative`) }
     if (size < 0) { return error(`Chunk size ${size} is negative`) }
     if (BigInt(size) > maxLengthBytes) { return error(`Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes`) }

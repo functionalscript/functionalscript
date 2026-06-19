@@ -123,4 +123,16 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(readBytes('file', -1, 1))
         assertEq(result[0], 'error')
     },
+    readBytesFractionalSize: () => {
+        // readBytes with fractional size should fail rather than throw RangeError
+        const root: Dir = { 'file': vec8(0x42n) }
+        const [, result] = virtual({ ...emptyState, root })(readBytes('file', 0, 1.5))
+        assertEq(result[0], 'error')
+    },
+    readBytesFractionalOffset: () => {
+        // readBytes with fractional offset should fail rather than throw RangeError
+        const root: Dir = { 'file': vec8(0x42n) }
+        const [, result] = virtual({ ...emptyState, root })(readBytes('file', 0.5, 1))
+        assertEq(result[0], 'error')
+    },
 }
