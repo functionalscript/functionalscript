@@ -43,7 +43,6 @@ Callers that write a single `Vec` (e.g. existing tests that set
 - [ ] Update `readFile` virtual impl to concatenate chunks (preserving the
       128 KiB cap for `readFile` itself, since it reads everything at once)
 - [ ] Update all existing virtual test fixtures to use the new representation
-      (or add an automatic coercion from `Vec` to `readonly Vec[]`)
 - [ ] Add a proof test that uploads a file larger than 128 KiB through the
       virtual runner
 
