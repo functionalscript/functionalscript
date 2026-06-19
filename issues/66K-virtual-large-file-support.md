@@ -32,9 +32,8 @@ and return the requested slice, allowing arbitrarily large files to be stored
 in the virtual filesystem without any single allocation exceeding `maxLengthBytes`.
 
 Callers that write a single `Vec` (e.g. existing tests that set
-`root: { 'myfile': content }`) should continue to work — either by wrapping
-`Vec` automatically in `[content]`, or by keeping `Vec` as a special-case
-alias for `[Vec]`.
+`root: { 'myfile': content }`) should continue to work by always wrapping
+`Vec` in `[content]` at the boundary where fixtures are constructed.
 
 ## Tasks
 
