@@ -217,13 +217,17 @@ const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): read
     return [{ ...dir, [first]: newSub }, result]
 }
 
+const isProperPrefix = (prefix: readonly string[], path: readonly string[]): boolean =>
+    prefix.length < path.length && prefix.every((seg, i) => seg === path[i])
+
 const rename = (src: string, dst: string) => (state: State): readonly[State, IoResult<void>] => {
     const srcParsed = parse(src)
     const dstParsed = parse(dst)
-    // reject if dst is an ancestor of src (src is nested inside dst)
-    if (dstParsed.length <= srcParsed.length &&
-        dstParsed.every((seg, i) => seg === srcParsed[i])) {
-        return [state, error('cannot rename a directory onto itself or an ancestor')]
+    // reject if dst is strictly inside src's subtree (rename into own descendant)
+    // or if src is strictly inside dst's subtree (rename onto own ancestor, which
+    // would appear empty after extractEntity strips the child)
+    if (isProperPrefix(srcParsed, dstParsed) || isProperPrefix(dstParsed, srcParsed)) {
+        return [state, error('cannot rename a directory into its own subtree or onto an ancestor')]
     }
     const [srcRoot, srcResult] = extractEntity(state.root, srcParsed)
     if (srcResult[0] === 'error') { return [state, srcResult] }
