@@ -189,8 +189,8 @@ const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): read
     if (path.length === 1) {
         const [name] = path
         const existing = dir[name]
-        if (existing !== undefined) {
-            return [dir, error(`'${name}' already exists`)]
+        if (existing !== undefined && !isVec(existing)) {
+            return [dir, error(`'${name}' is a directory`)]
         }
         return [{ ...dir, [name]: entity }, okVoid]
     }
