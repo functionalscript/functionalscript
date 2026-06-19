@@ -14,21 +14,23 @@ injected `Cas<O>`, and drives the stdio read → parse → dispatch → write lo
 
 ## Running it
 
-Register the CAS MCP server with your client:
+Register the CAS MCP server command with your LLM client:
 
 ```sh
+npx functionalscript m
+```
+
+Follow your LLM client's instructions to register that command as an MCP server.
+For example:
+
+```sh
+# register the MCP for Claude
 claude mcp add cas -- npx functionalscript m
+# register the MCP for Codex
 codex mcp add cas -- npx functionalscript m
 ```
 
-This command uses `npx` to run the latest version of functionalscript, downloading it on startup if needed.
-
-Then start your client and interact with CAS:
-
-```sh
-claude
-codex
-```
+This command uses `npx` to run the latest version of [FunctionalScript](https://www.npmjs.com/package/functionalscript), downloading it on startup if needed.
 
 You can now ask questions like:
 - "Show all records in CAS"
