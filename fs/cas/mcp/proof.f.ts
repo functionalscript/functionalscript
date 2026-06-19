@@ -454,6 +454,18 @@ export const proof = {
         assertEq(resultOf(resp).isError, true)
     },
 
+    // cas_add type:'url' with a subdirectory path flattens slashes to '-' in staging.
+    addUrlFromSubdirectorySucceeds: () => {
+        const fileContent = utf8('nested file content')
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'subdir': { 'file.txt': fileContent } } } } }
+        const [resp] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_add', { content: '/home/user/cas_upload/subdir/file.txt', type: 'url' }),
+        ]).slice(2) as readonly unknown[]
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
+    },
+
     // cas_add with type:'url' accepts paths within /home/user/cas_upload/
     addUrlFromApprovedDirectorySucceeds: () => {
         const fileContent = utf8('approved file')

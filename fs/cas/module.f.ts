@@ -147,7 +147,7 @@ export const casUpload = (home: string) => (fileName: string): Effect<Mkdir | Re
     const stageDir = join(home, prefix, '.stage')
     return random256.step(rnd => {
         const rndStr = vecToCBase32(rnd)
-        const stagePath = join(stageDir, `${rndStr}-${fileName}`)
+        const stagePath = join(stageDir, `${rndStr}-${fileName.replaceAll('/', '-')}`)
         return mkdir(stageDir, { recursive: true })
             .step(() => rename(src, stagePath))
             .step(r => {
