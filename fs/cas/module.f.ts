@@ -51,13 +51,11 @@ export const fileKvStore = (path: string): KvStore<FileKvStoreOperation> => {
     const storePrefix = join(path, prefix)
     const normalizedStorePrefix = normalize(storePrefix)
     return {
+        // TODO: extend the interface with `Result<Vec, unknown>` instead of `Vec|undefined`.
         read: (key: Vec): Effect<FileKvStoreOperation, Vec|undefined> =>
-            readFile(join(path, toPath(key))).step(r => {
-                if (r[0] === 'ok') { return pure(r[1]) }
-                // A missing file means "no such content"; surface anything else.
-                if (isNotFound(r[1])) { return pure(undefined) }
-                throw r[1]
-            }),
+            readFile(join(path, toPath(key))).step(([t, v]) =>
+                pure(t === 'ok' ? v : undefined)
+            ),
         write: (key: Vec, value: Vec): Effect<FileKvStoreOperation, void> => {
             const p = toPath(key)
             const parts = parse(p)
