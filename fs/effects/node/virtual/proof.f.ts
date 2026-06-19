@@ -117,4 +117,10 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(readBytes('file', 0, 0))
         assertEq(result[0], 'ok')
     },
+    readBytesNegativeOffset: () => {
+        // readBytes with negative offset should fail
+        const root: Dir = { 'file': vec8(0x42n) }
+        const [, result] = virtual({ ...emptyState, root })(readBytes('file', -1, 1))
+        assertEq(result[0], 'error')
+    },
 }
