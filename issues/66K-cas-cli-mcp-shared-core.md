@@ -35,16 +35,51 @@ the CLI command handlers and the MCP tool handlers. This layer owns:
 The CLI and MCP modules become thin adapters: CLI maps flags/args to the
 shared calls; MCP maps JSON-RPC tool args to the same calls.
 
+### `add` operation — unified design
+
+The shared layer defines a single `add` input type with two mutually exclusive
+sources:
+
+| Source | CLI | MCP |
+|--------|-----|-----|
+| Inline content (bytes / text / base64 string) | `cas add <content>` | `cas_add { content, type? }` |
+| File path (`url`) | any path allowed | only paths inside `~/cas_upload/` |
+
+**Path handling** uses a staging area (`./cas/stage/`) to avoid partial writes
+and to mark blobs read-only before they enter the store:
+
+1. **Path inside `~/cas_upload/`** (both CLI and MCP):
+   - Move the file into `./cas/stage/`.
+   - Mark the staged file read-only.
+   - Compute hash; move the file to its final CAS location.
+
+2. **Path outside `~/cas_upload/`**:
+   - **CLI**: Copy the file into `./cas/stage/` while computing the hash; mark
+     it read-only; move it to its final CAS location.
+   - **MCP**: Return `isError: true` with message `"access denied"` — the MCP
+     server does not have filesystem access beyond the upload directory.
+
+The staging step is the same in both cases; only the initial acquire differs
+(move vs copy) and MCP enforces the path restriction before staging begins.
+
 ## Tasks
 
 - [ ] Identify all logic duplicated between `commands` (CLI) and
       `casToolRegistry` (MCP) — hash codec, store construction, encoding rules.
+- [ ] Design the staging directory (`./cas/stage/`) and the acquire-stage-store
+      pipeline; add `Rename` / `Copy` effects if missing from
+      `fs/effects/node/module.f.ts`.
 - [ ] Define a shared `casOps` (or similar) module/functions in
       `fs/cas/ops/module.f.ts` (or inline in `fs/cas/module.f.ts`) that
-      expose typed operations independent of transport.
-- [ ] Refactor CLI `commands` to delegate to the shared layer.
-- [ ] Refactor `casToolRegistry` to delegate to the shared layer.
-- [ ] Verify no behaviour change: existing CLI and MCP tests still pass.
+      expose typed operations independent of transport, including the unified
+      `add` with path-restriction parameter.
+- [ ] Refactor CLI `commands` to delegate to the shared layer (pass
+      `allowAnyPath: true`).
+- [ ] Refactor `casToolRegistry` to delegate to the shared layer (pass
+      `allowAnyPath: false`, returning `"access denied"` for out-of-sandbox
+      paths).
+- [ ] Verify no behaviour change: existing CLI and MCP tests still pass; add
+      new tests for the staging flow and the MCP path-restriction error.
 
 ## Related
 
