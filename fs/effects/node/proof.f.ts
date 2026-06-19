@@ -372,7 +372,7 @@ export const proof = {
             if (r1 !== 0) { throw r1 }
             const [state2, r2] = virtual(state1)(randomInt())
             if (r2 !== 1) { throw r2 }
-            const [state3, r3] = virtual(state2)(randomInt())
+            const [_, r3] = virtual(state2)(randomInt())
             if (r3 !== 2) { throw r3 }
         },
     },
