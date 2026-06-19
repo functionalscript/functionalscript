@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
-import { pure, type Effect } from '../../effects/module.f.ts'
+import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
@@ -9,12 +9,14 @@ import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
-import { cas, type KvStore } from '../module.f.ts'
+import { cas, fileKvStore, type FileKvStoreOperation, type KvStore } from '../module.f.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { type ReadFile } from '../../effects/node/module.f.ts'
+import { type MakeDirectoryOptions, type Mkdir, type RandomInt, type ReadBytes, type ReadFile, type Rename } from '../../effects/node/module.f.ts'
+import { emptyState, virtual, type Dir } from '../../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
+import { ok as resultOk } from '../../types/result/module.f.ts'
 
 type CasGetResult = {
     readonly length: number
@@ -38,7 +40,9 @@ type TestState = {
 
 const initialTestState: TestState = { memory: { next: 0, values: {} }, files: {} }
 
-const mock: MemOperationMap<MemOp | ReadFile, TestState> = {
+type MockOp = MemOp | ReadFile | Mkdir | Rename | RandomInt | ReadBytes
+
+const mock: MemOperationMap<MockOp, TestState> = {
     memCreate: value => state => {
         const id = `k${state.memory.next}`
         const key: Key<unknown> = asNominal(id)
@@ -58,13 +62,19 @@ const mock: MemOperationMap<MemOp | ReadFile, TestState> = {
             ? [state, ['ok', v] as const]
             : [state, ['error', new Error(`ENOENT: ${path}`)] as readonly ['error', unknown]]
     },
+    // Stub handlers for upload ops — only reachable if cas_upload is called via
+    // the in-memory session helpers (which the existing tests never do).
+    mkdir: (_path: string, _opts?: MakeDirectoryOptions) => state => [state, resultOk(undefined)],
+    rename: (_src: string, _dst: string) => _ => { throw new Error('rename not supported in memory mock') },
+    readBytes: (_path: string, _offset: number, _size: number) => _ => { throw new Error('readBytes not supported in memory mock') },
+    randomInt: () => _ => { throw new Error('randomInt not supported in memory mock') },
 }
 
-const runMem = <T>(effect: Effect<MemOp | ReadFile, T>): T =>
+const runMem = <T>(effect: Effect<MockOp, T>): T =>
     run(mock)(initialTestState)(effect)[1]
 
 const runMemWithFiles = <T>(files: { readonly [path: string]: Vec }) =>
-    (effect: Effect<MemOp | ReadFile, T>): T =>
+    (effect: Effect<MockOp, T>): T =>
         run(mock)({ memory: { next: 0, values: {} }, files })(effect)[1]
 
 // ── In-memory KvStore backed by a single memory slot ────────────────────────────
@@ -86,15 +96,15 @@ const memKvStore = (mapKey: Key<VecMap>): KvStore<MemOp> => ({
 // ── Session driver ──────────────────────────────────────────────────────────────
 
 // Feeds each message to `step` in order, collecting every response.
-const feed =
-    (step: (v: Unknown) => Effect<MemOp | ReadFile, Response | null>) =>
-    (msgs: readonly unknown[]): Effect<MemOp | ReadFile, readonly unknown[]> => {
-        const go = (i: number, acc: readonly unknown[]): Effect<MemOp | ReadFile, readonly unknown[]> =>
-            i === msgs.length
-                ? pure(acc)
-                : step(msgs[i] as Unknown).step(r => go(i + 1, [...acc, r]))
-        return go(0, [])
-    }
+const feed = <O extends Operation>(
+    step: (v: Unknown) => Effect<O, Response | null>,
+) => (msgs: readonly unknown[]): Effect<O, readonly unknown[]> => {
+    const go = (i: number, acc: readonly unknown[]): Effect<O, readonly unknown[]> =>
+        i === msgs.length
+            ? pure(acc)
+            : step(msgs[i] as Unknown).step(r => go(i + 1, [...acc, r]))
+    return go(0, [])
+}
 
 // Runs a full session over a fresh in-memory CAS, returning all responses.
 const runSession = (msgs: readonly unknown[], home = '/home/user'): readonly unknown[] =>
@@ -102,7 +112,7 @@ const runSession = (msgs: readonly unknown[], home = '/home/user'): readonly unk
         create({} as VecMap).step(mapKey =>
             create(uninitializedState as McpSessionState).step(sessionKey => {
                 const c = cas(sha256)(memKvStore(mapKey))
-                const step = mcpStep<MemOp | ReadFile>(casConfig)(casMcpHandlers(c, home))(sessionKey)
+                const step = mcpStep<MockOp>(casConfig)(casMcpHandlers(c, home))(sessionKey)
                 return feed(step)(msgs)
             })))
 
@@ -114,9 +124,24 @@ const runSessionWithFiles =
             create({} as VecMap).step(mapKey =>
                 create(uninitializedState as McpSessionState).step(sessionKey => {
                     const c = cas(sha256)(memKvStore(mapKey))
-                    const step = mcpStep<MemOp | ReadFile>(casConfig)(casMcpHandlers(c, home))(sessionKey)
+                    const step = mcpStep<MockOp>(casConfig)(casMcpHandlers(c, home))(sessionKey)
                     return feed(step)(msgs)
                 })))
+
+// Runs a session backed by the virtual node runner (for cas_upload which uses
+// Rename/ReadBytes/RandomInt/Mkdir). Uses fileKvStore so upload and get share
+// the same filesystem-backed CAS.
+const runSessionVirtual =
+    (root: Dir, home = '/home/user') =>
+    (msgs: readonly unknown[]): readonly unknown[] => {
+        type UploadOp = FileKvStoreOperation | Rename | RandomInt | ReadBytes
+        const effect = create(uninitializedState as McpSessionState).step(sessionKey => {
+            const c = cas(sha256)(fileKvStore(home))
+            const step = mcpStep<UploadOp>(casConfig)(casMcpHandlers(c, home))(sessionKey)
+            return feed(step)(msgs)
+        })
+        return virtual({ ...emptyState, root })(effect)[1]
+    }
 
 // ── Messages ────────────────────────────────────────────────────────────────────
 
@@ -155,11 +180,11 @@ const pngSample = base64Encode(
 // ── Tests ───────────────────────────────────────────────────────────────────────
 
 export const proof = {
-    toolsListAdvertisesThreeTools: () => {
+    toolsListAdvertisesFourTools: () => {
         const [resp] = runSession([init, initialized, list(2)]).slice(2)
         const tools = (resp as { result: { tools: readonly { name: string }[] } }).result.tools
-        assertEq(tools.length, 3)
-        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list')
+        assertEq(tools.length, 4)
+        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list,cas_upload')
         const add = (resp as { result: { tools: readonly { inputSchema: { type?: string } }[] } }).result.tools[0]
         assertEq(add.inputSchema.type, 'object')
     },
@@ -440,6 +465,27 @@ export const proof = {
 
     getMetaInvalidHashIsError: () => {
         const [resp] = session(call(2, 'cas_get', { hash: 'bad!' }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    // cas_upload stores a file from ~/cas_upload/ and returns its hash.
+    uploadStoresFileAndReturnsHash: () => {
+        const fileContent = vec8(0x2An)
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'myfile': fileContent } } } }
+        const [resp] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_upload', { fileName: 'myfile' }),
+        ]).slice(2)
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
+    },
+
+    // cas_upload on a missing file returns isError:true (does not throw).
+    uploadMissingFileIsError: () => {
+        const [resp] = runSessionVirtual({})([
+            init, initialized,
+            call(2, 'cas_upload', { fileName: 'nonexistent' }),
+        ]).slice(2)
         assertEq(resultOf(resp).isError, true)
     },
 

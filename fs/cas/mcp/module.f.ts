@@ -9,11 +9,12 @@
  *
  * ## Tools
  *
- * | Tool       | args                          | CAS call         | result                              |
- * |------------|-------------------------------|------------------|-------------------------------------|
- * | `cas_add`  | `{ content, type? }`          | `c.write(value)` | hash (cBase32)                      |
- * | `cas_get`  | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mime_type,type[,content]}` |
- * | `cas_list` | `{}`                          | `c.list()`       | hashes, one per line                |
+ * | Tool          | args                          | action                        | result                              |
+ * |---------------|-------------------------------|-------------------------------|-------------------------------------|
+ * | `cas_add`     | `{ content, type? }`          | `c.write(value)`              | hash (cBase32)                      |
+ * | `cas_get`     | `{ hash, content?: boolean }` | `c.read(key)`                 | JSON `{length,mime_type,type[,content]}` |
+ * | `cas_list`    | `{}`                          | `c.list()`                    | hashes, one per line                |
+ * | `cas_upload`  | `{ fileName }`                | move-hash-move from upload dir| hash (cBase32)                      |
  *
  * ## `cas_add` input encoding
  *
@@ -72,7 +73,7 @@ import { decode as base64Decode, encode as base64Encode } from '../../base64/mod
 import { utf8 } from '../../text/module.f.ts'
 import { detect } from '../../mime/module.f.ts'
 import { length as bitVecLength, type Vec } from '../../types/bit_vec/module.f.ts'
-import { readFile, type Read, type ReadFile, type Write } from '../../effects/node/module.f.ts'
+import { readFile, type Mkdir, type RandomInt, type Read, type ReadBytes, type ReadFile, type Rename, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
@@ -80,7 +81,7 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import type { Cas } from '../module.f.ts'
+import { casUpload, type Cas } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
@@ -94,11 +95,14 @@ export const casGetArgs = { hash: string, content: option(boolean) } as const
 /** Arguments for `cas_list`: none. */
 export const casListArgs = {} as const
 
+/** Arguments for `cas_upload`: the filename within `$HOME/cas_upload/` to stream into CAS. */
+export const casUploadArgs = { fileName: string } as const
+
 // ── Tool registry ──────────────────────────────────────────────────────────────
 
 /** Registry of all CAS tools. */
 const casToolRegistry =
-<O extends Operation>(c: Cas<O>, home: string, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|ReadFile>[] => {
+<O extends Operation>(c: Cas<O>, home: string, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|ReadFile|Mkdir|Rename|RandomInt|ReadBytes>[] => {
     const casUploadDir = `${home}/cas_upload`
     return [
     toolEntry(
@@ -203,6 +207,17 @@ const casToolRegistry =
         () => c.list().step(hashes =>
             pure(okResult(hashes.map(vecToCBase32).join('\n')))),
     ),
+    toolEntry(
+        'cas_upload',
+        'Upload a file from $HOME/cas_upload/<fileName> into CAS via streaming move-hash-move (no size limit). Returns the cBase32 hash.',
+        casUploadArgs,
+        ({ fileName }) => casUpload(home)(fileName).step(result =>
+            pure(result[0] === 'error'
+                ? errorResult(`upload failed: ${result[1]}`)
+                : okResult(vecToCBase32(result[1]))
+            )
+        ),
+    ),
     ]
 }
 
@@ -226,7 +241,7 @@ export const casMcpHandlers = <O extends Operation>(
     c: Cas<O>,
     home: string,
     toUrl?: (hash: Vec) => string,
-): McpHandlers<ReadFile | O> =>
+): McpHandlers<ReadFile | Mkdir | Rename | RandomInt | ReadBytes | O> =>
     fromRegistry(casToolRegistry(c, home, toUrl))
 
 // ── Session configuration ───────────────────────────────────────────────────────
@@ -254,6 +269,6 @@ export const casMcpServer = <O extends Operation>(
     c: Cas<O>,
     home: string,
     toUrl?: (hash: Vec) => string,
-): Effect<Read | Write | MemOp | ReadFile | O, void> =>
+): Effect<Read | Write | MemOp | ReadFile | Mkdir | Rename | RandomInt | ReadBytes | O, void> =>
     create(uninitializedState).step(key =>
-        stdioTransport(mcpStep<ReadFile | O>(casConfig)(casMcpHandlers(c, home, toUrl))(key)))
+        stdioTransport(mcpStep<ReadFile | Mkdir | Rename | RandomInt | ReadBytes | O>(casConfig)(casMcpHandlers(c, home, toUrl))(key)))
