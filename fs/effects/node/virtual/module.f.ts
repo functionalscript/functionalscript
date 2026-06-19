@@ -41,6 +41,8 @@ export type State = {
     epochNs: number
     memoryNext: number
     memoryValues: { readonly [key: string]: unknown }
+    /** Monotonically increasing counter returned by `randomInt`; starts at 0. */
+    randomNext: number
 }
 
 export const emptyState: State = {
@@ -52,6 +54,7 @@ export const emptyState: State = {
     epochNs: 0,
     memoryNext: 0,
     memoryValues: {},
+    randomNext: 0,
 }
 
 const operation =
@@ -204,10 +207,10 @@ const rename = (src: string, dst: string) => (state: State): readonly[State, IoR
     return [{ ...state, root: dstRoot }, okVoid]
 }
 
-const readChunkOp = (path: string, offset: number, size: number) => readOperation((dir, p): IoResult<Vec> => {
+const readBytesOp = (path: string, offset: number, size: number) => readOperation((dir, p): IoResult<Vec> => {
     if (p.length !== 1) { return enoent }
     const file = dir[p[0]]
-    if (typeof file === 'function') { throw new Error(`'${p[0]}' is a JsModule; readChunk not supported`) }
+    if (typeof file === 'function') { throw new Error(`'${p[0]}' is a JsModule; readBytes not supported`) }
     if (file === undefined) { return enoent }
     if (!isVec(file)) { return error(`'${p[0]}' is not a file`) }
     const chunk = fromVec(file).subarray(offset, offset + size)
@@ -254,8 +257,8 @@ const map: MemOperationMap<NodeOp, State> = {
     import: import_,
     rm,
     rename,
-    readChunk: readChunkOp,
-    randomBytes: size => state => [state, toVec(new Uint8Array(size))],
+    readBytes: readBytesOp,
+    randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, state.randomNext],
     exec: todo,
     createServer: todo,
     listen: todo,

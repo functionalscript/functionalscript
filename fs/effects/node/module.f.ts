@@ -140,19 +140,19 @@ export type Rename = readonly['rename', (src: string, dst: string) => IoResult<v
 export const rename: Func<Rename> =
     do_('rename')
 
-// readChunk
+// readBytes
 
-export type ReadChunk = readonly['readChunk', (path: string, offset: number, size: number) => IoResult<Vec>]
+export type ReadBytes = readonly['readBytes', (path: string, offset: number, size: number) => IoResult<Vec>]
 
-export const readChunk: Func<ReadChunk> =
-    do_('readChunk')
+export const readBytes: Func<ReadBytes> =
+    do_('readBytes')
 
-// randomBytes
+// randomInt
 
-export type RandomBytes = readonly['randomBytes', (size: number) => Vec]
+export type RandomInt = readonly['randomInt', () => number]
 
-export const randomBytes: Func<RandomBytes> =
-    do_('randomBytes')
+export const randomInt: Func<RandomInt> =
+    do_('randomInt')
 
 // exec
 
@@ -175,7 +175,7 @@ export const access: Func<Access> =
 
 // Fs
 
-export type Fs = Mkdir | ReadFile | ReadChunk | Readdir | WriteFile | Rm | Rename | Exec | Access
+export type Fs = Mkdir | ReadFile | ReadBytes | Readdir | WriteFile | Rm | Rename | Exec | Access
 
 // Server
 
@@ -414,7 +414,7 @@ export type NodeOp =
     | Import
     | MemOp
     | Now
-    | RandomBytes
+    | RandomInt
     | Read
     | Sandbox
     | Write

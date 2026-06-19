@@ -226,7 +226,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
     writeFile: (path, data) => tc(() => writeFile(path, fromVec(data))),
     rm: path => tc(() => rm(path)),
     rename: (src, dst) => tc(() => rename(src, dst)),
-    readChunk: (path, offset, size) => tc(async () => {
+    readBytes: (path, offset, size) => tc(async () => {
         const fh = await open(path, 'r')
         try {
             const buffer = Buffer.alloc(size)
@@ -236,7 +236,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
             await fh.close()
         }
     }),
-    randomBytes: async size => toVec(crypto.randomBytes(size)),
+    randomInt: async () => crypto.randomInt(2 ** 32),
     access: path => tc(() => access(path)),
     import: path => tc(() => asyncImport(path)),
     exec: (command, stdin) => new Promise(resolve => {
