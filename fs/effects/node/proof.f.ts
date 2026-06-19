@@ -322,7 +322,9 @@ export const proof = {
                 root: { tmp: { src: vec8(0x2An) } },
             })(rename('tmp/src', 'tmp/dst'))
             if (t !== 'ok') { throw result }
-            if (state.root.tmp?.src !== undefined) { throw state.root }
+            const tmp = state.root.tmp
+            if (typeof tmp !== 'object') { throw state.root }
+            if (tmp.src !== undefined) { throw tmp }
         },
         dirOverFile: () => {
             const [state, [t, result]] = virtual({
