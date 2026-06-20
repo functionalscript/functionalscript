@@ -269,6 +269,49 @@ the same property that makes Git and IPFS efficient.
   and random access, chunk-level deduplication, and structural sharing — all on top
   of the unchanged small-file CAS primitive.
 
+### Directory structure
+
+Strategy 3 splits the CAS directory into two subdirectories:
+
+```
+.cas/
+  roots/   ← externally known root hashes (GC roots)
+  parts/   ← all tree nodes: data leaves and reference nodes
+```
+
+**`roots/`** contains one file per live root hash. Adding a file writes its entire
+Merkle tree into `parts/` and then registers the root hash in `roots/`. Removing a
+file deletes its entry from `roots/` and triggers (or schedules) GC.
+
+**`parts/`** contains every node that has ever been written — data leaves and
+reference nodes alike. Nodes are addressed by their hash and may be shared across
+multiple roots. A node in `parts/` is live if and only if it is reachable from some
+entry in `roots/`.
+
+Strategies 1 and 2 have no such split: each CAS object IS a complete file, so
+deleting it reclaims exactly one thing. Strategy 3 needs the split because a part
+may be referenced by many roots and cannot be deleted by removing any one root.
+
+### Garbage collection
+
+Because parts are shared across roots, there is no per-file delete: reclaiming space
+requires tracing the live set.
+
+**Mark phase** — starting from every hash in `roots/`, walk each Merkle tree
+recursively (deserialising each reference node encountered) and mark every reachable
+hash in `parts/`.
+
+**Sweep phase** — delete every file in `parts/` that was not marked.
+
+**Concurrency hazard.** A writer building a new tree writes parts bottom-up and
+registers the root last. If GC runs between the first part write and the root
+registration, those parts are not yet reachable from `roots/` and will be swept,
+corrupting the partially-built tree. Mitigations follow the same pattern as
+`_staging` cleanup in Strategy 1: write parts to a temporary subtree under `_staging/`,
+then atomically link the root into `roots/` and the parts into `parts/`, or hold a
+lock / open handle during the write phase so the GC recognises in-progress writes
+and skips them.
+
 ### Relationship to the other strategies
 
 Strategy 3 is **layered on top of** Strategies 1 and 2 rather than an alternative to
