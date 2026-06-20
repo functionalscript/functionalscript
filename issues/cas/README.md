@@ -166,3 +166,113 @@ Strategy 1 suits arbitrarily large files on a real filesystem.
 reading the content still requires a separate `stat`; otherwise the size falls out
 of the array `readFile` already returns. Reads are pure: a committed file is
 immutable.
+
+## Strategy 3: Merkle Tree
+
+### Overview
+
+Every object written to CAS is a small file of at most `maxLengthBytes` (128 KiB).
+A large file is not stored as one object but as a **tree** of such objects. Each
+node is one of two kinds:
+
+- **Data leaf** — raw bytes, up to 128 KiB of file content.
+- **Reference node** — an array of references to other nodes (leaves or further
+  reference nodes).
+
+The file's identity is the hash of its **root** node. A small file (≤ 128 KiB) is
+the degenerate case: a single data leaf, addressed by its own hash. The address
+space is uniform — every file, large or small, is named by one root hash.
+
+### Why every object stays small
+
+Because no node ever exceeds 128 KiB, every node fits in a single `Vec` and is
+stored through the **existing** small-file primitive — `write(Vec) => hash` and
+`read(hash) => Vec` — with no change. This strategy needs no streaming handle, no
+staging-and-rename for large files, no windowed `readBytes`, and no new effects: it
+builds arbitrarily large files entirely out of the small-file CAS that already
+exists. The "large file problem" dissolves into "many small files plus a tree".
+
+### Node encoding
+
+Leaf and reference nodes must be distinguishable, and that distinction must be
+bound into the hash (so a node's kind cannot be reinterpreted). A one-byte type tag
+prefixes the object:
+
+- `0x00` + raw bytes → data leaf.
+- `0x01` + a sequence of references → reference node.
+
+A **reference** is a `(hash, size)` pair: the child's hash plus the total byte size
+of the subtree it roots. Carrying `size` in the reference (rather than only the
+hash) is what enables cheap `Meta` and random access (below).
+
+### Fan-out
+
+With a 256-bit (32-byte) hash plus a size field, a reference node holds on the order
+of thousands of references per 128 KiB object. A two-level tree therefore addresses
+hundreds of MiB, three levels addresses TiB — trees stay shallow, so the per-read
+node overhead is small.
+
+### Write — bottom-up, streaming
+
+The tree is built bottom-up while consuming the input in 128 KiB chunks, so peak
+memory is `O(depth × fan-out)`, not `O(file size)`:
+
+1. Read the next ≤128 KiB input chunk, write it as a data leaf, collect its
+   `(hash, size)`.
+2. Accumulate references at the current level. When enough fill a reference node (or
+   input ends), write that node and promote its `(hash, size)` one level up.
+3. Repeat until input is exhausted, then finalize each level. When a single
+   reference remains, its hash is the root.
+
+Every write in this pipeline is a small ≤128 KiB CAS object, so the small-file write
+path (Strategy 1 or 2, or any backing) is reused unchanged.
+
+### Read — depth-first, streaming
+
+Reading walks the tree depth-first, left to right, yielding each data leaf's bytes
+in order — a `ChunkStream` whose memory cost is the root-to-leaf path, `O(depth)`.
+The consumer sees a flat byte stream and never observes the tree structure.
+
+### Meta and random access
+
+Because each reference carries its subtree `size`, the root reference node gives
+`Meta.size` (the sum of its children's sizes) after reading **only the root** — no
+full traversal. The same sizes make random access cheap: to reach byte offset `X`,
+descend from the root choosing, at each level, the child whose cumulative size range
+contains `X`. A single byte is reached in `O(depth)` node reads rather than scanning
+the file.
+
+### Deduplication and structural sharing
+
+Identical content yields identical hashes, so any repeated chunk or repeated subtree
+is stored once and shared across files. Editing or appending produces a new root
+that **shares** every unchanged subtree, so a small change to a large file costs only
+the nodes on the path from the changed leaf to the root — not a full rewrite. This is
+the same property that makes Git and IPFS efficient.
+
+> Chunking choice affects dedup. **Fixed-size** chunking (split every 128 KiB) is
+> simplest but an insertion early in a file shifts every later boundary and defeats
+> downstream sharing. **Content-defined** chunking (a rolling hash chooses
+> boundaries) preserves sharing across insertions at the cost of complexity. Default
+> to fixed-size; revisit if dedup across edited files becomes a goal.
+
+### Trade-offs
+
+- **Cost: read/write amplification.** One logical file becomes many CAS objects, so
+  reads issue more lookups (internal nodes + leaves) and writes create more objects
+  (more inodes, more filesystem overhead) than a single flat file.
+- **Cost: identity is the Merkle root, not `sha256(raw bytes)`.** A file's hash
+  depends on the chunk size, fan-out, and node encoding, so two CAS instances must
+  agree on these parameters to compute the same root. This is the same trade Git and
+  IPFS make; it is not interoperable with a plain whole-file digest.
+- **Benefit:** arbitrarily large files with constant-memory streaming, cheap size
+  and random access, chunk-level deduplication, and structural sharing — all on top
+  of the unchanged small-file CAS primitive.
+
+### Relationship to the other strategies
+
+Strategy 3 is **layered on top of** Strategies 1 and 2 rather than an alternative to
+them: it decides how a large file is *decomposed into* small objects, while
+Strategy 1 or 2 decides how each small object is *physically stored*. Strategies 1
+and 2 make the small-file write large-file-capable; Strategy 3 sidesteps the
+large-file write entirely by never producing an object larger than 128 KiB.
