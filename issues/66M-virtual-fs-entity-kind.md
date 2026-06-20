@@ -102,22 +102,21 @@ Define three predicate helpers next to the `Entity` declarations, where each
 predicate's body **is** exactly the narrowing condition it asserts. Name the
 array case `isBinFile` (a *binary* file): a `JsModule` is also a "file" in the
 broad sense — `readdir` already treats it as one (`:152`) — so reserving the bare
-word `file` for the `Vec[]` case would mislead. `isDir` is then simply "neither
-file kind", composed from the other two predicates rather than re-spelling the
-structural test:
+word `file` for the `Vec[]` case would mislead. `isDir` keeps its own direct
+structural test rather than being composed as the negation of the other two:
 
 ```ts
 const isBinFile  = (e: Entity): e is readonly Vec[] => e instanceof Array
 const isJsModule = (e: Entity): e is JsModule       => typeof e === 'function'
-const isDir      = (e: Entity): e is Dir            => !isBinFile(e) && !isJsModule(e)
+const isDir      = (e: Entity): e is Dir            => typeof e === 'object' && !(e instanceof Array)
 ```
 
 `AGENTS.md` discourages type predicates because the compiler trusts the `is`
 annotation unconditionally, so a predicate whose runtime check *diverges* from the
 declared type fails silently. That hazard does not apply here: `e instanceof
 Array` is the canonical narrowing for `readonly Vec[]`, `typeof e === 'function'`
-for `JsModule`, and `isDir`'s body is the exhaustive negation of the other two —
-so for the three-member union each check and its asserted type are the same
+for `JsModule`, and `typeof e === 'object' && !(e instanceof Array)` is the
+structural shape of `Dir` — each check and its asserted type are the same
 statement. A predicate that matches its implementation is exactly the case the
 guidance can admit, so these narrow safely without any `as`.
 
@@ -149,10 +148,9 @@ because the guards narrow, and a future fourth `Entity` kind is one new predicat
 ### Why a type predicate is acceptable here
 
 The general rule against `x is U` exists to stop predicates whose runtime test
-drifts from the type they claim. These three do not drift: `isBinFile` and
-`isJsModule` each test exactly their narrowed type, and `isDir` is their
-exhaustive negation over a closed three-member union — so there is nothing for
-the compiler to "trust" beyond what it could verify itself. That
+drifts from the type they claim. These three do not drift: each body is the
+exact structural check that defines membership in the narrowed type, so there is
+nothing for the compiler to "trust" beyond what it could verify itself. That
 makes this a sanctioned exception rather than a violation — and it is strictly
 safer than the status quo, which asserts the same narrowing with unchecked `as`.
 The win: the three-way contract is defined once, the four inconsistent
@@ -161,9 +159,9 @@ combined guard (no extra `switch`).
 
 ## Tasks
 
-- [ ] Add `isBinFile` / `isJsModule` / `isDir` (predicate form, body matching the
-      asserted type; `isDir` = `!isBinFile && !isJsModule`) next to the `Entity`
-      type in `fs/effects/node/virtual/module.f.ts`.
+- [ ] Add `isBinFile` / `isJsModule` / `isDir` (predicate form, each body the
+      structural test matching its asserted type) next to the `Entity` type in
+      `fs/effects/node/virtual/module.f.ts`.
 - [ ] Rewrite the twelve inline kind-tests to handle `undefined` then guard on the
       predicates, removing the `as Dir` / `as readonly Vec[]` casts now made
       unnecessary by narrowing.
