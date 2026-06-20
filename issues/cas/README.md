@@ -292,10 +292,26 @@ Strategies 1 and 2 have no such split: each CAS object IS a complete file, so
 deleting it reclaims exactly one thing. Strategy 3 needs the split because a part
 may be referenced by many roots and cannot be deleted by removing any one root.
 
+### Writing parts directly
+
+Parts are written **directly** to `parts/`; there is no per-tree staging area.
+Because every part is content-addressed, writing one is idempotent — a re-write
+stores identical bytes under the same hash — so concurrent or repeated writes of the
+same part never conflict. A writer builds its tree bottom-up, writing each part
+straight into `parts/`, and registers the root in `roots/` only at the very end.
+
+An interrupted or abandoned write (the process dies before registering its root)
+therefore leaves **orphaned parts** in `parts/` — parts reachable from no root. These
+are harmless: they occupy space but are never read, and the next GC reclaims them. No
+rollback, no staging cleanup, no atomic multi-file move is required. This is the key
+simplification over Strategy 1: an incomplete write produces collectible garbage, not
+corruption.
+
 ### Garbage collection
 
-Because parts are shared across roots, there is no per-file delete: reclaiming space
-requires tracing the live set.
+Because parts are shared across roots and orphans accumulate from incomplete writes,
+reclaiming space is the job of a periodic mark-and-sweep GC rather than any per-file
+delete:
 
 **Mark phase** — starting from every hash in `roots/`, walk each Merkle tree
 recursively (deserialising each reference node encountered) and mark every reachable
@@ -303,14 +319,18 @@ hash in `parts/`.
 
 **Sweep phase** — delete every file in `parts/` that was not marked.
 
-**Concurrency hazard.** A writer building a new tree writes parts bottom-up and
-registers the root last. If GC runs between the first part write and the root
-registration, those parts are not yet reachable from `roots/` and will be swept,
-corrupting the partially-built tree. Mitigations follow the same pattern as
-`_staging` cleanup in Strategy 1: write parts to a temporary subtree under `_staging/`,
-then atomically link the root into `roots/` and the parts into `parts/`, or hold a
-lock / open handle during the write phase so the GC recognises in-progress writes
-and skips them.
+Deleting a file is just removing its entry from `roots/`; its parts persist until a
+later GC finds them unreachable.
+
+**Concurrency hazard.** The one case GC must not mishandle is a write *in progress*:
+its parts are already in `parts/` but its root is not yet in `roots/`, so a naive
+sweep would delete parts the writer still needs. Since the lazy model already
+tolerates orphans, the simplest guard is a **grace period** — never sweep a part
+whose mtime is younger than the longest plausible write (it is either in-progress or
+freshly orphaned, and reclaiming it can wait for the next cycle). Where a hard
+guarantee is wanted instead, hold a write-phase lock (or a global GC/write mutex) so
+GC skips parts belonging to a live writer — the same dead-man's-switch mechanism as
+Strategy 1's `_staging` lock.
 
 ### Relationship to the other strategies
 
