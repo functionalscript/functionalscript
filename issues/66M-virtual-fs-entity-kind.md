@@ -95,88 +95,71 @@ re-asserted with `as`) at every consumer; the current code already does the
 latter, pairing each inline check with a cast — `subDir as Dir` (`:72`),
 `file as readonly Vec[]` (`:110`), `content as Dir` (`:155`), `sub as Dir`
 (`:191`, `:224`), `existing as Dir` (`:211`), `file as readonly Vec[]` (`:259`).
-`AGENTS.md` treats `as` like Rust's `unsafe`, and also forbids type predicates
-(`x is U`). The way out it prescribes is to "restructure the union so a
-structural check narrows correctly without a predicate."
+`AGENTS.md` treats `as` like Rust's `unsafe`, so those casts are the thing to
+remove.
 
-So define a single tagged classifier next to the `Entity` declarations. Inside
-the ternary, `e instanceof Array` narrows `e` to `readonly Vec[]`,
-`typeof e === 'function'` narrows it to `JsModule`, and the final arm narrows to
-`Dir` — all automatically, no predicate and no `as`:
+Define three predicate helpers next to the `Entity` declarations, where each
+predicate's body **is** exactly the narrowing condition it asserts:
 
 ```ts
-type Classified =
-    | readonly ['file', readonly Vec[]]
-    | readonly ['module', JsModule]
-    | readonly ['dir', Dir]
-
-const classify = (e: Entity): Classified =>
-    e instanceof Array      ? ['file', e]   :
-    typeof e === 'function' ? ['module', e] :
-                              ['dir', e]
+const isFile     = (e: Entity): e is readonly Vec[] => e instanceof Array
+const isJsModule = (e: Entity): e is JsModule       => typeof e === 'function'
+const isDir      = (e: Entity): e is Dir            => typeof e === 'object' && !(e instanceof Array)
 ```
 
-Consumers destructure the tag, and the tuple discriminant narrows the payload, so
-the recursive descent threads a real `Dir`/`Vec[]` with the casts gone:
+`AGENTS.md` discourages type predicates because the compiler trusts the `is`
+annotation unconditionally, so a predicate whose runtime check *diverges* from the
+declared type fails silently. That hazard does not apply here: `e instanceof
+Array` is the canonical narrowing for `readonly Vec[]`, `typeof e === 'function'`
+for `JsModule`, and their negation for `Dir` — the check and the asserted type are
+the same statement. A predicate that matches its implementation is exactly the
+case the guidance can admit, so these narrow safely without any `as`.
+
+Consumers then collapse to a single guard that *also* narrows the value:
 
 ```ts
 // :67-72  operation — descend only into directories
 const sub = dir[first]
-if (sub === undefined) { return op(dir, path) }
-const c = classify(sub)
-if (c[0] !== 'dir') { return op(dir, path) }
-const [newSubDir, r] = f(c[1], rest)   // c[1] is Dir — no `as Dir`
+if (sub === undefined || !isDir(sub)) { return op(dir, path) }
+const [newSubDir, r] = f(sub, rest)   // sub is Dir here — no `as Dir`
 
 // :104-109  readFile
 const file = dir[path[0]]
 if (file === undefined) { return enoent }
-const c = classify(file)
-switch (c[0]) {
-    case 'module': { throw new Error(`'${path[0]}' is a JsModule; readFile not supported`) }
-    case 'dir':    { return error(`'${path[0]}' is not a file`) }
-    case 'file':   { /* c[1] is readonly Vec[] — no `as readonly Vec[]` */ }
-}
+if (isJsModule(file)) { throw new Error(`'${path[0]}' is a JsModule; readFile not supported`) }
+if (!isFile(file)) { return error(`'${path[0]}' is not a file`) }
+// file is readonly Vec[] here — no `as readonly Vec[]`
 ```
 
-The remaining sites (`import_` `:127`, `writeFile` `:137`, `readdir` `:152`,
-`rm` `:174`, `extractEntity` `:190`, `insertEntityAt` `:202-203`/`:223`,
-`readBytesOp` `:251`) follow the same shape: handle `undefined` first, then
-`switch` on `classify(e)[0]`. The four inconsistent "is a directory" spellings
-collapse to the one `'dir'` arm of `classify`, every `as Dir` / `as readonly
-Vec[]` disappears (the payload is already narrowed), and a future fourth `Entity`
-kind is one new tuple variant plus exhaustiveness errors at each `switch` — the
-compiler points at every site that must handle it.
+Note the `||`/`!` guards narrow the fall-through automatically: after
+`if (sub === undefined || !isDir(sub)) return …`, `sub` is a `Dir`; after the two
+negative `readFile` guards, `file` is a `readonly Vec[]`. The remaining sites
+(`import_` `:127`, `writeFile` `:137`, `readdir` `:152`, `rm` `:174`,
+`extractEntity` `:190`, `insertEntityAt` `:202-203`/`:223`, `readBytesOp` `:251`)
+follow the same shape. The four inconsistent "is a directory" spellings collapse
+to the one `isDir` definition, every `as Dir` / `as readonly Vec[]` disappears
+because the guards narrow, and a future fourth `Entity` kind is one new predicate.
 
-(If a particular site genuinely only needs a yes/no answer and no narrowed value,
-a thin `kind = (e: Entity) => classify(e)[0]` reads fine — but the value-carrying
-`classify` is what removes the casts, which is the reviewer's point: narrow,
-don't return `boolean`.)
+### Why a type predicate is acceptable here
 
-### Why narrow here, against the usual guidance
-
-This codebase generally avoids leaning on type narrowing. This module is a
-deliberate exception: the alternative is the present `as Dir` / `as readonly
-Vec[]` casts, and trading a discouraged pattern for an *outright unsafe* one
-(`as` is "Rust `unsafe`" per `AGENTS.md`) is the worse deal. `classify` is the
-narrowing that the type system can actually check.
-
-The cost is honest and accepted: `classify` does **not** collapse each site to a
-single test. Because the union excludes `undefined` but `dir[name]` is `Entity |
-undefined`, every consumer keeps an explicit `undefined` guard *before* calling
-`classify`, and then branches on the tag — so a site that today is one
-combined `if` becomes an `undefined` check plus a `switch`/destructure, i.e.
-slightly more `if`s, not fewer lines. The win is not line count: it is that the
-three-way contract is defined once, the four inconsistent dir-spellings are gone,
-the casts are gone, and a fourth `Entity` kind surfaces as exhaustiveness errors
-at each `switch` instead of silent misclassification.
+The general rule against `x is U` exists to stop predicates whose runtime test
+drifts from the type they claim. These three do not drift: each body is the
+exact structural check that defines membership in the narrowed type, so there is
+nothing for the compiler to "trust" beyond what it could verify itself. That
+makes this a sanctioned exception rather than a violation — and it is strictly
+safer than the status quo, which asserts the same narrowing with unchecked `as`.
+The win: the three-way contract is defined once, the four inconsistent
+dir-spellings and all the casts are gone, and each consumer stays a single
+combined guard (no extra `switch`).
 
 ## Tasks
 
-- [ ] Add the `Classified` tagged union and `classify` next to the `Entity` type
-      in `fs/effects/node/virtual/module.f.ts`.
-- [ ] Rewrite the twelve inline kind-tests to handle `undefined` and then
-      `switch`/destructure on `classify(...)`, removing the `as Dir` /
-      `as readonly Vec[]` casts now made unnecessary by narrowing.
+- [ ] Add `isFile` / `isJsModule` / `isDir` (predicate form, body matching the
+      asserted type) next to the `Entity` type in
+      `fs/effects/node/virtual/module.f.ts`.
+- [ ] Rewrite the twelve inline kind-tests to handle `undefined` then guard on the
+      predicates, removing the `as Dir` / `as readonly Vec[]` casts now made
+      unnecessary by narrowing.
 - [ ] Run `npx tsc` and `fjs t`; confirm `fs/effects/node/virtual/proof.f.ts`
       still passes with full line/branch coverage (behaviour is unchanged).
 
