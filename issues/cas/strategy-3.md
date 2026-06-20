@@ -139,12 +139,15 @@ See [`fs/sul/README.md`](../../fs/sul/README.md) for the encoding and streaming 
 
 ## Directory structure
 
-Strategy 3 splits the CAS directory into two subdirectories:
+Strategy 3 splits the CAS directory into these subdirectories:
 
 ```
 .cas/
-  roots/   ← externally known root hashes (GC roots)
-  parts/   ← all tree nodes: data leaves and reference nodes
+  roots/             ← externally known root hashes (GC roots)
+  parts/             ← all tree nodes: data leaves and reference nodes
+  hashes/
+    sha256/<h>       ← maps whole-file SHA-256 → SUL root Id
+    sha3-512/<h>     ← maps whole-file SHA3-512 → SUL root Id
 ```
 
 **`roots/`** contains one file per live root hash. Adding a file writes its entire
@@ -156,9 +159,72 @@ reference nodes alike. Nodes are addressed by their hash and may be shared acros
 multiple roots. A node in `parts/` is live if and only if it is reachable from some
 entry in `roots/`.
 
+**`hashes/`** holds the cached hash maps described below.
+
 Strategies 1 and 2 have no such split: each CAS object IS a complete file, so
 deleting it reclaims exactly one thing. Strategy 3 needs the split because a part
 may be referenced by many roots and cannot be deleted by removing any one root.
+
+## Cached hash maps (multi-hash)
+
+### The identity problem
+
+Strategy 3's native identity is the **SUL root `Id`** — a function of the tree's
+chunking and encoding, not of the raw bytes. A client that knows a file only by its
+plain whole-file digest (`sha256(bytes)`, `sha3-512(bytes)`) cannot address it
+directly, and the SUL root is not interoperable with external tools that speak those
+digests. Strategies 1 and 2, whose identity *is* the whole-file digest, do not have
+this gap.
+
+### The map
+
+The fix is a cached, content-addressed map from each external digest to the SUL root
+`Id`. Each entry under `hashes/<algo>/<digest>` is a small file whose content is the
+SUL root `Id` of the file with that digest:
+
+```
+sha256(bytes)   → hashes/sha256/<digest>     → SUL root Id
+sha3-512(bytes) → hashes/sha3-512/<digest>   → SUL root Id
+```
+
+Lookup by external digest: shard into `hashes/<algo>/`, read the SUL root `Id`, then
+walk the tree as usual. The map carries no content of its own — it is pure metadata
+pointing into `parts/`.
+
+This keeps the internal canonical identity (the SUL root) decoupled from external
+identities (the digests), so the tree representation can evolve while callers keep
+addressing content by a stable, familiar digest.
+
+### Why validation is easier here than in Strategy 1
+
+A flat Strategy-1 file can only be verified by reading it whole and rehashing, and a
+mismatch tells you nothing about *where* the corruption is. The Merkle structure plus
+the map gives finer, cheaper checks:
+
+- **Node-level integrity** — every node carries its own hash, so a single corrupted
+  node is locatable and any subtree can be validated independently, without reading
+  the rest of the file.
+- **Streaming whole-file verification** — recompute a digest by walking the tree
+  depth-first in `O(depth)` memory, and compare to the cached entry.
+- **Self-auditable map** — an entry `digest → root` is verified by re-streaming the
+  tree from `root`, recomputing `digest`, and confirming it matches the key. The map
+  cannot silently drift from the content it indexes.
+
+### Multiple algorithms
+
+Maintaining more than one algorithm (e.g. both `sha256/` and `sha3-512/`) is cheap —
+one extra small file per algorithm per file — and worth doing **from the start**,
+because back-filling a second digest later means re-streaming every stored file:
+
+- **Forward security** — if one algorithm is weakened, entries for the stronger one
+  already exist.
+- **Interoperability** — tools that speak different digests resolve the same content.
+- **Graceful migration** — stop issuing entries for a retired algorithm while keeping
+  old ones readable, with no lookup gaps.
+
+Algorithms are **optional**: write entries only for the digests you care about and
+skip the rest. The SUL root `Id` is always the canonical internal identity; the maps
+are an addressing convenience layered over it.
 
 ## Writing parts directly
 
@@ -199,6 +265,19 @@ freshly orphaned, and reclaiming it can wait for the next cycle). Where a hard
 guarantee is wanted instead, hold a write-phase lock (or a global GC/write mutex) so
 GC skips parts belonging to a live writer — the same dead-man's-switch mechanism as
 Strategy 1's `_staging` lock.
+
+**Hash-map cleanup.** A `hashes/<algo>/<digest>` entry points to a SUL root that GC
+may eventually sweep, so the map must not be allowed to dangle into deleted content.
+Two options, mirroring the eager/lazy split above:
+
+- **Eager** — when a root leaves `roots/`, delete its `hashes/` entries in the same
+  operation. Simple, but the multi-file delete is not atomic: a crash in between
+  leaves a dangling entry pointing to a now-unreachable root.
+- **Lazy** (recommended) — leave entries in place and validate on lookup: resolve the
+  SUL root, and if it is no longer reachable from `roots/`, treat the lookup as
+  not-found (and optionally prune the stale entry then). A dangling entry wastes a
+  few bytes but never causes corruption — the same "orphans are harmless" reasoning
+  that justifies direct-to-`parts/` writes.
 
 ## Relationship to the other strategies
 
