@@ -69,6 +69,7 @@ import {
     rightCurlyBracket,
     dollarSign
 }  from '../../text/ascii/module.f.ts'
+import { todo } from '../../asserts/module.f.ts'
 
 const { fromCharCode } = String
 
@@ -915,3 +916,16 @@ export const tokenize
         const scan = scanTokenize({state: { kind: 'initial' }, metadata: {path, line: 1, column: 1}})
         return flat(scan(flat<number|null>([input /*satisfies List<CharCodeOrEof>*/, [null]])))
     }
+
+export const proof = {
+    throw: {
+        // union throws when two distinct non-default handlers are merged for the same range;
+        // this path is unreachable through the public API (no overlapping ranges in practice).
+        unionConflict: () => {
+            const def = (_: undefined) => todo
+            const a = (_: undefined) => todo
+            const b = (_: undefined) => todo
+            union(def)(a)(b)
+        }
+    }
+}
