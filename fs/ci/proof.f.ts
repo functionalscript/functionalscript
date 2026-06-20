@@ -5,7 +5,7 @@ import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
 import { assert } from '../asserts/module.f.ts'
 import type { State } from '../effects/node/virtual/module.f.ts'
-import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
+import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 import { parse as jsonParse } from '../json/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { definedValues } from '../types/object/module.f.ts'
@@ -20,19 +20,19 @@ const makeState = (rust: boolean, packageJson?: string) => ({
     ...emptyState,
     root: {
         '.github': { workflows: {} },
-        ...(packageJson !== undefined ? { 'package.json': utf8(packageJson) } : {}),
-        ...(rust ? { 'Cargo.toml': emptyVec } : {}),
+        ...(packageJson !== undefined ? { 'package.json': [utf8(packageJson)] } : {}),
+        ...(rust ? { 'Cargo.toml': [emptyVec] } : {}),
     },
 })
 
 const workflow = (state: State): GitHubAction => {
     const dotGithub = state.root['.github']
-    assert(typeof dotGithub === 'object', dotGithub)
-    const workflows = dotGithub['workflows']
-    assert(typeof workflows === 'object', workflows)
-    const file = workflows['ci.yml']
-    assert(isVec(file), file)
-    return unwrap(parseGitHubAction(jsonParse(utf8ToString(file))))
+    assert(typeof dotGithub === 'object' && !Array.isArray(dotGithub), dotGithub)
+    const workflows = (dotGithub as Dir)['workflows']
+    assert(typeof workflows === 'object' && !Array.isArray(workflows), workflows)
+    const file = (workflows as Dir)['ci.yml']
+    if (!Array.isArray(file) || file.length === 0) { throw file }
+    return unwrap(parseGitHubAction(jsonParse(utf8ToString(file[0]))))
 }
 
 const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): GitHubAction => {

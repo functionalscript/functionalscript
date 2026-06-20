@@ -336,7 +336,7 @@ export const proof = {
     // cas_add with type:'url' streams a file from /home/user/cas_upload/ into CAS.
     addUrlStoresFileAndReturnsHash: () => {
         const fileContent = utf8('hello from file')
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'hello.txt': fileContent } } } }
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'hello.txt': [fileContent] } } } }
         const [addUrlResp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/hello.txt', type: 'url' }),
@@ -347,7 +347,7 @@ export const proof = {
 
     addUrlRoundTrips: () => {
         const fileContent = utf8('round-trip content')
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'rt.txt': fileContent } } } }
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'rt.txt': [fileContent] } } } }
         // First pass: add to get the hash (deterministic for same content).
         const [addResp] = runSessionVirtual(root)([
             init, initialized,
@@ -377,7 +377,7 @@ export const proof = {
     // cas_get without content:true returns only metadata.
     getMetaReturnsLengthAndMimeType: () => {
         const fileContent = utf8('text content')
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'f': fileContent } } } }
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'f': [fileContent] } } } }
         // First pass: add to get the hash.
         const [addResp] = runSessionVirtual(root)([
             init, initialized,
@@ -457,7 +457,7 @@ export const proof = {
     // cas_add type:'url' with a subdirectory path flattens slashes to '-' in staging.
     addUrlFromSubdirectorySucceeds: () => {
         const fileContent = utf8('nested file content')
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'subdir': { 'file.txt': fileContent } } } } }
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'subdir': { 'file.txt': [fileContent] } } } } }
         const [resp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/subdir/file.txt', type: 'url' }),
@@ -469,7 +469,7 @@ export const proof = {
     // cas_add with type:'url' accepts paths within /home/user/cas_upload/
     addUrlFromApprovedDirectorySucceeds: () => {
         const fileContent = utf8('approved file')
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'test.txt': fileContent } } } }
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'test.txt': [fileContent] } } } }
         const [resp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/test.txt', type: 'url' }),
