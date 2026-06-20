@@ -250,11 +250,48 @@ that **shares** every unchanged subtree, so a small change to a large file costs
 the nodes on the path from the changed leaf to the root — not a full rewrite. This is
 the same property that makes Git and IPFS efficient.
 
-> Chunking choice affects dedup. **Fixed-size** chunking (split every 128 KiB) is
-> simplest but an insertion early in a file shifts every later boundary and defeats
-> downstream sharing. **Content-defined** chunking (a rolling hash chooses
-> boundaries) preserves sharing across insertions at the cost of complexity. Default
-> to fixed-size; revisit if dedup across edited files becomes a goal.
+How much sharing is actually achieved, however, depends entirely on **where chunk
+boundaries fall**, and that is the weak point of the naive scheme.
+
+#### The boundary-shift problem
+
+With **fixed-size** chunking (split every 128 KiB), boundaries are tied to absolute
+byte offsets. Inserting or deleting even a single byte near the start of a file
+shifts every subsequent boundary by that amount: every downstream chunk now spans
+different bytes, gets a different hash, and is stored anew. Two files that differ by
+one early edit share almost nothing. Fixed-size chunking deduplicates only *identical
+runs that happen to stay aligned to the 128 KiB grid* — in practice, little.
+
+For real deduplication the boundaries must follow the **content**, not the offset, so
+that a local edit perturbs only local boundaries and the rest of the file re-uses its
+existing chunks unchanged.
+
+#### Content-defined chunking via SUL
+
+The project already has a content-defined construction: **SUL** (Synthetic Universal
+Language, `fs/sul`). SUL bijectively maps a bit stream to a single 256-bit root `Id`
+through a tree whose shape is determined by the data itself:
+
+- Boundaries come from SUL's **word structure** (a strictly decreasing prefix
+  followed by a terminator), which is a function of the symbols seen — not of
+  absolute position. A local edit changes only the words it touches; surrounding
+  words keep their boundaries.
+- Beyond the literal levels, each symbol is a 256-bit content-addressed `Id`, and any
+  two `Id`s merge via a SHA2-based `compress`. That **hash level is already a
+  content-addressed Merkle tree** — structurally the same as Strategy 3's reference
+  nodes, but with content-defined fan-in and boundaries.
+- Because the encoding is bijective and deterministic, identical content always
+  produces the identical tree and root `Id` regardless of how the stream was fed in,
+  which is exactly the invariant deduplication relies on.
+
+In other words, SUL is not an add-on to Strategy 3 — it *is* the content-defined
+realisation of it: the leaf/reference distinction becomes SUL's literal levels vs.
+hash levels, and the root hash becomes the SUL root `Id`. It is the most efficient
+chunking available in the project so far, and the recommended basis for the tree when
+cross-file dedup is a goal. Fixed-size chunking remains a simpler fallback when dedup
+is not needed.
+
+See [`fs/sul/README.md`](../../fs/sul/README.md) for the encoding and streaming API.
 
 ### Trade-offs
 
