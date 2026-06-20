@@ -96,58 +96,73 @@ and memory `Key` are modelled.
 
 ### Overview
 
-A file is represented in memory as a `readonly Vec[]` — an ordered list of chunks,
-each no larger than `maxLengthBytes` (128 KiB). Because no single allocation
-exceeds the runtime's `bigint` cap, arbitrarily large files can be held without
-hitting the per-`Vec` size limit. This is the in-memory representation used by the
-virtual store (tests, and any non-filesystem backing).
+A file is represented as a `readonly Vec[]` — an ordered list of chunks, each no
+larger than `maxLengthBytes` (128 KiB). The whole file is read and written as one
+array: there is no windowed access and no streaming handle. This lifts the
+per-`Vec` size cap while keeping the interface as simple as the original
+whole-file read/write.
+
+### Effect-layer changes
+
+The file operations move from a single `Vec` to an array of `Vec`, and the
+windowed read is retired:
+
+| Operation   | Before                                  | After                                    |
+|-------------|-----------------------------------------|------------------------------------------|
+| `readFile`  | `(path) => IoResult<Vec>`               | `(path) => IoResult<readonly Vec[]>`     |
+| `writeFile` | `(path, Vec) => IoResult<void>`         | `(path, readonly Vec[]) => IoResult<void>` |
+| `readBytes` | `(path, offset, size) => IoResult<Vec>` | **retired**                              |
+
+`readFile` returns every chunk at once; `writeFile` accepts every chunk at once.
+`readBytes` existed only to read a file in bounded windows without exceeding the
+`Vec` cap — once `readFile` returns a bounded-chunk array, windowed reads serve no
+purpose and are removed.
 
 ### Why an array rather than a single `Vec`
 
 A single `Vec` is capped at `maxLengthBytes`, so any file larger than that cannot
 be represented at all. Splitting into a list of bounded chunks lifts the cap to the
 total of all chunks while keeping every individual allocation within the runtime
-limit. The chunk boundary is an implementation detail of storage, not of content —
-`get` re-exposes the chunks as a `ChunkStream` in order, and the consumer never
-sees where one chunk ends and the next begins.
+limit. The chunk boundary is an implementation detail of storage, not of content.
 
-### Write pipeline
+### Why this is simpler than Strategy 1
 
-There is no real filesystem, so the staging-and-rename machinery collapses:
+Strategy 1's staging-and-rename machinery exists because it streams: it never holds
+the whole file, so it must write the bytes before the hash (and therefore the final
+name) is known. Strategy 2 holds the entire file in memory as an array, so the hash
+is computed *before* the write:
 
-1. `openWrite()` — allocates an empty in-memory buffer (a growing `Vec[]`). The
-   `WriteHandle` is the memory `Key` of that buffer. No OS resource, no lock.
-2. `append(handle, chunk)` — pushes the chunk onto the buffer and feeds it into the
-   SHA-2 state, exactly as in Strategy 1. Each chunk is bounded by `maxLengthBytes`.
-3. `commit(handle, key)` — stores the accumulated `Vec[]` under `key`. This is a
-   single memory assignment and is therefore atomic by construction; there is no
-   partially-visible intermediate state to guard against.
-4. `abort(handle)` — discards the buffer.
+1. Build / read the `readonly Vec[]` into memory.
+2. Compute the hash over the array.
+3. `writeFile(finalPath, array)` directly.
 
-### What collapses relative to Strategy 1
+This removes the reason for the two-phase write entirely:
 
-Because commit is a single in-memory assignment rather than a cross-filesystem
-rename:
+- **No `WriteHandle`, no `openWrite` / `append` / `commit` / `abort`** — a plain
+  `read(key) => readonly Vec[]` / `write(key, readonly Vec[])` key-value interface
+  suffices.
+- **No staging-for-unknown-key** — the key is known before the single `writeFile`.
+- **No lock / dead-man's switch / cleaning** — nothing is ever written under a name
+  it does not yet match.
 
-- **No staging directory.** There is nothing to clean; an aborted or crashed write
-  simply leaves an unreferenced buffer that is garbage-collected.
-- **No lock / dead-man's switch.** No concurrent process can observe or race a
-  half-written buffer, so no `flock` / open-handle hold is needed.
-- **No read-only marking.** Immutability is enforced by the store never reissuing a
-  `commit` for an existing key, not by OS permissions.
+### Trade-off
+
+The whole file is materialized in memory as the array. Strategy 2 is therefore
+bounded by available memory (across all chunks), not by disk — it does **not**
+stream. This is the opposite trade-off from Strategy 1, which streams in constant
+memory but needs the staging pipeline. Strategy 2 suits the in-memory / virtual
+store (tests, non-filesystem backings) and files that comfortably fit in memory;
+Strategy 1 suits arbitrarily large files on a real filesystem.
+
+> Note: on a real filesystem a single `writeFile` of a large array is not
+> crash-atomic — a crash mid-write can leave a partial file under its final hash
+> name. Where that matters, Strategy 2 would still borrow Strategy 1's
+> write-to-staging-then-rename for atomicity. In the virtual store, `writeFile` is a
+> single atomic assignment, so the concern does not arise.
 
 ### Meta and read path
 
-`Meta.size` is the sum of the byte lengths of the chunks — computed directly from
-the array without consuming it. `get(key)` returns `[Meta, ChunkStream]`, where the
-`ChunkStream` yields each `Vec` in stored order. Reads are pure: the buffer is
-immutable once committed.
-
-### Relationship to Strategy 1
-
-Both strategies implement the same key-value interface
-(`openWrite` / `append` / `commit` / `abort`, `get` / `list`). The streaming
-caller — `cas.add(stream)` folding SHA-2 over a `ChunkStream` — is identical for
-both; only the `WriteHandle` differs (a memory `Key` here, a live OS file handle in
-Strategy 1). This is what lets the same `Cas<O>` handlers run over a memory backing
-in tests and a filesystem backing in production.
+`Meta.size` is the sum of the byte lengths of the chunks. Obtaining size without
+reading the content still requires a separate `stat`; otherwise the size falls out
+of the array `readFile` already returns. Reads are pure: a committed file is
+immutable.
