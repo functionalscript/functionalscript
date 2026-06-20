@@ -1,19 +1,11 @@
 import { assert, assertEq } from '../asserts/module.f.ts'
 import { pure } from '../effects/module.f.ts'
 import type { NodeProgram, NodeProgramOptions } from '../effects/node/module.f.ts'
-import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
+import { defaultNodeProgramOptions, emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 import { main } from './module.f.ts'
 
-const makeOptions = (args: readonly string[]): NodeProgramOptions => ({
-    args,
-    env: {},
-    home: '.',
-    std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
-    testContext: { test: async () => {} },
-    bunTestContext: { test: async () => {} },
-    playwrightTestContext: { test: async () => {} },
-    engine: 'node' as const,
-})
+const makeOptions = (args: readonly string[]): NodeProgramOptions =>
+    ({ ...defaultNodeProgramOptions, args })
 
 const run = (root: Dir) => (args: readonly string[]) =>
     virtual({ ...emptyState, root })(main(makeOptions(args)))

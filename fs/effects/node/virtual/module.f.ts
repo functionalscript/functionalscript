@@ -10,7 +10,7 @@ import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../../../type
 import { error, ok } from '../../../types/result/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
 import { asBase, asNominal, type Key } from '../../memory/module.f.ts'
-import type { Dirent, IoResult, Module, NodeOp, SandboxResult } from '../module.f.ts'
+import type { Dirent, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../module.f.ts'
 
 /**
  * In-memory JS module entry. When `import_` is called on the path, the
@@ -345,3 +345,29 @@ const map: MemOperationMap<NodeOp, State> = {
 }
 
 export const virtual: RunInstance<NodeOp, State> = run(map)
+
+const testContext = { test: todo }
+
+/**
+ * Safe, inert defaults for every {@link NodeProgramOptions} field, intended for
+ * proof files that need to call a program without owning the full literal.
+ *
+ * Proofs spread-override only what their test cares about:
+ *
+ * ```ts
+ * const opts: NodeProgramOptions = { ...defaultNodeProgramOptions, args }
+ * ```
+ *
+ * Future additions to `NodeProgramOptions` only need a default added here,
+ * keeping unrelated proof files from churning.
+ */
+export const defaultNodeProgramOptions: NodeProgramOptions = {
+    args: [],
+    env: {},
+    home: '.',
+    std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
+    testContext,
+    bunTestContext: testContext,
+    playwrightTestContext: testContext,
+    engine: 'node',
+}

@@ -1,8 +1,8 @@
-import { pure, type Effect } from '../effects/module.f.ts'
+import type { Effect } from '../effects/module.f.ts'
 import { log, type NodeProgramOptions, type Sandbox, type SandboxResult, type Write } from '../effects/node/module.f.ts'
-import { emptyState, type JsModule } from '../effects/node/virtual/module.f.ts'
+import { defaultNodeProgramOptions, emptyState, type JsModule } from '../effects/node/virtual/module.f.ts'
 import { virtual } from '../effects/node/virtual/module.f.ts'
-import { assert, assertEq, todo } from '../asserts/module.f.ts'
+import { assert, assertEq } from '../asserts/module.f.ts'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
@@ -30,17 +30,9 @@ const makeReporter = (): TestReporter => ({
     test: defaultTest,
 })
 
-const noopTestContext = { test: todo }
-
 const options = (initCwd: string, github = false): NodeProgramOptions => ({
-    args: [],
+    ...defaultNodeProgramOptions,
     env: { INIT_CWD: initCwd, ...(github ? { GITHUB_ACTIONS: 'true' } : {}) },
-    home: '.',
-    std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
-    testContext: noopTestContext,
-    bunTestContext: noopTestContext,
-    playwrightTestContext: noopTestContext,
-    engine: 'node',
 })
 
 const ok0 = (): unknown => ({ result: ['ok', undefined] as const, duration: 0 })
