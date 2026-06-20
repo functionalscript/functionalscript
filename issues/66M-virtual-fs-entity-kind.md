@@ -152,6 +152,24 @@ a thin `kind = (e: Entity) => classify(e)[0]` reads fine — but the value-carry
 `classify` is what removes the casts, which is the reviewer's point: narrow,
 don't return `boolean`.)
 
+### Why narrow here, against the usual guidance
+
+This codebase generally avoids leaning on type narrowing. This module is a
+deliberate exception: the alternative is the present `as Dir` / `as readonly
+Vec[]` casts, and trading a discouraged pattern for an *outright unsafe* one
+(`as` is "Rust `unsafe`" per `AGENTS.md`) is the worse deal. `classify` is the
+narrowing that the type system can actually check.
+
+The cost is honest and accepted: `classify` does **not** collapse each site to a
+single test. Because the union excludes `undefined` but `dir[name]` is `Entity |
+undefined`, every consumer keeps an explicit `undefined` guard *before* calling
+`classify`, and then branches on the tag — so a site that today is one
+combined `if` becomes an `undefined` check plus a `switch`/destructure, i.e.
+slightly more `if`s, not fewer lines. The win is not line count: it is that the
+three-way contract is defined once, the four inconsistent dir-spellings are gone,
+the casts are gone, and a fourth `Entity` kind surfaces as exhaustiveness errors
+at each `switch` instead of silent misclassification.
+
 ## Tasks
 
 - [ ] Add the `Classified` tagged union and `classify` next to the `Entity` type
