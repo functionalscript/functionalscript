@@ -91,3 +91,63 @@ list()                     → Vec[] | error
 `WriteHandle` is an opaque nominal token at the FunctionalScript level, backed by
 a live OS resource in the runner's interpreter state — analogous to how `Server`
 and memory `Key` are modelled.
+
+## Strategy 2: Array of Bit Vectors
+
+### Overview
+
+A file is represented in memory as a `readonly Vec[]` — an ordered list of chunks,
+each no larger than `maxLengthBytes` (128 KiB). Because no single allocation
+exceeds the runtime's `bigint` cap, arbitrarily large files can be held without
+hitting the per-`Vec` size limit. This is the in-memory representation used by the
+virtual store (tests, and any non-filesystem backing).
+
+### Why an array rather than a single `Vec`
+
+A single `Vec` is capped at `maxLengthBytes`, so any file larger than that cannot
+be represented at all. Splitting into a list of bounded chunks lifts the cap to the
+total of all chunks while keeping every individual allocation within the runtime
+limit. The chunk boundary is an implementation detail of storage, not of content —
+`get` re-exposes the chunks as a `ChunkStream` in order, and the consumer never
+sees where one chunk ends and the next begins.
+
+### Write pipeline
+
+There is no real filesystem, so the staging-and-rename machinery collapses:
+
+1. `openWrite()` — allocates an empty in-memory buffer (a growing `Vec[]`). The
+   `WriteHandle` is the memory `Key` of that buffer. No OS resource, no lock.
+2. `append(handle, chunk)` — pushes the chunk onto the buffer and feeds it into the
+   SHA-2 state, exactly as in Strategy 1. Each chunk is bounded by `maxLengthBytes`.
+3. `commit(handle, key)` — stores the accumulated `Vec[]` under `key`. This is a
+   single memory assignment and is therefore atomic by construction; there is no
+   partially-visible intermediate state to guard against.
+4. `abort(handle)` — discards the buffer.
+
+### What collapses relative to Strategy 1
+
+Because commit is a single in-memory assignment rather than a cross-filesystem
+rename:
+
+- **No staging directory.** There is nothing to clean; an aborted or crashed write
+  simply leaves an unreferenced buffer that is garbage-collected.
+- **No lock / dead-man's switch.** No concurrent process can observe or race a
+  half-written buffer, so no `flock` / open-handle hold is needed.
+- **No read-only marking.** Immutability is enforced by the store never reissuing a
+  `commit` for an existing key, not by OS permissions.
+
+### Meta and read path
+
+`Meta.size` is the sum of the byte lengths of the chunks — computed directly from
+the array without consuming it. `get(key)` returns `[Meta, ChunkStream]`, where the
+`ChunkStream` yields each `Vec` in stored order. Reads are pure: the buffer is
+immutable once committed.
+
+### Relationship to Strategy 1
+
+Both strategies implement the same key-value interface
+(`openWrite` / `append` / `commit` / `abort`, `get` / `list`). The streaming
+caller — `cas.add(stream)` folding SHA-2 over a `ChunkStream` — is identical for
+both; only the `WriteHandle` differs (a memory `Key` here, a live OS file handle in
+Strategy 1). This is what lets the same `Cas<O>` handlers run over a memory backing
+in tests and a filesystem backing in production.
