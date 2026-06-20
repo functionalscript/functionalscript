@@ -89,71 +89,76 @@ a `typeof` with an `Array.isArray` (and sometimes an `undefined` check).
 
 ## Proposal
 
-Define the three kind-tests **once**, right after the `Entity` / `Dir` /
-`JsModule` declarations, and have every site call them. No type predicates
-(`x is U`) — per `AGENTS.md` those are error-prone — just plain booleans that
-name the structural intent:
+Name the discrimination **once**, but as something that *narrows* rather than a
+`boolean`. A boolean helper would force the union's kind to be re-discovered (or
+re-asserted with `as`) at every consumer; the current code already does the
+latter, pairing each inline check with a cast — `subDir as Dir` (`:72`),
+`file as readonly Vec[]` (`:110`), `content as Dir` (`:155`), `sub as Dir`
+(`:191`, `:224`), `existing as Dir` (`:211`), `file as readonly Vec[]` (`:259`).
+`AGENTS.md` treats `as` like Rust's `unsafe`, and also forbids type predicates
+(`x is U`). The way out it prescribes is to "restructure the union so a
+structural check narrows correctly without a predicate."
+
+So define a single tagged classifier next to the `Entity` declarations. Inside
+the ternary, `e instanceof Array` narrows `e` to `readonly Vec[]`,
+`typeof e === 'function'` narrows it to `JsModule`, and the final arm narrows to
+`Dir` — all automatically, no predicate and no `as`:
 
 ```ts
-const isJsModule = (e: Entity): boolean => typeof e === 'function'
-const isFile     = (e: Entity): boolean => e instanceof Array
-const isDir      = (e: Entity): boolean => typeof e === 'object' && !(e instanceof Array)
+type Classified =
+    | readonly ['file', readonly Vec[]]
+    | readonly ['module', JsModule]
+    | readonly ['dir', Dir]
+
+const classify = (e: Entity): Classified =>
+    e instanceof Array      ? ['file', e]   :
+    typeof e === 'function' ? ['module', e] :
+                              ['dir', e]
 ```
 
-Then the call sites read as intent rather than as bit-twiddling:
+Consumers destructure the tag, and the tuple discriminant narrows the payload, so
+the recursive descent threads a real `Dir`/`Vec[]` with the casts gone:
 
 ```ts
-// :69
-if (!isDir(subDir)) { return op(dir, path) }
-// :107 / :251
-if (isJsModule(file)) { throw ... }
-// :109 / :253
-if (!isFile(file)) { return error(...) }
-// :174
-if (isDir(entry)) { return [dir, error('is a directory')] }
-// :202-203
-const entityIsDir   = isDir(entity)
-const existingIsDir = isDir(existing)
-// :190
-if (sub === undefined || !isDir(sub)) { return [dir, enoent] }
-// :223
-if (!isDir(sub)) { return [dir, error('not a directory')] }
+// :67-72  operation — descend only into directories
+const sub = dir[first]
+if (sub === undefined) { return op(dir, path) }
+const c = classify(sub)
+if (c[0] !== 'dir') { return op(dir, path) }
+const [newSubDir, r] = f(c[1], rest)   // c[1] is Dir — no `as Dir`
+
+// :104-109  readFile
+const file = dir[path[0]]
+if (file === undefined) { return enoent }
+const c = classify(file)
+switch (c[0]) {
+    case 'module': { throw new Error(`'${path[0]}' is a JsModule; readFile not supported`) }
+    case 'dir':    { return error(`'${path[0]}' is not a file`) }
+    case 'file':   { /* c[1] is readonly Vec[] — no `as readonly Vec[]` */ }
+}
 ```
 
-Now "what shape is a directory" is stated in exactly one line; the eleven
-remaining sites cannot drift apart, and a future fourth `Entity` kind is a
-one-place change.
+The remaining sites (`import_` `:127`, `writeFile` `:137`, `readdir` `:152`,
+`rm` `:174`, `extractEntity` `:190`, `insertEntityAt` `:202-203`/`:223`,
+`readBytesOp` `:251`) follow the same shape: handle `undefined` first, then
+`switch` on `classify(e)[0]`. The four inconsistent "is a directory" spellings
+collapse to the one `'dir'` arm of `classify`, every `as Dir` / `as readonly
+Vec[]` disappears (the payload is already narrowed), and a future fourth `Entity`
+kind is one new tuple variant plus exhaustiveness errors at each `switch` — the
+compiler points at every site that must handle it.
 
-### Caveat: narrowing and the existing `as` casts
-
-The current code already pairs these inline checks with `as` casts to recover the
-narrowed type — `subDir as Dir` (`:72`), `file as readonly Vec[]` (`:110`),
-`content as Dir` (`:155`), `sub as Dir` (`:191`, `:224`), `existing as Dir`
-(`:211`), `file as readonly Vec[]` (`:259`). `AGENTS.md` treats `as` like Rust's
-`unsafe`, so these casts are themselves a smell, and a boolean helper does not
-remove them (a function-boundary boolean does not narrow its argument). Two
-honest options:
-
-1. **Minimal (this issue):** introduce the three helpers for the *boolean
-   decision* and keep `instanceof Array` / `typeof === 'function'` inline only at
-   the few spots that immediately need the narrowed value, so the casts are no
-   worse than today while the scattered, inconsistent dir-tests collapse to one
-   definition. This is a pure readability/consistency win with zero behaviour
-   change.
-2. **Fuller (follow-up):** restructure the descent helpers so the kind is
-   discovered once and the narrowed `Dir` / `Vec[]` is threaded through, removing
-   the `as Dir` / `as readonly Vec[]` casts entirely. This is a larger change and
-   should be its own issue if pursued.
-
-Recommend landing (1) first — it is small, safe, and removes the four-way
-inconsistency that is the real hazard.
+(If a particular site genuinely only needs a yes/no answer and no narrowed value,
+a thin `kind = (e: Entity) => classify(e)[0]` reads fine — but the value-carrying
+`classify` is what removes the casts, which is the reviewer's point: narrow,
+don't return `boolean`.)
 
 ## Tasks
 
-- [ ] Add `isJsModule` / `isFile` / `isDir` next to the `Entity` type in
-      `fs/effects/node/virtual/module.f.ts`.
-- [ ] Replace the twelve inline kind-tests listed above with calls to them,
-      preserving each site's exact boolean.
+- [ ] Add the `Classified` tagged union and `classify` next to the `Entity` type
+      in `fs/effects/node/virtual/module.f.ts`.
+- [ ] Rewrite the twelve inline kind-tests to handle `undefined` and then
+      `switch`/destructure on `classify(...)`, removing the `as Dir` /
+      `as readonly Vec[]` casts now made unnecessary by narrowing.
 - [ ] Run `npx tsc` and `fjs t`; confirm `fs/effects/node/virtual/proof.f.ts`
       still passes with full line/branch coverage (behaviour is unchanged).
 
