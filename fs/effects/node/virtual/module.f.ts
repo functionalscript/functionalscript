@@ -6,7 +6,7 @@
 import { todo } from '../../../asserts/module.f.ts'
 import { join, parse } from '../../../path/module.f.ts'
 import { utf8ToString } from '../../../text/module.f.ts'
-import { isVec, length, maxLengthBytes, msb, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
+import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
 import { asBase, asNominal, type Key } from '../../memory/module.f.ts'
@@ -22,7 +22,7 @@ import type { Dirent, IoResult, Module, NodeOp, SandboxResult } from '../module.
  */
 export type JsModule = () => Module
 
-export type Entity = Vec | Dir | JsModule
+export type Entity = readonly Vec[] | Dir | JsModule
 
 export type Dir = {
     readonly[name in string]?: Entity
@@ -66,10 +66,10 @@ const operation =
         }
         const [first, ...rest] = path
         const subDir = dir[first]
-        if (typeof subDir !== 'object') {
+        if (typeof subDir !== 'object' || Array.isArray(subDir)) {
             return op(dir, path)
         }
-        const [newSubDir, r] = f(subDir, rest)
+        const [newSubDir, r] = f(subDir as Dir, rest)
         return [{ ...dir, [first]: newSubDir }, r]
     }
     return (path: string) => (state: State) => {
@@ -106,9 +106,19 @@ const readFile = readOperation((dir, path): IoResult<Vec> => {
     const file = dir[path[0]]
     if (typeof file === 'function') { throw new Error(`'${path[0]}' is a JsModule; readFile not supported`) }
     if (file === undefined) { return enoent }
-    // exists but is a directory — a real error, not a missing path
-    if (!isVec(file)) { return error(`'${path[0]}' is not a file`) }
-    return ok(file)
+    if (!Array.isArray(file)) { return error(`'${path[0]}' is not a file`) }
+    const chunks = file as readonly Vec[]
+    const capBits = maxLengthBytes * 8n
+    let result = empty
+    for (const chunk of chunks) {
+        const chunkLen = length(chunk)
+        if (chunkLen === 0n) { continue }
+        if (length(result) + chunkLen > capBits) {
+            return error(`File size exceeds maximum allowed size of ${maxLengthBytes} bytes`)
+        }
+        result = msb.concat(result)(chunk)
+    }
+    return ok(result)
 })
 
 const import_ = readOperation((dir, path): IoResult<Module> => {
@@ -124,9 +134,8 @@ const writeFile = (payload: Vec) => operation((dir, path): readonly[Dir, IoResul
     if (path.length !== 1) { return [dir, writeFileError] }
     const [name] = path
     const file = dir[name]
-    // fail if the file is a directory
-    if (file !== undefined && !isVec(file)) { return [dir, writeFileError] }
-    dir = { ...dir, [name]: payload }
+    if (file !== undefined && !Array.isArray(file)) { return [dir, writeFileError] }
+    dir = { ...dir, [name]: [payload] }
     return [dir, okVoid]
 })
 
@@ -140,7 +149,7 @@ const readdir = (base: string, recursive: boolean) => readOperation((dir, path):
         let result: readonly Dirent[] = []
         for (const [name, content] of entries(d)) {
             if (content === undefined) { continue }
-            const isFile = typeof content !== 'object'
+            const isFile = Array.isArray(content) || typeof content !== 'object'
             result = [...result, { name, parentPath, isFile }]
             if (!isFile && recursive) {
                 result = [...result, ...f(join(parentPath, name), content as Dir)]
@@ -162,7 +171,7 @@ const rm = operation((dir, path): readonly[Dir, IoResult<void>] => {
     const [name] = path
     const entry = dir[name]
     if (entry === undefined) { return [dir, error('no such file')] }
-    if (typeof entry === 'object') { return [dir, error('is a directory')] }
+    if (!Array.isArray(entry) && typeof entry === 'object') { return [dir, error('is a directory')] }
     const { [name]: _, ...rest } = dir
     return [rest as Dir, okVoid]
 })
@@ -178,8 +187,8 @@ const extractEntity = (dir: Dir, path: readonly string[]): readonly[Dir, IoResul
     }
     const [first, ...rest] = path
     const sub = dir[first]
-    if (sub === undefined || isVec(sub) || typeof sub === 'function') { return [dir, enoent] }
-    const [newSub, result] = extractEntity(sub, rest)
+    if (sub === undefined || Array.isArray(sub) || typeof sub === 'function') { return [dir, enoent] }
+    const [newSub, result] = extractEntity(sub as Dir, rest)
     if (result[0] === 'error') { return [dir, result] }
     return [{ ...dir, [first]: newSub }, result]
 }
@@ -190,8 +199,8 @@ const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): read
         const [name] = path
         const existing = dir[name]
         if (existing !== undefined) {
-            const entityIsDir = typeof entity === 'object'
-            const existingIsDir = typeof existing === 'object'
+            const entityIsDir = !Array.isArray(entity) && typeof entity === 'object'
+            const existingIsDir = !Array.isArray(existing) && typeof existing === 'object'
             if (entityIsDir && !existingIsDir) {
                 return [dir, error(`cannot overwrite file '${name}' with a directory`)]
             }
@@ -211,7 +220,7 @@ const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): read
     const [first, ...rest] = path
     const sub = dir[first]
     if (sub === undefined) { return [dir, enoent] }
-    if (isVec(sub) || typeof sub === 'function') { return [dir, error('not a directory')] }
+    if (Array.isArray(sub) || typeof sub === 'function') { return [dir, error('not a directory')] }
     const [newSub, result] = insertEntityAt(sub as Dir, rest, entity)
     if (result[0] === 'error') { return [dir, result] }
     return [{ ...dir, [first]: newSub }, result]
@@ -241,17 +250,29 @@ const readBytesOp = (path: string, offset: number, size: number) => readOperatio
     const file = dir[p[0]]
     if (typeof file === 'function') { throw new Error(`'${p[0]}' is a JsModule; readBytes not supported`) }
     if (file === undefined) { return enoent }
-    if (!isVec(file)) { return error(`'${p[0]}' is not a file`) }
+    if (!Array.isArray(file)) { return error(`'${p[0]}' is not a file`) }
     if (!Number.isInteger(offset)) { return error(`Offset ${offset} is not an integer`) }
     if (!Number.isInteger(size)) { return error(`Chunk size ${size} is not an integer`) }
     if (offset < 0) { return error(`Offset ${offset} is negative`) }
     if (size < 0) { return error(`Chunk size ${size} is negative`) }
     if (BigInt(size) > maxLengthBytes) { return error(`Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes`) }
-    const offsetBits = BigInt(offset) * 8n
-    const sizeBits = BigInt(size) * 8n
-    const remaining = msb.removeFront(offsetBits)(file)
-    const actualSizeBits = sizeBits < length(remaining) ? sizeBits : length(remaining)
-    return ok(vec(actualSizeBits)(msb.front(actualSizeBits)(remaining)))
+    const chunks = file as readonly Vec[]
+    let toSkip = BigInt(offset) * 8n
+    let toRead = BigInt(size) * 8n
+    let result = empty
+    for (const chunk of chunks) {
+        if (toRead === 0n) { break }
+        const chunkBits = length(chunk)
+        if (toSkip >= chunkBits) { toSkip -= chunkBits; continue }
+        const skipInChunk = toSkip
+        const availableBits = chunkBits - skipInChunk
+        const takeBits = availableBits <= toRead ? availableBits : toRead
+        const taken = vec(takeBits)(msb.front(takeBits)(msb.removeFront(skipInChunk)(chunk)))
+        result = msb.concat(result)(taken)
+        toSkip = 0n
+        toRead -= takeBits
+    }
+    return ok(result)
 })(path)
 
 const map: MemOperationMap<NodeOp, State> = {
