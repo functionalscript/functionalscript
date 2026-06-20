@@ -74,10 +74,49 @@ daemon, since staging files are disposable and space reclamation is not urgent.
 and `chmod 444`, so no concurrent modification is possible and no handle needs to
 be held open across calls.
 
+## New effects required
+
+Strategy 1 cannot be implemented with the existing effect set. The following
+additions are needed.
+
+### `FileHandle` type
+
+```
+FileHandle = Nominal<'fileHandle', …, unknown>
+```
+
+An opaque black-box value, exactly like `Server` and memory `Key` in the existing
+effect system. The runner holds the live OS resource (open file descriptor + lock)
+in its interpreter state and maps the nominal token to it. Nothing outside the
+runner can inspect or forge a `FileHandle`.
+
+### Write-side effects
+
+| Effect | Signature | Notes |
+|---|---|---|
+| `openExclusive` | `(path) => IoResult<FileHandle>` | Creates the file if absent; acquires an exclusive lock (`flock(LOCK_EX)` on POSIX, inherent on Windows via open handle). |
+| `appendHandle` | `(handle, data: Vec) => IoResult<void>` | Writes `data` through the held file descriptor. Bounded to ≤128 KiB per call, matching `maxLengthBytes`. |
+| `commitHandle` | `(handle, destPath) => IoResult<void>` | Renames the staging file to `destPath`, marks it read-only (`chmod 444`), then closes the fd and releases the lock. |
+| `abortHandle` | `(handle) => IoResult<void>` | Closes the fd and releases the lock, then deletes the staging file. |
+
+### Read-side effect (cleaner)
+
+| Effect | Signature | Notes |
+|---|---|---|
+| `tryLockExclusive` | `(path) => IoResult<FileHandle \| undefined>` | Non-blocking attempt: returns a `FileHandle` if the lock was acquired (file is orphaned, safe to delete), or `undefined` if another process holds it (file is active, skip). Maps to `flock(LOCK_EX \| LOCK_NB)` on POSIX; on Windows, an attempted open either succeeds or fails for the same reason. |
+
+### Relationship to existing effects
+
+`readBytes` and `stat` (read path) remain stateless and unchanged. The new effects
+are write-path only. `appendHandle` is distinct from a hypothetical stateless
+`appendFile(path, data)`: the latter opens and closes on every call, creating
+lock-gap windows the cleaner could exploit; `appendHandle` keeps the fd and lock
+held continuously for the lifetime of the staging operation.
+
 ## Key-value interface
 
 ```
-openWrite()                → WriteHandle
+openWrite()                → WriteHandle   (= FileHandle at the OS level)
 append(handle, chunk)      → ok | error
 commit(handle, key)        → ok | error
 abort(handle)              → ok | error
@@ -86,6 +125,5 @@ get(key)                   → [Meta, ChunkStream] | not_found | error
 list()                     → Vec[] | error
 ```
 
-`WriteHandle` is an opaque nominal token at the FunctionalScript level, backed by
-a live OS resource in the runner's interpreter state — analogous to how `Server`
-and memory `Key` are modelled.
+`WriteHandle` at the CAS/KV layer IS the `FileHandle` at the effect layer — the
+same opaque nominal token, passed through without inspection.
