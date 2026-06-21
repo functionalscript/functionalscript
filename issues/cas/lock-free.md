@@ -7,7 +7,7 @@ const upload = (payload: EffectList<IoResult<Vec>>) => {
     const newPath = () => {
         const prefix = now() + delta
         const fileName = `${prefix}-${suffix}`
-        const path = `.cas/_stage/${fileName}`
+        return `.cas/_stage/${fileName}`
     }
 
     if (isError(createDir(`.cas/_stage`))) { return error() }
@@ -15,9 +15,14 @@ const upload = (payload: EffectList<IoResult<Vec>>) => {
 
     let offset = 0
     let hashCompute = createHashCompute()
-    for (const i in payload) {
+    for (const ri of payload) {
+        if (isError(i)) {
+            delete_(path)
+            return error()
+        }
+        const chunk = ri[1]
 
-        r = writeFileBytes(path, offset, i)
+        r = writeFileBytes(path, offset, chunk)
         if (isError(r)) {
             delete_(path)
             return error()
@@ -33,12 +38,12 @@ const upload = (payload: EffectList<IoResult<Vec>>) => {
 
         path= nPath
 
-        hashCompute.update(i)
-        offset += i.length
+        hashCompute.update(chunk)
+        offset += chunk.length
     }
 
     const hash = hashCompute.end()
-    const [hashPrefix, hashFileName] = hashPath(hash)
+    const [hashPrefix, hashFileName] = splitHashPath(hash)
     const hashDir = `.cas/${hashPrefix}`
     const hashPath = `${hashDir}/${hashFileName}`
 
