@@ -232,6 +232,63 @@ Resume cost is O(bytes-so-far) because SHA-2 is not seekable and the hash state 
 rebuilt from disk. This is acceptable for the sizes involved and is the only non-O(1) part
 of the design.
 
+## Distributed and remote staging
+
+The lock is the one primitive that is fundamentally process-local — `flock` does not cross
+machines, and over a network filesystem it is unreliable for this purpose. The lease
+replaces it with primitives a **shared filesystem already provides**, plus a clock:
+
+- atomic exclusive create (`O_EXCL`) — claim a unique name
+- atomic `rename` — renew, commit, and ownership handoff
+- atomic `unlink` — GC and abort
+- a wall-clock deadline — liveness
+
+So `_staging/` can live on a remote/shared disk (e.g. an NFS export) and be driven by
+uploaders running on **several machines at once**. The stateless `writeBytes` model is, if
+anything, *more* network-FS-friendly than a held-handle model: NFS's weak spots are all
+around open file state (silly-rename on unlink-while-open, lock recovery after a server
+reboot), and the lease touches none of it — it is all path-only ops (create / rename /
+unlink / pwrite-at-offset), which network filesystems support well. Dropping the
+`FileHandle` removed exactly the operations NFS handles worst.
+
+### Cross-machine handoff
+
+Machine-to-machine takeover is reboot-resume across machines: the stable `random256`
+identity locates the file on the shared disk, and re-hash-from-disk rebuilds
+`{offset, hash}`. Ownership transfer uses the same fencing rename — to take over, a machine
+renames to a new deadline; two claimants race the atomic rename, one wins, the other gets
+`ENOENT` and backs off. **The lease token doubles as the distributed mutual-exclusion
+primitive**: the same rename that detects crashes also transfers ownership.
+
+### Skew and partition cost throughput, not safety
+
+This is the property that makes it usable across machines, where writers and the GC may run
+on different clocks and behind partitions:
+
+- **Clock skew.** With bounded skew δ (NTP-synced), renew with margin > δ and behaviour is
+  fine. *Unbounded* skew only costs efficiency, never safety: a GC that reclaims early just
+  makes the writer's next renew/commit hit `ENOENT` and fail safe. No shard is corrupted.
+- **Partition.** A writer that loses the mount cannot renew → its lease expires → GC
+  reclaims → the writer fails safe via `ENOENT` on reconnect. A partition is just a long
+  pause, already covered by the fail-safe property.
+
+The local virtue — worst case is a restarted upload, never corruption — is exactly what you
+want in a distributed setting, where skew and partitions are the norm rather than the
+exception.
+
+### Requirements and limits
+
+- **Atomic `O_EXCL` create + `rename` + `unlink` on the shared FS are mandatory.** This
+  holds on NFSv3+/v4 — NFSv3 added exclusive-create-with-verifier precisely so `O_EXCL`
+  survives retransmits, and rename/unlink are single atomic RPCs. SMB/CIFS semantics vary
+  and must be checked.
+- **Object stores (S3/GCS) are not POSIX** — no atomic rename, no `O_EXCL`. The
+  deadline-in-name *idea* ports to their conditional-write / `If-None-Match` compare-and-set
+  primitives, but that is a distinct mapping, not the same syscalls.
+- **Durability is the server's.** `commit`'s fsync-before-rename relies on the server
+  actually flushing; network-FS durability and cache-coherence guarantees are weaker and
+  must be verified for the target filesystem.
+
 ## Trade-offs and caveats
 
 - **Leases are a timing assumption, not a truth.** A live-but-paused writer (STW GC pause,
@@ -246,8 +303,9 @@ of the design.
   legitimate long upload can pre-reserve, so it should be configurable.
 - **Wall-clock dependence.** Deadlines are wall-clock. On a single host (writer and GC
   share the clock) this is fine; NTP steps and suspend/resume are edge cases. Across hosts
-  over a shared filesystem (NFS) it is dangerous — but the lock design is dubious over NFS
-  too, so this is not a regression.
+  (see *Distributed and remote staging*) skew costs efficiency but not safety, *provided*
+  the shared filesystem supplies atomic `O_EXCL` create, `rename`, and `unlink` — those
+  atomic primitives, not clock agreement, are what the fencing rests on.
 - **`writeBytes` must never create.** Append/resume open the existing file only. Allowing
   create on the append path would let a reclaimed file be resurrected as a sparse file with
   a hole at offset 0 — silent corruption. Exclusive create happens exactly once, at
@@ -268,6 +326,7 @@ of the design.
 | Abandoned/leaked by a live process | File pinned for the process's lifetime | Reclaimed at the deadline |
 | Cleanup on abort | Mandatory — missed release leaks the file | Optional — self-heals after the deadline |
 | Survives reboot | No | Yes |
+| Works across machines / shared disk | No — lock is process-local | Yes — atomic rename + create + deadline (needs an FS that supplies them) |
 
 ## Relationship to the existing `casUpload` path
 
