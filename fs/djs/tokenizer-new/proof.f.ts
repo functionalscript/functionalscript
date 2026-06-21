@@ -61,6 +61,7 @@ const scanFunc
             if (isNlTag(input) && isNlTag(state[0])) return [null, state]
             if (isWsTag(input) && isWsTag(state[0])) return [null, state]
             if (isNlTag(input) && isWsTag(state[0])) return [null, [input, []]]
+            if (isWsTag(input) && isNlTag(state[0])) return [null, state]
             const newState: TokenScanState = [input, []]
             if (state[0] === '') {
                 return [null, newState]
@@ -687,32 +688,32 @@ export const proof = {
             const result = tokenizeString('? ?. . =>')
             if (result !== '[{"kind":"?"},{"kind":"ws"},{"kind":"?."},{"kind":"ws"},{"kind":"."},{"kind":"ws"},{"kind":"=>"},{"kind":"eof"}]') { throw result }
         },
-    // ],
-    // ws: [
-    //     () => {
-    //         const result = tokenizeString(' ')
-    //         if (result !== '[{"kind":"ws"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('\t')
-    //         if (result !== '[{"kind":"ws"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString(' \t')
-    //         if (result !== '[{"kind":"ws"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('\n')
-    //         if (result !== '[{"kind":"nl"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('\r')
-    //         if (result !== '[{"kind":"nl"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString(' \t\n\r ')
-    //         if (result !== '[{"kind":"nl"},{"kind":"eof"}]') { throw result }
-    //     },
+    ],
+    ws: [
+        () => {
+            const result = tokenizeString(' ')
+            if (result !== '[{"kind":"ws"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('\t')
+            if (result !== '[{"kind":"ws"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString(' \t')
+            if (result !== '[{"kind":"ws"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('\n')
+            if (result !== '[{"kind":"nl"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('\r')
+            if (result !== '[{"kind":"nl"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString(' \t\n\r ')
+            if (result !== '[{"kind":"nl"},{"kind":"eof"}]') { throw result }
+        },
     ],
     // id: [
     //     () => {
