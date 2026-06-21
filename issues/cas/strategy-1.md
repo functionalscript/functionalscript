@@ -50,11 +50,19 @@ concurrent upload replacing live shard content therefore comes from the
 read-only bit. A rename onto an existing shard path is safe because the replacement
 content is byte-for-byte identical to what was already there.
 
+**Windows asymmetry**: on Windows the ReadOnly attribute prevents `MoveFileEx` from
+overwriting an existing ReadOnly destination — the call fails with access denied. The
+`commitHandle` implementation on Windows must detect this case: if the destination
+shard already exists, the CAS invariant guarantees the content is identical, so the
+correct response is to delete the staging file and return success without performing
+the rename. Alternatively, `commitHandle` may clear the ReadOnly attribute on the
+destination before renaming over it; both paths preserve correctness.
+
 ## Lock as dead-man's switch
 
 The `WriteHandle` holds a live OS resource for the entire duration of staging:
 
-- **Windows**: an open file handle prevents deletion by any other process.
+- **Windows**: an open file handle prevents deletion by any other process. The handle must be opened with the `DELETE` access right so that `commitHandle` can rename the file via `SetFileInformationByHandle` while the handle is still held (see commit note below).
 - **POSIX**: an exclusive `flock` does not block `unlink`, but gives the cleaner a
   reliable signal — it attempts `flock(LOCK_EX | LOCK_NB)` and skips any file for
   which that returns `EWOULDBLOCK`.
@@ -117,7 +125,7 @@ runner can inspect or forge a `FileHandle`.
 |---|---|---|
 | `openExclusive` | `(path) => IoResult<FileHandle>` | Creates the file if absent; acquires an exclusive lock (`flock(LOCK_EX)` on POSIX, inherent on Windows via open handle). |
 | `appendHandle` | `(handle, data: Vec) => IoResult<void>` | Writes `data` through the held file descriptor. Bounded to ≤128 KiB per call, matching `maxLengthBytes`. |
-| `commitHandle` | `(handle, destPath) => IoResult<void>` | Renames the staging file to `destPath`, marks it read-only (`chmod 444`), then closes the fd and releases the lock. |
+| `commitHandle` | `(handle, destPath) => IoResult<void>` | Renames the staging file to `destPath`, marks it read-only (`chmod 444`), then closes the fd and releases the lock. **Windows**: the rename must occur while the handle is still open — use `SetFileInformationByHandle` with `FileRenameInfo` (requires the handle to have `DELETE` access). Closing before rename creates a window where the cleaner can delete the staging file. If `destPath` already exists with the ReadOnly attribute, treat it as success (CAS invariant: same hash ⇒ same bytes) and delete the staging file without renaming. |
 | `abortHandle` | `(handle) => IoResult<void>` | Closes the fd and releases the lock, then deletes the staging file. |
 
 ### Read-side effects
@@ -125,7 +133,7 @@ runner can inspect or forge a `FileHandle`.
 | Effect | Signature | Notes |
 |---|---|---|
 | `tryLockExclusive` | `(path) => IoResult<FileHandle \| undefined>` | Non-blocking attempt: returns a `FileHandle` if the lock was acquired (file is orphaned, safe to delete), or `undefined` if another process holds it (file is active, skip). Maps to `flock(LOCK_EX \| LOCK_NB)` on POSIX; on Windows, an attempted open either succeeds or fails for the same reason. |
-| `stat` | `(path) => IoResult<{readonly size: number}>` | Returns file metadata without reading content. Used to populate `Meta.size` on the read path without loading the blob. This effect is **new** — `fs.promises.stat` is currently private to the Node interpreter's `readFile` and is not exported in the effect set. |
+| `stat` | `(path) => IoResult<{readonly size: number, readonly mtimeMs: number}>` | Returns file metadata without reading content. `size` populates `Meta.size` on the read path; `mtimeMs` is required by the POSIX cleaner's mandatory mtime grace check (the first step before `tryLockExclusive`). This effect is **new** — `fs.promises.stat` is currently private to the Node interpreter's `readFile` and is not exported in the effect set. |
 
 ### Relationship to existing effects
 

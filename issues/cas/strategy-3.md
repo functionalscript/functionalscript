@@ -369,7 +369,13 @@ any fixed threshold.
 
 The **required** guard is a **write/GC lock**: a global mutex or dead-man's-switch
 (the same mechanism as Strategy 1's `_staging` lock) that GC must hold exclusively
-during sweep, so no concurrent write is in progress while sweep runs.
+for the **entire mark-and-sweep cycle** — from the initial snapshot of `_roots/`
+through the end of sweep. Holding the lock only during sweep is insufficient: a
+writer that starts after mark begins, completes, and registers its root before sweep
+runs would have its root absent from the mark set; sweep then deletes its
+already-committed parts even though no write is in progress at sweep time. The lock
+must therefore prevent any write from registering a new root between the mark
+snapshot and the end of sweep.
 
 A pending-root marker (registering a placeholder in `_roots/` before the first part
 write) does **not** solve this: GC marks only parts reachable from `_roots/` entries,
