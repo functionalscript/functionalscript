@@ -45,6 +45,38 @@ Because `rename` and `unlink` on a single name are atomic, the name itself is a 
 token: there is never a window where both "the writer keeps the file" and "the GC deleted
 the file" believe they won.
 
+## Design philosophy
+
+Three principles tie the whole design together; every property below is a consequence of
+them.
+
+**Strategy belongs to the uploader; mechanism belongs to the GC.** Each uploader chooses
+its own lease strategy, and they need not agree. One holding an important document over a
+flaky connection can pre-assign a long lease up front; a routine uploader can take a short
+lease and renew on progress; a pool of hedged uploaders can all take short leases and race.
+These strategies coexist in one `_staging/` directory with **no coordination**, because the
+only thing an uploader communicates to the GC is a single number — the deadline in the
+filename. There is no registry, no negotiation, no shared state to keep consistent.
+
+**The contract is one line.** From the GC's side: *if a file's lease has expired, the file
+is eligible to be reclaimed.* That is the entire agreement — the GC needs no knowledge of
+uploader internals, progress semantics, or strategy. Note the precision: expiry makes a
+file *eligible* for reclamation, it does not reclaim it. The GC is lazy and oldest-first, so
+an uploader whose lease just lapsed can still win by renewing or committing before the GC
+reaches it; the fencing only bites if the GC actually unlinks first, and then the loser
+fails safe.
+
+**Nothing is guaranteed at 100%, and that is the point.** The lease is best-effort: a
+misjudged-slow uploader is reclaimed and restarts; a stalled one is reclaimed and a peer
+takes over; a partition resolves into a restart. Because *every* outcome is fail-safe — the
+worst case is wasted work, never a corrupted shard — the system does not need determinism,
+and so it needs no consensus, no locks, and no central authority. Embracing probability is
+what keeps it simple. The only near-deterministic layer is **hash verification**, and even
+that is probabilistic: content addressing rests on collision resistance, so "same hash ⇒
+same bytes" holds only up to the astronomically small probability of a collision. There is
+no truly deterministic subsystem here — only one whose failure odds are small enough to
+treat as certain.
+
 ## Name format
 
 The `<deadline>` must sort lexically as it sorts chronologically, so the GC can order the
