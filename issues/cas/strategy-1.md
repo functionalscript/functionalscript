@@ -99,16 +99,17 @@ runner can inspect or forge a `FileHandle`.
 | `commitHandle` | `(handle, destPath) => IoResult<void>` | Renames the staging file to `destPath`, marks it read-only (`chmod 444`), then closes the fd and releases the lock. |
 | `abortHandle` | `(handle) => IoResult<void>` | Closes the fd and releases the lock, then deletes the staging file. |
 
-### Read-side effect (cleaner)
+### Read-side effects
 
 | Effect | Signature | Notes |
 |---|---|---|
 | `tryLockExclusive` | `(path) => IoResult<FileHandle \| undefined>` | Non-blocking attempt: returns a `FileHandle` if the lock was acquired (file is orphaned, safe to delete), or `undefined` if another process holds it (file is active, skip). Maps to `flock(LOCK_EX \| LOCK_NB)` on POSIX; on Windows, an attempted open either succeeds or fails for the same reason. |
+| `stat` | `(path) => IoResult<{readonly size: number}>` | Returns file metadata without reading content. Used to populate `Meta.size` on the read path without loading the blob. This effect is **new** — `fs.promises.stat` is currently private to the Node interpreter's `readFile` and is not exported in the effect set. |
 
 ### Relationship to existing effects
 
-`readBytes` and `stat` (read path) remain stateless and unchanged. The new effects
-are write-path only. `appendHandle` is distinct from a hypothetical stateless
+`readBytes` (read path) remains stateless and unchanged. The new effects are
+write-path and stat-path only. `appendHandle` is distinct from a hypothetical stateless
 `appendFile(path, data)`: the latter opens and closes on every call, creating
 lock-gap windows the cleaner could exploit; `appendHandle` keeps the fd and lock
 held continuously for the lifetime of the staging operation.

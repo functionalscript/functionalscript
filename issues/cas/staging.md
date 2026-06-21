@@ -122,3 +122,27 @@ files under `.cas/<prefix>/` are permanent, immutable, and never cleaned.
 The `_` prefix ensures `_staging/` is excluded from the `list` operation, which
 validates each directory name via `cBase32ToVec` and would reject `_staging` as
 an invalid base-32 prefix anyway.
+
+## Compatibility with the existing `casUpload` path
+
+The existing `casUpload` implementation (`fs/cas/module.f.ts`) uses a different
+staging path: `.cas/.stage/` (dot-prefixed, not underscore-prefixed). This is an
+ad-hoc staging directory that predates the formal Strategy 1 design and does not
+follow the `tryLockExclusive` cleaning protocol — it creates per-upload temp files
+but holds no persistent flock.
+
+The formal design uses `_staging/` because:
+- The `_` prefix is the project convention for non-hash directories (excluded by
+  `list` via `cBase32ToVec`).
+- `.stage/` uses a dot prefix, which is valid on POSIX but can conflict with hidden
+  directory conventions and is less clearly "internal infrastructure."
+
+During the transition, a cleaner implementing Strategy 1 would scan `_staging/` and
+miss any orphans left by `casUpload` in `.stage/`. Two options:
+
+1. **Migrate `casUpload`** to write into `_staging/` so all staging files share one
+   cleaning scope. This is the recommended path once Strategy 1 effects are
+   implemented.
+2. **Scan both** — teach the cleaner to cover `.stage/` as well, treating any file
+   there older than the grace period as a legacy orphan (since `.stage/` entries
+   carry no flock, they can be deleted unconditionally after the grace period).

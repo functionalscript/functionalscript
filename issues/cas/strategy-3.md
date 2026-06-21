@@ -68,8 +68,11 @@ so peak memory is `O(depth × fan-out)`, not `O(file size)`:
 3. Repeat until input is exhausted, then finalize each level. When a single
    reference remains, its hash is the root.
 
-Every write in this pipeline is a small ≤`maxLengthBytes` CAS object, so the
-small-file write path (Strategy 1 or 2, or any backing) is reused unchanged.
+Every write in this pipeline is a small ≤`maxLengthBytes` CAS object. The
+small-file write path is reused, but the backing **must** provide atomic, no-clobber
+writes for `parts/` — not a plain in-place overwrite. See the "Writing parts
+directly" section for the full requirement. Strategy 1's staging-and-rename path
+satisfies this; a naive `fileKvStore.write` (which truncates in place) does not.
 
 ## Read — depth-first, streaming
 
