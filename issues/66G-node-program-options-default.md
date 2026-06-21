@@ -1,7 +1,7 @@
 # 66G-node-program-options-default. Add a default `NodeProgramOptions` for use in proofs
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -55,10 +55,10 @@ Future additions to `NodeProgramOptions` only require a default in one place.
 
 ## Tasks
 
-- [ ] Add `defaultNodeProgramOptions` to `fs/effects/node/module.f.ts`.
-- [ ] Replace local `makeOptions` bodies in proof files with spread of
+- [x] Add `defaultNodeProgramOptions` to `fs/effects/node/module.f.ts`.
+- [x] Replace local `makeOptions` bodies in proof files with spread of
       `defaultNodeProgramOptions`.
-- [ ] Verify that all existing proof assertions still pass.
+- [x] Verify that all existing proof assertions still pass.
 
 ## Related
 
