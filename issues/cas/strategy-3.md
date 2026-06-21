@@ -145,6 +145,14 @@ is recommended as the boundary algorithm for Strategy 3 when cross-file dedup is
 goal. Fixed-size chunking (splitting every `maxLengthBytes - 1` bytes) remains a
 simpler fallback when dedup is not needed.
 
+**Hard chunk size cap**: When SUL is used as the boundary algorithm, a mandatory hard
+maximum of `maxLengthBytes - 1` bytes per chunk must be enforced in addition to SUL
+word boundaries. If the input reaches `maxLengthBytes - 1` bytes without a SUL word
+boundary, a forced split is applied at that position. This matches standard practice
+for content-defined chunking (all practical CDC algorithms bound the maximum chunk
+size). The canonical root is preserved: the same content always produces the same
+sequence of split points and therefore the same root.
+
 #### SUL boundary algorithm vs. SUL native tree encoding
 
 SUL can contribute to Strategy 3 in two distinct ways, and it is important not to
@@ -354,13 +362,23 @@ later GC finds them unreachable.
 
 **Concurrency hazard.** The one case GC must not mishandle is a write *in progress*:
 its parts are already in `_parts/` but its root is not yet in `_roots/`, so a naive
-sweep would delete parts the writer still needs. Since the lazy model already
-tolerates orphans, the simplest guard is a **grace period** — never sweep a part
-whose mtime is younger than the longest plausible write (it is either in-progress or
-freshly orphaned, and reclaiming it can wait for the next cycle). Where a hard
-guarantee is wanted instead, hold a write-phase lock (or a global GC/write mutex) so
-GC skips parts belonging to a live writer — the same dead-man's-switch mechanism as
-Strategy 1's `_staging` lock.
+sweep would delete parts the writer still needs. Strategy 3 is designed for
+arbitrarily large files, so a "longest plausible write" mtime grace period cannot be
+a correctness guarantee — a large-file write can take arbitrarily long, far exceeding
+any fixed threshold.
+
+The **required** guard is one of:
+- **Pending-root marker**: the writer registers a placeholder in `_roots/` before
+  writing its first part, removes it on abort, and replaces it with the real root on
+  commit. GC treats any part reachable from a `_roots/` entry (including placeholders)
+  as live.
+- **Write/GC lock**: a global mutex or dead-man's-switch (the same mechanism as
+  Strategy 1's `_staging` lock) that GC must hold exclusively during sweep, so no
+  concurrent write is in progress while sweep runs.
+
+A mtime-based grace period may supplement either approach — reducing churn by
+deferring cleanup of very recently written parts — but it is not sufficient as a
+stand-alone correctness mechanism for arbitrary-size writes.
 
 **Hash-map cleanup.** A `_hashes/<algo>/<digest>` entry points to a Strategy 3
 Merkle root that GC may eventually sweep, so the map must not be allowed to dangle
