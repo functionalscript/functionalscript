@@ -167,33 +167,45 @@ commit(handle, key, mode = normal):
   fsync(handle.path)                        // 1. file data durable before the shard is visible
   dst = `.cas/${shard(key)}`
 
-  if stat(dst) is ok:                       // 2. destination already present
-      if mode == normal: rm(handle.path); return ok   // trust CAS invariant (fast dedup path)
-      // mode == repair: do NOT trust it — that is why we are here. Fall through and replace.
-      setReadonly(dst, false)               //    clear the bit so the rename can overwrite (Windows)
+  if mode == normal and stat(dst) is ok:    // 2. fast path only — an optimization, not relied on
+      rm(handle.path); return ok            //    for correctness (see the rename handler below)
 
   newDirs = mkdir(dirOf(dst), {recursive})  // 3. create any missing prefix dirs; record which were new
-  rename(handle.path, dst)                  //    ENOENT ⇒ lease lost ⇒ error, restart upload
+  if mode == repair: setReadonly(dst, false)//    clear the bit so the rename can overwrite a corrupt shard
 
-  fsync(dirOf(dst))                         // 4. persist the new file entry, BEFORE reporting
+  switch rename(handle.path, dst):          // 4. the rename is the atomic, authoritative point
+    ok:               break
+    ENOENT(source):   error                 //    lease lost ⇒ restart upload
+    EEXIST/EACCES(dst): // dst appeared/locked AFTER step 2 — concurrent same-hash commit (Windows)
+        if mode == normal: rm(handle.path); return ok       //    dedup success — resolve here, not at stat
+        if mode == repair: setReadonly(dst, false); rename(handle.path, dst)  // replace, then continue
+
+  fsync(dirOf(dst))                         // 5. persist the new file entry, BEFORE reporting
   for d in newDirs (deepest → shallowest):  //    success — and persist every newly-created
       fsync(parentOf(d))                    //    directory's own entry in its parent, or a crash
                                             //    can still lose the prefix path (POSIX).
-  setReadonly(dst, true)                    // 5. chmod 444 / ReadOnly (durability of the bit
+  setReadonly(dst, true)                    // 6. chmod 444 / ReadOnly (durability of the bit
                                             //    itself is not critical: strategy-1.md)
-  // Windows: if dst already exists ReadOnly, MoveFileEx fails with access-denied; the normal
-  // path treats that as the stat(dst)-ok case above. A write-through move
-  // (MOVEFILE_WRITE_THROUGH) can substitute for the dir fsyncs.
+  // POSIX rename replaces an existing dst silently, so the EEXIST/EACCES branch is Windows-only
+  // (ReadOnly dst ⇒ MoveFileEx access-denied). A write-through move (MOVEFILE_WRITE_THROUGH)
+  // can substitute for the dir fsyncs.
 
 abort(handle):
   rm(handle.path)                           // ENOENT is fine — already reclaimed
 ```
 
-**The `exists(dst)` shortcut trusts the CAS invariant and is therefore only safe when the
-existing shard is assumed valid** — the ordinary dedup/concurrent-upload case. A
-scrub-driven **repair** commit (`scrub.md`) recommits a key *precisely because* the existing
-shard is corrupt, so it must not take the shortcut: it clears the read-only bit and replaces
-the bytes (`mode = repair` above). A caller that wants certainty rather than the fast path
+**The destination-already-exists decision is made at the `rename` (step 4), not at the
+preflight `stat` (step 2).** The preflight stat is only a fast early-out; relying on it for
+correctness is a TOCTOU bug, because on Windows another writer can create and lock `dst`
+*between* our stat and our rename — and then a harmless concurrent same-hash upload would
+wrongly report failure. Resolving "dst exists" in the rename's error branch covers that race:
+in `normal` mode it is dedup success (the shard is already present — `rm` the staging file and
+return ok); in `repair` mode it clears the read-only bit and replaces.
+
+**The `normal`-mode shortcut trusts the CAS invariant and is therefore only safe when the
+existing shard is assumed valid** — the ordinary dedup case. A scrub-driven **repair** commit
+(`scrub.md`) recommits a key *precisely because* the existing shard is corrupt, so it never
+trusts `dst`: it replaces the bytes. A caller that wants certainty rather than the fast path
 can run a **verifying** commit — re-hash `dst` and replace on mismatch — at the cost of an
 O(size) re-read of the existing shard.
 
