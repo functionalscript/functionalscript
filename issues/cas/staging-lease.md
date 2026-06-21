@@ -120,7 +120,7 @@ runner-held token. Every effect is stateless and path-based, exactly like the ex
 | `rename` | `(src, dst) => IoResult<void>` | Already exists. Used both for **renew** (`<oldDeadline>-<rand>` → `<newDeadline>-<rand>`) and for **commit** (`_staging/...` → `.cas/<prefix>/<hash>`). |
 | `rm` | `(path) => IoResult<void>` | Already exists. Used for **abort** and by the GC. |
 | `stat` | `(path) => IoResult<{size, mtimeMs}>` | **New.** Used for **resume** (`offset = size`) and optional bookkeeping. `mtimeMs` is **not** required for correctness here — unlike `staging.md`, there is no open→lock gap to cover. |
-| `fsync` | `(path) => IoResult<void>` | **New.** Flushes the staging file's data to disk. Required by `commit` *before* the final rename, so the bytes are durable before the shard becomes visible. There is no such effect in the current node set. |
+| `fsync` | `(path) => IoResult<void>` | **New.** Flushes a path to disk. On a **file** path it persists the data; on a **directory** path it persists that directory's entries (creations/renames) — the same `fsync(fd)` syscall on a directory fd. `commit` needs both: file data before the rename, and the destination directory after it (so the new shard entry survives a power loss). There is no such effect in the current node set. On Windows, a directory fsync has no exact equivalent; use a write-through rename (`MOVEFILE_WRITE_THROUGH`) to make the commit durable instead. |
 | `setReadonly` | `(path) => IoResult<void>` | **New.** Marks the committed shard read-only (`chmod 444` on POSIX; ReadOnly attribute on Windows). Required by `commit` *after* the rename. There is no such effect in the current node set. |
 
 `createExclusive`, `writeBytes`, `stat`, `fsync`, and `setReadonly` are **new** effects to
@@ -162,19 +162,30 @@ renew(handle):
   return { ...handle, path: newPath }
 
 commit(handle, key):
-  fsync(handle.path)                        // bytes durable before the shard is visible
+  fsync(handle.path)                        // 1. file data durable before the shard is visible
   dst = `.cas/${shard(key)}`
-  rename(handle.path, dst)                   // ENOENT ⇒ lease lost ⇒ error, restart upload
-  setReadonly(dst)                           // chmod 444 / ReadOnly attribute
+  rename(handle.path, dst)                   // 2. ENOENT ⇒ lease lost ⇒ error, restart upload
+  fsync(dirOf(dst))                          // 3. make the new directory entry durable, BEFORE
+                                             //    reporting success — else a power loss after
+                                             //    commit returns can lose the rename and the
+                                             //    shard reverts/vanishes on reboot (POSIX).
+  setReadonly(dst)                           // 4. chmod 444 / ReadOnly attribute (durability of
+                                             //    the read-only bit itself is not critical:
+                                             //    strategy-1.md — content is correct without it)
   // Windows: if dst already exists with the ReadOnly attribute, MoveFileEx fails with
   // access-denied. By the CAS invariant (same hash ⇒ same bytes) the existing shard is
   // already correct, so the right response is rm(handle.path) and return success — or
-  // clear ReadOnly on dst, then rename over it. (POSIX rename replaces silently.)
-  // Same case as commitHandle in strategy-1.md.
+  // clear ReadOnly on dst, then rename over it. (POSIX rename replaces silently.) Windows
+  // can also make the rename itself durable with a write-through move instead of a dir fsync.
 
 abort(handle):
   rm(handle.path)                           // ENOENT is fine — already reclaimed
 ```
+
+The staging directory itself is **not** fsynced on `createExclusive`/`renew`: a staging
+file lost to a crash before commit just restarts the upload (fail-safe), so only `commit` —
+the point where success is acknowledged — needs durability, and it needs *both* the file
+data (step 1) and the destination directory entry (step 3).
 
 `append` writes at an **explicit offset** rather than `O_APPEND`. This makes every write
 idempotent: a transient failure can be retried with the same bytes at the same offset
