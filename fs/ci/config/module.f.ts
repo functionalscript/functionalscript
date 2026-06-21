@@ -25,7 +25,7 @@ export const images = {
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version. A separate maintenance job advances this pin.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = '0.31.1' as const
+export const functionalscript = '0.32.4' as const
 
 // https://bun.sh/
 export const bun = '1.3.14'
@@ -38,9 +38,9 @@ export const playwright = '1.61.0'
 
 // https://nodejs.org/en/download
 export const node = {
-    default: '26.3.0',
-    node22: '22.22.3',
-    node24: '24.16.0',
+    default: '26.3.1',
+    node22: '22.23.0',
+    node24: '24.17.0',
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases
@@ -50,7 +50,7 @@ export const wasmtime = '45.0.2'
 export const wasmer = '7.1.0'
 
 // https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
-export const tsgo = '7.0.0-dev.20260617.2'
+export const tsgo = '7.0.0-dev.20260620.1'
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as
@@ -58,7 +58,7 @@ export const tsgo = '7.0.0-dev.20260617.2'
 // Note: dtolnay/rust-toolchain value is a Rust version, not an action version.
 export const actions = {
     // https://github.com/marketplace/actions/checkout
-    'actions/checkout': 'v6',
+    'actions/checkout': 'v7',
     // https://github.com/marketplace/actions/setup-node-js-environment
     'actions/setup-node': 'v6',
     // https://github.com/marketplace/actions/cache
