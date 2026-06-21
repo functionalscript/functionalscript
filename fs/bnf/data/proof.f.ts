@@ -660,5 +660,12 @@ export const proof = {
                 'digit': 'digit',
             }
         }
+    },
+    throw: {
+        ambiguousVariantDispatch: () => {
+            // Two alternatives covering the same code point — dispatch merge throws.
+            const conflictRule = { 'a': range('AA'), 'b': range('AA') }
+            dispatchMap(toData(conflictRule)[0])
+        }
     }
 }

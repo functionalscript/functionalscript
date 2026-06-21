@@ -24,14 +24,14 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.3.0"
+            "node-version": "26.3.1"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.31.1"
+          "run": "npm install -g functionalscript@0.32.4"
         },
         {
-          "uses": "actions/checkout@v6"
+          "uses": "actions/checkout@v7"
         },
         {
           "run": "cargo test"
@@ -77,14 +77,14 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.3.0"
+            "node-version": "26.3.1"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.31.1"
+          "run": "npm install -g functionalscript@0.32.4"
         },
         {
-          "uses": "actions/checkout@v6"
+          "uses": "actions/checkout@v7"
         },
         {
           "run": "cargo test"
@@ -118,14 +118,14 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.3.0"
+            "node-version": "26.3.1"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.31.1"
+          "run": "npm install -g functionalscript@0.32.4"
         },
         {
-          "uses": "actions/checkout@v6"
+          "uses": "actions/checkout@v7"
         },
         {
           "run": "cargo test"
@@ -159,14 +159,14 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.3.0"
+            "node-version": "26.3.1"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.31.1"
+          "run": "npm install -g functionalscript@0.32.4"
         },
         {
-          "uses": "actions/checkout@v6"
+          "uses": "actions/checkout@v7"
         },
         {
           "run": "cargo test"
@@ -201,14 +201,14 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.3.0"
+            "node-version": "26.3.1"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.31.1"
+          "run": "npm install -g functionalscript@0.32.4"
         },
         {
-          "uses": "actions/checkout@v6"
+          "uses": "actions/checkout@v7"
         },
         {
           "run": "cargo test"
@@ -254,14 +254,14 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.3.0"
+            "node-version": "26.3.1"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.31.1"
+          "run": "npm install -g functionalscript@0.32.4"
         },
         {
-          "uses": "actions/checkout@v6"
+          "uses": "actions/checkout@v7"
         },
         {
           "run": "cargo test"
@@ -306,7 +306,7 @@
           }
         },
         {
-          "uses": "actions/checkout@v6"
+          "uses": "actions/checkout@v7"
         },
         {
           "run": "cargo fmt -- --check"
@@ -395,13 +395,13 @@
           }
         },
         {
-          "run": "deno install -g -A npm:functionalscript@0.31.1"
+          "run": "deno install -g -A npm:functionalscript@0.32.4"
         },
         {
-          "uses": "actions/checkout@v6"
+          "uses": "actions/checkout@v7"
         },
         {
-          "run": "deno run -A npm:functionalscript@0.31.1 t"
+          "run": "deno run -A npm:functionalscript@0.32.4 t"
         },
         {
           "run": "deno install --frozen"
@@ -424,16 +424,16 @@
           }
         },
         {
-          "run": "bun install -g functionalscript@0.31.1"
+          "run": "bun install -g functionalscript@0.32.4"
         },
         {
-          "uses": "actions/checkout@v6"
+          "uses": "actions/checkout@v7"
         },
         {
           "run": "bun install --frozen-lockfile"
         },
         {
-          "run": "bunx functionalscript@0.31.1 t"
+          "run": "bunx functionalscript@0.32.4 t"
         },
         {
           "run": "bun test --coverage"
@@ -449,14 +449,14 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "22.22.3"
+            "node-version": "22.23.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.31.1"
+          "run": "npm install -g functionalscript@0.32.4"
         },
         {
-          "uses": "actions/checkout@v6"
+          "uses": "actions/checkout@v7"
         },
         {
           "run": "npm ci"
@@ -475,11 +475,11 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24.16.0"
+            "node-version": "24.17.0"
           }
         },
         {
-          "uses": "actions/checkout@v6"
+          "uses": "actions/checkout@v7"
         },
         {
           "run": "npm ci"
@@ -498,14 +498,14 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.3.0"
+            "node-version": "26.3.1"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260617.2"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260620.1"
         },
         {
-          "uses": "actions/checkout@v6"
+          "uses": "actions/checkout@v7"
         },
         {
           "run": "npm ci"
@@ -533,7 +533,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.3.0"
+            "node-version": "26.3.1"
           }
         },
         {
@@ -553,7 +553,7 @@
           "run": "playwright install"
         },
         {
-          "uses": "actions/checkout@v6"
+          "uses": "actions/checkout@v7"
         },
         {
           "run": "npm ci"
