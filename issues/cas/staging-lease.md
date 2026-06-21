@@ -175,10 +175,14 @@ commit(handle, key, mode = normal):
 
   switch rename(handle.path, dst):          // 4. the rename is the atomic, authoritative point
     ok:               break
-    ENOENT(source):   error                 //    lease lost ⇒ restart upload
+    ENOENT(source):   return error          //    lease lost ⇒ restart upload
     EEXIST/EACCES(dst): // dst appeared/locked AFTER step 2 — concurrent same-hash commit (Windows)
         if mode == normal: rm(handle.path); return ok       //    dedup success — resolve here, not at stat
-        if mode == repair: setReadonly(dst, false); rename(handle.path, dst)  // replace, then continue
+        if mode == repair:                                  //    corrupt dst was re-locked concurrently
+            setReadonly(dst, false)                         //    clear again and retry —
+            if rename(handle.path, dst) != ok: return error //    …but CHECK the retry; still locked or
+                                                            //    lease lost ⇒ fail, caller restarts
+    other:            return error          //    propagate any other rename error
 
   fsync(dirOf(dst))                         // 5. persist the new file entry, BEFORE reporting
   for d in newDirs (deepest → shallowest):  //    success — and persist every newly-created
@@ -209,11 +213,20 @@ trusts `dst`: it replaces the bytes. A caller that wants certainty rather than t
 can run a **verifying** commit — re-hash `dst` and replace on mismatch — at the cost of an
 O(size) re-read of the existing shard.
 
-The staging directory itself is **not** fsynced on `createExclusive`/`renew`: a staging
-file lost to a crash before commit just restarts the upload (fail-safe), so only `commit` —
-the point where success is acknowledged — needs durability, and it needs the file data
-(step 1), the destination directory entry, and any newly-created ancestor directory entries
-(step 4) all persisted before returning.
+By default the staging file's data and its directory entry are **not** fsynced on
+`createExclusive`/`writeBytes`/`renew`: a staging file lost to a crash before commit just
+restarts the upload (fail-safe), so only `commit` — the point where success is acknowledged
+— forces durability (the file data, the destination directory entry, and any newly-created
+ancestor directory entries, all persisted before returning).
+
+That default trades durability of *in-progress* work for speed, which is fine for a
+disposable upload but is in tension with the reboot-survivable resume claim below. A lease
+that must survive a **power loss** (not just a process exit) needs an **optional fsync
+cadence**: periodically — e.g. at each `renew` — fsync the staging file's data and the
+`_staging/` directory entry, so the partial bytes and the current deadline name are durable.
+This is the durability counterpart of the lease-length knob: an uploader that pre-assigns a
+long lease *because it needs the document* should also opt into the fsync cadence. Without
+it, resume is scoped to clean restarts (see *Reboot-survivable resume*).
 
 `append` writes at an **explicit offset** rather than `O_APPEND`. This makes every write
 idempotent: a transient failure can be retried with the same bytes at the same offset
@@ -338,6 +351,20 @@ survive a reboot:
 Resume cost is O(bytes-so-far) because SHA-2 is not seekable and the hash state must be
 rebuilt from disk. This is acceptable for the sizes involved and is the only non-O(1) part
 of the design.
+
+**Two reboot classes, two guarantees.** A *clean* restart — process exit or graceful reboot
+where the OS flushes its buffers — preserves the staging file and its name without any extra
+work, so resume is reliable. A *power loss* is different: with the default no-fsync staging
+path, the most recent `writeBytes` data, the latest `renew` rename, or even the staging
+directory entry may not have reached disk, so on reboot the file can be missing, rolled back
+to an older (now-expired) name, or truncated. Resume stays **fail-safe** regardless — step 3
+re-derives `size` and the hash from whatever *durably* survived, so it never resumes onto
+wrong bytes; it simply continues from the last durable offset or, in the worst case, restarts.
+But turning power-loss survival from "best-effort" into a *guarantee* requires the optional
+fsync cadence described under the write protocol (fsync the staging data + `_staging/` entry
+at each renew). In short: clean restarts resume for free; power-loss-durable resume is the
+long-lease writer's opt-in, consistent with the design's "you choose your own strategy"
+contract.
 
 ## Distributed and remote staging
 
