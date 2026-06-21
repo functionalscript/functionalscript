@@ -1,7 +1,7 @@
 # 66D-bigint-roundup-factory. `bigint`: collapse the power-of-two `divUpE2` / `roundUpE2` variants
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -104,12 +104,12 @@ helper that no existing module uses … Speculative code rots."
 
 ## Tasks
 
-- [ ] Redefine `divUp8` / `roundUp8` in terms of `divUp` / `roundUp`; delete
+- [x] Redefine `divUp8` / `roundUp8` in terms of `divUp` / `roundUp`; delete
       `divUpE2` / `roundUpE2`.
-- [ ] Add JSDoc noting the bits→bytes intent and the non-negative-input domain.
-- [ ] Drop the `divUpE2` / `roundUpE2` cases from `fs/types/bigint/proof.f.ts`;
+- [x] Add JSDoc noting the bits→bytes intent and the non-negative-input domain.
+- [x] Drop the `divUpE2` / `roundUpE2` cases from `fs/types/bigint/proof.f.ts`;
       keep full line/branch coverage of `divUp` / `roundUp` / `divUp8` / `roundUp8`.
-- [ ] Run `npx tsc` and `fjs t`; confirm `bigint`, `asn.1`, and `crypto/sign`
+- [x] Run `npx tsc` and `fjs t`; confirm `bigint`, `asn.1`, and `crypto/sign`
       proofs still pass (call-site behaviour is unchanged on the non-negative
       domain).
 
