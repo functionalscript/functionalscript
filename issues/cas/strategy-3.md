@@ -228,18 +228,49 @@ are an addressing convenience layered over it.
 
 ## Writing parts directly
 
-Parts are written **directly** to `parts/`; there is no per-tree staging area.
-Because every part is content-addressed, writing one is idempotent — a re-write
-stores identical bytes under the same hash — so concurrent or repeated writes of the
-same part never conflict. A writer builds its tree bottom-up, writing each part
-straight into `parts/`, and registers the root in `roots/` only at the very end.
+Parts are written **directly** to `parts/`; there is no per-tree staging area. A
+writer builds its tree bottom-up, writing each part straight into `parts/`, and
+registers the root in `roots/` only at the very end.
 
-An interrupted or abandoned write (the process dies before registering its root)
-therefore leaves **orphaned parts** in `parts/` — parts reachable from no root. These
-are harmless: they occupy space but are never read, and the next GC reclaims them. No
-rollback, no staging cleanup, no atomic multi-file move is required. This is the key
-simplification over Strategy 1: an incomplete write produces collectible garbage, not
-corruption.
+### Each part write must be atomic and no-clobber
+
+Content-addressing makes a re-write *logically* idempotent — the same hash always
+maps to the same bytes — but that guarantee only holds if the physical write to
+`parts/<hash>` is **atomic** and **no-clobber**. A naive backing that ends in a
+plain `writeFile` to the final content path (as `fileKvStore.write` does today)
+does **not** satisfy this:
+
+- `writeFile` truncates the existing path and rewrites it in place. While those
+  bytes are being written, the path is observable in a half-written state.
+- If a second writer emits a part whose hash already exists, it re-truncates a part
+  that is already **live** (reachable from some root). A reader walking the tree
+  concurrently — or a crash mid-write — can then observe a truncated or partial
+  part. This is **corruption of live content**, not a harmless orphan.
+
+The design therefore requires that writing `parts/<hash>` be done through one of:
+
+- **Write-to-staging-then-rename** (Strategy 1's pipeline): write to a temp name,
+  `fsync`, then atomically `rename` onto `parts/<hash>`. `rename` is atomic, so a
+  reader sees either the old complete part or the new complete part, never a partial
+  one. Because content is identical for a given hash, clobbering via rename is safe.
+- **No-clobber / verify-existing skip**: if `parts/<hash>` already exists, skip the
+  write entirely (optionally verifying length). Create only when absent, using an
+  atomic create (`O_EXCL` link/rename), so two writers racing on the same new hash
+  resolve to one complete file and the loser's attempt is a no-op.
+
+Either path keeps the "repeated writes never conflict" property true. The plain
+in-place `writeFile` path is **not** acceptable for `parts/`: it is the one case
+where re-writing an existing object is unsafe.
+
+### Orphans from interrupted writes
+
+Given atomic no-clobber part writes, an interrupted or abandoned write (the process
+dies before registering its root) leaves **orphaned parts** in `parts/` — complete
+parts reachable from no root. These are harmless: they occupy space but are never
+read, and the next GC reclaims them. No rollback, no staging cleanup, no atomic
+multi-file move across the whole tree is required. This is the key simplification
+over Strategy 1: an incomplete write produces collectible garbage, not corruption —
+*provided each individual part write is itself atomic and no-clobber*.
 
 ## Garbage collection
 
