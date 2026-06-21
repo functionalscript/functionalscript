@@ -367,16 +367,18 @@ arbitrarily large files, so a "longest plausible write" mtime grace period canno
 a correctness guarantee — a large-file write can take arbitrarily long, far exceeding
 any fixed threshold.
 
-The **required** guard is one of:
-- **Pending-root marker**: the writer registers a placeholder in `_roots/` before
-  writing its first part, removes it on abort, and replaces it with the real root on
-  commit. GC treats any part reachable from a `_roots/` entry (including placeholders)
-  as live.
-- **Write/GC lock**: a global mutex or dead-man's-switch (the same mechanism as
-  Strategy 1's `_staging` lock) that GC must hold exclusively during sweep, so no
-  concurrent write is in progress while sweep runs.
+The **required** guard is a **write/GC lock**: a global mutex or dead-man's-switch
+(the same mechanism as Strategy 1's `_staging` lock) that GC must hold exclusively
+during sweep, so no concurrent write is in progress while sweep runs.
 
-A mtime-based grace period may supplement either approach — reducing churn by
+A pending-root marker (registering a placeholder in `_roots/` before the first part
+write) does **not** solve this: GC marks only parts reachable from `_roots/` entries,
+and a placeholder created before any parts are written references no parts at all.
+Parts written bottom-up during a long upload remain unreachable from the placeholder
+and are eligible for sweep. The marker would need to be updated with every new part
+written — effectively reproducing the logic of a write/GC lock at higher cost.
+
+A mtime-based grace period may supplement the write/GC lock — reducing churn by
 deferring cleanup of very recently written parts — but it is not sufficient as a
 stand-alone correctness mechanism for arbitrary-size writes.
 

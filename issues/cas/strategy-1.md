@@ -34,10 +34,21 @@ operation (which validates each name via `cBase32ToVec`).
 
 ## Read-only after commit
 
-After rename, the committed file is marked read-only. This enforces the CAS
-immutability invariant at the OS level, prevents accidental overwrites of a shard
-by a concurrent upload of the same content, and signals to the OS that the file is
-a candidate for deduplication (copy-on-write / reflinks).
+After rename, the committed file is marked read-only (`chmod 444` on POSIX; set
+read-only attribute on Windows). This prevents **in-place writes** to the file
+content (any subsequent `open` + `write` on the path fails with `EACCES`), signals
+immutability intent to the OS (making the file a candidate for copy-on-write /
+reflink deduplication), and makes accidental in-place truncation or overwrite by
+application code visibly fail rather than silently corrupt a shard.
+
+`chmod 444` does **not** prevent path-level replacement: on POSIX, a process with
+write permission on the containing directory can still call `rename` or `unlink` on
+the path regardless of the file's mode. Strategy 1's own commit step uses `rename`,
+so it can write over an existing `chmod 444` shard. The protection against a
+concurrent upload replacing live shard content therefore comes from the
+**application-level CAS invariant** — same hash ⇒ same bytes — not from the OS
+read-only bit. A rename onto an existing shard path is safe because the replacement
+content is byte-for-byte identical to what was already there.
 
 ## Lock as dead-man's switch
 
