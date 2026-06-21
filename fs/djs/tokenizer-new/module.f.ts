@@ -43,7 +43,8 @@ export const jsGrammar = (): Rule => {
             escape: [
                 '\\',
                 {
-                    ...set('"\\/bfnrt'),
+                    ...set('"\\bfnrt'),
+                    solidus: '/',
                     u: [
                         'u',
                         ...repeat(4)({
