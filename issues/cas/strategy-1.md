@@ -58,12 +58,22 @@ Only files under `.cas/_staging/` are eligible for cleaning. Committed shard fil
 are permanent and never cleaned.
 
 A staging file is safe to delete when its lock can be acquired (POSIX) or its
-deletion succeeds (Windows), meaning no live writer holds it. In practice:
+deletion succeeds (Windows), meaning no live writer holds it. On POSIX,
+`openExclusive` creates the file and acquires `flock` in two separate syscalls, so
+the mtime grace check from `staging.md` must run first — a cleaner that skips it
+can win the open-to-flock race on a brand-new upload and unlink an active staging
+file. In practice:
 
-- On POSIX: attempt `flock(fd, LOCK_EX | LOCK_NB)`. If it succeeds, the writer is
-  gone; delete and close. If it returns `EWOULDBLOCK`, a writer is active; skip.
-- On Windows: attempt to delete. Success means the file was not open; failure means
-  a writer is active; skip.
+- On POSIX:
+  1. Check mtime. If the file is newer than the grace-period threshold (e.g. 60 s),
+     skip it unconditionally — do not call `flock`. The file may be a new writer
+     between `open` and `flock`.
+  2. Attempt `flock(fd, LOCK_EX | LOCK_NB)`. If it succeeds, the writer is gone;
+     delete and close. If it returns `EWOULDBLOCK`, a writer is active; skip.
+- On Windows: attempt to delete. Success means the file was not open; failure
+  (`ERROR_SHARING_VIOLATION`) means a writer is active; skip. The mtime check is
+  not required on Windows (the open handle is acquired atomically with creation)
+  but is harmless to include.
 
 Cleaning can run lazily — piggy-backed on `openWrite` — rather than as a scheduled
 daemon, since staging files are disposable and space reclamation is not urgent.
