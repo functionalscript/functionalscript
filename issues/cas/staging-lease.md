@@ -143,6 +143,9 @@ find one. This makes the create-vs-append state machine total and self-checking:
 WriteHandle = { path, offset, hash }   // plain data, no OS resource
 
 openWrite(ttl):
+  mkdir(`_staging`, {recursive})            // ensure the staging dir exists — on a fresh store it does
+                                            //   not, and createExclusive (O_CREAT|O_EXCL) creates only
+                                            //   the leaf file, so it would ENOENT without this
   rand  = random256()
   dl    = now() + ttl                      // or a writer-chosen far-future deadline
   path  = `_staging/${fmt(dl)}-${rand}`
