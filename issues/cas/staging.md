@@ -163,11 +163,11 @@ miss any orphans left by `casUpload` in `.stage/`. Two options:
    cleaning scope. This is the recommended path once Strategy 1 effects are
    implemented.
 2. **Scan both** — teach the cleaner to cover `.stage/` as well. However, this
-   option is **unsafe for large uploads**: `casUpload` copies the source into
-   `.stage/<uuid>` (setting mtime) and then reads it via `readBytes` to compute the
-   hash. The file mtime does not refresh during the read/hash phase, so an upload
-   that runs longer than the grace period is indistinguishable from a genuine orphan
-   by mtime alone. Without an independent guard (e.g. an flock on `.stage/` files,
-   or a process-liveness check), the cleaner can delete a live staged file and cause
-   the subsequent rename to the final CAS path to fail. This option should not be
-   used until `casUpload` acquires an OS-level hold on its staging file.
+   option is **unsafe** and the mtime grace period provides no protection here:
+   `casUpload` **renames** the source from `cas_upload/` into `.stage/<uuid>`
+   (`fs/cas/module.f.ts:152`), which preserves the source file's original mtime
+   rather than setting a fresh one. The staged file can therefore appear arbitrarily
+   old immediately after the rename — even older than the grace-period threshold —
+   making a mtime-based check classify a just-started active upload as a stale orphan.
+   This option must not be used until `casUpload` acquires an OS-level hold on its
+   staging file (e.g. via `openExclusive` after migrating to `_staging/`).

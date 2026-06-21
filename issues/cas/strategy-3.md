@@ -22,10 +22,16 @@ small, is named by one root hash.
 
 Because no node ever exceeds 128 KiB, every node fits in a single `Vec` and is
 stored through the **existing** small-file primitive — `write(Vec) => hash` and
-`read(hash) => Vec` — with no change. This strategy needs no streaming handle, no
-staging-and-rename for large files, no windowed `readBytes`, and no new effects: it
-builds arbitrarily large files entirely out of the small-file CAS that already
-exists. The "large file problem" dissolves into "many small files plus a tree".
+`read(hash) => Vec` — with no change. At the **logical layer**, this strategy needs
+no streaming handle, no windowed `readBytes`, and no new effects: it builds
+arbitrarily large files entirely out of the small-file CAS that already exists. The
+"large file problem" dissolves into "many small files plus a tree".
+
+On a real filesystem, individual `_parts/` writes must still be atomic and
+no-clobber — the existing `fileKvStore.write` (which truncates in place) is not
+compliant. Strategy 1's staging-and-rename is one compliant path; a new `O_EXCL`
+create-or-skip effect would be another. See "Writing `_parts/` directly" for
+details.
 
 ## Node encoding
 
