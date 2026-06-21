@@ -146,8 +146,14 @@ renew(handle):
 
 commit(handle, key):
   fsync(handle.path)                        // bytes durable before the shard is visible
-  rename(handle.path, `.cas/${shard(key)}`) // ENOENT ⇒ lease lost ⇒ error, restart upload
-  setReadonly(`.cas/${shard(key)}`)         // chmod 444 / ReadOnly attribute
+  dst = `.cas/${shard(key)}`
+  rename(handle.path, dst)                   // ENOENT ⇒ lease lost ⇒ error, restart upload
+  setReadonly(dst)                           // chmod 444 / ReadOnly attribute
+  // Windows: if dst already exists with the ReadOnly attribute, MoveFileEx fails with
+  // access-denied. By the CAS invariant (same hash ⇒ same bytes) the existing shard is
+  // already correct, so the right response is rm(handle.path) and return success — or
+  // clear ReadOnly on dst, then rename over it. (POSIX rename replaces silently.)
+  // Same case as commitHandle in strategy-1.md.
 
 abort(handle):
   rm(handle.path)                           // ENOENT is fine — already reclaimed
@@ -179,16 +185,29 @@ that a cleaner which skips `tryLockExclusive` *silently corrupts* active POSIX w
 
 ## Garbage collection
 
-GC reclaims files whose deadline is in the past, in oldest-deadline-first order:
+GC reclaims a file whose deadline is either in the past (expired) **or** absurdly far in
+the future (beyond the `now + MAX` lease cap — a buggy or wrong-clock writer; see *Cap the
+maximum lease*). Because names sort chronologically, expired files form a **prefix** of the
+sorted listing and over-cap files form a **suffix**, with the live leases in the middle. GC
+reclaims from both ends and stops as soon as it reaches a live lease, so it never has to
+examine the middle:
 
 ```
-gc():
-  for name in sort(readdir(`_staging/`)):   // lexical sort = chronological
-      if deadline(name) < now():
-          rm(`_staging/${name}`)            // ENOENT is fine
-      else:
-          break                             // the rest are not yet expired
+gc(now, MAX):
+  names = sort(readdir(`_staging/`))         // lexical sort = chronological
+  for name in names:                         // front → back: expired prefix
+      if deadline(name) < now: rm(`_staging/${name}`)   // ENOENT is fine
+      else: break
+  for name in reverse(names):                // back → front: over-cap suffix
+      if deadline(name) > now + MAX: rm(`_staging/${name}`)
+      else: break
 ```
+
+A single early `break` on the front alone would be wrong: an absurd far-future name sorts
+*after* the normal future leases, so the front scan would stop before ever reaching it and
+the cap would never be enforced — the space would leak until that date. The back scan closes
+that gap. (A plain full scan is also correct; the directory listing is already O(n). The
+two-ended form just preserves the skip-the-middle optimization.)
 
 GC can run lazily (piggy-backed on `openWrite`) rather than as a daemon, since staging
 space reclamation is not urgent.
@@ -285,12 +304,37 @@ unlink / pwrite-at-offset), which network filesystems support well. Dropping the
 
 ### Cross-machine handoff
 
-Machine-to-machine takeover is reboot-resume across machines: the stable `random256`
-identity locates the file on the shared disk, and re-hash-from-disk rebuilds
-`{offset, hash}`. Ownership transfer uses the same fencing rename — to take over, a machine
-renames to a new deadline; two claimants race the atomic rename, one wins, the other gets
-`ENOENT` and backs off. **The lease token doubles as the distributed mutual-exclusion
-primitive**: the same rename that detects crashes also transfers ownership.
+Ownership transfer uses the same fencing rename — to take over, a machine renames to a new
+deadline; two claimants race the atomic rename, one wins, the other gets `ENOENT` and backs
+off. **The lease token doubles as the distributed mutual-exclusion primitive**: the same
+rename that detects crashes also transfers ownership.
+
+What the rename does **not** do is quiesce a previous holder that is mid-write. The fence
+protects *path lookups*: once renamed, no one can `open` the old name. But on POSIX/NFS an
+fd a stale holder opened **before** the rename still refers to the same inode, so an
+in-flight `writeBytes` (its internal `open`+`pwrite`) can land *after* the claimant has
+renamed, statted, and re-hashed the file. The claimant would then commit a shard whose
+bytes changed after its hash state was built — a CAS corruption. There are two safe
+takeover modes:
+
+- **Discard-and-restart (default).** The claimant does **not** inherit bytes. It starts a
+  fresh staging file under its own `<deadline>-<random256>` identity and re-uploads. This
+  collapses into the competitive pattern below, is trivially correct (no shared inode, no
+  race), and is fully in the design's spirit — the worst case is wasted work.
+- **Inherit-with-quiescence (optimization).** To reuse the partial bytes, the claimant must
+  (1) after winning the rename, wait a **quiescence grace** longer than the maximum possible
+  duration of a single in-flight `writeBytes` before it stats/re-hashes — by then any
+  straddling write has landed and no new one can start, because the stale holder's next
+  `writeBytes` opens the now-gone old name and fails `ENOENT`; **and** (2) verify
+  end-to-end at commit — re-hash the finished file from disk and compare it to `key` before
+  the rename — so that if the grace is ever mis-sized the mismatch is caught and the upload
+  restarts rather than committing bad bytes. (For an inherited file the claimant is already
+  re-reading to rebuild hash state, so this verification largely overlaps work it must do
+  anyway.)
+
+Either way, machine-to-machine takeover otherwise works like reboot-resume: the stable
+`random256` identity locates the file, and (in inherit mode) re-hash-from-disk rebuilds
+`{offset, hash}`.
 
 ### Skew and partition cost throughput, not safety
 
@@ -349,14 +393,17 @@ This enables two patterns for free:
   stragglers automatically. *Concretely:* of two uploaders, one keeps receiving parts and
   renews its name while the other is stuck and cannot, so the GC removes the stuck one and
   the healthy one wins. The loser's partial bytes are simply discarded.
-- **True failover on one partial upload.** Two uploaders that share the *same* staging
-  identity (the cross-machine handoff above): if the holder stalls, its lease lapses and a
-  healthy uploader claims the same file via the fencing rename and resumes from
-  `offset = size`. Here the partial bytes are *inherited*, not discarded.
+- **True failover on one partial upload.** A healthy uploader takes over a stalled holder's
+  partial file via the fencing rename. By default this is **discard-and-restart** (a fresh
+  identity), which is exactly the competitive case. Reusing the partial bytes
+  (`resume from offset = size`) is possible but requires the **inherit-with-quiescence**
+  discipline from *Cross-machine handoff* — the fencing rename alone does not stop a stale
+  holder's in-flight `writeBytes` from mutating the inherited inode, so a naive resume can
+  commit corrupted bytes.
 
 The difference is only whether the `random256` identity is shared: independent identities
-give competitive redundancy (loser's bytes discarded); a shared identity gives resumable
-failover (bytes inherited).
+give competitive redundancy (loser's bytes discarded); a shared identity *can* give
+resumable failover, but only with the quiescence + commit-verification safeguards above.
 
 ### The slow-vs-stuck threshold
 
