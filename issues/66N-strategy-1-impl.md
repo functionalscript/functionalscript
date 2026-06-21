@@ -44,7 +44,7 @@ Runs lazily, piggy-backed on `openWrite` (CAS layer). Scans `.cas/_staging/`:
 1. For each file: call `stat` to get `mtimeMs`.
 2. If `mtimeMs` is newer than the grace threshold (60 s recommended), skip.
 3. Call `tryLockExclusive`. If it returns `undefined`, a writer is active — skip.
-4. If a `FileHandle` is returned, the file is orphaned — delete it and close the handle.
+4. If a `FileHandle` is returned, the file is orphaned — call `deleteHandle` (delete-then-close, not close-then-delete).
 
 ### Migration from `casUpload`
 

@@ -6,7 +6,7 @@
 ## Problem
 
 Strategy 1 (Staging + Rename, see [cas/strategy-1.md](./cas/strategy-1.md)) cannot be
-implemented with the current effect set in `fs/effects/node/module.f.ts`. Six new
+implemented with the current effect set in `fs/effects/node/module.f.ts`. Seven new
 effects and one new nominal type are required before any CAS-layer code can be
 written.
 
@@ -35,30 +35,31 @@ Nothing outside the runner can inspect or forge a `FileHandle`.
 
 | Effect | Signature | Notes |
 |---|---|---|
-| `openExclusive` | `(path: string) => IoResult<FileHandle>` | Creates the file if absent; acquires an exclusive lock (`flock(LOCK_EX)` on POSIX, inherent on Windows via open handle). |
+| `openExclusive` | `(path: string) => IoResult<FileHandle>` | Creates the file with exclusive-create semantics (`O_CREAT \| O_EXCL` on POSIX, `CREATE_NEW` on Windows) — returns an error if the path already exists; the caller must retry with a new name. Acquires an exclusive lock (`flock(LOCK_EX)` on POSIX, inherent on Windows). Using O_EXCL closes the race where a second writer opens an existing staging path, then acquires the flock after the first writer's `commitHandle` renames the file to its shard destination, letting `appendHandle` mutate committed CAS content. |
 | `appendHandle` | `(handle: FileHandle, data: Vec) => IoResult<void>` | Writes `data` through the held file descriptor. Bounded to ≤128 KiB per call. |
 | `commitHandle` | `(handle: FileHandle, destPath: string) => IoResult<void>` | Renames the staging file to `destPath`, marks it read-only (`chmod 444`), closes the fd, and releases the lock. On Windows: if `destPath` already exists with ReadOnly attribute, delete the staging file and return success (CAS invariant: same hash ⇒ same bytes). |
-| `abortHandle` | `(handle: FileHandle) => IoResult<void>` | Closes the fd and releases the lock, then deletes the staging file. |
+| `abortHandle` | `(handle: FileHandle) => IoResult<void>` | Deletes the staging file, then closes the fd and releases the lock. **Delete before close** keeps the flock held through the unlink, so no other writer can reuse the staging path between unlink and close. (Writer abort path only — for the cleaner path use `deleteHandle`.) |
 
-### Read/stat-side effects
+### Read/stat/clean-side effects
 
 | Effect | Signature | Notes |
 |---|---|---|
-| `tryLockExclusive` | `(path: string) => IoResult<FileHandle \| undefined>` | Non-blocking attempt: returns a `FileHandle` if the lock was acquired (file is orphaned, safe to delete), or `undefined` if another process holds it (writer is active, skip). Maps to `flock(LOCK_EX \| LOCK_NB)` on POSIX; attempted open on Windows. |
+| `tryLockExclusive` | `(path: string) => IoResult<FileHandle \| undefined>` | Non-blocking attempt: returns a `FileHandle` if the lock was acquired (file is orphaned, safe to delete via `deleteHandle`), or `undefined` if another process holds it (writer is active, skip). Maps to `flock(LOCK_EX \| LOCK_NB)` on POSIX; attempted open on Windows. The caller **must** follow up with `deleteHandle`, not a plain `rm` + close, to avoid the POSIX race described under `deleteHandle`. |
+| `deleteHandle` | `(handle: FileHandle) => IoResult<void>` | Deletes (unlinks) the staging file, then closes the fd and releases the lock. Intended for the **cleaner path** after `tryLockExclusive` succeeds. **Delete before close** keeps the flock held through the unlink; closing first would release the flock before the file is gone, creating a window where a new writer could reuse the same staging path and acquire the lock before the cleaner's unlink runs. |
 | `stat` | `(path: string) => IoResult<{ readonly size: number, readonly mtimeMs: number }>` | Returns file metadata without reading content. `mtimeMs` is required by the POSIX cleaner's mandatory mtime grace check (see [cas/staging.md](./cas/staging.md)). Currently `fs.promises.stat` is used internally by the Node runner's `readFile` but is not exported as an effect. |
 
 ### `Fs` union update
 
-Add all six new effects to the `Fs` union alongside the existing filesystem
+Add all seven new effects to the `Fs` union alongside the existing filesystem
 effects, and add them to `NodeOp`.
 
 ## Tasks
 
 - [ ] Add `FileHandle` nominal type to `fs/effects/node/module.f.ts`
 - [ ] Add `OpenExclusive`, `AppendHandle`, `CommitHandle`, `AbortHandle` effect types and `do_` constructors
-- [ ] Add `TryLockExclusive`, `Stat` effect types and `do_` constructors
-- [ ] Extend `Fs` union and `NodeOp` to include all six new effects
-- [ ] Implement all six effects in the Node runner (`fs/effects/node/module.ts`)
+- [ ] Add `TryLockExclusive`, `DeleteHandle`, `Stat` effect types and `do_` constructors
+- [ ] Extend `Fs` union and `NodeOp` to include all seven new effects
+- [ ] Implement all seven effects in the Node runner (`fs/effects/node/module.ts`)
 - [ ] In the Node runner, represent `FileHandle` using `asNominal`/`asBase` to wrap a
   struct `{ fd: fs.promises.FileHandle, stagingPath: string }` — a bare `fs.promises.FileHandle`
   does not retain the path, but `commitHandle` (rename) and `abortHandle` (delete) both need it;
