@@ -1,5 +1,17 @@
 # Strategy 1: Staging + Rename
 
+> **Staging mechanism — chosen design.** The OS-lock dead-man's switch described below
+> (`flock` on POSIX, open handle on Windows) has been superseded by the lock-free
+> **deadline-lease** design in [staging-lease.md](staging-lease.md). The lease replaces the
+> lock with a deadline encoded in the staging file name: it is lock-free,
+> platform-symmetric, drops the POSIX `flock`/`unlink` advisory hazard and the mandatory
+> mtime grace period, and additionally survives reboots, works across machines, and supports
+> competitive/failover uploads — all while failing safe (worst case is a restarted upload,
+> never a corrupted shard). See the comparison table in that doc. The rename-to-commit
+> pipeline and read-only-after-commit semantics in this document still apply unchanged; only
+> the dead-man's switch (the `## Lock as dead-man's switch` section and its lock-based
+> effects) is replaced.
+
 ## Overview
 
 Large files are written to a staging area first, then atomically renamed to their
@@ -59,6 +71,9 @@ the rename. Alternatively, `commitHandle` may clear the ReadOnly attribute on th
 destination before renaming over it; both paths preserve correctness.
 
 ## Lock as dead-man's switch
+
+> **Superseded** by the deadline-lease design — see [staging-lease.md](staging-lease.md).
+> This section documents the original lock-based approach; the lease replaces it.
 
 The `WriteHandle` holds a live OS resource for the entire duration of staging:
 

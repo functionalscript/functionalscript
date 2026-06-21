@@ -4,9 +4,17 @@ Three strategies for storing files of arbitrary size in a content-addressable st
 each with different trade-offs between memory use, streaming, atomicity, and
 deduplication.
 
-- [Strategy 1: Staging + Rename](strategy-1.md) — stream data through a staging file
-  held by an OS lock; rename to the final hash-addressed path on commit. Constant
-  memory, safe for arbitrarily large files on a real filesystem.
+- [Strategy 1: Staging + Rename](strategy-1.md) — stream data through a staging file;
+  rename to the final hash-addressed path on commit. Constant memory, safe for
+  arbitrarily large files on a real filesystem. The staging mechanism is described by two
+  alternatives:
+  - [Staging file behavior](staging.md) — the original OS-lock (`flock` / open-handle)
+    dead-man's switch.
+  - [Lock-free staging via deadline leases](staging-lease.md) — **the chosen design.** A
+    deadline encoded in the staging file name replaces the lock. It is lock-free,
+    platform-symmetric, survives reboots, works across machines, and fails safe (worst case
+    is a restarted upload, never a corrupted shard). See that doc's comparison table for why
+    it wins over the lock-based approach.
 
 - [Strategy 2: Array of Bit Vectors](strategy-2.md) — read and write the whole file
   as a `readonly Vec[]`; retire `readBytes`. Hash is known before the write, so no
