@@ -108,151 +108,79 @@ used — it fails to sort across DST transitions and offset changes.
 
 ## Effect set
 
-The lease design needs **no `FileHandle` type** and no held OS resource. The `WriteHandle`
-returned to the caller is plain data — `{ path, offset, hash }` — not an opaque
-runner-held token. Every effect is stateless and path-based, exactly like the existing
-`readBytes` / `writeFile` / `rename` effects in `fs/effects/node/module.f.ts`.
+The design needs **no `FileHandle` type** and no held OS resource — the uploader's state is
+plain data (`path`, `offset`, `hash`). Every effect is stateless and path-based, like the
+existing `readBytes` / `writeFile` / `rename` effects in `fs/effects/node/module.f.ts`.
 
 | Effect | Signature | Notes |
 |---|---|---|
-| `createExclusive` | `(path) => IoResult<void>` | `O_CREAT\|O_EXCL`. Creates a brand-new staging file at a `<deadline>-<random256>` name. `EEXIST` is a hard error (a 256-bit collision or a bug), not a retry signal. |
-| `writeBytes` | `(path, offset, data: Vec) => IoResult<void>` | The symmetric mirror of `readBytes`. Opens the **existing** file (no create), writes `data` at `offset`. `ENOENT` ⇒ the GC reclaimed this file ⇒ the writer lost its lease and must abort. Bounded to ≤128 KiB per call, matching `maxLengthBytes`. |
-| `rename` | `(src, dst) => IoResult<void>` | Already exists. Used both for **renew** (`<oldDeadline>-<rand>` → `<newDeadline>-<rand>`) and for **commit** (`_staging/...` → `.cas/<prefix>/<hash>`). |
-| `rm` | `(path) => IoResult<void>` | Already exists. Used for **abort** and by the GC. |
-| `stat` | `(path) => IoResult<{size, mtimeMs}>` | **New.** Used for **resume** (`offset = size`) and optional bookkeeping. `mtimeMs` is **not** required for correctness here — unlike `staging.md`, there is no open→lock gap to cover. |
-| `fsync` | `(path) => IoResult<void>` | **New.** Flushes a path to disk. On a **file** path it persists the data; on a **directory** path it persists that directory's entries (creations/renames) — the same `fsync(fd)` syscall on a directory fd. `commit` needs both: file data before the rename, and the destination directory after it (so the new shard entry survives a power loss). There is no such effect in the current node set. On Windows, a directory fsync has no exact equivalent; use a write-through rename (`MOVEFILE_WRITE_THROUGH`) to make the commit durable instead. |
-| `setReadonly` | `(path, readonly: bool) => IoResult<void>` | **New.** Sets (`true`) or clears (`false`) the read-only mark (`chmod 444`/`644` on POSIX; ReadOnly attribute on Windows). `commit` sets it after the rename; the **repair** path and the Windows overwrite-existing path clear it first so the rename can replace the destination. There is no such effect in the current node set. |
+| `createExclusive` | `(path) => IoResult<void>` | `O_CREAT\|O_EXCL`. Creates the staging file. With 256 random bits in the name `EEXIST` never happens in practice; it is just a sanity guard. |
+| `writeBytes` | `(path, offset, data: Vec) => IoResult<void>` | Mirror of `readBytes`. Opens the **existing** file (no create) and writes at `offset`. `ENOENT` ⇒ the GC already reclaimed this file ⇒ the upload failed; delete and restart. Bounded to ≤128 KiB per call. |
+| `rename` | `(src, dst) => IoResult<void>` | Already exists. Renews the lease (`…-<rand>` → a newer deadline) and publishes the shard (`_staging/…` → `.cas/<prefix>/<hash>`). |
+| `rm` | `(path) => IoResult<void>` | Already exists. Deletes a partial/aborted upload; also the GC's reclaim. |
+| `stat` | `(path) => IoResult<{size}>` | **New.** Used by resume to recover `offset = size`. |
 
-`createExclusive`, `writeBytes`, `stat`, `fsync`, and `setReadonly` are **new** effects to
-add to `fs/effects/node/module.f.ts`; `rename`, `rm`, and `mkdir` already exist (`commit`
-uses `mkdir({recursive})` to create missing shard-prefix directories, and `stat` to test
-whether the destination already exists). The set is still far smaller than the lock design's
-(no `FileHandle`, `openExclusive`, `appendHandle`, `commitHandle`, `abortHandle`, or
+`createExclusive`, `writeBytes`, and `stat` are **new**; `rename`, `rm`, and `mkdir` already
+exist. Marking a committed shard read-only (`chmod 444`) for immutability is an optional
+extra, not part of the core upload. The set is far smaller than the lock design's (no
+`FileHandle`, `openExclusive`, `appendHandle`, `commitHandle`, `abortHandle`, or
 `tryLockExclusive`).
-
-`O_EXCL` is **not** mutual exclusion (the random suffix already guarantees uniqueness).
-Its job is **mode discrimination**: creation must not find an existing file; appends must
-find one. This makes the create-vs-append state machine total and self-checking:
-
-- A "new upload" that hits `EEXIST` → fail loud rather than truncate live data.
-- An "append" that hits `ENOENT` → the fencing signal to abort.
 
 ## Write protocol
 
+The upload is deliberately simple. It covers the failures that actually happen — the upload
+is interrupted, the staging directory is missing, the process dies — and leaves the
+vanishingly rare ones (power loss in one specific window, exotic cross-platform races) to be
+**detected and repaired later by hash verification** (`scrub.md`), per the design philosophy.
+It does not try to be crash-atomic.
+
 ```
-WriteHandle = { path, offset, hash }   // plain data, no OS resource
+upload(stream, ttl):                          // returns the content hash (the CAS key)
+  rand     = random256()
+  deadline = now() + min(ttl, MAX)            // clamp so a bad clock cannot park a file far in the future
+  path     = `_staging/${fmt(deadline)}-${rand}`
+  mkdir(dirOf(path), {recursive})             // create _staging/ if absent (fresh store)
+  createExclusive(path)
 
-openWrite(ttl):
-  mkdir(`_staging`, {recursive})            // ensure the staging dir exists — on a fresh store it does
-                                            //   not, and createExclusive (O_CREAT|O_EXCL) creates only
-                                            //   the leaf file, so it would ENOENT without this
-  rand  = random256()
-  dl    = now() + ttl                      // or a writer-chosen far-future deadline
-  path  = `_staging/${fmt(dl)}-${rand}`
-  createExclusive(path)                     // EEXIST ⇒ bug, fail
-  return { path, offset: 0, hash: shaInit }
+  offset = 0
+  hash   = shaInit
+  for chunk in stream:
+      on any error below: rm(path); return uploadError      // partial upload ⇒ delete + fail
+      writeBytes(path, offset, chunk)          // ENOENT ⇒ GC already reclaimed us ⇒ error (handled above)
+      offset += len(chunk)
+      hash    = shaUpdate(hash, chunk)
+      // long uploads: occasionally rename path to a later deadline to keep the lease alive
+      // (see "The lease knob"). A write that ENOENTs means GC already took the file ⇒ fail.
 
-append(handle, chunk):
-  handle = maybeRenew(handle)               // pre-write: don't write into a near-dead lease
-  writeBytes(handle.path, handle.offset, chunk)   // ENOENT ⇒ lease lost ⇒ abort
-  handle = maybeRenew(handle)               // post-write: the successful write IS the progress
-                                            //   event (progress-coupled mode) — refresh now, or a
-                                            //   long gap after this chunk could expire a live,
-                                            //   progressing upload and have GC reclaim it
-  return { ...handle,
-           offset: handle.offset + len(chunk),
-           hash:   shaUpdate(handle.hash, chunk) }
-
-maybeRenew(handle):                          // lazy: avoid a rename on every chunk
-  if remaining(deadline(handle.path)) < threshold: return renew(handle)
-  return handle
-
-renew(handle):
-  newDl   = now() + ttl
-  newPath = `_staging/${fmt(newDl)}-${rand(handle.path)}`
-  rename(handle.path, newPath)              // ENOENT ⇒ GC reclaimed us ⇒ abort
-  return { ...handle, path: newPath }
-
-commit(handle, key?, mode = normal):
-  computedKey = shaFinal(handle.hash)       // 0. the address is ALWAYS the hash of the bytes we wrote
-  if key? and key != computedKey: return error  //   key-known/resume mismatch ⇒ caller bug or bad
-                                            //   resume state ⇒ refuse (never write under a wrong address)
-  fsync(handle.path)                        // 1. file data durable before the shard is visible
-  dst = `.cas/${shard(computedKey)}`        //    dst is derived from computedKey, not a trusted arg
-
-  if mode == normal and stat(dst) is ok:    // 2. fast path only — an optimization, not relied on
-      rm(handle.path); return ok            //    for correctness (see the rename handler below)
-
-  newDirs = mkdir(dirOf(dst), {recursive})  // 3. create any missing prefix dirs; record which were new
-  if mode == repair: setReadonly(dst, false)//    clear the bit so the rename can overwrite a corrupt shard
-
-  switch rename(handle.path, dst):          // 4. the rename is the atomic, authoritative point
-    ok:               break
-    ENOENT(source):   return error          //    lease lost ⇒ restart upload
-    EEXIST/EACCES(dst): // dst appeared/locked AFTER step 2 — concurrent same-hash commit (Windows)
-        if mode == normal: rm(handle.path); return ok       //    dedup success — resolve here, not at stat
-        if mode == repair:                                  //    corrupt dst was re-locked concurrently
-            setReadonly(dst, false)                         //    clear again and retry —
-            if rename(handle.path, dst) != ok: return error //    …but CHECK the retry; still locked or
-                                                            //    lease lost ⇒ fail, caller restarts
-    other:            return error          //    propagate any other rename error
-
-  fsync(dirOf(dst))                         // 5. persist the new file entry, BEFORE reporting
-  for d in newDirs (deepest → shallowest):  //    success — and persist every newly-created
-      fsync(parentOf(d))                    //    directory's own entry in its parent, or a crash
-                                            //    can still lose the prefix path (POSIX).
-  setReadonly(dst, true)                    // 6. chmod 444 / ReadOnly (durability of the bit
-                                            //    itself is not critical: strategy-1.md)
-  // POSIX rename replaces an existing dst silently, so the EEXIST/EACCES branch is Windows-only
-  // (ReadOnly dst ⇒ MoveFileEx access-denied). A write-through move (MOVEFILE_WRITE_THROUGH)
-  // can substitute for the dir fsyncs.
-
-abort(handle):
-  rm(handle.path)                           // ENOENT is fine — already reclaimed
+  key = shaFinal(hash)                          // the address IS the hash of the bytes written
+  dst = `.cas/${shard(key)}`
+  mkdir(dirOf(dst), {recursive})                // create the hash-prefix directories
+  rename(path, dst)                             // publish the shard
+  return key
 ```
 
-**The shard address is always the hash of the bytes actually written (step 0).** `commit`
-finalizes the accumulated hash and derives `dst` from *that*, never from a trusted argument.
-A `key` may still be passed for the key-known and resume paths, but it is only *checked*
-against `computedKey`, never used to place the file — so a caller bug or a bad resume state
-fails the commit instead of writing bytes under the wrong CAS address. This is what lets the
-read path (and `scrub.md`) trust the path as the checksum.
+Three things make this safe without extra machinery:
 
-**The destination-already-exists decision is made at the `rename` (step 4), not at the
-preflight `stat` (step 2).** The preflight stat is only a fast early-out; relying on it for
-correctness is a TOCTOU bug, because on Windows another writer can create and lock `dst`
-*between* our stat and our rename — and then a harmless concurrent same-hash upload would
-wrongly report failure. Resolving "dst exists" in the rename's error branch covers that race:
-in `normal` mode it is dedup success (the shard is already present — `rm` the staging file and
-return ok); in `repair` mode it clears the read-only bit and replaces.
+- **The key is computed, not supplied.** `key = shaFinal(hash)` over the bytes actually
+  written, and `dst` is derived from it — so bytes can never land under a wrong address. A
+  key-known caller passes its expected key only to *compare* and fail on mismatch.
+- **Errors fail closed.** Any error while streaming deletes the partial file and returns an
+  upload error; for a crash, the lease and the GC reclaim whatever is left behind. There is
+  nothing to undo and no half-published state.
+- **The rename just publishes.** If `dst` already exists, the CAS invariant says it is the
+  same bytes, so replacing it (POSIX renames over it) or skipping is equally fine. If that
+  existing shard were *corrupt*, that is a scrub/repair concern (`scrub.md`), not something
+  the hot upload path checks.
 
-**The `normal`-mode shortcut trusts the CAS invariant and is therefore only safe when the
-existing shard is assumed valid** — the ordinary dedup case. A scrub-driven **repair** commit
-(`scrub.md`) recommits a key *precisely because* the existing shard is corrupt, so it never
-trusts `dst`: it replaces the bytes. A caller that wants certainty rather than the fast path
-can run a **verifying** commit — re-hash `dst` and replace on mismatch — at the cost of an
-O(size) re-read of the existing shard.
+**Explicit offset, not `O_APPEND`.** Keeping the offset makes a write idempotent — a transient
+`writeBytes` error can be retried with the same bytes at the same offset with no double-append
+(`appendBytes(path, data)` would just be `writeBytes(path, stat(path).size, data)`).
 
-By default the staging file's data and its directory entry are **not** fsynced on
-`createExclusive`/`writeBytes`/`renew`: a staging file lost to a crash before commit just
-restarts the upload (fail-safe), so only `commit` — the point where success is acknowledged
-— forces durability (the file data, the destination directory entry, and any newly-created
-ancestor directory entries, all persisted before returning).
-
-That default trades durability of *in-progress* work for speed, which is fine for a
-disposable upload but is in tension with the reboot-survivable resume claim below. A lease
-that must survive a **power loss** (not just a process exit) needs an **optional fsync
-cadence**: periodically — e.g. at each `renew` — fsync the staging file's data and the
-`_staging/` directory entry, so the partial bytes and the current deadline name are durable.
-This is the durability counterpart of the lease-length knob: an uploader that pre-assigns a
-long lease *because it needs the document* should also opt into the fsync cadence. Without
-it, resume is scoped to clean restarts (see *Reboot-survivable resume*).
-
-`append` writes at an **explicit offset** rather than `O_APPEND`. This makes every write
-idempotent: a transient failure can be retried with the same bytes at the same offset
-without risk of a double-append diverging the file from the in-memory hash state. An
-`appendBytes(path, data)` convenience is just `writeBytes(path, stat(path).size, data)`,
-but the offset belongs in the primitive.
+**Durability is best-effort by design.** The hot path does not `fsync`. A power loss that
+loses a just-published shard, or a partial upload, is rare and self-correcting: a lost partial
+restarts, and a lost shard is detected by hash verification and re-fetched (`scrub.md`).
+Paying a per-chunk or per-commit fsync tax to shrink an already-tiny probability is exactly
+the trade-off this design declines to make.
 
 ## Why it is safe (the fencing argument)
 
@@ -274,32 +202,21 @@ that a cleaner which skips `tryLockExclusive` *silently corrupts* active POSIX w
 
 ## Garbage collection
 
-GC reclaims a file whose deadline is either in the past (expired) **or** absurdly far in
-the future (beyond the `now + MAX` lease cap — a buggy or wrong-clock writer; see *Cap the
-maximum lease*). Because names sort chronologically, expired files form a **prefix** of the
-sorted listing and over-cap files form a **suffix**, with the live leases in the middle. GC
-reclaims from both ends and stops as soon as it reaches a live lease, so it never has to
-examine the middle:
+GC reclaims any file whose deadline is in the past. Because names sort chronologically, the
+expired files are a **prefix** of the sorted listing, so the scan stops at the first live
+lease:
 
 ```
-gc(now, MAX):
-  names = sort(readdir(`_staging/`))         // lexical sort = chronological
-  for name in names:                         // front → back: expired prefix
+gc(now):
+  for name in sort(readdir(`_staging/`)):    // lexical sort = chronological
       if deadline(name) < now: rm(`_staging/${name}`)   // ENOENT is fine
-      else: break
-  for name in reverse(names):                // back → front: over-cap suffix
-      if deadline(name) > now + MAX: rm(`_staging/${name}`)
-      else: break
+      else: break                            // the rest are still live
 ```
 
-A single early `break` on the front alone would be wrong: an absurd far-future name sorts
-*after* the normal future leases, so the front scan would stop before ever reaching it and
-the cap would never be enforced — the space would leak until that date. The back scan closes
-that gap. (A plain full scan is also correct; the directory listing is already O(n). The
-two-ended form just preserves the skip-the-middle optimization.)
-
-GC can run lazily (piggy-backed on `openWrite`) rather than as a daemon, since staging
-space reclamation is not urgent.
+There is no separate "far-future" case to worry about: the deadline is clamped to `now + MAX`
+when the file is created (see the write protocol), so a wrong clock cannot park a file beyond
+the cap in the first place. GC can run lazily — piggy-backed on an upload — rather than as a
+daemon, since staging space reclamation is not urgent.
 
 ### Manual / degraded-mode GC
 
@@ -372,19 +289,14 @@ Resume cost is O(bytes-so-far) because SHA-2 is not seekable and the hash state 
 rebuilt from disk. This is acceptable for the sizes involved and is the only non-O(1) part
 of the design.
 
-**Two reboot classes, two guarantees.** A *clean* restart — process exit or graceful reboot
-where the OS flushes its buffers — preserves the staging file and its name without any extra
-work, so resume is reliable. A *power loss* is different: with the default no-fsync staging
-path, the most recent `writeBytes` data, the latest `renew` rename, or even the staging
-directory entry may not have reached disk, so on reboot the file can be missing, rolled back
-to an older (now-expired) name, or truncated. Resume stays **fail-safe** regardless — step 3
-re-derives `size` and the hash from whatever *durably* survived, so it never resumes onto
-wrong bytes; it simply continues from the last durable offset or, in the worst case, restarts.
-But turning power-loss survival from "best-effort" into a *guarantee* requires the optional
-fsync cadence described under the write protocol (fsync the staging data + `_staging/` entry
-at each renew). In short: clean restarts resume for free; power-loss-durable resume is the
-long-lease writer's opt-in, consistent with the design's "you choose your own strategy"
-contract.
+Resume is **best-effort**, like everything else here. A clean restart (process exit or
+graceful reboot) preserves the staging file and its name, so resume just works. A power loss
+may lose the most recent bytes or the latest rename — in which case resume re-derives `size`
+and the hash from whatever durably survived and continues, or, in the worst case, the file is
+gone and the upload simply restarts. Either way nothing corrupts: the bytes under the final
+hash are always what was hashed. We do not add an fsync cadence to make power-loss survival a
+hard guarantee — that is the kind of low-probability hardening this design deliberately skips,
+leaving the rare lost shard to hash verification (`scrub.md`).
 
 ## Distributed and remote staging
 
@@ -412,32 +324,14 @@ deadline; two claimants race the atomic rename, one wins, the other gets `ENOENT
 off. **The lease token doubles as the distributed mutual-exclusion primitive**: the same
 rename that detects crashes also transfers ownership.
 
-What the rename does **not** do is quiesce a previous holder that is mid-write. The fence
-protects *path lookups*: once renamed, no one can `open` the old name. But on POSIX/NFS an
-fd a stale holder opened **before** the rename still refers to the same inode, so an
-in-flight `writeBytes` (its internal `open`+`pwrite`) can land *after* the claimant has
-renamed, statted, and re-hashed the file. The claimant would then commit a shard whose
-bytes changed after its hash state was built — a CAS corruption. There are two safe
-takeover modes:
-
-- **Discard-and-restart (default).** The claimant does **not** inherit bytes. It starts a
-  fresh staging file under its own `<deadline>-<random256>` identity and re-uploads. This
-  collapses into the competitive pattern below, is trivially correct (no shared inode, no
-  race), and is fully in the design's spirit — the worst case is wasted work.
-- **Inherit-with-quiescence (optimization).** To reuse the partial bytes, the claimant must
-  (1) after winning the rename, wait a **quiescence grace** longer than the maximum possible
-  duration of a single in-flight `writeBytes` before it stats/re-hashes — by then any
-  straddling write has landed and no new one can start, because the stale holder's next
-  `writeBytes` opens the now-gone old name and fails `ENOENT`; **and** (2) verify
-  end-to-end at commit — re-hash the finished file from disk and compare it to `key` before
-  the rename — so that if the grace is ever mis-sized the mismatch is caught and the upload
-  restarts rather than committing bad bytes. (For an inherited file the claimant is already
-  re-reading to rebuild hash state, so this verification largely overlaps work it must do
-  anyway.)
-
-Either way, machine-to-machine takeover otherwise works like reboot-resume: the stable
-`random256` identity locates the file, and (in inherit mode) re-hash-from-disk rebuilds
-`{offset, hash}`.
+Takeover is **discard-and-restart**: the claimant does not inherit the stalled file's bytes,
+it just starts a fresh upload under its own `<deadline>-<random256>` identity. This is
+trivially correct — no shared file, no in-flight-write race to reason about — and collapses
+into the competitive pattern below; the worst case is that the partial bytes are thrown away.
+(Inheriting a stalled holder's partial bytes is *not* safe to do casually: a fencing rename
+moves the name but does not stop a previous holder's still-open fd from completing a write
+into the same inode, so a naive resume could hash bytes that then change. Since the whole
+point is to keep this simple, we don't inherit — we re-upload.)
 
 ### Skew and partition cost throughput, not safety
 
@@ -464,9 +358,10 @@ exception.
 - **Object stores (S3/GCS) are not POSIX** — no atomic rename, no `O_EXCL`. The
   deadline-in-name *idea* ports to their conditional-write / `If-None-Match` compare-and-set
   primitives, but that is a distinct mapping, not the same syscalls.
-- **Durability is the server's.** `commit`'s fsync-before-rename relies on the server
-  actually flushing; network-FS durability and cache-coherence guarantees are weaker and
-  must be verified for the target filesystem.
+- **Durability is the server's.** The upload path does not fsync, so a network-FS or server
+  crash can lose a partial upload or a just-published shard; the partial restarts and the lost
+  shard is caught by hash verification (`scrub.md`). Cache-coherence guarantees vary by
+  filesystem and should be checked for the target.
 
 ## Renewal policy: detecting stalls, not just deaths
 
@@ -496,17 +391,12 @@ This enables two patterns for free:
   stragglers automatically. *Concretely:* of two uploaders, one keeps receiving parts and
   renews its name while the other is stuck and cannot, so the GC removes the stuck one and
   the healthy one wins. The loser's partial bytes are simply discarded.
-- **True failover on one partial upload.** A healthy uploader takes over a stalled holder's
-  partial file via the fencing rename. By default this is **discard-and-restart** (a fresh
-  identity), which is exactly the competitive case. Reusing the partial bytes
-  (`resume from offset = size`) is possible but requires the **inherit-with-quiescence**
-  discipline from *Cross-machine handoff* — the fencing rename alone does not stop a stale
-  holder's in-flight `writeBytes` from mutating the inherited inode, so a naive resume can
-  commit corrupted bytes.
+- **Failover on a stalled upload.** A healthy uploader takes over by starting its own fresh
+  upload of the same content; the stalled one's lease expires and the GC reclaims it. This is
+  **discard-and-restart** — the same as the competitive case — and needs no coordination.
 
-The difference is only whether the `random256` identity is shared: independent identities
-give competitive redundancy (loser's bytes discarded); a shared identity *can* give
-resumable failover, but only with the quiescence + commit-verification safeguards above.
+In both patterns the stalled uploader's partial bytes are simply discarded; we never inherit
+a stalled file's bytes (see *Cross-machine handoff*).
 
 ### The slow-vs-stuck threshold
 
@@ -526,19 +416,18 @@ a misjudged-slow uploader restarts or hands off, never corrupts.
   kept or reclaimed is a deliberate choice of renewal policy (see *Renewal policy: detecting
   stalls, not just deaths*): a background heartbeat tolerates stalls; progress-coupled
   renewal reclaims them.
-- **Cap the maximum lease.** A buggy or wrong-clock writer can stamp an absurd far-future
-  deadline and leak space indefinitely. The GC should enforce `deadline ≤ now + MAX`
-  (reclaim or reject beyond the cap). The cap bounds the leak but also bounds how long a
-  legitimate long upload can pre-reserve, so it should be configurable.
+- **Cap the maximum lease.** The deadline is clamped to `now + MAX` when the file is created
+  (write protocol), so a buggy or wrong-clock writer cannot park a file far in the future and
+  leak space. `MAX` bounds how long a legitimate long upload can pre-reserve, so it should be
+  configurable.
 - **Wall-clock dependence.** Deadlines are wall-clock. On a single host (writer and GC
   share the clock) this is fine; NTP steps and suspend/resume are edge cases. Across hosts
   (see *Distributed and remote staging*) skew costs efficiency but not safety, *provided*
   the shared filesystem supplies atomic `O_EXCL` create, `rename`, and `unlink` — those
   atomic primitives, not clock agreement, are what the fencing rests on.
-- **`writeBytes` must never create.** Append/resume open the existing file only. Allowing
-  create on the append path would let a reclaimed file be resurrected as a sparse file with
-  a hole at offset 0 — silent corruption. Exclusive create happens exactly once, at
-  `openWrite`.
+- **`writeBytes` must never create.** It opens the existing file only. Allowing create on the
+  write path would let a reclaimed file be resurrected as a sparse file with a hole at offset
+  0 — silent corruption. Exclusive create happens exactly once, when the upload starts.
 
 ## Comparison with the lock design (`staging.md`)
 
@@ -548,7 +437,7 @@ a misjudged-slow uploader restarts or hands off, never corrupts.
 | Liveness truth | Hard (OS-truthful) | Soft (timing assumption), but **fails safe** |
 | POSIX/Windows | Asymmetric (advisory vs. hard) | Identical |
 | Open→acquire race | Real → mandatory mtime grace period | None (atomic `O_EXCL` create) |
-| `FileHandle` type / held fd | Required | None — `WriteHandle` is plain data |
+| `FileHandle` type / held fd | Required | None — the handle is plain data (path/offset/hash) |
 | Cleaner protocol | `tryLockExclusive`, hold handle during delete | `rm` files with past deadlines |
 | Manual `rm` in `_staging/` | Silently corrupts active writes on POSIX | Safe — worst case is a restarted upload |
 | Slow-but-alive writer | Never reclaimed | May be reclaimed (fails safe) |
