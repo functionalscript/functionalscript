@@ -77,7 +77,7 @@ const operatorTags = new Set<string>([
     '>>>=', '>>>', '>>=', '>>', '>=', '>',
     '<<<=', '<<<', '<<=', '<<', '<=', '<',
     '+=', '++', '+', '-=', '--', '-',
-    '**=', '**', '*=', '*', '/=', '%=', '%',
+    '**=', '**', '*=', '*', '/=', '/', '%=', '%',
     '&&=', '&&', '&=', '&', '||=', '||', '|=', '|',
     '^=', '^', '~', '??=', '??', '?.', '?',
     '[', ']', '{', '}', '(', ')', ',', ':'
@@ -643,30 +643,30 @@ export const proof = {
     //         const result = tokenizeString('=a')
     //         if (result !== '[{"kind":"="},{"kind":"id","value":"a"},{"kind":"eof"}]') { throw result }
     //     },
-    //     () => {
-    //         const result = tokenizeString('-')
-    //         if (result !== '[{"kind":"-"},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('-')
+            if (result !== '[{"kind":"-"},{"kind":"eof"}]') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('1*2')
     //         if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"kind":"*"},{"bf":[2n,0],"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
     //     },
-    //     () => {
-    //         const result = tokenizeString('( )')
-    //         if (result !== '[{"kind":"("},{"kind":"ws"},{"kind":")"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('== != === !== > >= < <=')
-    //         if (result !== '[{"kind":"=="},{"kind":"ws"},{"kind":"!="},{"kind":"ws"},{"kind":"==="},{"kind":"ws"},{"kind":"!=="},{"kind":"ws"},{"kind":">"},{"kind":"ws"},{"kind":">="},{"kind":"ws"},{"kind":"<"},{"kind":"ws"},{"kind":"<="},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('+ - * / % ++ -- **')
-    //         if (result !== '[{"kind":"+"},{"kind":"ws"},{"kind":"-"},{"kind":"ws"},{"kind":"*"},{"kind":"ws"},{"kind":"/"},{"kind":"ws"},{"kind":"%"},{"kind":"ws"},{"kind":"++"},{"kind":"ws"},{"kind":"--"},{"kind":"ws"},{"kind":"**"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('= += -= *= /= %= **=')
-    //         if (result !== '[{"kind":"="},{"kind":"ws"},{"kind":"+="},{"kind":"ws"},{"kind":"-="},{"kind":"ws"},{"kind":"*="},{"kind":"ws"},{"kind":"/="},{"kind":"ws"},{"kind":"%="},{"kind":"ws"},{"kind":"**="},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('( )')
+            if (result !== '[{"kind":"("},{"kind":"ws"},{"kind":")"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('== != === !== > >= < <=')
+            if (result !== '[{"kind":"=="},{"kind":"ws"},{"kind":"!="},{"kind":"ws"},{"kind":"==="},{"kind":"ws"},{"kind":"!=="},{"kind":"ws"},{"kind":">"},{"kind":"ws"},{"kind":">="},{"kind":"ws"},{"kind":"<"},{"kind":"ws"},{"kind":"<="},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('+ - * / % ++ -- **')
+            if (result !== '[{"kind":"+"},{"kind":"ws"},{"kind":"-"},{"kind":"ws"},{"kind":"*"},{"kind":"ws"},{"kind":"/"},{"kind":"ws"},{"kind":"%"},{"kind":"ws"},{"kind":"++"},{"kind":"ws"},{"kind":"--"},{"kind":"ws"},{"kind":"**"},{"kind":"eof"}]') { throw result }
+        },
+        // () => {
+        //     const result = tokenizeString('= += -= *= /= %= **=')
+        //     if (result !== '[{"kind":"="},{"kind":"ws"},{"kind":"+="},{"kind":"ws"},{"kind":"-="},{"kind":"ws"},{"kind":"*="},{"kind":"ws"},{"kind":"/="},{"kind":"ws"},{"kind":"%="},{"kind":"ws"},{"kind":"**="},{"kind":"eof"}]') { throw result }
+        // },
     //     () => {
     //         const result = tokenizeString('& | ^ ~ << >> >>>')
     //         if (result !== '[{"kind":"&"},{"kind":"ws"},{"kind":"|"},{"kind":"ws"},{"kind":"^"},{"kind":"ws"},{"kind":"~"},{"kind":"ws"},{"kind":"<<"},{"kind":"ws"},{"kind":">>"},{"kind":"ws"},{"kind":">>>"},{"kind":"eof"}]') { throw result }
