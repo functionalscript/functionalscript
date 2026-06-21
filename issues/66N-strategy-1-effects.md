@@ -59,9 +59,10 @@ effects, and add them to `NodeOp`.
 - [ ] Add `TryLockExclusive`, `Stat` effect types and `do_` constructors
 - [ ] Extend `Fs` union and `NodeOp` to include all six new effects
 - [ ] Implement all six effects in the Node runner (`fs/effects/node/module.ts`)
-- [ ] In the Node runner, represent `FileHandle` using `asNominal`/`asBase` to wrap a Node.js
-  `fs.promises.FileHandle` directly — the same pattern `Server` uses to wrap `node:http`'s server
-  object; there is no separate handle-ID map in the runner's state
+- [ ] In the Node runner, represent `FileHandle` using `asNominal`/`asBase` to wrap a
+  struct `{ fd: fs.promises.FileHandle, stagingPath: string }` — a bare `fs.promises.FileHandle`
+  does not retain the path, but `commitHandle` (rename) and `abortHandle` (delete) both need it;
+  this follows the same `asNominal`/`asBase` pattern `Server` uses, with no separate handle-ID map
 - [ ] Implement the virtual/mock runner stubs in `fs/effects/node/virtual/module.f.ts` for test use
 - [ ] Unit tests covering the happy path and error cases for each effect
 
