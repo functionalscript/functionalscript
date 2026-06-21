@@ -155,7 +155,10 @@ upload(stream, ttl):                          // returns the content hash (the C
   key = shaFinal(hash)                          // the address IS the hash of the bytes written
   dst = `.cas/${shard(key)}`
   mkdir(dirOf(dst), {recursive})                // create the hash-prefix directories
-  rename(path, dst)                             // publish the shard
+  if exists(dst):                               // already present ⇒ dedup. Do NOT validate its hash.
+      rm(path)                                  //   delete our staging file, ignore the result,
+      return key                                //   and return success.
+  rename(path, dst)                             // otherwise publish the shard
   return key
 ```
 
@@ -167,10 +170,11 @@ Three things make this safe without extra machinery:
 - **Errors fail closed.** Any error while streaming deletes the partial file and returns an
   upload error; for a crash, the lease and the GC reclaim whatever is left behind. There is
   nothing to undo and no half-published state.
-- **The rename just publishes.** If `dst` already exists, the CAS invariant says it is the
-  same bytes, so replacing it (POSIX renames over it) or skipping is equally fine. If that
-  existing shard were *corrupt*, that is a scrub/repair concern (`scrub.md`), not something
-  the hot upload path checks.
+- **An existing destination is success.** If `dst` already exists, the upload is done — by
+  the CAS invariant it is the same bytes. We do **not** validate the existing shard's hash;
+  we just delete our staging file (ignoring the delete result) and return the key. If that
+  existing shard were *corrupt*, detecting and repairing it is a scrub concern (`scrub.md`),
+  never something the hot upload path checks.
 
 **Explicit offset, not `O_APPEND`.** Keeping the offset makes a write idempotent — a transient
 `writeBytes` error can be retried with the same bytes at the same offset with no double-append
