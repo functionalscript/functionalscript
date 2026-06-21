@@ -80,21 +80,24 @@ treat as certain.
 ## Name format
 
 The `<deadline>` must sort lexically as it sorts chronologically, so the GC can order the
-directory with a plain `readdir` + sort. Use UTC and fixed width — e.g. zero-padded epoch
-milliseconds:
+directory with a plain `readdir` + sort. The encoding is a **single store-wide constant**,
+not a per-client choice: **fixed-width, zero-padded UTC epoch milliseconds**.
 
 ```
 0000001750512000000-3f9a…<64 hex chars>
 ```
 
-or an ISO-8601 basic-format UTC stamp:
+The format must be canonical because the GC's oldest-first scan relies on expired files
+forming one contiguous lexical *prefix* (and over-cap files one *suffix*). Mixing encodings
+in the same `_staging/` breaks that invariant: every `0000…` epoch name sorts before, say,
+a `2026…` ISO stamp regardless of its actual deadline, so the front scan could stop on a
+live epoch file while expired ISO files sit unreclaimed after it. One encoding, fixed width,
+for every writer — no alternative spellings.
 
-```
-20260621T120000Z-3f9a…<64 hex chars>
-```
-
-Local time ("GST"/wall-clock-with-offset) must **not** be used: it fails to sort across
-DST transitions and offset changes.
+Two consequences of "fixed width": the digit count must be wide enough that no realistic
+deadline overflows it (millisecond epochs stay 13 digits until the year 2286; pad to a fixed
+larger width for headroom), and local time ("GST"/wall-clock-with-offset) must **not** be
+used — it fails to sort across DST transitions and offset changes.
 
 ## Effect set
 
@@ -109,7 +112,14 @@ runner-held token. Every effect is stateless and path-based, exactly like the ex
 | `writeBytes` | `(path, offset, data: Vec) => IoResult<void>` | The symmetric mirror of `readBytes`. Opens the **existing** file (no create), writes `data` at `offset`. `ENOENT` ⇒ the GC reclaimed this file ⇒ the writer lost its lease and must abort. Bounded to ≤128 KiB per call, matching `maxLengthBytes`. |
 | `rename` | `(src, dst) => IoResult<void>` | Already exists. Used both for **renew** (`<oldDeadline>-<rand>` → `<newDeadline>-<rand>`) and for **commit** (`_staging/...` → `.cas/<prefix>/<hash>`). |
 | `rm` | `(path) => IoResult<void>` | Already exists. Used for **abort** and by the GC. |
-| `stat` | `(path) => IoResult<{size, mtimeMs}>` | Used for **resume** (`offset = size`) and optional bookkeeping. `mtimeMs` is **not** required for correctness here — unlike `staging.md`, there is no open→lock gap to cover. |
+| `stat` | `(path) => IoResult<{size, mtimeMs}>` | **New.** Used for **resume** (`offset = size`) and optional bookkeeping. `mtimeMs` is **not** required for correctness here — unlike `staging.md`, there is no open→lock gap to cover. |
+| `fsync` | `(path) => IoResult<void>` | **New.** Flushes the staging file's data to disk. Required by `commit` *before* the final rename, so the bytes are durable before the shard becomes visible. There is no such effect in the current node set. |
+| `setReadonly` | `(path) => IoResult<void>` | **New.** Marks the committed shard read-only (`chmod 444` on POSIX; ReadOnly attribute on Windows). Required by `commit` *after* the rename. There is no such effect in the current node set. |
+
+`createExclusive`, `writeBytes`, `stat`, `fsync`, and `setReadonly` are **new** effects to
+add to `fs/effects/node/module.f.ts`; `rename` and `rm` already exist. The set is still far
+smaller than the lock design's (no `FileHandle`, `openExclusive`, `appendHandle`,
+`commitHandle`, `abortHandle`, or `tryLockExclusive`).
 
 `O_EXCL` is **not** mutual exclusion (the random suffix already guarantees uniqueness).
 Its job is **mode discrimination**: creation must not find an existing file; appends must
