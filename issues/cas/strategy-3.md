@@ -6,13 +6,17 @@ Every object written to CAS is a small file of at most `maxLengthBytes` (128 KiB
 A large file is not stored as one object but as a **tree** of such objects. Each
 node is one of two kinds:
 
-- **Data leaf** — raw bytes, up to 128 KiB of file content.
+- **Data leaf** — raw bytes, up to `maxLengthBytes - 1` bytes (131,071 bytes) of file
+  content. The one-byte type tag is included within `maxLengthBytes`, so the payload
+  cap is one byte less than the primitive's limit.
 - **Reference node** — an array of references to other nodes (leaves or further
   reference nodes).
 
-The file's identity is the hash of its **root** node. A small file (≤ 128 KiB) is
-the degenerate case: a single data leaf, addressed by its own hash. The address
-space is uniform — every file, large or small, is named by one root hash.
+The file's identity is the hash of its **root** node. A small file
+(≤ `maxLengthBytes - 1` = 131,071 bytes) is the degenerate case: a single data leaf,
+addressed by its own hash. Files of exactly `maxLengthBytes` or larger are always
+split into at least two nodes. The address space is uniform — every file, large or
+small, is named by one root hash.
 
 ## Why every object stays small
 
@@ -154,10 +158,16 @@ determine total byte length or choose the child containing an offset without a
 separate size index or full traversal. `Meta.size` and random access require additional
 bookkeeping beyond the native SUL encoding.
 
-In short: using SUL as the *chunking algorithm* (option 1) preserves Strategy 3's
-size-aware reference nodes; using the *native SUL tree* (option 2) gives the most
-compact and canonically content-defined identity but sacrifices built-in random access.
-The design should choose one explicitly before implementation.
+**Strategy 3 chooses option 1**: SUL provides the content-defined boundary algorithm;
+the tree is stored in Strategy 3's own `(hash, size)` reference encoding. This is
+required because `Meta.size` (size without full traversal) and random access
+(descend by offset) are core Strategy 3 features — both depend on `size` being
+present in every reference. The native SUL tree (option 2) would need an additional
+size index and is not chosen for this design.
+
+As a result, the canonical identity of a file in Strategy 3 is the **Strategy 3
+Merkle root** — the hash of the root reference node in Strategy 3's encoding — not
+the native SUL root `Id`. These are different values for the same content.
 
 See [`fs/sul/README.md`](../../fs/sul/README.md) for the encoding and streaming API.
 
@@ -183,8 +193,8 @@ Strategy 3 splits the CAS directory into these subdirectories:
   roots/             ← externally known root hashes (GC roots)
   parts/             ← all tree nodes: data leaves and reference nodes
   hashes/
-    sha256/<h>       ← maps whole-file SHA-256 → SUL root Id
-    sha3-512/<h>     ← maps whole-file SHA3-512 → SUL root Id
+    sha256/<h>       ← maps whole-file SHA-256 → Strategy 3 Merkle root
+    sha3-512/<h>     ← maps whole-file SHA3-512 → Strategy 3 Merkle root
 ```
 
 **`roots/`** contains one file per live root hash. Adding a file writes its entire
@@ -206,29 +216,35 @@ may be referenced by many roots and cannot be deleted by removing any one root.
 
 ### The identity problem
 
-Strategy 3's native identity is the **SUL root `Id`** — a function of the tree's
-chunking and encoding, not of the raw bytes. A client that knows a file only by its
-plain whole-file digest (`sha256(bytes)`, `sha3-512(bytes)`) cannot address it
-directly, and the SUL root is not interoperable with external tools that speak those
-digests. Strategies 1 and 2, whose identity *is* the whole-file digest, do not have
-this gap.
+Strategy 3's native identity is the **Strategy 3 Merkle root** — the hash of the root
+reference node in Strategy 3's `(hash, size)` encoding. This is a function of the
+chunking boundaries, node encoding, and content — not just the raw bytes. A client
+that knows a file only by its plain whole-file digest (`sha256(bytes)`,
+`sha3-512(bytes)`) cannot address it directly, and the Merkle root is not
+interoperable with external tools that speak those digests. Strategies 1 and 2,
+whose identity *is* the whole-file digest, do not have this gap.
+
+Note: even if SUL is used to determine chunk boundaries, the Strategy 3 Merkle root
+and the native SUL root `Id` are **different values** — they come from different tree
+encodings. The cached hash maps point to the Strategy 3 Merkle root, not to the SUL
+root `Id`.
 
 ### The map
 
-The fix is a cached, content-addressed map from each external digest to the SUL root
-`Id`. Each entry under `hashes/<algo>/<digest>` is a small file whose content is the
-SUL root `Id` of the file with that digest:
+The fix is a cached, content-addressed map from each external digest to the Strategy 3
+Merkle root. Each entry under `hashes/<algo>/<digest>` is a small file whose content
+is the Strategy 3 Merkle root of the file with that digest:
 
 ```
-sha256(bytes)   → hashes/sha256/<digest>     → SUL root Id
-sha3-512(bytes) → hashes/sha3-512/<digest>   → SUL root Id
+sha256(bytes)   → hashes/sha256/<digest>     → Strategy 3 Merkle root
+sha3-512(bytes) → hashes/sha3-512/<digest>   → Strategy 3 Merkle root
 ```
 
-Lookup by external digest: shard into `hashes/<algo>/`, read the SUL root `Id`, then
-walk the tree as usual. The map carries no content of its own — it is pure metadata
-pointing into `parts/`.
+Lookup by external digest: shard into `hashes/<algo>/`, read the Merkle root, then
+walk the Strategy 3 tree as usual. The map carries no content of its own — it is pure
+metadata pointing into `parts/`.
 
-This keeps the internal canonical identity (the SUL root) decoupled from external
+This keeps the internal canonical identity (the Merkle root) decoupled from external
 identities (the digests), so the tree representation can evolve while callers keep
 addressing content by a stable, familiar digest.
 
