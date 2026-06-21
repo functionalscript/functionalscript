@@ -2,7 +2,7 @@
 
 **Priority:** P2
 **Status:** blocked
-**Blocked by:** [66N-strategy-1-effects](./66N-strategy-1-effects.md)
+**Blocked by:** [i66N-strategy-1-effects](./66N-strategy-1-effects.md)
 
 ## Problem
 
@@ -39,7 +39,7 @@ because it is only known after the full stream has been consumed.
 
 ### Cleaner
 
-Runs lazily, piggy-backed on `openExclusive`. Scans `.cas/_staging/`:
+Runs lazily, piggy-backed on `openWrite` (CAS layer). Scans `.cas/_staging/`:
 
 1. For each file: call `stat` to get `mtimeMs`.
 2. If `mtimeMs` is newer than the grace threshold (60 s recommended), skip.
@@ -95,4 +95,4 @@ same opaque nominal token, passed through without inspection.
 - [cas/strategy-1.md](./cas/strategy-1.md) — full design: Windows asymmetries, read-only semantics, cleaning protocol
 - [cas/staging.md](./cas/staging.md) — staging directory behavior, POSIX `flock`/`unlink` asymmetry, mtime grace period
 - [cas/README.md](./cas/README.md) — strategy comparison and recommended 1→3 progression
-- [66N-strategy-1-effects](./66N-strategy-1-effects.md) — prerequisite: new effects this implementation depends on
+- [i66N-strategy-1-effects](./66N-strategy-1-effects.md) — prerequisite: new effects this implementation depends on

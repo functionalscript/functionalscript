@@ -59,7 +59,9 @@ effects, and add them to `NodeOp`.
 - [ ] Add `TryLockExclusive`, `Stat` effect types and `do_` constructors
 - [ ] Extend `Fs` union and `NodeOp` to include all six new effects
 - [ ] Implement all six effects in the Node runner (`fs/effects/node/module.ts`)
-- [ ] Add `FileHandle` map to the runner's interpreter state (alongside the `Server` map)
+- [ ] In the Node runner, represent `FileHandle` using `asNominal`/`asBase` to wrap a Node.js
+  `fs.promises.FileHandle` directly — the same pattern `Server` uses to wrap `node:http`'s server
+  object; there is no separate handle-ID map in the runner's state
 - [ ] Implement the virtual/mock runner stubs in `fs/effects/node/virtual/module.f.ts` for test use
 - [ ] Unit tests covering the happy path and error cases for each effect
 
@@ -67,4 +69,4 @@ effects, and add them to `NodeOp`.
 
 - [cas/strategy-1.md](./cas/strategy-1.md) — full design including Windows asymmetries and cleaning protocol
 - [cas/staging.md](./cas/staging.md) — mtime grace period rationale and POSIX `flock`/`unlink` asymmetry
-- [66N-strategy-1-impl](./66N-strategy-1-impl.md) — the CAS-layer implementation that depends on these effects
+- [i66N-strategy-1-impl](./66N-strategy-1-impl.md) — the CAS-layer implementation that depends on these effects
