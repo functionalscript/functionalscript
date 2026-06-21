@@ -79,13 +79,32 @@ A cleaner that calls `unlink` / `DeleteFile` **without** going through
 `tryLockExclusive` is correct on Windows (the OS enforces the guard) but
 **unsafe on POSIX** (silently corrupts active writes).
 
-## Mtime grace period (defence in depth)
+## Mtime grace period (required first check)
 
-As an additional guard, the cleaner can skip any staging file whose mtime is
-more recent than a configured threshold (e.g. 60 seconds). This prevents
-spurious cleaning of files that were just created but whose flock has not yet
-been observed, and provides a safety net if `tryLockExclusive` is ever called
-with a race between lock release and delete. It does not replace `tryLockExclusive`.
+On POSIX, file creation (`open`) and lock acquisition (`flock`) are **separate
+syscalls**. A cleaner can slip in between them: after `openExclusive` creates the
+path but before the writer calls `flock(LOCK_EX)`, `tryLockExclusive` would succeed
+and the cleaner would delete an active upload. The mtime grace period closes this
+window and is therefore **mandatory**, not optional defence in depth.
+
+The cleaner protocol on POSIX must be:
+
+1. **Check mtime first.** If the file's mtime is more recent than a configured
+   threshold (e.g. 60 seconds), skip it unconditionally — do not call
+   `tryLockExclusive` at all. The file may be a brand-new writer in the gap between
+   `open` and `flock`.
+2. **Only then call `tryLockExclusive`.** If mtime is older than the threshold, the
+   file is either orphaned or has a live writer. `tryLockExclusive` distinguishes the
+   two cases correctly at that point.
+
+On Windows this race does not exist (the open handle is acquired atomically with
+creation), so the grace period is a belt-and-suspenders extra there; on POSIX it is
+required for correctness.
+
+The grace period threshold must exceed the longest realistic time between
+`openExclusive`'s `open` call and its subsequent `flock` call. In practice this
+is microseconds, so even a 1-second threshold is conservative. 60 seconds is
+recommended to absorb scheduler jitter, slow disks, and process pauses.
 
 ## What happens on writer crash
 

@@ -276,8 +276,8 @@ because back-filling a second digest later means re-streaming every stored file:
   old ones readable, with no lookup gaps.
 
 Algorithms are **optional**: write entries only for the digests you care about and
-skip the rest. The SUL root `Id` is always the canonical internal identity; the maps
-are an addressing convenience layered over it.
+skip the rest. The Strategy 3 Merkle root is always the canonical internal identity;
+the maps are an addressing convenience layered over it.
 
 ## Writing parts directly
 
