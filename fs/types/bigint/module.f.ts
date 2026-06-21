@@ -271,33 +271,18 @@ export const roundUp = (b: bigint): Unary => {
 }
 
 /**
- * Divides a bigint value up to the nearest multiple of 2^e (shift-based, power-of-two only).
+ * Converts a bit count to a byte count, rounding up — divides by `8`.
  *
- * @param e - The exponent (divisor = 2^e).
- * @returns A function that rounds a value up by the given power of two.
+ * Domain: non-negative inputs (bit/byte counts). On negative inputs `divUp`
+ * truncates toward zero rather than flooring toward −∞, so the rounding
+ * direction is only meaningful for `v >= 0n`.
  */
-export const divUpE2 = (e: bigint): Unary => {
-    const m = mask(e)
-    return v => (v + m) >> e
-}
+export const divUp8: Unary = divUp(8n)
 
 /**
- * Rounds a bigint value up to the nearest multiple of 2^e (shift-based, power-of-two only).
+ * Rounds a bit count up to the nearest whole byte — the nearest multiple of `8`.
  *
- * @param e - The exponent (multiple = 2^e).
- * @returns A function that rounds a value up to the nearest multiple of the given power of two.
+ * Domain: non-negative inputs (bit/byte counts). See `divUp8` for the
+ * truncate-vs-floor caveat on negative values.
  */
-export const roundUpE2 = (e: bigint): Unary => {
-    const d = divUpE2(e)
-    return v => d(v) << e
-}
-
-/**
- * Converts a bit count to a byte count, rounding up — divides by `8` (`2^3` bits per byte).
- */
-export const divUp8: Unary = divUpE2(3n)
-
-/**
- * Rounds a bit count up to the nearest whole byte — the nearest multiple of `8` (`2^3` bits per byte).
- */
-export const roundUp8: Unary = roundUpE2(3n)
+export const roundUp8: Unary = roundUp(8n)

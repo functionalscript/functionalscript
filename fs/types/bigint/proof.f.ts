@@ -12,8 +12,6 @@ import {
     product,
     divUp,
     roundUp,
-    divUpE2,
-    roundUpE2,
     divUp8,
     roundUp8
 } from './module.f.ts'
@@ -404,32 +402,22 @@ export const proof = {
         assertEq(roundUp(8n)(0b1111n), 0b10000n)
         assertEq(roundUp(8n)(3n), 8n)
     },
-    divUpE2: () => {
-        assertEq(divUpE2(3n)(0b1000n), 1n)
-        assertEq(divUpE2(3n)(0b1111n), 2n)
-        assertEq(divUpE2(3n)(0n), 0n)
-        assertEq(divUpE2(3n)(8n), 1n)
-        assertEq(divUpE2(3n)(9n), 2n)
-    },
-    roundUpE2: () => {
-        assertEq(roundUpE2(3n)(0b1000n), 0b1000n)
-        assertEq(roundUpE2(3n)(0b1111n), 0b10000n)
-        assertEq(roundUpE2(3n)(3n), 8n)
-        assertEq(roundUpE2(3n)(0n), 0n)
-        assertEq(roundUpE2(3n)(8n), 8n)
-        assertEq(roundUpE2(3n)(9n), 16n)
-    },
     divUp8: () => {
         assertEq(divUp8(0n), 0n)
         assertEq(divUp8(1n), 1n)
+        assertEq(divUp8(0b1000n), 1n)
         assertEq(divUp8(8n), 1n)
         assertEq(divUp8(9n), 2n)
+        assertEq(divUp8(0b1111n), 2n)
     },
     roundUp8: () => {
         assertEq(roundUp8(0n), 0n)
         assertEq(roundUp8(1n), 8n)
+        assertEq(roundUp8(3n), 8n)
+        assertEq(roundUp8(0b1000n), 0b1000n)
         assertEq(roundUp8(8n), 8n)
         assertEq(roundUp8(9n), 16n)
+        assertEq(roundUp8(0b1111n), 0b10000n)
     },
     xor: () => {
         assertEq(xor(5n)(3n), 6n)
