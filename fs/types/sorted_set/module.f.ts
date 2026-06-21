@@ -32,8 +32,6 @@ import { merge, intersect as listIntersect, find } from '../sorted_list/module.f
 
 export type SortedSet<T> = readonly T[]
 
-type Byte = number
-
 export const union: <T>(cmp: Cmp<T>) => (a: SortedSet<T>) => (b: SortedSet<T>) => SortedSet<T>
     = cmp => a => b => toArray(merge(cmp)(a)(b))
 
