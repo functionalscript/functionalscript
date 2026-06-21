@@ -121,12 +121,14 @@ runner-held token. Every effect is stateless and path-based, exactly like the ex
 | `rm` | `(path) => IoResult<void>` | Already exists. Used for **abort** and by the GC. |
 | `stat` | `(path) => IoResult<{size, mtimeMs}>` | **New.** Used for **resume** (`offset = size`) and optional bookkeeping. `mtimeMs` is **not** required for correctness here — unlike `staging.md`, there is no open→lock gap to cover. |
 | `fsync` | `(path) => IoResult<void>` | **New.** Flushes a path to disk. On a **file** path it persists the data; on a **directory** path it persists that directory's entries (creations/renames) — the same `fsync(fd)` syscall on a directory fd. `commit` needs both: file data before the rename, and the destination directory after it (so the new shard entry survives a power loss). There is no such effect in the current node set. On Windows, a directory fsync has no exact equivalent; use a write-through rename (`MOVEFILE_WRITE_THROUGH`) to make the commit durable instead. |
-| `setReadonly` | `(path) => IoResult<void>` | **New.** Marks the committed shard read-only (`chmod 444` on POSIX; ReadOnly attribute on Windows). Required by `commit` *after* the rename. There is no such effect in the current node set. |
+| `setReadonly` | `(path, readonly: bool) => IoResult<void>` | **New.** Sets (`true`) or clears (`false`) the read-only mark (`chmod 444`/`644` on POSIX; ReadOnly attribute on Windows). `commit` sets it after the rename; the **repair** path and the Windows overwrite-existing path clear it first so the rename can replace the destination. There is no such effect in the current node set. |
 
 `createExclusive`, `writeBytes`, `stat`, `fsync`, and `setReadonly` are **new** effects to
-add to `fs/effects/node/module.f.ts`; `rename` and `rm` already exist. The set is still far
-smaller than the lock design's (no `FileHandle`, `openExclusive`, `appendHandle`,
-`commitHandle`, `abortHandle`, or `tryLockExclusive`).
+add to `fs/effects/node/module.f.ts`; `rename`, `rm`, and `mkdir` already exist (`commit`
+uses `mkdir({recursive})` to create missing shard-prefix directories, and `stat` to test
+whether the destination already exists). The set is still far smaller than the lock design's
+(no `FileHandle`, `openExclusive`, `appendHandle`, `commitHandle`, `abortHandle`, or
+`tryLockExclusive`).
 
 `O_EXCL` is **not** mutual exclusion (the random suffix already guarantees uniqueness).
 Its job is **mode discrimination**: creation must not find an existing file; appends must
@@ -161,31 +163,45 @@ renew(handle):
   rename(handle.path, newPath)              // ENOENT ⇒ GC reclaimed us ⇒ abort
   return { ...handle, path: newPath }
 
-commit(handle, key):
+commit(handle, key, mode = normal):
   fsync(handle.path)                        // 1. file data durable before the shard is visible
   dst = `.cas/${shard(key)}`
-  rename(handle.path, dst)                   // 2. ENOENT ⇒ lease lost ⇒ error, restart upload
-  fsync(dirOf(dst))                          // 3. make the new directory entry durable, BEFORE
-                                             //    reporting success — else a power loss after
-                                             //    commit returns can lose the rename and the
-                                             //    shard reverts/vanishes on reboot (POSIX).
-  setReadonly(dst)                           // 4. chmod 444 / ReadOnly attribute (durability of
-                                             //    the read-only bit itself is not critical:
-                                             //    strategy-1.md — content is correct without it)
-  // Windows: if dst already exists with the ReadOnly attribute, MoveFileEx fails with
-  // access-denied. By the CAS invariant (same hash ⇒ same bytes) the existing shard is
-  // already correct, so the right response is rm(handle.path) and return success — or
-  // clear ReadOnly on dst, then rename over it. (POSIX rename replaces silently.) Windows
-  // can also make the rename itself durable with a write-through move instead of a dir fsync.
+
+  if stat(dst) is ok:                       // 2. destination already present
+      if mode == normal: rm(handle.path); return ok   // trust CAS invariant (fast dedup path)
+      // mode == repair: do NOT trust it — that is why we are here. Fall through and replace.
+      setReadonly(dst, false)               //    clear the bit so the rename can overwrite (Windows)
+
+  newDirs = mkdir(dirOf(dst), {recursive})  // 3. create any missing prefix dirs; record which were new
+  rename(handle.path, dst)                  //    ENOENT ⇒ lease lost ⇒ error, restart upload
+
+  fsync(dirOf(dst))                         // 4. persist the new file entry, BEFORE reporting
+  for d in newDirs (deepest → shallowest):  //    success — and persist every newly-created
+      fsync(parentOf(d))                    //    directory's own entry in its parent, or a crash
+                                            //    can still lose the prefix path (POSIX).
+  setReadonly(dst, true)                    // 5. chmod 444 / ReadOnly (durability of the bit
+                                            //    itself is not critical: strategy-1.md)
+  // Windows: if dst already exists ReadOnly, MoveFileEx fails with access-denied; the normal
+  // path treats that as the stat(dst)-ok case above. A write-through move
+  // (MOVEFILE_WRITE_THROUGH) can substitute for the dir fsyncs.
 
 abort(handle):
   rm(handle.path)                           // ENOENT is fine — already reclaimed
 ```
 
+**The `exists(dst)` shortcut trusts the CAS invariant and is therefore only safe when the
+existing shard is assumed valid** — the ordinary dedup/concurrent-upload case. A
+scrub-driven **repair** commit (`scrub.md`) recommits a key *precisely because* the existing
+shard is corrupt, so it must not take the shortcut: it clears the read-only bit and replaces
+the bytes (`mode = repair` above). A caller that wants certainty rather than the fast path
+can run a **verifying** commit — re-hash `dst` and replace on mismatch — at the cost of an
+O(size) re-read of the existing shard.
+
 The staging directory itself is **not** fsynced on `createExclusive`/`renew`: a staging
 file lost to a crash before commit just restarts the upload (fail-safe), so only `commit` —
-the point where success is acknowledged — needs durability, and it needs *both* the file
-data (step 1) and the destination directory entry (step 3).
+the point where success is acknowledged — needs durability, and it needs the file data
+(step 1), the destination directory entry, and any newly-created ancestor directory entries
+(step 4) all persisted before returning.
 
 `append` writes at an **explicit offset** rather than `O_APPEND`. This makes every write
 idempotent: a transient failure can be retried with the same bytes at the same offset
