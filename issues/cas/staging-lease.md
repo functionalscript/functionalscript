@@ -118,7 +118,7 @@ existing `readBytes` / `writeFile` / `rename` effects in `fs/effects/node/module
 | `writeBytes` | `(path, offset, data: Vec) => IoResult<void>` | Mirror of `readBytes`. Opens the **existing** file (no create) and writes at `offset`. `ENOENT` ⇒ the GC already reclaimed this file ⇒ the upload failed; delete and restart. Bounded to ≤128 KiB per call. |
 | `rename` | `(src, dst) => IoResult<void>` | Already exists. Publishes the shard (`_staging/…` → `.cas/<prefix>/<hash>`) and renews the lease (`…-<rand>` → a newer deadline). Replace-on-existing is fine — same hash ⇒ same bytes. |
 | `rm` | `(path) => IoResult<void>` | Already exists. Deletes a partial/aborted upload; also the GC's reclaim. |
-| `stat` | `(path) => IoResult<{size}>` | **New.** Used by resume to recover `offset = size`. |
+| `stat` | `(path) => IoResult<{size}>` | **New.** Used at the end of `upload` to confirm the published shard exists with the expected size, and by resume to recover `offset = size`. |
 
 `createExclusive`, `writeBytes`, and `stat` are **new**; `rename`, `rm`, and `mkdir` already
 exist. Marking a committed shard read-only (`chmod 444`) for immutability is an optional
@@ -154,9 +154,11 @@ upload(stream, ttl):                          // returns the content hash (the C
 
   key = shaFinal(hash)                          // the address IS the hash of the bytes written
   dst = `.cas/${shard(key)}`
-  mkdir(dirOf(dst), {recursive})                // create the hash-prefix directories
-  rename(path, dst)                             // publish — replace is fine (see below)
-  return key
+  mkdir(dirOf(dst), {recursive})                // create the hash-prefix dirs — ignore the result
+  rename(path, dst)                             // publish                      — ignore the result
+  rm(path)                                      // remove our staging file if still there — ignore the result
+  if stat(dst).size == offset: return ok(key)   // success iff the target exists with the expected size
+  else:                        return uploadError
 ```
 
 Three things make this safe without extra machinery:
@@ -167,12 +169,16 @@ Three things make this safe without extra machinery:
 - **Errors fail closed.** Any error while streaming deletes the partial file and returns an
   upload error; for a crash, the lease and the GC reclaim whatever is left behind. There is
   nothing to undo and no half-published state.
-- **Publish is just a rename, replace and all.** It does not matter whether `dst` already
-  exists: by the CAS invariant the bytes are the same, so overwriting it with our
-  freshly-written-and-hashed file is harmless — if anything our copy is *less* likely to be
-  corrupt, since it was just hashed end to end. So there is no `exists` check and no special
-  dedup branch; we rename and return the key. Whichever shard ends up on disk, a corrupt one
-  is detected and repaired later by hash verification (`scrub.md`), never on the hot path.
+- **Publish ignores results and checks the end state.** The three publish steps — `mkdir -p`
+  the prefix dirs, `rename`, then `rm` the staging file — all run best-effort with their
+  results ignored. Success is decided afterward by *observing* the target: it exists and its
+  size equals the bytes we received. This needs no branching on platform rename semantics and
+  no dedup special-case: if `dst` already existed, the same hash means the same size, so the
+  check passes regardless of whether the rename replaced it or was a no-op; if `dst` is
+  missing or truncated, the size check fails and we report an upload error. We compare *size*,
+  not hash — a cheap stat, not a re-read — because a wrong-sized file is a real failure to
+  catch now, while a same-sized-but-corrupt shard is the rare case left to hash verification
+  (`scrub.md`), never the hot path.
 
 **Explicit offset, not `O_APPEND`.** Keeping the offset makes a write idempotent — a transient
 `writeBytes` error can be retried with the same bytes at the same offset with no double-append
