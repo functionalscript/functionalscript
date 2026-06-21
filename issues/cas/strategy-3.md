@@ -36,27 +36,40 @@ A **reference** is a `(hash, size)` pair: the child's hash plus the total byte s
 of the subtree it roots. Carrying `size` in the reference (rather than only the
 hash) is what enables cheap `Meta` and random access (below).
 
+### Payload cap
+
+Each stored node must fit within `maxLengthBytes` (131,072 bytes) **including the
+one-byte type tag**. Therefore:
+
+- Maximum data leaf payload: `maxLengthBytes - 1` = **131,071 bytes**.
+- Maximum reference node payload: `maxLengthBytes - 1` bytes of `(hash, size)` entries.
+
+The write pipeline must therefore chunk the input stream at `maxLengthBytes - 1` per
+leaf, not at `maxLengthBytes`. Using a full 128 KiB (131,072 byte) chunk would produce
+a 131,073-byte stored object, which cannot pass through `readFile`/`writeFile`.
+
 ## Fan-out
 
-With a 256-bit (32-byte) hash plus a size field, a reference node holds on the order
-of thousands of references per 128 KiB object. A two-level tree therefore addresses
-hundreds of MiB, three levels addresses TiB — trees stay shallow, so the per-read
-node overhead is small.
+With a 256-bit (32-byte) hash plus a size field (e.g. 8 bytes = u64), each reference
+is 40 bytes. A reference node can therefore carry up to
+`⌊(maxLengthBytes - 1) / 40⌋ = 3,276` references per node. A two-level tree
+addresses ≈ 3,276 × 131,071 bytes ≈ 429 MiB; three levels addresses ≈ 1.4 TiB —
+trees stay shallow and the per-read node overhead is small.
 
 ## Write — bottom-up, streaming
 
-The tree is built bottom-up while consuming the input in 128 KiB chunks, so peak
-memory is `O(depth × fan-out)`, not `O(file size)`:
+The tree is built bottom-up while consuming the input in `maxLengthBytes - 1` chunks,
+so peak memory is `O(depth × fan-out)`, not `O(file size)`:
 
-1. Read the next ≤128 KiB input chunk, write it as a data leaf, collect its
-   `(hash, size)`.
+1. Read the next ≤`maxLengthBytes - 1` input bytes, write it as a data leaf (with
+   the `0x00` tag prepended), collect its `(hash, size)`.
 2. Accumulate references at the current level. When enough fill a reference node (or
    input ends), write that node and promote its `(hash, size)` one level up.
 3. Repeat until input is exhausted, then finalize each level. When a single
    reference remains, its hash is the root.
 
-Every write in this pipeline is a small ≤128 KiB CAS object, so the small-file write
-path (Strategy 1 or 2, or any backing) is reused unchanged.
+Every write in this pipeline is a small ≤`maxLengthBytes` CAS object, so the
+small-file write path (Strategy 1 or 2, or any backing) is reused unchanged.
 
 ## Read — depth-first, streaming
 
@@ -108,19 +121,40 @@ through a tree whose shape is determined by the data itself:
   absolute position. A local edit changes only the words it touches; surrounding
   words keep their boundaries.
 - Beyond the literal levels, each symbol is a 256-bit content-addressed `Id`, and any
-  two `Id`s merge via a SHA2-based `compress`. That **hash level is already a
-  content-addressed Merkle tree** — structurally the same as Strategy 3's reference
-  nodes, but with content-defined fan-in and boundaries.
+  two `Id`s merge via a SHA2-based `compress`. That **hash level is a content-addressed
+  Merkle tree** whose shape and root are content-defined.
 - Because the encoding is bijective and deterministic, identical content always
   produces the identical tree and root `Id` regardless of how the stream was fed in,
   which is exactly the invariant deduplication relies on.
 
-In other words, SUL is not an add-on to Strategy 3 — it *is* the content-defined
-realisation of it: the leaf/reference distinction becomes SUL's literal levels vs.
-hash levels, and the root hash becomes the SUL root `Id`. It is the most efficient
-chunking available in the project so far, and the recommended basis for the tree when
-cross-file dedup is a goal. Fixed-size chunking remains a simpler fallback when dedup
-is not needed.
+SUL is the most efficient content-defined chunking available in the project so far. It
+is recommended as the boundary algorithm for Strategy 3 when cross-file dedup is a
+goal. Fixed-size chunking (splitting every `maxLengthBytes - 1` bytes) remains a
+simpler fallback when dedup is not needed.
+
+#### SUL boundary algorithm vs. SUL native tree encoding
+
+SUL can contribute to Strategy 3 in two distinct ways, and it is important not to
+conflate them:
+
+**As a boundary algorithm only**: Use SUL's word structure to determine where to split
+the input into chunks. Once chunk boundaries are identified, write each chunk as a data
+leaf and build the tree using Strategy 3's own `(hash, size)` reference encoding.
+This retains `Meta.size` and random access, but the stored tree is in Strategy 3's
+format — not the native SUL hash-level format.
+
+**As the native tree (pure SUL)**: Use the native SUL hash-level Merkle tree directly
+as the stored structure. The root is the SUL root `Id`. However, the native SUL
+hash-level merge callback (`compress(left, right) → merged`) stores only the merged
+`Id` — it carries no `size` field per child. Consequently, a lookup by SUL root cannot
+determine total byte length or choose the child containing an offset without a
+separate size index or full traversal. `Meta.size` and random access require additional
+bookkeeping beyond the native SUL encoding.
+
+In short: using SUL as the *chunking algorithm* (option 1) preserves Strategy 3's
+size-aware reference nodes; using the *native SUL tree* (option 2) gives the most
+compact and canonically content-defined identity but sacrifices built-in random access.
+The design should choose one explicitly before implementation.
 
 See [`fs/sul/README.md`](../../fs/sul/README.md) for the encoding and streaming API.
 
