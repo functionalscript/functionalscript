@@ -116,11 +116,12 @@ existing `readBytes` / `writeFile` / `rename` effects in `fs/effects/node/module
 |---|---|---|
 | `createExclusive` | `(path) => IoResult<void>` | `O_CREAT\|O_EXCL`. Creates the staging file. With 256 random bits in the name `EEXIST` never happens in practice; it is just a sanity guard. |
 | `writeBytes` | `(path, offset, data: Vec) => IoResult<void>` | Mirror of `readBytes`. Opens the **existing** file (no create) and writes at `offset`. `ENOENT` ⇒ the GC already reclaimed this file ⇒ the upload failed; delete and restart. Bounded to ≤128 KiB per call. |
-| `rename` | `(src, dst) => IoResult<void>` | Already exists. Renews the lease (`…-<rand>` → a newer deadline) and publishes the shard (`_staging/…` → `.cas/<prefix>/<hash>`). |
+| `renameNoReplace` | `(src, dst) => IoResult<void>` | **No-clobber rename**: fails with `EEXIST` if `dst` exists (rather than POSIX `rename`'s silent replace). Publishing analyzes the result — `ok` = published, `EEXIST` = dedup. Implement via `renameat2(RENAME_NOREPLACE)` (Linux), `MoveFile` without `REPLACE_EXISTING` (Windows), or `link`+`rm` (portable). Also used for lease renewal, where `dst` never pre-exists. |
 | `rm` | `(path) => IoResult<void>` | Already exists. Deletes a partial/aborted upload; also the GC's reclaim. |
 | `stat` | `(path) => IoResult<{size}>` | **New.** Used by resume to recover `offset = size`. |
 
-`createExclusive`, `writeBytes`, and `stat` are **new**; `rename`, `rm`, and `mkdir` already
+`createExclusive`, `writeBytes`, `stat`, and `renameNoReplace` are **new** (the existing node
+`rename` replaces silently, which the publish step must not do); `rm` and `mkdir` already
 exist. Marking a committed shard read-only (`chmod 444`) for immutability is an optional
 extra, not part of the core upload. The set is far smaller than the lock design's (no
 `FileHandle`, `openExclusive`, `appendHandle`, `commitHandle`, `abortHandle`, or
@@ -155,11 +156,11 @@ upload(stream, ttl):                          // returns the content hash (the C
   key = shaFinal(hash)                          // the address IS the hash of the bytes written
   dst = `.cas/${shard(key)}`
   mkdir(dirOf(dst), {recursive})                // create the hash-prefix directories
-  if exists(dst):                               // already present ⇒ dedup. Do NOT validate its hash.
-      rm(path)                                  //   delete our staging file, ignore the result,
-      return key                                //   and return success.
-  rename(path, dst)                             // otherwise publish the shard
-  return key
+  switch renameNoReplace(path, dst):            // no-clobber publish: fails if dst already exists
+      ok:      return key                       //   we published the shard
+      EEXIST:  rm(path); return key             //   already present ⇒ dedup. Do NOT validate its
+                                                //   hash; delete our file (ignore result), succeed.
+      other:   rm(path); return uploadError
 ```
 
 Three things make this safe without extra machinery:
@@ -170,11 +171,16 @@ Three things make this safe without extra machinery:
 - **Errors fail closed.** Any error while streaming deletes the partial file and returns an
   upload error; for a crash, the lease and the GC reclaim whatever is left behind. There is
   nothing to undo and no half-published state.
-- **An existing destination is success.** If `dst` already exists, the upload is done — by
-  the CAS invariant it is the same bytes. We do **not** validate the existing shard's hash;
-  we just delete our staging file (ignoring the delete result) and return the key. If that
-  existing shard were *corrupt*, detecting and repairing it is a scrub concern (`scrub.md`),
-  never something the hot upload path checks.
+- **Publish is one atomic step.** The result of a single no-replace rename tells us
+  everything: success means we placed the shard; `EEXIST` means it was already there. There
+  is no separate `exists` check and so no race between checking and renaming. On `EEXIST` the
+  upload is done — by the CAS invariant the existing shard is the same bytes — so we do
+  **not** validate its hash; we just delete our staging file (ignoring the delete result) and
+  return the key. If that existing shard were *corrupt*, detecting and repairing it is a scrub
+  concern (`scrub.md`), never something the hot upload path checks. (Plain POSIX `rename`
+  *replaces* silently and so can't report `EEXIST`; the no-replace variant is `renameat2`
+  with `RENAME_NOREPLACE`, Windows `MoveFile` without `REPLACE_EXISTING`, or a portable
+  `link`+`rm`.)
 
 **Explicit offset, not `O_APPEND`.** Keeping the offset makes a write idempotent — a transient
 `writeBytes` error can be retried with the same bytes at the same offset with no double-append
