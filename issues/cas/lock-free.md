@@ -23,6 +23,7 @@ const upload = (payload: EffectList<IoResult<Vec>>) => {
             return error()
         }
 
+        // rename the file to lease time
         const nPath = newPath()
         r = rename(path, nPath)
         if (isError(r)) {
@@ -32,7 +33,7 @@ const upload = (payload: EffectList<IoResult<Vec>>) => {
 
         path= nPath
 
-        hashCompute.update(hashCompute)
+        hashCompute.update(i)
         offset += i.length
     }
 
