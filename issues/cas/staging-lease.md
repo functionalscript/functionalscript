@@ -191,6 +191,31 @@ Both are the same mechanism (set a future deadline) at different magnitudes. A l
 buys reboot-survivability and low churn at the cost of slower reclamation of a crashed
 upload's space.
 
+## Liveness is bound to the upload, not the process
+
+A lock conflates two distinct facts — *the process is alive* and *the upload is alive* —
+because it ties the file's liveness to an fd's lifetime. That conflation is wrong at both
+ends:
+
+- **Process alive, upload dead.** An uploader aborts but its `rm`/close fails, or it simply
+  abandons the upload and moves on to other work while the process keeps running. The
+  `flock` / open handle stays held for the life of the *process*, not the life of the
+  *upload*. The GC can never reclaim the file, and the leak is invisible — the process
+  looks healthy and is doing useful work, yet it pins a dead upload until it exits.
+- **Process dead, upload should live.** A reboot drops the lock and kills an upload you
+  wanted to resume (see the next section).
+
+The lease binds liveness to the upload's own intent to stay alive — "is anyone still
+pushing the deadline forward?" — which is exactly the right predicate. Abandon the upload,
+leak the handle, or fail to abort, and the deadline still expires and the GC reclaims it.
+A long-lived process pins nothing, because there is no process-held resource to leak.
+
+The consequence: **cleanup is an optimization, not a correctness obligation.** `abort`
+reclaims space *sooner*; skipping or failing it costs one deadline's worth of space and
+then self-heals. With the lock, releasing is mandatory and every error path that misses it
+leaks a file for the process's whole lifetime — the classic "you forgot the `finally`"
+footgun, and the OS won't save you because the process is still alive.
+
 ## Reboot-survivable resume
 
 Because liveness is a durable filename rather than a process-held lock, an upload can
@@ -240,6 +265,8 @@ of the design.
 | Cleaner protocol | `tryLockExclusive`, hold handle during delete | `rm` files with past deadlines |
 | Manual `rm` in `_staging/` | Silently corrupts active writes on POSIX | Safe — worst case is a restarted upload |
 | Slow-but-alive writer | Never reclaimed | May be reclaimed (fails safe) |
+| Abandoned/leaked by a live process | File pinned for the process's lifetime | Reclaimed at the deadline |
+| Cleanup on abort | Mandatory — missed release leaks the file | Optional — self-heals after the deadline |
 | Survives reboot | No | Yes |
 
 ## Relationship to the existing `casUpload` path
