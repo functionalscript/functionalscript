@@ -32,7 +32,6 @@ const upload = (payload: EffectList<IoResult<Vec>>) => {
 
         path= nPath
 
-        // optional: rename the file to the `now() + delta`
         hashCompute.update(hashCompute)
         offset += i.length
     }
