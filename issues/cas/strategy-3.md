@@ -74,7 +74,7 @@ so peak memory is `O(depth × fan-out)`, not `O(file size)`:
 
 Every write in this pipeline is a small ≤`maxLengthBytes` CAS object. The
 small-file write path is reused, but the backing **must** provide atomic, no-clobber
-writes for `parts/` — not a plain in-place overwrite. See the "Writing parts
+writes for `_parts/` — not a plain in-place overwrite. See the "Writing parts
 directly" section for the full requirement. Strategy 1's staging-and-rename path
 satisfies this; a naive `fileKvStore.write` (which truncates in place) does not.
 
@@ -190,23 +190,29 @@ Strategy 3 splits the CAS directory into these subdirectories:
 
 ```
 .cas/
-  roots/             ← externally known root hashes (GC roots)
-  parts/             ← all tree nodes: data leaves and reference nodes
-  hashes/
+  _roots/            ← externally known root hashes (GC roots)
+  _parts/            ← all tree nodes: data leaves and reference nodes
+  _hashes/
     sha256/<h>       ← maps whole-file SHA-256 → Strategy 3 Merkle root
     sha3-512/<h>     ← maps whole-file SHA3-512 → Strategy 3 Merkle root
 ```
 
-**`roots/`** contains one file per live root hash. Adding a file writes its entire
-Merkle tree into `parts/` and then registers the root hash in `roots/`. Removing a
-file deletes its entry from `roots/` and triggers (or schedules) GC.
+The `_` prefix on all three directories ensures they are excluded from the existing
+`fileKvStore.list` operation, which validates each entry via `cBase32ToVec` —
+`_` is not a valid CBase32 character, so `_roots`, `_parts`, and `_hashes` are
+rejected naturally. Without the `_` prefix, names like `roots` and `parts` could
+pass CBase32 validation and be emitted as bogus content hashes by `list`.
 
-**`parts/`** contains every node that has ever been written — data leaves and
+**`_roots/`** contains one file per live root hash. Adding a file writes its entire
+Merkle tree into `_parts/` and then registers the root hash in `_roots/`. Removing a
+file deletes its entry from `_roots/` and triggers (or schedules) GC.
+
+**`_parts/`** contains every node that has ever been written — data leaves and
 reference nodes alike. Nodes are addressed by their hash and may be shared across
-multiple roots. A node in `parts/` is live if and only if it is reachable from some
-entry in `roots/`.
+multiple roots. A node in `_parts/` is live if and only if it is reachable from some
+entry in `_roots/`.
 
-**`hashes/`** holds the cached hash maps described below.
+**`_hashes/`** holds the cached hash maps described below.
 
 Strategies 1 and 2 have no such split: each CAS object IS a complete file, so
 deleting it reclaims exactly one thing. Strategy 3 needs the split because a part
@@ -232,17 +238,17 @@ root `Id`.
 ### The map
 
 The fix is a cached, content-addressed map from each external digest to the Strategy 3
-Merkle root. Each entry under `hashes/<algo>/<digest>` is a small file whose content
+Merkle root. Each entry under `_hashes/<algo>/<digest>` is a small file whose content
 is the Strategy 3 Merkle root of the file with that digest:
 
 ```
-sha256(bytes)   → hashes/sha256/<digest>     → Strategy 3 Merkle root
-sha3-512(bytes) → hashes/sha3-512/<digest>   → Strategy 3 Merkle root
+sha256(bytes)   → _hashes/sha256/<digest>     → Strategy 3 Merkle root
+sha3-512(bytes) → _hashes/sha3-512/<digest>   → Strategy 3 Merkle root
 ```
 
-Lookup by external digest: shard into `hashes/<algo>/`, read the Merkle root, then
+Lookup by external digest: shard into `_hashes/<algo>/`, read the Merkle root, then
 walk the Strategy 3 tree as usual. The map carries no content of its own — it is pure
-metadata pointing into `parts/`.
+metadata pointing into `_parts/`.
 
 This keeps the internal canonical identity (the Merkle root) decoupled from external
 identities (the digests), so the tree representation can evolve while callers keep
@@ -281,15 +287,15 @@ the maps are an addressing convenience layered over it.
 
 ## Writing parts directly
 
-Parts are written **directly** to `parts/`; there is no per-tree staging area. A
-writer builds its tree bottom-up, writing each part straight into `parts/`, and
-registers the root in `roots/` only at the very end.
+Parts are written **directly** to `_parts/`; there is no per-tree staging area. A
+writer builds its tree bottom-up, writing each part straight into `_parts/`, and
+registers the root in `_roots/` only at the very end.
 
 ### Each part write must be atomic and no-clobber
 
 Content-addressing makes a re-write *logically* idempotent — the same hash always
 maps to the same bytes — but that guarantee only holds if the physical write to
-`parts/<hash>` is **atomic** and **no-clobber**. A naive backing that ends in a
+`_parts/<hash>` is **atomic** and **no-clobber**. A naive backing that ends in a
 plain `writeFile` to the final content path (as `fileKvStore.write` does today)
 does **not** satisfy this:
 
@@ -300,25 +306,25 @@ does **not** satisfy this:
   concurrently — or a crash mid-write — can then observe a truncated or partial
   part. This is **corruption of live content**, not a harmless orphan.
 
-The design therefore requires that writing `parts/<hash>` be done through one of:
+The design therefore requires that writing `_parts/<hash>` be done through one of:
 
 - **Write-to-staging-then-rename** (Strategy 1's pipeline): write to a temp name,
-  `fsync`, then atomically `rename` onto `parts/<hash>`. `rename` is atomic, so a
+  `fsync`, then atomically `rename` onto `_parts/<hash>`. `rename` is atomic, so a
   reader sees either the old complete part or the new complete part, never a partial
   one. Because content is identical for a given hash, clobbering via rename is safe.
-- **No-clobber / verify-existing skip**: if `parts/<hash>` already exists, skip the
+- **No-clobber / verify-existing skip**: if `_parts/<hash>` already exists, skip the
   write entirely (optionally verifying length). Create only when absent, using an
   atomic create (`O_EXCL` link/rename), so two writers racing on the same new hash
   resolve to one complete file and the loser's attempt is a no-op.
 
 Either path keeps the "repeated writes never conflict" property true. The plain
-in-place `writeFile` path is **not** acceptable for `parts/`: it is the one case
+in-place `writeFile` path is **not** acceptable for `_parts/`: it is the one case
 where re-writing an existing object is unsafe.
 
 ### Orphans from interrupted writes
 
 Given atomic no-clobber part writes, an interrupted or abandoned write (the process
-dies before registering its root) leaves **orphaned parts** in `parts/` — complete
+dies before registering its root) leaves **orphaned parts** in `_parts/` — complete
 parts reachable from no root. These are harmless: they occupy space but are never
 read, and the next GC reclaims them. No rollback, no staging cleanup, no atomic
 multi-file move across the whole tree is required. This is the key simplification
@@ -331,17 +337,17 @@ Because parts are shared across roots and orphans accumulate from incomplete wri
 reclaiming space is the job of a periodic mark-and-sweep GC rather than any per-file
 delete:
 
-**Mark phase** — starting from every hash in `roots/`, walk each Merkle tree
+**Mark phase** — starting from every hash in `_roots/`, walk each Merkle tree
 recursively (deserialising each reference node encountered) and mark every reachable
-hash in `parts/`.
+hash in `_parts/`.
 
-**Sweep phase** — delete every file in `parts/` that was not marked.
+**Sweep phase** — delete every file in `_parts/` that was not marked.
 
-Deleting a file is just removing its entry from `roots/`; its parts persist until a
+Deleting a file is just removing its entry from `_roots/`; its parts persist until a
 later GC finds them unreachable.
 
 **Concurrency hazard.** The one case GC must not mishandle is a write *in progress*:
-its parts are already in `parts/` but its root is not yet in `roots/`, so a naive
+its parts are already in `_parts/` but its root is not yet in `_roots/`, so a naive
 sweep would delete parts the writer still needs. Since the lazy model already
 tolerates orphans, the simplest guard is a **grace period** — never sweep a part
 whose mtime is younger than the longest plausible write (it is either in-progress or
@@ -350,18 +356,18 @@ guarantee is wanted instead, hold a write-phase lock (or a global GC/write mutex
 GC skips parts belonging to a live writer — the same dead-man's-switch mechanism as
 Strategy 1's `_staging` lock.
 
-**Hash-map cleanup.** A `hashes/<algo>/<digest>` entry points to a SUL root that GC
-may eventually sweep, so the map must not be allowed to dangle into deleted content.
-Two options, mirroring the eager/lazy split above:
+**Hash-map cleanup.** A `_hashes/<algo>/<digest>` entry points to a Strategy 3
+Merkle root that GC may eventually sweep, so the map must not be allowed to dangle
+into deleted content. Two options, mirroring the eager/lazy split above:
 
-- **Eager** — when a root leaves `roots/`, delete its `hashes/` entries in the same
+- **Eager** — when a root leaves `_roots/`, delete its `_hashes/` entries in the same
   operation. Simple, but the multi-file delete is not atomic: a crash in between
   leaves a dangling entry pointing to a now-unreachable root.
 - **Lazy** (recommended) — leave entries in place and validate on lookup: resolve the
-  SUL root, and if it is no longer reachable from `roots/`, treat the lookup as
-  not-found (and optionally prune the stale entry then). A dangling entry wastes a
-  few bytes but never causes corruption — the same "orphans are harmless" reasoning
-  that justifies direct-to-`parts/` writes.
+  Strategy 3 Merkle root, and if it is no longer reachable from `_roots/`, treat the
+  lookup as not-found (and optionally prune the stale entry then). A dangling entry
+  wastes a few bytes but never causes corruption — the same "orphans are harmless"
+  reasoning that justifies direct-to-`_parts/` writes.
 
 ## Relationship to the other strategies
 
