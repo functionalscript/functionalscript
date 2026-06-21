@@ -289,14 +289,61 @@ exception.
   actually flushing; network-FS durability and cache-coherence guarantees are weaker and
   must be verified for the target filesystem.
 
+## Renewal policy: detecting stalls, not just deaths
+
+The lease only knows what the **renewal trigger** tells it, and *when* a writer renews
+decides what "alive" means:
+
+- **Heartbeat renewal** — renew on a timer for as long as the process runs. The lease
+  detects only process death and long pauses. A stuck-but-running uploader (blocked on a
+  dead source, a hung socket, a deadlock) keeps renewing and pins its file indefinitely.
+- **Progress-coupled renewal** — renew *only after a part is successfully written*. The
+  lease detects lack of *progress*. A stuck uploader stops renewing even though its process
+  is alive, so its deadline lapses and the GC reclaims it.
+
+Progress-coupling turns the lease into a **stall detector**: "alive but making no progress"
+is treated as dead, which for an upload is usually exactly right — a stalled upload that
+will never finish should release its space and its slot rather than pin them on the
+strength of a still-running process.
+
+### Competitive and failover uploads
+
+This enables two patterns for free:
+
+- **Competitive / hedged uploads.** Start several uploaders for the same content, each with
+  its own `<deadline>-<random256>` identity. The ones that stall stop renewing and get
+  GC'd; the fastest commits; CAS dedup (same hash ⇒ same bytes) makes the losers' commits
+  harmless. You get tail-latency hedging with no coordination — the system discards
+  stragglers automatically. *Concretely:* of two uploaders, one keeps receiving parts and
+  renews its name while the other is stuck and cannot, so the GC removes the stuck one and
+  the healthy one wins. The loser's partial bytes are simply discarded.
+- **True failover on one partial upload.** Two uploaders that share the *same* staging
+  identity (the cross-machine handoff above): if the holder stalls, its lease lapses and a
+  healthy uploader claims the same file via the fencing rename and resumes from
+  `offset = size`. Here the partial bytes are *inherited*, not discarded.
+
+The difference is only whether the `random256` identity is shared: independent identities
+give competitive redundancy (loser's bytes discarded); a shared identity gives resumable
+failover (bytes inherited).
+
+### The slow-vs-stuck threshold
+
+The lease cannot perfectly distinguish a *slow* source (legitimately bursty, long gaps
+between parts) from a *stuck* one (will never deliver). The TTL is the threshold you choose
+between them: long enough to tolerate the longest legitimate inter-part gap, short enough
+to reclaim genuine stalls promptly. Whichever way it errs, the fencing keeps it fail-safe —
+a misjudged-slow uploader restarts or hands off, never corrupts.
+
 ## Trade-offs and caveats
 
 - **Leases are a timing assumption, not a truth.** A live-but-paused writer (STW GC pause,
   container freeze, laptop sleep, debugger breakpoint) that exceeds its deadline is
   declared dead and reclaimed. The design **fails safe** — the writer detects the loss via
   `ENOENT` and aborts, never corrupting a shard — but it does waste that upload. Size the
-  TTL above the longest expected gap between appends, or renew on a background heartbeat
-  for idle-but-open handles.
+  TTL above the longest expected gap between appends. Whether an idle-but-alive writer is
+  kept or reclaimed is a deliberate choice of renewal policy (see *Renewal policy: detecting
+  stalls, not just deaths*): a background heartbeat tolerates stalls; progress-coupled
+  renewal reclaims them.
 - **Cap the maximum lease.** A buggy or wrong-clock writer can stamp an absurd far-future
   deadline and leak space indefinitely. The GC should enforce `deadline ≤ now + MAX`
   (reclaim or reject beyond the cap). The cap bounds the leak but also bounds how long a
@@ -327,6 +374,7 @@ exception.
 | Cleanup on abort | Mandatory — missed release leaks the file | Optional — self-heals after the deadline |
 | Survives reboot | No | Yes |
 | Works across machines / shared disk | No — lock is process-local | Yes — atomic rename + create + deadline (needs an FS that supplies them) |
+| Detects a stuck-but-alive writer | No — lock is held while the process lives | Yes, with progress-coupled renewal — enables competitive/failover uploads |
 
 ## Relationship to the existing `casUpload` path
 
