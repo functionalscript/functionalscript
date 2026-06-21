@@ -105,6 +105,20 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(rename('src', 'dst'))
         assertEq(result[0], 'error')
     },
+    renameFileOntoDirectory: () => {
+        // rename a file to a path that is already an existing directory should fail
+        const root: Dir = { 'myfile': [vec8(0x42n)], 'mydir': {} }
+        const [, result] = virtual({ ...emptyState, root })(rename('myfile', 'mydir'))
+        assertEq(result[0], 'error')
+    },
+    readFileTooLarge: () => {
+        // a file stored as two max-size chunks exceeds the limit; readFile must return an error
+        const chunk0 = vec(maxLengthBytes * 8n)(0n)
+        const chunk1 = vec(1n)(1n)
+        const root: Dir = { 'big': [chunk0, chunk1] }
+        const [, result] = virtual({ ...emptyState, root })(readFile('big'))
+        assertEq(result[0], 'error')
+    },
     readBytesNegativeSize: () => {
         // readBytes with negative size should fail
         const root: Dir = { 'file': [vec8(0x42n)] }
