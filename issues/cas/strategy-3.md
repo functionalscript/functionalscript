@@ -78,6 +78,12 @@ so peak memory is `O(depth × fan-out)`, not `O(file size)`:
 3. Repeat until input is exhausted, then finalize each level. When a single
    reference remains, its hash is the root.
 
+**Empty file**: when the input stream is zero bytes, step 1 executes once, writing
+a single data leaf consisting of only the `0x00` type tag and no payload bytes — a
+1-byte stored object. The root is the hash of that 1-byte object. The canonical
+empty root is therefore `hash([0x00])` and is the same regardless of chunking
+parameters.
+
 Every write in this pipeline is a small ≤`maxLengthBytes` CAS object. The
 small-file write path is reused, but the backing **must** provide atomic, no-clobber
 writes for `_parts/` — not a plain in-place overwrite. See the "Writing parts
@@ -367,15 +373,21 @@ arbitrarily large files, so a "longest plausible write" mtime grace period canno
 a correctness guarantee — a large-file write can take arbitrarily long, far exceeding
 any fixed threshold.
 
-The **required** guard is a **write/GC lock**: a global mutex or dead-man's-switch
-(the same mechanism as Strategy 1's `_staging` lock) that GC must hold exclusively
-for the **entire mark-and-sweep cycle** — from the initial snapshot of `_roots/`
-through the end of sweep. Holding the lock only during sweep is insufficient: a
-writer that starts after mark begins, completes, and registers its root before sweep
-runs would have its root absent from the mark set; sweep then deletes its
-already-committed parts even though no write is in progress at sweep time. The lock
-must therefore prevent any write from registering a new root between the mark
-snapshot and the end of sweep.
+The **required** guard is a **write/GC lock** — a mutual-exclusion lock in which
+**both** writers and GC must participate:
+
+- **Writers** must acquire the lock before writing the first part to `_parts/` and
+  hold it until after the root is registered in `_roots/`. No part write or root
+  registration may happen outside the lock.
+- **GC** must acquire the lock exclusively for the **entire mark-and-sweep cycle** —
+  from the initial snapshot of `_roots/` through the end of sweep.
+
+This mutual exclusion ensures that either a write is in progress (writer holds the
+lock, GC blocked from starting) or GC is running (GC holds the lock, no new write
+can begin or complete). Specifying the lock only on the GC side is insufficient: a
+writer that never acquires the lock can write parts and register a root at any point
+during GC — including between mark and sweep — causing sweep to delete its
+already-committed parts.
 
 A pending-root marker (registering a placeholder in `_roots/` before the first part
 write) does **not** solve this: GC marks only parts reachable from `_roots/` entries,
