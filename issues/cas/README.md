@@ -15,8 +15,8 @@ deduplication.
 - [Strategy 3: Merkle Tree](strategy-3.md) — decompose any file into a tree of
   ≤128 KiB objects, each stored through the existing small-file primitive. Enables
   streaming, cheap metadata, random access, and content-defined deduplication via
-  SUL. Requires garbage collection (`roots/` + `parts/` directory split) and uses
-  cached multi-hash maps (SHA-256 / SHA3-512 → SUL root) for external addressing.
+  SUL. Requires garbage collection (`_roots/` + `_parts/` directory split) and uses
+  cached multi-hash maps (SHA-256 / SHA3-512 → Strategy 3 Merkle root) for external addressing.
 
 ## Recommended progression: 1 → 3
 
