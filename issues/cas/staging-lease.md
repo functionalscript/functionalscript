@@ -150,12 +150,19 @@ openWrite(ttl):
   return { path, offset: 0, hash: shaInit }
 
 append(handle, chunk):
-  if near(deadline(handle.path)):           // renew lazily, only when close to expiry
-      handle = renew(handle)
+  handle = maybeRenew(handle)               // pre-write: don't write into a near-dead lease
   writeBytes(handle.path, handle.offset, chunk)   // ENOENT ⇒ lease lost ⇒ abort
+  handle = maybeRenew(handle)               // post-write: the successful write IS the progress
+                                            //   event (progress-coupled mode) — refresh now, or a
+                                            //   long gap after this chunk could expire a live,
+                                            //   progressing upload and have GC reclaim it
   return { ...handle,
            offset: handle.offset + len(chunk),
            hash:   shaUpdate(handle.hash, chunk) }
+
+maybeRenew(handle):                          // lazy: avoid a rename on every chunk
+  if remaining(deadline(handle.path)) < threshold: return renew(handle)
+  return handle
 
 renew(handle):
   newDl   = now() + ttl
@@ -163,9 +170,12 @@ renew(handle):
   rename(handle.path, newPath)              // ENOENT ⇒ GC reclaimed us ⇒ abort
   return { ...handle, path: newPath }
 
-commit(handle, key, mode = normal):
+commit(handle, key?, mode = normal):
+  computedKey = shaFinal(handle.hash)       // 0. the address is ALWAYS the hash of the bytes we wrote
+  if key? and key != computedKey: return error  //   key-known/resume mismatch ⇒ caller bug or bad
+                                            //   resume state ⇒ refuse (never write under a wrong address)
   fsync(handle.path)                        // 1. file data durable before the shard is visible
-  dst = `.cas/${shard(key)}`
+  dst = `.cas/${shard(computedKey)}`        //    dst is derived from computedKey, not a trusted arg
 
   if mode == normal and stat(dst) is ok:    // 2. fast path only — an optimization, not relied on
       rm(handle.path); return ok            //    for correctness (see the rename handler below)
@@ -197,6 +207,13 @@ commit(handle, key, mode = normal):
 abort(handle):
   rm(handle.path)                           // ENOENT is fine — already reclaimed
 ```
+
+**The shard address is always the hash of the bytes actually written (step 0).** `commit`
+finalizes the accumulated hash and derives `dst` from *that*, never from a trusted argument.
+A `key` may still be passed for the key-known and resume paths, but it is only *checked*
+against `computedKey`, never used to place the file — so a caller bug or a bad resume state
+fails the commit instead of writing bytes under the wrong CAS address. This is what lets the
+read path (and `scrub.md`) trust the path as the checksum.
 
 **The destination-already-exists decision is made at the `rename` (step 4), not at the
 preflight `stat` (step 2).** The preflight stat is only a fast early-out; relying on it for
