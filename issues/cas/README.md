@@ -26,6 +26,15 @@ deduplication.
   SUL. Requires garbage collection (`_roots/` + `_parts/` directory split) and uses
   cached multi-hash maps (SHA-256 / SHA3-512 → Strategy 3 Merkle root) for external addressing.
 
+## Integrity: scrubbing and repair
+
+Independent of the write strategy, a committed block can later become invalid (bit rot,
+torn writes, durability gaps). [Block scrubbing and repair](scrub.md) is the committed-store
+counterpart to the staging GC: it scans `.cas/<prefix>/` shards, verifies each against its
+hash (the address *is* the checksum), quarantines corruption, and — in the future — repairs
+it by re-fetching the block by hash from a friendly CAS. Staging minimises bad writes; scrub
+is the always-on backstop for everything that slips through afterward.
+
 ## Recommended progression: 1 → 3
 
 Strategies 1 and 3 compose naturally; Strategy 2 is an alternative in-memory path

@@ -77,6 +77,13 @@ same bytes" holds only up to the astronomically small probability of a collision
 no truly deterministic subsystem here — only one whose failure odds are small enough to
 treat as certain.
 
+The same honesty applies *after* commit. Lock-free staging minimises incorrect writes but
+cannot guarantee one never happens, and a committed shard can still rot on the media long
+after. The committed store therefore has its own always-on backstop — [block scrubbing and
+repair](scrub.md), the committed-store dual of this directory's GC — which continuously
+re-verifies shards against their hash and (in the future) repairs corruption by re-fetching
+the block by hash from a friendly peer.
+
 ## Name format
 
 The `<deadline>` must sort lexically as it sorts chronologically, so the GC can order the
