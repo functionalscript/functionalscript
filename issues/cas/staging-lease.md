@@ -135,11 +135,12 @@ vanishingly rare ones (power loss in one specific window, exotic cross-platform 
 It does not try to be crash-atomic.
 
 ```
-upload(stream, ttl):                          // returns the content hash (the CAS key)
-  rand     = random256()
-  deadline = now() + min(ttl, MAX)            // clamp so a bad clock cannot park a file far in the future
-  path     = `_staging/${fmt(deadline)}-${rand}`
-  mkdir(dirOf(path), {recursive})             // create _staging/ if absent (fresh store)
+upload(stream):                               // returns the content hash (the CAS key)
+  rand    = random256()
+  newPath = () => `_staging/${fmt(now() + delta)}-${rand}`   // delta is a fixed constant
+
+  mkdir(`_staging`, {recursive})              // create _staging/ if absent (fresh store)
+  path = newPath()
   createExclusive(path)
 
   offset = 0
@@ -149,8 +150,9 @@ upload(stream, ttl):                          // returns the content hash (the C
       writeBytes(path, offset, chunk)          // ENOENT ⇒ GC already reclaimed us ⇒ error (handled above)
       offset += len(chunk)
       hash    = shaUpdate(hash, chunk)
-      // long uploads: occasionally rename path to a later deadline to keep the lease alive
-      // (see "The lease knob"). A write that ENOENTs means GC already took the file ⇒ fail.
+      next = newPath()                         // renew the lease every chunk: rename to a fresh
+      rename(path, next)                       //   deadline (keeps `delta` constant — see below)
+      path = next
 
   key = shaFinal(hash)                          // the address IS the hash of the bytes written
   dst = `.cas/${shard(key)}`
@@ -179,6 +181,14 @@ Three things make this safe without extra machinery:
   not hash — a cheap stat, not a re-read — because a wrong-sized file is a real failure to
   catch now, while a same-sized-but-corrupt shard is the rare case left to hash verification
   (`scrub.md`), never the hot path.
+
+**Renewing every chunk keeps `delta` constant.** Renaming to a fresh `now() + delta` after each
+chunk means `delta` only has to cover the gap between two consecutive chunks, not the whole
+transfer — so it is a fixed constant, independent of payload size. The same `delta` doubles as
+the stall threshold: if a chunk ever takes longer than `delta` to arrive, the lease lapses, GC
+may reclaim the file, and the next `writeBytes`/`rename` fails `ENOENT` — the upload fails and
+restarts (fail-safe). Renewing every chunk is the simplest choice; *Future optimizations* notes
+a lazier variant.
 
 **Explicit offset, not `O_APPEND`.** Keeping the offset makes a write idempotent — a transient
 `writeBytes` error can be retried with the same bytes at the same offset with no double-append
@@ -221,10 +231,12 @@ gc(now):
       else: break                            // the rest are still live
 ```
 
-There is no separate "far-future" case to worry about: the deadline is clamped to `now + MAX`
-when the file is created (see the write protocol), so a wrong clock cannot park a file beyond
-the cap in the first place. GC can run lazily — piggy-backed on an upload — rather than as a
-daemon, since staging space reclamation is not urgent.
+Because `delta` is a fixed constant, a healthy writer's deadline is never more than `delta`
+ahead of `now`, so there is nothing exotic to scan for. (A grossly wrong clock could park a
+file far in the future and leak that one staging entry; that is a rare, single-file leak left
+to manual cleanup, not something the core handles — see *Future optimizations*.) GC can run
+lazily — piggy-backed on an upload — rather than as a daemon, since staging space reclamation
+is not urgent.
 
 ### Manual / degraded-mode GC
 
@@ -255,6 +267,43 @@ thing that survives contact with production.
 Both are the same mechanism (set a future deadline) at different magnitudes. A long lease
 buys reboot-survivability and low churn at the cost of slower reclamation of a crashed
 upload's space.
+
+## Future optimizations
+
+The algorithm above is the **baseline**: the simplest thing that is correct in the
+overwhelming majority of cases, with the rare residue left to hash verification (`scrub.md`).
+The items below are deliberately **not** in the core. They are recorded here so they have a
+home and do not creep back into the upload path as "fixes" — each is an *optional* extension,
+to be added only behind a real, measured need.
+
+- **Lazy lease renewal.** Instead of renaming after every chunk, renew only when the deadline
+  is near — e.g. at the `delta/2` half-life (`now() ≥ deadline − delta/2`). This cuts rename
+  frequency for fast/small-chunk streams. The cost is a smaller stall margin unless `delta` is
+  enlarged: renewing at the half-life tolerates an inter-chunk gap of only `~delta/2`, so set
+  `delta = 2 × maxGap` to keep the same tolerance. Baseline renews every chunk because it is
+  simpler and gives the full-`delta` margin for free.
+- **Stronger durability (`fsync`).** The baseline does not `fsync`; a power loss in a narrow
+  window can lose a partial upload or a just-published shard, and scrub repairs the rare lost
+  shard later. A writer that needs a hard durability guarantee could `fsync` the file and the
+  destination directory before returning, at a latency cost.
+- **Resumable / reboot-survivable uploads.** The baseline restarts a failed upload from
+  scratch. A resume could instead re-hash the surviving staging bytes (`offset = stat(path).size`)
+  and continue — surviving a reboot or handing the upload to another process. See
+  *Reboot-survivable resume*.
+- **Cross-machine / distributed uploads.** Running the same path-only protocol over shared
+  storage (e.g. NFS) lets several machines upload into one store. See *Distributed and remote
+  staging*.
+- **Stall detection, competitive and failover uploads.** Coupling renewal to actual progress
+  turns the lease into a stall detector and enables hedged/failover uploads. See *Renewal
+  policy: detecting stalls*.
+- **Clock-skew / far-future leak handling.** With a fixed `delta` a healthy deadline is at most
+  `now + delta`, but a grossly wrong clock could park a single staging file far in the future
+  and leak it. A periodic max-age sweep (delete `_staging/` entries whose deadline is absurdly
+  far ahead) would reclaim it; the baseline leaves this rare case to manual cleanup.
+
+The sections that follow document several of these extensions in detail. They are reference
+material for *if* and *when* an optimization is justified — not part of the algorithm a first
+implementation needs to ship.
 
 ## Liveness is bound to the upload, not the process
 
@@ -419,15 +468,12 @@ a misjudged-slow uploader restarts or hands off, never corrupts.
 - **Leases are a timing assumption, not a truth.** A live-but-paused writer (STW GC pause,
   container freeze, laptop sleep, debugger breakpoint) that exceeds its deadline is
   declared dead and reclaimed. The design **fails safe** — the writer detects the loss via
-  `ENOENT` and aborts, never corrupting a shard — but it does waste that upload. Size the
-  TTL above the longest expected gap between appends. Whether an idle-but-alive writer is
-  kept or reclaimed is a deliberate choice of renewal policy (see *Renewal policy: detecting
-  stalls, not just deaths*): a background heartbeat tolerates stalls; progress-coupled
-  renewal reclaims them.
-- **Cap the maximum lease.** The deadline is clamped to `now + MAX` when the file is created
-  (write protocol), so a buggy or wrong-clock writer cannot park a file far in the future and
-  leak space. `MAX` bounds how long a legitimate long upload can pre-reserve, so it should be
-  configurable.
+  `ENOENT` and aborts, never corrupting a shard — but it does waste that upload. Size `delta`
+  above the longest expected gap between chunks.
+- **A wrong clock can leak one staging file.** With a fixed `delta` a healthy deadline is at
+  most `now + delta`, but a grossly wrong clock could write a far-future name that GC never
+  reclaims. It is a rare, single-file leak (never corruption); the baseline leaves it to
+  manual cleanup, and *Future optimizations* notes a max-age sweep if it ever matters.
 - **Wall-clock dependence.** Deadlines are wall-clock. On a single host (writer and GC
   share the clock) this is fine; NTP steps and suspend/resume are edge cases. Across hosts
   (see *Distributed and remote staging*) skew costs efficiency but not safety, *provided*
