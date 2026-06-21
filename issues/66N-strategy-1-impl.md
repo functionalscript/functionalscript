@@ -75,6 +75,8 @@ same opaque nominal token, passed through without inspection.
 
 - [ ] Add `openWrite` / `append` / `commit` / `abort` to the CAS KV layer using
   `openExclusive` / `appendHandle` / `commitHandle` / `abortHandle` effects
+- [ ] `openWrite`: ensure `.cas/_staging/` exists with `mkdir({ recursive: true })`
+  before calling `openExclusive` — the directory is absent on a fresh store
 - [ ] Write to `.cas/_staging/<uuid>` (generate UUID via `randomInt`)
 - [ ] On `commit`: call `commitHandle(handle, .cas/<prefix>/<hash>)`; create
   the shard subdirectory with `mkdir` if it does not exist
@@ -82,9 +84,10 @@ same opaque nominal token, passed through without inspection.
 - [ ] Implement lazy cleaner in `openWrite`: scan `.cas/_staging/`, apply
   mtime grace check + `tryLockExclusive` protocol
 - [ ] Replace `casUpload` with the new pipeline; delete the `.stage/` staging path
-- [ ] Integration test: write a large file in chunks, verify committed shard is
-  read-only and retrievable; simulate crash by calling `abortHandle` mid-write and
-  verify the cleaner reclaims the orphan
+- [ ] Integration test: write a large file in chunks; verify committed shard is
+  read-only and retrievable; simulate a process crash by dropping the virtual
+  runner's live `FileHandle` state (do **not** call `abortHandle` — that is
+  graceful cleanup, not a crash) and verify the cleaner reclaims the orphan
 - [ ] Update `fs/cas/module.f.ts` JSDoc and `cas/README.md` to reflect Strategy 1
 
 ## Related
