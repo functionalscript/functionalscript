@@ -58,9 +58,6 @@ wrapper in `fs/cas/module.f.ts` simplifies to `export const main = commands`.
 
 ## Related
 
-- [i66G-cas-mcp-cwd-home](./66G-cas-mcp-cwd-home.md) — further `cas` handler
-  refactoring; the `main` boilerplate removal here is a prerequisite to keep
-  that work clean.
 - `fs/fjs/module.f.ts` — the `run` handler at line 39.
 - `fs/cas/module.f.ts` — the `main = dispatch(commands)` boilerplate this issue
   eliminates.

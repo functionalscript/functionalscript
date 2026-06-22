@@ -45,4 +45,3 @@ Add a periodic background task (e.g., every hour or on startup) that:
 ## Related
 
 - [i66J-cas-large-file-support](./66J-cas-large-file-support.md) — staging directory and streaming upload design
-- [i66J-cas-add-path-restriction](./66J-cas-add-path-restriction.md) — overall CAS security and API improvements

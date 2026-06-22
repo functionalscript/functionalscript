@@ -40,5 +40,4 @@ The current path validation in `cas_add` uses the `home` parameter from `NodePro
 
 ## Related
 
-- [i66J-cas-add-path-restriction](./66J-cas-add-path-restriction.md) — current simple path validation (will be enhanced by this issue)
 - [i66J-cas-periodic-stage-recovery](./66J-cas-periodic-stage-recovery.md) — will also need path normalization for staging directory
