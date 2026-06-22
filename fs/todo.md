@@ -9,6 +9,15 @@ Find or build a formatter that handles `.f.js` and `.f.ts` files correctly.
 
 ---
 
+## Investigate eslint-config-jessie
+
+**Priority:** P3
+**Status:** open
+
+See [eslint-config-jessie](https://github.com/Agoric/eslint-config-jessie).
+
+---
+
 ## Detect unexported types referenced by exported types
 
 **Priority:** P5
