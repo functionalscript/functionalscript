@@ -1,4 +1,6 @@
-# 190. `fs/text`: own the single code-unit/code-point ↔ string boundary
+# TODO
+
+## 190. `fs/text`: own the single code-unit/code-point ↔ string boundary
 
 **Priority:** P3
 **Status:** open
@@ -45,7 +47,7 @@ is the *single-character* primitive, so every tokenizer/serializer re-binds
 reaching into built-ins from `.f.ts` modules and asks that conceptually-distinct
 logic live in its natural module.
 
-## Proposed abstraction
+### Proposed abstraction
 
 Expose single-character converters from the `fs/text` layer (next to the existing
 list converters), e.g.:
@@ -62,7 +64,7 @@ Then `html`, `fsc`, `js/tokenizer`, and `bnf` import these instead of re-binding
 stream) can likewise be named in `fs/text` so the JS-string boundary lives in one
 namespace.
 
-## Why this qualifies
+### Why this qualifies
 
 - The plain `fromCharCode` re-binding has three consumers (`html`, `fsc`,
   `js/tokenizer`) plus the inline `utf16` use — the same "re-bound under a local
@@ -71,7 +73,7 @@ namespace.
 - Separation of concerns: code ↔ string conversion is the defining job of
   `fs/text`; scanners and serializers should consume it, not re-import `String`.
 
-## Caveats
+### Caveats
 
 - These are thin wrappers over a built-in, so the value is *centralizing the
   boundary and removing scattered `String` references*, not algorithmic reuse —
@@ -84,7 +86,7 @@ namespace.
 - Keep `fs/text` free of cyclic deps: `ascii`, `bnf`, `fsc`, `js/tokenizer`, and
   `html` already sit above the text layer, so importing downward is clean.
 
-## Related
+### Related
 
 - [i167](./README.md) — re-binding a shared helper under per-module names.
 - [i168](./README.md) — the utf8/utf16 *decoder* skeleton (a different, list-level
@@ -92,12 +94,12 @@ namespace.
 
 ---
 
-# 666-utf16-encode-errormask. `codePointToUtf16` discards the error tag instead of preserving it
+## 666-utf16-encode-errormask. `codePointToUtf16` discards the error tag instead of preserving it
 
 **Priority:** P5
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/text/code_point/module.f.ts` defines a *shared* contract for the UTF-8 and
 UTF-16 codecs: an invalid code point is **tagged** with `errorMask` so it round-
@@ -137,7 +139,7 @@ This is a separation-of-concerns / contract-consistency gap rather than code
 duplication: the rule for "what an encoder does with an invalid code point" should
 live once in the `code_point` contract and be obeyed by both encoders.
 
-## Proposal
+### Proposal
 
 1. Pin the contract in `fs/text/code_point/`'s JSDoc: invalid code points are
    passed through with `errorMask` set, as UTF-8 does.
@@ -151,17 +153,17 @@ borders on a behavior change, so confirm the intended round-trip semantics befor
 editing (it may turn out the current truncation is deliberate, in which case the
 resolution is to document *that* divergence in `code_point` instead).
 
-## Tasks
+### Tasks
 
 - [ ] decide and document the invalid-code-point encoder contract in `code_point`
 - [ ] align `codePointToUtf16`'s invalid branch (or document the deliberate divergence)
 - [ ] add/adjust a `utf16/proof.f.ts` case for an invalid (error-tagged) input round-trip
 
-## Related
+### Related
 
 - `fs/text/code_point/module.f.ts` — shared `errorMask` contract (:17)
 - `fs/text/utf8/module.f.ts:73-95` — the encoder that preserves the tag (precedent)
-- [i666-utf8-continuation-helpers](./666-utf8-continuation-helpers.md) — sibling utf8 cleanup
+- i666-utf8-continuation-helpers — sibling utf8 cleanup
 - [i168](./README.md) — the streaming decoder factory both codecs already share
 
 ---

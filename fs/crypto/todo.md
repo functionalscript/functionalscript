@@ -1,4 +1,6 @@
-# Mental Poker
+# TODO
+
+## Mental Poker
 
 **Priority:** P3
 **Status:** open
@@ -13,7 +15,7 @@ See also
 - https://geometry.xyz/notebook/mental-poker-in-the-age-of-snarks-part-1
 - https://www.cs.purdue.edu/homes/ninghui/courses/Fall05/lectures/355_Fall05_lect25.pdf
 
-## API
+### API
 
 ```ts
 type Game = {
@@ -42,7 +44,7 @@ type State = {
 }
 ```
 
-## Shuffle After Drop
+### Shuffle After Drop
 
 Four cards: `X`, `Y`, `W`, `V`.
 
@@ -68,7 +70,7 @@ Notes:
 - make sure that the public information about difference in shuffling doesn't reveal information about RND seed.
 - if Charlie's cards and then dropped, the cards are back to the deck, because we don't know which card we should remove from the deck! The question is should we always return cards that folded?
 
-## Using VDF (Verifiable Delay Function)
+### Using VDF (Verifiable Delay Function)
 
 Using VDF to open cards even if a player is offline. All players encrypt cards and then decrypt required cards encrypt them with VDF and send to everyone. For example,
 
@@ -92,7 +94,7 @@ Alice's keys:
 
 For blockchain implementation: the first observer who reveals VDF values receives a small amount.
 
-## Opening Cards with ZK proof
+### Opening Cards with ZK proof
 
 1. Alice published shuffled `ca`: c^A = ca
 2. Bob published shuffled `cab`: ca^B = cab
@@ -209,7 +211,7 @@ o -A-> oa --B-> oab --C-> oabc --D-> oabcd
 
 14641
 
-## Drop
+### Drop
 
 A number of decks required to handle folds.
 
@@ -275,12 +277,12 @@ For 10 players we have 10^n = 1024 decks
 
 ---
 
-# 666-crypto-sign-fromcurve. `sign` bypasses `fromCurve` and re-derives RFC6979 helpers
+## 666-crypto-sign-fromcurve. `sign` bypasses `fromCurve` and re-derives RFC6979 helpers
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/crypto/sign/module.f.ts` already exposes the intended abstraction for "derive
 the RFC6979 conversion helpers (`All`) from a `Curve`":
@@ -322,7 +324,7 @@ Two distinct duplications here:
    RFC6979's "extra modular reduction" (documented in the comment at `:148-153`)
    thus appears twice, with the rationale comment split across the two sites.
 
-## Proposal
+### Proposal
 
 1. **Make `fromCurve` the complete "curve → signing context" factory** so `sign`
    reads everything it needs from one place and never re-reaches into `c`.
@@ -387,7 +389,7 @@ Part 1 is the separation-of-concerns fix: `fromCurve` already exists but is both
 bypassed by `sign` and too thin to fully serve it; part 2 is a small DRY win
 co-locating the RFC rationale.
 
-## Tasks
+### Tasks
 
 - [ ] `fromCurve` returns a composite `Signer = { rfc6979, nf, mul, g }` (no `&`);
       `all` stays the unchanged `q`-only RFC6979 factory `computeK` uses
@@ -396,7 +398,7 @@ co-locating the RFC rationale.
 - [ ] (optional) rename `All` → `Rfc6979` for clarity; split out if it churns proofs/imports
 - [ ] confirm `proof.f.ts` still covers all of `all`/`fromCurve`/`sign`
 
-## Related
+### Related
 
 - `fs/crypto/sign/module.f.ts` — `all` (:32), `fromCurve` (:53), `sign` (:141)
 

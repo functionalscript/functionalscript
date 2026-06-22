@@ -1,39 +1,12 @@
-# 209. Simplify fjs command line syntax: change from `fjs cas mcp` to `fjs mcp`.
+# TODO
 
-**Priority:** P2
-**Status:** open
 
-## Description
-
-Currently, the fjs CLI requires calling `fjs cas mcp` to invoke the MCP server via the CAS (content-addressable storage) layer. This proposal is to simplify the command syntax to `fjs mcp` by removing the intermediate `cas` command.
-
-## Rationale
-
-The MCP server will have more functionality than CAS in the future, and the CAS layer will become an internal implementation detail rather than a primary user-facing interface. Removing the `cas` command level will:
-
-1. Simplify the user-facing API
-2. Allow direct access to MCP functionality
-3. Prepare for expanded MCP capabilities beyond CAS
-
-## Changes Required
-
-- Update CLI argument parsing to accept `fjs mcp` directly
-- Maintain backwards compatibility during transition if needed
-- Update documentation and examples
-- Update test cases to use new syntax
-
-## Related Issues
-
-None
-
----
-
-# 66G-fjs-run-commands. `fjs run` should accept `Commands` as `main`, not just `NodeProgram`
+## 66G-fjs-run-commands. `fjs run` should accept `Commands` as `main`, not just `NodeProgram`
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 `fjs run <module>` imports the target module and calls `v.main` as a
 `NodeProgram`. When a module naturally expresses its interface as a `Commands`
@@ -42,7 +15,7 @@ array (as `fs/cas/module.f.ts` now does), it must also export a redundant
 fix in [#1093](https://github.com/functionalscript/functionalscript/pull/1093)
 that had to restore exactly this boilerplate after it was removed.
 
-## Proposal
+### Proposal
 
 `main` remains the single conventional entry point. Extend its type to
 `NodeProgram | Commands<NodeOp>` and resolve the union inside `runEffect` and
@@ -76,7 +49,7 @@ export const runEffect = (p: NodeMain): Promise<number> =>
 runner and needs no change. The `export const main = dispatch(commands)`
 wrapper in `fs/cas/module.f.ts` simplifies to `export const main = commands`.
 
-## Tasks
+### Tasks
 
 - [ ] Export `NodeMain = NodeProgram | Commands<NodeOp>` from
       `fs/effects/node/module.f.ts`.
@@ -86,7 +59,7 @@ wrapper in `fs/cas/module.f.ts` simplifies to `export const main = commands`.
       `dispatch` wrapper).
 - [ ] Add a proof in `fs/fjs/proof.f.ts` covering the `Commands`-as-`main` path.
 
-## Related
+### Related
 
 - `fs/fjs/module.f.ts` — the `run` handler at line 39.
 - `fs/cas/module.f.ts` — the `main = dispatch(commands)` boilerplate this issue
@@ -95,7 +68,7 @@ wrapper in `fs/cas/module.f.ts` simplifies to `export const main = commands`.
 
 ---
 
-# 132. `exec` improvements.
+## 132. `exec` improvements.
 
 **Priority:** P3
 **Status:** open

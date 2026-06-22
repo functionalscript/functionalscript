@@ -1,4 +1,6 @@
-# Test Framework Silent Mode
+# TODO
+
+## Test Framework Silent Mode
 
 **Priority:** P3
 **Status:** open
@@ -10,12 +12,12 @@ silent/verbose modes on the current effect-based runner.
 
 ---
 
-# 028-unit-test-examples-api. Distinguish proofs, examples, and public API coverage
+## 028-unit-test-examples-api. Distinguish proofs, examples, and public API coverage
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 FunctionalScript has several related but different validation/documentation
 needs:
@@ -29,7 +31,7 @@ The old `*test.f.ts` / `*example.f.ts` split does not match the current proof
 runner conventions. The repository now discovers proof modules by their
 `export const proof` value, while examples still lack a clear convention.
 
-## Proposal
+### Proposal
 
 Use these conventions:
 
@@ -80,7 +82,7 @@ In this example:
 - The module-level assertion is intentionally tiny because it runs on every
   import.
 
-## Tasks
+### Tasks
 
 - [ ] Define the `export const examples = ...` shape.
 - [ ] Decide whether examples are executable by the proof runner, extracted by
@@ -89,16 +91,16 @@ In this example:
 - [ ] Document how examples differ from `export const proof`.
 - [ ] Update one small module as the reference example.
 
-## Related
+### Related
 
-- [i664-file-type-conventions](./664-file-type-conventions.md) — file naming
+- [i664-file-type-conventions](../../issues/664-file-type-conventions.md) — file naming
   conventions for modules and proof modules.
-- [i668-emergent-testing-proof-type](./668-emergent-testing-proof-type.md) —
+- [i668-emergent-testing-proof-type](todo.md) —
   explicit proof-tree type.
 
 ---
 
-# 29. Test in a browser.
+## 29. Test in a browser.
 
 **Priority:** P3
 **Status:** open
@@ -107,7 +109,7 @@ It's important for such browsers as Firefox because we don't have SpiderMonkey a
 
 ---
 
-# 36. Test framework for a browser.
+## 36. Test framework for a browser.
 
 **Priority:** P3
 **Status:** open
@@ -116,7 +118,7 @@ We should have an HTML file (e.g., `./dev/test.html`) that can be opened in a br
 
 ---
 
-# 140. 100% test coverage for all `module.f.ts` files.
+## 140. 100% test coverage for all `module.f.ts` files.
 
 **Priority:** P3
 **Status:** open
@@ -125,7 +127,7 @@ We should have 100% test coverage for all `module.f.ts` files.
 
 ---
 
-# 194. Design for test effects:
+## 194. Design for test effects:
 
 **Priority:** P3
 **Status:** open
@@ -139,19 +141,19 @@ type RunSubTest<H> = (h: H, name: TestName, test: () => void) => void
 
 ---
 
-# 65Z-singleton-effect. Singleton effect to prevent duplicate proof execution
+## 65Z-singleton-effect. Singleton effect to prevent duplicate proof execution
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 When the same module is reachable under more than one path — due to hard links,
 copies, or a test runner discovering both the original and a generated alias —
 its `proof` export is executed multiple times in the same process. This wastes
 time and can produce confusing duplicate output.
 
-### Concrete example: scenario runner
+#### Concrete example: scenario runner
 
 `run.sh` hard-links `all.ts` → `_all.test.ts` and a scenario file →
 `_scenario.proof.ts`, then runs a test framework (node, bun, deno, playwright)
@@ -164,7 +166,7 @@ not by inode — so the proof suite runs twice.
 The same issue would arise if `all.ts` were copied to multiple locations for
 use in different test environments.
 
-## Proposal: a `singleton` effect
+### Proposal: a `singleton` effect
 
 Add a `singleton` effect operation that a module can call before registering
 its proofs. The effect checks whether a given key has already been registered
@@ -175,7 +177,7 @@ in the current process and, if so, returns without doing anything.
 export const run = singleton('./fs/emergent_testing/all')(realRun)
 ```
 
-### Semantics
+#### Semantics
 
 ```
 singleton(key)(effect) ->
@@ -183,7 +185,7 @@ singleton(key)(effect) ->
     else: mark key as seen, then run effect
 ```
 
-### Implementation sketch
+#### Implementation sketch
 
 The singleton registry needs to survive across module reloads and be shared
 by all instances of the same logical entry point. The natural place is
@@ -203,7 +205,7 @@ The key should be stable across hard links and copies — a logical name
 (e.g. the module's canonical import path relative to the repo root), not
 `import.meta.url`, which would differ per copy.
 
-### Alternative: module-level `Set` in a shared registry module
+#### Alternative: module-level `Set` in a shared registry module
 
 ES modules are **singletons per resolved URL**: a module is evaluated exactly
 once and its exports are shared by all importers that resolve to the same URL.
@@ -235,33 +237,33 @@ is that it only works when all copies share the same `registry.f.ts` URL —
 which holds for hard links in the same directory tree, but not for copies in
 entirely separate trees.
 
-### Alternative: inode-based deduplication
+#### Alternative: inode-based deduplication
 
 The effect runner could detect hard-linked files by comparing inodes before
 importing them. This requires a `stat()` call per file and is specific to
 Unix; it does not generalise to copied files or other runtimes (Deno, Bun,
 browsers).
 
-### Alternative: avoid the problem in run.sh
+#### Alternative: avoid the problem in run.sh
 
 Instead of hard-linking `all.ts` → `_all.test.ts`, `run.sh` could use a
 wrapper file that only imports `_scenario.proof.ts` and does not re-export
 `all.ts`. This avoids the duplication for the scenario case but does not
 address the general problem.
 
-## Related
+### Related
 
-- [i65Z-ci-scenario-docker](./65Z-ci-scenario-docker.md) — CI scenario job; duplicate execution is a latent issue when multiple runners scan the same directory
+- [i65Z-ci-scenario-docker](../ci/todo.md) — CI scenario job; duplicate execution is a latent issue when multiple runners scan the same directory
 - i183 — scenario test infrastructure
 
 ---
 
-# 65Z-tf-test-tree-walker. `fs/emergent_testing`: share the test-tree walker between `runModule` and `registerModule`
+## 65Z-tf-test-tree-walker. `fs/emergent_testing`: share the test-tree walker between `runModule` and `registerModule`
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/emergent_testing/module.f.ts` already factors out the static collection step into
 `collectTests` (lines 116-128), which walks the export tree and returns a flat
@@ -322,7 +324,7 @@ module doc (lines 144-153). But the *traversal* (collect leaves, recurse into
 function-return sub-trees, fan out with `all`) is shared and decouples cleanly
 from the per-leaf action.
 
-## Proposal
+### Proposal
 
 Lift the traversal into a single `walkTests` combinator parameterized over the
 per-leaf action and the accumulator merge:
@@ -363,7 +365,7 @@ recurse?" from "give me the sub-tree value" so the abstraction doesn't force a
 boolean discriminator. The point is the recursion shape (collect → fan-out →
 merge) lives in one place.
 
-## Why this qualifies
+### Why this qualifies
 
 - **DRY at the right altitude.** `collectTests` already names the static walk;
   this names the dynamic one. Two consumers exist today and a third — a
@@ -379,7 +381,7 @@ merge) lives in one place.
   `runModule` (lines 187-188). Lifting it into a shared `walkTests` makes
   the rule the API, not a convention to be reproduced.
 
-## Caveats
+### Caveats
 
 - `registerModule`'s recursion happens *inside* a `test()` callback, so the
   child registration uses `t` (the inner `TestContext`), not `ctx`. The
@@ -396,21 +398,21 @@ merge) lives in one place.
   *existing* two implementations shorter and clearer, not on the promise of
   a third consumer.
 
-## Related
+### Related
 
 - i183 — broader work on the `tf`
   framework; this is a structural cleanup that lands cleanly alongside it.
-- [i157](./157-json-djs-shared-core.md) — same flavour: two parallel
+- [i157](../djs/todo.md) — same flavour: two parallel
   walkers over the same static shape, differing in the per-node action.
 
 ---
 
-# 65Y-proof-assertEq-adoption. Adopt `assert`/`assertEq` across `proof.f.ts` files
+## 65Y-proof-assertEq-adoption. Adopt `assert`/`assertEq` across `proof.f.ts` files
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/dev/module.f.ts` exports two test helpers:
 
@@ -453,7 +455,7 @@ exactly what `assertEq`'s `throw [a, b]` payload answers, and it does
 so without each site having to remember to include both in the throw
 message.
 
-## Proposal
+### Proposal
 
 A migration that proceeds folder-by-folder, not all at once:
 
@@ -482,7 +484,7 @@ hand-rolled form — `assertEq` is not a hammer for every assertion.
 Aim for the simple `if (x !== expected) { throw x }` pattern first;
 it's by far the most common and the lowest-judgement case.
 
-## Why this qualifies
+### Why this qualifies
 
 - **DRY at extreme volume.** ~1,623 spellings of the same three-token
   conditional throw. Even partial adoption (e.g. the ~60% that are
@@ -503,7 +505,7 @@ it's by far the most common and the lowest-judgement case.
   Adoption is self-reinforcing in either direction, so the first
   folder sets the tone for everything that follows.
 
-## Caveats / why this is an idea, not a mechanical edit
+### Caveats / why this is an idea, not a mechanical edit
 
 - **Not every site fits.** Some `throw` statements carry context the
   helper cannot easily reproduce (e.g. interpolated strings,
@@ -537,7 +539,7 @@ it's by far the most common and the lowest-judgement case.
   expected-result edits; if they don't, the rewrite caught a
   pre-existing latent bug and that's a separate diff.
 
-## Related
+### Related
 
 - i65Y-proof-by-export — discovery by exported
   `proof`; defines module-level asserts as the "light proof" tier (runs on every
@@ -547,7 +549,7 @@ it's by far the most common and the lowest-judgement case.
 - `fs/sul/id/module.f.ts:19`, `fs/sul/id/proof.f.ts:1`,
   `fs/sul/proof.f.ts:1`, `fs/sul/level/hash/proof.f.ts:1` — the four
   existing consumers, demonstrating the desired call-site shape.
-- [i194](./194-test-effects.md), [i65X-async-test-functions](./README.md) —
+- [i194](todo.md), [i65X-async-test-functions](./README.md) —
   parallel work on the test framework's effect surface. The helper
   story above is intentionally smaller and orthogonal; it does not
   touch the `Reporter`/`TestEntry`/`testAll` path.
@@ -558,18 +560,18 @@ it's by far the most common and the lowest-judgement case.
 
 ---
 
-# 661-sample-repo-ts. Sample repo: FunctionalScript test framework for vanilla TypeScript
+## 661-sample-repo-ts. Sample repo: FunctionalScript test framework for vanilla TypeScript
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 There is no minimal example repository showing how to use the FunctionalScript test
 framework in a plain TypeScript project. New users have no reference for how to
 structure tests, what the different proof styles look like, or how to wire up CI.
 
-## Proposal
+### Proposal
 
 Create a public sample repository with:
 
@@ -586,7 +588,7 @@ Create a public sample repository with:
 - Deno test runner
 - Bun test runner
 
-## Tasks
+### Tasks
 
 - [ ] Create the sample repository
 - [ ] Add examples of module-level asserts
@@ -594,18 +596,18 @@ Create a public sample repository with:
 - [ ] Add examples of black-box proofs
 - [ ] Add CI workflow running `npx fjs js t`, Node, Deno, and Bun runners
 
-## Related
+### Related
 
-- [i661-test-runner-behavior](./661-test-runner-behavior.md) — documents runner behavior differences relevant to CI setup
+- [i661-test-runner-behavior](todo.md) — documents runner behavior differences relevant to CI setup
 
 ---
 
-# 661-sandbox-isolated-test-execution. fjs t runs generated tests in an isolated sandbox
+## 661-sandbox-isolated-test-execution. fjs t runs generated tests in an isolated sandbox
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 fjs `t` (the FunctionalScript test runner) differs fundamentally from most
 popular test runners (Node `node:test`, Deno, Bun, Vitest, Jest) in how it
@@ -624,7 +626,7 @@ This architectural difference has practical consequences that contributors and
 users need to be aware of when comparing behaviour or porting tests between
 runners.
 
-## Convention vs. runner
+### Convention vs. runner
 
 These properties — isolation, independence, deferred scheduling — are not
 accidents of implementation. The FunctionalScript **test conventions** are
@@ -637,7 +639,7 @@ conventions: it executes generated tests inline, inside the parent, and the
 properties are silently lost. The tests still pass or fail, but isolation,
 ordering guarantees, and runner-controlled scheduling are no longer in effect.
 
-## Key differences
+### Key differences
 
 | Aspect | fjs `t` | Typical runners (Node, Deno, Bun, Vitest…) |
 |---|---|---|
@@ -649,7 +651,7 @@ ordering guarantees, and runner-controlled scheduling are no longer in effect.
 | Generated tests are independent top-level tests | Yes — scheduled after parent succeeds | No — always nested inside the parent |
 | Runner controls when generated tests run | Yes — runner decides scheduling | No — execution is dictated by the parent test |
 
-## Proposal
+### Proposal
 
 Document this distinction clearly in the relevant README or developer guide so
 that:
@@ -661,31 +663,31 @@ that:
 3. The design rationale (functional purity, no shared mutable state) is
    explained alongside the behavioural difference.
 
-## Tasks
+### Tasks
 
 - [ ] Identify the right location for this documentation (README, AGENTS.md, or a dedicated doc page)
 - [ ] Write a short explanation of the sandbox model and how it contrasts with in-test sub-test execution
-- [ ] Add a note in the test-runner comparison table (see [i661](./661-test-runner-behavior.md))
+- [ ] Add a note in the test-runner comparison table (see [i661](todo.md))
 
-## Related
+### Related
 
-- [i661](./661-test-runner-behavior.md) — documents other behavioural differences across supported test runners
+- [i661](todo.md) — documents other behavioural differences across supported test runners
 - i65Y-sandbox-await-overhead — performance work inside the sandbox
 
 ---
 
-# 661-test-runner-behavior. Document behavior of supported test runners
+## 661-test-runner-behavior. Document behavior of supported test runners
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 Each supported test runner handles generated tests and expected failures differently.
 This is not documented anywhere, leaving contributors uncertain about why the framework
 behaves differently across Node, Deno, Bun, and Playwright.
 
-## Proposal
+### Proposal
 
 Document the following differences in the relevant README or doc page:
 
@@ -702,24 +704,24 @@ Document the following differences in the relevant README or doc page:
 - **Bun** and **Playwright**: have no awareness of expected-to-fail semantics, so
   such tests are wrapped to emulate the behavior.
 
-## Tasks
+### Tasks
 
 - [ ] Identify the right location for this documentation
 - [ ] Write the documentation describing the differences above
 
-## Related
+### Related
 
 - i155 — original test runner integration issue
-- [i211](./211-reporter-modes.md) — reporter modes, including the Node/Bun/Playwright bridge reporter
+- [i211](todo.md) — reporter modes, including the Node/Bun/Playwright bridge reporter
 
 ---
 
-# 664-emergent-testing-module-files. Load `module.js`/`module.ts` files for white-box testing
+## 664-emergent-testing-module-files. Load `module.js`/`module.ts` files for white-box testing
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 `shouldLoad` in `fs/dev/module.f.ts:61` currently admits only two categories of files:
 
@@ -745,7 +747,7 @@ The natural place to put white-box tests for `module.ts` is `module.ts` itself
 (or a co-located `module.test.ts`), mirroring how `.f.ts` files are bulk-loaded
 regardless of whether they export a `proof` property.
 
-## Proposal
+### Proposal
 
 Extend `shouldLoad` to also admit files ending in `module.ts`, `module.js`,
 `module.mts`, or `module.mjs`:
@@ -772,7 +774,7 @@ So files that do not export `proof` are silently skipped — exactly the same
 behaviour as `.f.ts` files without a `proof` export. No changes to the runner
 are required.
 
-## Documentation
+### Documentation
 
 The JSDoc comment on `shouldLoad` (`fs/dev/module.f.ts:51–60`) and the
 `fs/emergent_testing/` module documentation must be updated to reflect the new
@@ -780,14 +782,14 @@ loading rules, explaining that `module.*` files are loaded for white-box testing
 of non-FunctionalScript modules while the `proof.*` convention remains for
 standalone black-box proof files.
 
-## Scope of change
+### Scope of change
 
 - `fs/dev/module.f.ts` — extend `shouldLoad`; update its JSDoc.
 - `fs/emergent_testing/` documentation — update to cover the new file-naming
   convention and its white-box testing use case.
 - Tests for `shouldLoad` (if any exist) — add cases for `module.ts`/`module.js`.
 
-## Non-goals
+### Non-goals
 
 - The `.f.ts` / `.f.js` bulk-load behaviour is unchanged.
 - The `proof.*` convention is unchanged and still recommended for standalone
@@ -797,18 +799,18 @@ standalone black-box proof files.
 
 ---
 
-# 665-proof-property-tests. Seed-derived inputs for non-zero-arg proof functions
+## 665-proof-property-tests. Seed-derived inputs for non-zero-arg proof functions
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 The proof framework currently treats a function with parameters (`f.length > 0`)
 as **not a test case** — it is silently skipped. Functions that declare parameters
 are ignored and never called (see `fs/emergent_testing/README.md`).
 
-## Proposal
+### Proposal
 
 The test runner calls non-zero-argument proof functions with a **signed 32-bit
 integer (`a | 0`) per parameter**, derived deterministically from the seed and
@@ -831,7 +833,7 @@ Property-based testing (universally-quantified assertions, shrinking, structured
 generators) is not a runner concern — users build that on top using plain helper
 libraries, the same way they use `assertEq` today.
 
-### Seed-based reproducibility
+#### Seed-based reproducibility
 
 The test runner is initialised with a **seed** that drives all random input
 generation. The seed is printed before any test runs, so that:
@@ -849,7 +851,7 @@ Two modes:
 `fjs t` would accept a `--seed <n>` flag (deterministic) and a `--fuzz` flag
 (exploratory with a new random seed). Without either, it defaults to deterministic.
 
-### Parallel-safe input generation
+#### Parallel-safe input generation
 
 Tests may run in parallel, so input values cannot be generated by advancing a
 shared sequential RNG state. Instead, each parameter is derived independently by hashing `seed`, the full test name, and the parameter index:
@@ -869,14 +871,14 @@ The hash function needs to be deterministic across runs and platforms
 (not `Math.random`, not pointer-based). A simple non-cryptographic hash
 (e.g. FNV-1a or xxHash over the UTF-8 bytes of the name) is sufficient.
 
-### Input generation
+#### Input generation
 
 TypeScript types are erased at runtime — the test runner cannot know what types
 a function's parameters expect, only **how many** parameters there are (`f.length`).
 Each parameter receives a signed 32-bit integer from the formula above. A function
 needing more than 32 bits simply declares more parameters.
 
-### One set of parameters per run
+#### One set of parameters per run
 
 Since property functions can return sub-trees — which may themselves contain
 further property tests — running `N` samples per property test would cause the
@@ -914,7 +916,7 @@ The runner receives `seed`, the helper builds the sub-tree, and the framework
 walks it — strong separation of concerns: the runner provides inputs, helper
 libraries transform them, the proof tree is plain data.
 
-### Failure output
+#### Failure output
 
 The seed is printed once before any test runs. Individual test paths then show
 only the generated parameter values:
@@ -926,7 +928,7 @@ import("./fs/math/proof.f.ts").proof.commutativity(3879392, 39002): error, 0.12 
 
 Running with `--seed 42` reproduces the exact failure.
 
-### Reproducing a specific failed test
+#### Reproducing a specific failed test
 
 Running with `--seed 42` re-runs **the entire suite** with the same inputs. When
 only one test failed, re-running everything is wasteful. A lighter option: pass
@@ -949,13 +951,13 @@ The adapter parses the path and arguments from the string and calls the
 function directly with those literal values, skipping seed-derived generation.
 This is one option; the exact interface is an open question.
 
-### Shrinking (future)
+#### Shrinking (future)
 
 Shrinking (finding the minimal failing input) is explicitly out of scope for the
 first iteration. Record the raw failing input; a follow-up can add shrinking
 driven by the rtti schema.
 
-### Seed visibility in external runners
+#### Seed visibility in external runners
 
 For `fjs t`, the seed is printed to stdout as a plain line before any test output.
 
@@ -972,7 +974,7 @@ This appears at the top of the runner's own output in whatever format it uses,
 requires no special stdout handling, and is visible even if a later test crashes
 the process. The seed test always passes (its body is a no-op).
 
-## Integration with the existing proof tree
+### Integration with the existing proof tree
 
 - The sub-tree walk and `throw`-key semantics apply as today.
 - A non-zero-arg function under a `throw` key is expected to throw for the input
@@ -983,7 +985,7 @@ the process. The seed test always passes (its body is a no-op).
 - For Bun/Playwright inline runners, each non-zero-arg function registers as a
   single named entry and is called once with its derived inputs.
 
-## Open questions
+### Open questions
 
 - **Hash function.** `hash(seed || testName)` → parameter bits. Must be
   deterministic across platforms, fast, and produce well-distributed output.
@@ -1003,26 +1005,26 @@ the process. The seed test always passes (its body is a no-op).
   the return value is another function it is walked as a sub-tree — the existing
   return-value mechanism covers it naturally.
 
-## Related
+### Related
 
 - `fs/emergent_testing/README.md` — current definition of test case (zero-arg only)
 - `fs/emergent_testing/module.f.ts` — `runModule`, `registerModule` — the entry points to extend
 
 ---
 
-# 668-emergent-testing-proof-type. Add an explicit `Proof` type
+## 668-emergent-testing-proof-type. Add an explicit `Proof` type
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 Emergent testing documentation describes proofs as ordinary values, but the code
 does not expose a named `Proof` type for modules to use. This makes the expected
 recursive shape implicit in runner code and prose instead of available as a
 type-level contract.
 
-## Proposal
+### Proposal
 
 Add and export a `Proof` type near the emergent testing runner API. The type
 should model the recursive proof tree accepted by the runner:
@@ -1043,7 +1045,7 @@ type from it. That would keep runtime validation and the public type in sync,
 but proof leaves are functions, so this requires extern RTTI support for
 function values before it can model the full proof tree.
 
-## Tasks
+### Tasks
 
 - [ ] Decide whether `Proof` should be a direct TypeScript type or derived from
   RTTI.
@@ -1055,23 +1057,23 @@ function values before it can model the full proof tree.
 - [ ] Add or update proof coverage for accepted object, array, and function
   proof shapes.
 
-## Related
+### Related
 
-- [i65Z-tf-test-tree-walker](./65Z-tf-test-tree-walker.md) — planned shared
+- [i65Z-tf-test-tree-walker](todo.md) — planned shared
   proof-tree traversal.
-- [i668-rtti-function-types](./668-rtti-function-types.md) — extern RTTI for
+- [i668-rtti-function-types](../types/todo.md) — extern RTTI for
   function-valued proof leaves.
-- [i665-proof-property-tests](./665-proof-property-tests.md) — future proof
+- [i665-proof-property-tests](todo.md) — future proof
   shape extension.
 
 ---
 
-# 66A-emergent-add-result. Merge `addPass` / `addFail` into one `TestState` updater
+## 66A-emergent-add-result. Merge `addPass` / `addFail` into one `TestState` updater
 
 **Priority:** P5
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/emergent_testing/module.f.ts` defines two `TestState` updaters that are
 identical except for the counter field they increment:
@@ -1106,7 +1108,7 @@ Both helpers are real, exercised code: `addPass(duration)(zero)` /
 `addFail(duration)(zero)` feed the `runModule` walk
 (`fs/emergent_testing/module.f.ts:199-205`).
 
-## Proposal
+### Proposal
 
 Parameterize over the counter key with a typed computed property, keeping the
 type checker's exhaustiveness (`'pass' | 'fail'` is a closed union, so a typo
@@ -1131,16 +1133,16 @@ DRY-vs-readability guidance (the originals are short and clear), which is why
 it is filed at **P5** — worth doing if the file is being touched anyway, or as
 a prerequisite if a third counter is introduced, but not on its own.
 
-## Tasks
+### Tasks
 
 - [ ] Replace `addPass` / `addFail` with the `addResult` factory + two
       derivations in `fs/emergent_testing/module.f.ts`.
 - [ ] Confirm `fs/emergent_testing` proofs still pass (`fjs t`) with full
       branch coverage and `npx tsc` is clean.
 
-## Related
+### Related
 
-- [i65Z-tf-test-tree-walker](./65Z-tf-test-tree-walker.md) — adjacent
+- [i65Z-tf-test-tree-walker](todo.md) — adjacent
   `fs/emergent_testing` DRY cleanup (sharing the dynamic test-tree walk between
   `runModule` and `registerModule`). Same module; independent change. Note that
   walker also consumes `addPass`/`mergeState`, so landing this first keeps the
@@ -1148,12 +1150,12 @@ a prerequisite if a third counter is introduced, but not on its own.
 
 ---
 
-# 205. Rename `all.test.ts` entry point
+## 205. Rename `all.test.ts` entry point
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 The `fs/emergetn-testing/scenarios/all.ts` file (renamed to `all.test.ts` by `run.sh` at test
 time) is named `all`, which suggests "run all tests" rather than "register tests with
@@ -1163,9 +1165,9 @@ The `.test.ts` suffix **must be kept** — bun, node `--test`, and Playwright
 auto-discover files ending in `.test.ts`. A name like `register.ts` (without the
 `.test.ts` suffix) would not be found by any framework.
 
-## Options
+### Options
 
-### Option A — `register.test.ts`
+#### Option A — `register.test.ts`
 
 Rename `all.ts` → `register.ts` (at rest); `run.sh` links it as `register.test.ts`.
 The `.test.ts` suffix preserves auto-discovery; the `register` prefix communicates
@@ -1176,12 +1178,12 @@ would not be loaded as a test module — no double-load risk, even if plain
 `*.test.ts` support is added (since the guard would need to explicitly exclude
 `register.test.ts` or use a different mechanism).
 
-### Option B — keep `all.ts` / `all.test.ts`
+#### Option B — keep `all.ts` / `all.test.ts`
 
 Accept the current name. `all` is short and familiar; the entry-point role is clear
 from context.
 
-## Related
+### Related
 
 - i204 — new suffix for plain TS/JS FunctionalScript convention files;
   `all.test.ts` must stay `.test.ts` for framework discovery
@@ -1189,12 +1191,12 @@ from context.
 
 ---
 
-# 206. Investigate workers as a sandbox
+## 206. Investigate workers as a sandbox
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 The current `sandbox` operation runs a synchronous function inside a try/catch with
 `performance.now()` timing:
@@ -1206,7 +1208,7 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => SandboxResult<T>]
 This provides error isolation but no resource limits — a test that spins forever,
 allocates unbounded memory, or calls `process.exit()` can crash the entire runner.
 
-## Proposal
+### Proposal
 
 Investigate Node.js Worker Threads (`node:worker_threads`) as a stronger sandbox:
 
@@ -1220,7 +1222,7 @@ Investigate Node.js Worker Threads (`node:worker_threads`) as a stronger sandbox
 The `SandboxResult<T>` return type is already designed to carry a `Result<T, unknown>`
 so timeout and termination can be surfaced as `error` values without API changes.
 
-## Open questions
+### Open questions
 
 1. **Startup cost** — spawning a worker per test call may be too slow for a large
    test suite. A worker pool (reuse workers across calls) reduces amortized cost but
@@ -1231,7 +1233,7 @@ so timeout and termination can be surfaced as `error` values without API changes
 3. **Bun/Deno compatibility** — both support `node:worker_threads`; verify that the
    same implementation works across all three runtimes.
 
-## Additional motivation: infinite waits and loops
+### Additional motivation: infinite waits and loops
 
 The current sandbox has no way to detect or recover from tests that never terminate:
 
@@ -1245,7 +1247,7 @@ The current sandbox has no way to detect or recover from tests that never termin
 A worker with a hard timeout terminates the worker thread after the deadline and
 reports a failure (timeout exceeded), keeping the rest of the test suite running.
 
-## Related
+### Related
 
 - i149 — original `sandbox` design
 - i183 — scenario tests that would exercise
@@ -1253,7 +1255,7 @@ reports a failure (timeout exceeded), keeping the rest of the test suite running
 
 ---
 
-# 211. Reporter modes for the test framework
+## 211. Reporter modes for the test framework
 
 **Priority:** P3
 **Status:** open
@@ -1262,7 +1264,7 @@ The `Reporter<O>` interface (`moduleStart` / `enter` / `pass` / `fail` / `summar
 each an `Effect<NodeOp, void>`) makes the walker reporter-agnostic. Several concrete
 reporter implementations follow naturally.
 
-## GitHub Actions reporter
+### GitHub Actions reporter
 
 `module.f.ts` currently reads `options.env['GITHUB_ACTIONS']` at startup and switches
 output format for the entire run:
@@ -1280,35 +1282,35 @@ This hardcodes knowledge of a specific CI environment inside the test walker. Th
 GitHub output path should be extracted into a `githubReporter` factory so it is
 testable via the virtual runner and the walker stays environment-agnostic.
 
-## Quiet reporter
+### Quiet reporter
 
 A reporter where `enter` and `pass` are no-ops (`pure()`); only `moduleStart`,
 `fail`, and `summary` produce output. Useful for CI logs where passing tests are noise.
-Selected via a CLI flag or env. See [i21](./021-test-framework-silent-mode.md).
+Selected via a CLI flag or env. See [i21](todo.md).
 
-## Dynamic progress reporter
+### Dynamic progress reporter
 
 When stdout is a TTY, a reporter that shows a running counter and the currently-executing
 test path, overwritten on each event. Falls back to the verbose reporter on a non-TTY
 destination. Corresponds to the "colored progress bar" item in
-[i21](./021-test-framework-silent-mode.md).
+[i21](todo.md).
 
-## Node / Bun / Playwright bridge reporter
+### Node / Bun / Playwright bridge reporter
 
 A reporter that converts walker events into the corresponding framework's `subTest`
 calls, allowing `module.ts` to reuse the Effects walker instead of maintaining its own
 scan loop. The landed i163 work added `test(throws, f)`
 to `Reporter<O>` that enables this.
 
-## Related
+### Related
 
-- [i21](./021-test-framework-silent-mode.md) — silent/verbose mode and progress bar
+- [i21](todo.md) — silent/verbose mode and progress bar
 - i155 — original issue; reporter modes extracted here
 - i163 — `test(throws, f)` on `Reporter<O>` enabling the bridge reporter
 
 ---
 
-# Scenario Testing
+## Scenario Testing
 
 **Priority:** P3
 **Status:** open
@@ -1318,7 +1320,7 @@ A scenario is an extended unit test: a declarative description of an initial sys
 1. **As a unit test** — a mock effect interpreter runs the effect against a pure in-memory initial state. No real files, network, or processes. Fast, portable, runs anywhere.
 2. **As an integration test** — the initial state is materialised on a real machine, the actual command is executed, and the result is checked. This is what CI integration jobs do (see [669-ci-integration-tests.md](669-ci-integration-tests.md)).
 
-## Design
+### Design
 
 The scenario type will evolve as more complex cases are encountered rather than being designed upfront for all possible scenarios. A starting shape:
 
@@ -1340,15 +1342,15 @@ The two interpreters test different things:
 
 Both failure modes are distinct and complementary — a scenario that passes both gives high confidence.
 
-## Key constraint
+### Key constraint
 
 The mock interpreter must be faithful to the real one. If they drift (e.g. file path casing differences on Windows), scenarios pass locally but fail in CI — the exact problem this design is meant to prevent. Ideally the mock is derived from the same spec as the real interpreter.
 
-## Migration path
+### Migration path
 
 Existing proof tests that use the virtual filesystem interpreter are already implicit scenarios — they have a state (`emptyState + root: dir`), an effect (`testAll(reporter)(options(...))`), and an expected result (exit code + events). Once the formal `Scenario` type is defined, these tests can be lifted into it directly, replacing the ad-hoc `run()` / `runMain()` helpers in `proof.f.ts` with typed scenario declarations.
 
-## Plan
+### Plan
 
 - [ ] Define the `Scenario` type and `InitialState` effect in `fs/testing/scenario/module.f.ts`.
 - [ ] Implement a mock interpreter for the scenario effect system.

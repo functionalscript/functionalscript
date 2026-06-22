@@ -1,21 +1,23 @@
-# 665-json-html. JSON to HTML syntax highlighter
+# TODO
+
+## 665-json-html. JSON to HTML syntax highlighter
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 There is no way to render a JSON value as syntax-highlighted HTML. A JSON viewer
 (in a browser, in docs, in a tool UI) needs each token class — strings, numbers,
 booleans, null, structural symbols — wrapped in a `<span>` so CSS can colour it.
 
-## Proposal
+### Proposal
 
 A module `fs/json/html/module.f.ts` that converts a JSON `Unknown` value to a
 syntax-highlighted HTML representation, using the project's existing virtual-DOM
 format (`['tag', {attrs}, ...children]`).
 
-### Intermediate virtual-DOM form
+#### Intermediate virtual-DOM form
 
 Given the JSON value:
 
@@ -69,7 +71,7 @@ Which serialises to:
 </pre>
 ```
 
-### CSS classes
+#### CSS classes
 
 | Class | Covers |
 |-------|--------|
@@ -79,25 +81,25 @@ Which serialises to:
 | `bool` | `true`, `false` |
 | `null` | `null` |
 
-## Tasks
+### Tasks
 
 - [ ] `fs/json/html/module.f.ts` — `toHtml(value: Unknown): VDom` converter
 - [ ] `proof.f.ts` covering each value type and a nested example
 - [ ] Register in `deno.json` exports
 
-## Related
+### Related
 
 - `fs/json/module.f.ts` — the `Unknown` type and `serialize`
 - `fs/json/schema/module.f.ts` — sibling JSON-dialect module
 
 ---
 
-# 66N-html-escape-table. Make HTML character escaping a declarative table
+## 66N-html-escape-table. Make HTML character escaping a declarative table
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/html/module.f.ts` escapes the four HTML-significant characters with a hand-written
 `switch` whose arms map a code point to its entity, falling back to the literal
@@ -131,15 +133,15 @@ characters outside it) are not separable.
 
 The codebase already treats this exact pattern as worth converting elsewhere:
 
-- [i65Z-asn1-tag-codec-table](./65Z-asn1-tag-codec-table.md) — replace a tag/codec
+- [i65Z-asn1-tag-codec-table](../asn.1/todo.md) — replace a tag/codec
   `switch` with a data table.
-- [i667-js-tokenizer-handler-literals](./667-js-tokenizer-handler-literals.md) — the
+- [i667-js-tokenizer-handler-literals](../js/todo.md) — the
   five `\b \f \n \r \t` escape handlers "differ only in emitted char" and should
   become an `escapeTo` table.
 
 The HTML escaper is the same shape and is currently the odd one out.
 
-## Proposal
+### Proposal
 
 Lift the escape set into a data table keyed by code point, and reduce
 `escapeCharCode` to a single table lookup with the pass-through fallback expressed
@@ -165,7 +167,7 @@ fallback policy ("not in the table ⇒ emit the raw character") appears exactly 
 (`:81`), `attribute` (`:96-97`) and every downstream consumer are unchanged because
 `escapeCharCode`'s signature is identical.
 
-### Notes / things to confirm during implementation
+#### Notes / things to confirm during implementation
 
 - The `escapeTable` keys come from the `ascii` module constants
   (`quotationMark`, `ampersand`, `lessThanSign`, `greaterThanSign`), which are typed
@@ -177,7 +179,7 @@ fallback policy ("not in the table ⇒ emit the raw character") appears exactly 
 - The behaviour is byte-for-byte identical; `fs/html/proof.f.ts` should pass unchanged
   and must still cover both the "escaped" and "pass-through" outcomes (the `??` arms).
 
-## Tasks
+### Tasks
 
 - [ ] Replace the `escapeCharCode` `switch` in `fs/html/module.f.ts` with an
       `escapeTable` lookup plus the `?? fromCharCode(code)` fallback.
@@ -186,11 +188,11 @@ fallback policy ("not in the table ⇒ emit the raw character") appears exactly 
 - [ ] Run `fjs t`; confirm `fs/html/proof.f.ts` still passes with full line/branch
       coverage (both the escaped and pass-through branches exercised).
 
-## Related
+### Related
 
-- [i65Z-asn1-tag-codec-table](./65Z-asn1-tag-codec-table.md) — same switch→table move
+- [i65Z-asn1-tag-codec-table](../asn.1/todo.md) — same switch→table move
   in `fs/asn.1`.
-- [i667-js-tokenizer-handler-literals](./667-js-tokenizer-handler-literals.md) — the
+- [i667-js-tokenizer-handler-literals](../js/todo.md) — the
   tokenizer's escape handlers, same "table of char→string" shape.
 
 ---

@@ -1,4 +1,6 @@
-# 38. Rust: bigint: Optimize multiplication.
+# TODO
+
+## 38. Rust: bigint: Optimize multiplication.
 
 **Priority:** P3
 **Status:** open
@@ -7,7 +9,7 @@ See https://www.youtube.com/watch?v=AMl6EJHfUWo
 
 ---
 
-# 58. BigUint issues.
+## 58. BigUint issues.
 
 **Priority:** P3
 **Status:** open
@@ -17,7 +19,7 @@ See https://www.youtube.com/watch?v=AMl6EJHfUWo
 
 ---
 
-# Optimal NaNVM
+## Optimal NaNVM
 
 **Priority:** P3
 **Status:** open
@@ -26,7 +28,7 @@ https://en.wikipedia.org/wiki/Double-precision_floating-point_format
 https://anniecherkaev.com/the-secret-life-of-nan
 https://brionv.com/log/2018/05/17/javascript-engine-internals-nan-boxing/
 
-## Float64 Layout
+### Float64 Layout
 
 - 1 bit — sign (S)
 - 11 bit — exponent (E)
@@ -53,7 +55,7 @@ https://brionv.com/log/2018/05/17/javascript-engine-internals-nan-boxing/
 
 Integer range: `[-2^53; +2^53]`.
 
-## NaN Payload
+### NaN Payload
 
 ```
   0                    1                   2                   3
@@ -61,13 +63,13 @@ Integer range: `[-2^53; +2^53]`.
 : 0 111_1111_1111 0000 0000_0000_0000_0000 0000_0000_0000_0000 0000_0000_0000_0000
 ```
 
-## 5 bit string
+### 5 bit string
 
 - 26 lower case letters
 
 50/5 = 10
 
-## 6 bit String
+### 6 bit String
 
 64: 
 - 0-9: 10
@@ -77,7 +79,7 @@ Integer range: `[-2^53; +2^53]`.
 
 48/6 = 8
 
-## 7 bit string
+### 7 bit string
 
 128: ASCII
 
@@ -95,11 +97,11 @@ Integer range: `[-2^53; +2^53]`.
 
 // 48/4 = 12
 
-## 16 bit string
+### 16 bit string
 
 48 / 3 = 16
 
-## 6-bit Id String
+### 6-bit Id String
 
 |symbol  |code          |# |sum|
 |--------|--------------|--|---|
@@ -109,7 +111,7 @@ Integer range: `[-2^53; +2^53]`.
 |`_`     |`\x5F`        | 1| 26|
 |`a`..`z`|`\x61`..`\x7A`|1A| 40|
 
-## 7FF & FFF
+### 7FF & FFF
 
 53 bits.
 
@@ -132,7 +134,7 @@ Optimization for
 
 Least used letters in English: Q, J, Z and X.
 
-### Layout 52
+#### Layout 52
 
 Starts with `0xFFF`
 
@@ -155,7 +157,7 @@ Starts with `0xFFF`
 |`0001`| 0|bool         |`bool`     |
 |`0000`| 0|-inf         |`number`   |
 
-## Pointer Kind
+### Pointer Kind
 
 Alignment 8 bytes. 3 bits.
 
@@ -170,7 +172,7 @@ Alignment 8 bytes. 3 bits.
 |11.0|`bigint`  |bigint         |
 |11.1|          |               |
 
-## Object
+### Object
 
 ```rust
 struct Object {
@@ -184,7 +186,7 @@ struct Array {
 }
 ```
 
-## String
+### String
 
 ```rust
 struct String {
@@ -193,7 +195,7 @@ struct String {
 }
 ```
 
-## Function
+### Function
 
 ```rust
 struct Function {
@@ -202,7 +204,7 @@ struct Function {
 }
 ```
 
-## BigInt
+### BigInt
 
 ```rust
 struct BigInt {
@@ -211,13 +213,13 @@ struct BigInt {
 }
 ```
 
-## Order of Object Properties
+### Order of Object Properties
 
 See https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys and https://262.ecma-international.org/6.0/#sec-object-type
 
 An integer index for Node.js, Deno and Bun means a value from `0` to `4294967294` including. 4_294_967_294 = 0xFFFF_FFFE. But an integer index in the ES6 standard is +0..2^53-1.
 
-## VM Interface
+### VM Interface
 
 Two design options:
 - using instances
@@ -242,7 +244,7 @@ trait Array {
 
 ---
 
-# 86. Operations for new VM implementation.
+## 86. Operations for new VM implementation.
 
 **Priority:** P3
 **Status:** open
@@ -274,7 +276,7 @@ impl Js for Unpacked {}
 
 ---
 
-# 87. Optimization: Reduce number of `Rc::clone()`.
+## 87. Optimization: Reduce number of `Rc::clone()`.
 
 **Priority:** P3
 **Status:** open
@@ -303,7 +305,7 @@ impl Js for Unpacked {}
 
 ---
 
-# 89. Rust Unpack dispatch.
+## 89. Rust Unpack dispatch.
 
 **Priority:** P3
 **Status:** open
@@ -333,7 +335,7 @@ impl<Operation> Unary<Operation> Unpack {
 
 ---
 
-# 131. An allocator for `nanvm` that doesn't panic.
+## 131. An allocator for `nanvm` that doesn't panic.
 
 **Priority:** P3
 **Status:** open
@@ -342,7 +344,7 @@ An allocator for `nanvm` that doesn't panic. Instead, it should return `Result<T
 
 ---
 
-# 159. nanvm-lib: collapse per-type wrapper trait boilerplate
+## 159. nanvm-lib: collapse per-type wrapper trait boilerplate
 
 **Priority:** P3
 **Status:** open
@@ -361,7 +363,7 @@ structural-equality bodies, `ContainerFmt` centralizes `Debug`, and bigint
 (`vm/bigint/mod.rs:124–187`). The remaining repetition is in the thin
 *wrapper* impls that delegate to those internals.
 
-## 1. `Serializable`, `SizedIndex<u32>`, `Index<u32>` — one macro
+### 1. `Serializable`, `SizedIndex<u32>`, `Index<u32>` — one macro
 
 These three traits are declared in lockstep across the per-type `mod.rs` files
 and are byte-identical except for the wrapper and its output/associated type:
@@ -417,7 +419,7 @@ container_traits!(BigInt, InternalBigInt, u64);
 
 This collapses ~10 files into one macro plus a handful of one-line invocations.
 
-## 2. `PartialEq` — two semantic arms
+### 2. `PartialEq` — two semantic arms
 
 The wrapper `PartialEq` bodies fall into two classes:
 
@@ -433,7 +435,7 @@ fn eq(&self, other: &Self) -> bool { self.0.items_eq(&other.0) }
 `impl_eq_by_items!` — cover both groups. `BigInt` additionally derives `Eq`
 (`bigint/partial_eq.rs:9`), so the items-arm should optionally emit `Eq`.
 
-## 3. Primitive `Serializable` / `Le` impls
+### 3. Primitive `Serializable` / `Le` impls
 
 `common/serializable.rs:10–53` repeats the same forward-to-`Le` body five times
 (`u8`, `u16`, `u32`, `u64`, `f64`):
@@ -451,7 +453,7 @@ A blanket `impl<T: Le>` would collide with the non-`Le` impls (`bool`, `()`,
 parallel repetition for `u16`/`u32`/`u64`/`f64` (`to_le_bytes` /
 `from_le_bytes`) and a second arm can cover those four too.
 
-## 4. `ordinary_to_primitive` — plain function dedup (no macro)
+### 4. `ordinary_to_primitive` — plain function dedup (no macro)
 
 `vm/primitive_coercion.rs` has three structurally identical functions —
 `obj_to_primitive` (70–90), `arr_to_primitive` (92–112), `fn_to_primitive`
@@ -471,7 +473,7 @@ The three public functions become one-line wrappers passing
 `obj_to_string` / `arr_to_string` / `fn_to_string`. This is the lowest-risk
 item — no macro, just a generic helper.
 
-## Notes
+### Notes
 
 - All four items are pure boilerplate collapse; behavior is unchanged, so
   `cargo test` / `cargo clippy` / `cargo fmt --check` should pass without
@@ -482,19 +484,19 @@ item — no macro, just a generic helper.
   `string_coercion.rs:24–30` re-implements the dispatch match by hand instead
   of calling `Unpacked::dispatch`.
 
-## Related
+### Related
 
 - [i81](./README.md), [i33](./README.md) — concrete `Any<T>` / wrapper-type
   design; this cleanup is consistent with moving operations onto wrappers.
 
 ---
 
-# 65Y-nanvm-conversion-macros. Collapse `From`/`TryFrom` wrapper impl boilerplate
+## 65Y-nanvm-conversion-macros. Collapse `From`/`TryFrom` wrapper impl boilerplate
 
 **Priority:** P4
 **Status:** open
 
-## Constraint: avoid Rust macros
+### Constraint: avoid Rust macros
 
 Per the `Avoid macro_rules!` rule in `AGENTS.md` (added in the same PR
 as this issue): macros hide types from rust-analyzer, break grep and
@@ -507,16 +509,16 @@ impls.
 The remainder of this issue follows the AGENTS.md ladder
 (sealed trait → `build.rs` → accept duplication).
 
-## Problem
+### Problem
 
 `nanvm-lib/src/vm/impls/from.rs` and `nanvm-lib/src/vm/impls/try_from.rs`
 each carry a per-VM-wrapper impl set that is byte-identical modulo a
 variant name and a type argument. These are the same kind of nominal-
-newtype repetition that [i159](./159-nanvm-trait-boilerplate.md)
+newtype repetition that [i159](todo.md)
 addresses for `Serializable` / `SizedIndex` / `Index` / `PartialEq` /
 `Le`, but the conversion traits are **not covered** there.
 
-### `From<X> for Unpacked<A>` — 7 copies (`from.rs:42–87`)
+#### `From<X> for Unpacked<A>` — 7 copies (`from.rs:42–87`)
 
 ```rust
 impl<A: IVm> From<Nullish>     for Unpacked<A> { fn from(v: Nullish)     -> Self { Unpacked::Nullish(v) } }
@@ -529,7 +531,7 @@ impl<A: IVm> From<Array<A>>    for Unpacked<A> { fn from(v: Array<A>)    -> Self
 impl<A: IVm> From<Function<A>> for Unpacked<A> { fn from(v: Function<A>) -> Self { Unpacked::Function(v) } }
 ```
 
-### `TryFrom<Any<A>> for X` — 7 copies (`try_from.rs:7–85`)
+#### `TryFrom<Any<A>> for X` — 7 copies (`try_from.rs:7–85`)
 
 ```rust
 impl<A: IVm> TryFrom<Any<A>> for Nullish {
@@ -544,9 +546,9 @@ impl<A: IVm> TryFrom<Any<A>> for Nullish {
 
 Both groups share one axis-of-difference: `(wrapper, variant)`.
 
-## Options without `macro_rules!`
+### Options without `macro_rules!`
 
-### A. Status quo — keep the hand-written impls
+#### A. Status quo — keep the hand-written impls
 
 14 copies, ~120 lines, no churn. Adding a new VM variant (`Symbol<A>`)
 costs four lockstep edits (`Unpacked` enum, `from.rs`, `try_from.rs`,
@@ -557,7 +559,7 @@ detected only by tests.
 This is the cheapest option *today*; it remains a viable answer if
 none of B/C lands a clean enough improvement.
 
-### B. Generic helper trait + one-line impls
+#### B. Generic helper trait + one-line impls
 
 Coherence still blocks `impl<T> From<T> for Unpacked<A>`, but a
 **sealed trait** can carry the variant choice and let each leaf type
@@ -618,7 +620,7 @@ What it costs:
 - Net line count is probably similar to status quo (~120 lines) — the
   win is structural, not size.
 
-### C. Codegen via `build.rs` from a source-of-truth table
+#### C. Codegen via `build.rs` from a source-of-truth table
 
 A small `nanvm-lib/build.rs` that reads a table and emits
 `from.rs` / `try_from.rs` (or one combined module) into `$OUT_DIR`,
@@ -670,7 +672,7 @@ What it costs:
   but jumping to definition lands on generated code, not on a source
   table.
 
-### D. FunctionalScript eDSL for Rust (longer-term)
+#### D. FunctionalScript eDSL for Rust (longer-term)
 
 The natural endpoint of C, if it pays off: write a small
 FunctionalScript program that consumes the variant table and emits
@@ -681,7 +683,7 @@ emitter as the only Rust-aware piece. This is large enough that it
 should be filed separately if and when there is appetite — flagging
 it here only because PR feedback asked.
 
-## Recommendation
+### Recommendation
 
 Land **B (sealed trait)** as the primary attempt. It removes the
 drift hazard between `From` and `TryFrom`, keeps the code grep-able
@@ -698,7 +700,7 @@ same axis — `build.rs` becomes the right shared answer.
 Treat the `macro_rules!` approach previously outlined in this file as
 rejected.
 
-## Why this still qualifies
+### Why this still qualifies
 
 - **DRY at the second-consumer bar.** Seven `From` copies and seven
   `TryFrom` copies, each pair structurally identical — well past the
@@ -711,7 +713,7 @@ rejected.
   the chosen approach should be consistent with whatever i159 picks
   for the larger boilerplate cluster.
 
-## Caveats / why this is an idea, not a mechanical edit
+### Caveats / why this is an idea, not a mechanical edit
 
 - **Coherence checks needed for B.** The blanket `From` / `TryFrom`
   impls might collide with the existing
@@ -732,9 +734,9 @@ rejected.
   prefer to extend that approach here rather than fork a second
   pattern.
 
-## Related
+### Related
 
-- [i159](./159-nanvm-trait-boilerplate.md) — the same boilerplate-
+- [i159](todo.md) — the same boilerplate-
   collapse exercise for `Serializable` / `SizedIndex` / `Index` /
   `PartialEq` / `Le`. That issue currently proposes `macro_rules!`;
   the constraint surfaced here should be applied there too — update
@@ -752,7 +754,7 @@ rejected.
 
 ---
 
-# 56. Translate the Byte Code into WebAssembly or other PLs.
+## 56. Translate the Byte Code into WebAssembly or other PLs.
 
 **Priority:** P3
 **Status:** open

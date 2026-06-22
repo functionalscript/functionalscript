@@ -1,9 +1,11 @@
-# 65Z-asn1-tag-codec-table. `asn.1`: collapse the parallel encode/decode tag switches into one codec table
+# TODO
+
+## 65Z-asn1-tag-codec-table. `asn.1`: collapse the parallel encode/decode tag switches into one codec table
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/asn.1/module.f.ts` dispatches on the same set of universal tags twice — once
 to encode, once to decode — in two separate `switch (tag)` statements:
@@ -41,7 +43,7 @@ a case from one side and round-tripping silently breaks for that tag. The
 encoder/decoder are a logical pair held together by convention, not by the
 type system.
 
-## Proposal
+### Proposal
 
 Express the supported tags as a single table of `{ encode, decode }` pairs,
 keyed by tag. `recordToRaw` and `rawToRecord` each look up the relevant half:
@@ -71,7 +73,7 @@ keyed by stringified tag (bigints aren't valid object keys), or a small
 switch-on-tag helper that returns the codec — but the principle is one
 declaration site per (tag, encode, decode) triple.
 
-## Why this qualifies
+### Why this qualifies
 
 - **Single source of truth.** A new tag is added by inserting one row in the
   table instead of remembering to extend two switches. Dropping a tag from
@@ -80,7 +82,7 @@ declaration site per (tag, encode, decode) triple.
   data, not control flow. Keeping it as data also makes it cheap to query
   (e.g. "is this tag supported?") without writing yet another switch.
 
-## Caveats
+### Caveats
 
 - `SupportedRecord` is a discriminated union keyed by tag (`fs/asn.1/module.f.ts:272-278`),
   so the codec values are heterogeneously typed. The table approach loses the
@@ -94,9 +96,9 @@ declaration site per (tag, encode, decode) triple.
 - The unsupported-tag fallback in `rawToRecord` (`default: return encodeRaw(raw)`)
   must be preserved — the table only owns the supported branches.
 
-## Related
+### Related
 
-- [i189](./189-asn1-decode-all-unfold.md) — the other DRY target in `asn.1`,
+- i189 — the other DRY target in `asn.1`,
   the "drain a `Vec` with a step until empty" unfold. Same flavour: name a
   recurring shape once instead of inlining it per call site.
 

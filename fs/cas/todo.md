@@ -1,9 +1,11 @@
-# 66G-cas-get-verify-option. Option to verify the hash during cas get / read
+# TODO
+
+## 66G-cas-get-verify-option. Option to verify the hash during cas get / read
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 `Cas.read` / `fileKvStore.read` (`fs/cas/module.f.ts:51-57, 85-92`) and the `cas get`
 command (`fs/cas/module.f.ts:126-146`) return the bytes stored at an address without
@@ -13,11 +15,11 @@ between the copy and a later scrub can consume invalid content under a hash that
 or referenced elsewhere. The reader has no way to ask "and prove these bytes actually hash
 to the address I requested."
 
-A separate batch [`cas verify`](./66G-cas-verify-command.md) command catches corruption
+A separate batch [`cas verify`](todo.md) command catches corruption
 eventually, but there is a window before it runs, and some callers want certainty at the
 moment of read rather than relying on a background scrub.
 
-## Proposal
+### Proposal
 
 Offer an **opt-in verification mode** on read:
 
@@ -37,7 +39,7 @@ Open design points:
 - whether to expose it through the MCP CAS tools as well;
 - error shape on mismatch (treat as not-found vs. a distinct "corrupted" error).
 
-## Tasks
+### Tasks
 
 - [ ] Add a `verifiedRead`-style helper that rehashes and compares against the requested key
 - [ ] Add a `--verify` flag to the `cas get` command
@@ -45,19 +47,19 @@ Open design points:
 - [ ] Tests: corrupted blob read with verification fails; clean blob passes
 - [ ] Document the option in `fs/cas/README.md`
 
-## Related
+### Related
 
-- [i66G-cas-verify-command](./66G-cas-verify-command.md) — batch scrub for the same invariant
+- [i66G-cas-verify-command](todo.md) — batch scrub for the same invariant
 - `issues/plan/vision.md` — protocol-agnostic synchronization / copy-files sync
 
 ---
 
-# 66G-cas-verify-command. CAS verify command: rehash stored blobs and delete corrupted ones
+## 66G-cas-verify-command. CAS verify command: rehash stored blobs and delete corrupted ones
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 `fileKvStore.read` (`fs/cas/module.f.ts:51-57`) returns whatever bytes live at the
 addressed path without recomputing the hash. After **synchronization by copying files**
@@ -70,7 +72,7 @@ later correct sync of the same hash.
 The vision doc allows deferred verification for trusted-source copies ("copy first, verify
 later, delete what fails"). That deferred step needs an actual command to run.
 
-## Proposal
+### Proposal
 
 Add a `cas verify` command (and a reusable library function behind it) that:
 
@@ -91,7 +93,7 @@ Open design points:
 - whether deletion needs `Rm`/unlink effects added to the CAS operation set;
 - exit code / output format so it is scriptable in CI and cron.
 
-## Tasks
+### Tasks
 
 - [ ] Add a `verify` function over `Cas`/`KvStore` that rehashes and reports mismatches
 - [ ] Wire it as a `cas verify` CLI command in `fs/cas/module.f.ts`
@@ -99,25 +101,25 @@ Open design points:
 - [ ] Tests: seed a store with a corrupted/truncated/misnamed blob and assert it is caught
 - [ ] Document the command in `fs/cas/README.md`
 
-## Related
+### Related
 
-- [i66G-cas-get-verify-option](./66G-cas-get-verify-option.md) — per-read verification for the same invariant
+- [i66G-cas-get-verify-option](todo.md) — per-read verification for the same invariant
 - `issues/plan/vision.md` — protocol-agnostic synchronization / copy-files sync
 
 ---
 
-# 66J-cas-periodic-stage-recovery. Periodic recovery of incomplete staged files
+## 66J-cas-periodic-stage-recovery. Periodic recovery of incomplete staged files
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 The staging directory `~/.cas/.stage/` may accumulate incomplete uploads if the CAS service crashes or is killed mid-process. These files are orphaned and consume disk space indefinitely.
 
 Additionally, if a user manually restarts the upload process for a partially staged file, or if multiple CAS services are running in parallel, we need a way to detect and resume/complete incomplete staged files.
 
-## Proposal
+### Proposal
 
 Add a periodic background task (e.g., every hour or on startup) that:
 
@@ -134,13 +136,13 @@ Add a periodic background task (e.g., every hour or on startup) that:
 
 4. **Logs recovery actions** for observability (which files were recovered, how many bytes).
 
-### Assumptions
+#### Assumptions
 
 - Multiple CAS services may run in parallel and share the same `~/.cas/` directory.
 - Files can safely disappear from staging if another service completes the process.
 - Manual intervention is not required for "missing file" errors.
 
-## Tasks
+### Tasks
 
 - [ ] Define periodic task interface/scheduling (timer, cron-like, or manual trigger)
 - [ ] Implement staged file scanner and recovery logic
@@ -150,19 +152,19 @@ Add a periodic background task (e.g., every hour or on startup) that:
 - [ ] Add integration tests for recovery scenarios (normal completion, file disappears, hash failure)
 - [ ] Document recovery behavior in `fs/cas/README.md`
 
-## Related
+### Related
 
-- [i66J-cas-large-file-support](./66J-cas-large-file-support.md) — staging directory and streaming upload design
+- [i66J-cas-large-file-support](todo.md) — staging directory and streaming upload design
 
 ---
 
-# 66J-cas-readfile-size-limit. Handle large files in CAS read
+## 66J-cas-readfile-size-limit. Handle large files in CAS read
 
 **Priority:** P2
 **Status:** open
 **Blocked by:** —
 
-## Problem
+### Problem
 
 Currently, when CAS tries to read a file larger than `readFile`'s size limit:
 1. `fileKeyValue` read throws an exception
@@ -171,7 +173,7 @@ Currently, when CAS tries to read a file larger than `readFile`'s size limit:
 
 This is a critical issue for reliability and correctness.
 
-## Proposal
+### Proposal
 
 1. **readFile should return `'toobig'` error**: Instead of returning a generic error when a file exceeds the size limit, `readFile` should return a special `'toobig'` error variant. This allows callers to handle size-limited reads gracefully.
 
@@ -188,7 +190,7 @@ This is a critical issue for reliability and correctness.
    - MCP should report the file metadata without crashing
    - CLI should provide a helpful error message indicating the file size and suggesting alternative access methods
 
-## Tasks
+### Tasks
 
 - [ ] Add `'too big'` error variant to fileKeyValue read result type
 - [ ] Update CAS read to catch size errors from fileKeyValue read
@@ -197,19 +199,19 @@ This is a critical issue for reliability and correctness.
 - [ ] Add test cases for files at and above the size limit
 - [ ] Document the size limit in CAS README
 
-## Related
+### Related
 
 - Current branch: docker-mcp (temporary fix in place)
 - File: `fs/cas/mcp/module.f.ts` (cas_get implementation)
 
 ---
 
-# 66J-cas-large-file-support. Support files larger than 131 KB via streaming upload
+## 66J-cas-large-file-support. Support files larger than 131 KB via streaming upload
 
 **Priority:** P3
 **Status:** wip
 
-## Problem
+### Problem
 
 CAS currently has a hard limit of 131 KB per file and stores content in memory before computing hashes. This prevents storing practical file sizes:
 - Binary artifacts (compiled executables, archives)
@@ -220,7 +222,7 @@ CAS currently has a hard limit of 131 KB per file and stores content in memory b
 
 Storing files in memory is infeasible for large files (GBs+), and the 131 KB artificial ceiling must be removed or significantly increased.
 
-## Proposal
+### Proposal
 
 Two-phase staged move for `cas upload` (or `cas_add` with restricted paths):
 
@@ -230,7 +232,7 @@ Two-phase staged move for `cas upload` (or `cas_add` with restricted paths):
 
 3. **Move to final location**: Once hash is computed, rename the staged file to `~/.cas/<shard>/<hash>` using the existing sharded layout.
 
-### Rationale
+#### Rationale
 
 - **Move vs. copy**: Fast—no data duplication. Files in `~/cas_upload/` exist *only* to be uploaded; once moved to staging, they're committed to the process.
 
@@ -240,13 +242,13 @@ Two-phase staged move for `cas upload` (or `cas_add` with restricted paths):
 
 - **Local staging instead of `/tmp`**: Supports recovery if the upload is interrupted—staged files remain available for cleanup or resumption.
 
-### Cleanup & Recovery
+#### Cleanup & Recovery
 
 - **Abandoned staged files**: Add a background job or CLI command to clean up `~/.cas/.stage/` after a timeout (e.g., 24 hours).
 - **Failed hashes**: If hash computation fails, leave the file in staging with an error logged; manual cleanup or retry is explicit.
 - **Resumable uploads** (future): Staged files could be resumed if the process is killed mid-stream.
 
-## Tasks
+### Tasks
 
 - [x] Add `randomInt`, `readBytes`, and `rename` primitives to `fs/effects/node`
 - [x] Implement `random256` helper — 8 × `randomInt` calls folded into a 256-bit `Vec`
@@ -258,19 +260,19 @@ Two-phase staged move for `cas upload` (or `cas_add` with restricted paths):
 - [ ] Define cleanup policy and CLI command for `~/.cas/.stage/` abandoned files
 - [ ] Document the upload flow in `fs/cas/README.md`
 
-## Related
+### Related
 
-- [i66K-cas-upload-reject-symlinks](./66K-cas-upload-reject-symlinks.md) — reject symlinks before staging
-- [i66K-cas-get-return-path](./66K-cas-get-return-path.md) — `cas get` should return path/URL for large-file support
+- [i66K-cas-upload-reject-symlinks](todo.md) — reject symlinks before staging
+- [i66K-cas-get-return-path](todo.md) — `cas get` should return path/URL for large-file support
 
 ---
 
-# 66J-cas-symlink-escape. Close symlink escape in `cas_add` path validation
+## 66J-cas-symlink-escape. Close symlink escape in `cas_add` path validation
 
 **Priority:** P2
 **Status:** open
 
-## Problem
+### Problem
 
 The `cas_add` path validation checks if a path starts with `${home}/cas_upload/` and doesn't contain `..`. However, if `~/cas_upload` is writable by the agent or user, they can place a symlink within it to escape the sandbox:
 
@@ -282,7 +284,7 @@ When `readFile` is called on this path, Node.js follows the symlink and reads `/
 
 **Threat model**: This requires the attacker to already have write access to `~/cas_upload`. If they do, they have significant system access already. This is different from the arbitrary-read vulnerability (P1), which requires no pre-existing access.
 
-## Proposal
+### Proposal
 
 Validate the **canonical real path** (resolving symlinks, `..`, and `.`) before reading:
 
@@ -292,7 +294,7 @@ Validate the **canonical real path** (resolving symlinks, `..`, and `.`) before 
 
 This ensures that symlinks and other filesystem tricks cannot escape the sandbox.
 
-## Tasks
+### Tasks
 
 - [ ] Add `realpath` effect to `fs/effects/node/module.f.ts` (or `canonicalizePath`)
 - [ ] Update `cas_add` validation to resolve the canonical path
@@ -300,22 +302,22 @@ This ensures that symlinks and other filesystem tricks cannot escape the sandbox
 - [ ] Verify the canonical path is within the approved directory after resolution
 - [ ] Update `fs/cas/mcp/README.md` to document the symlink handling
 
-## Related
+### Related
 
-- [i66J-normalize-home-paths](./66J-normalize-home-paths.md) — defense-in-depth path normalization (will subsume this issue)
+- [i66J-normalize-home-paths](todo.md) — defense-in-depth path normalization (will subsume this issue)
 
 ---
 
-# 66J-cas-upload-dir-command. Add `cas_upload_dir` command for batch uploads
+## 66J-cas-upload-dir-command. Add `cas_upload_dir` command for batch uploads
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 After large-file support is implemented, users will want a convenient way to upload multiple files from `~/cas_upload/` in batch without calling `cas_add` individually for each file.
 
-## Proposal
+### Proposal
 
 Add a new MCP tool `cas_upload_dir` that:
 
@@ -328,7 +330,7 @@ Usage:
 cas_upload_dir({}) → {uploaded: 42, total_bytes: 1234567, errors: []}
 ```
 
-## Tasks
+### Tasks
 
 - [ ] Implement `cas_upload_dir` tool in `fs/cas/mcp/module.f.ts`
 - [ ] Reuse staging and recovery logic from large-file support
@@ -336,19 +338,19 @@ cas_upload_dir({}) → {uploaded: 42, total_bytes: 1234567, errors: []}
 - [ ] Add tests for empty directory, mixed file types, permission errors
 - [ ] Document in `fs/cas/mcp/README.md`
 
-## Related
+### Related
 
-- [i66J-cas-large-file-support](./66J-cas-large-file-support.md) — streaming upload infrastructure
-- [i66J-cas-periodic-stage-recovery](./66J-cas-periodic-stage-recovery.md) — recovery mechanism
+- [i66J-cas-large-file-support](todo.md) — streaming upload infrastructure
+- [i66J-cas-periodic-stage-recovery](todo.md) — recovery mechanism
 
 ---
 
-# 66J-normalize-home-paths. Normalize `~/` to absolute paths and validate directory containment
+## 66J-normalize-home-paths. Normalize `~/` to absolute paths and validate directory containment
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 The current path validation in `cas_add` uses the `home` parameter from `NodeProgramOptions` and rejects paths with `..`, which blocks common directory escape attempts. However, this is a string-based check that doesn't account for:
 - Symlinks that point outside the directory
@@ -358,7 +360,7 @@ The current path validation in `cas_add` uses the `home` parameter from `NodePro
 
 **Better approach**: Normalize the path (resolve `..` and `.`, handle symlinks) into a canonical absolute path, then verify containment using filesystem semantics rather than string matching.
 
-## Proposal
+### Proposal
 
 1. **Add a Node effect** (e.g., `normalizePath`) that:
    - Expands `~` to the home directory (using `os.homedir()`)
@@ -375,7 +377,7 @@ The current path validation in `cas_add` uses the `home` parameter from `NodePro
    - If path normalization fails (e.g., EACCES), return an error
    - If the normalized path escapes the sandbox, return a clear security error
 
-## Tasks
+### Tasks
 
 - [ ] Define `normalizePath` effect in `fs/effects/node/module.f.ts` or similar
 - [ ] Implement path normalization: expand `~`, resolve `..`, get canonical path
@@ -383,18 +385,18 @@ The current path validation in `cas_add` uses the `home` parameter from `NodePro
 - [ ] Add test cases for path traversal attacks: `~/cas_upload/..`, `~/cas_upload/../etc/passwd`, etc.
 - [ ] Ensure the check is robust: compare normalized paths, not string prefixes
 
-## Related
+### Related
 
-- [i66J-cas-periodic-stage-recovery](./66J-cas-periodic-stage-recovery.md) — will also need path normalization for staging directory
+- [i66J-cas-periodic-stage-recovery](todo.md) — will also need path normalization for staging directory
 
 ---
 
-# 66K-cas-cli-mcp-shared-core. Share code between CAS CLI and MCP
+## 66K-cas-cli-mcp-shared-core. Share code between CAS CLI and MCP
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 The CAS CLI (`fs/cas/module.f.ts` `commands`) and the CAS MCP server
 (`fs/cas/mcp/module.f.ts`) both implement the same three operations — add,
@@ -412,7 +414,7 @@ get, list — but with duplicated logic:
 If a new operation or encoding rule is added, both transports must be updated
 separately, with no compile-time guarantee they stay in sync.
 
-## Proposal
+### Proposal
 
 Extract a transport-agnostic CAS operation layer — a small set of typed
 functions that each accept a `Cas<O>` and return an `Effect` — shared by both
@@ -426,7 +428,7 @@ the CLI command handlers and the MCP tool handlers. This layer owns:
 The CLI and MCP modules become thin adapters: CLI maps flags/args to the
 shared calls; MCP maps JSON-RPC tool args to the same calls.
 
-### `add` operation — unified design
+#### `add` operation — unified design
 
 The shared layer defines a single `add` input type with two mutually exclusive
 sources:
@@ -453,7 +455,7 @@ and to mark blobs read-only before they enter the store:
 The staging step is the same in both cases; only the initial acquire differs
 (move vs copy) and MCP enforces the path restriction before staging begins.
 
-### `KvStore` interface change
+#### `KvStore` interface change
 
 The current `KvStore.write` accepts a `(key, value: Vec)` pair and writes the
 bytes directly. To support the staging pipeline, `KvStore` needs a second entry
@@ -468,7 +470,7 @@ move: (stagePath: string, key: Vec) => Effect<O, void>
 location. This avoids re-reading large files into memory and keeps the
 `write`-by-value path for inline content.
 
-## Tasks
+### Tasks
 
 - [ ] Identify all logic duplicated between `commands` (CLI) and
       `casToolRegistry` (MCP) — hash codec, store construction, encoding rules.
@@ -489,19 +491,19 @@ location. This avoids re-reading large files into memory and keeps the
 - [ ] Verify no behaviour change: existing CLI and MCP tests still pass; add
       new tests for the staging flow and the MCP path-restriction error.
 
-## Related
+### Related
 
 - `fs/cas/module.f.ts` — CLI commands and core types
 - `fs/cas/mcp/module.f.ts` — MCP tool registry and server
 
 ---
 
-# 66K-cas-cli-mcp-shared-upload. CLI and MCP should share `cas_add`/`cas upload` logic
+## 66K-cas-cli-mcp-shared-upload. CLI and MCP should share `cas_add`/`cas upload` logic
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 The CLI (`fs/cas/module.f.ts`) and MCP server (`fs/cas/mcp/module.f.ts`) both
 implement "store a file from `~/cas_upload/`" independently:
@@ -516,7 +518,7 @@ chmod, cleanup policy), each fix must be applied in two places. The MCP path
 currently lags: it can silently truncate or reject large files while the CLI
 handles them correctly.
 
-## Proposal
+### Proposal
 
 Extract the upload pipeline into a shared function in `fs/cas/module.f.ts` (or a
 new `fs/cas/upload/module.f.ts`) that both the CLI handler and the MCP tool
@@ -535,7 +537,7 @@ The MCP `cas_add` with `type:'url'` should be replaced or supplemented by a
 `cas_upload` tool that delegates to the same function, removing the 128 KiB cap
 and ensuring the same security invariants apply regardless of transport.
 
-## Tasks
+### Tasks
 
 - [ ] Export (or move) `random256` and `streamHash` from `fs/cas/module.f.ts` so
       they are reusable without re-implementing
@@ -547,20 +549,20 @@ and ensuring the same security invariants apply regardless of transport.
 - [ ] Ensure all future pipeline fixes (symlink rejection, chmod, cleanup) are
       applied once in `casUpload` and inherited by both transports
 
-## Related
+### Related
 
-- [i66J-cas-streaming-upload-design](./66J-cas-streaming-upload-design.md) — streaming upload pipeline (CLI only so far)
-- [i66K-cas-upload-reject-symlinks](./66K-cas-upload-reject-symlinks.md) — fix that must not be applied twice
-- [i66K-cas-get-return-path](./66K-cas-get-return-path.md) — analogous read-path gap between CLI and MCP
+- [i66J-cas-streaming-upload-design](todo.md) — streaming upload pipeline (CLI only so far)
+- [i66K-cas-upload-reject-symlinks](todo.md) — fix that must not be applied twice
+- [i66K-cas-get-return-path](todo.md) — analogous read-path gap between CLI and MCP
 
 ---
 
-# 66K-cas-get-return-path. `cas get` should return a path/URL rather than copy bytes
+## 66K-cas-get-return-path. `cas get` should return a path/URL rather than copy bytes
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 `cas get` currently reads the full file content through `fileKvStore.read` →
 `readFile`, which is capped at `maxLengthBytes` (128 KiB). Files uploaded via the
@@ -574,7 +576,7 @@ model for large files: it requires a `Vec` allocation the size of the file, pass
 it back to the caller, and forces the caller to write it out again — doubling peak
 memory use.
 
-## Proposal
+### Proposal
 
 Change `cas get` (and the underlying read path) to return the filesystem **path**
 of the stored object rather than its contents. Callers that need the bytes can
@@ -597,7 +599,7 @@ after the final `rename` in the upload pipeline. This:
 - Signals to the OS that the file is a good candidate for de-duplication
   (copy-on-write / reflinks).
 
-## Tasks
+### Tasks
 
 - [ ] Add a `stat` / `lstat` primitive (or extend an existing one) to retrieve
       file size without loading content, so callers can branch on size
@@ -610,19 +612,19 @@ after the final `rename` in the upload pipeline. This:
 - [ ] Apply `setReadOnly` in the `cas upload` pipeline after the final `rename`
 - [ ] Update proof tests and documentation
 
-## Related
+### Related
 
-- [i66J-cas-streaming-upload-design](./66J-cas-streaming-upload-design.md) — upload pipeline that stores files `cas get` cannot currently read back
-- [i66K-cas-upload-reject-symlinks](./66K-cas-upload-reject-symlinks.md) — related upload-path hardening
+- [i66J-cas-streaming-upload-design](todo.md) — upload pipeline that stores files `cas get` cannot currently read back
+- [i66K-cas-upload-reject-symlinks](todo.md) — related upload-path hardening
 
 ---
 
-# 66K-cas-upload-reject-symlinks. Reject symlinks before moving them into CAS
+## 66K-cas-upload-reject-symlinks. Reject symlinks before moving them into CAS
 
 **Priority:** P2
 **Status:** open
 
-## Problem
+### Problem
 
 When the upload source in `~/cas_upload/` is a symlink, `rename(src, stagePath)`
 moves the link itself rather than the target. `readBytes(stagePath)` then hashes
@@ -637,7 +639,7 @@ This breaks two CAS invariants:
 - **Confinement** — the link can point outside `~/cas_upload/`, bypassing any
   path restriction.
 
-## Proposal
+### Proposal
 
 Before the first `rename`, verify that the source is a regular file. Two options:
 
@@ -652,25 +654,25 @@ Before the first `rename`, verify that the source is a regular file. Two options
 Option 1 is preferred: it catches the problem early with minimal overhead and
 keeps the move-hash-move pipeline atomic.
 
-## Tasks
+### Tasks
 
 - [ ] Add `lstat` effect (or extend `access`/`stat`) to expose `isSymbolicLink`
 - [ ] In `cas upload`, call `lstat` on `src` before `rename`; return an error if
       it is a symlink or any non-regular-file type
 - [ ] Add proof test: uploading a symlink must fail before touching staging
 
-## Related
+### Related
 
-- [i66J-cas-streaming-upload-design](./66J-cas-streaming-upload-design.md) — the upload pipeline where this issue arises
+- [i66J-cas-streaming-upload-design](todo.md) — the upload pipeline where this issue arises
 
 ---
 
-# 66N-cas-get-response-shape. Collapse `cas_get`'s three response-building arms into one helper
+## 66N-cas-get-response-shape. Collapse `cas_get`'s three response-building arms into one helper
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 The `cas_get` handler in `fs/cas/mcp/module.f.ts` decides the MIME type of a blob in
 three phases — magic-byte sniff, UTF-8 validation, octet-stream fallback — and then,
@@ -748,7 +750,7 @@ the conditional"* — applied across three branches whose only real differences 
 selection (sniff → UTF-8 → fallback) is the genuinely varying logic; the response
 construction wrapped around it is not.
 
-## Proposal
+### Proposal
 
 Compute `url` once, then name the response-shaping concern in a single local helper
 that takes only what actually varies between phases: the `mime_type`, the `type`
@@ -796,7 +798,7 @@ once, `url` is computed once, and the two base64 phases differ only in the `mime
 argument they pass. The `mime_type`/`type` pairing per phase stays visible at the call
 site, so the classification logic is *more* readable, not hidden.
 
-### Notes
+#### Notes
 
 - `respond` captures `value`, `key`/`r.hash`, `r.content`, `url`, `byteLength` and
   `pure`/`okResult`/`errorResult` from the enclosing closure — it is local to the
@@ -813,7 +815,7 @@ site, so the classification logic is *more* readable, not hidden.
   unknown>` annotation in the current code can be dropped — let inference type `meta`,
   per the "prefer type inference" guidance.
 
-## Tasks
+### Tasks
 
 - [ ] Hoist `url = toUrl?.(key)` above the phase checks and add the local `respond`
       helper in the `cas_get` handler of `fs/cas/mcp/module.f.ts`.
@@ -822,7 +824,7 @@ site, so the classification logic is *more* readable, not hidden.
 - [ ] Run `npx tsc` and `fjs t`; confirm `fs/cas/mcp/proof.f.ts` passes with full
       line/branch coverage (the response is byte-identical for every case).
 
-## Related
+### Related
 
 - The `cas_get` tool (text/base64 split, MIME metadata, get/add unification) was
   implemented in prior work. This issue is the internal-readability follow-up on the

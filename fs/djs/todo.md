@@ -1,4 +1,6 @@
-# DJS
+# TODO
+
+## DJS
 
 **Priority:** P3
 **Status:** open
@@ -46,7 +48,7 @@ Where `func` is a description of the function:
 }
 ```
 
-## Parsed Example
+### Parsed Example
 
 ```js
 export default
@@ -61,7 +63,7 @@ export default
 
 ---
 
-# 157. JSON/DJS: extract the shared value-machine core
+## 157. JSON/DJS: extract the shared value-machine core
 
 **Priority:** P3
 **Status:** open
@@ -81,7 +83,7 @@ decoding, and number parsing to it. The duplication is one level up, in the
 This issue tracks all three because they share one root cause; each part can be
 landed independently.
 
-## 1. Parser value-state machine (strongest)
+### 1. Parser value-state machine (strongest)
 
 `fs/json/parser/module.f.ts` and `fs/djs/parser/module.f.ts` implement the
 *same* container-building state machine. The value-state alphabet is identical:
@@ -135,7 +137,7 @@ it with AST-tuple containers, metadata-carrying errors, and the id/ref hooks,
 then wraps the result in its module-level (`import`/`const`/`export`) machine,
 which stays DJS-specific.
 
-## 2. Recursive serializer walker (three copies)
+### 2. Recursive serializer walker (three copies)
 
 The same recursive `typeof`-dispatch walker is written three times:
 
@@ -167,7 +169,7 @@ duplicated lines inside one file with no cross-module coordination.
 A `serializeValue` factory (in `json/serializer`) parameterized by the extra
 `typeof` cases and an optional pre-`f` hook covers all three call sites.
 
-## 3. Tokenizer minus-rewriter
+### 3. Tokenizer minus-rewriter
 
 `fs/json/tokenizer/module.f.ts:27–101` and `fs/djs/tokenizer/module.f.ts:26–116`
 both wrap `js/tokenizer` and run the same two-state (`'def' | '-'`) `stateScan`
@@ -189,7 +191,7 @@ allow-list and an optional bigint case removes the duplication.
 > `fs/djs/tokenizer-new/module.f.ts` is a separate, BNF-grammar-based
 > experiment (`todo()`-stubbed) and is **not** part of this duplication.
 
-## Notes
+### Notes
 
 - Only extract once both consumers exist — they do here (JSON and DJS are both
   shipping). This satisfies the "second real consumer" rule in `AGENTS.md`.
@@ -198,20 +200,20 @@ allow-list and an optional bigint case removes the duplication.
   which already violates the no-mutation convention; the extraction is a good
   moment to thread an immutable accumulator instead.
 
-## Related
+### Related
 
-- [i003](./003-djs.md) — DJS design and its relationship to JSON. The old
+- [i003](todo.md) — DJS design and its relationship to JSON. The old
   `.d.js` extension conflict has been resolved and cleaned up.
 - [i77](./README.md) — identifier property names, the DJS object-key delta.
 
 ---
 
-# 196. `djs/parser`: collapse the trivia + eof/default handler boilerplate
+## 196. `djs/parser`: collapse the trivia + eof/default handler boilerplate
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/djs/parser/module.f.ts` defines 17 token-kind handlers
 (`parseInitialOp`, `parseNewLineRequiredOp`, `parseExportOp`,
@@ -248,10 +250,10 @@ operation everywhere, but each handler hand-rolls it.
 tokenizer drops `ws`/`nl` upstream (`mapToken` returns `empty` for
 them), and there are no `//` / `/*` tokens in JSON at all. So this is
 strictly a DJS-side concern and orthogonal to
-[i157](./157-json-djs-shared-core.md), which extracts the *value-level*
+[i157](todo.md), which extracts the *value-level*
 state machine shared with JSON.
 
-## Proposed abstraction
+### Proposed abstraction
 
 A single trivia-aware wrapper that takes a "core" handler over the
 non-trivia, non-eof tokens, and decorates it with the three boilerplate
@@ -316,7 +318,7 @@ out of the wrapper (or use a small variant):
   `parseImportNameOp`, `parseImportFromOp`, plus any value-level ones
   not absorbed by i157).
 
-## Why this qualifies
+### Why this qualifies
 
 - DRY: 17 consumers in a single file, far past the second-consumer
   bar. The trivia + eof + default-error trio is one concept (token-stream
@@ -332,11 +334,11 @@ out of the wrapper (or use a small variant):
   comments from [i83](./README.md)), there is one place to update,
   not 17.
 
-## Caveats / why this is an idea, not a mechanical edit
+### Caveats / why this is an idea, not a mechanical edit
 
 - **i157 dependency.** The value-level handlers
   (`parseValueOp`/`parseArrayStartOp`/…) should be extracted via
-  [i157](./157-json-djs-shared-core.md) first. After that, the trivia
+  [i157](todo.md) first. After that, the trivia
   wrapper covers only the DJS module-framing handlers (≈ 10 sites)
   rather than 17. Either order works; the result is the same end state.
 - **The `'nl'` exception.** `parseNewLineRequiredOp` deliberately treats
@@ -354,27 +356,27 @@ out of the wrapper (or use a small variant):
   the default, keep those few hand-written instead of growing the
   wrapper's API surface.
 
-## Related
+### Related
 
-- [i157](./157-json-djs-shared-core.md) — extracting the JSON value-state
+- [i157](todo.md) — extracting the JSON value-state
   machine shared with DJS. Reduces the 17 handlers to ~10 before this
   refactor is applied.
 - [i83](./README.md) — `#` comments. A successful extraction here makes
   that change a one-line edit to the wrapper's trivia case list.
-- [i165](./165-layered-parser.md) — a layered tokenizer/parser design
+- [i165](../bnf/todo.md) — a layered tokenizer/parser design
   that, if adopted, would push trivia handling entirely into the
   tokenizer layer and obviate this issue. This proposal targets the
   current architecture.
 
 ---
 
-# 197. `djs`: extract the `Unknown`-shape walker (5 consumers)
+## 197. `djs`: extract the `Unknown`-shape walker (5 consumers)
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** [i157](./157-json-djs-shared-core.md)
+**Blocked by:** [i157](todo.md)
 
-## Problem
+### Problem
 
 The DJS `Unknown` value shape
 
@@ -398,13 +400,13 @@ recursion or terminal handling):
 | 5 | `fs/djs/serializer/module.f.ts:163` — `countRefsOp` | Count references for the ref table. |
 | 6 | `fs/djs/ast/module.f.ts:50` — `toDjs` | Evaluate `AstConst` → `Unknown` (over `AstConst`, a parallel shape with `'aref'`/`'cref'`/`'array'` tuples). |
 
-[i157 §2](./157-json-djs-shared-core.md) covers (1)–(3) by factoring the
+[i157 §2](todo.md) covers (1)–(3) by factoring the
 serializer walker. This issue extends that coverage to **(4)** and
 **(5)** in the same serializer file, and observes that **(6)** is the
 same shape walk under a different name and could share machinery if the
 common visitor is generic enough.
 
-## The recurring skeleton
+### The recurring skeleton
 
 Every walker is a `Visitor`-style dispatch:
 
@@ -443,7 +445,7 @@ schema traversal by a `Visitor<R>` with one handler per variant, and
 both `validate` and `parse` plug in different visitors over the same
 ADT. The same factoring applies here.
 
-## Proposed abstraction
+### Proposed abstraction
 
 A `Visitor`-style walker for `Unknown`, e.g. in
 `fs/djs/walk/module.f.ts`:
@@ -501,7 +503,7 @@ TypeScript, runtime assertion). The cleaner path is to expose a
 `walkJson` over `JsonValue = JsonPrimitive | JsonObject | JsonArray`,
 sharing the four common leaves through a base visitor.
 
-## Why this qualifies
+### Why this qualifies
 
 - DRY: **5 consumers** in DJS alone, plus the JSON serializer. Every
   walker today re-encodes the union shape; if a new variant is added
@@ -516,7 +518,7 @@ sharing the four common leaves through a base visitor.
   remaining two ref-bookkeeping walkers and the `toDjs` evaluator,
   collapsing all six onto one shared visitor.
 
-## Caveats
+### Caveats
 
 - **`toDjs` is over `AstConst`, not `Unknown`.** It has an extra
   `Array`-branch sub-discriminator (`'aref' | 'cref' | 'array'`). A
@@ -539,30 +541,30 @@ sharing the four common leaves through a base visitor.
 - **Don't preemptively unify with `rtti/common/visit`.** RTTI's `visit`
   is over schema descriptors (`Type`), not values (`Unknown`). The
   visitor types are isomorphic in shape but semantically distinct;
-  collapsing them is an [i172](./172-rtti-validate-parse-skeleton.md)-
+  collapsing them is an [i172](../types/todo.md)-
   style speculative move and should wait for a third real consumer.
 
-## Related
+### Related
 
-- [i157 §2](./157-json-djs-shared-core.md) — the serializer walker
+- [i157 §2](todo.md) — the serializer walker
   factoring. This issue is its natural follow-up: same idea, two
   additional call sites.
-- [i172](./172-rtti-validate-parse-skeleton.md) — a similar
+- [i172](../types/todo.md) — a similar
   "merge parallel container factories" idea on the RTTI side. The
   pattern here is the same shape; the conclusions about when to
   defer apply equally.
-- [i143](./143-rtti-data.md) — RTTI data form may introduce a third
+- [i143](../types/todo.md) — RTTI data form may introduce a third
   RTTI consumer, which is what would unblock i172 and validate this
   pattern across the codebase.
 
 ---
 
-# 663-json-djs-tree-type. One generic recursive value shape for `json`/`djs`/serializer
+## 663-json-djs-tree-type. One generic recursive value shape for `json`/`djs`/serializer
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 The recursive "JSON-like tree" container shape — *an object whose values are
 trees, an array of trees, or a leaf* — is spelled out **three times** in the
@@ -622,10 +624,10 @@ Two further observations sharpen the case:
    `Unknown<T>` never references it — it bakes `null` in directly and takes the
    rest of the leaf set as `T`. `grep -n Primitive fs/json/serializer/module.f.ts`
    finds only the declaration. It's a leftover copy of json's leaf set with no
-   consumer (companion to the [i65Y-dead-code-cleanup](./65Y-dead-code-cleanup.md)
+   consumer (companion to the i65Y-dead-code-cleanup
    theme).
 
-## Proposal
+### Proposal
 
 Define the recursive container **once**, parameterized over the leaf type, and
 make `json` and `djs` two instantiations. Home: a small shared module
@@ -682,7 +684,7 @@ move — yet it collapses three hand-written copies of the same recursive shape
 into one generic, deletes one dead local type, and makes the `json ⊂ djs`
 relationship explicit at the container level instead of only the leaf level.
 
-## Why this qualifies
+### Why this qualifies
 
 - **DRY at the right altitude.** The container recursion is one concept with two
   real consumers today (`json`, `djs`) plus the serializer's already-generic
@@ -691,15 +693,15 @@ relationship explicit at the container level instead of only the leaf level.
   we are unifying three existing copies.
 - **Separation of concerns.** "What a JSON/DJS *value* is" is a data-shape
   concern that should have one home, distinct from "how to parse it"
-  ([i157](./157-json-djs-shared-core.md)) and "how to walk/serialize it"
-  ([i197](./197-djs-unknown-walker.md)). Today the shape is co-located with, and
+  ([i157](todo.md)) and "how to walk/serialize it"
+  ([i197](todo.md)). Today the shape is co-located with, and
   duplicated across, the modules that consume it.
 - **Removes a divergence hazard.** As long as three copies exist, a fix to the
   container (say, tightening object keys, or a `readonly` change) has to be made
   in three places or the shapes silently drift. One generic makes drift
   impossible.
 
-## Caveats / why this is a proposal, not a mechanical edit
+### Caveats / why this is a proposal, not a mechanical edit
 
 - **Keep the named `Object`/`Array` aliases.** Real importers depend on the
   member names, not just `Unknown`: `fs/djs/serializer/module.f.ts:6` imports
@@ -711,7 +713,7 @@ relationship explicit at the container level instead of only the leaf level.
   those imports.
 - **Recursive generic type aliases.** TypeScript supports recursive generic
   aliases like `Tree.Unknown<P>` fine, but confirm `tsc` (and `deno`'s slow-types check,
-  [i147](./147-deno-slow-types.md)) accept the three-alias form without an
+  i147) accept the three-alias form without an
   explicit annotation cycle error before landing. The current non-generic
   `Unknown` is itself recursive, so this is expected to be a non-issue — verify
   rather than assume.
@@ -730,17 +732,17 @@ relationship explicit at the container level instead of only the leaf level.
   the standard `@module` header and register it in the `exports` map of
   `deno.json`, per `AGENTS.md`.
 
-## Related
+### Related
 
-- [i157](./157-json-djs-shared-core.md) — shares the json/djs *parser* value
+- [i157](todo.md) — shares the json/djs *parser* value
   machine. Complementary: that issue unifies the runtime that builds these
   trees; this one unifies the type that describes them. A shared `Tree<P>` gives
   i157's factored machine a single typed target.
-- [i197](./197-djs-unknown-walker.md) — extracts the `Unknown`-shape *walker*
+- [i197](todo.md) — extracts the `Unknown`-shape *walker*
   (5 consumers). It quotes these very type definitions as context but proposes
   deduplicating the *traversal functions*, not the *types*. Landing this first
   gives that walker one generic shape to be written against.
-- [i65Y-dead-code-cleanup](./65Y-dead-code-cleanup.md) — same spirit; the unused
+- i65Y-dead-code-cleanup — same spirit; the unused
   `Primitive` in `json/serializer/module.f.ts:16` can be removed here or there.
 
 - `fs/json/module.f.ts:16,20,22,24` — copy 1 (json leaf set).
@@ -749,12 +751,12 @@ relationship explicit at the container level instead of only the leaf level.
 
 ---
 
-# 66E-parser-container-stack-bookkeeping. JSON/DJS parser: separate container-stack bookkeeping from container kind
+## 66E-parser-container-stack-bookkeeping. JSON/DJS parser: separate container-stack bookkeeping from container kind
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 Both `fs/json/parser/module.f.ts` and `fs/djs/parser/module.f.ts` build the
 container state machine out of four helpers — `startArray`, `startObject`,
@@ -766,7 +768,7 @@ finished container's value is extracted on the way out. Everything around that �
 pushing the current `top` onto the stack, popping it back off, and threading the
 result through `pushValue` — is repeated verbatim.
 
-### JSON (`fs/json/parser/module.f.ts:79-111`)
+#### JSON (`fs/json/parser/module.f.ts:79-111`)
 
 The stack-push line is byte-identical in both `start*` helpers:
 
@@ -811,7 +813,7 @@ const endObject
     }
 ```
 
-### DJS (`fs/djs/parser/module.f.ts:283-322`)
+#### DJS (`fs/djs/parser/module.f.ts:283-322`)
 
 The same shape recurs, with `{ ...state, ... }` spread instead of a fresh record
 and tuple containers instead of `kind`-tagged objects:
@@ -857,7 +859,7 @@ The DRY trigger is already met inside each module on its own: there are two real
 consumers of the start skeleton (array, object) and two of the end skeleton, so
 this is not a speculative one-call-site extraction.
 
-## Proposal
+### Proposal
 
 In each parser, name the two stack operations once and parameterize the
 container-kind difference. For JSON:
@@ -896,19 +898,19 @@ result in the `build` callbacks. `endArray`'s "top is not actually an array →
 push `null`" fallback stays inside its `build` callback, so the shared
 `pushValue(popState(state))(...)` skeleton is unchanged.
 
-## Why this is filed at P4
+### Why this is filed at P4
 
 The individual helpers are readable as they stand, so this is a cleanup, not a
 correctness fix — hence not high priority. It is worth doing when either parser
 is next touched, and it is a natural prerequisite for
-[i157-json-djs-shared-core](./157-json-djs-shared-core.md): that issue wants to
+[i157-json-djs-shared-core](todo.md): that issue wants to
 *share one value-machine across json and djs*, and the cleaner the per-module
 start/end building blocks are first, the smaller the surface that shared core has
 to absorb. The two efforts are complementary, not overlapping — 157 removes
 duplication **between** the two parsers; this removes duplication **within** each
 one and can land independently of 157.
 
-## Tasks
+### Tasks
 
 - [ ] In `fs/json/parser/module.f.ts`, add `pushStack` / `popState` (or
       equivalently named) and `startContainer` / `endContainer`; derive
@@ -920,22 +922,22 @@ one and can land independently of 157.
       `fs/djs/parser/proof.f.ts` still pass with full line/branch coverage
       (behaviour is unchanged — this is a pure refactor).
 
-## Related
+### Related
 
-- [i157-json-djs-shared-core](./157-json-djs-shared-core.md) — the larger effort
+- [i157-json-djs-shared-core](todo.md) — the larger effort
   to share one value-machine across json and djs; this issue tidies the per-module
   start/end helpers it would build on.
-- [i165-layered-parser](./165-layered-parser.md) — adjacent parser-architecture
+- [i165-layered-parser](../bnf/todo.md) — adjacent parser-architecture
   cleanup.
 
 ---
 
-# Incremental
+## Incremental
 
 **Priority:** P3
 **Status:** open
 
-## 1. JSON
+### 1. JSON
 
 ```json
 {
@@ -944,7 +946,7 @@ one and can land independently of 157.
 }
 ```
 
-## 2. `export default`
+### 2. `export default`
 
 ```js
 export default {
@@ -953,7 +955,7 @@ export default {
 }
 ```
 
-## 3. `import`, `const`, bigint, undefined and comments
+### 3. `import`, `const`, bigint, undefined and comments
 
 Release: 0.6.9.
 
@@ -970,7 +972,7 @@ export default {
 }
 ```
 
-## 4. Next
+### 4. Next
 
 - identifier properties
 - trailing comma
@@ -988,7 +990,7 @@ export default {
 }
 ```
 
-## 5. Wish List
+### 5. Wish List
 
 ```js
 import a from "./a.f.js"

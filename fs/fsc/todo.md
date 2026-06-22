@@ -1,4 +1,6 @@
-# 24. Create `./fsc.ts`
+# TODO
+
+## 24. Create `./fsc.ts`
 
 **Priority:** P5
 **Status:** open
@@ -10,7 +12,7 @@ Create `./fsc.ts` that supports the same behavior as the current NaNVM Rust impl
 
 ---
 
-# 47. FSC should be able to load and run modules as meta-programming.
+## 47. FSC should be able to load and run modules as meta-programming.
 
 **Priority:** P3
 **Status:** open
@@ -19,7 +21,7 @@ The FunctionalScript Compiler should be able to load and run modules as a meta-p
 
 ---
 
-# 70. Flags for `fsc`.
+## 70. Flags for `fsc`.
 
 **Priority:** P3
 **Status:** open
@@ -31,19 +33,19 @@ The FunctionalScript Compiler should be able to load and run modules as a meta-p
 
 ---
 
-# 83. FSC should support `#` comments.
+## 83. FSC should support `#` comments.
 
 **Priority:** P3
 **Status:** open
 
 ---
 
-# 66C-emit-literals-via-owner-modules. Route source-literal rendering through the owning modules
+## 66C-emit-literals-via-owner-modules. Route source-literal rendering through the owning modules
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 Several modules render a value as a piece of JS/TS/JSON **source text** — a
 bigint literal (`123n`) or a double-quoted string literal (`"abc"`). That
@@ -51,11 +53,11 @@ rendering is a small, well-defined concern, and the codebase already has a
 natural owner for each kind. But two emitters re-spell the primitive inline
 instead of calling the owner, so the same one-liner exists in several places.
 
-This is the same shape as [i190-text-char-code-boundary](./190-text-char-code-boundary.md)
+This is the same shape as [i190-text-char-code-boundary](../text/todo.md)
 ("own the single code-unit ↔ string boundary; N modules reach into the
 `String` built-in directly"), applied to literal rendering.
 
-### 1. bigint literal `${a}n` — owner exists, one consumer already uses it
+#### 1. bigint literal `${a}n` — owner exists, one consumer already uses it
 
 `fs/types/bigint/module.f.ts:90` owns the bigint → source-literal renderer and
 exports it:
@@ -88,7 +90,7 @@ case 'bigint': return `${c}n`
 a peer in `fs/types/` and one consumer (`djs/serializer`) already demonstrates
 the intended import.
 
-### 2. JS string literal `JSON.stringify(s)` — the operation has a de-facto home
+#### 2. JS string literal `JSON.stringify(s)` — the operation has a de-facto home
 
 "Render a string as a double-quoted JS/JSON string literal" is exactly JSON
 string syntax, and `fs/json/serializer` already concentrates it: it aliases the
@@ -123,7 +125,7 @@ All five sites want the identical thing: a valid double-quoted JS string
 literal with correct escaping. The concept is owned by `fs/json/serializer`
 but isn't exposed in a reusable (bare-string) form.
 
-## Proposal
+### Proposal
 
 1. **bigint (do now, unambiguous).** In `fs/types/ts/module.f.ts`, import the
    owner and drop the inline template:
@@ -166,7 +168,7 @@ but isn't exposed in a reusable (bare-string) form.
    existing home; the `types/ts` string case is the only piece without a clean
    one.
 
-## Tasks
+### Tasks
 
 - [ ] `fs/types/ts`: import `serialize` from `../bigint/module.f.ts`; replace
       `case 'bigint': return \`${c}n\`` with `bigintSerialize(c)`.
@@ -180,13 +182,13 @@ but isn't exposed in a reusable (bare-string) form.
 - [ ] Run `npx tsc` and `fjs t`; confirm `fs/types/ts`, `fs/json/serializer`,
       and `fs/emergent_testing` proofs still pass with full coverage.
 
-## Related
+### Related
 
-- [i190-text-char-code-boundary](./190-text-char-code-boundary.md) — same
+- [i190-text-char-code-boundary](../text/todo.md) — same
   "own the single boundary; stop reaching into the built-in" pattern for the
   char-code ↔ string conversion.
-- [i176-json-file-effects](./176-json-file-effects.md) and
-  [i198-utf8-file-effects](./198-utf8-file-effects.md) — a *different* JSON
+- [i176-json-file-effects](../../issues/176-json-file-effects.md) and
+  i198-utf8-file-effects — a *different* JSON
   concern (whole-value `JSON.stringify(v, null, 2)` → UTF-8 → write), not the
   single-token literal rendering tracked here.
 

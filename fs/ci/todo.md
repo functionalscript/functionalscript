@@ -1,28 +1,30 @@
-# 96. CI caching.
+# TODO
+
+## 96. CI caching.
 
 **Priority:** P3
 **Status:** open
 
 ---
 
-# 97. Smart CA CI for FunctionalScript.
+## 97. Smart CA CI for FunctionalScript.
 
 **Priority:** P3
 **Status:** open
 
 ---
 
-# 138. Implement a script that will update the lock file.
+## 138. Implement a script that will update the lock file.
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** [i136](./136-ci-lock-file.md)
+**Blocked by:** i136
 
-Implement a script that will update the lock file by reading the latest versions of tools from the internet using the instructions from [136](./136-ci-lock-file.md).
+Implement a script that will update the lock file by reading the latest versions of tools from the internet using the instructions from 136.
 
 ---
 
-# 170. `fs/ci`: a shared tool step builder for bun/deno/node
+## 170. `fs/ci`: a shared tool step builder for bun/deno/node
 
 **Priority:** P3
 **Status:** open
@@ -70,7 +72,7 @@ verbatim. The deltas are exactly the install action and the command strings:
 | deno | `denoland/setup-deno@v2` | `deno install`, `deno task test` |
 | node | `actions/setup-node@v6` | `npm ci`, `npm test`, `npm run fst` (varies per builder) |
 
-## Proposed abstraction
+### Proposed abstraction
 
 A `toolSteps` helper in `fs/ci/common/module.f.ts`, taking a pre-built install
 `MetaStep` and a list of command strings:
@@ -92,7 +94,7 @@ The install step is passed in (not the raw action) precisely because bun's
 install varies per `(Os, Architecture)` via `installOnWindowsArm`
 (`ci/bun/module.f.ts:16`); deno and node pass a fixed `install(...)`.
 
-## Why this qualifies
+### Why this qualifies
 
 - Three real consumers (bun, deno, node), all shipping — well past the
   "second real consumer" bar.
@@ -100,7 +102,7 @@ install varies per `(Os, Architecture)` via `installOnWindowsArm`
   data (action descriptor, command strings) differs, which is the textbook
   case for a data-parameterized factory in `AGENTS.md`.
 
-## Caveats / why this is an idea, not a mechanical edit
+### Caveats / why this is an idea, not a mechanical edit
 
 - **Partial fit for node.** `nodeMainSteps` (`ci/node/module.f.ts:38`) appends a
   TSGO `install({ run: … })` step *between* test commands, and `nodeVersions`
@@ -116,14 +118,14 @@ install varies per `(Os, Architecture)` via `installOnWindowsArm`
   is making the "install a runtime, run its install+test" recipe a single named
   thing, so a fourth runtime reuses it instead of forking a fourth copy.
 
-## Related
+### Related
 
 - `fs/ci/common/module.f.ts` already centralizes `install`/`test`/`clean`/
   `ubuntu`/`toSteps`; `toolSteps` is the next composition up the same ladder.
 
 ---
 
-# 175. `fs/ci`: a `setupTool` factory for pinned-version install steps
+## 175. `fs/ci`: a `setupTool` factory for pinned-version install steps
 
 **Priority:** P3
 **Status:** open
@@ -149,7 +151,7 @@ install({ uses: 'bytecodealliance/actions/wasmtime/setup@v1', with: { version: w
 install({ uses: 'wasmerio/setup-wasmer@v3.1', with: { version: `v${wasmer}` } })
 ```
 
-## Proposed abstraction
+### Proposed abstraction
 
 A small factory in `fs/ci/common/module.f.ts` that captures "a setup action
 parameterized by one pinned version":
@@ -168,7 +170,7 @@ export const setupTool =
   and `setupTool('wasmerio/setup-wasmer@v3.1', 'version')` (wasmer keeps its
   `v${...}` formatting at the call site).
 
-## Why this qualifies
+### Why this qualifies
 
 - Five real call sites today, all shipping.
 - It is the textbook `AGENTS.md` case: identical shape, only data (action
@@ -180,7 +182,7 @@ export const setupTool =
   other half: a factory that *constructs* those install steps. The two compose:
   `denoSteps = toolSteps(install(setupTool('denoland/setup-deno@v2','deno-version')(deno)), [...])`.
 
-## Caveats / why this is an idea, not a mechanical edit
+### Caveats / why this is an idea, not a mechanical edit
 
 - **Bun's Windows-ARM fallback stays.** `installOnWindowsArm`
   (`ci/bun/module.f.ts:16`) swaps the setup action for a PowerShell `irm | iex`
@@ -193,7 +195,7 @@ export const setupTool =
 - Mechanical savings are small (one line per tool); the value is making "install
   a pinned tool" one named recipe so a sixth tool reuses it.
 
-## Related
+### Related
 
 - [i170](./README.md), [i171](./README.md) — the `toolSteps` step-sequence
   builder; this factory feeds it.
@@ -202,19 +204,19 @@ export const setupTool =
 
 ---
 
-# 65Z-ci-nix. Investigate Nix as a package manager for CI environments
+## 65Z-ci-nix. Investigate Nix as a package manager for CI environments
 
 **Priority:** P4
 **Status:** open
 
-## Summary
+### Summary
 
 Nix is a purely functional package manager (not a virtualizer) that provides
 reproducible, content-addressed tool environments. It is a candidate for
 replacing inline tool installations (`setup-node`, `setup-bun`, etc.) on
 macOS CI — and potentially Linux — without the overhead of Docker or a VM.
 
-## What Nix is (and is not)
+### What Nix is (and is not)
 
 Nix manages tool binaries via a content-addressed store (`/nix/store`). When
 you enter a Nix shell (`nix develop`), `PATH` and related env vars point at
@@ -229,7 +231,7 @@ On macOS this means:
 This is the key advantage over Docker on macOS: Docker runs inside a Linux
 VM (via the Docker Desktop hypervisor), so it does not test macOS behaviour.
 
-## How it looks in GitHub Actions
+### How it looks in GitHub Actions
 
 Jobs and steps are unchanged. Only `run:` steps need a Nix wrapper;
 `uses:` actions (including `actions/checkout`) run in the GitHub Actions
@@ -263,15 +265,15 @@ The CI generator in `fs/ci/` would emit the `shell:` override or the
 `nix develop --command` prefix on `run:` steps; the overall job/step shape
 stays the same.
 
-## Platform support
+### Platform support
 
 | Platform | Nix viable? | Notes |
 |---|---|---|
-| Linux (Intel + ARM) | ✅ | Works natively; Docker is the current plan ([i65Z-ci-scenario-docker](./65Z-ci-scenario-docker.md)) |
+| Linux (Intel + ARM) | ✅ | Works natively; Docker is the current plan ([i65Z-ci-scenario-docker](todo.md)) |
 | macOS | ✅ | **Best fit** — real macOS environment, no VM overhead |
 | Windows | ❌ | WSL2 only → runs a Linux kernel, not real Windows; no advantage over Docker |
 
-### Why Windows is out of scope
+#### Why Windows is out of scope
 
 Nix on Windows requires WSL2. Inside WSL2 the kernel is Linux, so
 `process.platform === 'linux'` — Windows-specific behaviour (path
@@ -280,15 +282,15 @@ Windows runners also do not have WSL2 pre-enabled, and enabling it in CI
 has known reliability issues. Windows CI therefore stays with inline
 `setup-*` actions for the foreseeable future.
 
-## Playwright caveat
+### Playwright caveat
 
 Playwright's browser binaries and their system dependencies (glibc, libX11,
 etc.) are notoriously difficult to express in Nix derivations. This is the
-main reason [i65Z-ci-scenario-docker](./65Z-ci-scenario-docker.md) chose
+main reason [i65Z-ci-scenario-docker](todo.md) chose
 Docker for Linux (where Playwright runs) rather than Nix. Nix packaging of
 Playwright may improve over time.
 
-## Proposed split
+### Proposed split
 
 | Platform | Tool management | Real OS tested? |
 |---|---|---|
@@ -296,7 +298,7 @@ Playwright may improve over time.
 | macOS | Nix shell | ✅ Yes |
 | Windows | Inline `setup-*` actions | ✅ Yes |
 
-## Tasks
+### Tasks
 
 - [ ] Evaluate `flake.nix` / `shell.nix` for the project's macOS tool set
       (Node, Bun, Deno, Rust, Wasmtime, Wasmer)
@@ -307,20 +309,20 @@ Playwright may improve over time.
 - [ ] Determine if tool versions in `fs/ci/config/module.f.ts` can be
       single-sourced with `flake.nix` (e.g. via `builtins.fromJSON`)
 
-## Related
+### Related
 
-- [i65Z-ci-scenario-docker](./65Z-ci-scenario-docker.md) — Docker plan for Linux CI (chose Docker over Nix due to Playwright)
-- [i145](./145-docker-linux-ci.md) — Docker containers for Linux CI jobs
-- [i095](./095-ci-docker.md) — original Docker CI idea
+- [i65Z-ci-scenario-docker](todo.md) — Docker plan for Linux CI (chose Docker over Nix due to Playwright)
+- i145 — Docker containers for Linux CI jobs
+- i095 — original Docker CI idea
 
 ---
 
-# 65Z-ci-scenario-docker. Replace Ubuntu CI jobs with cached Docker images
+## 65Z-ci-scenario-docker. Replace Ubuntu CI jobs with cached Docker images
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 Ubuntu CI jobs currently install every tool (Node, Bun, Deno, Rust, Wasmtime,
 Wasmer, etc.) from scratch on every run. This is slow and duplicates effort
@@ -332,13 +334,13 @@ already paid on the previous run. Additionally:
   because no single job has all required runners (Node, Bun, Deno, Playwright)
   at once.
 
-## Proposal
+### Proposal
 
 Replace the Ubuntu jobs with Docker-container jobs that pull a pre-built,
 cached image. The image is rebuilt only when a tool version changes; between
 rebuilds it is pulled from the GitHub Actions cache in seconds.
 
-### What changes
+#### What changes
 
 | | Today | After |
 |---|---|---|
@@ -347,7 +349,7 @@ rebuilds it is pulled from the GitHub Actions cache in seconds.
 | Scenario tests | not run in CI | run inside Docker Ubuntu job |
 | macOS / Windows | unchanged | unchanged (no Playwright) |
 
-### Image contents
+#### Image contents
 
 The Dockerfile should be **generated from `fs/ci/`** so that tool versions are
 single-sourced in `fs/ci/config/module.f.ts`. The image must include everything
@@ -366,7 +368,7 @@ needed for Ubuntu CI, matching what macOS and Windows jobs install inline:
 `docker/Dockerfile` will be replaced by the generated one. The existing file
 can serve as a reference during implementation.
 
-### Cache key
+#### Cache key
 
 ```
 linux-<arch>-node<NODE>-deno<DENO>-bun<BUN>-playwright<PW>-rust<RUST>-wasmtime<WT>-wasmer<WM>
@@ -374,32 +376,32 @@ linux-<arch>-node<NODE>-deno<DENO>-bun<BUN>-playwright<PW>-rust<RUST>-wasmtime<W
 
 Derived entirely from version constants so it self-updates on any version bump.
 
-### Architectures
+#### Architectures
 
 Both `ubuntu-24.04` (Intel x86-64) and `ubuntu-24.04-arm` (ARM64) run Docker
 jobs — the same pair as the current Ubuntu jobs.
 
-### What runs inside the Docker job
+#### What runs inside the Docker job
 
 All tests that currently run on Ubuntu, plus:
 - Playwright tests (currently a separate job)
 - Scenario tests across all runners: `fjs`, `node`, `bun`, `deno`, `playwright`
 
-## Related
+### Related
 
-- [i095](./095-ci-docker.md) — original Docker CI idea
-- [i145](./145-docker-linux-ci.md) — Docker containers for Linux CI jobs (broader scope)
+- i095 — original Docker CI idea
+- i145 — Docker containers for Linux CI jobs (broader scope)
 - i183 — scenario test infrastructure
 - i65Y-scenarios-proof — scenario files converted to `export const proof`; prerequisite
 
 ---
 
-# 667-ci-self-test-script. Add an optional package self-test script convention
+## 667-ci-self-test-script. Add an optional package self-test script convention
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 The built-in `fjs ci` generator currently needs package-aware logic for
 FunctionalScript-specific self-checks. In this repository, the generated workflow
@@ -412,7 +414,7 @@ repository-specific behavior embedded in the shared CI generator. Other packages
 may also want their own post-pack self-checks, and the generator should not need
 to know their file layout.
 
-## Proposal
+### Proposal
 
 Introduce an optional `package.json` script convention for package-specific CI
 self-checks, for example:
@@ -443,7 +445,7 @@ from the tarball:
 npm uninstall <package.json.name> -g
 ```
 
-## Open Questions
+### Open Questions
 
 - Is `ci:self-test` the right script name, or should the convention be
   `fjs:self-test`, `ci:package-test`, or something else?
@@ -452,7 +454,7 @@ npm uninstall <package.json.name> -g
 - Should the generator always emit `npm run ci:self-test --if-present`, or only
   emit it when `package.json.scripts["ci:self-test"]` exists at generation time?
 
-## Tasks
+### Tasks
 
 - [ ] Choose and document the script name.
 - [ ] Move FunctionalScript's demo compile check into that package script.
@@ -462,14 +464,14 @@ npm uninstall <package.json.name> -g
 
 ---
 
-# Separate CI Job for Deno Coverage
+## Separate CI Job for Deno Coverage
 
 **Priority:** P3
 **Status:** open
 
 Add a dedicated CI job that runs `deno task cov` so coverage is tracked on every PR without slowing down the main test matrix.
 
-## Plan
+### Plan
 
 - [ ] Add a `deno-coverage` job to the CI generator (`fs/ci/module.f.ts` or a new `fs/ci/deno/module.f.ts` variant) that runs `deno task cov` (runs `deno test --allow-read --allow-env && deno coverage --include='.*module\\.f\\.ts'`, matching the `npm run cov` scope).
 - [ ] Decide whether to upload the coverage report (e.g. to Codecov or as a GitHub artifact).
@@ -477,14 +479,14 @@ Add a dedicated CI job that runs `deno task cov` so coverage is tracked on every
 
 ---
 
-# Replace npm-check-updates with an Internal Script
+## Replace npm-check-updates with an Internal Script
 
 **Priority:** P3
 **Status:** open
 
 The `update` script currently uses `npx npm-check-updates -u` to bump dependency versions. Replace it with an internal FunctionalScript script so there is no runtime dependency on an external tool.
 
-## Idea: `ci-lock.json`
+### Idea: `ci-lock.json`
 
 Introduce a `ci-lock.json` file in each repo root that pins all CI tool versions (Node, Deno, Bun, TSGO, Wasmtime, Wasmer, runner images, GitHub Action versions). This replaces the hardcoded `fs/ci/config/module.f.ts` inside the FunctionalScript package, giving every repo that uses `fjs ci` its own updatable lock file for CI tooling — analogous to `package-lock.json` for npm deps.
 
@@ -493,7 +495,7 @@ The internal update script would:
 2. Fetch latest versions of CI tools (Deno, Bun, Node LTS, TSGO, etc.) from their respective registries/APIs → write `ci-lock.json`.
 3. Run `deno install`, `bun install`, `npm run ci-update` to propagate everything.
 
-## Plan
+### Plan
 
 - [ ] Define the `ci-lock.json` schema (tool versions + runner images + action versions).
 - [ ] Implement `fjs update` (or `fjs u`) subcommand that updates `package.json` deps and `ci-lock.json` tool versions.
@@ -503,12 +505,12 @@ The internal update script would:
 
 ---
 
-# 668-ci-npm-publish-workflow. Generate npm publishing workflow from fs/ci
+## 668-ci-npm-publish-workflow. Generate npm publishing workflow from fs/ci
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 The repository has a hand-written `.github/workflows/npm-publish.yml` workflow.
 The standard CI workflow is generated by `fs/ci`, but npm publishing is still
@@ -516,7 +518,7 @@ maintained separately. This creates another workflow file that can drift from
 the generated CI conventions for Node versions, checkout/setup actions,
 permissions, install commands, and publish behavior.
 
-## Proposal
+### Proposal
 
 Extend `fs/ci` so it can generate the npm publishing workflow as well. The
 generated workflow should preserve the current publish intent:
@@ -531,7 +533,7 @@ generated workflow should preserve the current publish intent:
 Document the command/API shape in `fs/ci/README.md`, including whether publish
 generation is part of the existing `fjs ci` command or a separate subcommand.
 
-## Tasks
+### Tasks
 
 - [ ] Decide whether npm publishing generation belongs in `fjs ci` or a separate
       command.
@@ -542,20 +544,20 @@ generation is part of the existing `fjs ci` command or a separate subcommand.
 
 ---
 
-# CI: Package-Aware Deno, Bun, and Playwright Steps
+## CI: Package-Aware Deno, Bun, and Playwright Steps
 
 **Priority:** P3
 **Status:** open
 
 The CI generator should opt in to Deno, Bun, and Playwright steps based on what the package actually uses, rather than always including or excluding them.
 
-## Rules
+### Rules
 
 - **Deno steps** — include only if `deno.lock` exists in the repo root.
 - **Bun steps** — include only if `bun.lock` exists in the repo root.
 - **Playwright steps** — include if `@playwright/test` is listed in `devDependencies` (already partially done via `playwrightJob`; make it conditional on presence in `package.json`).
 
-## Plan
+### Plan
 
 - [ ] In `fs/ci/module.f.ts`, read the repo root for `deno.lock` and `bun.lock` (via `access`) and pass the results to the job builder, analogous to how `Cargo.toml` controls Rust steps.
 - [ ] Skip `denoSteps` when `deno.lock` is absent; skip `bunSteps` when `bun.lock` is absent.
@@ -564,7 +566,7 @@ The CI generator should opt in to Deno, Bun, and Playwright steps based on what 
 
 ---
 
-# CI Integration Tests
+## CI Integration Tests
 
 **Priority:** P3
 **Status:** open
@@ -576,7 +578,7 @@ Split the CI pipeline into two stages:
 
 The key insight: it matters far more that the *published package* works on every platform than that unit tests pass on every platform.
 
-## Scenarios
+### Scenarios
 
 Scenarios are expressed as FunctionalScript modules. A scenario module exports a `main` (a `NodeProgram`) that receives the environment and args and returns an effect. The CI generator reads a scenario list and emits one job per scenario.
 
@@ -587,7 +589,7 @@ Open questions:
 - How does a scenario declare which runtime(s) it targets (Node, Deno, Bun)?
 - Should the artifact be a `.tgz` from `npm pack`, or a published pre-release to a local registry?
 
-## Plan
+### Plan
 
 - [ ] Define the scenario interface (`export const main: NodeProgram` or similar).
 - [ ] Implement the artifact publish step in the CI generator (run `npm pack`, upload as a GitHub Actions artifact).
@@ -597,12 +599,12 @@ Open questions:
 
 ---
 
-# 669-ci-ubuntu-job-factory. Factor out the `ubuntu` / `ubuntuArm` Job builders
+## 669-ci-ubuntu-job-factory. Factor out the `ubuntu` / `ubuntuArm` Job builders
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/ci/common/module.f.ts:98-106` defines two exported Job builders that differ
 only in a single image constant:
@@ -626,7 +628,7 @@ nearly-identical functions differ only in a constant". Today there are two
 runners; a third image (e.g. a future macOS or Windows runner, or a pinned
 container) would mean a third copy of the same three lines.
 
-## Proposal
+### Proposal
 
 Introduce a private factory parameterized by the image, then derive the two
 public exports from it. This keeps the public API (`ubuntu`, `ubuntuArm`)
@@ -649,7 +651,7 @@ plus the standard step pipeline" in one place instead of implying it twice.
 This is a single-module, zero-coordination change — no other module needs to
 know `job` exists.
 
-## Tasks
+### Tasks
 
 - [ ] Add the private `job` factory in `fs/ci/common/module.f.ts`.
 - [ ] Re-express `ubuntu` and `ubuntuArm` in terms of `job`.
@@ -657,19 +659,19 @@ know `job` exists.
       distinct exported values, so existing proofs should pass unchanged).
 - [ ] Run `npx tsc` and `fjs t`.
 
-## Related
+### Related
 
-- [i170-ci-tool-steps](./170-ci-tool-steps.md) — the `MetaStep` → `Step`
+- [i170-ci-tool-steps](todo.md) — the `MetaStep` → `Step`
   pipeline (`toSteps`) these builders wrap.
 
 ---
 
-# 66A-ci-cargo-step-factory. Unify the `cargo*` step builders in `fs/ci/rust`
+## 66A-ci-cargo-step-factory. Unify the `cargo*` step builders in `fs/ci/rust`
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/ci/rust/module.f.ts` defines a family of one-line `MetaStep` builders that
 all wrap `cargoCommand(...)` and differ only by which suffixes (`--release`,
@@ -719,7 +721,7 @@ each re-typing the template string and the suffix concatenation — is the DRY
 smell: adding a new dimension (say a `--features` flag) means editing every
 builder, and the `--release` text is duplicated four times.
 
-## Proposal
+### Proposal
 
 Introduce a single `cargoStep` factory parameterized by tool and a small
 options record, and derive the named builders from it. The warnings suffix is
@@ -758,7 +760,7 @@ keep their signatures. The generated workflow YAML is byte-identical.
 nicety — the core win is collapsing the five hand-spelled templates into one
 factory.
 
-## Tasks
+### Tasks
 
 - [ ] Add the `cargoStep` factory and re-derive `cargoTest`,
       `cargoReleaseTest`, `cargoClippy`, `cargoReleaseClippy`, and the
@@ -768,23 +770,23 @@ factory.
 - [ ] Run `npx tsc` and `fjs t`; ensure `fs/ci` proofs still pass with full
       coverage.
 
-## Related
+### Related
 
-- [i170-ci-tool-steps](./170-ci-tool-steps.md) — the sibling DRY cleanup for the
+- [i170-ci-tool-steps](todo.md) — the sibling DRY cleanup for the
   Node version-job builders in `fs/ci/node`. Same root cause (per-variant step
   builders that differ only in command flags), different module; the two are
   independent and could land separately.
-- [i175-ci-setup-tool](./175-ci-setup-tool.md), [i170-ci-tool-steps](./170-ci-tool-steps.md)
+- [i175-ci-setup-tool](todo.md), [i170-ci-tool-steps](todo.md)
   — other `fs/ci` step-builder refactors.
 
 ---
 
-# 66B-dockerfile-nix-integration. Generate Dockerfile with Nix toolchain from fs/ci/module.f.ts
+## 66B-dockerfile-nix-integration. Generate Dockerfile with Nix toolchain from fs/ci/module.f.ts
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 `docker/Dockerfile` is hand-written, installs tools via ad-hoc `curl` scripts
 with no explicit version pinning, and uses `sccache` for Rust build caching.
@@ -794,22 +796,22 @@ already maintained in `fs/ci/config/module.f.ts`.
 The image is also not used in CI today — each Ubuntu job re-installs tools from
 scratch on every run.
 
-## Proposal
+### Proposal
 
-### 1. Remove `sccache`
+#### 1. Remove `sccache`
 
 Drop the `cargo install sccache` step and the `RUSTC_WRAPPER=sccache` env var.
 `sccache` adds an extra build layer that doesn't integrate well with our setup
 and is unnecessary overhead for the current codebase size. This can be
 reconsidered if the Rust compilation time grows significantly.
 
-### 2. Replace curl-based installs with Nix
+#### 2. Replace curl-based installs with Nix
 
 Use [Nix](https://nixos.org/) (single-user install) as the package manager
 inside the image. Nix provides reproducible, content-addressed tool environments
 and works on any Linux base image.
 
-### 3. Version-pin all tools via Nix, sourced from `fs/ci/config/module.f.ts`
+#### 3. Version-pin all tools via Nix, sourced from `fs/ci/config/module.f.ts`
 
 | Tool | Version source |
 |------|----------------|
@@ -824,7 +826,7 @@ and works on any Linux base image.
 `fs/ci/config/module.f.ts` remains the single source of truth for all version
 pins across both the generated workflow YAML and the Dockerfile.
 
-### 4. Generate `docker/Dockerfile` from `fs/ci/module.f.ts`
+#### 4. Generate `docker/Dockerfile` from `fs/ci/module.f.ts`
 
 Mirror the pattern used for `.github/workflows/ci.yml`: add a
 `writeDockerfile` export (or equivalent) to `fs/ci/module.f.ts` that renders
@@ -832,26 +834,26 @@ and writes `docker/Dockerfile` from the same config. Version bumps in
 `config/module.f.ts` then propagate to both the CI workflow and the Dockerfile
 in a single place.
 
-### 5. Dedicated `docker-build` CI job with GitHub Actions cache
+#### 5. Dedicated `docker-build` CI job with GitHub Actions cache
 
 Add a GitHub Actions job that:
 
 1. Computes the cache key from the version pins (same scheme as
-   [i65Z-ci-scenario-docker](./65Z-ci-scenario-docker.md)):
+   [i65Z-ci-scenario-docker](todo.md)):
    `linux-<arch>-node<NODE>-deno<DENO>-bun<BUN>-playwright<PW>-rust<RUST>-wasmtime<WT>-wasmer<WM>`
 2. Attempts to restore the image from `actions/cache`.
 3. Builds the image on a cache miss.
 4. Saves the image as a GitHub Actions **artifact** so downstream jobs can
    pull it without rebuilding.
 
-### 6. Downstream jobs consume the single cached image
+#### 6. Downstream jobs consume the single cached image
 
 All Ubuntu CI jobs (`needs: docker-build`) restore the artifact, `docker load`
 the image, and run their steps inside the container. One image is built once
 per workflow run and shared by all jobs — including the Playwright job, which
 can be merged back into the main Ubuntu matrix rather than running separately.
 
-## Benefits
+### Benefits
 
 - **Reproducibility** — Nix gives content-addressed installs; curl scripts can
   silently pull different versions on different days.
@@ -860,7 +862,7 @@ can be merged back into the main Ubuntu matrix rather than running separately.
 - **Efficiency** — one Docker build per version-pin change; all parallel jobs
   reuse the cached image.
 
-## Tasks
+### Tasks
 
 - [ ] Add `writeDockerfile` to `fs/ci/module.f.ts` (and wire it into the
       existing `main`/`ci` entry-point).
@@ -875,24 +877,24 @@ can be merged back into the main Ubuntu matrix rather than running separately.
 - [ ] Confirm the generated CI YAML and Dockerfile are regenerated consistently
       by `npm run ci-update` (or equivalent).
 
-## Related
+### Related
 
-- [i65Z-ci-scenario-docker](./65Z-ci-scenario-docker.md) — Docker plan for
+- [i65Z-ci-scenario-docker](todo.md) — Docker plan for
   Ubuntu CI jobs; this issue implements it and adds the Nix layer.
-- [i65Z-ci-nix](./65Z-ci-nix.md) — Nix as CI package manager; macOS/Windows
+- [i65Z-ci-nix](todo.md) — Nix as CI package manager; macOS/Windows
   stay with inline `setup-*` actions; Linux uses Nix-inside-Docker.
-- [i145](./145-docker-linux-ci.md) — Docker containers for Linux CI jobs.
-- [i095](./095-ci-docker.md) — original Docker CI idea.
-- [i096](./096-ci-caching.md) — CI caching.
+- i145 — Docker containers for Linux CI jobs.
+- i095 — original Docker CI idea.
+- [i096](todo.md) — CI caching.
 
 ---
 
-# 66H-ci-npm-global-install. `fs/ci`: an `npmGlobalInstall` factory for global npm tool steps
+## 66H-ci-npm-global-install. `fs/ci`: an `npmGlobalInstall` factory for global npm tool steps
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 Three CI step sites build the identical `run`-based step "globally install a
 pinned npm package", differing only in the package name and version value:
@@ -921,7 +923,7 @@ verbatim. The deltas are exactly the package name and the pinned version:
 A reader has to parse three template strings to notice they are the same
 recipe, and a fourth global-install tool would fork a fourth copy.
 
-## Proposed abstraction
+### Proposed abstraction
 
 A small factory in `fs/ci/common/module.f.ts` — the module that already
 centralizes `install`/`test`/`clean`/`uses`/`toSteps` — capturing "globally
@@ -948,15 +950,15 @@ npmGlobalInstall('playwright')(playwright),
 
 `fjsGlobalInstall` reduces to a point-free binding — the same style as
 `installNode = setupTool('actions/setup-node@v6', 'node-version')` proposed in
-[i175](./175-ci-setup-tool.md).
+[i175](todo.md).
 
-## Why this qualifies
+### Why this qualifies
 
 - Three real call sites today, all shipping — past the second-consumer bar.
 - Identical shape, only data (package name, version) varies — the textbook
   `AGENTS.md` data-parameterized-factory case.
 - It is **complementary to, not a duplicate of,
-  [i170](./170-ci-tool-steps.md) and [i175](./175-ci-setup-tool.md)**, which
+  [i170](todo.md) and [i175](todo.md)**, which
   cover two different axes of CI step construction:
   - i170 `toolSteps(setup, cmds)` — the *install-then-test step sequence*.
   - i175 `setupTool(uses, versionKey)` — `uses`-based GitHub Actions *setup*
@@ -966,7 +968,7 @@ npmGlobalInstall('playwright')(playwright),
   These are three distinct step kinds. `setupTool` builds `uses` steps;
   `npmGlobalInstall` builds `run` steps; neither subsumes the other.
 
-## Caveats / why this is an idea, not a mechanical edit
+### Caveats / why this is an idea, not a mechanical edit
 
 - **Currying direction.** Currying as `(pkg) => (version) =>` lets
   `fjsGlobalInstall = npmGlobalInstall('functionalscript')` read point-free,
@@ -981,7 +983,7 @@ npmGlobalInstall('playwright')(playwright),
   after, and that every branch of the new factory is covered (all three
   consumers call it, so 100% coverage falls out).
 
-## Tasks
+### Tasks
 
 - [ ] Add `npmGlobalInstall` to `fs/ci/common/module.f.ts`.
 - [ ] Rebind `fjsGlobalInstall` and the two inline `npm install -g` steps in
@@ -989,11 +991,11 @@ npmGlobalInstall('playwright')(playwright),
 - [ ] Confirm `npx tsc` is clean and `fjs t` passes; verify the generated
       workflow YAML is unchanged.
 
-## Related
+### Related
 
-- [i170](./170-ci-tool-steps.md) — `toolSteps` step-sequence builder (different
+- [i170](todo.md) — `toolSteps` step-sequence builder (different
   axis: the install+test sequence).
-- [i175](./175-ci-setup-tool.md) — `setupTool` for `uses`-based setup steps
+- [i175](todo.md) — `setupTool` for `uses`-based setup steps
   (different axis: GitHub Actions setup actions). This issue is the `run`-based
   sibling.
 

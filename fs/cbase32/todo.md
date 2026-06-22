@@ -1,4 +1,6 @@
-# 178. `cbase32`: move bit-vector padding/trailing-zero logic into `bit_vec`
+# TODO
+
+## 178. `cbase32`: move bit-vector padding/trailing-zero logic into `bit_vec`
 
 **Priority:** P3
 **Status:** open
@@ -37,7 +39,7 @@ to that bit to recover the payload" scheme is the classic
 Merkle–Damgård-style bit padding — a `bit_vec` concern. `cbase32` should express
 its intent (`base32 over 5-bit groups`) and delegate the bit alignment.
 
-## Proposed abstraction
+### Proposed abstraction
 
 Add to `fs/types/bit_vec/module.f.ts` a padding pair (and/or the trailing-zero
 primitive the TODO asks for):
@@ -52,7 +54,7 @@ export const unpadMultiple: (v: Vec) => Nullable<Vec>
 `cbase32` then becomes `vecToCBase32 = v => vec5xToCBase32(padToMultiple(5n)(v))`
 and `cBase32ToVec = s => { const v = cBase32ToVec5x(s); return v === null ? null : unpadMultiple(v) }`.
 
-## Why this qualifies
+### Why this qualifies
 
 - **Separation of concerns** is the primary justification: bit-alignment
   arithmetic (`5n - len % 5n`, `1n << (extraLen - 1n)`, the trailing-zero scan)
@@ -62,7 +64,7 @@ and `cBase32ToVec = s => { const v = cBase32ToVec5x(s); return v === null ? null
 - It removes the only `let`/`while` mutation loop from `cbase32`, replacing it
   with a named, testable primitive.
 
-## Caveats / why this is an idea, not a mechanical edit
+### Caveats / why this is an idea, not a mechanical edit
 
 - **Single primary consumer.** Today only `cbase32` round-trips this padding, so
   this is the "single-consumer abstraction justified by clarity/separation"
@@ -79,49 +81,11 @@ and `cBase32ToVec = s => { const v = cBase32ToVec5x(s); return v === null ? null
   single-module today and out of scope here, but a future `bit_vec` alignment
   family could absorb both.
 
-## Related
+### Related
 
 - [i167](./README.md), [i168](./README.md) — other `bit_vec`/text bit-level
   extractions.
 - `fs/types/bit_vec/module.f.ts` — proposed home.
-
----
-
-# Various BaseN Encodings
-
-**Priority:** P3
-**Status:** open
-
-> **Note (YAGNI):** Do not implement any of the encodings below until at least
-> one module in the codebase needs it. The only existing `Vec → string`
-> consumer is `cas/` (which uses `cbase32`); every other hex/numeric formatting
-> uses `bigint.toString(16)`, which has different semantics from a stop-bit
-> padded codec. When a second real consumer appears, extract a shared
-> `base_n(alphabet, normalize?)` factory at that point — `cbase32` is the
-> reference implementation. See PR [#824](https://github.com/functionalscript/functionalscript/pull/824)
-> for context.
-
-## Base16
-
-## Base32
-
-- [Crockford's base32](https://en.wikipedia.org/wiki/Base32#Crockford's_Base32)
-
-## Base64
-
-[Base64](https://en.wikipedia.org/wiki/Base64). In particular, an implementation for identifiers:
-
-- `0`..`9`: 10
-- `A`..`Z`: 26, total: 36
-- `a`..`z`: 26, total: 62
-- `_`, `$`:  2, total: 64
-
-## Parameters
-
-We can use an additional `stop` bit to signal the end of a bit sequence. Parameters:
-
-  - known/fixed vs unknown/variable size,
-  - MSb/LSb.
 
 ---
 

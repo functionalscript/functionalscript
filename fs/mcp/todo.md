@@ -1,9 +1,11 @@
-# 66D-mcp-validate-response-envelope. `mcp`: share the validate→error/ok response envelope
+# TODO
+
+## 66D-mcp-validate-response-envelope. `mcp`: share the validate→error/ok response envelope
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/mcp/module.f.ts`'s `mcpStep` request handler repeats the same
 "validate the params, branch to an error or success response" envelope in
@@ -60,7 +62,7 @@ is the schema and the success branch — exactly the readability cost AGENTS.md
 calls out: "When two code branches share most of their structure, refactor so
 the shared part appears once and only the difference lives in the conditional."
 
-## Proposal
+### Proposal
 
 1. **A `validated` helper** that captures the `id`-bound `invalidParams` failure
    and forwards the decoded value to a success continuation. Because `id`,
@@ -99,7 +101,7 @@ Both helpers keep the genuine per-method differences (schema, params-defaulting,
 success action) visible at the call site while the validate/error/dispatch
 mechanics live once.
 
-## Why this is filed at P3 (not lower)
+### Why this is filed at P3 (not lower)
 
 Unlike the borderline P5 "two tiny functions differ in one slot" cleanups, this
 is a four-way repetition in a handler that is the natural growth point for the
@@ -108,7 +110,7 @@ methods, every one of which will repeat the same validate→error/ok envelope. T
 abstraction pays for itself the moment the next method lands, and prevents the
 handler from accreting a dozen copies of the same ternary.
 
-## Tasks
+### Tasks
 
 - [ ] Add a module-scope (or `mcpStep`-local) `validated` helper threading `id`;
       rewrite `ping`, `initialize`, `tools/list`, `tools/call` to use it.
@@ -116,20 +118,20 @@ handler from accreting a dozen copies of the same ternary.
 - [ ] Confirm `fs/mcp/proof.f.ts` still passes (`fjs t`) with full branch
       coverage (both `error` and `ok` sides of each method) and `npx tsc` is clean.
 
-## Related
+### Related
 
-- [i665-mcp](./665-mcp.md) — the MCP roadmap; the methods it enumerates
+- [i665-mcp](todo.md) — the MCP roadmap; the methods it enumerates
   (`resources/*`, `prompts/*`, `logging/*`) are the second-and-beyond consumers
   that make this extraction worth doing now rather than later.
 
 ---
 
-# 665-mcp. Building blocks to describe and serve MCP
+## 665-mcp. Building blocks to describe and serve MCP
 
 **Priority:** P3
 **Status:** open
 
-## Goal
+### Goal
 
 Inventory everything needed to **describe** [MCP](https://modelcontextprotocol.io/)
 (Model Context Protocol) in FunctionalScript and serve it. This is a scoping /
@@ -141,14 +143,14 @@ notification, or response, with an MCP-specific `method` and payload. So the wor
 splits into "the JSON-RPC envelope" (already scoped) and "the MCP-specific layers
 on top."
 
-## Building blocks
+### Building blocks
 
-### 1. JSON-RPC 2.0 layer — landed in `fs/json/rpc/module.f.ts`
+#### 1. JSON-RPC 2.0 layer — landed in `fs/json/rpc/module.f.ts`
 
 The envelope: request / notification / response / error schemas, decoders, and the
 pure dispatcher. MCP rides directly on this.
 
-### 2. MCP message schemas (rtti)
+#### 2. MCP message schemas (rtti)
 
 The method-specific payloads, described as rtti schemas (one declaration → runtime
 decoder via `validate` + static type via `Ts<>`). A representative subset:
@@ -172,7 +174,7 @@ decoder via `validate` + static type via `Ts<>`). A representative subset:
 - **Content types:** the union used in tool/prompt/resource results —
   `text`, `image`, `audio`, embedded `resource` (and resource links).
 
-### 3. rtti → JSON Schema printer — landed in `fs/json/schema/module.f.ts`
+#### 3. rtti → JSON Schema printer — landed in `fs/json/schema/module.f.ts`
 
 MCP declares each tool's `inputSchema` as **JSON Schema**, not TypeScript. rtti
 today only prints to TypeScript (`fs/types/rtti/ts/`, `toTs`). To describe a tool
@@ -181,14 +183,14 @@ JSON Schema object — analogous to `toTs` but emitting `{ type, properties,
 required, items, … }`. This is the main capability MCP needs that JSON-RPC does
 not.
 
-### 4. Lifecycle / capability state machine
+#### 4. Lifecycle / capability state machine
 
 A session is a state machine: the peer must `initialize` (negotiating
 `protocolVersion` and capabilities) before any other method; capabilities gate
 which methods are accepted. The dispatcher from i665 needs an initialization
 guard and capability-aware routing on top.
 
-### 5. Transports
+#### 5. Transports
 
 MCP defines transports the pure layers plug into (built on `fs/effects/node`):
 
@@ -199,14 +201,14 @@ MCP defines transports the pure layers plug into (built on `fs/effects/node`):
 Transport framing is out of scope for the schema/dispatch work and is its own
 follow-up. Start with stdio.
 
-### 6. Bidirectional requests (server → client)
+#### 6. Bidirectional requests (server → client)
 
 Some MCP features invert direction: the server calls the client —
 `sampling/createMessage` and `roots/list`. The dispatcher must support both
 directions (a peer is simultaneously a server and a client), not just
 server-answers-request.
 
-## Open questions
+### Open questions
 
 - **rtti ↔ JSON Schema fidelity.** Which rtti constructs map cleanly to JSON
   Schema, and what is unrepresentable in each direction? Do we generate JSON
@@ -219,7 +221,7 @@ server-answers-request.
   then resources / prompts / logging.
 - **`id` / number handling.** Inherit the JSON-RPC layer's decision.
 
-## Suggested decomposition (future issues)
+### Suggested decomposition (future issues)
 
 1. MCP core schemas + lifecycle (initialize, capabilities, ping, tools).
 2. stdio transport over `fs/effects/node`.
@@ -227,7 +229,7 @@ server-answers-request.
 4. Streamable HTTP transport.
 5. bidirectional (sampling / roots) support.
 
-## Related
+### Related
 
 - `fs/json/rpc/module.f.ts` — the JSON-RPC 2.0 envelope
 - `fs/json/schema/module.f.ts` — rtti → JSON Schema printer

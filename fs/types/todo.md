@@ -1,11 +1,13 @@
-# 92. Create a separate nominal type for MSB and LSB bit vectors.
+# TODO
+
+## 92. Create a separate nominal type for MSB and LSB bit vectors.
 
 **Priority:** P3
 **Status:** open
 
 ---
 
-# 141. Design for a universal, extensible type system based on custom RTTI.
+## 141. Design for a universal, extensible type system based on custom RTTI.
 
 **Priority:** P3
 **Status:** open
@@ -37,14 +39,14 @@ How it should work:
 
 ---
 
-# 143. RTTI: Serializable Data Representation
+## 143. RTTI: Serializable Data Representation
 
 **Priority:** P3
 **Status:** open
 
 A function-free, serializable representation of `Type` in [../fs/types/rtti/module.f.ts](../fs/types/rtti/module.f.ts), modeled after [../fs/bnf/data/](../fs/bnf/data/). The motivation is to give RTTI a clear two-form architecture and to move *all* schema algebra (union, subset, normalization, dispatch) off the thunk graph and onto a representation built for it.
 
-## Principle
+### Principle
 
 Two forms with one job each:
 
@@ -53,7 +55,7 @@ Two forms with one job each:
 
 `toData` is the single bridge. It runs once, lazily, when a consumer actually needs canonical form (validation, parsing, serialization, comparison). Schemas that are built but never consumed pay nothing.
 
-### Two parsers
+#### Two parsers
 
 A natural consequence of the two forms is two parsers:
 
@@ -62,12 +64,12 @@ A natural consequence of the two forms is two parsers:
 
 Both should be supported. Users who don't care reach for the thunk parser; users who care about throughput or repeat use go through `toData` once and use the data parser.
 
-### What this implies
+#### What this implies
 
 - Schema identity is a property of the *data* form, not the thunk form. Two `or(a, b)` calls produce two distinct thunks; `toData(or(a, b))` and `toData(or(b, a))` produce structurally identical data. This is the design, not a defect — do not add memoization to `or(...)` to "fix" thunk identity.
-- The current `reduceOr` / `flattenOr` machinery in `or` is the wrong layer and should be removed when `toData` lands. See [130](./130-or-optimization.md), which is superseded by this issue.
+- The current `reduceOr` / `flattenOr` machinery in `or` is the wrong layer and should be removed when `toData` lands. See 130, which is superseded by this issue.
 
-## Design
+### Design
 
 The concrete data shape still needs to be designed — this issue is the place to do that work. The design should be grounded in **set theory**: a `Type` denotes a set of values, and `or` is set union. The representation should make that structure explicit so that union, intersection, subset, and equality become straightforward operations rather than tag-by-tag case analysis.
 
@@ -83,7 +85,7 @@ The right choice of primitives (which kinds, how each kind encodes its sub-set, 
 
 Prior art worth reading before committing to a shape: CDuce / Castagna's work on semantic subtyping, and BDD-based encodings of set-theoretic types — they have already worked out canonical forms and decidable subtyping for recursive types.
 
-## Implications for `or`
+### Implications for `or`
 
 Once the data form exists, `or` reverts to a one-line lazy constructor:
 
@@ -94,22 +96,22 @@ export const or = <T extends readonly Type[]>(...types: T): Or<T> =>
 
 The existing `reduceOr` / `flattenOr` pass — and the test cases that exercise it — should be deleted. Equivalent behavior is re-established on the data form, where it generalizes uniformly across all operations and consumers.
 
-## Downstream consumers
+### Downstream consumers
 
 `validate` and `parse` keep their thunk-direct implementations unchanged. A data-driven variant is added that consumes a `RuleSet`. The two coexist.
 
-## Related
+### Related
 
-- [130](./130-or-optimization.md) — superseded by this issue. With the two-form architecture, "optimize `or`" is not a separate project: the canonical-form properties are properties of the data form by construction.
-- [141](./README.md) — universal, extensible type system based on custom RTTI. The `equal`/`subset` predicates introduced here are the first concrete instance of the proposed `TypeSystem<T>` interface.
+- 130 — superseded by this issue. With the two-form architecture, "optimize `or`" is not a separate project: the canonical-form properties are properties of the data form by construction.
+- [141](../../issues/README.md) — universal, extensible type system based on custom RTTI. The `equal`/`subset` predicates introduced here are the first concrete instance of the proposed `TypeSystem<T>` interface.
 
-## Location
+### Location
 
 `fs/types/rtti/data/module.f.ts` (new), with `test.f.ts` alongside.
 
 ---
 
-# 169. `types/map`: reuse `list`'s combinators instead of hand-rolled generators
+## 169. `types/map`: reuse `list`'s combinators instead of hand-rolled generators
 
 **Priority:** P3
 **Status:** open
@@ -138,7 +140,7 @@ outside `fs/types/list/module.f.ts`, which already exports lazy `iterable`,
 helpers re-implement the same two concepts (sequence concatenation and
 predicate filtering) against raw `Iterable<T>`.
 
-## The tension
+### The tension
 
 A direct "import from `list`" is not mechanical: `list`'s combinators operate on
 its `List<T>` thunk type, whereas `map` consumes a `ReadonlyMap` (a JS
@@ -167,7 +169,7 @@ factory extraction, with two reasonable resolutions:
    `.filter` is non-mutating, so this respects the no-mutation rule in
    `AGENTS.md`. This is the smaller, clearer change and removes ~14 lines.
 
-## Recommendation
+### Recommendation
 
 Prefer option 2 unless a second iterable consumer appears — it is the smaller,
 clearer codebase and the laziness of the current generators is wasted in front
@@ -175,7 +177,7 @@ of `new Map`. Option 1 is the right move only once a third call site wants
 `Iterable`-level `concat`/`filter`, at which point the "second consumer" rule is
 satisfied.
 
-## Caveats / why this is an idea, not a mechanical edit
+### Caveats / why this is an idea, not a mechanical edit
 
 - The payoff is modest (two tiny helpers). It is listed for clarity, not
   code-size: the value is removing the only stray generator implementations in
@@ -183,15 +185,15 @@ satisfied.
 - If `map` later needs to stay lazy (e.g. very large maps where the intermediate
   array is costly), option 1 is preferable to option 2.
 
-## Related
+### Related
 
-- [i161](./161-keyed-btree-collection.md) — the persistent-collection family;
+- [i161](todo.md) — the persistent-collection family;
   `map` is the JS-`Map`-backed sibling of the ordered collections discussed
   there.
 
 ---
 
-# 172. RTTI: investigate one container skeleton for both `validate` and `parse`
+## 172. RTTI: investigate one container skeleton for both `validate` and `parse`
 
 **Priority:** P3
 **Status:** open
@@ -213,7 +215,7 @@ structurally parallel: same container guards (`isArray`/`isObject` from
 - `parse` **rebuilds** a fresh value from each item's parsed result
   (`rebuild(okEntries(results))`), mapping every item first.
 
-## The idea
+### The idea
 
 Collapse the four factories into two shared skeletons in `common`, each taking
 an injected `build` callback:
@@ -231,7 +233,7 @@ Net: 4 factories → 2 shared factories, with the per-module behavior expressed
 purely as a `build` injection. (Note `Parse<T> = Validate<T>`, so the two
 already share one signature — the type side is free.)
 
-## The catch
+### The catch
 
 The two walks are not the *same* algorithm today:
 
@@ -250,7 +252,7 @@ The two walks are not the *same* algorithm today:
    generics (historically tracked in i146). Routing through one
    more generic `build` callback is unlikely to remove casts and may add a few.
 
-## The `getItem` parameter and TS array string-indexing
+### The `getItem` parameter and TS array string-indexing
 
 `constContainer*` takes a `getItem(value, k)` accessor that differs between the
 two const shapes:
@@ -291,27 +293,27 @@ works for both arrays and records **without** an `as` cast or the
 Whichever shared-skeleton design wins, it must settle this so a single
 container accessor type-checks for arrays and records alike.
 
-## Decision
+### Decision
 
 Defer. The duplicated skeleton is ~15 readable lines per module; unifying it
 trades that for a fold/`build` indirection plus a behavioral-semantics decision
 (allocation + short-circuit) that a naive merge would paper over. The
 abstraction clearly earns its keep once a **third** consumer of the same
 container walk exists — most likely the serializable data form in
-[i143](./143-rtti-data.md). Revisit then, designing the skeleton as a
+[i143](todo.md). Revisit then, designing the skeleton as a
 short-circuiting `traverse` that lets the identity (`validate`) path avoid
 allocation.
 
-## Related
+### Related
 
 - i162 — made `parse` mirror
   `validate`'s factory pair (the precondition for this investigation).
-- [i143](./143-rtti-data.md) — RTTI data form; the likely third consumer.
+- [i143](todo.md) — RTTI data form; the likely third consumer.
 - i146 — the `Ts<T>` inference / `as any` problem both modules work around.
 
 ---
 
-# 185. `byte_set`: build `range`/`one` from `bigint.mask`
+## 185. `byte_set`: build `range`/`one` from `bigint.mask`
 
 **Priority:** P3
 **Status:** open
@@ -346,7 +348,7 @@ one(e - b + 1) - 1n << BigInt(b)
 `byte_set` is re-deriving `mask`'s `(1n << len) - 1n` via `one(k) - 1n` instead of
 importing it.
 
-## Proposed abstraction
+### Proposed abstraction
 
 Import `mask` from `bigint` and rewrite:
 
@@ -361,16 +363,16 @@ export const range: (r: readonly[Byte, Byte]) => ByteSet
 `one` may stay as a single-bit shift (it reads clearly), or also be expressed as
 the degenerate mask — but the clear win is `range`.
 
-## Why this qualifies
+### Why this qualifies
 
 - DRY: `bigint.mask` gains a genuine second consumer (it is currently used inside
   `bigint` and `bit_vec`); the bit-mask *arithmetic* belongs in `bigint`, not
   inlined in a byte-set codec.
-- Separation of concerns in the spirit of [i178](./README.md) (move bit
+- Separation of concerns in the spirit of [i178](../../issues/README.md) (move bit
   arithmetic to its natural home) — but a distinct pair (`byte_set` → `bigint`
   rather than `cbase32` → `bit_vec`).
 
-## Caveats
+### Caveats
 
 - The operator-precedence reading matters: `one(e - b + 1) - 1n << BigInt(b)`
   parses as `(one(e-b+1) - 1n) << BigInt(b)`, which is exactly
@@ -379,17 +381,17 @@ the degenerate mask — but the clear win is `range`.
 - `has` (`byte_set/module.f.ts:15`, `((s >> BigInt(n)) & 1n) === 1n`) has no
   existing `bigint` equivalent; leave it as is — this issue is only about the
   `mask` duplication.
-- Unrelated to the dead `nibble_set` of [i160](./README.md).
+- Unrelated to the dead `nibble_set` of [i160](../../issues/README.md).
 
-## Related
+### Related
 
-- [i178](./README.md) — same "bit arithmetic belongs in its numeric/bit module"
+- [i178](../../issues/README.md) — same "bit arithmetic belongs in its numeric/bit module"
   theme.
-- [i167](./README.md) — `bit_vec` re-binding flagged similarly.
+- [i167](../../issues/README.md) — `bit_vec` re-binding flagged similarly.
 
 ---
 
-# 193. `btree`: a shared `Path` fold engine for `set` and `remove` (investigate)
+## 193. `btree`: a shared `Path` fold engine for `set` and `remove` (investigate)
 
 **Priority:** P3
 **Status:** open
@@ -437,7 +439,7 @@ dispatching on the same `0 | 2 | 4` slot positions of a `Branch3`/`Branch5`.
 `remove` already generalized the rebuild via `reduceX(ms: Array2<Merge>)`; `set`'s
 `reduceOp` is the same shape with the merge logic inlined.
 
-## Proposed direction
+### Proposed direction
 
 Investigate a shared scaffold in `btree/types` (or `btree/find`) capturing
 "fold a `Path<T>`, rebuilding the parent branch at slot `i` from a replacement
@@ -449,15 +451,15 @@ const foldPath = <A, T>(at0: …, at2: …, at4: …) => (seed: A) => (path: Pat
 
 `set` supplies its insert/merge handlers; `remove` supplies its `Merge`-based
 ones. The single-child root collapse at the end is the separate
-[i179](./README.md) `collapseRoot`.
+[i179](../../issues/README.md) `collapseRoot`.
 
-## Why this qualifies
+### Why this qualifies
 
 - Separation of concerns with a weak two-consumer DRY angle: the *path-fold
   dispatch on `{0,2,4}`* is genuinely shared scaffolding, distinct from the
   per-operation merge bodies.
 
-## Caveats — why this is "investigate", not a mechanical edit
+### Caveats — why this is "investigate", not a mechanical edit
 
 - The accumulator types differ: `set` threads `Branch1To3<T>`; `remove` threads
   `Branch<T>` and additionally splits the `Branch5` case
@@ -469,16 +471,16 @@ ones. The single-child root collapse at the end is the separate
 - Lower confidence than the other entries in this batch — file as a design
   investigation.
 
-## Related
+### Related
 
-- [i179](./README.md) — the shared single-child root collapse (the tail of both
+- [i179](../../issues/README.md) — the shared single-child root collapse (the tail of both
   functions).
-- [i164](./README.md) — uncurrying these same `fold` accumulators; complementary
+- [i164](../../issues/README.md) — uncurrying these same `fold` accumulators; complementary
   to extracting the fold itself.
 
 ---
 
-# 195. Improve `listToVec` from `bit_vec` by changing concatenation order.
+## 195. Improve `listToVec` from `bit_vec` by changing concatenation order.
 
 **Priority:** P3
 **Status:** open
@@ -489,12 +491,12 @@ Instead of
 
 ---
 
-# 662. RTTI `ts` printer: walk the `Type` ADT through the shared `visit`
+## 662. RTTI `ts` printer: walk the `Type` ADT through the shared `visit`
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/types/rtti/common/module.f.ts` exports `visit` — a visitor over the
 `Type` ADT — and its module header states its purpose plainly:
@@ -578,7 +580,7 @@ verbatim, including the `typeof rtti === 'function'` thunk gate, the
 `rtti()` evaluation, the array-vs-object Const split, and the
 `null`-as-primitive handling.
 
-## Proposal
+### Proposal
 
 Express the printer as a `Visitor<string>` and delegate recognition to
 `visit`. Every printer leaf maps one-to-one onto a visitor handler, so the
@@ -619,7 +621,7 @@ change the printer gets a compile error from `Visitor<string>` until it
 supplies the new leaf, which is exactly the safety `validate`/`parse`
 already enjoy.
 
-## Why the mapping is exact
+### Why the mapping is exact
 
 | `visit` routes to | current printer code | visitor handler |
 |---|---|---|
@@ -652,7 +654,7 @@ The two behaviours the printer documents in its JSDoc are preserved:
 (`fs/types/ts/module.f.ts:23-29`), with `union` and `primitive` from the
 same module (`:44`, `:55`).
 
-## Why this qualifies
+### Why this qualifies
 
 - **Separation of concerns** (always appropriate per `AGENTS.md`, no
   second-consumer bar required): the `Type`-ADT recognition skeleton has a
@@ -667,7 +669,7 @@ same module (`:44`, `:55`).
   `c as Primitive`) inside `common`, so the printer's visitor handlers
   need none — aligning with the `AGENTS.md` push to avoid `as`.
 
-## Caveats / why this is an idea, not a mechanical edit
+### Caveats / why this is an idea, not a mechanical edit
 
 - **Import direction / cycle.** `common` already does
   `import type { Ts } from '../ts/module.f.ts'` (type-only). Adding
@@ -677,7 +679,7 @@ same module (`:44`, `:55`).
   and erased), so there is no initialization-order hazard — but confirm
   `npx tsc` and `npm test` stay green, since circular type graphs
   occasionally surface `slow types` complaints under JSR
-  ([i147](./147-deno-slow-types.md)).
+  (i147).
 - **Generic inference.** Unlike `validate`/`parse`, whose visitors return a
   generic `Validate<T>` and lean on a top-level `as any`
   (historically tracked in i146), the printer's visitor is
@@ -685,21 +687,21 @@ same module (`:44`, `:55`).
   cast. If TS nonetheless balks at one of the handler parameter types
   (`Struct`, `Primitive`), prefer fixing the handler signature over
   reintroducing `as`.
-- **Scope.** This is independent of [i172](./172-rtti-validate-parse-skeleton.md),
+- **Scope.** This is independent of [i172](todo.md),
   which proposes merging the `validate`/`parse` **container factories**.
   That is about the value-walk; this is about the schema-walk in the
   printer. Either can land without the other.
 
-## Related
+### Related
 
-- [i172](./172-rtti-validate-parse-skeleton.md) — unify `validate`/`parse`
+- [i172](todo.md) — unify `validate`/`parse`
   container walks; complementary RTTI consolidation along the same kernel.
 - i146 — the `Ts<T>` inference / `as any` problem in the generic visitors;
   the printer's visitor avoids it by being monomorphic.
-- [i197](./197-djs-unknown-walker.md) — a sibling "adopt a shared visitor"
+- [i197](../djs/todo.md) — a sibling "adopt a shared visitor"
   proposal, but over runtime `Unknown` *values* rather than the `Type`
   schema ADT; same spirit, different walk.
-- [i143](./143-rtti-data.md) — the prospective fourth `Type`-ADT consumer
+- [i143](todo.md) — the prospective fourth `Type`-ADT consumer
   (the serializable data form); a printer already on `visit` is one fewer
   fork it has to reconcile with.
 
@@ -712,17 +714,17 @@ same module (`:44`, `:55`).
 
 ---
 
-# 666-json-schema-visit. Route `toJsonSchema` through `rtti/common.visit`
+## 666-json-schema-visit. Route `toJsonSchema` through `rtti/common.visit`
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/types/rtti/common/module.f.ts` exports `visit` — the "shared kernel for RTTI
 consumers", a `Visitor<R>` over the `Type` ADT. `validate` and `parse` both
 delegate schema recognition to it (`fs/types/rtti/validate/module.f.ts:176`,
-`fs/types/rtti/parse/module.f.ts:202`). Issue [i662](./662-rtti-ts-printer-visit.md)
+`fs/types/rtti/parse/module.f.ts:202`). Issue [i662](todo.md)
 proposes routing the `ts` printer through it too, as a *third* consumer.
 
 `toJsonSchema` is a **fourth** hand-rolled walker over the same ADT, and i662 does
@@ -758,7 +760,7 @@ With four independent copies, any new `Type` variant must be added in four place
 with no compiler help. `validate`/`parse` get exhaustiveness safety from the
 `Visitor<R>` shape; `toJsonSchema` doesn't.
 
-## Proposal
+### Proposal
 
 Express `toJsonSchema` as a `Visitor<Unknown>` and let `visit` own recognition —
 the same move i662 proposes for the `ts` printer:
@@ -793,27 +795,27 @@ monomorphic (`Visitor<Unknown>`), so no top-level `as`/`any` is needed.
 **Best landed together with i662** as "route *all* remaining `Type`-ADT printers
 through `visit`."
 
-## Tasks
+### Tasks
 
 - [ ] rewrite `toJsonSchema` as a `Visitor<Unknown>` driven by `visit`
 - [ ] move struct/`constPrimitive` JSON-Schema specifics into handlers, drop the `as Const` cast
 - [ ] confirm `fs/json/schema/proof.f.ts` passes unchanged (pure refactor)
 
-## Related
+### Related
 
-- [i662](./662-rtti-ts-printer-visit.md) — same move for the `ts` printer; land together
-- [i172](./172-rtti-validate-parse-skeleton.md) — the `validate`/`parse` container skeleton
+- [i662](todo.md) — same move for the `ts` printer; land together
+- [i172](todo.md) — the `validate`/`parse` container skeleton
 - `fs/types/rtti/common/module.f.ts` — `visit` (:124), `Visitor` (:83)
 - `fs/json/schema/module.f.ts` — `toJsonSchema` (:119), `constToJsonSchema` (:72)
 
 ---
 
-# 668-rtti-function-types. Add RTTI support for function values
+## 668-rtti-function-types. Add RTTI support for function values
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 RTTI can describe data shapes, but it cannot currently describe function values
 as first-class schemas. Some consumers need to express a callable value together
@@ -824,7 +826,7 @@ and result types, runtime validation of a function itself has limited options.
 A value can be checked as callable, but its full contract can only be observed
 when the function is called.
 
-## Proposal
+### Proposal
 
 Add an extern RTTI form for functions. It should be able to describe parameter
 types and result type, while keeping the runtime contract explicit: validating a
@@ -856,7 +858,7 @@ This preserves the same typed call surface while running the function through a
 sandbox effect, which is better for cases where the function body should not be
 trusted.
 
-## Tasks
+### Tasks
 
 - [ ] Design the extern RTTI representation for function schemas.
 - [ ] Define `TsParams<F>` and `TsResult<F>` for function RTTI.
@@ -868,21 +870,21 @@ trusted.
 - [ ] Document the runtime limitation: function RTTI describes callable
   contracts, but the contract is enforced at call boundaries.
 
-## Related
+### Related
 
-- [i668-emergent-testing-proof-type](./668-emergent-testing-proof-type.md) —
+- [i668-emergent-testing-proof-type](../emergent_testing/todo.md) —
   proof leaves need function-valued schemas if `Proof` is derived from RTTI.
-- [i143-rtti-data](./143-rtti-data.md) — serializable/function-free RTTI data
+- [i143-rtti-data](todo.md) — serializable/function-free RTTI data
   form; extern function schemas may need to remain outside that core form.
 
 ---
 
-# 66B-sorted-list-cmp-reduce-factory. `sorted_list`: share the compare-and-select reduce shape
+## 66B-sorted-list-cmp-reduce-factory. `sorted_list`: share the compare-and-select reduce shape
 
 **Priority:** P5
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/types/sorted_list/module.f.ts` defines two `ReduceOp<T, null>` constructors
 for `genericMerge` that are identical except for the value they place in the
@@ -908,7 +910,7 @@ They differ only in how the first element is selected from `sign`/`a`/`b`:
 `merge` keeps the larger (`sign === 1 ? b : a`), `intersect` keeps the equal one
 or drops it (`sign === 0 ? a : null`).
 
-## Proposal
+### Proposal
 
 Factor the shared skeleton into one factory parameterized by the selector,
 deriving both reducers point-free:
@@ -928,37 +930,37 @@ The compare-and-thread-`sign` mechanics live once; only the per-operation
 selection rule remains at each derivation, which is the genuine difference
 between "merge" and "intersect".
 
-## Why this is filed at P5
+### Why this is filed at P5
 
 This is borderline against the `AGENTS.md` "readability over DRY for short, clear
 functions" guidance — the originals are three lines each and already readable,
 and the `select` callback adds an indirection a reader must follow. It is the
-same caliber as [i66A-emergent-add-result](./66A-emergent-add-result.md) (two
+same caliber as [i66A-emergent-add-result](../emergent_testing/todo.md) (two
 near-identical updaters differing in one slot), filed at the same low priority:
 worth doing if the file is being touched anyway, or as a prerequisite if a third
 sign-driven merge reducer is added (e.g. set difference), but not on its own.
 
-## Tasks
+### Tasks
 
 - [ ] Add `cmpReduceBy` and derive `cmpReduce` / `intersectReduce` from it.
 - [ ] Confirm `fs/types/sorted_list/proof.f.ts` still passes (`fjs t`) with full
       branch coverage and `npx tsc` is clean.
 
-## Related
+### Related
 
-- [i180-sorted-set-intersect-symmetry](./180-sorted-set-intersect-symmetry.md) —
+- i180-sorted-set-intersect-symmetry —
   adjacent sorted-collection merge/intersect cleanup.
-- [i66A-emergent-add-result](./66A-emergent-add-result.md) — the same
+- [i66A-emergent-add-result](../emergent_testing/todo.md) — the same
   "two updaters differing in one slot" pattern, filed at the same priority.
 
 ---
 
-# 66D-ts-printer-tuple-readonly-fold. `types/ts`: fold the `tuple` readonly branch through `ro`
+## 66D-ts-printer-tuple-readonly-fold. `types/ts`: fold the `tuple` readonly branch through `ro`
 
 **Priority:** P5
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/types/ts/module.f.ts`'s `printer` already computes the readonly prefix once
 as `ro`, then uses it for `struct`, `array`, and `record` — but `tuple`
@@ -985,7 +987,7 @@ identical except for that token, the same diff cost AGENTS.md's branch-sharing
 rule targets ("refactor so the shared part appears once and only the difference
 lives in the conditional").
 
-## Proposal
+### Proposal
 
 Drop the per-`tuple` ternary and build the open delimiter from `ro`, matching how
 `struct` / `array` / `record` already consume it:
@@ -998,30 +1000,30 @@ Behaviour is unchanged (`readonly[…]` when immutable, `[…]` when `mut`); the
 `mut`/`readonly` decision now lives in exactly one place (`ro`) for all four
 emitters.
 
-## Why this is filed at P5
+### Why this is filed at P5
 
 A one-line readability cleanup in a single module — worth doing if the file is
 touched anyway, not on its own.
 
-## Tasks
+### Tasks
 
 - [ ] Replace the `tuple` ternary with `complex(\`${ro}[\`, ']')`.
 - [ ] Confirm `fs/types/ts/proof.f.ts` still passes (`fjs t`) with both the
       mutable and readonly tuple paths covered and `npx tsc` is clean.
 
-## Related
+### Related
 
-- [i662-rtti-ts-printer-visit](./662-rtti-ts-printer-visit.md) — adjacent
+- [i662-rtti-ts-printer-visit](todo.md) — adjacent
   `ts` printer work.
 
 ---
 
-# 66F-btree-remove-mirror-merge. `btree/remove`: collapse the left/right mirror-image merge helpers (investigate)
+## 66F-btree-remove-mirror-merge. `btree/remove`: collapse the left/right mirror-image merge helpers (investigate)
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/types/btree/remove/module.f.ts` defines two pairs of merge helpers that are
 **left/right mirror images** of each other — identical control flow, with the
@@ -1068,7 +1070,7 @@ So the module encodes "left vs right" **three times**: once in `reduceX`'s
 means editing both halves of each pair in lockstep — a maintenance hazard the
 type checker cannot catch, since both halves type-check independently.
 
-## Idea (investigate)
+### Idea (investigate)
 
 Parameterize each pair on a side descriptor instead of writing the mirror out by
 hand. The two halves differ only in:
@@ -1088,7 +1090,7 @@ investigation: prototype the parameterized form and keep it **only if** it is at
 least as readable as the current four functions. If not, close as won't-fix and
 record the decision (the duplication is the accepted cost of readability).
 
-## Tasks
+### Tasks
 
 - [ ] Prototype a side-parameterized merge that derives `reduceValue0`/`2` from
       one definition; do the same for `initValue0`/`1`.
@@ -1096,15 +1098,15 @@ record the decision (the duplication is the accepted cost of readability).
 - [ ] Keep only if clearer; otherwise close won't-fix with the rationale
       recorded in the module's `README.md` / JSDoc.
 
-## Related
+### Related
 
-- [i193-btree-path-fold-engine](./193-btree-path-fold-engine.md) — shares the
+- [i193-btree-path-fold-engine](todo.md) — shares the
   cross-module `fold`/`reduceX` Path-walk engine between `set` and `remove`;
   this issue is the orthogonal, *within-`remove*` left/right mirror collapse.
 
 ---
 
-# 161. `string_set` and `ordered_map`: a shared keyed B-tree collection
+## 161. `string_set` and `ordered_map`: a shared keyed B-tree collection
 
 **Priority:** P3
 **Status:** open
@@ -1137,7 +1139,7 @@ find/set/remove/values to `btree`, and expose `empty = null`. `string_set` is
 the `key === value` specialization of the keyed collection that `ordered_map`
 generalizes with `[key, value]` entries.
 
-## Proposed abstraction
+### Proposed abstraction
 
 A single keyed-B-tree-collection factory parameterized by the key extractor and
 key comparator:
@@ -1161,7 +1163,7 @@ Both consumers already exist: `ordered_map` is used widely (`object`,
 `json/parser`, `djs/parser`, `bnf/data`, `js/tokenizer`); `string_set` is used
 by `bnf/data`. So extracting now satisfies the second-consumer rule.
 
-## Caveats / why this is an idea, not a mechanical edit
+### Caveats / why this is an idea, not a mechanical edit
 
 - **Value asymmetry.** A set has no value; a map's value participates in
   `setReduce` (combining on collision). The factory must either expose the raw
@@ -1177,9 +1179,9 @@ The mechanical win is modest; the value is architectural — making explicit tha
 "set" and "ordered map" are one structure, so future ordered collections (e.g.
 an ordered multiset) reuse the core instead of forking a third wrapper.
 
-## Related
+### Related
 
-- [i37](./README.md) — language-level `Map`/reference containers; a unified
+- [i37](../../issues/README.md) — language-level `Map`/reference containers; a unified
   keyed-collection core informs that direction.
 
 ---

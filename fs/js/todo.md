@@ -1,9 +1,11 @@
-# 666-js-tokenizer-position-layer. Separate position/metadata tracking from the JS tokenizer core
+# TODO
+
+## 666-js-tokenizer-position-layer. Separate position/metadata tracking from the JS tokenizer core
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/js/tokenizer/module.f.ts` already factors its character-to-token state machine
 cleanly into a pure core that produces bare tokens:
@@ -40,7 +42,7 @@ wanted (`fs/json/tokenizer/module.f.ts` calls `jsTokenize(input)('')`), while th
 DJS tokenizer threads metadata everywhere. Both build on the same core but each
 fights the single metadata-coupled entry point.
 
-## Proposal
+### Proposal
 
 Separate the two concerns:
 
@@ -59,33 +61,33 @@ This is a separation-of-concerns improvement: the lexical core and the source-
 position bookkeeping become independently consumable, which also tidies the JSON
 tokenizer's dummy-path workaround.
 
-## Tasks
+### Tasks
 
 - [ ] export a `tokenizeRaw` (no-metadata) entry point built on `tokenizeOp`
 - [ ] switch `fs/json/tokenizer` to consume it instead of `jsTokenize(input)('')`
 - [ ] (defer) generic `withPosition` combinator once a second consumer appears
 
-## Related
+### Related
 
 - `fs/js/tokenizer/module.f.ts` — pure core `tokenizeOp` (:887), position layer (:895)
-- [i157](./157-json-djs-shared-core.md) — JSON/DJS value-layer sharing; the dummy-path
+- [i157](../djs/todo.md) — JSON/DJS value-layer sharing; the dummy-path
   workaround in `json/tokenizer` is downstream of this coupling
 
 ---
 
-# 667-js-tokenizer-handler-literals. `js/tokenizer`: name the repeated token-emitting shapes in the number/escape handlers
+## 667-js-tokenizer-handler-literals. `js/tokenizer`: name the repeated token-emitting shapes in the number/escape handlers
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 The number- and escape-state handlers in `fs/js/tokenizer/module.f.ts` repeat
 the same token-emitting object literals, differing only in a constant (the next
 `numberKind`, the `b` accumulator update, or the escaped character). The handler
 *structure* is duplicated; only the data varies — exactly what DRY targets.
 
-### 1. `digit0ToToken` and `digit19ToToken` are the same function
+#### 1. `digit0ToToken` and `digit19ToToken` are the same function
 
 `fs/js/tokenizer/module.f.ts:575-587` and `:590-602` are line-for-line
 identical except for the `numberKind` in the `default` branch:
@@ -108,7 +110,7 @@ They are *not* provably equivalent — the `default` diverges when `numberKind`
 is `'bigint'` (`123n4`: `digit0` keeps `'bigint'`, `digit19` switches to
 `'int'`) — so the merge must preserve that delta, not assume it away.
 
-### 2. The "continue a number token" literal appears ~9 times
+#### 2. The "continue a number token" literal appears ~9 times
 
 The shape
 
@@ -122,7 +124,7 @@ is written verbatim at `:570`, `:581`, `:585`, `:586`, `:596`, `:600`, `:601`,
 change; `kind`, `value: appendChar(state.value)(input)`, and the `[empty, …]`
 envelope are constant noise repeated at every call site.
 
-### 3. The five `\b \f \n \r \t` escape handlers differ only in the output char
+#### 3. The five `\b \f \n \r \t` escape handlers differ only in the output char
 
 `fs/js/tokenizer/module.f.ts:712-716`:
 
@@ -137,13 +139,13 @@ rangeFunc<ParseEscapeCharState>(one(latinSmallLetterT))(state => () => [empty, {
 Five rows that map `(escape letter) → (emitted char)`; the handler body is
 identical apart from the constant.
 
-## Proposal
+### Proposal
 
 Hoist the repeated shapes to named module-scope helpers, parameterized by the
 varying constant. All three are pure and capture no local state, so they belong
 at module scope per `AGENTS.md`.
 
-### 1 + 2 — a `numberToken` constructor, and one `digitToToken` factory
+#### 1 + 2 — a `numberToken` constructor, and one `digitToToken` factory
 
 The `numberKind` union and the `b` buffer shape are currently inline in
 `ParseNumberState` (`fs/js/tokenizer/module.f.ts:297-300`); name them
@@ -184,7 +186,7 @@ const digit19ToToken = digitToToken(() => 'int')
 likewise route their continuing branches through `numberToken`, dropping the
 repeated `kind`/`value`/`[empty, …]` boilerplate.
 
-### 3 — a `(letter, char)` escape table
+#### 3 — a `(letter, char)` escape table
 
 ```ts
 const escapeTo = (c: number) =>
@@ -206,7 +208,7 @@ const simpleEscapes = [
 This leaves the genuinely distinct handlers (`"`/`\`/`/` self-insert via
 `appendChar(state.value)(input)`, and `u` → `unicodeChar`) as their own rows.
 
-## Tasks
+### Tasks
 
 - [ ] Add `numberToken` and route the ~9 continuing-number literals through it.
 - [ ] Replace `digit0ToToken`/`digit19ToToken` with one `digitToToken` factory,
@@ -215,18 +217,18 @@ This leaves the genuinely distinct handlers (`"`/`\`/`/` self-insert via
       `(letter, char)` table.
 - [ ] Confirm `fs/js/tokenizer` proof coverage still passes (`npm test`).
 
-## Related
+### Related
 
-- [i157](./157-json-djs-shared-core.md) — shares the value layer above the
+- [i157](../djs/todo.md) — shares the value layer above the
   tokenizer; this issue is purely internal to the JS lexer and independent.
-- [i666-js-tokenizer-position-layer](./666-js-tokenizer-position-layer.md) —
+- [i666-js-tokenizer-position-layer](todo.md) —
   a separate concern (position/metadata), orthogonal to these handler literals.
-- [i174-range-map-lexer](./174-range-map-lexer.md) — the `rangeFunc`/`create`
+- [i174-range-map-lexer](todo.md) — the `rangeFunc`/`create`
   dispatch machinery these handlers plug into.
 
 ---
 
-# 174. `fsc` and `js/tokenizer`: a shared range-map lexer state machine
+## 174. `fsc` and `js/tokenizer`: a shared range-map lexer state machine
 
 **Priority:** P3
 **Status:** open
@@ -270,7 +272,7 @@ The rest of the machinery is the same algorithm with the payload type swapped:
 Both `create` functions even end with the byte-identical dispatch shape
 `v => c => x(c)(i)(v)(c)`, where `x = get(def)`.
 
-## Proposed abstraction
+### Proposed abstraction
 
 A new module (e.g. `fs/types/range_map/lexer/module.f.ts`) parameterized over
 the continuation type `C` and the `def` continuation, exporting the
@@ -296,7 +298,7 @@ export const lexer = <C>(def: C) => {
 adapter for its string-keyed `range('!')` ergonomics; `js/tokenizer` supplies
 its `CreateToToken` continuation directly over `NumberRange`.
 
-## Why this qualifies
+### Why this qualifies
 
 - Two real, shipping consumers (`fsc.init`, the JS tokenizer's transition
   tables) — past the second-consumer bar in `AGENTS.md`.
@@ -306,7 +308,7 @@ its `CreateToToken` continuation directly over `NumberRange`.
 - Naming the construct ("a range-driven lexer state machine") makes the next
   scanner reuse it instead of forking a third copy.
 
-## Caveats / why this is an idea, not a mechanical edit
+### Caveats / why this is an idea, not a mechanical edit
 
 - **`def` threading.** `fsc` closes over a module-level `def` constant;
   `js/tokenizer` threads `def` as a parameter through every combinator
@@ -316,13 +318,13 @@ its `CreateToToken` continuation directly over `NumberRange`.
   `text/ascii.range`; the tokenizer works in numeric `NumberRange`. The factory
   should stay numeric (`Range`/`NumberRange`) and let `fsc` keep its
   string→range adapter on top, so the lexer core has no `ascii` dependency.
-- **Distinct from [i165](./README.md).** That issue proposes a BNF-driven
+- **Distinct from [i165](../../issues/README.md).** That issue proposes a BNF-driven
   tokenizer/parser layering; these two scanners are *not* BNF-based and are the
   only `range_map`-driven ones. This extraction stands on its own.
 
-## Related
+### Related
 
-- [i165](./README.md) — layered BNF parser (different mechanism).
+- [i165](../../issues/README.md) — layered BNF parser (different mechanism).
 - `fs/types/range_map/module.f.ts` — the underlying structure both consumers wrap.
 
 ---

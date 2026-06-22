@@ -1,4 +1,6 @@
-# 76. Serialization mapping should be done only once.
+# TODO
+
+## 76. Serialization mapping should be done only once.
 
 **Priority:** P3
 **Status:** open
@@ -19,14 +21,14 @@ const BOOL_MAP: ... = [(false, 0), (true, 1)];
 
 ---
 
-# 80. Add `CONST_REF` to serialization.
+## 80. Add `CONST_REF` to serialization.
 
 **Priority:** P3
 **Status:** open
 
 ---
 
-# 186. `sul/id`: reuse `sha2`'s `fromV8` to pack a hash into a bigint
+## 186. `sul/id`: reuse `sha2`'s `fromV8` to pack a hash into a bigint
 
 **Priority:** P3
 **Status:** open
@@ -61,7 +63,7 @@ For `base32`, `bitLength === 32n`, so `fromV8` computes
 words. `base32.fromV8` is reachable: `fromV8` is a field of the returned `Base`,
 and `sul/id` already imports `{ base32, type V8 }` from `sha2`.
 
-## Proposed change
+### Proposed change
 
 ```ts
 const hashMerge = (a: Id, b: Id): Id =>
@@ -72,14 +74,14 @@ This removes `vecX20`, `ltv` (one of the [i167](./README.md) `listToVec(msb)`
 aliases), and the `vec`/`listToVec`/`uint` imports that exist in `sul/id` only to
 service this one line.
 
-## Why this qualifies
+### Why this qualifies
 
 - DRY: `fromV8` ("interpret a SHA word vector as one big-endian integer") is a
   named SHA-2 concept; `sul/id` is the second consumer and currently forks it.
 - Separation of concerns: the V8-packing convention should live in the hashing
   module that produces `V8`, not be reconstructed by each caller.
 
-## Caveats
+### Caveats
 
 - `fromV8` uses `reduce` with no seed, so it assumes a non-empty array. The input
   here is always length 8 (`iv` is asserted to be a `V8` of length 8 at
@@ -90,18 +92,18 @@ service this one line.
   needed after removing the `uint`/`vec`/`listToVec` uses; prune whatever becomes
   unused.
 
-## Related
+### Related
 
 - [i167](./README.md) — `listToVec(msb)` re-binding (`ltv` here is one instance).
 
 ---
 
-# 66M-sul-literal-level-reuse. `literalToVec` rebuilds the SUL levels the pipeline already holds
+## 66M-sul-literal-level-reuse. `literalToVec` rebuilds the SUL levels the pipeline already holds
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 `fs/sul/level/literal/module.f.ts` states one fact — *the first three literal SUL
 levels have exponents `0n`, `2n`, `7n`* — but states it **twice**, and builds the
@@ -138,7 +140,7 @@ So `level(0n)`, `level(2n)`, `level(7n)` are each constructed once for the encod
 a level, or changing an exponent, means editing both lists or the two stay
 inconsistent — a classic single-source-of-truth violation.
 
-## Proposal
+### Proposal
 
 `literalToVec` only needs the level's `decode`, which the already-built `l1`/`l2`/
 `l3` expose. Pass the `Level` (or its `decode`) instead of the exponent, and
@@ -161,7 +163,7 @@ is called three times instead of six, and the encoder pipeline and the
 than two parallel constructions that happen to agree. Behaviour is unchanged —
 `literalToVec` already used only `decode` from the `level(e)` it built.
 
-## Tasks
+### Tasks
 
 - [ ] Change `literalToVec`'s second parameter from `e: bigint` to a `Level` (or
       `{ decode }`), drop the internal `level(e)` call, and pass `l1`/`l2`/`l3`
@@ -169,7 +171,7 @@ than two parallel constructions that happen to agree. Behaviour is unchanged —
 - [ ] Run `npx tsc` and `fjs t`; confirm `fs/sul/level/literal/proof.f.ts` still
       passes with full line/branch coverage.
 
-## Related
+### Related
 
 - The same module's `pipelineStep` (`:102-110`) is the other consumer of
   `l1`/`l2`/`l3`; after this change both consumers share one set of `Level`
