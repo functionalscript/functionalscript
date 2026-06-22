@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `cas`: implement the lock-free staging upload (Step 3, staging-lease.md). `fileCas.write` now streams each chunk straight to a `.cas/_stage/<deadline>-<random256>` staging file via the new `writeBytes` effect while hashing incrementally, renews the deadline lease per chunk, fails closed (`rm` the partial file) on any error, and publishes to the hash-derived shard with a replace-`rename` confirmed by a `stat` size check; expired staging files are garbage-collected lazily at the start of each write. Adds path-based effects `createExclusive` (`O_CREAT|O_EXCL`), `writeBytes` (pwrite the whole `Vec` at a byte offset, never creating), and `stat` (`{ size }`) to `fs/effects/node`, implemented in the Node and virtual runners. Migrates `casUpload` to stage under `_stage/` with a `<deadline>-<random256>` name (dropping the old `.stage/` path) so its orphans share the same lease GC. New proof tests cover multi-chunk streaming, dedup, mid-stream abort, and GC reclamation (cas plan Step 3) PR [#1149](https://github.com/functionalscript/functionalscript/pull/1149)
+
 ## 0.33.0
 
 - Remove `kvStore` PR [#1143](https://github.com/functionalscript/functionalscript/pull/1143)

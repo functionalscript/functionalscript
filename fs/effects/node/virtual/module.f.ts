@@ -10,7 +10,7 @@ import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../../../type
 import { error, ok } from '../../../types/result/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
 import { asBase, asNominal, type Key } from '../../memory/module.f.ts'
-import type { Dirent, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../module.f.ts'
+import type { Dirent, FileStat, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../module.f.ts'
 
 /**
  * In-memory JS module entry. When `import_` is called on the path, the
@@ -275,6 +275,46 @@ const readBytesOp = (path: string, offset: number, size: number) => readOperatio
     return ok(result)
 })(path)
 
+/** Total byte size of a chunk-list file (each chunk is byte-aligned). */
+const fileSizeBytes = (chunks: readonly Vec[]): number =>
+    chunks.reduce((acc, c) => acc + Number(length(c) / 8n), 0)
+
+/** Absent-path error for an already-existing exclusive create, mirroring `EEXIST`. */
+const eexist = error({ code: 'EEXIST' })
+
+const createExclusive = operation((dir, path): readonly[Dir, IoResult<void>] => {
+    if (path.length !== 1) { return [dir, invalidPath] }
+    const [name] = path
+    // O_EXCL: fail if the name is already taken; otherwise create an empty file.
+    if (dir[name] !== undefined) { return [dir, eexist] }
+    return [{ ...dir, [name]: [] }, okVoid]
+})
+
+// The lock-free upload only ever writes sequentially at the current end of the
+// staging file (`offset === size`), so the virtual model implements that append
+// case exactly: it never creates (a missing file is `ENOENT`), never overwrites
+// existing bytes, and never leaves a hole — matching the effect's contract for
+// the one access pattern its callers use.
+const writeBytesOp = (path: string, offset: number, data: Vec) => operation((dir, p): readonly[Dir, IoResult<void>] => {
+    if (p.length !== 1) { return [dir, enoent] }
+    const [name] = p
+    const file = dir[name]
+    if (file === undefined) { return [dir, enoent] }              // writeBytes never creates
+    if (!Array.isArray(file)) { return [dir, error(`'${name}' is not a file`)] }
+    if (!Number.isInteger(offset) || offset < 0) { return [dir, error(`Offset ${offset} is invalid`)] }
+    const chunks = file as readonly Vec[]
+    if (offset !== fileSizeBytes(chunks)) { return [dir, error(`writeBytes offset ${offset} must equal the file size (append-only)`)] }
+    return [{ ...dir, [name]: [...chunks, data] }, okVoid]
+})(path)
+
+const statOp = readOperation((dir, path): IoResult<FileStat> => {
+    if (path.length !== 1) { return enoent }
+    const file = dir[path[0]]
+    if (file === undefined) { return enoent }
+    if (!Array.isArray(file)) { return error(`'${path[0]}' is not a file`) }
+    return ok({ size: fileSizeBytes(file as readonly Vec[]) })
+})
+
 const map: MemOperationMap<NodeOp, State> = {
     all: (...a) => state => {
         let e: readonly unknown[] = []
@@ -316,6 +356,9 @@ const map: MemOperationMap<NodeOp, State> = {
     rm,
     rename,
     readBytes: readBytesOp,
+    createExclusive,
+    writeBytes: writeBytesOp,
+    stat: statOp,
     randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, state.randomNext],
     exec: todo,
     createServer: todo,
