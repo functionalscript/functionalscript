@@ -64,9 +64,9 @@ existing `streamHash` helper folds into `write`.
 
 Implement `write` as the `upload` algorithm from [staging-lease.md](staging-lease.md):
 
-1. `rand = random256()`; staging file `.cas/_staging/<deadline>-<rand>` (the `_` prefix
+1. `rand = random256()`; staging file `.cas/_stage/<deadline>-<rand>` (the `_` prefix
    excludes it from `list` via `cBase32ToVec`).
-2. `mkdir(_staging, {recursive})`; `createExclusive` the file.
+2. `mkdir(_stage, {recursive})`; `createExclusive` the file.
 3. Fold the payload stream: `writeBytes(path, offset, chunk)`, advance `offset`, update the
    hash, and renew the lease each chunk by renaming to a fresh `now()+delta` deadline. Any
    error ⇒ `rm(path)` and return an upload error.
@@ -90,13 +90,13 @@ corruption is caught by scrub — see staging-lease.md *Future optimizations*).
 
 ### Garbage collection
 
-Lazy, piggy-backed on `write`: `readdir(_staging/)`, delete entries whose `<deadline>` is in
+Lazy, piggy-backed on `write`: `readdir(_stage/)`, delete entries whose `<deadline>` is in
 the past (sorted lexically = chronologically, so expired names are a prefix).
 
 ### Migrate `casUpload`
 
 Replace the existing `casUpload` (`.cas/.stage/` move-hash-move) with the new pipeline writing
-into `_staging/`; remove the `.stage/` path once no callers remain.
+into `_stage/`; remove the `.stage/` path once no callers remain.
 
 ### Tests
 

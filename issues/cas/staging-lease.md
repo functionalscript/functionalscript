@@ -27,7 +27,7 @@ The motivation is threefold:
 A staging file's name carries its own expiry:
 
 ```
-.cas/_staging/<deadline>-<random256>
+.cas/_stage/<deadline>-<random256>
 ```
 
 - **`<deadline>`** — a wall-clock expiry, formatted so that lexical order equals
@@ -54,7 +54,7 @@ them.
 its own lease strategy, and they need not agree. One holding an important document over a
 flaky connection can pre-assign a long lease up front; a routine uploader can take a short
 lease and renew on progress; a pool of hedged uploaders can all take short leases and race.
-These strategies coexist in one `_staging/` directory with **no coordination**, because the
+These strategies coexist in one `_stage/` directory with **no coordination**, because the
 only thing an uploader communicates to the GC is a single number — the deadline in the
 filename. There is no registry, no negotiation, no shared state to keep consistent.
 
@@ -96,7 +96,7 @@ not a per-client choice: **fixed-width, zero-padded UTC epoch milliseconds**.
 
 The format must be canonical because the GC's oldest-first scan relies on expired files
 forming one contiguous lexical *prefix* (and over-cap files one *suffix*). Mixing encodings
-in the same `_staging/` breaks that invariant: every `0000…` epoch name sorts before, say,
+in the same `_stage/` breaks that invariant: every `0000…` epoch name sorts before, say,
 a `2026…` ISO stamp regardless of its actual deadline, so the front scan could stop on a
 live epoch file while expired ISO files sit unreclaimed after it. One encoding, fixed width,
 for every writer — no alternative spellings.
@@ -116,7 +116,7 @@ existing `readBytes` / `writeFile` / `rename` effects in `fs/effects/node/module
 |---|---|---|
 | `createExclusive` | `(path) => IoResult<void>` | `O_CREAT\|O_EXCL`. Creates the staging file. With 256 random bits in the name `EEXIST` never happens in practice; it is just a sanity guard. |
 | `writeBytes` | `(path, offset, data: Vec) => IoResult<void>` | Mirror of `readBytes`. Opens the **existing** file (no create) and writes at `offset`. Writes the **entire** `Vec` or returns an error — no partial writes (the runner loops over short writes), so the later size check can't pass over a hole. `ENOENT` ⇒ the GC already reclaimed this file ⇒ the upload failed; delete and restart. Bounded to ≤128 KiB per call. |
-| `rename` | `(src, dst) => IoResult<void>` | Already exists. Publishes the shard (`_staging/…` → `.cas/<prefix>/<hash>`) and renews the lease (`…-<rand>` → a newer deadline). Replace-on-existing is fine — same hash ⇒ same bytes. |
+| `rename` | `(src, dst) => IoResult<void>` | Already exists. Publishes the shard (`_stage/…` → `.cas/<prefix>/<hash>`) and renews the lease (`…-<rand>` → a newer deadline). Replace-on-existing is fine — same hash ⇒ same bytes. |
 | `rm` | `(path) => IoResult<void>` | Already exists. Deletes a partial/aborted upload; also the GC's reclaim. |
 | `stat` | `(path) => IoResult<{size}>` | **New.** Used at the end of `upload` to confirm the published shard exists with the expected size, and by resume to recover `offset = size`. |
 
@@ -137,9 +137,9 @@ It does not try to be crash-atomic.
 ```
 upload(stream):                               // returns the content hash (the CAS key)
   rand    = random256()
-  newPath = () => `_staging/${fmt(now() + delta)}-${rand}`   // delta is a fixed constant
+  newPath = () => `_stage/${fmt(now() + delta)}-${rand}`   // delta is a fixed constant
 
-  mkdir(`_staging`, {recursive})              // create _staging/ if absent (fresh store)
+  mkdir(`_stage`, {recursive})              // create _stage/ if absent (fresh store)
   path = newPath()
   createExclusive(path)
 
@@ -226,8 +226,8 @@ lease:
 
 ```
 gc(now):
-  for name in sort(readdir(`_staging/`)):    // lexical sort = chronological
-      if deadline(name) < now: rm(`_staging/${name}`)   // ENOENT is fine
+  for name in sort(readdir(`_stage/`)):    // lexical sort = chronological
+      if deadline(name) < now: rm(`_stage/${name}`)   // ENOENT is fine
       else: break                            // the rest are still live
 ```
 
@@ -240,11 +240,11 @@ is not urgent.
 
 ### Manual / degraded-mode GC
 
-A key property of this design: **no manual action in `_staging/` can corrupt a committed
-shard.** Nothing in `_staging/` is ever a shard, and any deletion of an active file is
+A key property of this design: **no manual action in `_stage/` can corrupt a committed
+shard.** Nothing in `_stage/` is ever a shard, and any deletion of an active file is
 caught by the writer via `ENOENT` (worst case: the upload restarts). Therefore:
 
-- A human can `ls _staging/`, read the deadline prefix as a wall-clock time, and delete
+- A human can `ls _stage/`, read the deadline prefix as a wall-clock time, and delete
   anything in the past — no special tooling, no lock-aware cleaner, no platform branch.
 - The same `ls` + `rm` procedure works identically on POSIX and Windows.
 - Even a blunt "delete the first half of the sorted list" under space pressure is **safe**
@@ -286,6 +286,14 @@ to be added only behind a real, measured need.
   window can lose a partial upload or a just-published shard, and scrub repairs the rare lost
   shard later. A writer that needs a hard durability guarantee could `fsync` the file and the
   destination directory before returning, at a latency cost.
+- **Verify-on-publish (turn replace into a guaranteed repair).** The baseline reports success
+  from the size check, and its replace-`rename` overwrites `dst` with the freshly-written
+  bytes — so a re-upload normally *repairs* a corrupt same-sized shard for free. The residual
+  gap: if that `rename` ever fails or no-ops over a pre-existing same-sized **corrupt** shard,
+  the size check still passes and we return success without having replaced the bad bytes. A
+  verifying publish could confirm the rename actually installed our bytes (or re-hash `dst`)
+  before returning `ok`, at an `O(size)` re-read cost — closing that gap instead of leaving it
+  to scrub.
 - **Resumable / reboot-survivable uploads.** The baseline restarts a failed upload from
   scratch. A resume could instead re-hash the surviving staging bytes (`offset = stat(path).size`)
   and continue — surviving a reboot or handing the upload to another process. See
@@ -298,7 +306,7 @@ to be added only behind a real, measured need.
   policy: detecting stalls*.
 - **Clock-skew / far-future leak handling.** With a fixed `delta` a healthy deadline is at most
   `now + delta`, but a grossly wrong clock could park a single staging file far in the future
-  and leak it. A periodic max-age sweep (delete `_staging/` entries whose deadline is absurdly
+  and leak it. A periodic max-age sweep (delete `_stage/` entries whose deadline is absurdly
   far ahead) would reclaim it; the baseline leaves this rare case to manual cleanup.
 
 The sections that follow document several of these extensions in detail. They are reference
@@ -366,7 +374,7 @@ replaces it with primitives a **shared filesystem already provides**, plus a clo
 - atomic `unlink` — GC and abort
 - a wall-clock deadline — liveness
 
-So `_staging/` can live on a remote/shared disk (e.g. an NFS export) and be driven by
+So `_stage/` can live on a remote/shared disk (e.g. an NFS export) and be driven by
 uploaders running on **several machines at once**. The stateless `writeBytes` model is, if
 anything, *more* network-FS-friendly than a held-handle model: NFS's weak spots are all
 around open file state (silly-rename on unlink-while-open, lock recovery after a server
@@ -493,7 +501,7 @@ a misjudged-slow uploader restarts or hands off, never corrupts.
 | Open→acquire race | Real → mandatory mtime grace period | None (atomic `O_EXCL` create) |
 | `FileHandle` type / held fd | Required | None — the handle is plain data (path/offset/hash) |
 | Cleaner protocol | `tryLockExclusive`, hold handle during delete | `rm` files with past deadlines |
-| Manual `rm` in `_staging/` | Silently corrupts active writes on POSIX | Safe — worst case is a restarted upload |
+| Manual `rm` in `_stage/` | Silently corrupts active writes on POSIX | Safe — worst case is a restarted upload |
 | Slow-but-alive writer | Never reclaimed | May be reclaimed (fails safe) |
 | Abandoned/leaked by a live process | File pinned for the process's lifetime | Reclaimed at the deadline |
 | Cleanup on abort | Mandatory — missed release leaks the file | Optional — self-heals after the deadline |
@@ -505,7 +513,7 @@ a misjudged-slow uploader restarts or hands off, never corrupts.
 
 The same migration note from `staging.md` applies: `casUpload` (`fs/cas/module.f.ts`)
 currently stages into `.cas/.stage/` and would be unaffected by a lease GC scanning
-`_staging/`. Migrating `casUpload` to write `<deadline>-<random256>` names under
-`_staging/` brings it under one GC scope. Unlike the lock design, the lease has no mtime
+`_stage/`. Migrating `casUpload` to write `<deadline>-<random256>` names under
+`_stage/` brings it under one GC scope. Unlike the lock design, the lease has no mtime
 dependency, so the `rename`-preserves-mtime hazard described in `staging.md` does not
 apply here — a migrated `casUpload` only needs to stamp a fresh deadline into the name.

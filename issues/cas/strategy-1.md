@@ -20,7 +20,7 @@ twice and guarantees the CAS directory contains only complete, verified objects.
 
 ## Write pipeline
 
-1. `openWrite()` — creates a staging file under `.cas/_staging/` and acquires an
+1. `openWrite()` — creates a staging file under `.cas/_stage/` and acquires an
    OS-level hold (open file descriptor on Windows; `flock` on POSIX). Returns an
    opaque `WriteHandle` token that represents this live resource.
 2. `append(handle, chunk)` — writes a chunk through the held file descriptor while
@@ -40,7 +40,7 @@ primitive.
 
 ## Staging directory
 
-The staging directory is `.cas/_staging/`. The `_` prefix ensures it cannot be
+The staging directory is `.cas/_stage/`. The `_` prefix ensures it cannot be
 confused with a hash-prefixed shard path and is excluded naturally by the `list`
 operation (which validates each name via `cBase32ToVec`).
 
@@ -88,7 +88,7 @@ simultaneously the "in progress, do not touch" signal and the dead-man's switch.
 
 ## Cleaning
 
-Only files under `.cas/_staging/` are eligible for cleaning. Committed shard files
+Only files under `.cas/_stage/` are eligible for cleaning. Committed shard files
 are permanent and never cleaned.
 
 A staging file is safe to delete when its lock can be acquired (POSIX) or its

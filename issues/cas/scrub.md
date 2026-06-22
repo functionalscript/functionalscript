@@ -42,7 +42,7 @@ Scrubbing and the staging GC partition the store cleanly and never overlap:
 
 | | Staging GC | Scrub |
 |---|---|---|
-| Domain | `.cas/_staging/` (in-progress uploads) | `.cas/<prefix>/` (committed shards) |
+| Domain | `.cas/_stage/` (in-progress uploads) | `.cas/<prefix>/` (committed shards) |
 | Question | "is this upload still alive?" | "do these bytes still match their hash?" |
 | Signal | deadline in the file name | re-hash vs. the address |
 | Action | `rm` expired/orphaned files | quarantine + repair corrupt shards |
