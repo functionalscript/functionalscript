@@ -97,7 +97,7 @@ Which serialises to:
 ## 66N-html-escape-table. Make HTML character escaping a declarative table
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ### Problem
 
