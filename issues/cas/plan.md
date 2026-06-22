@@ -52,9 +52,10 @@ Replace whole-`Vec` in/out with chunk streams:
   an error item as an upload failure, otherwise feed the chunk to both the staging file and
   the running SHA-2 state. Return the computed hash. Never holds the whole payload in memory.
 - `read(hash)` — produce a `ListEffect<O, IoResult<Vec>>` that pulls `readBytes(toPath(hash),
-  offset, CHUNK_BYTES)` lazily, `CHUNK_BYTES = maxLengthBytes`. The final short/empty chunk
-  ends the stream (`undefined`); a missing shard or read error is an `error` *item*, never
-  folded into EOF.
+  offset, CHUNK_BYTES)` lazily (`CHUNK_BYTES = maxLengthBytes`). Emit **every non-empty** read
+  as an `ok(chunk)` item — including a final short (`< CHUNK_BYTES`) chunk — and end the stream
+  (`undefined`) only on an **empty** read. A missing shard or read error is an `error` *item*,
+  never folded into EOF.
 - `list()` stays `readonly Vec[]` (or a `ListEffect` of hashes if we want it lazy too).
 
 This is the interface the lock-free algorithm consumes (`write`) and produces (`read`); the

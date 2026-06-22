@@ -293,7 +293,10 @@ to be added only behind a real, measured need.
   the size check still passes and we return success without having replaced the bad bytes. A
   verifying publish could confirm the rename actually installed our bytes (or re-hash `dst`)
   before returning `ok`, at an `O(size)` re-read cost — closing that gap instead of leaving it
-  to scrub.
+  to scrub. Reading `dst` back would also catch the contrived case where something has replaced
+  the shard path out-of-band with a directory or non-regular file of a coincidentally-matching
+  size (the size-only check would otherwise report success); the baseline treats that as `.cas/`
+  tampering, scrub's domain, not the hot path.
 - **Resumable / reboot-survivable uploads.** The baseline restarts a failed upload from
   scratch. A resume could instead re-hash the surviving staging bytes (`offset = stat(path).size`)
   and continue — surviving a reboot or handing the upload to another process. See
