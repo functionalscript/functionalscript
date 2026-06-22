@@ -763,6 +763,15 @@ Translate the Byte Code into WebAssembly or other PLs, Rust/Zig/C/C++/LLVM.
 
 ---
 
+## `nanenum` provenance API
+
+**Priority:** P3
+**Status:** open
+
+[nanenum](src/nanenum.rs) should use the new [provenance API](https://doc.rust-lang.org/stable/core/ptr/index.html#provenance).
+
+---
+
 ## Console program
 
 **Priority:** P3
