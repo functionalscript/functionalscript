@@ -48,9 +48,9 @@ system already provides the mockability the KV layer was giving.
 
 Replace whole-`Vec` in/out with chunk streams:
 
-- `write(payload: ListEffect<O, Vec>)` — fold the stream, feeding each chunk to both the
-  staging file and the running SHA-2 state; return the computed hash. Never holds the whole
-  payload in memory.
+- `write(payload: ListEffect<O, IoResult<Vec>>)` — fold the stream; for each item, propagate
+  an error item as an upload failure, otherwise feed the chunk to both the staging file and
+  the running SHA-2 state. Return the computed hash. Never holds the whole payload in memory.
 - `read(hash)` — produce a `ListEffect<O, IoResult<Vec>>` that pulls `readBytes(toPath(hash),
   offset, CHUNK_BYTES)` lazily, `CHUNK_BYTES = maxLengthBytes`. The final short/empty chunk
   ends the stream (`undefined`); a missing shard or read error is an `error` *item*, never
@@ -70,7 +70,8 @@ Implement `write` as the `upload` algorithm from [staging-lease.md](staging-leas
 3. Fold the payload stream: `writeBytes(path, offset, chunk)`, advance `offset`, update the
    hash, and renew the lease each chunk by renaming to a fresh `now()+delta` deadline. Any
    error ⇒ `rm(path)` and return an upload error.
-4. `hash = shaFinal(...)`; `dst = .cas/${toPath(hash)}`.
+4. `hash = shaFinal(...)`; `dst = toPath(hash)` (already `.cas`-rooted — do **not** prepend
+   `.cas` again).
 5. `mkdir(dirOf(dst), {recursive})`, `rename(path, dst)`, `rm(path)` — results ignored.
 6. Success iff `stat(dst).size === offset`; else upload error.
 
