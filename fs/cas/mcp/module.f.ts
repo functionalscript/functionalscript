@@ -65,14 +65,15 @@
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
-import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { listEffectCons, listEffectEnd, pure, type Effect, type ListEffect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { detect } from '../../mime/module.f.ts'
-import { length as bitVecLength, type Vec } from '../../types/bit_vec/module.f.ts'
-import { type Mkdir, type RandomInt, type Read, type ReadBytes, type Rename, type Write } from '../../effects/node/module.f.ts'
+import { empty, length as bitVecLength, maxLength, msb, type Vec } from '../../types/bit_vec/module.f.ts'
+import { ok, error } from '../../types/result/module.f.ts'
+import { type IoResult, type Mkdir, type Now, type RandomInt, type Read, type ReadBytes, type Rename, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
@@ -94,18 +95,42 @@ export const casGetArgs = { hash: string, content: option(boolean) } as const
 /** Arguments for `cas_list`: none. */
 export const casListArgs = {} as const
 
+// ── Stream helper ────────────────────────────────────────────────────────────────
+
+/**
+ * Drains a CAS read stream into a single `Vec`. MCP needs the whole blob in hand
+ * (MIME sniffing, UTF-8 validation, base64 encoding all inspect the full content),
+ * so the chunk stream is concatenated; an error item is surfaced as the result.
+ */
+const collectRead = <O extends Operation>(stream: ListEffect<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {
+    const loop = (acc: Vec) => (s: ListEffect<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
+        s.step((node): Effect<O, IoResult<Vec>> => {
+            if (node === undefined) { return pure(ok(acc)) }
+            const [item, rest] = node
+            if (item[0] === 'error') { return pure(item) }
+            // A single `Vec` cannot exceed `maxLength` bits; concatenating past it would
+            // overflow the runtime's `bigint` constraint. Surface that as an error item
+            // so the tool reports a failure rather than crashing the process.
+            if (bitVecLength(acc) + bitVecLength(item[1]) > maxLength) {
+                return pure(error(`cas blob exceeds maximum vector length of ${maxLength} bits`))
+            }
+            return loop(msb.concat(acc)(item[1]))(rest)
+        })
+    return loop(empty)(stream)
+}
+
 // ── Tool registry ──────────────────────────────────────────────────────────────
 
 /** Registry of all CAS tools. */
 const casToolRegistry =
-<O extends Operation>(c: Cas<O>, home: string, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|Mkdir|Rename|RandomInt|ReadBytes>[] => {
+<O extends Operation>(c: Cas<O>, home: string, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|Mkdir|Rename|RandomInt|ReadBytes|Now>[] => {
     const casUploadDir = `${home}/cas_upload`
     return [
     toolEntry(
         'cas_add',
         'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to stream a file from $HOME/cas_upload/ (no size limit); omit or pass type:"text" for UTF-8 text (default).',
         casAddArgs,
-        ({ type, content }): Effect<O | Mkdir | Rename | RandomInt | ReadBytes, ToolsCallResult> => {
+        ({ type, content }): Effect<O | Mkdir | Rename | RandomInt | ReadBytes | Now, ToolsCallResult> => {
             // type:'url' — streaming move-hash-move pipeline (no size limit)
             if (type === 'url') {
                 if (!content.startsWith(`${casUploadDir}/`) || content.includes('..')) {
@@ -132,9 +157,10 @@ const casToolRegistry =
             }
             return x.step(value => typeof value === 'string'
                 ? pure(errorResult(value))
-                : c.write(value).step(hash => pure(hash === undefined
+                // The resolved content fits in one chunk; feed it as a single-item stream.
+                : c.write(listEffectCons(ok(value), listEffectEnd())).step(hashResult => pure(hashResult[0] === 'error'
                     ? errorResult('write')
-                    : okResult(vecToCBase32(hash))))
+                    : okResult(vecToCBase32(hashResult[1]))))
             )
         },
     ),
@@ -147,10 +173,11 @@ const casToolRegistry =
             if (key === null) {
                 return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
             }
-            return c.read(key).step(value => {
-                if (value === undefined) {
+            return collectRead(c.read(key)).step(result => {
+                if (result[0] === 'error') {
                     return pure(errorResult(`no such hash: ${r.hash}`))
                 }
+                const value = result[1]
                 const byteLength = Number(bitVecLength(value) / 8n)
                 // Phase 1: magic-byte sniffing for known binary formats.
                 const detectedMime = detect(value)
@@ -233,7 +260,7 @@ export const casMcpHandlers = <O extends Operation>(
     c: Cas<O>,
     home: string,
     toUrl?: (hash: Vec) => string,
-): McpHandlers<Mkdir | Rename | RandomInt | ReadBytes | O> =>
+): McpHandlers<Mkdir | Rename | RandomInt | ReadBytes | Now | O> =>
     fromRegistry(casToolRegistry(c, home, toUrl))
 
 // ── Session configuration ───────────────────────────────────────────────────────
@@ -261,6 +288,6 @@ export const casMcpServer = <O extends Operation>(
     c: Cas<O>,
     home: string,
     toUrl?: (hash: Vec) => string,
-): Effect<Read | Write | MemOp | Mkdir | Rename | RandomInt | ReadBytes | O, void> =>
+): Effect<Read | Write | MemOp | Mkdir | Rename | RandomInt | ReadBytes | Now | O, void> =>
     create(uninitializedState).step(key =>
-        stdioTransport(mcpStep<Mkdir | Rename | RandomInt | ReadBytes | O>(casConfig)(casMcpHandlers(c, home, toUrl))(key)))
+        stdioTransport(mcpStep<Mkdir | Rename | RandomInt | ReadBytes | Now | O>(casConfig)(casMcpHandlers(c, home, toUrl))(key)))

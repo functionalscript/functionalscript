@@ -1,20 +1,15 @@
 # 66E-fjs-cas-mcp-subcommand. `fjs cas mcp` — start the stdio MCP server for CAS
 
 **Priority:** P3
-**Status:** blocked
-**Blocked by:**
-- [i66E-mcp-stdio-transport](./66E-mcp-stdio-transport.md) — readline effect and transport loop
-- [i66E-mcp-cas-server](./66E-mcp-cas-server.md) — `casMcpHandlers` and `casConfig`
+**Status:** open
 
 ## Problem
 
 `fjs cas` already dispatches `add` / `get` / `list` subcommands from
-`fs/cas/module.f.ts`. Once `casMcpHandlers`
-([i66E-mcp-cas-server](./66E-mcp-cas-server.md)) and the stdio transport loop
-([i66E-mcp-stdio-transport](./66E-mcp-stdio-transport.md)) are in place, there
-is no entry point to start the MCP server: no subcommand wires them together
-into a running process. A user or agent wanting to connect to the CAS over MCP
-has no way to launch it.
+`fs/cas/module.f.ts`. `casMcpHandlers` and the stdio transport loop are now in
+place (`fs/cas/mcp/module.f.ts`), but there is no entry point to start the MCP
+server: no subcommand wires them together into a running process. A user or
+agent wanting to connect to the CAS over MCP has no way to launch it.
 
 ## Proposal
 
@@ -76,10 +71,6 @@ flat delegation is sufficient for now.
 
 ## Related
 
-- [i66E-mcp-stdio-transport](./66E-mcp-stdio-transport.md) — `stdioTransport`
-  and the `readline` effect this subcommand relies on.
-- [i66E-mcp-cas-server](./66E-mcp-cas-server.md) — `casMcpHandlers`, `casConfig`,
-  and `mcpStep` wiring this subcommand calls.
 - [i667-cli-nested-commands](./667-cli-nested-commands.md) — would allow
   `fjs help cas` to enumerate `mcp` alongside `add` / `get` / `list`.
 - `fs/cas/module.f.ts` — the `commands` array and `main` this extends.

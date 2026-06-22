@@ -91,9 +91,6 @@ easy to thread in.
 
 - [i66E-fjs-cas-mcp-subcommand](./66E-fjs-cas-mcp-subcommand.md) — the `cas mcp`
   subcommand whose unpredictable `cwd` is the immediate trigger for this issue.
-- [i66E-mcp-cas-server](./66E-mcp-cas-server.md) — CAS MCP server design;
-  `casMcpServer` passes `c` in, so it is unaffected once the caller passes the
-  right store root.
-- `fs/cas/module.f.ts` — `fileKvStore('.')` at line 110 is the root of the bug.
+- `fs/cas/module.f.ts` — `fileKvStore('.')` is the root of the bug.
 - `fs/effects/node/module.f.ts` — `NodeProgramOptions` type to be extended.
 - `fs/effects/node/module.ts` — `options` object to be populated with `home`.
