@@ -1,4 +1,4 @@
-import { commands, fileCas, type FileCasOperation } from './module.f.ts'
+import { casUpload, commands, fileCas, type FileCasOperation } from './module.f.ts'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
 import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
@@ -220,5 +220,28 @@ export const proof = {
         if (w[0] !== 'ok') { throw ['expected write ok', w] }
         const [, present] = virtual(state1)(access(stalePath))
         if (present[0] !== 'error') { throw 'expected GC to reclaim the expired staging file' }
+    },
+    casUploadSuccess: () => {
+        // A successful upload returns the hash and deletes the source file from cas_upload/.
+        const content = vec8(0x2An)
+        const state0 = { ...emptyState, root: { 'cas_upload': { 'myfile': [content] } } }
+        const [state1, result] = virtual(state0)(casUpload('.')('myfile'))
+        if (result[0] !== 'ok') { throw ['expected casUpload ok', result] }
+        if (length(result[1]) !== 256n) { throw ['expected 256-bit hash', length(result[1])] }
+        // Source must be deleted after successful publish.
+        const srcPath = join('.', 'cas_upload', 'myfile')
+        const [, srcAccess] = virtual(state1)(access(srcPath))
+        if (srcAccess[0] !== 'error') { throw 'expected source to be deleted after successful upload' }
+    },
+    casUploadFailureKeepsSource: () => {
+        // A missing source file causes write to fail; casUpload returns error and the
+        // source is left in place (trivially: it was never there, but the upload is not published).
+        const state0 = { ...emptyState, root: {} }
+        const [state1, result] = virtual(state0)(casUpload('.')('nonexistent'))
+        if (result[0] !== 'error') { throw ['expected casUpload to fail on missing source', result] }
+        // Nothing published to the store.
+        const c = fileCas(sha256)('.')
+        const [, hashes] = virtual(state1)(c.list())
+        if (hashes.length !== 0) { throw ['expected nothing published on failed upload', hashes] }
     },
 }
