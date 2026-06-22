@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.33.0
+
+- Remove `kvStore` PR [#1143](https://github.com/functionalscript/functionalscript/pull/1143)
 - `types/bigint`: drop the power-of-two `divUpE2` / `roundUpE2` helpers — they had no consumers beyond their own proofs and the `divUp8` / `roundUp8` factories; `divUp8` and `roundUp8` are now derived from `divUp(8n)` / `roundUp(8n)` directly; JSDoc on `divUp8` / `roundUp8` records the non-negative-input domain (the floor-vs-truncate distinction is the only place the two forms diverge); proofs updated to keep 100% coverage (i66D-bigint-roundup-factory) [#1131](https://github.com/functionalscript/functionalscript/pull/1131)
 - `effects/node/virtual`: change `Entity` file type from `Vec` to `readonly Vec[]` so the virtual filesystem can store files larger than `maxLengthBytes` (128 KiB) as an array of chunks; `readBytes` now reads across chunk boundaries; `writeFile` wraps payloads in `[payload]`; `readFile` concatenates chunks up to the 128 KiB cap; the `operation` traversal helper is fixed to not recurse into `Vec[]` arrays as directories; all related proof fixtures updated; two new proof tests verify chunk-boundary reads and large-file access (i66K-virtual-large-file-support) PR [#1130](https://github.com/functionalscript/functionalscript/pull/1130)
 
