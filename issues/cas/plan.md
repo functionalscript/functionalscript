@@ -25,7 +25,7 @@ type Cas<O extends Operation> = {
 `fs/effects/module.f.ts`) — a lazy, effectful cons-stream: each pull yields `[item, rest]`
 or `undefined` at end. Wrapping `T = IoResult<Vec>` gives every pull an explicit ok/error, so
 a missing shard or read error is distinguishable from end-of-stream (`undefined`), and the
-payload type matches the `EffectList<IoResult<Vec>>` shape already used elsewhere. This is
+payload type matches the `ListEffect<O, IoResult<Vec>>` shape used by the CAS interface. This is
 what keeps memory constant for arbitrarily large files.
 
 ## Step 1 — Remove the key-value interface
