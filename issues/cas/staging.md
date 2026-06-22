@@ -2,10 +2,10 @@
 
 ## Purpose
 
-Files written to `.cas/_staging/` are work-in-progress uploads. The final hash
+Files written to `.cas/_stage/` are work-in-progress uploads. The final hash
 (and therefore the final shard path) is not known until the full stream has been
 consumed, so the file must live somewhere temporary while data accumulates. The
-`_staging/` directory serves that role.
+`_stage/` directory serves that role.
 
 A staging file is created by `openExclusive`, written incrementally by
 `appendHandle`, and either promoted to its final path by `commitHandle` (rename +
@@ -40,7 +40,7 @@ On POSIX, `flock` is a **cooperative advisory** mechanism. It has no effect on
   the path is gone.
 
 This means a cleaner that naively calls `unlink` on everything it finds in
-`_staging/` will silently delete active staging files on POSIX. The writer
+`_stage/` will silently delete active staging files on POSIX. The writer
 continues writing to the now-unnamed inode — `appendHandle` succeeds — but
 `commitHandle`'s rename step fails with `ENOENT` because the source path no
 longer exists. The committed file is never written; the data is lost.
@@ -135,11 +135,11 @@ read-only bit is missing.
 
 ## Cleaning scope
 
-Only files under `.cas/_staging/` are eligible for cleaning. Committed shard
+Only files under `.cas/_stage/` are eligible for cleaning. Committed shard
 files under `.cas/<prefix>/` are permanent, immutable, and never cleaned.
 
-The `_` prefix ensures `_staging/` is excluded from the `list` operation, which
-validates each directory name via `cBase32ToVec` and would reject `_staging` as
+The `_` prefix ensures `_stage/` is excluded from the `list` operation, which
+validates each directory name via `cBase32ToVec` and would reject `_stage` as
 an invalid base-32 prefix anyway.
 
 ## Compatibility with the existing `casUpload` path
@@ -150,16 +150,16 @@ ad-hoc staging directory that predates the formal Strategy 1 design and does not
 follow the `tryLockExclusive` cleaning protocol — it creates per-upload temp files
 but holds no persistent flock.
 
-The formal design uses `_staging/` because:
+The formal design uses `_stage/` because:
 - The `_` prefix is the project convention for non-hash directories (excluded by
   `list` via `cBase32ToVec`).
 - `.stage/` uses a dot prefix, which is valid on POSIX but can conflict with hidden
   directory conventions and is less clearly "internal infrastructure."
 
-During the transition, a cleaner implementing Strategy 1 would scan `_staging/` and
+During the transition, a cleaner implementing Strategy 1 would scan `_stage/` and
 miss any orphans left by `casUpload` in `.stage/`. Two options:
 
-1. **Migrate `casUpload`** to write into `_staging/` so all staging files share one
+1. **Migrate `casUpload`** to write into `_stage/` so all staging files share one
    cleaning scope. This is the recommended path once Strategy 1 effects are
    implemented.
 2. **Scan both** — teach the cleaner to cover `.stage/` as well. However, this
@@ -170,4 +170,4 @@ miss any orphans left by `casUpload` in `.stage/`. Two options:
    old immediately after the rename — even older than the grace-period threshold —
    making a mtime-based check classify a just-started active upload as a stale orphan.
    This option must not be used until `casUpload` acquires an OS-level hold on its
-   staging file (e.g. via `openExclusive` after migrating to `_staging/`).
+   staging file (e.g. via `openExclusive` after migrating to `_stage/`).
