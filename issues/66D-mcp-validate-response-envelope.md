@@ -16,23 +16,26 @@ return t === 'error'
     : <success using pr>
 ```
 
-It appears four times:
+It appears four times in `mcpStep` (in `fs/mcp/module.f.ts`):
 
-- `ping` (lines 220-225) — `validate(_noParams)(params)`, success is
-  `pure(_okResponse(id)({}))`.
-- `initialize` (lines 233-242) — `validate(initializeParams)(params)`, success
-  builds an `InitializeResult` and writes state.
-- `tools/list` (lines 252-261) — `validate(toolsListParams)(params === undefined ? {} : params)`,
+- `ping` — `validate(_noParams)(params)`, success is `pure(_okResponse(id)({}))`.
+- `initialize` — `validate(initializeParams)(params)`, success builds an
+  `InitializeResult` and writes state.
+- `tools/list` — `validate(toolsListParams)(params === undefined ? {} : params)`,
   success is `handlers.toolsList(pr).step(r => pure(_okResponse(id)(r)))`.
-- `tools/call` (lines 263-271) — `validate(toolsCallParams)(params)`, success is
+- `tools/call` — `validate(toolsCallParams)(params)`, success is
   `handlers.toolsCall(pr).step(r => pure(_okResponse(id)(r)))`.
+
+Note: `toolEntry` (line 178) was added as a helper for registering tool handlers
+with pre-validated arguments, but `mcpStep` itself still repeats the inline
+validate→error/ok pattern for `ping`, `initialize`, `tools/list`, and `tools/call`.
 
 On top of that, `tools/list` and `tools/call` share a **second** layer that is
 near-identical, differing only in the schema, the params-defaulting, and which
 handler runs:
 
 ```ts
-// tools/list (252-261)
+// tools/list
 if (capabilities.tools === undefined) {
     return pure(_errResponse(id)(methodNotFound))
 }
@@ -41,7 +44,7 @@ return t === 'error'
     ? pure(_errResponse(id)(invalidParams))
     : handlers.toolsList(pr).step(r => pure(_okResponse(id)(r)))
 
-// tools/call (263-271)
+// tools/call
 if (capabilities.tools === undefined) {
     return pure(_errResponse(id)(methodNotFound))
 }

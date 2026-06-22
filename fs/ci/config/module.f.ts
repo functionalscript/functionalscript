@@ -8,8 +8,8 @@
 // https://docs.github.com/en/actions/reference/runners/github-hosted-runners#standard-github-hosted-runners-for-public-repositories
 export const images = {
     ubuntu: {
-        intel: 'ubuntu-24.04',
-        arm: 'ubuntu-24.04-arm'
+        intel: 'ubuntu-26.04',
+        arm: 'ubuntu-26.04-arm'
     },
     macos: {
         intel: 'macos-26-intel',
@@ -50,7 +50,7 @@ export const wasmtime = '45.0.2'
 export const wasmer = '7.1.0'
 
 // https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
-export const tsgo = '7.0.0-dev.20260620.1'
+export const tsgo = '7.0.0-dev.20260621.1'
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as
@@ -66,7 +66,7 @@ export const actions = {
     // https://github.com/marketplace/actions/setup-deno
     'denoland/setup-deno': 'v2',
     // https://github.com/marketplace/actions/setup-bun
-    'oven-sh/setup-bun': 'v2',
+    'oven-sh/setup-bun': 'v2.2.0',
     // https://github.com/bytecodealliance/actions
     'bytecodealliance/actions/wasmtime/setup': 'v1',
     // https://github.com/wasmerio/setup-wasmer

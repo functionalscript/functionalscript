@@ -13,7 +13,7 @@ import { fileCas, type Cas, type FileCasOperation } from '../module.f.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { type IoResult, type MakeDirectoryOptions, type Mkdir, type Now, type RandomInt, type ReadBytes, type Rename } from '../../effects/node/module.f.ts'
+import { type IoResult, type MakeDirectoryOptions, type ReaddirOptions, type Access, type CreateExclusive, type Mkdir, type Now, type RandomInt, type ReadBytes, type Readdir, type Rename, type Rm, type Stat, type WriteBytes } from '../../effects/node/module.f.ts'
 import { emptyState, virtual, type Dir } from '../../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
 import { error as resultError, ok as resultOk } from '../../types/result/module.f.ts'
@@ -40,9 +40,11 @@ type TestState = {
 const initialTestState: TestState = { memory: { next: 0, values: {} } }
 
 // The in-memory session helpers only exercise text/base64 paths (MemOp) and the
-// path-rejection branch of type:'url' (no file I/O). The upload ops are only
-// reached via runSessionVirtual.
+// path-rejection branch of type:'url' (no file I/O). The upload ops from
+// FileCasOperation are only reached via runSessionVirtual; the stubs below
+// exist to satisfy the type-checker and will throw if unexpectedly called.
 type MockOp = MemOp | Mkdir | Rename | RandomInt | ReadBytes | Now
+    | Access | CreateExclusive | Readdir | Rm | Stat | WriteBytes
 
 const mock: MemOperationMap<MockOp, TestState> = {
     memCreate: value => state => {
@@ -63,6 +65,12 @@ const mock: MemOperationMap<MockOp, TestState> = {
     readBytes: (_path: string, _offset: number, _size: number) => _ => { throw new Error('readBytes not supported in memory mock') },
     randomInt: () => _ => { throw new Error('randomInt not supported in memory mock') },
     now: () => state => [state, 0],
+    access: (_path: string) => _ => { throw new Error('access not supported in memory mock') },
+    createExclusive: (_path: string) => _ => { throw new Error('createExclusive not supported in memory mock') },
+    readdir: (_path: string, _opts: ReaddirOptions) => _ => { throw new Error('readdir not supported in memory mock') },
+    rm: (_path: string) => _ => { throw new Error('rm not supported in memory mock') },
+    stat: (_path: string) => _ => { throw new Error('stat not supported in memory mock') },
+    writeBytes: (_path: string, _offset: number, _data: Vec) => _ => { throw new Error('writeBytes not supported in memory mock') },
 }
 
 const runMem = <T>(effect: Effect<MockOp, T>): T =>
