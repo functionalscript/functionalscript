@@ -9,7 +9,7 @@ import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
-import { fileCas, type Cas, type FileCasOperation, type KvStore } from '../module.f.ts'
+import { fileCas, type Cas, type FileCasOperation } from '../module.f.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
 } from '../../mcp/module.f.ts'

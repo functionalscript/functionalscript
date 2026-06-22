@@ -40,20 +40,6 @@ import { error, ok, unwrap } from '../types/result/module.f.ts'
 import { splitAt } from '../types/string/module.f.ts'
 import type { MemOp } from '../effects/memory/module.f.ts'
 
-export type KvStore<O extends Operation> = {
-    /** Reads a value by key; returns `undefined` when the key does not exist. */
-    readonly read: (key: Vec) => Effect<O, Vec|undefined>
-    /** Writes a key/value pair to the underlying storage. */
-    readonly write: (key: Vec, value: Vec) => Effect<O, void>
-    /** Lists all keys available in the store. */
-    readonly list: () => Effect<O, readonly Vec[]>
-}
-
-/** A key/value tuple where index `0` is the key and index `1` is the value. */
-export type Kv = readonly[Vec, Vec];
-
-const o = { withFileTypes: true } as const
-
 const split2 = splitAt(2)
 
 const prefix = '.cas'
@@ -120,17 +106,6 @@ export const fileCas = (sha2: Sha2) => {
                 }),
         }
     }
-    /*
-    return ({ read, write, list }) => ({
-        read,
-        write: (value: Vec) => {
-            const hash = compute([value])
-            return write(hash, value)
-                .step(() => pure(hash))
-        },
-        list,
-    })
-        */
 }
 
 /** Maximum chunk size for streaming reads: the largest `Vec` the runtime allows. */
