@@ -763,6 +763,15 @@ Translate the Byte Code into WebAssembly or other PLs, Rust/Zig/C/C++/LLVM.
 
 ---
 
+## Console program
+
+**Priority:** P3
+**Status:** open
+
+A console program similar to the one in the NaNVM repo.
+
+---
+
 ## FS VM load/save
 
 **Priority:** P3
