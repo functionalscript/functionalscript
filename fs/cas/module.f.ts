@@ -73,7 +73,7 @@ export type Cas<O extends Operation> = {
 }
 
 /** Maximum chunk size for streaming reads: the largest `Vec` the runtime allows. */
-const CHUNK_BYTES = Number(maxLengthBytes)
+const chunkBytes = Number(maxLengthBytes)
 
 /**
  * Builds a content-addressable storage facade from a SHA-2 implementation.
@@ -85,7 +85,7 @@ export const fileCas = (sha2: Sha2) => (path: string): Cas<FileCasOperation> => 
         read: (hash: Vec): ListEffect<FileCasOperation, IoResult<Vec>> => {
             const p = join(path, toPath(hash))
             const loop = (offset: number): ListEffect<FileCasOperation, IoResult<Vec>> =>
-                readBytes(p, offset, CHUNK_BYTES).step((result): ListEffect<FileCasOperation, IoResult<Vec>> => {
+                readBytes(p, offset, chunkBytes).step((result): ListEffect<FileCasOperation, IoResult<Vec>> => {
                     // A missing shard or read error is an explicit error item, never EOF.
                     if (result[0] === 'error') { return listEffectCons<FileCasOperation, IoResult<Vec>>(result, listEffectEnd()) }
                     const chunk = result[1]
@@ -93,7 +93,7 @@ export const fileCas = (sha2: Sha2) => (path: string): Cas<FileCasOperation> => 
                     // final short (`< CHUNK_BYTES`) chunk — is emitted as an `ok` item.
                     return length(chunk) === 0n
                         ? listEffectEnd()
-                        : listEffectCons(ok(chunk), loop(offset + CHUNK_BYTES))
+                        : listEffectCons(ok(chunk), loop(offset + chunkBytes))
                 })
             return loop(0)
         },
@@ -152,16 +152,16 @@ const random256: Effect<RandomInt, Vec> =
  * and returns the final hash without loading the whole file into memory.
  */
 const streamHash = (sha2: Sha2) => (path: string): Effect<ReadBytes, IoResult<Vec>> => {
-    const chunkBits = BigInt(CHUNK_BYTES) * 8n
+    const chunkBits = BigInt(chunkBytes) * 8n
     const loop = (state: Sha2State, offset: number): Effect<ReadBytes, IoResult<Vec>> =>
-        readBytes(path, offset, CHUNK_BYTES).step(result => {
+        readBytes(path, offset, chunkBytes).step(result => {
             if (result[0] === 'error') { return pure(error(result[1])) }
             const chunk = result[1]
             const newState = sha2.append(chunk)(state)
             if (length(chunk) < chunkBits) {
                 return pure(ok(sha2.end(newState)))
             }
-            return loop(newState, offset + CHUNK_BYTES)
+            return loop(newState, offset + chunkBytes)
         })
     return loop(sha2.init, 0)
 }

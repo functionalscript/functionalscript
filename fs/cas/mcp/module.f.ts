@@ -71,7 +71,7 @@ import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { detect } from '../../mime/module.f.ts'
-import { empty, length as bitVecLength, msb, type Vec } from '../../types/bit_vec/module.f.ts'
+import { empty, length as bitVecLength, maxLength, msb, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok } from '../../types/result/module.f.ts'
 import { type IoResult, type Mkdir, type RandomInt, type Read, type ReadBytes, type Rename, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
@@ -108,6 +108,12 @@ const collectRead = <O extends Operation>(stream: ListEffect<O, IoResult<Vec>>):
             if (node === undefined) { return pure(ok(acc)) }
             const [item, rest] = node
             if (item[0] === 'error') { return pure(item) }
+            // A single `Vec` cannot exceed `maxLength` bits; concatenating past it would
+            // overflow the runtime's `bigint` constraint. A blob this large is a broken
+            // invariant, not a recoverable tool error, so abort the process.
+            if (bitVecLength(acc) + bitVecLength(item[1]) > maxLength) {
+                throw new Error(`cas blob exceeds maximum vector length of ${maxLength} bits`)
+            }
             return loop(msb.concat(acc)(item[1]))(rest)
         })
     return loop(empty)(stream)

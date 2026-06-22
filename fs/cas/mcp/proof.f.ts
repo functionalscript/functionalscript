@@ -4,7 +4,7 @@ import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
 import type { Response } from '../../json/rpc/module.f.ts'
-import { empty, msb, u8ListToVec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
+import { empty, length, maxLength, msb, u8ListToVec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.ts'
@@ -94,6 +94,11 @@ const memCas = (mapKey: Key<VecMap>): Cas<MemOp> => ({
                 }
                 const [item, rest] = node
                 if (item[0] === 'error') { return pure(item) }
+                // Mirror the production guard: a blob larger than `maxLength` bits would
+                // overflow a single `Vec`, so abort rather than silently corrupt.
+                if (length(acc) + length(item[1]) > maxLength) {
+                    throw new Error(`cas blob exceeds maximum vector length of ${maxLength} bits`)
+                }
                 return loop(msb.concat(acc)(item[1]))(rest)
             })
         return loop(empty)(payload)
