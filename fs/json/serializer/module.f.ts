@@ -4,24 +4,7 @@
  * @module
  */
 import { flat, reduce, empty, type List } from '../../types/list/module.f.ts'
-import { type Entry as ObjectEntry } from '../../types/object/module.f.ts'
 import { type Reduce } from '../../types/function/operator/module.f.ts'
-
-type Obj<T> = { readonly[k in string]?: Unknown<T> }
-
-type Arr<T> = readonly Unknown<T>[]
-
-type Primitive = |
-    boolean |
-    string |
-    number |
-    null
-
-type Unknown<T> = |
-    Arr<T>|
-    Obj<T>|
-    null|
-    T
 
 const jsonStringify = JSON.stringify
 
@@ -80,9 +63,3 @@ export const objectWrap
 export const arrayWrap
     : (input: List<List<string>>) => List<string>
     = wrap('[')(']')
-
-type Entry<T> = ObjectEntry<Unknown<T>>
-
-type Entries<T> = List<Entry<T>>
-
-type MapEntries<T> = (entries: Entries<T>) => Entries<T>
