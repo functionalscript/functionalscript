@@ -67,49 +67,7 @@ export const toPath = (key: Vec): string => {
 }
 
 //
-export type FileKvStoreOperation = ReadFile | Mkdir | WriteFile | Access | Readdir
-
-/**
- * Creates a filesystem-backed key/value store under the provided root path.
- */
-/*
-export const fileKvStore = (path: string): KvStore<FileKvStoreOperation> => {
-    const storePrefix = join(path, prefix)
-    const normalizedStorePrefix = normalize(storePrefix)
-    return {
-        // TODO: extend the interface with `Result<Vec, unknown>` instead of `Vec|undefined`.
-        read: (key: Vec): Effect<FileKvStoreOperation, Vec|undefined> =>
-            readFile(join(path, toPath(key))).step(([t, v]) =>
-                pure(t === 'ok' ? v : undefined)
-            ),
-        write: (key: Vec, value: Vec): Effect<FileKvStoreOperation, void> => {
-            const p = toPath(key)
-            const parts = parse(p)
-            const dir = join(path, ...parts.slice(0, -1))
-            // TODO: error handling
-            return mkdir(dir, { recursive: true })
-                .step(() => writeFile(join(path, p), value))
-                .step(() => pure(undefined))
-        },
-        list: (): Effect<FileKvStoreOperation, readonly Vec[]> =>
-            // A fresh store has no `.cas` directory yet. Treat *only* that case as an
-            // empty store, mirroring how `read` maps a missing file to `undefined`.
-            // A `.cas` that exists but cannot be read (permissions, corruption) is a
-            // genuine storage error and is surfaced, not masked as "no hashes".
-            access(storePrefix).step(a => {
-                if (a[0] === 'error') {
-                    if (isNotFound(a[1])) { return pure([] as readonly Vec[]) }
-                    throw a[1]
-                }
-                return readdir(storePrefix, { recursive: true })
-                    .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
-                        toOption(isFile
-                            ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
-                            : null))))
-            }),
-    }
-}
-*/
+export type FileCasOperation = ReadFile | Mkdir | WriteFile | Access | Readdir
 
 export type Cas<O extends Operation> = {
     /** Reads content by hash; returns `undefined` when not found. */
@@ -125,16 +83,16 @@ export type Cas<O extends Operation> = {
  */
 export const fileCas = (sha2: Sha2) => {
     const compute = computeSync(sha2)
-    return (path: string): Cas<FileKvStoreOperation> => {
+    return (path: string): Cas<FileCasOperation> => {
         const storePrefix = join(path, prefix)
         const normalizedStorePrefix = normalize(storePrefix)
         return {
             // TODO: extend the interface with `Result<Vec, unknown>` instead of `Vec|undefined`.
-            read: (key: Vec): Effect<FileKvStoreOperation, Vec|undefined> =>
+            read: (key: Vec): Effect<FileCasOperation, Vec|undefined> =>
                 readFile(join(path, toPath(key))).step(([t, v]) =>
                     pure(t === 'ok' ? v : undefined)
                 ),
-            write: (value: Vec): Effect<FileKvStoreOperation, Vec|undefined> => {
+            write: (value: Vec): Effect<FileCasOperation, Vec|undefined> => {
                 const hash = compute([value])
                 const p = toPath(hash)
                 const parts = parse(p)
@@ -144,7 +102,7 @@ export const fileCas = (sha2: Sha2) => {
                     .step(() => writeFile(join(path, p), value))
                     .step(([t]) => pure(t === 'ok' ? hash : undefined))
             },
-            list: (): Effect<FileKvStoreOperation, readonly Vec[]> =>
+            list: (): Effect<FileCasOperation, readonly Vec[]> =>
                 // A fresh store has no `.cas` directory yet. Treat *only* that case as an
                 // empty store, mirroring how `read` maps a missing file to `undefined`.
                 // A `.cas` that exists but cannot be read (permissions, corruption) is a
@@ -234,7 +192,7 @@ export const casUpload = (home: string) => (fileName: string): Effect<Mkdir | Re
     })
 }
 
-export const commands: Commands<FileKvStoreOperation | Write | All | MemOp | Read> = [
+export const commands: Commands<FileCasOperation | Write | All | MemOp | Read> = [
     {
         names: ['add'],
         description: 'Store file content and print its hash',
