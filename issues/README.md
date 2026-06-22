@@ -15,7 +15,7 @@ concerns: architecture decisions, directory restructuring, design philosophy,
 cross-cutting changes affecting many submodules. It does **not** duplicate
 concrete bugs or tasks that belong in a child `todo.md`.
 
-For a larger standalone topic, use a named file `todo-${topic}.md` in the
+For a larger standalone topic, use a named file `todo-${YMDH}-${name}.md` in the
 relevant directory and link to it from `todo.md`.
 
 **Rule:** a bug or task scoped to `fs/foo/bar/` goes in `fs/foo/bar/todo.md`,
