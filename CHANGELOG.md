@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fs/html`: replace `escapeCharCode`'s four-arm `switch` with a code-point keyed `escapeTable` lookup and a single `?? fromCharCode(code)` pass-through fallback; behaviour is unchanged but the escape set is now data, separated from the fallback policy (i66N-html-escape-table) [#1145](https://github.com/functionalscript/functionalscript/pull/1145)
+
 ## 0.33.0
 
 - Remove `kvStore` PR [#1143](https://github.com/functionalscript/functionalscript/pull/1143)
