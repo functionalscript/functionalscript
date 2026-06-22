@@ -35,8 +35,7 @@ const upload = (payload: EffectList<IoResult<Vec>>) => {
             delete_(path)
             return error()
         }
-
-        path= nPath
+        path = nPath
 
         hashCompute.update(chunk)
         offset += chunk.length
