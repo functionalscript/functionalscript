@@ -54,6 +54,5 @@ Two-phase staged move for `cas upload` (or `cas_add` with restricted paths):
 
 ## Related
 
-- [i66J-cas-add-path-restriction](./66J-cas-add-path-restriction.md) — restrict paths to approved directories
 - [i66K-cas-upload-reject-symlinks](./66K-cas-upload-reject-symlinks.md) — reject symlinks before staging
 - [i66K-cas-get-return-path](./66K-cas-get-return-path.md) — `cas get` should return path/URL for large-file support
