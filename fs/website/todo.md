@@ -24,6 +24,15 @@ Generate API documentation using `deno doc` (or other tools) for the website, an
 
 ---
 
+## Carbon advertisements
+
+**Priority:** P3
+**Status:** open
+
+Add [Carbon Ads](https://www.carbonads.net/) to the website.
+
+---
+
 ## Short URL table
 
 **Priority:** P3
