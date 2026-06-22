@@ -13,7 +13,7 @@ import { fileCas, type Cas, type FileCasOperation } from '../module.f.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { type IoResult, type MakeDirectoryOptions, type Mkdir, type RandomInt, type ReadBytes, type Rename } from '../../effects/node/module.f.ts'
+import { type IoResult, type MakeDirectoryOptions, type Mkdir, type Now, type RandomInt, type ReadBytes, type Rename } from '../../effects/node/module.f.ts'
 import { emptyState, virtual, type Dir } from '../../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
 import { error as resultError, ok as resultOk } from '../../types/result/module.f.ts'
@@ -42,7 +42,7 @@ const initialTestState: TestState = { memory: { next: 0, values: {} } }
 // The in-memory session helpers only exercise text/base64 paths (MemOp) and the
 // path-rejection branch of type:'url' (no file I/O). The upload ops are only
 // reached via runSessionVirtual.
-type MockOp = MemOp | Mkdir | Rename | RandomInt | ReadBytes
+type MockOp = MemOp | Mkdir | Rename | RandomInt | ReadBytes | Now
 
 const mock: MemOperationMap<MockOp, TestState> = {
     memCreate: value => state => {
@@ -62,6 +62,7 @@ const mock: MemOperationMap<MockOp, TestState> = {
     rename: (_src: string, _dst: string) => _ => { throw new Error('rename not supported in memory mock') },
     readBytes: (_path: string, _offset: number, _size: number) => _ => { throw new Error('readBytes not supported in memory mock') },
     randomInt: () => _ => { throw new Error('randomInt not supported in memory mock') },
+    now: () => state => [state, 0],
 }
 
 const runMem = <T>(effect: Effect<MockOp, T>): T =>
