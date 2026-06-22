@@ -1,6 +1,6 @@
 import { commands, fileCas, type FileCasOperation } from './module.f.ts'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
-import { length, msb, vec8 } from '../types/bit_vec/module.f.ts'
+import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { listEffectCons, listEffectEnd, pure, type Effect, type ListEffect } from '../effects/module.f.ts'
 import { error, ok } from '../types/result/module.f.ts'
@@ -174,6 +174,36 @@ export const proof = {
         if (result[0] !== 'error') { throw ['expected write error', result] }
         const [, hashes] = virtual(state1)(c.list())
         if (hashes.length !== 0) { throw ['expected nothing published on abort', hashes] }
+    },
+    casWriteReadExceedsMaxLength: () => {
+        // The point of streaming: a payload larger than a single `Vec`'s `maxLength`
+        // (128 KiB) must round-trip. `write` lands the chunks on disk without ever
+        // holding them as one `Vec`, and `read` streams them back the same way — so the
+        // round-trip is verified by hashing the read stream incrementally rather than
+        // concatenating it (which would itself overflow `maxLength`).
+        const big = vec(maxLength)(0xABn)   // one full-size chunk: exactly maxLength bits
+        const tail = vec8(0x2An)            // one more byte ⇒ total > maxLength
+        const chunks = [big, tail] as const
+        const c = fileCas(sha256)('.')
+        const payload: ListEffect<FileCasOperation, IoResult<Vec>> =
+            chunks.reduceRight<ListEffect<FileCasOperation, IoResult<Vec>>>(
+                (tl, chunk) => listEffectCons(ok(chunk), tl), listEffectEnd())
+        const [state1, w] = virtual(emptyState)(c.write(payload))
+        if (w[0] !== 'ok') { throw ['expected write ok', w] }
+        const hash = w[1]
+        if (msb.cmp(hash)(computeSync(sha256)(chunks)) !== 0) { throw 'oversized write hash mismatch' }
+        // Fold the read stream straight into a fresh SHA-2 state — never one `Vec`.
+        const rehash = (state: typeof sha256.init) =>
+            (stream: ListEffect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<Vec>> =>
+                stream.step((node): Effect<FileCasOperation, IoResult<Vec>> => {
+                    if (node === undefined) { return pure(ok(sha256.end(state))) }
+                    const [item, rest] = node
+                    if (item[0] === 'error') { return pure(item) }
+                    return rehash(sha256.append(item[1])(state))(rest)
+                })
+        const [, readBack] = virtual(state1)(rehash(sha256.init)(c.read(hash)))
+        if (readBack[0] !== 'ok') { throw ['expected read ok', readBack] }
+        if (msb.cmp(readBack[1])(hash) !== 0) { throw 'oversized read-back hash mismatch' }
     },
     casWriteGcReclaimsExpired: () => {
         // A staging file whose deadline is in the past is reclaimed by the GC that `write`
