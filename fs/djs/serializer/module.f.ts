@@ -20,11 +20,7 @@ export const undefinedSerialize = ['undefined']
 
 type RefCounter = readonly [number, number]
 
-type Entry = ObjectEntry<Unknown>
-
-type Entries = List<Entry>
-
-type MapEntries = (entries: Entries) => Entries
+type MapEntries = (entries: List<ObjectEntry<Unknown>>) => List<ObjectEntry<Unknown>>
 
 type Refs = ReadonlyMap<Unknown, RefCounter>
 
