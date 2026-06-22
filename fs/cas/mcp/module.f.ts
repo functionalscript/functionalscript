@@ -132,7 +132,9 @@ const casToolRegistry =
             }
             return x.step(value => typeof value === 'string'
                 ? pure(errorResult(value))
-                : c.write(value).step(hash => pure(okResult(vecToCBase32(hash))))
+                : c.write(value).step(hash => pure(hash === undefined
+                    ? errorResult('write')
+                    : okResult(vecToCBase32(hash))))
             )
         },
     ),

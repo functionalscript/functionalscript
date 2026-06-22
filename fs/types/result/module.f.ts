@@ -66,3 +66,6 @@ export const unwrap = <T, E>([kind, v]: Result<T, E>): T => {
  */
 export const invert = <T, E>([k, v]: Result<T, E>): Result<E, T> =>
     k === 'ok' ? error(v) : ok(v)
+
+export const map = <T, O>(o: (_: T) => O) => <E>([kind, v]: Result<T, E>): Result<O, E> =>
+    kind === 'error' ? error(v) : ok(o(v))
