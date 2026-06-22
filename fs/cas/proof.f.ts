@@ -95,7 +95,6 @@ export const proof = {
             write: (value: Vec) => pure(computeSync(sha256)([value])),
             list: () => pure([] as readonly Vec[]),
         }
-        // const c = fileCas(sha256)('.')
         const [, hash] = run({})(undefined)(c.write(empty))
         // sha256 of empty input produces a 256-bit hash
         assert(hash !== undefined)
