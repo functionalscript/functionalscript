@@ -68,15 +68,15 @@ export type Node = Element | string
 /**
  * https://stackoverflow.com/questions/7381974/which-characters-need-to-be-escaped-in-html
  */
-const escapeCharCode = (code: number) => {
-    switch (code) {
-        case quotationMark: return '&quot;'
-        case ampersand: return '&amp;'
-        case lessThanSign: return '&lt;'
-        case greaterThanSign: return '&gt;'
-        default: return fromCharCode(code)
-    }
-}
+const escapeTable = {
+    [quotationMark]: '&quot;',
+    [ampersand]: '&amp;',
+    [lessThanSign]: '&lt;',
+    [greaterThanSign]: '&gt;',
+} as const
+
+const escapeCharCode = (code: number): string =>
+    escapeTable[code] ?? fromCharCode(code)
 
 const escape = compose(stringToList)(map(escapeCharCode))
 
