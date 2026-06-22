@@ -148,3 +148,20 @@ export type Func<O extends Operation> = (..._: Param<O>) => Effect<O, Return<O>>
 
 export type ListEffect<O extends Operation, T> =
     Effect<O, readonly[T, ListEffect<O, T>] | undefined>
+
+/**
+ * The empty `ListEffect`: a pure end-of-stream marker (`undefined`).
+ *
+ * `pure` produces `Effect<never, …>`, and widening that to an arbitrary operation
+ * set `O` is sound — a pure value performs no operations. But `Effect`'s structural
+ * shape uses `T` in a contravariant position (the `step` continuation parameter), so
+ * the compiler cannot prove the widening for the *recursive* `ListEffect` payload;
+ * the assertion stands in for that proof. Construct streams through these two
+ * combinators so the cast lives in exactly one place.
+ */
+export const listEffectEnd = <O extends Operation, T>(): ListEffect<O, T> =>
+    pure(undefined) as ListEffect<O, T>
+
+/** Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link listEffectEnd}. */
+export const listEffectCons = <O extends Operation, T>(head: T, tail: ListEffect<O, T>): ListEffect<O, T> =>
+    pure([head, tail]) as unknown as ListEffect<O, T>

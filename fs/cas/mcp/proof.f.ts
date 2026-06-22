@@ -1,10 +1,10 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
-import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { listEffectCons, listEffectEnd, pure, type Effect, type ListEffect, type Operation } from '../../effects/module.f.ts'
 import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
 import type { Response } from '../../json/rpc/module.f.ts'
-import { msb, u8ListToVec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
+import { empty, msb, u8ListToVec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.ts'
@@ -13,10 +13,10 @@ import { fileCas, type Cas, type FileCasOperation } from '../module.f.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { type MakeDirectoryOptions, type Mkdir, type RandomInt, type ReadBytes, type Rename } from '../../effects/node/module.f.ts'
+import { type IoResult, type MakeDirectoryOptions, type Mkdir, type RandomInt, type ReadBytes, type Rename } from '../../effects/node/module.f.ts'
 import { emptyState, virtual, type Dir } from '../../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
-import { ok as resultOk } from '../../types/result/module.f.ts'
+import { error as resultError, ok as resultOk } from '../../types/result/module.f.ts'
 
 type CasGetResult = {
     readonly length: number
@@ -75,13 +75,28 @@ const runMem = <T>(effect: Effect<MockOp, T>): T =>
 type VecMap = { readonly [k: string]: readonly [Vec, Vec] }
 
 const memCas = (mapKey: Key<VecMap>): Cas<MemOp> => ({
-    read: (key: Vec): Effect<MemOp, Vec | undefined> =>
-        read(mapKey).step(m => pure(m[vecToCBase32(key)]?.[1])),
-    write: (value: Vec): Effect<MemOp, Vec|undefined> => {
-        const key = computeSync(sha256)([value])
-        return read(mapKey)
-            .step(m => write(mapKey, { ...m, [vecToCBase32(key)]: [key, value] }))
-            .step(() => pure(key))
+    read: (key: Vec): ListEffect<MemOp, IoResult<Vec>> =>
+        read(mapKey).step((m): ListEffect<MemOp, IoResult<Vec>> => {
+            const entry = m[vecToCBase32(key)]
+            // Single stored chunk, then EOF; a missing entry is an explicit error item.
+            return entry === undefined
+                ? listEffectCons<MemOp, IoResult<Vec>>(resultError({ code: 'ENOENT' }), listEffectEnd())
+                : listEffectCons(resultOk(entry[1]), listEffectEnd())
+        }),
+    write: (payload: ListEffect<MemOp, IoResult<Vec>>): Effect<MemOp, IoResult<Vec>> => {
+        const loop = (acc: Vec) => (stream: ListEffect<MemOp, IoResult<Vec>>): Effect<MemOp, IoResult<Vec>> =>
+            stream.step((node): Effect<MemOp, IoResult<Vec>> => {
+                if (node === undefined) {
+                    const key = computeSync(sha256)([acc])
+                    return read(mapKey)
+                        .step(m => write(mapKey, { ...m, [vecToCBase32(key)]: [key, acc] }))
+                        .step(() => pure(resultOk(key)))
+                }
+                const [item, rest] = node
+                if (item[0] === 'error') { return pure(item) }
+                return loop(msb.concat(acc)(item[1]))(rest)
+            })
+        return loop(empty)(payload)
     },
     list: (): Effect<MemOp, readonly Vec[]> =>
         read(mapKey).step(m => pure(Object.values(m).map(([k]) => k))),

@@ -3,11 +3,12 @@
  *
  * @module
  */
-import { computeSync, sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/module.f.ts'
+import { sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/module.f.ts'
 import { join, normalize, parse } from '../path/module.f.ts'
 import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
-import { foldStep, forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
+import { foldStep, forEachStep, listEffectCons, listEffectEnd, pure, type Effect, type ListEffect, type Operation } from '../effects/module.f.ts'
+import { reverse, type List } from '../types/list/module.f.ts'
 import {
     access,
     errorExit,
@@ -53,63 +54,92 @@ export const toPath = (key: Vec): string => {
 }
 
 //
-export type FileCasOperation = ReadFile | Mkdir | WriteFile | Access | Readdir
+export type FileCasOperation = ReadBytes | Mkdir | WriteFile | Access | Readdir
 
 export type Cas<O extends Operation> = {
-    /** Reads content by hash; returns `undefined` when not found. */
-    readonly read: (key: Vec) => Effect<O, Vec|undefined>
-    /** Stores content and returns its computed hash. */
-    readonly write: (value: Vec) => Effect<O, Vec|undefined>
+    /**
+     * Streams the content for `hash` out in `<=128 KiB` chunks. Every pull yields an
+     * explicit `ok(chunk)` or `error` item, so a missing shard or I/O error is a distinct
+     * error *item* in the stream, never collapsed into end-of-stream (`undefined`).
+     */
+    readonly read: (hash: Vec) => ListEffect<O, IoResult<Vec>>
+    /**
+     * Consumes a chunk stream — each item `ok(chunk)` or `error` — hashing incrementally,
+     * and returns the content address. An error item aborts the upload.
+     */
+    readonly write: (payload: ListEffect<O, IoResult<Vec>>) => Effect<O, IoResult<Vec>>
     /** Lists all stored content hashes. */
     readonly list: () => Effect<O, readonly Vec[]>
 }
 
+/** Maximum chunk size for streaming reads: the largest `Vec` the runtime allows. */
+const CHUNK_BYTES = Number(maxLengthBytes)
+
 /**
  * Builds a content-addressable storage facade from a SHA-2 implementation.
  */
-export const fileCas = (sha2: Sha2) => {
-    const compute = computeSync(sha2)
-    return (path: string): Cas<FileCasOperation> => {
-        const storePrefix = join(path, prefix)
-        const normalizedStorePrefix = normalize(storePrefix)
-        return {
-            // TODO: extend the interface with `Result<Vec, unknown>` instead of `Vec|undefined`.
-            read: (key: Vec): Effect<FileCasOperation, Vec|undefined> =>
-                readFile(join(path, toPath(key))).step(([t, v]) =>
-                    pure(t === 'ok' ? v : undefined)
-                ),
-            write: (value: Vec): Effect<FileCasOperation, Vec|undefined> => {
-                const hash = compute([value])
-                const p = toPath(hash)
-                const parts = parse(p)
-                const dir = join(path, ...parts.slice(0, -1))
-                // TODO: error handling
-                return mkdir(dir, { recursive: true })
-                    .step(() => writeFile(join(path, p), value))
-                    .step(([t]) => pure(t === 'ok' ? hash : undefined))
-            },
-            list: (): Effect<FileCasOperation, readonly Vec[]> =>
-                // A fresh store has no `.cas` directory yet. Treat *only* that case as an
-                // empty store, mirroring how `read` maps a missing file to `undefined`.
-                // A `.cas` that exists but cannot be read (permissions, corruption) is a
-                // genuine storage error and is surfaced, not masked as "no hashes".
-                access(storePrefix).step(a => {
-                    if (a[0] === 'error') {
-                        if (isNotFound(a[1])) { return pure([] as readonly Vec[]) }
-                        throw a[1]
-                    }
-                    return readdir(storePrefix, { recursive: true })
-                        .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
-                            toOption(isFile
-                                ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
-                                : null))))
-                }),
-        }
+export const fileCas = (sha2: Sha2) => (path: string): Cas<FileCasOperation> => {
+    const storePrefix = join(path, prefix)
+    const normalizedStorePrefix = normalize(storePrefix)
+    return {
+        read: (hash: Vec): ListEffect<FileCasOperation, IoResult<Vec>> => {
+            const p = join(path, toPath(hash))
+            const loop = (offset: number): ListEffect<FileCasOperation, IoResult<Vec>> =>
+                readBytes(p, offset, CHUNK_BYTES).step((result): ListEffect<FileCasOperation, IoResult<Vec>> => {
+                    // A missing shard or read error is an explicit error item, never EOF.
+                    if (result[0] === 'error') { return listEffectCons<FileCasOperation, IoResult<Vec>>(result, listEffectEnd()) }
+                    const chunk = result[1]
+                    // End the stream only on an empty read; every non-empty read — including a
+                    // final short (`< CHUNK_BYTES`) chunk — is emitted as an `ok` item.
+                    return length(chunk) === 0n
+                        ? listEffectEnd()
+                        : listEffectCons(ok(chunk), loop(offset + CHUNK_BYTES))
+                })
+            return loop(0)
+        },
+        // Fold the chunk stream: feed each chunk to the running SHA-2 state while collecting
+        // it for the publish write. An error item aborts as an upload failure. The whole
+        // payload is never streamed past the SHA-2 state in constant memory yet — TODO(step 3)
+        // replaces the accumulate-then-`writeFile` publish with the lock-free staging
+        // algorithm (`createExclusive`/`writeBytes`/`rename`) so chunks land on disk directly.
+        write: (payload: ListEffect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<Vec>> => {
+            const loop = (state: Sha2State, acc: List<Vec>) =>
+                (stream: ListEffect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<Vec>> =>
+                    stream.step((node): Effect<FileCasOperation, IoResult<Vec>> => {
+                        if (node === undefined) {
+                            const hash = sha2.end(state)
+                            const p = toPath(hash)
+                            const parts = parse(p)
+                            const dir = join(path, ...parts.slice(0, -1))
+                            return mkdir(dir, { recursive: true })
+                                .step(() => writeFile(join(path, p), msb.listToVec(reverse(acc))))
+                                .step(([t, e]) => pure(t === 'ok' ? ok(hash) : error(e)))
+                        }
+                        const [item, rest] = node
+                        if (item[0] === 'error') { return pure(error(item[1])) }
+                        const chunk = item[1]
+                        return loop(sha2.append(chunk)(state), { first: chunk, tail: acc })(rest)
+                    })
+            return loop(sha2.init, null)(payload)
+        },
+        list: (): Effect<FileCasOperation, readonly Vec[]> =>
+            // A fresh store has no `.cas` directory yet. Treat *only* that case as an
+            // empty store, mirroring how `read` maps a missing shard to an error item.
+            // A `.cas` that exists but cannot be read (permissions, corruption) is a
+            // genuine storage error and is surfaced, not masked as "no hashes".
+            access(storePrefix).step(a => {
+                if (a[0] === 'error') {
+                    if (isNotFound(a[1])) { return pure([] as readonly Vec[]) }
+                    throw a[1]
+                }
+                return readdir(storePrefix, { recursive: true })
+                    .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
+                        toOption(isFile
+                            ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
+                            : null))))
+            }),
     }
 }
-
-/** Maximum chunk size for streaming reads: the largest `Vec` the runtime allows. */
-const CHUNK_BYTES = Number(maxLengthBytes)
 
 /** 256-bit random `Vec` built from 8 sequential `randomInt` (32-bit) calls. */
 const random256: Effect<RandomInt, Vec> =
@@ -167,7 +197,7 @@ export const casUpload = (home: string) => (fileName: string): Effect<Mkdir | Re
     })
 }
 
-export const commands: Commands<FileCasOperation | Write | All | MemOp | Read> = [
+export const commands: Commands<FileCasOperation | ReadFile | Write | All | MemOp | Read> = [
     {
         names: ['add'],
         description: 'Store file content and print its hash',
@@ -176,11 +206,12 @@ export const commands: Commands<FileCasOperation | Write | All | MemOp | Read> =
                 return errorExit("'cas add' expects one parameter")
             }
             const c = fileCas(sha256)(home)
+            // The source is read in one `<=128 KiB` chunk; feed it as a single-item stream.
             return readFile(path)
-                .step(v => c.write(unwrap(v)))
-                .step(hash => hash === undefined
+                .step(v => c.write(listEffectCons(v, listEffectEnd())))
+                .step(hashResult => hashResult[0] === 'error'
                     ? pure(1)
-                    : log(vecToCBase32(hash)).step(() => pure(0)))
+                    : log(vecToCBase32(hashResult[1])).step(() => pure(0)))
         },
     },
     {
@@ -195,14 +226,18 @@ export const commands: Commands<FileCasOperation | Write | All | MemOp | Read> =
                 return errorExit(`invalid hash format: ${hashCBase32}`)
             }
             const c = fileCas(sha256)(home)
-            return c.read(hash)
-                .step(v => {
-                    const result: Effect<Write | WriteFile, number> = v === undefined
-                        ? errorExit(`no such hash: ${hashCBase32}`)
-                        : writeFile(path, v)
-                            .step(() => pure(0))
-                    return result
-                })
+            // Drain the read stream, gathering chunks; an error item means the shard is absent.
+            const collect = (acc: List<Vec>) =>
+                (stream: ListEffect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation | Write, number> =>
+                    stream.step((node): Effect<FileCasOperation | Write, number> => {
+                        if (node === undefined) {
+                            return writeFile(path, msb.listToVec(reverse(acc))).step(() => pure(0))
+                        }
+                        const [item, rest2] = node
+                        if (item[0] === 'error') { return errorExit(`no such hash: ${hashCBase32}`) }
+                        return collect({ first: item[1], tail: acc })(rest2)
+                    })
+            return collect(null)(c.read(hash))
         },
     },
     {
