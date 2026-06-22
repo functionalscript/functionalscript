@@ -1,7 +1,15 @@
 # 65Y-dead-code-cleanup. Remove unused exports and dead local types
 
 **Priority:** P4
-**Status:** open
+**Status:** done
+
+> **Resolution:** items 1, 3, 4, and 6 deleted; items 2 and 5 had already been
+> superseded (PR #886 added an `env` consumer; the `getConstants` eta-wrapper
+> no longer exists — the current `fs/djs/serializer/module.f.ts:getConstants`
+> inlines the walk itself). While removing the dead `Entry`/`Entries`/
+> `MapEntries` aliases from `fs/json/serializer/module.f.ts`, the local
+> `Obj`/`Arr`/`Primitive`/`Unknown` shapes those aliases were parameterized
+> over also became unreferenced and were dropped in the same edit.
 
 > **Update (post-#943):** `fs/io` no longer exists — it was folded into
 > `fs/effects/node/module.ts` and deleted. Item 1's premise (the `Fs` import

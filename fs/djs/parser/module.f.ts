@@ -12,11 +12,6 @@ import { fromMap } from '../../types/object/module.f.ts'
 import type { AstArray, AstConst, AstModule, AstModuleRef } from '../ast/module.f.ts'
 import type { TokenMetadata } from '../../js/tokenizer/module.f.ts'
 
-export type ParseContext = {
-    readonly complete: OrderedMap<Result<AstModule, string>>
-    readonly stack: List<string>
-}
-
 export type ParseError = {
     readonly message: string,
     readonly metadata: TokenMetadata | null
