@@ -97,6 +97,7 @@ The FJS can have functions. The format requires additional run-time information 
 1. [ ] [function](./3110-function.md)
 2. [ ] [parameters](./3120-parameters.md)
 3. [ ] [body-const](./3130-body-const.md)
+4. [ ] [forward-references](./3140-forward-references.md)
 
 ### 3.2. Priority 2
 
