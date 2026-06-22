@@ -244,6 +244,26 @@ const runNodeEffect: EffectToPromise = asyncRun({
     }),
     randomInt: async () => crypto.randomInt(2 ** 32),
     access: path => tc(() => access(path)),
+    createExclusive: path => tc(async () => {
+        const fh = await open(path, 'wx')
+        await fh.close()
+    }),
+    writeBytes: (path, offset, data) => tc(async () => {
+        const fh = await open(path, 'r+')
+        try {
+            const buffer = fromVec(data)
+            // Loop over short writes so the whole Vec lands — a partial pwrite would
+            // leave a hole the publish-time size check could pass over.
+            let written = 0
+            while (written < buffer.length) {
+                const { bytesWritten } = await fh.write(buffer, written, buffer.length - written, offset + written)
+                written += bytesWritten
+            }
+        } finally {
+            await fh.close()
+        }
+    }),
+    stat: path => tc(async () => ({ size: (await stat(path)).size })),
     import: path => tc(() => asyncImport(path)),
     exec: (command, stdin) => new Promise(resolve => {
         const child = exec(command, (e, stdout, stderr) =>
