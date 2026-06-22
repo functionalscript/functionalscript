@@ -8,9 +8,11 @@
 > mtime grace period, and additionally survives reboots, works across machines, and supports
 > competitive/failover uploads — all while failing safe (worst case is a restarted upload,
 > never a corrupted shard). See the comparison table in that doc. The rename-to-commit
-> pipeline and read-only-after-commit semantics in this document still apply unchanged; only
-> the dead-man's switch (the `## Lock as dead-man's switch` section and its lock-based
-> effects) is replaced.
+> pipeline still applies; the dead-man's switch (the `## Lock as dead-man's switch` section
+> and its lock-based effects) is replaced. **Read-only-after-commit (`chmod 444`) is no longer
+> part of the core contract** — the lease baseline treats it as an *optional* immutability
+> extra (see staging-lease.md), not a guaranteed step; the read-only discussion below is
+> retained as reference for deployments that choose to enable it.
 
 ## Overview
 
