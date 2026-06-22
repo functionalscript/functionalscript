@@ -32,10 +32,8 @@ candidates recorded for later.
 ### 1. `fs/basen/` — group the base-N encoders
 
 Move `base64`, `base128`, `cbase32` under a single `fs/basen/` directory. They
-are sibling alphabet-parameterized encoders and are already slated to share a
-codec factory (see [i66F-base-n-codec-factory](./66F-base-n-codec-factory.md)),
-so a shared parent is their natural home. Coordinate the directory name with
-that issue: if the shared factory lands as `fs/basen/module.f.ts`, the three
+are sibling alphabet-parameterized encoders and share a codec factory
+(`fs/basen/module.f.ts`), so a shared parent is their natural home. The three
 encoders become `fs/basen/base64`, `fs/basen/base128`, `fs/basen/cbase32`.
 
 ### 2. `fs/common/` — home for common algorithms
@@ -92,9 +90,7 @@ namespace, and `mcp`/`html` are self-contained leaf domains.
 
 ## Tasks
 
-- [ ] Create `fs/basen/` and move `base64`, `base128`, `cbase32` into it;
-      coordinate the directory name with
-      [i66F-base-n-codec-factory](./66F-base-n-codec-factory.md).
+- [ ] Create `fs/basen/` and move `base64`, `base128`, `cbase32` into it.
 - [ ] Create `fs/common/` and move `monoid` from `fs/types/` into it.
 - [ ] Promote the `fjs` bin to the root: move `fs/fjs/{module.ts, module.f.ts,
       proof.f.ts, README.md}` to `fs/`; update `bin.fjs` and the `package.json`
@@ -108,7 +104,3 @@ namespace, and `mcp`/`html` are self-contained leaf domains.
       a `README.md` under the new directories.
 
 ## Related
-
-- [i66F-base-n-codec-factory](./66F-base-n-codec-factory.md) — the shared
-  base-N codec factory; its module home and this `basen/` directory should be
-  decided together.
