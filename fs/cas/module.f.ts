@@ -129,7 +129,7 @@ export const fileCas = (sha2: Sha2) => (path: string): Cas<FileCasOperation> => 
             // genuine storage error and is surfaced, not masked as "no hashes".
             access(storePrefix).step(a => {
                 if (a[0] === 'error') {
-                    if (isNotFound(a[1])) { return pure([] as readonly Vec[]) }
+                    if (isNotFound(a[1])) { return pure([] satisfies readonly Vec[]) }
                     throw a[1]
                 }
                 return readdir(storePrefix, { recursive: true })

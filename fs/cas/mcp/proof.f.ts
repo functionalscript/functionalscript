@@ -95,9 +95,9 @@ const memCas = (mapKey: Key<VecMap>): Cas<MemOp> => ({
                 const [item, rest] = node
                 if (item[0] === 'error') { return pure(item) }
                 // Mirror the production guard: a blob larger than `maxLength` bits would
-                // overflow a single `Vec`, so abort rather than silently corrupt.
+                // overflow a single `Vec`, so surface an error item instead of corrupting.
                 if (length(acc) + length(item[1]) > maxLength) {
-                    throw new Error(`cas blob exceeds maximum vector length of ${maxLength} bits`)
+                    return pure(resultError(`cas blob exceeds maximum vector length of ${maxLength} bits`))
                 }
                 return loop(msb.concat(acc)(item[1]))(rest)
             })

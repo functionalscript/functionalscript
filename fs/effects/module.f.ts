@@ -152,16 +152,21 @@ export type ListEffect<O extends Operation, T> =
 /**
  * The empty `ListEffect`: a pure end-of-stream marker (`undefined`).
  *
- * `pure` produces `Effect<never, …>`, and widening that to an arbitrary operation
- * set `O` is sound — a pure value performs no operations. But `Effect`'s structural
- * shape uses `T` in a contravariant position (the `step` continuation parameter), so
- * the compiler cannot prove the widening for the *recursive* `ListEffect` payload;
- * the assertion stands in for that proof. Construct streams through these two
- * combinators so the cast lives in exactly one place.
+ * Built as an `Effect` object literal rather than through `pure`. `pure` returns
+ * `Effect<never, …>`; widening that to an arbitrary operation set `O` is sound (a pure
+ * value performs no operations) and the compiler accepts it for a non-recursive
+ * payload, but not when the payload recursively mentions `O` — as `ListEffect`'s cons
+ * cell does. Writing the literal directly lets the contextual return type drive the
+ * check, so the recursive payload type-checks without a cast. Construct streams through
+ * these two combinators.
  */
-export const listEffectEnd = <O extends Operation, T>(): ListEffect<O, T> =>
-    pure(undefined) as ListEffect<O, T>
+export const listEffectEnd = <O extends Operation, T>(): ListEffect<O, T> => ({
+    value: [undefined],
+    step: f => f(undefined),
+})
 
 /** Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link listEffectEnd}. */
-export const listEffectCons = <O extends Operation, T>(head: T, tail: ListEffect<O, T>): ListEffect<O, T> =>
-    pure([head, tail]) as unknown as ListEffect<O, T>
+export const listEffectCons = <O extends Operation, T>(head: T, tail: ListEffect<O, T>): ListEffect<O, T> => {
+    const node: readonly[T, ListEffect<O, T>] = [head, tail]
+    return { value: [node], step: f => f(node) }
+}

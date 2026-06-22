@@ -72,7 +72,7 @@ import { decode as base64Decode, encode as base64Encode } from '../../base64/mod
 import { utf8 } from '../../text/module.f.ts'
 import { detect } from '../../mime/module.f.ts'
 import { empty, length as bitVecLength, maxLength, msb, type Vec } from '../../types/bit_vec/module.f.ts'
-import { ok } from '../../types/result/module.f.ts'
+import { ok, error } from '../../types/result/module.f.ts'
 import { type IoResult, type Mkdir, type RandomInt, type Read, type ReadBytes, type Rename, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
@@ -109,10 +109,10 @@ const collectRead = <O extends Operation>(stream: ListEffect<O, IoResult<Vec>>):
             const [item, rest] = node
             if (item[0] === 'error') { return pure(item) }
             // A single `Vec` cannot exceed `maxLength` bits; concatenating past it would
-            // overflow the runtime's `bigint` constraint. A blob this large is a broken
-            // invariant, not a recoverable tool error, so abort the process.
+            // overflow the runtime's `bigint` constraint. Surface that as an error item
+            // so the tool reports a failure rather than crashing the process.
             if (bitVecLength(acc) + bitVecLength(item[1]) > maxLength) {
-                throw new Error(`cas blob exceeds maximum vector length of ${maxLength} bits`)
+                return pure(error(`cas blob exceeds maximum vector length of ${maxLength} bits`))
             }
             return loop(msb.concat(acc)(item[1]))(rest)
         })
