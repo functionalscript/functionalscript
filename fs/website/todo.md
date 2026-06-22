@@ -14,3 +14,10 @@
 - [ ] Browser test runner (requires switching test framework to Effects first)
 
 ---
+
+## Short URL table
+
+**Priority:** P3
+**Status:** open
+
+---
