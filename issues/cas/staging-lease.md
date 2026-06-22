@@ -115,7 +115,7 @@ existing `readBytes` / `writeFile` / `rename` effects in `fs/effects/node/module
 | Effect | Signature | Notes |
 |---|---|---|
 | `createExclusive` | `(path) => IoResult<void>` | `O_CREAT\|O_EXCL`. Creates the staging file. With 256 random bits in the name `EEXIST` never happens in practice; it is just a sanity guard. |
-| `writeBytes` | `(path, offset, data: Vec) => IoResult<void>` | Mirror of `readBytes`. Opens the **existing** file (no create) and writes at `offset`. `ENOENT` ⇒ the GC already reclaimed this file ⇒ the upload failed; delete and restart. Bounded to ≤128 KiB per call. |
+| `writeBytes` | `(path, offset, data: Vec) => IoResult<void>` | Mirror of `readBytes`. Opens the **existing** file (no create) and writes at `offset`. Writes the **entire** `Vec` or returns an error — no partial writes (the runner loops over short writes), so the later size check can't pass over a hole. `ENOENT` ⇒ the GC already reclaimed this file ⇒ the upload failed; delete and restart. Bounded to ≤128 KiB per call. |
 | `rename` | `(src, dst) => IoResult<void>` | Already exists. Publishes the shard (`_staging/…` → `.cas/<prefix>/<hash>`) and renews the lease (`…-<rand>` → a newer deadline). Replace-on-existing is fine — same hash ⇒ same bytes. |
 | `rm` | `(path) => IoResult<void>` | Already exists. Deletes a partial/aborted upload; also the GC's reclaim. |
 | `stat` | `(path) => IoResult<{size}>` | **New.** Used at the end of `upload` to confirm the published shard exists with the expected size, and by resume to recover `offset = size`. |
@@ -172,15 +172,15 @@ Three things make this safe without extra machinery:
   upload error; for a crash, the lease and the GC reclaim whatever is left behind. There is
   nothing to undo and no half-published state.
 - **Publish ignores results and checks the end state.** The three publish steps — `mkdir -p`
-  the prefix dirs, `rename`, then `rm` the staging file — all run best-effort with their
-  results ignored. Success is decided afterward by *observing* the target: it exists and its
-  size equals the bytes we received. This needs no branching on platform rename semantics and
-  no dedup special-case: if `dst` already existed, the same hash means the same size, so the
-  check passes regardless of whether the rename replaced it or was a no-op; if `dst` is
-  missing or truncated, the size check fails and we report an upload error. We compare *size*,
-  not hash — a cheap stat, not a re-read — because a wrong-sized file is a real failure to
-  catch now, while a same-sized-but-corrupt shard is the rare case left to hash verification
-  (`scrub.md`), never the hot path.
+  the prefix dirs, `rename` (which **replaces** an existing `dst`), then `rm` the staging file
+  — all run best-effort with their results ignored. Success is decided afterward by *observing*
+  the target: it exists and its size equals the bytes we received. This needs no branching on
+  platform rename semantics and no dedup special-case. Because the rename replaces, a re-upload
+  of the same content overwrites whatever was at `dst` with our freshly-written bytes — so it
+  also *repairs* a same-sized corrupt shard for free, rather than skipping it. We compare
+  *size*, not hash — a cheap stat, not a re-read — because a wrong-sized file is a real failure
+  to catch now, while a shard that was already same-sized-but-corrupt *before* this upload is
+  the rare case left to hash verification (`scrub.md`), never the hot path.
 
 **Renewing every chunk keeps `delta` constant.** Renaming to a fresh `now() + delta` after each
 chunk means `delta` only has to cover the gap between two consecutive chunks, not the whole

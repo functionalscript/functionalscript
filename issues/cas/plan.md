@@ -11,18 +11,22 @@ Design references: [staging-lease.md](staging-lease.md) (the upload algorithm), 
 
 ```ts
 type Cas<O extends Operation> = {
-    // stream the content out in <=128 KiB chunks; not-found surfaces on the first pull
-    readonly read:  (hash: Vec) => ListEffect<O, Vec>
-    // consume a chunk stream, compute the hash incrementally, return the address
-    readonly write: (payload: ListEffect<O, Vec>) => Effect<O, IoResult<Vec>>
+    // stream the content out in <=128 KiB chunks; a missing shard or I/O error is an
+    // explicit error *item* in the stream, never collapsed into EOF
+    readonly read:  (hash: Vec) => ListEffect<O, IoResult<Vec>>
+    // consume a chunk stream (each item ok(chunk) or error), hash incrementally, return the address
+    readonly write: (payload: ListEffect<O, IoResult<Vec>>) => Effect<O, IoResult<Vec>>
     // all stored content hashes
     readonly list:  () => Effect<O, readonly Vec[]>
 }
 ```
 
 `ListEffect<O, T> = Effect<O, readonly[T, ListEffect<O, T>] | undefined>` (from
-`fs/effects/module.f.ts`) — a lazy, effectful cons-stream: each pull yields `[chunk, rest]`
-or `undefined` at end. This is what keeps memory constant for arbitrarily large files.
+`fs/effects/module.f.ts`) — a lazy, effectful cons-stream: each pull yields `[item, rest]`
+or `undefined` at end. Wrapping `T = IoResult<Vec>` gives every pull an explicit ok/error, so
+a missing shard or read error is distinguishable from end-of-stream (`undefined`), and the
+payload type matches the `EffectList<IoResult<Vec>>` shape already used elsewhere. This is
+what keeps memory constant for arbitrarily large files.
 
 ## Step 1 — Remove the key-value interface
 
@@ -47,9 +51,10 @@ Replace whole-`Vec` in/out with chunk streams:
 - `write(payload: ListEffect<O, Vec>)` — fold the stream, feeding each chunk to both the
   staging file and the running SHA-2 state; return the computed hash. Never holds the whole
   payload in memory.
-- `read(hash)` — produce a `ListEffect<O, Vec>` that pulls `readBytes(toPath(hash), offset,
-  CHUNK_BYTES)` lazily, `CHUNK_BYTES = maxLengthBytes`. The final short/empty chunk ends the
-  stream; a missing shard surfaces as an error on the first pull.
+- `read(hash)` — produce a `ListEffect<O, IoResult<Vec>>` that pulls `readBytes(toPath(hash),
+  offset, CHUNK_BYTES)` lazily, `CHUNK_BYTES = maxLengthBytes`. The final short/empty chunk
+  ends the stream (`undefined`); a missing shard or read error is an `error` *item*, never
+  folded into EOF.
 - `list()` stays `readonly Vec[]` (or a `ListEffect` of hashes if we want it lazy too).
 
 This is the interface the lock-free algorithm consumes (`write`) and produces (`read`); the
@@ -75,7 +80,9 @@ Implement `write` as the `upload` algorithm from [staging-lease.md](staging-leas
 
 - `createExclusive(path) => IoResult<void>` — `O_CREAT|O_EXCL`.
 - `writeBytes(path, offset, data: Vec) => IoResult<void>` — open existing (no create),
-  pwrite at `offset`; the mirror of `readBytes`.
+  pwrite at `offset`; the mirror of `readBytes`. Contract: writes the **entire** `Vec` or
+  returns an error — no partial writes (the runner loops over short writes); otherwise the
+  size check could pass over a hole.
 - `stat(path) => IoResult<{ size }>` — used by the publish size check (and future resume).
 
 No `fsync`, `FileHandle`, or read-only effects in the baseline (durability is best-effort;
