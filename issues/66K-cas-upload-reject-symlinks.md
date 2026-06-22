@@ -43,4 +43,3 @@ keeps the move-hash-move pipeline atomic.
 ## Related
 
 - [i66J-cas-streaming-upload-design](./66J-cas-streaming-upload-design.md) — the upload pipeline where this issue arises
-- [i66J-cas-add-path-restriction](./66J-cas-add-path-restriction.md) — companion path-restriction issue

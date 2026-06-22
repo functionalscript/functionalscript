@@ -35,5 +35,4 @@ This ensures that symlinks and other filesystem tricks cannot escape the sandbox
 
 ## Related
 
-- [i66J-cas-add-path-restriction](./66J-cas-add-path-restriction.md) — initial path restriction (blocks obvious escapes)
 - [i66J-normalize-home-paths](./66J-normalize-home-paths.md) — defense-in-depth path normalization (will subsume this issue)
