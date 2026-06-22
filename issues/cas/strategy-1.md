@@ -1,5 +1,19 @@
 # Strategy 1: Staging + Rename
 
+> **Staging mechanism — chosen design.** The OS-lock dead-man's switch described below
+> (`flock` on POSIX, open handle on Windows) has been superseded by the lock-free
+> **deadline-lease** design in [staging-lease.md](staging-lease.md). The lease replaces the
+> lock with a deadline encoded in the staging file name: it is lock-free,
+> platform-symmetric, drops the POSIX `flock`/`unlink` advisory hazard and the mandatory
+> mtime grace period, and additionally survives reboots, works across machines, and supports
+> competitive/failover uploads — all while failing safe (worst case is a restarted upload,
+> never a corrupted shard). See the comparison table in that doc. The rename-to-commit
+> pipeline still applies; the dead-man's switch (the `## Lock as dead-man's switch` section
+> and its lock-based effects) is replaced. **Read-only-after-commit (`chmod 444`) is no longer
+> part of the core contract** — the lease baseline treats it as an *optional* immutability
+> extra (see staging-lease.md), not a guaranteed step; the read-only discussion below is
+> retained as reference for deployments that choose to enable it.
+
 ## Overview
 
 Large files are written to a staging area first, then atomically renamed to their
@@ -8,7 +22,7 @@ twice and guarantees the CAS directory contains only complete, verified objects.
 
 ## Write pipeline
 
-1. `openWrite()` — creates a staging file under `.cas/_staging/` and acquires an
+1. `openWrite()` — creates a staging file under `.cas/_stage/` and acquires an
    OS-level hold (open file descriptor on Windows; `flock` on POSIX). Returns an
    opaque `WriteHandle` token that represents this live resource.
 2. `append(handle, chunk)` — writes a chunk through the held file descriptor while
@@ -28,7 +42,7 @@ primitive.
 
 ## Staging directory
 
-The staging directory is `.cas/_staging/`. The `_` prefix ensures it cannot be
+The staging directory is `.cas/_stage/`. The `_` prefix ensures it cannot be
 confused with a hash-prefixed shard path and is excluded naturally by the `list`
 operation (which validates each name via `cBase32ToVec`).
 
@@ -60,6 +74,9 @@ destination before renaming over it; both paths preserve correctness.
 
 ## Lock as dead-man's switch
 
+> **Superseded** by the deadline-lease design — see [staging-lease.md](staging-lease.md).
+> This section documents the original lock-based approach; the lease replaces it.
+
 The `WriteHandle` holds a live OS resource for the entire duration of staging:
 
 - **Windows**: an open file handle prevents deletion by any other process. The handle must be opened with the `DELETE` access right so that `commitHandle` can rename the file via `SetFileInformationByHandle` while the handle is still held (see commit note below).
@@ -73,7 +90,7 @@ simultaneously the "in progress, do not touch" signal and the dead-man's switch.
 
 ## Cleaning
 
-Only files under `.cas/_staging/` are eligible for cleaning. Committed shard files
+Only files under `.cas/_stage/` are eligible for cleaning. Committed shard files
 are permanent and never cleaned.
 
 A staging file is safe to delete when its lock can be acquired (POSIX) or its
