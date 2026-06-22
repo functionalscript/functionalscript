@@ -73,7 +73,7 @@ import { utf8 } from '../../text/module.f.ts'
 import { detect } from '../../mime/module.f.ts'
 import { empty, length as bitVecLength, maxLength, msb, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error } from '../../types/result/module.f.ts'
-import { type IoResult, type Mkdir, type Now, type RandomInt, type Read, type ReadBytes, type Rename, type Write } from '../../effects/node/module.f.ts'
+import { type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
@@ -81,7 +81,7 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { casUpload, type Cas } from '../module.f.ts'
+import { casUpload, type Cas, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
@@ -123,14 +123,14 @@ const collectRead = <O extends Operation>(stream: ListEffect<O, IoResult<Vec>>):
 
 /** Registry of all CAS tools. */
 const casToolRegistry =
-<O extends Operation>(c: Cas<O>, home: string, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|Mkdir|Rename|RandomInt|ReadBytes|Now>[] => {
+<O extends Operation>(c: Cas<O>, home: string, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|FileCasOperation>[] => {
     const casUploadDir = `${home}/cas_upload`
     return [
     toolEntry(
         'cas_add',
         'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to stream a file from $HOME/cas_upload/ (no size limit); omit or pass type:"text" for UTF-8 text (default).',
         casAddArgs,
-        ({ type, content }): Effect<O | Mkdir | Rename | RandomInt | ReadBytes | Now, ToolsCallResult> => {
+        ({ type, content }): Effect<O | FileCasOperation, ToolsCallResult> => {
             // type:'url' — streaming move-hash-move pipeline (no size limit)
             if (type === 'url') {
                 if (!content.startsWith(`${casUploadDir}/`) || content.includes('..')) {
@@ -260,7 +260,7 @@ export const casMcpHandlers = <O extends Operation>(
     c: Cas<O>,
     home: string,
     toUrl?: (hash: Vec) => string,
-): McpHandlers<Mkdir | Rename | RandomInt | ReadBytes | Now | O> =>
+): McpHandlers<FileCasOperation | O> =>
     fromRegistry(casToolRegistry(c, home, toUrl))
 
 // ── Session configuration ───────────────────────────────────────────────────────
@@ -288,6 +288,6 @@ export const casMcpServer = <O extends Operation>(
     c: Cas<O>,
     home: string,
     toUrl?: (hash: Vec) => string,
-): Effect<Read | Write | MemOp | Mkdir | Rename | RandomInt | ReadBytes | Now | O, void> =>
+): Effect<Read | Write | MemOp | FileCasOperation | O, void> =>
     create(uninitializedState).step(key =>
-        stdioTransport(mcpStep<Mkdir | Rename | RandomInt | ReadBytes | Now | O>(casConfig)(casMcpHandlers(c, home, toUrl))(key)))
+        stdioTransport(mcpStep<FileCasOperation | O>(casConfig)(casMcpHandlers(c, home, toUrl))(key)))

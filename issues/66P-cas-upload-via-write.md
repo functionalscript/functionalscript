@@ -1,7 +1,8 @@
 # 66P-cas-upload-via-write. Reimplement `casUpload` on top of `cas.write()` + delete the source
 
 **Priority:** P3
-**Status:** open
+**Status:** closed
+**PR:** [#1153](https://github.com/functionalscript/functionalscript/pull/1153)
 
 ## Problem
 

@@ -243,58 +243,33 @@ const random256: Effect<RandomInt, Vec> =
         randomInt().step(r => pure(msb.concat(acc)(vec(32n)(BigInt(r)))))
     )(empty)([0, 1, 2, 3, 4, 5, 6, 7])
 
-/**
- * Streams a file in `CHUNK_BYTES` chunks, feeding each into the SHA-2 state,
- * and returns the final hash without loading the whole file into memory.
- */
-const streamHash = (sha2: Sha2) => (path: string): Effect<ReadBytes, IoResult<Vec>> => {
-    const chunkBits = BigInt(chunkBytes) * 8n
-    const loop = (state: Sha2State, offset: number): Effect<ReadBytes, IoResult<Vec>> =>
-        readBytes(path, offset, chunkBytes).step(result => {
-            if (result[0] === 'error') { return pure(error(result[1])) }
+/** Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of `ok` items. */
+const streamFile = (filePath: string): ListEffect<ReadBytes, IoResult<Vec>> => {
+    const loop = (offset: number): ListEffect<ReadBytes, IoResult<Vec>> =>
+        readBytes(filePath, offset, chunkBytes).step((result): ListEffect<ReadBytes, IoResult<Vec>> => {
+            if (result[0] === 'error') { return listEffectCons<ReadBytes, IoResult<Vec>>(result, listEffectEnd()) }
             const chunk = result[1]
-            const newState = sha2.append(chunk)(state)
-            if (length(chunk) < chunkBits) {
-                return pure(ok(sha2.end(newState)))
-            }
-            return loop(newState, offset + chunkBytes)
+            return length(chunk) === 0n
+                ? listEffectEnd()
+                : listEffectCons(ok(chunk), loop(offset + chunkBytes))
         })
-    return loop(sha2.init, 0)
+    return loop(0)
 }
 
 /**
- * Move-hash-move upload pipeline: moves `fileName` from `~/cas_upload/` into a
- * `_stage/<deadline>-<random256>` staging file, stream-hashes it, then renames it
- * to its final CAS shard path. Returns `ok(hash)` on success or `error(reason)`
- * on any I/O failure.
- *
- * Staging under `_stage/` with a deadline name (rather than the old `.stage/`)
- * brings it under the same lease GC as `fileCas.write`, so a crashed move-hash
- * orphan is reclaimed once its deadline passes (see staging-lease.md).
+ * Copy-via-write-then-delete upload pipeline: streams `fileName` from
+ * `~/cas_upload/` through `fileCas.write` (inheriting lease GC, lease renewal,
+ * dedup-on-publish, and size check), then deletes the source on success.
+ * On failure the source is left in place so the upload can be retried;
+ * `write` already cleans up its own partial staging file.
  */
-export const casUpload = (home: string) => (fileName: string): Effect<Mkdir | Rename | RandomInt | ReadBytes | Now, IoResult<Vec>> => {
+export const casUpload = (home: string) => (fileName: string): Effect<FileCasOperation, IoResult<Vec>> => {
     const src = join(home, 'cas_upload', fileName)
-    const stageDir = join(home, prefix, stageRel)
-    return random256.step(rnd =>
-        now().step(t => {
-            const stagePath = join(stageDir, stageName(t + leaseDelta, vecToCBase32(rnd)))
-            return mkdir(stageDir, { recursive: true })
-                .step(() => rename(src, stagePath))
-                .step(r => {
-                    if (r[0] === 'error') { return pure(error(r[1])) }
-                    return streamHash(sha256)(stagePath)
-                        .step(hashResult => {
-                            if (hashResult[0] === 'error') { return pure(hashResult) }
-                            const hash = hashResult[1]
-                            const rel = toPath(hash)
-                            const finalDir = join(home, ...parse(rel).slice(0, -1))
-                            const finalPath = join(home, rel)
-                            return mkdir(finalDir, { recursive: true })
-                                .step(() => rename(stagePath, finalPath))
-                                .step(r2 => pure(r2[0] === 'error' ? error(r2[1]) : ok(hash)))
-                        })
-                })
-        }))
+    const c = fileCas(sha256)(home)
+    return c.write(streamFile(src)).step((result): Effect<FileCasOperation, IoResult<Vec>> => {
+        if (result[0] === 'error') { return pure(result) }
+        return rm(src).step(() => pure(result))
+    })
 }
 
 export const commands: Commands<FileCasOperation | ReadFile | WriteFile | Write | All | MemOp | Read> = [
