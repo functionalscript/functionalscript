@@ -1,5 +1,19 @@
 # Property Accessor
 
+Syntax examples:
+
+```js
+const a = { b: 45, c: [3] }
+// instance_property(a, "b")
+const c0 = a.b
+// Only string literals allowed (excluding prohibited names). instance_property(a, "c")
+const c1 = a["c"]
+// at(c1, +0)
+const c2 = c1[+0] // [+...] is required when index type is unknown at compile time
+// own_property(a, c2)
+const c3 = Object.getOwnPropertyDescriptor(a, c2)?.value
+```
+
 In this note we consider whether or not to support JS's property accessors, maybe also
 considering partial support. A very important aspect is - whether or not accessing
 a given property (in this or that way) might enable side effects - if implemented in
