@@ -266,7 +266,7 @@ const streamFile = (filePath: string): ListEffect<ReadBytes, IoResult<Vec>> => {
 export const casUpload = (home: string) => (fileName: string): Effect<FileCasOperation, IoResult<Vec>> => {
     const src = join(home, 'cas_upload', fileName)
     const c = fileCas(sha256)(home)
-    return c.write(streamFile(src)).step(result => {
+    return c.write(streamFile(src)).step((result): Effect<FileCasOperation, IoResult<Vec>> => {
         if (result[0] === 'error') { return pure(result) }
         return rm(src).step(() => pure(result))
     })
