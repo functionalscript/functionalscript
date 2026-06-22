@@ -74,7 +74,8 @@ We need it to use JSDoc and TypeScript.
 3. [ ] [property-accessor](./2330-property-accessor.md),
 4. [ ] [operators](./2340-operators.md),
 5. [ ] [grouping](./2350-grouping.md),
-6. [ ] [built-in](./2360-built-in.md).
+6. [ ] [built-in](./2360-built-in.md),
+7. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed).
 
 ### 2.4. Syntactic Sugar
 
