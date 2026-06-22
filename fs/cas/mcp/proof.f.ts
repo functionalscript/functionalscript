@@ -495,4 +495,21 @@ export const proof = {
         assert(resultOf(resp).isError === true)
         assert(textOf(resp).includes('/home/user/cas_upload/'))
     },
+
+    // cas_get with content:true on octet-stream (no magic bytes, not UTF-8) returns inline base64.
+    getOctetStreamWithContentIncludesBase64: () => {
+        const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
+        const binaryB64 = base64Encode(binaryContent) as string
+        const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: binaryB64, type: 'base64' }),
+            call(3, 'cas_get', { hash, content: true }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        assertEq(result.mime_type, 'application/octet-stream')
+        assertEq(result.type, 'base64')
+        assertEq(result.content, binaryB64)
+    },
 }
