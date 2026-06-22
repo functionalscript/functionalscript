@@ -8,27 +8,37 @@ import { join, normalize, parse } from '../path/module.f.ts'
 import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { foldStep, forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
-import { access, errorExit, isNotFound, log, mkdir, randomInt, readBytes, readdir, readFile, rename, writeFile, type Access, type All, type Await, type Exec, type Fs, type IoResult, type Mkdir, type NodeEffect, type NodeOp, type NodeProgramOptions, type RandomInt, type Read, type ReadBytes, type Readdir, type ReadFile, type Rename, type Rm, type Write, type WriteFile } from '../effects/node/module.f.ts'
+import {
+    access,
+    errorExit,
+    isNotFound,
+    log,
+    mkdir,
+    randomInt,
+    readBytes,
+    readdir,
+    readFile,
+    rename,
+    writeFile,
+    type Access,
+    type All,
+    type IoResult,
+    type Mkdir,
+    type NodeProgramOptions,
+    type RandomInt,
+    type Read,
+    type ReadBytes,
+    type Readdir,
+    type ReadFile,
+    type Rename,
+    type Write,
+    type WriteFile
+} from '../effects/node/module.f.ts'
 import { dispatch, type Commands } from '../cli/module.f.ts'
-import { casMcpServer } from './mcp/module.f.ts'
 import { toOption } from '../types/nullable/module.f.ts'
 import { error, ok, unwrap } from '../types/result/module.f.ts'
 import { splitAt } from '../types/string/module.f.ts'
 import type { MemOp } from '../effects/memory/module.f.ts'
-
-export type KvStore<O extends Operation> = {
-    /** Reads a value by key; returns `undefined` when the key does not exist. */
-    readonly read: (key: Vec) => Effect<O, Vec|undefined>
-    /** Writes a key/value pair to the underlying storage. */
-    readonly write: (key: Vec, value: Vec) => Effect<O, void>
-    /** Lists all keys available in the store. */
-    readonly list: () => Effect<O, readonly Vec[]>
-}
-
-/** A key/value tuple where index `0` is the key and index `1` is the value. */
-export type Kv = readonly[Vec, Vec];
-
-const o = { withFileTypes: true } as const
 
 const split2 = splitAt(2)
 
@@ -42,53 +52,14 @@ export const toPath = (key: Vec): string => {
     return join(prefix, a, b, c)
 }
 
-export type FileKvStoreOperation = ReadFile | Mkdir | WriteFile | Access | Readdir
-
-/**
- * Creates a filesystem-backed key/value store under the provided root path.
- */
-export const fileKvStore = (path: string): KvStore<FileKvStoreOperation> => {
-    const storePrefix = join(path, prefix)
-    const normalizedStorePrefix = normalize(storePrefix)
-    return {
-        // TODO: extend the interface with `Result<Vec, unknown>` instead of `Vec|undefined`.
-        read: (key: Vec): Effect<FileKvStoreOperation, Vec|undefined> =>
-            readFile(join(path, toPath(key))).step(([t, v]) =>
-                pure(t === 'ok' ? v : undefined)
-            ),
-        write: (key: Vec, value: Vec): Effect<FileKvStoreOperation, void> => {
-            const p = toPath(key)
-            const parts = parse(p)
-            const dir = join(path, ...parts.slice(0, -1))
-            // TODO: error handling
-            return mkdir(dir, { recursive: true })
-                .step(() => writeFile(join(path, p), value))
-                .step(() => pure(undefined))
-        },
-        list: (): Effect<FileKvStoreOperation, readonly Vec[]> =>
-            // A fresh store has no `.cas` directory yet. Treat *only* that case as an
-            // empty store, mirroring how `read` maps a missing file to `undefined`.
-            // A `.cas` that exists but cannot be read (permissions, corruption) is a
-            // genuine storage error and is surfaced, not masked as "no hashes".
-            access(storePrefix).step(a => {
-                if (a[0] === 'error') {
-                    if (isNotFound(a[1])) { return pure([] as readonly Vec[]) }
-                    throw a[1]
-                }
-                return readdir(storePrefix, { recursive: true })
-                    .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
-                        toOption(isFile
-                            ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
-                            : null))))
-            }),
-    }
-}
+//
+export type FileCasOperation = ReadFile | Mkdir | WriteFile | Access | Readdir
 
 export type Cas<O extends Operation> = {
     /** Reads content by hash; returns `undefined` when not found. */
     readonly read: (key: Vec) => Effect<O, Vec|undefined>
     /** Stores content and returns its computed hash. */
-    readonly write: (value: Vec) => Effect<O, Vec>
+    readonly write: (value: Vec) => Effect<O, Vec|undefined>
     /** Lists all stored content hashes. */
     readonly list: () => Effect<O, readonly Vec[]>
 }
@@ -96,17 +67,45 @@ export type Cas<O extends Operation> = {
 /**
  * Builds a content-addressable storage facade from a SHA-2 implementation.
  */
-export const cas = (sha2: Sha2): <O extends Operation>(_: KvStore<O>) => Cas<O> => {
+export const fileCas = (sha2: Sha2) => {
     const compute = computeSync(sha2)
-    return ({ read, write, list }) => ({
-        read,
-        write: (value: Vec) => {
-            const hash = compute([value])
-            return write(hash, value)
-                .step(() => pure(hash))
-        },
-        list,
-    })
+    return (path: string): Cas<FileCasOperation> => {
+        const storePrefix = join(path, prefix)
+        const normalizedStorePrefix = normalize(storePrefix)
+        return {
+            // TODO: extend the interface with `Result<Vec, unknown>` instead of `Vec|undefined`.
+            read: (key: Vec): Effect<FileCasOperation, Vec|undefined> =>
+                readFile(join(path, toPath(key))).step(([t, v]) =>
+                    pure(t === 'ok' ? v : undefined)
+                ),
+            write: (value: Vec): Effect<FileCasOperation, Vec|undefined> => {
+                const hash = compute([value])
+                const p = toPath(hash)
+                const parts = parse(p)
+                const dir = join(path, ...parts.slice(0, -1))
+                // TODO: error handling
+                return mkdir(dir, { recursive: true })
+                    .step(() => writeFile(join(path, p), value))
+                    .step(([t]) => pure(t === 'ok' ? hash : undefined))
+            },
+            list: (): Effect<FileCasOperation, readonly Vec[]> =>
+                // A fresh store has no `.cas` directory yet. Treat *only* that case as an
+                // empty store, mirroring how `read` maps a missing file to `undefined`.
+                // A `.cas` that exists but cannot be read (permissions, corruption) is a
+                // genuine storage error and is surfaced, not masked as "no hashes".
+                access(storePrefix).step(a => {
+                    if (a[0] === 'error') {
+                        if (isNotFound(a[1])) { return pure([] as readonly Vec[]) }
+                        throw a[1]
+                    }
+                    return readdir(storePrefix, { recursive: true })
+                        .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
+                            toOption(isFile
+                                ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
+                                : null))))
+                }),
+        }
+    }
 }
 
 /** Maximum chunk size for streaming reads: the largest `Vec` the runtime allows. */
@@ -168,7 +167,7 @@ export const casUpload = (home: string) => (fileName: string): Effect<Mkdir | Re
     })
 }
 
-export const commands: Commands<FileKvStoreOperation | Write | All | MemOp | Read> = [
+export const commands: Commands<FileCasOperation | Write | All | MemOp | Read> = [
     {
         names: ['add'],
         description: 'Store file content and print its hash',
@@ -176,11 +175,12 @@ export const commands: Commands<FileKvStoreOperation | Write | All | MemOp | Rea
             if (path === undefined || rest.length !== 0) {
                 return errorExit("'cas add' expects one parameter")
             }
-            const c = cas(sha256)(fileKvStore(home))
+            const c = fileCas(sha256)(home)
             return readFile(path)
                 .step(v => c.write(unwrap(v)))
-                .step(hash => log(vecToCBase32(hash)))
-                .step(() => pure(0))
+                .step(hash => hash === undefined
+                    ? pure(1)
+                    : log(vecToCBase32(hash)).step(() => pure(0)))
         },
     },
     {
@@ -194,7 +194,7 @@ export const commands: Commands<FileKvStoreOperation | Write | All | MemOp | Rea
             if (hash === null) {
                 return errorExit(`invalid hash format: ${hashCBase32}`)
             }
-            const c = cas(sha256)(fileKvStore(home))
+            const c = fileCas(sha256)(home)
             return c.read(hash)
                 .step(v => {
                     const result: Effect<Write | WriteFile, number> = v === undefined
@@ -209,7 +209,7 @@ export const commands: Commands<FileKvStoreOperation | Write | All | MemOp | Rea
         names: ['list'],
         description: 'List all stored content hashes',
         handler: ({ home }) => {
-            const c = cas(sha256)(fileKvStore(home))
+            const c = fileCas(sha256)(home)
             return c.list()
                 .step(forEachStep(j => log(vecToCBase32(j))))
                 .step(() => pure(0))

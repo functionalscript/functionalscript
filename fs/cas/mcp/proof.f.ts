@@ -7,9 +7,9 @@ import type { Response } from '../../json/rpc/module.f.ts'
 import { msb, u8ListToVec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
-import { sha256 } from '../../crypto/sha2/module.f.ts'
+import { computeSync, sha256 } from '../../crypto/sha2/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
-import { cas, fileKvStore, type FileKvStoreOperation, type KvStore } from '../module.f.ts'
+import { fileCas, type Cas, type FileCasOperation } from '../module.f.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
 } from '../../mcp/module.f.ts'
@@ -74,11 +74,15 @@ const runMem = <T>(effect: Effect<MockOp, T>): T =>
 // (hashes), matching the `KvStore` contract that the filesystem backing fulfils.
 type VecMap = { readonly [k: string]: readonly [Vec, Vec] }
 
-const memKvStore = (mapKey: Key<VecMap>): KvStore<MemOp> => ({
+const memCas = (mapKey: Key<VecMap>): Cas<MemOp> => ({
     read: (key: Vec): Effect<MemOp, Vec | undefined> =>
         read(mapKey).step(m => pure(m[vecToCBase32(key)]?.[1])),
-    write: (key: Vec, value: Vec): Effect<MemOp, void> =>
-        read(mapKey).step(m => write(mapKey, { ...m, [vecToCBase32(key)]: [key, value] })),
+    write: (value: Vec): Effect<MemOp, Vec|undefined> => {
+        const key = computeSync(sha256)([value])
+        return read(mapKey)
+            .step(m => write(mapKey, { ...m, [vecToCBase32(key)]: [key, value] }))
+            .step(() => pure(key))
+    },
     list: (): Effect<MemOp, readonly Vec[]> =>
         read(mapKey).step(m => pure(Object.values(m).map(([k]) => k))),
 })
@@ -101,7 +105,7 @@ const runSession = (msgs: readonly unknown[], home = '/home/user'): readonly unk
     runMem(
         create({} as VecMap).step(mapKey =>
             create(uninitializedState as McpSessionState).step(sessionKey => {
-                const c = cas(sha256)(memKvStore(mapKey))
+                const c = memCas(mapKey)
                 const step = mcpStep<MockOp>(casConfig)(casMcpHandlers(c, home))(sessionKey)
                 return feed(step)(msgs)
             })))
@@ -113,9 +117,9 @@ const runSession = (msgs: readonly unknown[], home = '/home/user'): readonly unk
 const runSessionVirtual =
     (root: Dir, home = '/home/user') =>
     (msgs: readonly unknown[]): readonly unknown[] => {
-        type UploadOp = FileKvStoreOperation | Rename | RandomInt | ReadBytes
+        type UploadOp = FileCasOperation | Rename | RandomInt | ReadBytes
         const effect = create(uninitializedState as McpSessionState).step(sessionKey => {
-            const c = cas(sha256)(fileKvStore(home))
+            const c = fileCas(sha256)(home)
             const step = mcpStep<UploadOp>(casConfig)(casMcpHandlers(c, home))(sessionKey)
             return feed(step)(msgs)
         })

@@ -1,5 +1,5 @@
-import { cas, commands } from './module.f.ts'
-import { sha256 } from '../crypto/sha2/module.f.ts'
+import { commands, type Cas } from './module.f.ts'
+import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
 import { empty, length, vec8 } from '../types/bit_vec/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { pure } from '../effects/module.f.ts'
@@ -7,6 +7,7 @@ import { run } from '../effects/mock/module.f.ts'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import type { NodeProgramOptions } from '../effects/node/module.f.ts'
 import { dispatch } from '../cli/module.f.ts'
+import { assert } from '../asserts/module.f.ts'
 
 const makeOptions = (args: readonly string[]): NodeProgramOptions =>
     ({ ...defaultNodeProgramOptions, args })
@@ -89,24 +90,23 @@ export const proof = {
         if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
     },
     casWrite: () => {
-        const store = {
+        const c: Cas<never> = {
             read: (_key: Vec) => pure(undefined as Vec | undefined),
-            write: (_key: Vec, _value: Vec) => pure(undefined as void),
+            write: (value: Vec) => pure(computeSync(sha256)([value])),
             list: () => pure([] as readonly Vec[]),
         }
-        const c = cas(sha256)(store)
-        const [, hash] = run<never, undefined>({})(undefined)(c.write(empty))
+        const [, hash] = run({})(undefined)(c.write(empty))
         // sha256 of empty input produces a 256-bit hash
+        assert(hash !== undefined)
         if (length(hash) !== 256n) { throw ['expected 256-bit hash', length(hash)] }
     },
     casReadPassthrough: () => {
         const stored = empty
-        const store = {
+        const c = {
             read: (_key: Vec) => pure(stored as Vec | undefined),
-            write: (_key: Vec, _value: Vec) => pure(undefined as void),
+            write: (value: Vec) => pure(computeSync(sha256)([value])),
             list: () => pure([stored] as readonly Vec[]),
         }
-        const c = cas(sha256)(store)
         const [, readResult] = run<never, undefined>({})(undefined)(c.read(empty))
         if (readResult !== stored) { throw ['read should pass through', readResult] }
         const [, listResult] = run<never, undefined>({})(undefined)(c.list())
