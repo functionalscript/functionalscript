@@ -763,6 +763,15 @@ Translate the Byte Code into WebAssembly or other PLs, Rust/Zig/C/C++/LLVM.
 
 ---
 
+## Hash table improvement
+
+**Priority:** P3
+**Status:** open
+
+See https://arxiv.org/pdf/2501.02305
+
+---
+
 ## `nanenum` provenance API
 
 **Priority:** P3
