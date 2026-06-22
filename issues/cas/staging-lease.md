@@ -18,9 +18,13 @@ The motivation is threefold:
 2. **Platform symmetry.** The protocol is byte-for-byte identical on POSIX and Windows.
    There is no advisory-vs-hard asymmetry, no open→lock race, and therefore no mandatory
    mtime grace period.
-3. **Reboot-survivable uploads.** A lock is process-bound: a reboot drops it and the file
-   looks orphaned. A deadline in a durable filename is process-independent, so an upload
-   can survive a reboot and resume — a capability the lock design structurally cannot have.
+3. **Reboot-survivable uploaders are possible.** A lock is process-bound: a reboot drops it
+   and the file looks orphaned. A deadline in a durable filename is process-independent, so
+   the *design* admits uploaders that survive a reboot and resume — a capability the lock
+   design structurally cannot have. The GC tolerates many uploaders of different sophistication
+   at once; the **baseline uploader specified here is deliberately the simplest one** and does
+   not itself resume (a failed upload just restarts). Resume is an optional uploader feature
+   (see *Future optimizations*), not a guarantee of the baseline.
 
 ## Core idea
 
@@ -137,9 +141,10 @@ It does not try to be crash-atomic.
 ```
 upload(stream):                               // returns the content hash (the CAS key)
   rand    = random256()
-  newPath = () => `_stage/${fmt(now() + delta)}-${rand}`   // delta is a fixed constant
+  // all paths are under the store root `.cas/` (e.g. `~/.cas/`); shard(key) is `<prefix>/<hash>`
+  newPath = () => `.cas/_stage/${fmt(now() + delta)}-${rand}`   // delta is a fixed constant
 
-  mkdir(`_stage`, {recursive})              // create _stage/ if absent (fresh store)
+  mkdir(`.cas/_stage`, {recursive})         // create .cas/_stage/ if absent (fresh store)
   path = newPath()
   createExclusive(path)
 
@@ -155,7 +160,7 @@ upload(stream):                               // returns the content hash (the C
       path = next
 
   key = shaFinal(hash)                          // the address IS the hash of the bytes written
-  dst = `.cas/${shard(key)}`
+  dst = `.cas/${shard(key)}`                    // `.cas/<prefix>/<hash>` (never `.cas/.cas/...`)
   mkdir(dirOf(dst), {recursive})                // create the hash-prefix dirs — ignore the result
   rename(path, dst)                             // publish                      — ignore the result
   rm(path)                                      // remove our staging file if still there — ignore the result
