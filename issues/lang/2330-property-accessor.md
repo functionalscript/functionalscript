@@ -139,6 +139,17 @@ for the sake of supporting JS legacy in cases when that is FS-safe.
 
 ## Instance Method Call
 
+Syntax examples:
+
+```js
+// instance_method_call(a, "b", c)
+const c4 = a.b(c)
+// instance_method_call(a, "b", c)
+const c5 = a["b"](c)
+// at_call(a, b, c)
+const c6 = a[+b](c)
+```
+
 Instance method call is different from property access in JS because of `this` considerations.
 
 For example:
