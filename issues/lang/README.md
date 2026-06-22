@@ -384,6 +384,24 @@ const test = async(f: (fs: Fs) => Promise<void>): Promise<void> => {
 }
 ```
 
+## 8.4. Mutability Inference
+
+```ts
+const s = [] // mutable
+const f = () => { // the function can be called only if s is mutable.
+    s.push(3)     // s is mutable.
+}
+```
+
+### Circular references
+
+```ts
+const s = [] //
+const m = [] //
+s.push(m)    // ok, but now `m` is immutable
+m.push(s)    // error: `m` is immutable
+```
+
 ## 9. Bytecode
 
 Let's have a concise and relatively stable "external" bytecode model that is fit for representation
