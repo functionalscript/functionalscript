@@ -1,72 +1,70 @@
 # Issues
 
-One file per open issue, named `YMD-kebab-slug.md` — three Crockford base32 digits
-encoding the creation date, followed by a short kebab-case slug.
-Done issues are deleted — but before deleting, ensure design and design decisions are
-captured in the codebase: architectural choices and the *why this / why not that* rationale
-belong in the relevant `README.md` files; API shape, invariants, and non-obvious constraints
-belong in JSDoc on the affected `module.f.ts` exports. The issue file is a scratchpad;
-the code and its docs are the permanent record.
+## Local todo files (preferred)
 
-The `issues/` directory is the index — browse it directly.
+Issues live **next to the code they describe**, as `todo.md` files co-located
+with the relevant module directory:
 
-## Date prefix encoding
+- `fs/djs/todo.md` — todos specific to the `fs/djs/` module
+- `fs/ci/todo.md` — CI tooling todos
+- `nanvm-lib/todo.md` — NaN-VM (Rust) todos
+- … and so on.
 
-Use the current **UTC/GMT** date when creating a new issue file.
+A `todo.md` at a higher level (`fs/todo.md`) describes bigger-picture
+concerns: architecture decisions, directory restructuring, design philosophy,
+cross-cutting changes affecting many submodules. It does **not** duplicate
+concrete bugs or tasks that belong in a child `todo.md`.
 
-Each filename starts with three [Crockford base32](https://www.crockford.com/base32.html) digits:
+For a larger standalone topic, use a named file `todo-${topic}.md` in the
+relevant directory and link to it from `todo.md`.
 
-| Digit | Encodes | Range |
-|-------|---------|-------|
-| Y | year − 2020 | `0`=2020 … `6`=2026 … `Z`=2051 |
-| M | month | `1`–`9`, `A`=Oct, `B`=Nov, `C`=Dec |
-| D | day | see table below |
+**Rule:** a bug or task scoped to `fs/foo/bar/` goes in `fs/foo/bar/todo.md`,
+not in a parent directory and not here.
 
-### Day encoding
+## This directory
 
-| 1–9 |      | 10–19 |      | 20–29 |      | 30–31 |      |
-|-----|------|-------|------|-------|------|-------|------|
-|     |      | 10    | `A`  | 20    | `M`  | 30    | `Y`  |
-| 1   | `1`  | 11    | `B`  | 21    | `N`  | 31    | `Z`  |
-| 2   | `2`  | 12    | `C`  | 22    | `P`  |       |      |
-| 3   | `3`  | 13    | `D`  | 23    | `Q`  |       |      |
-| 4   | `4`  | 14    | `E`  | 24    | `R`  |       |      |
-| 5   | `5`  | 15    | `F`  | 25    | `S`  |       |      |
-| 6   | `6`  | 16    | `G`  | 26    | `T`  |       |      |
-| 7   | `7`  | 17    | `H`  | 27    | `V`  |       |      |
-| 8   | `8`  | 18    | `J`  | 28    | `W`  |       |      |
-| 9   | `9`  | 19    | `K`  | 29    | `X`  |       |      |
+`issues/` still holds:
 
-Example: 2026-05-29 → `65X`. New issue created today: `65X-kebab-slug.md`.
+- Issues that span multiple unrelated modules and have no obvious home
+- Language-design questions that are not tied to a specific module
+- External proposals and investigations
 
-## Template
+If you can't decide where an issue belongs, leave it here and discuss.
+
+## Issue format
+
+Keep the same structure within `todo.md` files. Each issue is a `##` section:
 
 ```md
-# YMD-slug. Title
+## Title
 
 **Priority:** P1 | P2 | P3 | P4 | P5
 **Status:** open | wip | blocked | on-hold | irrelevant | won't fix
-**Blocked by:** [iYMD-kebab-slug](./YMD-kebab-slug.md)
+**Blocked by:** [other issue title](#other-issue-title)
 
-## Problem
+### Problem
 
 Why this needs to be addressed.
 
-## Proposal
+### Proposal
 
 What we plan to do. Omit if no design yet.
 
-## Tasks
+### Tasks
 
 - [ ] concrete step 1
 - [ ] concrete step 2
 
-## Related
+### Related
 
-- [iYMD-slug](./YMD-slug.md) — relationship note
+- link — relationship note
 ```
 
-### Priority scale
+Done issues: set **Status: done** and remove the section in the next cleanup pass.
+Before removing, ensure design decisions are captured in the relevant
+`README.md` or JSDoc.
+
+## Priority scale
 
 | Level | Meaning |
 |-------|---------|
@@ -76,18 +74,16 @@ What we plan to do. Omit if no design yet.
 | P4 | Low — nice to have |
 | P5 | Minimal — do only if it falls in our lap |
 
-### Status values
+## Status values
 
 | Value | Meaning |
 |-------|---------|
 | `open` | Not yet started |
 | `wip` | Work in progress |
-| `blocked` | Waiting on another issue (pair with **Blocked by**) |
+| `blocked` | Waiting on another issue |
 | `on-hold` | Intentionally deferred |
-| `irrelevant` | Superseded, obsolete, or no longer applicable; keep only if the historical context is useful |
-| `won't fix` | Deliberately will not be implemented; record the reason in the file |
-
-Done → set **Status: done** in the file. Done and won't-fix issues are deleted occasionally in a cleanup pass — do not delete them immediately.
+| `irrelevant` | Superseded or obsolete |
+| `won't fix` | Deliberately will not be implemented |
 
 ## Language Specification
 

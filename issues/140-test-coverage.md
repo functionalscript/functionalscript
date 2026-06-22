@@ -1,6 +1,0 @@
-# 140. 100% test coverage for all `module.f.ts` files.
-
-**Priority:** P3
-**Status:** open
-
-We should have 100% test coverage for all `module.f.ts` files.
