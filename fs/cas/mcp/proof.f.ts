@@ -1,10 +1,10 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
-import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { listEffectCons, listEffectEnd, pure, type Effect, type ListEffect, type Operation } from '../../effects/module.f.ts'
 import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
 import type { Response } from '../../json/rpc/module.f.ts'
-import { msb, u8ListToVec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
+import { empty, length, maxLength, msb, u8ListToVec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.ts'
@@ -13,10 +13,10 @@ import { fileCas, type Cas, type FileCasOperation } from '../module.f.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { type MakeDirectoryOptions, type Mkdir, type RandomInt, type ReadBytes, type Rename } from '../../effects/node/module.f.ts'
+import { type IoResult, type MakeDirectoryOptions, type Mkdir, type Now, type RandomInt, type ReadBytes, type Rename } from '../../effects/node/module.f.ts'
 import { emptyState, virtual, type Dir } from '../../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
-import { ok as resultOk } from '../../types/result/module.f.ts'
+import { error as resultError, ok as resultOk } from '../../types/result/module.f.ts'
 
 type CasGetResult = {
     readonly length: number
@@ -42,7 +42,7 @@ const initialTestState: TestState = { memory: { next: 0, values: {} } }
 // The in-memory session helpers only exercise text/base64 paths (MemOp) and the
 // path-rejection branch of type:'url' (no file I/O). The upload ops are only
 // reached via runSessionVirtual.
-type MockOp = MemOp | Mkdir | Rename | RandomInt | ReadBytes
+type MockOp = MemOp | Mkdir | Rename | RandomInt | ReadBytes | Now
 
 const mock: MemOperationMap<MockOp, TestState> = {
     memCreate: value => state => {
@@ -62,6 +62,7 @@ const mock: MemOperationMap<MockOp, TestState> = {
     rename: (_src: string, _dst: string) => _ => { throw new Error('rename not supported in memory mock') },
     readBytes: (_path: string, _offset: number, _size: number) => _ => { throw new Error('readBytes not supported in memory mock') },
     randomInt: () => _ => { throw new Error('randomInt not supported in memory mock') },
+    now: () => state => [state, 0],
 }
 
 const runMem = <T>(effect: Effect<MockOp, T>): T =>
@@ -75,13 +76,33 @@ const runMem = <T>(effect: Effect<MockOp, T>): T =>
 type VecMap = { readonly [k: string]: readonly [Vec, Vec] }
 
 const memCas = (mapKey: Key<VecMap>): Cas<MemOp> => ({
-    read: (key: Vec): Effect<MemOp, Vec | undefined> =>
-        read(mapKey).step(m => pure(m[vecToCBase32(key)]?.[1])),
-    write: (value: Vec): Effect<MemOp, Vec|undefined> => {
-        const key = computeSync(sha256)([value])
-        return read(mapKey)
-            .step(m => write(mapKey, { ...m, [vecToCBase32(key)]: [key, value] }))
-            .step(() => pure(key))
+    read: (key: Vec): ListEffect<MemOp, IoResult<Vec>> =>
+        read(mapKey).step((m): ListEffect<MemOp, IoResult<Vec>> => {
+            const entry = m[vecToCBase32(key)]
+            // Single stored chunk, then EOF; a missing entry is an explicit error item.
+            return entry === undefined
+                ? listEffectCons<MemOp, IoResult<Vec>>(resultError({ code: 'ENOENT' }), listEffectEnd())
+                : listEffectCons(resultOk(entry[1]), listEffectEnd())
+        }),
+    write: (payload: ListEffect<MemOp, IoResult<Vec>>): Effect<MemOp, IoResult<Vec>> => {
+        const loop = (acc: Vec) => (stream: ListEffect<MemOp, IoResult<Vec>>): Effect<MemOp, IoResult<Vec>> =>
+            stream.step((node): Effect<MemOp, IoResult<Vec>> => {
+                if (node === undefined) {
+                    const key = computeSync(sha256)([acc])
+                    return read(mapKey)
+                        .step(m => write(mapKey, { ...m, [vecToCBase32(key)]: [key, acc] }))
+                        .step(() => pure(resultOk(key)))
+                }
+                const [item, rest] = node
+                if (item[0] === 'error') { return pure(item) }
+                // Mirror the production guard: a blob larger than `maxLength` bits would
+                // overflow a single `Vec`, so surface an error item instead of corrupting.
+                if (length(acc) + length(item[1]) > maxLength) {
+                    return pure(resultError(`cas blob exceeds maximum vector length of ${maxLength} bits`))
+                }
+                return loop(msb.concat(acc)(item[1]))(rest)
+            })
+        return loop(empty)(payload)
     },
     list: (): Effect<MemOp, readonly Vec[]> =>
         read(mapKey).step(m => pure(Object.values(m).map(([k]) => k))),
@@ -494,5 +515,22 @@ export const proof = {
         const [resp] = session(call(2, 'cas_add', { content: '/home/user/cas_upload/../../etc/passwd', type: 'url' }))
         assert(resultOf(resp).isError === true)
         assert(textOf(resp).includes('/home/user/cas_upload/'))
+    },
+
+    // cas_get with content:true on octet-stream (no magic bytes, not UTF-8) returns inline base64.
+    getOctetStreamWithContentIncludesBase64: () => {
+        const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
+        const binaryB64 = base64Encode(binaryContent) as string
+        const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: binaryB64, type: 'base64' }),
+            call(3, 'cas_get', { hash, content: true }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        assertEq(result.mime_type, 'application/octet-stream')
+        assertEq(result.type, 'base64')
+        assertEq(result.content, binaryB64)
     },
 }

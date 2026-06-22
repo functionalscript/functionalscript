@@ -157,9 +157,6 @@ site, so the classification logic is *more* readable, not hidden.
 
 ## Related
 
-- [i66H-cas-mcp-unified-get-add](./66H-cas-mcp-unified-get-add.md),
-  [i66G-cas-mcp-text-content](./66G-cas-mcp-text-content.md),
-  [i66E-cas-mcp-file-type](./66E-cas-mcp-file-type.md) — these designed the *feature*
-  (the get/add tools, the text/base64 split, the MIME metadata). This issue is the
-  internal-readability follow-up on the handler those changes left behind; it changes
-  no behaviour or wire format.
+- The `cas_get` tool (text/base64 split, MIME metadata, get/add unification) was
+  implemented in prior work. This issue is the internal-readability follow-up on the
+  handler those changes left behind; it changes no behaviour or wire format.

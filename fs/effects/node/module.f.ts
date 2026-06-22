@@ -173,9 +173,47 @@ export type Access = readonly['access', (path: string) => IoResult<void>]
 export const access: Func<Access> =
     do_('access')
 
+// createExclusive
+
+/**
+ * Creates `path` as an empty file with `O_CREAT|O_EXCL` — fails if it already
+ * exists. This is the exclusive create that claims a staging name in the
+ * lock-free upload ([staging-lease.md](../../../issues/cas/staging-lease.md));
+ * with 256 random bits in the name `EEXIST` never happens in practice, so it
+ * is just a sanity guard.
+ */
+export type CreateExclusive = readonly['createExclusive', (path: string) => IoResult<void>]
+
+export const createExclusive: Func<CreateExclusive> =
+    do_('createExclusive')
+
+// writeBytes
+
+/**
+ * Writes the **entire** `data` vector to an **existing** `path` at byte `offset`
+ * (positional write). The mirror of {@link readBytes}: it never creates the file
+ * (a missing path is `ENOENT`), and it writes every byte or returns an error —
+ * the runner loops over short writes — so a later size check can never pass over
+ * a hole. Bounded to ≤128 KiB per call, like `readBytes`.
+ */
+export type WriteBytes = readonly['writeBytes', (path: string, offset: number, data: Vec) => IoResult<void>]
+
+export const writeBytes: Func<WriteBytes> =
+    do_('writeBytes')
+
+// stat
+
+/** File metadata returned by {@link stat}. Only `size` (in bytes) for now. */
+export type FileStat = { readonly size: number }
+
+export type Stat = readonly['stat', (path: string) => IoResult<FileStat>]
+
+export const stat: Func<Stat> =
+    do_('stat')
+
 // Fs
 
-export type Fs = Mkdir | ReadFile | ReadBytes | Readdir | WriteFile | Rm | Rename | Exec | Access
+export type Fs = Mkdir | ReadFile | ReadBytes | Readdir | WriteFile | Rm | Rename | Exec | Access | CreateExclusive | WriteBytes | Stat
 
 // Server
 
