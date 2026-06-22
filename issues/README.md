@@ -31,52 +31,6 @@ not in a parent directory and not here.
 
 If you can't decide where an issue belongs, leave it here and discuss.
 
-## ID prefix encoding
-
-Each issue starts with a four-digit [Crockford base32](https://www.crockford.com/base32.html)
-prefix `YMDH` encoding the creation date and hour in **UTC/GMT**:
-
-| Digit | Encodes | Range |
-|-------|---------|-------|
-| Y | year − 2020 | `0`=2020 … `6`=2026 … `Z`=2051 |
-| M | month | `1`–`9`, `A`=Oct, `B`=Nov, `C`=Dec |
-| D | day | `1`–`9`, `A`=10 … `Z`=31 (see day table) |
-| H | hour (0–23) | `0`–`9`, `A`=10 … `Q`=23 (see hour table) |
-
-### Day encoding
-
-| 1–9 |      | 10–19 |      | 20–29 |      | 30–31 |      |
-|-----|------|-------|------|-------|------|-------|------|
-|     |      | 10    | `A`  | 20    | `M`  | 30    | `Y`  |
-| 1   | `1`  | 11    | `B`  | 21    | `N`  | 31    | `Z`  |
-| 2   | `2`  | 12    | `C`  | 22    | `P`  |       |      |
-| 3   | `3`  | 13    | `D`  | 23    | `Q`  |       |      |
-| 4   | `4`  | 14    | `E`  | 24    | `R`  |       |      |
-| 5   | `5`  | 15    | `F`  | 25    | `S`  |       |      |
-| 6   | `6`  | 16    | `G`  | 26    | `T`  |       |      |
-| 7   | `7`  | 17    | `H`  | 27    | `V`  |       |      |
-| 8   | `8`  | 18    | `J`  | 28    | `W`  |       |      |
-| 9   | `9`  | 19    | `K`  | 29    | `X`  |       |      |
-
-### Hour encoding
-
-| Hour | Code | | Hour | Code |
-|------|------|-|------|------|
-| 0  | `0` | | 12 | `C` |
-| 1  | `1` | | 13 | `D` |
-| 2  | `2` | | 14 | `E` |
-| 3  | `3` | | 15 | `F` |
-| 4  | `4` | | 16 | `G` |
-| 5  | `5` | | 17 | `H` |
-| 6  | `6` | | 18 | `J` |
-| 7  | `7` | | 19 | `K` |
-| 8  | `8` | | 20 | `M` |
-| 9  | `9` | | 21 | `N` |
-| 10 | `A` | | 22 | `P` |
-| 11 | `B` | | 23 | `Q` |
-
-Example: 2026-06-22 at 14:00 UTC → `66PE-kebab-slug`.
-
 ## Issue format
 
 Keep the same structure within `todo.md` files. Each issue is a `##` section.
