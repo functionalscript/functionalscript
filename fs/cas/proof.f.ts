@@ -1,4 +1,4 @@
-import { fileCas, commands, type Cas } from './module.f.ts'
+import { commands, type Cas } from './module.f.ts'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
 import { empty, length, vec8 } from '../types/bit_vec/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
