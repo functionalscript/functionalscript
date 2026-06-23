@@ -4,7 +4,7 @@ import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
 import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { listEffectCons, listEffectEnd, pure, type Effect, type ListEffect } from '../effects/module.f.ts'
-import { error, ok } from '../types/result/module.f.ts'
+import { error, ok, type Ok } from '../types/result/module.f.ts'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { access, type IoResult, type NodeProgramOptions } from '../effects/node/module.f.ts'
 import { join } from '../path/module.f.ts'
@@ -217,7 +217,8 @@ export const proof = {
         }
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const [state1, w] = virtual(state0)(c.write(listEffectCons(ok(content), listEffectEnd())))
+        const x = c.write(listEffectCons(ok(content), listEffectEnd<never, Ok<Vec>>()))
+        const [state1, w] = virtual(state0)(x)
         if (w[0] !== 'ok') { throw ['expected write ok', w] }
         const [, present] = virtual(state1)(access(stalePath))
         if (present[0] !== 'error') { throw 'expected GC to reclaim the expired staging file' }

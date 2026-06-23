@@ -92,9 +92,9 @@ const memCas = (mapKey: Key<VecMap>): Cas<MemOp> => ({
                 ? listEffectCons<MemOp, IoResult<Vec>>(resultError({ code: 'ENOENT' }), listEffectEnd())
                 : listEffectCons(resultOk(entry[1]), listEffectEnd())
         }),
-    write: (payload: ListEffect<MemOp, IoResult<Vec>>): Effect<MemOp, IoResult<Vec>> => {
-        const loop = (acc: Vec) => (stream: ListEffect<MemOp, IoResult<Vec>>): Effect<MemOp, IoResult<Vec>> =>
-            stream.step((node): Effect<MemOp, IoResult<Vec>> => {
+    write: <O1 extends Operation>(payload: ListEffect<O1, IoResult<Vec>>): Effect<MemOp | O1, IoResult<Vec>> => {
+        const loop = (acc: Vec) => (stream: ListEffect<MemOp | O1, IoResult<Vec>>): Effect<MemOp | O1, IoResult<Vec>> =>
+            stream.step((node): Effect<MemOp | O1, IoResult<Vec>> => {
                 if (node === undefined) {
                     const key = computeSync(sha256)([acc])
                     return read(mapKey)

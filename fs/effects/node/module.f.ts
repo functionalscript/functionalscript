@@ -443,6 +443,7 @@ export const test: Func<Test> = do_('test')
 // Node
 
 export type NodeOp =
+    | Access
     | All
     | Await
     | Fetch

@@ -60,6 +60,7 @@ export const toPath = (key: Vec): string => {
 export type FileCasOperation =
     | ReadBytes | Mkdir | Readdir | Access | Rename | Rm
     | RandomInt | Now | CreateExclusive | WriteBytes | Stat
+    | Now | Readdir | Rm
 
 export type Cas<O extends Operation> = {
     /**
@@ -72,7 +73,7 @@ export type Cas<O extends Operation> = {
      * Consumes a chunk stream — each item `ok(chunk)` or `error` — hashing incrementally,
      * and returns the content address. An error item aborts the upload.
      */
-    readonly write: <O1 extends Operation>(payload: ListEffect<O1, IoResult<Vec>>) => Effect<O1 | O, IoResult<Vec>>
+    readonly write: <O1 extends Operation>(payload: ListEffect<O1, IoResult<Vec>>) => Effect<O | O1, IoResult<Vec>>
     /** Lists all stored content hashes. */
     readonly list: () => Effect<O, readonly Vec[]>
 }
@@ -111,7 +112,7 @@ const deadlineOf = (name: string): number => Number(name.slice(0, name.indexOf('
  * still-live lease is left alone; the fencing rename keeps even a misjudged
  * reclaim fail-safe (worst case: that upload restarts).
  */
-const gcStage = (stageDir: string): Effect<Now | Readdir | Rm, void> =>
+const gcStage = <O extends Now | Readdir | Rm>(stageDir: string): Effect<O, void> =>
     now().step(t =>
         readdir(stageDir, {}).step(r => {
             if (r[0] === 'error') { return pure(undefined) }
@@ -171,11 +172,11 @@ export const fileCas = (sha2: Sha2) => (path: string): Cas<FileCasOperation> => 
             // Any streaming error fails closed: delete the partial file, return the error.
             const fail = (curPath: string, e: unknown): Effect<FileCasOperation, IoResult<Vec>> =>
                 rm(curPath).step(() => pure(error(e)))
-            const x = gcStage(stageDir).step(() =>
+            return gcStage(stageDir).step(() =>
                 random256.step(rnd => {
                     const rndStr = vecToCBase32(rnd)
                     const loop = (state: Sha2State, offset: number, curPath: string) =>
-                        (stream: ListEffect<O1 | FileCasOperation, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> =>
+                        (stream: ListEffect<O1, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> =>
                             stream.step((node): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
                                 if (node === undefined) { return publish(state, offset, curPath) }
                                 const [item, rest] = node
@@ -204,7 +205,6 @@ export const fileCas = (sha2: Sha2) => (path: string): Cas<FileCasOperation> => 
                                     : loop(sha2.init, 0, path0)(payload))
                         }))
                 }))
-            return x
         },
         list: (): Effect<FileCasOperation, readonly Vec[]> =>
             // A fresh store has no `.cas` directory yet. Treat *only* that case as an

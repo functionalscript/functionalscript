@@ -72,7 +72,7 @@ import { decode as base64Decode, encode as base64Encode } from '../../base64/mod
 import { utf8 } from '../../text/module.f.ts'
 import { detect } from '../../mime/module.f.ts'
 import { empty, length as bitVecLength, maxLength, msb, type Vec } from '../../types/bit_vec/module.f.ts'
-import { ok, error } from '../../types/result/module.f.ts'
+import { ok, error, type Ok } from '../../types/result/module.f.ts'
 import { rm, type IoResult, type Read, type Rm, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
@@ -155,7 +155,7 @@ const casToolRegistry =
             return x.step(value => typeof value === 'string'
                 ? pure(errorResult(value))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(listEffectCons(ok(value), listEffectEnd())).step(hashResult => pure(hashResult[0] === 'error'
+                : c.write(listEffectCons(ok(value), listEffectEnd<never, Ok<Vec>>())).step(hashResult => pure(hashResult[0] === 'error'
                     ? errorResult('write')
                     : okResult(vecToCBase32(hashResult[1]))))
             )
