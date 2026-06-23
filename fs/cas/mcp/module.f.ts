@@ -257,10 +257,6 @@ const okResult = (text: string): ToolsCallResult =>
 /**
  * MCP handlers for an injected `Cas<O>` — generic in `O` exactly like `Cas`
  * itself, so the same handlers run over `Fs` (production) or memory (tests).
- *
- * When `toUrl` is provided, `cas_get` includes the `url` field pointing to
- * the blob on the local filesystem. When absent (e.g. memory-backed tests),
- * `url` is omitted.
  */
 export const casMcpHandlers = <O extends Operation>(
     c: FileCas,
@@ -286,13 +282,10 @@ export const casConfig: McpConfig = {
  * Runs the CAS MCP server over stdio: allocates the session-state slot, builds
  * the `mcpStep` for `c`, and drives the read → parse → dispatch → write loop
  * until stdin EOF. Generic in `O` so it composes with any `Cas<O>` backing.
- *
- * When `toUrl` is provided, `cas_get` includes the blob's filesystem URL.
  */
 export const casMcpServer = (
     c: FileCas,
     home: string,
-    toUrl: (hash: Vec) => string,
 ): Effect<Read | Write | MemOp | FileCasOperation | Rm | FileCasOperation, void> =>
     create(uninitializedState).step(key =>
         stdioTransport(mcpStep(casConfig)(casMcpHandlers(c, home))(key)))
