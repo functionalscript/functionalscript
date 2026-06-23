@@ -190,15 +190,9 @@ const a = f()
 
 To make FunctionalScript more compatible with the new PL, it should prohibit non `return` statements at the end of a function, or no `export` at the end of the module.
 
-### `if` as Expression and Pattern Matching
+### Pattern Matching
 
-In JavaScript, `if` and `switch` are statements, not expressions. The ternary `? :` is the only conditional expression, and it doesn't scale to multiple branches. In the new PL, `if` is an expression:
-
-```js
-const label = if (x > 0) 'positive' else if (x < 0) 'negative' else 'zero'
-```
-
-For pattern matching, we adopt the syntax from the [TC39 pattern matching proposal](https://github.com/tc39/proposal-pattern-matching) (`match`/`when`), which avoids conflicting with the existing `switch` statement:
+We adopt the syntax from the [TC39 pattern matching proposal](https://github.com/tc39/proposal-pattern-matching) (`match`/`when`), which avoids conflicting with the existing `switch` statement and covers conditional expressions cleanly:
 
 ```js
 const area = match (shape) {
