@@ -763,3 +763,84 @@ Translate the Byte Code into WebAssembly or other PLs, Rust/Zig/C/C++/LLVM.
 
 ---
 
+## Single source of truth for operator tests
+
+**Priority:** P3
+**Status:** open
+
+### Problem
+
+Operator tests are written twice:
+
+- [`tests/proof.f.ts`](tests/proof.f.ts) — runs against a standard JS engine to prove JS semantics.
+- [`tests/test.rs`](tests/test.rs) — runs the same operations against `nanvm-lib`.
+
+The two files diverge over time (mismatches documented in [`tests/README.md`](tests/README.md)). Every new operator requires updating both files manually.
+
+### Proposal
+
+Introduce `tests/module.f.ts` as the single source of truth — pure data describing inputs and expected outputs for each operator.
+
+1. **JS proof** — a thin `proof.f.ts` imports the test data and runs each case through native JS operators.
+2. **Rust tests** — a small Node/Deno script (`gen-tests.ts`) reads `module.f.ts` and writes `test.rs`, wired into `npm run update`.
+
+### Tasks
+
+- [ ] Design the test case data schema in `tests/module.f.ts`.
+- [ ] Migrate `eq`, `unary_plus`, `unary_minus`, `stringCoercion`, `mul` test cases.
+- [ ] Write `proof.f.ts` as a thin consumer of `module.f.ts`.
+- [ ] Write `gen-tests.ts` to emit `test.rs` from `module.f.ts`.
+
+---
+
+## Hash table improvement
+
+**Priority:** P3
+**Status:** open
+
+See https://arxiv.org/pdf/2501.02305
+
+---
+
+## `nanenum` provenance API
+
+**Priority:** P3
+**Status:** open
+
+[nanenum](src/nanenum.rs) should use the new [provenance API](https://doc.rust-lang.org/stable/core/ptr/index.html#provenance).
+
+---
+
+## Console program
+
+**Priority:** P3
+**Status:** open
+
+A console program similar to the one in the NaNVM repo.
+
+---
+
+## FS VM load/save
+
+**Priority:** P3
+**Status:** open
+
+Sketch / document errors, exceptions, and execution scheme. The host environment has well-defined operations:
+
+- **Load** — takes a root module path and optional extra parameters. Load-time errors are communicated to the host. A partially successful Load result may still be useful (e.g. for language server protocol scenarios).
+- **Execute** — takes the successful result of Load and optional extra parameters. Calls the default export of the root module, which produces side effects. Ends on halt (normal completion, unhandled error, or external stop).
+- **Save** — takes the successful result of Load. Corresponds to code/data transformations other than execution (e.g. bundling). Partially successful Save results may be useful similarly to partially successful Load results.
+
+Open question: does a proper FS system provide user code means to handle errors, e.g. an exception handling mechanism similar to JS's?
+
+---
+
+## BAST: one parameter in functions
+
+**Priority:** P3
+**Status:** open
+
+Consider using only one parameter in functions. System functions should be converted into special BAST operators.
+
+---
+

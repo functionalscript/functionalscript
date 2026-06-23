@@ -12,6 +12,8 @@
   const m = [42].at
   m(0) // 42
   ```
+- ECMAScript proposal for `BigInt.bitLen()`
+- switch back to `.js` extension if [Type Annotations](https://github.com/tc39/proposal-type-annotations) lands in ECMAScript
 - always in lexicographical order, and a number is not an exception.
   ```
   const x = { 11: 11, 2: 2, a: 3, b: 5 } // { '11': 11, '2': 2, a: 3, b: 5 }

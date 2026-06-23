@@ -74,7 +74,8 @@ We need it to use JSDoc and TypeScript.
 3. [ ] [property-accessor](./2330-property-accessor.md),
 4. [ ] [operators](./2340-operators.md),
 5. [ ] [grouping](./2350-grouping.md),
-6. [ ] [built-in](./2360-built-in.md).
+6. [ ] [built-in](./2360-built-in.md),
+7. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed).
 
 ### 2.4. Syntactic Sugar
 
@@ -97,6 +98,7 @@ The FJS can have functions. The format requires additional run-time information 
 1. [ ] [function](./3110-function.md)
 2. [ ] [parameters](./3120-parameters.md)
 3. [ ] [body-const](./3130-body-const.md)
+4. [ ] [forward-references](./3140-forward-references.md)
 
 ### 3.2. Priority 2
 
@@ -382,6 +384,24 @@ const test = async(f: (fs: Fs) => Promise<void>): Promise<void> => {
     }
     await f(fs)
 }
+```
+
+## 8.4. Mutability Inference
+
+```ts
+const s = [] // mutable
+const f = () => { // the function can be called only if s is mutable.
+    s.push(3)     // s is mutable.
+}
+```
+
+### Circular references
+
+```ts
+const s = [] //
+const m = [] //
+s.push(m)    // ok, but now `m` is immutable
+m.push(s)    // error: `m` is immutable
 ```
 
 ## 9. Bytecode
