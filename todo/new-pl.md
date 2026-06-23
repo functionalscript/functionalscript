@@ -170,6 +170,7 @@ const a = f()
 ```js
 const a = effect() => {
     const x = perform b()
+    return perform c(x)
 }
 ```
 
