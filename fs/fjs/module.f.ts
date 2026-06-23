@@ -6,12 +6,10 @@
 import { compile } from '../djs/module.f.ts'
 import { main as testMain } from '../emergent_testing/module.f.ts'
 import { commands as casCommands } from '../cas/cli/module.f.ts'
-import { fileCas } from '../cas/module.f.ts'
 import { main as ciMain } from '../ci/module.f.ts'
 import { import_, type NodeOp, type NodeProgram } from '../effects/node/module.f.ts'
 import { dispatch, type Commands } from '../cli/module.f.ts'
 import { casMcpServer } from '../cas/mcp/module.f.ts'
-import { sha256 } from '../crypto/sha2/module.f.ts'
 import { pure } from '../effects/module.f.ts'
 
 const commands: Commands<NodeOp> = [
