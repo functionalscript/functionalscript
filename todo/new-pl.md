@@ -100,6 +100,8 @@ const a = 2   // typeof(a) === 'bigint'
 const b = 2.0 // typeof(b) === 'number' (IEEE 754 64-bit double)
 ```
 
+Python provides a useful precedent. Python 2 had two integer types: `int` (fixed-width, 32 or 64-bit) and `long` (arbitrary-precision), with `2L` as the bigint literal — mirroring JavaScript's current split between `number` and `bigint`. [Python 3 unified them](https://docs.python.org/3/whatsnew/3.0.html#integers): `int` is now always arbitrary-precision and `long` was removed ([PEP 237](https://peps.python.org/pep-0237/)). The literal `2` is a bigint in Python 3 with no special suffix needed — exactly the behaviour proposed here.
+
 ### UTF8 String
 
 Current implementation of a `string` in JavaScript is UTF-16. While we can have a proposal that ECMAScript supports a new type `utf8`, something like `u'Hello, world!'`, the default JS string will always be UTF-16. In a new PL, we don't want to have UTF-16 at all, only UTF-8.
