@@ -301,9 +301,9 @@ export const mcpStep =
         capabilities,
         serverInfo,
     }: McpConfig) =>
-    (handlers: McpHandlers<FileCasOperation>) =>
+    <O extends Operation>(handlers: McpHandlers<O>) =>
     (stateKey: Key<McpSessionState>) =>
-    (value: Unknown): Effect<MemOp | FileCasOperation, Response | null> => {
+    (value: Unknown): Effect<MemOp | O, Response | null> => {
         const [t, message] = decodeRequest(value)
         if (t === 'error') {
             return pure(_errResponse(null)(invalidRequest))

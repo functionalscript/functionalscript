@@ -258,10 +258,10 @@ const okResult = (text: string): ToolsCallResult =>
  * MCP handlers for an injected `Cas<O>` — generic in `O` exactly like `Cas`
  * itself, so the same handlers run over `Fs` (production) or memory (tests).
  */
-export const casMcpHandlers = <O extends Operation>(
+export const casMcpHandlers = (
     c: FileCas,
     home: string,
-): McpHandlers<FileCasOperation | Rm | O> =>
+): McpHandlers<FileCasOperation | Rm> =>
     fromRegistry(casToolRegistry(c, home))
 
 // ── Session configuration ───────────────────────────────────────────────────────
@@ -286,6 +286,6 @@ export const casConfig: McpConfig = {
 export const casMcpServer = (
     c: FileCas,
     home: string,
-): Effect<Read | Write | MemOp | FileCasOperation | Rm | FileCasOperation, void> =>
+): Effect<Read | Write | MemOp | FileCasOperation | Rm, void> =>
     create(uninitializedState).step(key =>
         stdioTransport(mcpStep(casConfig)(casMcpHandlers(c, home))(key)))
