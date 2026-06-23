@@ -63,7 +63,7 @@ export default {
 
 You just need to add `export default` at the beginning of your JSON.
 
-Moving further, we will use FunctionalScript as a foundation to build our programming language.
+Moving further, we will use FunctionalScript as a foundation to build our programming language. A key design constraint is that most existing FunctionalScript modules should be reusable in the new language with little or no modification. This gives us a large library from day one and means the new PL can be validated incrementally against real code rather than toy examples.
 
 ## Multiple Syntaxes
 
