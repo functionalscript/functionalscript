@@ -832,3 +832,73 @@ site, so the classification logic is *more* readable, not hidden.
 
 ---
 
+## casAddFile
+
+**Priority:** P3
+**Status:** open
+
+### Problem
+
+Both the CLI `cas add` command (`fs/cas/module.f.ts`) and the MCP `add` tool
+(`fs/cas/mcp/module.f.ts`) read a file from disk and pass the resulting stream
+to `cas.write()`. The only behavioural difference between the two is that the
+MCP server deletes the source file after a successful write, while the CLI does
+not. The file-read-and-write logic is otherwise duplicated across both callers.
+
+### Proposal
+
+Extract a single reusable helper:
+
+```ts
+const casAddFile = <O>(cas: Cas<O>) => (path: string): Effect<O, IoResult<Vec>>
+```
+
+The helper reads the file at `path` and writes its contents to `cas`, returning
+the hash as a `Vec` wrapped in an `IoResult`. Both callers delegate to
+`casAddFile`; the MCP layer adds a `deleteFile(path)` step on success, while
+the CLI layer omits it. No other behaviour changes.
+
+### Tasks
+
+- [ ] Define `casAddFile` in `fs/cas/module.f.ts` (or a shared sub-module)
+- [ ] Replace the file-read-and-write logic in the CLI `cas add` handler with a
+      call to `casAddFile`
+- [ ] Replace the equivalent logic in the MCP `add` tool handler with a call to
+      `casAddFile`, keeping the post-success `deleteFile` step in the MCP layer
+- [ ] Confirm existing CLI and MCP proof tests still pass (`fjs t`)
+
+### Related
+
+- [i66K-cas-cli-mcp-shared-core](todo.md) — broader CLI/MCP code-sharing effort
+- `fs/cas/module.f.ts` — CLI `cas add` command
+- `fs/cas/mcp/module.f.ts` — MCP `add` tool handler
+
+---
+
+## Move CAS CLI logic to `fs/cas/cli`
+
+**Priority:** P3
+**Status:** open
+
+### Problem
+
+All CAS logic — shared types, the CLI command handlers, and the MCP server — currently lives in `fs/cas/module.f.ts`. As the module grows (streaming upload, shared helpers, upcoming `casAddFile`), it becomes harder to navigate and the CLI and MCP concerns are entangled in a single file.
+
+### Proposal
+
+Move the CLI-specific command handlers and their supporting logic out of `fs/cas/module.f.ts` into a new `fs/cas/cli/` directory (e.g. `fs/cas/cli/module.f.ts`), mirroring the existing `fs/cas/mcp/` layout. The top-level `fs/cas/module.f.ts` retains only shared types and primitives consumed by both transports.
+
+### Tasks
+
+- [ ] Create `fs/cas/cli/module.f.ts` and move CLI command handlers into it
+- [ ] Update `fs/cas/module.f.ts` to re-export or remove the moved declarations
+- [ ] Update any imports that referenced the old location
+- [ ] Confirm `npx tsc` and `fjs t` pass after the move
+
+### Related
+
+- [i66K-cas-cli-mcp-shared-core](todo.md) — broader CLI/MCP code-sharing effort
+- `fs/cas/mcp/module.f.ts` — existing MCP sub-module (the structural model to follow)
+
+---
+
