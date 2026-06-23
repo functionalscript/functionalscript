@@ -87,10 +87,16 @@ import { fromVec } from '../../text/utf8/module.f.ts'
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
 /** Arguments for `cas_add`: content to store, with optional encoding type. */
-export const casAddArgs = { content: string, type: option(or(or('text' as const, 'base64' as const), 'url' as const)) } as const
+export const casAddArgs = {
+    content: string,
+    type: or('text' as const, 'base64' as const, 'url' as const, undefined)
+} as const
 
 /** Arguments for `cas_get`: the cBase32 hash to look up; optionally request inline content. */
-export const casGetArgs = { hash: string, content: option(boolean) } as const
+export const casGetArgs = {
+    hash: string,
+    content: option(boolean)
+} as const
 
 /** Arguments for `cas_list`: none. */
 export const casListArgs = {} as const
