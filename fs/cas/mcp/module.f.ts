@@ -130,6 +130,13 @@ const collectRead = <O extends Operation>(stream: ListEffect<O, IoResult<Vec>>):
 
 const toJson = stringify(identity)
 
+type Meta = {
+    readonly length: number
+    readonly mime_type: string
+    readonly type: 'text' | 'base64'
+    readonly url: string
+}
+
 /** Registry of all CAS tools. */
 const casToolRegistry =
 (c: FileCas, home: string): readonly ToolEntry<FileCasOperation|Rm>[] => {
@@ -190,7 +197,7 @@ const casToolRegistry =
                 // Phase 1: magic-byte sniffing for known binary formats.
                 const detectedMime = detect(value)
                 if (detectedMime !== null) {
-                    const meta: Record<string, Unknown> = {
+                    const meta: Meta = {
                         length: byteLength,
                         mime_type: detectedMime,
                         type: 'base64',
@@ -208,7 +215,7 @@ const casToolRegistry =
                 // Phase 2: UTF-8 validation — text if valid, octet-stream otherwise.
                 const str = fromVec(value)
                 if (str !== null) {
-                    const meta: Record<string, Unknown> = {
+                    const meta: Meta = {
                         length: byteLength,
                         mime_type: 'text/plain',
                         type: 'text',
