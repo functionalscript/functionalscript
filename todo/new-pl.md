@@ -109,6 +109,10 @@ export default assert(emptyArrayId1, emptyArrayId2)
 
 `Object.id` returns the canonical content-hash of its argument, so two structurally equal values always yield the same id. Without this `Object.id` core function, FunctionalScript could be more like content-equatable instead of fully content-addressable.
 
+Function identity is a harder problem. Two functions are semantically equal if they produce the same output for every input, but proving that in general is undecidable (equivalent to the halting problem). The practical solution is structural equality: two functions are considered the same if they have the same normalized AST or bytecode. This is decidable and cheap to compute.
+
+The catch is that normalization is not fixed forever — a smarter normalizer in a future VM version may canonicalize more aggressively, causing functions that were distinct under the old normalizer to become equal. This means function hashes are implicitly versioned by the normalizer that produced them. We likely need to encode the normalizer version in the hash (or the VM version), so that old and new hashes remain meaningful and comparable across VM generations.
+
 ### Numbers
 
 Currently, the literal `2` has type `number` which is, usually, a 64-bit floating-point number (IEEE 754 double). Initially, JavaScript didn't have biginteger, but currently they are in the ECMAScript standard. Because ECMAScript can't break backward compatibility, they introduced another syntax to describe bigint literals: `2n`, but JSON doesn't support this syntax. While we can have JSON parsers and writers that read and write bigints, the syntax is not the same anymore. The deeper problem is not the `n` suffix itself, but that built-in operations which logically require integers — such as array indexing (`array[i]`) — accept `number` (float) instead of `bigint`. This creates an impedance mismatch: code must either use `number` throughout (losing precision for large integers) or use `bigint` and constantly convert at API boundaries. In a PL designed from scratch, `bigint` is the default integer type and such APIs accept it natively, so no suffix or conversion is needed:
@@ -243,6 +247,7 @@ const a = effect() => {
 - [ ] Define lexicographic key ordering rules
 - [ ] Specify `undefined`-assignment removes property
 - [ ] Specify `Object.id` API and hash algorithm
+- [ ] Design function identity scheme (normalized AST hashing + VM/normalizer versioning)
 - [ ] Define hash-based module identity scheme
 - [ ] Specify last-expression-as-export semantics
 - [ ] Specify `effect`/`perform` syntax and handler protocol
