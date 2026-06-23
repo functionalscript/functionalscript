@@ -65,6 +65,24 @@ You just need to add `export default` at the beginning of your JSON.
 
 Moving further, we will use FunctionalScript as a foundation to build our programming language.
 
+## Multiple Syntaxes
+
+Because the canonical identity of a program is the content hash of its semantic representation (AST/IR), not its source text, syntax becomes a rendering preference. Multiple surface syntaxes can compile to the same semantic node and therefore share the same hash — they are literally the same program.
+
+This means we could support, for example, both a JavaScript-style and a Python-style syntax:
+
+```js
+// JS-style
+const add = (a, b) => a + b
+```
+
+```python
+# Python-style
+add = lambda a, b: a + b
+```
+
+Both would produce identical content hashes. Tooling can display any module in whichever syntax the developer prefers, and cross-syntax references just work — a module written in Python syntax can import a function written in JS syntax with no friction, since the identity layer is below syntax.
+
 ### Content-Addressability
 
 FunctionalScript programs can be run as content-addressable, but their behavior could be different compared to running the same program on a JavaScript engine, for example:
@@ -231,3 +249,4 @@ const a = effect() => {
 - [ ] Evaluate pipeline operator (`|>`) syntax
 - [ ] Evaluate automatic method binding semantics
 - [ ] Specify `if`/`switch` expression semantics and pattern matching syntax
+- [ ] Design canonical semantic IR that multiple syntaxes compile to
