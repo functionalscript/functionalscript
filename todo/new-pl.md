@@ -179,6 +179,8 @@ const a = f()
 { a } // exported as `{ "a": 5 }`.
 ```
 
+To make FunctionalScript more compatible with the new PL, it should prohibit non `return` statements at the end of a function, or no `export` at the end of the module.
+
 ## Effect Syntax Sugar
 
 Algebraic effects generalize `async`/`await`, exceptions, and other control-flow abstractions into a single declarative mechanism. The proposed syntax mirrors `async`/`await` but is not tied to a specific effect type:
