@@ -190,6 +190,26 @@ const a = f()
 
 To make FunctionalScript more compatible with the new PL, it should prohibit non `return` statements at the end of a function, or no `export` at the end of the module.
 
+### `if` and `switch` as Expressions, Pattern Matching
+
+In JavaScript, `if` and `switch` are statements, not expressions. The ternary `? :` is the only conditional expression, and it doesn't scale to multiple branches. In the new PL, `if` and `switch` are expressions:
+
+```js
+const label = if (x > 0) 'positive' else if (x < 0) 'negative' else 'zero'
+```
+
+`switch` becomes a pattern-matching expression, similar to Rust's `match` or Python's `match`/`case` ([PEP 634](https://peps.python.org/pep-0634/)). Patterns can destructure arrays and objects:
+
+```js
+const area = switch (shape) {
+    { kind: 'circle', r }    => Math.PI * r * r
+    { kind: 'rect', w, h }   => w * h
+    _                        => 0
+}
+```
+
+Exhaustiveness can be checked statically when combined with type annotations (see Type Annotations section). This also composes naturally with the last-expression-as-return proposal.
+
 ### Effect Syntax Sugar
 
 Algebraic effects generalize `async`/`await`, exceptions, and other control-flow abstractions into a single declarative mechanism. The proposed syntax mirrors `async`/`await` but is not tied to a specific effect type:
@@ -216,3 +236,4 @@ const a = effect() => {
 - [ ] Specify `effect`/`perform` syntax and handler protocol
 - [ ] Evaluate pipeline operator (`|>`) syntax
 - [ ] Evaluate automatic method binding semantics
+- [ ] Specify `if`/`switch` expression semantics and pattern matching syntax
