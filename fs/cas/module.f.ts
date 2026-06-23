@@ -244,16 +244,22 @@ const streamFile = (filePath: string): ListEffect<ReadBytes, IoResult<Vec>> => {
 }
 
 /**
- * Copy-via-write-then-delete upload pipeline: streams `fileName` from
- * `~/cas_upload/` through `fileCas.write` (inheriting lease GC, lease renewal,
- * dedup-on-publish, and size check), then deletes the source on success.
- * On failure the source is left in place so the upload can be retried;
- * `write` already cleans up its own partial staging file.
+ * Streams the file at `path` through `cas.write`, returning the content hash.
+ * Both the CLI `cas add` and the MCP `add` delegate to this; the MCP layer
+ * additionally deletes the source file on success.
+ */
+export const casAddFile = <O extends Operation>(cas: Cas<O>) => (path: string): Effect<O | ReadBytes, IoResult<Vec>> =>
+    cas.write(streamFile(path))
+
+/**
+ * Upload pipeline: streams `fileName` from `~/cas_upload/` through `casAddFile`,
+ * then deletes the source on success. On failure the source is left in place so
+ * the upload can be retried; `write` already cleans up its own partial staging file.
  */
 export const casUpload = (home: string) => (fileName: string): Effect<FileCasOperation, IoResult<Vec>> => {
     const src = join(home, 'cas_upload', fileName)
     const c = fileCas(sha256)(home)
-    return c.write(streamFile(src)).step((result): Effect<FileCasOperation, IoResult<Vec>> => {
+    return casAddFile(c)(src).step((result): Effect<FileCasOperation, IoResult<Vec>> => {
         if (result[0] === 'error') { return pure(result) }
         return rm(src).step(() => pure(result))
     })
