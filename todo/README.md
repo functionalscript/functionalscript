@@ -31,6 +31,16 @@ not in a parent directory and not here.
 
 If you can't decide where an issue belongs, leave it here and discuss.
 
+## Blocked by third parties
+
+Issues that cannot progress until an external event occurs (a TC39 proposal lands, a
+runtime ships a feature, a dependency releases a fix) live in `todo/blocked/`.
+
+Each file in `todo/blocked/` **must** include a **Trigger** section that states the
+precise external condition that unblocks it — a proposal reaching Stage 4, a specific
+crate version shipping, etc. Without a clear trigger the issue is just a wish; write the
+trigger first or file it as a regular issue instead.
+
 ## Issue format
 
 Keep the same structure within `todo/{slug-kebab}.md` files.
