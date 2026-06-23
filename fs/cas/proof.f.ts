@@ -1,4 +1,5 @@
-import { casUpload, commands, fileCas, type FileCasOperation } from './module.f.ts'
+import { casUpload, fileCas, type FileCasOperation } from './module.f.ts'
+import { commands } from './cli/module.f.ts'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
 import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
