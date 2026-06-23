@@ -192,4 +192,4 @@ const a = effect() => {
 }
 ```
 
-`effect` marks a function that may perform effects; `perform` suspends the computation and delegates to the nearest handler, similar to how `await` delegates to the runtime scheduler.
+`effect` marks a function that may perform effects; `perform` suspends the computation and delegates to the nearest handler, similar to how `await` delegates to the runtime scheduler. See [Effects](../fs/effects/)
