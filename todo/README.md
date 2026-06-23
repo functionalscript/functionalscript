@@ -15,7 +15,7 @@ concerns: architecture decisions, directory restructuring, design philosophy,
 cross-cutting changes affecting many submodules. It does **not** duplicate
 concrete bugs or tasks that belong in a child `todo.md`.
 
-For a larger standalone topic, use a named file `todo-${name}.md` in the
+For a larger standalone topic, use a named file `todo/${name}.md` in the
 relevant directory and link to it from `todo.md`.
 
 **Rule:** a bug or task scoped to `fs/foo/bar/` goes in `fs/foo/bar/todo.md`,
@@ -23,7 +23,7 @@ not in a parent directory and not here.
 
 ## This directory
 
-`issues/` still holds:
+`todo/` still holds:
 
 - Issues that span multiple unrelated modules and have no obvious home
 - Language-design questions that are not tied to a specific module
@@ -33,11 +33,11 @@ If you can't decide where an issue belongs, leave it here and discuss.
 
 ## Issue format
 
-Keep the same structure within `todo.md` files. Each issue is a `##` section.
+Keep the same structure within `todo/{slug-kebab}.md` files.
 
 Issue headings should be short and direct — describe the action or the thing,
-not the full context. Prefer `## Read large files` over
-`## The problem with reading big files caused by bit vector limitation`.
+not the full context. Prefer `# Read large files` over
+`# The problem with reading big files caused by bit vector limitation`.
 A short heading is easier to scan, link to, and reference from other files.
 
 ```md
