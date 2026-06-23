@@ -31,6 +31,16 @@ not in a parent directory and not here.
 
 If you can't decide where an issue belongs, leave it here and discuss.
 
+## Blocked by third parties
+
+Issues that cannot progress until an external event occurs (a TC39 proposal lands, a
+runtime ships a feature, a dependency releases a fix) live in `todo/blocked/`.
+
+Each file in `todo/blocked/` **must** include a **Trigger** section that states the
+precise external condition that unblocks it — a proposal reaching Stage 4, a specific
+crate version shipping, etc. Without a clear trigger the issue is just a wish; write the
+trigger first or file it as a regular issue instead.
+
 ## Issue format
 
 Keep the same structure within `todo/{slug-kebab}.md` files.
@@ -65,9 +75,12 @@ What we plan to do. Omit if no design yet.
 - link — relationship note
 ```
 
-Done issues: set **Status: done** and remove the section in the next cleanup pass.
-Before removing, ensure design decisions are captured in the relevant
+Done issues: delete the file immediately in the same PR that fixes the issue.
+Before deleting, ensure design decisions are captured in the relevant
 `README.md` or JSDoc.
+
+Won't-fix issues: document the reason in the relevant `README.md`, in a code
+comment, or in another issue — then delete the issue file.
 
 ## Priority scale
 

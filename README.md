@@ -11,7 +11,7 @@ FunctionalScript is a safe, purely functional programming language and a strict 
   as a subset of JavaScript.
 - [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
-[A working draft of the FunctionalScript specification](./issues/lang/README.md).
+[A working draft of the FunctionalScript specification](./todo/lang/README.md).
 
 Learn more about
 
