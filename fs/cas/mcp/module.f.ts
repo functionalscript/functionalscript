@@ -185,6 +185,7 @@ const casToolRegistry =
                 }
                 const value = result[1]
                 const byteLength = Number(bitVecLength(value) / 8n)
+                const url = c.url(key)
                 // Phase 1: magic-byte sniffing for known binary formats.
                 const detectedMime = detect(value)
                 if (detectedMime !== null) {
@@ -192,7 +193,7 @@ const casToolRegistry =
                         length: byteLength,
                         mime_type: detectedMime,
                         type: 'base64',
-                        url: c.url(key),
+                        url,
                     }
                     if (r.content === true) {
                         const blob = base64Encode(value)
@@ -205,7 +206,6 @@ const casToolRegistry =
                 }
                 // Phase 2: UTF-8 validation — text if valid, octet-stream otherwise.
                 const str = fromVec(value)
-                const url = c.url(key)
                 if (str !== null) {
                     const meta: Record<string, Unknown> = {
                         length: byteLength,
