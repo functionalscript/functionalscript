@@ -832,7 +832,7 @@ site, so the classification logic is *more* readable, not hidden.
 
 ---
 
-## 66N-cas-add-file-helper. Extract `casAddFile` helper shared by CLI and MCP `add`
+## casAddFile
 
 **Priority:** P3
 **Status:** open
