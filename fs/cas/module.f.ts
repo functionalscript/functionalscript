@@ -248,8 +248,11 @@ const streamFile = (filePath: string): ListEffect<ReadBytes, IoResult<Vec>> => {
  * Both the CLI `cas add` and the MCP `add` delegate to this; the MCP layer
  * additionally deletes the source file on success.
  */
-export const casAddFile = <O extends Operation>(cas: Cas<O>) => (path: string): Effect<O | ReadBytes, IoResult<Vec>> =>
-    cas.write(streamFile(path))
+export const casAddFile = <O extends Operation>(cas: Cas<O>) => (path: string): Effect<O, IoResult<Vec>> =>
+    // streamFile produces only ReadBytes effects. TypeScript can't prove ListEffect<ReadBytes,T>
+    // ≤ ListEffect<O,T> for generic O (recursive type), but the cast is sound: every concrete
+    // caller passes a Cas<O> where ReadBytes ⊆ O (e.g. FileCasOperation).
+    cas.write(streamFile(path) as unknown as ListEffect<O, IoResult<Vec>>)
 
 /**
  * Upload pipeline: streams `fileName` from `~/cas_upload/` through `casAddFile`,
