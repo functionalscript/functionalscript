@@ -153,7 +153,13 @@ Switch back to `.js` extension if [Type Annotations](https://github.com/tc39/pro
 
 ## Last Expression is Return and Export (Compatible with JSON)
 
-The last expression is a result of a function. In case of a module, the last expression is exported.
+Currently, this JavaScript code doesn't export the object, like JSON would do
+
+```js
+{ "a": 5 }
+```
+
+**Proposal:** The last expression is a result of a function. In case of a module, the last expression is exported.
 
 ```js
 const g = () => 5
