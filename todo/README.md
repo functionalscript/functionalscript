@@ -65,9 +65,12 @@ What we plan to do. Omit if no design yet.
 - link — relationship note
 ```
 
-Done issues: set **Status: done** and remove the section in the next cleanup pass.
-Before removing, ensure design decisions are captured in the relevant
+Done issues: delete the file immediately in the same PR that fixes the issue.
+Before deleting, ensure design decisions are captured in the relevant
 `README.md` or JSDoc.
+
+Won't-fix issues: document the reason in the relevant `README.md`, in a code
+comment, or in another issue — then delete the issue file.
 
 ## Priority scale
 
