@@ -190,25 +190,25 @@ const a = f()
 
 To make FunctionalScript more compatible with the new PL, it should prohibit non `return` statements at the end of a function, or no `export` at the end of the module.
 
-### `if` and `switch` as Expressions, Pattern Matching
+### `if` as Expression and Pattern Matching
 
-In JavaScript, `if` and `switch` are statements, not expressions. The ternary `? :` is the only conditional expression, and it doesn't scale to multiple branches. In the new PL, `if` and `switch` are expressions:
+In JavaScript, `if` and `switch` are statements, not expressions. The ternary `? :` is the only conditional expression, and it doesn't scale to multiple branches. In the new PL, `if` is an expression:
 
 ```js
 const label = if (x > 0) 'positive' else if (x < 0) 'negative' else 'zero'
 ```
 
-`switch` becomes a pattern-matching expression, similar to Rust's `match` or Python's `match`/`case` ([PEP 634](https://peps.python.org/pep-0634/)). Patterns can destructure arrays and objects:
+For pattern matching, we adopt the syntax from the [TC39 pattern matching proposal](https://github.com/tc39/proposal-pattern-matching) (`match`/`when`), which avoids conflicting with the existing `switch` statement:
 
 ```js
-const area = switch (shape) {
-    { kind: 'circle', r }    => Math.PI * r * r
-    { kind: 'rect', w, h }   => w * h
-    _                        => 0
+const area = match (shape) {
+    when ({ kind: 'circle', r })  => Math.PI * r * r
+    when ({ kind: 'rect', w, h }) => w * h
+    when (_)                      => 0
 }
 ```
 
-Exhaustiveness can be checked statically when combined with type annotations (see Type Annotations section). This also composes naturally with the last-expression-as-return proposal.
+This keeps compatibility with valid JavaScript syntax and aligns with a likely future ECMAScript direction. Exhaustiveness can be checked statically when combined with type annotations (see Type Annotations section). This also composes naturally with the last-expression-as-return proposal.
 
 ### Effect Syntax Sugar
 
