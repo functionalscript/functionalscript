@@ -8,48 +8,35 @@ import { join, normalize, parse } from '../path/module.f.ts'
 import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { foldStep, forEachStep, listEffectCons, listEffectEnd, pure, type Effect, type ListEffect, type Operation } from '../effects/module.f.ts'
-import { reverse, type List } from '../types/list/module.f.ts'
 import {
     access,
     createExclusive,
-    errorExit,
     isNotFound,
-    log,
     mkdir,
     now,
     randomInt,
     readBytes,
     readdir,
-    readFile,
     rename,
     rm,
     stat,
     writeBytes,
-    writeFile,
     type Access,
-    type All,
     type CreateExclusive,
     type IoResult,
     type Mkdir,
-    type NodeProgramOptions,
     type Now,
     type RandomInt,
-    type Read,
     type ReadBytes,
     type Readdir,
-    type ReadFile,
     type Rename,
     type Rm,
     type Stat,
-    type Write,
     type WriteBytes,
-    type WriteFile
 } from '../effects/node/module.f.ts'
-import { dispatch, type Commands } from '../cli/module.f.ts'
 import { toOption } from '../types/nullable/module.f.ts'
 import { error, ok, unwrap } from '../types/result/module.f.ts'
 import { splitAt } from '../types/string/module.f.ts'
-import type { MemOp } from '../effects/memory/module.f.ts'
 
 const split2 = splitAt(2)
 
@@ -272,59 +259,3 @@ export const casUpload = (home: string) => (fileName: string): Effect<FileCasOpe
     })
 }
 
-export const commands: Commands<FileCasOperation | ReadFile | WriteFile | Write | All | MemOp | Read> = [
-    {
-        names: ['add'],
-        description: 'Store file content and print its hash',
-        handler: ({ home, args: [path, ...rest] }) => {
-            if (path === undefined || rest.length !== 0) {
-                return errorExit("'cas add' expects one parameter")
-            }
-            const c = fileCas(sha256)(home)
-            // The source is read in one `<=128 KiB` chunk; feed it as a single-item stream.
-            return readFile(path)
-                .step(v => c.write(listEffectCons(v, listEffectEnd())))
-                .step(hashResult => hashResult[0] === 'error'
-                    ? pure(1)
-                    : log(vecToCBase32(hashResult[1])).step(() => pure(0)))
-        },
-    },
-    {
-        names: ['get'],
-        description: 'Restore content by hash into a file',
-        handler: ({ home, args: [hashCBase32, path, ...rest] }) => {
-            if (hashCBase32 === undefined || path === undefined || rest.length !== 0) {
-                return errorExit("'cas get' expects two parameters")
-            }
-            const hash = cBase32ToVec(hashCBase32)
-            if (hash === null) {
-                return errorExit(`invalid hash format: ${hashCBase32}`)
-            }
-            const c = fileCas(sha256)(home)
-            // Drain the read stream, gathering chunks; an error item means the shard is absent.
-            const collect = (acc: List<Vec>) =>
-                (stream: ListEffect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation | WriteFile | Write, number> =>
-                    stream.step((node): Effect<FileCasOperation | WriteFile | Write, number> => {
-                        if (node === undefined) {
-                            return writeFile(path, msb.listToVec(reverse(acc))).step(() => pure(0))
-                        }
-                        const [item, rest2] = node
-                        if (item[0] === 'error') { return errorExit(`no such hash: ${hashCBase32}`) }
-                        return collect({ first: item[1], tail: acc })(rest2)
-                    })
-            return collect(null)(c.read(hash))
-        },
-    },
-    {
-        names: ['list'],
-        description: 'List all stored content hashes',
-        handler: ({ home }) => {
-            const c = fileCas(sha256)(home)
-            return c.list()
-                .step(forEachStep(j => log(vecToCBase32(j))))
-                .step(() => pure(0))
-        },
-    },
-]
-
-export const main = dispatch(commands)
