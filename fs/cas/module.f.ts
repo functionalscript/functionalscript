@@ -60,6 +60,7 @@ export const toPath = (key: Vec): string => {
 export type FileCasOperation =
     | ReadBytes | Mkdir | Readdir | Access | Rename | Rm
     | RandomInt | Now | CreateExclusive | WriteBytes | Stat
+    | Now | Readdir | Rm
 
 export type Cas<O extends Operation> = {
     /**
@@ -72,7 +73,7 @@ export type Cas<O extends Operation> = {
      * Consumes a chunk stream — each item `ok(chunk)` or `error` — hashing incrementally,
      * and returns the content address. An error item aborts the upload.
      */
-    readonly write: (payload: ListEffect<O, IoResult<Vec>>) => Effect<O, IoResult<Vec>>
+    readonly write: <O1 extends Operation>(payload: ListEffect<O1, IoResult<Vec>>) => Effect<O | O1, IoResult<Vec>>
     /** Lists all stored content hashes. */
     readonly list: () => Effect<O, readonly Vec[]>
 }
@@ -111,7 +112,7 @@ const deadlineOf = (name: string): number => Number(name.slice(0, name.indexOf('
  * still-live lease is left alone; the fencing rename keeps even a misjudged
  * reclaim fail-safe (worst case: that upload restarts).
  */
-const gcStage = (stageDir: string): Effect<Now | Readdir | Rm, void> =>
+const gcStage = <O extends Now | Readdir | Rm>(stageDir: string): Effect<O, void> =>
     now().step(t =>
         readdir(stageDir, {}).step(r => {
             if (r[0] === 'error') { return pure(undefined) }
@@ -152,7 +153,7 @@ export const fileCas = (sha2: Sha2) => (path: string): Cas<FileCasOperation> => 
         // shard path by a replace-`rename` (which also dedups/repairs a same-content shard),
         // and success is confirmed by a `stat` size check. GC of expired staging files is
         // piggy-backed at the start.
-        write: (payload: ListEffect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<Vec>> => {
+        write: <O1 extends Operation>(payload: ListEffect<O1, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
             // Publish the finished staging file to its content-addressed shard. The three
             // filesystem steps run best-effort with their results ignored; success is decided
             // afterward by observing the target's size (see staging-lease.md "Publish ignores
@@ -175,8 +176,8 @@ export const fileCas = (sha2: Sha2) => (path: string): Cas<FileCasOperation> => 
                 random256.step(rnd => {
                     const rndStr = vecToCBase32(rnd)
                     const loop = (state: Sha2State, offset: number, curPath: string) =>
-                        (stream: ListEffect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<Vec>> =>
-                            stream.step((node): Effect<FileCasOperation, IoResult<Vec>> => {
+                        (stream: ListEffect<O1, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> =>
+                            stream.step((node): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
                                 if (node === undefined) { return publish(state, offset, curPath) }
                                 const [item, rest] = node
                                 if (item[0] === 'error') { return fail(curPath, item[1]) }
@@ -244,16 +245,25 @@ const streamFile = (filePath: string): ListEffect<ReadBytes, IoResult<Vec>> => {
 }
 
 /**
- * Copy-via-write-then-delete upload pipeline: streams `fileName` from
- * `~/cas_upload/` through `fileCas.write` (inheriting lease GC, lease renewal,
- * dedup-on-publish, and size check), then deletes the source on success.
- * On failure the source is left in place so the upload can be retried;
- * `write` already cleans up its own partial staging file.
+ * Streams the file at `path` through `cas.write`, returning the content hash.
+ * Both the CLI `cas add` and the MCP `add` delegate to this; the MCP layer
+ * additionally deletes the source file on success.
+ */
+export const casAddFile = <O extends Operation>(cas: Cas<O>) => (path: string): Effect<O | ReadBytes, IoResult<Vec>> =>
+    // streamFile produces only ReadBytes effects. TypeScript can't prove ListEffect<ReadBytes,T>
+    // ≤ ListEffect<O,T> for generic O (recursive type), but the cast is sound: every concrete
+    // caller passes a Cas<O> where ReadBytes ⊆ O (e.g. FileCasOperation).
+    cas.write(streamFile(path))
+
+/**
+ * Upload pipeline: streams `fileName` from `~/cas_upload/` through `casAddFile`,
+ * then deletes the source on success. On failure the source is left in place so
+ * the upload can be retried; `write` already cleans up its own partial staging file.
  */
 export const casUpload = (home: string) => (fileName: string): Effect<FileCasOperation, IoResult<Vec>> => {
     const src = join(home, 'cas_upload', fileName)
     const c = fileCas(sha256)(home)
-    return c.write(streamFile(src)).step((result): Effect<FileCasOperation, IoResult<Vec>> => {
+    return casAddFile(c)(src).step((result): Effect<FileCasOperation, IoResult<Vec>> => {
         if (result[0] === 'error') { return pure(result) }
         return rm(src).step(() => pure(result))
     })

@@ -72,8 +72,8 @@ import { decode as base64Decode, encode as base64Encode } from '../../base64/mod
 import { utf8 } from '../../text/module.f.ts'
 import { detect } from '../../mime/module.f.ts'
 import { empty, length as bitVecLength, maxLength, msb, type Vec } from '../../types/bit_vec/module.f.ts'
-import { ok, error } from '../../types/result/module.f.ts'
-import { type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
+import { ok, error, type Ok } from '../../types/result/module.f.ts'
+import { rm, type IoResult, type Read, type Rm, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
@@ -81,7 +81,7 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { casUpload, type Cas, type FileCasOperation } from '../module.f.ts'
+import { casAddFile, type Cas, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
@@ -123,26 +123,23 @@ const collectRead = <O extends Operation>(stream: ListEffect<O, IoResult<Vec>>):
 
 /** Registry of all CAS tools. */
 const casToolRegistry =
-<O extends Operation>(c: Cas<O>, home: string, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|FileCasOperation>[] => {
+<O extends Operation>(c: Cas<O>, home: string, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|FileCasOperation|Rm>[] => {
     const casUploadDir = `${home}/cas_upload`
     return [
     toolEntry(
         'cas_add',
         'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to stream a file from $HOME/cas_upload/ (no size limit); omit or pass type:"text" for UTF-8 text (default).',
         casAddArgs,
-        ({ type, content }): Effect<O | FileCasOperation, ToolsCallResult> => {
-            // type:'url' — streaming move-hash-move pipeline (no size limit)
+        ({ type, content }): Effect<O | FileCasOperation | Rm, ToolsCallResult> => {
+            // type:'url' — stream the file into cas, then delete the source on success
             if (type === 'url') {
                 if (!content.startsWith(`${casUploadDir}/`) || content.includes('..')) {
                     return pure(errorResult(`cas_add type:url paths must be within ${casUploadDir}/ — got: ${content}`))
                 }
-                const fileName = content.slice(`${casUploadDir}/`.length)
-                return casUpload(home)(fileName).step(result =>
-                    pure(result[0] === 'error'
-                        ? errorResult(`upload failed: ${result[1]}`)
-                        : okResult(vecToCBase32(result[1]))
-                    )
-                )
+                return casAddFile(c)(content).step(result => {
+                    if (result[0] === 'error') { return pure(errorResult(`upload failed: ${result[1]}`)) }
+                    return rm(content).step(() => pure(okResult(vecToCBase32(result[1]))))
+                })
             }
             // type:'text' or 'base64' — resolve content to Vec, store via c.write()
             let x: Effect<O, Vec|string>
@@ -158,7 +155,7 @@ const casToolRegistry =
             return x.step(value => typeof value === 'string'
                 ? pure(errorResult(value))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(listEffectCons(ok(value), listEffectEnd())).step(hashResult => pure(hashResult[0] === 'error'
+                : c.write(listEffectCons(ok(value), listEffectEnd<never, Ok<Vec>>())).step(hashResult => pure(hashResult[0] === 'error'
                     ? errorResult('write')
                     : okResult(vecToCBase32(hashResult[1]))))
             )
@@ -260,7 +257,7 @@ export const casMcpHandlers = <O extends Operation>(
     c: Cas<O>,
     home: string,
     toUrl?: (hash: Vec) => string,
-): McpHandlers<FileCasOperation | O> =>
+): McpHandlers<FileCasOperation | Rm | O> =>
     fromRegistry(casToolRegistry(c, home, toUrl))
 
 // ── Session configuration ───────────────────────────────────────────────────────
@@ -288,6 +285,6 @@ export const casMcpServer = <O extends Operation>(
     c: Cas<O>,
     home: string,
     toUrl?: (hash: Vec) => string,
-): Effect<Read | Write | MemOp | FileCasOperation | O, void> =>
+): Effect<Read | Write | MemOp | FileCasOperation | Rm | O, void> =>
     create(uninitializedState).step(key =>
         stdioTransport(mcpStep<FileCasOperation | O>(casConfig)(casMcpHandlers(c, home, toUrl))(key)))
