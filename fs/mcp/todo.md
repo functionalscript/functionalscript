@@ -2,8 +2,8 @@
 
 ## 66D-mcp-validate-response-envelope. `mcp`: share the validate→error/ok response envelope
 
-**Priority:** P3
-**Status:** open
+- **Priority:** P3
+- **Status:** open
 
 ### Problem
 
@@ -128,8 +128,8 @@ handler from accreting a dozen copies of the same ternary.
 
 ## 665-mcp. Building blocks to describe and serve MCP
 
-**Priority:** P3
-**Status:** open
+- **Priority:** P3
+- **Status:** open
 
 ### Goal
 
@@ -236,6 +236,3 @@ server-answers-request.
 - `fs/types/rtti/module.f.ts` — schema combinators; `fs/types/rtti/ts/` is the precedent for a printer
 - `fs/effects/node/module.f.ts` — stdio (`write` / stdin) and HTTP (`createServer` / `listen`) for transports
 - [Model Context Protocol](https://modelcontextprotocol.io/) · [JSON-RPC 2.0](https://www.jsonrpc.org/specification)
-
----
-
