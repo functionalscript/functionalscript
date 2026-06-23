@@ -109,6 +109,8 @@ export default assert(emptyArrayId1, emptyArrayId2)
 
 `Object.id` returns the canonical content-hash of its argument, so two structurally equal values always yield the same id. Without this `Object.id` core function, FunctionalScript could be more like content-equatable instead of fully content-addressable.
 
+One invariant must always hold within a VM version: the same object always produces the same id. However, the concrete hash value is not guaranteed to be stable across VM versions — if a future VM switches to a different hash algorithm (e.g. for security or collision-resistance reasons), the same object would produce a different id. This means persisted ids are implicitly tied to the VM version that produced them, and cross-version id comparison requires a migration or a version-tagged id format.
+
 Function identity is a harder problem. Two functions are semantically equal if they produce the same output for every input, but proving that in general is undecidable (equivalent to the halting problem). The practical solution is structural equality: two functions are considered the same if they have the same normalized AST or bytecode. This is decidable and cheap to compute.
 
 The catch is that normalization is not fixed forever — a smarter normalizer in a future VM version may canonicalize more aggressively, causing functions that were distinct under the old normalizer to become equal. This means function hashes are implicitly versioned by the normalizer that produced them. We likely need to encode the normalizer version in the hash (or the VM version), so that old and new hashes remain meaningful and comparable across VM generations.
