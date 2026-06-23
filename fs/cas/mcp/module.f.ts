@@ -123,7 +123,7 @@ const collectRead = <O extends Operation>(stream: ListEffect<O, IoResult<Vec>>):
 
 /** Registry of all CAS tools. */
 const casToolRegistry =
-<O extends Operation>(c: Cas<O>, home: string, toUrl?: (hash: Vec) => string): readonly ToolEntry<O|FileCasOperation|Rm>[] => {
+<O extends Operation>(c: Cas<O>, home: string, toUrl: (hash: Vec) => string): readonly ToolEntry<O|FileCasOperation|Rm>[] => {
     const casUploadDir = `${home}/cas_upload`
     return [
     toolEntry(
@@ -179,12 +179,11 @@ const casToolRegistry =
                 // Phase 1: magic-byte sniffing for known binary formats.
                 const detectedMime = detect(value)
                 if (detectedMime !== null) {
-                    const url = toUrl?.(key)
                     const meta: Record<string, unknown> = {
                         length: byteLength,
                         mime_type: detectedMime,
                         type: 'base64',
-                        ...(url !== undefined && { url })
+                        url: toUrl(key),
                     }
                     if (r.content === true) {
                         const blob = base64Encode(value)
@@ -197,13 +196,13 @@ const casToolRegistry =
                 }
                 // Phase 2: UTF-8 validation — text if valid, octet-stream otherwise.
                 const str = fromVec(value)
-                const url = toUrl?.(key)
+                const url = toUrl(key)
                 if (str !== null) {
                     const meta: Record<string, unknown> = {
                         length: byteLength,
                         mime_type: 'text/plain',
                         type: 'text',
-                        ...(url !== undefined && { url })
+                        url,
                     }
                     return pure(r.content === true
                         ? okResult(JSON.stringify({ ...meta, content: str }))
@@ -214,7 +213,7 @@ const casToolRegistry =
                     length: byteLength,
                     mime_type: 'application/octet-stream',
                     type: 'base64',
-                    ...(url !== undefined && { url })
+                    url,
                 }
                 if (r.content === true) {
                     const blob = base64Encode(value)
@@ -256,7 +255,7 @@ const okResult = (text: string): ToolsCallResult =>
 export const casMcpHandlers = <O extends Operation>(
     c: Cas<O>,
     home: string,
-    toUrl?: (hash: Vec) => string,
+    toUrl: (hash: Vec) => string,
 ): McpHandlers<FileCasOperation | Rm | O> =>
     fromRegistry(casToolRegistry(c, home, toUrl))
 
@@ -284,7 +283,7 @@ export const casConfig: McpConfig = {
 export const casMcpServer = <O extends Operation>(
     c: Cas<O>,
     home: string,
-    toUrl?: (hash: Vec) => string,
+    toUrl: (hash: Vec) => string,
 ): Effect<Read | Write | MemOp | FileCasOperation | Rm | O, void> =>
     create(uninitializedState).step(key =>
         stdioTransport(mcpStep<FileCasOperation | O>(casConfig)(casMcpHandlers(c, home, toUrl))(key)))

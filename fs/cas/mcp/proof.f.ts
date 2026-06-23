@@ -135,7 +135,7 @@ const runSession = (msgs: readonly unknown[], home = '/home/user'): readonly unk
         create({} as VecMap).step(mapKey =>
             create(uninitializedState as McpSessionState).step(sessionKey => {
                 const c = memCas(mapKey)
-                const step = mcpStep<MockOp>(casConfig)(casMcpHandlers(c, home))(sessionKey)
+                const step = mcpStep<MockOp>(casConfig)(casMcpHandlers(c, home, s => ''))(sessionKey)
                 return feed(step)(msgs)
             })))
 
@@ -149,7 +149,7 @@ const runSessionVirtual =
         type UploadOp = FileCasOperation | Rename | RandomInt | ReadBytes
         const effect = create(uninitializedState as McpSessionState).step(sessionKey => {
             const c = fileCas(sha256)(home)
-            const step = mcpStep<UploadOp>(casConfig)(casMcpHandlers(c, home))(sessionKey)
+            const step = mcpStep<UploadOp>(casConfig)(casMcpHandlers(c, home, () => ''))(sessionKey)
             return feed(step)(msgs)
         })
         return virtual({ ...emptyState, root })(effect)[1]
