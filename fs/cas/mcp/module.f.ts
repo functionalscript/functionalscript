@@ -226,7 +226,7 @@ const casToolRegistry =
                         : okResult(toJson(meta))
                     )
                 }
-                const meta: Record<string, Unknown> = {
+                const meta: Meta = {
                     length: byteLength,
                     mime_type: 'application/octet-stream',
                     type: 'base64',
