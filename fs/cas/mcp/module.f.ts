@@ -145,10 +145,11 @@ const casToolRegistry =
                 if (!content.startsWith(`${casUploadDir}/`) || content.includes('..')) {
                     return pure(errorResult(`cas_add type:url paths must be within ${casUploadDir}/ — got: ${content}`))
                 }
-                return casAddFile(c)(content).step(result => {
-                    if (result[0] === 'error') { return pure(errorResult(`upload failed: ${result[1]}`)) }
-                    return rm(content).step(() => pure(okResult(vecToCBase32(result[1]))))
-                })
+                return casAddFile(c)(content).step(([t, v]) =>
+                    t === 'error'
+                        ? pure(errorResult(`upload failed: ${v}`))
+                        : rm(content).step(() => pure(okResult(vecToCBase32(v))))
+                )
             }
             // type:'text' or 'base64' — resolve content to Vec, store via c.write()
             let x: Effect<Rm, Vec|string>
