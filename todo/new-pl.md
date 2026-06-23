@@ -207,6 +207,25 @@ This has several advantages:
 - Different modules in the same program can use different type systems
 - New type systems can be published as ordinary packages without changes to the core language
 
+### Serializable AST
+
+JavaScript's `Function.prototype.toString()` exposes source text, but it is unreliable: all major engines produce incorrect output for closures that capture variables from an outer scope, because the returned string omits the surrounding context needed to reconstruct the function's meaning.
+
+The new PL exposes the AST directly as a serializable value:
+
+```js
+const add = (a, b) => a + b
+
+const ast = Function.getAst(add)   // returns a plain serializable object
+const add2 = Function.fromAst(ast) // reconstructs the function
+
+assert(add(1, 2) === add2(1, 2))
+```
+
+Because the AST is a plain data value it can be stored, transmitted, inspected, and transformed without a parser. Combined with `Object.id`, the AST of a function is also its canonical identity (see Content-Addressability). `Function.fromAst` on a different VM or a future VM version must either reproduce the same behaviour or reject the AST explicitly — it must never silently produce a different result.
+
+This also enables runtime metaprogramming and macro-like code generation without resorting to `eval` or string manipulation.
+
 ### Module Identity
 
 Because content-addressability is a core goal, module identity should be hash-based rather than path-based. A module is identified by the hash of its content, not its file path. Paths become human-friendly aliases that resolve to a hash at publish time. This enables reliable deduplication, caching, and dependency pinning without a lockfile.
@@ -277,3 +296,4 @@ const a = effect() => {
 - [ ] Specify `if`/`switch` expression semantics and pattern matching syntax
 - [ ] Design canonical semantic IR that multiple syntaxes compile to
 - [ ] Design library-based type system API (opt-in, runtime+compile-time)
+- [ ] Specify `Function.getAst`/`Function.fromAst` API and AST schema
