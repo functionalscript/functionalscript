@@ -69,7 +69,7 @@ const isWebp = (bytes: Vec): boolean =>
 /**
  * Detects the MIME type of `bytes` from its leading magic-byte signature.
  *
- * @returns the MIME type string for a recognised format, or `null` when the
+ * @returns the MIME type string for a recognized format, or `null` when the
  *   leading bytes match no known signature (including any `Vec` shorter than
  *   the signature it might otherwise match).
  */

@@ -27,6 +27,7 @@ import {
 import { validate } from '../types/rtti/validate/module.f.ts'
 import { toJsonSchema } from '../json/schema/module.f.ts'
 import type { Type } from '../types/rtti/module.f.ts'
+import type { FileCasOperation } from '../cas/module.f.ts'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 
@@ -295,12 +296,12 @@ export type McpConfig = {
  *   to the handler; invalid params → -32602.
  */
 export const mcpStep =
-    <O extends Operation>({
+    ({
         protocolVersion,
         capabilities,
         serverInfo,
     }: McpConfig) =>
-    (handlers: McpHandlers<O>) =>
+    <O extends Operation>(handlers: McpHandlers<O>) =>
     (stateKey: Key<McpSessionState>) =>
     (value: Unknown): Effect<MemOp | O, Response | null> => {
         const [t, message] = decodeRequest(value)
