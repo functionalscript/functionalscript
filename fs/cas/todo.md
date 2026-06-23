@@ -875,3 +875,30 @@ the CLI layer omits it. No other behaviour changes.
 
 ---
 
+## Move CAS CLI logic to `fs/cas/cli`
+
+**Priority:** P3
+**Status:** open
+
+### Problem
+
+All CAS logic — shared types, the CLI command handlers, and the MCP server — currently lives in `fs/cas/module.f.ts`. As the module grows (streaming upload, shared helpers, upcoming `casAddFile`), it becomes harder to navigate and the CLI and MCP concerns are entangled in a single file.
+
+### Proposal
+
+Move the CLI-specific command handlers and their supporting logic out of `fs/cas/module.f.ts` into a new `fs/cas/cli/` directory (e.g. `fs/cas/cli/module.f.ts`), mirroring the existing `fs/cas/mcp/` layout. The top-level `fs/cas/module.f.ts` retains only shared types and primitives consumed by both transports.
+
+### Tasks
+
+- [ ] Create `fs/cas/cli/module.f.ts` and move CLI command handlers into it
+- [ ] Update `fs/cas/module.f.ts` to re-export or remove the moved declarations
+- [ ] Update any imports that referenced the old location
+- [ ] Confirm `npx tsc` and `fjs t` pass after the move
+
+### Related
+
+- [i66K-cas-cli-mcp-shared-core](todo.md) — broader CLI/MCP code-sharing effort
+- `fs/cas/mcp/module.f.ts` — existing MCP sub-module (the structural model to follow)
+
+---
+
