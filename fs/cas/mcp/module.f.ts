@@ -81,9 +81,10 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { casAddFile, type Cas, type FileCas, type FileCasOperation } from '../module.f.ts'
+import { casAddFile, fileCas, type Cas, type FileCas, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
+import { sha256 } from '../../crypto/sha2/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
@@ -139,7 +140,8 @@ type Meta = {
 
 /** Registry of all CAS tools. */
 const casToolRegistry =
-(c: FileCas, home: string): readonly ToolEntry<FileCasOperation|Rm>[] => {
+(home: string): readonly ToolEntry<FileCasOperation|Rm>[] => {
+    const c = fileCas(sha256)(home)
     const casUploadDir = `${home}/cas_upload`
     return [
     toolEntry(
@@ -262,14 +264,10 @@ const okResult = (text: string): ToolsCallResult =>
 // ── Handlers ────────────────────────────────────────────────────────────────────
 
 /**
- * MCP handlers for an injected `Cas<O>` — generic in `O` exactly like `Cas`
- * itself, so the same handlers run over `Fs` (production) or memory (tests).
+ * MCP handlers for `FileCas`.
  */
-export const casMcpHandlers = (
-    c: FileCas,
-    home: string,
-): McpHandlers<FileCasOperation | Rm> =>
-    fromRegistry(casToolRegistry(c, home))
+export const casMcpHandlers = (home: string): McpHandlers<FileCasOperation | Rm> =>
+    fromRegistry(casToolRegistry(home))
 
 // ── Session configuration ───────────────────────────────────────────────────────
 
@@ -286,13 +284,12 @@ export const casConfig: McpConfig = {
 // ── Server ──────────────────────────────────────────────────────────────────────
 
 /**
- * Runs the CAS MCP server over stdio: allocates the session-state slot, builds
+ * Runs the file CAS MCP server over stdio: allocates the session-state slot, builds
  * the `mcpStep` for `c`, and drives the read → parse → dispatch → write loop
- * until stdin EOF. Generic in `O` so it composes with any `Cas<O>` backing.
+ * until stdin EOF.
  */
 export const casMcpServer = (
-    c: FileCas,
     home: string,
 ): Effect<Read | Write | MemOp | FileCasOperation | Rm, void> =>
     create(uninitializedState).step(key =>
-        stdioTransport(mcpStep(casConfig)(casMcpHandlers(c, home))(key)))
+        stdioTransport(mcpStep(casConfig)(casMcpHandlers(home))(key)))

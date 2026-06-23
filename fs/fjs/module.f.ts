@@ -11,9 +11,7 @@ import { main as ciMain } from '../ci/module.f.ts'
 import { import_, type NodeOp, type NodeProgram } from '../effects/node/module.f.ts'
 import { dispatch, type Commands } from '../cli/module.f.ts'
 import { casMcpServer } from '../cas/mcp/module.f.ts'
-import { toPath } from '../cas/module.f.ts'
 import { sha256 } from '../crypto/sha2/module.f.ts'
-import { join } from '../path/module.f.ts'
 import { pure } from '../effects/module.f.ts'
 
 const commands: Commands<NodeOp> = [
@@ -35,10 +33,7 @@ const commands: Commands<NodeOp> = [
     {
         names: ['mcp', 'm'],
         description: 'Run an MCP server over stdio exposing the CAS as tools',
-        handler: ({ home }) => {
-            const c = fileCas(sha256)(home)
-            return casMcpServer(c, home).step(() => pure(0))
-        },
+        handler: ({ home }) => casMcpServer(home).step(() => pure(0)),
     },
     {
         names: ['ci', 'i'],

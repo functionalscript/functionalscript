@@ -104,8 +104,7 @@ const runSessionVirtual =
     (msgs: readonly unknown[]): readonly unknown[] => {
         type UploadOp = FileCasOperation | Rename | RandomInt | ReadBytes
         const effect = create(uninitializedState as McpSessionState).step(sessionKey => {
-            const c = fileCas(sha256)(home)
-            const step = mcpStep(casConfig)(casMcpHandlers(c, home))(sessionKey)
+            const step = mcpStep(casConfig)(casMcpHandlers(home))(sessionKey)
             return feed(step)(msgs)
         })
         return virtual({ ...emptyState, root })(effect)[1]
