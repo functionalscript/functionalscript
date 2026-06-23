@@ -188,6 +188,25 @@ ECMAScript proposal for `BigInt.bitLen()`
 
 Switch back to `.js` extension if [Type Annotations](https://github.com/tc39/proposal-type-annotations) lands in ECMAScript.
 
+### Type System
+
+The new PL starts with type stripping: type annotations are syntax only and are erased before execution, with no built-in type checker. This keeps the core runtime simple and avoids baking in a specific type system.
+
+In the future, type checking is provided as a library — similar to the existing [RTTI module](../fs/rtti/) — that users opt into by importing it:
+
+```js
+import { check } from 'my-type-system'
+
+const add = check((a: number, b: number): number => a + b)
+```
+
+This has several advantages:
+
+- Users choose the type system that fits their needs (simple RTTI, dependent types, gradual typing, etc.)
+- The same type-checking logic runs at both compile time and runtime — no separate type-checker binary
+- Different modules in the same program can use different type systems
+- New type systems can be published as ordinary packages without changes to the core language
+
 ### Module Identity
 
 Because content-addressability is a core goal, module identity should be hash-based rather than path-based. A module is identified by the hash of its content, not its file path. Paths become human-friendly aliases that resolve to a hash at publish time. This enables reliable deduplication, caching, and dependency pinning without a lockfile.
@@ -257,3 +276,4 @@ const a = effect() => {
 - [ ] Evaluate automatic method binding semantics
 - [ ] Specify `if`/`switch` expression semantics and pattern matching syntax
 - [ ] Design canonical semantic IR that multiple syntaxes compile to
+- [ ] Design library-based type system API (opt-in, runtime+compile-time)
