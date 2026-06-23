@@ -83,39 +83,6 @@ const runMem = <T>(effect: Effect<MockOp, T>): T =>
 // (hashes), matching the `KvStore` contract that the filesystem backing fulfils.
 type VecMap = { readonly [k: string]: readonly [Vec, Vec] }
 
-const memCas = (mapKey: Key<VecMap>): Cas<MemOp> => ({
-    read: (key: Vec): ListEffect<MemOp, IoResult<Vec>> =>
-        read(mapKey).step((m): ListEffect<MemOp, IoResult<Vec>> => {
-            const entry = m[vecToCBase32(key)]
-            // Single stored chunk, then EOF; a missing entry is an explicit error item.
-            return entry === undefined
-                ? listEffectCons<MemOp, IoResult<Vec>>(resultError({ code: 'ENOENT' }), listEffectEnd())
-                : listEffectCons(resultOk(entry[1]), listEffectEnd())
-        }),
-    write: <O1 extends Operation>(payload: ListEffect<O1, IoResult<Vec>>): Effect<MemOp | O1, IoResult<Vec>> => {
-        const loop = (acc: Vec) => (stream: ListEffect<MemOp | O1, IoResult<Vec>>): Effect<MemOp | O1, IoResult<Vec>> =>
-            stream.step((node): Effect<MemOp | O1, IoResult<Vec>> => {
-                if (node === undefined) {
-                    const key = computeSync(sha256)([acc])
-                    return read(mapKey)
-                        .step(m => write(mapKey, { ...m, [vecToCBase32(key)]: [key, acc] }))
-                        .step(() => pure(resultOk(key)))
-                }
-                const [item, rest] = node
-                if (item[0] === 'error') { return pure(item) }
-                // Mirror the production guard: a blob larger than `maxLength` bits would
-                // overflow a single `Vec`, so surface an error item instead of corrupting.
-                if (length(acc) + length(item[1]) > maxLength) {
-                    return pure(resultError(`cas blob exceeds maximum vector length of ${maxLength} bits`))
-                }
-                return loop(msb.concat(acc)(item[1]))(rest)
-            })
-        return loop(empty)(payload)
-    },
-    list: (): Effect<MemOp, readonly Vec[]> =>
-        read(mapKey).step(m => pure(Object.values(m).map(([k]) => k))),
-})
-
 // ── Session driver ──────────────────────────────────────────────────────────────
 
 // Feeds each message to `step` in order, collecting every response.
@@ -129,17 +96,6 @@ const feed = <O extends Operation>(
     return go(0, [])
 }
 
-// Runs a full session over a fresh in-memory CAS, returning all responses.
-const runSession = (msgs: readonly unknown[], home = '/home/user'): readonly unknown[] =>
-    runMem(
-        create({} as VecMap).step(mapKey =>
-            create(uninitializedState as McpSessionState).step(sessionKey => {
-                const c = memCas(mapKey)
-                const step = mcpStep<MockOp>(casConfig)(casMcpHandlers(c, home, s => ''))(sessionKey)
-                return feed(step)(msgs)
-            })))
-
-
 // Runs a session backed by the virtual node runner (for cas_upload which uses
 // Rename/ReadBytes/RandomInt/Mkdir). Uses fileKvStore so upload and get share
 // the same filesystem-backed CAS.
@@ -149,7 +105,7 @@ const runSessionVirtual =
         type UploadOp = FileCasOperation | Rename | RandomInt | ReadBytes
         const effect = create(uninitializedState as McpSessionState).step(sessionKey => {
             const c = fileCas(sha256)(home)
-            const step = mcpStep<UploadOp>(casConfig)(casMcpHandlers(c, home, () => ''))(sessionKey)
+            const step = mcpStep(casConfig)(casMcpHandlers(c, home))(sessionKey)
             return feed(step)(msgs)
         })
         return virtual({ ...emptyState, root })(effect)[1]
@@ -169,7 +125,7 @@ const list = (id: number) => ({ jsonrpc: '2.0', method: 'tools/list', id })
 
 // Runs `init`, `notifications/initialized`, then `msgs`; returns the tool responses.
 const session = (...msgs: readonly unknown[]): readonly unknown[] =>
-    runSession([init, initialized, ...msgs]).slice(2)
+    runSessionVirtual({}, '/home/user')([init, initialized, ...msgs]).slice(2)
 
 const resultOf = (resp: unknown): ToolsCallResult =>
     (resp as { readonly result: ToolsCallResult }).result
@@ -193,7 +149,7 @@ const pngSample = base64Encode(
 
 export const proof = {
     toolsListAdvertisesThreeTools: () => {
-        const [resp] = runSession([init, initialized, list(2)]).slice(2)
+        const [resp] = runSessionVirtual({})([init, initialized, list(2)]).slice(2)
         const tools = (resp as { result: { tools: readonly { name: string }[] } }).result.tools
         assertEq(tools.length, 3)
         assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list')

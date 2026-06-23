@@ -122,10 +122,14 @@ const gcStage = <O extends Now | Readdir | Rm>(stageDir: string): Effect<O, void
                 rm(join(stageDir, name)).step(() => pure(undefined)))(expired)
         }))
 
+export type FileCas = Cas<FileCasOperation> & {
+    url: (v: Vec) => string
+}
+
 /**
  * Builds a content-addressable storage facade from a SHA-2 implementation.
  */
-export const fileCas = (sha2: Sha2) => (path: string): Cas<FileCasOperation> => {
+export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
     const storePrefix = join(path, prefix)
     const normalizedStorePrefix = normalize(storePrefix)
     const stageDir = join(storePrefix, stageRel)
@@ -222,6 +226,8 @@ export const fileCas = (sha2: Sha2) => (path: string): Cas<FileCasOperation> => 
                             ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
                             : null))))
             }),
+        url: (hash: Vec) =>
+            join(path, toPath(hash))
     }
 }
 

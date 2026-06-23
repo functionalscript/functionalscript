@@ -64,7 +64,7 @@
  * @module
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
-import type { Unknown } from '../../json/module.f.ts'
+import { stringify, type Unknown } from '../../json/module.f.ts'
 import { listEffectCons, listEffectEnd, pure, type Effect, type ListEffect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
@@ -81,8 +81,9 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { casAddFile, type Cas, type FileCasOperation } from '../module.f.ts'
+import { casAddFile, type Cas, type FileCas, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
+import { identity } from '../../types/function/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
@@ -127,16 +128,18 @@ const collectRead = <O extends Operation>(stream: ListEffect<O, IoResult<Vec>>):
 
 // ── Tool registry ──────────────────────────────────────────────────────────────
 
+const toJson = stringify(identity)
+
 /** Registry of all CAS tools. */
 const casToolRegistry =
-<O extends Operation>(c: Cas<O>, home: string, toUrl: (hash: Vec) => string): readonly ToolEntry<O|FileCasOperation|Rm>[] => {
+(c: FileCas, home: string): readonly ToolEntry<FileCasOperation|Rm>[] => {
     const casUploadDir = `${home}/cas_upload`
     return [
     toolEntry(
         'cas_add',
         'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to stream a file from $HOME/cas_upload/ (no size limit); omit or pass type:"text" for UTF-8 text (default).',
         casAddArgs,
-        ({ type, content }): Effect<O | FileCasOperation | Rm, ToolsCallResult> => {
+        ({ type, content }): Effect<FileCasOperation | Rm, ToolsCallResult> => {
             // type:'url' — stream the file into cas, then delete the source on success
             if (type === 'url') {
                 if (!content.startsWith(`${casUploadDir}/`) || content.includes('..')) {
@@ -148,7 +151,7 @@ const casToolRegistry =
                 })
             }
             // type:'text' or 'base64' — resolve content to Vec, store via c.write()
-            let x: Effect<O, Vec|string>
+            let x: Effect<Rm, Vec|string>
             switch(type) {
                 case 'base64':
                     const value = base64Decode(content)
@@ -185,37 +188,37 @@ const casToolRegistry =
                 // Phase 1: magic-byte sniffing for known binary formats.
                 const detectedMime = detect(value)
                 if (detectedMime !== null) {
-                    const meta: Record<string, unknown> = {
+                    const meta: Record<string, Unknown> = {
                         length: byteLength,
                         mime_type: detectedMime,
                         type: 'base64',
-                        url: toUrl(key),
+                        url: c.url(key),
                     }
                     if (r.content === true) {
                         const blob = base64Encode(value)
                         return pure(blob === null
                             ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                            : okResult(JSON.stringify({ ...meta, content: blob }))
+                            : okResult(toJson({ ...meta, content: blob }))
                         )
                     }
-                    return pure(okResult(JSON.stringify(meta)))
+                    return pure(okResult(toJson(meta)))
                 }
                 // Phase 2: UTF-8 validation — text if valid, octet-stream otherwise.
                 const str = fromVec(value)
-                const url = toUrl(key)
+                const url = c.url(key)
                 if (str !== null) {
-                    const meta: Record<string, unknown> = {
+                    const meta: Record<string, Unknown> = {
                         length: byteLength,
                         mime_type: 'text/plain',
                         type: 'text',
                         url,
                     }
                     return pure(r.content === true
-                        ? okResult(JSON.stringify({ ...meta, content: str }))
-                        : okResult(JSON.stringify(meta))
+                        ? okResult(toJson({ ...meta, content: str }))
+                        : okResult(toJson(meta))
                     )
                 }
-                const meta: Record<string, unknown> = {
+                const meta: Record<string, Unknown> = {
                     length: byteLength,
                     mime_type: 'application/octet-stream',
                     type: 'base64',
@@ -225,10 +228,10 @@ const casToolRegistry =
                     const blob = base64Encode(value)
                     return pure(blob === null
                         ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                        : okResult(JSON.stringify({ ...meta, content: blob }))
+                        : okResult(toJson({ ...meta, content: blob }))
                     )
                 }
-                return pure(okResult(JSON.stringify(meta)))
+                return pure(okResult(toJson(meta)))
             })
         },
     ),
@@ -259,11 +262,10 @@ const okResult = (text: string): ToolsCallResult =>
  * `url` is omitted.
  */
 export const casMcpHandlers = <O extends Operation>(
-    c: Cas<O>,
+    c: FileCas,
     home: string,
-    toUrl: (hash: Vec) => string,
 ): McpHandlers<FileCasOperation | Rm | O> =>
-    fromRegistry(casToolRegistry(c, home, toUrl))
+    fromRegistry(casToolRegistry(c, home))
 
 // ── Session configuration ───────────────────────────────────────────────────────
 
@@ -286,10 +288,10 @@ export const casConfig: McpConfig = {
  *
  * When `toUrl` is provided, `cas_get` includes the blob's filesystem URL.
  */
-export const casMcpServer = <O extends Operation>(
-    c: Cas<O>,
+export const casMcpServer = (
+    c: FileCas,
     home: string,
     toUrl: (hash: Vec) => string,
-): Effect<Read | Write | MemOp | FileCasOperation | Rm | O, void> =>
+): Effect<Read | Write | MemOp | FileCasOperation | Rm | FileCasOperation, void> =>
     create(uninitializedState).step(key =>
-        stdioTransport(mcpStep<FileCasOperation | O>(casConfig)(casMcpHandlers(c, home, toUrl))(key)))
+        stdioTransport(mcpStep(casConfig)(casMcpHandlers(c, home))(key)))
