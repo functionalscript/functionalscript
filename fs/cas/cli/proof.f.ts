@@ -55,17 +55,20 @@ const testAddBigFile = (): Effect<TestOp, void> =>
 
 // Test adding and retrieving a big file
 const testAddAndGetBigFile = (): Effect<TestOp, void> =>
-    mkdir(testDir, { recursive: true }).step(() => {
+    mkdir(testDir, { recursive: true })
+    .step(() => {
         const bigContent = createBigFileContent()
         const bigFilePath = `${testDir}/big-file.bin`
 
-        return writeFile(bigFilePath, bigContent).step(writeRes => {
+        return writeFile(bigFilePath, bigContent)
+        .step(writeRes => {
             if (writeRes[0] === 'error') {
                 throw new Error(`Failed to write test file: ${writeRes[1]}`)
             }
 
             const cas = fileCas(sha256)(testDir)
-            return casAddFile(cas)(bigFilePath).step(addRes => {
+            return casAddFile(cas)(bigFilePath)
+            .step(addRes => {
                 if (addRes[0] === 'error') {
                     throw new Error(`Failed to add file to CAS: ${addRes[1]}`)
                 }
