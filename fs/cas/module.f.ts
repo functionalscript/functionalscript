@@ -138,14 +138,14 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
             const p = join(path, toPath(hash))
             const loop = (offset: number): ListEffect<FileCasOperation, IoResult<Vec>> =>
                 readBytes(p, offset, chunkBytes).step((result): ListEffect<FileCasOperation, IoResult<Vec>> => {
+                    const [t, v] = result
                     // A missing shard or read error is an explicit error item, never EOF.
-                    if (result[0] === 'error') { return listEffectCons<FileCasOperation, IoResult<Vec>>(result, listEffectEnd()) }
-                    const chunk = result[1]
+                    if (t === 'error') { return listEffectCons<FileCasOperation, IoResult<Vec>>(result, listEffectEnd()) }
                     // End the stream only on an empty read; every non-empty read — including a
                     // final short (`< CHUNK_BYTES`) chunk — is emitted as an `ok` item.
-                    return length(chunk) === 0n
+                    return length(v) === 0n
                         ? listEffectEnd()
-                        : listEffectCons(ok(chunk), loop(offset + chunkBytes))
+                        : listEffectCons(ok(v), loop(offset + chunkBytes))
                 })
             return loop(0)
         },
