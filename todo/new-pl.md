@@ -268,9 +268,9 @@ This keeps compatibility with valid JavaScript syntax and aligns with a likely f
 
 ### Error Handling
 
-There is no `try`/`catch` in the new PL, just as there is none in FunctionalScript. Following Rust's philosophy, `throw` is equivalent to a panic — an unrecoverable programmer error, not a control-flow mechanism. Recoverable errors are represented as values, using a result type (e.g. `{ ok: true, value } | { ok: false, error }`), pattern matching, or a library-based error type.
+There is no `try`/`catch` in the new PL, just as there is none in FunctionalScript. This is a deliberate design choice, not a compatibility constraint — `try`/`catch` could be added without breaking changes, but we choose not to. Following Rust's philosophy, `throw` is equivalent to a panic — an unrecoverable programmer error, not a control-flow mechanism. Recoverable errors are represented as values, using a result type (e.g. `{ ok: true, value } | { ok: false, error }`), pattern matching, or a library-based error type.
 
-This keeps the language purely functional: functions either return a value or panic; there is no hidden exception channel that can silently escape a call.
+The motivation is to keep functions purely functional: a function either returns a value or panics; there is no hidden exception channel that can silently escape a call. This makes control flow explicit and programs easier to reason about.
 
 ### Effect Syntax Sugar
 
