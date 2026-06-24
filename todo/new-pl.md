@@ -266,6 +266,12 @@ const area = match (shape) {
 
 This keeps compatibility with valid JavaScript syntax and aligns with a likely future ECMAScript direction. Exhaustiveness can be checked statically when combined with type annotations (see Type Annotations section). This also composes naturally with the last-expression-as-return proposal.
 
+### Error Handling
+
+There is no `try`/`catch` in the new PL, just as there is none in FunctionalScript. Following Rust's philosophy, `throw` is equivalent to a panic — an unrecoverable programmer error, not a control-flow mechanism. Recoverable errors are represented as values, using a result type (e.g. `{ ok: true, value } | { ok: false, error }`), pattern matching, or a library-based error type.
+
+This keeps the language purely functional: functions either return a value or panic; there is no hidden exception channel that can silently escape a call.
+
 ### Effect Syntax Sugar
 
 Algebraic effects generalize `async`/`await`, exceptions, and other control-flow abstractions into a single declarative mechanism. The proposed syntax mirrors `async`/`await` but is not tied to a specific effect type:
