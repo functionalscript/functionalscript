@@ -34,7 +34,7 @@ Even if we don't always like the syntax, the semantics of these basic types make
 
 ### Data JavaScript
 
-FunctionalScript already defines a subset of JavaScript which is stricter, has no side effects and supports all JSON types. We also would like to make it serializable, which makes it a kind of ideal PL for handling data and communications, including as data for AI agents and models. Example:
+FunctionalScript already defines a subset of JavaScript, has no side effects, and supports all JSON types. We also would like to make it serializable, which makes it a kind of ideal PL for handling data and communications, including as data for AI agents and models. Example:
 
 ```js
 export const hello = "Hello, world!"
@@ -63,7 +63,7 @@ export default {
 
 You just need to add `export default` at the beginning of your JSON.
 
-Moving further, we will use FunctionalScript as a foundation to build our programming language. A key design constraint is that most existing FunctionalScript modules should be reusable in the new language with little or no modification. This gives us a large library from day one and means the new PL can be validated incrementally against real code rather than toy examples.
+Moving further, we will use FunctionalScript as a foundation to build our programming language. A key design constraint is that most existing FunctionalScript modules should be reusable in the new language with little or no modification. This gives us a large library from day one and means the new PL can be validated incrementally against real code.
 
 ## Multiple Syntaxes
 
@@ -111,7 +111,7 @@ export default assert(emptyArrayId1, emptyArrayId2)
 
 One invariant must always hold within a VM version: the same object always produces the same id. However, the concrete hash value is not guaranteed to be stable across VM versions — if a future VM switches to a different hash algorithm (e.g. for security or collision-resistance reasons), the same object would produce a different id. This means persisted ids are implicitly tied to the VM version that produced them, and cross-version id comparison requires a migration or a version-tagged id format.
 
-Function identity is a harder problem. Two functions are semantically equal if they produce the same output for every input, but proving that in general is undecidable (equivalent to the halting problem). The practical solution is structural equality: two functions are considered the same if they have the same normalized AST or bytecode. This is decidable and cheap to compute.
+Function identity is a harder problem. Two functions are semantically equal if they produce the same output for every possible input, but proving that in general is undecidable (equivalent to the halting problem, see also [Rice's theorem](https://en.wikipedia.org/wiki/Rice's_theorem)). The practical solution is structural equality: two functions are considered the same if they have the same normalized AST or bytecode. This is decidable and cheap to compute.
 
 The catch is that normalization is not fixed forever — a smarter normalizer in a future VM version may canonicalize more aggressively, causing functions that were distinct under the old normalizer to become equal. This means function hashes are implicitly versioned by the normalizer that produced them. We likely need to encode the normalizer version in the hash (or the VM version), so that old and new hashes remain meaningful and comparable across VM generations.
 
@@ -132,7 +132,7 @@ Current implementation of a `string` in JavaScript is UTF-16. While we can have 
 
 ### Separation Between Arrays and Objects
 
-Arrays shouldn't be a subset of objects. It should be a separate type.
+An array type shouldn't be derived from an object type. It should be a separate type.
 
 ```js
 assert(typeof([]) === 'array') // I wish
@@ -222,7 +222,7 @@ const add2 = Function.fromAst(ast) // reconstructs the function
 assert(add(1, 2) === add2(1, 2))
 ```
 
-Because the AST is a plain data value it can be stored, transmitted, inspected, and transformed without a parser. Combined with `Object.id`, the AST of a function is also its canonical identity (see Content-Addressability). `Function.fromAst` on a different VM or a future VM version must either reproduce the same behaviour or reject the AST explicitly — it must never silently produce a different result.
+Because the AST is a plain data value (most likely JSON), it can be stored, transmitted, inspected, and transformed without a parser. Combined with `Object.id`, the AST of a function is also its canonical identity (see Content-Addressability). `Function.fromAst` on a different VM or a future VM version must either reproduce the same behavior or reject the AST explicitly — it must never silently produce a different result.
 
 This also enables runtime metaprogramming and macro-like code generation without resorting to `eval` or string manipulation.
 
