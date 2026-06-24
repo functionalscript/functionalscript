@@ -1,7 +1,7 @@
 import { casUpload, fileCas, type FileCasOperation } from '../module.f.ts'
 import { commands } from './module.f.ts'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.ts'
-import { length, maxLength, msb, vec, vec8 } from '../../types/bit_vec/module.f.ts'
+import { isVec, length, maxLength, maxLengthBytes, msb, vec, vec8 } from '../../types/bit_vec/module.f.ts'
 import type { Vec } from '../../types/bit_vec/module.f.ts'
 import { listEffectCons, listEffectEnd, pure, type Effect, type ListEffect } from '../../effects/module.f.ts'
 import { error, ok, type Ok } from '../../types/result/module.f.ts'
@@ -9,6 +9,8 @@ import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/no
 import { access, type IoResult, type NodeProgramOptions } from '../../effects/node/module.f.ts'
 import { join } from '../../path/module.f.ts'
 import { dispatch } from '../../cli/module.f.ts'
+import { vecToCBase32 } from '../../cbase32/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.ts'
 
 const makeOptions = (args: readonly string[]): NodeProgramOptions =>
     ({ ...defaultNodeProgramOptions, args })
@@ -22,6 +24,27 @@ export const proof = {
         const [finalState, exitCode] = virtual(state)(main(makeOptions(['add', 'myfile'])))
         if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
         if (finalState.stdout.length === 0) { throw 'expected hash in stdout' }
+    },
+    mainAddGetBig: () => {
+        const chunk = vec(maxLength)(1n)
+        const content = [chunk, chunk]
+        const state = { ...emptyState, root: { myfile: content } }
+        //
+        const [finalState, exitCode] = virtual(state)(main(makeOptions(['add', 'myfile'])))
+        assertEq(exitCode, 0)
+        const stdout = finalState.stdout
+        assert(stdout.length !== 0)
+        //
+        const h = computeSync(sha256)(content)
+        const hs = vecToCBase32(h)
+        assertEq(stdout, `${hs}\n`)
+        //
+        const [finalState2, exitCode2] = virtual(finalState)(main(makeOptions(['get', hs, 'myfile2'])))
+        assertEq(exitCode2, 0, 'e2')
+        const { myfile2 } = finalState2.root
+        assert(myfile2 instanceof Array)
+        const h2 = computeSync(sha256)(myfile2)
+        assertEq(h, h2, 'h')
     },
     mainAddWrongArgs: () => {
         const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['add'])))

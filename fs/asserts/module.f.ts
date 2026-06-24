@@ -4,7 +4,7 @@ export const assert: (v: boolean, msg?: unknown) => asserts v = (v, msg = 'asser
     if (!v) throw msg
 }
 
-export const assertEq = <T>(a: T, b: T): void =>
-    assert(a === b, [a, b])
+export const assertEq = <T>(a: T, b: T, msg?: unknown): void =>
+    assert(a === b, [a, b, msg])
 
 export type Assert<T extends true> = T
