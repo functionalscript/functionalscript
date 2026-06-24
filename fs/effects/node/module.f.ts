@@ -212,7 +212,7 @@ const writeLoop = (path: string) => {
                 return pure(resultError(v))
             }
             const lenV = length(v)
-            if ((lenV & 3n) !== 0n) {
+            if ((lenV & 0b111n) !== 0n) {
                 return pure(resultError('invalid buffer size'))
             }
             return writeBytes(path, offset, v)

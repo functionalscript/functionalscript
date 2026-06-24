@@ -4,17 +4,13 @@
  * @module
  */
 import { sha256 } from '../../crypto/sha2/module.f.ts'
-import { msb, type Vec } from '../../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
-import { forEachStep, pure, type Effect, type ListEffect } from '../../effects/module.f.ts'
-import { reverse, type List } from '../../types/list/module.f.ts'
+import { forEachStep, pure } from '../../effects/module.f.ts'
 import {
     errorExit,
     log,
-    writeFile,
     writeFromStream,
     type All,
-    type IoResult,
     type Read,
     type Write,
     type WriteFile
