@@ -12,6 +12,7 @@ import {
     errorExit,
     log,
     writeFile,
+    writeFromStream,
     type All,
     type IoResult,
     type Read,
@@ -50,18 +51,8 @@ export const commands: Commands<FileCasOperation | WriteFile | Write | All | Mem
             }
             const c = fileCas(sha256)(home)
             const x = c.read(hash)
-            // Drain the read stream, gathering chunks; an error item means the shard is absent.
-            const collect = (acc: List<Vec>) =>
-                (stream: ListEffect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation | WriteFile | Write, number> =>
-                    stream.step((node): Effect<FileCasOperation | WriteFile | Write, number> => {
-                        if (node === undefined) {
-                            return writeFile(path, msb.listToVec(reverse(acc))).step(() => pure(0))
-                        }
-                        const [item, rest2] = node
-                        if (item[0] === 'error') { return errorExit(`no such hash: ${hashCBase32}`) }
-                        return collect({ first: item[1], tail: acc })(rest2)
-                    })
-            return collect(null)(x)
+            return writeFromStream(path, x)
+                .step(([r, v]) => r === 'error' ? errorExit(`e: ` + String(v)) : pure(0))
         },
     },
     {

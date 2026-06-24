@@ -37,7 +37,7 @@ export const proof = {
         //
         // console.log('hello2')
         const [finalState2, exitCode2] = virtual(finalState)(main(makeOptions(['get', hs, 'myfile2'])))
-        // console.log('hello3')
+        console.log(finalState2.stderr)
         assertEq(exitCode2, 0, 'e2')
         const { myfile2 } = finalState2.root
         assert(myfile2 instanceof Array)

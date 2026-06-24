@@ -211,13 +211,17 @@ const writeLoop = (path: string) => {
             if (t === 'error') {
                 return pure(resultError(v))
             }
+            const lenV = length(v)
+            if ((lenV & 3n) !== 0n) {
+                return pure(resultError('invalid buffer size'))
+            }
             return writeBytes(path, offset, v)
             .step((r): Effect<O | WriteBytes, IoResult<void>> => {
                 if (r[0] === 'error') {
                     return pure(r)
                 }
                 // todo: use `next`.
-                return f(offset + Number(length(v)), next)
+                return f(offset + Number(lenV >> 3n), next)
             })
         })
     return f
