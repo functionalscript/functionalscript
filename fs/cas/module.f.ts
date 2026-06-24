@@ -114,9 +114,9 @@ const deadlineOf = (name: string): number => Number(name.slice(0, name.indexOf('
  */
 const gcStage = <O extends Now | Readdir | Rm>(stageDir: string): Effect<O, void> =>
     now().step(t =>
-        readdir(stageDir, {}).step(r => {
-            if (r[0] === 'error') { return pure(undefined) }
-            const expired = r[1].flatMap(d =>
+        readdir(stageDir, {}).step(([k, v]) => {
+            if (k === 'error') { return pure(undefined) }
+            const expired = v.flatMap(d =>
                 d.isFile && deadlineOf(d.name) < t ? [d.name] : [])
             return forEachStep((name: string) =>
                 rm(join(stageDir, name)).step(() => pure(undefined)))(expired)
@@ -193,9 +193,9 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                                     // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
                                     return now().step(t => {
                                         const next = join(stageDir, stageName(t + leaseDelta, rndStr))
-                                        return rename(curPath, next).step(rnResult =>
-                                            rnResult[0] === 'error'
-                                                ? fail(curPath, rnResult[1])
+                                        return rename(curPath, next).step(([t, v]) =>
+                                            t === 'error'
+                                                ? fail(curPath, v)
                                                 : loop(newState, newOffset, next)(rest))
                                     })
                                 })

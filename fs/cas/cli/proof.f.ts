@@ -29,12 +29,15 @@ export const proof = {
         assertEq(exitCode, 0)
         const stdout = finalState.stdout
         assert(stdout.length !== 0)
+        // console.log('hello')
         //
         const h = computeSync(sha256)(content)
         const hs = vecToCBase32(h)
         assertEq(stdout, `${hs}\n`)
         //
+        // console.log('hello2')
         const [finalState2, exitCode2] = virtual(finalState)(main(makeOptions(['get', hs, 'myfile2'])))
+        // console.log('hello3')
         assertEq(exitCode2, 0, 'e2')
         const { myfile2 } = finalState2.root
         assert(myfile2 instanceof Array)

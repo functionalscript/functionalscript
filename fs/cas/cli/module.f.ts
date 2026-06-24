@@ -49,6 +49,7 @@ export const commands: Commands<FileCasOperation | WriteFile | Write | All | Mem
                 return errorExit(`invalid hash format: ${hashCBase32}`)
             }
             const c = fileCas(sha256)(home)
+            const x = c.read(hash)
             // Drain the read stream, gathering chunks; an error item means the shard is absent.
             const collect = (acc: List<Vec>) =>
                 (stream: ListEffect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation | WriteFile | Write, number> =>
@@ -60,7 +61,7 @@ export const commands: Commands<FileCasOperation | WriteFile | Write | All | Mem
                         if (item[0] === 'error') { return errorExit(`no such hash: ${hashCBase32}`) }
                         return collect({ first: item[1], tail: acc })(rest2)
                     })
-            return collect(null)(c.read(hash))
+            return collect(null)(x)
         },
     },
     {
