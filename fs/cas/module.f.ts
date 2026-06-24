@@ -210,8 +210,8 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                         .step(t0 => {
                             const path0 = join(stageDir, stageName(t0 + leaseDelta, rndStr))
                             return createExclusive(path0)
-                            .step(ce => ce[0] === 'error'
-                                ? pure(error(ce[1]))
+                            .step(([c, e]) => c === 'error'
+                                ? pure(error(e))
                                 : loop(sha2.init, 0, path0)(payload)
                             )
                         }))
