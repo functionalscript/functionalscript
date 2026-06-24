@@ -137,7 +137,8 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
         read: (hash: Vec): ListEffect<FileCasOperation, IoResult<Vec>> => {
             const p = join(path, toPath(hash))
             const loop = (offset: number): ListEffect<FileCasOperation, IoResult<Vec>> =>
-                readBytes(p, offset, chunkBytes).step((result): ListEffect<FileCasOperation, IoResult<Vec>> => {
+                readBytes(p, offset, chunkBytes)
+                .step((result): ListEffect<FileCasOperation, IoResult<Vec>> => {
                     const [t, v] = result
                     // A missing shard or read error is an explicit error item, never EOF.
                     if (t === 'error') { return listEffectCons<FileCasOperation, IoResult<Vec>>(result, listEffectEnd()) }
@@ -181,17 +182,20 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                     const rndStr = vecToCBase32(rnd)
                     const loop = (state: Sha2State, offset: number, curPath: string) =>
                         (stream: ListEffect<O1, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> =>
-                            stream.step((node): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
+                            stream
+                            .step((node): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
                                 if (node === undefined) { return publish(state, offset, curPath) }
                                 const [item, rest] = node
                                 if (item[0] === 'error') { return fail(curPath, item[1]) }
                                 const chunk = item[1]
-                                return writeBytes(curPath, offset, chunk).step(wb => {
+                                return writeBytes(curPath, offset, chunk)
+                                .step(wb => {
                                     if (wb[0] === 'error') { return fail(curPath, wb[1]) }
                                     const newState = sha2.append(chunk)(state)
                                     const newOffset = offset + Number(length(chunk) / 8n)
                                     // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
-                                    return now().step(t => {
+                                    return now()
+                                    .step(t => {
                                         const next = join(stageDir, stageName(t + leaseDelta, rndStr))
                                         return rename(curPath, next).step(([t, v]) =>
                                             t === 'error'
@@ -200,13 +204,16 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                                     })
                                 })
                             })
-                    return mkdir(stageDir, { recursive: true }).step(() =>
-                        now().step(t0 => {
+                    return mkdir(stageDir, { recursive: true })
+                    .step(() =>
+                        now()
+                        .step(t0 => {
                             const path0 = join(stageDir, stageName(t0 + leaseDelta, rndStr))
-                            return createExclusive(path0).step(ce =>
-                                ce[0] === 'error'
-                                    ? pure(error(ce[1]))
-                                    : loop(sha2.init, 0, path0)(payload))
+                            return createExclusive(path0)
+                            .step(ce => ce[0] === 'error'
+                                ? pure(error(ce[1]))
+                                : loop(sha2.init, 0, path0)(payload)
+                            )
                         }))
                 }))
         },
