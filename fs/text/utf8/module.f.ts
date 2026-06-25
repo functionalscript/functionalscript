@@ -9,6 +9,7 @@ import type { Array1, Array2, Array3 } from '../../types/array/module.f.ts'
 import { decoder, errorMask } from '../code_point/module.f.ts'
 import { msb, u8List, length, type Vec } from '../../types/bit_vec/module.f.ts'
 import { codePointListToString } from '../utf16/module.f.ts'
+import { contains } from '../../types/range/module.f.ts'
 
 /**
  * An unsigned 8-bit integer, represents a single byte.
@@ -166,8 +167,8 @@ const utf8StateToError = (state: Utf8NonEmptyState): I32 => {
                 contPayload(s2) + 0b1000_0000_0000_0000
             break
         }
-        default:
-            throw 'invalid state'
+        //default:
+        //    throw 'invalid state'
     }
     return x | errorMask
 }
@@ -250,18 +251,22 @@ const utf8EofToCodePointOp = (
 export const toCodePointList: (input: List<U8>) => List<I32> =
     decoder(utf8ByteToCodePointOp, utf8EofToCodePointOp)
 
+const bigRange = contains([0, 0x10FFFF])
+
+const smallRange = contains([0xD800, 0xDFFF])
+
+const isValidCodePoint = (c: number) => bigRange(c) && !smallRange(c)
+
 /**
  * Returns the decoded string if `v` is valid UTF-8, or `null` otherwise.
  * Rejects non-octet Vecs, invalid byte sequences, surrogates, and out-of-range
  * code points.
  */
 export const fromVec = (v: Vec): string | null => {
-    if (length(v) % 8n !== 0n) { return null }
+    if ((length(v) & 0b111n) !== 0n) { return null }
     const arr = toArray(toCodePointList(u8List(msb)(v)))
     for (const cp of arr) {
-        if (cp < 0) { return null }
-        if (cp > 0x10FFFF) { return null }
-        if (cp >= 0xD800 && cp <= 0xDFFF) { return null }
+        if (!isValidCodePoint(cp)) { return null }
     }
     return codePointListToString(arr)
 }
