@@ -146,7 +146,7 @@ export const fromCodePointList: (input: List<number>) => Thunk<U8> = flatMap(
  * @param state - A non-empty UTF-8 decoding state.
  * @returns An I32 error code derived from the invalid UTF-8 state.
  */
-const utf8StateToError = (state: Utf8NonEmptyState): I32 => {
+export const utf8StateToError = (state: Utf8NonEmptyState): I32 => {
     let x
     switch (state.length) {
         case 1: {
@@ -235,7 +235,7 @@ const utf8ByteToCodePointOp: StateScan<number, Utf8State, List<I32>> = (byte, st
  *   - A list of decoded Unicode code points or error codes.
  *   - The reset UTF-8 state (`null`).
  */
-const utf8EofToCodePointOp = (
+export const utf8EofToCodePointOp = (
     state: Utf8State,
 ): readonly [List<I32>, Utf8State] => [
     state === null ? null : [utf8StateToError(state)],
@@ -255,7 +255,7 @@ const bigRange = contains([0, 0x10FFFF])
 
 const smallRange = contains([0xD800, 0xDFFF])
 
-const isValidCodePoint = (c: number) => bigRange(c) && !smallRange(c)
+export const isValidCodePoint = (c: number) => bigRange(c) && !smallRange(c)
 
 /**
  * Returns the decoded string if `v` is valid UTF-8, or `null` otherwise.

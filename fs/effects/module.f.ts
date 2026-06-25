@@ -4,6 +4,9 @@
  * @module
  */
 
+import { todo } from '../asserts/module.f.ts'
+import { utf8EofToCodePointOp, utf8StateToError, type Utf8State } from '../text/utf8/module.f.ts'
+import type { Vec } from '../types/bit_vec/module.f.ts'
 import { fold, type List } from '../types/list/module.f.ts'
 
 export type Operation =
@@ -169,4 +172,19 @@ export const listEffectEnd = <O extends Operation, T>(): ListEffect<O, T> => ({
 export const listEffectCons = <O extends Operation, T>(head: T, tail: ListEffect<O, T>): ListEffect<O, T> => {
     const node: readonly[T, ListEffect<O, T>] = [head, tail]
     return { value: [node], step: f => f(node) }
+}
+
+export const codePointList =
+<O extends Operation>(list: ListEffect<O, Vec>): ListEffect<O, number> => {
+    const f = (state: Utf8State): ListEffect<O, number> => list.step((p) => {
+        if (p === undefined) {
+            if (state === null) {
+                return pure(undefined)
+            }
+            //const x: ListEffect<O, number> = [utf8StateToError(state), pure(undefined)]
+            return pure(undefined)
+        }
+        return todo()
+    })
+    return f(null)
 }
