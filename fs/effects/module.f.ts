@@ -149,8 +149,10 @@ export type F<O extends Operation> = Pr<O, O[0]>
 
 export type Func<O extends Operation> = (..._: Param<O>) => Effect<O, Return<O>>
 
+export type NextEffect<O extends Operation, T> = readonly[T, ListEffect<O, T>]
+
 export type ListEffect<O extends Operation, T> =
-    Effect<O, readonly[T, ListEffect<O, T>] | undefined>
+    Effect<O, NextEffect<O, T> | undefined>
 
 /**
  * The empty `ListEffect`: a pure end-of-stream marker (`undefined`).
@@ -169,19 +171,22 @@ export const listEffectEnd = <O extends Operation, T>(): ListEffect<O, T> => ({
 })
 
 /** Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link listEffectEnd}. */
-export const listEffectCons = <O extends Operation, T>(head: T, tail: ListEffect<O, T>): ListEffect<O, T> => {
+export const listEffectCons =
+<O extends Operation, T>(head: T, tail: ListEffect<O, T>): ListEffect<O, T> => {
     const node: readonly[T, ListEffect<O, T>] = [head, tail]
     return { value: [node], step: f => f(node) }
 }
 
 export const codePointList =
 <O extends Operation>(list: ListEffect<O, Vec>): ListEffect<O, number> => {
-    const f = (state: Utf8State): ListEffect<O, number> => list.step((p) => {
+    const f = (state: Utf8State): ListEffect<O, number> => list.step((p): Effect<O, undefined> => {
         if (p === undefined) {
             if (state === null) {
                 return pure(undefined)
             }
-            //const x: ListEffect<O, number> = [utf8StateToError(state), pure(undefined)]
+            const m: Effect<O, NextEffect<O, number> | undefined> = pure(undefined)
+            const m1: ListEffect<O, number> = pure(undefined)
+            //const x: NextEffect<O, number> = [0, pure(undefined)]
             return pure(undefined)
         }
         return todo()
