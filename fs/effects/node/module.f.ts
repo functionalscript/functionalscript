@@ -12,13 +12,13 @@ import { utf8, utf8ToString } from '../../text/module.f.ts'
 import { toCodePointList } from '../../text/utf8/module.f.ts'
 import { codePointListToString } from '../../text/utf16/module.f.ts'
 import { reverse, type List } from '../../types/list/module.f.ts'
-import type { Vec } from '../../types/bit_vec/module.f.ts'
+import { length, type Vec } from '../../types/bit_vec/module.f.ts'
 import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
-import { ok, type Result } from '../../types/result/module.f.ts'
+import { ok, error as resultError, type Result } from '../../types/result/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
 import {
-    type Effect, type Func, type Operation, type ToAsyncOperationMap,
+    type Effect, type Func, type ListEffect, type Operation, type ToAsyncOperationMap,
     do_, pure
 } from '../module.f.ts'
 
@@ -200,6 +200,42 @@ export type WriteBytes = readonly['writeBytes', (path: string, offset: number, d
 
 export const writeBytes: Func<WriteBytes> =
     do_('writeBytes')
+
+const writeLoop = (path: string) => {
+    const f = <O extends Operation>(offset: number, e: ListEffect<O, IoResult<Vec>>) =>
+        e.step(r => {
+            if (r === undefined) {
+                return pure(ok(undefined))
+            }
+            const [[t, v], next] = r
+            if (t === 'error') {
+                return pure(resultError(v))
+            }
+            const lenV = length(v)
+            if ((lenV & 0b111n) !== 0n) {
+                return pure(resultError('invalid buffer size'))
+            }
+            return writeBytes(path, offset, v)
+            .step((r): Effect<O | WriteBytes, IoResult<void>> => {
+                if (r[0] === 'error') {
+                    return pure(r)
+                }
+                // todo: use `next`.
+                return f(offset + Number(lenV >> 3n), next)
+            })
+        })
+    return f
+}
+
+export const writeFromStream =
+    <O extends Operation>(path: string, e: ListEffect<O, IoResult<Vec>>): Effect<O | WriteBytes | CreateExclusive, IoResult<void>> =>
+    createExclusive(path)
+    .step(([r, v]): Effect<O | WriteBytes, IoResult<void>> => {
+        if (r === 'error') {
+            return pure(resultError(v))
+        }
+        return writeLoop(path)(0, e)
+    })
 
 // stat
 

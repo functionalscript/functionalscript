@@ -4,16 +4,13 @@
  * @module
  */
 import { sha256 } from '../../crypto/sha2/module.f.ts'
-import { msb, type Vec } from '../../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
-import { forEachStep, pure, type Effect, type ListEffect } from '../../effects/module.f.ts'
-import { reverse, type List } from '../../types/list/module.f.ts'
+import { forEachStep, pure } from '../../effects/module.f.ts'
 import {
     errorExit,
     log,
-    writeFile,
+    writeFromStream,
     type All,
-    type IoResult,
     type Read,
     type Write,
     type WriteFile
@@ -49,18 +46,9 @@ export const commands: Commands<FileCasOperation | WriteFile | Write | All | Mem
                 return errorExit(`invalid hash format: ${hashCBase32}`)
             }
             const c = fileCas(sha256)(home)
-            // Drain the read stream, gathering chunks; an error item means the shard is absent.
-            const collect = (acc: List<Vec>) =>
-                (stream: ListEffect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation | WriteFile | Write, number> =>
-                    stream.step((node): Effect<FileCasOperation | WriteFile | Write, number> => {
-                        if (node === undefined) {
-                            return writeFile(path, msb.listToVec(reverse(acc))).step(() => pure(0))
-                        }
-                        const [item, rest2] = node
-                        if (item[0] === 'error') { return errorExit(`no such hash: ${hashCBase32}`) }
-                        return collect({ first: item[1], tail: acc })(rest2)
-                    })
-            return collect(null)(c.read(hash))
+            const x = c.read(hash)
+            return writeFromStream(path, x)
+                .step(([r, v]) => r === 'error' ? errorExit(`e: ` + String(v)) : pure(0))
         },
     },
     {

@@ -303,7 +303,9 @@ const writeBytesOp = (path: string, offset: number, data: Vec) => operation((dir
     if (!Array.isArray(file)) { return [dir, error(`'${name}' is not a file`)] }
     if (!Number.isInteger(offset) || offset < 0) { return [dir, error(`Offset ${offset} is invalid`)] }
     const chunks = file as readonly Vec[]
-    if (offset !== fileSizeBytes(chunks)) { return [dir, error(`writeBytes offset ${offset} must equal the file size (append-only)`)] }
+    if (offset !== fileSizeBytes(chunks)) {
+        return [dir, error(`writeBytes offset ${offset} must equal the file size (append-only)`)]
+    }
     return [{ ...dir, [name]: [...chunks, data] }, okVoid]
 })(path)
 

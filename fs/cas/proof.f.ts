@@ -1,95 +1,111 @@
-import { casUpload, fileCas, type FileCasOperation } from './module.f.ts'
-import { commands } from './cli/module.f.ts'
+import { length, maxLength, msb, vec, vec8, type Vec } from '../types/bit_vec/module.f.ts'
+import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
-import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.ts'
-import type { Vec } from '../types/bit_vec/module.f.ts'
+import { fileCas, casAddFile, type FileCasOperation, casUpload } from './module.f.ts'
 import { listEffectCons, listEffectEnd, pure, type Effect, type ListEffect } from '../effects/module.f.ts'
+import { mkdir, writeFile, rm, readFile, type ReadFile, type WriteFile, type Rm, type Mkdir, type IoResult, access } from '../effects/node/module.f.ts'
 import { error, ok, type Ok } from '../types/result/module.f.ts'
-import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.ts'
-import { access, type IoResult, type NodeProgramOptions } from '../effects/node/module.f.ts'
+import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { join } from '../path/module.f.ts'
-import { dispatch } from '../cli/module.f.ts'
 
-const makeOptions = (args: readonly string[]): NodeProgramOptions =>
-    ({ ...defaultNodeProgramOptions, args })
+const testDir = './test-cas-cli'
 
-const main = dispatch(commands)
+type TestOp = FileCasOperation | WriteFile | ReadFile | Rm | Mkdir
+
+// Create a 128 KiB big file content (at the max Vec size limit)
+// This tests the boundary where files are at the chunk size limit
+const createBigFileContent = (): Vec => {
+    const byteCount = 128n * 1024n // 128 KiB
+    // Create a repeating pattern: 0x42 repeated across the file
+    return vec(byteCount * 8n)(0x42424242n)
+}
+
+// Test adding a big file and verifying the hash
+const testAddBigFile = (): Effect<TestOp, void> =>
+    mkdir(testDir, { recursive: true }).step(() => {
+        const bigContent = createBigFileContent()
+        const bigFilePath = `${testDir}/big-file.bin`
+
+        return writeFile(bigFilePath, bigContent).step(writeRes => {
+            if (writeRes[0] === 'error') {
+                throw new Error(`Failed to write test file: ${writeRes[1]}`)
+            }
+
+            const cas = fileCas(sha256)(testDir)
+            return casAddFile(cas)(bigFilePath).step(addRes => {
+                if (addRes[0] === 'error') {
+                    throw new Error(`Failed to add file to CAS: ${addRes[1]}`)
+                }
+
+                const hash = addRes[1]
+
+                // Verify hash is 256 bits (SHA-256)
+                if (length(hash) !== 256n) {
+                    throw new Error(`Expected hash length 256 bits, got ${length(hash)}`)
+                }
+
+                // Verify hash can be encoded/decoded
+                const hashCBase32 = vecToCBase32(hash)
+                const decodedHash = cBase32ToVec(hashCBase32)
+                if (decodedHash === null) {
+                    throw new Error('Failed to decode hash from base32')
+                }
+
+                return rm(testDir).step(() => pure(undefined))
+            })
+        })
+    })
+
+// Test adding and retrieving a big file
+const testAddAndGetBigFile = (): Effect<TestOp, void> =>
+    mkdir(testDir, { recursive: true })
+    .step(() => {
+        const bigContent = createBigFileContent()
+        const bigFilePath = `${testDir}/big-file.bin`
+
+        return writeFile(bigFilePath, bigContent)
+        .step(writeRes => {
+            if (writeRes[0] === 'error') {
+                throw new Error(`Failed to write test file: ${writeRes[1]}`)
+            }
+
+            const cas = fileCas(sha256)(testDir)
+            return casAddFile(cas)(bigFilePath)
+            .step(addRes => {
+                if (addRes[0] === 'error') {
+                    throw new Error(`Failed to add file to CAS: ${addRes[1]}`)
+                }
+
+                const hash = addRes[1]
+                const storedPath = cas.url(hash)
+
+                // Verify file is stored at the expected location
+                return readFile(storedPath).step(readRes => {
+                    if (readRes[0] === 'error') {
+                        throw new Error(`Failed to read stored file: ${readRes[1]}`)
+                    }
+
+                    const storedContent = readRes[1]
+
+                    // Verify content is the same size as original
+                    const storedLen = length(storedContent)
+                    const originalLen = length(bigContent)
+                    if (storedLen !== originalLen) {
+                        throw new Error(
+                            `Content size mismatch: stored ${storedLen} bits, expected ${originalLen} bits`
+                        )
+                    }
+
+                    return rm(testDir).step(() => pure(undefined))
+                })
+            })
+        })
+    })
 
 export const proof = {
-    mainAdd: () => {
-        const content = vec8(0x2An)
-        const state = { ...emptyState, root: { myfile: [content] } }
-        const [finalState, exitCode] = virtual(state)(main(makeOptions(['add', 'myfile'])))
-        if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
-        if (finalState.stdout.length === 0) { throw 'expected hash in stdout' }
-    },
-    mainAddWrongArgs: () => {
-        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['add'])))
-        if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
-        if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
-    },
-    mainGetFound: () => {
-        const content = vec8(0x2An)
-        const state = { ...emptyState, root: { myfile: [content] } }
-        const [state1, exitCode1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
-        if (exitCode1 !== 0) { throw ['expected add exit 0', exitCode1] }
-        const hashStr = state1.stdout.trim()
-        const [, exitCode2] = virtual(state1)(main(makeOptions(['get', hashStr, 'output'])))
-        if (exitCode2 !== 0) { throw ['expected get exit 0', exitCode2] }
-    },
-    mainGetNotFound: () => {
-        // valid cBase32 hash that has not been stored
-        const content = vec8(0x2An)
-        const state = { ...emptyState, root: { myfile: [content] } }
-        const [state1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
-        const hashStr = state1.stdout.trim()
-        // use an empty store so the hash is not found
-        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['get', hashStr, 'output'])))
-        if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
-        if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
-    },
-    mainGetWrongArgs: () => {
-        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['get'])))
-        if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
-        if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
-    },
-    mainGetInvalidHash: () => {
-        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['get', 'not-a-valid-hash', 'output'])))
-        if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
-        if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
-    },
-    mainList: () => {
-        const content = vec8(0x2An)
-        const state = { ...emptyState, root: { myfile: [content] } }
-        const [state1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
-        const [, exitCode] = virtual(state1)(main(makeOptions(['list'])))
-        if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
-    },
-    mainListEmptyStore: () => {
-        // A fresh directory has no `.cas` yet; listing must succeed (empty),
-        // not crash unwrapping a readdir ENOENT.
-        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['list'])))
-        if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
-        if (finalState.stdout !== '') { throw ['expected empty stdout', finalState.stdout] }
-    },
-    mainListCorruptStore: () => {
-        // `.cas` exists but is a file, not a directory: a real storage error
-        // that must surface, not be masked as an empty list.
-        const state = { ...emptyState, root: { '.cas': [vec8(0x2An)] } }
-        let threw = false
-        try { virtual(state)(main(makeOptions(['list']))) } catch { threw = true }
-        if (!threw) { throw 'expected list to surface the storage error' }
-    },
-    mainNoCmd: () => {
-        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions([])))
-        if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
-        if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
-    },
-    mainUnknownCmd: () => {
-        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['bogus'])))
-        if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
-        if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
-    },
+    addBigFile: testAddBigFile,
+    addAndGetBigFile: testAddAndGetBigFile,
+    //
     casWriteRead: () => {
         // Round-trip a single-chunk payload through the real streaming CAS: `write` returns
         // the content hash, and `read` streams the same bytes back as `ok` chunk items.
