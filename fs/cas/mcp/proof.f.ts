@@ -4,7 +4,7 @@ import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
 import type { Response } from '../../json/rpc/module.f.ts'
-import { empty, length, maxLength, msb, u8ListToVec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
+import { empty, length, maxLength, msb, u8ListToVec, vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.ts'
@@ -333,6 +333,26 @@ export const proof = {
         assert(textOf(addUrlResp).length > 0)
     },
 
+    addBigFileRoundtrip: () => {
+        const chunk = vec(maxLength)(1234567890n)
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'hello.bin': [chunk, chunk] } } } }
+        const [addUrlResp] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_add', { content: '/home/user/cas_upload/hello.bin', type: 'url' }),
+        ]).slice(2)
+        assert(!resultOf(addUrlResp).isError)
+        assert(textOf(addUrlResp).length > 0)
+        const hash = textOf(addUrlResp)
+        //
+        const [, getResp] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_add', { content: '/home/user/cas_upload/hello.bin', type: 'url' }),
+            call(3, 'cas_get', { hash })
+        ]).slice(2)
+        assert(!resultOf(getResp).isError)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
+    },
+
     addUrlRoundTrips: () => {
         const fileContent = utf8('round-trip content')
         const root: Dir = { 'home': { 'user': { 'cas_upload': { 'rt.txt': [fileContent] } } } }
@@ -340,14 +360,14 @@ export const proof = {
         const [addResp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/rt.txt', type: 'url' }),
-        ]).slice(2) as readonly unknown[]
+        ]).slice(2)
         const hash = textOf(addResp)
         // Second pass: add again + get in one session (file re-present in fresh virtual state).
         const [, getResp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/rt.txt', type: 'url' }),
             call(3, 'cas_get', { hash, content: true }),
-        ]).slice(2) as readonly unknown[]
+        ]).slice(2)
         assert(!resultOf(getResp).isError)
         const result = JSON.parse(textOf(getResp)) as CasGetResult
         assertEq(result.type, 'text')
