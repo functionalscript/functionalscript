@@ -7,7 +7,7 @@ import { mkdir, writeFile, rm, readFile, type ReadFile, type WriteFile, type Rm,
 import { error, ok, type Ok } from '../types/result/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { join } from '../path/module.f.ts'
-import { listEffectCons, listEffectEnd, type ListEffect } from '../effects/list/module.f.ts'
+import { cons, end, type List } from '../effects/list/module.f.ts'
 
 const testDir = './test-cas-cli'
 
@@ -112,15 +112,15 @@ export const proof = {
         // the content hash, and `read` streams the same bytes back as `ok` chunk items.
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const payload: ListEffect<FileCasOperation, IoResult<Vec>> =
-            listEffectCons(ok(content), listEffectEnd())
+        const payload: List<FileCasOperation, IoResult<Vec>> =
+            cons(ok(content), end())
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         if (writeResult[0] !== 'ok') { throw ['expected write ok', writeResult] }
         const hash = writeResult[1]
         if (length(hash) !== 256n) { throw ['expected 256-bit hash', length(hash)] }
         if (msb.cmp(hash)(computeSync(sha256)([content])) !== 0) { throw 'write hash mismatch' }
         const drain = (acc: readonly Vec[]) =>
-            (stream: ListEffect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<readonly Vec[]>> =>
+            (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<readonly Vec[]>> =>
                 stream.step((node): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
                     if (node === undefined) { return pure(ok(acc)) }
                     const [item, rest] = node
@@ -145,15 +145,15 @@ export const proof = {
         // and read streams the same content back.
         const chunks = [vec8(0x11n), vec8(0x22n), vec8(0x33n)] as const
         const c = fileCas(sha256)('.')
-        const payload: ListEffect<FileCasOperation, IoResult<Vec>> =
-            chunks.reduceRight<ListEffect<FileCasOperation, IoResult<Vec>>>(
-                (tail, chunk) => listEffectCons(ok(chunk), tail), listEffectEnd())
+        const payload: List<FileCasOperation, IoResult<Vec>> =
+            chunks.reduceRight<List<FileCasOperation, IoResult<Vec>>>(
+                (tail, chunk) => cons(ok(chunk), tail), end())
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         if (writeResult[0] !== 'ok') { throw ['expected write ok', writeResult] }
         const hash = writeResult[1]
         if (msb.cmp(hash)(computeSync(sha256)(chunks)) !== 0) { throw 'multi-chunk write hash mismatch' }
         const drain = (acc: readonly Vec[]) =>
-            (stream: ListEffect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<readonly Vec[]>> =>
+            (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<readonly Vec[]>> =>
                 stream.step((node): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
                     if (node === undefined) { return pure(ok(acc)) }
                     const [item, rest] = node
@@ -170,8 +170,8 @@ export const proof = {
         // first, leaving exactly one shard in the store.
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const payload = (): ListEffect<FileCasOperation, IoResult<Vec>> =>
-            listEffectCons(ok(content), listEffectEnd())
+        const payload = (): List<FileCasOperation, IoResult<Vec>> =>
+            cons(ok(content), end())
         const [state1, w1] = virtual(emptyState)(c.write(payload()))
         const [state2, w2] = virtual(state1)(c.write(payload()))
         if (w1[0] !== 'ok' || w2[0] !== 'ok') { throw ['expected both writes ok', w1, w2] }
@@ -185,9 +185,9 @@ export const proof = {
         const c = fileCas(sha256)('.')
         const okItem: IoResult<Vec> = ok(vec8(0x11n))
         const errItem: IoResult<Vec> = error({ code: 'BOOM' })
-        const payload: ListEffect<FileCasOperation, IoResult<Vec>> =
-            listEffectCons<FileCasOperation, IoResult<Vec>>(okItem,
-                listEffectCons<FileCasOperation, IoResult<Vec>>(errItem, listEffectEnd()))
+        const payload: List<FileCasOperation, IoResult<Vec>> =
+            cons<FileCasOperation, IoResult<Vec>>(okItem,
+                cons<FileCasOperation, IoResult<Vec>>(errItem, end()))
         const [state1, result] = virtual(emptyState)(c.write(payload))
         if (result[0] !== 'error') { throw ['expected write error', result] }
         const [, hashes] = virtual(state1)(c.list())
@@ -203,16 +203,16 @@ export const proof = {
         const tail = vec8(0x2An)            // one more byte ⇒ total > maxLength
         const chunks = [big, tail] as const
         const c = fileCas(sha256)('.')
-        const payload: ListEffect<FileCasOperation, IoResult<Vec>> =
-            chunks.reduceRight<ListEffect<FileCasOperation, IoResult<Vec>>>(
-                (tl, chunk) => listEffectCons(ok(chunk), tl), listEffectEnd())
+        const payload: List<FileCasOperation, IoResult<Vec>> =
+            chunks.reduceRight<List<FileCasOperation, IoResult<Vec>>>(
+                (tl, chunk) => cons(ok(chunk), tl), end())
         const [state1, w] = virtual(emptyState)(c.write(payload))
         if (w[0] !== 'ok') { throw ['expected write ok', w] }
         const hash = w[1]
         if (msb.cmp(hash)(computeSync(sha256)(chunks)) !== 0) { throw 'oversized write hash mismatch' }
         // Fold the read stream straight into a fresh SHA-2 state — never one `Vec`.
         const rehash = (state: typeof sha256.init) =>
-            (stream: ListEffect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<Vec>> =>
+            (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<Vec>> =>
                 stream.step((node): Effect<FileCasOperation, IoResult<Vec>> => {
                     if (node === undefined) { return pure(ok(sha256.end(state))) }
                     const [item, rest] = node
@@ -234,7 +234,7 @@ export const proof = {
         }
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const x = c.write(listEffectCons(ok(content), listEffectEnd<never, Ok<Vec>>()))
+        const x = c.write(cons(ok(content), end<never, Ok<Vec>>()))
         const [state1, w] = virtual(state0)(x)
         if (w[0] !== 'ok') { throw ['expected write ok', w] }
         const [, present] = virtual(state1)(access(stalePath))

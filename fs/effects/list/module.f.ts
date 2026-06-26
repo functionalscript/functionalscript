@@ -1,9 +1,9 @@
 import type { Effect, Operation } from "../module.f.ts"
 
-export type NextEffect<O extends Operation, T> = readonly[T, ListEffect<O, T>] | undefined
+export type Next<O extends Operation, T> = readonly[T, List<O, T>] | undefined
 
-export type ListEffect<O extends Operation, T> =
-    Effect<O, NextEffect<O, T>>
+export type List<O extends Operation, T> =
+    Effect<O, Next<O, T>>
 
 /**
  * The empty `ListEffect`: a pure end-of-stream marker (`undefined`).
@@ -16,14 +16,14 @@ export type ListEffect<O extends Operation, T> =
  * check, so the recursive payload type-checks without a cast. Construct streams through
  * these two combinators.
  */
-export const listEffectEnd = <O extends Operation, T>(): ListEffect<O, T> => ({
+export const end = <O extends Operation, T>(): List<O, T> => ({
     value: [undefined],
     step: f => f(undefined),
 })
 
-/** Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link listEffectEnd}. */
-export const listEffectCons =
-<O extends Operation, T>(head: T, tail: ListEffect<O, T>): ListEffect<O, T> => {
-    const node: readonly[T, ListEffect<O, T>] = [head, tail]
+/** Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link end}. */
+export const cons =
+<O extends Operation, T>(head: T, tail: List<O, T>): List<O, T> => {
+    const node: readonly[T, List<O, T>] = [head, tail]
     return { value: [node], step: f => f(node) }
 }

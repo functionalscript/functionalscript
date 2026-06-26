@@ -85,7 +85,7 @@ import { casAddFile, fileCas, type Cas, type FileCas, type FileCasOperation } fr
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
-import { listEffectCons, listEffectEnd, type ListEffect } from '../../effects/list/module.f.ts'
+import { cons, end, type List } from '../../effects/list/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
@@ -111,8 +111,8 @@ export const casListArgs = {} as const
  * (MIME sniffing, UTF-8 validation, base64 encoding all inspect the full content),
  * so the chunk stream is concatenated; an error item is surfaced as the result.
  */
-const collectRead = <O extends Operation>(stream: ListEffect<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {
-    const loop = (acc: Vec) => (s: ListEffect<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
+const collectRead = <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {
+    const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
         s.step((node): Effect<O, IoResult<Vec>> => {
             if (node === undefined) { return pure(ok(acc)) }
             const [item, rest] = node
@@ -175,7 +175,7 @@ const casToolRegistry =
             return x.step(value => typeof value === 'string'
                 ? pure(errorResult(value))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(listEffectCons(ok(value), listEffectEnd<never, Ok<Vec>>())).step(hashResult => pure(hashResult[0] === 'error'
+                : c.write(cons(ok(value), end<never, Ok<Vec>>())).step(hashResult => pure(hashResult[0] === 'error'
                     ? errorResult('write')
                     : okResult(vecToCBase32(hashResult[1]))))
             )
