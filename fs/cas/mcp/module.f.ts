@@ -116,15 +116,16 @@ const collectRead = <O extends Operation>(stream: List<O, IoResult<Vec>>): Effec
         s.step((nodeThunk): Effect<O, IoResult<Vec>> => {
             const node = nodeThunk()
             if (node === undefined) { return pure(ok(acc)) }
-            const [item, rest] = node
-            if (item[0] === 'error') { return pure(item) }
+            const { first, tail } = node
+            const [t, v] = first
+            if (t === 'error') { return pure(first) }
             // A single `Vec` cannot exceed `maxLength` bits; concatenating past it would
             // overflow the runtime's `bigint` constraint. Surface that as an error item
             // so the tool reports a failure rather than crashing the process.
-            if (bitVecLength(acc) + bitVecLength(item[1]) > maxLength) {
+            if (bitVecLength(acc) + bitVecLength(v) > maxLength) {
                 return pure(error(`cas blob exceeds maximum vector length of ${maxLength} bits`))
             }
-            return loop(msb.concat(acc)(item[1]))(rest)
+            return loop(msb.concat(acc)(v))(tail)
         })
     return loop(empty)(stream)
 }

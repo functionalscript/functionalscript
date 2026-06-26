@@ -124,9 +124,9 @@ export const proof = {
                 stream.step((nodeThunk): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
                     const node = nodeThunk()
                     if (node === undefined) { return pure(ok(acc)) }
-                    const [item, rest] = node
-                    if (item[0] === 'error') { return pure(item) }
-                    return drain([...acc, item[1]])(rest)
+                    const { first, tail } = node
+                    if (first[0] === 'error') { return pure(first) }
+                    return drain([...acc, first[1]])(tail)
                 })
         const [, readResult] = virtual(state1)(drain([])(c.read(hash)))
         if (readResult[0] !== 'ok') { throw ['expected read ok', readResult] }
@@ -138,7 +138,7 @@ export const proof = {
         const hash = computeSync(sha256)([vec8(0x2An)])
         const node = virtual(emptyState)(c.read(hash))[1]()
         if (node === undefined) { throw 'missing shard must not be EOF' }
-        if (node[0][0] !== 'error') { throw ['expected error item', node[0]] }
+        if (node.first[0] !== 'error') { throw ['expected error item', node.tail] }
     },
     casWriteMultiChunk: () => {
         // A multi-chunk payload streams through `writeBytes` chunk-by-chunk (the lease is
@@ -158,9 +158,9 @@ export const proof = {
                 stream.step((nodeThunk): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
                     const node = nodeThunk()
                     if (node === undefined) { return pure(ok(acc)) }
-                    const [item, rest] = node
-                    if (item[0] === 'error') { return pure(item) }
-                    return drain([...acc, item[1]])(rest)
+                    const { first, tail } = node
+                    if (first[0] === 'error') { return pure(first) }
+                    return drain([...acc, first[1]])(tail)
                 })
         const [, readResult] = virtual(state1)(drain([])(c.read(hash)))
         if (readResult[0] !== 'ok') { throw ['expected read ok', readResult] }
@@ -218,9 +218,9 @@ export const proof = {
                 stream.step((nodeThunk): Effect<FileCasOperation, IoResult<Vec>> => {
                     const node = nodeThunk()
                     if (node === undefined) { return pure(ok(sha256.end(state))) }
-                    const [item, rest] = node
-                    if (item[0] === 'error') { return pure(item) }
-                    return rehash(sha256.append(item[1])(state))(rest)
+                    const { first, tail } = node
+                    if (first[0] === 'error') { return pure(first) }
+                    return rehash(sha256.append(first[1])(state))(tail)
                 })
         const [, readBack] = virtual(state1)(rehash(sha256.init)(c.read(hash)))
         if (readBack[0] !== 'ok') { throw ['expected read ok', readBack] }

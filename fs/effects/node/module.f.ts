@@ -209,7 +209,7 @@ const writeLoop = (path: string) => {
             if (r === undefined) {
                 return pure(ok(undefined))
             }
-            const [[t, v], next] = r
+            const { first: [t, v], tail } = r
             if (t === 'error') {
                 return pure(resultError(v))
             }
@@ -222,7 +222,7 @@ const writeLoop = (path: string) => {
                 if (r[0] === 'error') {
                     return pure(r)
                 }
-                return f(offset + Number(lenV >> 3n), next)
+                return f(offset + Number(lenV >> 3n), tail)
             })
         })
     return f

@@ -1,7 +1,12 @@
 import { pure, type Effect, type Operation } from "../module.f.ts"
 
+export type NonEmpty<O extends Operation, T> = {
+    readonly first: T
+    readonly tail: List<O, T>
+}
+
 export type Next<O extends Operation, T> =
-    () => readonly[T, List<O, T>] | undefined
+    () => NonEmpty<O, T> | undefined
 
 export type List<O extends Operation, T> =
     Effect<O, Next<O, T>>
@@ -28,7 +33,7 @@ export const empty =
  * Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link empty}.
  */
 export const nonEmpty =
-<O extends Operation, T>(head: T, tail: List<O, T>): Effect<O, Next<O, T>> =>
-    pure(() => [head, tail])
+<O extends Operation, T>(first: T, tail: List<O, T>): Effect<O, Next<O, T>> =>
+    pure(() => ({ first, tail }))
 
 

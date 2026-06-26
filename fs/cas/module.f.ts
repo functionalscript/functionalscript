@@ -187,9 +187,9 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                             .step((nodeThunk): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
                                 const node = nodeThunk()
                                 if (node === undefined) { return publish(state, offset, curPath) }
-                                const [item, rest] = node
-                                if (item[0] === 'error') { return fail(curPath, item[1]) }
-                                const chunk = item[1]
+                                const { first, tail } = node
+                                if (first[0] === 'error') { return fail(curPath, first[1]) }
+                                const chunk = first[1]
                                 return writeBytes(curPath, offset, chunk)
                                 .step(wb => {
                                     if (wb[0] === 'error') { return fail(curPath, wb[1]) }
@@ -202,7 +202,7 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                                         return rename(curPath, next).step(([t, v]) =>
                                             t === 'error'
                                                 ? fail(curPath, v)
-                                                : loop(newState, newOffset, next)(rest))
+                                                : loop(newState, newOffset, next)(tail))
                                     })
                                 })
                             })
