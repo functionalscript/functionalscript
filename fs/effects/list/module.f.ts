@@ -16,6 +16,9 @@ export type List<O extends Operation, T> =
  * cell does. Writing the literal directly lets the contextual return type drive the
  * check, so the recursive payload type-checks without a cast. Construct streams through
  * these two combinators.
+ *
+ * Note: we use `Effect<O, Next<O, T>>` because TypeScript can't convert `pure(...)` to
+ *       `List<O, T>`.
  */
 export const end =
 <O extends Operation, T>(): Effect<O, Next<O, T>> =>
@@ -27,3 +30,5 @@ export const end =
 export const cons =
 <O extends Operation, T>(head: T, tail: List<O, T>): Effect<O, Next<O, T>> =>
     pure(() => [head, tail])
+
+
