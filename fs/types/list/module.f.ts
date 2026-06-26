@@ -27,16 +27,14 @@ type NotLazy<T> = |
 
 type Empty = null
 
-export type Result<T> = Empty | Cons<T>
+export type Result<T> = Empty | NonEmpty<T>
 
 export type Thunk<T> = () => List<T>
 
 /**
- * Cons
- *
- * https://en.wikipedia.org/wiki/Cons
+ * See also https://en.wikipedia.org/wiki/Cons#Lists
  */
-export type Cons<T> = {
+export type NonEmpty<T> = {
     readonly first: T
     readonly tail: List<T>
 }
@@ -101,19 +99,19 @@ export const toArray = <T>(list: List<T>): readonly T[] => {
     return u instanceof Array ? u : from(iterable(u))
 }
 
-const apply = <I, O>(f: (n: Cons<I>) => List<O>) => (input: List<I>): Thunk<O> => () => {
+const apply = <I, O>(f: (n: NonEmpty<I>) => List<O>) => (input: List<I>): Thunk<O> => () => {
     const n = next(input)
     return n === null ? null : f(n)
 }
 
-const flatStep = <T>({ first, tail }: Cons<List<T>>) =>
+const flatStep = <T>({ first, tail }: NonEmpty<List<T>>) =>
     concat(first)(flat(tail))
 
 export const flat
     : <T>(list: List<List<T>>) => Thunk<T>
     = apply(flatStep)
 
-const mapStep = <I, O>(f: (value: I) => O) => ({ first, tail }: Cons<I>): List<O> =>
+const mapStep = <I, O>(f: (value: I) => O) => ({ first, tail }: NonEmpty<I>): List<O> =>
     ({ first: f(first), tail: map(f)(tail) })
 
 export const map
@@ -125,7 +123,7 @@ export const flatMap
     = f => compose(map(f))(flat)
 
 const filterStep
-    : <T>(f: (value: T) => boolean) => (n: Cons<T>) => List<T>
+    : <T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>
     = f => ({ first, tail }) => {
         const newTail = filter(f)(tail)
         return f(first) ? { first, tail: newTail } : newTail
@@ -136,7 +134,7 @@ export const filter
     = f => apply(filterStep(f))
 
 const filterMapStep
-    : <I, O>(f: (value: I) => O | null) => (n: Cons<I>) => List<O>
+    : <I, O>(f: (value: I) => O | null) => (n: NonEmpty<I>) => List<O>
     = f => n => {
         const [first, tail] = [f(n.first), filterMap(f)(n.tail)]
         return first === null ? tail : { first, tail }
@@ -145,25 +143,25 @@ const filterMapStep
 export const filterMap: <I, O>(f: (value: I) => O | null) => (input: List<I>) => Thunk<O>
     = f => apply(filterMapStep(f))
 
-const takeWhileStep: <T>(f: (value: T) => boolean) => (n: Cons<T>) => List<T>
+const takeWhileStep: <T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>
     = f => ({ first, tail }) => f(first) ? { first, tail: takeWhile(f)(tail) } : null
 
 export const takeWhile: <T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>
     = f => apply(takeWhileStep(f))
 
-const takeStep: (n: number) => <T>(result: Cons<T>) => List<T>
+const takeStep: (n: number) => <T>(result: NonEmpty<T>) => List<T>
     = n => ({ first, tail }) => 0 < n ? { first: first, tail: take(n - 1)(tail) } : null
 
 export const take: (n: number) => <T>(input: List<T>) => Thunk<T>
     = n => apply(takeStep(n))
 
-const dropWhileStep: <T>(f: (value: T) => boolean) => (ne: Cons<T>) => List<T>
+const dropWhileStep: <T>(f: (value: T) => boolean) => (ne: NonEmpty<T>) => List<T>
     = f => ne => f(ne.first) ? dropWhile(f)(ne.tail) : ne
 
 export const dropWhile: <T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>
     = f => apply(dropWhileStep(f))
 
-const dropStep: (n: number) => <T>(ne: Cons<T>) => List<T>
+const dropStep: (n: number) => <T>(ne: NonEmpty<T>) => List<T>
     = n => ne => 0 < n ? drop(n - 1)(ne.tail) : ne
 
 export const drop: (n: number) => <T>(input: List<T>) => Thunk<T>
@@ -178,7 +176,7 @@ export const first: <D>(def: D) => <T>(input: List<T>) => D | T
 export const last: <D>(first: D) => <T>(tail: List<T>) => D | T
     = first => tail => {
         type T = typeof tail extends List<infer T> ? T : never
-        let i: Cons<typeof first | T> = { first, tail }
+        let i: NonEmpty<typeof first | T> = { first, tail }
         while (true) {
             const result = next(i.tail)
             if (result === null) {
@@ -225,7 +223,7 @@ export const cycle: <T>(list: List<T>) => List<T>
         return i === null ? null : { first: i.first, tail: concat(i.tail)(cycle(list)) }
     }
 
-const scanStep: <I, O>(op: Scan<I, O>) => (ne: Cons<I>) => List<O>
+const scanStep: <I, O>(op: Scan<I, O>) => (ne: NonEmpty<I>) => List<O>
     = op => ne => {
         const [first, newOp] = op(ne.first)
         return { first, tail: scan(newOp)(ne.tail) }
