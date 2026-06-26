@@ -37,7 +37,7 @@ import {
 import { toOption } from '../types/nullable/module.f.ts'
 import { error, ok, unwrap } from '../types/result/module.f.ts'
 import { splitAt } from '../types/string/module.f.ts'
-import { cons, end, type List } from '../effects/list/module.f.ts'
+import { nonEmpty, empty as elEmpty, type List } from '../effects/list/module.f.ts'
 
 const split2 = splitAt(2)
 
@@ -142,12 +142,12 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                 .step((result): List<FileCasOperation, IoResult<Vec>> => {
                     const [t, v] = result
                     // A missing shard or read error is an explicit error item, never EOF.
-                    if (t === 'error') { return cons<FileCasOperation, IoResult<Vec>>(result, end()) }
+                    if (t === 'error') { return nonEmpty<FileCasOperation, IoResult<Vec>>(result, elEmpty()) }
                     // End the stream only on an empty read; every non-empty read — including a
                     // final short (`< CHUNK_BYTES`) chunk — is emitted as an `ok` item.
                     return length(v) === 0n
-                        ? end()
-                        : cons(ok(v), loop(offset + chunkBytes))
+                        ? elEmpty()
+                        : nonEmpty(ok(v), loop(offset + chunkBytes))
                 })
             return loop(0)
         },
@@ -250,11 +250,11 @@ const random256: Effect<RandomInt, Vec> =
 const streamFile = (filePath: string): List<ReadBytes, IoResult<Vec>> => {
     const loop = (offset: number): List<ReadBytes, IoResult<Vec>> =>
         readBytes(filePath, offset, chunkBytes).step((result): List<ReadBytes, IoResult<Vec>> => {
-            if (result[0] === 'error') { return cons<ReadBytes, IoResult<Vec>>(result, end()) }
+            if (result[0] === 'error') { return nonEmpty<ReadBytes, IoResult<Vec>>(result, elEmpty()) }
             const chunk = result[1]
             return length(chunk) === 0n
-                ? end()
-                : cons(ok(chunk), loop(offset + chunkBytes))
+                ? elEmpty()
+                : nonEmpty(ok(chunk), loop(offset + chunkBytes))
         })
     return loop(0)
 }

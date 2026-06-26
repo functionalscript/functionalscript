@@ -7,7 +7,7 @@ import { mkdir, writeFile, rm, readFile, type ReadFile, type WriteFile, type Rm,
 import { error, ok, type Ok } from '../types/result/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { join } from '../path/module.f.ts'
-import { cons, end, type List } from '../effects/list/module.f.ts'
+import { nonEmpty, empty, type List } from '../effects/list/module.f.ts'
 
 const testDir = './test-cas-cli'
 
@@ -113,7 +113,7 @@ export const proof = {
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
         const payload: List<FileCasOperation, IoResult<Vec>> =
-            cons(ok(content), end())
+            nonEmpty(ok(content), empty())
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         if (writeResult[0] !== 'ok') { throw ['expected write ok', writeResult] }
         const hash = writeResult[1]
@@ -148,7 +148,7 @@ export const proof = {
         const c = fileCas(sha256)('.')
         const payload: List<FileCasOperation, IoResult<Vec>> =
             chunks.reduceRight<List<FileCasOperation, IoResult<Vec>>>(
-                (tail, chunk) => cons(ok(chunk), tail), end())
+                (tail, chunk) => nonEmpty(ok(chunk), tail), empty())
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         if (writeResult[0] !== 'ok') { throw ['expected write ok', writeResult] }
         const hash = writeResult[1]
@@ -173,7 +173,7 @@ export const proof = {
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
         const payload = (): List<FileCasOperation, IoResult<Vec>> =>
-            cons(ok(content), end())
+            nonEmpty(ok(content), empty())
         const [state1, w1] = virtual(emptyState)(c.write(payload()))
         const [state2, w2] = virtual(state1)(c.write(payload()))
         if (w1[0] !== 'ok' || w2[0] !== 'ok') { throw ['expected both writes ok', w1, w2] }
@@ -188,8 +188,8 @@ export const proof = {
         const okItem: IoResult<Vec> = ok(vec8(0x11n))
         const errItem: IoResult<Vec> = error({ code: 'BOOM' })
         const payload: List<FileCasOperation, IoResult<Vec>> =
-            cons<FileCasOperation, IoResult<Vec>>(okItem,
-                cons<FileCasOperation, IoResult<Vec>>(errItem, end()))
+            nonEmpty<FileCasOperation, IoResult<Vec>>(okItem,
+                nonEmpty<FileCasOperation, IoResult<Vec>>(errItem, empty()))
         const [state1, result] = virtual(emptyState)(c.write(payload))
         if (result[0] !== 'error') { throw ['expected write error', result] }
         const [, hashes] = virtual(state1)(c.list())
@@ -207,7 +207,7 @@ export const proof = {
         const c = fileCas(sha256)('.')
         const payload: List<FileCasOperation, IoResult<Vec>> =
             chunks.reduceRight<List<FileCasOperation, IoResult<Vec>>>(
-                (tl, chunk) => cons(ok(chunk), tl), end())
+                (tl, chunk) => nonEmpty(ok(chunk), tl), empty())
         const [state1, w] = virtual(emptyState)(c.write(payload))
         if (w[0] !== 'ok') { throw ['expected write ok', w] }
         const hash = w[1]
@@ -237,7 +237,7 @@ export const proof = {
         }
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const x = c.write(cons(ok(content), end<never, Ok<Vec>>()))
+        const x = c.write(nonEmpty(ok(content), empty<never, Ok<Vec>>()))
         const [state1, w] = virtual(state0)(x)
         if (w[0] !== 'ok') { throw ['expected write ok', w] }
         const [, present] = virtual(state1)(access(stalePath))

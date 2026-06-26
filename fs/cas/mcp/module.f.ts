@@ -85,7 +85,7 @@ import { casAddFile, fileCas, type Cas, type FileCas, type FileCasOperation } fr
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
-import { cons, end, type List } from '../../effects/list/module.f.ts'
+import { nonEmpty, empty as elEmpty, type List } from '../../effects/list/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
@@ -176,7 +176,7 @@ const casToolRegistry =
             return x.step(value => typeof value === 'string'
                 ? pure(errorResult(value))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(cons(ok(value), end<never, Ok<Vec>>())).step(hashResult => pure(hashResult[0] === 'error'
+                : c.write(nonEmpty(ok(value), elEmpty<never, Ok<Vec>>())).step(hashResult => pure(hashResult[0] === 'error'
                     ? errorResult('write')
                     : okResult(vecToCBase32(hashResult[1]))))
             )

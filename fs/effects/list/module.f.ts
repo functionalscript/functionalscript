@@ -20,14 +20,14 @@ export type List<O extends Operation, T> =
  * Note: we use `Effect<O, Next<O, T>>` because TypeScript can't convert `pure(...)` to
  *       `List<O, T>`.
  */
-export const end =
+export const empty =
 <O extends Operation, T>(): Effect<O, Next<O, T>> =>
     pure(() => undefined)
 
 /**
- * Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link end}.
+ * Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link empty}.
  */
-export const cons =
+export const nonEmpty =
 <O extends Operation, T>(head: T, tail: List<O, T>): Effect<O, Next<O, T>> =>
     pure(() => [head, tail])
 
