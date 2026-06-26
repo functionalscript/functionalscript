@@ -21,7 +21,9 @@ export const end =
 <O extends Operation, T>(): Effect<O, Next<O, T>> =>
     pure(() => undefined)
 
-/** Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link end}. */
+/**
+ * Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link end}.
+ */
 export const cons =
 <O extends Operation, T>(head: T, tail: List<O, T>): Effect<O, Next<O, T>> =>
     pure(() => [head, tail])
