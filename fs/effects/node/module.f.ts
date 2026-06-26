@@ -221,7 +221,6 @@ const writeLoop = (path: string) => {
                 if (r[0] === 'error') {
                     return pure(r)
                 }
-                // todo: use `next`.
                 return f(offset + Number(lenV >> 3n), next)
             })
         })
