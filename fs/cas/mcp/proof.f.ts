@@ -1,22 +1,35 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
-import { listEffectCons, listEffectEnd, pure, type Effect, type ListEffect, type Operation } from '../../effects/module.f.ts'
+import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
-import { asBase, asNominal, create, read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
+import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
 import type { Response } from '../../json/rpc/module.f.ts'
-import { empty, length, maxLength, msb, u8ListToVec, vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
+import { msb, u8ListToVec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
-import { computeSync, sha256 } from '../../crypto/sha2/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
-import { fileCas, type Cas, type FileCasOperation } from '../module.f.ts'
+import { type FileCasOperation } from '../module.f.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { type IoResult, type MakeDirectoryOptions, type ReaddirOptions, type Access, type CreateExclusive, type Mkdir, type Now, type RandomInt, type ReadBytes, type Readdir, type Rename, type Rm, type Stat, type WriteBytes } from '../../effects/node/module.f.ts'
+import type {
+    MakeDirectoryOptions,
+    ReaddirOptions,
+    Access,
+    CreateExclusive,
+    Mkdir,
+    Now,
+    RandomInt,
+    ReadBytes,
+    Readdir,
+    Rename,
+    Rm,
+    Stat,
+    WriteBytes
+} from '../../effects/node/module.f.ts'
 import { emptyState, virtual, type Dir } from '../../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
-import { error as resultError, ok as resultOk } from '../../types/result/module.f.ts'
+import { ok as resultOk } from '../../types/result/module.f.ts'
 
 type CasGetResult = {
     readonly length: number
