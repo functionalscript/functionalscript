@@ -7,7 +7,7 @@
 import { todo } from '../asserts/module.f.ts'
 import { utf8ByteToCodePointOp, utf8EofToCodePointOp, utf8StateToError, type Utf8State } from '../text/utf8/module.f.ts'
 import { length, msb, type Vec } from '../types/bit_vec/module.f.ts'
-import { fold, type List } from '../types/list/module.f.ts'
+import { fold, next, type List } from '../types/list/module.f.ts'
 
 export type Operation =
     readonly[string, (..._: readonly never[]) => unknown]
@@ -35,7 +35,7 @@ export type DoK<O extends Operation, T, K extends O[0]> =
 export type Do<O extends Operation, T> =
     DoK<O, T, O[0]>
 
-export const pure = < T>(v: T): Effect<never, T> => ({
+export const pure = <T>(v: T): Effect<never, T> => ({
     value: [v],
     step: f => f(v)
 })
@@ -175,32 +175,4 @@ export const listEffectCons =
 <O extends Operation, T>(head: T, tail: ListEffect<O, T>): ListEffect<O, T> => {
     const node: readonly[T, ListEffect<O, T>] = [head, tail]
     return { value: [node], step: f => f(node) }
-}
-
-const popFront8 = msb.popFront(8n)
-
-export const codePointList =
-<O extends Operation>(list: ListEffect<O, Vec>): ListEffect<O, number> => {
-    const done: Effect<O, NextEffect<O, number>> = pure(undefined)
-    const f = (list: ListEffect<O, Vec>, state: Utf8State): ListEffect<O, number> => list.step((p): Effect<O, NextEffect<O, number>> => {
-        if (p === undefined) {
-            return state === null
-                ? done
-                : pure([utf8StateToError(state), done])
-        }
-        const [v, nextList] = p
-        const g = (v: Vec, list: ListEffect<O, Vec>, state: Utf8State): ListEffect<O, number> => {
-            if (length(v) === 0n) {
-                return f(nextList, state)
-            }
-            const [b, nextVec] = popFront8(v)
-            const [result, nextState] = utf8ByteToCodePointOp(Number(b), state)
-            if (result.length === 0) {
-                return g(nextVec, list, nextState) // it can be a cycle.
-            }
-            return todo()
-        }
-        return g(v, nextList, state)
-    })
-    return f(list, null)
 }
