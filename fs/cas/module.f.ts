@@ -7,7 +7,7 @@ import { sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/modul
 import { join, normalize, parse } from '../path/module.f.ts'
 import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
-import { foldStep, forEachStep, listEffectCons, listEffectEnd, pure, type Effect, type ListEffect, type Operation } from '../effects/module.f.ts'
+import { foldStep, forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
 import {
     access,
     createExclusive,
@@ -37,6 +37,7 @@ import {
 import { toOption } from '../types/nullable/module.f.ts'
 import { error, ok, unwrap } from '../types/result/module.f.ts'
 import { splitAt } from '../types/string/module.f.ts'
+import { cons, end, type List } from '../effects/list/module.f.ts'
 
 const split2 = splitAt(2)
 
@@ -68,12 +69,12 @@ export type Cas<O extends Operation> = {
      * explicit `ok(chunk)` or `error` item, so a missing shard or I/O error is a distinct
      * error *item* in the stream, never collapsed into end-of-stream (`undefined`).
      */
-    readonly read: (hash: Vec) => ListEffect<O, IoResult<Vec>>
+    readonly read: (hash: Vec) => List<O, IoResult<Vec>>
     /**
      * Consumes a chunk stream — each item `ok(chunk)` or `error` — hashing incrementally,
      * and returns the content address. An error item aborts the upload.
      */
-    readonly write: <O1 extends Operation>(payload: ListEffect<O1, IoResult<Vec>>) => Effect<O | O1, IoResult<Vec>>
+    readonly write: <O1 extends Operation>(payload: List<O1, IoResult<Vec>>) => Effect<O | O1, IoResult<Vec>>
     /** Lists all stored content hashes. */
     readonly list: () => Effect<O, readonly Vec[]>
 }
@@ -134,19 +135,19 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
     const normalizedStorePrefix = normalize(storePrefix)
     const stageDir = join(storePrefix, stageRel)
     return {
-        read: (hash: Vec): ListEffect<FileCasOperation, IoResult<Vec>> => {
+        read: (hash: Vec): List<FileCasOperation, IoResult<Vec>> => {
             const p = join(path, toPath(hash))
-            const loop = (offset: number): ListEffect<FileCasOperation, IoResult<Vec>> =>
+            const loop = (offset: number): List<FileCasOperation, IoResult<Vec>> =>
                 readBytes(p, offset, chunkBytes)
-                .step((result): ListEffect<FileCasOperation, IoResult<Vec>> => {
+                .step((result): List<FileCasOperation, IoResult<Vec>> => {
                     const [t, v] = result
                     // A missing shard or read error is an explicit error item, never EOF.
-                    if (t === 'error') { return listEffectCons<FileCasOperation, IoResult<Vec>>(result, listEffectEnd()) }
+                    if (t === 'error') { return cons<FileCasOperation, IoResult<Vec>>(result, end()) }
                     // End the stream only on an empty read; every non-empty read — including a
                     // final short (`< CHUNK_BYTES`) chunk — is emitted as an `ok` item.
                     return length(v) === 0n
-                        ? listEffectEnd()
-                        : listEffectCons(ok(v), loop(offset + chunkBytes))
+                        ? end()
+                        : cons(ok(v), loop(offset + chunkBytes))
                 })
             return loop(0)
         },
@@ -158,7 +159,7 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
         // shard path by a replace-`rename` (which also dedups/repairs a same-content shard),
         // and success is confirmed by a `stat` size check. GC of expired staging files is
         // piggy-backed at the start.
-        write: <O1 extends Operation>(payload: ListEffect<O1, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
+        write: <O1 extends Operation>(payload: List<O1, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
             // Publish the finished staging file to its content-addressed shard. The three
             // filesystem steps run best-effort with their results ignored; success is decided
             // afterward by observing the target's size (see staging-lease.md "Publish ignores
@@ -181,9 +182,10 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                 random256.step(rnd => {
                     const rndStr = vecToCBase32(rnd)
                     const loop = (state: Sha2State, offset: number, curPath: string) =>
-                        (stream: ListEffect<O1, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> =>
+                        (stream: List<O1, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> =>
                             stream
-                            .step((node): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
+                            .step((nodeThunk): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
+                                const node = nodeThunk()
                                 if (node === undefined) { return publish(state, offset, curPath) }
                                 const [item, rest] = node
                                 if (item[0] === 'error') { return fail(curPath, item[1]) }
@@ -245,14 +247,14 @@ const random256: Effect<RandomInt, Vec> =
     )(empty)([0, 1, 2, 3, 4, 5, 6, 7])
 
 /** Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of `ok` items. */
-const streamFile = (filePath: string): ListEffect<ReadBytes, IoResult<Vec>> => {
-    const loop = (offset: number): ListEffect<ReadBytes, IoResult<Vec>> =>
-        readBytes(filePath, offset, chunkBytes).step((result): ListEffect<ReadBytes, IoResult<Vec>> => {
-            if (result[0] === 'error') { return listEffectCons<ReadBytes, IoResult<Vec>>(result, listEffectEnd()) }
+const streamFile = (filePath: string): List<ReadBytes, IoResult<Vec>> => {
+    const loop = (offset: number): List<ReadBytes, IoResult<Vec>> =>
+        readBytes(filePath, offset, chunkBytes).step((result): List<ReadBytes, IoResult<Vec>> => {
+            if (result[0] === 'error') { return cons<ReadBytes, IoResult<Vec>>(result, end()) }
             const chunk = result[1]
             return length(chunk) === 0n
-                ? listEffectEnd()
-                : listEffectCons(ok(chunk), loop(offset + chunkBytes))
+                ? end()
+                : cons(ok(chunk), loop(offset + chunkBytes))
         })
     return loop(0)
 }
