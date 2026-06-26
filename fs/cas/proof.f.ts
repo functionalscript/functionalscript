@@ -121,7 +121,8 @@ export const proof = {
         if (msb.cmp(hash)(computeSync(sha256)([content])) !== 0) { throw 'write hash mismatch' }
         const drain = (acc: readonly Vec[]) =>
             (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<readonly Vec[]>> =>
-                stream.step((node): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
+                stream.step((nodeThunk): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
+                    const node = nodeThunk()
                     if (node === undefined) { return pure(ok(acc)) }
                     const [item, rest] = node
                     if (item[0] === 'error') { return pure(item) }
@@ -135,7 +136,7 @@ export const proof = {
         // A missing shard surfaces as an explicit error *item*, never as end-of-stream.
         const c = fileCas(sha256)('.')
         const hash = computeSync(sha256)([vec8(0x2An)])
-        const [, node] = virtual(emptyState)(c.read(hash))
+        const node = virtual(emptyState)(c.read(hash))[1]()
         if (node === undefined) { throw 'missing shard must not be EOF' }
         if (node[0][0] !== 'error') { throw ['expected error item', node[0]] }
     },
@@ -154,7 +155,8 @@ export const proof = {
         if (msb.cmp(hash)(computeSync(sha256)(chunks)) !== 0) { throw 'multi-chunk write hash mismatch' }
         const drain = (acc: readonly Vec[]) =>
             (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<readonly Vec[]>> =>
-                stream.step((node): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
+                stream.step((nodeThunk): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
+                    const node = nodeThunk()
                     if (node === undefined) { return pure(ok(acc)) }
                     const [item, rest] = node
                     if (item[0] === 'error') { return pure(item) }
@@ -213,7 +215,8 @@ export const proof = {
         // Fold the read stream straight into a fresh SHA-2 state — never one `Vec`.
         const rehash = (state: typeof sha256.init) =>
             (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<Vec>> =>
-                stream.step((node): Effect<FileCasOperation, IoResult<Vec>> => {
+                stream.step((nodeThunk): Effect<FileCasOperation, IoResult<Vec>> => {
+                    const node = nodeThunk()
                     if (node === undefined) { return pure(ok(sha256.end(state))) }
                     const [item, rest] = node
                     if (item[0] === 'error') { return pure(item) }

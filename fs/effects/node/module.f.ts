@@ -204,7 +204,8 @@ export const writeBytes: Func<WriteBytes> =
 
 const writeLoop = (path: string) => {
     const f = <O extends Operation>(offset: number, e: List<O, IoResult<Vec>>) =>
-        e.step(r => {
+        e.step(rt => {
+            const r = rt()
             if (r === undefined) {
                 return pure(ok(undefined))
             }

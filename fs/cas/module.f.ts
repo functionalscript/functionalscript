@@ -184,7 +184,8 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                     const loop = (state: Sha2State, offset: number, curPath: string) =>
                         (stream: List<O1, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> =>
                             stream
-                            .step((node): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
+                            .step((nodeThunk): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
+                                const node = nodeThunk()
                                 if (node === undefined) { return publish(state, offset, curPath) }
                                 const [item, rest] = node
                                 if (item[0] === 'error') { return fail(curPath, item[1]) }

@@ -113,7 +113,8 @@ export const casListArgs = {} as const
  */
 const collectRead = <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {
     const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
-        s.step((node): Effect<O, IoResult<Vec>> => {
+        s.step((nodeThunk): Effect<O, IoResult<Vec>> => {
+            const node = nodeThunk()
             if (node === undefined) { return pure(ok(acc)) }
             const [item, rest] = node
             if (item[0] === 'error') { return pure(item) }
