@@ -2,11 +2,12 @@ import { length, maxLength, msb, vec, vec8, type Vec } from '../types/bit_vec/mo
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
 import { fileCas, casAddFile, type FileCasOperation, casUpload } from './module.f.ts'
-import { listEffectCons, listEffectEnd, pure, type Effect, type ListEffect } from '../effects/module.f.ts'
+import { pure, type Effect } from '../effects/module.f.ts'
 import { mkdir, writeFile, rm, readFile, type ReadFile, type WriteFile, type Rm, type Mkdir, type IoResult, access } from '../effects/node/module.f.ts'
 import { error, ok, type Ok } from '../types/result/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { join } from '../path/module.f.ts'
+import { listEffectCons, listEffectEnd, type ListEffect } from '../effects/list/module.f.ts'
 
 const testDir = './test-cas-cli'
 
