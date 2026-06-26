@@ -182,7 +182,7 @@ export const utf8StateToError = (state: Utf8NonEmptyState): I32 => {
  *   - A list of decoded Unicode code points or error codes.
  *   - The updated UTF-8 state.
  */
-const utf8ByteToCodePointOp: StateScan<number, Utf8State, List<I32>> = (byte, state) => {
+export const utf8ByteToCodePointOp: StateScan<number, Utf8State, readonly I32[]> = (byte, state) => {
     if (byte < 0x00 || byte > 0xff) {
         return [[errorMask], state]
     }

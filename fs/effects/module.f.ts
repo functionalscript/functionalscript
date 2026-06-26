@@ -5,8 +5,8 @@
  */
 
 import { todo } from '../asserts/module.f.ts'
-import { utf8EofToCodePointOp, utf8StateToError, type Utf8State } from '../text/utf8/module.f.ts'
-import type { Vec } from '../types/bit_vec/module.f.ts'
+import { utf8ByteToCodePointOp, utf8EofToCodePointOp, utf8StateToError, type Utf8State } from '../text/utf8/module.f.ts'
+import { length, msb, type Vec } from '../types/bit_vec/module.f.ts'
 import { fold, type List } from '../types/list/module.f.ts'
 
 export type Operation =
@@ -149,10 +149,10 @@ export type F<O extends Operation> = Pr<O, O[0]>
 
 export type Func<O extends Operation> = (..._: Param<O>) => Effect<O, Return<O>>
 
-export type NextEffect<O extends Operation, T> = readonly[T, ListEffect<O, T>]
+export type NextEffect<O extends Operation, T> = readonly[T, ListEffect<O, T>] | undefined
 
 export type ListEffect<O extends Operation, T> =
-    Effect<O, NextEffect<O, T> | undefined>
+    Effect<O, NextEffect<O, T>>
 
 /**
  * The empty `ListEffect`: a pure end-of-stream marker (`undefined`).
@@ -177,19 +177,30 @@ export const listEffectCons =
     return { value: [node], step: f => f(node) }
 }
 
+const popFront8 = msb.popFront(8n)
+
 export const codePointList =
 <O extends Operation>(list: ListEffect<O, Vec>): ListEffect<O, number> => {
-    const f = (state: Utf8State): ListEffect<O, number> => list.step((p): Effect<O, undefined> => {
+    const done: Effect<O, NextEffect<O, number>> = pure(undefined)
+    const f = (list: ListEffect<O, Vec>, state: Utf8State): ListEffect<O, number> => list.step((p): Effect<O, NextEffect<O, number>> => {
         if (p === undefined) {
-            if (state === null) {
-                return pure(undefined)
-            }
-            const m: Effect<O, NextEffect<O, number> | undefined> = pure(undefined)
-            const m1: ListEffect<O, number> = pure(undefined)
-            //const x: NextEffect<O, number> = [0, pure(undefined)]
-            return pure(undefined)
+            return state === null
+                ? done
+                : pure([utf8StateToError(state), done])
         }
-        return todo()
+        const [v, nextList] = p
+        const g = (v: Vec, list: ListEffect<O, Vec>, state: Utf8State): ListEffect<O, number> => {
+            if (length(v) === 0n) {
+                return f(nextList, state)
+            }
+            const [b, nextVec] = popFront8(v)
+            const [result, nextState] = utf8ByteToCodePointOp(Number(b), state)
+            if (result.length === 0) {
+                return g(nextVec, list, nextState) // it can be a cycle.
+            }
+            return todo()
+        }
+        return g(v, nextList, state)
     })
-    return f(null)
+    return f(list, null)
 }
