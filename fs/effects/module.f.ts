@@ -4,7 +4,6 @@
  * @module
  */
 
-import { todo } from '../asserts/module.f.ts'
 import { utf8ByteToCodePointOp, utf8EofToCodePointOp, utf8StateToError, type Utf8State } from '../text/utf8/module.f.ts'
 import { length, msb, type Vec } from '../types/bit_vec/module.f.ts'
 import { fold, next, type List } from '../types/list/module.f.ts'
