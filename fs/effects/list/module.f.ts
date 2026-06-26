@@ -1,6 +1,7 @@
 import { pure, type Effect, type Operation } from "../module.f.ts"
 
-export type Next<O extends Operation, T> = () => readonly[T, List<O, T>] | undefined
+export type Next<O extends Operation, T> =
+    () => readonly[T, List<O, T>] | undefined
 
 export type List<O extends Operation, T> =
     Effect<O, Next<O, T>>
@@ -18,7 +19,8 @@ const none = () => undefined
  * check, so the recursive payload type-checks without a cast. Construct streams through
  * these two combinators.
  */
-export const end = <O extends Operation, T>(): Effect<O, Next<O, T>> =>
+export const end =
+<O extends Operation, T>(): Effect<O, Next<O, T>> =>
     pure(none)
 
 /** Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link end}. */
