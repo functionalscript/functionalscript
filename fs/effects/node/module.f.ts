@@ -11,16 +11,17 @@
 import { utf8, utf8ToString } from '../../text/module.f.ts'
 import { toCodePointList } from '../../text/utf8/module.f.ts'
 import { codePointListToString } from '../../text/utf16/module.f.ts'
-import { reverse, type List } from '../../types/list/module.f.ts'
+import { reverse, type List as EffectList } from '../../types/list/module.f.ts'
 import { length, type Vec } from '../../types/bit_vec/module.f.ts'
 import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
 import { ok, error as resultError, type Result } from '../../types/result/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
 import {
-    type Effect, type Func, type ListEffect, type Operation, type ToAsyncOperationMap,
+    type Effect, type Func, type Operation, type ToAsyncOperationMap,
     do_, pure
 } from '../module.f.ts'
+import type { List } from '../list/module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
 
@@ -202,8 +203,9 @@ export const writeBytes: Func<WriteBytes> =
     do_('writeBytes')
 
 const writeLoop = (path: string) => {
-    const f = <O extends Operation>(offset: number, e: ListEffect<O, IoResult<Vec>>) =>
-        e.step(r => {
+    const f = <O extends Operation>(offset: number, e: List<O, IoResult<Vec>>) =>
+        e.step(rt => {
+            const r = rt()
             if (r === undefined) {
                 return pure(ok(undefined))
             }
@@ -220,7 +222,6 @@ const writeLoop = (path: string) => {
                 if (r[0] === 'error') {
                     return pure(r)
                 }
-                // todo: use `next`.
                 return f(offset + Number(lenV >> 3n), next)
             })
         })
@@ -228,7 +229,7 @@ const writeLoop = (path: string) => {
 }
 
 export const writeFromStream =
-    <O extends Operation>(path: string, e: ListEffect<O, IoResult<Vec>>): Effect<O | WriteBytes | CreateExclusive, IoResult<void>> =>
+    <O extends Operation>(path: string, e: List<O, IoResult<Vec>>): Effect<O | WriteBytes | CreateExclusive, IoResult<void>> =>
     createExclusive(path)
     .step(([r, v]): Effect<O | WriteBytes, IoResult<void>> => {
         if (r === 'error') {
@@ -356,7 +357,7 @@ export type Read = readonly['read', (stream: ReadConsoles) => number | null]
 export const read: Func<Read> = do_('read')
 
 /** Decodes accumulated UTF-8 bytes (MSB-first, already in order) into a string. */
-const utf8ListToString = (bytes: List<number>): string =>
+const utf8ListToString = (bytes: EffectList<number>): string =>
     codePointListToString(toCodePointList(bytes))
 
 /** The line-feed byte (`\n`) that terminates a line. */
@@ -377,7 +378,7 @@ const lf = 0x0a
  * rather than the O(n²) of copying a growing array on every byte.
  */
 export const readLine = (stream: ReadConsoles): Effect<Read, string | null> => {
-    const loop = (acc: List<number>): Effect<Read, string | null> =>
+    const loop = (acc: EffectList<number>): Effect<Read, string | null> =>
         read(stream).step(b =>
             b === null
                 ? pure(acc === null ? null : utf8ListToString(reverse(acc)))
