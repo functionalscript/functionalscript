@@ -18,8 +18,8 @@ import type { Nominal } from '../../types/nominal/module.f.ts'
 import { ok, error as resultError, type Result } from '../../types/result/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
 import {
-    type Effect, type Func, type ListEffect, type Operation, type ToAsyncOperationMap,
-    do_, pure
+    type Effect, type Func, type ListEffect, type ListStep, type Operation, type ToAsyncOperationMap,
+    do_, foldStepWhile, pure
 } from '../module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
@@ -201,31 +201,26 @@ export type WriteBytes = readonly['writeBytes', (path: string, offset: number, d
 export const writeBytes: Func<WriteBytes> =
     do_('writeBytes')
 
-const writeLoop = (path: string) => {
-    const f = <O extends Operation>(offset: number, e: ListEffect<O, IoResult<Vec>>) =>
-        e.step(r => {
-            if (r === undefined) {
-                return pure(ok(undefined))
-            }
-            const [[t, v], next] = r
-            if (t === 'error') {
-                return pure(resultError(v))
-            }
+// Writes each chunk of a (possibly unbounded) `IoResult<Vec>` stream to `path` at the
+// running byte offset. An error item or an empty (EOF) chunk ends the write — an empty
+// chunk lets an unbounded source (e.g. CAS `read`) terminate; the stream simply running
+// out (a finite payload) ends it too.
+const writeLoop = (path: string) =>
+    foldStepWhile(
+        (item: IoResult<Vec>) => (offset: number): Effect<WriteBytes, ListStep<number, IoResult<void>>> => {
+            if (item[0] === 'error') { return pure(['stop', resultError(item[1])]) }
+            const v = item[1]
             const lenV = length(v)
-            if ((lenV & 0b111n) !== 0n) {
-                return pure(resultError('invalid buffer size'))
-            }
+            if (lenV === 0n) { return pure(['stop', ok(undefined)]) }
+            if ((lenV & 0b111n) !== 0n) { return pure(['stop', resultError('invalid buffer size')]) }
             return writeBytes(path, offset, v)
-            .step((r): Effect<O | WriteBytes, IoResult<void>> => {
-                if (r[0] === 'error') {
-                    return pure(r)
-                }
-                // todo: use `next`.
-                return f(offset + Number(lenV >> 3n), next)
-            })
-        })
-    return f
-}
+            .step((r): Effect<never, ListStep<number, IoResult<void>>> =>
+                r[0] === 'error'
+                    ? pure(['stop', r])
+                    : pure(['next', offset + Number(lenV >> 3n)]))
+        },
+        (): Effect<never, IoResult<void>> => pure(ok(undefined)),
+    )(0)
 
 export const writeFromStream =
     <O extends Operation>(path: string, e: ListEffect<O, IoResult<Vec>>): Effect<O | WriteBytes | CreateExclusive, IoResult<void>> =>
@@ -234,7 +229,7 @@ export const writeFromStream =
         if (r === 'error') {
             return pure(resultError(v))
         }
-        return writeLoop(path)(0, e)
+        return writeLoop(path)(e)
     })
 
 // stat

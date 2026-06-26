@@ -65,14 +65,14 @@
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
 import { stringify, type Unknown } from '../../json/module.f.ts'
-import { listEffectCons, listEffectEnd, pure, type Effect, type ListEffect, type Operation } from '../../effects/module.f.ts'
+import { foldStepWhile, pure, pureList, type Effect, type ListEffect, type ListStep, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { detect } from '../../mime/module.f.ts'
 import { empty, length as bitVecLength, maxLength, msb, type Vec } from '../../types/bit_vec/module.f.ts'
-import { ok, error, type Ok } from '../../types/result/module.f.ts'
+import { ok, error } from '../../types/result/module.f.ts'
 import { rm, type IoResult, type Read, type Rm, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
@@ -110,22 +110,22 @@ export const casListArgs = {} as const
  * (MIME sniffing, UTF-8 validation, base64 encoding all inspect the full content),
  * so the chunk stream is concatenated; an error item is surfaced as the result.
  */
-const collectRead = <O extends Operation>(stream: ListEffect<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {
-    const loop = (acc: Vec) => (s: ListEffect<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
-        s.step((node): Effect<O, IoResult<Vec>> => {
-            if (node === undefined) { return pure(ok(acc)) }
-            const [item, rest] = node
-            if (item[0] === 'error') { return pure(item) }
+const collectRead = <O extends Operation>(stream: ListEffect<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
+    foldStepWhile(
+        (item: IoResult<Vec>) => (acc: Vec): Effect<never, ListStep<Vec, IoResult<Vec>>> => {
+            if (item[0] === 'error') { return pure(['stop', item]) }
+            // An empty (EOF) chunk ends the unbounded read stream with what was collected.
+            if (bitVecLength(item[1]) === 0n) { return pure(['stop', ok(acc)]) }
             // A single `Vec` cannot exceed `maxLength` bits; concatenating past it would
             // overflow the runtime's `bigint` constraint. Surface that as an error item
             // so the tool reports a failure rather than crashing the process.
             if (bitVecLength(acc) + bitVecLength(item[1]) > maxLength) {
-                return pure(error(`cas blob exceeds maximum vector length of ${maxLength} bits`))
+                return pure(['stop', error(`cas blob exceeds maximum vector length of ${maxLength} bits`)])
             }
-            return loop(msb.concat(acc)(item[1]))(rest)
-        })
-    return loop(empty)(stream)
-}
+            return pure(['next', msb.concat(acc)(item[1])])
+        },
+        (acc: Vec): Effect<never, IoResult<Vec>> => pure(ok(acc)),
+    )(empty)(stream)
 
 // ── Tool registry ──────────────────────────────────────────────────────────────
 
@@ -174,7 +174,7 @@ const casToolRegistry =
             return x.step(value => typeof value === 'string'
                 ? pure(errorResult(value))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(listEffectCons(ok(value), listEffectEnd<never, Ok<Vec>>())).step(hashResult => pure(hashResult[0] === 'error'
+                : c.write(pureList([ok(value)])).step(hashResult => pure(hashResult[0] === 'error'
                     ? errorResult('write')
                     : okResult(vecToCBase32(hashResult[1]))))
             )

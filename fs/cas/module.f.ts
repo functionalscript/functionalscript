@@ -7,7 +7,7 @@ import { sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/modul
 import { join, normalize, parse } from '../path/module.f.ts'
 import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
-import { foldStep, forEachStep, listEffectCons, listEffectEnd, pure, type Effect, type ListEffect, type Operation } from '../effects/module.f.ts'
+import { foldStep, foldStepWhile, forEachStep, pure, type Effect, type ListEffect, type ListStep, type Operation } from '../effects/module.f.ts'
 import {
     access,
     createExclusive,
@@ -136,19 +136,14 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
     return {
         read: (hash: Vec): ListEffect<FileCasOperation, IoResult<Vec>> => {
             const p = join(path, toPath(hash))
-            const loop = (offset: number): ListEffect<FileCasOperation, IoResult<Vec>> =>
-                readBytes(p, offset, chunkBytes)
-                .step((result): ListEffect<FileCasOperation, IoResult<Vec>> => {
-                    const [t, v] = result
-                    // A missing shard or read error is an explicit error item, never EOF.
-                    if (t === 'error') { return listEffectCons<FileCasOperation, IoResult<Vec>>(result, listEffectEnd()) }
-                    // End the stream only on an empty read; every non-empty read — including a
-                    // final short (`< CHUNK_BYTES`) chunk — is emitted as an `ok` item.
-                    return length(v) === 0n
-                        ? listEffectEnd()
-                        : listEffectCons(ok(v), loop(offset + chunkBytes))
-                })
-            return loop(0)
+            // An unbounded lazy list of chunk reads — the list shape is pure, so termination
+            // lives in the values the consumer (`foldStepWhile`) sees: it stops at the first
+            // empty `ok` chunk (EOF) or `error` item. So a final short (`< CHUNK_BYTES`) chunk
+            // is still emitted, and a missing shard surfaces as an explicit error item, never
+            // collapsed into end-of-stream.
+            const at = (offset: number): ListEffect<FileCasOperation, IoResult<Vec>> =>
+                ({ first: readBytes(p, offset, chunkBytes), tail: () => at(offset + chunkBytes) })
+            return at(0)
         },
         // Lock-free staging upload (issues/cas/staging-lease.md): stream each chunk straight
         // to a `_stage/<deadline>-<rand>` file via `writeBytes` while folding it into the
@@ -180,39 +175,49 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
             return gcStage(stageDir).step(() =>
                 random256.step(rnd => {
                     const rndStr = vecToCBase32(rnd)
-                    const loop = (state: Sha2State, offset: number, curPath: string) =>
-                        (stream: ListEffect<O1, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> =>
-                            stream
-                            .step((node): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
-                                if (node === undefined) { return publish(state, offset, curPath) }
-                                const [item, rest] = node
-                                if (item[0] === 'error') { return fail(curPath, item[1]) }
-                                const chunk = item[1]
-                                return writeBytes(curPath, offset, chunk)
-                                .step(wb => {
-                                    if (wb[0] === 'error') { return fail(curPath, wb[1]) }
-                                    const newState = sha2.append(chunk)(state)
-                                    const newOffset = offset + Number(length(chunk) / 8n)
-                                    // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
-                                    return now()
-                                    .step(t => {
-                                        const next = join(stageDir, stageName(t + leaseDelta, rndStr))
-                                        return rename(curPath, next).step(([t, v]) =>
-                                            t === 'error'
-                                                ? fail(curPath, v)
-                                                : loop(newState, newOffset, next)(rest))
-                                    })
-                                })
+                    // The running upload state threaded through the chunk stream: SHA-2 state, the
+                    // byte offset written so far, and the current staging file path (it moves on
+                    // every lease renewal).
+                    type WState = readonly[Sha2State, number, string]
+                    type WStep = ListStep<WState, IoResult<Vec>>
+                    const stop = (e: Effect<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, WStep> =>
+                        e.step(r => pure(['stop', r] as const))
+                    // Fold one chunk item into the upload, performing the per-chunk `writeBytes` and
+                    // lease-renewing `rename`. An error item or an empty (EOF) chunk terminates the
+                    // stream; an empty chunk lets an unbounded source (e.g. `streamFile`) publish.
+                    const onChunk = (item: IoResult<Vec>) => ([state, offset, curPath]: WState): Effect<FileCasOperation, WStep> => {
+                        if (item[0] === 'error') { return stop(fail(curPath, item[1])) }
+                        const chunk = item[1]
+                        if (length(chunk) === 0n) { return stop(publish(state, offset, curPath)) }
+                        return writeBytes(curPath, offset, chunk)
+                        .step((wb): Effect<FileCasOperation, WStep> => {
+                            if (wb[0] === 'error') { return stop(fail(curPath, wb[1])) }
+                            const newState = sha2.append(chunk)(state)
+                            const newOffset = offset + Number(length(chunk) / 8n)
+                            // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
+                            return now()
+                            .step(t => {
+                                const nextPath = join(stageDir, stageName(t + leaseDelta, rndStr))
+                                return rename(curPath, nextPath).step(([rt, rv]): Effect<FileCasOperation, WStep> =>
+                                    rt === 'error'
+                                        ? stop(fail(curPath, rv))
+                                        : pure(['next', [newState, newOffset, nextPath]] as const))
                             })
+                        })
+                    }
+                    // The stream ran out without an empty terminator (a finite, in-memory payload):
+                    // publish what was written.
+                    const onEnd = ([state, offset, curPath]: WState): Effect<FileCasOperation, IoResult<Vec>> =>
+                        publish(state, offset, curPath)
                     return mkdir(stageDir, { recursive: true })
                     .step(() =>
                         now()
                         .step(t0 => {
                             const path0 = join(stageDir, stageName(t0 + leaseDelta, rndStr))
                             return createExclusive(path0)
-                            .step(([c, e]) => c === 'error'
+                            .step(([c, e]): Effect<O1 | FileCasOperation, IoResult<Vec>> => c === 'error'
                                 ? pure(error(e))
-                                : loop(sha2.init, 0, path0)(payload)
+                                : foldStepWhile(onChunk, onEnd)([sha2.init, 0, path0] as const)(payload)
                             )
                         }))
                 }))
@@ -244,17 +249,15 @@ const random256: Effect<RandomInt, Vec> =
         randomInt().step(r => pure(msb.concat(acc)(vec(32n)(BigInt(r)))))
     )(empty)([0, 1, 2, 3, 4, 5, 6, 7])
 
-/** Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of `ok` items. */
+/**
+ * Streams any file at `filePath` in `<=128 KiB` chunks as an unbounded `ListEffect`. The
+ * list shape is pure; the consumer (`write` via `foldStepWhile`) stops at the first empty
+ * (EOF) chunk or `error` item.
+ */
 const streamFile = (filePath: string): ListEffect<ReadBytes, IoResult<Vec>> => {
-    const loop = (offset: number): ListEffect<ReadBytes, IoResult<Vec>> =>
-        readBytes(filePath, offset, chunkBytes).step((result): ListEffect<ReadBytes, IoResult<Vec>> => {
-            if (result[0] === 'error') { return listEffectCons<ReadBytes, IoResult<Vec>>(result, listEffectEnd()) }
-            const chunk = result[1]
-            return length(chunk) === 0n
-                ? listEffectEnd()
-                : listEffectCons(ok(chunk), loop(offset + chunkBytes))
-        })
-    return loop(0)
+    const at = (offset: number): ListEffect<ReadBytes, IoResult<Vec>> =>
+        ({ first: readBytes(filePath, offset, chunkBytes), tail: () => at(offset + chunkBytes) })
+    return at(0)
 }
 
 /**
@@ -263,9 +266,8 @@ const streamFile = (filePath: string): ListEffect<ReadBytes, IoResult<Vec>> => {
  * additionally deletes the source file on success.
  */
 export const casAddFile = <O extends Operation>(cas: Cas<O>) => (path: string): Effect<O | ReadBytes, IoResult<Vec>> =>
-    // streamFile produces only ReadBytes effects. TypeScript can't prove ListEffect<ReadBytes,T>
-    // ≤ ListEffect<O,T> for generic O (recursive type), but the cast is sound: every concrete
-    // caller passes a Cas<O> where ReadBytes ⊆ O (e.g. FileCasOperation).
+    // streamFile produces only ReadBytes effects; `write` is generic over the payload's op
+    // set, so it threads `ReadBytes` through into its result type with no cast needed.
     cas.write(streamFile(path))
 
 /**

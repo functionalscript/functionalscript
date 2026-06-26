@@ -4,7 +4,7 @@
  * @module
  */
 
-import { fold, type List } from '../types/list/module.f.ts'
+import { fold, map, next, type List } from '../types/list/module.f.ts'
 
 export type Operation =
     readonly[string, (..._: readonly never[]) => unknown]
@@ -146,30 +146,61 @@ export type F<O extends Operation> = Pr<O, O[0]>
 
 export type Func<O extends Operation> = (..._: Param<O>) => Effect<O, Return<O>>
 
-export type NextEffect<O extends Operation, T> = readonly[T, ListEffect<O, T>] | undefined
-
-export type ListEffect<O extends Operation, T> =
-    Effect<O, NextEffect<O, T>>
+/**
+ * A lazy list of effects: each element is an `Effect<O, T>` that, when run, produces one
+ * item `T`. Unlike the previous effect-driven cons stream, the list *shape* is pure and
+ * lazy (`List`'s thunks), so a pure `List<T>` lifts into a `ListEffect` for free via
+ * {@link pureList} (`map(pure)`) — no element is forced until the consumer pulls it, and
+ * building the stream costs nothing up front.
+ *
+ * Because the shape is pure, a stream whose length depends on effect results (reading a
+ * file until EOF, say) is expressed as an *unbounded* `ListEffect` that the consumer drives
+ * with {@link foldStepWhile}, stopping early when a run effect yields a sentinel value (an
+ * empty/EOF chunk, an error item, …).
+ */
+export type ListEffect<O extends Operation, T> = List<Effect<O, T>>
 
 /**
- * The empty `ListEffect`: a pure end-of-stream marker (`undefined`).
- *
- * Built as an `Effect` object literal rather than through `pure`. `pure` returns
- * `Effect<never, …>`; widening that to an arbitrary operation set `O` is sound (a pure
- * value performs no operations) and the compiler accepts it for a non-recursive
- * payload, but not when the payload recursively mentions `O` — as `ListEffect`'s cons
- * cell does. Writing the literal directly lets the contextual return type drive the
- * check, so the recursive payload type-checks without a cast. Construct streams through
- * these two combinators.
+ * Lifts a pure `List<T>` into a `ListEffect` lazily: every element becomes `pure(item)`.
+ * The lift is exactly `map(pure)`, so nothing is forced until the consumer pulls it. The
+ * result is over `never` operations (a pure value performs none) and so fits anywhere a
+ * `ListEffect<O, T>` is expected.
  */
-export const listEffectEnd = <O extends Operation, T>(): ListEffect<O, T> => ({
-    value: [undefined],
-    step: f => f(undefined),
-})
+export const pureList: <T>(list: List<T>) => ListEffect<never, T> =
+    map(pure)
 
-/** Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link listEffectEnd}. */
-export const listEffectCons =
-<O extends Operation, T>(head: T, tail: ListEffect<O, T>): ListEffect<O, T> => {
-    const node: readonly[T, ListEffect<O, T>] = [head, tail]
-    return { value: [node], step: f => f(node) }
-}
+/**
+ * One step of driving a {@link ListEffect}: `['next', state]` to keep folding, or
+ * `['stop', result]` to terminate early (e.g. on an EOF/error sentinel in a value).
+ */
+export type ListStep<S, R> =
+    | readonly['next', S]
+    | readonly['stop', R]
+
+/**
+ * Drives a {@link ListEffect} left to right. For each element it runs the effect, then
+ * folds the produced item with `f`, threading state `S`. `f` returns an effect yielding
+ * either `['next', state]` (continue) or `['stop', result]` (terminate early). When the
+ * list runs out, `onEnd(state)` produces the final `R`.
+ *
+ * Early `stop` is what lets an *unbounded* `ListEffect` terminate: a chunked file read can
+ * probe past EOF and the consumer stops on the first empty chunk. `f`'s own effects (op set
+ * `O`) and the list's element effects (op set `P`) are tracked independently and unioned in
+ * the result, so a consumer can perform new effects (e.g. `writeBytes`) per item.
+ */
+export const foldStepWhile =
+    <O extends Operation, T, S, R>(
+        f: (item: T) => (state: S) => Effect<O, ListStep<S, R>>,
+        onEnd: (state: S) => Effect<O, R>,
+    ) =>
+    (init: S) =>
+    <P extends Operation>(list: ListEffect<P, T>): Effect<O | P, R> => {
+        const loop = (state: S) => (l: ListEffect<P, T>): Effect<O | P, R> => {
+            const n = next(l)
+            if (n === null) { return onEnd(state) }
+            return n.first.step(item =>
+                f(item)(state).step(s =>
+                    s[0] === 'stop' ? pure(s[1]) : loop(s[1])(n.tail)))
+        }
+        return loop(init)(list)
+    }
