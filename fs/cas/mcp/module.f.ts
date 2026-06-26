@@ -64,8 +64,8 @@
  * @module
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
-import { stringify, type Unknown } from '../../json/module.f.ts'
-import { listEffectCons, listEffectEnd, pure, type Effect, type ListEffect, type Operation } from '../../effects/module.f.ts'
+import { stringify } from '../../json/module.f.ts'
+import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
@@ -85,6 +85,7 @@ import { casAddFile, fileCas, type Cas, type FileCas, type FileCasOperation } fr
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
+import { listEffectCons, listEffectEnd, type ListEffect } from '../../effects/list/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
