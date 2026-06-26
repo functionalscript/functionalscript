@@ -6,8 +6,6 @@ export type Next<O extends Operation, T> =
 export type List<O extends Operation, T> =
     Effect<O, Next<O, T>>
 
-const none = () => undefined
-
 /**
  * The empty `List`: a pure end-of-stream marker (`undefined`).
  *
@@ -21,7 +19,7 @@ const none = () => undefined
  */
 export const end =
 <O extends Operation, T>(): Effect<O, Next<O, T>> =>
-    pure(none)
+    pure(() => undefined)
 
 /** Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link end}. */
 export const cons =
