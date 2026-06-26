@@ -32,7 +32,7 @@ export type DoK<O extends Operation, T, K extends O[0]> =
 export type Do<O extends Operation, T> =
     DoK<O, T, O[0]>
 
-export const pure = < T>(v: T): Effect<never, T> => ({
+export const pure = <T>(v: T): Effect<never, T> => ({
     value: [v],
     step: f => f(v)
 })
@@ -146,8 +146,10 @@ export type F<O extends Operation> = Pr<O, O[0]>
 
 export type Func<O extends Operation> = (..._: Param<O>) => Effect<O, Return<O>>
 
+export type NextEffect<O extends Operation, T> = readonly[T, ListEffect<O, T>] | undefined
+
 export type ListEffect<O extends Operation, T> =
-    Effect<O, readonly[T, ListEffect<O, T>] | undefined>
+    Effect<O, NextEffect<O, T>>
 
 /**
  * The empty `ListEffect`: a pure end-of-stream marker (`undefined`).
@@ -166,7 +168,8 @@ export const listEffectEnd = <O extends Operation, T>(): ListEffect<O, T> => ({
 })
 
 /** Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link listEffectEnd}. */
-export const listEffectCons = <O extends Operation, T>(head: T, tail: ListEffect<O, T>): ListEffect<O, T> => {
+export const listEffectCons =
+<O extends Operation, T>(head: T, tail: ListEffect<O, T>): ListEffect<O, T> => {
     const node: readonly[T, ListEffect<O, T>] = [head, tail]
     return { value: [node], step: f => f(node) }
 }

@@ -29,13 +29,11 @@ export const proof = {
         assertEq(exitCode, 0)
         const stdout = finalState.stdout
         assert(stdout.length !== 0)
-        // console.log('hello')
         //
         const h = computeSync(sha256)(content)
         const hs = vecToCBase32(h)
         assertEq(stdout, `${hs}\n`)
         //
-        // console.log('hello2')
         const [finalState2, exitCode2] = virtual(finalState)(main(makeOptions(['get', hs, 'myfile2'])))
         console.log(finalState2.stderr)
         assertEq(exitCode2, 0, 'e2')
@@ -46,8 +44,8 @@ export const proof = {
     },
     mainAddWrongArgs: () => {
         const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['add'])))
-        if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
-        if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
+        assertEq(exitCode, 1)
+        assert(finalState.stderr.length !== 0)
     },
     mainGetFound: () => {
         const content = vec8(0x2An)
