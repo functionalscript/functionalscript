@@ -1,4 +1,4 @@
-# Make `Pure<T>` Lazy
+N# Make `Pure<T>` Lazy
 
 **Priority:** P2
 **Status:** open
@@ -15,7 +15,7 @@ A lazy list of effects therefore requires an additional thunk:
 
 ```ts
 export type EffectList<O extends Operation, T> =
-    Effect<O, () => readonly [T, EffectList<O, T>] | undefined>
+    Effect<O, () => NotEmpty<O, T> | undefined>
 ```
 
 When the next list element is produced by an effect (for example, reading the next chunk from a file), evaluating one step requires:
@@ -38,7 +38,7 @@ Then `EffectList` becomes:
 
 ```ts
 export type EffectList<O extends Operation, T> =
-    Effect<O, readonly [T, EffectList<O, T>] | undefined>
+    Effect<O, NotEmpty<O, T> | undefined>
 ```
 
 The effect now returns the next list cell directly.
