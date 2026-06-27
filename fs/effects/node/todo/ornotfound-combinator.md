@@ -30,6 +30,3 @@ list: () => orNotFound(access('.cas'))<readonly Vec[]>([])(() => readdir(...))
 - [ ] Rewrite `read` and `list` in `fs/cas/module.f.ts` to use it.
 - [ ] Cover all three branches (`ok`, `ENOENT`, non-`ENOENT` throw) in `fs/effects/node/proof.f.ts`.
 
-### Related
-
-- `208-try-catch-consolidate` (now `fs/types/result/todo.md`) — consolidating `tryCatch` helpers that *produce* `IoResult`; this is about *consuming* one uniformly. Complementary.
