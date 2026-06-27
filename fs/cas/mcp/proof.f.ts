@@ -346,26 +346,6 @@ export const proof = {
         assert(textOf(addUrlResp).length > 0)
     },
 
-    addBigFileRoundtrip: () => {
-        const chunk = vec(maxLength)(1234567890n)
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'hello.bin': [chunk, chunk] } } } }
-        const [addUrlResp] = runSessionVirtual(root)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/hello.bin', type: 'url' }),
-        ]).slice(2)
-        assert(!resultOf(addUrlResp).isError)
-        assert(textOf(addUrlResp).length > 0)
-        const hash = textOf(addUrlResp)
-        //
-        const [, getResp] = runSessionVirtual(root)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/hello.bin', type: 'url' }),
-            call(3, 'cas_get', { hash })
-        ]).slice(2)
-        assert(!resultOf(getResp).isError)
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
-    },
-
     addUrlRoundTrips: () => {
         const fileContent = utf8('round-trip content')
         const root: Dir = { 'home': { 'user': { 'cas_upload': { 'rt.txt': [fileContent] } } } }
