@@ -92,6 +92,7 @@ const filterFunc
         switch(tk) {
             case 'number':
             case 'string':
+            case 'id':
             case '\n':
             case '\r':
             case ' ':
@@ -143,6 +144,16 @@ const decodeJsonString
     : (codePoints: readonly number[]) => string
     = codePoints => String.fromCodePoint(...toArray(flat(stateScan(stringDecodeScan)({ kind: 'normal' })(codePoints.slice(1, -1)))))
 
+const keywords = new Set<string>([
+    'true', 'false', 'null', 'undefined',
+    'arguments', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
+    'debugger', 'default', 'delete', 'do', 'else', 'enum', 'eval', 'export',
+    'extends', 'finally', 'for', 'function', 'if', 'implements', 'import', 'in',
+    'instanceof', 'interface', 'let', 'new', 'package', 'private', 'protected',
+    'public', 'return', 'static', 'super', 'switch', 'this', 'throw', 'try',
+    'typeof', 'var', 'void', 'while', 'with', 'yield',
+])
+
 const toJsToken
     : (tk: Token) => JsToken | null
     = tk => {
@@ -155,6 +166,11 @@ const toJsToken
                 return {kind: 'ws'}
             case 'string':
                 return {kind: 'string', value: decodeJsonString(tk[1])}
+            case 'id': {
+                const value = String.fromCodePoint(...tk[1])
+                if (keywords.has(value)) return {kind: value} as JsToken
+                return {kind: 'id', value}
+            }
             default:
                 return {kind: tk[0]} as JsToken
         }
@@ -581,14 +597,14 @@ export const proof = {
     //         const result = tokenizeString('0e-')
     //         if (result !== 'error') { throw result }
     //     },
-    //     () => {
-    //         const result = tokenizeString('ABCdef1234567890$_')
-    //         if (result !== '[{"kind":"id","value":"ABCdef1234567890$_"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('{ABCdef1234567890$_}')
-    //         if (result !== '[{"kind":"{"},{"kind":"id","value":"ABCdef1234567890$_"},{"kind":"}"},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('ABCdef1234567890$_')
+            if (result !== '[{"kind":"id","value":"ABCdef1234567890$_"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('{ABCdef1234567890$_}')
+            if (result !== '[{"kind":"{"},{"kind":"id","value":"ABCdef1234567890$_"},{"kind":"}"},{"kind":"eof"}]') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('123 _123')
     //         if (result !== '[{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"_123"},{"kind":"eof"}]') { throw result }
@@ -640,10 +656,10 @@ export const proof = {
             const result = tokenizeString('=')
             if (result !== '[{"kind":"="},{"kind":"eof"}]') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('=a')
-    //         if (result !== '[{"kind":"="},{"kind":"id","value":"a"},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('=a')
+            if (result !== '[{"kind":"="},{"kind":"id","value":"a"},{"kind":"eof"}]') { throw result }
+        },
         () => {
             const result = tokenizeString('-')
             if (result !== '[{"kind":"-"},{"kind":"eof"}]') { throw result }
@@ -715,222 +731,222 @@ export const proof = {
             if (result !== '[{"kind":"nl"},{"kind":"eof"}]') { throw result }
         },
     ],
-    // id: [
-    //     () => {
-    //         const result = tokenizeString('err')
-    //         if (result !== '[{"kind":"id","value":"err"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('{e}')
-    //         if (result !== '[{"kind":"{"},{"kind":"id","value":"e"},{"kind":"}"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('tru')
-    //         if (result !== '[{"kind":"id","value":"tru"},{"kind":"eof"}]') { throw result }
-    //     },
-    // ],
-    // keywords: [
-    //     () => {
-    //         const result = tokenizeString('true')
-    //         if (result !== '[{"kind":"true"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('false')
-    //         if (result !== '[{"kind":"false"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('null')
-    //         if (result !== '[{"kind":"null"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('undefined')
-    //         if (result !== '[{"kind":"undefined"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('[null]')
-    //         if (result !== '[{"kind":"["},{"kind":"null"},{"kind":"]"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('arguments')
-    //         if (result !== '[{"kind":"arguments"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('await')
-    //         if (result !== '[{"kind":"await"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('break')
-    //         if (result !== '[{"kind":"break"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('case')
-    //         if (result !== '[{"kind":"case"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('catch')
-    //         if (result !== '[{"kind":"catch"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('class')
-    //         if (result !== '[{"kind":"class"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('const')
-    //         if (result !== '[{"kind":"const"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('continue')
-    //         if (result !== '[{"kind":"continue"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('debugger')
-    //         if (result !== '[{"kind":"debugger"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('default')
-    //         if (result !== '[{"kind":"default"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('delete')
-    //         if (result !== '[{"kind":"delete"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('do')
-    //         if (result !== '[{"kind":"do"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('else')
-    //         if (result !== '[{"kind":"else"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('enum')
-    //         if (result !== '[{"kind":"enum"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('eval')
-    //         if (result !== '[{"kind":"eval"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('export')
-    //         if (result !== '[{"kind":"export"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('extends')
-    //         if (result !== '[{"kind":"extends"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('finally')
-    //         if (result !== '[{"kind":"finally"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('for')
-    //         if (result !== '[{"kind":"for"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('function')
-    //         if (result !== '[{"kind":"function"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('if')
-    //         if (result !== '[{"kind":"if"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('implements')
-    //         if (result !== '[{"kind":"implements"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('import')
-    //         if (result !== '[{"kind":"import"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('in')
-    //         if (result !== '[{"kind":"in"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('instanceof')
-    //         if (result !== '[{"kind":"instanceof"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('interface')
-    //         if (result !== '[{"kind":"interface"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('let')
-    //         if (result !== '[{"kind":"let"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('new')
-    //         if (result !== '[{"kind":"new"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('package')
-    //         if (result !== '[{"kind":"package"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('private')
-    //         if (result !== '[{"kind":"private"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('protected')
-    //         if (result !== '[{"kind":"protected"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('public')
-    //         if (result !== '[{"kind":"public"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('return')
-    //         if (result !== '[{"kind":"return"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('static')
-    //         if (result !== '[{"kind":"static"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('super')
-    //         if (result !== '[{"kind":"super"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('switch')
-    //         if (result !== '[{"kind":"switch"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('this')
-    //         if (result !== '[{"kind":"this"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('throw')
-    //         if (result !== '[{"kind":"throw"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('try')
-    //         if (result !== '[{"kind":"try"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('typeof')
-    //         if (result !== '[{"kind":"typeof"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('var')
-    //         if (result !== '[{"kind":"var"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('void')
-    //         if (result !== '[{"kind":"void"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('while')
-    //         if (result !== '[{"kind":"while"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('with')
-    //         if (result !== '[{"kind":"with"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('yield')
-    //         if (result !== '[{"kind":"yield"},{"kind":"eof"}]') { throw result }
-    //     },
-    // ],
+    id: [
+        () => {
+            const result = tokenizeString('err')
+            if (result !== '[{"kind":"id","value":"err"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('{e}')
+            if (result !== '[{"kind":"{"},{"kind":"id","value":"e"},{"kind":"}"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('tru')
+            if (result !== '[{"kind":"id","value":"tru"},{"kind":"eof"}]') { throw result }
+        },
+    ],
+    keywords: [
+        () => {
+            const result = tokenizeString('true')
+            if (result !== '[{"kind":"true"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('false')
+            if (result !== '[{"kind":"false"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('null')
+            if (result !== '[{"kind":"null"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('undefined')
+            if (result !== '[{"kind":"undefined"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('[null]')
+            if (result !== '[{"kind":"["},{"kind":"null"},{"kind":"]"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('arguments')
+            if (result !== '[{"kind":"arguments"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('await')
+            if (result !== '[{"kind":"await"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('break')
+            if (result !== '[{"kind":"break"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('case')
+            if (result !== '[{"kind":"case"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('catch')
+            if (result !== '[{"kind":"catch"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('class')
+            if (result !== '[{"kind":"class"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('const')
+            if (result !== '[{"kind":"const"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('continue')
+            if (result !== '[{"kind":"continue"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('debugger')
+            if (result !== '[{"kind":"debugger"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('default')
+            if (result !== '[{"kind":"default"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('delete')
+            if (result !== '[{"kind":"delete"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('do')
+            if (result !== '[{"kind":"do"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('else')
+            if (result !== '[{"kind":"else"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('enum')
+            if (result !== '[{"kind":"enum"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('eval')
+            if (result !== '[{"kind":"eval"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('export')
+            if (result !== '[{"kind":"export"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('extends')
+            if (result !== '[{"kind":"extends"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('finally')
+            if (result !== '[{"kind":"finally"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('for')
+            if (result !== '[{"kind":"for"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('function')
+            if (result !== '[{"kind":"function"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('if')
+            if (result !== '[{"kind":"if"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('implements')
+            if (result !== '[{"kind":"implements"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('import')
+            if (result !== '[{"kind":"import"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('in')
+            if (result !== '[{"kind":"in"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('instanceof')
+            if (result !== '[{"kind":"instanceof"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('interface')
+            if (result !== '[{"kind":"interface"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('let')
+            if (result !== '[{"kind":"let"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('new')
+            if (result !== '[{"kind":"new"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('package')
+            if (result !== '[{"kind":"package"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('private')
+            if (result !== '[{"kind":"private"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('protected')
+            if (result !== '[{"kind":"protected"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('public')
+            if (result !== '[{"kind":"public"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('return')
+            if (result !== '[{"kind":"return"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('static')
+            if (result !== '[{"kind":"static"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('super')
+            if (result !== '[{"kind":"super"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('switch')
+            if (result !== '[{"kind":"switch"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('this')
+            if (result !== '[{"kind":"this"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('throw')
+            if (result !== '[{"kind":"throw"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('try')
+            if (result !== '[{"kind":"try"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('typeof')
+            if (result !== '[{"kind":"typeof"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('var')
+            if (result !== '[{"kind":"var"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('void')
+            if (result !== '[{"kind":"void"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('while')
+            if (result !== '[{"kind":"while"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('with')
+            if (result !== '[{"kind":"with"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('yield')
+            if (result !== '[{"kind":"yield"},{"kind":"eof"}]') { throw result }
+        },
+    ],
     throw: {
         parse: () => { parse('') }
     },
