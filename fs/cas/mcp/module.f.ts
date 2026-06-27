@@ -311,7 +311,7 @@ export const proof = {
         const half = maxLength / 2n
         const v1 = vec(half)(0n)
         const v2 = vec(half + 1n)(0n)
-        const stream = cons<never, IoResult<Vec>>(ok(v1), cons<never, IoResult<Vec>>(ok(v2), end<never, IoResult<Vec>>()))
+        const stream = nonEmpty<never, IoResult<Vec>>(ok(v1), nonEmpty<never, IoResult<Vec>>(ok(v2), elEmpty<never, IoResult<Vec>>()))
         const d = decode(collectRead(stream))
         if (!d.done || d.result[0] !== 'error') { throw 'expected overflow error' }
     },
