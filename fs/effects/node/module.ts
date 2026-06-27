@@ -40,6 +40,7 @@ import {
 } from './module.f.ts'
 import { asBase, asNominal } from '../../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../../types/result/module.f.ts'
+import { asyncTryCatch } from '../../types/result/module.ts'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.ts'
@@ -70,14 +71,6 @@ type RequestListener = (req: IncomingMessage, res: ServerResponse) => Promise<vo
  * requires them present; this local view keeps the narrowing in one place.
  */
 const createServer: (listener: RequestListener) => Server = http.createServer
-
-const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
-    try {
-        return ok(await f())
-    } catch (e) {
-        return error(e)
-    }
-}
 
 type EffectToPromise = <T>(effect: Effect<NodeOp, T>) => Promise<T>
 
@@ -199,15 +192,15 @@ const readStdinByte = async (): Promise<number | null> => {
 const runNodeEffect: EffectToPromise = asyncRun({
     ...memoryOperationMap(),
     all: async (...effects) => await Promise.all(effects.map(runNodeEffect)),
-    fetch: async url => tc(async() => {
+    fetch: async url => asyncTryCatch(async() => {
         const response = await fetch(url)
         if (!response.ok) {
             throw new Error(`Fetch error: ${response.status} ${response.statusText}`)
         }
         return toVec(new Uint8Array(await response.arrayBuffer()))
     }),
-    mkdir: (...p) => tc(async() => { await mkdir(...p) }),
-    readFile: path => tc(async() => {
+    mkdir: (...p) => asyncTryCatch(async() => { await mkdir(...p) }),
+    readFile: path => asyncTryCatch(async() => {
         const fileStats = await stat(path)
         // if the file is too big, toVec should fail anyway but in this case we don't want to load the file.
         if (fileStats.size > maxFileSizeBytes) {
@@ -215,7 +208,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
         }
         return toVec(await readFile(path))
     }),
-    readdir: (path, r) => tc(async() =>
+    readdir: (path, r) => asyncTryCatch(async() =>
         (await readdir(path, { ...r, withFileTypes: true }))
         .map(v => ({
             name: v.name,
@@ -223,10 +216,10 @@ const runNodeEffect: EffectToPromise = asyncRun({
             isFile: v.isFile()
         }))
     ),
-    writeFile: (path, data) => tc(() => writeFile(path, fromVec(data))),
-    rm: path => tc(() => rm(path)),
-    rename: (src, dst) => tc(() => rename(src, dst)),
-    readBytes: (path, offset, size) => tc(async () => {
+    writeFile: (path, data) => asyncTryCatch(() => writeFile(path, fromVec(data))),
+    rm: path => asyncTryCatch(() => rm(path)),
+    rename: (src, dst) => asyncTryCatch(() => rename(src, dst)),
+    readBytes: (path, offset, size) => asyncTryCatch(async () => {
         if (offset < 0) {
             throw new Error(`Offset ${offset} is negative`)
         }
@@ -243,12 +236,12 @@ const runNodeEffect: EffectToPromise = asyncRun({
         }
     }),
     randomInt: async () => crypto.randomInt(2 ** 32),
-    access: path => tc(() => access(path)),
-    createExclusive: path => tc(async () => {
+    access: path => asyncTryCatch(() => access(path)),
+    createExclusive: path => asyncTryCatch(async () => {
         const fh = await open(path, 'wx')
         await fh.close()
     }),
-    writeBytes: (path, offset, data) => tc(async () => {
+    writeBytes: (path, offset, data) => asyncTryCatch(async () => {
         const fh = await open(path, 'r+')
         try {
             const buffer = fromVec(data)
@@ -263,8 +256,8 @@ const runNodeEffect: EffectToPromise = asyncRun({
             await fh.close()
         }
     }),
-    stat: path => tc(async () => ({ size: (await stat(path)).size })),
-    import: path => tc(() => asyncImport(path)),
+    stat: path => asyncTryCatch(async () => ({ size: (await stat(path)).size })),
+    import: path => asyncTryCatch(() => asyncImport(path)),
     exec: (command, stdin) => new Promise(resolve => {
         const child = exec(command, (e, stdout, stderr) =>
             resolve(e !== null ? ['error', e] as const : ok({ stdout, stderr }))
