@@ -31,6 +31,9 @@ export type Result<T> = Empty | NonEmpty<T>
 
 export type Thunk<T> = () => List<T>
 
+/**
+ * See also https://en.wikipedia.org/wiki/Cons#Lists
+ */
 export type NonEmpty<T> = {
     readonly first: T
     readonly tail: List<T>
