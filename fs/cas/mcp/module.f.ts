@@ -71,7 +71,7 @@ import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { detect } from '../../mime/module.f.ts'
-import { empty, length as bitVecLength, maxLength, msb, type Vec } from '../../types/bit_vec/module.f.ts'
+import { empty, length as bitVecLength, maxLength, msb, vec, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
 import { rm, type IoResult, type Read, type Rm, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
@@ -295,3 +295,22 @@ export const casMcpServer = (
 ): Effect<Read | Write | MemOp | FileCasOperation | Rm, void> =>
     create(uninitializedState).step(key =>
         stdioTransport(mcpStep(casConfig)(casMcpHandlers(home))(key)))
+
+// ── Tests ────────────────────────────────────────────────────────────────────
+
+export const proof = {
+    // casMcpServer is never called in integration tests because it drives a
+    // real stdio server; call it here to cover its Effect-building body.
+    casMcpServer: () => { casMcpServer('/') },
+    // The overflow guard in collectRead (lines 125-126) is only reached when
+    // the running total of two stream chunks would exceed maxLength.  Feed a
+    // pure stream whose second chunk pushes it just over the limit so the
+    // error branch executes without any real I/O.
+    collectReadOverflow: () => {
+        const half = maxLength / 2n
+        const v1 = vec(half)(0n)
+        const v2 = vec(half + 1n)(0n)
+        const stream = cons<never, IoResult<Vec>>(ok(v1), cons<never, IoResult<Vec>>(ok(v2), end<never, IoResult<Vec>>()))
+        collectRead(stream)
+    },
+}
