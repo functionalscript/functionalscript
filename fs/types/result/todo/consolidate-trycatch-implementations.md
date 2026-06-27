@@ -1,7 +1,7 @@
 ## Consolidate `tryCatch` implementations
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 > **Update (post-#943):** `fs/io` was merged into `fs/effects/node/module.ts`. The copies now live in that file (`tc`, `tryCatch`, `asyncTryCatch`) plus `fs/types/result`. Paths below referencing `fs/io/...` now mean `fs/effects/node/module.ts`.
 
