@@ -65,7 +65,7 @@
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
 import { stringify } from '../../json/module.f.ts'
-import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { pure, decode, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
@@ -311,6 +311,7 @@ export const proof = {
         const v1 = vec(half)(0n)
         const v2 = vec(half + 1n)(0n)
         const stream = cons<never, IoResult<Vec>>(ok(v1), cons<never, IoResult<Vec>>(ok(v2), end<never, IoResult<Vec>>()))
-        collectRead(stream)
+        const d = decode(collectRead(stream))
+        if (!d.done || d.result[0] !== 'error') { throw 'expected overflow error' }
     },
 }
