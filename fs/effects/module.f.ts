@@ -37,6 +37,17 @@ export const pure = <T>(v: T): Effect<never, T> => ({
     step: f => f(v)
 })
 
+/**
+ * A lazy pure effect. Like {@link pure}, but takes a thunk and evaluates it on
+ * demand instead of holding an already-computed value. Use this to produce the
+ * next item of a list without instantiating the rest — the thunk runs only when
+ * the effect is decoded (or stepped into).
+ */
+export const lazy = <T>(t: () => T): Effect<never, T> => ({
+    value: t,
+    step: f => f(t())
+})
+
 export const doFull = <O extends Operation, T, K extends O[0]>(
     cmd: K,
     param: Pr<O, K>[0],
