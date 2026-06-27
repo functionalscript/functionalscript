@@ -18,7 +18,7 @@ export type Value<O extends Operation, T> =
     Pure<T> | Do<O, T>
 
 export type Pure<T> =
-    readonly[T]
+    () => T
 
 export type DoKPR<O extends Operation, T, K extends string, PR extends readonly[unknown, unknown]> =
     readonly[K, PR[0], (_: PR[1]) => Effect<O, T>]
@@ -33,8 +33,19 @@ export type Do<O extends Operation, T> =
     DoK<O, T, O[0]>
 
 export const pure = <T>(v: T): Effect<never, T> => ({
-    value: [v],
+    value: () => v,
     step: f => f(v)
+})
+
+/**
+ * A lazy pure effect. Like {@link pure}, but takes a thunk and evaluates it on
+ * demand instead of holding an already-computed value. Use this to produce the
+ * next item of a list without instantiating the rest — the thunk runs only when
+ * the effect is decoded (or stepped into).
+ */
+export const lazy = <T>(t: () => T): Effect<never, T> => ({
+    value: t,
+    step: f => f(t())
 })
 
 export const doFull = <O extends Operation, T, K extends O[0]>(
@@ -98,15 +109,15 @@ export type Decoded<O extends Operation, T> =
 /**
  * Decodes an effect's next step: a pure result, or a command to perform.
  *
- * This is the only function that knows how `Value` is laid out (a length-1
- * tuple for `Pure`, a `[command, payload, continuation]` tuple for `Do`).
+ * This is the only function that knows how `Value` is laid out (a thunk
+ * `() => T` for `Pure`, a `[command, payload, continuation]` tuple for `Do`).
  * Interpreters and proofs must go through `decode` (or `match`) instead of
- * inspecting the tuple, so the representation can change without touching
+ * inspecting the value, so the representation can change without touching
  * them.
  */
 export const decode = <O extends Operation, T>({ value }: Effect<O, T>): Decoded<O, T> =>
-    value.length === 1
-        ? { done: true, result: value[0] }
+    typeof value === 'function'
+        ? { done: true, result: value() }
         : { done: false, command: value[0], payload: value[1], continuation: value[2] }
 
 /**

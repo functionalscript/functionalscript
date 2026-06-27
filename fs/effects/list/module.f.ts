@@ -5,8 +5,17 @@ export type NonEmpty<O extends Operation, T> = {
     readonly tail: List<O, T>
 }
 
+/**
+ * The payload of a `List` effect: the next cons cell, or `undefined` at
+ * end-of-stream.
+ *
+ * Since `Pure<T>` is now itself a lazy thunk (`() => T`), the effect alone is the
+ * suspension point and the cell needs no extra wrapping thunk. `Effect<O, Next<O, T>>`
+ * is used directly in places where `List<O, T>` cannot be written as a return type
+ * (see {@link empty}).
+ */
 export type Next<O extends Operation, T> =
-    () => NonEmpty<O, T> | undefined
+    NonEmpty<O, T> | undefined
 
 export type List<O extends Operation, T> =
     Effect<O, Next<O, T>>
@@ -14,11 +23,7 @@ export type List<O extends Operation, T> =
 /**
  * The empty `List`: a pure end-of-stream marker (`undefined`).
  *
- * Built as an `Effect` object literal rather than through `pure`. `pure` returns
- * `Effect<never, …>`; widening that to an arbitrary operation set `O` is sound (a pure
- * value performs no operations) and the compiler accepts it for a non-recursive
- * payload, but not when the payload recursively mentions `O` — as `List`'s cons
- * cell does. Writing the literal directly lets the contextual return type drive the
+ * The explicit `Effect<O, Next<O, T>>` return type lets the contextual type drive the
  * check, so the recursive payload type-checks without a cast. Construct streams through
  * these two combinators.
  *
@@ -27,13 +32,13 @@ export type List<O extends Operation, T> =
  */
 export const empty =
 <O extends Operation, T>(): Effect<O, Next<O, T>> =>
-    pure(() => undefined)
+    pure(undefined)
 
 /**
  * Prepends `head` to a `ListEffect` `tail`, as a pure cons cell. See {@link empty}.
  */
 export const nonEmpty =
 <O extends Operation, T>(first: T, tail: List<O, T>): Effect<O, Next<O, T>> =>
-    pure(() => ({ first, tail }))
+    pure({ first, tail })
 
 
