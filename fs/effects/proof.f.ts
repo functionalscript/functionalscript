@@ -1,4 +1,4 @@
-import { decode, do_, foldStep, forEachStep, match, pure, type Effect, type Operation } from './module.f.ts'
+import { decode, do_, foldStep, forEachStep, lazy, match, pure, type Effect, type Operation } from './module.f.ts'
 
 const assertPure = <O extends Operation, T>(e: Effect<O, T>, expected: T) => {
     const d = decode(e)
@@ -11,6 +11,19 @@ type AddOp = readonly['add', (a: number, b: number) => number]
 const next = match<AddOp, number>({ add: (a, b) => a + b })
 
 export const proof = {
+    lazy: {
+        value: () => {
+            assertPure(lazy(() => 42), 42)
+        },
+        deferred: () => {
+            // The thunk runs only when the effect is decoded, not when `lazy` is called.
+            let evaluated = false
+            const e = lazy(() => { evaluated = true; return 7 })
+            if (evaluated) { throw 'lazy must not evaluate eagerly' }
+            assertPure(e, 7)
+            if (!evaluated) { throw 'decode must force the thunk' }
+        },
+    },
     foldStep: {
         empty: () => {
             const e = foldStep
