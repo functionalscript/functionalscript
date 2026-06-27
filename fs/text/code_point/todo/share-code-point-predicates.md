@@ -39,25 +39,25 @@ two halves of utf8's `smallRange`. Code-point classification is a Unicode
 concern, not a per-encoding concern — it belongs next to `errorMask` and
 `decoder`, the other shared Unicode contracts.
 
-#### Secondary: utf16 uses a stray error sentinel
+#### Not in scope: the `0xffffffff` out-of-range sentinel
 
-In the same file, `utf16ByteToCodePointOp` flags an out-of-range 16-bit unit with
-a literal `0xffffffff` instead of the shared `errorMask`
-(`fs/text/utf16/module.f.ts:212-214`):
+`utf16ByteToCodePointOp` flags an out-of-range 16-bit unit with a literal
+`0xffffffff` (`fs/text/utf16/module.f.ts:212-214`) while the other error branches
+use `word | errorMask` / `state | errorMask`. An earlier draft of this issue
+proposed "fixing" the literal to `errorMask`; that is **wrong** and is recorded
+here so it isn't re-proposed:
 
-```ts
-if (!u16(word)) {
-    return [[0xffffffff], state]
-}
-```
+- `0xffffffff` already has the error bit set (`0xffffffff & errorMask` is
+  truthy), so mask-based consumers do recognize it as an error.
+- The value is deliberately distinct from `word | errorMask`: the latter
+  preserves the offending in-range word in the low bits, whereas a non-`u16`
+  unit has no meaningful word to preserve, so the all-ones sentinel is used.
+- `fs/text/utf16/proof.f.ts:19-20` asserts `toCodePointList([-1, 65536])` returns
+  `[4294967295, 4294967295]` (`0xffffffff`). Replacing it with `errorMask`
+  (`0x80000000`) would change the observable output and break that proof.
 
-Every other error branch in the same function uses `errorMask`
-(`word | errorMask`, `state | errorMask`). `errorMask` is
-`0b1000_0000_…_0000` (`0x80000000`), which is **not** `0xffffffff`, so this one
-branch tags malformed units with a different value than the rest of the decoder.
-Downstream consumers that test `result & errorMask` to detect errors will not
-recognize this path. This is a small consistency/correctness fix that should ride
-along with the predicate move.
+So leave `0xffffffff` as is; this issue is only about sharing the classification
+predicates below.
 
 ### Proposal
 
@@ -73,9 +73,7 @@ derived from one set of range constants so the surrogate bounds and `0x10FFFF`
 appear exactly once. utf8's `bigRange`/`smallRange` and utf16's
 `lowBmp`/`highBmp`/surrogate predicates then become imports.
 
-Separately, replace the `0xffffffff` literal at
-`fs/text/utf16/module.f.ts:214` with `errorMask` so all of utf16's error paths
-emit the same tag as utf8.
+The `0xffffffff` out-of-range sentinel stays as is (see "Not in scope" above).
 
 ### Tasks
 
@@ -86,7 +84,6 @@ emit the same tag as utf8.
       with imports from `code_point`.
 - [ ] Replace the utf16 `lowBmp`/`highBmp`/`isBmpCodePoint`/surrogate/
       supplementary definitions with imports from `code_point`.
-- [ ] Replace `0xffffffff` at `fs/text/utf16/module.f.ts:214` with `errorMask`.
 - [ ] Run `npx tsc` and `fjs t`; confirm utf8/utf16 proofs keep full coverage.
 
 ### Related
