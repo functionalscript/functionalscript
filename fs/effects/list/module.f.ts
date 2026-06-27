@@ -24,8 +24,11 @@ export type List<O extends Operation, T> =
  * The empty `List`: a pure end-of-stream marker (`undefined`).
  *
  * The explicit `Effect<O, Next<O, T>>` return type lets the contextual type drive the
- * check, so the recursive payload type-checks without a cast (TypeScript can't convert
- * `pure(...)` to `List<O, T>` directly). Construct streams through these two combinators.
+ * check, so the recursive payload type-checks without a cast. Construct streams through
+ * these two combinators.
+ *
+ * Note: we use `Effect<O, Next<O, T>>` because TypeScript can't convert `pure(...)` to
+ *       `List<O, T>`.
  */
 export const empty =
 <O extends Operation, T>(): Effect<O, Next<O, T>> =>
