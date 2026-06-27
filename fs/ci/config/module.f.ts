@@ -25,32 +25,32 @@ export const images = {
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version. A separate maintenance job advances this pin.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = '0.32.4' as const
+export const functionalscript = '0.33.0' as const
 
 // https://bun.sh/
 export const bun = '1.3.14'
 
 // https://deno.com/
-export const deno = '2.8.3'
+export const deno = '2.9.0'
 
 // https://www.npmjs.com/package/playwright
-export const playwright = '1.61.0'
+export const playwright = '1.61.1'
 
 // https://nodejs.org/en/download
 export const node = {
-    default: '26.3.1',
-    node22: '22.23.0',
-    node24: '24.17.0',
+    default: '26.4.0',
+    node22: '22.23.1',
+    node24: '24.18.0',
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases
-export const wasmtime = '45.0.2'
+export const wasmtime = '46.0.1'
 
 // https://github.com/wasmerio/wasmer/releases
 export const wasmer = '7.1.0'
 
 // https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
-export const tsgo = '7.0.0-dev.20260621.1'
+export const tsgo = '7.0.0-dev.20260627.2'
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as
@@ -60,11 +60,11 @@ export const actions = {
     // https://github.com/marketplace/actions/checkout
     'actions/checkout': 'v7',
     // https://github.com/marketplace/actions/setup-node-js-environment
-    'actions/setup-node': 'v6',
+    'actions/setup-node': 'v6.4.0',
     // https://github.com/marketplace/actions/cache
-    'actions/cache': 'v5',
+    'actions/cache': 'v6.1.0',
     // https://github.com/marketplace/actions/setup-deno
-    'denoland/setup-deno': 'v2',
+    'denoland/setup-deno': 'v2.0.4',
     // https://github.com/marketplace/actions/setup-bun
     'oven-sh/setup-bun': 'v2.2.0',
     // https://github.com/bytecodealliance/actions
