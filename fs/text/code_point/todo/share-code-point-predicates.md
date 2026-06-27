@@ -73,6 +73,18 @@ derived from one set of range constants so the surrogate bounds and `0x10FFFF`
 appear exactly once. utf8's `bigRange`/`smallRange` and utf16's
 `lowBmp`/`highBmp`/surrogate predicates then become imports.
 
+**Preserve utf8's `isValidCodePoint` export decision.** `isValidCodePoint` is
+currently `export const` in `fs/text/utf8/module.f.ts:258`, but its only consumer
+is `fromVec` in the same module (`utf8:269`) — no external module imports it. When
+the definition moves to `code_point`, importing it back into utf8 *privately*
+would silently drop a public export. Two acceptable resolutions, pick one
+deliberately rather than letting it happen by accident:
+- re-export it from `utf8` (`export { isValidCodePoint } from '../code_point/...'`)
+  to keep the public API stable; or
+- drop the utf8 export — defensible because nothing external uses it and
+  `AGENTS.md` says only export with a real external consumer — but record that as
+  an intentional API change. The canonical export then lives on `code_point`.
+
 The `0xffffffff` out-of-range sentinel stays as is (see "Not in scope" above).
 
 ### Tasks
@@ -81,7 +93,9 @@ The `0xffffffff` out-of-range sentinel stays as is (see "Not in scope" above).
       `fs/text/code_point/module.f.ts`, built from one set of range constants;
       add `proof` coverage for each.
 - [ ] Replace the utf8 `bigRange`/`smallRange`/`isValidCodePoint` definitions
-      with imports from `code_point`.
+      with imports from `code_point`; decide whether to re-export
+      `isValidCodePoint` from `utf8` or drop the export (see Proposal) — don't
+      drop it silently.
 - [ ] Replace the utf16 `lowBmp`/`highBmp`/`isBmpCodePoint`/surrogate/
       supplementary definitions with imports from `code_point`.
 - [ ] Run `npx tsc` and `fjs t`; confirm utf8/utf16 proofs keep full coverage.

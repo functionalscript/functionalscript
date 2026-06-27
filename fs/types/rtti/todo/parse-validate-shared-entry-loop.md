@@ -64,11 +64,26 @@ Hoist a single early-exit entry-loop helper into
 
 ```ts
 // runs `item` over each entry, bailing on the first error with the path prefixed
-export const eachEntry = <R>(
-    entries: ReadonlyArray<readonly [string, Unknown]>,
-    item: (k: string, v: Unknown) => CommonResult<R, ValidationError>,
+export const eachEntry = <V, R>(
+    entries: ReadonlyArray<readonly [string, V]>,
+    item: (k: string, v: V) => CommonResult<R, ValidationError>,
 ): CommonResult<ReadonlyArray<readonly [string, R]>, ValidationError>
 ```
+
+The entry-value type must be **generic** (`V`), not hard-coded to `Unknown`. The
+four builders feed it entries of two different kinds:
+
+- `containerValidate`/`containerParse` iterate the *value's* own entries
+  (`entries(value)`), so `V = Unknown` (data values).
+- `constContainerValidate`/`constContainerParse` iterate the *schema's* entries
+  (`Object.entries(rtti)`), so `V = Type` — these can be thunk functions, not
+  `Unknown`. Their `item` closes over `value` and does
+  `validate/parse(schemaEntry)(getItem(value, k))`.
+
+Hard-coding `Unknown` would force the const-container builders into unsafe casts
+(or leave them duplicated), defeating the "one shared loop for all four" goal. A
+generic `V` lets each builder supply its own entry source and item function while
+sharing the early-exit/path-prefix machinery.
 
 Then:
 
