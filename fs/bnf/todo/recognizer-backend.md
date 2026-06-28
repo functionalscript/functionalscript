@@ -64,6 +64,16 @@ in its own sibling module — `fs/bnf/ll1` for the current LL(1) dispatch/matche
 then `fs/bnf/recognizer` and `fs/bnf/dfa` for the new backends. The IR stays
 free of any one parser's machinery.
 
+`toData` is itself a special case of a more general mechanism. The functional
+grammar embeds *functions* (lazy rules `() => DataRule`; `rtti` schemas are
+thunks `() => Info` the same way), and the planned `Function.getAst` /
+`fromAst` ([new-pl.md](../../../todo/new-pl.md)) returns any function's IR as
+serializable data (JSON) and reconstructs it. So the whole eDSL — including its
+function-valued parts — becomes plain data, and via `Object.id` that AST is the
+value's canonical identity: **content-addressable**. That closes the loop back
+to the CAS this work started from — a serialized grammar/automaton/type is
+hashable and storable in it.
+
 #### Compatibility is a build-time check (throw, don't fall back)
 
 Each builder targets a specific automaton class, and the type system **cannot**
@@ -201,6 +211,9 @@ Bigger automata are built from BNF pieces in two complementary ways:
   values, many artifacts (TS type, validator, parser) derived by function
 - `fs/html` — the markup-level sibling: an embedded DSL of nested element
   values, not an external syntax (JSX)
+- [new-pl.md](../../../todo/new-pl.md) — `Function.getAst` / `fromAst` (functions
+  as serializable IR); `toData` is the grammar-specific case, and the serialized
+  forms become content-addressable via `Object.id`
 - [cas-get-large-files](../../cas/mcp/todo/cas-get-large-files.md) — first
   concrete consumer (streaming MIME/UTF-8 recognizer)
 - `fs/fsm`, `fs/types/byte_set`, `fs/types/range_map` — engines to reuse as the
