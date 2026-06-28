@@ -43,37 +43,76 @@ without holding the full blob:
 
 ### Proposal
 
-Add a function that derives `cas_get` metadata directly from the read stream,
-without ever collecting the content, and use it in `fs/cas/mcp`.
+Derive `cas_get` metadata with a **byte-accepting state machine** rather than
+by buffering. The machine consumes bytes and transitions; at end-of-stream we
+ask it for the meta properties. Crucially, this is not "buffer the prefix":
+the `text` vs `base64` decision depends on whether the *whole* blob is valid
+UTF-8 (a blob can be valid for the first 128 KB and go invalid on the last
+byte), so any prefix buffer is incorrect — only a streaming validator that
+sees every byte is. The state machine is the right shape for that, and length
+and magic-byte detection fold into the same pass.
 
-1. **New stream MIME/metadata detector** (in `fs/mime`, beside `detect`).
-   It consumes the CAS read stream `List<O, IoResult<Vec>>` (each item an
-   `Effect<O, IoResult<Vec>>` chunk) and returns the metadata only:
+#### The state machine
+
+A small immutable state with three independent sub-states, all folds over the
+byte stream:
+
+```ts
+type DetectState = {
+    readonly length: bigint     // running byte count
+    readonly magic: MagicState  // viable signatures, or a resolved mime, or ruled-out
+    readonly utf8: Utf8State     // DFA state: accepting / mid-sequence / invalid
+}
+
+// push bytes (one chunk at a time), then read off the answer at EOF
+const push = (s: DetectState, bytes: Vec): DetectState => ...
+const finish = (s: DetectState): { length: bigint, mime_type: string, type: 'text' | 'base64' } => ...
+```
+
+- **length** — increment by the chunk's byte length.
+- **magic** — signature elimination: drop any signature whose byte at the
+  current position doesn't match the incoming byte; commit when one fully
+  matches (WebP's `RIFF`…`WEBP` gap handled as two anchored markers). This is
+  the streaming form of today's `fs/mime` `detect` table and **settles within
+  12 bytes** — thereafter it is in an absorbing state.
+- **utf8** — a classic UTF-8 DFA (e.g. Höhrmann): accept byte, track whether
+  we are at a code-point boundary, inside a multi-byte sequence, or have seen
+  an illegal sequence. **Invalid is absorbing** — once invalid, always invalid.
+
+`finish` reproduces today's three-way result: magic hit → `base64` + detected
+mime; else `utf8` ended at a boundary with no invalidity → `text` +
+`text/plain`; else → `base64` + `application/octet-stream`.
+
+#### Why a state machine beats buffering
+
+- **Correctness:** UTF-8 classification must see all bytes; a leading-bytes
+  buffer cannot decide it. The DFA does it in O(1) space.
+- **Cheap on large blobs:** both `magic` and `utf8` reach absorbing states
+  early. Once `magic` is resolved and `utf8` can no longer change the outcome,
+  `push` only needs `length += chunkBytes` — no per-byte iteration. A large
+  blob costs ≈ length-counting regardless of size.
+- **Composition:** three orthogonal folds in one pass; no buffer to size, no
+  giant `Vec` to materialize. Fits the functional style of the module.
+- **Simpler `cas_get`:** collapses the current three-phase branching into a
+  single fold plus one `finish` lookup.
+
+#### Wiring
+
+1. **Add the state machine in `fs/mime`**, beside `detect` (the pure prefix
+   form stays for callers that already hold a `Vec`). Provide `push` / `finish`
+   plus a stream driver that folds the CAS read stream
+   `List<O, IoResult<Vec>>` (each item an `Effect<O, IoResult<Vec>>` chunk),
+   short-circuiting on a read `error` item into the `IoResult` error:
 
    ```ts
    export const detectStream =
        <O extends Operation>(stream: List<O, IoResult<Vec>>):
        Effect<O, IoResult<{
-           readonly length: bigint            // total bytes, summed across chunks
+           readonly length: bigint
            readonly mime_type: string
            readonly type: 'text' | 'base64'
        }>>
    ```
-
-   While draining the stream it:
-   - buffers only the leading bytes needed to run the existing `detect`
-     (≤ 96 bits) — once `detect` returns non-`null`, the magic-byte answer is
-     fixed and later chunks no longer need to be inspected for it;
-   - feeds each chunk to an incremental UTF-8 validator so the `text` vs
-     `base64` decision is reached without materializing the whole blob;
-   - accumulates the total length from chunk lengths;
-   - discards chunk content as it goes, so memory stays bounded regardless of
-     blob size;
-   - surfaces a read `error` item as the `IoResult` error.
-
-   The three-way result mirrors today's phases: magic-byte hit → `base64` +
-   detected mime; else valid UTF-8 → `text` + `text/plain`; else → `base64` +
-   `application/octet-stream`.
 
 2. **Use it in `cas_get`.** When `content` is not `true`, build the response
    from `detectStream(c.read(key))` alone — never call `collectRead`. Large
@@ -86,20 +125,23 @@ without ever collecting the content, and use it in `fs/cas/mcp`.
 
 - Separates *inspection* (cheap, streaming, size-independent) from *transfer*
   (bounded by `maxLength`). The metadata-only call should never fail on size.
-- Keeps magic-byte logic in `fs/mime` where `detect` already lives; the stream
-  variant is the streaming counterpart of the pure one.
+- Keeps magic-byte logic in `fs/mime` where `detect` already lives; the state
+  machine is the streaming counterpart of the pure one.
 - Matches the documented `cas_get` decision protocol (inspect first, fetch
   later) by making the inspect step actually work for large blobs.
 
 ### Tasks
 
-- [ ] Add `detectStream` (streaming MIME + UTF-8 + length) in `fs/mime`
-- [ ] Add an incremental UTF-8 validator (or reuse one) for per-chunk checking
+- [ ] Add the `DetectState` machine (`push` / `finish`) in `fs/mime`:
+      length counter, signature-elimination magic matcher, UTF-8 DFA
+- [ ] Add the `detectStream` driver folding the read stream through `push`
+- [ ] Short-circuit `push` to length-only once `magic` and `utf8` are absorbed
 - [ ] Rewire `cas_get` to use `detectStream` when `content !== true`
 - [ ] Keep `collectRead` only on the `content: true` path
 - [ ] Proof tests: large multi-chunk blob returns metadata (no error) with
       `content: false`; correct `type`/`mime_type` for text, png, octet-stream;
-      `length` matches actual byte count
+      a blob that is valid UTF-8 until a trailing invalid byte classifies as
+      `base64`; `length` matches actual byte count
 - [ ] Update `fs/cas/mcp/README.md` and the module JSDoc to note that
       metadata-only `cas_get` is size-independent
 
