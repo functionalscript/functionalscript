@@ -26,12 +26,21 @@ export const strictEqual = <T>(a: T) => (b: T): boolean =>
 export type Scan<I, O> = (input: I) => readonly[O, Scan<I,O>]
 
 /**
- * One step of a [Mealy machine](https://en.wikipedia.org/wiki/Mealy_machine):
- * given an `input` symbol and the `prior` state, produce an `output` and the
- * next state. Equivalently a [finite-state transducer](
- * https://en.wikipedia.org/wiki/Finite-state_transducer) step — it both maps an
- * input stream to an output stream and threads state, so it can model
- * tokenizers, decoders, and other stream-to-stream stages.
+ * One step of a stream transducer: given an `input` symbol and the `prior`
+ * state, produce an `output` and the next state. It both maps an input stream
+ * to an output stream and threads state, so it models tokenizers, decoders, and
+ * other stream-to-stream stages.
+ *
+ * This is the *shape* of a [Mealy machine](https://en.wikipedia.org/wiki/Mealy_machine)
+ * — a [finite-state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer)
+ * — but only its signature. The state `S` (and `I`, `O`) is an arbitrary type,
+ * not a finite set, so a `StateScan` is strictly more expressive than a Mealy
+ * machine: a finite `S`/`I`/`O` recovers the classical finite-state machine
+ * (e.g. the DFA states in `../../../fsm/module.f.ts`), but an unbounded `S` —
+ * say `bigint` — can count, which no finite automaton can, and `O` may be a
+ * list (0+ symbols per input), not the single symbol strict Mealy emits.
+ * (Functional/coalgebraic usage still calls this `(input, state) => [output,
+ * state]` shape a "Mealy machine", finiteness aside.)
  *
  * A {@link Fold} is the output-less special case (state only); driving a
  * `StateScan` over a `List` is `stateScan` in `../../list/module.f.ts`, and
