@@ -40,5 +40,3 @@ export const empty =
 export const nonEmpty =
 <O extends Operation, T>(first: T, tail: List<O, T>): Effect<O, Next<O, T>> =>
     pure({ first, tail })
-
-
