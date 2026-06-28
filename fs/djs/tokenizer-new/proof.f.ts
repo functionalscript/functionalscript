@@ -1,4 +1,4 @@
-import { descentParser, type AstRuleMeta, type AstSequence, type AstSequenceMeta, type AstTag, type CodePointMeta, type DescentMatch, type DescentMatchResult } from '../../bnf/data/module.f.ts'
+import { descentParser, type AstRuleMeta, type AstSequenceMeta, type AstTag, type CodePointMeta, type DescentMatch, type DescentMatchResult } from '../../bnf/descent/module.f.ts'
 import type { JsToken } from '../../js/tokenizer/module.f.ts'
 import {
     backspace, ht, lf, ff, cr,
