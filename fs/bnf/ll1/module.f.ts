@@ -173,20 +173,23 @@ export const parser = (fr: FRule): Match => {
     return parserRuleSet(data[0])
 }
 
+const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult =>
+    [{tag, sequence}, true, r]
+
+const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult =>
+    [{tag, sequence}, false, r]
+
 /**
  * Creates an LL(1) parser from an already materialized {@link RuleSet}.
  */
 export const parserRuleSet = (ruleSet: RuleSet): Match => {
     const map = dispatchMap(ruleSet)
 
-    const f: MatchRule = (rule, cp): MatchResult => {
-        const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
-        const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]
-        const {emptyTag, rangeMap} = rule
+    const f: MatchRule = ({emptyTag, rangeMap}, cp): MatchResult => {
         if (cp.length === 0) {
             return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
         }
-        const cp0 = cp[0]
+        const [cp0] = cp
         const dr = dispatchOp.get(cp0)(rangeMap)
         if (dr === null) {
             return emptyTag === undefined
@@ -194,7 +197,7 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
                 : mrSuccess(emptyTag, [], cp)
         }
         let seq: AstSequence = [cp0]
-        const [_, ...restCp] = cp
+        const [, ...restCp] = cp
         let r: readonly number[] = restCp
         const {tag, rules} = dr
         for (const i of rules) {
