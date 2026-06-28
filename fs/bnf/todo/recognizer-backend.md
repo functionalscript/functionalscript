@@ -16,8 +16,8 @@ Separately, several callers need to **recognize** input without building an
 AST — they only want "did it match, and what is the final state":
 
 - `fs/cas/mcp` `cas_get` metadata detection (magic-byte MIME + UTF-8 validity)
-  over a streaming blob — see
-  [cas-get-large-files](../../cas/mcp/todo/cas-get-large-files.md);
+  over a streaming blob — shipped in `fs/mime` `detectStream` with the
+  `A_magic`/`A_utf8` factors hand-rolled, ready to lower onto this backend;
 - "is this valid JSON / valid identifier" checks that should not allocate a tree;
 - the scanner/lexer tier of the layered parser
   ([layered-parser](./layered-parser.md)).
@@ -227,8 +227,9 @@ Bigger automata are built from BNF pieces in two complementary ways:
 - [new-pl.md](../../../todo/new-pl.md) — `Function.getAst` / `fromAst` (functions
   as serializable IR); `toData` is the grammar-specific case, and the serialized
   forms become content-addressable via `Object.id`
-- [cas-get-large-files](../../cas/mcp/todo/cas-get-large-files.md) — first
-  concrete consumer (streaming MIME/UTF-8 recognizer)
+- `fs/mime` `detectStream` — first concrete consumer (streaming MIME/UTF-8
+  recognizer), shipped with hand-rolled `A_magic`/`A_utf8` factors that this
+  backend should later replace
 - `fs/fsm`, `fs/types/byte_set`, `fs/types/range_map` — engines to reuse as the
   DFA backend rather than describe grammars against directly
 - `fs/types/function/operator` (`Fold` / `StateScan` / `Scan`) and `fs/types/list`
