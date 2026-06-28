@@ -1,7 +1,7 @@
 ## Detector classifies control-byte blobs as text; add `isTextCodePoint`
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ### Problem
 
@@ -76,16 +76,16 @@ larger classification effort and out of scope for this issue.
 
 ### Tasks
 
-- [ ] Add `isTextCodePoint` to `fs/text/code_point/module.f.ts` (controls
+- [x] Add `isTextCodePoint` to `fs/text/code_point/module.f.ts` (controls
       `U+0000`–`U+001F`, `U+007F`, `U+0080`–`U+009F` minus `U+0009`–`U+000D`),
       with proof coverage, beside the existing shared code-point predicates
-- [ ] Track a text verdict in the `fs/mime` utf8/text factor via
+- [x] Track a text verdict in the `fs/mime` utf8/text factor via
       `isTextCodePoint`, kept distinct from the `isValidCodePoint` validity check
-- [ ] `finish` returns `text` only when valid UTF-8 **and** all code points are
+- [x] `finish` returns `text` only when valid UTF-8 **and** all code points are
       text code points; otherwise `base64` / `application/octet-stream`
-- [ ] Proofs: NUL blob and other-control blobs → `base64`; text with TAB/LF/CR
+- [x] Proofs: NUL blob and other-control blobs → `base64`; text with TAB/LF/CR
       (and FF/VT) stays `text`; `cas_get` round-trip for a NUL-bearing blob
-- [ ] Leave `isValidCodePoint` and `fromVec` unchanged; confirm `fjs t` and
+- [x] Leave `isValidCodePoint` and `fromVec` unchanged; confirm `fjs t` and
       `npx tsc` clean
 
 ### Related

@@ -39,7 +39,7 @@ import { pure, type Effect, type Operation } from '../effects/module.f.ts'
 import type { List } from '../effects/list/module.f.ts'
 import type { IoResult } from '../effects/node/module.f.ts'
 import { ok, error } from '../types/result/module.f.ts'
-import { isValidCodePoint } from '../text/code_point/module.f.ts'
+import { isValidCodePoint, isTextCodePoint } from '../text/code_point/module.f.ts'
 import { utf8ByteToCodePointOp, type Utf8State } from '../text/utf8/module.f.ts'
 
 const { startsWith, removeFront } = msb
@@ -159,28 +159,40 @@ const magicStep = (m: MagicState, byte: number): MagicState => {
 const magicMime = (m: MagicState): Nullable<string> => m.tag === 'matched' ? m.mime : null
 
 /**
- * `A_utf8`: a streaming UTF-8 validity check riding the shared `utf8ByteToCodePointOp`
- * decoder. `st` is the decoder's mid-sequence state; `valid` is `false` once an
- * illegal byte, surrogate, or out-of-range code point is seen — `valid: false` is
- * absorbing. A non-null `st` at EOF (a truncated multi-byte sequence) is invalid.
+ * `A_utf8`: a streaming UTF-8 validity-and-text check riding the shared
+ * `utf8ByteToCodePointOp` decoder. `st` is the decoder's mid-sequence state;
+ * `valid` is `false` once an illegal byte, surrogate, or out-of-range code point
+ * is seen — `valid: false` is absorbing. A non-null `st` at EOF (a truncated
+ * multi-byte sequence) is invalid. `text` is the orthogonal text-ness verdict: it
+ * is `false` once a non-text (control) code point is decoded, even though that
+ * code point is perfectly well-formed UTF-8 — `text: false` is absorbing too.
+ * Keeping the two distinct lets a valid-but-control blob (e.g. NUL) decode
+ * cleanly yet still classify as binary.
  */
 type Utf8Detect = {
     readonly st: Utf8State
     readonly valid: boolean
+    readonly text: boolean
 }
 
-const utf8Init: Utf8Detect = { st: null, valid: true }
+const utf8Init: Utf8Detect = { st: null, valid: true, text: true }
 
 const utf8Step = (u: Utf8Detect, byte: number): Utf8Detect => {
     if (!u.valid) { return u }
     const [cps, st] = utf8ByteToCodePointOp(byte, u.st)
+    let text = u.text
     for (const cp of cps) {
-        if (!isValidCodePoint(cp)) { return { st, valid: false } }
+        if (!isValidCodePoint(cp)) { return { st, valid: false, text } }
+        if (!isTextCodePoint(cp)) { text = false }
     }
-    return { st, valid: true }
+    return { st, valid: true, text }
 }
 
 const utf8Valid = (u: Utf8Detect): boolean => u.valid && u.st === null
+
+// A blob is text only when it is whole-blob-valid UTF-8 *and* every decoded code
+// point is a text code point (no NUL/other controls).
+const utf8Text = (u: Utf8Detect): boolean => utf8Valid(u) && u.text
 
 /**
  * The product state: running bit length × magic eliminator × UTF-8 validator.
@@ -203,12 +215,13 @@ export const detectInit: DetectState = {
 // length — once `finish` is pinned down. A magic `matched` pins it on its own
 // (`finish` returns the detected mime and ignores the utf8 verdict), so we must
 // not wait for utf8 to go invalid (it may stay valid forever, e.g. an ASCII PDF).
-// A magic `dead` leaves text-vs-octet open, so it settles only once utf8 is also
-// invalid (utf8's only absorbing state); `scan` is never settled.
+// A magic `dead` leaves text-vs-octet open, so it settles only once utf8 can no
+// longer be text — either invalid or a control byte seen (both absorbing); `scan`
+// is never settled.
 const isSettled = (magic: MagicState, utf8: Utf8Detect): boolean => {
     switch (magic.tag) {
         case 'matched': return true
-        case 'dead': return !utf8.valid
+        case 'dead': return !utf8.valid || !utf8.text
         case 'scan': return false
     }
 }
@@ -243,14 +256,16 @@ export type DetectMeta = {
 /**
  * Reads the answer off the final state (`λ`). Reproduces the three-way result of
  * the pure path: magic hit → `base64` + detected mime; else whole-blob-valid UTF-8
- * (byte-aligned, no invalidity) → `text` + `text/plain`; else → `base64` +
- * `application/octet-stream`.
+ * that is also all-text (byte-aligned, no invalidity, no control bytes) → `text` +
+ * `text/plain`; else → `base64` + `application/octet-stream`. A valid-but-control
+ * blob (NUL, other controls) is well-formed UTF-8 yet falls through to the binary
+ * branch.
  */
 export const finish = (s: DetectState): DetectMeta => {
     const byteLength = s.length >> 3n
     const mime = magicMime(s.magic)
     if (mime !== null) { return { length: byteLength, mime_type: mime, type: 'base64' } }
-    if (utf8Valid(s.utf8) && (s.length & 0b111n) === 0n) {
+    if (utf8Text(s.utf8) && (s.length & 0b111n) === 0n) {
         return { length: byteLength, mime_type: 'text/plain', type: 'text' }
     }
     return { length: byteLength, mime_type: 'application/octet-stream', type: 'base64' }
