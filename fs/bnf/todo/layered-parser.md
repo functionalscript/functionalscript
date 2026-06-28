@@ -26,8 +26,9 @@ Every layer reuses the same BNF engine.
 
 ### Transducers, recognizers, and streaming
 
-A transducer's step is Mealy-style — `(state, inSymbol) => (state, outSymbol*)`,
-producing zero or more output symbols per input. A **recognizer** (see
+A transducer's step is Mealy-style, which is exactly the existing
+`StateScan<I, S, O>` (`fs/types/function/operator`): `(inSymbol, state) =>
+[outSymbol*, state]`, driven by `stateScan` over a `List`. A **recognizer** (see
 [recognizer-backend](./recognizer-backend.md)) is the degenerate transducer that
 emits nothing and only reports a verdict; so **UTF-8 validation is just the
 byte→code-point decoder with its output discarded** — the same automaton the

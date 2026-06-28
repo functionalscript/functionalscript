@@ -28,18 +28,25 @@ AST, which is the wrong shape (and wrong cost) for these.
 ### Proposal
 
 Treat **BNF as the single source, with a family of backends** that share one
-streaming interface:
+streaming contract — and that contract **already exists** as the `Scan` family
+in `fs/types/function/operator` (drivers `fold` / `foldScan` / `stateScan` /
+`scan` in `fs/types/list`). No new interface to invent:
 
 ```ts
-type Recognizer<S> = {
-    readonly init:   S
-    readonly step:   (s: S, symbol: number) => S   // δ — pure, foldable
-    readonly finish: (s: S) => Verdict              // λ
-}
+type Fold<I, O>         = (input: I) => (acc: O) => O               // δ: (symbol)(state) => state
+type StateScan<I, S, O> = (input: I, prior: S) => readonly[O, S]    // Mealy step: emits output + next state
+type Scan<I, O>         = (input: I) => readonly[O, Scan<I, O>]     // state-hidden form; stateScanToScan unifies
 ```
 
-`step` being a pure `δ` is what makes recognizers **streamable** (fold/scan over
-an incremental input, including the effectful CAS chunk stream) and lets callers
+- A **recognizer** is the output-less case: `Fold<Symbol, State>` for `δ`, plus
+  a separate `λ: (State) => Verdict` on the final state. Driven by `foldScan`
+  (stream of states) / `fold` (final state) — exactly what `fs/fsm`'s
+  `run = foldScan(runOp)` already does.
+- A **transducer** is `StateScan<Symbol, State, Out>` (the Mealy step that emits
+  output), driven by `stateScan(op)(init): List<Out>`.
+
+`δ` being a pure step is what makes both **streamable** (fold/scan over an
+incremental input, including the effectful CAS chunk stream) and lets callers
 **short-circuit** once the state reaches an absorbing sink.
 
 #### Build from the data representation, not the functional one
@@ -169,11 +176,11 @@ Bigger automata are built from BNF pieces in two complementary ways:
   collect all verdicts (e.g. `magic × utf8` in the CAS detector). Falls out of
   subset construction / state-pairing.
 - **Cascade (series)** — each stage is a **transducer** whose output stream is
-  the next stage's input (`bytes → code-points → tokens → AST`). The interface
-  generalizes `Recognizer<S>` to a Mealy step `(s, symbol) => [s, out*]`; a
-  recognizer is the transducer that emits nothing. See
-  [layered-parser](./layered-parser.md). Both stay streaming, so the whole
-  pipeline is incremental.
+  the next stage's input (`bytes → code-points → tokens → AST`). A transducer is
+  just `StateScan<I, S, O>` (the Mealy step that emits output); a recognizer is
+  the output-less `Fold<I, S>`. See [layered-parser](./layered-parser.md). Both
+  stay streaming via `scan` / `stateScan` / `foldScan`, so the whole pipeline is
+  incremental.
 
 ### Tasks
 
@@ -181,11 +188,11 @@ Bigger automata are built from BNF pieces in two complementary ways:
       `fs/bnf/ll1` for the current dispatch/matcher), leaving `fs/bnf/data` as
       the pure serializable IR; new backends land as sibling modules
       (`fs/bnf/recognizer`, `fs/bnf/dfa`)
-- [ ] Define the `Recognizer<S>` interface (`init` / `step` / `finish`) as the
-      shared streaming contract for all backends; keep it parametric in the
-      symbol space (byte vs code-point runner) over the same `RuleSet`
-- [ ] Generalize to a `Transducer<S>` (Mealy step `(s, symbol) => [s, out*]`)
-      for cascade/layered composition; a recognizer is the no-output case
+- [ ] Use the existing `Scan` family as the streaming contract (no new type):
+      `Fold<I, S>` for a recognizer + a separate `λ: (S) => Verdict`,
+      `StateScan<I, S, O>` for a transducer; drivers `foldScan` / `stateScan` /
+      `scan`. Keep it parametric in the symbol space (byte vs code-point runner)
+      over the same `RuleSet`. (`fs/fsm`'s `run = foldScan(runOp)` is precedent.)
 - [ ] Tokenizer stage needs maximal munch (emit at the longest accepting
       prefix, then restart) — a mechanism over plain recognition
 - [ ] DFA backend: `RuleSet` (regular subset) → finite DFA, built as a sibling
@@ -218,3 +225,6 @@ Bigger automata are built from BNF pieces in two complementary ways:
   concrete consumer (streaming MIME/UTF-8 recognizer)
 - `fs/fsm`, `fs/types/byte_set`, `fs/types/range_map` — engines to reuse as the
   DFA backend rather than describe grammars against directly
+- `fs/types/function/operator` (`Fold` / `StateScan` / `Scan`) and `fs/types/list`
+  (`fold` / `foldScan` / `stateScan` / `scan`) — the existing streaming contract
+  and drivers; recognizers and transducers are instances, not new types
