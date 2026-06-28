@@ -195,9 +195,8 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
             return mrSuccess(emptyTag, [], cp)
         }
         let seq: AstSequence = [cp0]
-        let r = cp
         const [_, ...restCp] = cp
-        r = restCp
+        let r = restCp
         const {tag, rules} = dr
         for (const i of rules) {
             const rule = typeof i === 'string' ? map[i]! : i
