@@ -64,6 +64,28 @@ in its own sibling module — `fs/bnf/ll1` for the current LL(1) dispatch/matche
 then `fs/bnf/recognizer` and `fs/bnf/dfa` for the new backends. The IR stays
 free of any one parser's machinery.
 
+#### Compatibility is a build-time check (throw, don't fall back)
+
+Each builder targets a specific automaton class, and the type system **cannot**
+express "this grammar is regular / LL(1)". So a builder must **throw** when its
+input grammar is not in its class — e.g. `dfaParser` on a non-regular grammar:
+there is no DFA for it, and silently falling back to another engine would hide
+an authoring error and defeat the reason the caller chose a finite-state
+streaming automaton.
+
+A runtime throw is acceptable because it happens **eagerly, at module load**:
+grammars are built into top-level consts —
+
+```ts
+const myGrammar = dfaParser(bnfGrammar)   // evaluated at import; throws on load
+```
+
+— so an incompatible grammar fails fast on import/in CI and cannot ship. It is a
+runtime check that behaves like a static one. This is already the pattern in
+`fs/bnf/data`: the dispatch builder throws `can not merge …` when a grammar is
+not LL(1) (a first/first conflict). Every builder follows it, each with its own
+constraint (LL(1) conflict-free, regular, …).
+
 Two backends, distinguished by grammar class — this distinction is load-bearing:
 
 1. **DFA backend — regular subset.** The genuinely new builder: analyze the
@@ -139,7 +161,8 @@ Bigger automata are built from BNF pieces in two complementary ways:
       prefix, then restart) — a mechanism over plain recognition
 - [ ] DFA backend: `RuleSet` (regular subset) → finite DFA, built as a sibling
       of `dispatchMap`, with a clear regularity criterion (self-/tail-recursion
-      only) and a sensible fallback when a grammar exceeds it
+      only); **throw at build/module-load time** when the grammar is not regular
+      (no DFA exists) — do not fall back to another engine
 - [ ] AST-less LL(1) recognizer: derive from the existing `fs/bnf/data` matcher
       by dropping `AstRule` accumulation; return accept/reject + final config
 - [ ] Add binary terminal helpers (byte / hex literals, byte sequences,
