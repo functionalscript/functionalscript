@@ -40,9 +40,10 @@ second marker at byte offset 8.
 
 ## Streaming detector (`detectStream`)
 
-`detect` needs the whole blob in a single `Vec`, which caps at `maxLength` bits
-(128 KiB). For inspecting blobs of any size without buffering, the module also
-exports a **byte-accepting state machine** beside `detect`:
+`detectVec` classifies a whole blob held in a single `Vec`, which caps at
+`maxLength` bits (128 KiB). For inspecting blobs of any size without buffering,
+the module also exports `detectStream` — the streaming form of the **same
+byte-accepting state machine**:
 
 ```ts
 import { detectStream, detectVec, push, finish, detectInit } from './module.f.ts'
