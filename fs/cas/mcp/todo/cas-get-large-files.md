@@ -141,6 +141,45 @@ is live and its chunk step is `+chunkLen`, so the bulk of a large blob skips
 per-byte iteration — the formal statement of "large blobs cost ≈
 length-counting."
 
+#### Reusing `fs/fsm/` as the engine
+
+`fs/fsm/` already implements this Moore machine over a **byte alphabet**, so the
+`A_magic` and `A_utf8` factors need not be hand-rolled:
+
+- alphabet = `ByteSet` (`fs/types/byte_set`, a 256-bit set); rules are
+  `[stateIn, ByteSet, stateOut]`;
+- `dfa(grammar)` runs subset construction once; `run(dfa)` is `foldScan` over
+  the input — i.e. `δ` threaded over the byte stream, emitting one state per
+  byte (the resumable `push` we need);
+- the empty-subset state is the absorbing `Reject` sink for free;
+- **the product is free too**: merging the magic and utf8 rule sets from the
+  shared `''` start makes each DFA state a subset that holds live states of
+  *both* sub-machines, so the end state encodes both verdicts (the powerset
+  states in `fs/fsm/README.md`, e.g. `['floatBegin','int']`, are exactly this).
+
+What stays outside `fs/fsm/`:
+
+- **`A_len`** — an FSM is finite-state and cannot count; length is a separate
+  `+chunkLen` accumulator.
+- **`finish`/`λ`** — interpret the final FSM state into `{ mime_type, type }`.
+
+`fs/bnf/` itself is **not** the right layer: its execution model is LL(1)
+grammar → AST over a *code-point* alphabet, which both builds a parse tree we
+don't want and is not byte-oriented. It is the grammar-*description* layer
+(`fs/fsc/bnf.f.ts` uses it for the FS tokenizer); we could later describe the
+magic/utf8 grammar with it and lower to an `fs/fsm/` grammar, but there is no
+ready bnf→byte-fsm lowering today, so that is extra scaffolding, not a shortcut.
+
+Open integration points when reusing `fs/fsm/`:
+
+- bridge the effectful `List<O, IoResult<Vec>>` chunks into bytes and thread the
+  DFA state across `Vec` chunk boundaries (`run` consumes a single pure
+  `List<number>`);
+- wrap `run` to stop stepping once the state is the combined sink and switch to
+  length-only counting (the short-circuit above is not automatic);
+- `fs/fsm/` keys states by stringified subsets — fine for build-once, slightly
+  heavier per-step than an int-indexed table; revisit only if it shows up hot.
+
 #### Wiring
 
 1. **Add the state machine in `fs/mime`**, beside `detect` (the pure prefix
@@ -177,6 +216,8 @@ length-counting."
 
 ### Tasks
 
+- [ ] Evaluate reusing `fs/fsm/` for the `A_magic`/`A_utf8` factors (byte DFA +
+      streaming `run`) vs a hand-rolled DFA; keep `A_len` and `finish` outside it
 - [ ] Add the `DetectState` machine (`push` / `finish`) in `fs/mime`:
       length counter, signature-elimination magic matcher, UTF-8 DFA
 - [ ] Add the `detectStream` driver folding the read stream through `push`
