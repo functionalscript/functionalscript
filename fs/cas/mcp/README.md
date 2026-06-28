@@ -102,8 +102,10 @@ such as tests.
 The metadata-only call **never buffers the blob**. It folds the CAS read stream
 through [`fs/mime`](../../mime/module.f.ts) `detectStream` — a byte-accepting
 state machine (running byte count × magic-byte signature eliminator × UTF-8
-validity DFA) that derives `{ length, mime_type, type }` in O(1) space. Both
-detectors reach absorbing states early, so a large blob costs ≈ length counting.
+validity DFA) that derives `{ length, mime_type, type }` in O(1) space. The
+detector stops decoding once the verdict is fixed — a magic match settles it
+immediately, otherwise once UTF-8 turns invalid — so a large blob costs ≈ length
+counting past that point.
 
 This matters because a single `Vec` cannot exceed `maxLength` bits (128 KiB), so
 the old "drain the whole blob into one `Vec`" approach failed on any blob larger

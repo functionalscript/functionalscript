@@ -102,7 +102,8 @@ export const detect = (bytes: Vec): Nullable<string> => {
 // magic-byte signature elimination, and a UTF-8 validity DFA — read off at
 // end-of-stream by `finish`. This lets `cas_get` inspect arbitrarily large blobs
 // (where a single `Vec` would overflow `maxLength`) in O(1) space, since the bulk
-// of a large blob costs only length counting once both detectors are absorbing.
+// of a large blob costs only length counting once the verdict is fixed (see
+// `isSettled`: a magic match settles it immediately, a dead magic once utf8 fails).
 
 /**
  * A magic-byte signature as a byte pattern. `null` entries are wildcards (the
@@ -156,8 +157,6 @@ const magicStep = (m: MagicState, byte: number): MagicState => {
     return viable.length === 0 ? { tag: 'dead' } : { tag: 'scan', pos: pos + 1, viable }
 }
 
-const magicResolved = (m: MagicState): boolean => m.tag !== 'scan'
-
 const magicMime = (m: MagicState): Nullable<string> => m.tag === 'matched' ? m.mime : null
 
 /**
@@ -201,26 +200,35 @@ export const detectInit: DetectState = {
     utf8: utf8Init,
 }
 
-// Both detectors are absorbing exactly when magic is resolved and utf8 has gone
-// invalid; thereafter `push` only needs to count length.
-const settled = (s: DetectState): boolean =>
-    magicResolved(s.magic) && !s.utf8.valid
+// The outcome can no longer change — `push` may stop decoding and only count
+// length — once `finish` is pinned down. A magic `matched` pins it on its own
+// (`finish` returns the detected mime and ignores the utf8 verdict), so we must
+// not wait for utf8 to go invalid (it may stay valid forever, e.g. an ASCII PDF).
+// A magic `dead` leaves text-vs-octet open, so it settles only once utf8 is also
+// invalid (utf8's only absorbing state); `scan` is never settled.
+const isSettled = (magic: MagicState, utf8: Utf8Detect): boolean => {
+    switch (magic.tag) {
+        case 'matched': return true
+        case 'dead': return !utf8.valid
+        case 'scan': return false
+    }
+}
 
 /**
  * Folds one `Vec` chunk into the detector state (`δ` over a whole chunk). Length
  * always advances by the chunk's bit length; per-byte iteration stops as soon as
- * both detectors are in their absorbing states, so large blobs cost ≈ length
- * counting.
+ * the verdict is fixed (see {@link isSettled}), so large blobs — including large
+ * magic-matched ones — cost ≈ length counting.
  */
 export const push = (s: DetectState) => (chunk: Vec): DetectState => {
     const bits = length(chunk)
     let magic = s.magic
     let utf8 = s.utf8
-    if (!settled({ length: s.length, magic, utf8 })) {
+    if (!isSettled(magic, utf8)) {
         for (const byte of iterable(u8List(msb)(chunk))) {
             magic = magicStep(magic, byte)
             utf8 = utf8Step(utf8, byte)
-            if (magicResolved(magic) && !utf8.valid) { break }
+            if (isSettled(magic, utf8)) { break }
         }
     }
     return { length: s.length + bits, magic, utf8 }

@@ -69,9 +69,14 @@ detectVec(bytes)                // { length, mime_type, type }
 + detected mime; else whole-blob-valid UTF-8 → `text` + `text/plain`; else
 `base64` + `application/octet-stream`. UTF-8 classification must see **every**
 byte (a blob can be valid until its last byte), so a leading-bytes buffer would
-be incorrect — only the streaming validator is. Once both `magic` and `utf8`
-reach absorbing states, `push` skips per-byte work and just counts length, so a
-large blob costs ≈ length counting.
+be incorrect — only the streaming validator is.
+
+`push` stops decoding and just counts length once the verdict is fixed. Because
+`finish` ignores the utf8 factor when `magic` matched, a **matched** signature
+fixes the verdict on its own — no need to keep validating UTF-8 over the tail (it
+might stay valid forever, e.g. an ASCII PDF). A **dead** magic leaves text-vs-octet
+open, so it fixes the verdict only once `utf8` also reaches its `invalid` sink.
+Either way a large blob costs ≈ length counting past the settling point.
 
 ### Why hand-rolled (for now)
 

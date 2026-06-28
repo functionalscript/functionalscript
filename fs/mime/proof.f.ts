@@ -170,6 +170,29 @@ export const proof = {
             assertEq(m.length, 140_000n)
         },
 
+        // A magic match settles the verdict on its own: a large magic-matched blob
+        // whose tail stays valid UTF-8 (an ASCII PDF) classifies by the signature.
+        // `push` stops decoding the tail once `magic` is matched — `finish` ignores
+        // the utf8 verdict here — so this is the magic-matched fast path.
+        pdfThenLargeTextTail: () => {
+            const header = bytes(0x25, 0x50, 0x44, 0x46, 0x2d) // "%PDF-"
+            const tail = repeat(70_000n)(vec8(0x61n))          // valid ASCII, never invalidates utf8
+            const m = detectChunks(header, tail)
+            assertEq(m.type, 'base64')
+            assertEq(m.mime_type, 'application/pdf')
+            assertEq(m.length, 70_005n)
+        },
+
+        // A magic match wins regardless of the tail: a binary (non-UTF-8) tail
+        // after the signature is still classified by the signature.
+        pdfThenBinaryTail: () => {
+            const header = bytes(0x25, 0x50, 0x44, 0x46, 0x2d) // "%PDF-"
+            const m = detectChunks(header, bytes(0xff, 0xfe, 0x00))
+            assertEq(m.type, 'base64')
+            assertEq(m.mime_type, 'application/pdf')
+            assertEq(m.length, 8n)
+        },
+
         // A read `error` item short-circuits into the IoResult error.
         readErrorSurfaces: () => {
             const errStream: List<never, Result<Vec, unknown>> =
