@@ -86,15 +86,24 @@ runtime check that behaves like a static one. This is already the pattern in
 not LL(1) (a first/first conflict). Every builder follows it, each with its own
 constraint (LL(1) conflict-free, regular, …).
 
-This is the FunctionalScript meta-programming strategy — **no new language**.
-Grammars are ordinary FS values; the builders are ordinary functions; `const g =
-dfaParser(grammar)` *is* the compile step, just eager evaluation, with no bespoke
-compiler pass or new syntax. It is the same approach `fs/types/rtti` takes for
-**types**: a type is a schema *value* from which `ts/` derives the TypeScript
-type, `validate/` a validator, and `parse/` a deserializer — one value, many
-artifacts by function (the cas/mcp tool args already use one rtti struct for both
-`inputSchema` and `validate`). `rtti`:types :: `bnf`:grammars — define a value,
-derive automata/artifacts from it by function, fail eagerly at load if ill-formed.
+This is the FunctionalScript meta-programming strategy — **no new language**,
+or equivalently: an **embedded DSL**. Grammars are ordinary FS values; the
+builders are ordinary functions; `const g = dfaParser(grammar)` *is* the compile
+step, just eager evaluation, with no bespoke compiler pass or new syntax. The
+contrast is an **external** DSL — React/JSX, TypeScript's type syntax — which
+needs its own parser/transpiler; FunctionalScript builds the DSL *inside* the
+host language instead. The same move recurs across the codebase:
+
+- `fs/html` — markup as nested element values (`['a', { href }, 'Example']`),
+  not JSX; serialized by an emitter function;
+- `fs/types/rtti` — a type is a schema *value* from which `ts/` derives the
+  TypeScript type, `validate/` a validator, and `parse/` a deserializer (the
+  cas/mcp tool args already use one rtti struct for both `inputSchema` and
+  `validate`);
+- `fs/bnf` — a grammar value from which the builders derive automata.
+
+`rtti`:types :: `bnf`:grammars :: `html`:markup — define a value, derive
+artifacts from it by function, fail eagerly at load if ill-formed.
 
 Two backends, distinguished by grammar class — this distinction is load-bearing:
 
@@ -190,6 +199,8 @@ Bigger automata are built from BNF pieces in two complementary ways:
 - [parser-structure](./parser-structure.md) — the AST-producing backend
 - `fs/types/rtti` — the type-level sibling of this strategy: types as schema
   values, many artifacts (TS type, validator, parser) derived by function
+- `fs/html` — the markup-level sibling: an embedded DSL of nested element
+  values, not an external syntax (JSX)
 - [cas-get-large-files](../../cas/mcp/todo/cas-get-large-files.md) — first
   concrete consumer (streaming MIME/UTF-8 recognizer)
 - `fs/fsm`, `fs/types/byte_set`, `fs/types/range_map` — engines to reuse as the
