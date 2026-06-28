@@ -119,6 +119,22 @@ a clear structural error rather than a silent no-op. (A generator
 `todo: () => ({…})` still passes this static check — it *is* a zero-arg
 function — and still reds at runtime, as above.)
 
+#### Counting as technical debt
+
+A `todo` leaf is still a real test: its pass/fail verdict (after XOR inversion)
+goes into the **common `pass` / `fail` counters**, exactly like any other leaf.
+On top of that, the built-in `fjs t` runner counts **every** `todo` leaf — both
+the green (still-failing) and the red (now-fixed) ones — into a separate `todo`
+tally and prints it in the summary (`pass / fail / todo`). That number is a
+visible technical-debt indicator: how many captured-but-unfinished behaviours
+the codebase is carrying.
+
+This extra tally lives only in the self-hosted runner. The `register` path hands
+each leaf to an external framework one at a time and has no place to accumulate a
+cross-test count, so external runners report only their native pass/fail — the
+`todo` tally is a `fjs t`-only summary enrichment, not a verdict, so it does not
+diverge runner behaviour.
+
 #### Pairing with `todo/` design docs
 
 A `todo` test and a `todo/{slug}.md` issue document are two halves of the same
@@ -170,6 +186,12 @@ docs, mirroring the existing `throws` plumbing:
   instead of a bare `throws` boolean) so `defaultReporter` can annotate a passing
   leaf with `# TODO` when `todo` is set, otherwise keep `# EXPECTED TO THROW`.
   The GitHub/error path is unchanged.
+- **`TestState` / summary (`fjs t` only)** — add a `todo` counter to `TestState`,
+  incremented for every `todo` leaf in `runModule` (independently of whether it
+  passed or failed; its pass/fail still increments `pass`/`fail` as usual).
+  Extend `Reporter.summary` to receive the `todo` count and have `defaultReporter`
+  print it (`pass / fail / todo`). The `register` path is unchanged — no
+  cross-test tally there.
 - **No `fn.name === 'todo'` check** — `todo` is structural-key-only, matching the
   guidance around the legacy `fn.name === 'throw'` path.
 
@@ -194,9 +216,6 @@ out from under `throw`) as part of landing this change.
 ### Open questions
 
 - Annotation wording: `# TODO` vs `# KNOWN BUG`. `# TODO` is proposed.
-- Whether `todo` leaves should be counted separately in the summary
-  (`pass / fail / todo`) instead of silently counting as a pass. Starting simple
-  (counts as pass) is proposed; a dedicated counter can be a follow-up.
 
 ### Tasks
 
@@ -209,6 +228,9 @@ out from under `throw`) as part of landing this change.
       skipping + star suffix to `leafOnly` (`runModule`, `registerModule`).
 - [ ] Update `Reporter.result` to receive the entry flags and annotate passing
       `todo` leaves with `# TODO`.
+- [ ] Add a `todo` counter to `TestState`/`Reporter.summary` and print
+      `pass / fail / todo` in `defaultReporter` (`fjs t` only; `register`
+      unchanged).
 - [ ] Migrate `fs/emergent_testing/example.f.ts` off `throw: { todo }`.
 - [ ] Add proofs in `fs/emergent_testing/proof.f.ts` for: `todo` green on throw,
       `todo` red when it returns, `throw.todo` green on return / red on throw, the
