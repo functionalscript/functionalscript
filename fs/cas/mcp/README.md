@@ -97,9 +97,27 @@ themselves. The typical decision protocol:
 (production filesystem-backed server); it is omitted in memory-backed contexts
 such as tests.
 
+### Metadata is size-independent (the default `content: false`)
+
+The metadata-only call **never buffers the blob**. It folds the CAS read stream
+through [`fs/mime`](../../mime/module.f.ts) `detectStream` — a byte-accepting
+state machine (running byte count × magic-byte signature eliminator × UTF-8
+validity DFA) that derives `{ length, mime_type, type }` in O(1) space. Both
+detectors reach absorbing states early, so a large blob costs ≈ length counting.
+
+This matters because a single `Vec` cannot exceed `maxLength` bits (128 KiB), so
+the old "drain the whole blob into one `Vec`" approach failed on any blob larger
+than one read chunk — *even with `content: false`*, the exact case where the
+caller wants only the metadata. Inspecting a blob's size and type is now
+independent of its size: a multi-megabyte blob returns its metadata, never an
+error. UTF-8 classification is a true streaming validator, so a blob that is
+valid UTF-8 until a trailing invalid byte is correctly classified as `base64`
+(a leading-bytes buffer could not decide this).
+
 ### Content encoding (when `content: true`)
 
-Two-phase MIME detection determines the encoding:
+Only the `content: true` path materializes the bytes (bounded by `maxLength`),
+where two-phase MIME detection determines the encoding:
 
 1. **Magic-byte sniffing** ([`fs/mime`](../../mime/module.f.ts) `detect`): if the
    leading bytes match a known signature (PNG, JPEG, GIF, WebP, PDF, ZIP),
@@ -111,6 +129,11 @@ Two-phase MIME detection determines the encoding:
 
 3. **Fallback**: bytes that pass neither test are returned as base64 with
    `mime_type: 'application/octet-stream'`.
+
+The `detect` + `fromVec` pair here and the `detectStream` machine above produce
+the same three-way classification; the streaming form is the metadata-only
+counterpart of the pure one. A blob larger than `maxLength` is still
+unsupported on the `content: true` path and should be fetched via `url`.
 
 Examples:
 

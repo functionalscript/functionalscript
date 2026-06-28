@@ -1,7 +1,7 @@
 ## `cas_get` fails on large blobs even without content
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ### Problem
 
@@ -219,17 +219,20 @@ Open integration points when reusing `fs/fsm/`:
 - [ ] Consume the recognizer/DFA backend for `A_magic`/`A_utf8`
       ([fs/bnf recognizer-backend](../../../bnf/todo/recognizer-backend.md)) rather
       than describing the DFA by hand; keep `A_len` and `finish` outside it
-- [ ] Add the `DetectState` machine (`push` / `finish`) in `fs/mime`:
+      — *deferred: that backend is still an open todo. The factors are hand-rolled
+      for now (`magicStep` signature elimination; `utf8Step` riding the existing
+      `fs/text/utf8` decoder), to be lowered onto the backend once it lands.*
+- [x] Add the `DetectState` machine (`push` / `finish`) in `fs/mime`:
       length counter, signature-elimination magic matcher, UTF-8 DFA
-- [ ] Add the `detectStream` driver folding the read stream through `push`
-- [ ] Short-circuit `push` to length-only once `magic` and `utf8` are absorbed
-- [ ] Rewire `cas_get` to use `detectStream` when `content !== true`
-- [ ] Keep `collectRead` only on the `content: true` path
-- [ ] Proof tests: large multi-chunk blob returns metadata (no error) with
+- [x] Add the `detectStream` driver folding the read stream through `push`
+- [x] Short-circuit `push` to length-only once `magic` and `utf8` are absorbed
+- [x] Rewire `cas_get` to use `detectStream` when `content !== true`
+- [x] Keep `collectRead` only on the `content: true` path
+- [x] Proof tests: large multi-chunk blob returns metadata (no error) with
       `content: false`; correct `type`/`mime_type` for text, png, octet-stream;
       a blob that is valid UTF-8 until a trailing invalid byte classifies as
       `base64`; `length` matches actual byte count
-- [ ] Update `fs/cas/mcp/README.md` and the module JSDoc to note that
+- [x] Update `fs/cas/mcp/README.md` and the module JSDoc to note that
       metadata-only `cas_get` is size-independent
 
 ### Related

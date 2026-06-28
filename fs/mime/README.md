@@ -38,8 +38,41 @@ WebP is the only non-contiguous signature: the four-byte little-endian file size
 sits between the `RIFF` and `WEBP` markers, so it is matched as a prefix plus a
 second marker at byte offset 8.
 
+## Streaming detector (`detectStream`)
+
+`detect` needs the whole blob in a single `Vec`, which caps at `maxLength` bits
+(128 KiB). For inspecting blobs of any size without buffering, the module also
+exports a **byte-accepting state machine** beside `detect`:
+
+```ts
+import { detectStream, push, finish, detectInit } from './module.f.ts'
+
+// fold a CAS read stream (List<O, IoResult<Vec>>) into { length, mime_type, type }
+detectStream(stream)            // Effect<O, IoResult<DetectMeta>>
+
+// or drive the pure machine directly over Vec chunks
+finish(push(detectInit)(chunk)) // { length, mime_type, type }
+```
+
+`DetectState` is the product of three independent folds over the byte stream:
+
+| factor  | what it does                                                        | absorbing                |
+|---------|---------------------------------------------------------------------|--------------------------|
+| length  | running byte count (`+chunkLen` per chunk)                          | never                    |
+| magic   | signature elimination — the streaming form of the table above       | matched / dead (≤12 B)   |
+| utf8    | UTF-8 validity DFA over `fs/text/utf8`'s decoder                     | invalid                  |
+
+`finish` reads the same three-way verdict as the pure path: magic hit → `base64`
++ detected mime; else whole-blob-valid UTF-8 → `text` + `text/plain`; else
+`base64` + `application/octet-stream`. UTF-8 classification must see **every**
+byte (a blob can be valid until its last byte), so a leading-bytes buffer would
+be incorrect — only the streaming validator is. Once both `magic` and `utf8`
+reach absorbing states, `push` skips per-byte work and just counts length, so a
+large blob costs ≈ length counting.
+
 ## Consumers
 
 - [`fs/cas/mcp`](../cas/mcp/) — `cas_get` calls `detect` on the retrieved bytes
-  and returns an MCP `EmbeddedResource` (with `mimeType`) when a type is
-  recognised, falling back to a plain text block on `null`.
+  when `content: true` is requested, and folds the read stream through
+  `detectStream` for the default metadata-only call, so inspecting a blob's size
+  and type is independent of its size.

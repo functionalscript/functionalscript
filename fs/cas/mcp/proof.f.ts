@@ -4,7 +4,7 @@ import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
 import type { Response } from '../../json/rpc/module.f.ts'
-import { msb, u8ListToVec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
+import { msb, u8ListToVec, vec8, repeat, type Vec } from '../../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
@@ -477,6 +477,32 @@ export const proof = {
         const [resp] = session(call(2, 'cas_add', { content: '/home/user/cas_upload/../../etc/passwd', type: 'url' }))
         assert(resultOf(resp).isError === true)
         assert(textOf(resp).includes('/home/user/cas_upload/'))
+    },
+
+    // A blob larger than one read chunk (> 128 KiB) used to fail metadata-only
+    // cas_get because `collectRead` overflowed `maxLength`. With `detectStream`,
+    // content:false returns correct metadata regardless of size.
+    getMetaLargeMultiChunkBlobNoError: () => {
+        // 200,000 bytes of 'a' — spans two 128 KiB read chunks.
+        const big = repeat(200_000n)(vec8(0x61n))
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'big': [big] } } } }
+        const [addResp] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
+        ]).slice(2) as readonly unknown[]
+        assert(!resultOf(addResp).isError)
+        const hash = textOf(addResp)
+        const [, metaResp] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
+            call(3, 'cas_get', { hash }),
+        ]).slice(2) as readonly unknown[]
+        assert(!resultOf(metaResp).isError)
+        const meta = JSON.parse(textOf(metaResp)) as CasGetResult
+        assertEq(meta.type, 'text')
+        assertEq(meta.mime_type, 'text/plain')
+        assertEq(meta.length, 200_000)
+        assertEq(meta.content, undefined)
     },
 
     // cas_get with content:true on octet-stream (no magic bytes, not UTF-8) returns inline base64.
