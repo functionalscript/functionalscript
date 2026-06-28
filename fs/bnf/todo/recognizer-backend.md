@@ -189,10 +189,11 @@ Bigger automata are built from BNF pieces in two complementary ways:
 
 ### Tasks
 
-- [ ] Move the parsers out of `fs/bnf/data` into their own modules (e.g.
-      `fs/bnf/ll1` for the current dispatch/matcher), leaving `fs/bnf/data` as
-      the pure serializable IR; new backends land as sibling modules
-      (`fs/bnf/recognizer`, `fs/bnf/dfa`)
+- [x] Move the parsers out of `fs/bnf/data` into their own modules
+      (`fs/bnf/ll1` for the current dispatch/matcher, `fs/bnf/descent` for the
+      recursive descent matcher), leaving `fs/bnf/data` as the pure serializable
+      IR; new backends land as sibling modules (`fs/bnf/recognizer`,
+      `fs/bnf/dfa`)
 - [ ] Use the existing `Scan` family as the streaming contract (no new type):
       `Fold<I, S>` for a recognizer + a separate `λ: (S) => Verdict`,
       `StateScan<I, S, O>` for a transducer; drivers `foldScan` / `stateScan` /
