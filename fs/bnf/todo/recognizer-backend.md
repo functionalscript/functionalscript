@@ -74,12 +74,19 @@ Two backends, distinguished by grammar class — this distinction is load-bearin
    configuration. `S` is a parser configuration (stack), **not** finite. This is
    the tier above the scanner (PL/structure recognition).
 
-**Alphabet is the runner's choice, not the IR's.** The data `TerminalRange` is a
-24-bit range and the existing runners are `CodePoint`-oriented, but UTF-8/magic
-detection is inherently **byte-level** while PL/Markdown is **code-point-level**.
-The IR is alphabet-agnostic (ranges over integers) and `step` is symbol-numeric,
-so keep the automaton/runner parametric in the symbol space: a byte runner for
-UTF-8/magic, a code-point runner for the language tier — same `RuleSet`.
+**BNF is symbol-agnostic; the alphabet is the runner's choice.** Both BNF
+levels — functional and the serializable data IR — are neutral about what a
+symbol *is*: a `Rule` over ranges/sequence/variant does not know whether symbol
+`0x41` is the code point `A` or the byte `0x41`. `TerminalRange`'s 24 bits are
+just capacity (enough for Unicode `0x10FFFF`, and bytes trivially), not a
+code-point commitment, and `step` is symbol-numeric. So a **byte runner** for
+UTF-8/magic and a **code-point runner** for the PL/Markdown tier are just two
+consumers feeding different symbol streams to the *same* `RuleSet`. The only
+code-point coupling is in the string-literal terminal constructors (`str` /
+`set` / `range`, via `stringToCodePointList`) — and even those coincide with
+byte values for `0x00..0xFF`, or are bypassed with `rangeEncode` / `oneEncode`
+on raw bytes. (The matcher's `CodePoint[]` typing is nominal — structurally
+numbers.)
 
 The grand goal — recognize programming languages, Markdown, etc. — is the
 **layered** composition of the two:
