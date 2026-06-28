@@ -10,11 +10,6 @@ import { decoder, errorMask, isValidCodePoint } from '../code_point/module.f.ts'
 import { msb, u8List, length, type Vec } from '../../types/bit_vec/module.f.ts'
 import { codePointListToString } from '../utf16/module.f.ts'
 
-// `isValidCodePoint` lives in `code_point` (the shared Unicode contract); it is
-// re-exported here to keep utf8's public API stable for `fs/mime`, which imports
-// it from this module.
-export { isValidCodePoint }
-
 /**
  * An unsigned 8-bit integer, represents a single byte.
  */

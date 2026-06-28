@@ -11,9 +11,11 @@ bounds (`0xD800`–`0xDFFF`) and the maximum code point (`0x10FFFF`) are spelled
 out exactly once. UTF-8 and UTF-16 import them instead of redefining their own
 range checks.
 
-`isValidCodePoint` is re-exported from `utf8/module.f.ts` rather than dropped:
-`fs/mime` imports it from `utf8`, so the canonical definition lives on
-`code_point` while `utf8` keeps the existing public import path stable.
+`isValidCodePoint` was previously exported from `utf8/module.f.ts`; it now lives
+solely on `code_point`. Importers — `fs/mime` and `utf8`'s own `fromVec` — take
+it from `code_point` directly. This was a deliberate breaking change rather than
+a re-export, on the principle that the predicate's canonical home is the shared
+Unicode contract.
 
 ## UTF-8
 
