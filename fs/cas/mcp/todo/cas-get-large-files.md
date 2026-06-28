@@ -217,7 +217,7 @@ Open integration points when reusing `fs/fsm/`:
 ### Tasks
 
 - [ ] Consume the recognizer/DFA backend for `A_magic`/`A_utf8`
-      ([fs/bnf recognizer-backend](../../bnf/todo/recognizer-backend.md)) rather
+      ([fs/bnf recognizer-backend](../../../bnf/todo/recognizer-backend.md)) rather
       than describing the DFA by hand; keep `A_len` and `finish` outside it
 - [ ] Add the `DetectState` machine (`push` / `finish`) in `fs/mime`:
       length counter, signature-elimination magic matcher, UTF-8 DFA
@@ -234,7 +234,7 @@ Open integration points when reusing `fs/fsm/`:
 
 ### Related
 
-- [fs/bnf recognizer-backend](../../bnf/todo/recognizer-backend.md) — the
+- [fs/bnf recognizer-backend](../../../bnf/todo/recognizer-backend.md) — the
   streaming recognizer / BNF→DFA backend this detector should consume; `cas_get`
   is its first concrete consumer
 - [66j-cas-large-file-support](../../todo/66j-cas-large-file-support.md) —
