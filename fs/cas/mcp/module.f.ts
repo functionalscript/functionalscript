@@ -30,26 +30,28 @@
  * ## `cas_get` output
  *
  * Always returns a JSON object `{ length, mime_type, type[, url][, content] }`.
- * `type` is always present (`'text'` or `'base64'`). The three-way classification
- * is the same on both paths:
+ * `type` is always present (`'text'` or `'base64'`). A single classifier — the
+ * `fs/mime` detector state machine (length × magic-byte eliminator × UTF-8 DFA) —
+ * produces the same three-way verdict on both paths, so there is no second,
+ * divergent copy of the rules:
  *
- * 1. **Magic-byte sniffing** (`fs/mime`): PNG/JPEG/GIF/WebP/PDF/ZIP →
- *    `type: 'base64'` with the detected `mime_type`.
- * 2. **UTF-8 validation**: valid UTF-8 → `type: 'text'`, `mime_type: 'text/plain'`.
- * 3. **Fallback**: `type: 'base64'`, `mime_type: 'application/octet-stream'`.
+ * 1. **Magic-byte hit** (PNG/JPEG/GIF/WebP/PDF/ZIP) → `type: 'base64'` with the
+ *    detected `mime_type`.
+ * 2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mime_type: 'text/plain'`.
+ * 3. **Fallback** → `type: 'base64'`, `mime_type: 'application/octet-stream'`.
  *
  * **Metadata-only (`content: false`, the default) is size-independent.** It folds
- * the read stream through `fs/mime` `detectStream` — a streaming state machine
- * (length × magic eliminator × UTF-8 DFA) — and never buffers the blob. Because a
- * single `Vec` caps at `maxLength` bits (128 KiB), the old drain-into-one-`Vec`
- * approach failed on any blob larger than one chunk even when only metadata was
- * asked for; streaming detection returns correct `{ length, mime_type, type[, url] }`
- * regardless of size.
+ * the read stream through `fs/mime` `detectStream` and never buffers the blob.
+ * Because a single `Vec` caps at `maxLength` bits (128 KiB), the old
+ * drain-into-one-`Vec` approach failed on any blob larger than one chunk even when
+ * only metadata was asked for; streaming detection returns correct
+ * `{ length, mime_type, type[, url] }` regardless of size.
  *
  * **`content: true`** materializes the bytes (via `collectRead`, bounded by
- * `maxLength`) and adds the inline payload, encoded per `fs/mime` `detect` /
- * `fs/text/utf8` `fromVec`. A blob larger than `maxLength` is unsupported here and
- * should be fetched via `url`.
+ * `maxLength`), classifies them with the same machine via `fs/mime` `detectVec`,
+ * then encodes the inline payload by `type` — a `fs/text/utf8` `fromVec` string for
+ * `text`, base64 for `base64`. A blob larger than `maxLength` is unsupported here
+ * and should be fetched via `url`.
  *
  * ## Encoding split: hashes vs. content
  *
@@ -78,7 +80,7 @@ import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
-import { detect, detectStream } from '../../mime/module.f.ts'
+import { detectVec, detectStream } from '../../mime/module.f.ts'
 import { empty, length as bitVecLength, maxLength, msb, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
 import { rm, type IoResult, type Read, type Rm, type Write } from '../../effects/node/module.f.ts'
@@ -216,32 +218,30 @@ const casToolRegistry =
                     return pure(okResult(toJson(meta)))
                 })
             }
-            // content:true — collect the bytes (bounded by `maxLength`) and encode
-            // them inline. The full blob is needed for the base64 / UTF-8 transfer.
+            // content:true — collect the bytes (bounded by `maxLength`) so they can
+            // be encoded inline. Classification uses the *same* `detectVec` state
+            // machine as the metadata-only path; `type` then selects the encoding —
+            // a UTF-8 string for `text`, base64 for `base64`.
             return collectRead(c.read(key)).step(result => {
                 if (result[0] === 'error') {
                     return pure(errorResult(`no such hash: ${r.hash}`))
                 }
                 const value = result[1]
-                const byteLength = Number(bitVecLength(value) / 8n)
-                // Phase 1: magic-byte sniffing for known binary formats.
-                const detectedMime = detect(value)
-                if (detectedMime !== null) {
-                    const blob = base64Encode(value)
-                    return pure(blob === null
+                const { length, mime_type, type } = detectVec(value)
+                const meta: Meta = { length: Number(length), mime_type, type, url }
+                if (type === 'text') {
+                    // `type: 'text'` means the detector validated `value` as UTF-8, so
+                    // `fromVec` is non-null here; guard defensively regardless.
+                    const str = fromVec(value)
+                    return pure(str === null
                         ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                        : okResult(toJson({ length: byteLength, mime_type: detectedMime, type: 'base64', url, content: blob }))
+                        : okResult(toJson({ ...meta, content: str }))
                     )
-                }
-                // Phase 2: UTF-8 validation — text if valid, octet-stream otherwise.
-                const str = fromVec(value)
-                if (str !== null) {
-                    return pure(okResult(toJson({ length: byteLength, mime_type: 'text/plain', type: 'text', url, content: str })))
                 }
                 const blob = base64Encode(value)
                 return pure(blob === null
                     ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                    : okResult(toJson({ length: byteLength, mime_type: 'application/octet-stream', type: 'base64', url, content: blob }))
+                    : okResult(toJson({ ...meta, content: blob }))
                 )
             })
         },

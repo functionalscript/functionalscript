@@ -45,13 +45,15 @@ second marker at byte offset 8.
 exports a **byte-accepting state machine** beside `detect`:
 
 ```ts
-import { detectStream, push, finish, detectInit } from './module.f.ts'
+import { detectStream, detectVec, push, finish, detectInit } from './module.f.ts'
 
 // fold a CAS read stream (List<O, IoResult<Vec>>) into { length, mime_type, type }
 detectStream(stream)            // Effect<O, IoResult<DetectMeta>>
 
-// or drive the pure machine directly over Vec chunks
-finish(push(detectInit)(chunk)) // { length, mime_type, type }
+// classify a whole Vec you already hold, through the same machine
+detectVec(bytes)                // { length, mime_type, type }
+// detectVec is just finish(push(detectInit)(bytes)); push/finish are exposed for
+// driving the machine chunk-by-chunk directly.
 ```
 
 `DetectState` is the product of three independent folds over the byte stream:
@@ -85,7 +87,9 @@ clause, touching no existing transition.
 
 ## Consumers
 
-- [`fs/cas/mcp`](../cas/mcp/) — `cas_get` calls `detect` on the retrieved bytes
-  when `content: true` is requested, and folds the read stream through
-  `detectStream` for the default metadata-only call, so inspecting a blob's size
-  and type is independent of its size.
+- [`fs/cas/mcp`](../cas/mcp/) — `cas_get` classifies with the state machine on
+  both paths: `detectStream` folds the read stream for the default metadata-only
+  call (size-independent), and `detectVec` classifies the collected blob when
+  `content: true` is requested, so the three-way verdict has a single
+  implementation. The pure `detect` remains for callers that only need
+  magic-byte sniffing over a `Vec` they already hold.

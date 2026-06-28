@@ -250,6 +250,15 @@ export const finish = (s: DetectState): DetectMeta => {
 }
 
 /**
+ * Classifies a whole `Vec` with the same state machine as {@link detectStream}.
+ * The single-buffer counterpart for callers that already hold the bytes (the
+ * `cas_get` `content: true` path materializes the blob anyway): both paths read
+ * the three-way `{ length, mime_type, type }` verdict from one machine instead of
+ * re-deriving it from `detect` + a separate UTF-8 check.
+ */
+export const detectVec = (bytes: Vec): DetectMeta => finish(push(detectInit)(bytes))
+
+/**
  * Folds a CAS read stream through {@link push} and reads {@link finish} at EOF,
  * deriving `cas_get` metadata without ever materializing the blob. A read `error`
  * item short-circuits into the `IoResult` error.

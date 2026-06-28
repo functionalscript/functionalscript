@@ -3,7 +3,7 @@ import { msb, u8ListToVec, vec8, repeat, empty, type Vec } from '../types/bit_ve
 import { decode, type Effect } from '../effects/module.f.ts'
 import { nonEmpty, empty as emptyList, type List } from '../effects/list/module.f.ts'
 import { ok, type Result } from '../types/result/module.f.ts'
-import { detect, detectStream, type DetectMeta } from './module.f.ts'
+import { detect, detectStream, detectVec, type DetectMeta } from './module.f.ts'
 
 // Builds a big-endian `Vec` from a list of byte values — mirrors how the CAS
 // store would hold the leading bytes of a stored blob.
@@ -183,6 +183,33 @@ export const proof = {
             const m = detectChunks()
             assertEq(m.type, 'text')
             assertEq(m.length, 0n)
+        },
+    },
+
+    // ── Single-Vec detector (detectVec) ─────────────────────────────────────────
+    // The whole-Vec form used by the `cas_get` content:true path; same machine,
+    // same three-way verdict as the streaming form.
+
+    vec: {
+        text: () => {
+            const m = detectVec(bytes(0x68, 0x65, 0x6c, 0x6c, 0x6f)) // "hello"
+            assertEq(m.type, 'text')
+            assertEq(m.mime_type, 'text/plain')
+            assertEq(m.length, 5n)
+        },
+
+        png: () => {
+            const m = detectVec(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01))
+            assertEq(m.type, 'base64')
+            assertEq(m.mime_type, 'image/png')
+            assertEq(m.length, 10n)
+        },
+
+        octetStream: () => {
+            const m = detectVec(bytes(0xff, 0xfe, 0x00, 0x01))
+            assertEq(m.type, 'base64')
+            assertEq(m.mime_type, 'application/octet-stream')
+            assertEq(m.length, 4n)
         },
     },
 }

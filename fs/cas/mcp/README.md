@@ -116,24 +116,22 @@ valid UTF-8 until a trailing invalid byte is correctly classified as `base64`
 
 ### Content encoding (when `content: true`)
 
-Only the `content: true` path materializes the bytes (bounded by `maxLength`),
-where two-phase MIME detection determines the encoding:
+Only the `content: true` path materializes the bytes (bounded by `maxLength`). It
+classifies them with the **same** detector — [`fs/mime`](../../mime/module.f.ts)
+`detectVec`, the single-`Vec` form of the `detectStream` machine above — so the
+three-way verdict is computed in exactly one place, never re-derived from a
+parallel `detect` + UTF-8 check. The `type` then selects how `content` is encoded:
 
-1. **Magic-byte sniffing** ([`fs/mime`](../../mime/module.f.ts) `detect`): if the
-   leading bytes match a known signature (PNG, JPEG, GIF, WebP, PDF, ZIP),
-   `content` is RFC 4648 base64 and `type` is `'base64'`.
+1. **Magic-byte hit** (PNG/JPEG/GIF/WebP/PDF/ZIP) → `type: 'base64'`, `content` is
+   RFC 4648 base64.
+2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mime_type: 'text/plain'`, and
+   `content` is the decoded string ([`fs/text/utf8`](../../text/utf8/module.f.ts)
+   `fromVec`, used here purely as the decoder).
+3. **Fallback** → `type: 'base64'`, `mime_type: 'application/octet-stream'`,
+   `content` is base64.
 
-2. **UTF-8 validation** ([`fs/text/utf8`](../../text/utf8/module.f.ts) `fromVec`):
-   if the blob decodes as valid UTF-8, `content` is the decoded string and
-   `type` is `'text'` with `mime_type: 'text/plain'`.
-
-3. **Fallback**: bytes that pass neither test are returned as base64 with
-   `mime_type: 'application/octet-stream'`.
-
-The `detect` + `fromVec` pair here and the `detectStream` machine above produce
-the same three-way classification; the streaming form is the metadata-only
-counterpart of the pure one. A blob larger than `maxLength` is still
-unsupported on the `content: true` path and should be fetched via `url`.
+A blob larger than `maxLength` is still unsupported on the `content: true` path
+and should be fetched via `url`.
 
 Examples:
 
