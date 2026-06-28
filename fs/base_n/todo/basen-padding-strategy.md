@@ -94,5 +94,8 @@ and doesn't obscure the per-codec pad semantics.
 
 ### Related
 
-- `fs/base_n/todo/various-basen-encodings.md` — note its "Base64" entry is now
-  stale: `fs/base64/module.f.ts` is implemented and already uses `baseN`.
+- `fs/base_n/todo/various-basen-encodings.md` — its "Base64" entry is **not**
+  superseded by this work: that entry asks for an *identifier-safe* base64
+  (alphabet `0-9 A-Z a-z _ $`), whereas `fs/base64/module.f.ts` is the standard
+  RFC 4648 `+/` codec. The identifier variant is still unbuilt; this issue only
+  refactors padding shared by the existing standard base64 and cbase32.

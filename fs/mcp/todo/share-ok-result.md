@@ -23,7 +23,8 @@ const okResult = (text: string): ToolsCallResult =>
 ```
 
 `cas/mcp` already imports `errorResult` from `mcp` and uses `okResult` heavily
-(eight call sites). Both constructors build the same
+(nine call sites: `fs/cas/mcp/module.f.ts` lines 163, 182, 215, 218, 230, 231,
+244, 247, 256). Both constructors build the same
 `{ content: [{ type: 'text', text }] }` content shape; `errorResult` only adds
 `isError: true`. The MCP content shape is an MCP-module concern, so its success
 half should not have to be hand-rolled in the CAS adapter — that is a
