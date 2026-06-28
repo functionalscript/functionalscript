@@ -17,7 +17,14 @@ import {
 import { concat, type StateScan } from '../../types/function/operator/module.f.ts'
 import { contains } from '../../types/range/module.f.ts'
 import { fn } from '../../types/function/module.f.ts'
-import { decoder, errorMask } from '../code_point/module.f.ts'
+import {
+    decoder,
+    errorMask,
+    isBmpCodePoint,
+    isHighSurrogate,
+    isLowSurrogate,
+    isSupplementaryPlane,
+} from '../code_point/module.f.ts'
 
 /**
  * Optional Utf16State - represents the state of utf16 decoding operation or null.
@@ -43,38 +50,9 @@ export type U16 = number
 export type CodePoint = number
 
 /**
- * Ranges of code points for the lower (Low) and higher (High) parts of the BMP (Basic Multilingual Plane) plane.
- */
-const lowBmp = contains([0x0000, 0xd7ff])
-const highBmp = contains([0xe000, 0xffff])
-
-/**
- * Checks whether the code point is in the BMP range.
- * BMP is the main multi-plane Unicode plane that covers code points 0x0000 - 0xFFFF, except for the range of surrogates.
- */
-const isBmpCodePoint = (codePoint: CodePoint) =>
-    lowBmp(codePoint) || highBmp(codePoint)
-
-/**
- * Checks whether the 16-bit word (U16) is a surrogate of the high part.
- * Range: 0xD800 - 0xDBFF.
- */
-const isHighSurrogate = contains([0xd800, 0xdbff])
-
-/**
- * Checks whether the 16-bit word (U16) is a substitute for the low part.
- * Range: 0xDC00 – 0xDFFF.
- */
-const isLowSurrogate = contains([0xdc00, 0xdfff])
-
-/**
- * Checks whether the code point belongs to the additional (Supplementary) plane of Unicode.
- * Additional planes include code points from 0x010000 to 0x10FFFF.
- */
-const isSupplementaryPlane = contains([0x01_0000, 0x10_ffff])
-
-
-/**
+ * The BMP / surrogate / supplementary-plane predicates used below live in
+ * `code_point`, the shared Unicode contract; see that module for their ranges.
+ *
  * Converts a Unicode code point to its corresponding UTF-16 representation.
  *
  * This function handles:
