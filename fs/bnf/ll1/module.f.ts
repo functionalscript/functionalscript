@@ -173,16 +173,19 @@ export const parser = (fr: FRule): Match => {
     return parserRuleSet(data[0])
 }
 
+const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult =>
+    [{tag, sequence}, true, r]
+
+const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult =>
+    [{tag, sequence}, false, r]
+
 /**
  * Creates an LL(1) parser from an already materialized {@link RuleSet}.
  */
 export const parserRuleSet = (ruleSet: RuleSet): Match => {
     const map = dispatchMap(ruleSet)
 
-    const f: MatchRule = (rule, cp): MatchResult => {
-        const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
-        const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]
-        const {emptyTag, rangeMap} = rule
+    const f: MatchRule = ({emptyTag, rangeMap}, cp): MatchResult => {
         if (cp.length === 0) {
             return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
         }
