@@ -196,7 +196,7 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
         }
         let seq: AstSequence = [cp0]
         const [_, ...restCp] = cp
-        let r = restCp
+        let r: readonly number[] = restCp
         const {tag, rules} = dr
         for (const i of rules) {
             const rule = typeof i === 'string' ? map[i]! : i
