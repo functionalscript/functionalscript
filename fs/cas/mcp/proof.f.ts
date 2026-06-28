@@ -4,7 +4,7 @@ import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
 import type { Response } from '../../json/rpc/module.f.ts'
-import { msb, u8ListToVec, vec8, repeat, type Vec, maxLength, maxLengthBytes } from '../../types/bit_vec/module.f.ts'
+import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
@@ -159,13 +159,14 @@ const pngSample = base64Encode(
 
 // ── Tests ───────────────────────────────────────────────────────────────────────
 
-export const proof = {
-    // A blob larger than one read chunk (> 128 KiB) used to fail metadata-only
-    // cas_get because `collectRead` overflowed `maxLength`. With `detectStream`,
-    // content:false returns correct metadata regardless of size.
-    getMetaLargeMultiChunkBlobNoError: () => {
-        const big = repeat(maxLengthBytes)(vec8(0x61n))
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'big': [big, big] } } } }
+// A blob larger than one read chunk (> 128 KiB) used to fail metadata-only
+// cas_get because `collectRead` overflowed `maxLength`. With `detectStream`,
+// content:false returns correct metadata regardless of size. Each chunk is
+// exactly `maxLengthBytes` (the largest single `Vec` the runtime allows), so the
+// two-chunk blob spans two read chunks without any one `Vec` exceeding the cap.
+const largeMultiChunkBlobMeta =
+    (chunk0: Vec, chunk1: Vec, expectedType: string, expectedMime: string) => () => {
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'big': [chunk0, chunk1] } } } }
         const [addResp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
@@ -179,11 +180,32 @@ export const proof = {
         ]).slice(2) as readonly unknown[]
         assert(!resultOf(metaResp).isError)
         const meta = JSON.parse(textOf(metaResp)) as CasGetResult
-        assertEq(meta.type, 'text')
-        assertEq(meta.mime_type, 'text/plain')
-        assertEq(meta.length, Number(maxLengthBytes << 1n))
+        assertEq(meta.type, expectedType)
+        assertEq(meta.mime_type, expectedMime)
+        assertEq(meta.length, Number((length(chunk0) + length(chunk1)) / 8n))
         assertEq(meta.content, undefined)
-    },
+    }
+
+// A full `maxLengthBytes`-long chunk of repeated ASCII 'a' — valid UTF-8.
+const asciiChunk = repeat(maxLengthBytes)(vec8(0x61n))
+// The same length, but repeated 2-byte "é" (C3 A9) — valid UTF-8 of multi-byte symbols.
+const symbolChunk = repeat(maxLengthBytes / 2n)(u8ListToVec(msb)([0xc3, 0xa9]))
+// A full chunk of 0xFF — an invalid UTF-8 lead byte, so binary (no magic match).
+const binaryChunk = repeat(maxLengthBytes)(vec8(0xffn))
+
+export const proof = {
+    // Both chunks repeated ASCII → text/plain, no error on a > 128 KiB blob.
+    getMetaLargeMultiChunkBlobNoError:
+        largeMultiChunkBlobMeta(asciiChunk, asciiChunk, 'text', 'text/plain'),
+
+    // Both chunks valid UTF-8 sequences of multi-byte symbols → text/plain.
+    getMetaLargeMultiChunkUtf8Symbols:
+        largeMultiChunkBlobMeta(symbolChunk, symbolChunk, 'text', 'text/plain'),
+
+    // First chunk valid UTF-8, second chunk binary → base64/octet-stream. The
+    // streaming validator must see the trailing binary chunk to reject text.
+    getMetaLargeMultiChunkTextThenBinary:
+        largeMultiChunkBlobMeta(asciiChunk, binaryChunk, 'base64', 'application/octet-stream'),
 
     toolsListAdvertisesThreeTools: () => {
         const [resp] = runSessionVirtual({})([init, initialized, list(2)]).slice(2)
