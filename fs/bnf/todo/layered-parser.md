@@ -3,15 +3,45 @@
 **Priority:** P3
 **Status:** open
 
-A tokenizer accepts a sequence of code-points as input tokens together with meta information (file name, position). It uses our BNF parser to output new tokens.
+Each layer is a parser acting as a **transducer**: it consumes a stream of
+symbols of one alphabet and emits a stream of symbols of the next, each carrying
+meta information (file name, position, the original symbols). Stacking these
+transducers is another way to construct automata — composition in **series**
+(pipeline), as opposed to the parallel/product combination of recognizers.
 
-Each token type is represented by a single symbol, e.g. `s` for string, `n` for number, `i` for identifier. All other information (actual value, position, etc.) is carried as meta information. This sequence of tokens is then the input into a new parser layer.
+The bottom layer is a **text decoder**: it accepts a stream of **bytes** and
+emits a stream of **code-points** (e.g. UTF-8 decoding). On top of it a
+**tokenizer** accepts code-points and emits **tokens**, and on top of that a
+parser builds the **AST**:
 
 ```
-code-points + meta ==BNF==> tokens(symbol + meta) ==BNF==> AST
+bytes ==BNF==> code-points + meta ==BNF==> tokens(symbol + meta) ==BNF==> AST
 ```
 
-Both layers reuse the same BNF engine.
+Each token type is represented by a single symbol, e.g. `s` for string, `n` for
+number, `i` for identifier. All other information (actual value, position, etc.)
+is carried as meta information.
+
+Every layer reuses the same BNF engine.
+
+### Transducers, recognizers, and streaming
+
+A transducer's step is Mealy-style — `(state, inSymbol) => (state, outSymbol*)`,
+producing zero or more output symbols per input. A **recognizer** (see
+[recognizer-backend](./recognizer-backend.md)) is the degenerate transducer that
+emits nothing and only reports a verdict; so **UTF-8 validation is just the
+byte→code-point decoder with its output discarded** — the same automaton the
+text layer uses, projected to accept/reject.
+
+Two mechanics the layers need:
+
+- **Maximal munch** in the tokenizer: a DFA *recognizes*, but tokenizing must
+  decide where to *cut* — emit a token at the longest accepting prefix, then
+  restart. This is the one mechanism the token transducer adds over plain
+  recognition.
+- **Streaming survives composition**: transducers compose as streaming folds,
+  so the whole `bytes → … → AST` pipeline stays incremental — what large inputs
+  (big source files, streamed blobs) require.
 
 ### Open Questions
 

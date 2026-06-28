@@ -110,6 +110,20 @@ Reality check: a DFA alone cannot recognize a programming language, and
 Markdown is not even context-free. The DFA backend is the scanner tier only;
 do not oversell it past that.
 
+#### Two ways to combine automata
+
+Bigger automata are built from BNF pieces in two complementary ways:
+
+- **Product (parallel)** — run several recognizers over the *same* input and
+  collect all verdicts (e.g. `magic × utf8` in the CAS detector). Falls out of
+  subset construction / state-pairing.
+- **Cascade (series)** — each stage is a **transducer** whose output stream is
+  the next stage's input (`bytes → code-points → tokens → AST`). The interface
+  generalizes `Recognizer<S>` to a Mealy step `(s, symbol) => [s, out*]`; a
+  recognizer is the transducer that emits nothing. See
+  [layered-parser](./layered-parser.md). Both stay streaming, so the whole
+  pipeline is incremental.
+
 ### Tasks
 
 - [ ] Move the parsers out of `fs/bnf/data` into their own modules (e.g.
@@ -119,6 +133,10 @@ do not oversell it past that.
 - [ ] Define the `Recognizer<S>` interface (`init` / `step` / `finish`) as the
       shared streaming contract for all backends; keep it parametric in the
       symbol space (byte vs code-point runner) over the same `RuleSet`
+- [ ] Generalize to a `Transducer<S>` (Mealy step `(s, symbol) => [s, out*]`)
+      for cascade/layered composition; a recognizer is the no-output case
+- [ ] Tokenizer stage needs maximal munch (emit at the longest accepting
+      prefix, then restart) — a mechanism over plain recognition
 - [ ] DFA backend: `RuleSet` (regular subset) → finite DFA, built as a sibling
       of `dispatchMap`, with a clear regularity criterion (self-/tail-recursion
       only) and a sensible fallback when a grammar exceeds it
