@@ -93,6 +93,7 @@ const filterFunc
             case 'number':
             case 'string':
             case 'id':
+            case 'comment':
             case '\n':
             case '\r':
             case ' ':
@@ -171,6 +172,10 @@ const toJsToken
                 if (keywords.has(value)) return {kind: value} as JsToken
                 return {kind: 'id', value}
             }
+            case 'comment':
+                if (tk[1][1] === 42) // block comment /*...*/
+                    return {kind: '/*', value: String.fromCodePoint(...tk[1].slice(2, -2))}
+                return {kind: '//', value: String.fromCodePoint(...tk[1].slice(2))}
             default:
                 return {kind: tk[0]} as JsToken
         }
@@ -950,34 +955,34 @@ export const proof = {
     throw: {
         parse: () => { parse('') }
     },
-    // comments: [
-    //     () => {
-    //         const result = tokenizeString('//singleline comment')
-    //         if (result !== '[{"kind":"//","value":"singleline comment"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('true//singleline comment\nfalse')
-    //         if (result !== '[{"kind":"true"},{"kind":"//","value":"singleline comment"},{"kind":"nl"},{"kind":"false"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('/* multiline comment */')
-    //         if (result !== '[{"kind":"/*","value":" multiline comment "},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('/* multiline comment *')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('/* multiline comment ')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('/* multiline comment \n * **/')
-    //         if (result !== '[{"kind":"/*","value":" multiline comment \\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('/* multiline comment *\n * **/')
-    //         if (result !== '[{"kind":"/*","value":" multiline comment *\\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
-    //     },
-    // ],
+    comments: [
+        () => {
+            const result = tokenizeString('//singleline comment')
+            if (result !== '[{"kind":"//","value":"singleline comment"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('true//singleline comment\nfalse')
+            if (result !== '[{"kind":"true"},{"kind":"//","value":"singleline comment"},{"kind":"nl"},{"kind":"false"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('/* multiline comment */')
+            if (result !== '[{"kind":"/*","value":" multiline comment "},{"kind":"eof"}]') { throw result }
+        },
+        // () => {
+        //     const result = tokenizeString('/* multiline comment *')
+        //     if (result !== 'error') { throw result }
+        // },
+        // () => {
+        //     const result = tokenizeString('/* multiline comment ')
+        //     if (result !== 'error') { throw result }
+        // },
+        // () => {
+        //     const result = tokenizeString('/* multiline comment \n * **/')
+        //     if (result !== '[{"kind":"/*","value":" multiline comment \\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
+        // },
+        // () => {
+        //     const result = tokenizeString('/* multiline comment *\n * **/')
+        //     if (result !== '[{"kind":"/*","value":" multiline comment *\\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
+        // },
+    ],
 }
