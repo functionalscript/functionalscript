@@ -179,7 +179,9 @@ Bigger automata are built from BNF pieces in two complementary ways:
   the next stage's input (`bytes → code-points → tokens → AST`). A transducer is
   just `StateScan<I, S, O>` (the Mealy-shaped step that emits output); a
   recognizer is the output-less `Fold<I, S>`. `StateScan`'s state need not be
-  finite — `S = bigint` counts (the CAS `length`), `S` a stack parses — so
+  finite — its power is the power of `S`: finite → DFA (the scanner tier),
+  a stack → pushdown machine (the context-free / AST tier, exactly the LL(1)
+  recognizer's stack configuration), `bigint` → counting (the CAS `length`). So
   transducers are not limited to finite state; the DFA backend is the
   finite-state restriction. See [layered-parser](./layered-parser.md). Both stay
   streaming via `scan` / `stateScan` / `foldScan`, so the whole pipeline is
