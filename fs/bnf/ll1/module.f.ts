@@ -186,7 +186,7 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
         if (cp.length === 0) {
             return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
         }
-        const [cp0, ...restCp] = cp
+        const [cp0] = cp
         const dr = dispatchOp.get(cp0)(rangeMap)
         if (dr === null) {
             return emptyTag === undefined
@@ -194,6 +194,7 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
                 : mrSuccess(emptyTag, [], cp)
         }
         let seq: AstSequence = [cp0]
+        const [, ...restCp] = cp
         let r: readonly number[] = restCp
         const {tag, rules} = dr
         for (const i of rules) {
