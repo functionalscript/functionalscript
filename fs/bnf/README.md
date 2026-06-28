@@ -3,7 +3,10 @@
 See [Backus-Naur form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
 
 - the functional representation [./module.f.ts](./module.f.ts),
-- the serializable representation [./data/](./data/).
+- the serializable representation [./data/](./data/),
+- parser/automaton backends built over the serializable representation:
+  - LL(1) dispatch/matcher [./ll1/](./ll1/),
+  - recursive descent matcher [./descent/](./descent/).
 
 ## Functional Representation
 
