@@ -47,11 +47,11 @@ export const decoder = <Unit, S, Cp>(
  * is the largest assignable code point. Every predicate below is derived from
  * these constants so the surrogate bounds and the maximum appear exactly once.
  */
-const surrogateMin = 0xd800
-const lowSurrogateMin = 0xdc00
-const surrogateMax = 0xdfff
-const bmpMax = 0xffff
-const maxCodePoint = 0x10_ffff
+const surrogateMin = 0xd800 as const
+const lowSurrogateMin = 0xdc00 as const
+const surrogateMax = 0xdfff as const
+const bmpMax = 0xffff as const
+const maxCodePoint = 0x10_ffff as const
 
 /**
  * Checks whether the 16-bit word (U16) is a high surrogate.
