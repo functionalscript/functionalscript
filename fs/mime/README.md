@@ -70,6 +70,19 @@ be incorrect — only the streaming validator is. Once both `magic` and `utf8`
 reach absorbing states, `push` skips per-byte work and just counts length, so a
 large blob costs ≈ length counting.
 
+### Why hand-rolled (for now)
+
+`magic` and `utf8` are recognizers (`δ` step + `λ` verdict on the final state),
+the exact shape a declarative BNF→DFA recognizer backend would generate — see
+[`fs/bnf` recognizer-backend](../bnf/todo/recognizer-backend.md). That backend
+does not exist yet, so the two factors are hand-written here: `magicStep` does
+signature elimination (the streaming form of the table above) and `utf8Step`
+rides the existing `fs/text/utf8` decoder. When the backend lands, these should
+be lowered onto it; `length` (an FSM cannot count) and `finish` stay outside it
+regardless. The factors are independent — adding a property (e.g. a streaming
+SHA-256 for verify-on-read) is a new field, one `push` line, and one `finish`
+clause, touching no existing transition.
+
 ## Consumers
 
 - [`fs/cas/mcp`](../cas/mcp/) — `cas_get` calls `detect` on the retrieved bytes
