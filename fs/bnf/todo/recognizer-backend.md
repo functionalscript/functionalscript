@@ -81,12 +81,17 @@ symbol *is*: a `Rule` over ranges/sequence/variant does not know whether symbol
 just capacity (enough for Unicode `0x10FFFF`, and bytes trivially), not a
 code-point commitment, and `step` is symbol-numeric. So a **byte runner** for
 UTF-8/magic and a **code-point runner** for the PL/Markdown tier are just two
-consumers feeding different symbol streams to the *same* `RuleSet`. The only
-code-point coupling is in the string-literal terminal constructors (`str` /
-`set` / `range`, via `stringToCodePointList`) — and even those coincide with
-byte values for `0x00..0xFF`, or are bypassed with `rangeEncode` / `oneEncode`
-on raw bytes. (The matcher's `CodePoint[]` typing is nominal — structurally
-numbers.)
+consumers feeding different symbol streams to the *same* `RuleSet`.
+
+There is no code-point coupling in BNF itself. The string-literal constructors
+(`str` / `set` / `range`, via `stringToCodePointList`) are just **text-authoring
+helpers** sitting *above* the agnostic core; a parallel family of **binary
+helpers** — byte / hex literals, byte sequences, byte-range sets — would author
+byte grammars the same way, all bottoming out in the agnostic `rangeEncode` /
+`oneEncode` primitives. (`fs/mime`'s `fromSentinel` hex-signature notation,
+`0x1_89_50_4e_47…n`, is a precedent for compact byte-sequence literals — just
+targeting `Vec` today rather than `RuleSet` terminals. The matcher's
+`CodePoint[]` typing is likewise nominal — structurally numbers.)
 
 The grand goal — recognize programming languages, Markdown, etc. — is the
 **layered** composition of the two:
@@ -109,6 +114,9 @@ do not oversell it past that.
       only) and a sensible fallback when a grammar exceeds it
 - [ ] AST-less LL(1) recognizer: derive from the existing `fs/bnf/data` matcher
       by dropping `AstRule` accumulation; return accept/reject + final config
+- [ ] Add binary terminal helpers (byte / hex literals, byte sequences,
+      byte-range sets) as a sibling to the text `str` / `set` / `range` helpers,
+      for authoring byte grammars like magic-bytes / UTF-8
 - [ ] Union/product (grammar combination) for the DFA backend via subset
       construction; document the analogous state-pairing for the LL recognizer
 - [ ] First consumer: the `cas_get` magic-byte + UTF-8 detector consumes the
