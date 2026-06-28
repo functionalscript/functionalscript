@@ -119,6 +119,37 @@ a clear structural error rather than a silent no-op. (A generator
 `todo: () => ({…})` still passes this static check — it *is* a zero-arg
 function — and still reds at runtime, as above.)
 
+#### Pairing with `todo/` design docs
+
+A `todo` test and a `todo/{slug}.md` issue document are two halves of the same
+act: the markdown captures the *design* of an unfinished behaviour, the `todo`
+test captures it *executably*. Filing one without the other loses something —
+the doc alone rots silently, the test alone has no rationale. So when an agent
+files a `todo/{slug}.md`, it should, where the behaviour is testable, also add a
+`todo` test that fails today and will flip red when the behaviour lands.
+
+Group related `todo` leaves under descriptive parent keys so the path reads as a
+specification of the not-yet-working surface:
+
+```ts
+export const proof = {
+    mcpShouldWork: {
+        cas_add: { todo: () => { mcp.cas_add() } },
+        cas_get: { todo: () => { mcp.cas_get() } },
+    },
+}
+```
+
+Paths `.mcpShouldWork.cas_add.todo` and `.mcpShouldWork.cas_get.todo` each name a
+single expected-to-currently-fail leaf; each flips red independently as its
+behaviour is implemented.
+
+`AGENTS.md` should be updated to encourage this pairing alongside the existing
+`todo/` issue-filing guidance (the section beginning "Issues are tracked in
+`todo/` directories"): when filing a `todo/{slug}.md` for a testable behaviour,
+add a matching `todo` test, and when fixing it, remove the `todo` marker in the
+same change that deletes the issue file.
+
 ### Implementation
 
 All changes are local to `fs/emergent_testing/module.f.ts` plus its proof and
@@ -185,6 +216,9 @@ out from under `throw`) as part of landing this change.
       `todo`.
 - [ ] Document `todo` in `fs/emergent_testing/README.md` next to the
       "Throw tests" section.
+- [ ] Update `AGENTS.md` to encourage pairing a `todo` test with a
+      `todo/{slug}.md` issue (and removing the `todo` marker when the issue file
+      is deleted on fix).
 - [ ] Confirm `fjs t` proofs pass with full branch coverage and `npx tsc` is
       clean.
 
