@@ -58,6 +58,12 @@ are already *one* family built from `RuleSet`; the recognizer and DFA backends
 are **new builders over the same `RuleSet`**, siblings of `dispatchMap` — not a
 separate front end. So: author `magic | utf8` functionally, `toData` it, compile.
 
+Module layout follows from this: `fs/bnf/data` should hold only the
+serializable IR (`RuleSet` + `toData`), and each parser/automaton builder lives
+in its own sibling module — `fs/bnf/ll1` for the current LL(1) dispatch/matcher,
+then `fs/bnf/recognizer` and `fs/bnf/dfa` for the new backends. The IR stays
+free of any one parser's machinery.
+
 Two backends, distinguished by grammar class — this distinction is load-bearing:
 
 1. **DFA backend — regular subset.** The genuinely new builder: analyze the
@@ -106,6 +112,10 @@ do not oversell it past that.
 
 ### Tasks
 
+- [ ] Move the parsers out of `fs/bnf/data` into their own modules (e.g.
+      `fs/bnf/ll1` for the current dispatch/matcher), leaving `fs/bnf/data` as
+      the pure serializable IR; new backends land as sibling modules
+      (`fs/bnf/recognizer`, `fs/bnf/dfa`)
 - [ ] Define the `Recognizer<S>` interface (`init` / `step` / `finish`) as the
       shared streaming contract for all backends; keep it parametric in the
       symbol space (byte vs code-point runner) over the same `RuleSet`
