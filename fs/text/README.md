@@ -1,5 +1,20 @@
 # UNICODE
 
+## Shared code-point predicates
+
+The code-point classification predicates — `isBmpCodePoint`, `isHighSurrogate`,
+`isLowSurrogate`, `isSupplementaryPlane`, and `isValidCodePoint` — describe fixed
+Unicode ranges, not per-encoding details, so they live in
+[`code_point/module.f.ts`](./code_point/module.f.ts) alongside `errorMask` and
+`decoder`. They are derived from one set of boundary constants so the surrogate
+bounds (`0xD800`–`0xDFFF`) and the maximum code point (`0x10FFFF`) are spelled
+out exactly once. UTF-8 and UTF-16 import them instead of redefining their own
+range checks.
+
+`isValidCodePoint` is re-exported from `utf8/module.f.ts` rather than dropped:
+`fs/mime` imports it from `utf8`, so the canonical definition lives on
+`code_point` while `utf8` keeps the existing public import path stable.
+
 ## UTF-8
 
 Requirement: no loss for UTF8 => codepoint => UTF8

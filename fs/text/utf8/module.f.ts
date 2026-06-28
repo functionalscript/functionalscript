@@ -6,10 +6,14 @@
 import { flatMap, toArray, type List, type Thunk } from '../../types/list/module.f.ts'
 import type { StateScan } from '../../types/function/operator/module.f.ts'
 import type { Array1, Array2, Array3 } from '../../types/array/module.f.ts'
-import { decoder, errorMask } from '../code_point/module.f.ts'
+import { decoder, errorMask, isValidCodePoint } from '../code_point/module.f.ts'
 import { msb, u8List, length, type Vec } from '../../types/bit_vec/module.f.ts'
 import { codePointListToString } from '../utf16/module.f.ts'
-import { contains } from '../../types/range/module.f.ts'
+
+// `isValidCodePoint` lives in `code_point` (the shared Unicode contract); it is
+// re-exported here to keep utf8's public API stable for `fs/mime`, which imports
+// it from this module.
+export { isValidCodePoint }
 
 /**
  * An unsigned 8-bit integer, represents a single byte.
@@ -250,12 +254,6 @@ export const utf8EofToCodePointOp = (
  */
 export const toCodePointList: (input: List<U8>) => List<I32> =
     decoder(utf8ByteToCodePointOp, utf8EofToCodePointOp)
-
-const bigRange = contains([0, 0x10FFFF])
-
-const smallRange = contains([0xD800, 0xDFFF])
-
-export const isValidCodePoint = (c: number) => bigRange(c) && !smallRange(c)
 
 /**
  * Returns the decoded string if `v` is valid UTF-8, or `null` otherwise.
