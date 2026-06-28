@@ -3,6 +3,7 @@ import {
     isHighSurrogate,
     isLowSurrogate,
     isSupplementaryPlane,
+    isTextCodePoint,
     isValidCodePoint,
 } from './module.f.ts'
 
@@ -50,5 +51,29 @@ export const proof = {
         // out of range -> validRange short-circuits false
         () => check(isValidCodePoint(-1), false),
         () => check(isValidCodePoint(0x110000), false),
+    ],
+    isTextCodePoint: [
+        // C0 controls are binary...
+        () => check(isTextCodePoint(0x00), false), // NUL
+        () => check(isTextCodePoint(0x08), false), // BS
+        () => check(isTextCodePoint(0x1b), false), // ESC
+        () => check(isTextCodePoint(0x1f), false), // US
+        // ...except the whitespace block 0x09 - 0x0D
+        () => check(isTextCodePoint(0x09), true), // TAB
+        () => check(isTextCodePoint(0x0a), true), // LF
+        () => check(isTextCodePoint(0x0b), true), // VT
+        () => check(isTextCodePoint(0x0c), true), // FF
+        () => check(isTextCodePoint(0x0d), true), // CR
+        // printable ASCII is text
+        () => check(isTextCodePoint(0x20), true), // space
+        () => check(isTextCodePoint(0x41), true), // 'A'
+        () => check(isTextCodePoint(0x7e), true), // '~'
+        // DEL and the C1 controls are binary
+        () => check(isTextCodePoint(0x7f), false), // DEL
+        () => check(isTextCodePoint(0x80), false), // C1 start
+        () => check(isTextCodePoint(0x9f), false), // C1 end
+        // above C1 is text again
+        () => check(isTextCodePoint(0xa0), true), // NBSP
+        () => check(isTextCodePoint(0x10ffff), true),
     ],
 }
