@@ -25,6 +25,18 @@ export const strictEqual = <T>(a: T) => (b: T): boolean =>
 
 export type Scan<I, O> = (input: I) => readonly[O, Scan<I,O>]
 
+/**
+ * One step of a [Mealy machine](https://en.wikipedia.org/wiki/Mealy_machine):
+ * given an `input` symbol and the `prior` state, produce an `output` and the
+ * next state. Equivalently a [finite-state transducer](
+ * https://en.wikipedia.org/wiki/Finite-state_transducer) step — it both maps an
+ * input stream to an output stream and threads state, so it can model
+ * tokenizers, decoders, and other stream-to-stream stages.
+ *
+ * A {@link Fold} is the output-less special case (state only); driving a
+ * `StateScan` over a `List` is `stateScan` in `../../list/module.f.ts`, and
+ * {@link stateScanToScan} hides the state to recover a {@link Scan}.
+ */
 export type StateScan<I, S, O> = (input: I, prior: S) => readonly[O, S]
 
 export const stateScanToScan = <I, S, O>(op: StateScan<I, S, O>) => (prior: S): Scan<I, O> => i => {
