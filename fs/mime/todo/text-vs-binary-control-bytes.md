@@ -36,9 +36,10 @@ Separate *well-formedness* from *text-ness* with a new predicate, leaving
 factor — and control chars are legitimately decodable):
 
 1. **Add `isTextCodePoint` to `fs/text/code_point/module.f.ts`** — the shared
-   home for the cross-codec Unicode contract (`errorMask`, `decoder`, and, per
-   [share-code-point-predicates](../../text/code_point/todo/share-code-point-predicates.md),
-   the code-point classification predicates). A **code-point** predicate (not a
+   home for the cross-codec Unicode contract (`errorMask`, `decoder`, and the
+   code-point classification predicates `isBmpCodePoint` / `isHighSurrogate` /
+   `isLowSurrogate` / `isSupplementaryPlane` / `isValidCodePoint`). A
+   **code-point** predicate (not a
    raw-byte check) so it composes with the decoder and can see C1 controls, which
    arrive as 2-byte UTF-8 (`C2 80`…`C2 9F`) and are invisible at the byte level:
 
@@ -77,8 +78,7 @@ larger classification effort and out of scope for this issue.
 
 - [ ] Add `isTextCodePoint` to `fs/text/code_point/module.f.ts` (controls
       `U+0000`–`U+001F`, `U+007F`, `U+0080`–`U+009F` minus `U+0009`–`U+000D`),
-      with proof coverage; note this consumer in
-      [share-code-point-predicates](../../text/code_point/todo/share-code-point-predicates.md)
+      with proof coverage, beside the existing shared code-point predicates
 - [ ] Track a text verdict in the `fs/mime` utf8/text factor via
       `isTextCodePoint`, kept distinct from the `isValidCodePoint` validity check
 - [ ] `finish` returns `text` only when valid UTF-8 **and** all code points are
@@ -93,9 +93,10 @@ larger classification effort and out of scope for this issue.
 - [utf8-decoder-accepts-overlong](../../text/utf8/todo/utf8-decoder-accepts-overlong.md)
   — the sibling UTF-8 validity gap; this issue is the orthogonal text-vs-binary
   classification gap (valid UTF-8 that is not text)
-- [share-code-point-predicates](../../text/code_point/todo/share-code-point-predicates.md)
-  — `isTextCodePoint` is exactly the kind of shared code-point predicate that todo
-  proposes consolidating in `code_point`
+- `fs/text/code_point/module.f.ts` (see [fs/text/README.md](../../text/README.md))
+  — already the shared home for the code-point classification predicates;
+  `isTextCodePoint` is exactly the kind of shared code-point predicate that belongs
+  there
 - `fs/mime` `detectStream` / `detectVec`; PR
   [#1181](https://github.com/functionalscript/functionalscript/pull/1181) — the
   streaming detector this refines
