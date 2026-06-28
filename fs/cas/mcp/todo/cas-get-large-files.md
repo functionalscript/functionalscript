@@ -96,6 +96,51 @@ mime; else `utf8` ended at a boundary with no invalidity → `text` +
 - **Simpler `cas_get`:** collapses the current three-phase branching into a
   single fold plus one `finish` lookup.
 
+#### Formal model & extension
+
+The detector is a **Moore machine** `(Q, Σ, δ, q₀, λ)` over the byte alphabet
+`Σ = 0…255`, where `δ` is `push`, `λ` is `finish`, and the answer is
+`finish(foldl push q₀ bytes)`. Because `δ*` is associative
+(`δ*(q, xy) = δ*(δ*(q, x), y)`), the fold may consume whole `Vec` chunks, not
+single bytes.
+
+`DetectState` is the **product** of three independent automata over the same
+alphabet — the factors never read each other; they meet only in `λ`:
+
+```
+A = A_len × A_magic × A_utf8
+
+δ((n,m,u), x) = (n+1, δ_magic(m,x), δ_utf8(u,x))
+q₀            = (0,   S_all,        Accept)
+λ((n,m,u))    = classify(n, λ_magic m, λ_utf8 u)   -- magic > utf8 > fallback
+```
+
+| factor    | `Q`                                   | `λ`                       | absorbing            |
+|-----------|---------------------------------------|---------------------------|----------------------|
+| `A_len`   | `ℕ` (the `(ℕ,+)` monoid)              | the count                 | none; δ is `+chunkLen` |
+| `A_magic` | `(position i, viable set S)` + `Matched(m)` / `Dead` | matched mime, else `null` | `Matched`/`Dead` (≤12 bytes) |
+| `A_utf8`  | ~9-state UTF-8 DFA                    | boundary→valid, else invalid | `Reject`          |
+
+**Extending = adding a factor.** To detect a new property: define
+`A_new = (Q_new, δ_new, q₀_new, λ_new)` over the same alphabet, add one field
+to the state, one line to `δ`, one component to `q₀`, and one clause to
+`classify`. The output combiner is the *only* cross-cutting edit, and it is a
+pure function of the factors' outputs — **existing transitions are never
+touched** (open for extension, closed for modification). Examples:
+
+- more signatures → just data appended to `A_magic`'s table (no new factor);
+- **verify-on-read** ([66g-cas-get-verify-option](../../todo/66g-cas-get-verify-option.md))
+  → add `A_sha256`, a streaming-hash factor whose `λ` compares the digest to
+  the requested key, riding the same single pass as detection;
+- BOM / UTF-16 sniffing, ASCII-only sub-lattice, line-ending style → small
+  independent factors each.
+
+**Short-circuit as a sink condition.** A factor is settled at `q` when
+`δ(q,x)=q` for all `x`. Once `A_magic` and `A_utf8` are in sinks, only `A_len`
+is live and its chunk step is `+chunkLen`, so the bulk of a large blob skips
+per-byte iteration — the formal statement of "large blobs cost ≈
+length-counting."
+
 #### Wiring
 
 1. **Add the state machine in `fs/mime`**, beside `detect` (the pure prefix
