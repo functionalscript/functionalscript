@@ -15,7 +15,7 @@ const cb32 = baseN(5n, '0123456789abcdefghjkmnpqrstvwxyz', c => {
 })
 
 // Sample input for the `big` proof below: 262 144 `f` characters decode into a
-// 1 Mbit (`maxLength`) vector.
+// 1 Mibit (`maxLength`) vector.
 const bigSampleHex = `f`.repeat(Number(maxLength >> 2n))
 
 export const proof = {
@@ -59,7 +59,7 @@ export const proof = {
     normalizeMiss: () => {
         if (cb32.stringToVec('u') !== null) { throw 'unknown char should return null' }
     },
-    // Decodes a 1 Mbit hex string. With the O(n log n) `listToVec` builder this
+    // Decodes a 1 Mibit hex string. With the O(n log n) `listToVec` builder this
     // runs in well under a second (was ~13 s node / ~43 s bun under the old
     // per-chunk `concat`).
     big: () => {
