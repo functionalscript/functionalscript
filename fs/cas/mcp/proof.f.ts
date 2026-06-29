@@ -497,6 +497,23 @@ export const proof = {
         assertEq(meta.content, undefined)
     },
 
+    // A NUL-bearing blob is valid UTF-8 yet binary: cas_get must report
+    // base64/octet-stream, not text/plain.
+    getMetaOctetStreamForNulBlob: () => {
+        const nulContent = u8ListToVec(msb)([0x00, 0x00, 0x00])
+        const nulB64 = base64Encode(nulContent) as string
+        const [addResp] = session(call(2, 'cas_add', { content: nulB64, type: 'base64' }))
+        const hash = textOf(addResp)
+        const [, metaResp] = session(
+            call(2, 'cas_add', { content: nulB64, type: 'base64' }),
+            call(3, 'cas_get', { hash }),
+        )
+        assert(!resultOf(metaResp).isError)
+        const meta = JSON.parse(textOf(metaResp)) as CasGetResult
+        assertEq(meta.mime_type, 'application/octet-stream')
+        assertEq(meta.type, 'base64')
+    },
+
     getMetaMissingHashIsError: () => {
         const absent = vecToCBase32(vec8(0x77n))
         const [resp] = session(call(2, 'cas_get', { hash: absent }))

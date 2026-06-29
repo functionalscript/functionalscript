@@ -99,3 +99,25 @@ const isSurrogate = contains([surrogateMin, surrogateMax])
  */
 export const isValidCodePoint = (c: number): boolean =>
     validRange(c) && !isSurrogate(c)
+
+/**
+ * The control-character blocks and the whitespace exception used to separate
+ * *text* code points from binary control bytes. C0 controls span 0x0000 -
+ * 0x001F; 0x007F (DEL) and the C1 controls (0x0080 - 0x009F) form one
+ * contiguous run; the whitespace block 0x0009 - 0x000D (TAB, LF, VT, FF, CR) is
+ * the only control range legitimate in text.
+ */
+const c0Control = contains([0x00, 0x1f])
+const delAndC1Control = contains([0x7f, 0x9f])
+const textWhitespace = contains([0x09, 0x0d])
+
+/**
+ * Checks whether the code point is a *text* code point — distinct from
+ * {@link isValidCodePoint}, which gates well-formedness for decoding. A code
+ * point is text unless it is a control character: the controls are 0x0000 -
+ * 0x001F, 0x007F (DEL), and 0x0080 - 0x009F (C1), minus the whitespace block
+ * 0x0009 - 0x000D (TAB, LF, VT, FF, CR), which is legitimate in text. Every
+ * code point at or above 0x0020 that is not DEL or a C1 control is text.
+ */
+export const isTextCodePoint = (c: number): boolean =>
+    textWhitespace(c) || !(c0Control(c) || delAndC1Control(c))
