@@ -214,11 +214,11 @@ const casToolRegistry =
             // the blob, so this is size-independent — large blobs that overflow a
             // single `Vec` still return correct metadata instead of an error.
             if (r.content !== true) {
-                return detectStream(c.read(key)).step(result => {
-                    if (result[0] === 'error') {
+                return detectStream(c.read(key)).step(([tag, detected]) => {
+                    if (tag === 'error') {
                         return pure(errorResult(`no such hash: ${r.hash}`))
                     }
-                    const { length, mime_type, type } = result[1]
+                    const { length, mime_type, type } = detected
                     const meta: Meta = { length: Number(length), mime_type, type, url }
                     return pure(okResult(toJson(meta)))
                 })
@@ -230,11 +230,11 @@ const casToolRegistry =
             // blob that exists but is too large to buffer into a single `Vec`. Only
             // a blob within `maxLength` is then materialized (via `collectRead`) and
             // encoded inline by `type` — a UTF-8 string for `text`, base64 otherwise.
-            return detectStream(c.read(key)).step(result => {
-                if (result[0] === 'error') {
+            return detectStream(c.read(key)).step(([tag, detected]) => {
+                if (tag === 'error') {
                     return pure(errorResult(`no such hash: ${r.hash}`))
                 }
-                const { length, mime_type, type } = result[1]
+                const { length, mime_type, type } = detected
                 const meta: Meta = { length: Number(length), mime_type, type, url }
                 // A single `Vec` caps at `maxLength` bits (`maxLengthBytes` bytes), so
                 // a larger blob cannot be buffered for inline transfer. Report the
@@ -244,11 +244,10 @@ const casToolRegistry =
                     return pure(errorResult(
                         `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the url field (${url}) or omit content for metadata`))
                 }
-                return collectRead(c.read(key)).step(collected => {
-                    if (collected[0] === 'error') {
+                return collectRead(c.read(key)).step(([collectTag, value]) => {
+                    if (collectTag === 'error') {
                         return pure(errorResult(`no such hash: ${r.hash}`))
                     }
-                    const value = collected[1]
                     if (type === 'text') {
                         // `type: 'text'` means the detector validated `value` as UTF-8,
                         // so `fromVec` is non-null here; guard defensively regardless.
