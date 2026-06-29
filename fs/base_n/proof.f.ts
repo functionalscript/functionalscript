@@ -13,6 +13,8 @@ const cb32 = baseN(5n, '0123456789abcdefghjkmnpqrstvwxyz', c => {
     }
 })
 
+const bigSample = `x`.repeat(Number(maxLengthBytes))
+
 export const proof = {
     encodeEmpty: () => {
         const s = hex.vecToString(empty)
@@ -55,6 +57,6 @@ export const proof = {
         if (cb32.stringToVec('u') !== null) { throw 'unknown char should return null' }
     },
     big: () => {
-        cb32.stringToVec(`x`.repeat(Number(maxLengthBytes)))
+        cb32.stringToVec(bigSample)
     }
 }
