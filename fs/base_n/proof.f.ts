@@ -1,4 +1,5 @@
-import { empty, maxLengthBytes, vec } from '../types/bit_vec/module.f.ts'
+import { assertEq } from '../asserts/module.f.ts'
+import { empty, maxLength, vec, length } from '../types/bit_vec/module.f.ts'
 import { baseN } from './module.f.ts'
 
 const hex = baseN(4n, '0123456789abcdef')
@@ -13,7 +14,7 @@ const cb32 = baseN(5n, '0123456789abcdefghjkmnpqrstvwxyz', c => {
     }
 })
 
-const bigSample = `x`.repeat(Number(maxLengthBytes))
+const bigSampleHex = `f`.repeat(Number(maxLength >> 2n))
 
 export const proof = {
     encodeEmpty: () => {
@@ -57,6 +58,7 @@ export const proof = {
         if (cb32.stringToVec('u') !== null) { throw 'unknown char should return null' }
     },
     big: () => {
-        cb32.stringToVec(bigSample)
+        const x = hex.stringToVec(bigSampleHex)
+        assertEq(length(x!), maxLength)
     }
 }
