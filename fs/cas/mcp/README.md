@@ -132,8 +132,22 @@ parallel `detect` + UTF-8 check. The `type` then selects how `content` is encode
 3. **Fallback** → `type: 'base64'`, `mime_type: 'application/octet-stream'`,
    `content` is base64.
 
-A blob larger than `maxLength` is still unsupported on the `content: true` path
-and should be fetched via `url`.
+### Inline-content size limit (`content: true`)
+
+The inline-content path buffers the whole blob into a single `Vec`, which caps at
+`maxLength` bits — **128 KiB**. A blob larger than that cannot be fetched inline.
+Because the size and type are derived first with the size-independent
+`detectStream` machine (the same one the metadata path uses), an oversized blob is
+*not* misreported as absent: it returns `isError` with a distinct message naming
+the byte size and pointing at the alternatives, e.g.
+
+```
+blob too large to fetch inline (262144 bytes, limit 131072 bytes); use the url field (…) or omit content for metadata
+```
+
+So `no such hash` means the hash genuinely is not in the store, while the message
+above means the blob exists but exceeds the inline limit — fetch it via `url`, or
+call `cas_get` without `content: true` for size-independent metadata.
 
 Examples:
 
@@ -163,6 +177,8 @@ MCP draws a line the dispatcher already respects:
   - `type: 'url'` with an unreadable or missing file;
   - malformed `hash` (`cBase32ToVec` → `null`);
   - `cas_get` on an absent hash (`c.read` → `undefined`);
+  - `cas_get` with `content: true` on a blob larger than the inline limit
+    (distinct "too large" message — see above — not "no such hash");
   - an unknown tool `name`.
 
 ### Store location
