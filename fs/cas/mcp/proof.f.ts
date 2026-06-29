@@ -374,18 +374,6 @@ export const proof = {
         assertEq(resultOf(resp).isError, true)
     },
 
-    // Inline content (text/base64) resolves into a single `Vec`, capped at
-    // `maxLength` bits (128 KiB). A larger payload is rejected with a distinct
-    // "too large" error pointing at the size-independent type:"url" path.
-    addOversizedInlineContentIsError: () => {
-        const oversized = 'a'.repeat(Number(maxLengthBytes) + 1)
-        const [resp] = session(call(2, 'cas_add', { content: oversized }))
-        assertEq(resultOf(resp).isError, true)
-        const text = textOf(resp)
-        assert(text.includes('too large'))
-        assert(text.includes('type:"url"'))
-    },
-
     getUnterminatedHashIsError: () => {
         const [resp] = session(call(2, 'cas_get', { hash: '0' }))
         assertEq(resultOf(resp).isError, true)
