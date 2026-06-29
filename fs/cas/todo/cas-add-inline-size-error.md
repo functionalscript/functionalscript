@@ -40,69 +40,156 @@ every engine.
 
 ### Proposal
 
-The single hard requirement: **the conversion must not throw on `bun`** — an
-unhandled throw inside the MCP server crashes the process. So the `Vec`-building
-operations **return `Nullable<Vec>` (`null`) instead of throwing** when the result would
-exceed `maxLength`, and the `cas_add` handler turns `null` into a normal `isError` tool
-result. This keeps the library simple — no `Result` tuple or error-union to thread
-through; callers that have already validated the size just add `!` or
-`assert(vec !== null)`.
+The single hard requirement: **the conversion must not throw on `bun`** — an unhandled
+throw inside the MCP server crashes the process. So the over-`maxLength` case becomes a
+`null` (`Nullable<Vec>`) that is *detected and propagated*, never a thrown `bigint`.
 
-We stay on `null` (not `undefined`) because `Nullable<T> = T | null` is the codebase's
-documented absence convention (`fs/types/nullable/module.f.ts`, with `map` / `match` /
-`toOption` / `fromUndefined` helpers), and `base64.decode` already returns
-`Nullable<Vec>`. Switching to `undefined` would either leave the library mixing `null`
-and `undefined` or imply a codebase-wide convention change — out of scope here.
+This builds on the current fast many-into-one concatenation
+(`fs/types/bit_vec/module.f.ts`, the O(n log n) binary-counter `unpackListToVec` from
+[#1192](https://github.com/functionalscript/functionalscript/pull/1192)). Put the cap
+check in **exactly one place** — `unpackListToVec` — and let `null` flow up the build
+chain. Convert `null` back to a plain `Vec` only where the caller can *prove* the result
+is within the cap, via an explicit `unwrap`/`assert` helper rather than a bare `!`.
 
-1. **`fs/types/bit_vec/module.f.ts`** — only the **boundary builders that ingest
-   external / unbounded input** become `Nullable<Vec>`: the list→vec builder
-   (`u8ListToVec`) that `utf8` and `decode` are built on returns `null` instead of
-   building a `bigint` past the ceiling. The **pure combinators stay total**: `concat`,
-   `push`, etc. keep returning `Vec` with a documented `len ≤ maxLength` precondition,
-   because their output length is a trivial function the caller already knows
-   (`len(a)+len(b)`, `len+1`) and can check cheaply *before* calling. This is exactly the
-   existing pattern in `cas`'s `collectRead`, which guards
-   `bitVecLength(acc) + bitVecLength(v) > maxLength` and only then calls `msb.concat`.
-   Making every combinator partial would thread null checks through all bit-vector
-   algebra and defeat the simplicity goal.
-2. **`fs/base64/module.f.ts` `decode`** — **no signature change**: it stays
-   `Nullable<Vec>` and simply returns `null` for over-`maxLength` input instead of
-   throwing (today it returns `null` only for malformed base64).
-3. **`fs/text/module.f.ts` `utf8`** — return `Nullable<Vec>` (`null` only when the encoded
-   length would exceed `maxLength`, since every string is otherwise valid to
-   UTF-8-encode).
-4. **`cas_add` handler (`fs/cas/mcp/module.f.ts`)** — on `null` from `utf8` / `decode`,
-   return a generic *content decoding error* `isError` result. No branching on the cause
-   is needed: the `cas_add` / `cas_get` tool descriptions already document the 128 KiB
-   inline limit and point oversized content at `type: 'url'`, so the static message can
-   simply restate that (the content could not be decoded — it may be malformed or above
-   the 128 KiB inline limit; use `type: 'url'` for large content).
+#### 1. One bounded core: `unpackListToVec` returns `Nullable<Unpacked>`
 
-Reuse the byte-aligned limit constants already exported from
+`unpackListToVec` tracks the running total length and returns `null` *before*
+combining an element that would push the result past `maxLength`, so no intermediate
+`bigint` is ever built over the ceiling. The added cost on the happy path is one
+`bigint` add + compare per element — negligible against the O(n log n) shifting, and a
+free safety net for the total combinators below.
+
+```ts
+const unpackListToVec = (unpackConcat: BitOrder['unpackConcat']) =>
+    (list: List<Unpacked>): Nullable<Unpacked> => {
+        let result: readonly Unpacked[] = []
+        let total = 0n
+        for (const e of iterable(list)) {
+            total += e.length
+            if (total > maxLength) { return null }   // bail before building past the cap
+            // …existing binary-counter carry loop, unchanged…
+        }
+        return result.reduce((p, c) => unpackConcat(c)(p), unpackEmpty)
+    }
+```
+
+(No separate `unpackListToVecChecked` / `carryInsert` / `drain` split — a single bounded
+core is the source of truth.)
+
+#### 2. Propagate `Nullable` through everything built on the list builder
+
+The two public faces of `unpackListToVec` become `Nullable`, and so does the boundary
+string codec built on `listToVec`:
+
+- `BitOrder.listToVec`: `(list: List<Vec>) => Nullable<Vec>` — `pack`-wraps the core's
+  result, propagating `null`.
+- `u8ListToVec`: `(list: List<number>) => Nullable<Vec>`.
+- `fs/base_n` `stringToVec`: already `Nullable<Vec>` (returns `null` at the first
+  out-of-alphabet char) — now its `null` also covers over-`maxLength` length.
+- `fs/text` `utf8`: `Nullable<Vec>` (`null` only when the encoded length exceeds
+  `maxLength`; every string is otherwise valid to UTF-8-encode).
+- `fs/base64` `decode`: **keeps** its `Nullable<Vec>` signature; returns `null` for
+  over-`maxLength` input (see step 4).
+
+#### 3. Pure two-vector combinators stay total
+
+`concat`, `push`, `xor`, `repeat` keep returning `Vec` with a documented
+`len ≤ maxLength` **precondition**, because their output length is a trivial function
+the caller already knows (`len(a)+len(b)`, `len+1`) and can check cheaply *before*
+calling — exactly the existing pattern in `cas`'s `collectRead`, which guards
+`bitVecLength(acc) + bitVecLength(v) > maxLength` before `msb.concat`. Making every
+combinator partial would thread null checks through all bit-vector algebra and defeat
+the simplicity goal.
+
+#### 4. `fs/base64` `decode` builds only the trimmed length
+
+`decode` derives the decoded length up front and rejects `> maxLength` as `null`
+*before building anything*. It then builds only `targetLen` bits: decode every 6-bit
+chunk except the trailing one with `stringToVec`, then append just the data bits of the
+last char. A `maxLengthBytes` blob's full `body.length * 6` is `targetLen + removeBits`
+(a couple bits over the cap because of base64's octet padding), so splitting off the
+last char keeps the largest intermediate vector at exactly `targetLen` bits and avoids
+overflow.
+
+#### 5. `unwrap` for callers that are provably within the cap
+
+Add a generic helper to `fs/types/nullable/module.f.ts`:
+
+```ts
+export const unwrap = <T>(value: Nullable<T>): T => {
+    if (value === null) { throw 'unexpected null' }
+    return value
+}
+```
+
+Use `unwrap` (not a bare `!`) at every call site that is *sure* the input is bounded, so
+a violated invariant fails loudly **at its source** instead of letting `null` flow into
+a confusing downstream crash. These call sites keep their existing total signatures:
+
+- `fs/asn.1` TLV encoders (`listToVec([...])` in `idEncode` / `lenEncode` / `encode` /
+  the OID and record builders);
+- `fs/crypto/sign` `concat` (`(...x) => unwrap(listToVec(x))` — fixed-size curve
+  scalars / hashes);
+- `fs/sul/id` and `fs/sul/level/literal` (`listToVec(...)` over bounded inputs);
+- `fs/types/uint8array` `toVec` (size already checked) and `listToVec`;
+- the small fixed-literal `utf8(...)` callers: `fs/html` `htmlUtf8`, `fs/text/sgr`,
+  `fs/effects/node` `writeUtf8File` / `writeString`, `fs/mcp/stdio` `writeResponse`,
+  `fs/sul/id` IV seed. (These write paths take known-bounded content; if any later
+  needs true streaming of >128 KiB, that is a separate change.)
+
+Test files (`proof.f.ts`) follow the same rule — `unwrap` / `!` on known-small fixtures.
+
+#### 6. `cas_add` never unwraps
+
+The whole point: `cas_add` is the one place that **must not** assume the size is
+bounded. On `null` from `utf8` / `decode` it returns a generic *content decoding error*
+`isError` result. No branching on the cause is needed — the `cas_add` / `cas_get` tool
+descriptions already document the 128 KiB inline limit and point oversized content at
+`type: 'url'`, so a single static message restates that (the content could not be
+decoded — it may be malformed or above the 128 KiB inline limit; use `type: 'url'` for
+large content). Reuse the byte-aligned limit constants already exported from
 `fs/types/bit_vec/module.f.ts` (`maxLength`, `maxLengthBytes`).
 
-### Open questions
+### Why `unwrap` and not `!`
 
-- Exactly which boundary builders gain the `Nullable<Vec>` return (`u8ListToVec` and any
-  other list→vec entry point), and whether a small shared "checked build" helper is
-  cleaner than touching each. (Pure combinators like `concat` / `push` stay total — see
-  proposal step 1.)
+`null` is the codebase's documented absence convention (`fs/types/nullable/module.f.ts`,
+with `map` / `match` / `toOption` / `fromUndefined`), and `base64.decode` already returns
+`Nullable<Vec>`; staying on `null` avoids mixing `null` and `undefined`. A bare `!` only
+silences the type-checker — at runtime the `null` survives and surfaces as an obscure
+error far from its cause. `unwrap` makes "I am sure this is within the cap" an explicit,
+checked assertion that throws at the call site, while keeping the function's public type
+a plain `Vec`. Propagating `Nullable` (rather than swallowing it) is what preserves the
+todo's actual goal: a detectable over-cap signal everywhere it can arise, collapsed back
+to total only where correctness guarantees it.
 
 ### Tasks
 
-- [ ] Make the boundary `bit_vec` builder(s) (`u8ListToVec`, …) return `Nullable<Vec>`
-      (`null`) instead of throwing; leave pure combinators (`concat`, `push`) total with
-      a documented `len ≤ maxLength` precondition.
-- [ ] Make `fs/base64` `decode` return `null` (not throw) for over-`maxLength` input;
-      signature stays `Nullable<Vec>`.
-- [ ] Make `fs/text` `utf8` return `Nullable<Vec>` (`null` only when the encoded length
-      would exceed `maxLength`).
-- [ ] In the `cas_add` handler, treat `null` from `utf8` / `decode` as a generic content
-      decoding error `isError` (static message that also points at `type: 'url'` for
-      large content).
-- [ ] Add proof tests in `fs/cas/mcp/proof.f.ts`: inline `text` and `base64` content at
-      `maxLengthBytes` (stored) and just above (clean `isError` on every engine — not a
-      thrown crash and not a silently-stored over-`maxLength` blob).
+- [ ] `fs/types/bit_vec/module.f.ts`: make `unpackListToVec` return `Nullable<Unpacked>`
+      (running-length guard, single bounded core); make `BitOrder.listToVec` and
+      `u8ListToVec` return `Nullable<Vec>`; leave `concat` / `push` / `xor` / `repeat`
+      total with a documented `len ≤ maxLength` precondition.
+- [ ] `fs/types/nullable/module.f.ts`: add `unwrap<T>(value: Nullable<T>): T` (throws on
+      `null`).
+- [ ] `fs/base64/module.f.ts` `decode`: return `null` (not throw) for over-`maxLength`
+      input; build only the trimmed `targetLen` bits so a `maxLengthBytes` blob does not
+      overflow; signature stays `Nullable<Vec>`.
+- [ ] `fs/text/module.f.ts` `utf8`: return `Nullable<Vec>` (`null` only when the encoded
+      length would exceed `maxLength`).
+- [ ] Propagate / `unwrap` at `listToVec` / `u8ListToVec` / `utf8` consumers: `fs/asn.1`,
+      `fs/crypto/sign`, `fs/sul/id`, `fs/sul/level/literal`, `fs/types/uint8array`,
+      `fs/base_n` (already `Nullable`), and the fixed-literal `utf8` callers
+      (`fs/html`, `fs/text/sgr`, `fs/effects/node`, `fs/mcp/stdio`). Use `unwrap` where
+      provably bounded; never in `cas_add`.
+- [ ] `cas_add` handler (`fs/cas/mcp/module.f.ts`): treat `null` from `utf8` / `decode`
+      as a generic content decoding error `isError` (static message that also points at
+      `type: 'url'` for large content).
+- [ ] Proof tests: `fs/cas/mcp/proof.f.ts` — inline `text` and `base64` at exactly
+      `maxLengthBytes` (stored) and one byte over (clean `isError` on every engine — not
+      a thrown crash, not a silently-stored over-`maxLength` blob). Add a
+      `base64OfA(n)` helper that spells out base64 of `n` ASCII `'a'` bytes for any `n`
+      (handles all three `n % 3` residues), so the boundary sample never drives the
+      encoder past `maxLength`. `fs/types/bit_vec/proof.f.ts` — `u8ListToVec` at and one
+      past `maxLengthBytes`.
 - [ ] Confirm the documented inline limit in `fs/cas/mcp/README.md` and the `cas_add`
       tool description match the implemented behaviour.
 
@@ -110,6 +197,8 @@ Reuse the byte-aligned limit constants already exported from
 
 - `fs/cas/mcp/module.f.ts` — `cas_add` handler and the `cas_get` `content: true`
   oversized-blob guard it should mirror.
+- `fs/types/bit_vec/module.f.ts` — fast `unpackListToVec` / `listToVec` (the bounded
+  core lives here).
 - `fs/types/bigint/module.f.ts` — `maxLength` notes on `bun` throwing near the ceiling.
 - `fs/cas/mcp/README.md` — documents the 128 KiB inline limit and the `type: 'url'`
   alternative.
