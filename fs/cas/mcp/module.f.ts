@@ -27,6 +27,12 @@
  *   moves the file via the streaming move-hash-move pipeline (no size limit).
  *   Paths outside `$HOME/cas_upload/` or containing `..` are rejected for security.
  *
+ * **Inline content (`text`/`base64`) is capped at `maxLength` (128 KiB).** Both
+ * resolve `content` into a single `Vec`, which cannot exceed `maxLength` bits, so a
+ * larger payload is rejected with a descriptive *"too large"* error (carrying the
+ * byte size) that points at `type: 'url'`. This mirrors the `content: true` guard in
+ * `cas_get`: `type: 'url'` is the size-independent path for blobs above the limit.
+ *
  * ## `cas_get` output
  *
  * Always returns a JSON object `{ length, mime_type, type[, url][, content] }`.
@@ -70,6 +76,8 @@
  * `mcpStep`. *Tool* failures come back as a normal `tools/call` result with
  * `isError: true` and a text explanation, so the model can read and react:
  * - `type: 'base64'` with malformed content (base64 `decode` → `null`) → `isError`
+ * - `cas_add` with inline `content` (`text`/`base64`) larger than `maxLength`
+ *   (128 KiB) → `isError` ("too large" message, pointing at `type: 'url'`)
  * - malformed `hash` (`cBase32ToVec` → `null`) → `isError`
  * - `cas_get` on an absent hash (`c.read` → `undefined`) → `isError`
  * - `cas_get` with `content: true` on a blob larger than `maxLength` → `isError`
@@ -165,7 +173,7 @@ const casToolRegistry =
     return [
     toolEntry(
         'cas_add',
-        'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to stream a file from $HOME/cas_upload/ (no size limit); omit or pass type:"text" for UTF-8 text (default).',
+        'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content (text/base64) is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content use type:"url" to stream a file from $HOME/cas_upload/ (no size limit).',
         casAddArgs,
         ({ type, content }): Effect<FileCasOperation | Rm, ToolsCallResult> => {
             // type:'url' — stream the file into cas, then delete the source on success
@@ -190,13 +198,24 @@ const casToolRegistry =
                     x = pure(utf8(content))
                     break
             }
-            return x.step(value => typeof value === 'string'
-                ? pure(errorResult(value))
+            return x.step(value => {
+                if (typeof value === 'string') {
+                    return pure(errorResult(value))
+                }
+                // Inline content (text/base64) is resolved into a single `Vec`, which
+                // caps at `maxLength` bits (`maxLengthBytes` bytes, 128 KiB). Reject a
+                // larger payload with a descriptive error pointing at the size-independent
+                // alternative (`type: 'url'`), mirroring the inline-fetch guard in
+                // `cas_get`, instead of silently storing an over-`maxLength` blob.
+                if (bitVecLength(value) > maxLength) {
+                    return pure(errorResult(
+                        `content too large to store inline (${bitVecLength(value) / 8n} bytes, limit ${maxLengthBytes} bytes); use type:"url" to stream a file from ${casUploadDir}/ (no size limit)`))
+                }
                 // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(nonEmpty(ok(value), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
+                return c.write(nonEmpty(ok(value), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
                     ? errorResult('write')
                     : okResult(vecToCBase32(hash))))
-            )
+            })
         },
     ),
     toolEntry(

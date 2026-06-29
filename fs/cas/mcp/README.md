@@ -68,6 +68,21 @@ JSON, prompts) can be stored without any encoding step. Pass `type: 'base64'`
 for pre-encoded binary payloads, or `type: 'url'` to store a file directly from
 the filesystem.
 
+### Inline-content size limit (`type: 'text'` / `type: 'base64'`)
+
+`text` and `base64` resolve `content` into a single `Vec`, which caps at
+`maxLength` bits — **128 KiB**. Content larger than that cannot be stored inline
+and is rejected with `isError` and a distinct message naming the byte size and
+pointing at the alternative, e.g.
+
+```
+content too large to store inline (262144 bytes, limit 131072 bytes); use type:"url" to stream a file from /home/user/cas_upload/ (no size limit)
+```
+
+This mirrors the inline-fetch limit on `cas_get` (see below): to store a blob
+larger than 128 KiB, write it under `$HOME/cas_upload/` and pass `type: 'url'`,
+which streams the file with no size limit.
+
 ## `cas_get`: metadata + optional inline content
 
 `cas_get` always returns a JSON object in a `text` block with metadata and
@@ -174,6 +189,8 @@ MCP draws a line the dispatcher already respects:
   `isError: true` and a text explanation. This adapter returns `isError` for:
   - invalid arguments to any tool (`validate` rejects the argument object);
   - `type: 'base64'` with malformed base64 `content` (`base64Decode` → `null`);
+  - `cas_add` with inline `content` (`text`/`base64`) larger than the inline
+    limit (distinct "too large" message — see above — pointing at `type: 'url'`);
   - `type: 'url'` with an unreadable or missing file;
   - malformed `hash` (`cBase32ToVec` → `null`);
   - `cas_get` on an absent hash (`c.read` → `undefined`);
