@@ -155,7 +155,7 @@ const binarySample = base64Encode(vec8(0x2An)) as string
 // A base64 blob whose leading bytes are the PNG magic-byte signature, so
 // `cas_get` detects its type and returns base64 with mime_type image/png.
 const pngSample = base64Encode(
-    u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])) as string
+    u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])!) as string
 
 // ── Tests ───────────────────────────────────────────────────────────────────────
 
@@ -189,9 +189,20 @@ const largeMultiChunkBlobMeta =
 // A full `maxLengthBytes`-long chunk of repeated ASCII 'a' — valid UTF-8.
 const asciiChunk = repeat(maxLengthBytes)(vec8(0x61n))
 // The same length, but repeated 2-byte "é" (C3 A9) — valid UTF-8 of multi-byte symbols.
-const symbolChunk = repeat(maxLengthBytes / 2n)(u8ListToVec(msb)([0xc3, 0xa9]))
+const symbolChunk = repeat(maxLengthBytes / 2n)(u8ListToVec(msb)([0xc3, 0xa9])!)
 // A full chunk of 0xFF — an invalid UTF-8 lead byte, so binary (no magic match).
 const binaryChunk = repeat(maxLengthBytes)(vec8(0xffn))
+
+// Number of inline bytes at the 128 KiB ceiling, and one byte past it.
+const inlineLimit = Number(maxLengthBytes)
+
+// Standard base64 of `n` bytes of ASCII 'a' (0x61), assembled directly from the
+// 3-byte group encoding so the boundary sample is built without driving the
+// encoder's own concatenation past `maxLength` (which would throw on bun).
+const base64OfA = (n: number): string => {
+    const tail = n % 3 === 0 ? '' : n % 3 === 1 ? 'YQ==' : 'YWE='
+    return 'YWFh'.repeat(Math.floor(n / 3)) + tail
+}
 
 export const proof = {
     // Both chunks repeated ASCII → text/plain, no error on a > 128 KiB blob.
@@ -374,6 +385,37 @@ export const proof = {
         assertEq(resultOf(resp).isError, true)
     },
 
+    // Inline text content at exactly `maxLengthBytes` is accepted and stored on
+    // every engine — the conversion fits in a single `Vec` at the cap.
+    addTextAtInlineLimitStored: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'a'.repeat(inlineLimit) }))
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
+    },
+
+    // One byte over the limit is rejected as a clean tool error — not a thrown
+    // crash (bun) and not a silently-stored over-`maxLength` blob (node/deno).
+    addTextAboveInlineLimitIsError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'a'.repeat(inlineLimit + 1) }))
+        assertEq(resultOf(resp).isError, true)
+        assert(textOf(resp).includes('url'))
+    },
+
+    // Inline base64 content that decodes to exactly `maxLengthBytes` is stored.
+    addBase64AtInlineLimitStored: () => {
+        const [resp] = session(call(2, 'cas_add', { content: base64OfA(inlineLimit), type: 'base64' }))
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
+    },
+
+    // Base64 decoding to one byte over the limit is a clean tool error on every
+    // engine, via `decode` returning `null` rather than overflowing the bigint cap.
+    addBase64AboveInlineLimitIsError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: base64OfA(inlineLimit + 1), type: 'base64' }))
+        assertEq(resultOf(resp).isError, true)
+        assert(textOf(resp).includes('url'))
+    },
+
     getUnterminatedHashIsError: () => {
         const [resp] = session(call(2, 'cas_get', { hash: '0' }))
         assertEq(resultOf(resp).isError, true)
@@ -413,7 +455,7 @@ export const proof = {
 
     // cas_add with type:'url' streams a file from /home/user/cas_upload/ into CAS.
     addUrlStoresFileAndReturnsHash: () => {
-        const fileContent = utf8('hello from file')
+        const fileContent = utf8('hello from file')!
         const root: Dir = { 'home': { 'user': { 'cas_upload': { 'hello.txt': [fileContent] } } } }
         const [addUrlResp] = runSessionVirtual(root)([
             init, initialized,
@@ -424,7 +466,7 @@ export const proof = {
     },
 
     addUrlRoundTrips: () => {
-        const fileContent = utf8('round-trip content')
+        const fileContent = utf8('round-trip content')!
         const root: Dir = { 'home': { 'user': { 'cas_upload': { 'rt.txt': [fileContent] } } } }
         // First pass: add to get the hash (deterministic for same content).
         const [addResp] = runSessionVirtual(root)([
@@ -454,7 +496,7 @@ export const proof = {
 
     // cas_get without content:true returns only metadata.
     getMetaReturnsLengthAndMimeType: () => {
-        const fileContent = utf8('text content')
+        const fileContent = utf8('text content')!
         const root: Dir = { 'home': { 'user': { 'cas_upload': { 'f': [fileContent] } } } }
         // First pass: add to get the hash.
         const [addResp] = runSessionVirtual(root)([
@@ -492,7 +534,7 @@ export const proof = {
     },
 
     getMetaOctetStreamForUnknownBinary: () => {
-        const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
+        const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])!
         const binaryB64 = base64Encode(binaryContent) as string
         const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
         const hash = textOf(addResp)
@@ -510,7 +552,7 @@ export const proof = {
     // A NUL-bearing blob is valid UTF-8 yet binary: cas_get must report
     // base64/octet-stream, not text/plain.
     getMetaOctetStreamForNulBlob: () => {
-        const nulContent = u8ListToVec(msb)([0x00, 0x00, 0x00])
+        const nulContent = u8ListToVec(msb)([0x00, 0x00, 0x00])!
         const nulB64 = base64Encode(nulContent) as string
         const [addResp] = session(call(2, 'cas_add', { content: nulB64, type: 'base64' }))
         const hash = textOf(addResp)
@@ -537,7 +579,7 @@ export const proof = {
 
     // cas_add type:'url' with a subdirectory path flattens slashes to '-' in staging.
     addUrlFromSubdirectorySucceeds: () => {
-        const fileContent = utf8('nested file content')
+        const fileContent = utf8('nested file content')!
         const root: Dir = { 'home': { 'user': { 'cas_upload': { 'subdir': { 'file.txt': [fileContent] } } } } }
         const [resp] = runSessionVirtual(root)([
             init, initialized,
@@ -549,7 +591,7 @@ export const proof = {
 
     // cas_add with type:'url' accepts paths within /home/user/cas_upload/
     addUrlFromApprovedDirectorySucceeds: () => {
-        const fileContent = utf8('approved file')
+        const fileContent = utf8('approved file')!
         const root: Dir = { 'home': { 'user': { 'cas_upload': { 'test.txt': [fileContent] } } } }
         const [resp] = runSessionVirtual(root)([
             init, initialized,
@@ -575,7 +617,7 @@ export const proof = {
 
     // cas_get with content:true on octet-stream (no magic bytes, not UTF-8) returns inline base64.
     getOctetStreamWithContentIncludesBase64: () => {
-        const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
+        const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])!
         const binaryB64 = base64Encode(binaryContent) as string
         const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
         const hash = textOf(addResp)

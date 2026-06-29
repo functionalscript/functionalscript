@@ -24,13 +24,14 @@ export const toVec = (input: Uint8Array): Vec => {
     if (input.length > maxLengthBytes) {
         throw "the array is too big"
     }
-    return u8ListToVecMsb(fromArrayLike(input))
+    // Size already checked above, so the boundary builder cannot return `null`.
+    return u8ListToVecMsb(fromArrayLike(input))!
 }
 
 const m = map(fromArrayLike)
 
 export const listToVec = (input: List<Uint8Array>): Vec =>
-    u8ListToVecMsb(flat(m(input)))
+    u8ListToVecMsb(flat(m(input)))!
 
 /**
  * Converts an MSB-first bit vector into a Uint8Array.
@@ -41,5 +42,6 @@ export const fromVec = (input: Vec): Uint8Array =>
 export const decodeUtf8: (input: Uint8Array) => string
     = compose(toVec)(utf8ToString)
 
-export const encodeUtf8: (input: string) => Uint8Array
-    = compose(utf8)(fromVec)
+export const encodeUtf8 = (input: string): Uint8Array =>
+    // `utf8` returns `null` only for strings whose encoding exceeds `maxLength`.
+    fromVec(utf8(input)!)

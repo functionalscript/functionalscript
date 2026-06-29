@@ -7,7 +7,7 @@ import { detect, detectStream, detectVec, type DetectMeta } from './module.f.ts'
 
 // Builds a big-endian `Vec` from a list of byte values — mirrors how the CAS
 // store would hold the leading bytes of a stored blob.
-const bytes = (...b: readonly number[]): Vec => u8ListToVec(msb)(b)
+const bytes = (...b: readonly number[]): Vec => u8ListToVec(msb)(b)!
 
 // ── Streaming detector helpers ──────────────────────────────────────────────────
 

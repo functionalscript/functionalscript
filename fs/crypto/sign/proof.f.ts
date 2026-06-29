@@ -6,8 +6,8 @@ import { secp192r1, secp256r1, secp384r1, secp521r1, type Curve } from "../secp/
 import { computeSync, sha224, sha256, sha384, sha512, type Sha2 } from "../sha2/module.f.ts"
 import { all, concat, computeK, fromCurve, sign } from "./module.f.ts"
 
-const sample = utf8("sample")
-const test = utf8("test")
+const sample = utf8("sample")!
+const test = utf8("test")!
 
 const x00 = vec8(0x00n)
 const x01 = vec8(0x01n)
@@ -113,7 +113,7 @@ export const proof = {
     kk: () => {
         const a = fromCurve(secp192r1)
         const x = 0x6FAB034934E4C0FC9AE67F5B5659A9D7D1FEFD187EE09FD4n
-        const m = utf8("sample")
+        const m = utf8("sample")!
         const kk = computeK(a)(sha224)(x)(m)
         if (kk !== 0x4381526B3FC1E7128F202E194505592F01D5FF4C5AF015D8n) { throw kk }
     },

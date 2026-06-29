@@ -20,7 +20,7 @@ const makeState = (rust: boolean, packageJson?: string) => ({
     ...emptyState,
     root: {
         '.github': { workflows: {} },
-        ...(packageJson !== undefined ? { 'package.json': [utf8(packageJson)] } : {}),
+        ...(packageJson !== undefined ? { 'package.json': [utf8(packageJson)!] } : {}),
         ...(rust ? { 'Cargo.toml': [emptyVec] } : {}),
     },
 })

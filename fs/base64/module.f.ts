@@ -3,13 +3,14 @@
  *
  * @module
  */
-import { msb, type Vec, length, vec, empty } from "../types/bit_vec/module.f.ts"
+import { msb, type Vec, length, vec, empty, maxLength } from "../types/bit_vec/module.f.ts"
+import { mask } from "../types/bigint/module.f.ts"
 import type { Nullable } from "../types/nullable/module.f.ts"
 import { baseN } from "../base_n/module.f.ts"
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 
-const { popFront, concat } = msb
+const { concat } = msb
 
 const { vecToString, stringToVec } = baseN(6n, alphabet)
 
@@ -37,18 +38,30 @@ export const decode = (input: string): Nullable<Vec> => {
     // Total chars must make a multiple of 4 with the padding.
     if ((body.length + padChars) % 4 !== 0) { return null }
 
-    // Decode each character to 6 bits.
-    const result = stringToVec(body)
-    if (result === null) { return null }
-
-    // Remove the zero-padding bits introduced during encode.
-    // padChars=1 → 2 padding bits removed, padChars=2 → 4 padding bits removed.
+    // Each base64 char carries 6 bits; the trailing `removeBits` of them are the
+    // zero-padding introduced during encode (padChars=1 → 2 bits, 2 → 4 bits).
     const removeBits = BigInt(padChars * 2)
-    const totalBits = length(result)
-    const targetLen = totalBits - removeBits
-    if (targetLen === 0n) { return empty }
-    const [kept, padVec] = popFront(targetLen)(result)
+    // Decoded length in bits, derived from the input size so the single-`Vec`
+    // ceiling is enforced *before* building anything: an over-`maxLength` result
+    // is rejected as `null` rather than overflowing the runtime's `bigint` cap
+    // (which throws on `bun`). This is the byte-codec mirror of `u8ListToVec`'s
+    // boundary guard.
+    const targetLen = BigInt(body.length) * 6n - removeBits
+    if (targetLen > maxLength) { return null }
+    if (targetLen <= 0n) { return empty }
+
+    // Decode every 6-bit chunk except the trailing one with `stringToVec`, then
+    // append only the data bits of the last chunk. Splitting off the last char
+    // keeps the largest intermediate vector at exactly `targetLen` bits, so a
+    // `maxLengthBytes` blob (whose full `body.length * 6` would be `targetLen +
+    // removeBits`, just over the cap) still builds without overflow.
+    const lastPos = body.length - 1
+    const head = stringToVec(body.slice(0, lastPos))
+    if (head === null) { return null }
+    const lastIndex = alphabet.indexOf(body[lastPos])
+    if (lastIndex < 0) { return null }
+    const lastValue = BigInt(lastIndex)
     // Padding bits must be zero (RFC 4648 §3.5).
-    if (removeBits > 0n && padVec !== vec(removeBits)(0n)) { return null }
-    return vec(targetLen)(kept)
+    if (removeBits > 0n && (lastValue & mask(removeBits)) !== 0n) { return null }
+    return concat(head)(vec(6n - removeBits)(lastValue >> removeBits))
 }

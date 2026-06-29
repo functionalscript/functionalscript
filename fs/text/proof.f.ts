@@ -16,7 +16,7 @@ export const proof = {
         if (result !== 'a\nb\n:c\n::d\ne') { throw result }
     },
     encoding: () => {
-        const v = utf8('Hello world!')
+        const v = utf8('Hello world!')!
         const r = utf8ToString(v)
         if (r !== 'Hello world!') { throw r }
     }

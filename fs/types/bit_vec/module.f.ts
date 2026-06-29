@@ -22,6 +22,7 @@
  * @module
  */
 import { bitLength, divUp, mask, maxLength, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
+import type { Nullable } from '../nullable/module.f.ts'
 import { flip, identity } from '../function/module.f.ts'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
 import { fold, iterable, map, type List, type Thunk } from '../list/module.f.ts'
@@ -402,13 +403,25 @@ const unpackEmpty = { length: 0n, uint: 0n } as const
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
  *
+ * This is a **boundary builder**: it ingests external, unbounded input, so it
+ * returns `null` instead of building a `bigint` past the `maxLength` ceiling.
+ * Every JS engine caps `bigint` size and `bun` throws first (near `maxLength`),
+ * so an over-`maxLength` result is reported as `null` for identical behaviour on
+ * every engine rather than crashing on some and silently overflowing on others.
+ * Pure combinators (`concat`, `listToVec`, …) stay total instead, with a
+ * documented `len ≤ maxLength` precondition the caller checks cheaply up front.
+ *
  * @param bo The bit order for the conversion
  * @param list The list of unsigned 8-bit integers to be converted.
- * @returns The resulting vector based on the provided bit order.
+ * @returns The resulting vector, or `null` when its length would exceed `maxLength`.
  */
-export const u8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>): Vec => {
+export const u8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>): Nullable<Vec> => {
     let result: readonly Unpacked[] = []
+    let total = 0n
     for (const b of iterable(list)) {
+        // Reject before building so no intermediate `bigint` exceeds `maxLength`.
+        total += 8n
+        if (total > maxLength) { return null }
         let v: Unpacked = { length: 8n, uint: BigInt(b) }
         let i = 0
         while (true) {

@@ -69,11 +69,17 @@ for pre-encoded binary payloads, or `type: 'url'` to store a file directly from
 the filesystem.
 
 Inline content (`text`/`base64`) resolves into a single `Vec`, which caps at
-`maxLength` bits — **128 KiB**. To store a larger blob, write it under
-`$HOME/cas_upload/` and pass `type: 'url'`, which streams the file with no size
-limit. (Graceful rejection of oversized inline content — today it fails inside
-`utf8` / base64 `decode` — is tracked in
-[`cas-add-inline-size-error`](../todo/cas-add-inline-size-error.md).)
+`maxLength` bits — **128 KiB** (`131072` bytes). To store a larger blob, write it
+under `$HOME/cas_upload/` and pass `type: 'url'`, which streams the file with no
+size limit.
+
+Oversized inline content is rejected as a clean tool error on every JS engine.
+The boundary builders that ingest the content — [`fs/text`](../../text/module.f.ts)
+`utf8` and [`fs/base64`](../../base64/module.f.ts) `decode` — return `null` rather
+than building a `bigint` past the ceiling (which `bun` throws on and `node`/`deno`
+would silently overflow). The handler turns that `null` into an `isError` result
+whose message points oversized content at `type: 'url'`. Content at exactly
+`131072` bytes is stored; one byte more is the clean error.
 
 ## `cas_get`: metadata + optional inline content
 
@@ -180,7 +186,10 @@ MCP draws a line the dispatcher already respects:
 - **Tool failures** come back as a normal `tools/call` result with
   `isError: true` and a text explanation. This adapter returns `isError` for:
   - invalid arguments to any tool (`validate` rejects the argument object);
-  - `type: 'base64'` with malformed base64 `content` (`base64Decode` → `null`);
+  - `type: 'text'` / `type: 'base64'` content that cannot be decoded inline —
+    malformed base64, or an encoded length above the 128 KiB inline limit
+    (`utf8` / `base64Decode` → `null`) — a generic decoding error pointing at
+    `type: 'url'`;
   - `type: 'url'` with an unreadable or missing file;
   - malformed `hash` (`cBase32ToVec` → `null`);
   - `cas_get` on an absent hash (`c.read` → `undefined`);

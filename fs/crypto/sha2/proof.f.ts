@@ -80,23 +80,23 @@ export const proof = {
         () => {
             const e = 0x730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525n
             {
-                const s = utf8("The quick brown fox jumps over the lazy dog")
+                const s = utf8("The quick brown fox jumps over the lazy dog")!
                 const h = computeSync(sha224)([s])
                 if (uint(h) !== e) { throw h }
             }
             {
                 const s = ['The', ' quick', ' brown', ' fox', ' jumps', ' over', ' the', ' lazy', ' dog']
-                const h = computeSync(sha224)(map(utf8)(s))
+                const h = computeSync(sha224)(map((x: string) => utf8(x)!)(s))
                 if (uint(h) !== e) { throw h }
             }
         },
         () => {
-            const s = utf8("The quick brown fox jumps over the lazy dog.")
+            const s = utf8("The quick brown fox jumps over the lazy dog.")!
             const h = computeSync(sha224)([s])
             if (uint(h) !== 0x619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn) { throw h }
         },
         () => {
-            const s = utf8("hello world")
+            const s = utf8("hello world")!
             if (uint(s) !== 0x68656C6C_6F20776F_726C64n) { throw s }
             let state = sha256.init
             state = sha256.append(s)(state)

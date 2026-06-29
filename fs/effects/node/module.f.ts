@@ -125,7 +125,7 @@ export const writeFile: Func<WriteFile> =
 
 /** Writes a string to `path` as UTF-8 bytes. */
 export const writeUtf8File = (path: string, content: string): Effect<WriteFile, IoResult<void>> =>
-    writeFile(path, utf8(content))
+    writeFile(path, utf8(content)!)
 
 // rm
 
@@ -327,7 +327,7 @@ export const write: Func<Write> = do_('write')
  * Shared implementation for `log` and `error`.
  */
 const writeString = (stream: WriteConsoles) => (s: string): Effect<Write, void> =>
-    write(stream, utf8(s + '\n'))
+    write(stream, utf8(s + '\n')!)
 
 export type Console = (s: string) => Effect<Write, void>
 

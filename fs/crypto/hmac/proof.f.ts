@@ -6,11 +6,11 @@ import { hmac } from './module.f.ts'
 
 export const proof = {
     example: () => {
-        const r = hmac(sha256)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
+        const r = hmac(sha256)(utf8('key')!)(utf8('The quick brown fox jumps over the lazy dog')!)
         if (r !== vec(256n)(0xf7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8n)) { throw r }
     },
     sha256: () => {
-        const r = hmac(sha256)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
+        const r = hmac(sha256)(utf8('key')!)(utf8('The quick brown fox jumps over the lazy dog')!)
         if (uint(r) !== 0xf7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8n) { throw r }
     },
     sha384: () => {
@@ -23,7 +23,7 @@ export const proof = {
         }
     },
     sha512: () => {
-        const r = hmac(sha512)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
+        const r = hmac(sha512)(utf8('key')!)(utf8('The quick brown fox jumps over the lazy dog')!)
         if (r !== vec(512n)(0xb42af09057bac1e2d41708e48a902e09b5ff7f12ab428a4fe86653c73dd248fb82f948a549f7b791a5b41915ee4d1ec3935357e4e2317250d0372afa2ebeeb3an)) {
             throw r
         }
@@ -32,7 +32,7 @@ export const proof = {
     // so the key is first compressed via the hash function before use.
     longKey: () => {
         const key = vec(1048n)(BigInt('0x' + 'aa'.repeat(131)))
-        const r = hmac(sha256)(key)(utf8('Test Using Larger Than Block-Size Key - Hash Key First'))
+        const r = hmac(sha256)(key)(utf8('Test Using Larger Than Block-Size Key - Hash Key First')!)
         assertEq(uint(r), 0x60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54n)
     }
 }

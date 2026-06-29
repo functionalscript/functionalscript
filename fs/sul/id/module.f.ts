@@ -36,7 +36,9 @@ export type Id = Nominal<
 //              0123456789ABCDEF0123456789ABCDEF
 const ivSeed = "Synthetic Universal Language 001"
 
-const utf8IvSeed = utf8(ivSeed)
+// A fixed 32-byte seed, far below the `maxLength` inline ceiling, so `utf8`
+// never returns `null` here.
+const utf8IvSeed = utf8(ivSeed)!
 
 const c = secp256r1
 

@@ -5,7 +5,7 @@ import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBit
 
 const p256 = sha256Pow
 const p224 = pow(sha224)
-const sample = utf8('functionalscript pow proof')
+const sample = utf8('functionalscript pow proof')!
 const emptyData = empty
 
 /** Target large enough for {@link sample} under SHA-256 (`0x207fffff`). */

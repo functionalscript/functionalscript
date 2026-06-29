@@ -1,7 +1,7 @@
 import { mask } from '../bigint/module.f.ts'
 import type { Sign } from '../function/compare/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, u8ListToVec, u8List, chunkList, fromSentinel } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, u8ListToVec, u8List, chunkList, fromSentinel, maxLengthBytes } from './module.f.ts'
 import { repeat as listRepeat, toArray } from '../list/module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
@@ -391,14 +391,26 @@ export const proof = {
         },
     },
     u8ListToVec: () => {
-        // 131_072 is too much for Bun
-        const x = u8ListToVec(msb)(listRepeat(0x12)(131_071))
+        // 131_072 bytes is `maxLengthBytes`; one more would overflow the single-`Vec`
+        // `bigint` cap (Bun throws), so `u8ListToVec` returns `null` instead.
+        const x = u8ListToVec(msb)(listRepeat(0x12)(131_071))!
         return () => {
             const m = u8List(msb)(x)
             const y = toArray(m)
             if (y.length !== 131_071) {
                 throw `y.lenght: ${y.length}`
             }
+        }
+    },
+    // The boundary builder returns a `Vec` at exactly `maxLengthBytes` and `null`
+    // one byte past it, on every engine, rather than throwing or overflowing.
+    u8ListToVecSizeBoundary: () => {
+        const n = Number(maxLengthBytes)
+        const atLimit = u8ListToVec(msb)(listRepeat(0x12)(n))
+        if (atLimit === null) { throw 'maxLengthBytes should build' }
+        if (length(atLimit) !== maxLengthBytes * 8n) { throw 'wrong length at limit' }
+        if (u8ListToVec(msb)(listRepeat(0x12)(n + 1)) !== null) {
+            throw 'one byte past maxLengthBytes should be null'
         }
     },
     u8ListUnaligned: () => {

@@ -104,7 +104,7 @@ export const proof = {
         ok: () => {
             const [_, [t, result]] = virtual({
                 ...emptyState,
-                root: { hello: [utf8('Hello, world!')] },
+                root: { hello: [utf8('Hello, world!')!] },
             })(readUtf8File('hello'))
             if (t !== 'ok') { throw result }
             if (result !== 'Hello, world!') { throw result }

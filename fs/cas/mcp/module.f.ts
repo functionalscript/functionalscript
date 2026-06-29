@@ -69,7 +69,11 @@
  * (unknown method, malformed JSON-RPC params) are JSON-RPC errors handled by
  * `mcpStep`. *Tool* failures come back as a normal `tools/call` result with
  * `isError: true` and a text explanation, so the model can read and react:
- * - `type: 'base64'` with malformed content (base64 `decode` → `null`) → `isError`
+ * - `type: 'text'` / `type: 'base64'` content that cannot be decoded inline —
+ *   malformed base64, or an encoded length above the 128 KiB inline limit
+ *   (`utf8` / `decode` → `null`) → `isError` (generic decoding error, points at
+ *   `type: 'url'`). The builders return `null` instead of throwing, so oversized
+ *   inline content is a clean error on every engine rather than a `bun` crash.
  * - malformed `hash` (`cBase32ToVec` → `null`) → `isError`
  * - `cas_get` on an absent hash (`c.read` → `undefined`) → `isError`
  * - `cas_get` with `content: true` on a blob larger than `maxLength` → `isError`
@@ -87,6 +91,7 @@ import { decode as base64Decode, encode as base64Encode } from '../../base64/mod
 import { utf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../mime/module.f.ts'
 import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, type Vec } from '../../types/bit_vec/module.f.ts'
+import type { Nullable } from '../../types/nullable/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
 import { rm, type IoResult, type Read, type Rm, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
@@ -179,24 +184,24 @@ const casToolRegistry =
                         : rm(content).step(() => pure(okResult(vecToCBase32(v))))
                 )
             }
-            // type:'text' or 'base64' — resolve content to Vec, store via c.write()
-            let x: Effect<Rm, Vec|string>
-            switch(type) {
-                case 'base64':
-                    const value = base64Decode(content)
-                    x = pure(value === null ? `invalid base64 content: ${content}` : value)
-                    break
-                default:
-                    x = pure(utf8(content))
-                    break
+            // type:'text' or 'base64' — resolve content to a single `Vec`, store
+            // via c.write(). Both `decode` and `utf8` are boundary builders that
+            // return `null` for content that cannot be represented inline: malformed
+            // base64, or — for either encoding — an encoded length above the
+            // `maxLength` (128 KiB) inline ceiling. Returning `null` instead of
+            // throwing is what keeps this handler from crashing the MCP process on
+            // `bun`, where building an over-`maxLength` `bigint` throws.
+            const value: Nullable<Vec> = type === 'base64' ? base64Decode(content) : utf8(content)
+            if (value === null) {
+                // One static message covers both causes; the tool descriptions already
+                // document the 128 KiB inline limit and steer large content at type:'url'.
+                return pure(errorResult(
+                    `content could not be decoded — it may be malformed or above the 128 KiB (${maxLengthBytes} bytes) inline limit; use type:"url" for large content`))
             }
-            return x.step(value => typeof value === 'string'
-                ? pure(errorResult(value))
-                // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(nonEmpty(ok(value), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
-                    ? errorResult('write')
-                    : okResult(vecToCBase32(hash))))
-            )
+            // The resolved content fits in one chunk; feed it as a single-item stream.
+            return c.write(nonEmpty(ok(value), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
+                ? errorResult('write')
+                : okResult(vecToCBase32(hash))))
         },
     ),
     toolEntry(

@@ -94,5 +94,5 @@ export const csiWrite =
 {
     const toStr = str(std[stream].isTTY)
     return (s: string): Effect<Write, void> =>
-        write(stream, utf8(toStr(s)))
+        write(stream, utf8(toStr(s))!)
 }

@@ -44,7 +44,7 @@ const parseErrorResponse: Response = { jsonrpc, error: parseError, id: null }
 
 /** Encodes a response as a newline-terminated UTF-8 line and writes it to `stdout`. */
 const writeResponse = (resp: Response): Effect<Write, void> =>
-    write('stdout', utf8(stringifyJson(resp as Unknown) + '\n'))
+    write('stdout', utf8(stringifyJson(resp as Unknown) + '\n')!)
 
 /** Writes `resp` when present, otherwise does nothing (notification). */
 const writeMaybe = (resp: Response | null): Effect<Write, void> =>

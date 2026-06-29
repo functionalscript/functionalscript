@@ -163,4 +163,4 @@ export const htmlUtf8 = (...head: readonly Node[]) => (...body: readonly Node[])
     utf8(htmlToString(['html',
         ['head', ...commonHead, ...head],
         ['body', ...body]]
-    ))
+    ))!
