@@ -111,6 +111,41 @@ export const proof = {
             assertEq(m.length, 4n)
         },
 
+        // A NUL-byte blob is valid single-byte UTF-8 (all U+0000) but is binary:
+        // NUL is the sharpest binary marker, so it classifies as octet-stream.
+        nul: () => {
+            const m = detectChunks(bytes(0x00, 0x00, 0x00))
+            assertEq(m.type, 'base64')
+            assertEq(m.mime_type, 'application/octet-stream')
+            assertEq(m.length, 3n)
+        },
+
+        // A control byte embedded in otherwise-valid ASCII (here ESC) is still
+        // binary — text/plain must not imply terminal escapes.
+        controlByte: () => {
+            const m = detectChunks(bytes(0x68, 0x69, 0x1b, 0x5b, 0x30, 0x6d)) // "hi\x1b[0m"
+            assertEq(m.type, 'base64')
+            assertEq(m.mime_type, 'application/octet-stream')
+            assertEq(m.length, 6n)
+        },
+
+        // A C1 control arrives as 2-byte UTF-8 (C2 85 = U+0085, NEL); invisible at
+        // the byte level, it is caught at the code-point level and reads as binary.
+        c1Control: () => {
+            const m = detectChunks(bytes(0x41, 0xc2, 0x85)) // "A" + U+0085
+            assertEq(m.type, 'base64')
+            assertEq(m.mime_type, 'application/octet-stream')
+            assertEq(m.length, 3n)
+        },
+
+        // The text whitespace controls (TAB, LF, VT, FF, CR) are legitimate in text.
+        whitespaceControlsStayText: () => {
+            const m = detectChunks(bytes(0x61, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x62)) // "a\t\n\v\f\rb"
+            assertEq(m.type, 'text')
+            assertEq(m.mime_type, 'text/plain')
+            assertEq(m.length, 7n)
+        },
+
         // Magic-byte detection threads across a chunk boundary mid-signature.
         magicAcrossChunks: () => {
             const m = detectChunks(
@@ -233,6 +268,14 @@ export const proof = {
             assertEq(m.type, 'base64')
             assertEq(m.mime_type, 'application/octet-stream')
             assertEq(m.length, 4n)
+        },
+
+        // Valid UTF-8 NUL run is binary in the single-Vec path too.
+        nul: () => {
+            const m = detectVec(bytes(0x00, 0x00, 0x00))
+            assertEq(m.type, 'base64')
+            assertEq(m.mime_type, 'application/octet-stream')
+            assertEq(m.length, 3n)
         },
     },
 }

@@ -63,20 +63,31 @@ detectVec(bytes)                // { length, mime_type, type }
 |---------|---------------------------------------------------------------------|--------------------------|
 | length  | running byte count (`+chunkLen` per chunk)                          | never                    |
 | magic   | signature elimination — the streaming form of the table above       | matched / dead (≤12 B)   |
-| utf8    | UTF-8 validity DFA over `fs/text/utf8`'s decoder                     | invalid                  |
+| utf8    | UTF-8 validity-and-text DFA over `fs/text/utf8`'s decoder            | invalid / non-text       |
 
 `finish` reads the same three-way verdict as the pure path: magic hit → `base64`
-+ detected mime; else whole-blob-valid UTF-8 → `text` + `text/plain`; else
-`base64` + `application/octet-stream`. UTF-8 classification must see **every**
-byte (a blob can be valid until its last byte), so a leading-bytes buffer would
-be incorrect — only the streaming validator is.
++ detected mime; else whole-blob-valid UTF-8 **that is also all-text** → `text` +
+`text/plain`; else `base64` + `application/octet-stream`. UTF-8 classification
+must see **every** byte (a blob can be valid until its last byte), so a
+leading-bytes buffer would be incorrect — only the streaming validator is.
+
+The utf8 factor tracks two orthogonal verdicts: *valid* (well-formed UTF-8, the
+decoding contract) and *text* (every decoded code point is a text code point per
+`isTextCodePoint`, not a control byte). They are kept distinct because a
+control-bearing blob is perfectly well-formed UTF-8 yet binary: a NUL run decodes
+to U+0000 — "valid UTF-8" — but NUL is the sharpest binary marker, so it must
+classify as `application/octet-stream`. C1 controls (`U+0080`–`U+009F`) arrive as
+2-byte UTF-8 and are invisible at the byte level, so the check is at the code-point
+level, after decoding. The whitespace controls `U+0009`–`U+000D` (TAB, LF, VT, FF,
+CR) stay text.
 
 `push` stops decoding and just counts length once the verdict is fixed. Because
 `finish` ignores the utf8 factor when `magic` matched, a **matched** signature
 fixes the verdict on its own — no need to keep validating UTF-8 over the tail (it
 might stay valid forever, e.g. an ASCII PDF). A **dead** magic leaves text-vs-octet
-open, so it fixes the verdict only once `utf8` also reaches its `invalid` sink.
-Either way a large blob costs ≈ length counting past the settling point.
+open, so it fixes the verdict only once `utf8` can no longer be text — it reaches
+its `invalid` sink **or** sees a control byte (both absorbing). Either way a large
+blob costs ≈ length counting past the settling point.
 
 ### Why hand-rolled (for now)
 
