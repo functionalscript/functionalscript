@@ -122,24 +122,56 @@ export const unwrap = <T>(value: Nullable<T>): T => {
 }
 ```
 
-Use `unwrap` (not a bare `!`) at every call site that is *sure* the input is bounded, so
-a violated invariant fails loudly **at its source** instead of letting `null` flow into
-a confusing downstream crash. These call sites keep their existing total signatures:
+Use `unwrap` (not a bare `!`) **only** at call sites whose input is *statically*
+bounded, so a violated invariant fails loudly **at its source** instead of letting
+`null` flow into a confusing downstream crash. These call sites keep their existing
+total signatures:
 
-- `fs/asn.1` TLV encoders (`listToVec([...])` in `idEncode` / `lenEncode` / `encode` /
-  the OID and record builders);
 - `fs/crypto/sign` `concat` (`(...x) => unwrap(listToVec(x))` — fixed-size curve
   scalars / hashes);
-- `fs/sul/id` and `fs/sul/level/literal` (`listToVec(...)` over bounded inputs);
-- `fs/types/uint8array` `toVec` (size already checked) and `listToVec`;
-- the small fixed-literal `utf8(...)` callers: `fs/html` `htmlUtf8`, `fs/text/sgr`,
-  `fs/effects/node` `writeUtf8File` / `writeString`, `fs/mcp/stdio` `writeResponse`,
-  `fs/sul/id` IV seed. (These write paths take known-bounded content; if any later
-  needs true streaming of >128 KiB, that is a separate change.)
+- `fs/sul/id` IV seed (`utf8` of a fixed 32-byte literal) and `fs/sul/id` /
+  `fs/sul/level/literal` `listToVec(...)` over fixed-size ids / hashes;
+- `fs/types/uint8array` `toVec` (size already checked above) and `listToVec`
+  (already throws on the over-cap case today — keep that, via `unwrap`);
+- `fs/asn.1` TLV encoders (`listToVec([...])` in `idEncode` / `lenEncode` / `encode` /
+  the OID and record builders) — bounded *in this codebase's crypto usage*; if asn.1
+  later encodes unbounded `OCTET STRING` payloads, revisit (see note below).
 
 Test files (`proof.f.ts`) follow the same rule — `unwrap` / `!` on known-small fixtures.
 
-#### 6. `cas_add` never unwraps
+#### 6. Consumers whose input is NOT statically bounded — handle `null`, do not `unwrap`
+
+Some `utf8` consumers serialize **arbitrary-size** content, so `unwrap` there would just
+move the crash, not fix it (raised in review: a `cas_get` `content: true` response for a
+`maxLengthBytes` *text* blob is already 131072 bytes **plus** the JSON/base64 envelope,
+so the serialized response line exceeds `maxLength` even though the blob itself is at the
+cap). These must convert `null` into a real error or be made size-independent:
+
+- **`fs/effects/node` `writeUtf8File(path, content)`** — has an error channel
+  (`Effect<WriteFile, IoResult<void>>`): on `utf8(content) === null` return an
+  `IoResult` `error` instead of writing, so an over-cap write fails loudly rather than
+  silently truncating to empty bytes.
+- **`fs/effects/node` `writeString` (backs `log` / `error`) and `fs/mcp/stdio`
+  `writeResponse`** — channel-less (`Effect<…, void>`) and inherently unbounded. The
+  `write` / `writeFile` primitives take a single `Vec`, so today *any* > 128 KiB
+  console line or MCP response is already unencodable; making `utf8` `Nullable` only
+  surfaces that. The correct fix is to make the write primitive accept a **chunked byte
+  stream** (size-independent, mirroring the streaming `cas_get` *metadata* path), so
+  encoding is no longer capped by one `Vec`. Until that lands, the immediately
+  actionable guard is in `cas_get`:
+- **`fs/cas/mcp` `cas_get` `content: true`** — its current guard rejects blobs whose
+  *raw* length exceeds `maxLengthBytes`, but the **serialized response** (base64 ≈ 4/3×
+  plus the JSON envelope) can still exceed `maxLength` and become unwritable. Tighten the
+  guard to bound the *response* it is about to emit (or stream it), so the transport is
+  never handed more than one `Vec`. This is the concrete bug the review flagged.
+- **`fs/html` `htmlUtf8` and `fs/text/sgr` `csiWrite`** — also take arbitrary content;
+  propagate `Nullable` (or document the cap) rather than `unwrap`, per the same rule.
+
+The first cut may scope the streaming-`write` refactor as a follow-up, but the plan must
+**not** `unwrap` these paths; at minimum `writeUtf8File` returns an error and `cas_get`
+`content: true` bounds its response.
+
+#### 7. `cas_add` never unwraps
 
 The whole point: `cas_add` is the one place that **must not** assume the size is
 bounded. On `null` from `utf8` / `decode` it returns a generic *content decoding error*
@@ -175,11 +207,17 @@ to total only where correctness guarantees it.
       overflow; signature stays `Nullable<Vec>`.
 - [ ] `fs/text/module.f.ts` `utf8`: return `Nullable<Vec>` (`null` only when the encoded
       length would exceed `maxLength`).
-- [ ] Propagate / `unwrap` at `listToVec` / `u8ListToVec` / `utf8` consumers: `fs/asn.1`,
-      `fs/crypto/sign`, `fs/sul/id`, `fs/sul/level/literal`, `fs/types/uint8array`,
-      `fs/base_n` (already `Nullable`), and the fixed-literal `utf8` callers
-      (`fs/html`, `fs/text/sgr`, `fs/effects/node`, `fs/mcp/stdio`). Use `unwrap` where
-      provably bounded; never in `cas_add`.
+- [ ] `unwrap` at the *statically bounded* `listToVec` / `u8ListToVec` / `utf8`
+      consumers only: `fs/crypto/sign`, `fs/sul/id`, `fs/sul/level/literal`,
+      `fs/types/uint8array`, `fs/asn.1`. (`fs/base_n` `stringToVec` already propagates
+      `Nullable`.)
+- [ ] Handle `null` (do **not** `unwrap`) at the unbounded consumers:
+      `fs/effects/node` `writeUtf8File` → return an `IoResult` `error`; `writeString` /
+      `fs/mcp/stdio` `writeResponse` / `fs/html` `htmlUtf8` / `fs/text/sgr` → propagate or
+      document, pending a size-independent (chunked-stream) `write` primitive.
+- [ ] `fs/cas/mcp` `cas_get` `content: true`: bound the *serialized response* it emits
+      (base64 + JSON envelope can exceed `maxLength` even for a `maxLengthBytes` blob),
+      so the transport is never handed an unencodable, over-`maxLength` line.
 - [ ] `cas_add` handler (`fs/cas/mcp/module.f.ts`): treat `null` from `utf8` / `decode`
       as a generic content decoding error `isError` (static message that also points at
       `type: 'url'` for large content).
