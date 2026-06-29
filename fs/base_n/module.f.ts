@@ -12,6 +12,7 @@
  * @module
  */
 import { msb, type Vec, length, vec } from '../types/bit_vec/module.f.ts'
+import { reverse, type List } from '../types/list/module.f.ts'
 import type { Nullable } from '../types/nullable/module.f.ts'
 
 const { popFront, listToVec } = msb
@@ -66,9 +67,17 @@ export const baseN = (
             return result
         },
         stringToVec: s => {
-            const indices = [...s].map(toIndex)
-            if (indices.some(index => index < 0)) { return null }
-            return listToVec(indices.map(index => vecN(BigInt(index))))
+            // Build a reversed chunk list, bailing out at the first invalid
+            // character so malformed input is rejected in O(prefix) time and
+            // `normalize` is never run past it. `listToVec` then concatenates in
+            // O(n log n).
+            let chunks: List<Vec> = null
+            for (const c of s) {
+                const index = toIndex(c)
+                if (index < 0) { return null }
+                chunks = { first: vecN(BigInt(index)), tail: chunks }
+            }
+            return listToVec(reverse(chunks))
         },
     }
 }
