@@ -1,4 +1,4 @@
-## 66Q-cas-add-inline-size-error. Reject oversized `cas_add` inline content gracefully
+## cas-add-inline-size-error. Reject oversized `cas_add` inline content gracefully
 
 **Priority:** P3
 **Status:** open
