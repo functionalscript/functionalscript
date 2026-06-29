@@ -11,10 +11,11 @@
  *
  * @module
  */
-import { msb, type Vec, length, vec, empty } from '../types/bit_vec/module.f.ts'
+import { msb, type Vec, length, vec } from '../types/bit_vec/module.f.ts'
+import { reverse, type List } from '../types/list/module.f.ts'
 import type { Nullable } from '../types/nullable/module.f.ts'
 
-const { popFront, concat } = msb
+const { popFront, listToVec } = msb
 
 /**
  * The encode/decode pair returned by {@link baseN}.
@@ -66,13 +67,17 @@ export const baseN = (
             return result
         },
         stringToVec: s => {
-            let result: Vec = empty
+            // Build a reversed chunk list, bailing out at the first invalid
+            // character so malformed input is rejected in O(prefix) time and
+            // `normalize` is never run past it. `listToVec` then concatenates in
+            // O(n log n).
+            let chunks: List<Vec> = null
             for (const c of s) {
                 const index = toIndex(c)
                 if (index < 0) { return null }
-                result = concat(result)(vecN(BigInt(index)))
+                chunks = { first: vecN(BigInt(index)), tail: chunks }
             }
-            return result
+            return listToVec(reverse(chunks))
         },
     }
 }

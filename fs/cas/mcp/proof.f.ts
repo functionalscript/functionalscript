@@ -207,6 +207,36 @@ export const proof = {
     getMetaLargeMultiChunkTextThenBinary:
         largeMultiChunkBlobMeta(asciiChunk, binaryChunk, 'base64', 'application/octet-stream'),
 
+    // content:true on a present blob larger than `maxLength` reports a distinct
+    // "too large" error, not "no such hash" — the blob exists, it just can't be
+    // buffered inline. The metadata-only path (above) still returns its size/type.
+    getContentLargeBlobTooLargeError: () => {
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'big': [asciiChunk, asciiChunk] } } } }
+        const [addResp] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
+        ]).slice(2) as readonly unknown[]
+        const hash = textOf(addResp)
+        const [, getResp] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
+            call(3, 'cas_get', { hash, content: true }),
+        ]).slice(2) as readonly unknown[]
+        assertEq(resultOf(getResp).isError, true)
+        const text = textOf(getResp)
+        assert(text.includes('too large'))
+        assert(!text.includes('no such hash'))
+    },
+
+    // content:true on a genuinely absent hash still reports "no such hash" — the
+    // oversized branch above must not absorb the absent case.
+    getContentMissingHashIsError: () => {
+        const absent = vecToCBase32(vec8(0x55n))
+        const [resp] = session(call(2, 'cas_get', { hash: absent, content: true }))
+        assertEq(resultOf(resp).isError, true)
+        assert(textOf(resp).includes('no such hash'))
+    },
+
     toolsListAdvertisesThreeTools: () => {
         const [resp] = runSessionVirtual({})([init, initialized, list(2)]).slice(2)
         const tools = (resp as { result: { tools: readonly { name: string }[] } }).result.tools
