@@ -201,7 +201,7 @@ const casToolRegistry =
     ),
     toolEntry(
         'cas_get',
-        'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string.',
+        'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string, but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To download a blob, prefer the url field returned in the result instead of requesting inline content.',
         casGetArgs,
         r => {
             const key = cBase32ToVec(r.hash)
