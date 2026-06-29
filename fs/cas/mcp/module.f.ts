@@ -193,9 +193,9 @@ const casToolRegistry =
             return x.step(value => typeof value === 'string'
                 ? pure(errorResult(value))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(nonEmpty(ok(value), elEmpty<never, Ok<Vec>>())).step(hashResult => pure(hashResult[0] === 'error'
+                : c.write(nonEmpty(ok(value), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
                     ? errorResult('write')
-                    : okResult(vecToCBase32(hashResult[1]))))
+                    : okResult(vecToCBase32(hash))))
             )
         },
     ),
