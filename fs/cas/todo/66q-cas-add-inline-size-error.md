@@ -12,11 +12,13 @@ desirable**, not an accident to be lifted. It applies only to *inlined* MCP cont
 `cas_get` `url` field already handle content of any size. We keep the inline cap on
 purpose:
 
-- **Uniform behaviour across JS engines.** A single `Vec` is a `bigint`, and a
-  `bigint` over `maxLength` bits *throws on `bun`* but is *accepted on `node`/`deno`*
-  (see the `maxLength` notes in `fs/types/bigint/module.f.ts`). So today the effective
-  inline limit is engine-dependent. We want the *same* explicit 128 KiB limit and the
-  *same* behaviour on every JS engine.
+- **Uniform behaviour across JS engines.** A single `Vec` is a `bigint`. Every JS
+  engine caps `bigint` size, but the cap differs: `bun` (WebKit/JSC) has the *smallest*
+  limit and throws first, while `node`/`deno` (V8) allow much larger `bigint`s and so
+  do *not* throw at 128 KiB (see the `maxLength` notes in
+  `fs/types/bigint/module.f.ts`). So today the effective inline limit is
+  engine-dependent. We want the *same* explicit 128 KiB limit and the *same* behaviour
+  on every JS engine.
 - **LLM token economy.** 128 KiB is a sensible ceiling that stops an LLM from burning
   tokens transferring large files inline; large blobs belong on the `url` path.
 - **Library guidance.** We deliberately discourage large bit vectors. Big data should
@@ -47,22 +49,22 @@ type, so both conversions report failures consistently and the handler can tell 
 two cases apart:
 
 ```ts
-// fs/base64 (or a shared location both modules import)
-type DecodeErrorType = 'too-big' | 'invalid'
+// fs/types/result/module.f.ts — shared so both fs/base64 and fs/text import it
+type DecodeErrorType = 'tooBig' | 'invalid'
 ```
 
 1. **`fs/base64/module.f.ts` `decode`** — change from `Nullable<Vec>` to
    `Result<Vec, DecodeErrorType>`: `error('invalid')` for malformed base64,
-   `error('too-big')` when the decoded `Vec` would exceed `maxLength` bits (checked
+   `error('tooBig')` when the decoded `Vec` would exceed `maxLength` bits (checked
    *before* constructing the over-`maxLength` `bigint`). The only in-`fs` caller is the
    CAS MCP handler (`fs/cas/mcp/module.f.ts`), so the migration is contained.
 2. **`fs/text/module.f.ts` `utf8`** — add a fallible variant returning
    `Result<Vec, DecodeErrorType>` for consistency with `decode` (it only ever yields
-   `error('too-big')`, since every string is valid to UTF-8-encode). Keep the existing
+   `error('tooBig')`, since every string is valid to UTF-8-encode). Keep the existing
    total `utf8` for callers that do not need the size check, or have the new variant
    wrap it.
 3. **`cas_add` handler (`fs/cas/mcp/module.f.ts`)** — match on the error:
-   - `'too-big'` → `errorResult(...)` naming the byte size and 128 KiB limit and
+   - `'tooBig'` → `errorResult(...)` naming the byte size and 128 KiB limit and
      pointing at `type: 'url'` (mirroring the existing oversized-blob guard on the
      `cas_get` `content: true` path);
    - `'invalid'` → the existing `invalid base64 content` error.
@@ -70,10 +72,11 @@ type DecodeErrorType = 'too-big' | 'invalid'
 Reuse the byte-aligned limit constants already exported from
 `fs/types/bit_vec/module.f.ts` (`maxLength`, `maxLengthBytes`).
 
+`DecodeErrorType` lives in `fs/types/result/module.f.ts` (the common `Result` home),
+so both `fs/base64` and `fs/text` import it without either depending on the other.
+
 ### Open questions
 
-- Where should `DecodeErrorType` live — in `fs/base64` and imported by `fs/text`, or in
-  a shared `fs/types` location? Pick whichever keeps the dependency direction clean.
 - Should the size check live in a low-level `bit_vec` constructor (so *any* over-
   `maxLength` `Vec` construction fails uniformly and `utf8` / `decode` inherit it)
   rather than being duplicated in each conversion? That would generalize the
@@ -81,12 +84,12 @@ Reuse the byte-aligned limit constants already exported from
 
 ### Tasks
 
-- [ ] Define `DecodeErrorType = 'too-big' | 'invalid'` in a shared location.
+- [ ] Define `DecodeErrorType = 'tooBig' | 'invalid'` in `fs/types/result/module.f.ts`.
 - [ ] Change `fs/base64` `decode` to `Result<Vec, DecodeErrorType>`; reject over-
-      `maxLength` input as `error('too-big')` before building the `bigint`.
+      `maxLength` input as `error('tooBig')` before building the `bigint`.
 - [ ] Update the CAS MCP handler (the only in-`fs` `decode` caller) to the new shape.
 - [ ] Add a fallible `utf8` variant returning `Result<Vec, DecodeErrorType>`.
-- [ ] In the `cas_add` handler, map `'too-big'` → size/limit `isError` recommending
+- [ ] In the `cas_add` handler, map `'tooBig'` → size/limit `isError` recommending
       `type: 'url'`, and `'invalid'` → the existing base64 error.
 - [ ] Add proof tests in `fs/cas/mcp/proof.f.ts`: inline `text` and `base64` content at
       `maxLengthBytes` (stored) and just above (clean `isError` on every engine — not a
