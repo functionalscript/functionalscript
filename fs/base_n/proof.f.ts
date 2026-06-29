@@ -1,4 +1,5 @@
-import { empty, vec } from '../types/bit_vec/module.f.ts'
+import { assertEq } from '../asserts/module.f.ts'
+import { empty, maxLength, vec, length } from '../types/bit_vec/module.f.ts'
 import { baseN } from './module.f.ts'
 
 const hex = baseN(4n, '0123456789abcdef')
@@ -12,6 +13,9 @@ const cb32 = baseN(5n, '0123456789abcdefghjkmnpqrstvwxyz', c => {
         default: { return lower }
     }
 })
+
+// Sample input for the disabled `big` proof below.
+// const bigSampleHex = `f`.repeat(Number(maxLength >> 2n))
 
 export const proof = {
     encodeEmpty: () => {
@@ -54,4 +58,11 @@ export const proof = {
     normalizeMiss: () => {
         if (cb32.stringToVec('u') !== null) { throw 'unknown char should return null' }
     },
+    // Disabled until bit_vec concatenation is O(n log n); the naive per-chunk
+    // `concat` makes this 1 Mbit decode O(n^2) (~13 s node / ~43 s bun).
+    // See fs/types/bit_vec/todo/vec-builder.md.
+    // big: () => {
+    //     const x = hex.stringToVec(bigSampleHex)
+    //     assertEq(length(x!), maxLength)
+    // }
 }
