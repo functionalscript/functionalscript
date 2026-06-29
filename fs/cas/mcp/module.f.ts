@@ -165,7 +165,7 @@ const casToolRegistry =
     return [
     toolEntry(
         'cas_add',
-        'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to stream a file from $HOME/cas_upload/ (no size limit); omit or pass type:"text" for UTF-8 text (default).',
+        'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content (text/base64) is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content use type:"url" to stream a file from $HOME/cas_upload/ (no size limit).',
         casAddArgs,
         ({ type, content }): Effect<FileCasOperation | Rm, ToolsCallResult> => {
             // type:'url' — stream the file into cas, then delete the source on success
@@ -201,7 +201,7 @@ const casToolRegistry =
     ),
     toolEntry(
         'cas_get',
-        'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string.',
+        'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string, but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To download a blob, prefer the url field returned in the result instead of requesting inline content.',
         casGetArgs,
         r => {
             const key = cBase32ToVec(r.hash)
