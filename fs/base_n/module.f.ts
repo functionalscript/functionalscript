@@ -11,10 +11,10 @@
  *
  * @module
  */
-import { msb, type Vec, length, vec, empty } from '../types/bit_vec/module.f.ts'
+import { msb, type Vec, length, vec } from '../types/bit_vec/module.f.ts'
 import type { Nullable } from '../types/nullable/module.f.ts'
 
-const { popFront, concat } = msb
+const { popFront, listToVec } = msb
 
 /**
  * The encode/decode pair returned by {@link baseN}.
@@ -66,13 +66,9 @@ export const baseN = (
             return result
         },
         stringToVec: s => {
-            let result: Vec = empty
-            for (const c of s) {
-                const index = toIndex(c)
-                if (index < 0) { return null }
-                result = concat(result)(vecN(BigInt(index)))
-            }
-            return result
+            const indices = [...s].map(toIndex)
+            if (indices.some(index => index < 0)) { return null }
+            return listToVec(indices.map(index => vecN(BigInt(index))))
         },
     }
 }
