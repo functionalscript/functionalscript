@@ -54,10 +54,17 @@ documented absence convention (`fs/types/nullable/module.f.ts`, with `map` / `ma
 `Nullable<Vec>`. Switching to `undefined` would either leave the library mixing `null`
 and `undefined` or imply a codebase-wide convention change — out of scope here.
 
-1. **`fs/types/bit_vec/module.f.ts`** — the constructor / `concat` that can produce an
-   over-`maxLength` `Vec` returns `Nullable<Vec>` (`null` instead of building a `bigint`
-   past the ceiling that would throw on `bun`). This is the single place the "discourage
-   large bit vectors" guidance is enforced; `utf8` and `decode` inherit it.
+1. **`fs/types/bit_vec/module.f.ts`** — only the **boundary builders that ingest
+   external / unbounded input** become `Nullable<Vec>`: the list→vec builder
+   (`u8ListToVec`) that `utf8` and `decode` are built on returns `null` instead of
+   building a `bigint` past the ceiling. The **pure combinators stay total**: `concat`,
+   `push`, etc. keep returning `Vec` with a documented `len ≤ maxLength` precondition,
+   because their output length is a trivial function the caller already knows
+   (`len(a)+len(b)`, `len+1`) and can check cheaply *before* calling. This is exactly the
+   existing pattern in `cas`'s `collectRead`, which guards
+   `bitVecLength(acc) + bitVecLength(v) > maxLength` and only then calls `msb.concat`.
+   Making every combinator partial would thread null checks through all bit-vector
+   algebra and defeat the simplicity goal.
 2. **`fs/base64/module.f.ts` `decode`** — **no signature change**: it stays
    `Nullable<Vec>` and simply returns `null` for over-`maxLength` input instead of
    throwing (today it returns `null` only for malformed base64).
@@ -76,14 +83,16 @@ Reuse the byte-aligned limit constants already exported from
 
 ### Open questions
 
-- Exactly which `bit_vec` operations gain the `Nullable<Vec>` return (the public
-  constructor, `concat`, `u8ListToVec`, …) and whether a small shared "checked build"
-  helper is cleaner than touching each.
+- Exactly which boundary builders gain the `Nullable<Vec>` return (`u8ListToVec` and any
+  other list→vec entry point), and whether a small shared "checked build" helper is
+  cleaner than touching each. (Pure combinators like `concat` / `push` stay total — see
+  proposal step 1.)
 
 ### Tasks
 
-- [ ] Make the over-`maxLength` `bit_vec` build operation(s) return `Nullable<Vec>`
-      (`null`) instead of throwing.
+- [ ] Make the boundary `bit_vec` builder(s) (`u8ListToVec`, …) return `Nullable<Vec>`
+      (`null`) instead of throwing; leave pure combinators (`concat`, `push`) total with
+      a documented `len ≤ maxLength` precondition.
 - [ ] Make `fs/base64` `decode` return `null` (not throw) for over-`maxLength` input;
       signature stays `Nullable<Vec>`.
 - [ ] Make `fs/text` `utf8` return `Nullable<Vec>` (`null` only when the encoded length
