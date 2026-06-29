@@ -44,30 +44,35 @@ Enforce `maxLength` *inside* the conversion functions and report the failure as 
 so the `cas_add` handler can turn it into a normal `isError` tool result instead of a
 crash or a silently-stored oversized blob.
 
-Use a `Result<Vec, DecodeErrorType>` return shape, with a shared string-union error
-type, so both conversions report failures consistently and the handler can tell the
-two cases apart:
+**Add new size-checked operations** alongside the existing ones rather than changing
+the current signatures — `decode` (`Nullable<Vec>`) and `utf8` (`string → Vec`) stay as
+they are for callers that do not need the check. The new operations share a
+`Result<Vec, DecodeErrorType>` return shape with a string-union error type, so both
+report failures consistently and the handler can tell the two cases apart:
 
 ```ts
 // fs/types/result/module.f.ts — shared so both fs/base64 and fs/text import it
 type DecodeErrorType = 'tooBig' | 'invalid'
 ```
 
-1. **`fs/base64/module.f.ts` `decode`** — change from `Nullable<Vec>` to
-   `Result<Vec, DecodeErrorType>`: `error('invalid')` for malformed base64,
+1. **`fs/base64/module.f.ts`** — add a size-checked decode (working name `tryDecode`)
+   returning `Result<Vec, DecodeErrorType>`: `error('invalid')` for malformed base64,
    `error('tooBig')` when the decoded `Vec` would exceed `maxLength` bits (checked
-   *before* constructing the over-`maxLength` `bigint`). The only in-`fs` caller is the
-   CAS MCP handler (`fs/cas/mcp/module.f.ts`), so the migration is contained.
-2. **`fs/text/module.f.ts` `utf8`** — add a fallible variant returning
-   `Result<Vec, DecodeErrorType>` for consistency with `decode` (it only ever yields
-   `error('tooBig')`, since every string is valid to UTF-8-encode). Keep the existing
-   total `utf8` for callers that do not need the size check, or have the new variant
-   wrap it.
-3. **`cas_add` handler (`fs/cas/mcp/module.f.ts`)** — match on the error:
+   *before* constructing the over-`maxLength` `bigint`). Keep the existing
+   `decode: Nullable<Vec>`.
+2. **`fs/text/module.f.ts`** — add a size-checked encode (working name `tryUtf8`)
+   returning `Result<Vec, DecodeErrorType>` (it only ever yields `error('tooBig')`,
+   since every string is valid to UTF-8-encode). Keep the existing total `utf8`; the new
+   variant can wrap it behind the size check.
+3. **`cas_add` handler (`fs/cas/mcp/module.f.ts`)** — call the new operations and match
+   on the error:
    - `'tooBig'` → `errorResult(...)` naming the byte size and 128 KiB limit and
      pointing at `type: 'url'` (mirroring the existing oversized-blob guard on the
      `cas_get` `content: true` path);
    - `'invalid'` → the existing `invalid base64 content` error.
+
+Final operation names are to be decided; the point is that they are *additional*, so no
+existing caller of `decode` / `utf8` is affected.
 
 Reuse the byte-aligned limit constants already exported from
 `fs/types/bit_vec/module.f.ts` (`maxLength`, `maxLengthBytes`).
@@ -77,20 +82,22 @@ so both `fs/base64` and `fs/text` import it without either depending on the othe
 
 ### Open questions
 
-- Should the size check live in a low-level `bit_vec` constructor (so *any* over-
-  `maxLength` `Vec` construction fails uniformly and `utf8` / `decode` inherit it)
-  rather than being duplicated in each conversion? That would generalize the
-  "discourage large bit vectors" guidance, at the cost of a wider API change.
+- Exact names for the new operations (`tryDecode` / `tryUtf8` are placeholders).
+- Whether the new operations check the size themselves, or share a low-level
+  `bit_vec` helper that rejects over-`maxLength` construction (so the "discourage large
+  bit vectors" guidance is enforced in one place). Either way the existing `decode` /
+  `utf8` stay unchanged.
 
 ### Tasks
 
 - [ ] Define `DecodeErrorType = 'tooBig' | 'invalid'` in `fs/types/result/module.f.ts`.
-- [ ] Change `fs/base64` `decode` to `Result<Vec, DecodeErrorType>`; reject over-
-      `maxLength` input as `error('tooBig')` before building the `bigint`.
-- [ ] Update the CAS MCP handler (the only in-`fs` `decode` caller) to the new shape.
-- [ ] Add a fallible `utf8` variant returning `Result<Vec, DecodeErrorType>`.
-- [ ] In the `cas_add` handler, map `'tooBig'` → size/limit `isError` recommending
-      `type: 'url'`, and `'invalid'` → the existing base64 error.
+- [ ] Add a size-checked decode to `fs/base64` returning `Result<Vec, DecodeErrorType>`
+      (reject over-`maxLength` input as `error('tooBig')` before building the `bigint`);
+      keep the existing `decode: Nullable<Vec>`.
+- [ ] Add a size-checked `utf8` variant in `fs/text` returning
+      `Result<Vec, DecodeErrorType>`; keep the existing total `utf8`.
+- [ ] Point the CAS MCP handler at the new operations and map `'tooBig'` → size/limit
+      `isError` recommending `type: 'url'`, `'invalid'` → the existing base64 error.
 - [ ] Add proof tests in `fs/cas/mcp/proof.f.ts`: inline `text` and `base64` content at
       `maxLengthBytes` (stored) and just above (clean `isError` on every engine — not a
       thrown crash and not a silently-stored over-`maxLength` blob).
