@@ -68,6 +68,13 @@ JSON, prompts) can be stored without any encoding step. Pass `type: 'base64'`
 for pre-encoded binary payloads, or `type: 'url'` to store a file directly from
 the filesystem.
 
+Inline content (`text`/`base64`) resolves into a single `Vec`, which caps at
+`maxLength` bits — **128 KiB**. To store a larger blob, write it under
+`$HOME/cas_upload/` and pass `type: 'url'`, which streams the file with no size
+limit. (Graceful rejection of oversized inline content — today it fails inside
+`utf8` / base64 `decode` — is tracked in
+[`cas-add-inline-size-error`](../todo/cas-add-inline-size-error.md).)
+
 ## `cas_get`: metadata + optional inline content
 
 `cas_get` always returns a JSON object in a `text` block with metadata and
@@ -132,8 +139,22 @@ parallel `detect` + UTF-8 check. The `type` then selects how `content` is encode
 3. **Fallback** → `type: 'base64'`, `mime_type: 'application/octet-stream'`,
    `content` is base64.
 
-A blob larger than `maxLength` is still unsupported on the `content: true` path
-and should be fetched via `url`.
+### Inline-content size limit (`content: true`)
+
+The inline-content path buffers the whole blob into a single `Vec`, which caps at
+`maxLength` bits — **128 KiB**. A blob larger than that cannot be fetched inline.
+Because the size and type are derived first with the size-independent
+`detectStream` machine (the same one the metadata path uses), an oversized blob is
+*not* misreported as absent: it returns `isError` with a distinct message naming
+the byte size and pointing at the alternatives, e.g.
+
+```
+blob too large to fetch inline (262144 bytes, limit 131072 bytes); use the url field (…) or omit content for metadata
+```
+
+So `no such hash` means the hash genuinely is not in the store, while the message
+above means the blob exists but exceeds the inline limit — fetch it via `url`, or
+call `cas_get` without `content: true` for size-independent metadata.
 
 Examples:
 
@@ -163,6 +184,8 @@ MCP draws a line the dispatcher already respects:
   - `type: 'url'` with an unreadable or missing file;
   - malformed `hash` (`cBase32ToVec` → `null`);
   - `cas_get` on an absent hash (`c.read` → `undefined`);
+  - `cas_get` with `content: true` on a blob larger than the inline limit
+    (distinct "too large" message — see above — not "no such hash");
   - an unknown tool `name`.
 
 ### Store location
