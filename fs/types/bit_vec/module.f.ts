@@ -307,9 +307,9 @@ const unpackEmpty = { length: 0n, uint: 0n } as const
  * the final reduce prepends higher (earlier) slots in front of accumulated
  * later runs. An empty list yields `unpackEmpty`.
  *
- * This is the bit-vector analogue of an amortized append buffer such as
- * `StringBuilder` (Java, C#), `strings.Builder` (Go), or `String::push_str`
- * (Rust).
+ * This is the bit-vector analogue of a builder that accumulates appended pieces
+ * and materializes the combined result on demand, such as `StringBuilder`
+ * (Java, C#) or `strings.Builder` (Go).
  */
 const unpackListToVec = (unpackConcat: BitOrder['unpackConcat']) =>
     (list: List<Unpacked>): Unpacked => {
