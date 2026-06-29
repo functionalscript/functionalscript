@@ -55,6 +55,6 @@ export const proof = {
         if (cb32.stringToVec('u') !== null) { throw 'unknown char should return null' }
     },
     big: () => {
-        cb32.stringToVec(`z`.repeat(Number(maxLengthBytes)))
+        cb32.stringToVec(`x`.repeat(Number(maxLengthBytes)))
     }
 }
