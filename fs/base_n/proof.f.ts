@@ -1,4 +1,4 @@
-import { empty, vec } from '../types/bit_vec/module.f.ts'
+import { empty, maxLengthBytes, vec } from '../types/bit_vec/module.f.ts'
 import { baseN } from './module.f.ts'
 
 const hex = baseN(4n, '0123456789abcdef')
@@ -54,4 +54,7 @@ export const proof = {
     normalizeMiss: () => {
         if (cb32.stringToVec('u') !== null) { throw 'unknown char should return null' }
     },
+    big: () => {
+        cb32.stringToVec(`z`.repeat(Number(maxLengthBytes)))
+    }
 }
