@@ -68,6 +68,13 @@ JSON, prompts) can be stored without any encoding step. Pass `type: 'base64'`
 for pre-encoded binary payloads, or `type: 'url'` to store a file directly from
 the filesystem.
 
+Inline content (`text`/`base64`) resolves into a single `Vec`, which caps at
+`maxLength` bits — **128 KiB**. To store a larger blob, write it under
+`$HOME/cas_upload/` and pass `type: 'url'`, which streams the file with no size
+limit. (Graceful rejection of oversized inline content — today it fails inside
+`utf8` / base64 `decode` — is tracked in
+[`cas-add-inline-size-error`](../todo/cas-add-inline-size-error.md).)
+
 ## `cas_get`: metadata + optional inline content
 
 `cas_get` always returns a JSON object in a `text` block with metadata and
