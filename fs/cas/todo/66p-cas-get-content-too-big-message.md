@@ -1,7 +1,7 @@
 ## 66P-cas-get-content-too-big-message. `cas_get({ content: true })` reports oversized blobs as "not found"
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 **Blocked by:** —
 
 ### Problem
@@ -65,17 +65,19 @@ short-circuit `content: true` with the proper "too large" message *before* calli
 
 ### Tasks
 
-- [ ] Make `collectRead`'s "exceeds maxLength" failure distinguishable from a store
+- [x] Make `collectRead`'s "exceeds maxLength" failure distinguishable from a store
       "not found" error at the call site (typed error variant, or pre-check size).
-- [ ] In the `content: true` arm of `cas_get`, return a distinct, descriptive
+      *Done via size pre-check: `content: true` runs the size-independent
+      `detectStream` first and short-circuits oversized blobs before `collectRead`.*
+- [x] In the `content: true` arm of `cas_get`, return a distinct, descriptive
       "blob too large to fetch inline" message (include size and `url`), keeping
       `no such hash` only for genuinely absent hashes.
-- [ ] Add proof cases in `fs/cas/mcp/proof.f.ts`: (a) `content: true` on an absent
-      hash → "no such hash"; (b) `content: true` on a present blob larger than
-      `maxLength` → the new "too large" message, not "no such hash".
-- [ ] Run `npx tsc` and `fjs t`; confirm coverage on both error arms.
-- [ ] Note the inline-content size limit in `fs/cas/mcp/README.md` if not already
-      documented.
+- [x] Add proof cases in `fs/cas/mcp/proof.f.ts`: (a) `content: true` on an absent
+      hash → "no such hash" (`getContentMissingHashIsError`); (b) `content: true` on
+      a present blob larger than `maxLength` → the new "too large" message, not
+      "no such hash" (`getContentLargeBlobTooLargeError`).
+- [x] Run `npx tsc` and `fjs t`; confirm coverage on both error arms.
+- [x] Note the inline-content size limit in `fs/cas/mcp/README.md`.
 
 ### Related
 
