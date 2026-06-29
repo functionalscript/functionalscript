@@ -40,11 +40,13 @@ every engine.
 
 ### Proposal
 
-Make the `Vec`-building operations **return `Vec | undefined` instead of throwing** when
-the result would exceed `maxLength`, and have the `cas_add` handler turn `undefined`
-into a normal `isError` tool result. This keeps the library simple — no `Result` tuple
-or error-union to thread through; callers that have already validated the size just add
-`!` or `assert(vec !== undefined)`. It also matches the existing Nullable style
+The single hard requirement: **the conversion must not throw on `bun`** — an
+unhandled throw inside the MCP server crashes the process. So the `Vec`-building
+operations **return `Vec | undefined` instead of throwing** when the result would exceed
+`maxLength`, and the `cas_add` handler turns `undefined` into a normal `isError` tool
+result. This keeps the library simple — no `Result` tuple or error-union to thread
+through; callers that have already validated the size just add `!` or
+`assert(vec !== undefined)`. It also matches the existing Nullable style
 (`base64.decode` is already `Nullable<Vec>`).
 
 1. **`fs/types/bit_vec/module.f.ts`** — the constructor / `concat` that can produce an
@@ -57,14 +59,12 @@ or error-union to thread through; callers that have already validated the size j
 3. **`fs/text/module.f.ts` `utf8`** — return `Vec | undefined` (`undefined` only when the
    encoded length would exceed `maxLength`, since every string is otherwise valid to
    UTF-8-encode).
-4. **`cas_add` handler (`fs/cas/mcp/module.f.ts`)** — keep the helpful "too large" hint
-   without an error-type union by pre-checking the **input string length** first (a
-   string is not a `bigint`, so this never hits the ceiling and never throws):
-   - if the input is large enough that the result must exceed `maxLength` → return the
-     existing oversized message naming the size/limit and pointing at `type: 'url'`;
-   - otherwise call `utf8` / `decode`; a resulting `undefined` is reported as a generic
-     *content decoding error* (for `base64` that means malformed input; the `text` path
-     cannot reach it because the size pre-check already handled the only failure mode).
+4. **`cas_add` handler (`fs/cas/mcp/module.f.ts`)** — on `undefined` from `utf8` /
+   `decode`, return a generic *content decoding error* `isError` result. No branching on
+   the cause is needed: the `cas_add` / `cas_get` tool descriptions already document the
+   128 KiB inline limit and point oversized content at `type: 'url'`, so the static
+   message can simply restate that (the content could not be decoded — it may be malformed
+   or above the 128 KiB inline limit; use `type: 'url'` for large content).
 
 Reuse the byte-aligned limit constants already exported from
 `fs/types/bit_vec/module.f.ts` (`maxLength`, `maxLengthBytes`).
@@ -74,9 +74,6 @@ Reuse the byte-aligned limit constants already exported from
 - Exactly which `bit_vec` operations gain the `Vec | undefined` return (the public
   constructor, `concat`, `u8ListToVec`, …) and whether a small shared "checked build"
   helper is cleaner than touching each.
-- Whether the `cas_add` size pre-check computes an exact resulting byte count (exact
-  UTF-8 length / base64 `len*3/4` minus padding) or a cheap conservative upper bound —
-  either is fine as long as it never under-rejects below the real `maxLength`.
 
 ### Tasks
 
@@ -86,9 +83,9 @@ Reuse the byte-aligned limit constants already exported from
       input; signature stays `Nullable<Vec>`.
 - [ ] Make `fs/text` `utf8` return `Vec | undefined` (`undefined` only when the encoded
       length would exceed `maxLength`).
-- [ ] In the `cas_add` handler, pre-check the input string length → oversized message
-      recommending `type: 'url'`; treat a later `undefined` as a generic content
-      decoding error.
+- [ ] In the `cas_add` handler, treat `undefined` from `utf8` / `decode` as a generic
+      content decoding error `isError` (static message that also points at `type: 'url'`
+      for large content).
 - [ ] Add proof tests in `fs/cas/mcp/proof.f.ts`: inline `text` and `base64` content at
       `maxLengthBytes` (stored) and just above (clean `isError` on every engine — not a
       thrown crash and not a silently-stored over-`maxLength` blob).
