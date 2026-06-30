@@ -130,8 +130,14 @@ overflow.
 non-canonical inputs (`AB==`, `AAB=`, …) by verifying the discarded low `removeBits` of
 the last char are zero (the existing `padVec` check, covered by `fs/base64/proof.f.ts`).
 Splitting off the last char does **not** remove that obligation: before appending its
-top `6 - removeBits` data bits, assert `(lastIndex & ((1 << removeBits) - 1)) === 0n`
-and return `null` otherwise — so the size fix does not loosen canonical-form validation.
+top `6 - removeBits` data bits, check the discarded low bits are zero and return `null`
+otherwise — so the size fix does not loosen canonical-form validation. **Keep the mask
+in a single numeric domain.** `lastIndex` (from `alphabet.indexOf`) and
+`removeBits` (`= padChars * 2`, so `0 | 2 | 4`) are both `number`, so the check stays in
+`number`: `(lastIndex & ((1 << removeBits) - 1)) === 0`. (Do **not** write `=== 0n`: a
+`number & number` is a `number`, so comparing it to a `bigint` is always false and would
+wrongly reject valid padded input; conversely `1 << removeBits` with a `bigint`
+`removeBits` would throw. Pick one domain — `number` here, since the values are tiny.)
 
 #### 5. `unwrap` for callers that are provably within the cap
 
