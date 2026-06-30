@@ -91,7 +91,7 @@ string codec built on `listToVec`:
 - `fs/base64` `decode`: **keeps** its `Nullable<Vec>` signature; returns `null` for
   over-`maxLength` input (see step 4).
 
-#### 3. Pure two-vector combinators stay total
+#### 3. Pure combinators (and the structured encoders built on them) stay total
 
 `concat`, `push`, `xor`, `repeat` keep returning `Vec` with a documented
 `len ≤ maxLength` **precondition**, because their output length is a trivial function
@@ -100,6 +100,21 @@ calling — exactly the existing pattern in `cas`'s `collectRead`, which guards
 `bitVecLength(acc) + bitVecLength(v) > maxLength` before `msb.concat`. Making every
 combinator partial would thread null checks through all bit-vector algebra and defeat
 the simplicity goal.
+
+**`fs/asn.1` belongs in this category, not in the "statically bounded" list.** Its
+encoders (`encodeRaw` / `encode` / `encodeSequence` / `encodeSet` /
+`encodeObjectIdentifier`) wrap *caller-supplied* payloads — an `OCTET STRING` or a
+`SEQUENCE` can be near `maxLength` — so they are **not** fixed-size. But like the
+combinators they are built on, their output length is a known function of their inputs
+(`tag + length-prefix + Σ payload`), so they keep the same documented `len ≤ maxLength`
+precondition and `unwrap` the now-`Nullable` `listToVec` to assert it. A precondition
+violation throws (engine-independently) exactly as a too-long `concat` would — that is
+the intended contract for the total layer, and it is **not reachable from `cas_add`**,
+whose payloads route through the `Nullable` boundary in steps 2/6/7. Document the
+precondition on the public asn.1 encoders. (If a future caller must encode genuinely
+unbounded `OCTET STRING` payloads, the encoders should become `Nullable<Vec>` and
+propagate — a separate change, called out so it is a conscious decision rather than a
+silent `unwrap`.)
 
 #### 4. `fs/base64` `decode` builds only the trimmed length
 
@@ -132,10 +147,10 @@ total signatures:
 - `fs/sul/id` IV seed (`utf8` of a fixed 32-byte literal) and `fs/sul/id` /
   `fs/sul/level/literal` `listToVec(...)` over fixed-size ids / hashes;
 - `fs/types/uint8array` `toVec` (size already checked above) and `listToVec`
-  (already throws on the over-cap case today — keep that, via `unwrap`);
-- `fs/asn.1` TLV encoders (`listToVec([...])` in `idEncode` / `lenEncode` / `encode` /
-  the OID and record builders) — bounded *in this codebase's crypto usage*; if asn.1
-  later encodes unbounded `OCTET STRING` payloads, revisit (see note below).
+  (already throws on the over-cap case today — keep that, via `unwrap`).
+
+(`fs/asn.1` is deliberately **not** here — its payloads are caller-supplied, so it is a
+precondition-bearing combinator, handled in step 3 above.)
 
 Test files (`proof.f.ts`) follow the same rule — `unwrap` / `!` on known-small fixtures.
 
@@ -209,8 +224,12 @@ to total only where correctness guarantees it.
       length would exceed `maxLength`).
 - [ ] `unwrap` at the *statically bounded* `listToVec` / `u8ListToVec` / `utf8`
       consumers only: `fs/crypto/sign`, `fs/sul/id`, `fs/sul/level/literal`,
-      `fs/types/uint8array`, `fs/asn.1`. (`fs/base_n` `stringToVec` already propagates
-      `Nullable`.)
+      `fs/types/uint8array`. (`fs/base_n` `stringToVec` already propagates `Nullable`.)
+- [ ] `fs/asn.1`: keep the encoders total but document their `len ≤ maxLength`
+      precondition (output = `tag + length + Σ payload`); `unwrap` the `Nullable`
+      `listToVec` to assert it. Caller-supplied payloads make these *precondition*
+      sites, not fixed-size ones; revisit (make `Nullable`) only if asn.1 must encode
+      unbounded `OCTET STRING` payloads.
 - [ ] Handle `null` (do **not** `unwrap`) at the unbounded consumers:
       `fs/effects/node` `writeUtf8File` → return an `IoResult` `error`; `writeString` /
       `fs/mcp/stdio` `writeResponse` / `fs/html` `htmlUtf8` / `fs/text/sgr` → propagate or
