@@ -299,14 +299,18 @@ type UnpackConcat = (a: Unpacked) => (b: Unpacked) => Unpacked
 
 type ListToVecState = readonly Unpacked[]
 
-type ListToVecOp = {
-    update: (v: Unpacked, state: ListToVecState) => ListToVecState
-    end: (state: ListToVecState) => Unpacked
+type Accumulator<I, T> = {
+    init: T
+    update: (i: I, state: T) => T
+    end: (state: T) => I
 }
+
+type ListToVecOp = Accumulator<Unpacked, ListToVecState>
 
 const listToVecOp =
     (unpackConcat: UnpackConcat): ListToVecOp =>
 ({
+    init: [],
     update: (v, state) => {
         let i = 0
         while (true) {
@@ -346,9 +350,9 @@ const listToVecOp =
  * (Java, C#) or `strings.Builder` (Go).
  */
 const unpackListToVec = (unpackConcat: UnpackConcat) => {
-    const { update, end } = listToVecOp(unpackConcat)
+    const { init, update, end } = listToVecOp(unpackConcat)
     return (list: List<Unpacked>): Unpacked => {
-        let result: readonly Unpacked[] = []
+        let result: ListToVecState = init
         for (const e of iterable(list)) {
             result = update(e, result)
         }
