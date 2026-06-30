@@ -399,9 +399,8 @@ export const proof = {
         }
     },
     tryListToVecOverflow: () => {
-        // A single chunk one bit past `maxLength`; `tryListToVec` should bail
-        // out and report `null` instead of building an oversized `bigint`.
-        const list: List<Vec> = { first: vec(maxLength + 1n)(1n), tail: null }
+        const chunk = vec(maxLength)(1n)
+        const list: List<Vec> = [vec(maxLength)(1n), vec(1n)(1n)]
         assertEq(lsb.tryListToVec(list), null)
         assertEq(msb.tryListToVec(list), null)
     },
