@@ -2,7 +2,9 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** —
+**Blocked by:** `fs/base64/todo/decode-rejects-max-size-input.md` — the exact-`maxLengthBytes`
+base64 *success* case only; the handler change and the over-cap → `decoding error`
+behaviour do not depend on it.
 
 ### Scope
 
@@ -19,9 +21,18 @@ is already in place:
 - `fs/base64/module.f.ts` `decode` returns `null` for over-`maxLength` input
   (its `stringToVec` core is now `Nullable`) as well as for malformed input.
 
-The two remaining base64 edge cases are tracked separately and are **out of scope
-here**: `fs/base64/todo/encode-padding-overflow.md` and
-`fs/base64/todo/decode-rejects-max-size-input.md`.
+Two known base64 padding / `maxLength` edge cases are tracked in their own todos and
+are **not fixed by this handler change**:
+
+- `fs/base64/todo/encode-padding-overflow.md` — `encode` can silently pad an
+  at-the-ceiling `Vec` past `maxLength`. Unrelated to `cas_add` decode and out of
+  scope here.
+- `fs/base64/todo/decode-rejects-max-size-input.md` — `decode` measures the *raw*,
+  pre-trim 6-bit body against `maxLength`, so a valid exactly-`maxLengthBytes`
+  payload (whose post-trim length lands back at `maxLength`) returns `null` before
+  `cas_add` ever sees it. **This is a prerequisite for the exact-size base64
+  *success* requirement below** (see Tasks); until it lands, that boundary input
+  surfaces as the generic `decoding error` rather than storing cleanly.
 
 ### Problem
 
@@ -64,14 +75,19 @@ bounded, and collapse both failure causes into a single generic *decoding error*
 
    This replaces the current `invalid base64 content: ${content}` string.
 
-3. **Additional up-front check (optional, cheap).** Before decoding, a UTF-16
-   `content.length` is a fast lower bound on the encoded byte length; an explicit
-   guard can short-circuit the obvious over-cap case with the same `decoding
-   error` before building any `Vec`. The authoritative check stays the `null`
-   from `tryUtf8` / `base64Decode` (UTF-8 expansion and base64's 3/4 ratio mean
-   string length alone is not exact), so this is only an optimisation, not a
-   correctness requirement. Reuse the limit constants already exported from
-   `fs/types/bit_vec/module.f.ts` (`maxLength`, `maxLengthBytes`).
+3. **Additional up-front check (optional, cheap) — `text` only.** For `text`,
+   the UTF-16 `content.length` is a valid *lower* bound on the UTF-8 byte length
+   (every UTF-16 code unit is ≥ 1 UTF-8 byte, and surrogate pairs only widen the
+   ratio), so `content.length > maxLengthBytes` is a sound early reject with the
+   same `decoding error` before building any `Vec`. **Do not apply this to
+   `base64`:** there `content.length` is ≈ 4/3 of the decoded byte count, so
+   testing it against `maxLengthBytes` would wrongly reject valid blobs above
+   ~96 KiB but under the cap. For `base64`, rely on `base64Decode`'s `null` (or
+   derive the exact decoded byte length from the body length and padding count if
+   an early check is wanted). Either way this is only an optimisation — the
+   authoritative check stays the `null` from `tryUtf8` / `base64Decode`. Reuse the
+   limit constants already exported from `fs/types/bit_vec/module.f.ts`
+   (`maxLength`, `maxLengthBytes`).
 
 `cas_add` never `unwrap`s the inline `Vec`: the over-cap signal ends only as the
 `isError` result above. (`type: 'url'` is unaffected — it already streams.)
@@ -86,12 +102,20 @@ bounded, and collapse both failure causes into a single generic *decoding error*
       cause-branching).
 - [ ] Confirm imports: bring in `tryUtf8` from `fs/text/module.f.ts`; remove the
       now-unused `utf8` import if nothing else uses it.
-- [ ] Proof tests `fs/cas/mcp/proof.f.ts`: inline `text` and `base64` at exactly
-      `maxLengthBytes` (stored cleanly) and one byte over (clean `isError` on
-      every engine — not a thrown crash, not a silently-stored over-`maxLength`
-      blob). Add a `base64OfA(n)` helper spelling out base64 of `n` ASCII `'a'`
-      bytes for every `n % 3` residue, so the boundary sample never drives the
-      encoder past `maxLength`.
+- [ ] Proof tests `fs/cas/mcp/proof.f.ts`:
+      - `text` at exactly `maxLengthBytes` stores cleanly, and one byte over →
+        clean `isError` on every engine (not a thrown crash, not a
+        silently-stored over-`maxLength` blob). This works with the handler change
+        alone.
+      - `base64` one byte over → clean `isError` on every engine.
+      - `base64` at exactly `maxLengthBytes` stores cleanly — **gated on
+        `fs/base64/todo/decode-rejects-max-size-input.md`**. Until that fix lands,
+        assert the current behaviour (this boundary input returns the generic
+        `decoding error`); flip it to the success assertion once the decoder fix
+        merges.
+      - Add a `base64OfA(n)` helper spelling out base64 of `n` ASCII `'a'` bytes
+        for every `n % 3` residue, so the boundary sample never drives the encoder
+        past `maxLength`.
 - [ ] Confirm the inline-limit wording in `fs/cas/mcp/README.md` and the `cas_add`
       tool description still matches the implemented behaviour.
 
@@ -105,6 +129,8 @@ bounded, and collapse both failure causes into a single generic *decoding error*
 - `fs/types/bit_vec/module.f.ts` — `tryListToVec` / `tryU8ListToVec` bounded core;
   `maxLength` / `maxLengthBytes` constants.
 - `fs/types/nullable/module.f.ts` — `unwrap` / `mapUnwrap`.
-- `fs/base64/todo/encode-padding-overflow.md`,
-  `fs/base64/todo/decode-rejects-max-size-input.md` — the remaining codec edge
-  cases, tracked separately.
+- `fs/base64/todo/decode-rejects-max-size-input.md` — **prerequisite** for the
+  exact-`maxLengthBytes` base64 success case (decode measures the pre-trim body
+  against `maxLength`).
+- `fs/base64/todo/encode-padding-overflow.md` — related base64 padding /
+  `maxLength` edge case on the `encode` side; not exercised by `cas_add` decode.
