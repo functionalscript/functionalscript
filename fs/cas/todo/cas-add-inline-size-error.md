@@ -126,6 +126,13 @@ last char. A `maxLengthBytes` blob's full `body.length * 6` is `targetLen + remo
 last char keeps the largest intermediate vector at exactly `targetLen` bits and avoids
 overflow.
 
+**Preserve the RFC 4648 §3.5 padding-bit check.** The current decoder rejects
+non-canonical inputs (`AB==`, `AAB=`, …) by verifying the discarded low `removeBits` of
+the last char are zero (the existing `padVec` check, covered by `fs/base64/proof.f.ts`).
+Splitting off the last char does **not** remove that obligation: before appending its
+top `6 - removeBits` data bits, assert `(lastIndex & ((1 << removeBits) - 1)) === 0n`
+and return `null` otherwise — so the size fix does not loosen canonical-form validation.
+
 #### 5. `unwrap` for callers that are provably within the cap
 
 Add a generic helper to `fs/types/nullable/module.f.ts`:
@@ -219,7 +226,8 @@ to total only where correctness guarantees it.
       `null`).
 - [ ] `fs/base64/module.f.ts` `decode`: return `null` (not throw) for over-`maxLength`
       input; build only the trimmed `targetLen` bits so a `maxLengthBytes` blob does not
-      overflow; signature stays `Nullable<Vec>`.
+      overflow; **keep the RFC 4648 §3.5 padding-bit-zero check** (still reject
+      non-canonical `AB==` / `AAB=`); signature stays `Nullable<Vec>`.
 - [ ] `fs/text/module.f.ts` `utf8`: return `Nullable<Vec>` (`null` only when the encoded
       length would exceed `maxLength`).
 - [ ] `unwrap` at the *statically bounded* `listToVec` / `u8ListToVec` / `utf8`
