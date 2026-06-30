@@ -399,7 +399,6 @@ export const proof = {
         }
     },
     tryListToVecOverflow: () => {
-        const chunk = vec(maxLength)(1n)
         const list: List<Vec> = [vec(maxLength)(1n), vec(1n)(1n)]
         assertEq(lsb.tryListToVec(list), null)
         assertEq(msb.tryListToVec(list), null)
