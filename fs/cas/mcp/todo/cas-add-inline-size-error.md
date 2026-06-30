@@ -122,7 +122,11 @@ bounded, and collapse both failure causes into a single generic *decoding error*
 ### Related
 
 - `fs/cas/mcp/module.f.ts` — the `cas_add` handler (and the `cas_get`
-  `content: true` oversized-blob guard, already implemented, that it mirrors).
+  `content: true` oversized-blob guard it mirrors).
+- `fs/cas/mcp/todo/cas-get-response-overflow.md` — the output-side counterpart:
+  `cas_get`'s guard checks raw blob length, not the serialized response, so a
+  `maxLengthBytes` blob can still overflow `maxLength` once base64-inflated and
+  JSON-wrapped.
 - `fs/text/module.f.ts` — `tryUtf8` (non-throwing) vs total `utf8`.
 - `fs/base64/module.f.ts` — `decode` returns `null` on malformed **and**
   over-`maxLength` input.
