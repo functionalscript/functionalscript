@@ -42,7 +42,7 @@ export const tryUtf8 = (s: string): Nullable<Utf8> =>
  * @returns The resulting UTF-8 bit vector, MSB first.
  */
 export const utf8 =
-    mapUnwrap(tryU8ListToVecMsb)
+    mapUnwrap(tryUtf8)
 
 /**
  * Converts a UTF-8 bit vector with MSB first encoding to a string.
