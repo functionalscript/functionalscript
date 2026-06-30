@@ -5,10 +5,11 @@
  *
  * @module
  */
-import { msb, u8List, u8ListToVec, type Vec } from '../types/bit_vec/module.f.ts'
+import { msb, tryU8ListToVec, u8List, type Vec } from '../types/bit_vec/module.f.ts'
 import { flatMap, type List } from '../types/list/module.f.ts'
 import { fromCodePointList, toCodePointList } from './utf8/module.f.ts'
 import { stringToCodePointList, codePointListToString } from './utf16/module.f.ts'
+import { mapUnwrap, type Nullable } from '../types/nullable/module.f.ts'
 
 export type Block = ItemThunk | ItemArray
 
@@ -27,9 +28,20 @@ export const flat = (indent: string): (text: Block) => List<string> => {
     return f('')
 }
 
-const u8ListToVecMsb = u8ListToVec(msb)
+const tryU8ListToVecMsb = tryU8ListToVec(msb)
 
 export type Utf8 = Vec
+
+/**
+ * Converts a string to an UTF-8, represented as an MSB first bit vector,
+ * returning `null` instead of throwing if the result would exceed
+ * `maxLength`.
+ *
+ * @param s The input string to be converted.
+ * @returns The resulting UTF-8 bit vector, MSB first, or `null` on overflow.
+ */
+export const tryUtf8 = (s: string): Nullable<Utf8> =>
+    tryU8ListToVecMsb(fromCodePointList(stringToCodePointList(s)))
 
 /**
  * Converts a string to an UTF-8, represented as an MSB first bit vector.
@@ -37,8 +49,8 @@ export type Utf8 = Vec
  * @param s The input string to be converted.
  * @returns The resulting UTF-8 bit vector, MSB first.
  */
-export const utf8 = (s: string): Utf8 =>
-    u8ListToVecMsb(fromCodePointList(stringToCodePointList(s)))
+export const utf8 =
+    mapUnwrap(tryUtf8)
 
 /**
  * Converts a UTF-8 bit vector with MSB first encoding to a string.
