@@ -22,13 +22,13 @@
  * @module
  */
 import { bitLength, divUp, mask, maxLength, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
-import { flip, identity } from '../function/module.f.ts'
+import { flip, fn, identity } from '../function/module.f.ts'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
 import { iterable, map, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
 import { cmp, max, min, type Sign } from '../function/compare/module.f.ts'
-import { unwrap, type Nullable } from '../nullable/module.f.ts'
+import { mapUnwrap, unwrap, type Nullable } from '../nullable/module.f.ts'
 
 /**
  * A vector of bits represented as a signed `bigint`.
@@ -254,6 +254,7 @@ export type BitOrder = {
      * ```
      */
     readonly concat: Reduce
+    readonly tryListToVec: (list: List<Vec>) => Nullable<Vec>
     /**
      * Folds a list of vectors into a single vector in this bit order.
      *
@@ -392,11 +393,14 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
         const bu = unpack(b)
         return pack(unpackConcat(au)(bu))
     }
+    const tryListToVec = (list: List<Vec>) =>
+        unpackListToVec(unpackConcat)(map(unpack)(list))
     return {
         front,
         removeFront,
         concat,
-        listToVec: list => unwrap(unpackListToVec(unpackConcat)(map(unpack)(list))),
+        tryListToVec,
+        listToVec: mapUnwrap(tryListToVec),
         xor: op(norm)(xor),
         unpackPopFront,
         popFront,
@@ -473,6 +477,10 @@ export const msb: BitOrder = bo({
     unpackConcatUint: flip(lsbUnpackConcatUint),
 })
 
+export const tryU8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>): Nullable<Vec> =>
+    unpackListToVec(unpackConcat)(
+        map((b: number): Unpacked => ({ length: 8n, uint: BigInt(b) }))(list))
+
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
  *
@@ -480,9 +488,8 @@ export const msb: BitOrder = bo({
  * @param list The list of unsigned 8-bit integers to be converted.
  * @returns The resulting vector based on the provided bit order.
  */
-export const u8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>): Vec =>
-    unwrap(unpackListToVec(unpackConcat)(
-        map((b: number): Unpacked => ({ length: 8n, uint: BigInt(b) }))(list)))
+export const u8ListToVec = (bo: BitOrder) =>
+    mapUnwrap(tryU8ListToVec(bo))
 
 const unpackChunkList = ({ unpackSplit }: BitOrder) => (n: bigint): (u: Unpacked) => Thunk<Unpacked> => {
     const divUpN2 = divUp(n << 1n)
