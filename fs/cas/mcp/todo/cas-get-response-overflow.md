@@ -31,11 +31,13 @@ response** can still exceed `maxLength`, for two compounding reasons:
   escaped **once** when `toJson` builds it, and **again** when the outer
   `stringifyJson` embeds it as `text`'s value. For `type: 'text'` content
   containing quotes, backslashes, or control characters, each such character
-  can expand up to ~4× by the time both escaping passes are done (e.g. a
-  literal `"` → `\"` after the inner pass → `\\\"` after the outer pass). A
-  guard that sizes only the *inner* CAS JSON/raw content therefore still
-  underestimates the final line for adversarial text and can let a payload
-  through whose final line exceeds `maxLength`.
+  can expand by the time both escaping passes are done — a literal quote
+  expands 1 byte into 4, and a control byte such as NUL expands 1 byte into
+  7 (a 6-character `\u00XX` escape on the inner pass, whose own backslash is
+  re-escaped on the outer pass). A guard that sizes only the *inner* CAS
+  JSON/raw content therefore still underestimates the final line for
+  adversarial text and can let a payload through whose final line exceeds
+  `maxLength`.
 - The transport then encodes the *whole response line* as one `Vec`:
   `writeResponse` calls `utf8(stringifyJson(resp) + '\n')`, using the
   **total** `utf8` (the `mapUnwrap` wrapper around `tryUtf8`). When the
@@ -72,14 +74,19 @@ that serialization. So:
      JSON needs to escape, so `ceil(length / 3) * 4` bytes plus the fixed
      envelope overhead is already a tight, correct bound — no multiplier
      needed here.
-   - `type: 'text'`: a single inner-JSON-escaped character (`"`, `\`, or a
-     control character) can itself need escaping again once embedded in the
-     outer envelope's `text` field (see Problem). Use a conservative
-     worst-case multiplier (4×, matching the `"` → `\"` → `\\\"` chain) on
-     `length` rather than trying to special-case which characters are
-     present; this trades some false positives (an oversized-looking but
-     actually-fine text blob gets the early `errorResult` instead of
-     succeeding) for a bound that cannot be wrong in the unsafe direction.
+   - `type: 'text'`: a single inner-JSON-escaped character can itself need
+     escaping again once embedded in the outer envelope's `text` field (see
+     Problem), and the worst case is **not** the quote/backslash characters
+     (those only expand 1 byte into 4). A raw control byte such as NUL
+     becomes a 6-character escape on the inner pass (a backslash, the
+     letter `u`, and four hex digits), and that escape's single backslash
+     is itself re-escaped on the outer pass (one backslash becomes two),
+     giving 7 bytes total for one raw input byte. Use a conservative
+     worst-case multiplier of **7x** (not 4x) on `length` rather than
+     trying to special-case which characters are present; this trades some
+     false positives (an oversized-looking but actually-fine text blob
+     gets the early `errorResult` instead of succeeding) for a bound that
+     cannot be wrong in the unsafe direction.
    Treat this as a cheap optimisation that returns the existing
    `errorResult` sooner with a clearer message — (1) remains the backstop
    that must hold even if this estimate is off.
@@ -97,8 +104,8 @@ input-side handling.
 - [ ] `fs/cas/mcp/module.f.ts` `cas_get`: replace the raw `length >
       maxLengthBytes` check (the `content: true` branch) with a conservative
       check against the *escaped* response size: exact `ceil(length/3)*4` +
-      envelope for `base64`; `length × 4` (worst-case escaping) + envelope for
-      `text`.
+      envelope for `base64`; `length * 7` (worst-case control-character
+      double-escaping) + envelope for `text`.
 - [ ] Proof tests: `fs/cas/mcp/proof.f.ts`
       - A binary blob at exactly `maxLengthBytes` requested with
         `content: true` returns a clean `isError` (not a crash) once its
