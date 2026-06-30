@@ -28,7 +28,7 @@ import { iterable, map, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
 import { cmp, max, min, type Sign } from '../function/compare/module.f.ts'
-import type { Nullable } from '../nullable/module.f.ts'
+import { unwrap, type Nullable } from '../nullable/module.f.ts'
 
 /**
  * A vector of bits represented as a signed `bigint`.
@@ -297,11 +297,14 @@ const unpackEmpty = { length: 0n, uint: 0n } as const
 
 type UnpackConcat = (a: Unpacked) => (b: Unpacked) => Unpacked
 
-type ListToVecState = readonly Unpacked[]
+type ListToVecState = {
+    readonly len: bigint
+    readonly stack: readonly Unpacked[]
+}
 
 type Accumulator<I, T> = {
     init: T
-    update: (i: I, state: T) => T
+    update: (i: I, state: T) => Nullable<T>
     end: (state: T) => I
 }
 
@@ -310,26 +313,28 @@ type ListToVecOp = Accumulator<Unpacked, ListToVecState>
 const listToVecOp =
     (unpackConcat: UnpackConcat): ListToVecOp =>
 ({
-    init: [],
-    update: (v, state) => {
+    init: { len: 0n, stack: [] },
+    update: (v, {len, stack}) => {
+        len += v.length
+        if (len > maxLength) { return null }
         let i = 0
         while (true) {
-            if (state.length <= i) {
-                state = [...state, v]
+            if (stack.length <= i) {
+                stack = [...stack, v]
                 break
             }
-            const old = state[i]
+            const old = stack[i]
             if (old.length === 0n) {
-                state = state.toSpliced(i, 1, v)
+                stack = stack.toSpliced(i, 1, v)
                 break
             }
-            state = state.toSpliced(i, 1, unpackEmpty)
+            stack = stack.toSpliced(i, 1, unpackEmpty)
             v = unpackConcat(old)(v)
             i++
         }
-        return state
+        return { len, stack }
     },
-    end: state => state.reduce((p, c) => unpackConcat(c)(p), unpackEmpty)
+    end: ({stack}) => stack.reduce((p, c) => unpackConcat(c)(p), unpackEmpty)
 })
 
 /**
@@ -351,10 +356,12 @@ const listToVecOp =
  */
 const unpackListToVec = (unpackConcat: UnpackConcat) => {
     const { init, update, end } = listToVecOp(unpackConcat)
-    return (list: List<Unpacked>): Unpacked => {
+    return (list: List<Unpacked>): Nullable<Unpacked> => {
         let result: ListToVecState = init
         for (const e of iterable(list)) {
-            result = update(e, result)
+            const candidate = update(e, result)
+            if (candidate === null) { return null }
+            result = candidate
         }
         return end(result)
     }
@@ -389,7 +396,7 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
         front,
         removeFront,
         concat,
-        listToVec: list => pack(unpackListToVec(unpackConcat)(map(unpack)(list))),
+        listToVec: list => pack(unwrap(unpackListToVec(unpackConcat)(map(unpack)(list)))),
         xor: op(norm)(xor),
         unpackPopFront,
         popFront,
@@ -474,8 +481,8 @@ export const msb: BitOrder = bo({
  * @returns The resulting vector based on the provided bit order.
  */
 export const u8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>): Vec =>
-    pack(unpackListToVec(unpackConcat)(
-        map((b: number): Unpacked => ({ length: 8n, uint: BigInt(b) }))(list)))
+    pack(unwrap(unpackListToVec(unpackConcat)(
+        map((b: number): Unpacked => ({ length: 8n, uint: BigInt(b) }))(list))))
 
 const unpackChunkList = ({ unpackSplit }: BitOrder) => (n: bigint): (u: Unpacked) => Thunk<Unpacked> => {
     const divUpN2 = divUp(n << 1n)
