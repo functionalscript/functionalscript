@@ -48,8 +48,24 @@ This builds on the current fast many-into-one concatenation
 (`fs/types/bit_vec/module.f.ts`, the O(n log n) binary-counter `unpackListToVec` from
 [#1192](https://github.com/functionalscript/functionalscript/pull/1192)). Put the cap
 check in **exactly one place** — `unpackListToVec` — and let `null` flow up the build
-chain. Convert `null` back to a plain `Vec` only where the caller can *prove* the result
-is within the cap, via an explicit `unwrap`/`assert` helper rather than a bare `!`.
+chain.
+
+**Propagation is the default; `unwrap` is the rare exception.** Earlier drafts tried to
+list which consumers were "bounded enough" to `unwrap`; review repeatedly found a real
+caller proving each one wasn't (`writeUtf8File`/`writeResponse` → arbitrary content,
+`asn.1` → caller payloads, `uint8array.listToVec` → HTTP request bodies). So invert the
+rule:
+
+> Every function whose output `Vec` length is **data-derived** — it builds from a list,
+> string, or structure whose size comes from runtime input — returns `Nullable<Vec>` and
+> threads the `null` to *its* caller. The over-cap signal only stops being `Nullable` in
+> two places: (a) at an **I/O / protocol boundary**, where it is turned into a typed
+> error (MCP `isError`, `IoResult` `error`, HTTP 413); or (b) at an **`unwrap`**, allowed
+> *only* when the output length is **fixed by the algorithm** (independent of input size)
+> or the input is a **source literal**.
+
+This way a newly-discovered unbounded caller needs no plan change — it is already
+`Nullable` and the type-checker forces its own caller to handle the `null`.
 
 #### 1. One bounded core: `unpackListToVec` returns `Nullable<Unpacked>`
 
@@ -91,30 +107,28 @@ string codec built on `listToVec`:
 - `fs/base64` `decode`: **keeps** its `Nullable<Vec>` signature; returns `null` for
   over-`maxLength` input (see step 4).
 
-#### 3. Pure combinators (and the structured encoders built on them) stay total
+#### 3. The dividing line: two-vector *algebra primitives* stay total; *builders* propagate
 
-`concat`, `push`, `xor`, `repeat` keep returning `Vec` with a documented
-`len ≤ maxLength` **precondition**, because their output length is a trivial function
-the caller already knows (`len(a)+len(b)`, `len+1`) and can check cheaply *before*
-calling — exactly the existing pattern in `cas`'s `collectRead`, which guards
-`bitVecLength(acc) + bitVecLength(v) > maxLength` before `msb.concat`. Making every
-combinator partial would thread null checks through all bit-vector algebra and defeat
-the simplicity goal.
+Only the bottom-layer **algebra primitives** that combine *already-built* vectors stay
+total — `concat`, `push`, `xor`, `repeat` — each returning `Vec` with a documented
+`len ≤ maxLength` **precondition**, because their output length is a trivial function of
+their already-known operands (`len(a)+len(b)`, `len+1`) that the immediate caller can
+check *before* calling (the existing `collectRead` pattern: guard
+`bitVecLength(acc) + bitVecLength(v) > maxLength` before `msb.concat`). The bounded core
+of step 1 already enforces the cap for the *list* builders, so these primitives don't
+re-check; making them partial would thread `null` through every bit-vector expression
+and defeat the simplicity goal.
 
-**`fs/asn.1` belongs in this category, not in the "statically bounded" list.** Its
-encoders (`encodeRaw` / `encode` / `encodeSequence` / `encodeSet` /
-`encodeObjectIdentifier`) wrap *caller-supplied* payloads — an `OCTET STRING` or a
-`SEQUENCE` can be near `maxLength` — so they are **not** fixed-size. But like the
-combinators they are built on, their output length is a known function of their inputs
-(`tag + length-prefix + Σ payload`), so they keep the same documented `len ≤ maxLength`
-precondition and `unwrap` the now-`Nullable` `listToVec` to assert it. A precondition
-violation throws (engine-independently) exactly as a too-long `concat` would — that is
-the intended contract for the total layer, and it is **not reachable from `cas_add`**,
-whose payloads route through the `Nullable` boundary in steps 2/6/7. Document the
-precondition on the public asn.1 encoders. (If a future caller must encode genuinely
-unbounded `OCTET STRING` payloads, the encoders should become `Nullable<Vec>` and
-propagate — a separate change, called out so it is a conscious decision rather than a
-silent `unwrap`.)
+**Everything that builds a vector from a collection, string, or structure — not just two
+known operands — is a *builder* and returns `Nullable<Vec>`.** That includes the
+`fs/asn.1` encoders (`encode` / `encodeRaw` / `encodeSequence` / `encodeSet` /
+`encodeObjectIdentifier` / `lenEncode` / `parsedTagEncode`): they wrap *caller-supplied*
+payloads (an `OCTET STRING` or `SEQUENCE` can be near `maxLength`), and they're built on
+the now-`Nullable` `listToVec`, so they **propagate** the `null` through the recursive
+`encode` (threading it with the `fs/types/nullable` helpers) rather than `unwrap`-ing it.
+The boundary that finally consumes asn.1's `Nullable` is wherever asn.1 output is written
+or returned. (`encodeBoolean` / `encodeInteger` / `encodeOctetString` stay total — they
+produce a `Vec` of trivially-known size from a scalar, like the algebra primitives.)
 
 #### 4. `fs/base64` `decode` builds only the trimmed length
 
@@ -139,7 +153,7 @@ in a single numeric domain.** `lastIndex` (from `alphabet.indexOf`) and
 wrongly reject valid padded input; conversely `1 << removeBits` with a `bigint`
 `removeBits` would throw. Pick one domain — `number` here, since the values are tiny.)
 
-#### 5. `unwrap` for callers that are provably within the cap
+#### 5. `unwrap` — the rare exception (algorithm-fixed size or source literal)
 
 Add a generic helper to `fs/types/nullable/module.f.ts`:
 
@@ -150,65 +164,57 @@ export const unwrap = <T>(value: Nullable<T>): T => {
 }
 ```
 
-Use `unwrap` (not a bare `!`) **only** at call sites whose input is *statically*
-bounded, so a violated invariant fails loudly **at its source** instead of letting
-`null` flow into a confusing downstream crash. These call sites keep their existing
-total signatures:
+`unwrap` (not a bare `!`, which only silences the type-checker) is allowed at a call
+site **only** when the output length cannot depend on input size — so the `null` branch
+is provably dead — and a violation should therefore fail loudly at its source. Two
+admissible cases:
 
-- `fs/crypto/sign` `concat` (`(...x) => unwrap(listToVec(x))` — fixed-size curve
-  scalars / hashes);
-- `fs/sul/id` IV seed (`utf8` of a fixed 32-byte literal) and `fs/sul/id` /
-  `fs/sul/level/literal` `listToVec(...)` over fixed-size ids / hashes;
-- `fs/types/uint8array` `toVec` — it already **enforces its own explicit precondition**
-  (`if (input.length > maxLengthBytes) throw …`) *before* building, so the `unwrap` after
-  that guard cannot fire; this is the "document/enforce a real maximum" pattern, not a
-  blanket unwrap of unchecked input.
+- **Algorithm-fixed size.** `fs/crypto/sign` `concat` joins a *fixed* number of
+  *fixed-size* curve scalars / octet strings (≤ a few hundred bytes, set by the curve,
+  never by user data); `fs/sul/id`'s id hash is a fixed 40-byte structure. These
+  `unwrap(listToVec(...))` and keep their total `Vec` signatures.
+- **Source literal.** `fs/sul/id`'s IV seed is `utf8` of a 32-char string literal in the
+  source; test fixtures (`proof.f.ts`) are known-small literals. `unwrap` / `!` there.
 
-(`fs/asn.1` is deliberately **not** here — its payloads are caller-supplied, so it is a
-precondition-bearing combinator, handled in step 3 above. `fs/types/uint8array`
-`listToVec` is **not** here either — its Node HTTP-runner caller feeds it arbitrary
-request bodies, so it is an unbounded consumer; see step 6.)
+Anything whose size is **data-derived** — even if "usually small" — does **not** qualify
+and must propagate instead (step 6). When unsure, propagate: the type-checker then forces
+the next caller to decide, which is exactly the safety we want. (`fs/sul/level/literal`'s
+`listToVec(m(decode(literal)))` is only `unwrap`-able if a SUL literal token is bounded
+*by construction*; if not, propagate it like any other builder.)
 
-Test files (`proof.f.ts`) follow the same rule — `unwrap` / `!` on known-small fixtures.
+#### 6. Propagate `Nullable` through every data-dependent consumer; resolve it at the boundary
 
-#### 6. Consumers whose input is NOT statically bounded — handle `null`, do not `unwrap`
+Each consumer below builds from data-derived input, so it returns `Nullable<Vec>` (or
+threads a `null` it received). The signal is resolved into a typed error only at the
+outermost I/O / protocol boundary:
 
-Some `utf8` consumers serialize **arbitrary-size** content, so `unwrap` there would just
-move the crash, not fix it (raised in review: a `cas_get` `content: true` response for a
-`maxLengthBytes` *text* blob is already 131072 bytes **plus** the JSON/base64 envelope,
-so the serialized response line exceeds `maxLength` even though the blob itself is at the
-cap). These must convert `null` into a real error or be made size-independent:
-
-- **`fs/effects/node` `writeUtf8File(path, content)`** — has an error channel
+- **`fs/types/uint8array` `toVec` and `listToVec`** → `Nullable<Vec>` (drop the current
+  `throw`; the `null` *is* the over-cap signal). The Node HTTP `createServer` runner
+  (`fs/effects/node/module.ts`, `body: listToVec(reqBody)`) collects an arbitrary-size
+  request body, so on `null` it returns an error response (e.g. HTTP 413) instead of
+  letting a throw escape the handler.
+- **`fs/asn.1` encoders** → `Nullable<Vec>`, propagated through the recursive `encode`
+  (step 3). Resolved wherever the DER bytes are written/returned.
+- **`fs/effects/node` `writeUtf8File(path, content)`** → has an error channel
   (`Effect<WriteFile, IoResult<void>>`): on `utf8(content) === null` return an
-  `IoResult` `error` instead of writing, so an over-cap write fails loudly rather than
-  silently truncating to empty bytes.
+  `IoResult` `error` instead of silently writing empty bytes.
 - **`fs/effects/node` `writeString` (backs `log` / `error`) and `fs/mcp/stdio`
   `writeResponse`** — channel-less (`Effect<…, void>`) and inherently unbounded. The
-  `write` / `writeFile` primitives take a single `Vec`, so today *any* > 128 KiB
-  console line or MCP response is already unencodable; making `utf8` `Nullable` only
-  surfaces that. The correct fix is to make the write primitive accept a **chunked byte
-  stream** (size-independent, mirroring the streaming `cas_get` *metadata* path), so
-  encoding is no longer capped by one `Vec`. Until that lands, the immediately
-  actionable guard is in `cas_get`:
-- **`fs/cas/mcp` `cas_get` `content: true`** — its current guard rejects blobs whose
-  *raw* length exceeds `maxLengthBytes`, but the **serialized response** (base64 ≈ 4/3×
-  plus the JSON envelope) can still exceed `maxLength` and become unwritable. Tighten the
-  guard to bound the *response* it is about to emit (or stream it), so the transport is
-  never handed more than one `Vec`. This is the concrete bug the review flagged.
-- **`fs/html` `htmlUtf8` and `fs/text/sgr` `csiWrite`** — also take arbitrary content;
-  propagate `Nullable` (or document the cap) rather than `unwrap`, per the same rule.
-- **`fs/types/uint8array` `listToVec` and its Node HTTP-runner caller** — the impure
-  `createServer` runner (`fs/effects/node/module.ts`, `body: listToVec(reqBody)`)
-  collects an **arbitrary-size request body** and feeds it to `listToVec`. So
-  `listToVec` must propagate `Nullable<Vec>` rather than throw, and the runner must map a
-  `null` body (request > 128 KiB) to an error response (e.g. HTTP 413) instead of letting
-  the throw escape the request handler. (`toVec` stays total — it has its own explicit
-  size guard, step 5.)
+  `write` / `writeFile` primitives take a single `Vec`, so today *any* > 128 KiB console
+  line or MCP response is already unencodable; `Nullable` `utf8` only surfaces that. The
+  real fix is a write primitive that accepts a **chunked byte stream** (size-independent,
+  mirroring the streaming `cas_get` *metadata* path). Until that lands, see `cas_get`
+  below; a first cut may scope the streaming-`write` refactor as a follow-up.
+- **`fs/cas/mcp` `cas_get` `content: true`** — its guard rejects blobs whose *raw* length
+  exceeds `maxLengthBytes`, but the **serialized response** (base64 ≈ 4/3× plus the JSON
+  envelope) can still exceed `maxLength` and be unwritable even for a `maxLengthBytes`
+  blob. Bound the *response* it emits (or stream it), so the transport is never handed
+  more than one `Vec`. This is the concrete bug review flagged.
+- **`fs/html` `htmlUtf8` and `fs/text/sgr` `csiWrite`** → `Nullable<Vec>` / handle `null`;
+  they take arbitrary content.
 
-The first cut may scope the streaming-`write` refactor as a follow-up, but the plan must
-**not** `unwrap` these paths; at minimum `writeUtf8File` returns an error, `cas_get`
-`content: true` bounds its response, and the HTTP runner rejects over-cap request bodies.
+The plan must **not** `unwrap` any of these; the over-cap `null` ends as a typed error
+(`isError`, `IoResult` error, HTTP 413) or is avoided by streaming.
 
 #### 7. `cas_add` never unwraps
 
@@ -221,53 +227,62 @@ decoded — it may be malformed or above the 128 KiB inline limit; use `type: 'u
 large content). Reuse the byte-aligned limit constants already exported from
 `fs/types/bit_vec/module.f.ts` (`maxLength`, `maxLengthBytes`).
 
-### Why `unwrap` and not `!`
+### Why propagate, and why `unwrap` (not `!`) at the exceptions
 
 `null` is the codebase's documented absence convention (`fs/types/nullable/module.f.ts`,
 with `map` / `match` / `toOption` / `fromUndefined`), and `base64.decode` already returns
-`Nullable<Vec>`; staying on `null` avoids mixing `null` and `undefined`. A bare `!` only
-silences the type-checker — at runtime the `null` survives and surfaces as an obscure
-error far from its cause. `unwrap` makes "I am sure this is within the cap" an explicit,
-checked assertion that throws at the call site, while keeping the function's public type
-a plain `Vec`. Propagating `Nullable` (rather than swallowing it) is what preserves the
-todo's actual goal: a detectable over-cap signal everywhere it can arise, collapsed back
-to total only where correctness guarantees it.
+`Nullable<Vec>`; staying on `null` avoids mixing `null` and `undefined`. Propagating it by
+default — rather than swallowing it at each "looks bounded" site — is what preserves the
+todo's goal: a detectable over-cap signal everywhere it can arise, resolved to a typed
+error at the boundary. It also makes the design **review-stable**: a newly-found unbounded
+caller is already `Nullable`, so the type-checker forces it to be handled instead of
+silently crashing.
+
+At the two admissible exceptions, `unwrap` beats a bare `!`: `!` only silences the
+type-checker, so at runtime a (supposedly impossible) `null` survives and surfaces as an
+obscure error far from its cause; `unwrap` turns "this is provably within the cap" into a
+checked assertion that throws *at the call site*, while keeping the public type a plain
+`Vec`.
 
 ### Tasks
 
 - [ ] `fs/types/bit_vec/module.f.ts`: make `unpackListToVec` return `Nullable<Unpacked>`
       (running-length guard, single bounded core); make `BitOrder.listToVec` and
-      `u8ListToVec` return `Nullable<Vec>`; leave `concat` / `push` / `xor` / `repeat`
-      total with a documented `len ≤ maxLength` precondition.
+      `u8ListToVec` return `Nullable<Vec>`; leave the **algebra primitives**
+      `concat` / `push` / `xor` / `repeat` total with a documented `len ≤ maxLength`
+      precondition.
 - [ ] `fs/types/nullable/module.f.ts`: add `unwrap<T>(value: Nullable<T>): T` (throws on
       `null`).
 - [ ] `fs/base64/module.f.ts` `decode`: return `null` (not throw) for over-`maxLength`
       input; build only the trimmed `targetLen` bits so a `maxLengthBytes` blob does not
       overflow; **keep the RFC 4648 §3.5 padding-bit-zero check** (still reject
-      non-canonical `AB==` / `AAB=`); signature stays `Nullable<Vec>`.
+      non-canonical `AB==` / `AAB=`, all-`number` mask `=== 0`); signature stays
+      `Nullable<Vec>`.
 - [ ] `fs/text/module.f.ts` `utf8`: return `Nullable<Vec>` (`null` only when the encoded
       length would exceed `maxLength`).
-- [ ] `unwrap` at the *statically bounded* `listToVec` / `u8ListToVec` / `utf8`
-      consumers only: `fs/crypto/sign`, `fs/sul/id`, `fs/sul/level/literal`, and
-      `fs/types/uint8array` `toVec` (which keeps its own explicit `> maxLengthBytes`
-      throw before the `unwrap`). (`fs/base_n` `stringToVec` already propagates
-      `Nullable`.)
-- [ ] `fs/asn.1`: keep the encoders total but document their `len ≤ maxLength`
-      precondition (output = `tag + length + Σ payload`); `unwrap` the `Nullable`
-      `listToVec` to assert it. Caller-supplied payloads make these *precondition*
-      sites, not fixed-size ones; revisit (make `Nullable`) only if asn.1 must encode
-      unbounded `OCTET STRING` payloads.
-- [ ] Handle `null` (do **not** `unwrap`) at the unbounded consumers:
-      `fs/effects/node` `writeUtf8File` → return an `IoResult` `error`; `writeString` /
-      `fs/mcp/stdio` `writeResponse` / `fs/html` `htmlUtf8` / `fs/text/sgr` → propagate or
-      document, pending a size-independent (chunked-stream) `write` primitive.
-- [ ] `fs/types/uint8array` `listToVec` → `Nullable<Vec>`; the Node HTTP `createServer`
-      runner (`fs/effects/node/module.ts`, `body: listToVec(reqBody)`) maps a `null` body
-      (request > 128 KiB) to an error response (e.g. HTTP 413) instead of throwing out of
-      the request handler.
-- [ ] `fs/cas/mcp` `cas_get` `content: true`: bound the *serialized response* it emits
-      (base64 + JSON envelope can exceed `maxLength` even for a `maxLengthBytes` blob),
-      so the transport is never handed an unencodable, over-`maxLength` line.
+- [ ] **Propagate `Nullable<Vec>`** (default) through the data-dependent builders/consumers,
+      threading `null` to their callers:
+      - `fs/asn.1` encoders (`encode` / `encodeRaw` / `encodeSequence` / `encodeSet` /
+        `encodeObjectIdentifier` / `lenEncode` / `parsedTagEncode`) — propagate through
+        the recursive `encode`; scalar encoders (`encodeBoolean` / `encodeInteger` /
+        `encodeOctetString`) stay total.
+      - `fs/types/uint8array` `toVec` and `listToVec` — drop the `throw`, return
+        `Nullable<Vec>`.
+      - `fs/sul/level/literal` `listToVec(...)` unless a SUL literal token is bounded by
+        construction (then `unwrap`).
+- [ ] **`unwrap` only at the algorithm-fixed / literal sites:** `fs/crypto/sign` `concat`
+      (fixed curve components); `fs/sul/id` id hash (fixed 40 bytes) and IV-seed literal;
+      `proof.f.ts` fixtures. (`fs/base_n` `stringToVec` already propagates `Nullable`.)
+- [ ] Resolve the propagated `null` into a typed error at each boundary:
+      - `fs/effects/node` `writeUtf8File` → `IoResult` `error`.
+      - Node HTTP `createServer` runner (`fs/effects/node/module.ts`,
+        `body: listToVec(reqBody)`) → error response (e.g. HTTP 413) on a `null` body.
+      - `fs/effects/node` `writeString` / `fs/mcp/stdio` `writeResponse` / `fs/html`
+        `htmlUtf8` / `fs/text/sgr` `csiWrite` → handle `null`; the durable fix is a
+        chunked-stream `write` primitive (may be a follow-up).
+      - `fs/cas/mcp` `cas_get` `content: true` → bound the *serialized response* (base64 +
+        JSON envelope can exceed `maxLength` even for a `maxLengthBytes` blob) so the
+        transport never gets an over-`maxLength` line.
 - [ ] `cas_add` handler (`fs/cas/mcp/module.f.ts`): treat `null` from `utf8` / `decode`
       as a generic content decoding error `isError` (static message that also points at
       `type: 'url'` for large content).
