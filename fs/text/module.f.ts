@@ -32,6 +32,14 @@ const tryU8ListToVecMsb = tryU8ListToVec(msb)
 
 export type Utf8 = Vec
 
+/**
+ * Converts a string to an UTF-8, represented as an MSB first bit vector,
+ * returning `null` instead of throwing if the result would exceed
+ * `maxLength`.
+ *
+ * @param s The input string to be converted.
+ * @returns The resulting UTF-8 bit vector, MSB first, or `null` on overflow.
+ */
 export const tryUtf8 = (s: string): Nullable<Utf8> =>
     tryU8ListToVecMsb(fromCodePointList(stringToCodePointList(s)))
 
