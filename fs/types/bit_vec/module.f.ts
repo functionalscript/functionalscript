@@ -254,6 +254,11 @@ export type BitOrder = {
      * ```
      */
     readonly concat: Reduce
+    /**
+     * Folds a list of vectors into a single vector in this bit order, like
+     * `listToVec`, but returns `null` instead of throwing when the combined
+     * length would exceed `maxLength`.
+     */
     readonly tryListToVec: (list: List<Vec>) => Nullable<Vec>
     /**
      * Folds a list of vectors into a single vector in this bit order.
@@ -477,6 +482,15 @@ export const msb: BitOrder = bo({
     unpackConcatUint: flip(lsbUnpackConcatUint),
 })
 
+/**
+ * Converts a list of unsigned 8-bit integers to a bit vector using the provided
+ * bit order, like `u8ListToVec`, but returns `null` instead of throwing when the
+ * result would exceed `maxLength`.
+ *
+ * @param bo The bit order for the conversion
+ * @param list The list of unsigned 8-bit integers to be converted.
+ * @returns The resulting vector, or `null` if it would exceed `maxLength`.
+ */
 export const tryU8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>): Nullable<Vec> =>
     unpackListToVec(unpackConcat)(
         map((b: number): Unpacked => ({ length: 8n, uint: BigInt(b) }))(list))
