@@ -374,6 +374,22 @@ export const proof = {
         assertEq(resultOf(resp).isError, true)
     },
 
+    // 174_764 'A' chars × 6 bits = 1_048_584 bits, 8 over maxLength — base64Decode
+    // returns null and cas_add surfaces that as an encoding error.
+    addBase64OverLimitIsError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'A'.repeat(174_764), type: 'base64' }))
+        assertEq(resultOf(resp).isError, true)
+        assert(textOf(resp).includes('encoding error'))
+    },
+
+    // One ASCII byte past maxLengthBytes — tryUtf8 returns null and cas_add
+    // surfaces that as an encoding error.
+    addTextOverLimitIsError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'a'.repeat(Number(maxLengthBytes) + 1) }))
+        assertEq(resultOf(resp).isError, true)
+        assert(textOf(resp).includes('encoding error'))
+    },
+
     getUnterminatedHashIsError: () => {
         const [resp] = session(call(2, 'cas_get', { hash: '0' }))
         assertEq(resultOf(resp).isError, true)

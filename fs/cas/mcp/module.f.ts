@@ -84,7 +84,7 @@ import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
-import { utf8 } from '../../text/module.f.ts'
+import { tryUtf8, utf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../mime/module.f.ts'
 import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
@@ -180,23 +180,15 @@ const casToolRegistry =
                 )
             }
             // type:'text' or 'base64' — resolve content to Vec, store via c.write()
-            let x: Effect<Rm, Vec|string>
-            switch(type) {
-                case 'base64':
-                    const value = base64Decode(content)
-                    x = pure(value === null ? `invalid base64 content: ${content}` : value)
-                    break
-                default:
-                    x = pure(utf8(content))
-                    break
-            }
-            return x.step(value => typeof value === 'string'
-                ? pure(errorResult(value))
+            let x: Vec|null = type === 'base64'
+                ? base64Decode(content)
+                : tryUtf8(content)
+            return x === null
+                ? pure(errorResult('encoding error'))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(nonEmpty(ok(value), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
+                : c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
                     ? errorResult('write')
                     : okResult(vecToCBase32(hash))))
-            )
         },
     ),
     toolEntry(
