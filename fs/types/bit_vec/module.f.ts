@@ -28,6 +28,7 @@ import { iterable, map, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
 import { cmp, max, min, type Sign } from '../function/compare/module.f.ts'
+import type { Nullable } from '../nullable/module.f.ts'
 
 /**
  * A vector of bits represented as a signed `bigint`.
@@ -279,7 +280,7 @@ export type BitOrder = {
      */
     readonly cmp: (a: Vec) => (b: Vec) => Sign
     readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
-    readonly unpackConcat: (a: Unpacked) => (b: Unpacked) => Unpacked
+    readonly unpackConcat: UnpackConcat
     readonly startsWith: (prefix: Vec) => (v: Vec) => boolean
 }
 
@@ -293,6 +294,8 @@ type Base = {
 }
 
 const unpackEmpty = { length: 0n, uint: 0n } as const
+
+type UnpackConcat = (a: Unpacked) => (b: Unpacked) => Unpacked
 
 /**
  * Concatenates a list of unpacked vectors using a binary-counter accumulator,
@@ -311,7 +314,7 @@ const unpackEmpty = { length: 0n, uint: 0n } as const
  * and materializes the combined result on demand, such as `StringBuilder`
  * (Java, C#) or `strings.Builder` (Go).
  */
-const unpackListToVec = (unpackConcat: BitOrder['unpackConcat']) =>
+const unpackListToVec = (unpackConcat: UnpackConcat) =>
     (list: List<Unpacked>): Unpacked => {
         let result: readonly Unpacked[] = []
         for (const e of iterable(list)) {
@@ -344,8 +347,9 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
             return [uint & m, { length: v.length - len, uint: rest }] as const
         }
     }
-    const unpackConcat = (a: Unpacked) => (b: Unpacked) => ({
-        length: a.length + b.length, uint: unpackConcatUint(a)(b)
+    const unpackConcat: UnpackConcat = a => b => ({
+        length: a.length + b.length,
+        uint: unpackConcatUint(a)(b)
     })
     const popFront: PopFront<Vec> = len => {
         const f = unpackPopFront(len)
