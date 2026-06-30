@@ -1,8 +1,9 @@
+import { assertEq } from '../../asserts/module.f.ts'
 import { mask } from '../bigint/module.f.ts'
 import type { Sign } from '../function/compare/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, u8ListToVec, u8List, chunkList, fromSentinel } from './module.f.ts'
-import { repeat as listRepeat, toArray } from '../list/module.f.ts'
+import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, maxLength, u8ListToVec, tryU8ListToVec, u8List, chunkList, fromSentinel } from './module.f.ts'
+import { repeat as listRepeat, toArray, type List } from '../list/module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
 
@@ -14,10 +15,6 @@ const unsafeVec = (a: bigint): Vec => asNominal(a)
 // 0xD = 0b1101 = 5 + 8
 // 0xE = 0b1110 = 6 + 8
 // 0xF = 0b1111 = 7 + 8
-
-const assertEq = <T>(a: T, b: T) => {
-    if (a !== b) { throw [a, b] }
-}
 
 const assertEq2 = <T>([a0, a1]: readonly[bigint, T], [b0, b1]: readonly[bigint, T]) => {
     assertEq(a0, b0)
@@ -400,6 +397,30 @@ export const proof = {
                 throw `y.lenght: ${y.length}`
             }
         }
+    },
+    tryListToVecOverflow: () => {
+        // A single chunk one bit past `maxLength`; `tryListToVec` should bail
+        // out and report `null` instead of building an oversized `bigint`.
+        const list: List<Vec> = { first: vec(maxLength + 1n)(1n), tail: null }
+        assertEq(lsb.tryListToVec(list), null)
+        assertEq(msb.tryListToVec(list), null)
+    },
+    listToVecOverflow: {
+        // Same oversized input, but through the throwing `listToVec` wrapper.
+        throw: () => {
+            const list: List<Vec> = { first: vec(maxLength + 1n)(1n), tail: null }
+            lsb.listToVec(list)
+        },
+    },
+    u8ListToVecOverflow: {
+        // 131_073 bytes is 8 bits past `maxLength`; same null/throw split as
+        // `tryListToVec`/`listToVec` above, exercised through the byte-list API.
+        try: () => {
+            assertEq(tryU8ListToVec(msb)(listRepeat(0x12)(131_073)), null)
+        },
+        throw: () => {
+            u8ListToVec(msb)(listRepeat(0x12)(131_073))
+        },
     },
     u8ListUnaligned: () => {
         const x = vec(9n)(0x83n)
