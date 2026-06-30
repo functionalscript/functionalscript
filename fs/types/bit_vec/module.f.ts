@@ -297,6 +297,37 @@ const unpackEmpty = { length: 0n, uint: 0n } as const
 
 type UnpackConcat = (a: Unpacked) => (b: Unpacked) => Unpacked
 
+type ListToVecState = readonly Unpacked[]
+
+type ListToVecOp = {
+    update: (v: Unpacked, state: ListToVecState) => ListToVecState
+    end: (state: ListToVecState) => Unpacked
+}
+
+const listToVecOp =
+    (unpackConcat: UnpackConcat): ListToVecOp =>
+({
+    update: (v, state) => {
+        let i = 0
+        while (true) {
+            if (state.length <= i) {
+                state = [...state, v]
+                break
+            }
+            const old = state[i]
+            if (old.length === 0n) {
+                state = state.toSpliced(i, 1, v)
+                break
+            }
+            state = state.toSpliced(i, 1, unpackEmpty)
+            v = unpackConcat(old)(v)
+            i++
+        }
+        return state
+    },
+    end: state => state.reduce((p, c) => unpackConcat(c)(p), unpackEmpty)
+})
+
 /**
  * Concatenates a list of unpacked vectors using a binary-counter accumulator,
  * giving O(n log n) total `bigint` shifting work instead of the O(n²) of a
@@ -314,29 +345,16 @@ type UnpackConcat = (a: Unpacked) => (b: Unpacked) => Unpacked
  * and materializes the combined result on demand, such as `StringBuilder`
  * (Java, C#) or `strings.Builder` (Go).
  */
-const unpackListToVec = (unpackConcat: UnpackConcat) =>
-    (list: List<Unpacked>): Unpacked => {
+const unpackListToVec = (unpackConcat: UnpackConcat) => {
+    const { update, end } = listToVecOp(unpackConcat)
+    return (list: List<Unpacked>): Unpacked => {
         let result: readonly Unpacked[] = []
         for (const e of iterable(list)) {
-            let v = e
-            let i = 0
-            while (true) {
-                if (result.length <= i) {
-                    result = [...result, v]
-                    break
-                }
-                const old = result[i]
-                if (old.length === 0n) {
-                    result = result.toSpliced(i, 1, v)
-                    break
-                }
-                result = result.toSpliced(i, 1, unpackEmpty)
-                v = unpackConcat(old)(v)
-                i++
-            }
+            result = update(e, result)
         }
-        return result.reduce((p, c) => unpackConcat(c)(p), unpackEmpty)
+        return end(result)
     }
+}
 
 const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }: Base): BitOrder => {
     const unpackPopFront = (len: bigint) => {
