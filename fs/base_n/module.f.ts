@@ -12,12 +12,12 @@
  * @module
  */
 import { msb, lsb, type Vec, length, vec } from '../types/bit_vec/module.f.ts'
-import { reverse, type List } from '../types/list/module.f.ts'
+import { type List } from '../types/list/module.f.ts'
 import type { Nullable } from '../types/nullable/module.f.ts'
 
 const { popFront } = msb
 
-const lsbListToVec = lsb.listToVec
+const { tryListToVec: reversedListToVec } = lsb
 
 /**
  * The encode/decode pair returned by {@link baseN}.
@@ -79,7 +79,7 @@ export const baseN = (
                 if (index < 0) { return null }
                 chunks = { first: vecN(BigInt(index)), tail: chunks }
             }
-            return lsbListToVec(chunks)
+            return reversedListToVec(chunks)
         },
     }
 }
