@@ -159,11 +159,15 @@ total signatures:
   scalars / hashes);
 - `fs/sul/id` IV seed (`utf8` of a fixed 32-byte literal) and `fs/sul/id` /
   `fs/sul/level/literal` `listToVec(...)` over fixed-size ids / hashes;
-- `fs/types/uint8array` `toVec` (size already checked above) and `listToVec`
-  (already throws on the over-cap case today — keep that, via `unwrap`).
+- `fs/types/uint8array` `toVec` — it already **enforces its own explicit precondition**
+  (`if (input.length > maxLengthBytes) throw …`) *before* building, so the `unwrap` after
+  that guard cannot fire; this is the "document/enforce a real maximum" pattern, not a
+  blanket unwrap of unchecked input.
 
 (`fs/asn.1` is deliberately **not** here — its payloads are caller-supplied, so it is a
-precondition-bearing combinator, handled in step 3 above.)
+precondition-bearing combinator, handled in step 3 above. `fs/types/uint8array`
+`listToVec` is **not** here either — its Node HTTP-runner caller feeds it arbitrary
+request bodies, so it is an unbounded consumer; see step 6.)
 
 Test files (`proof.f.ts`) follow the same rule — `unwrap` / `!` on known-small fixtures.
 
@@ -194,10 +198,17 @@ cap). These must convert `null` into a real error or be made size-independent:
   never handed more than one `Vec`. This is the concrete bug the review flagged.
 - **`fs/html` `htmlUtf8` and `fs/text/sgr` `csiWrite`** — also take arbitrary content;
   propagate `Nullable` (or document the cap) rather than `unwrap`, per the same rule.
+- **`fs/types/uint8array` `listToVec` and its Node HTTP-runner caller** — the impure
+  `createServer` runner (`fs/effects/node/module.ts`, `body: listToVec(reqBody)`)
+  collects an **arbitrary-size request body** and feeds it to `listToVec`. So
+  `listToVec` must propagate `Nullable<Vec>` rather than throw, and the runner must map a
+  `null` body (request > 128 KiB) to an error response (e.g. HTTP 413) instead of letting
+  the throw escape the request handler. (`toVec` stays total — it has its own explicit
+  size guard, step 5.)
 
 The first cut may scope the streaming-`write` refactor as a follow-up, but the plan must
-**not** `unwrap` these paths; at minimum `writeUtf8File` returns an error and `cas_get`
-`content: true` bounds its response.
+**not** `unwrap` these paths; at minimum `writeUtf8File` returns an error, `cas_get`
+`content: true` bounds its response, and the HTTP runner rejects over-cap request bodies.
 
 #### 7. `cas_add` never unwraps
 
@@ -237,8 +248,10 @@ to total only where correctness guarantees it.
 - [ ] `fs/text/module.f.ts` `utf8`: return `Nullable<Vec>` (`null` only when the encoded
       length would exceed `maxLength`).
 - [ ] `unwrap` at the *statically bounded* `listToVec` / `u8ListToVec` / `utf8`
-      consumers only: `fs/crypto/sign`, `fs/sul/id`, `fs/sul/level/literal`,
-      `fs/types/uint8array`. (`fs/base_n` `stringToVec` already propagates `Nullable`.)
+      consumers only: `fs/crypto/sign`, `fs/sul/id`, `fs/sul/level/literal`, and
+      `fs/types/uint8array` `toVec` (which keeps its own explicit `> maxLengthBytes`
+      throw before the `unwrap`). (`fs/base_n` `stringToVec` already propagates
+      `Nullable`.)
 - [ ] `fs/asn.1`: keep the encoders total but document their `len ≤ maxLength`
       precondition (output = `tag + length + Σ payload`); `unwrap` the `Nullable`
       `listToVec` to assert it. Caller-supplied payloads make these *precondition*
@@ -248,6 +261,10 @@ to total only where correctness guarantees it.
       `fs/effects/node` `writeUtf8File` → return an `IoResult` `error`; `writeString` /
       `fs/mcp/stdio` `writeResponse` / `fs/html` `htmlUtf8` / `fs/text/sgr` → propagate or
       document, pending a size-independent (chunked-stream) `write` primitive.
+- [ ] `fs/types/uint8array` `listToVec` → `Nullable<Vec>`; the Node HTTP `createServer`
+      runner (`fs/effects/node/module.ts`, `body: listToVec(reqBody)`) maps a `null` body
+      (request > 128 KiB) to an error response (e.g. HTTP 413) instead of throwing out of
+      the request handler.
 - [ ] `fs/cas/mcp` `cas_get` `content: true`: bound the *serialized response* it emits
       (base64 + JSON envelope can exceed `maxLength` even for a `maxLengthBytes` blob),
       so the transport is never handed an unencodable, over-`maxLength` line.
