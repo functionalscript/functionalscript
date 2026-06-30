@@ -7,6 +7,7 @@
 
 import { log2 } from '../../../types/bigint/module.f.ts'
 import { msb, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
+import { unwrap } from '../../../types/nullable/module.f.ts'
 import type { Func } from '../../../types/function/module.f.ts'
 import { strictEqual, type Equal, type StateScan } from '../../../types/function/operator/module.f.ts'
 import { equal, map, type List } from '../../../types/list/module.f.ts'
@@ -118,7 +119,10 @@ const { listToVec } = msb
 const literalToVec = (prior: LiteralToVec, e: bigint): LiteralToVec => {
     const m = map(prior)
     const { decode } = level(e)
-    return literal => listToVec(m(decode(literal)))
+    // A SUL literal token is bounded by construction (literal ids are ≤ 256
+    // bits), so the canonical bit vector for one cannot exceed the cap — the
+    // over-cap `null` branch is provably dead, hence `unwrap`.
+    return literal => unwrap(listToVec(m(decode(literal))))
 }
 
 /** Decodes a level-1 symbol to its canonical MSB bit vector. */

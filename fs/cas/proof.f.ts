@@ -1,4 +1,5 @@
 import { length, maxLength, msb, vec, vec8, type Vec } from '../types/bit_vec/module.f.ts'
+import { unwrap } from '../types/nullable/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
 import { fileCas, casAddFile, type FileCasOperation, casUpload } from './module.f.ts'
@@ -129,7 +130,7 @@ export const proof = {
                 })
         const [, readResult] = virtual(state1)(drain([])(c.read(hash)))
         if (readResult[0] !== 'ok') { throw ['expected read ok', readResult] }
-        if (msb.cmp(msb.listToVec(readResult[1]))(content) !== 0) { throw 'read content mismatch' }
+        if (msb.cmp(unwrap(msb.listToVec(readResult[1])))(content) !== 0) { throw 'read content mismatch' }
     },
     casReadMissingShard: () => {
         // A missing shard surfaces as an explicit error *item*, never as end-of-stream.
@@ -163,7 +164,7 @@ export const proof = {
         const [, readResult] = virtual(state1)(drain([])(c.read(hash)))
         if (readResult[0] !== 'ok') { throw ['expected read ok', readResult] }
         const expected = msb.concat(msb.concat(chunks[0])(chunks[1]))(chunks[2])
-        if (msb.cmp(msb.listToVec(readResult[1]))(expected) !== 0) { throw 'multi-chunk read content mismatch' }
+        if (msb.cmp(unwrap(msb.listToVec(readResult[1])))(expected) !== 0) { throw 'multi-chunk read content mismatch' }
     },
     casWriteDedup: () => {
         // Same content ⇒ same hash; the second upload's replace-`rename` publishes over the

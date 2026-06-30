@@ -9,7 +9,7 @@
 // https://en.wikipedia.org/wiki/ANSI_escape_code#C0_control_codes
 
 import { write, type Write, type WriteConsoles, type NodeProgramOptions } from '../../effects/node/module.f.ts'
-import { type Effect } from '../../effects/module.f.ts'
+import { pure, type Effect } from '../../effects/module.f.ts'
 import { utf8 } from "../module.f.ts"
 
 export const backspace: string = '\x08'
@@ -93,6 +93,11 @@ export const csiWrite =
     (s: string) => Effect<Write, void> =>
 {
     const toStr = str(std[stream].isTTY)
-    return (s: string): Effect<Write, void> =>
-        write(stream, utf8(toStr(s)))
+    return (s: string): Effect<Write, void> => {
+        const v = utf8(toStr(s))
+        // The `write` primitive takes a single `Vec`; output whose UTF-8
+        // encoding exceeds `maxLength` is currently unencodable, so drop it
+        // rather than throw. The durable fix is a chunked-stream `write`.
+        return v === null ? pure(undefined) : write(stream, v)
+    }
 }

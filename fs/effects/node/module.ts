@@ -43,7 +43,7 @@ import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { asyncTryCatch } from '../../types/result/module.ts'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
-import { maxLengthBytes } from '../../types/bit_vec/module.f.ts'
+import { maxLengthBytes, type Vec } from '../../types/bit_vec/module.f.ts'
 
 type Server = {
     readonly listen: (port: number) => void
@@ -87,6 +87,20 @@ const { mkdir, open, readFile, readdir, rename, writeFile, rm, access, stat } = 
 const { exec } = childProcess
 
 const maxFileSizeBytes = Number(maxLengthBytes)
+
+/**
+ * Converts a `Uint8Array` to a `Vec`, throwing when it exceeds a single `Vec`'s
+ * capacity. Used inside the `asyncTryCatch` handlers (`fetch`/`readFile`/
+ * `readBytes`), where the throw becomes an `IoResult` error; the size-guarded
+ * callers never actually hit the `null`, but the type demands it be handled.
+ */
+const toVecOrThrow = (a: Uint8Array): Vec => {
+    const v = toVec(a)
+    if (v === null) {
+        throw new Error(`byte array exceeds maximum vector length of ${Number(maxLengthBytes) * 8} bits`)
+    }
+    return v
+}
 
 const prefix = 'file:///' as const
 
@@ -197,7 +211,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
         if (!response.ok) {
             throw new Error(`Fetch error: ${response.status} ${response.statusText}`)
         }
-        return toVec(new Uint8Array(await response.arrayBuffer()))
+        return toVecOrThrow(new Uint8Array(await response.arrayBuffer()))
     }),
     mkdir: (...p) => asyncTryCatch(async() => { await mkdir(...p) }),
     readFile: path => asyncTryCatch(async() => {
@@ -206,7 +220,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
         if (fileStats.size > maxFileSizeBytes) {
             throw new Error(`File size ${fileStats.size} exceeds maximum allowed size of ${Number(maxFileSizeBytes)} bytes`)
         }
-        return toVec(await readFile(path))
+        return toVecOrThrow(await readFile(path))
     }),
     readdir: (path, r) => asyncTryCatch(async() =>
         (await readdir(path, { ...r, withFileTypes: true }))
@@ -230,7 +244,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
         try {
             const buffer = Buffer.alloc(size)
             const { bytesRead } = await fh.read(buffer, 0, size, offset)
-            return toVec(buffer.subarray(0, bytesRead))
+            return toVecOrThrow(buffer.subarray(0, bytesRead))
         } finally {
             await fh.close()
         }
@@ -269,11 +283,19 @@ const runNodeEffect: EffectToPromise = asyncRun({
         const nodeRl: RequestListener = async(req, res) => {
             const reqBody = await collect(req)
             const { method, url, headers } = req
+            const body = listToVec(reqBody)
+            // An over-`maxLength` request body cannot be represented as a single
+            // `Vec`; reject it with HTTP 413 rather than letting the `null`
+            // escape into the handler.
+            if (body === null) {
+                res.writeHead(413, {}).end(new Uint8Array())
+                return
+            }
             const { status, headers: outHeaders, body: outBody } = await runNodeEffect(erl({
                 method,
                 url,
                 headers,
-                body: listToVec(reqBody)
+                body,
             }))
             res
                 .writeHead(status, outHeaders)

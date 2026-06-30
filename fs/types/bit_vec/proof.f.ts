@@ -1,7 +1,8 @@
 import { mask } from '../bigint/module.f.ts'
 import type { Sign } from '../function/compare/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, u8ListToVec, u8List, chunkList, fromSentinel } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, u8ListToVec, u8List, chunkList, fromSentinel, maxLengthBytes } from './module.f.ts'
+import { unwrap } from '../nullable/module.f.ts'
 import { repeat as listRepeat, toArray } from '../list/module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
@@ -392,13 +393,31 @@ export const proof = {
     },
     u8ListToVec: () => {
         // 131_072 is too much for Bun
-        const x = u8ListToVec(msb)(listRepeat(0x12)(131_071))
+        const x = unwrap(u8ListToVec(msb)(listRepeat(0x12)(131_071)))
         return () => {
             const m = u8List(msb)(x)
             const y = toArray(m)
             if (y.length !== 131_071) {
                 throw `y.lenght: ${y.length}`
             }
+        }
+    },
+    // A list whose combined length is exactly `maxLengthBytes` bytes
+    // (`maxLength` bits) is the largest a single `Vec` can hold: it is built,
+    // not rejected.
+    u8ListToVecAtMax: () => {
+        const n = Number(maxLengthBytes)
+        const x = u8ListToVec(msb)(listRepeat(0x12)(n))
+        if (x === null) { throw 'at maxLengthBytes should not be null' }
+        if (length(x) !== maxLengthBytes << 3n) { throw length(x) }
+    },
+    // One byte past `maxLengthBytes` cannot be a single `Vec`: the bounded core
+    // returns `null` *before* building an over-cap `bigint` (uniform across
+    // engines), rather than throwing or silently overflowing.
+    u8ListToVecOverMax: () => {
+        const n = Number(maxLengthBytes) + 1
+        if (u8ListToVec(msb)(listRepeat(0x12)(n)) !== null) {
+            throw 'one byte past maxLengthBytes should be null'
         }
     },
     u8ListUnaligned: () => {

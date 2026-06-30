@@ -71,9 +71,10 @@ the filesystem.
 Inline content (`text`/`base64`) resolves into a single `Vec`, which caps at
 `maxLength` bits — **128 KiB**. To store a larger blob, write it under
 `$HOME/cas_upload/` and pass `type: 'url'`, which streams the file with no size
-limit. (Graceful rejection of oversized inline content — today it fails inside
-`utf8` / base64 `decode` — is tracked in
-[`cas-add-inline-size-error`](../todo/cas-add-inline-size-error.md).)
+limit. Oversized inline content is rejected gracefully and identically on every
+JS engine: `utf8` / base64 `decode` return `null` *before* building an
+over-`maxLength` `bigint`, and `cas_add` turns that into a `isError` result that
+points at `type: 'url'` — never a thrown crash or a silently-stored blob.
 
 ## `cas_get`: metadata + optional inline content
 
@@ -143,10 +144,13 @@ parallel `detect` + UTF-8 check. The `type` then selects how `content` is encode
 
 The inline-content path buffers the whole blob into a single `Vec`, which caps at
 `maxLength` bits — **128 KiB**. A blob larger than that cannot be fetched inline.
-Because the size and type are derived first with the size-independent
-`detectStream` machine (the same one the metadata path uses), an oversized blob is
-*not* misreported as absent: it returns `isError` with a distinct message naming
-the byte size and pointing at the alternatives, e.g.
+The *serialized response* is bounded too: base64 expands the bytes ≈ 4/3× and the
+JSON envelope adds a little more, so even a blob at the `maxLengthBytes` limit can
+encode to a line that exceeds `maxLength` — that case is rejected the same way
+rather than handed to the transport. Because the size and type are derived first
+with the size-independent `detectStream` machine (the same one the metadata path
+uses), an oversized blob is *not* misreported as absent: it returns `isError` with
+a distinct message naming the byte size and pointing at the alternatives, e.g.
 
 ```
 blob too large to fetch inline (262144 bytes, limit 131072 bytes); use the url field (…) or omit content for metadata

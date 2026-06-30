@@ -23,6 +23,7 @@ import { base32, type V8 } from '../../crypto/sha2/module.f.ts'
 import { literal3ToVec } from '../level/literal/module.f.ts'
 import { log2 } from '../../types/bigint/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../../types/nominal/module.f.ts'
+import { unwrap } from '../../types/nullable/module.f.ts'
 
 /** A 256-bit SUL identifier. One of three variants: level-3 literal, raw bit vector, or SHA2 hash. */
 export type Id = Nominal<
@@ -36,7 +37,9 @@ export type Id = Nominal<
 //              0123456789ABCDEF0123456789ABCDEF
 const ivSeed = "Synthetic Universal Language 001"
 
-const utf8IvSeed = utf8(ivSeed)
+// `ivSeed` is a fixed 32-char source literal, so its UTF-8 encoding is well
+// within the cap — the over-cap `null` branch is provably dead.
+const utf8IvSeed = unwrap(utf8(ivSeed))
 
 const c = secp256r1
 
@@ -127,8 +130,10 @@ const vecX20 = vec(0x20n)
 
 const { concat, listToVec } = msb
 
+// `hash2` yields a fixed 8-element digest, each mapped to a fixed 32-bit vec, so
+// the joined hash is a fixed 256-bit structure — the `null` branch is dead.
 const hashMerge = (a: Id, b: Id): Id =>
-    hashId(uint(listToVec(hash2((asBase(a) << 0x100n) | asBase(b)).map(vecX20))))
+    hashId(uint(unwrap(listToVec(hash2((asBase(a) << 0x100n) | asBase(b)).map(vecX20)))))
 
 export const compress = (a: Id, b: Id): Id => {
     if (isHash(a) || isHash(b)) {

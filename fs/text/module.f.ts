@@ -6,6 +6,7 @@
  * @module
  */
 import { msb, u8List, u8ListToVec, type Vec } from '../types/bit_vec/module.f.ts'
+import type { Nullable } from '../types/nullable/module.f.ts'
 import { flatMap, type List } from '../types/list/module.f.ts'
 import { fromCodePointList, toCodePointList } from './utf8/module.f.ts'
 import { stringToCodePointList, codePointListToString } from './utf16/module.f.ts'
@@ -35,9 +36,10 @@ export type Utf8 = Vec
  * Converts a string to an UTF-8, represented as an MSB first bit vector.
  *
  * @param s The input string to be converted.
- * @returns The resulting UTF-8 bit vector, MSB first.
+ * @returns The resulting UTF-8 bit vector, MSB first, or `null` when the encoded
+ * length would exceed `maxLength` (every string is otherwise valid to encode).
  */
-export const utf8 = (s: string): Utf8 =>
+export const utf8 = (s: string): Nullable<Utf8> =>
     u8ListToVecMsb(fromCodePointList(stringToCodePointList(s)))
 
 /**

@@ -2,7 +2,11 @@ import { sort } from '../../types/object/module.f.ts'
 import { transpile } from './module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
 import { virtual, emptyState, type Dir } from '../../effects/node/virtual/module.f.ts'
-import { utf8 } from '../../text/module.f.ts'
+import { utf8 as utf8Raw } from '../../text/module.f.ts'
+import { unwrap } from '../../types/nullable/module.f.ts'
+
+// Test inputs are short source literals, well within the cap.
+const utf8 = (s: string) => unwrap(utf8Raw(s))
 
 const run = (root: Dir) => (path: string) => {
     const [_, result] = virtual({ ...emptyState, root })(transpile(path))

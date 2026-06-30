@@ -1,26 +1,37 @@
 import { empty, isVec, length, msb, uint, unpack, vec, vec8, type Vec } from "../types/bit_vec/module.f.ts"
 import { asBase } from "../types/nominal/module.f.ts"
+import { unwrap } from "../types/nullable/module.f.ts"
+import type { List } from "../types/list/module.f.ts"
 import {
     decodeRaw,
     decodeInteger,
-    encodeRaw,
+    encodeRaw as encodeRawN,
     encodeInteger,
     integer,
     type SupportedRecord,
-    encode,
+    encode as encodeN,
     decode,
     constructedSequence,
     octetString,
     boolean,
     constructedSet,
-    encodeObjectIdentifier,
+    encodeObjectIdentifier as encodeObjectIdentifierN,
     decodeObjectIdentifier,
     type ObjectIdentifier,
+    type Raw,
+    type Record,
 } from "./module.f.ts"
 import { assertEq } from "../asserts/module.f.ts"
 
-const { concat, popFront: pop, listToVec } = msb
+const { concat, popFront: pop } = msb
 const pop8 = pop(8n)
+
+// Every value built in this proof is a small, bounded test fixture, so the
+// over-cap `null` branch of the now-`Nullable` encoders is provably dead here.
+const encodeRaw = (raw: Raw): Vec => unwrap(encodeRawN(raw))
+const encode = (record: Record): Vec => unwrap(encodeN(record))
+const encodeObjectIdentifier = (oid: ObjectIdentifier): Vec => unwrap(encodeObjectIdentifierN(oid))
+const listToVec = (list: List<Vec>): Vec => unwrap(msb.listToVec(list))
 
 const check = (tag: bigint, v: Vec, rest: Vec) => {
     const s = encodeRaw([tag, v])

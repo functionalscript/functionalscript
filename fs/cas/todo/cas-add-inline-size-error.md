@@ -1,7 +1,7 @@
 ## cas-add-inline-size-error. Reject oversized `cas_add` inline content gracefully
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 **Blocked by:** —
 
 ### Problem
@@ -246,21 +246,21 @@ checked assertion that throws *at the call site*, while keeping the public type 
 
 ### Tasks
 
-- [ ] `fs/types/bit_vec/module.f.ts`: make `unpackListToVec` return `Nullable<Unpacked>`
+- [x] `fs/types/bit_vec/module.f.ts`: make `unpackListToVec` return `Nullable<Unpacked>`
       (running-length guard, single bounded core); make `BitOrder.listToVec` and
       `u8ListToVec` return `Nullable<Vec>`; leave the **algebra primitives**
       `concat` / `push` / `xor` / `repeat` total with a documented `len ≤ maxLength`
       precondition.
-- [ ] `fs/types/nullable/module.f.ts`: add `unwrap<T>(value: Nullable<T>): T` (throws on
+- [x] `fs/types/nullable/module.f.ts`: add `unwrap<T>(value: Nullable<T>): T` (throws on
       `null`).
-- [ ] `fs/base64/module.f.ts` `decode`: return `null` (not throw) for over-`maxLength`
+- [x] `fs/base64/module.f.ts` `decode`: return `null` (not throw) for over-`maxLength`
       input; build only the trimmed `targetLen` bits so a `maxLengthBytes` blob does not
       overflow; **keep the RFC 4648 §3.5 padding-bit-zero check** (still reject
       non-canonical `AB==` / `AAB=`, all-`number` mask `=== 0`); signature stays
       `Nullable<Vec>`.
-- [ ] `fs/text/module.f.ts` `utf8`: return `Nullable<Vec>` (`null` only when the encoded
+- [x] `fs/text/module.f.ts` `utf8`: return `Nullable<Vec>` (`null` only when the encoded
       length would exceed `maxLength`).
-- [ ] **Propagate `Nullable<Vec>`** (default) through the data-dependent builders/consumers,
+- [x] **Propagate `Nullable<Vec>`** (default) through the data-dependent builders/consumers,
       threading `null` to their callers:
       - `fs/asn.1` encoders (`encode` / `encodeRaw` / `encodeSequence` / `encodeSet` /
         `encodeObjectIdentifier` / `lenEncode` / `parsedTagEncode`) — propagate through
@@ -270,10 +270,10 @@ checked assertion that throws *at the call site*, while keeping the public type 
         `Nullable<Vec>`.
       - `fs/sul/level/literal` `listToVec(...)` unless a SUL literal token is bounded by
         construction (then `unwrap`).
-- [ ] **`unwrap` only at the algorithm-fixed / literal sites:** `fs/crypto/sign` `concat`
+- [x] **`unwrap` only at the algorithm-fixed / literal sites:** `fs/crypto/sign` `concat`
       (fixed curve components); `fs/sul/id` id hash (fixed 40 bytes) and IV-seed literal;
       `proof.f.ts` fixtures. (`fs/base_n` `stringToVec` already propagates `Nullable`.)
-- [ ] Resolve the propagated `null` into a typed error at each boundary:
+- [x] Resolve the propagated `null` into a typed error at each boundary:
       - `fs/effects/node` `writeUtf8File` → `IoResult` `error`.
       - Node HTTP `createServer` runner (`fs/effects/node/module.ts`,
         `body: listToVec(reqBody)`) → error response (e.g. HTTP 413) on a `null` body.
@@ -283,17 +283,17 @@ checked assertion that throws *at the call site*, while keeping the public type 
       - `fs/cas/mcp` `cas_get` `content: true` → bound the *serialized response* (base64 +
         JSON envelope can exceed `maxLength` even for a `maxLengthBytes` blob) so the
         transport never gets an over-`maxLength` line.
-- [ ] `cas_add` handler (`fs/cas/mcp/module.f.ts`): treat `null` from `utf8` / `decode`
+- [x] `cas_add` handler (`fs/cas/mcp/module.f.ts`): treat `null` from `utf8` / `decode`
       as a generic content decoding error `isError` (static message that also points at
       `type: 'url'` for large content).
-- [ ] Proof tests: `fs/cas/mcp/proof.f.ts` — inline `text` and `base64` at exactly
+- [x] Proof tests: `fs/cas/mcp/proof.f.ts` — inline `text` and `base64` at exactly
       `maxLengthBytes` (stored) and one byte over (clean `isError` on every engine — not
       a thrown crash, not a silently-stored over-`maxLength` blob). Add a
       `base64OfA(n)` helper that spells out base64 of `n` ASCII `'a'` bytes for any `n`
       (handles all three `n % 3` residues), so the boundary sample never drives the
       encoder past `maxLength`. `fs/types/bit_vec/proof.f.ts` — `u8ListToVec` at and one
       past `maxLengthBytes`.
-- [ ] Confirm the documented inline limit in `fs/cas/mcp/README.md` and the `cas_add`
+- [x] Confirm the documented inline limit in `fs/cas/mcp/README.md` and the `cas_add`
       tool description match the implemented behaviour.
 
 ### Related

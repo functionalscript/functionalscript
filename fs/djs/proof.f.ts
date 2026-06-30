@@ -1,7 +1,11 @@
 import { compile } from './module.f.ts'
 import { virtual, emptyState } from '../effects/node/virtual/module.f.ts'
-import { utf8, utf8ToString } from '../text/module.f.ts'
+import { utf8 as utf8Raw, utf8ToString } from '../text/module.f.ts'
+import { unwrap } from '../types/nullable/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
+
+// Test inputs are short source literals, well within the cap.
+const utf8 = (s: string) => unwrap(utf8Raw(s))
 
 const readOutput = (root: typeof emptyState.root, path: string): string => {
     const file = root[path]

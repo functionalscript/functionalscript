@@ -20,6 +20,7 @@ import {
 import { identity } from "../types/function/module.f.ts"
 import { max } from "../types/function/compare/module.f.ts"
 import { encode as b128encode, decode as b128decode } from "../base128/module.f.ts"
+import { unwrap, type Nullable } from "../types/nullable/module.f.ts"
 
 const { popFront: pop, listToVec } = msb
 
@@ -48,7 +49,9 @@ type ParsedTag = readonly[ClassPc, bigint]
 /** ASN.1 tag number. */
 type Tag = bigint
 
-const parsedTagEncode = ([classPc, number]: ParsedTag): Vec => {
+// Builds from a caller-supplied tag number (b128-encoded), so its length is
+// data-derived — it propagates the over-cap `null`.
+const parsedTagEncode = ([classPc, number]: ParsedTag): Nullable<Vec> => {
     const [firstByteNumber, rest] = number < tagNumberMask
         ? [number, empty]
         : [tagNumberMask, b128encode(number)]
@@ -70,7 +73,9 @@ const tagEncode = (tag: Tag): Vec =>
 
 const tagDecode = (v: Vec): readonly[Tag, Vec] => {
     const [parsedTag, rest] = parsedTagDecode(v)
-    return [uint(parsedTagEncode(parsedTag)), rest]
+    // Re-encoding a tag parsed from already-bounded input (`v` is itself a
+    // `Vec`, so ≤ `maxLength`); the over-cap `null` branch is dead.
+    return [uint(unwrap(parsedTagEncode(parsedTag))), rest]
 }
 
 //
@@ -133,7 +138,7 @@ const round8 = ({ length, uint }: Unpacked): Round8 => {
     return { byteLen, v: vec(byteLen << 3n)(uint) }
 }
 
-const lenEncode = (uint: bigint): Vec => {
+const lenEncode = (uint: bigint): Nullable<Vec> => {
     if (uint < 0x80n) {
         return vec8(uint)
     }
@@ -159,11 +164,15 @@ const lenDecode = (v: Vec): readonly[bigint, Vec] => {
 /** Raw ASN.1 TLV tuple. */
 export type Raw = readonly [Tag, Vec]
 
-/** Encodes a raw ASN.1 TLV tuple into a bit vector. */
-export const encodeRaw = ([tag, value]: Raw): Vec => {
+/**
+ * Encodes a raw ASN.1 TLV tuple into a bit vector. Wraps a caller-supplied
+ * `value` whose length is data-derived, so it propagates the over-cap `null`.
+ */
+export const encodeRaw = ([tag, value]: Raw): Nullable<Vec> => {
     const tagVec = tagEncode(tag)
     const { byteLen, v } = round8(unpack(value))
-    return listToVec([tagVec, lenEncode(byteLen), v])
+    const len = lenEncode(byteLen)
+    return len === null ? null : listToVec([tagVec, len, v])
 }
 
 /** Decodes a raw ASN.1 TLV tuple and returns the remaining input. */
@@ -210,8 +219,8 @@ export const decodeOctetString = (v: Vec): Vec => v
 /** ASN.1 OBJECT IDENTIFIER components. */
 export type ObjectIdentifier = readonly bigint[]
 
-/** Encodes an OBJECT IDENTIFIER value. */
-export const encodeObjectIdentifier = (oid: ObjectIdentifier): Vec => {
+/** Encodes an OBJECT IDENTIFIER value. Propagates the over-cap `null`. */
+export const encodeObjectIdentifier = (oid: ObjectIdentifier): Nullable<Vec> => {
     const [first, second, ...rest] = oid
     const firstByte = first * 40n + second
     return listToVec([vec8(firstByte), ...rest.map(b128encode)])
@@ -242,11 +251,23 @@ export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => {
 /** ASN.1 ordered collection of records. */
 export type Sequence = readonly Record[]
 
-const genericEncodeSequence = (map: (vec: readonly Vec[]) => readonly Vec[]) => (...records: Sequence): Vec =>
-    listToVec(map(records.map(encode)))
+/** Sequences an array of `Nullable<Vec>`, returning `null` if any element is `null`. */
+const allOrNull = (xs: readonly Nullable<Vec>[]): Nullable<readonly Vec[]> => {
+    let r: readonly Vec[] = []
+    for (const x of xs) {
+        if (x === null) { return null }
+        r = [...r, x]
+    }
+    return r
+}
 
-/** Encodes a SEQUENCE payload from ordered records. */
-export const encodeSequence: (...records: Sequence) => Vec =
+const genericEncodeSequence = (map: (vec: readonly Vec[]) => readonly Vec[]) => (...records: Sequence): Nullable<Vec> => {
+    const encoded = allOrNull(records.map(encode))
+    return encoded === null ? null : listToVec(map(encoded))
+}
+
+/** Encodes a SEQUENCE payload from ordered records. Propagates the over-cap `null`. */
+export const encodeSequence: (...records: Sequence) => Nullable<Vec> =
     genericEncodeSequence(identity)
 
 /** Decodes a SEQUENCE payload into records. */
@@ -257,8 +278,8 @@ export const decodeSequence = (v: Vec): Sequence => decodeAll(decode)(v)
 /** ASN.1 SET represented as a sequence of records. */
 export type Set = Sequence
 
-/** Encodes a SET payload with canonical byte ordering. */
-export const encodeSet: (...records: Sequence) => Vec =
+/** Encodes a SET payload with canonical byte ordering. Propagates the over-cap `null`. */
+export const encodeSet: (...records: Sequence) => Nullable<Vec> =
     genericEncodeSequence(v => v.toSorted((a, b) => msb.cmp(a)(b)))
 
 /** Decodes a SET payload. */
@@ -298,7 +319,7 @@ export type Record = SupportedRecord | UnsupportedRecord
 
 // encode
 
-const recordToRaw = ([tag, value]: SupportedRecord): Vec => {
+const recordToRaw = ([tag, value]: SupportedRecord): Nullable<Vec> => {
     switch (tag) {
         case boolean: return encodeBoolean(value)
         case integer: return encodeInteger(value)
@@ -309,9 +330,16 @@ const recordToRaw = ([tag, value]: SupportedRecord): Vec => {
     }
 }
 
-/** Encodes a supported ASN.1 record as TLV. */
-export const encode = (record: Record): Vec =>
-    isVec(record) ? record : encodeRaw([record[0], recordToRaw(record)])
+/**
+ * Encodes a supported ASN.1 record as TLV. Records wrap caller-supplied
+ * payloads (an `OCTET STRING` or `SEQUENCE` can be near `maxLength`), so this
+ * propagates the over-cap `null` through the recursive encode.
+ */
+export const encode = (record: Record): Nullable<Vec> => {
+    if (isVec(record)) { return record }
+    const raw = recordToRaw(record)
+    return raw === null ? null : encodeRaw([record[0], raw])
+}
 
 // decode
 
@@ -324,7 +352,9 @@ const rawToRecord = (raw: Raw): Record => {
         case objectIdentifier: return [objectIdentifier, decodeObjectIdentifier(value)]
         case constructedSequence: return [constructedSequence, decodeSequence(value)]
         case constructedSet: return [constructedSet, decodeSet(value)]
-        default: return encodeRaw(raw)
+        // Re-encoding a raw TLV decoded from already-bounded input; the over-cap
+        // `null` branch is dead.
+        default: return unwrap(encodeRaw(raw))
     }
 }
 

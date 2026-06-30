@@ -124,8 +124,15 @@ export const writeFile: Func<WriteFile> =
     do_('writeFile')
 
 /** Writes a string to `path` as UTF-8 bytes. */
-export const writeUtf8File = (path: string, content: string): Effect<WriteFile, IoResult<void>> =>
-    writeFile(path, utf8(content))
+export const writeUtf8File = (path: string, content: string): Effect<WriteFile, IoResult<void>> => {
+    const v = utf8(content)
+    // `content` is data-derived; if its UTF-8 encoding exceeds a single `Vec`,
+    // resolve the over-cap `null` into this effect's error channel rather than
+    // silently writing nothing.
+    return v === null
+        ? pure(resultError('content exceeds maximum vector length'))
+        : writeFile(path, v)
+}
 
 // rm
 
@@ -326,8 +333,13 @@ export const write: Func<Write> = do_('write')
  * Encodes `s + '\n'` as UTF-8 and emits a `Write` effect to `stream`.
  * Shared implementation for `log` and `error`.
  */
-const writeString = (stream: WriteConsoles) => (s: string): Effect<Write, void> =>
-    write(stream, utf8(s + '\n'))
+const writeString = (stream: WriteConsoles) => (s: string): Effect<Write, void> => {
+    const v = utf8(s + '\n')
+    // The `write` primitive takes a single `Vec`, so a console line whose UTF-8
+    // encoding exceeds `maxLength` is currently unencodable; drop it rather than
+    // throw. The durable fix is a chunked-stream `write` primitive (follow-up).
+    return v === null ? pure(undefined) : write(stream, v)
+}
 
 export type Console = (s: string) => Effect<Write, void>
 

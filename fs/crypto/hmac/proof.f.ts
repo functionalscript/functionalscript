@@ -1,6 +1,10 @@
 import { assertEq } from '../../asserts/module.f.ts'
-import { utf8 } from '../../text/module.f.ts'
+import { utf8 as utf8Raw } from '../../text/module.f.ts'
+import { unwrap } from '../../types/nullable/module.f.ts'
 import { uint, vec } from '../../types/bit_vec/module.f.ts'
+
+// Test inputs are short source literals, well within the cap.
+const utf8 = (s: string) => unwrap(utf8Raw(s))
 import { sha256, sha384, sha512 } from '../sha2/module.f.ts'
 import { hmac } from './module.f.ts'
 

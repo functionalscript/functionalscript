@@ -1,5 +1,6 @@
 import { empty, isVec, uint, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { utf8, utf8ToString } from "../../text/module.f.ts"
+import { unwrap } from "../../types/nullable/module.f.ts"
 import { decode, pure } from "../module.f.ts"
 import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt } from "./module.f.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
@@ -104,7 +105,7 @@ export const proof = {
         ok: () => {
             const [_, [t, result]] = virtual({
                 ...emptyState,
-                root: { hello: [utf8('Hello, world!')] },
+                root: { hello: [unwrap(utf8('Hello, world!'))] },
             })(readUtf8File('hello'))
             if (t !== 'ok') { throw result }
             if (result !== 'Hello, world!') { throw result }

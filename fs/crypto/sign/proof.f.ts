@@ -1,5 +1,9 @@
-import { utf8 } from "../../text/module.f.ts"
+import { utf8 as utf8Raw } from "../../text/module.f.ts"
+import { unwrap } from "../../types/nullable/module.f.ts"
 import type { Array4 } from "../../types/array/module.f.ts"
+
+// Test inputs are short source literals, well within the cap.
+const utf8 = (s: string) => unwrap(utf8Raw(s))
 import { empty, msb, repeat, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { hmac } from "../hmac/module.f.ts"
 import { secp192r1, secp256r1, secp384r1, secp521r1, type Curve } from "../secp/module.f.ts"

@@ -11,6 +11,7 @@ import { compose } from '../types/function/module.f.ts'
 import { stringToList } from '../text/utf16/module.f.ts'
 import { includes } from '../types/array/module.f.ts'
 import { type Vec } from '../types/bit_vec/module.f.ts'
+import type { Nullable } from '../types/nullable/module.f.ts'
 import { utf8 } from '../text/module.f.ts'
 import { quotationMark, ampersand, lessThanSign, greaterThanSign } from '../text/ascii/module.f.ts'
 
@@ -159,7 +160,7 @@ const commonHead = [
  * // <!DOCTYPE html><html><head><meta charset="UTF-8">...<title>My Page</title></head><body><h1>Hello</h1></body></html>
  * ```
  */
-export const htmlUtf8 = (...head: readonly Node[]) => (...body: readonly Node[]): Vec =>
+export const htmlUtf8 = (...head: readonly Node[]) => (...body: readonly Node[]): Nullable<Vec> =>
     utf8(htmlToString(['html',
         ['head', ...commonHead, ...head],
         ['body', ...body]]

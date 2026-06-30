@@ -6,6 +6,7 @@
 import type { Array2 } from '../../types/array/module.f.ts'
 import { bitLength, divUp8, roundUp8 } from '../../types/bigint/module.f.ts'
 import { empty, length, msb, repeat, unpack, vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
+import { unwrap } from '../../types/nullable/module.f.ts'
 import { hmac } from '../hmac/module.f.ts'
 import type { Curve } from '../secp/module.f.ts'
 import { computeSync, type Sha2 } from '../sha2/module.f.ts'
@@ -52,7 +53,10 @@ const x00 = vec8(0x00n)
 
 const { listToVec } = msb
 
-export const concat = (...x: readonly Vec[]): Vec => listToVec(x)
+// Joins a fixed number of fixed-size curve scalars / octet strings (size set by
+// the curve, never by user data), so the combined length is bounded by the
+// algorithm and the over-cap `null` branch is provably dead — hence `unwrap`.
+export const concat = (...x: readonly Vec[]): Vec => unwrap(listToVec(x))
 
 /**
  * Computes deterministic ECDSA nonce `k` as described by RFC6979.

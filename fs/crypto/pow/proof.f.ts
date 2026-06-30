@@ -1,5 +1,9 @@
-import { utf8 } from '../../text/module.f.ts'
+import { utf8 as utf8Raw } from '../../text/module.f.ts'
+import { unwrap } from '../../types/nullable/module.f.ts'
 import { empty, uint } from '../../types/bit_vec/module.f.ts'
+
+// Test inputs are short source literals, well within the cap.
+const utf8 = (s: string) => unwrap(utf8Raw(s))
 import { computeSync, sha224, sha256 } from '../sha2/module.f.ts'
 import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBits } from './module.f.ts'
 

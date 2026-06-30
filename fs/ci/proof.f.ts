@@ -8,6 +8,7 @@ import type { State } from '../effects/node/virtual/module.f.ts'
 import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 import { parse as jsonParse } from '../json/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
+import { unwrap as unwrapNullable } from '../types/nullable/module.f.ts'
 import { definedValues } from '../types/object/module.f.ts'
 
 const hasRun = (cmd: string) => (gha: GitHubAction): boolean =>
@@ -20,7 +21,7 @@ const makeState = (rust: boolean, packageJson?: string) => ({
     ...emptyState,
     root: {
         '.github': { workflows: {} },
-        ...(packageJson !== undefined ? { 'package.json': [utf8(packageJson)] } : {}),
+        ...(packageJson !== undefined ? { 'package.json': [unwrapNullable(utf8(packageJson))] } : {}),
         ...(rust ? { 'Cargo.toml': [emptyVec] } : {}),
     },
 })

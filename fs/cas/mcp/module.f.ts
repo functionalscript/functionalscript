@@ -179,24 +179,20 @@ const casToolRegistry =
                         : rm(content).step(() => pure(okResult(vecToCBase32(v))))
                 )
             }
-            // type:'text' or 'base64' — resolve content to Vec, store via c.write()
-            let x: Effect<Rm, Vec|string>
-            switch(type) {
-                case 'base64':
-                    const value = base64Decode(content)
-                    x = pure(value === null ? `invalid base64 content: ${content}` : value)
-                    break
-                default:
-                    x = pure(utf8(content))
-                    break
+            // type:'text' or 'base64' — resolve content to a Vec, store via c.write().
+            // Both codecs return `null` for content that cannot be represented as a
+            // single `Vec` (malformed, or above the inline cap), so `cas_add` never
+            // assumes the size is bounded: a `null` becomes a generic content
+            // decoding error that points oversized callers at type:'url'.
+            const value = type === 'base64' ? base64Decode(content) : utf8(content)
+            if (value === null) {
+                return pure(errorResult(
+                    `content could not be decoded — it may be malformed or above the ${maxLengthBytes}-byte (128 KiB) inline limit; use type:"url" for large content`))
             }
-            return x.step(value => typeof value === 'string'
-                ? pure(errorResult(value))
-                // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(nonEmpty(ok(value), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
-                    ? errorResult('write')
-                    : okResult(vecToCBase32(hash))))
-            )
+            // The resolved content fits in one chunk; feed it as a single-item stream.
+            return c.write(nonEmpty(ok(value), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
+                ? errorResult('write')
+                : okResult(vecToCBase32(hash))))
         },
     ),
     toolEntry(
@@ -236,32 +232,37 @@ const casToolRegistry =
                 }
                 const { length, mime_type, type } = detected
                 const meta: Meta = { length: Number(length), mime_type, type, url }
+                const tooLarge = errorResult(
+                    `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the url field (${url}) or omit content for metadata`)
                 // A single `Vec` caps at `maxLength` bits (`maxLengthBytes` bytes), so
                 // a larger blob cannot be buffered for inline transfer. Report the
                 // size and point at the size-independent alternatives instead of
                 // misreporting an existing blob as `no such hash`.
                 if (length > maxLengthBytes) {
-                    return pure(errorResult(
-                        `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the url field (${url}) or omit content for metadata`))
+                    return pure(tooLarge)
                 }
                 return collectRead(c.read(key)).step(([collectTag, value]) => {
                     if (collectTag === 'error') {
                         return pure(errorResult(`no such hash: ${r.hash}`))
                     }
-                    if (type === 'text') {
-                        // `type: 'text'` means the detector validated `value` as UTF-8,
-                        // so `fromVec` is non-null here; guard defensively regardless.
-                        const str = fromVec(value)
-                        return pure(str === null
-                            ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                            : okResult(toJson({ ...meta, content: str }))
-                        )
+                    // `type: 'text'` means the detector validated `value` as UTF-8.
+                    // A `null` here means the inline encoding overflows a single
+                    // `Vec` — base64 expands a `maxLengthBytes` blob ~4/3× past the
+                    // cap — so it is a too-large case, not a real byte-alignment
+                    // failure (the blob is byte-aligned by detection).
+                    const content = type === 'text' ? fromVec(value) : base64Encode(value)
+                    if (content === null) {
+                        return pure(tooLarge)
                     }
-                    const blob = base64Encode(value)
-                    return pure(blob === null
-                        ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                        : okResult(toJson({ ...meta, content: blob }))
-                    )
+                    const json = toJson({ ...meta, content })
+                    // Even when `content` fits, the serialized response (base64 ≈ 4/3×
+                    // plus the JSON envelope) can exceed `maxLength` and be unwritable
+                    // as one line even for a `maxLengthBytes` blob. Bound it so the
+                    // transport is never handed an over-`maxLength` `Vec`.
+                    if (utf8(json) === null) {
+                        return pure(tooLarge)
+                    }
+                    return pure(okResult(json))
                 })
             })
         },

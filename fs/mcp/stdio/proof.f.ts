@@ -4,6 +4,7 @@ import { emptyState, virtual, type State } from '../../effects/node/virtual/modu
 import type { Unknown } from '../../json/module.f.ts'
 import { stringify } from '../../json/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
+import { unwrap } from '../../types/nullable/module.f.ts'
 import { fromVec } from '../../types/uint8array/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { jsonrpc, parseError, type Id, type Response } from '../../json/rpc/module.f.ts'
@@ -28,7 +29,7 @@ const echoStep: Step<never> = (value: Unknown): Effect<never, Response | null> =
 }
 
 // UTF-8 bytes of `s` as a plain array — the virtual stdin byte stream.
-const toBytes = (s: string): readonly number[] => [...fromVec(utf8(s))]
+const toBytes = (s: string): readonly number[] => [...fromVec(unwrap(utf8(s)))]
 
 // Run the transport with `step` over `input` fed to stdin one byte at a time;
 // return the final state. `input` is raw text so tests control newline framing.

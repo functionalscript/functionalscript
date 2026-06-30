@@ -4,10 +4,16 @@ import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
 import type { Response } from '../../json/rpc/module.f.ts'
-import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../../types/bit_vec/module.f.ts'
+import { msb, u8ListToVec as u8ListToVecRaw, vec8, repeat, length, type Vec, maxLengthBytes, type BitOrder } from '../../types/bit_vec/module.f.ts'
+import { unwrap } from '../../types/nullable/module.f.ts'
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
-import { utf8 } from '../../text/module.f.ts'
+import { utf8 as utf8Raw } from '../../text/module.f.ts'
+import type { List } from '../../types/list/module.f.ts'
+
+// Test fixtures are short literals, well within the cap.
+const u8ListToVec = (bo: BitOrder) => (list: List<number>): Vec => unwrap(u8ListToVecRaw(bo)(list))
+const utf8 = (s: string): Vec => unwrap(utf8Raw(s))
 import { type FileCasOperation } from '../module.f.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
@@ -193,7 +199,46 @@ const symbolChunk = repeat(maxLengthBytes / 2n)(u8ListToVec(msb)([0xc3, 0xa9]))
 // A full chunk of 0xFF — an invalid UTF-8 lead byte, so binary (no magic match).
 const binaryChunk = repeat(maxLengthBytes)(vec8(0xffn))
 
+// Base64 of `n` ASCII 'a' (0x61) bytes, spelled out for any `n` (all three
+// `n % 3` residues), so the boundary sample decodes to exactly `n` bytes
+// without ever driving the encoder past `maxLength`: 'aaa' → 'YWFh', a trailing
+// single byte → 'YQ==', a trailing pair → 'YWE='.
+const base64OfA = (n: number): string => {
+    const tail = n % 3
+    return 'YWFh'.repeat((n - tail) / 3) + (tail === 1 ? 'YQ==' : tail === 2 ? 'YWE=' : '')
+}
+
+const maxBytes = Number(maxLengthBytes)
+
 export const proof = {
+    // Inline `text` at exactly `maxLengthBytes` (the largest single `Vec`) is
+    // stored, not rejected.
+    addTextAtMaxStores: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'a'.repeat(maxBytes) }))
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
+    },
+
+    // One byte over the cap is a clean `isError` on every engine — not a thrown
+    // crash, not a silently-stored over-`maxLength` blob.
+    addTextOverMaxIsError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'a'.repeat(maxBytes + 1) }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    // Inline `base64` decoding to exactly `maxLengthBytes` is stored.
+    addBase64AtMaxStores: () => {
+        const [resp] = session(call(2, 'cas_add', { content: base64OfA(maxBytes), type: 'base64' }))
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
+    },
+
+    // base64 decoding to one byte over the cap is a clean `isError`.
+    addBase64OverMaxIsError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: base64OfA(maxBytes + 1), type: 'base64' }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
     // Both chunks repeated ASCII → text/plain, no error on a > 128 KiB blob.
     getMetaLargeMultiChunkBlobNoError:
         largeMultiChunkBlobMeta(asciiChunk, asciiChunk, 'text', 'text/plain'),

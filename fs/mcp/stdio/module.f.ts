@@ -43,8 +43,14 @@ const stringifyJson = stringify(sort)
 const parseErrorResponse: Response = { jsonrpc, error: parseError, id: null }
 
 /** Encodes a response as a newline-terminated UTF-8 line and writes it to `stdout`. */
-const writeResponse = (resp: Response): Effect<Write, void> =>
-    write('stdout', utf8(stringifyJson(resp as Unknown) + '\n'))
+const writeResponse = (resp: Response): Effect<Write, void> => {
+    const v = utf8(stringifyJson(resp as Unknown) + '\n')
+    // The `write` primitive takes a single `Vec`; a response whose UTF-8
+    // encoding exceeds `maxLength` is currently unencodable, so drop it rather
+    // than throw. Tools bound their own responses (e.g. `cas_get` rejects
+    // oversized inline content); the durable fix is a chunked-stream `write`.
+    return v === null ? pure(undefined) : write('stdout', v)
+}
 
 /** Writes `resp` when present, otherwise does nothing (notification). */
 const writeMaybe = (resp: Response | null): Effect<Write, void> =>

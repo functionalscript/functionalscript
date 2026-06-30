@@ -1,10 +1,14 @@
 import { toCodePointList, fromCodePointList, fromVec } from './module.f.ts'
 import { stringify as jsonStringify } from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { toArray } from '../../types/list/module.f.ts'
-import { msb, u8ListToVec } from '../../types/bit_vec/module.f.ts'
+import { toArray, type List } from '../../types/list/module.f.ts'
+import { msb, u8ListToVec as u8ListToVecRaw, type BitOrder, type Vec } from '../../types/bit_vec/module.f.ts'
+import { unwrap } from '../../types/nullable/module.f.ts'
 
 const stringify = jsonStringify(sort)
+
+// Test inputs are short byte literals, well within the cap.
+const u8ListToVec = (bo: BitOrder) => (list: List<number>): Vec => unwrap(u8ListToVecRaw(bo)(list))
 
 export const proof = {
     toCodePoint: [
