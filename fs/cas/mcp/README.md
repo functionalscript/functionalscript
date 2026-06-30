@@ -73,7 +73,7 @@ Inline content (`text`/`base64`) resolves into a single `Vec`, which caps at
 `$HOME/cas_upload/` and pass `type: 'url'`, which streams the file with no size
 limit. (Graceful rejection of oversized inline content — today it fails inside
 `utf8` / base64 `decode` — is tracked in
-[`cas-add-inline-size-error`](../todo/cas-add-inline-size-error.md).)
+[`cas-add-inline-size-error`](todo/cas-add-inline-size-error.md).)
 
 ## `cas_get`: metadata + optional inline content
 
