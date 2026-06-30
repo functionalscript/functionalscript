@@ -3,6 +3,8 @@ import { flat, utf8, utf8ToString, tryUtf8, type Block } from './module.f.ts'
 import { join } from '../types/string/module.f.ts'
 import { empty, maxLengthBytes } from '../types/bit_vec/module.f.ts'
 
+const overflowStr = 'a'.repeat(Number(maxLengthBytes) + 1)
+
 export const proof = {
     block: () => {
         const text: Block = [
@@ -36,10 +38,10 @@ export const proof = {
         // instead of building an oversized `bigint`, and the throwing `utf8`
         // wrapper should raise on the same input.
         try: () => {
-            assertEq(tryUtf8('a'.repeat(Number(maxLengthBytes) + 1)), null)
+            assertEq(tryUtf8(overflowStr), null)
         },
         throw: () => {
-            utf8('a'.repeat(Number(maxLengthBytes) + 1))
+            utf8(overflowStr)
         },
     },
 }
