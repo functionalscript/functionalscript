@@ -302,13 +302,13 @@ type ListToVecState = {
     readonly stack: readonly Unpacked[]
 }
 
-type Accumulator<I, T> = {
+type Accumulator<I, T, R> = {
     init: T
     update: (i: I, state: T) => Nullable<T>
-    end: (state: T) => I
+    end: (state: T) => R
 }
 
-type ListToVecOp = Accumulator<Unpacked, ListToVecState>
+type ListToVecOp = Accumulator<Unpacked, ListToVecState, Vec>
 
 const listToVecOp =
     (unpackConcat: UnpackConcat): ListToVecOp =>
@@ -334,7 +334,7 @@ const listToVecOp =
         }
         return { len, stack }
     },
-    end: ({stack}) => stack.reduce((p, c) => unpackConcat(c)(p), unpackEmpty)
+    end: ({stack}) => pack(stack.reduce((p, c) => unpackConcat(c)(p), unpackEmpty))
 })
 
 /**
@@ -356,7 +356,7 @@ const listToVecOp =
  */
 const unpackListToVec = (unpackConcat: UnpackConcat) => {
     const { init, update, end } = listToVecOp(unpackConcat)
-    return (list: List<Unpacked>): Nullable<Unpacked> => {
+    return (list: List<Unpacked>): Nullable<Vec> => {
         let result: ListToVecState = init
         for (const e of iterable(list)) {
             const candidate = update(e, result)
@@ -396,7 +396,7 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
         front,
         removeFront,
         concat,
-        listToVec: list => pack(unwrap(unpackListToVec(unpackConcat)(map(unpack)(list)))),
+        listToVec: list => unwrap(unpackListToVec(unpackConcat)(map(unpack)(list))),
         xor: op(norm)(xor),
         unpackPopFront,
         popFront,
@@ -481,8 +481,8 @@ export const msb: BitOrder = bo({
  * @returns The resulting vector based on the provided bit order.
  */
 export const u8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>): Vec =>
-    pack(unwrap(unpackListToVec(unpackConcat)(
-        map((b: number): Unpacked => ({ length: 8n, uint: BigInt(b) }))(list))))
+    unwrap(unpackListToVec(unpackConcat)(
+        map((b: number): Unpacked => ({ length: 8n, uint: BigInt(b) }))(list)))
 
 const unpackChunkList = ({ unpackSplit }: BitOrder) => (n: bigint): (u: Unpacked) => Thunk<Unpacked> => {
     const divUpN2 = divUp(n << 1n)
