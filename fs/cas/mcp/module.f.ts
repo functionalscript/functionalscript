@@ -84,7 +84,7 @@ import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
-import { tryUtf8, utf8 } from '../../text/module.f.ts'
+import { tryUtf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../mime/module.f.ts'
 import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
@@ -96,7 +96,7 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { casAddFile, fileCas, type Cas, type FileCas, type FileCasOperation } from '../module.f.ts'
+import { casAddFile, fileCas, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
