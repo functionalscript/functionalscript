@@ -28,6 +28,7 @@ import { iterable, map, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
 import { cmp, max, min, type Sign } from '../function/compare/module.f.ts'
+import type { Nullable } from '../nullable/module.f.ts'
 
 /**
  * A vector of bits represented as a signed `bigint`.
@@ -279,7 +280,7 @@ export type BitOrder = {
      */
     readonly cmp: (a: Vec) => (b: Vec) => Sign
     readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
-    readonly unpackConcat: (a: Unpacked) => (b: Unpacked) => Unpacked
+    readonly unpackConcat: UnpackConcat
     readonly startsWith: (prefix: Vec) => (v: Vec) => boolean
 }
 
@@ -293,6 +294,43 @@ type Base = {
 }
 
 const unpackEmpty = { length: 0n, uint: 0n } as const
+
+type UnpackConcat = (a: Unpacked) => (b: Unpacked) => Unpacked
+
+type ListToVecState = readonly Unpacked[]
+
+type Accumulator<I, T> = {
+    init: T
+    update: (i: I, state: T) => T
+    end: (state: T) => I
+}
+
+type ListToVecOp = Accumulator<Unpacked, ListToVecState>
+
+const listToVecOp =
+    (unpackConcat: UnpackConcat): ListToVecOp =>
+({
+    init: [],
+    update: (v, state) => {
+        let i = 0
+        while (true) {
+            if (state.length <= i) {
+                state = [...state, v]
+                break
+            }
+            const old = state[i]
+            if (old.length === 0n) {
+                state = state.toSpliced(i, 1, v)
+                break
+            }
+            state = state.toSpliced(i, 1, unpackEmpty)
+            v = unpackConcat(old)(v)
+            i++
+        }
+        return state
+    },
+    end: state => state.reduce((p, c) => unpackConcat(c)(p), unpackEmpty)
+})
 
 /**
  * Concatenates a list of unpacked vectors using a binary-counter accumulator,
@@ -311,29 +349,16 @@ const unpackEmpty = { length: 0n, uint: 0n } as const
  * and materializes the combined result on demand, such as `StringBuilder`
  * (Java, C#) or `strings.Builder` (Go).
  */
-const unpackListToVec = (unpackConcat: BitOrder['unpackConcat']) =>
-    (list: List<Unpacked>): Unpacked => {
-        let result: readonly Unpacked[] = []
+const unpackListToVec = (unpackConcat: UnpackConcat) => {
+    const { init, update, end } = listToVecOp(unpackConcat)
+    return (list: List<Unpacked>): Unpacked => {
+        let result: ListToVecState = init
         for (const e of iterable(list)) {
-            let v = e
-            let i = 0
-            while (true) {
-                if (result.length <= i) {
-                    result = [...result, v]
-                    break
-                }
-                const old = result[i]
-                if (old.length === 0n) {
-                    result = result.toSpliced(i, 1, v)
-                    break
-                }
-                result = result.toSpliced(i, 1, unpackEmpty)
-                v = unpackConcat(old)(v)
-                i++
-            }
+            result = update(e, result)
         }
-        return result.reduce((p, c) => unpackConcat(c)(p), unpackEmpty)
+        return end(result)
     }
+}
 
 const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }: Base): BitOrder => {
     const unpackPopFront = (len: bigint) => {
@@ -344,8 +369,9 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
             return [uint & m, { length: v.length - len, uint: rest }] as const
         }
     }
-    const unpackConcat = (a: Unpacked) => (b: Unpacked) => ({
-        length: a.length + b.length, uint: unpackConcatUint(a)(b)
+    const unpackConcat: UnpackConcat = a => b => ({
+        length: a.length + b.length,
+        uint: unpackConcatUint(a)(b)
     })
     const popFront: PopFront<Vec> = len => {
         const f = unpackPopFront(len)
