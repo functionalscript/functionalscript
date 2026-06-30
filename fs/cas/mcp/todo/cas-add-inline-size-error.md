@@ -75,19 +75,16 @@ bounded, and collapse both failure causes into a single generic *decoding error*
 
    This replaces the current `invalid base64 content: ${content}` string.
 
-3. **Additional up-front check (optional, cheap) — `text` only.** For `text`,
-   the UTF-16 `content.length` is a valid *lower* bound on the UTF-8 byte length
-   (every UTF-16 code unit is ≥ 1 UTF-8 byte, and surrogate pairs only widen the
-   ratio), so `content.length > maxLengthBytes` is a sound early reject with the
-   same `decoding error` before building any `Vec`. **Do not apply this to
-   `base64`:** there `content.length` is ≈ 4/3 of the decoded byte count, so
-   testing it against `maxLengthBytes` would wrongly reject valid blobs above
-   ~96 KiB but under the cap. For `base64`, rely on `base64Decode`'s `null` (or
-   derive the exact decoded byte length from the body length and padding count if
-   an early check is wanted). Either way this is only an optimisation — the
-   authoritative check stays the `null` from `tryUtf8` / `base64Decode`. Reuse the
-   limit constants already exported from `fs/types/bit_vec/module.f.ts`
-   (`maxLength`, `maxLengthBytes`).
+**No size estimation, anywhere.** Do not add an up-front `content.length` (or
+any other) check to predict whether decoding will fit under `maxLength` before
+attempting it — UTF-8 expansion, base64's 3/4 ratio, and (per
+`cas-get-response-overflow.md`) JSON-escaping overhead make any such estimate
+either unsafe (too generous) or wrong in the safe-but-misleading direction
+(rejects valid input). The only correct check is the real `null` returned by
+the actual decode/encode attempt; let `tryUtf8` / `base64Decode` do the work
+and branch on their result. This keeps the cap enforcement in exactly one
+place per codec (the `try*` function itself) instead of duplicating the limit
+logic at every call site.
 
 `cas_add` never `unwrap`s the inline `Vec`: the over-cap signal ends only as the
 `isError` result above. (`type: 'url'` is unaffected — it already streams.)

@@ -54,68 +54,49 @@ checks the wrong quantity.
 
 ### Proposal
 
-The transport fix is the one that must be exact; the `cas_get`-level guard can
-only ever be a conservative early-reject, because `cas_get`'s handler does not
-see the final outer JSON-RPC encoding (that happens later, generically, in
-`mcpStep` / `writeResponse`) and a precise bound would require duplicating
-that serialization. So:
+**No size estimation.** Don't try to predict the escaped/serialized response
+size anywhere (`cas_get` cannot see the final outer JSON-RPC encoding anyway —
+that happens later, generically, in `mcpStep` / `writeResponse` — so any
+estimate computed in `cas_get` would either have to duplicate that
+serialization to be exact, or guess, which the JSON-escaping doubling above
+already shows is easy to get wrong). Instead, make the one place that
+actually performs the encoding fail soft instead of throwing:
 
-1. **Make the transport non-throwing (authoritative).**
-   `fs/mcp/stdio/module.f.ts` `writeResponse` should use `tryUtf8` instead of
-   the total `utf8`, and on `null` write a fallback error response (e.g. a
-   `-32603`-style internal-error line sized well under `maxLength`) instead of
-   letting the throw escape. This is what actually guarantees no crash,
-   regardless of how badly any guard upstream underestimates — it protects
-   every MCP response, not just `cas_get`'s.
-2. **Tighten the `cas_get` guard as a conservative early-reject**, not as the
-   source of truth. Bound the *inner* CAS JSON size using a worst-case
-   escaping multiplier rather than the raw content size:
-   - `type: 'base64'`: the alphabet (`A-Za-z0-9+/=`) contains no characters
-     JSON needs to escape, so `ceil(length / 3) * 4` bytes plus the fixed
-     envelope overhead is already a tight, correct bound — no multiplier
-     needed here.
-   - `type: 'text'`: a single inner-JSON-escaped character can itself need
-     escaping again once embedded in the outer envelope's `text` field (see
-     Problem), and the worst case is **not** the quote/backslash characters
-     (those only expand 1 byte into 4). A raw control byte such as NUL
-     becomes a 6-character escape on the inner pass (a backslash, the
-     letter `u`, and four hex digits), and that escape's single backslash
-     is itself re-escaped on the outer pass (one backslash becomes two),
-     giving 7 bytes total for one raw input byte. Use a conservative
-     worst-case multiplier of **7x** (not 4x) on `length` rather than
-     trying to special-case which characters are present; this trades some
-     false positives (an oversized-looking but actually-fine text blob
-     gets the early `errorResult` instead of succeeding) for a bound that
-     cannot be wrong in the unsafe direction.
-   Treat this as a cheap optimisation that returns the existing
-   `errorResult` sooner with a clearer message — (1) remains the backstop
-   that must hold even if this estimate is off.
+`fs/mcp/stdio/module.f.ts` `writeResponse` should attempt the real encode —
+`tryUtf8(stringifyJson(resp) + '\n')` instead of the total `utf8` — and on
+`null` write a fallback response instead of letting the throw escape. The
+fallback is a fixed, statically-small JSON-RPC error (reusing the existing
+`internalError` — `rpcError(-32603)('Internal error')` — paired with `resp`'s
+`id`, present on both the success and error branches of `Response`) that is
+guaranteed to itself encode, since it carries no caller-controlled content.
 
-This mirrors the `cas-add-inline-size-error` precedent (an optional, provably
-sound — never unsafe — early check, with the authoritative `null`/non-throw
-path as the real fix) and is the output-side counterpart to `cas_add`'s
-input-side handling.
+This is the complete fix: it needs no companion guard in `cas_get`, handles
+every shape of oversized response (binary via base64 inflation, text via
+single or double JSON escaping, or anything else the JSON-RPC envelope might
+add later), and matches the existing `try*`/`Nullable` convention — attempt
+the real operation, branch on `null` — used everywhere else in this
+codebase (`tryUtf8`, `tryListToVec`, `tryU8ListToVec`, `base64Decode`)
+instead of computing a size bound up front. `cas_get` itself does not change:
+its existing `length > maxLengthBytes` guard (an exact check on the *raw*
+blob, not an estimate of encoded size) is unaffected and stays as a cheap
+early reject for blobs that cannot possibly be materialized into one `Vec`
+regardless of encoding.
 
 ### Tasks
 
 - [ ] `fs/mcp/stdio/module.f.ts` `writeResponse`: switch from `utf8` to
-      `tryUtf8`; on `null`, write a typed fallback error response instead of
-      throwing. (Authoritative fix — required regardless of task below.)
-- [ ] `fs/cas/mcp/module.f.ts` `cas_get`: replace the raw `length >
-      maxLengthBytes` check (the `content: true` branch) with a conservative
-      check against the *escaped* response size: exact `ceil(length/3)*4` +
-      envelope for `base64`; `length * 7` (worst-case control-character
-      double-escaping) + envelope for `text`.
-- [ ] Proof tests: `fs/cas/mcp/proof.f.ts`
+      `tryUtf8`; on `null`, write the fixed `internalError` JSON-RPC response
+      (with `resp.id`) instead of throwing.
+- [ ] Proof tests: `fs/cas/mcp/proof.f.ts` / `fs/mcp/stdio/proof.f.ts`
       - A binary blob at exactly `maxLengthBytes` requested with
-        `content: true` returns a clean `isError` (not a crash) once its
-        base64 + envelope would overflow; confirm the boundary where it still
-        succeeds.
+        `content: true` returns a clean error response (not a crash) once its
+        base64 + JSON envelope overflows `maxLength`; confirm the boundary
+        where it still succeeds.
       - A text blob made entirely of `"` / `\` / control characters, sized so
         the *raw* content is well under `maxLengthBytes` but the
         double-escaped final line would exceed `maxLength` — confirms
-        `writeResponse`'s `tryUtf8` path (not a crash) handles whatever the
-        `cas_get` guard's conservative estimate misses.
+        `writeResponse`'s `tryUtf8` fallback (not a crash) handles it without
+        any `cas_get`-level guard needing to predict the overflow.
 
 ### Related
 
