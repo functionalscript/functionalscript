@@ -184,7 +184,7 @@ const casToolRegistry =
                 ? base64Decode(content)
                 : tryUtf8(content)
             return x === null
-                ? pure(errorResult('encoding error'))
+                ? pure(errorResult('too large or malformed — use type:"url" for large content'))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
                 : c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
                     ? errorResult('write')

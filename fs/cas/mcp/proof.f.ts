@@ -157,6 +157,12 @@ const binarySample = base64Encode(vec8(0x2An)) as string
 const pngSample = base64Encode(
     u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])) as string
 
+// Returns the RFC 4648 base64 encoding of `n` ASCII 'a' (0x61) bytes. Works for
+// every `n % 3` residue. Safe to cast: repeat(n)(vec8(0x61n)) is always
+// octet-aligned and at most `maxLength` bits for n <= maxLengthBytes.
+const base64OfA = (n: bigint): string =>
+    base64Encode(repeat(n)(vec8(0x61n))) as string
+
 // ── Tests ───────────────────────────────────────────────────────────────────────
 
 // A blob larger than one read chunk (> 128 KiB) used to fail metadata-only
