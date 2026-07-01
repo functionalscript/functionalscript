@@ -157,11 +157,18 @@ const binarySample = base64Encode(vec8(0x2An)) as string
 const pngSample = base64Encode(
     u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])) as string
 
-// Returns the RFC 4648 base64 encoding of `n` ASCII 'a' (0x61) bytes. Works for
-// every `n % 3` residue. Safe to cast: repeat(n)(vec8(0x61n)) is always
-// octet-aligned and at most `maxLength` bits for n <= maxLengthBytes.
-const base64OfA = (n: bigint): string =>
-    base64Encode(repeat(n)(vec8(0x61n))) as string
+// Returns the RFC 4648 base64 encoding of `n` zero bytes, computed directly
+// without bigint arithmetic — safe near maxLengthBytes where base64Encode on a
+// padded Vec would trigger the encode-padding-overflow bug. Handles every n%3
+// residue: rem=0 → no padding, rem=1 → 'AA==', rem=2 → 'AAA='.
+const base64OfA = (n: bigint): string => {
+    const groups = Number(n / 3n)
+    const rem = Number(n % 3n)
+    const body = 'AAAA'.repeat(groups)
+    if (rem === 0) { return body }
+    if (rem === 1) { return body + 'AA==' }
+    return body + 'AAA='
+}
 
 // ── Tests ───────────────────────────────────────────────────────────────────────
 
@@ -381,19 +388,38 @@ export const proof = {
     },
 
     // 174_764 'A' chars × 6 bits = 1_048_584 bits, 8 over maxLength — base64Decode
-    // returns null and cas_add surfaces that as an encoding error.
+    // returns null and cas_add surfaces an error.
     addBase64OverLimitIsError: () => {
         const [resp] = session(call(2, 'cas_add', { content: 'A'.repeat(174_764), type: 'base64' }))
         assertEq(resultOf(resp).isError, true)
-        assert(textOf(resp).includes('encoding error'))
+        assert(textOf(resp).includes('too large or malformed'))
     },
 
     // One ASCII byte past maxLengthBytes — tryUtf8 returns null and cas_add
-    // surfaces that as an encoding error.
+    // surfaces an error.
     addTextOverLimitIsError: () => {
         const [resp] = session(call(2, 'cas_add', { content: 'a'.repeat(Number(maxLengthBytes) + 1) }))
         assertEq(resultOf(resp).isError, true)
-        assert(textOf(resp).includes('encoding error'))
+        assert(textOf(resp).includes('too large or malformed'))
+    },
+
+    // Exactly maxLengthBytes (131,072) ASCII bytes — tryUtf8 returns a non-null
+    // Vec (len === maxLength, not over), so cas_add stores cleanly.
+    addTextAtLimitSucceeds: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'a'.repeat(Number(maxLengthBytes)) }))
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
+    },
+
+    // base64 of exactly maxLengthBytes — currently returns isError because
+    // base64Decode measures the raw pre-trim body (1_048_578 bits) against
+    // maxLength before stripping the 2 padding bits that would land it exactly at
+    // maxLength. Assert the current failing behavior; flip to a success assertion
+    // once `fs/base64/todo/decode-rejects-max-size-input.md` is fixed.
+    addBase64AtLimitIsError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: base64OfA(maxLengthBytes), type: 'base64' }))
+        assertEq(resultOf(resp).isError, true)
+        assert(textOf(resp).includes('too large or malformed'))
     },
 
     getUnterminatedHashIsError: () => {
