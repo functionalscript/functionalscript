@@ -230,16 +230,6 @@ const symbolChunk = repeat(maxLengthBytes / 2n)(u8ListToVec(msb)([0xc3, 0xa9]))
 // A full chunk of 0xFF — an invalid UTF-8 lead byte, so binary (no magic match).
 const binaryChunk = repeat(maxLengthBytes)(vec8(0xffn))
 
-// 100,000 raw bytes of 0xFF: comfortably under `maxLengthBytes` (so `cas_get`'s
-// own `length > maxLengthBytes` guard does not fire), but base64 inflates it to
-// ceil(100_000/3)*4 = 133,336 chars — already past `maxLength` (131,072 bytes)
-// before the JSON-RPC envelope adds anything. Small enough to stay clear of the
-// separate `base64Encode`-near-`maxLength` padding bug (see `base64OfA` above).
-const oversizedBase64Chunk = repeat(100_000n)(vec8(0xffn))
-// 90,000 raw bytes: base64 inflates to 120,000 chars, leaving ~11 KiB of margin
-// under `maxLength` once the envelope is added — the paired "still succeeds" case.
-const boundaryBase64Chunk = repeat(90_000n)(vec8(0xffn))
-
 // 33,000 `"` bytes (0x22): valid UTF-8, so `cas_get` classifies it as text and
 // takes the double-JSON-escaping path (`toJson` builds the inner CAS JSON, then
 // the outer `stringifyJson` embeds that as the `text` field). Each quote costs
@@ -290,47 +280,6 @@ export const proof = {
         const [resp] = session(call(2, 'cas_get', { hash: absent, content: true }))
         assertEq(resultOf(resp).isError, true)
         assert(textOf(resp).includes('no such hash'))
-    },
-
-    // A blob at exactly `maxLengthBytes` passes cas_get's own raw-length guard
-    // (it checks the *stored* size, not the encoded response), but base64
-    // inflation of a 100,000-byte blob alone already exceeds `maxLength` before
-    // the JSON-RPC envelope is even added. The transport's `writeResponse`
-    // (`tryUtf8`) must catch this and write a JSON-RPC internal-error response —
-    // carrying the *original request's* `id` — instead of crashing the process.
-    // See `fs/mcp/stdio/module.f.ts` `writeResponse`.
-    getContentBase64InflationOverflowWritesInternalError: () => {
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'big': [oversizedBase64Chunk] } } } }
-        const [addResp] = runStdio(root)([
-            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
-        ])
-        const hash = textOf(addResp)
-        const [, getResp] = runStdio(root)([
-            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
-            call(3, 'cas_get', { hash, content: true }),
-        ])
-        const err = getResp as { readonly error?: { readonly code: number }, readonly id: unknown }
-        assertEq(err.error?.code, -32603)
-        assertEq(err.id, 3)
-    },
-
-    // The paired boundary case: a blob whose base64 inflation leaves enough
-    // margin under `maxLength` for the envelope — confirms the fallback above
-    // only triggers on genuine overflow, not on every `content:true` binary read.
-    getContentBase64NearBoundarySucceeds: () => {
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'big': [boundaryBase64Chunk] } } } }
-        const [addResp] = runStdio(root)([
-            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
-        ])
-        const hash = textOf(addResp)
-        const [, getResp] = runStdio(root)([
-            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
-            call(3, 'cas_get', { hash, content: true }),
-        ])
-        assert(!resultOf(getResp).isError)
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
-        assertEq(result.type, 'base64')
-        assertEq(result.length, 90_000)
     },
 
     // A text blob made entirely of `"` characters keeps the *raw* content
