@@ -201,34 +201,16 @@ const casToolRegistry =
                 return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
             }
             const url = c.url(key)
-            const x = detectStream(c.read(key))
-            // Metadata-only (the default): derive `{ length, mime_type, type }` by
-            // streaming the blob through the detector state machine. Never buffers
-            // the blob, so this is size-independent — large blobs that overflow a
-            // single `Vec` still return correct metadata instead of an error.
-            if (r.content !== true) {
-                return x.step(([tag, detected]) => {
-                    if (tag === 'error') {
-                        return pure(errorResult(`no such hash: ${r.hash}`))
-                    }
-                    const { length, mime_type, type } = detected
-                    const meta: Meta = { length: Number(length), mime_type, type, url }
-                    return pure(okResult(toJson(meta)))
-                })
-            }
-            // content:true — first derive `{ length, mime_type, type }` with the
-            // *same* size-independent `detectStream` machine as the metadata path.
-            // This separates the two failure modes the old single `collectRead`
-            // collapsed into one: a genuinely absent hash (stream error) versus a
-            // blob that exists but is too large to buffer into a single `Vec`. Only
-            // a blob within `maxLength` is then materialized (via `collectRead`) and
-            // encoded inline by `type` — a UTF-8 string for `text`, base64 otherwise.
-            return x.step(([tag, detected]) => {
+            return detectStream(c.read(key)).step(([tag, detected]) => {
                 if (tag === 'error') {
                     return pure(errorResult(`no such hash: ${r.hash}`))
                 }
                 const { length, mime_type, type } = detected
                 const meta: Meta = { length: Number(length), mime_type, type, url }
+                if (r.content !== true) {
+                    // content:true path continues below; this is just the metadata step.
+                    return pure(okResult(toJson(meta)))
+                }
                 // A single `Vec` caps at `maxLength` bits (`maxLengthBytes` bytes), so
                 // a larger blob cannot be buffered for inline transfer. Report the
                 // size and point at the size-independent alternatives instead of
