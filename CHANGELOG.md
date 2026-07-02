@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.35.2
+
 - `crypto/sha2`: fix `append`'s O(n²) block-extraction loop — the same shape as the `base_n` fix in 0.35.1, and hotter, since `fileCas.write` passes the whole content `Vec` (up to `maxLengthBytes`, 128 KiB) as a single `append` call on *every* `cas_add`. The old loop popped one fixed-size SHA-2 block off the front of `remainder` at a time via `popFront`, re-masking the entire remaining bigint each call. Rewrites `append` as a fold over `chunkList(msb)(chunkLength)(...)`, reusing `State`'s own shape as the fold's accumulator, and hoists the chunk-size- and config-invariant partial applications (`chunkListMsb`, `chunkListChunkLength`, `foldChunks`) to their dependency scope per the new `AGENTS.md` rule. On a 320,000-byte input: 3444ms → 116ms, and per-2x-input scaling drops from 6.5–7.5x to 1.4–1.8x (near-linear). Adds `appendLargeVecIsFast` to `fs/crypto/sha2/proof.f.ts`, no timing assertion, mirroring `fs/base64/proof.f.ts`'s `encodeLargeVecIsSlow`. Implements and deletes `sha2-append-quadratic` PR [#1203](https://github.com/functionalscript/functionalscript/pull/1203)
 
 ## 0.35.1
