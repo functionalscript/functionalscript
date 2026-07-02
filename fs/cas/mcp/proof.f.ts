@@ -149,8 +149,8 @@ const toBytes = (s: string): readonly number[] => [...fromVec(utf8(s))]
 // `writeResponse`'s `tryUtf8` encode over actual stdin/stdout bytes. Unlike
 // `session`/`runSessionVirtual`, which collect `mcpStep`'s `Response` values
 // as plain JS objects and never serialize/encode them, this is the only
-// helper that can observe the transport's oversized-response fallback
-// (see `fs/cas/mcp/todo/cas-get-response-overflow.md`).
+// helper that can observe the transport's oversized-response fallback (see
+// `fs/mcp/stdio/module.f.ts` `writeResponse`).
 const runStdio =
     (root: Dir, home = '/home/user') =>
     (msgs: readonly unknown[]): readonly unknown[] => {
@@ -298,7 +298,7 @@ export const proof = {
     // the JSON-RPC envelope is even added. The transport's `writeResponse`
     // (`tryUtf8`) must catch this and write a JSON-RPC internal-error response —
     // carrying the *original request's* `id` — instead of crashing the process.
-    // See `fs/cas/mcp/todo/cas-get-response-overflow.md`.
+    // See `fs/mcp/stdio/module.f.ts` `writeResponse`.
     getContentBase64InflationOverflowWritesInternalError: () => {
         const root: Dir = { 'home': { 'user': { 'cas_upload': { 'big': [oversizedBase64Chunk] } } } }
         const [addResp] = runStdio(root)([

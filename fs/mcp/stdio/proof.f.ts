@@ -144,6 +144,22 @@ export const proof = {
         assertEq(state.stdin.length, 0)
     },
 
+    // When even the `id`-preserving internal-error fallback would overflow —
+    // because the `id` itself is the oversized part, not just `result` — the
+    // loop falls back once more to a fixed `id: null` internal-error, the only
+    // shape in this transport guaranteed to always fit. Without this second
+    // fallback tier the request would get no response line at all.
+    oversizedIdFallsBackToNullId: () => {
+        const step: Step<never> = (value: Unknown): Effect<never, Response | null> => {
+            const id = idOf(value)
+            return pure(id === undefined
+                ? null
+                : { jsonrpc, result: { ok: true }, id: oversizedString })
+        }
+        const state = runStep(step)(ping(1) + '\n')
+        assertEq(state.stdout, internalErrorLine(null))
+    },
+
     // A multi-line session interleaving all cases: request, notification, and
     // malformed line, ending with an unterminated request. Order is preserved
     // and the notification contributes nothing.
