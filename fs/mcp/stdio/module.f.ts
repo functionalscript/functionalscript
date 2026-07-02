@@ -18,18 +18,27 @@
  *   `null`) is written rather than silently discarded, per JSON-RPC 2.0 §5.
  * - the step yields `null` (a notification needing no reply) → nothing is
  *   written and the loop continues.
+ * - a response that doesn't fit in one encoded line (`tryUtf8` overflow —
+ *   `maxLength`, 128 KiB) never throws. `writeResponse` retries with a fixed,
+ *   small `-32603` internal-error body carrying the original `id`; if even
+ *   that overflows (a pathological caller-controlled `id`, e.g. a very large
+ *   string), it retries once more with `id: null` — a fully constant response
+ *   shape that is always small enough to encode. Every request that reaches
+ *   `step` therefore gets *some* response line, never silence and never a
+ *   crashed process.
  *
  * @module
  */
 import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
-import { readLine, write, type Read, type Write } from '../../effects/node/module.f.ts'
-import { utf8 } from '../../text/module.f.ts'
+import { readLine, write, type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
+import { tryUtf8 } from '../../text/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { stringify, type Unknown } from '../../json/module.f.ts'
 import { tokenize } from '../../json/tokenizer/module.f.ts'
 import { parse } from '../../json/parser/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { jsonrpc, parseError, type Response } from '../../json/rpc/module.f.ts'
+import { internalError, jsonrpc, parseError, type Response } from '../../json/rpc/module.f.ts'
+import { error, ok } from '../../types/result/module.f.ts'
 
 /**
  * A transport step: maps one parsed JSON-RPC message to a response, or `null`
@@ -42,13 +51,16 @@ const stringifyJson = stringify(sort)
 /** The parse-error response (`-32700`, `id: null`) for a malformed input line. */
 const parseErrorResponse: Response = { jsonrpc, error: parseError, id: null }
 
-/** Encodes a response as a newline-terminated UTF-8 line and writes it to `stdout`. */
-const writeResponse = (resp: Response): Effect<Write, void> =>
-    write('stdout', utf8(stringifyJson(resp as Unknown) + '\n'))
+/** An internal-error response (`-32603`) carrying `id`. */
+const internalErrorResponse = (id: Response['id']): Response => ({ jsonrpc, error: internalError, id })
 
-/** Writes `resp` when present, otherwise does nothing (notification). */
-const writeMaybe = (resp: Response | null): Effect<Write, void> =>
-    resp === null ? pure(undefined) : writeResponse(resp)
+/** Encodes a response as a newline-terminated UTF-8 line and writes it to `stdout`. */
+const writeResponse = (resp: Response): Effect<Write, IoResult<void>> => {
+    const v = tryUtf8(stringifyJson(resp) + '\n')
+    return v === null
+        ? pure(error(undefined))
+        : write('stdout', v).step(() => pure(ok(undefined)))
+}
 
 /**
  * Drives the read-parse-dispatch-write loop for `step` over stdin/stdout.
@@ -69,6 +81,20 @@ const handleLine =
         const [t, value] = parse(tokenize(stringToList(line)))
         return (t === 'error'
             ? writeResponse(parseErrorResponse)
-            : step(value).step(writeMaybe)
+            : step(value).step(resp =>
+                resp === null
+                    ? pure(undefined)
+                    : writeResponse(resp).step(([t2]) => t2 === 'error'
+                        // The real response didn't fit. Retry with a fixed, small
+                        // internal-error body carrying `resp.id` — but a
+                        // caller-controlled `id` (e.g. a very large string) can
+                        // itself push even this fallback over `maxLength`, so
+                        // that retry is bounded by one more: an `id: null`
+                        // internal-error, whose fully-constant shape is the only
+                        // line in this transport guaranteed to always encode.
+                        ? writeResponse(internalErrorResponse(resp.id)).step(([t3]) => t3 === 'error'
+                            ? writeResponse(internalErrorResponse(null)).step(() => pure(undefined))
+                            : pure(undefined))
+                        : pure(undefined)))
         ).step(() => stdioTransport(step))
     }
