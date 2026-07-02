@@ -13,6 +13,7 @@
  */
 import { msb, lsb, type Vec, vec, chunkList, unpack } from '../types/bit_vec/module.f.ts'
 import { fold, type List } from '../types/list/module.f.ts'
+import { compose } from '../types/function/module.f.ts'
 import type { Nullable } from '../types/nullable/module.f.ts'
 
 const { unpackSplit } = msb
@@ -76,15 +77,12 @@ export const baseN = (
     // list to allocate/traverse.
     const chunkToString = (chunk: Vec) => (acc: string): string =>
         acc + alphabet[chunkToIndex(chunk)]
-    // `fold(chunkToString)('')` doesn't depend on `v` — the fold's shape (its
-    // combining function and starting accumulator) is fixed per `baseN(...)`
-    // codec, only what it folds *over* varies per call.
-    const foldChunks = fold(chunkToString)('')
-    // `chunkListMsb(bits)` doesn't depend on `v` either — only the chunk
-    // width varies per codec, not per `vecToString` call.
-    const chunkListBits = chunkListMsb(bits)
     return {
-        vecToString: v => foldChunks(chunkListBits(v)),
+        // `chunkListMsb(bits)` then `fold(chunkToString)('')` — neither half
+        // depends on `v`, so `compose` builds (and this closure captures)
+        // the composed function once per `baseN(...)` codec; no need to name
+        // the halves separately just to get that one-time build.
+        vecToString: compose(chunkListMsb(bits))(fold(chunkToString)('')),
         stringToVec: s => {
             // Build a reversed chunk list, bailing out at the first invalid
             // character so malformed input is rejected in O(prefix) time and
