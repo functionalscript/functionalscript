@@ -1,5 +1,5 @@
 import { assertEq } from '../asserts/module.f.ts'
-import { empty, vec, type Vec } from "../types/bit_vec/module.f.ts"
+import { empty, vec, repeat, vec8, type Vec } from "../types/bit_vec/module.f.ts"
 import { encode, decode } from "./module.f.ts"
 
 const check = (s: string, v: Vec) => {
@@ -84,5 +84,29 @@ export const proof = {
         // while building) an oversized `bigint`.
         const oversized = 'A'.repeat(174_764)
         assertEq(decode(oversized), null)
+    },
+    // `encode` is quadratic in the input size, not linear: `baseN`'s
+    // `vecToString` (`fs/base_n/module.f.ts`) pops one 6-bit chunk off the
+    // front at a time via `popFront`, and each `popFront` re-masks the entire
+    // remaining bigint through `vec()`'s `m & ui` — O(remaining length) — so
+    // encoding a vector of `n` bits costs O(n²) instead of the O(n log n) the
+    // balanced `chunkList` helper already achieves for the equivalent
+    // byte-unpacking direction (`u8List`, used by `cas_get`'s streaming type
+    // detector) and for concatenation (`msb.concat` / `unpackListToVec`,
+    // optimized in PR #1192).
+    //
+    // This single call takes ~5.6s on Node and ~18.4s on Bun (Bun's `bigint`
+    // has a much higher per-operation constant, see `fs/types/bigint/todo` /
+    // PR #1190) for a 90,000-byte input — the same 720,000-bit vector that
+    // made `cas_get content:true` on a comparably-sized binary blob time out
+    // under `bun test`'s 5s per-test limit in CI (PR #1201). Not a correctness
+    // bug — `encode` still returns the right answer — so this test only
+    // exercises the call and lets the test runner's own per-test timing
+    // report the cost; it intentionally has no timing assertion, since the
+    // duration is many seconds and varies by engine/machine.
+    encodeLargeVecIsSlow: () => {
+        const big = repeat(90_000n)(vec8(0xffn))
+        const result = encode(big)
+        assertEq(result?.length, 120_000)
     },
 }
