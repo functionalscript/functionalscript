@@ -66,11 +66,11 @@ export const baseN = (
         if (length <= bits) {
             return alphabet[Number(popFrontN(pack(u))[0])]
         }
-        const half = (divUpN(length) >> 1n) * bits
-        const half2 = length - half
-        const [u0, u1] = unpackSplit(half)(u)
-        return unpackToString({ length: half, uint: u0 }) +
-            unpackToString({ length: half2, uint: u1 & mask(half2) } )
+        const half0 = (divUpN(length) >> 1n) * bits
+        const half1 = length - half0
+        const [u0, u1] = unpackSplit(half0)(u)
+        return unpackToString({ length: half0, uint: u0 }) +
+            unpackToString({ length: half1, uint: u1 & mask(half1) } )
     }
     return {
         vecToString: v => unpackToString(unpack(v)),
