@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.35.1
+
 - `base_n`: fix `vecToString`'s O(n²) blowup on large inputs — used by `base64.encode` and `cbase32`. The old loop popped one `bits`-wide chunk off the front at a time via `popFront`, and each `popFront` re-masked the *entire remaining* bigint through `vec()`'s `m & ui` (cost proportional to remaining length, not chunk size), so encoding an `n`-bit vector cost O(n²). Replaced with a balanced recursive split (`unpackToString`), mirroring the `chunkList`/`unpackChunkList` divide-and-conquer already used by `u8List` and by concatenation (PR #1192) — each half is masked to its own length before recursing, so every node's `uint` is genuinely bounded by its own claimed length at every level, giving true O(n log n). On a 90,000-byte `Vec`, `base64.encode` drops from ~6.2 s to ~50 ms on Node, and from an 18–27 s `bun test` timeout to ~225 ms on Bun. Restores the `fs/cas/mcp/proof.f.ts` base64-inflation boundary pair removed in the 0.35.0 entry below (now fast and reliable instead of timing out) and adds `encodeLargeVecIsSlow` to `fs/base64/proof.f.ts`, isolating the cost at the `encode` call site (no CAS/stdio machinery) with no timing assertion, since the point is to document the regression this fix addresses, not to gate on a duration
 
 ## 0.35.0
