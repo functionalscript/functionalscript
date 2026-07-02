@@ -69,11 +69,10 @@ for pre-encoded binary payloads, or `type: 'url'` to store a file directly from
 the filesystem.
 
 Inline content (`text`/`base64`) resolves into a single `Vec`, which caps at
-`maxLength` bits — **128 KiB**. To store a larger blob, write it under
-`$HOME/cas_upload/` and pass `type: 'url'`, which streams the file with no size
-limit. (Graceful rejection of oversized inline content — today it fails inside
-`utf8` / base64 `decode` — is tracked in
-[`cas-add-inline-size-error`](../todo/cas-add-inline-size-error.md).)
+`maxLength` bits — **128 KiB**. Content that is malformed or exceeds this limit
+returns `isError` with a descriptive message. To store a larger blob, write it
+under `$HOME/cas_upload/` and pass `type: 'url'`, which streams the file with no
+size limit.
 
 ## `cas_get`: metadata + optional inline content
 
@@ -180,7 +179,7 @@ MCP draws a line the dispatcher already respects:
 - **Tool failures** come back as a normal `tools/call` result with
   `isError: true` and a text explanation. This adapter returns `isError` for:
   - invalid arguments to any tool (`validate` rejects the argument object);
-  - `type: 'base64'` with malformed base64 `content` (`base64Decode` → `null`);
+  - inline `content` that is malformed or exceeds 128 KiB (`tryUtf8` / `base64Decode` → `null`);
   - `type: 'url'` with an unreadable or missing file;
   - malformed `hash` (`cBase32ToVec` → `null`);
   - `cas_get` on an absent hash (`c.read` → `undefined`);
