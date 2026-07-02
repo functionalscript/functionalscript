@@ -19,6 +19,10 @@ const { unpackSplit } = msb
 
 const { tryListToVec: reversedListToVec } = lsb
 
+// `chunkList(msb)` doesn't depend on `bits` or `v` — shared across every
+// `baseN(...)` codec (base64, cbase32, ...).
+const chunkListMsb = chunkList(msb)
+
 /**
  * The encode/decode pair returned by {@link baseN}.
  */
@@ -72,8 +76,15 @@ export const baseN = (
     // list to allocate/traverse.
     const chunkToString = (chunk: Vec) => (acc: string): string =>
         acc + alphabet[chunkToIndex(chunk)]
+    // `fold(chunkToString)('')` doesn't depend on `v` — the fold's shape (its
+    // combining function and starting accumulator) is fixed per `baseN(...)`
+    // codec, only what it folds *over* varies per call.
+    const foldChunks = fold(chunkToString)('')
+    // `chunkListMsb(bits)` doesn't depend on `v` either — only the chunk
+    // width varies per codec, not per `vecToString` call.
+    const chunkListBits = chunkListMsb(bits)
     return {
-        vecToString: v => fold(chunkToString)('')(chunkList(msb)(bits)(v)),
+        vecToString: v => foldChunks(chunkListBits(v)),
         stringToVec: s => {
             // Build a reversed chunk list, bailing out at the first invalid
             // character so malformed input is rejected in O(prefix) time and
