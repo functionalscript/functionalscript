@@ -22,14 +22,15 @@
  * @module
  */
 import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
-import { readLine, write, type Read, type Write } from '../../effects/node/module.f.ts'
-import { utf8 } from '../../text/module.f.ts'
+import { readLine, write, type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
+import { tryUtf8, utf8 } from '../../text/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { stringify, type Unknown } from '../../json/module.f.ts'
 import { tokenize } from '../../json/tokenizer/module.f.ts'
 import { parse } from '../../json/parser/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { jsonrpc, parseError, type Response } from '../../json/rpc/module.f.ts'
+import { internalError, jsonrpc, parseError, type Response } from '../../json/rpc/module.f.ts'
+import { error, ok } from '../../types/result/module.f.ts'
 
 /**
  * A transport step: maps one parsed JSON-RPC message to a response, or `null`
@@ -43,12 +44,16 @@ const stringifyJson = stringify(sort)
 const parseErrorResponse: Response = { jsonrpc, error: parseError, id: null }
 
 /** Encodes a response as a newline-terminated UTF-8 line and writes it to `stdout`. */
-const writeResponse = (resp: Response): Effect<Write, void> =>
-    write('stdout', utf8(stringifyJson(resp as Unknown) + '\n'))
+const writeResponse = (resp: Response): Effect<Write, IoResult<void>> => {
+    const v = tryUtf8(stringifyJson(resp) + '\n')
+    return v === null
+        ? pure(error(undefined))
+        : write('stdout', v).step(() => pure(ok(undefined)))
+}
 
 /** Writes `resp` when present, otherwise does nothing (notification). */
-const writeMaybe = (resp: Response | null): Effect<Write, void> =>
-    resp === null ? pure(undefined) : writeResponse(resp)
+const writeMaybe = (resp: Response | null): Effect<Write, IoResult<void>> =>
+    resp === null ? pure(ok(undefined)) : writeResponse(resp)
 
 /**
  * Drives the read-parse-dispatch-write loop for `step` over stdin/stdout.
@@ -69,6 +74,10 @@ const handleLine =
         const [t, value] = parse(tokenize(stringToList(line)))
         return (t === 'error'
             ? writeResponse(parseErrorResponse)
-            : step(value).step(writeMaybe)
+            : step(value)
+                .step(writeMaybe)
+                .step(([t]) => t === 'error'
+                    ? writeResponse({ jsonrpc, error: internalError, id: null })
+                    : pure(undefined))
         ).step(() => stdioTransport(step))
     }
