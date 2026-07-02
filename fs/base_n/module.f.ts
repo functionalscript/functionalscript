@@ -12,7 +12,7 @@
  * @module
  */
 import { msb, lsb, type Vec, vec, chunkList, unpack } from '../types/bit_vec/module.f.ts'
-import { iterable, type List } from '../types/list/module.f.ts'
+import { fold, type List } from '../types/list/module.f.ts'
 import type { Nullable } from '../types/nullable/module.f.ts'
 
 const { unpackSplit } = msb
@@ -67,14 +67,13 @@ export const baseN = (
         const u = unpack(chunk)
         return Number(u.length < bits ? unpackSplitBits(u)[0] : u.uint)
     }
+    // Folds directly over `chunkList`'s lazy list in one pass — faster than
+    // `map` into a second lazy list before joining, since there's no second
+    // list to allocate/traverse.
+    const chunkToString = (chunk: Vec) => (acc: string): string =>
+        acc + alphabet[chunkToIndex(chunk)]
     return {
-        vecToString: v => {
-            let result = ''
-            for (const chunk of iterable(chunkList(msb)(bits)(v))) {
-                result += alphabet[chunkToIndex(chunk)]
-            }
-            return result
-        },
+        vecToString: v => fold(chunkToString)('')(chunkList(msb)(bits)(v)),
         stringToVec: s => {
             // Build a reversed chunk list, bailing out at the first invalid
             // character so malformed input is rejected in O(prefix) time and
