@@ -11,12 +11,11 @@
  *
  * @module
  */
-import { divUp, mask } from '../types/bigint/module.f.ts'
-import { msb, lsb, type Vec, vec, type Unpacked, unpack, pack } from '../types/bit_vec/module.f.ts'
-import { type List } from '../types/list/module.f.ts'
+import { msb, lsb, type Vec, vec, chunkList, unpack } from '../types/bit_vec/module.f.ts'
+import { iterable, type List } from '../types/list/module.f.ts'
 import type { Nullable } from '../types/nullable/module.f.ts'
 
-const { popFront, unpackSplit } = msb
+const { unpackSplit } = msb
 
 const { tryListToVec: reversedListToVec } = lsb
 
@@ -25,9 +24,10 @@ const { tryListToVec: reversedListToVec } = lsb
  */
 export type BaseN = {
     /**
-     * Encodes a bit vector by repeatedly popping `bits`-wide MSB chunks and
-     * indexing them into the alphabet. A trailing partial chunk shorter than
-     * `bits` is left-padded with zeros (the underlying `popFront` semantics).
+     * Encodes a bit vector by splitting it into `bits`-wide MSB chunks
+     * (`chunkList`, a balanced divide-and-conquer split, not a linear scan)
+     * and indexing each into the alphabet. A trailing partial chunk shorter
+     * than `bits` is left-padded with zeros.
      */
     readonly vecToString: (v: Vec) => string
     /**
@@ -54,26 +54,27 @@ export const baseN = (
     alphabet: string,
     normalize?: (c: string) => string,
 ): BaseN => {
-    const popFrontN = popFront(bits)
     const vecN = vec(bits)
     const toIndex = normalize === undefined
         ? (c: string) => alphabet.indexOf(c)
         : (c: string) => alphabet.indexOf(normalize(c))
-    const divUpN = divUp(bits)
-    const unpackToString = (u: Unpacked): string => {
-        const { length } = u
-        if (length === 0n) { return '' }
-        if (length <= bits) {
-            return alphabet[Number(popFrontN(pack(u))[0])]
-        }
-        const half0 = (divUpN(length) >> 1n) * bits
-        const half1 = length - half0
-        const [u0, u1] = unpackSplit(half0)(u)
-        return unpackToString({ length: half0, uint: u0 }) +
-            unpackToString({ length: half1, uint: u1 & mask(half1) } )
+    const unpackSplitBits = unpackSplit(bits)
+    // Converts one `<= bits`-wide chunk (as yielded by `chunkList`, already
+    // masked to its own length) to its alphabet index. A trailing partial
+    // chunk shorter than `bits` is left-padded with zeros: `unpackSplit`'s
+    // shift amount goes negative, which per spec becomes a left shift.
+    const chunkToIndex = (chunk: Vec): number => {
+        const u = unpack(chunk)
+        return Number(u.length < bits ? unpackSplitBits(u)[0] : u.uint)
     }
     return {
-        vecToString: v => unpackToString(unpack(v)),
+        vecToString: v => {
+            let result = ''
+            for (const chunk of iterable(chunkList(msb)(bits)(v))) {
+                result += alphabet[chunkToIndex(chunk)]
+            }
+            return result
+        },
         stringToVec: s => {
             // Build a reversed chunk list, bailing out at the first invalid
             // character so malformed input is rejected in O(prefix) time and
