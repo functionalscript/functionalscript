@@ -300,14 +300,11 @@ export const proof = {
     // carrying the *original request's* `id` — instead of crashing the process.
     // See `fs/mcp/stdio/module.f.ts` `writeResponse`.
     //
-    // NOTE (investigation branch): this test times out under `bun test`'s
-    // native 5s per-test limit (12-14s observed in CI on PR #1201) — it was
-    // removed on main for that reason and is restored here to investigate why
-    // base64Encode + double-JSON-stringify on a 90-100KB Vec is so much
-    // slower under Bun than Node (~6-7.5s there). The `bun` CI job on this
-    // branch is expected to fail until that's resolved; do not merge without
-    // either fixing the perf or shrinking/removing this test again. See
-    // CHANGELOG 0.35.0 for the removal rationale on main.
+    // This test originally timed out under `bun test`'s native 5s per-test
+    // limit (12-14s observed in CI on PR #1201) — the cost was in
+    // `base64Encode`, quadratic before the `baseN.vecToString` fix (see
+    // `fs/base64/proof.f.ts` `encodeLargeVecIsSlow`). Now well under budget on
+    // both engines.
     getContentBase64InflationOverflowWritesInternalError: () => {
         const root: Dir = { 'home': { 'user': { 'cas_upload': { 'big': [oversizedBase64Chunk] } } } }
         const [addResp] = runStdio(root)([

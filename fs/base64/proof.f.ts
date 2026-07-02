@@ -85,25 +85,25 @@ export const proof = {
         const oversized = 'A'.repeat(174_764)
         assertEq(decode(oversized), null)
     },
-    // `encode` is quadratic in the input size, not linear: `baseN`'s
-    // `vecToString` (`fs/base_n/module.f.ts`) pops one 6-bit chunk off the
-    // front at a time via `popFront`, and each `popFront` re-masks the entire
-    // remaining bigint through `vec()`'s `m & ui` — O(remaining length) — so
-    // encoding a vector of `n` bits costs O(n²) instead of the O(n log n) the
-    // balanced `chunkList` helper already achieves for the equivalent
-    // byte-unpacking direction (`u8List`, used by `cas_get`'s streaming type
-    // detector) and for concatenation (`msb.concat` / `unpackListToVec`,
-    // optimized in PR #1192).
+    // Regression guard: `encode` used to be quadratic in the input size, not
+    // linear. `baseN`'s `vecToString` (`fs/base_n/module.f.ts`) popped one
+    // 6-bit chunk off the front at a time via `popFront`, and each `popFront`
+    // re-masked the entire remaining bigint through `vec()`'s `m & ui` —
+    // O(remaining length) — so encoding a vector of `n` bits cost O(n²). A
+    // 90,000-byte input took ~5.6s on Node and ~18.4s on Bun (Bun's `bigint`
+    // has a much higher per-operation constant, see PR #1190), reliably
+    // blowing `bun test`'s 5s per-test timeout — the same class of failure
+    // that hit `cas_get content:true` on a comparably-sized binary blob in CI
+    // (PR #1201).
     //
-    // This single call takes ~5.6s on Node and ~18.4s on Bun (Bun's `bigint`
-    // has a much higher per-operation constant, see `fs/types/bigint/todo` /
-    // PR #1190) for a 90,000-byte input — the same 720,000-bit vector that
-    // made `cas_get content:true` on a comparably-sized binary blob time out
-    // under `bun test`'s 5s per-test limit in CI (PR #1201). Not a correctness
-    // bug — `encode` still returns the right answer — so this test only
-    // exercises the call and lets the test runner's own per-test timing
-    // report the cost; it intentionally has no timing assertion, since the
-    // duration is many seconds and varies by engine/machine.
+    // Fixed by rewriting `vecToString` as a balanced recursive split
+    // (`unpackToString`), mirroring the `chunkList`/`unpackChunkList`
+    // divide-and-conquer already used by `u8List` and by concatenation
+    // (`msb.concat` / `unpackListToVec`, PR #1192) — true O(n log n) now,
+    // since each half is masked to its own length before recursing. The same
+    // call now takes ~50ms on Node and ~225ms on Bun. No timing assertion
+    // (duration varies by engine/machine) — this just exercises the call and
+    // relies on the test runner's own per-test timing to catch a regression.
     encodeLargeVecIsSlow: () => {
         const big = repeat(90_000n)(vec8(0xffn))
         const result = encode(big)
