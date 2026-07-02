@@ -23,7 +23,7 @@
  */
 import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { readLine, write, type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
-import { tryUtf8, utf8 } from '../../text/module.f.ts'
+import { tryUtf8 } from '../../text/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { stringify, type Unknown } from '../../json/module.f.ts'
 import { tokenize } from '../../json/tokenizer/module.f.ts'
@@ -51,10 +51,6 @@ const writeResponse = (resp: Response): Effect<Write, IoResult<void>> => {
         : write('stdout', v).step(() => pure(ok(undefined)))
 }
 
-/** Writes `resp` when present, otherwise does nothing (notification). */
-const writeMaybe = (resp: Response | null): Effect<Write, IoResult<void>> =>
-    resp === null ? pure(ok(undefined)) : writeResponse(resp)
-
 /**
  * Drives the read-parse-dispatch-write loop for `step` over stdin/stdout.
  *
@@ -74,10 +70,11 @@ const handleLine =
         const [t, value] = parse(tokenize(stringToList(line)))
         return (t === 'error'
             ? writeResponse(parseErrorResponse)
-            : step(value)
-                .step(writeMaybe)
-                .step(([t]) => t === 'error'
-                    ? writeResponse({ jsonrpc, error: internalError, id: null })
-                    : pure(undefined))
+            : step(value).step(resp =>
+                resp === null
+                    ? pure(undefined)
+                    : writeResponse(resp).step(([t2]) => t2 === 'error'
+                        ? writeResponse({ jsonrpc, error: internalError, id: resp.id })
+                        : pure(undefined)))
         ).step(() => stdioTransport(step))
     }

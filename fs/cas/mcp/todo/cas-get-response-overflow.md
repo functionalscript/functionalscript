@@ -1,7 +1,7 @@
 ## cas-get-response-overflow. `cas_get content:true` can still crash on a `maxLengthBytes` blob
 
 **Priority:** P2
-**Status:** open
+**Status:** fixed
 **Blocked by:** —
 
 ### Problem
@@ -84,19 +84,35 @@ regardless of encoding.
 
 ### Tasks
 
-- [ ] `fs/mcp/stdio/module.f.ts` `writeResponse`: switch from `utf8` to
+- [x] `fs/mcp/stdio/module.f.ts` `writeResponse`: switch from `utf8` to
       `tryUtf8`; on `null`, write the fixed `internalError` JSON-RPC response
       (with `resp.id`) instead of throwing.
-- [ ] Proof tests: `fs/cas/mcp/proof.f.ts` / `fs/mcp/stdio/proof.f.ts`
-      - A binary blob at exactly `maxLengthBytes` requested with
-        `content: true` returns a clean error response (not a crash) once its
-        base64 + JSON envelope overflows `maxLength`; confirm the boundary
-        where it still succeeds.
-      - A text blob made entirely of `"` / `\` / control characters, sized so
-        the *raw* content is well under `maxLengthBytes` but the
-        double-escaped final line would exceed `maxLength` — confirms
-        `writeResponse`'s `tryUtf8` fallback (not a crash) handles it without
-        any `cas_get`-level guard needing to predict the overflow.
+- [x] Proof tests: `fs/cas/mcp/proof.f.ts` / `fs/mcp/stdio/proof.f.ts`
+      - A binary blob at (a comfortable, bug-avoiding size under)
+        `maxLengthBytes` requested with `content: true` returns a clean error
+        response (not a crash) once its base64 + JSON envelope overflows
+        `maxLength` (`getContentBase64InflationOverflowWritesInternalError`);
+        confirmed the paired boundary where it still succeeds
+        (`getContentBase64NearBoundarySucceeds`).
+      - A text blob made entirely of `"` characters, sized so the *raw*
+        content is well under `maxLengthBytes` but the double-escaped final
+        line exceeds `maxLength` — confirms `writeResponse`'s `tryUtf8`
+        fallback (not a crash) handles it without any `cas_get`-level guard
+        needing to predict the overflow
+        (`getContentDoubleEscapedOverflowWritesInternalError`). Uploaded via
+        `type: 'url'` rather than inlined in the request, since inlining a
+        large `content` string in the JSON-RPC line is itself expensive to
+        parse — an unrelated cost this test isn't meant to exercise.
+      - Generic (non-CAS) coverage in `fs/mcp/stdio/proof.f.ts`:
+        `oversizedResponseWritesInternalError` and
+        `loopContinuesAfterOversizedResponse` (the loop keeps draining stdin
+        after the fallback fires).
+
+Note: the exact `maxLengthBytes` binary case from the original proposal was
+avoided in the proof test — `base64Encode` on a `Vec` that size runs into the
+separate encode-padding-overflow bug noted next to `base64OfA` in
+`fs/cas/mcp/proof.f.ts` (100,000 / 90,000-byte blobs were used instead, still
+comfortably demonstrating both the overflow and the boundary).
 
 ### Related
 

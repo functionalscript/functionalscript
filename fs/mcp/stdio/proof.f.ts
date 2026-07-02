@@ -44,8 +44,8 @@ const okResponse = (id: Id): string =>
 const parseErrorLine: string =
     stringifyJson({ jsonrpc, error: parseError, id: null } as Unknown) + '\n'
 
-const internalErrorLine: string =
-    stringifyJson({ jsonrpc, error: internalError, id: null } as Unknown) + '\n'
+const internalErrorLine = (id: Id): string =>
+    stringifyJson({ jsonrpc, error: internalError, id } as Unknown) + '\n'
 
 const ping = (id: number): string => `{"jsonrpc":"2.0","method":"ping","id":${id}}`
 
@@ -114,8 +114,9 @@ export const proof = {
 
     // A response that would exceed `maxLengthBytes` once UTF-8 encoded cannot
     // be written as a single bit vector (`tryUtf8` reports overflow); the loop
-    // writes a JSON-RPC internal-error response instead of throwing or
-    // silently dropping the reply.
+    // writes a JSON-RPC internal-error response — carrying the original
+    // request's `id`, not `null` — instead of throwing or silently dropping
+    // the reply.
     oversizedResponseWritesInternalError: () => {
         const step: Step<never> = (value: Unknown): Effect<never, Response | null> => {
             const id = idOf(value)
@@ -124,7 +125,7 @@ export const proof = {
                 : { jsonrpc, result: { big: oversizedString }, id })
         }
         const state = runStep(step)(ping(1) + '\n')
-        assertEq(state.stdout, internalErrorLine)
+        assertEq(state.stdout, internalErrorLine(1))
     },
     // The loop recovers from the oversized-response error and keeps draining
     // stdin: a well-behaved request on the next line still gets its normal
@@ -139,7 +140,7 @@ export const proof = {
                     : { jsonrpc, result: { ok: true }, id })
         }
         const state = runStep(step)([ping(1), ping(2)].join('\n'))
-        assertEq(state.stdout, internalErrorLine + okResponse(2))
+        assertEq(state.stdout, internalErrorLine(1) + okResponse(2))
         assertEq(state.stdin.length, 0)
     },
 
