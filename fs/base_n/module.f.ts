@@ -11,7 +11,7 @@
  *
  * @module
  */
-import { mask } from '../types/bigint/module.f.ts'
+import { divUp, mask } from '../types/bigint/module.f.ts'
 import { msb, lsb, type Vec, vec, type Unpacked, unpack, pack } from '../types/bit_vec/module.f.ts'
 import { type List } from '../types/list/module.f.ts'
 import type { Nullable } from '../types/nullable/module.f.ts'
@@ -59,15 +59,14 @@ export const baseN = (
     const toIndex = normalize === undefined
         ? (c: string) => alphabet.indexOf(c)
         : (c: string) => alphabet.indexOf(normalize(c))
+    const divUpN = divUp(bits)
     const unpackToString = (u: Unpacked): string => {
         const { length } = u
         if (length === 0n) { return '' }
         if (length <= bits) {
             return alphabet[Number(popFrontN(pack(u))[0])]
         }
-        const n = length / bits
-        const nh = n === 1n ? 1n : n >> 1n
-        const half = nh * bits
+        const half = (divUpN(length) >> 1n) * bits
         const half2 = length - half
         const [u0, u1] = unpackSplit(half)(u)
         return unpackToString({ length: half, uint: u0 }) +
