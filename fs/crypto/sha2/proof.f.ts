@@ -132,4 +132,20 @@ export const proof = {
             if (uint(h) !== x) { throw h }
         },
     },
+    // Regression guard (sha2-append-quadratic): `append` used to be
+    // quadratic in the input size, not linear — a single call on a
+    // 100,000-byte `Vec` used to cost real seconds and scale worse than
+    // O(n²); now near-linear (~40-60ms on Node, well under `bun test`'s 5s
+    // per-test limit on Bun). No timing assertion (duration varies by
+    // engine/machine); relies on the test runner's own per-test timing to
+    // catch a regression, same convention as `fs/base64/proof.f.ts`
+    // `encodeLargeVecIsSlow`.
+    appendLargeVecIsFast: () => {
+        const big = repeat(100_000n)(vec(8n)(0xffn))
+        let state = sha256.init
+        state = sha256.append(big)(state)
+        const h = sha256.end(state)
+        const x = 0xbe87f6dbe42cdf682276fbecab3636fbfcaa008cf454d635dd77872b50d940aan
+        if (uint(h) !== x) { throw h }
+    },
 }
