@@ -5,8 +5,9 @@ import type { Unknown } from '../../json/module.f.ts'
 import { stringify } from '../../json/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { fromVec } from '../../types/uint8array/module.f.ts'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { jsonrpc, parseError, type Id, type Response } from '../../json/rpc/module.f.ts'
+import { internalError, jsonrpc, parseError, type Id, type Response } from '../../json/rpc/module.f.ts'
 import { stdioTransport, type Step } from './module.f.ts'
 
 const stringifyJson = stringify(sort)
@@ -43,7 +44,14 @@ const okResponse = (id: Id): string =>
 const parseErrorLine: string =
     stringifyJson({ jsonrpc, error: parseError, id: null } as Unknown) + '\n'
 
+const internalErrorLine: string =
+    stringifyJson({ jsonrpc, error: internalError, id: null } as Unknown) + '\n'
+
 const ping = (id: number): string => `{"jsonrpc":"2.0","method":"ping","id":${id}}`
+
+// One byte past `maxLengthBytes` on its own; embedded in a response envelope
+// it stays comfortably over the limit despite the surrounding JSON overhead.
+const oversizedString = 'a'.repeat(Number(maxLengthBytes) + 1)
 
 const notification = '{"jsonrpc":"2.0","method":"notifications/initialized"}'
 
@@ -102,6 +110,37 @@ export const proof = {
         }
         const state = runStep(step)(ping(1) + '\n')
         assertEq(state.stdout, okResponse(1))
+    },
+
+    // A response that would exceed `maxLengthBytes` once UTF-8 encoded cannot
+    // be written as a single bit vector (`tryUtf8` reports overflow); the loop
+    // writes a JSON-RPC internal-error response instead of throwing or
+    // silently dropping the reply.
+    oversizedResponseWritesInternalError: () => {
+        const step: Step<never> = (value: Unknown): Effect<never, Response | null> => {
+            const id = idOf(value)
+            return pure(id === undefined
+                ? null
+                : { jsonrpc, result: { big: oversizedString }, id })
+        }
+        const state = runStep(step)(ping(1) + '\n')
+        assertEq(state.stdout, internalErrorLine)
+    },
+    // The loop recovers from the oversized-response error and keeps draining
+    // stdin: a well-behaved request on the next line still gets its normal
+    // reply.
+    loopContinuesAfterOversizedResponse: () => {
+        const step: Step<never> = (value: Unknown): Effect<never, Response | null> => {
+            const id = idOf(value)
+            return pure(id === undefined
+                ? null
+                : id === 1
+                    ? { jsonrpc, result: { big: oversizedString }, id }
+                    : { jsonrpc, result: { ok: true }, id })
+        }
+        const state = runStep(step)([ping(1), ping(2)].join('\n'))
+        assertEq(state.stdout, internalErrorLine + okResponse(2))
+        assertEq(state.stdin.length, 0)
     },
 
     // A multi-line session interleaving all cases: request, notification, and
