@@ -11,11 +11,12 @@
  *
  * @module
  */
-import { msb, lsb, type Vec, length, vec } from '../types/bit_vec/module.f.ts'
+import { mask } from '../types/bigint/module.f.ts'
+import { msb, lsb, type Vec, vec, type Unpacked, unpack, pack } from '../types/bit_vec/module.f.ts'
 import { type List } from '../types/list/module.f.ts'
 import type { Nullable } from '../types/nullable/module.f.ts'
 
-const { popFront } = msb
+const { popFront, unpackSplit } = msb
 
 const { tryListToVec: reversedListToVec } = lsb
 
@@ -58,16 +59,22 @@ export const baseN = (
     const toIndex = normalize === undefined
         ? (c: string) => alphabet.indexOf(c)
         : (c: string) => alphabet.indexOf(normalize(c))
+    const unpackToString = (u: Unpacked): string => {
+        const { length } = u
+        if (length === 0n) { return '' }
+        if (length <= bits) {
+            return alphabet[Number(popFrontN(pack(u))[0])]
+        }
+        const n = length / bits
+        const nh = n === 1n ? 1n : n >> 1n
+        const half = nh * bits
+        const half2 = length - half
+        const [u0, u1] = unpackSplit(half)(u)
+        return unpackToString({ length: half, uint: u0 }) +
+            unpackToString({ length: half2, uint: u1 & mask(half2) } )
+    }
     return {
-        vecToString: v => {
-            let result = ''
-            while (length(v) > 0n) {
-                const [r, rest] = popFrontN(v)
-                result += alphabet[Number(r)]
-                v = rest
-            }
-            return result
-        },
+        vecToString: v => unpackToString(unpack(v)),
         stringToVec: s => {
             // Build a reversed chunk list, bailing out at the first invalid
             // character so malformed input is rejected in O(prefix) time and
