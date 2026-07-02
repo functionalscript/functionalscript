@@ -201,12 +201,13 @@ const casToolRegistry =
                 return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
             }
             const url = c.url(key)
+            const x = detectStream(c.read(key))
             // Metadata-only (the default): derive `{ length, mime_type, type }` by
             // streaming the blob through the detector state machine. Never buffers
             // the blob, so this is size-independent — large blobs that overflow a
             // single `Vec` still return correct metadata instead of an error.
             if (r.content !== true) {
-                return detectStream(c.read(key)).step(([tag, detected]) => {
+                return x.step(([tag, detected]) => {
                     if (tag === 'error') {
                         return pure(errorResult(`no such hash: ${r.hash}`))
                     }
@@ -222,7 +223,7 @@ const casToolRegistry =
             // blob that exists but is too large to buffer into a single `Vec`. Only
             // a blob within `maxLength` is then materialized (via `collectRead`) and
             // encoded inline by `type` — a UTF-8 string for `text`, base64 otherwise.
-            return detectStream(c.read(key)).step(([tag, detected]) => {
+            return x.step(([tag, detected]) => {
                 if (tag === 'error') {
                     return pure(errorResult(`no such hash: ${r.hash}`))
                 }
