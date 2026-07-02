@@ -10,12 +10,18 @@ import {
     length,
     empty,
     msb,
+    chunkList,
+    uint,
     type Vec
 } from '../../types/bit_vec/module.f.ts'
 import type { Fold } from '../../types/function/operator/module.f.ts'
 import { fold, type List } from '../../types/list/module.f.ts'
 
-const { concat, popFront, front } = msb
+const { concat, front } = msb
+
+// `chunkList(msb)` depends on neither `chunkLength` nor `v`/`state` — shared
+// across every `base(...)` config (32-bit and 64-bit SHA-2 variants).
+const chunkListMsb = chunkList(msb)
 
 type V3 = Array3<bigint>
 
@@ -196,6 +202,24 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const chunkLength = bitLength << 4n // * 16
 
+    // `chunkListMsb(chunkLength)` depends on `chunkLength` but not `v`/`state`
+    // — computed once per `base(...)` config, not once per `append` call.
+    const chunkListChunkLength = chunkListMsb(chunkLength)
+
+    // Folds one block (or the final, shorter-than-`chunkLength` leftover) into
+    // `State`. `chunkList` yields chunks of exactly `chunkLength` bits except
+    // possibly the last one, which is why `remainder` only ever holds that
+    // last chunk (`empty` otherwise) — same shape as `State` itself, so no
+    // separate accumulator type is needed.
+    const appendChunk = (chunk: Vec) => (state: State): State =>
+        length(chunk) === chunkLength
+            ? { hash: compress(state.hash)(uint(chunk)), len: state.len + chunkLength, remainder: empty }
+            : { ...state, remainder: chunk }
+
+    // `fold(appendChunk)` depends on neither `v` nor `state` — only the
+    // starting accumulator passed to it per `append` call does.
+    const foldChunks = fold(appendChunk)
+
     const fromV8 = (a: V8) => a.reduce((p, v) => (p << bitLength) | v)
 
     // See https://www.rfc-editor.org/rfc/rfc6234#section-4
@@ -206,23 +230,8 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         chunkLength,
         compress,
         fromV8,
-        append: (v: Vec) => (state: State): State => {
-            let { remainder, hash, len } = state
-            remainder = concat(remainder)(v)
-            let remainderLen = length(remainder)
-            while (remainderLen >= chunkLength) {
-                const [u, nr] = popFront(chunkLength)(remainder)
-                hash = compress(hash)(u)
-                remainder = nr
-                remainderLen -= chunkLength
-                len += chunkLength
-            }
-            return {
-                hash,
-                len,
-                remainder
-            }
-        },
+        append: (v: Vec) => (state: State): State =>
+            foldChunks({ ...state, remainder: empty })(chunkListChunkLength(concat(state.remainder)(v))),
         end: (hashLength: bigint) => {
             const offset = (bitLength << 3n) - hashLength
             const result = vec(hashLength)
