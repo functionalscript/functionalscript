@@ -59,9 +59,12 @@ the accumulation:
 
 - **Value-free parsing.** Drive `fs/json/parser`'s per-token control machine
   (`foldOp` — `fs/json/parser/module.f.ts:205-224`) with a no-op value builder,
-  keeping only `status` + a bracket stack. Space is **O(nesting depth)**, with a
-  configurable max-depth cap (reject beyond it) so `[[[[…` cannot grow the stack
-  unbounded.
+  keeping only `status` + a bracket stack. Space is **O(nesting depth)** — already
+  strictly better than `parse`'s O(n) value. An **optional** max-depth cap
+  (default: none) lets a consumer that needs a DoS guard bound the stack and
+  reject deeper input. The cap is opt-in precisely because it is the one behavior
+  where the recognizer would otherwise have to diverge from `parse` (see below);
+  leaving it off keeps them equivalent.
 
 - **Strictness.** Honor RFC 8259 at scan time, including the raw-control-in-string
   rejection tracked in `fs/json/todo/reject-unescaped-string-controls.md` (the
@@ -70,9 +73,18 @@ the accumulation:
 
 The recognizer and the value-building `parse` must share the grammar so they can
 never diverge — the point is one description of "valid JSON", read either into a
-value or into a boolean. `recognizerAccepts` must agree with `parse(...)[0] ===
-'ok'` on every input (modulo the strict-control fix, which both should adopt);
-make that a proof.
+value or into a boolean. Correctness property, scoped to make it actually hold:
+
+- **With the depth cap disabled** (the default), `recognizerAccepts(s)` ⟺
+  `parse(...)[0] === 'ok'` for **every** input — both adopting the strict-control
+  fix (`reject-unescaped-string-controls.md`), which `parse` also gains, so raw
+  controls are not a divergence either. This is the equivalence proof.
+- **With a finite cap**, agreement is scoped to inputs within the limit: a valid
+  document nesting deeper than the cap is deliberately rejected even though
+  `parse` (uncapped) accepts it. That is the intended DoS guard, not a bug —
+  covered by a separate "over-cap document rejected" test, not by the equivalence
+  proof. (`parse` is intentionally left uncapped; if a depth bound is ever wanted
+  there too, that is its own change, not this recognizer's contract.)
 
 ### Tasks
 
@@ -80,12 +92,14 @@ make that a proof.
       over their builders so a no-op builder yields payload-free / value-free
       variants (or add dedicated recognizer ops sharing the transition tables).
 - [ ] Implement `recognizerInit` / `recognizerStep` / `recognizerAccepts` with an
-      O(depth) bracket stack and a max-depth cap; enforce RFC 8259 string-control
-      strictness at scan time.
-- [ ] Proof: `recognizerAccepts` agrees with `parse` `ok`/`error` across the
-      existing parser test corpus; add large-single-token cases (huge string,
-      long number) asserting bounded auxiliary space (no payload buffer); add a
-      deep-nesting case hitting the depth cap.
+      O(depth) bracket stack and an **optional** max-depth cap (default: none);
+      enforce RFC 8259 string-control strictness at scan time.
+- [ ] Proof (cap disabled): `recognizerAccepts` agrees with `parse` `ok`/`error`
+      across the existing parser test corpus; add large-single-token cases (huge
+      string, long number) asserting bounded auxiliary space (no payload buffer).
+- [ ] Proof (cap enabled): a valid document nesting deeper than a configured cap
+      is rejected by `recognizerAccepts` — the DoS guard, scoped out of the
+      equivalence above.
 - [ ] `npx tsc` clean; `fjs t` green.
 
 ### Related

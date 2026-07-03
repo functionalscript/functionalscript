@@ -39,13 +39,22 @@ The detector state (`DetectState`, `:201-205`) is a product of independent
 factors — bit `length` × `MagicState` × `Utf8Detect` — that meet only in
 `finish`. Add a fourth factor `A_json`: a streaming JSON **recognizer**
 (accept/reject only, no value construction) driven by the code points the UTF-8
-factor already decodes. Its state and step come straight from the `fs/json`
-recognizer (§2) — `fs/mime` holds the state, `fs/json` defines it:
+factor already decodes. Its core is the `fs/json` recognizer (§2); `fs/mime`
+wraps it with a one-code-point tag recording the top-level value's kind, so the
+object/array-only policy (§4) is applied at EOF — the recognizer stays pure
+(accepts any valid JSON), the MIME policy lives here:
 
 ```ts
-// json: JsonRecognizerState  — added to DetectState, initialized to recognizerInit
-const jsonStep  = recognizerStep     // (state, cp) → state, one decoded code point
-const jsonValid = recognizerAccepts  // read at EOF: complete valid document?
+// A_json state, added to DetectState (init { rec: recognizerInit, top: null }):
+type JsonFactor = { readonly rec: JsonRecognizerState; readonly top: Nullable<number> }
+// per decoded code point: feed the recognizer; remember the first non-whitespace cp
+const jsonStep = ({ rec, top }: JsonFactor, cp: number): JsonFactor => ({
+    rec: recognizerStep(rec, cp),
+    top: top ?? (isJsonWhitespace(cp) ? null : cp),   // ws = 0x20/0x09/0x0A/0x0D
+})
+// at EOF: a complete valid document whose top-level value is an object or array
+const jsonValid = ({ rec, top }: JsonFactor): boolean =>
+    recognizerAccepts(rec) && (top === 0x7b /* { */ || top === 0x5b /* [ */)
 ```
 
 `push` (`:235-247`) already iterates bytes and calls `utf8Step`, which decodes
@@ -73,10 +82,10 @@ work for two reasons that are `fs/json`'s to own, not `fs/mime`'s to patch:
 Both are addressed by the payload-free, O(depth) recognizer proposed in
 **`fs/json/todo/streaming-recognizer.md`** (`recognizerInit` / `recognizerStep`
 / `recognizerAccepts`, sharing the grammar with `parse` so they cannot diverge,
-with a max-depth cap). `A_json` is a thin wrapper over it: `jsonInit =
-recognizerInit`, `jsonStep = recognizerStep`, `jsonValid = recognizerAccepts`.
-This todo therefore **depends on** that recognizer landing first; `fs/mime` adds
-no JSON grammar of its own.
+with an optional max-depth cap `fs/mime` should enable as a DoS guard). `A_json`
+is the thin §1 wrapper over it — the recognizer plus the one-code-point
+top-level tag — adding no JSON grammar of its own. This todo therefore **depends
+on** that recognizer landing first.
 
 Strictness note: the recognizer must reject raw U+0000–U+001F inside strings
 (`fs/json/todo/reject-unescaped-string-controls.md`). This matters here because
@@ -102,17 +111,22 @@ JSON stays `type: 'text'` (it is UTF-8 text); only `mime_type` sharpens. The
 magic branch is unaffected — no known signature is valid JSON, and a magic hit
 already short-circuits, so JSON folding never runs on a magic-matched blob.
 
-#### 4. What counts as JSON (decide the top-level rule)
+#### 4. What counts as JSON (decided)
 
-RFC 8259 admits any value as a JSON text, so `42`, `"hi"`, `true`, `null` are
-technically valid JSON — but they are also perfectly ordinary `text/plain`, and
-flipping a file containing just `null` to `application/json` is surprising.
-**Recommendation: require the top-level value to be an object or array** (first
-non-whitespace code point is `{` or `[`). This matches how JSON is used as a
-data format and avoids misclassifying trivial/short text, at the cost of not
-labeling a bare top-level scalar as JSON. Document whichever rule is chosen next
-to the signature table (`:18-31`) and in `fs/cas/mcp/module.f.ts`'s `cas_get`
-output section. NDJSON / JSON Lines / JSON5 are out of scope.
+**Decision: only a document whose top-level value is an object or array** (first
+non-whitespace code point `{` or `[`) is classified `application/json`. A bare
+top-level scalar — `42`, `"hi"`, `true`, `null` — stays `text/plain`, even
+though RFC 8259 admits it as a valid JSON text.
+
+Rationale: bare scalars are also perfectly ordinary text, and flipping a file
+containing just `null` or `42` to `application/json` is surprising and unstable
+(one short line of prose that happens to be a JSON number would change MIME
+type). The object/array gate matches how JSON is used as a data format and is
+what §1's `top` tag enforces (`jsonValid` requires `top ∈ { '{', '[' }`). The
+externally visible contract, then: `cas_get` returns `application/json` only for
+object/array documents; scalar-only blobs report `text/plain`. Document this
+next to the signature table (`:18-31`) and in `fs/cas/mcp/module.f.ts`'s
+`cas_get` output section. NDJSON / JSON Lines / JSON5 are out of scope.
 
 #### 5. `isSettled` / performance
 
@@ -138,16 +152,17 @@ exactly the path `cas_get` uses.
 - [ ] Land the payload-free, O(depth) `fs/json` recognizer and the
       strict-string-controls fix first (their own todos); this issue is blocked
       on them.
-- [ ] Add the `A_json` factor to `DetectState`/`detectInit` as a thin wrapper
-      over the recognizer; drive `recognizerStep` from the code points decoded
+- [ ] Add the `A_json` factor (recognizer + top-level `top` tag, §1) to
+      `DetectState`/`detectInit`; drive `jsonStep` from the code points decoded
       in `push`.
-- [ ] Refine `finish` to emit `application/json` for whole-blob-valid UTF-8
-      that is also valid JSON (per the chosen top-level rule).
+- [ ] Refine `finish` to emit `application/json` for whole-blob-valid UTF-8 that
+      is valid JSON **with an object/array top level** (§4 decision).
 - [ ] Add `fs/mime/proof.f.ts` cases: `{"a":1}` and `[1,2,3]` (incl. split
       across chunks) → `application/json`/`text`; trailing garbage after valid
       JSON and truncated JSON → `text/plain`; non-JSON prose → `text/plain`;
       a raw TAB inside a string (`{"a":"⟨TAB⟩"}`) → `text/plain`, not
-      `application/json`; bare scalar `42` → per the chosen rule.
+      `application/json`; bare scalars (`42`, `null`, `"hi"`, `true`) →
+      `text/plain` (top-level object/array rule).
 - [ ] Update `fs/mime/module.f.ts` module doc (recognised-types table) and the
       `cas_get` output section in `fs/cas/mcp/module.f.ts` to list
       `application/json`.
