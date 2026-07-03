@@ -1,7 +1,8 @@
 ## detect-json. Detect JSON and return `application/json`
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
+**Blocked by:** [fs/json streaming-recognizer](../../json/todo/streaming-recognizer.md), [fs/json reject-unescaped-string-controls](../../json/todo/reject-unescaped-string-controls.md)
 
 ### Problem
 
@@ -38,16 +39,13 @@ The detector state (`DetectState`, `:201-205`) is a product of independent
 factors — bit `length` × `MagicState` × `Utf8Detect` — that meet only in
 `finish`. Add a fourth factor `A_json`: a streaming JSON **recognizer**
 (accept/reject only, no value construction) driven by the code points the UTF-8
-factor already decodes.
+factor already decodes. Its state and step come straight from the `fs/json`
+recognizer (§2) — `fs/mime` holds the state, `fs/json` defines it:
 
 ```ts
-type JsonState = {
-    readonly parse: ...   // parser control state (a StateParse-like status)
-    readonly tok: ...     // tokenizer mid-token state (inside a string/number/keyword)
-}
-const jsonInit: JsonState
-const jsonStep = (j: JsonState, cp: number): JsonState  // one code point → next state
-const jsonValid = (j: JsonState): boolean               // read at EOF: complete valid document?
+// json: JsonRecognizerState  — added to DetectState, initialized to recognizerInit
+const jsonStep  = recognizerStep     // (state, cp) → state, one decoded code point
+const jsonValid = recognizerAccepts  // read at EOF: complete valid document?
 ```
 
 `push` (`:235-247`) already iterates bytes and calls `utf8Step`, which decodes
@@ -58,34 +56,34 @@ is a mild coupling to the existing "factors never read each other" note at
 `:199-200`; document it, or, if strict independence is preferred, give the JSON
 factor its own `utf8ByteToCodePointOp` decode — at the cost of decoding twice.)
 
-#### 2. Reuse the existing JSON grammar — do not re-implement it
+#### 2. Consume the `fs/json` streaming recognizer — do not hand-adapt the tokenizer here
 
-`fs/json` already has the grammar as composable state machines, and the whole
-point of the single-classifier design is to avoid a second, divergent copy of a
-rule set:
+`A_json` is exactly the *"is this stream valid JSON?"* question, and it must be
+answered without buffering — otherwise the size-independence `detectStream` is
+built for is lost. Reusing `fs/json`'s `tokenize`/`parse` as-is does **not**
+work for two reasons that are `fs/json`'s to own, not `fs/mime`'s to patch:
 
-- `fs/json/tokenizer/module.f.ts` — a `stateScan` per-char (code point) machine
-  producing `JsonToken`s.
-- `fs/json/parser/module.f.ts` — `foldOp: (token) => (state) => JsonState`
-  (`:205-224`), a clean per-token pushdown fold with an explicit `stack`; `parse`
-  (`:232`) accepts on final `status === 'result'`, rejects on `'error'` or an
-  incomplete `default` (`'unexpected end'`).
+- `parse` builds the whole value in `top`/`stack` — O(n) memory in the document
+  size.
+- the shared `fs/js` tokenizer buffers each token's payload
+  (`ParseStringState.value` / `ParseNumberState.value`, appended per character),
+  so even a value-discarding parser still allocates O(token length) on a single
+  huge string or number — e.g. metadata-only `cas_get` on `{"x":"⟨1 MB⟩"}`.
 
-Compose them incrementally: `code point → tokenizer step → 0+ tokens → foldOp
-step(s) → parser state`; at EOF flush the tokenizer (`eof`) and accept iff the
-parser reached `result`. This reuses the tested grammar rather than hand-rolling
-a fourth JSON parser.
+Both are addressed by the payload-free, O(depth) recognizer proposed in
+**`fs/json/todo/streaming-recognizer.md`** (`recognizerInit` / `recognizerStep`
+/ `recognizerAccepts`, sharing the grammar with `parse` so they cannot diverge,
+with a max-depth cap). `A_json` is a thin wrapper over it: `jsonInit =
+recognizerInit`, `jsonStep = recognizerStep`, `jsonValid = recognizerAccepts`.
+This todo therefore **depends on** that recognizer landing first; `fs/mime` adds
+no JSON grammar of its own.
 
-**Value-discarding is required for streaming.** `parse` builds the whole value
-in `top`/`stack` (O(n) memory), which defeats the O(1)-space streaming the
-metadata path depends on (a >128 KiB blob has no single `Vec`; the point of
-`detectStream` is size-independence). We only need accept/reject, so extract a
-**recognizer**: keep the parser's control state and bracket stack, drop value
-construction. Preferred: parameterize the parser over a "builder" so a no-op
-builder yields a pure recognizer with **O(depth)** space (nesting depth only);
-fallback: a small bespoke pushdown automaton mirroring `foldOp`'s status/stack.
-Cap nesting depth (reject past the cap) so a pathological `[[[[…` input cannot
-grow the stack without bound.
+Strictness note: the recognizer must reject raw U+0000–U+001F inside strings
+(`fs/json/todo/reject-unescaped-string-controls.md`). This matters here because
+`fs/mime`'s text gate admits TAB/VT/FF as text (`utf8Step`/`isTextCodePoint`), so
+without the strict check a blob like `{"a":"⟨TAB⟩"}` — invalid JSON per RFC 8259
+— would be mislabeled `application/json`. `A_json` inherits the correct verdict
+from the recognizer rather than re-deriving it.
 
 #### 3. `finish`: refine text → JSON
 
@@ -137,17 +135,19 @@ exactly the path `cas_get` uses.
 
 ### Tasks
 
-- [ ] Extract a value-discarding streaming JSON **recognizer** from
-      `fs/json` (parameterize `parser` over a no-op builder, or a bespoke
-      pushdown mirroring `foldOp`); enforce a max-depth cap.
-- [ ] Add the `A_json` factor to `DetectState`/`detectInit`; drive `jsonStep`
-      from the code points decoded in `push`.
+- [ ] Land the payload-free, O(depth) `fs/json` recognizer and the
+      strict-string-controls fix first (their own todos); this issue is blocked
+      on them.
+- [ ] Add the `A_json` factor to `DetectState`/`detectInit` as a thin wrapper
+      over the recognizer; drive `recognizerStep` from the code points decoded
+      in `push`.
 - [ ] Refine `finish` to emit `application/json` for whole-blob-valid UTF-8
       that is also valid JSON (per the chosen top-level rule).
 - [ ] Add `fs/mime/proof.f.ts` cases: `{"a":1}` and `[1,2,3]` (incl. split
       across chunks) → `application/json`/`text`; trailing garbage after valid
       JSON and truncated JSON → `text/plain`; non-JSON prose → `text/plain`;
-      bare scalar `42` → per the chosen rule.
+      a raw TAB inside a string (`{"a":"⟨TAB⟩"}`) → `text/plain`, not
+      `application/json`; bare scalar `42` → per the chosen rule.
 - [ ] Update `fs/mime/module.f.ts` module doc (recognised-types table) and the
       `cas_get` output section in `fs/cas/mcp/module.f.ts` to list
       `application/json`.
@@ -158,7 +158,8 @@ exactly the path `cas_get` uses.
 
 - `fs/mime/module.f.ts:264-272` — `finish`, where the text→JSON refinement lands.
 - `fs/mime/module.f.ts:180-195` — the UTF-8 factor whose decoded code points feed the JSON factor.
-- `fs/json/parser/module.f.ts:205-238` — `foldOp` / `parse`, the reusable per-token pushdown grammar.
-- `fs/json/tokenizer/module.f.ts` — the per-code-point scanner to compose in front of the parser.
+- `fs/json/todo/streaming-recognizer.md` — **blocks this**; the payload-free, O(depth) validity recognizer `A_json` wraps.
+- `fs/json/todo/reject-unescaped-string-controls.md` — **blocks this**; without it a raw-control string would be mislabeled `application/json`.
+- `fs/json/parser/module.f.ts:205-238` — `foldOp` / `parse`, the grammar the recognizer reuses value-free.
 - `fs/cas/mcp/module.f.ts:196-204` — `cas_get`, the consumer that gains `application/json` for free.
 - `fs/mime/todo/single-signature-table.md` — the sibling "one source of truth" cleanup; same single-classifier principle.
