@@ -80,13 +80,13 @@
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
 import { stringify } from '../../json/module.f.ts'
-import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { pure, decode, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../mime/module.f.ts'
-import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, type Vec } from '../../types/bit_vec/module.f.ts'
+import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, vec, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
 import { rm, type IoResult, type Read, type Rm, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
@@ -289,3 +289,23 @@ export const casMcpServer = (
 ): Effect<Read | Write | MemOp | FileCasOperation | Rm, void> =>
     create(uninitializedState).step(key =>
         stdioTransport(mcpStep(casConfig)(casMcpHandlers(home))(key)))
+
+// ── Tests ────────────────────────────────────────────────────────────────────
+
+export const proof = {
+    // casMcpServer is never called in integration tests because it drives a
+    // real stdio server; call it here to cover its Effect-building body.
+    casMcpServer: () => { casMcpServer('/') },
+    // The overflow guard in collectRead (lines 125-126) is only reached when
+    // the running total of two stream chunks would exceed maxLength.  Feed a
+    // pure stream whose second chunk pushes it just over the limit so the
+    // error branch executes without any real I/O.
+    collectReadOverflow: () => {
+        const half = maxLength / 2n
+        const v1 = vec(half)(0n)
+        const v2 = vec(half + 1n)(0n)
+        const stream = nonEmpty<never, IoResult<Vec>>(ok(v1), nonEmpty<never, IoResult<Vec>>(ok(v2), elEmpty<never, IoResult<Vec>>()))
+        const d = decode(collectRead(stream))
+        if (!d.done || d.result[0] !== 'error') { throw 'expected overflow error' }
+    },
+}
