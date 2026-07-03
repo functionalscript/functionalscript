@@ -279,6 +279,57 @@ const a = effect() => {
 
 `effect` marks a function that may perform effects; `perform` suspends the computation and delegates to the nearest handler, similar to how `await` delegates to the runtime scheduler. See [Effects](../fs/effects/)
 
+### Result Syntax Sugar
+
+In modern software engineering, `throw` is increasingly treated as a way to signal an *unexpected, fatal* condition — a bug, a broken invariant, a crash. It unwinds the stack, is invisible in a function's signature, and is easy to forget to handle. That model is a poor fit for *expected* failures. IO errors (a missing file, a refused connection, a malformed response) are a normal part of a program's behavior and must be handled deliberately, not caught as exceptions somewhere up the stack. Encoding these errors as values — handling errors instead of throwing exceptions — makes them explicit, type-checkable, and impossible to ignore by accident.
+
+FunctionalScript already has a [`Result`](../fs/types/result/) type:
+
+```ts
+type Ok<T>      = readonly ['ok', T]
+type Error<E>   = readonly ['error', E]
+type Result<T, E> = Ok<T> | Error<E>
+```
+
+The problem is that composing functions that return `Result` is verbose. Every call site has to destructure, test the discriminant, and early-return the error:
+
+```ts
+const readConfig = (path: string): Result<Config, IoError> => {
+    const [k1, text] = readFile(path)
+    if (k1 === 'error') { return ['error', text] }
+    const [k2, json] = parseJson(text)
+    if (k2 === 'error') { return ['error', json] }
+    return ['ok', toConfig(json)]
+}
+```
+
+**Proposal:** adopt a Rust-style propagation operator. A postfix `?` applied to a `Result` unwraps the `ok` value, or short-circuits the enclosing function by returning the `error` unchanged. The example above becomes:
+
+```ts
+const readConfig = (path: string): Result<Config, IoError> => {
+    const text = readFile(path)?
+    const json = parseJson(text)?
+    return ok(toConfig(json))
+}
+```
+
+`expr?` desugars to:
+
+```ts
+match (expr) {
+    when (['ok', v])  => v
+    when (['error', e]) => return error(e)
+}
+```
+
+Notes and open questions:
+
+- `?` is only valid inside a function whose return type is a `Result` whose error type is compatible with the propagated error (matching Rust, modulo a `From`-style conversion which we may or may not adopt). This composes naturally with the last-expression-as-return and pattern matching proposals.
+- This is purely syntactic sugar over the existing `Result` type and the `ok`/`error` constructors — no new runtime semantics, and it can be lowered to plain FunctionalScript.
+- The postfix `?` should not be confused with optional chaining (`a?.b`) or the ternary `? :`. Parsing must disambiguate; a worse-case fallback is a keyword form such as `try expr`.
+- A combinator/method form (e.g. `result.map(...)`, `result.andThen(...)`, or a `|>` pipeline of them) covers the cases where short-circuit propagation is not what you want — transforming or recovering from the error inline.
+- `throw` remains in the language for genuinely unexpected/fatal conditions (broken invariants, unreachable branches), keeping a clear split: `Result` for expected errors, `throw` for bugs.
+
 ## Tasks
 
 - [ ] Decide on integer literal syntax (`2` = bigint, `2.0` = float)
@@ -291,6 +342,7 @@ const a = effect() => {
 - [ ] Define hash-based module identity scheme
 - [ ] Specify last-expression-as-export semantics
 - [ ] Specify `effect`/`perform` syntax and handler protocol
+- [ ] Specify `Result` propagation operator (`?`) desugaring and error-type compatibility rules
 - [ ] Evaluate pipeline operator (`|>`) syntax
 - [ ] Evaluate automatic method binding semantics
 - [ ] Specify `if`/`switch` expression semantics and pattern matching syntax
