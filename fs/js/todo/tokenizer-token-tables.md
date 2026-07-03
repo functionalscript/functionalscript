@@ -42,6 +42,14 @@ const keywords = ['arguments', 'await', 'break', /* … */, 'yield'] as const
 
 type KeywordToken = { readonly kind: typeof keywords[number] }
 
+// literal-value keywords with their own token types (TrueToken, …)
+const literalKeywords = ['true', 'false', 'null', 'undefined'] as const
+
+// pinned with `as const` — an unpinned `[...keywords, 'true', …]` literal
+// widens its fresh elements to `string`, instantiating `kindEntry` with
+// `K = string` and failing the `Entry<JsToken>` annotation (TS2322)
+const keywordKinds = [...keywords, ...literalKeywords] as const
+
 const operators = ['!', '!=', '!==', /* … */, '~'] as const
 
 type OperatorToken = { readonly kind: typeof operators[number] }
@@ -50,8 +58,7 @@ type OperatorToken = { readonly kind: typeof operators[number] }
 const kindEntry = <K extends string>(k: K): Entry<{ readonly kind: K }> =>
     [k, { kind: k }]
 
-const keywordEntries: List<Entry<JsToken>> =
-    [...keywords, 'true', 'false', 'null', 'undefined'].map(kindEntry)
+const keywordEntries: List<Entry<JsToken>> = keywordKinds.map(kindEntry)
 
 const operatorEntries: List<Entry<JsToken>> = operators.map(kindEntry)
 ```
@@ -62,14 +69,16 @@ Notes for the implementer:
   `{ readonly kind: … | … }` lines purely for line-width; `typeof keywords[number]`
   replaces all of them at once.
 - `true`/`false`/`null`/`undefined` stay **out** of `keywords` (they are
-  `TrueToken`/`FalseToken`/`NullToken`/`UndefinedToken`, not keywords) and are
-  appended only when building the runtime table, preserving today's
-  type structure exactly.
+  `TrueToken`/`FalseToken`/`NullToken`/`UndefinedToken`, not keywords); the
+  `as const` `keywordKinds` tuple combines the two lists only for the runtime
+  table, preserving today's type structure exactly.
 - Inside `.map`, `kindEntry`'s generic parameter is inferred as the whole
   element union, which is fine — the table is typed `Entry<JsToken>` and
-  single-discriminant object unions accept `{ kind: A | B }`. If `tsc`
-  disagrees on some version, map over the array with an explicitly annotated
-  result type instead of tightening `kindEntry`.
+  single-discriminant object unions accept `{ kind: A | B }`. Verified against
+  the repo's TypeScript (6.0.3, `--strict`): the snippet above compiles as
+  written, and the unpinned `[...keywords, 'true', …].map(kindEntry)` variant
+  fails with `TS2322` (`Entry<{ readonly kind: string }>` is not an
+  `Entry<JsToken>`) — hence the `as const` on `keywordKinds`.
 - `isKeywordToken` and `getOperatorToken`/`hasOperatorToken` keep working
   unchanged — they consume the maps built from the tables.
 
