@@ -391,7 +391,7 @@
         {
           "uses": "denoland/setup-deno@v2.0.4",
           "with": {
-            "deno-version": "2.9.0"
+            "deno-version": "2.9.1"
           }
         },
         {
@@ -502,7 +502,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260627.2"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260703.1"
         },
         {
           "uses": "actions/checkout@v7"
