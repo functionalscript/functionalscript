@@ -92,8 +92,8 @@ Both changes are behavior-preserving; existing proofs must pass unchanged.
 
 ### Related
 
-- [i667-js-tokenizer-handler-literals](todo/667-js-tokenizer-handler-literals.md)
+- [i667-js-tokenizer-handler-literals](667-js-tokenizer-handler-literals.md)
   — covers the *continuing-token* literal shapes in the number/escape handlers;
   this issue covers the *token-boundary* shape. Independent, compatible edits.
-- [i666-js-tokenizer-position-layer](todo/666-js-tokenizer-position-layer.md)
+- [i666-js-tokenizer-position-layer](666-js-tokenizer-position-layer.md)
   — metadata layering, orthogonal.

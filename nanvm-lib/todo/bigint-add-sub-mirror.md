@@ -34,9 +34,11 @@ Verified empirically with a throwaway integration test against
 `BigInt<Naive>`: `3 - 5` asserts equal to `-2` and fails with
 `left: 0x2n, right: -0x2n`.
 
-`sub.rs` is also the only bigint operator file with **no unit tests** (`add`,
-`shl`, `shr`, `cmp`, `mul` all have `#[cfg(test)]` modules), which is why the
-copy-paste survived.
+The signed dispatch has **no unit tests on either side**: `sub.rs`, `add.rs`,
+and `mul.rs` contain no `#[cfg(test)]` modules (only `shl`, `shr`, `cmp`,
+`from`, and `mod` do). The `abs_*` magnitude kernels are tested in
+`vm/bigint/mod.rs`, but nothing exercises the sign selection above them —
+which is why the copy-paste survived.
 
 #### 2. DRY: the sign dispatch exists twice (and enabled the bug)
 
@@ -104,16 +106,19 @@ Notes:
 - `Sign` has no flip yet; `neg.rs`'s inline `match` is a second copy of that
   idea — add `Sign::flip` (or `impl Neg for Sign`) next to the enum and use it
   from `neg.rs` too.
-- Add the missing `sub.rs` unit tests, at minimum: `3 - 5 == -2`,
-  `(-3) - (-5) == 2`, `5 - 3 == 2`, `a - a == 0`, mixed signs
-  `3 - (-5) == 8`, `(-3) - 5 == -8`, and a multi-word borrow case.
+- Add the missing signed-dispatch unit tests. For `sub`, at minimum:
+  `3 - 5 == -2`, `(-3) - (-5) == 2`, `5 - 3 == 2`, `a - a == 0`, mixed signs
+  `3 - (-5) == 8`, `(-3) - 5 == -8`, and a multi-word borrow case. `add.rs`
+  and `mul.rs` are equally untested — cover `add`'s sign arms (equal signs,
+  differing signs with each magnitude larger, cancellation to zero) and
+  `mul`'s sign combinations in the same change.
 
 ### Tasks
 
 - [ ] Add `Sign::flip`; use it in `neg.rs`.
 - [ ] Add `add_signed` in `vm/bigint/mod.rs`; rewrite `Add`/`Sub` on top of it.
 - [ ] Add `sub.rs` unit tests covering both signs of the `Less` arm (the bug),
-      plus the cases listed above.
+      plus the `add`/`mul` sign-dispatch cases listed above.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check` clean.
 
 ### Related

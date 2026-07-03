@@ -88,6 +88,6 @@ array element.
 
 - `AGENTS.md` — "Use string literals as strongly-typed values" (pattern 2:
   `as const` array + `typeof arr[number]`), the rule this issue applies.
-- [i667-js-tokenizer-handler-literals](todo/667-js-tokenizer-handler-literals.md)
+- [i667-js-tokenizer-handler-literals](667-js-tokenizer-handler-literals.md)
   — the sibling DRY issue inside the same module (handler bodies); this one
   covers the token vocabularies and is independent.
