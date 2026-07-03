@@ -175,6 +175,12 @@ export const utf8StateToError = (state: Utf8NonEmptyState): I32 => {
 /**
  * Decodes a byte into a Unicode code point, using a given UTF-8 state.
  *
+ * Rejects overlong 3-/4-byte encodings (Unicode Table 3-7): a lead `E0` must
+ * be followed by a continuation `>= 0xA0`, and a lead `F0` by a continuation
+ * `>= 0x90`. It does not itself reject surrogates (`ED A0..BF`) or code
+ * points above `U+10FFFF` (`F4 90..BF`); {@link fromVec}'s
+ * `isValidCodePoint` pass filters those out of the raw code-point stream.
+ *
  * @param state - The current UTF-8 decoding state.
  * @param byte - A single byte to decode.
  * @returns A tuple containing:
@@ -197,7 +203,14 @@ export const utf8ByteToCodePointOp: StateScan<number, Utf8State, readonly I32[]>
                 if (s0 < lead3Tag) {
                     return [[((s0 & lead2Mask) << 6) + contPayload(byte)], null]
                 }
-                if (s0 < 0b1111_1000) return [[], [s0, byte]]
+                if (s0 < 0b1111_1000) {
+                    // Reject overlong 3-/4-byte encodings: after lead `E0` the
+                    // first continuation must be >= 0xA0, after lead `F0` it
+                    // must be >= 0x90 (Unicode Table 3-7).
+                    const overlong = s0 === lead3Tag && byte < 0b1010_0000 ||
+                        s0 === lead4Tag && byte < 0b1001_0000
+                    if (!overlong) return [[], [s0, byte]]
+                }
                 break
             }
             case 2: {
