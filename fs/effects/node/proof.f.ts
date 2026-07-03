@@ -1,8 +1,9 @@
 import { empty, isVec, uint, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { decode, pure } from "../module.f.ts"
-import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt } from "./module.f.ts"
+import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, type IoResult } from "./module.f.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
+import { empty as listEmpty } from "../list/module.f.ts"
 import { emptyState, virtual, type Dir } from "./virtual/module.f.ts"
 
 export const proof = {
@@ -376,6 +377,19 @@ export const proof = {
             if (r2 !== 1) { throw r2 }
             const [_, r3] = virtual(state2)(randomInt())
             if (r3 !== 2) { throw r3 }
+        },
+    },
+    writeFromStream: {
+        createExclusiveFails: () => {
+            // The destination already exists, so `createExclusive` fails (EEXIST) and
+            // the error propagates without ever touching `writeBytes`.
+            const [state, [t, result]] = virtual({
+                ...emptyState,
+                root: { hello: [vec8(0x2An)] },
+            })(writeFromStream('hello', listEmpty<never, IoResult<Vec>>()))
+            if (t !== 'error') { throw result }
+            const file = state.root.hello
+            if (!Array.isArray(file) || uint(file[0]) !== 0x2An) { throw file }
         },
     },
 }
