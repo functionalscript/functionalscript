@@ -4,7 +4,7 @@ import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
 import type { Response } from '../../json/rpc/module.f.ts'
-import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../../types/bit_vec/module.f.ts'
+import { maxLength, msb, u8ListToVec, vec, vec8, repeat, length, type Vec, maxLengthBytes } from '../../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
@@ -583,6 +583,26 @@ export const proof = {
         ]).slice(2) as readonly unknown[]
         assert(!resultOf(addUrlResp).isError)
         assert(textOf(addUrlResp).length > 0)
+    },
+
+    addBigFileRoundtrip: () => {
+        const chunk = vec(maxLength)(1234567890n)
+        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'hello.bin': [chunk, chunk] } } } }
+        const [addUrlResp] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_add', { content: '/home/user/cas_upload/hello.bin', type: 'url' }),
+        ]).slice(2)
+        assert(!resultOf(addUrlResp).isError)
+        assert(textOf(addUrlResp).length > 0)
+        const hash = textOf(addUrlResp)
+        //
+        const [, getResp] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_add', { content: '/home/user/cas_upload/hello.bin', type: 'url' }),
+            call(3, 'cas_get', { hash })
+        ]).slice(2)
+        assert(!resultOf(getResp).isError)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
     },
 
     addUrlRoundTrips: () => {
