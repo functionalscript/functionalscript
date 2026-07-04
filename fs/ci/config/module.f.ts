@@ -64,13 +64,13 @@ export const actions = {
     // https://github.com/marketplace/actions/cache
     'actions/cache': 'v6.1.0',
     // https://github.com/marketplace/actions/setup-deno
-    'denoland/setup-deno': 'v2.0.4',
+    'denoland/setup-deno': 'v2.0.5',
     // https://github.com/marketplace/actions/setup-bun
     'oven-sh/setup-bun': 'v2.2.0',
     // https://github.com/bytecodealliance/actions
-    'bytecodealliance/actions/wasmtime/setup': 'v1',
+    'bytecodealliance/actions/wasmtime/setup': 'v1.1.3',
     // https://github.com/wasmerio/setup-wasmer
     'wasmerio/setup-wasmer': 'v3.1',
     // https://rust-lang.org/ - value is Rust version, not action version
-    'dtolnay/rust-toolchain': '1.96.0',
+    'dtolnay/rust-toolchain': '1.96.1',
 } as const
