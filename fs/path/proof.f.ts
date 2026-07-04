@@ -1,4 +1,4 @@
-import { concat, join, normalize, relativize, toPosix } from "./module.f.ts"
+import { concat, isProperPrefix, join, normalize, relativize, toPosix } from "./module.f.ts"
 
 const normalizeTest = [
     () => {
@@ -94,4 +94,31 @@ const toPosixTest = [
     },
 ]
 
-export const proof = { normalizeTest, concatTest, joinTest, relativizeTest, toPosixTest }
+const isProperPrefixTest = [
+    () => {
+        const r = isProperPrefix(['a', 'b'], ['a', 'b', 'c'])
+        if (r !== true) { throw r }
+    },
+    () => {
+        const r = isProperPrefix(['a', 'b'], ['a', 'b'])
+        if (r !== false) { throw r }
+    },
+    () => {
+        const r = isProperPrefix(['a', 'x'], ['a', 'b', 'c'])
+        if (r !== false) { throw r }
+    },
+    () => {
+        const r = isProperPrefix(['a', 'b', 'c'], ['a', 'b'])
+        if (r !== false) { throw r }
+    },
+    () => {
+        const r = isProperPrefix([], ['a'])
+        if (r !== true) { throw r }
+    },
+    () => {
+        const r = isProperPrefix([], [])
+        if (r !== false) { throw r }
+    },
+]
+
+export const proof = { normalizeTest, concatTest, joinTest, relativizeTest, toPosixTest, isProperPrefixTest }

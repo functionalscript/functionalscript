@@ -1,7 +1,7 @@
 ## is-proper-prefix-path. `isProperPrefix` belongs in `fs/path`
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ### Problem
 
@@ -39,9 +39,9 @@ the virtual FS `rename`. Keep it pure and segment-based — Node
 
 ### Tasks
 
-- [ ] Move the predicate to `fs/path/module.f.ts` with JSDoc + proof cases;
+- [x] Move the predicate to `fs/path/module.f.ts` with JSDoc + proof cases;
       update `rename` to import it.
-- [ ] `npx tsc`, `fjs t`.
+- [x] `npx tsc`, `fjs t`.
 
 ### Related
 
