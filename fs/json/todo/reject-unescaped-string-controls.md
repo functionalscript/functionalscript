@@ -1,85 +1,87 @@
-## reject-unescaped-string-controls. `parse` accepts raw U+0000–U+001F in strings
+## reject-unescaped-string-controls. All parsers accept only JSON string literals
 
 **Priority:** P2
 **Status:** open
 
 ### Problem
 
-RFC 8259 §7 requires every character U+0000–U+001F inside a JSON string to be
-escaped; a literal control byte in a string is a syntax error. `fs/json`'s
-`parse` accepts them.
+Two layers to this issue — a conformance bug and a design decision that
+determines the shape of the fix.
 
-`fs/json`'s tokenizer delegates string scanning to the shared `fs/js`
-tokenizer, whose string state machine (`fs/js/tokenizer/module.f.ts:694-700`,
-`parseStringStateOp`) special-cases only three inputs — `"` (close), `\`
-(escape), and LF/CR (`rangeSetNewLine` → *"unterminated string literal"*) — and
-its **default arm appends any other code point verbatim**, control characters
-included. So a literal TAB (U+0009), VT (U+000B), FF (U+000C), NUL (U+0000), or
-any other C0 control except LF/CR flows straight into the string value. The
-`fs/json` tokenizer wrapper (`fs/json/tokenizer/module.f.ts:59-62`,
-`parseDefaultState` → `mapToken`) passes `string` tokens through unchanged and
-re-validates nothing.
+**The bug.** [RFC 8259 §7](https://www.rfc-editor.org/rfc/rfc8259#section-7)
+requires every character U+0000–U+001F inside a JSON string to be escaped; a
+literal control byte in a string is a syntax error. `fs/json`'s `parse`
+accepts them: the shared `fs/js` string state machine (`parseStringStateOp`,
+`fs/js/tokenizer/module.f.ts`) special-cases only `"` (close), `\` (escape),
+and LF/CR (*"unterminated string literal"*), and its default arm appends any
+other code point — control characters included — verbatim. So
+`parse('{"a":"⟨TAB⟩"}')` succeeds where `JSON.parse` throws *"Bad control
+character in string literal"*.
 
-Consequently `parse('{"a":"⟨TAB⟩"}')` (a literal tab byte in the string)
-succeeds and yields `{ a: "\t" }`, whereas standard `JSON.parse` throws
-`SyntaxError: Bad control character in string literal`. `fs/json` is meant to
-model JSON, so this is a conformance bug in `fs/json` on its own — independent
-of any consumer.
+The check must happen during scanning, not on the finished token: the escape
+handler decodes `\t` into an actual HT code point in `value`, so an *escaped*
+`\t` and a *literal* TAB are indistinguishable in the emitted token. The
+distinction only exists at the moment the raw byte is consumed.
 
-**Two facts constrain the fix:**
+**The design decision.** FunctionalScript is a subset of JS, and a subset may
+restrict spellings. JSON string syntax can denote **every** JS string value —
+each UTF-16 code unit, including lone surrogates, is reachable via `\uXXXX` —
+so restricting all our languages (JSON ⊂ DJS ⊂ FS) to JSON string literals
+loses no expressiveness, only alternative spellings. What it buys:
 
-1. **The check must happen during scanning, not on the finished token.** The
-   escape handler decodes `\t` into an actual HT code point appended to `value`
-   (`fs/js/tokenizer/module.f.ts:717`; likewise `\n`→LF, `\f`→FF, `\b`→BS). By
-   the time a `string` token exists, an *escaped* `\t` and a *literal* TAB are
-   the same U+0009 in `value` — indistinguishable. A post-hoc scan of the
-   token's `value` cannot tell a legal escape from an illegal raw control, so it
-   would either miss violations or reject legal escapes. The distinction only
-   exists at the moment the raw byte is consumed, in `parseStringStateOp`'s
-   default arm.
+- one string grammar across the whole language lattice — no per-language
+  string variants in the tokenizer;
+- no parser differentials at the string level: "is it valid JSON?" is
+  trivially answerable, and `fs/json` agrees with every strict RFC 8259
+  parser by construction;
+- fewer spellings per value — a step toward canonical byte forms for
+  content addressing and hashing.
 
-2. **The fix must be JSON-specific, not a tightening of shared `fs/js`.**
-   ECMAScript string literals legitimately permit literal TAB and other C0
-   controls (only LineTerminators are disallowed — exactly what `rangeSetNewLine`
-   already rejects). Extending that rejection in the shared `fs/js` scanner would
-   break JS-string conformance. The extra strictness belongs to the JSON layer.
+The shared scanner is already almost there: it supports only double-quoted
+strings and only the JSON escapes (`\"` `\\` `\/` `\b` `\f` `\n` `\r` `\t`
+`\uXXXX`); everything else (`\v`, `\x`, `\0`, …) is already an *"unescaped
+character"* error. The **sole** remaining divergence from JSON is the default
+arm admitting raw controls.
 
 ### Proposal
 
-Keep the grammar in one place; add a JSON-only strictness signal at scan time.
+Reject literal control characters during string scanning in the shared
+`fs/js` tokenizer, for **all** consumers: in `parseStringStateOp`, map a
+consumed code point in U+0000–U+001F (other than LF/CR, which already end the
+string) to an `error` token (*"unescaped control character in string"*).
 
-- **Preferred — tag the token, decide in the JSON layer.** In
-  `parseStringStateOp`'s default arm, when the consumed code point is < U+0020,
-  set a boolean on the emitted `StringToken` (e.g. `rawControl: true`). JS
-  consumers ignore it. The `fs/json` tokenizer wrapper
-  (`fs/json/tokenizer/module.f.ts`) converts any `string` token carrying that
-  flag into an `error` token (*"unescaped control character in string"*). The
-  grammar stays single-sourced; only the JSON layer enforces the stricter rule.
+No per-language flag, mode, or wrapper-level re-validation is needed: since
+string literals are JSON strings in every language we parse, the strictness
+belongs to the single shared grammar. This supersedes the earlier design
+(tag the token with a `rawControl` flag, reject only in the `fs/json`
+wrapper), which existed to preserve full-JS string tokenization that we no
+longer aim to accept by default.
 
-- **Alternative — parameterize the scanner.** Thread a `strict` mode into the
-  `fs/js` string state op so its default arm errors on U+0000–U+001F when the
-  JSON entry point drives it. More plumbing through `stateScan`; only worth it if
-  other JSON-vs-JS divergences accumulate.
-
-- **Rejected — a separate `fs/json` string scanner.** Duplicates the escape /
-  `\uXXXX` / surrogate logic; a second copy of the grammar is exactly what
-  `fs/json` avoids by delegating to `fs/js`.
+Full ECMAScript string syntax (single quotes, `\v`/`\xHH`/`\0`, literal
+controls, line continuations) is deferred to a future language feature:
+[js-string-literals](../../../todo/lang/2460-js-string-literals.md).
 
 ### Tasks
 
-- [ ] Emit a raw-control signal from `parseStringStateOp`'s default arm (flag on
-      `StringToken`, or a strict-mode error), without changing JS-string behavior.
-- [ ] In `fs/json/tokenizer`, reject flagged string tokens as `error`.
-- [ ] Add `fs/json/parser/proof.f.ts` (or tokenizer proof) cases: literal TAB /
-      VT / FF / NUL in a string → `error`; the corresponding valid escapes
-      (TAB `\t`, FF `\f`, VT `\u000b`, NUL `\u0000` — JSON has no `\v`/`\0`
-      short forms) → still accepted; confirm JS string tokenization is
-      unchanged (`fs/js/tokenizer/proof.f.ts`).
+- [ ] In `parseStringStateOp` (`fs/js/tokenizer/module.f.ts`), emit an
+      `error` token for a literal U+0000–U+001F (except LF/CR) inside a
+      string.
+- [ ] Proof cases across `fs/js`, `fs/json`, and `fs/djs` tokenizers:
+      literal TAB / VT / FF / NUL in a string → `error`; the corresponding
+      valid escapes (TAB `\t`, FF `\f`, VT ``, NUL ` ` — JSON has
+      no `\v`/`\0` short forms) → still accepted.
 - [ ] `npx tsc` clean; `fjs t` green.
 
 ### Related
 
-- `fs/js/tokenizer/module.f.ts:694-700` — the string state op whose default arm admits raw controls; `:717` decodes `\t`→HT, collapsing escaped/literal.
-- `fs/json/tokenizer/module.f.ts:59-62` — the JSON wrapper that passes `string` tokens through and must enforce the strict rule.
-- `fs/json/todo/streaming-recognizer.md` — the payload-free validator that must also honor this strictness at scan time.
-- `fs/mime/todo/detect-json.md` — consumer that would otherwise mislabel a raw-control blob as `application/json`.
+- `fs/js/tokenizer/module.f.ts` — `parseStringStateOp`, whose default arm
+  admits raw controls; the single enforcement point.
+- [todo/lang/2460-js-string-literals.md](../../../todo/lang/2460-js-string-literals.md)
+  — deferred feature restoring full JS string spellings.
+- [fs/json/todo/streaming-recognizer.md](./streaming-recognizer.md) — the
+  payload-free validator inherits this strictness for free once it lives in
+  the shared scanner.
+- [fs/mime/todo/detect-json.md](../../mime/todo/detect-json.md) — consumer
+  that would otherwise mislabel a raw-control blob as `application/json`.
+- PR #1215 — implements the earlier per-layer `rawControl` design; superseded
+  by this issue if accepted.
