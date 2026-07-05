@@ -190,7 +190,7 @@ const toJsTokens
     : (tk: Token) => List<JsToken | null>
     = tk => {
         const token = toJsToken(tk)
-        if (token !== null && token.kind === '/*') {
+        if (token.kind === '/*') {
             const hasNl = token.value.includes('\n') || token.value.includes('\r')
             if (hasNl) return [token, { kind: 'nl' }]
         }
