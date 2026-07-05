@@ -43,9 +43,10 @@ expression interpolation, not just lexical syntax.
 single pass — implements this feature, it must still distinguish JS strings
 from JSON strings: a string literal using any of the JS-only spellings above
 is not a JSON string, and the parser has to report the input as outside
-JSON/DJS. For example, via two grammar rules (`json-string` ⊂ `js-string`)
-sharing the escape sub-rules, or by recording which sub-language each matched
-token stayed within.
+JSON (it stays valid DJS/FS, since this feature is DJS-level sugar). For
+example, via two grammar rules (`json-string` ⊂ `js-string`) sharing the
+escape sub-rules, or by recording which sub-language each matched token
+stayed within.
 
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#string_literals>
