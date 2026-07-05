@@ -30,18 +30,31 @@
  * ## `cas_get` output
  *
  * Always returns a JSON object `{ length, mime_type, type[, url][, content] }`.
- * `type` is always present (`'text'` or `'base64'`). When `content: true` is
- * requested, the inline payload is also included. Two-phase MIME detection
- * determines the encoding:
+ * `type` is always present (`'text'` or `'base64'`). A single classifier — the
+ * `fs/mime` detector state machine (length × magic-byte eliminator × UTF-8 DFA) —
+ * produces the same three-way verdict on both paths, so there is no second,
+ * divergent copy of the rules:
  *
- * 1. **Magic-byte sniffing** (`fs/mime` `detect`): PNG/JPEG/GIF/WebP/PDF/ZIP →
- *    `type: 'base64'` with the detected `mime_type`.
- * 2. **UTF-8 validation** (`fs/text/utf8` `fromVec`): valid UTF-8 →
- *    `type: 'text'`, `mime_type: 'text/plain'`.
- * 3. **Fallback**: `type: 'base64'`, `mime_type: 'application/octet-stream'`.
+ * 1. **Magic-byte hit** (PNG/JPEG/GIF/WebP/PDF/ZIP) → `type: 'base64'` with the
+ *    detected `mime_type`.
+ * 2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mime_type: 'text/plain'`.
+ * 3. **Fallback** → `type: 'base64'`, `mime_type: 'application/octet-stream'`.
  *
- * When `content: false` (default), only `{ length, mime_type, type[, url] }` is
- * returned — no content transfer.
+ * **Metadata-only (`content: false`, the default) is size-independent.** It folds
+ * the read stream through `fs/mime` `detectStream` and never buffers the blob.
+ * Because a single `Vec` caps at `maxLength` bits (128 KiB), the old
+ * drain-into-one-`Vec` approach failed on any blob larger than one chunk even when
+ * only metadata was asked for; streaming detection returns correct
+ * `{ length, mime_type, type[, url] }` regardless of size.
+ *
+ * **`content: true`** first derives `{ length, mime_type, type }` with the same
+ * size-independent `fs/mime` `detectStream` machine, then materializes the bytes
+ * (via `collectRead`, bounded by `maxLength`) and encodes the inline payload by
+ * `type` — a `fs/text/utf8` `fromVec` string for `text`, base64 for `base64`. A
+ * blob larger than `maxLength` (128 KiB) cannot be buffered into one `Vec`, so it
+ * is rejected here with a descriptive *"too large"* error (carrying the byte size
+ * and `url`) rather than being misreported as absent; it should be fetched via
+ * `url` or inspected with metadata-only `cas_get`.
  *
  * ## Encoding split: hashes vs. content
  *
@@ -59,19 +72,21 @@
  * - `type: 'base64'` with malformed content (base64 `decode` → `null`) → `isError`
  * - malformed `hash` (`cBase32ToVec` → `null`) → `isError`
  * - `cas_get` on an absent hash (`c.read` → `undefined`) → `isError`
+ * - `cas_get` with `content: true` on a blob larger than `maxLength` → `isError`
+ *   (distinct "too large" message, not "no such hash")
  * - unknown tool `name` → `isError`
  *
  * @module
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
 import { stringify } from '../../json/module.f.ts'
-import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { pure, decode, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
-import { utf8 } from '../../text/module.f.ts'
-import { detect } from '../../mime/module.f.ts'
-import { empty, length as bitVecLength, maxLength, msb, type Vec } from '../../types/bit_vec/module.f.ts'
+import { tryUtf8 } from '../../text/module.f.ts'
+import { detectStream } from '../../mime/module.f.ts'
+import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, vec, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
 import { rm, type IoResult, type Read, type Rm, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
@@ -81,7 +96,7 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { casAddFile, fileCas, type Cas, type FileCas, type FileCasOperation } from '../module.f.ts'
+import { casAddFile, fileCas, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
@@ -107,14 +122,15 @@ export const casListArgs = {} as const
 // ── Stream helper ────────────────────────────────────────────────────────────────
 
 /**
- * Drains a CAS read stream into a single `Vec`. MCP needs the whole blob in hand
- * (MIME sniffing, UTF-8 validation, base64 encoding all inspect the full content),
- * so the chunk stream is concatenated; an error item is surfaced as the result.
+ * Drains a CAS read stream into a single `Vec`. Used only on the `content: true`
+ * path, where the whole blob is needed for inline base64 / UTF-8 transfer; the
+ * chunk stream is concatenated and an error item is surfaced as the result.
+ * Metadata-only `cas_get` avoids this entirely via `fs/mime` `detectStream`,
+ * which is why it is not bound by the `maxLength` ceiling below.
  */
 const collectRead = <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {
     const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
-        s.step((nodeThunk): Effect<O, IoResult<Vec>> => {
-            const node = nodeThunk()
+        s.step((node): Effect<O, IoResult<Vec>> => {
             if (node === undefined) { return pure(ok(acc)) }
             const { first, tail } = node
             const [t, v] = first
@@ -149,7 +165,7 @@ const casToolRegistry =
     return [
     toolEntry(
         'cas_add',
-        'Store content and return its hash (cBase32). Pass type:"base64" for binary; type:"url" to stream a file from $HOME/cas_upload/ (no size limit); omit or pass type:"text" for UTF-8 text (default).',
+        'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content (text/base64) is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content use type:"url" to stream a file from $HOME/cas_upload/ (no size limit).',
         casAddArgs,
         ({ type, content }): Effect<FileCasOperation | Rm, ToolsCallResult> => {
             // type:'url' — stream the file into cas, then delete the source on success
@@ -164,87 +180,64 @@ const casToolRegistry =
                 )
             }
             // type:'text' or 'base64' — resolve content to Vec, store via c.write()
-            let x: Effect<Rm, Vec|string>
-            switch(type) {
-                case 'base64':
-                    const value = base64Decode(content)
-                    x = pure(value === null ? `invalid base64 content: ${content}` : value)
-                    break
-                default:
-                    x = pure(utf8(content))
-                    break
-            }
-            return x.step(value => typeof value === 'string'
-                ? pure(errorResult(value))
+            let x: Vec|null = type === 'base64'
+                ? base64Decode(content)
+                : tryUtf8(content)
+            return x === null
+                ? pure(errorResult('too large or malformed — use type:"url" for large content'))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(nonEmpty(ok(value), elEmpty<never, Ok<Vec>>())).step(hashResult => pure(hashResult[0] === 'error'
+                : c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
                     ? errorResult('write')
-                    : okResult(vecToCBase32(hashResult[1]))))
-            )
+                    : okResult(vecToCBase32(hash))))
         },
     ),
     toolEntry(
         'cas_get',
-        'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string.',
+        'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string, but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To download a blob, prefer the url field returned in the result instead of requesting inline content.',
         casGetArgs,
         r => {
             const key = cBase32ToVec(r.hash)
             if (key === null) {
                 return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
             }
-            return collectRead(c.read(key)).step(result => {
-                if (result[0] === 'error') {
+            const url = c.url(key)
+            return detectStream(c.read(key)).step(([tag, detected]) => {
+                if (tag === 'error') {
                     return pure(errorResult(`no such hash: ${r.hash}`))
                 }
-                const value = result[1]
-                const byteLength = Number(bitVecLength(value) / 8n)
-                const url = c.url(key)
-                // Phase 1: magic-byte sniffing for known binary formats.
-                const detectedMime = detect(value)
-                if (detectedMime !== null) {
-                    const meta: Meta = {
-                        length: byteLength,
-                        mime_type: detectedMime,
-                        type: 'base64',
-                        url,
-                    }
-                    if (r.content === true) {
-                        const blob = base64Encode(value)
-                        return pure(blob === null
-                            ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                            : okResult(toJson({ ...meta, content: blob }))
-                        )
-                    }
+                const { length, mime_type, type } = detected
+                const meta: Meta = { length: Number(length), mime_type, type, url }
+                if (r.content !== true) {
+                    // content:true path continues below; this is just the metadata step.
                     return pure(okResult(toJson(meta)))
                 }
-                // Phase 2: UTF-8 validation — text if valid, octet-stream otherwise.
-                const str = fromVec(value)
-                if (str !== null) {
-                    const meta: Meta = {
-                        length: byteLength,
-                        mime_type: 'text/plain',
-                        type: 'text',
-                        url,
+                // A single `Vec` caps at `maxLength` bits (`maxLengthBytes` bytes), so
+                // a larger blob cannot be buffered for inline transfer. Report the
+                // size and point at the size-independent alternatives instead of
+                // misreporting an existing blob as `no such hash`.
+                if (length > maxLengthBytes) {
+                    return pure(errorResult(
+                        `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the url field (${url}) or omit content for metadata`))
+                }
+                return collectRead(c.read(key)).step(([collectTag, value]) => {
+                    if (collectTag === 'error') {
+                        return pure(errorResult(`no such hash: ${r.hash}`))
                     }
-                    return pure(r.content === true
-                        ? okResult(toJson({ ...meta, content: str }))
-                        : okResult(toJson(meta))
-                    )
-                }
-                const meta: Meta = {
-                    length: byteLength,
-                    mime_type: 'application/octet-stream',
-                    type: 'base64',
-                    url,
-                }
-                if (r.content === true) {
+                    if (type === 'text') {
+                        // `type: 'text'` means the detector validated `value` as UTF-8,
+                        // so `fromVec` is non-null here; guard defensively regardless.
+                        const str = fromVec(value)
+                        return pure(str === null
+                            ? errorResult(`content is not byte-aligned: ${r.hash}`)
+                            : okResult(toJson({ ...meta, content: str }))
+                        )
+                    }
                     const blob = base64Encode(value)
                     return pure(blob === null
                         ? errorResult(`content is not byte-aligned: ${r.hash}`)
                         : okResult(toJson({ ...meta, content: blob }))
                     )
-                }
-                return pure(okResult(toJson(meta)))
+                })
             })
         },
     ),
@@ -296,3 +289,23 @@ export const casMcpServer = (
 ): Effect<Read | Write | MemOp | FileCasOperation | Rm, void> =>
     create(uninitializedState).step(key =>
         stdioTransport(mcpStep(casConfig)(casMcpHandlers(home))(key)))
+
+// ── Tests ────────────────────────────────────────────────────────────────────
+
+export const proof = {
+    // casMcpServer is never called in integration tests because it drives a
+    // real stdio server; call it here to cover its Effect-building body.
+    casMcpServer: () => { casMcpServer('/') },
+    // The overflow guard in collectRead (lines 125-126) is only reached when
+    // the running total of two stream chunks would exceed maxLength.  Feed a
+    // pure stream whose second chunk pushes it just over the limit so the
+    // error branch executes without any real I/O.
+    collectReadOverflow: () => {
+        const half = maxLength / 2n
+        const v1 = vec(half)(0n)
+        const v2 = vec(half + 1n)(0n)
+        const stream = nonEmpty<never, IoResult<Vec>>(ok(v1), nonEmpty<never, IoResult<Vec>>(ok(v2), elEmpty<never, IoResult<Vec>>()))
+        const d = decode(collectRead(stream))
+        if (!d.done || d.result[0] !== 'error') { throw 'expected overflow error' }
+    },
+}

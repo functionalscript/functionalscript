@@ -22,13 +22,13 @@
           }
         },
         {
-          "uses": "actions/setup-node@v6",
+          "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.3.1"
+            "node-version": "26.4.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.32.4"
+          "run": "npm install -g functionalscript@0.33.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -75,13 +75,13 @@
           }
         },
         {
-          "uses": "actions/setup-node@v6",
+          "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.3.1"
+            "node-version": "26.4.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.32.4"
+          "run": "npm install -g functionalscript@0.33.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -116,13 +116,13 @@
           }
         },
         {
-          "uses": "actions/setup-node@v6",
+          "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.3.1"
+            "node-version": "26.4.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.32.4"
+          "run": "npm install -g functionalscript@0.33.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -157,13 +157,13 @@
           }
         },
         {
-          "uses": "actions/setup-node@v6",
+          "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.3.1"
+            "node-version": "26.4.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.32.4"
+          "run": "npm install -g functionalscript@0.33.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -199,13 +199,13 @@
           }
         },
         {
-          "uses": "actions/setup-node@v6",
+          "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.3.1"
+            "node-version": "26.4.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.32.4"
+          "run": "npm install -g functionalscript@0.33.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -252,13 +252,13 @@
           }
         },
         {
-          "uses": "actions/setup-node@v6",
+          "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.3.1"
+            "node-version": "26.4.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.32.4"
+          "run": "npm install -g functionalscript@0.33.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -296,7 +296,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "45.0.2"
+            "version": "46.0.1"
           }
         },
         {
@@ -389,19 +389,19 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "denoland/setup-deno@v2",
+          "uses": "denoland/setup-deno@v2.0.4",
           "with": {
-            "deno-version": "2.8.3"
+            "deno-version": "2.9.1"
           }
         },
         {
-          "run": "deno install -g -A npm:functionalscript@0.32.4"
+          "run": "deno install -g -A npm:functionalscript@0.33.0"
         },
         {
           "uses": "actions/checkout@v7"
         },
         {
-          "run": "deno run -A npm:functionalscript@0.32.4 t"
+          "run": "deno run -A npm:functionalscript@0.33.0 t"
         },
         {
           "run": "deno install --frozen"
@@ -424,7 +424,7 @@
           }
         },
         {
-          "run": "bun install -g functionalscript@0.32.4"
+          "run": "bun install -g functionalscript@0.33.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -433,7 +433,7 @@
           "run": "bun install --frozen-lockfile"
         },
         {
-          "run": "bunx functionalscript@0.32.4 t"
+          "run": "bunx functionalscript@0.33.0 t"
         },
         {
           "run": "bun test --coverage"
@@ -447,13 +447,13 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "actions/setup-node@v6",
+          "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "22.23.0"
+            "node-version": "22.23.1"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.32.4"
+          "run": "npm install -g functionalscript@0.33.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -473,9 +473,9 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "actions/setup-node@v6",
+          "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "24.17.0"
+            "node-version": "24.18.0"
           }
         },
         {
@@ -496,13 +496,13 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "actions/setup-node@v6",
+          "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.3.1"
+            "node-version": "26.4.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260621.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260703.1"
         },
         {
           "uses": "actions/checkout@v7"
@@ -531,20 +531,20 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "actions/setup-node@v6",
+          "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.3.1"
+            "node-version": "26.4.0"
           }
         },
         {
-          "uses": "actions/cache@v5",
+          "uses": "actions/cache@v6.1.0",
           "with": {
             "path": "~/.cache/ms-playwright",
-            "key": "ubuntu-26.04-arm-playwright-1.61.0"
+            "key": "ubuntu-26.04-arm-playwright-1.61.1"
           }
         },
         {
-          "run": "npm install -g playwright@1.61.0"
+          "run": "npm install -g playwright@1.61.1"
         },
         {
           "run": "playwright install-deps"

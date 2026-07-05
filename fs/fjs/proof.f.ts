@@ -29,6 +29,12 @@ export const proof = {
         // `run` strips the command and file name, so `main` sees two arguments
         assertEq(code, 2)
     },
+    mcp: () => {
+        // stdin is empty in the virtual environment, so the server sees EOF
+        // immediately and shuts down cleanly, exercising the `mcp` handler.
+        const [, code] = run({})(['mcp'])
+        assertEq(code, 0)
+    },
     throw: {
         runImportError: () => {
             run({})(['run', 'missing.f.ts'])

@@ -68,6 +68,12 @@ JSON, prompts) can be stored without any encoding step. Pass `type: 'base64'`
 for pre-encoded binary payloads, or `type: 'url'` to store a file directly from
 the filesystem.
 
+Inline content (`text`/`base64`) resolves into a single `Vec`, which caps at
+`maxLength` bits — **128 KiB**. Content that is malformed or exceeds this limit
+returns `isError` with a descriptive message. To store a larger blob, write it
+under `$HOME/cas_upload/` and pass `type: 'url'`, which streams the file with no
+size limit.
+
 ## `cas_get`: metadata + optional inline content
 
 `cas_get` always returns a JSON object in a `text` block with metadata and
@@ -97,20 +103,57 @@ themselves. The typical decision protocol:
 (production filesystem-backed server); it is omitted in memory-backed contexts
 such as tests.
 
+### Metadata is size-independent (the default `content: false`)
+
+The metadata-only call **never buffers the blob**. It folds the CAS read stream
+through [`fs/mime`](../../mime/module.f.ts) `detectStream` — a byte-accepting
+state machine (running byte count × magic-byte signature eliminator × UTF-8
+validity DFA) that derives `{ length, mime_type, type }` in O(1) space. The
+detector stops decoding once the verdict is fixed — a magic match settles it
+immediately, otherwise once UTF-8 turns invalid — so a large blob costs ≈ length
+counting past that point.
+
+This matters because a single `Vec` cannot exceed `maxLength` bits (128 KiB), so
+the old "drain the whole blob into one `Vec`" approach failed on any blob larger
+than one read chunk — *even with `content: false`*, the exact case where the
+caller wants only the metadata. Inspecting a blob's size and type is now
+independent of its size: a multi-megabyte blob returns its metadata, never an
+error. UTF-8 classification is a true streaming validator, so a blob that is
+valid UTF-8 until a trailing invalid byte is correctly classified as `base64`
+(a leading-bytes buffer could not decide this).
+
 ### Content encoding (when `content: true`)
 
-Two-phase MIME detection determines the encoding:
+Only the `content: true` path materializes the bytes (bounded by `maxLength`). It
+classifies them with the **same** detector — [`fs/mime`](../../mime/module.f.ts)
+`detectVec`, the single-`Vec` form of the `detectStream` machine above — so the
+three-way verdict is computed in exactly one place, never re-derived from a
+parallel `detect` + UTF-8 check. The `type` then selects how `content` is encoded:
 
-1. **Magic-byte sniffing** ([`fs/mime`](../../mime/module.f.ts) `detect`): if the
-   leading bytes match a known signature (PNG, JPEG, GIF, WebP, PDF, ZIP),
-   `content` is RFC 4648 base64 and `type` is `'base64'`.
+1. **Magic-byte hit** (PNG/JPEG/GIF/WebP/PDF/ZIP) → `type: 'base64'`, `content` is
+   RFC 4648 base64.
+2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mime_type: 'text/plain'`, and
+   `content` is the decoded string ([`fs/text/utf8`](../../text/utf8/module.f.ts)
+   `fromVec`, used here purely as the decoder).
+3. **Fallback** → `type: 'base64'`, `mime_type: 'application/octet-stream'`,
+   `content` is base64.
 
-2. **UTF-8 validation** ([`fs/text/utf8`](../../text/utf8/module.f.ts) `fromVec`):
-   if the blob decodes as valid UTF-8, `content` is the decoded string and
-   `type` is `'text'` with `mime_type: 'text/plain'`.
+### Inline-content size limit (`content: true`)
 
-3. **Fallback**: bytes that pass neither test are returned as base64 with
-   `mime_type: 'application/octet-stream'`.
+The inline-content path buffers the whole blob into a single `Vec`, which caps at
+`maxLength` bits — **128 KiB**. A blob larger than that cannot be fetched inline.
+Because the size and type are derived first with the size-independent
+`detectStream` machine (the same one the metadata path uses), an oversized blob is
+*not* misreported as absent: it returns `isError` with a distinct message naming
+the byte size and pointing at the alternatives, e.g.
+
+```
+blob too large to fetch inline (262144 bytes, limit 131072 bytes); use the url field (…) or omit content for metadata
+```
+
+So `no such hash` means the hash genuinely is not in the store, while the message
+above means the blob exists but exceeds the inline limit — fetch it via `url`, or
+call `cas_get` without `content: true` for size-independent metadata.
 
 Examples:
 
@@ -136,10 +179,12 @@ MCP draws a line the dispatcher already respects:
 - **Tool failures** come back as a normal `tools/call` result with
   `isError: true` and a text explanation. This adapter returns `isError` for:
   - invalid arguments to any tool (`validate` rejects the argument object);
-  - `type: 'base64'` with malformed base64 `content` (`base64Decode` → `null`);
+  - inline `content` that is malformed or exceeds 128 KiB (`tryUtf8` / `base64Decode` → `null`);
   - `type: 'url'` with an unreadable or missing file;
   - malformed `hash` (`cBase32ToVec` → `null`);
   - `cas_get` on an absent hash (`c.read` → `undefined`);
+  - `cas_get` with `content: true` on a blob larger than the inline limit
+    (distinct "too large" message — see above — not "no such hash");
   - an unknown tool `name`.
 
 ### Store location

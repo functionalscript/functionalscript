@@ -1,5 +1,9 @@
 # UNICODE
 
+The shared code-point classification predicates (`isBmpCodePoint`,
+`isValidCodePoint`, `isTextCodePoint`, …) live in `code_point` — see
+[`code_point/README.md`](./code_point/README.md).
+
 ## UTF-8
 
 Requirement: no loss for UTF8 => codepoint => UTF8

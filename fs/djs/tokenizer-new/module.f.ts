@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { descentParser } from "../../bnf/data/module.f.ts"
+import { descentParser } from "../../bnf/descent/module.f.ts"
 import {
     eof,
     join0Plus,

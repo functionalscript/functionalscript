@@ -1,11 +1,10 @@
-import { empty, vec, type Vec } from "../types/bit_vec/module.f.ts"
+import { assertEq } from '../asserts/module.f.ts'
+import { empty, vec, repeat, vec8, type Vec } from "../types/bit_vec/module.f.ts"
 import { encode, decode } from "./module.f.ts"
 
 const check = (s: string, v: Vec) => {
-    const sr = encode(v)
-    if (sr !== s) { throw ['encode', sr, s] }
-    const vr = decode(s)
-    if (vr !== v) { throw ['decode', vr, v] }
+    assertEq(encode(v), s)
+    assertEq(decode(s), v)
 }
 
 export const proof = {
@@ -44,32 +43,29 @@ export const proof = {
     },
     nonOctet: () => {
         // encode rejects bit vectors whose length is not a multiple of 8
-        if (encode(vec(1n)(0n)) !== null) { throw '1-bit input should return null' }
-        if (encode(vec(6n)(0n)) !== null) { throw '6-bit input should return null' }
-        if (encode(vec(12n)(0n)) !== null) { throw '12-bit input should return null' }
+        assertEq(encode(vec(1n)(0n)), null)
+        assertEq(encode(vec(6n)(0n)), null)
+        assertEq(encode(vec(12n)(0n)), null)
     },
     invalidInput: () => {
-        if (decode('!') !== null) { throw 'invalid char should return null' }
-        if (decode('A!AA') !== null) { throw 'invalid char mid-string should return null' }
-        if (decode('A===') !== null) { throw 'three equals signs should return null' }
-        if (decode('A') !== null) { throw 'length 1 (not multiple of 4) should return null' }
-        if (decode('AA') !== null) { throw 'length 2 (no padding) should return null' }
-        if (decode('AAA') !== null) { throw 'length 3 (no padding) should return null' }
-        if (decode('=AAA') !== null) { throw 'padding not at end should return null' }
+        assertEq(decode('!'), null)
+        assertEq(decode('A!AA'), null)
+        assertEq(decode('A==='), null)
+        assertEq(decode('A'), null)
+        assertEq(decode('AA'), null)
+        assertEq(decode('AAA'), null)
+        assertEq(decode('=AAA'), null)
         // Non-zero padding bits must be rejected (RFC 4648 §3.5)
-        if (decode('AB==') !== null) { throw 'non-zero 4-pad-bit should return null' }
-        if (decode('AAB=') !== null) { throw 'non-zero 2-pad-bit should return null' }
+        assertEq(decode('AB=='), null)
+        assertEq(decode('AAB='), null)
     },
     validPadding: () => {
         // "==" padding
-        const v2 = decode('AA==')
-        if (v2 !== vec(8n)(0n)) { throw ['AA== should decode to 8-bit zero', v2] }
+        assertEq(decode('AA=='), vec(8n)(0n))
         // "=" padding
-        const v1 = decode('AAA=')
-        if (v1 !== vec(16n)(0n)) { throw ['AAA= should decode to 16-bit zero', v1] }
+        assertEq(decode('AAA='), vec(16n)(0n))
         // No padding
-        const v0 = decode('AAAA')
-        if (v0 !== vec(24n)(0n)) { throw ['AAAA should decode to 24-bit zero', v0] }
+        assertEq(decode('AAAA'), vec(24n)(0n))
     },
     knownVectors: () => {
         // RFC 4648 §10 test vectors (byte-aligned, treating bytes as 8-bit MSB vectors)
@@ -81,5 +77,36 @@ export const proof = {
         check('Zm8=', vec(16n)(0x666fn))
         // 0x66 0x6f 0x6f ('foo') → Zm9v
         check('Zm9v', vec(24n)(0x666f6fn))
+    },
+    decodeOverflow: () => {
+        // 174_764 base64 chars decode to 1_048_584 bits, 8 over `maxLength`;
+        // `decode` should return `null` instead of throwing on (or hanging
+        // while building) an oversized `bigint`.
+        const oversized = 'A'.repeat(174_764)
+        assertEq(decode(oversized), null)
+    },
+    // Regression guard: `encode` used to be quadratic in the input size, not
+    // linear. `baseN`'s `vecToString` (`fs/base_n/module.f.ts`) popped one
+    // 6-bit chunk off the front at a time via `popFront`, and each `popFront`
+    // re-masked the entire remaining bigint through `vec()`'s `m & ui` —
+    // O(remaining length) — so encoding a vector of `n` bits cost O(n²). A
+    // 90,000-byte input took ~5.6s on Node and ~18.4s on Bun (Bun's `bigint`
+    // has a much higher per-operation constant, see PR #1190), reliably
+    // blowing `bun test`'s 5s per-test timeout — the same class of failure
+    // that hit `cas_get content:true` on a comparably-sized binary blob in CI
+    // (PR #1201).
+    //
+    // Fixed by rewriting `vecToString` as a balanced recursive split
+    // (`unpackToString`), mirroring the `chunkList`/`unpackChunkList`
+    // divide-and-conquer already used by `u8List` and by concatenation
+    // (`msb.concat` / `unpackListToVec`, PR #1192) — true O(n log n) now,
+    // since each half is masked to its own length before recursing. The same
+    // call now takes ~50ms on Node and ~225ms on Bun. No timing assertion
+    // (duration varies by engine/machine) — this just exercises the call and
+    // relies on the test runner's own per-test timing to catch a regression.
+    encodeLargeVecIsSlow: () => {
+        const big = repeat(90_000n)(vec8(0xffn))
+        const result = encode(big)
+        assertEq(result?.length, 120_000)
     },
 }

@@ -38,8 +38,75 @@ WebP is the only non-contiguous signature: the four-byte little-endian file size
 sits between the `RIFF` and `WEBP` markers, so it is matched as a prefix plus a
 second marker at byte offset 8.
 
+## Streaming detector (`detectStream`)
+
+`detectVec` classifies a whole blob held in a single `Vec`, which caps at
+`maxLength` bits (128 KiB). For inspecting blobs of any size without buffering,
+the module also exports `detectStream` — the streaming form of the **same
+byte-accepting state machine**:
+
+```ts
+import { detectStream, detectVec, push, finish, detectInit } from './module.f.ts'
+
+// fold a CAS read stream (List<O, IoResult<Vec>>) into { length, mime_type, type }
+detectStream(stream)            // Effect<O, IoResult<DetectMeta>>
+
+// classify a whole Vec you already hold, through the same machine
+detectVec(bytes)                // { length, mime_type, type }
+// detectVec is just finish(push(detectInit)(bytes)); push/finish are exposed for
+// driving the machine chunk-by-chunk directly.
+```
+
+`DetectState` is the product of three independent folds over the byte stream:
+
+| factor  | what it does                                                        | absorbing                |
+|---------|---------------------------------------------------------------------|--------------------------|
+| length  | running byte count (`+chunkLen` per chunk)                          | never                    |
+| magic   | signature elimination — the streaming form of the table above       | matched / dead (≤12 B)   |
+| utf8    | UTF-8 validity-and-text DFA over `fs/text/utf8`'s decoder            | invalid / non-text       |
+
+`finish` reads the same three-way verdict as the pure path: magic hit → `base64`
++ detected mime; else whole-blob-valid UTF-8 **that is also all-text** → `text` +
+`text/plain`; else `base64` + `application/octet-stream`. UTF-8 classification
+must see **every** byte (a blob can be valid until its last byte), so a
+leading-bytes buffer would be incorrect — only the streaming validator is.
+
+The utf8 factor tracks two orthogonal verdicts: *valid* (well-formed UTF-8, the
+decoding contract) and *text* (every decoded code point is a text code point per
+`isTextCodePoint`, not a control byte). They are kept distinct because a
+control-bearing blob is perfectly well-formed UTF-8 yet binary: a NUL run decodes
+to U+0000 — "valid UTF-8" — but NUL is the sharpest binary marker, so it must
+classify as `application/octet-stream`. C1 controls (`U+0080`–`U+009F`) arrive as
+2-byte UTF-8 and are invisible at the byte level, so the check is at the code-point
+level, after decoding. The whitespace controls `U+0009`–`U+000D` (TAB, LF, VT, FF,
+CR) stay text.
+
+`push` stops decoding and just counts length once the verdict is fixed. Because
+`finish` ignores the utf8 factor when `magic` matched, a **matched** signature
+fixes the verdict on its own — no need to keep validating UTF-8 over the tail (it
+might stay valid forever, e.g. an ASCII PDF). A **dead** magic leaves text-vs-octet
+open, so it fixes the verdict only once `utf8` can no longer be text — it reaches
+its `invalid` sink **or** sees a control byte (both absorbing). Either way a large
+blob costs ≈ length counting past the settling point.
+
+### Why hand-rolled (for now)
+
+`magic` and `utf8` are recognizers (`δ` step + `λ` verdict on the final state),
+the exact shape a declarative BNF→DFA recognizer backend would generate — see
+[`fs/bnf` recognizer-backend](../bnf/todo/recognizer-backend.md). That backend
+does not exist yet, so the two factors are hand-written here: `magicStep` does
+signature elimination (the streaming form of the table above) and `utf8Step`
+rides the existing `fs/text/utf8` decoder. When the backend lands, these should
+be lowered onto it; `length` (an FSM cannot count) and `finish` stay outside it
+regardless. The factors are independent — adding a property (e.g. a streaming
+SHA-256 for verify-on-read) is a new field, one `push` line, and one `finish`
+clause, touching no existing transition.
+
 ## Consumers
 
-- [`fs/cas/mcp`](../cas/mcp/) — `cas_get` calls `detect` on the retrieved bytes
-  and returns an MCP `EmbeddedResource` (with `mimeType`) when a type is
-  recognised, falling back to a plain text block on `null`.
+- [`fs/cas/mcp`](../cas/mcp/) — `cas_get` classifies with the state machine on
+  both paths: `detectStream` folds the read stream for the default metadata-only
+  call (size-independent), and `detectVec` classifies the collected blob when
+  `content: true` is requested, so the three-way verdict has a single
+  implementation. The pure `detect` remains for callers that only need
+  magic-byte sniffing over a `Vec` they already hold.

@@ -47,6 +47,33 @@ export const proof = {
         () => {
             const result = stringify(toArray(toCodePointList([240, 160, 160, 244, 160, 160])))
             if (result !== '[-2147448800,-2147432416]') { throw result }
+        },
+        // Overlong 3-byte encodings (E0 80..9F ..) are rejected, not decoded.
+        () => {
+            const result = stringify(toArray(toCodePointList([224, 128, 128])))
+            if (result !== '[-2147483424,-2147483520,-2147483520]') { throw result }
+        },
+        () => {
+            const result = stringify(toArray(toCodePointList([224, 159, 191])))
+            if (result !== '[-2147483424,-2147483489,-2147483457]') { throw result }
+        },
+        // Overlong 4-byte encodings (F0 80..8F .. ..) are rejected, not decoded.
+        () => {
+            const result = stringify(toArray(toCodePointList([240, 128, 128, 128])))
+            if (result !== '[-2147483408,-2147483520,-2147483520,-2147483520]') { throw result }
+        },
+        () => {
+            const result = stringify(toArray(toCodePointList([240, 143, 191, 191])))
+            if (result !== '[-2147483408,-2147483505,-2147483457,-2147483457]') { throw result }
+        },
+        // Valid boundary cases still decode: E0 A0 80 -> U+0800, F0 90 80 80 -> U+10000.
+        () => {
+            const result = stringify(toArray(toCodePointList([224, 160, 128])))
+            if (result !== '[2048]') { throw result }
+        },
+        () => {
+            const result = stringify(toArray(toCodePointList([240, 144, 128, 128])))
+            if (result !== '[65536]') { throw result }
         }
     ],
     fromCodePointList: [
@@ -162,6 +189,16 @@ export const proof = {
         () => {
             const v = u8ListToVec(msb)([])
             if (fromVec(v) !== '') { throw 'expected empty string' }
+        },
+        // Overlong 3-byte encoding (E0 80 80, would decode to U+0000) → null
+        () => {
+            const v = u8ListToVec(msb)([0xe0, 0x80, 0x80])
+            if (fromVec(v) !== null) { throw 'expected null for overlong 3-byte encoding' }
+        },
+        // Overlong 4-byte encoding (F0 80 80 80, would decode to U+0000) → null
+        () => {
+            const v = u8ListToVec(msb)([0xf0, 0x80, 0x80, 0x80])
+            if (fromVec(v) !== null) { throw 'expected null for overlong 4-byte encoding' }
         },
     ]
 }

@@ -24,10 +24,11 @@
 import { bitLength, divUp, mask, maxLength, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
 import { flip, identity } from '../function/module.f.ts'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
-import { fold, iterable, map, type List, type Thunk } from '../list/module.f.ts'
+import { iterable, map, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
 import { cmp, max, min, type Sign } from '../function/compare/module.f.ts'
+import { mapUnwrap, type Nullable } from '../nullable/module.f.ts'
 
 /**
  * A vector of bits represented as a signed `bigint`.
@@ -254,6 +255,12 @@ export type BitOrder = {
      */
     readonly concat: Reduce
     /**
+     * Folds a list of vectors into a single vector in this bit order, like
+     * `listToVec`, but returns `null` instead of throwing when the combined
+     * length would exceed `maxLength`.
+     */
+    readonly tryListToVec: (list: List<Vec>) => Nullable<Vec>
+    /**
      * Folds a list of vectors into a single vector in this bit order.
      *
      * Unlike `concat`, which joins exactly two vectors, this joins a whole list.
@@ -279,7 +286,7 @@ export type BitOrder = {
      */
     readonly cmp: (a: Vec) => (b: Vec) => Sign
     readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
-    readonly unpackConcat: (a: Unpacked) => (b: Unpacked) => Unpacked
+    readonly unpackConcat: UnpackConcat
     readonly startsWith: (prefix: Vec) => (v: Vec) => boolean
 }
 
@@ -292,6 +299,80 @@ type Base = {
     readonly unpackConcatUint: (a: Unpacked) => (b: Unpacked) => bigint
 }
 
+const unpackEmpty = { length: 0n, uint: 0n } as const
+
+type UnpackConcat = (a: Unpacked) => (b: Unpacked) => Unpacked
+
+type ListToVecState = {
+    readonly len: bigint
+    readonly stack: readonly Unpacked[]
+}
+
+type Accumulator<I, T, R> = {
+    init: T
+    update: (i: I, state: T) => Nullable<T>
+    end: (state: T) => R
+}
+
+type ListToVecOp = Accumulator<Unpacked, ListToVecState, Vec>
+
+const listToVecOp =
+    (unpackConcat: UnpackConcat): ListToVecOp =>
+({
+    init: { len: 0n, stack: [] },
+    update: (v, {len, stack}) => {
+        len += v.length
+        if (len > maxLength) { return null }
+        let i = 0
+        while (true) {
+            if (stack.length <= i) {
+                stack = [...stack, v]
+                break
+            }
+            const old = stack[i]
+            if (old.length === 0n) {
+                stack = stack.toSpliced(i, 1, v)
+                break
+            }
+            stack = stack.toSpliced(i, 1, unpackEmpty)
+            v = unpackConcat(old)(v)
+            i++
+        }
+        return { len, stack }
+    },
+    end: ({stack}) => pack(stack.reduce((p, c) => unpackConcat(c)(p), unpackEmpty))
+})
+
+/**
+ * Concatenates a list of unpacked vectors using a binary-counter accumulator,
+ * giving O(n log n) total `bigint` shifting work instead of the O(n²) of a
+ * naive left fold.
+ *
+ * Slot `i` of `result` holds an already-combined run of the most recent
+ * `2 ** i` elements. Each arriving element "carries" upward, merging only with
+ * runs of comparable size — exactly like incrementing a binary number — so
+ * every merge joins two runs of similar length. Left-to-right element order is
+ * preserved: `unpackConcat(old)(cur)` keeps the earlier run on the left, and
+ * the final reduce prepends higher (earlier) slots in front of accumulated
+ * later runs. An empty list yields `unpackEmpty`.
+ *
+ * This is the bit-vector analogue of a builder that accumulates appended pieces
+ * and materializes the combined result on demand, such as `StringBuilder`
+ * (Java, C#) or `strings.Builder` (Go).
+ */
+const unpackListToVec = (unpackConcat: UnpackConcat) => {
+    const { init, update, end } = listToVecOp(unpackConcat)
+    return (list: List<Unpacked>): Nullable<Vec> => {
+        let result: ListToVecState = init
+        for (const e of iterable(list)) {
+            const candidate = update(e, result)
+            if (candidate === null) { return null }
+            result = candidate
+        }
+        return end(result)
+    }
+}
+
 const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }: Base): BitOrder => {
     const unpackPopFront = (len: bigint) => {
         const m = mask(len)
@@ -301,8 +382,9 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
             return [uint & m, { length: v.length - len, uint: rest }] as const
         }
     }
-    const unpackConcat = (a: Unpacked) => (b: Unpacked) => ({
-        length: a.length + b.length, uint: unpackConcatUint(a)(b)
+    const unpackConcat: UnpackConcat = a => b => ({
+        length: a.length + b.length,
+        uint: unpackConcatUint(a)(b)
     })
     const popFront: PopFront<Vec> = len => {
         const f = unpackPopFront(len)
@@ -316,11 +398,14 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
         const bu = unpack(b)
         return pack(unpackConcat(au)(bu))
     }
+    const tryListToVec = (list: List<Vec>) =>
+        unpackListToVec(unpackConcat)(map(unpack)(list))
     return {
         front,
         removeFront,
         concat,
-        listToVec: fold(flip(concat))(empty),
+        tryListToVec,
+        listToVec: mapUnwrap(tryListToVec),
         xor: op(norm)(xor),
         unpackPopFront,
         popFront,
@@ -397,7 +482,18 @@ export const msb: BitOrder = bo({
     unpackConcatUint: flip(lsbUnpackConcatUint),
 })
 
-const unpackEmpty = { length: 0n, uint: 0n } as const
+/**
+ * Converts a list of unsigned 8-bit integers to a bit vector using the provided
+ * bit order, like `u8ListToVec`, but returns `null` instead of throwing when the
+ * result would exceed `maxLength`.
+ *
+ * @param bo The bit order for the conversion
+ * @param list The list of unsigned 8-bit integers to be converted.
+ * @returns The resulting vector, or `null` if it would exceed `maxLength`.
+ */
+export const tryU8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>): Nullable<Vec> =>
+    unpackListToVec(unpackConcat)(
+        map((b: number): Unpacked => ({ length: 8n, uint: BigInt(b) }))(list))
 
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
@@ -406,28 +502,8 @@ const unpackEmpty = { length: 0n, uint: 0n } as const
  * @param list The list of unsigned 8-bit integers to be converted.
  * @returns The resulting vector based on the provided bit order.
  */
-export const u8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>): Vec => {
-    let result: readonly Unpacked[] = []
-    for (const b of iterable(list)) {
-        let v: Unpacked = { length: 8n, uint: BigInt(b) }
-        let i = 0
-        while (true) {
-            if (result.length <= i) {
-                result = [...result, v]
-                break;
-            }
-            const old = result[i]
-            if (old.length === 0n) {
-                result = result.toSpliced(i, 1, v)
-                break
-            }
-            result = result.toSpliced(i, 1, unpackEmpty)
-            v = unpackConcat(old)(v)
-            i++
-        }
-    }
-    return pack(result.reduce((p, c) => unpackConcat(c)(p), unpackEmpty))
-}
+export const u8ListToVec = (bo: BitOrder) =>
+    mapUnwrap(tryU8ListToVec(bo))
 
 const unpackChunkList = ({ unpackSplit }: BitOrder) => (n: bigint): (u: Unpacked) => Thunk<Unpacked> => {
     const divUpN2 = divUp(n << 1n)

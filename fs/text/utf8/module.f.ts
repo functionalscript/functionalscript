@@ -6,10 +6,9 @@
 import { flatMap, toArray, type List, type Thunk } from '../../types/list/module.f.ts'
 import type { StateScan } from '../../types/function/operator/module.f.ts'
 import type { Array1, Array2, Array3 } from '../../types/array/module.f.ts'
-import { decoder, errorMask } from '../code_point/module.f.ts'
+import { decoder, errorMask, isValidCodePoint } from '../code_point/module.f.ts'
 import { msb, u8List, length, type Vec } from '../../types/bit_vec/module.f.ts'
 import { codePointListToString } from '../utf16/module.f.ts'
-import { contains } from '../../types/range/module.f.ts'
 
 /**
  * An unsigned 8-bit integer, represents a single byte.
@@ -176,6 +175,12 @@ export const utf8StateToError = (state: Utf8NonEmptyState): I32 => {
 /**
  * Decodes a byte into a Unicode code point, using a given UTF-8 state.
  *
+ * Rejects overlong 3-/4-byte encodings (Unicode Table 3-7): a lead `E0` must
+ * be followed by a continuation `>= 0xA0`, and a lead `F0` by a continuation
+ * `>= 0x90`. It does not itself reject surrogates (`ED A0..BF`) or code
+ * points above `U+10FFFF` (`F4 90..BF`); {@link fromVec}'s
+ * `isValidCodePoint` pass filters those out of the raw code-point stream.
+ *
  * @param state - The current UTF-8 decoding state.
  * @param byte - A single byte to decode.
  * @returns A tuple containing:
@@ -198,7 +203,14 @@ export const utf8ByteToCodePointOp: StateScan<number, Utf8State, readonly I32[]>
                 if (s0 < lead3Tag) {
                     return [[((s0 & lead2Mask) << 6) + contPayload(byte)], null]
                 }
-                if (s0 < 0b1111_1000) return [[], [s0, byte]]
+                if (s0 < 0b1111_1000) {
+                    // Reject overlong 3-/4-byte encodings: after lead `E0` the
+                    // first continuation must be >= 0xA0, after lead `F0` it
+                    // must be >= 0x90 (Unicode Table 3-7).
+                    const overlong = s0 === lead3Tag && byte < 0b1010_0000 ||
+                        s0 === lead4Tag && byte < 0b1001_0000
+                    if (!overlong) return [[], [s0, byte]]
+                }
                 break
             }
             case 2: {
@@ -250,12 +262,6 @@ export const utf8EofToCodePointOp = (
  */
 export const toCodePointList: (input: List<U8>) => List<I32> =
     decoder(utf8ByteToCodePointOp, utf8EofToCodePointOp)
-
-const bigRange = contains([0, 0x10FFFF])
-
-const smallRange = contains([0xD800, 0xDFFF])
-
-export const isValidCodePoint = (c: number) => bigRange(c) && !smallRange(c)
 
 /**
  * Returns the decoded string if `v` is valid UTF-8, or `null` otherwise.
