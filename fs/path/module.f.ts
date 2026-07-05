@@ -73,3 +73,11 @@ export const join = (...list: readonly string[]): string => list.join('/')
  */
 export const relativize = (base: string, path: string): string =>
     base !== '' && path.startsWith(base) ? `.${path.slice(base.length)}` : path
+
+/**
+ * Returns `true` when `prefix` is a strict ancestor of `path` in segment space:
+ * every segment of `prefix` matches the corresponding segment of `path`, and
+ * `path` has at least one additional segment.
+ */
+export const isProperPrefix = (prefix: readonly string[], path: readonly string[]): boolean =>
+    prefix.length < path.length && prefix.every((seg, i) => seg === path[i])
