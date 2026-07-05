@@ -1,7 +1,7 @@
 import { descentParser, type AstRuleMeta, type AstSequence, type AstSequenceMeta, type AstTag, type CodePointMeta, type DescentMatch, type DescentMatchResult } from '../../bnf/data/module.f.ts'
 import type { JsToken } from '../../js/tokenizer/module.f.ts'
 import {
-    backspace, ht, lf, ff, cr,
+    asterisk, backspace, ht, lf, ff, cr,
     quotationMark, solidus, reverseSolidus,
     digitRange, digit0,
     latinCapitalLetterA,
@@ -173,7 +173,7 @@ const toJsToken
                 return {kind: 'id', value}
             }
             case 'comment':
-                if (tk[1][1] === 42) // block comment /*...*/
+                if (tk[1][1] === asterisk) // block comment /*...*/
                     return {kind: '/*', value: String.fromCodePoint(...tk[1].slice(2, -2))}
                 return {kind: '//', value: String.fromCodePoint(...tk[1].slice(2))}
             default:
