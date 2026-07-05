@@ -39,7 +39,7 @@ const tokenizeString
         const flatTokens = getTokensFromAstRule(ast)
         const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
         const tokens = flat(stateScan(scanFunc)(['', []])(filterTokens))
-        const jsTokens = concat(map(toJsToken)(tokens))([{kind: 'eof'}])
+        const jsTokens = concat(flatMap(toJsTokens)(tokens))([{kind: 'eof'}])
         const result = toArray(filter(v => v !== null)(jsTokens))
         //return JSON.stringify(toArray(filterTokens))
         return JSON.stringify(result)
@@ -179,6 +179,17 @@ const toJsToken
             default:
                 return {kind: tk[0]} as JsToken
         }
+    }
+
+const toJsTokens
+    : (tk: Token) => List<JsToken | null>
+    = tk => {
+        const token = toJsToken(tk)
+        if (token !== null && token.kind === '/*') {
+            const hasNl = token.value.includes('\n') || token.value.includes('\r')
+            if (hasNl) return [token, { kind: 'nl' }]
+        }
+        return [token]
     }
 
 const getTokensFromAstRuleOrCodePoint
@@ -976,10 +987,10 @@ export const proof = {
         //     const result = tokenizeString('/* multiline comment ')
         //     if (result !== 'error') { throw result }
         // },
-        // () => {
-        //     const result = tokenizeString('/* multiline comment \n * **/')
-        //     if (result !== '[{"kind":"/*","value":" multiline comment \\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
-        // },
+        () => {
+            const result = tokenizeString('/* multiline comment \n * **/')
+            if (result !== '[{"kind":"/*","value":" multiline comment \\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
+        },
         // () => {
         //     const result = tokenizeString('/* multiline comment *\n * **/')
         //     if (result !== '[{"kind":"/*","value":" multiline comment *\\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }

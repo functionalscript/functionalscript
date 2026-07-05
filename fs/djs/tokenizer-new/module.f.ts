@@ -20,6 +20,7 @@ import {
     repeat1Plus,
     set,
     unicodeRange,
+    type DataRule,
     type Rule
 } from "../../bnf/module.f.ts"
 import { todo } from "../../asserts/module.f.ts"
@@ -154,17 +155,18 @@ export const jsGrammar = (): Rule => {
         ':': ':'
     }
 
+    // Recursive rule: tries end (*/) first at every position so **/  → content(*) + terminator(*/).
+    const multilineContent = (): DataRule => {
+        const char: Rule = { na: notSet('*'), a: '*' }
+        const end: Rule = ['*', '/']
+        const more: Rule = [char, multilineContent]
+        return { end, more }
+    }
+
     const comment = ['/', {
             // TODO: investigate why `not(commentEnd)` instead of `remove(unicodeRange, newLine)` fail tests.
             oneline: ['/', repeat0Plus(remove(unicodeRange, newLine)), option(newLine)],
-            multiline: [
-                '*',
-                repeat0Plus({
-                    na: notSet('*'),
-                    a: ['*', notSet('/')]
-                }),
-                '*/'
-            ]
+            multiline: ['*', multilineContent]
         }
     ]
 
