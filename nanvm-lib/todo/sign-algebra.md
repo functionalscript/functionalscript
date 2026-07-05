@@ -5,22 +5,10 @@
 
 ### Problem
 
-`src/sign.rs` is a bare enum with zero methods:
-
-```rust
-#[repr(i8)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-pub enum Sign {
-    Positive = 1,
-    Negative = -1,
-}
-```
-
-so every bigint operator open-codes its own sign logic.
-[bigint-add-sub-mirror](./bigint-add-sub-mirror.md) already owns the
-*"`Sign` needs methods"* thread, but scopes it to `Sign::flip` (for
-`add`/`sub`/`neg`). Two more inlined sign computations are not covered
-there:
+`src/sign.rs` carries only `Sign::flip` (added for `add`/`sub`/`neg` when
+the mirrored `Add`/`Sub` dispatch was unified into `BigInt::add_signed`),
+so the remaining bigint operators still open-code their own sign logic.
+Two inlined sign computations are not covered by `flip`:
 
 The sign **product** in `src/vm/bigint/mul.rs:37-41`:
 
@@ -48,9 +36,7 @@ the `Sign` type.
 
 ### Proposal
 
-When the `Sign` methods land (per
-[bigint-add-sub-mirror](./bigint-add-sub-mirror.md)), add the full small
-algebra next to the enum rather than just `flip`:
+Add the full small algebra next to the enum rather than just `flip`:
 
 - `impl Mul for Sign` — same-sign → `Positive`, different → `Negative`
   (a two-arm `match`/`if` on `self == rhs`; no need to round-trip through
@@ -76,6 +62,7 @@ scoped to magnitude work.
 
 ### Related
 
-- [bigint-add-sub-mirror](./bigint-add-sub-mirror.md) — introduces
-  `Sign::flip`; this issue extends the same "put sign logic on `Sign`"
+- `Sign::flip` in `src/sign.rs` and `BigInt::add_signed` in
+  `src/vm/bigint/mod.rs` — the first step of putting sign logic on `Sign`
+  (done, was `bigint-add-sub-mirror`); this issue extends the same
   direction to `mul` and `cmp`.
