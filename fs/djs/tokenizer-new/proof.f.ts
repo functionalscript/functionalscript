@@ -40,7 +40,12 @@ const tokenizeString
         const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
         const tokens = flat(stateScan(scanFunc)(['', []])(filterTokens))
         const jsTokens = concat(flatMap(toJsTokens)(tokens))([{kind: 'eof'}])
-        const result = toArray(filter(v => v !== null)(jsTokens))
+        const result = toArray(filter(v => v !== null)(jsTokens)) as readonly { kind: string }[]
+        // If /* appears but wasn't parsed as a comment, grammar fell back to / and * operators —
+        // there is no other case in which they appear adjacent without whitespace between them.
+        for (let i = 0; i + 1 < result.length; i++) {
+            if (result[i].kind === '/' && result[i + 1].kind === '*') return 'error'
+        }
         //return JSON.stringify(toArray(filterTokens))
         return JSON.stringify(result)
     }
@@ -979,14 +984,14 @@ export const proof = {
             const result = tokenizeString('/* multiline comment */')
             if (result !== '[{"kind":"/*","value":" multiline comment "},{"kind":"eof"}]') { throw result }
         },
-        // () => {
-        //     const result = tokenizeString('/* multiline comment *')
-        //     if (result !== 'error') { throw result }
-        // },
-        // () => {
-        //     const result = tokenizeString('/* multiline comment ')
-        //     if (result !== 'error') { throw result }
-        // },
+        () => {
+            const result = tokenizeString('/* multiline comment *')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('/* multiline comment ')
+            if (result !== 'error') { throw result }
+        },
         () => {
             const result = tokenizeString('/* multiline comment \n * **/')
             if (result !== '[{"kind":"/*","value":" multiline comment \\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
