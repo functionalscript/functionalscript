@@ -79,7 +79,8 @@ export type StringToken = {
     /**
      * `true` if the string contains a literal (unescaped) C0 control
      * character (U+0000–U+001F other than LF/CR, which end the string).
-     * Legal in ECMAScript string literals; JSON forbids it per RFC 8259 §7.
+     * Legal in ECMAScript string literals; JSON forbids it per
+     * {@link https://www.rfc-editor.org/rfc/rfc8259#section-7 RFC 8259 §7}.
      */
     readonly rawControl: boolean
 }
