@@ -33,12 +33,19 @@ level) and keeps values closer to a canonical byte form for content
 addressing.
 
 Until implemented, JS spellings can be normalized into JSON spellings
-mechanically (a future
-[formatter](../../fs/todo/formatter-for-f-js-and-f-ts-files.md) concern):
-`'x'` → `"x"`, literal TAB → `\t`, `\v` → ``, `\x41` → `A`.
+mechanically:
+`'x'` → `"x"`, literal TAB → `\t`, `\v` → `\u000b`, `\x41` → `A`.
 
 **Note**: template literals are not part of this feature — they involve
 expression interpolation, not just lexical syntax.
+
+**Note**: if a universal parser — one that recognizes JSON, DJS, and FS in a
+single pass — implements this feature, it must still distinguish JS strings
+from JSON strings: a string literal using any of the JS-only spellings above
+is not a JSON string, and the parser has to report the input as outside
+JSON/DJS. For example, via two grammar rules (`json-string` ⊂ `js-string`)
+sharing the escape sub-rules, or by recording which sub-language each matched
+token stayed within.
 
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#string_literals>

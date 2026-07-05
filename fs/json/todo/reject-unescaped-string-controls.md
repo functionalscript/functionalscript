@@ -68,7 +68,7 @@ controls, line continuations) is deferred to a future language feature:
       string.
 - [ ] Proof cases across `fs/js`, `fs/json`, and `fs/djs` tokenizers:
       literal TAB / VT / FF / NUL in a string → `error`; the corresponding
-      valid escapes (TAB `\t`, FF `\f`, VT ``, NUL ` ` — JSON has
+      valid escapes (TAB `\t`, FF `\f`, VT `\u000b`, NUL `\u0000` — JSON has
       no `\v`/`\0` short forms) → still accepted.
 - [ ] `npx tsc` clean; `fjs t` green.
 
