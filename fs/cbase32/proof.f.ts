@@ -1,4 +1,4 @@
-import { empty, vec, type Vec } from "../types/bit_vec/module.f.ts"
+import { empty, vec, maxLength, type Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from "./module.f.ts"
 
 const check5x = (s: string, v: Vec) => {
@@ -53,6 +53,14 @@ export const proof = {
         if (cBase32ToVec5x("l") !== cBase32ToVec5x("1")) { throw 'l maps to 1' }
         if (cBase32ToVec5x("o") !== cBase32ToVec5x("0")) { throw 'o maps to 0' }
         if (cBase32ToVec5x("u") !== null) { throw 'should error on invalid character' }
+    },
+    // `vecToCBase32` always adds a 1-to-5-bit sentinel block before encoding,
+    // so a `maxLength`-sized payload's raw (pre-trim) decoded length is up to
+    // 5 bits over `maxLength`. `cBase32ToVec` used to reject this boundary
+    // case (the same bug as `fs/base64/todo/decode-rejects-max-size-input.md`).
+    maxLengthRoundtrip: () => {
+        const v = vec(maxLength)(0n)
+        check(vecToCBase32(v), v)
     },
     unterminated: () => {
         // No sentinel `1` bit → invalid; must return null, not loop forever.

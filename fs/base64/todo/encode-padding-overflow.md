@@ -50,9 +50,14 @@ return `null` instead of a string when it would overflow, matching the
 
 ### Related
 
-- `fs/base64/todo/decode-rejects-max-size-input.md` — the opposite-direction
-  bug: `decode` over-rejects valid, exactly-`maxLength`-sized input because the
-  cap is checked before padding bits are trimmed.
 - `fs/types/bit_vec/todo/u8-list-to-vec-call-sites.md` — related overflow
   hardening: callers of `u8ListToVec`/`tryU8ListToVec` that should switch to
   the non-throwing variant.
+
+The opposite-direction bug this issue was originally paired with — `decode`
+over-rejecting valid, exactly-`maxLength`-sized input because its cap was
+checked before padding bits were trimmed — is fixed. `bit_vec`'s
+`tryListToVec` (and `baseN`'s `stringToVec`) now take an optional `cap`
+parameter; `base64.decode` and `cbase32.cBase32ToVec` pass a cap widened by
+their known padding so the raw pre-trim length isn't checked against
+`maxLength` before the padding is stripped off.

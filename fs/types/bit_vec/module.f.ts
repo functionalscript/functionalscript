@@ -257,9 +257,12 @@ export type BitOrder = {
     /**
      * Folds a list of vectors into a single vector in this bit order, like
      * `listToVec`, but returns `null` instead of throwing when the combined
-     * length would exceed `maxLength`.
+     * length would exceed `cap` (`maxLength` by default). Callers that strip
+     * a known number of trailing padding bits from the result — e.g. a
+     * codec's final `=`/sentinel padding — can pass a looser `cap` so the
+     * raw, not-yet-trimmed length isn't rejected ahead of the trim.
      */
-    readonly tryListToVec: (list: List<Vec>) => Nullable<Vec>
+    readonly tryListToVec: (list: List<Vec>, cap?: bigint) => Nullable<Vec>
     /**
      * Folds a list of vectors into a single vector in this bit order.
      *
@@ -317,12 +320,12 @@ type Accumulator<I, T, R> = {
 type ListToVecOp = Accumulator<Unpacked, ListToVecState, Vec>
 
 const listToVecOp =
-    (unpackConcat: UnpackConcat): ListToVecOp =>
+    (unpackConcat: UnpackConcat) => (cap: bigint): ListToVecOp =>
 ({
     init: { len: 0n, stack: [] },
     update: (v, {len, stack}) => {
         len += v.length
-        if (len > maxLength) { return null }
+        if (len > cap) { return null }
         let i = 0
         while (true) {
             if (stack.length <= i) {
@@ -361,8 +364,9 @@ const listToVecOp =
  * (Java, C#) or `strings.Builder` (Go).
  */
 const unpackListToVec = (unpackConcat: UnpackConcat) => {
-    const { init, update, end } = listToVecOp(unpackConcat)
-    return (list: List<Unpacked>): Nullable<Vec> => {
+    const opForCap = listToVecOp(unpackConcat)
+    return (list: List<Unpacked>, cap: bigint = maxLength): Nullable<Vec> => {
+        const { init, update, end } = opForCap(cap)
         let result: ListToVecState = init
         for (const e of iterable(list)) {
             const candidate = update(e, result)
@@ -398,8 +402,8 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
         const bu = unpack(b)
         return pack(unpackConcat(au)(bu))
     }
-    const tryListToVec = (list: List<Vec>) =>
-        unpackListToVec(unpackConcat)(map(unpack)(list))
+    const tryListToVec = (list: List<Vec>, cap?: bigint) =>
+        unpackListToVec(unpackConcat)(map(unpack)(list), cap)
     return {
         front,
         removeFront,
