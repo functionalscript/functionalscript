@@ -1,7 +1,7 @@
 ## reject-unescaped-string-controls. All parsers accept only JSON string literals
 
 **Priority:** P2
-**Status:** open
+**Status:** done
 
 ### Problem
 

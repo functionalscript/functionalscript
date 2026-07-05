@@ -109,6 +109,47 @@ export const proof = {
             if (result !== '[{"kind":"string","value":"\\b\\f\\n\\r\\t"},{"kind":"eof"}]') { throw result }
         },
         () => {
+            // literal TAB inside a string is rejected; the escaped form is not
+            const result = stringify(tokenizeString('"\t"'))
+            if (result !== '[{"kind":"error","message":"unescaped control character in string"},{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('"\\t"'))
+            if (result !== '[{"kind":"string","value":"\\t"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            // literal VT (no JSON short escape; only \u000b is valid)
+            const result = stringify(tokenizeString('"\v"'))
+            if (result !== '[{"kind":"error","message":"unescaped control character in string"},{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('"\\u000b"'))
+            if (result !== '[{"kind":"string","value":"\\u000b"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            // literal FF is rejected; the escaped form is not
+            const result = stringify(tokenizeString('"\f"'))
+            if (result !== '[{"kind":"error","message":"unescaped control character in string"},{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('"\\f"'))
+            if (result !== '[{"kind":"string","value":"\\f"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            // literal NUL (no JSON short escape; only \u0000 is valid)
+            const result = stringify(tokenizeString('"\0"'))
+            if (result !== '[{"kind":"error","message":"unescaped control character in string"},{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('"\\u0000"'))
+            if (result !== '[{"kind":"string","value":"\\u0000"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            // control character surrounded by ordinary text still recovers the rest of the string
+            const result = stringify(tokenizeString('"a\tb"'))
+            if (result !== '[{"kind":"error","message":"unescaped control character in string"},{"kind":"string","value":"ab"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
             const result = stringify(tokenizeString('"\\u1234"'))
             if (result !== '[{"kind":"string","value":"ሴ"},{"kind":"eof"}]') { throw result }
         },
