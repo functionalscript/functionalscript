@@ -189,6 +189,10 @@ const readStdinByte = async (): Promise<number | null> => {
     }
 }
 
+const randomMax = Number(1n << 32n)
+
+const { randomInt } = crypto
+
 const runNodeEffect: EffectToPromise = asyncRun({
     ...memoryOperationMap(),
     all: async (...effects) => await Promise.all(effects.map(runNodeEffect)),
@@ -235,7 +239,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
             await fh.close()
         }
     }),
-    randomInt: async () => crypto.randomInt(2 ** 32),
+    randomInt: async () => randomInt(randomMax),
     access: path => asyncTryCatch(() => access(path)),
     createExclusive: path => asyncTryCatch(async () => {
         const fh = await open(path, 'wx')
