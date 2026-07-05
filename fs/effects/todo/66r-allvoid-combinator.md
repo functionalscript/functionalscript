@@ -23,7 +23,12 @@ pure(undefined))`.
 
 ### Proposal
 
-Add the void sibling next to `forEachStep` in `fs/effects/module.f.ts`:
+Add the void sibling in `fs/effects/node/module.f.ts`, next to `all` /
+`All` / `both`. It cannot live next to `forEachStep` in the core
+`fs/effects/module.f.ts`: `all`/`All` are defined in the node module,
+which already imports the core module — placing `allVoid` in core would
+invert that dependency. (`fs/emergent_testing` already imports `all` from
+the node module, so the call sites need no new import path.)
 
 ```ts
 export const allVoid =
@@ -32,6 +37,10 @@ export const allVoid =
         all(...items.map(f)).step(() => pure(undefined))
 ```
 
+If `All` is ever lowered out of the node module (it is runner
+infrastructure, not node-specific I/O — a separate design question),
+`allVoid` moves down with it alongside `all` and `both`.
+
 The three call sites become `allVoid(e => registerOne(t, e))(sub)` etc.
 If [allreduce-combinator](./allreduce-combinator.md) lands first, consider
 deriving `allVoid` from `allReduce` with a unit monoid instead of
@@ -39,7 +48,8 @@ duplicating the `all(...map)` core — whichever reads better.
 
 ### Tasks
 
-- [ ] Add `allVoid` to `fs/effects/module.f.ts` with proof coverage.
+- [ ] Add `allVoid` to `fs/effects/node/module.f.ts` (next to `all`/`both`)
+      with proof coverage.
 - [ ] Convert the three call sites in `fs/emergent_testing/module.f.ts`.
 - [ ] Run `npx tsc` and `fjs t`.
 

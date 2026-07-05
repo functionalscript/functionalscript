@@ -51,14 +51,32 @@ in sync.
 
 Add a `foldStream` combinator to `fs/effects/list/module.f.ts` whose step
 returns an `Effect`, so it subsumes both the pure folds (step = `pure(...)`)
-and the effectful writers:
+and the effectful writers.
+
+**Layering note:** `IoResult` cannot appear in this module's signature —
+it is exported by `fs/effects/node/module.f.ts`, which already imports
+`List` from `fs/effects/list/module.f.ts`, so importing it back would be
+a cycle. But `IoResult<T>` is just an alias for `Result<T, unknown>` from
+`fs/types/result` (a types-layer module `effects/list` can import freely),
+so write the signature in terms of `Result` — call sites that hold
+`IoResult` values type-check unchanged:
 
 ```ts
+import type { Result } from '../../types/result/module.f.ts'
+
 export const foldStream =
-    <O extends Operation, A>(step: (acc: A) => (chunk: Vec) => Effect<O, IoResult<A>>) =>
+    <O extends Operation, A>(step: (acc: A) => (chunk: Vec) => Effect<O, Result<A, unknown>>) =>
     (init: A) =>
-    (stream: List<O, IoResult<Vec>>): Effect<O, IoResult<A>> => …
+    (stream: List<O, Result<Vec, unknown>>): Effect<O, Result<A, unknown>> => …
 ```
+
+(`Vec` from `fs/types/bit_vec` is likewise a types-layer import. If even
+that is judged too specific for `effects/list`, generalize the element
+type to a parameter `I` in place of `Vec` — the combinator never inspects
+the chunks. Alternatively the helper can live in
+`fs/effects/node/module.f.ts` next to the I/O types, but the `Result`
+spelling keeps it in the layer where `List` is defined, which is
+preferred.)
 
 - EOF returns `pure(ok(acc))`; an error item returns `pure(first)`;
   a chunk runs `step(acc)(chunk)` and recurses on `ok`, short-circuits on
