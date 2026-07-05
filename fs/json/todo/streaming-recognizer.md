@@ -66,19 +66,20 @@ the accumulation:
   where the recognizer would otherwise have to diverge from `parse` (see below);
   leaving it off keeps them equivalent.
 
-- **Strictness.** Honor RFC 8259 at scan time, including the raw-control-in-string
-  rejection tracked in `fs/json/todo/reject-unescaped-string-controls.md` (the
-  recognizer scans, so it enforces it directly rather than inheriting a lax
-  token).
+- **Strictness.** Honor RFC 8259 at scan time. The raw-control-in-string
+  rejection already lives in the shared `fs/js` tokenizer (`parseStringStateOp`),
+  so the recognizer inherits it for free by reusing that scanner's string op
+  (factored over a no-op builder, per the payload-free point above) rather than
+  re-deriving the check.
 
 The recognizer and the value-building `parse` must share the grammar so they can
 never diverge — the point is one description of "valid JSON", read either into a
 value or into a boolean. Correctness property, scoped to make it actually hold:
 
 - **With the depth cap disabled** (the default), `recognizerAccepts(s)` ⟺
-  `parse(...)[0] === 'ok'` for **every** input — both adopting the strict-control
-  fix (`reject-unescaped-string-controls.md`), which `parse` also gains, so raw
-  controls are not a divergence either. This is the equivalence proof.
+  `parse(...)[0] === 'ok'` for **every** input — both share the shared
+  tokenizer's strict-control rejection, so raw controls are not a divergence
+  either. This is the equivalence proof.
 - **With a finite cap**, agreement is scoped to inputs within the limit: a valid
   document nesting deeper than the cap is deliberately rejected even though
   `parse` (uncapped) accepts it. That is the intended DoS guard, not a bug —
@@ -106,5 +107,4 @@ value or into a boolean. Correctness property, scoped to make it actually hold:
 
 - `fs/json/parser/module.f.ts:205-238` — `foldOp` / `parse`; the control machine to reuse value-free.
 - `fs/js/tokenizer/module.f.ts:571-602,694-700` — string/number states that buffer payloads and must gain payload-free variants.
-- `fs/json/todo/reject-unescaped-string-controls.md` — the strictness this recognizer must enforce at scan time.
 - `fs/mime/todo/detect-json.md` — first consumer; needs O(depth), payload-free validity to keep `detectStream` size-independent.

@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [fs/json streaming-recognizer](../../json/todo/streaming-recognizer.md), [fs/json reject-unescaped-string-controls](../../json/todo/reject-unescaped-string-controls.md)
+**Blocked by:** [fs/json streaming-recognizer](../../json/todo/streaming-recognizer.md)
 
 ### Problem
 
@@ -87,12 +87,13 @@ is the thin §1 wrapper over it — the recognizer plus the one-code-point
 top-level tag — adding no JSON grammar of its own. This todo therefore **depends
 on** that recognizer landing first.
 
-Strictness note: the recognizer must reject raw U+0000–U+001F inside strings
-(`fs/json/todo/reject-unescaped-string-controls.md`). This matters here because
-`fs/mime`'s text gate admits TAB/VT/FF as text (`utf8Step`/`isTextCodePoint`), so
-without the strict check a blob like `{"a":"⟨TAB⟩"}` — invalid JSON per RFC 8259
-— would be mislabeled `application/json`. `A_json` inherits the correct verdict
-from the recognizer rather than re-deriving it.
+Strictness note: the recognizer must reject raw U+0000–U+001F inside strings,
+already fixed in the shared `fs/js` tokenizer (`parseStringStateOp`). This
+matters here because `fs/mime`'s text gate admits TAB/VT/FF as text
+(`utf8Step`/`isTextCodePoint`), so without the strict check a blob like
+`{"a":"⟨TAB⟩"}` — invalid JSON per RFC 8259 — would be mislabeled
+`application/json`. `A_json` inherits the correct verdict from the recognizer
+rather than re-deriving it.
 
 #### 3. `finish`: refine text → JSON
 
@@ -149,9 +150,8 @@ exactly the path `cas_get` uses.
 
 ### Tasks
 
-- [ ] Land the payload-free, O(depth) `fs/json` recognizer and the
-      strict-string-controls fix first (their own todos); this issue is blocked
-      on them.
+- [ ] Land the payload-free, O(depth) `fs/json` recognizer first (its own
+      todo); this issue is blocked on it.
 - [ ] Add the `A_json` factor (recognizer + top-level `top` tag, §1) to
       `DetectState`/`detectInit`; drive `jsonStep` from the code points decoded
       in `push`.
@@ -174,7 +174,7 @@ exactly the path `cas_get` uses.
 - `fs/mime/module.f.ts:264-272` — `finish`, where the text→JSON refinement lands.
 - `fs/mime/module.f.ts:180-195` — the UTF-8 factor whose decoded code points feed the JSON factor.
 - `fs/json/todo/streaming-recognizer.md` — **blocks this**; the payload-free, O(depth) validity recognizer `A_json` wraps.
-- `fs/json/todo/reject-unescaped-string-controls.md` — **blocks this**; without it a raw-control string would be mislabeled `application/json`.
+- `fs/js/tokenizer/module.f.ts` — `parseStringStateOp`; already rejects raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
 - `fs/json/parser/module.f.ts:205-238` — `foldOp` / `parse`, the grammar the recognizer reuses value-free.
 - `fs/cas/mcp/module.f.ts:196-204` — `cas_get`, the consumer that gains `application/json` for free.
 - `fs/mime/todo/single-signature-table.md` — the sibling "one source of truth" cleanup; same single-classifier principle.
