@@ -4,7 +4,7 @@
  * @module
  */
 import { todo } from '../../../asserts/module.f.ts'
-import { join, parse } from '../../../path/module.f.ts'
+import { isProperPrefix, join, parse } from '../../../path/module.f.ts'
 import { utf8ToString } from '../../../text/module.f.ts'
 import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
@@ -225,9 +225,6 @@ const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): read
     if (result[0] === 'error') { return [dir, result] }
     return [{ ...dir, [first]: newSub }, result]
 }
-
-const isProperPrefix = (prefix: readonly string[], path: readonly string[]): boolean =>
-    prefix.length < path.length && prefix.every((seg, i) => seg === path[i])
 
 const rename = (src: string, dst: string) => (state: State): readonly[State, IoResult<void>] => {
     const srcParsed = parse(src)
