@@ -42,10 +42,12 @@ const mapToken
             case 'true':
             case 'false':
             case 'null':
-            case 'string':
             case 'number':
             case 'eof':
             case 'error': return [input]
+            case 'string': return input.rawControl ?
+                [{ kind: 'error', message: 'unescaped control character in string' }] :
+                [input]
             case 'ws':
             case 'nl': return empty
             default: return [{ kind: 'error', message: 'invalid token' }]

@@ -76,6 +76,12 @@ const { fromCharCode } = String
 export type StringToken = {
     readonly kind: 'string'
     readonly value: string
+    /**
+     * `true` if the string contains a literal (unescaped) C0 control
+     * character (U+0000–U+001F other than LF/CR, which end the string).
+     * Legal in ECMAScript string literals; JSON forbids it per RFC 8259 §7.
+     */
+    readonly rawControl: boolean
 }
 
 export type NumberToken = {
@@ -168,6 +174,13 @@ const rangeOneNine = range('19')
 const rangeSetNewLine = [
     one(lf),
     one(cr)
+]
+
+// C0 controls (U+0000-U+001F) other than LF/CR, which `rangeSetNewLine` already handles.
+const rangeSetRawControl: readonly NumberRange[] = [
+    [0x00, 0x09],
+    [0x0b, 0x0c],
+    [0x0e, 0x1f],
 ]
 
 const rangeSetWhiteSpace = [
@@ -266,6 +279,7 @@ type ErrorMessage = |
     'invalid token' |
     '*\/ expected' |
     'unterminated string literal' |
+    'unescaped control character in string' |
     'eof'
 
 type InitialState = { readonly kind: 'initial'}
@@ -276,9 +290,9 @@ type ParseWhitespaceState = { readonly kind: 'ws'}
 
 type ParseNewLineState = { readonly kind: 'nl'}
 
-type ParseStringState = { readonly kind: 'string', readonly value: string}
+type ParseStringState = { readonly kind: 'string', readonly value: string, readonly rawControl: boolean }
 
-type ParseEscapeCharState = { readonly kind: 'escapeChar', readonly value: string}
+type ParseEscapeCharState = { readonly kind: 'escapeChar', readonly value: string, readonly rawControl: boolean }
 
 type ParseOperatorState = { readonly kind: 'op', readonly value: string}
 
@@ -293,6 +307,7 @@ type ParseUnicodeCharState = {
     readonly value: string
     readonly unicode: number
     readonly hexIndex: number
+    readonly rawControl: boolean
 }
 
 type ParseNumberState = {
@@ -551,7 +566,7 @@ const initialStateOp
         rangeSetFunc<TokenizerState>(rangeIdStart)(() => input => [empty, { kind: 'id', value: fromCharCode(input) }]),
         rangeSetFunc<TokenizerState>(rangeSetWhiteSpace)(() => () => [empty, { kind: 'ws' }]),
         rangeSetFunc<TokenizerState>(rangeSetNewLine)(() => () => [empty, { kind: 'nl' }]),
-        rangeFunc<TokenizerState>(one(quotationMark))(() => () => [empty, { kind: 'string', value: '' }]),
+        rangeFunc<TokenizerState>(one(quotationMark))(() => () => [empty, { kind: 'string', value: '', rawControl: false }]),
         rangeFunc<TokenizerState>(one(digit0))(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: '0' }]),
         rangeSetFunc<TokenizerState>(rangeOpStart)(() => input => [empty, { kind: 'op', value: fromCharCode(input) }])
     ])
@@ -693,35 +708,36 @@ const invalidNumberStateOp
 
 const parseStringStateOp
     : (state: ParseStringState) => (input: number) => readonly[List<JsToken>, TokenizerState]
-    = create((state: ParseStringState) => input => [empty, { kind: 'string', value: appendChar(state.value)(input) }])([
-        rangeFunc<ParseStringState>(one(quotationMark))(state => () => [[{ kind: 'string', value: state.value }], { kind: 'initial' }]),
-        rangeFunc<ParseStringState>(one(reverseSolidus))(state => () => [empty, { kind: 'escapeChar', value: state.value }]),
-        rangeSetFunc<ParseStringState>(rangeSetNewLine)(() => () => [[{ kind: 'error', message: 'unterminated string literal'}], { kind: 'nl'}])
+    = create((state: ParseStringState) => input => [empty, { kind: 'string', value: appendChar(state.value)(input), rawControl: state.rawControl }])([
+        rangeFunc<ParseStringState>(one(quotationMark))(state => () => [[{ kind: 'string', value: state.value, rawControl: state.rawControl }], { kind: 'initial' }]),
+        rangeFunc<ParseStringState>(one(reverseSolidus))(state => () => [empty, { kind: 'escapeChar', value: state.value, rawControl: state.rawControl }]),
+        rangeSetFunc<ParseStringState>(rangeSetNewLine)(() => () => [[{ kind: 'error', message: 'unterminated string literal'}], { kind: 'nl'}]),
+        rangeSetFunc<ParseStringState>(rangeSetRawControl)(state => input => [empty, { kind: 'string', value: appendChar(state.value)(input), rawControl: true }]),
     ])
 
 const parseEscapeDefault
     : (state: ParseEscapeCharState) => (input: number) => readonly[List<JsToken>, TokenizerState]
     = state => input => {
-        const next = tokenizeOp(input, { kind: 'string', value: state.value })
+        const next = tokenizeOp(input, { kind: 'string', value: state.value, rawControl: state.rawControl })
         return [{ first: { kind: 'error', message: 'unescaped character' }, tail: next[0] }, next[1]]
     }
 
 const parseEscapeCharStateOp
     : (state: ParseEscapeCharState) => (input: number) => readonly[List<JsToken>, TokenizerState]
     = create(parseEscapeDefault)([
-        rangeSetFunc<ParseEscapeCharState>([one(quotationMark), one(reverseSolidus), one(solidus)])(state => input => [empty, { kind: 'string', value: appendChar(state.value)(input) }]),
-        rangeFunc<ParseEscapeCharState>(one(latinSmallLetterB))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(backspace) }]),
-        rangeFunc<ParseEscapeCharState>(one(latinSmallLetterF))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(ff) }]),
-        rangeFunc<ParseEscapeCharState>(one(latinSmallLetterN))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(lf) }]),
-        rangeFunc<ParseEscapeCharState>(one(latinSmallLetterR))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(cr) }]),
-        rangeFunc<ParseEscapeCharState>(one(latinSmallLetterT))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(ht) }]),
-        rangeFunc<ParseEscapeCharState>(one(latinSmallLetterU))(state => () => [empty, { kind: 'unicodeChar', value: state.value, unicode: 0, hexIndex: 0 }]),
+        rangeSetFunc<ParseEscapeCharState>([one(quotationMark), one(reverseSolidus), one(solidus)])(state => input => [empty, { kind: 'string', value: appendChar(state.value)(input), rawControl: state.rawControl }]),
+        rangeFunc<ParseEscapeCharState>(one(latinSmallLetterB))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(backspace), rawControl: state.rawControl }]),
+        rangeFunc<ParseEscapeCharState>(one(latinSmallLetterF))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(ff), rawControl: state.rawControl }]),
+        rangeFunc<ParseEscapeCharState>(one(latinSmallLetterN))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(lf), rawControl: state.rawControl }]),
+        rangeFunc<ParseEscapeCharState>(one(latinSmallLetterR))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(cr), rawControl: state.rawControl }]),
+        rangeFunc<ParseEscapeCharState>(one(latinSmallLetterT))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(ht), rawControl: state.rawControl }]),
+        rangeFunc<ParseEscapeCharState>(one(latinSmallLetterU))(state => () => [empty, { kind: 'unicodeChar', value: state.value, unicode: 0, hexIndex: 0, rawControl: state.rawControl }]),
     ])
 
 const parseUnicodeCharDefault
     : (state: ParseUnicodeCharState) => (input: number) => readonly[List<JsToken>, TokenizerState]
     = state => input => {
-        const next = tokenizeOp(input, { kind: 'string', value: state.value })
+        const next = tokenizeOp(input, { kind: 'string', value: state.value, rawControl: state.rawControl })
         return [{ first: { kind: 'error', message: 'invalid hex value' }, tail: next[0] }, next[1]]
     }
 
@@ -731,8 +747,8 @@ const parseUnicodeCharHex
         const hexValue = input - offset
         const newUnicode = state.unicode | (hexValue << (3 - state.hexIndex) * 4)
         return [empty, state.hexIndex === 3 ?
-            { kind: 'string', value: appendChar(state.value)(newUnicode) } :
-            { kind: 'unicodeChar', value: state.value, unicode: newUnicode, hexIndex: state.hexIndex + 1 }]
+            { kind: 'string', value: appendChar(state.value)(newUnicode), rawControl: state.rawControl } :
+            { kind: 'unicodeChar', value: state.value, unicode: newUnicode, hexIndex: state.hexIndex + 1, rawControl: state.rawControl }]
     }
 
 const parseUnicodeCharStateOp

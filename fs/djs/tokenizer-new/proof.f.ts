@@ -165,7 +165,7 @@ const toJsToken
             case '\t':
                 return {kind: 'ws'}
             case 'string':
-                return {kind: 'string', value: decodeJsonString(tk[1])}
+                return {kind: 'string', value: decodeJsonString(tk[1]), rawControl: false}
             case 'id': {
                 const value = String.fromCodePoint(...tk[1])
                 if (keywords.has(value)) return {kind: value} as JsToken
@@ -415,11 +415,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('""')
-            if (result !== '[{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","value":"","rawControl":false},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('"value"')
-            if (result !== '[{"kind":"string","value":"value"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","value":"value","rawControl":false},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('"value')
@@ -427,7 +427,7 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"value1" "value2"')
-            if (result !== '[{"kind":"string","value":"value1"},{"kind":"ws"},{"kind":"string","value":"value2"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","value":"value1","rawControl":false},{"kind":"ws"},{"kind":"string","value":"value2","rawControl":false},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('"')
@@ -435,15 +435,15 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"\\\\"')
-            if (result !== '[{"kind":"string","value":"\\\\"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","value":"\\\\","rawControl":false},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('"\\""')
-            if (result !== '[{"kind":"string","value":"\\""},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","value":"\\"","rawControl":false},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('"\\/"')
-            if (result !== '[{"kind":"string","value":"/"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","value":"/","rawControl":false},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('"\\x"')
@@ -463,15 +463,15 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"\\b\\f\\n\\r\\t"')
-            if (result !== '[{"kind":"string","value":"\\b\\f\\n\\r\\t"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","value":"\\b\\f\\n\\r\\t","rawControl":false},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('"\\u1234"')
-            if (result !== '[{"kind":"string","value":"ሴ"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","value":"ሴ","rawControl":false},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('"\\uaBcDEeFf"')
-            if (result !== '[{"kind":"string","value":"ꯍEeFf"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","value":"ꯍEeFf","rawControl":false},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('"\\uEeFg"')

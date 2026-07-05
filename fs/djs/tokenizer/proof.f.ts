@@ -58,11 +58,11 @@ export const proof = {
         },
         () => {
             const result = stringify(tokenizeString('""'))
-            if (result !== '[{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","rawControl":false,"value":""},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('"value"'))
-            if (result !== '[{"kind":"string","value":"value"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","rawControl":false,"value":"value"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('"value'))
@@ -70,7 +70,7 @@ export const proof = {
         },
         () => {
             const result = stringify(tokenizeString('"value1" "value2"'))
-            if (result !== '[{"kind":"string","value":"value1"},{"kind":"ws"},{"kind":"string","value":"value2"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","rawControl":false,"value":"value1"},{"kind":"ws"},{"kind":"string","rawControl":false,"value":"value2"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('"'))
@@ -78,19 +78,19 @@ export const proof = {
         },
         () => {
             const result = stringify(tokenizeString('"\\\\"'))
-            if (result !== '[{"kind":"string","value":"\\\\"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","rawControl":false,"value":"\\\\"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('"\\""'))
-            if (result !== '[{"kind":"string","value":"\\""},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","rawControl":false,"value":"\\""},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('"\\/"'))
-            if (result !== '[{"kind":"string","value":"/"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","rawControl":false,"value":"/"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('"\\x"'))
-            if (result !== '[{"kind":"error","message":"unescaped character"},{"kind":"string","value":"x"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"unescaped character"},{"kind":"string","rawControl":false,"value":"x"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('"\\'))
@@ -98,19 +98,19 @@ export const proof = {
         },
         () => {
             const result = stringify(tokenizeString('"\\b\\f\\n\\r\\t"'))
-            if (result !== '[{"kind":"string","value":"\\b\\f\\n\\r\\t"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","rawControl":false,"value":"\\b\\f\\n\\r\\t"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('"\\u1234"'))
-            if (result !== '[{"kind":"string","value":"ሴ"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","rawControl":false,"value":"ሴ"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('"\\uaBcDEeFf"'))
-            if (result !== '[{"kind":"string","value":"ꯍEeFf"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"string","rawControl":false,"value":"ꯍEeFf"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('"\\uEeFg"'))
-            if (result !== '[{"kind":"error","message":"invalid hex value"},{"kind":"string","value":"g"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid hex value"},{"kind":"string","rawControl":false,"value":"g"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0'))
