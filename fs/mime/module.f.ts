@@ -30,6 +30,12 @@
  * sits between the `RIFF` and `WEBP` markers, so it is matched as a prefix plus
  * a second marker at byte offset 8 rather than a single contiguous run.
  *
+ * Beyond the magic-byte table, whole-blob-valid UTF-8 text whose top-level value
+ * is a JSON object or array is refined from `text/plain` to `application/json`
+ * (RFC 8259 / RFC 6838, UTF-8 assumed, so no `charset` parameter) — see the
+ * streaming detector section below. A bare top-level scalar (`42`, `"hi"`,
+ * `true`, `null`) stays `text/plain`.
+ *
  * @module
  */
 import { msb, fromSentinel, length, u8List, type Vec } from '../types/bit_vec/module.f.ts'
@@ -41,6 +47,13 @@ import type { IoResult } from '../effects/node/module.f.ts'
 import { ok, error } from '../types/result/module.f.ts'
 import { isValidCodePoint, isTextCodePoint } from '../text/code_point/module.f.ts'
 import { utf8ByteToCodePointOp, type Utf8State } from '../text/utf8/module.f.ts'
+import {
+    recognizerInit,
+    recognizerStep,
+    recognizerAccepts,
+    isJsonWhitespace,
+    type JsonRecognizerState,
+} from '../json/recognizer/module.f.ts'
 
 const { startsWith, removeFront } = msb
 
@@ -177,15 +190,19 @@ type Utf8Detect = {
 
 const utf8Init: Utf8Detect = { st: null, valid: true, text: true }
 
-const utf8Step = (u: Utf8Detect, byte: number): Utf8Detect => {
-    if (!u.valid) { return u }
+// Decodes one byte, returning both the updated `Utf8Detect` and the code
+// points it produced (zero or one per byte, per `utf8ByteToCodePointOp`) so
+// the caller can ride the same decode with a second, independent fold — see
+// `A_json` below.
+const utf8Step = (u: Utf8Detect, byte: number): readonly [Utf8Detect, readonly number[]] => {
+    if (!u.valid) { return [u, []] }
     const [cps, st] = utf8ByteToCodePointOp(byte, u.st)
     let text = u.text
     for (const cp of cps) {
-        if (!isValidCodePoint(cp)) { return { st, valid: false, text } }
+        if (!isValidCodePoint(cp)) { return [{ st, valid: false, text }, cps] }
         if (!isTextCodePoint(cp)) { text = false }
     }
-    return { st, valid: true, text }
+    return [{ st, valid: true, text }, cps]
 }
 
 const utf8Valid = (u: Utf8Detect): boolean => u.valid && u.st === null
@@ -195,13 +212,42 @@ const utf8Valid = (u: Utf8Detect): boolean => u.valid && u.st === null
 const utf8Text = (u: Utf8Detect): boolean => utf8Valid(u) && u.text
 
 /**
- * The product state: running bit length × magic eliminator × UTF-8 validator.
- * The factors never read each other; they meet only in {@link finish}.
+ * `A_json`: a streaming JSON-validity check riding the code points the UTF-8
+ * factor decodes. `rec` is the payload-free, O(depth) `fs/json` recognizer
+ * (accept/reject only); `top` is the first non-whitespace code point seen,
+ * recording the top-level value's kind so the object/array-only MIME policy
+ * (`jsonValid`) can be applied at EOF without the recognizer itself knowing
+ * about that policy — it accepts any valid JSON document.
+ */
+type JsonFactor = {
+    readonly rec: JsonRecognizerState
+    readonly top: Nullable<number>
+}
+
+const jsonInit: JsonFactor = { rec: recognizerInit, top: null }
+
+const jsonStep = (j: JsonFactor, cp: number): JsonFactor => ({
+    rec: recognizerStep(j.rec, cp),
+    top: j.top ?? (isJsonWhitespace(cp) ? null : cp),
+})
+
+// Only a complete, valid JSON document whose top-level value is an object or
+// array is classified `application/json`; a bare top-level scalar (`42`,
+// `"hi"`, `true`, `null`) is also valid JSON but stays `text/plain` — see the
+// module doc's "Beyond the magic-byte table" note for the rationale.
+const jsonValid = (j: JsonFactor): boolean =>
+    recognizerAccepts(j.rec) && (j.top === 0x7b /* { */ || j.top === 0x5b /* [ */)
+
+/**
+ * The product state: running bit length × magic eliminator × UTF-8 validator ×
+ * JSON recognizer. The factors never read each other; they meet only in
+ * {@link finish}.
  */
 export type DetectState = {
     readonly length: bigint
     readonly magic: MagicState
     readonly utf8: Utf8Detect
+    readonly json: JsonFactor
 }
 
 /** The initial detector state `q₀`. */
@@ -209,6 +255,7 @@ export const detectInit: DetectState = {
     length: 0n,
     magic: magicInit,
     utf8: utf8Init,
+    json: jsonInit,
 }
 
 // The outcome can no longer change — `push` may stop decoding and only count
@@ -236,14 +283,17 @@ export const push = (s: DetectState) => (chunk: Vec): DetectState => {
     const bits = length(chunk)
     let magic = s.magic
     let utf8 = s.utf8
+    let json = s.json
     if (!isSettled(magic, utf8)) {
         for (const byte of iterable(u8List(msb)(chunk))) {
             magic = magicStep(magic, byte)
-            utf8 = utf8Step(utf8, byte)
+            const [nextUtf8, cps] = utf8Step(utf8, byte)
+            utf8 = nextUtf8
+            for (const cp of cps) { json = jsonStep(json, cp) }
             if (isSettled(magic, utf8)) { break }
         }
     }
-    return { length: s.length + bits, magic, utf8 }
+    return { length: s.length + bits, magic, utf8, json }
 }
 
 /** The metadata read off the detector at end-of-stream. */
@@ -257,16 +307,18 @@ export type DetectMeta = {
  * Reads the answer off the final state (`λ`). Reproduces the three-way result of
  * the pure path: magic hit → `base64` + detected mime; else whole-blob-valid UTF-8
  * that is also all-text (byte-aligned, no invalidity, no control bytes) → `text` +
- * `text/plain`; else → `base64` + `application/octet-stream`. A valid-but-control
- * blob (NUL, other controls) is well-formed UTF-8 yet falls through to the binary
- * branch.
+ * `text/plain` or, when it is also a complete JSON document with an object/array
+ * top level, the refined `application/json`; else → `base64` +
+ * `application/octet-stream`. A valid-but-control blob (NUL, other controls) is
+ * well-formed UTF-8 yet falls through to the binary branch.
  */
 export const finish = (s: DetectState): DetectMeta => {
     const byteLength = s.length >> 3n
     const mime = magicMime(s.magic)
     if (mime !== null) { return { length: byteLength, mime_type: mime, type: 'base64' } }
     if (utf8Text(s.utf8) && (s.length & 0b111n) === 0n) {
-        return { length: byteLength, mime_type: 'text/plain', type: 'text' }
+        const mimeType = jsonValid(s.json) ? 'application/json' : 'text/plain'
+        return { length: byteLength, mime_type: mimeType, type: 'text' }
     }
     return { length: byteLength, mime_type: 'application/octet-stream', type: 'base64' }
 }

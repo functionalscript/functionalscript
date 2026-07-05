@@ -37,7 +37,11 @@
  *
  * 1. **Magic-byte hit** (PNG/JPEG/GIF/WebP/PDF/ZIP) → `type: 'base64'` with the
  *    detected `mime_type`.
- * 2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mime_type: 'text/plain'`.
+ * 2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mime_type: 'text/plain'`, or,
+ *    when the text is also a complete JSON document whose top-level value is an
+ *    object or array, the refined `mime_type: 'application/json'`. A bare
+ *    top-level scalar (`42`, `"hi"`, `true`, `null`) is valid JSON too but stays
+ *    `text/plain` — only object/array documents count as JSON here.
  * 3. **Fallback** → `type: 'base64'`, `mime_type: 'application/octet-stream'`.
  *
  * **Metadata-only (`content: false`, the default) is size-independent.** It folds
