@@ -1,4 +1,4 @@
-## 66z-computek-digest-param. `sign` hashes the message twice — pass the digest to `computeK`
+## computek-digest-param. `sign` hashes the message twice — pass the digest to `computeK`
 
 **Priority:** P3
 **Status:** open

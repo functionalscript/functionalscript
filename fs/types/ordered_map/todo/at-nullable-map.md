@@ -1,4 +1,4 @@
-## 66w-at-nullable-map. `at` should project through `nullable.map`
+## at-nullable-map. `at` should project through `nullable.map`
 
 **Priority:** P5
 **Status:** open

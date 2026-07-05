@@ -1,4 +1,4 @@
-## 66x-sign-algebra. Give `Sign` its full small algebra (product and ordering, not just `flip`)
+## sign-algebra. Give `Sign` its full small algebra (product and ordering, not just `flip`)
 
 **Priority:** P4
 **Status:** open

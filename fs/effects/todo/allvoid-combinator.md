@@ -1,4 +1,4 @@
-## 66r-allvoid-combinator. `allVoid` combinator for parallel fan-out that discards results
+## allvoid-combinator. `allVoid` combinator for parallel fan-out that discards results
 
 **Priority:** P4
 **Status:** open

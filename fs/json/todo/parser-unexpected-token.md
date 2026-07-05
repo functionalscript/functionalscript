@@ -1,4 +1,4 @@
-## 670-parser-unexpected-token. Hoist the JSON parser's repeated error literals
+## parser-unexpected-token. Hoist the JSON parser's repeated error literals
 
 **Priority:** P4
 **Status:** open

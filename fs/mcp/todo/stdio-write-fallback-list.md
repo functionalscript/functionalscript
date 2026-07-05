@@ -1,4 +1,4 @@
-## 66s-stdio-write-fallback-list. Fold the stdio response fallback cascade over a candidate list
+## stdio-write-fallback-list. Fold the stdio response fallback cascade over a candidate list
 
 **Priority:** P4
 **Status:** open

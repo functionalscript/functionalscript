@@ -1,4 +1,4 @@
-## 66v-list-tryfold. Move the early-exit fold driver from `bit_vec` to `list`
+## list-tryfold. Move the early-exit fold driver from `bit_vec` to `list`
 
 **Priority:** P4
 **Status:** open

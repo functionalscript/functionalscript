@@ -1,4 +1,4 @@
-## 66t-monoid-fold. `fold` companion for `Monoid` — collapse hand-paired `reduce(op)(identity)` calls
+## monoid-fold. `fold` companion for `Monoid` — collapse hand-paired `reduce(op)(identity)` calls
 
 **Priority:** P4
 **Status:** open

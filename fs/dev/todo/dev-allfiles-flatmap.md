@@ -1,4 +1,4 @@
-## 66q-dev-allfiles-flatmap. Rewrite `allFiles` entry loop declaratively
+## dev-allfiles-flatmap. Rewrite `allFiles` entry loop declaratively
 
 **Priority:** P4
 **Status:** open

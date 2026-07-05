@@ -1,4 +1,4 @@
-## 671-serializer-shared-atoms. Share `colon` and a generic `MapEntries<P>` from `json/serializer`
+## serializer-shared-atoms. Share `colon` and a generic `MapEntries<P>` from `json/serializer`
 
 **Priority:** P4
 **Status:** open

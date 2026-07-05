@@ -1,4 +1,4 @@
-## 66p-fold-stream-combinator. `foldStream` combinator for `IoResult<Vec>` streams
+## fold-stream-combinator. `foldStream` combinator for `IoResult<Vec>` streams
 
 **Priority:** P3
 **Status:** open
