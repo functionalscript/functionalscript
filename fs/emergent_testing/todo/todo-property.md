@@ -250,3 +250,6 @@ out from under `throw`) as part of landing this change.
   structural-key inversion mechanism; this proposal adds a second, *local* flag
   combined with the inherited `throws` flag via XOR (inversion) and OR
   (leaf-ness).
+- [skip-property](./skip-property.md) — `todo` assumes the expectation is
+  uniform across engines and the test is safe to execute; `skip` covers the
+  cases where it is not (engine-dependent outcomes, harmful-to-run tests).
