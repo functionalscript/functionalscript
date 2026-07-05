@@ -991,9 +991,9 @@ export const proof = {
             const result = tokenizeString('/* multiline comment \n * **/')
             if (result !== '[{"kind":"/*","value":" multiline comment \\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
         },
-        // () => {
-        //     const result = tokenizeString('/* multiline comment *\n * **/')
-        //     if (result !== '[{"kind":"/*","value":" multiline comment *\\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
-        // },
+        () => {
+            const result = tokenizeString('/* multiline comment *\n * **/')
+            if (result !== '[{"kind":"/*","value":" multiline comment *\\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
+        },
     ],
 }
