@@ -25,7 +25,7 @@ export const images = {
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version. A separate maintenance job advances this pin.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = '0.33.0' as const
+export const functionalscript = '0.35.2' as const
 
 // https://bun.sh/
 export const bun = '1.3.14'
