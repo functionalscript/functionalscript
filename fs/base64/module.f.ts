@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { msb, type Vec, length, vec, empty, maxLength } from "../types/bit_vec/module.f.ts"
+import { msb, type Vec, length, vec, empty } from "../types/bit_vec/module.f.ts"
 import type { Nullable } from "../types/nullable/module.f.ts"
 import { baseN } from "../base_n/module.f.ts"
 
@@ -37,16 +37,13 @@ export const decode = (input: string): Nullable<Vec> => {
     // Total chars must make a multiple of 4 with the padding.
     if ((body.length + padChars) % 4 !== 0) { return null }
 
+    // Decode each character to 6 bits.
+    const result = stringToVec(body)
+    if (result === null) { return null }
+
     // Remove the zero-padding bits introduced during encode.
     // padChars=1 → 2 padding bits removed, padChars=2 → 4 padding bits removed.
     const removeBits = BigInt(padChars * 2)
-
-    // Decode each character to 6 bits. The raw (pre-trim) length can be up to
-    // `removeBits` over `maxLength` for input whose *decoded* payload is
-    // exactly `maxLength`-sized, so widen the cap by the padding this input
-    // declares — `targetLen` below re-checks the trimmed length is in range.
-    const result = stringToVec(body, maxLength + removeBits)
-    if (result === null) { return null }
     const totalBits = length(result)
     const targetLen = totalBits - removeBits
     if (targetLen === 0n) { return empty }

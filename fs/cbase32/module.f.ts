@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { msb, lsb, type Vec, length, vec, empty, maxLength } from "../types/bit_vec/module.f.ts"
+import { msb, lsb, type Vec, length, vec, empty } from "../types/bit_vec/module.f.ts"
 import type { Nullable } from "../types/nullable/module.f.ts"
 import { baseN } from "../base_n/module.f.ts"
 
@@ -28,7 +28,7 @@ const codec = baseN(5n, m, normalizeChar)
 
 export const vec5xToCBase32: (v: Vec) => string = codec.vecToString
 
-export const cBase32ToVec5x: (s: string, cap?: bigint) => Nullable<Vec> = codec.stringToVec
+export const cBase32ToVec5x: (s: string) => Nullable<Vec> = codec.stringToVec
 
 export const vecToCBase32 = (v: Vec): string => {
     const len = length(v)
@@ -39,10 +39,7 @@ export const vecToCBase32 = (v: Vec): string => {
 }
 
 export const cBase32ToVec = (s: string): Nullable<Vec> => {
-    // `vecToCBase32` always adds a 1-to-5-bit sentinel block before encoding,
-    // so the raw (pre-trim) decoded length can be up to 5 bits over
-    // `maxLength` for input whose *trimmed* payload is exactly `maxLength`.
-    let v = cBase32ToVec5x(s, maxLength + 5n)
+    let v = cBase32ToVec5x(s)
     if (v === null) { return null }
     // Strip the padding: trailing zeros up to and including the sentinel `1` bit.
     // A string with no sentinel — only zero symbols (`0`/`o`), or empty — exhausts

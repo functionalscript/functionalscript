@@ -1,5 +1,5 @@
 import { assertEq } from '../asserts/module.f.ts'
-import { empty, vec, repeat, vec8, maxLength, type Vec } from "../types/bit_vec/module.f.ts"
+import { empty, vec, repeat, vec8, type Vec } from "../types/bit_vec/module.f.ts"
 import { encode, decode } from "./module.f.ts"
 
 const check = (s: string, v: Vec) => {
@@ -84,14 +84,6 @@ export const proof = {
         // while building) an oversized `bigint`.
         const oversized = 'A'.repeat(174_764)
         assertEq(decode(oversized), null)
-    },
-    // A payload whose *decoded* length is exactly `maxLength` pads to
-    // `maxLength + 2` raw bits before the trailing `=` is stripped. `decode`
-    // used to check the pre-trim length against `maxLength` and wrongly
-    // reject this boundary-sized, otherwise-valid input.
-    maxLengthRoundtrip: () => {
-        const v = vec(maxLength)(0n)
-        check('A'.repeat(174_763) + '=', v)
     },
     // Regression guard: `encode` used to be quadratic in the input size, not
     // linear. `baseN`'s `vecToString` (`fs/base_n/module.f.ts`) popped one

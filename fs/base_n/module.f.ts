@@ -39,10 +39,9 @@ export type BaseN = {
      * Decodes a string by mapping each character to its alphabet index and
      * concatenating the resulting `bits`-wide chunks. Returns `null` on the
      * first character that is not in the alphabet (after `normalize`, when
-     * provided), or if the decoded length exceeds `cap` (`maxLength` by
-     * default — see `bit_vec`'s `tryListToVec`).
+     * provided).
      */
-    readonly stringToVec: (s: string, cap?: bigint) => Nullable<Vec>
+    readonly stringToVec: (s: string) => Nullable<Vec>
 }
 
 /**
@@ -84,7 +83,7 @@ export const baseN = (
         // the composed function once per `baseN(...)` codec; no need to name
         // the halves separately just to get that one-time build.
         vecToString: compose(chunkListMsb(bits))(fold(chunkToString)('')),
-        stringToVec: (s, cap) => {
+        stringToVec: s => {
             // Build a reversed chunk list, bailing out at the first invalid
             // character so malformed input is rejected in O(prefix) time and
             // `normalize` is never run past it. `listToVec` then concatenates in
@@ -95,7 +94,7 @@ export const baseN = (
                 if (index < 0) { return null }
                 chunks = { first: vecN(BigInt(index)), tail: chunks }
             }
-            return reversedListToVec(chunks, cap)
+            return reversedListToVec(chunks)
         },
     }
 }
