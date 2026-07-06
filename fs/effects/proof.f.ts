@@ -1,4 +1,5 @@
-import { decode, do_, foldStep, forEachStep, lazy, match, pure, type Effect, type Operation } from './module.f.ts'
+import { decode, do_, foldStep, forEachStep, lazy, match, okStep, pure, type Effect, type Operation } from './module.f.ts'
+import { error, ok } from '../types/result/module.f.ts'
 
 const assertPure = <O extends Operation, T>(e: Effect<O, T>, expected: T) => {
     const d = decode(e)
@@ -59,6 +60,18 @@ export const proof = {
         runs: () => {
             const e = forEachStep<never, number>(() => pure(undefined))([1, 2, 3])
             assertPure(e, undefined)
+        },
+    },
+    okStep: {
+        ok: () => {
+            const e = pure(ok(5)).step(okStep((v: number) => pure(ok(v * 2))))
+            const d = decode(e)
+            if (!d.done || d.result[0] !== 'ok' || d.result[1] !== 10) { throw e.value }
+        },
+        error: () => {
+            const e = pure(error<string>('oops')).step(okStep<number, string, never, number>(v => pure(ok(v * 2))))
+            const d = decode(e)
+            if (!d.done || d.result[0] !== 'error' || d.result[1] !== 'oops') { throw e.value }
         },
     },
     decode: () => {
