@@ -1,71 +1,67 @@
-## 66J-cas-symlink-escape. Close symlink escape in `cas_add` path validation
+## 66J-cas-symlink-escape. Remove the local-path upload (`cas_add type:'url'`) from the MCP server
 
 **Priority:** P2
 **Status:** open
 
 ### Problem
 
-The `cas_add` `type:'url'` path validation checks if a path starts with `${home}/cas_upload/` and doesn't contain `..`. However, if `~/cas_upload` is writable by the agent or user, they can place a symlink within it to escape the sandbox:
+The MCP `cas_add` `type:'url'` branch takes a filesystem path from the (untrusted) MCP client and has the **server process** open it. The path is validated only as a string: it must start with `${home}/cas_upload/` and not contain `..`. If `~/cas_upload` is writable by the agent/user — the whole point of the feature is that they stage files there — they can plant a symlink and escape the sandbox:
 
 ```
 /home/user/cas_upload/passwd-link -> /etc/passwd
 ```
 
-When `readBytes` is called on this path, Node.js follows the symlink and reads `/etc/passwd`, despite the path passing the prefix check.
+`readBytes` follows the symlink and reads `/etc/passwd`, despite the path passing the prefix check.
 
-**Threat model**: this requires the attacker to already have write access to `~/cas_upload`. A more precise version of that premise turns out to matter a lot for the fix (see below): assume the attacker can create/replace **files** directly inside `cas_upload`, but does **not** control the `cas_upload` directory entry itself (that would require write access to `$HOME`, a strictly larger foothold — see "Out of scope").
+**Threat model**: the attacker can create/replace entries inside `cas_upload` (that's the feature), and the MCP server opens paths there on their behalf.
 
-### Design history: two fixes that looked sufficient and weren't
+### Why patching this is the wrong shape
 
-Getting to the final proposal took three iterations, each closing a gap the last one missed. Recorded here so a future implementer doesn't re-walk the same path.
+Several rounds of hardening were tried on this branch, each closing a gap the last one missed — the full analysis is in the PR discussion (#1224); condensed here:
 
-**Attempt 1 — reject a symlinked leaf, allow nested directories.** Check the uploaded file itself (`lstat`, or open with `O_NOFOLLOW`) and reject if it's a symlink; otherwise allow any path under `cas_upload`, including subdirectories. This misses a symlinked **directory** earlier in the path:
+1. **Reject a symlinked leaf** (`lstat` / `O_NOFOLLOW` on the final component) — misses a symlinked *directory* earlier in the path (`cas_upload/x -> /etc`, then read `cas_upload/x/passwd`, whose leaf is a real file). `O_NOFOLLOW` per POSIX only ever inspects the *trailing* component.
+2. **`realpath`-based canonical containment** — closes the directory case, but streaming re-opens the path per chunk, so a symlink swapped in *after* the check (into a directory writable by the same caller) is followed on the next read: a TOCTOU race.
+3. **`realpath` + `O_NOFOLLOW` on every read** — still loses to an *intermediate-directory* swap, because `O_NOFOLLOW` never inspects non-trailing components.
 
-```sh
-ln -s /etc ~/cas_upload/x
-# cas_add { content: "$HOME/cas_upload/x/passwd", type: "url" }
-```
-
-The string prefix/`..` check passes. `x` is a symlink but is *not* the trailing path component, and per POSIX `open(2)`, `O_NOFOLLOW` only blocks the *final* component from being a symlink — every earlier component is still resolved normally. The kernel follows `x` into `/etc` while resolving the rest of the path; `passwd` at that location is a genuine regular file, so the open succeeds and `/etc/passwd`'s contents are read and stored.
-
-**Attempt 2 — `realpath`-based canonical containment, then a normal read.** Resolve the full input path with `realpath`, verify the resolved form is still under `cas_upload`, then stream from the resolved path. This closes the directory-symlink case above (`realpath` walks every component, not just the last one). But it opens a new gap: streaming reads the file a chunk at a time, and each chunk does its own fresh `open()` by path. Between the `realpath` check and any given chunk's open — and `cas_upload` is, by assumption, writable by the same caller this validates against — the file at the validated path can be replaced. A plain open re-resolves the path from scratch and follows whatever is there *now*, symlink or not. Making the read use `O_NOFOLLOW` looked like the fix for exactly this (reject if the thing being opened right now is a symlink) — but:
-
-**Attempt 3 — `realpath` containment + `O_NOFOLLOW` on the read.** Same as attempt 2, except every chunk's open uses `O_NOFOLLOW`. This closes the case where the attacker swaps the *validated file itself* for a symlink. It does **not** close the case where the attacker swaps an *intermediate directory* in the validated path (the same `x` from attempt 1's example) between the `realpath` check and the read: `O_NOFOLLOW` never inspects `x`, because `x` is never the trailing component of the open — only `passwd` is, and `passwd` at the swapped location is (again) a genuine regular file. So `O_NOFOLLOW`, however it's wired in, only ever defends the trailing component; a validated path with more than one segment under `cas_upload` always leaves an un-defended earlier segment open to a race, no matter how the read is opened.
-
-The general, fully airtight fix for that class of race — pin each directory component to an already-open, symlink-checked file descriptor as you walk down (`openat()` + `O_NOFOLLOW` per component, or Linux's `openat2()` with `RESOLVE_NO_SYMLINKS`) — isn't reachable from Node.js (or Bun/Deno) without a native addon or raw syscalls, which is out of step with this project's portable-pure-TS runtime story.
+The only fully airtight fix for the race class is per-component fd pinning (`openat()` + `O_NOFOLLOW` per segment, or Linux `openat2()` with `RESOLVE_NO_SYMLINKS`), which isn't reachable from Node/Bun/Deno without a native addon — off the table for this project. A pure-TS alternative (ban nested paths so the validated path is always one segment, making `O_NOFOLLOW` on the sole trailing component atomic) works, but needs care around `\` on Windows, still special-cases `readBytes`/`readFile` to open with `O_NOFOLLOW`, and leaves a genuinely awkward primitive in place: *the server opens a local path named by an untrusted caller.* Every one of these fixes is scaffolding around that one questionable capability.
 
 ### Proposal
 
-Instead of policing an arbitrarily nested tree, remove the nesting: **`cas_upload` may only contain files directly — no subdirectories.**
+**Remove `type:'url'` from the MCP `cas_add` tool entirely.** Keep `type:'text'` and `type:'base64'`. The whole vulnerability class — leaf symlinks, directory symlinks, swap races, `\`-vs-`/` separators, and the "what if the server runs with more privilege than the caller" escalation concern — becomes *unaskable* once the server never opens a caller-named local path. No flat-namespace rule, no `O_NOFOLLOW`, no `realpath`, no per-component walking.
 
-1. Reject any `cas_add` `type:'url'` path whose remainder after `${casUploadDir}/` contains another path separator. A validated path is therefore always exactly `${casUploadDir}/<name>`, one segment, no exceptions.
-2. Make `O_NOFOLLOW` the **default** (only) behavior of `readBytes` (and `readFile`, for consistency) — not a parallel opt-in effect.
+Nothing legitimate is stranded, because the clients split cleanly:
 
-Why this closes the whole class, not just the cases found so far: with nesting banned, `<name>` is the *only* thing an attacker can ever turn into a symlink, and it is always the trailing component of the single `open()` call that reads it. `O_NOFOLLOW` rejecting a symlink at the trailing component is a guarantee the kernel makes atomically as part of that one syscall — there is no separate "check, then read" step to race, because the trailing-component-is-a-symlink test *is* the open. No `realpath` call is needed for the security property at all; the fix is two cheap checks (a string check, plus a flag on `open`), not a filesystem walk.
+- **Clients that can write files** (agents with shell/file tools — the *only* clients that could ever stage something in `cas_upload`): small content already goes through `type:'text'`/`base64`; large files go through the **CLI** (`cas add <path>`), a local tool the user runs directly, where following a symlink to a file the invoking user chose is ordinary `cat`/`cp` behavior, not a sandbox escape. The trust boundary is completely different there — the person running the CLI *is* the user, not a sandboxed model.
+- **Clients that can't touch the filesystem**: `type:'url'` was never usable by them (they can't stage a file), so they lose nothing.
 
-**"Path separator" must include `\`, not just `/`.** This codebase normalizes paths to POSIX form (`toPosix` in `fs/effects/node/module.ts`, applied to `os.homedir()`), but that normalization only ever runs on `home` — the attacker-controlled part is `content`, as submitted by the caller, unnormalized. On Windows, Node's `fs` APIs accept `\` as a path separator exactly as they accept `/`. So `${casUploadDir}/x\passwd` has a remainder (`x\passwd`) containing no `/`, and a check that only looks for `/` would wrongly treat it as one segment — while the OS still resolves it as two (`x`, then `passwd`), reintroducing exactly the intermediate-directory-symlink case (attempt 1) if `x` is a symlink. The check must reject `content` outright if it contains a `\` anywhere (simplest: this codebase has no legitimate use for a literal backslash in a path), not only search for `/` in the remainder.
+### Future: remote-URL upload
 
-### Trade-offs / out of scope
+If MCP clients later need to store large blobs without CLI access, add a `type` that fetches a **remote** `http(s)://…` URL server-side. That has no local-path/symlink surface by construction — the server pulls bytes over the network, never opens a local file by a caller-supplied name — so it doesn't reintroduce this issue. Out of scope here; noted so the removal isn't read as "large-file MCP upload is impossible forever."
 
-- **Removes existing behavior**: uploading from a subdirectory of `cas_upload` is currently supported (see `addUrlFromSubdirectorySucceeds` in `fs/cas/mcp/proof.f.ts`). Callers will need to write directly into `cas_upload` with a single-segment name. This is a deliberate trade for a design that's provably race-free instead of one more patch that might still have a gap.
-- **`cas_upload` itself being a symlink is out of scope, and the design below does *not* fail closed for it.** `cas_upload` is the second-to-last component of `${casUploadDir}/<name>` — never the trailing one — so `O_NOFOLLOW` on the read never inspects it, and there is no `realpath`/containment check on `casUploadDir` in this design. If `$HOME/cas_upload` is a symlink (e.g. to `/etc`), the kernel follows it transparently while resolving `${casUploadDir}/<name>`, and `cas_add` reads and stores whatever `<name>` resolves to on the other side. This is a deliberate omission, not an oversight the implementation should silently paper over — implementers should keep this line in and not add a false sense of containment by half-checking it.
+### Trade-offs
 
-  It's left this way because closing it buys nothing: replacing the `cas_upload` *entry* itself (as opposed to writing files inside it) requires write access to `$HOME`, a strictly larger foothold than the stated threat model. An attacker who already has that access doesn't need the symlink trick at all — they can simply copy any file they can read (`/etc/passwd`, `~/.ssh/id_rsa`, ...) directly into `cas_upload` as a regular file and upload it through the normal, fully-permitted path. The symlink indirection adds no capability a straightforward `cp` doesn't already give them, so defending against it here wouldn't reduce their reach. (This is distinct from `$HOME`/`cas_upload` merely *being* a symlink for unrelated legitimate reasons — e.g. a chroot/NixOS profile — which is a compatibility question, not an escape; not handling it just means those uploads are read through the symlink rather than rejected, matching normal filesystem behavior everywhere else in the codebase.)
+- **MCP-only clients temporarily lose >128 KiB storage.** Inline `text`/`base64` caps at one `Vec` (128 KiB); `type:'url'` was the only MCP route past that. Until remote-URL lands, an MCP-only workflow with no CLI access can't store a larger blob. This is judged acceptable because the clients that used `type:'url'` are exactly the file-writing agents that *do* have CLI access (they had to write into `cas_upload` somehow).
+- **Large-file / streaming-upload work becomes CLI-only.** The move-hash-move pipeline (`casUpload`, streaming `readBytes`) stays — the CLI still needs it — it just no longer has an MCP caller. See knock-on scope below.
+
+### Knock-on scope (other issues to reconcile)
+
+- **[i66K-cas-cli-mcp-shared-upload](todo.md)** directly proposes the *opposite*: unify CLI+MCP upload and add a `cas_upload` MCP tool. Its MCP half is mooted by this removal — update or close it so the two don't contradict. The CLI-side extraction it describes may still be worthwhile on its own.
+- **[i66J-cas-upload-dir-command](todo.md)** (batch `cas_upload_dir` MCP tool) assumes an MCP upload path exists — becomes moot or CLI-only.
+- **[i66K-cas-upload-reject-symlinks](todo.md)** still applies to the **CLI** `cas upload` pipeline (which moves a staged file), independent of this change — keep it.
+- `fs/cas/mcp/README.md` documents `type:'url'` extensively — must be updated.
 
 ### Tasks
 
-- [ ] Reject any `cas_add` `type:'url'` path whose remainder after `${casUploadDir}/` contains another `/` **or any `\`** (no nested paths, on any platform — see "must include `\`" above)
-- [ ] Change `readBytes` (and `readFile`, for consistency) to always open with `O_NOFOLLOW` — no follow-by-default variant, no parallel opt-in effect
-- [ ] Remove the subdirectory-upload support this supersedes, and update/replace its proof test (`addUrlFromSubdirectorySucceeds` in `fs/cas/mcp/proof.f.ts`) with a nested-path-is-rejected test
-- [ ] Add tests for:
-  - a symlink placed directly in `cas_upload` (the original scenario) — rejected
-  - a nested path (`cas_upload/sub/file`) — rejected outright by the flat-namespace check, whether or not `sub` exists or is a symlink
-  - a path using `\` instead of `/` to nest (`cas_upload/sub\file` or `cas_upload\sub\file`) — rejected the same way, not accepted as a single segment
-  - a plain file directly in `cas_upload` — still succeeds
-- [ ] Update `fs/cas/mcp/README.md` to document the flat-namespace restriction and the `O_NOFOLLOW` default
-- [ ] If a future caller genuinely needs to follow a symlink at a path it chose directly (e.g. the CLI's `cas add <path>`, run by a trusted local user — unlike `cas_add` `type:'url'`, which is driven by a sandboxed/untrusted MCP client), introduce an explicit opt-in (e.g. `readBytesFollow`) at that point. Don't build it preemptively — YAGNI until a concrete need shows up.
+- [ ] Drop `'url'` from `casAddArgs.type` in `fs/cas/mcp/module.f.ts` (leaves `or('text', 'base64', undefined)`)
+- [ ] Remove the `type === 'url'` branch from the `cas_add` handler, plus now-unused imports/plumbing it pulled in (`casAddFile`, `rm`, the `Rm` op in the tool's effect type, `casUploadDir`)
+- [ ] Update the `cas_add` tool description string (drop the "use type:url for large content" guidance; point large-content users at the CLI instead)
+- [ ] Remove the `type:'url'` proof tests in `fs/cas/mcp/proof.f.ts` (`addUrl*`, `getMetaLargeMultiChunk*`, and the large-blob paths that stage via `type:'url'`); keep the `text`/`base64` coverage
+- [ ] Update `fs/cas/mcp/README.md`: remove the `type:'url'` row/section, state large files go through the CLI, and note remote-URL as a possible future addition
+- [ ] Reconcile [i66K-cas-cli-mcp-shared-upload](todo.md) and [i66J-cas-upload-dir-command](todo.md) with this removal (update scope to CLI-only, or close)
 
 ### Related
 
-- [i66J-normalize-home-paths](todo.md) — defense-in-depth path normalization (will subsume this issue)
-- [i66K-cas-upload-reject-symlinks](todo.md) — narrower `lstat`-before-`rename` proposal for a different (non-streaming) upload pipeline shape; this issue's flat-namespace + `O_NOFOLLOW`-by-default covers the same ground for the pipeline that actually exists today
+- [i66K-cas-cli-mcp-shared-upload](todo.md) — proposed the opposite (unify + add `cas_upload` MCP tool); MCP half now moot
+- [i66J-cas-upload-dir-command](todo.md) — batch MCP upload tool; moot or CLI-only
+- [i66K-cas-upload-reject-symlinks](todo.md) — still relevant to the CLI upload pipeline
+- [i66J-normalize-home-paths](todo.md) — string-based path normalization; no longer needed for the MCP path once `type:'url'` is gone
