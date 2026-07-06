@@ -112,3 +112,8 @@ consumers first; the writers follow only if the shape stays clean.
   abstraction; `foldStream` is the consumer-side generalization.
 - [allreduce-combinator](./allreduce-combinator.md) — sibling combinator for
   parallel effects.
+- [step-adapters](./step-adapters.md) — the step-adapter helper shape; this
+  combinator's per-chunk step is a Kleisli function of the same shape.
+- [write-closed-helpers](../../cas/todo/write-closed-helpers.md) — hoists
+  `fileCas.write`'s remaining nested helpers; its loop conversion depends on
+  this issue.
