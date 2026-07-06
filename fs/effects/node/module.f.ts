@@ -141,45 +141,12 @@ export type Rename = readonly['rename', (src: string, dst: string) => IoResult<v
 export const rename: Func<Rename> =
     do_('rename')
 
-// realpath
-
-/**
- * Resolves `path` to its canonical absolute form — following symlinks and
- * collapsing `.`/`..` — the way `fs.realpath` does. Unlike a string-only
- * prefix check, the result reflects where the filesystem actually points,
- * so a symlink planted inside an otherwise-approved directory cannot be used
- * to read a file outside it: validate containment against this result,
- * not the caller-supplied path.
- */
-export type Realpath = readonly['realpath', (path: string) => IoResult<string>]
-
-export const realpath: Func<Realpath> =
-    do_('realpath')
-
 // readBytes
 
 export type ReadBytes = readonly['readBytes', (path: string, offset: number, size: number) => IoResult<Vec>]
 
 export const readBytes: Func<ReadBytes> =
     do_('readBytes')
-
-// readBytesNoFollow
-
-/**
- * Like {@link readBytes}, but opens `path` with `O_NOFOLLOW`: fails instead of
- * following a symlink at the final path component. For a path whose
- * containment was validated against its {@link realpath}'d form (e.g. an
- * untrusted upload path), that validation is only as good as the file the
- * read actually opens — a plain {@link readBytes} re-resolves the path fresh
- * on every call, so a symlink swapped in after validation (and the store is
- * writable by the caller) would be followed silently. `O_NOFOLLOW` closes
- * that window: every chunk's open rejects a symlink rather than following
- * it, not just the first.
- */
-export type ReadBytesNoFollow = readonly['readBytesNoFollow', (path: string, offset: number, size: number) => IoResult<Vec>]
-
-export const readBytesNoFollow: Func<ReadBytesNoFollow> =
-    do_('readBytesNoFollow')
 
 // randomInt
 
@@ -282,7 +249,7 @@ export const stat: Func<Stat> =
 
 // Fs
 
-export type Fs = Mkdir | ReadFile | ReadBytes | ReadBytesNoFollow | Readdir | WriteFile | Rm | Rename | Realpath | Exec | Access | CreateExclusive | WriteBytes | Stat
+export type Fs = Mkdir | ReadFile | ReadBytes | Readdir | WriteFile | Rm | Rename | Exec | Access | CreateExclusive | WriteBytes | Stat
 
 // Server
 

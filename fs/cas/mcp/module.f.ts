@@ -26,8 +26,6 @@
  * - `'url'`: `content` is a filesystem path within `$HOME/cas_upload/`; the server
  *   moves the file via the streaming move-hash-move pipeline (no size limit).
  *   Paths outside `$HOME/cas_upload/` or containing `..` are rejected for security.
- *   The canonical real path (symlinks resolved) is also checked, so a symlink
- *   planted inside `cas_upload` cannot be used to read a file outside it.
  *
  * ## `cas_get` output
  *
@@ -90,8 +88,7 @@ import { tryUtf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../mime/module.f.ts'
 import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, vec, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
-import { realpath, rm, type IoResult, type Read, type Realpath, type ReadBytesNoFollow, type Rm, type Write } from '../../effects/node/module.f.ts'
-import { isProperPrefix, parse } from '../../path/module.f.ts'
+import { rm, type IoResult, type Read, type Rm, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
@@ -99,7 +96,7 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { casAddFileNoFollow, fileCas, type FileCasOperation } from '../module.f.ts'
+import { casAddFile, fileCas, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
@@ -162,7 +159,7 @@ type Meta = {
 
 /** Registry of all CAS tools. */
 const casToolRegistry =
-(home: string): readonly ToolEntry<FileCasOperation|Rm|Realpath|ReadBytesNoFollow>[] => {
+(home: string): readonly ToolEntry<FileCasOperation|Rm>[] => {
     const c = fileCas(sha256)(home)
     const casUploadDir = `${home}/cas_upload`
     return [
@@ -170,51 +167,17 @@ const casToolRegistry =
         'cas_add',
         'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content (text/base64) is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content use type:"url" to stream a file from $HOME/cas_upload/ (no size limit).',
         casAddArgs,
-        ({ type, content }): Effect<FileCasOperation | Rm | Realpath | ReadBytesNoFollow, ToolsCallResult> => {
+        ({ type, content }): Effect<FileCasOperation | Rm, ToolsCallResult> => {
             // type:'url' — stream the file into cas, then delete the source on success
             if (type === 'url') {
                 if (!content.startsWith(`${casUploadDir}/`) || content.includes('..')) {
                     return pure(errorResult(`cas_add type:url paths must be within ${casUploadDir}/ — got: ${content}`))
                 }
-                // The prefix/`..` check above is a string check on the caller-supplied
-                // path — it does not see through a symlink planted inside casUploadDir
-                // (e.g. a symlink to /etc/passwd). Resolve the canonical real path and
-                // re-check containment against *that*, so a symlink cannot smuggle a
-                // read outside the approved directory.
-                //
-                // Both sides of the comparison must be canonical: if `home` (or any
-                // ancestor of casUploadDir) is itself a symlink, the resolved content
-                // path carries the *physical* prefix while the literal casUploadDir
-                // string would not — comparing canonical-to-literal would reject
-                // legitimate uploads in that environment.
-                return realpath(casUploadDir).step(rootRp => {
-                    if (rootRp[0] === 'error') {
-                        return pure(errorResult(`cas_add type:url paths must be within ${casUploadDir}/ — got: ${content}`))
-                    }
-                    return realpath(content).step(rp => {
-                        if (rp[0] === 'error') {
-                            return pure(errorResult(`upload failed: ${rp[1]}`))
-                        }
-                        if (!isProperPrefix(parse(rootRp[1]), parse(rp[1]))) {
-                            return pure(errorResult(`cas_add type:url paths must be within ${casUploadDir}/ — got: ${content}`))
-                        }
-                        // Stream the *resolved* path, not `content`, and use the
-                        // O_NOFOLLOW variant: a plain re-open of `content` would
-                        // re-resolve any symlink in it at that moment, and even
-                        // opening `rp[1]` with a normal open would follow a symlink
-                        // swapped in at that exact path between the check above and
-                        // this read (cas_upload is writable by the same caller this
-                        // validates against). `casAddFileNoFollow` fails instead of
-                        // following such a swap. `rm` still targets `content` — it
-                        // deletes the uploaded artifact itself (which may be the
-                        // symlink), not the resolved target.
-                        return casAddFileNoFollow(c)(rp[1]).step(([t, v]) =>
-                            t === 'error'
-                                ? pure(errorResult(`upload failed: ${v}`))
-                                : rm(content).step(() => pure(okResult(vecToCBase32(v))))
-                        )
-                    })
-                })
+                return casAddFile(c)(content).step(([t, v]) =>
+                    t === 'error'
+                        ? pure(errorResult(`upload failed: ${v}`))
+                        : rm(content).step(() => pure(okResult(vecToCBase32(v))))
+                )
             }
             // type:'text' or 'base64' — resolve content to Vec, store via c.write()
             let x: Vec|null = type === 'base64'
@@ -299,7 +262,7 @@ const okResult = (text: string): ToolsCallResult =>
 /**
  * MCP handlers for `FileCas`.
  */
-export const casMcpHandlers = (home: string): McpHandlers<FileCasOperation | Rm | Realpath | ReadBytesNoFollow> =>
+export const casMcpHandlers = (home: string): McpHandlers<FileCasOperation | Rm> =>
     fromRegistry(casToolRegistry(home))
 
 // ── Session configuration ───────────────────────────────────────────────────────
@@ -323,7 +286,7 @@ export const casConfig: McpConfig = {
  */
 export const casMcpServer = (
     home: string,
-): Effect<Read | Write | MemOp | FileCasOperation | Rm | Realpath | ReadBytesNoFollow, void> =>
+): Effect<Read | Write | MemOp | FileCasOperation | Rm, void> =>
     create(uninitializedState).step(key =>
         stdioTransport(mcpStep(casConfig)(casMcpHandlers(home))(key)))
 

@@ -4,7 +4,7 @@
  * @module
  */
 import { todo } from '../../../asserts/module.f.ts'
-import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.ts'
+import { isProperPrefix, join, parse } from '../../../path/module.f.ts'
 import { utf8ToString } from '../../../text/module.f.ts'
 import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
@@ -34,16 +34,6 @@ export type State = {
     /** Remaining stdin bytes; each `read` pops the first, `null` at EOF. */
     stdin: readonly number[]
     root: Dir
-    /**
-     * Symlinks, keyed by their own normalized absolute path, mapping to the
-     * (possibly relative-looking, always normalized) target path — modeled
-     * separately from `root` since `Dir` has no symlink entity. `realpath`
-     * follows this map (chasing chains) before checking the final path exists
-     * in `root`, letting tests plant a symlink that escapes an approved
-     * directory without threading a symlink case through every `Dir`
-     * operation (`readFile`, `readdir`, `rename`, …).
-     */
-    symlinks: { readonly [path: string]: string }
     internet: {
         readonly[url: string]: Vec
     }
@@ -59,7 +49,6 @@ export const emptyState: State = {
     stderr: '',
     stdin: [],
     root: {},
-    symlinks: {},
     internet: {},
     epochNs: 0,
     memoryNext: 0,
@@ -253,37 +242,6 @@ const rename = (src: string, dst: string) => (state: State): readonly[State, IoR
     return [{ ...state, root: dstRoot }, okVoid]
 }
 
-/** Mirrors Node's `ELOOP`: a symlink chain that never bottoms out. */
-const eloop = error({ code: 'ELOOP' })
-
-/** Bounds symlink-chain following, generously past any chain a test would build. */
-const maxSymlinkDepth = 40
-
-/**
- * Resolves `path` to its canonical form the way `fs.realpath` does: follows
- * `state.symlinks` chains (bounded by {@link maxSymlinkDepth}, mirroring
- * `ELOOP`) to a final path, then confirms that path exists in `root` — a
- * symlink pointing at a missing target fails, same as a plain missing path.
- * `Dir` has no symlink entity of its own (see {@link State.symlinks}), so this
- * is the only operation that resolves them; every other op sees a symlink's
- * *target* path as an ordinary miss unless the target itself is a real entry.
- */
-const realpathOp = (path: string) => (state: State): readonly[State, IoResult<string>] => {
-    let current = normalize(path)
-    for (let i = 0; i < maxSymlinkDepth; i += 1) {
-        // `state.symlinks` keys are matched by normalized form (not raw string
-        // identity), so a key written with a leading `/` still matches the
-        // leading-slash-stripped `current` that every other op here works with.
-        const found = entries(state.symlinks).find(([k]) => normalize(k) === current)
-        if (found === undefined) {
-            const [, exists] = access(current)(state)
-            return [state, exists[0] === 'error' ? exists : ok(current)]
-        }
-        current = normalize(found[1])
-    }
-    return [state, eloop]
-}
-
 const readBytesOp = (path: string, offset: number, size: number) => readOperation((dir, p): IoResult<Vec> => {
     if (p.length !== 1) { return enoent }
     const file = dir[p[0]]
@@ -313,20 +271,6 @@ const readBytesOp = (path: string, offset: number, size: number) => readOperatio
     }
     return ok(result)
 })(path)
-
-/** Mirrors Node's `ELOOP`: `O_NOFOLLOW` hitting a symlink at the final path component. */
-const eloopSymlink = error({ code: 'ELOOP' })
-
-/**
- * Like {@link readBytesOp}, but fails if `path` is a key in `state.symlinks`
- * — the virtual-model equivalent of opening with `O_NOFOLLOW`, since `Dir`
- * itself has no symlink entity to check against (see {@link State.symlinks}).
- */
-const readBytesNoFollowOp = (path: string, offset: number, size: number) => (state: State): readonly[State, IoResult<Vec>] => {
-    const current = normalize(path)
-    const isSymlink = entries(state.symlinks).some(([k]) => normalize(k) === current)
-    return isSymlink ? [state, eloopSymlink] : readBytesOp(path, offset, size)(state)
-}
 
 /** Total byte size of a chunk-list file (each chunk is byte-aligned). */
 const fileSizeBytes = (chunks: readonly Vec[]): number =>
@@ -410,9 +354,7 @@ const map: MemOperationMap<NodeOp, State> = {
     import: import_,
     rm,
     rename,
-    realpath: realpathOp,
     readBytes: readBytesOp,
-    readBytesNoFollow: readBytesNoFollowOp,
     createExclusive,
     writeBytes: writeBytesOp,
     stat: statOp,

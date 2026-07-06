@@ -16,7 +16,6 @@ import {
     now,
     randomInt,
     readBytes,
-    readBytesNoFollow,
     readdir,
     rename,
     rm,
@@ -29,7 +28,6 @@ import {
     type Now,
     type RandomInt,
     type ReadBytes,
-    type ReadBytesNoFollow,
     type Readdir,
     type Rename,
     type Rm,
@@ -247,29 +245,18 @@ const random256: Effect<RandomInt, Vec> =
         randomInt().step(r => pure(msb.concat(acc)(vec(32n)(BigInt(r)))))
     )(empty)([0, 1, 2, 3, 4, 5, 6, 7])
 
-/**
- * Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of
- * `ok` items, reading each chunk via `read`. Shared by {@link streamFile}
- * (follows a symlink at `filePath`, like any other file API) and
- * {@link streamFileNoFollow} (fails instead — see {@link ReadBytesNoFollow}).
- */
-const streamFileWith = <O extends Operation>(read: (path: string, offset: number, size: number) => Effect<O, IoResult<Vec>>) =>
-    (filePath: string): List<O, IoResult<Vec>> => {
-        const loop = (offset: number): List<O, IoResult<Vec>> =>
-            read(filePath, offset, chunkBytes).step((result): List<O, IoResult<Vec>> => {
-                if (result[0] === 'error') { return nonEmpty<O, IoResult<Vec>>(result, elEmpty()) }
-                const chunk = result[1]
-                return length(chunk) === 0n
-                    ? elEmpty()
-                    : nonEmpty(ok(chunk), loop(offset + chunkBytes))
-            })
-        return loop(0)
-    }
-
-const streamFile = streamFileWith<ReadBytes>(readBytes)
-
-/** See {@link casAddFileNoFollow}. */
-const streamFileNoFollow = streamFileWith<ReadBytesNoFollow>(readBytesNoFollow)
+/** Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of `ok` items. */
+const streamFile = (filePath: string): List<ReadBytes, IoResult<Vec>> => {
+    const loop = (offset: number): List<ReadBytes, IoResult<Vec>> =>
+        readBytes(filePath, offset, chunkBytes).step((result): List<ReadBytes, IoResult<Vec>> => {
+            if (result[0] === 'error') { return nonEmpty<ReadBytes, IoResult<Vec>>(result, elEmpty()) }
+            const chunk = result[1]
+            return length(chunk) === 0n
+                ? elEmpty()
+                : nonEmpty(ok(chunk), loop(offset + chunkBytes))
+        })
+    return loop(0)
+}
 
 /**
  * Streams the file at `path` through `cas.write`, returning the content hash.
@@ -281,20 +268,6 @@ export const casAddFile = <O extends Operation>(cas: Cas<O>) => (path: string): 
     // ≤ ListEffect<O,T> for generic O (recursive type), but the cast is sound: every concrete
     // caller passes a Cas<O> where ReadBytes ⊆ O (e.g. FileCasOperation).
     cas.write(streamFile(path))
-
-/**
- * Like {@link casAddFile}, but reads via {@link ReadBytesNoFollow} instead of
- * plain {@link ReadBytes}. For a path whose containment was already validated
- * against its resolved (`realpath`'d) form — the MCP `cas_add` `type:'url'`
- * upload, where the store directory may be writable by the same caller —
- * `casAddFile` re-opens `path` fresh per chunk and would silently follow a
- * symlink planted there after that validation. `casAddFileNoFollow` fails
- * instead, closing that window without changing behavior for callers (the
- * CLI `cas add <path>`) that have a legitimate reason to follow a symlink at
- * a path the invoking user chose directly.
- */
-export const casAddFileNoFollow = <O extends Operation>(cas: Cas<O>) => (path: string): Effect<O | ReadBytesNoFollow, IoResult<Vec>> =>
-    cas.write(streamFileNoFollow(path))
 
 /**
  * Upload pipeline: streams `fileName` from `~/cas_upload/` through `casAddFile`,

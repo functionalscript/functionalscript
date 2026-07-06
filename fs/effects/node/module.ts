@@ -43,7 +43,7 @@ import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { asyncTryCatch } from '../../types/result/module.ts'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
-import { maxLengthBytes, type Vec } from '../../types/bit_vec/module.f.ts'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.ts'
 
 type Server = {
     readonly listen: (port: number) => void
@@ -82,7 +82,7 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
     return result
 }
 
-const { mkdir, open, readFile, readdir, rename, writeFile, rm, access, stat, realpath } = fs.promises
+const { mkdir, open, readFile, readdir, rename, writeFile, rm, access, stat } = fs.promises
 
 const { exec } = childProcess
 
@@ -189,30 +189,6 @@ const readStdinByte = async (): Promise<number | null> => {
     }
 }
 
-/**
- * Shared body of `readBytes`/`readBytesNoFollow`: opens `path` with `flags`
- * (`'r'` follows a symlink at the final component like every other Node API;
- * `O_RDONLY | O_NOFOLLOW` fails instead — see {@link ReadBytesNoFollow}) and
- * reads one `<=maxFileSizeBytes` chunk at `offset`.
- */
-const readChunk = (path: string, offset: number, size: number, flags: string | number): Promise<IoResult<Vec>> =>
-    asyncTryCatch(async () => {
-        if (offset < 0) {
-            throw new Error(`Offset ${offset} is negative`)
-        }
-        if (size > maxFileSizeBytes) {
-            throw new Error(`Chunk size ${size} exceeds maximum allowed size of ${maxFileSizeBytes} bytes`)
-        }
-        const fh = await open(path, flags)
-        try {
-            const buffer = Buffer.alloc(size)
-            const { bytesRead } = await fh.read(buffer, 0, size, offset)
-            return toVec(buffer.subarray(0, bytesRead))
-        } finally {
-            await fh.close()
-        }
-    })
-
 const randomMax = Number(1n << 32n)
 
 const { randomInt } = crypto
@@ -247,10 +223,22 @@ const runNodeEffect: EffectToPromise = asyncRun({
     writeFile: (path, data) => asyncTryCatch(() => writeFile(path, fromVec(data))),
     rm: path => asyncTryCatch(() => rm(path)),
     rename: (src, dst) => asyncTryCatch(() => rename(src, dst)),
-    realpath: path => asyncTryCatch(async () => toPosix(await realpath(path))),
-    readBytes: (path, offset, size) => readChunk(path, offset, size, 'r'),
-    readBytesNoFollow: (path, offset, size) =>
-        readChunk(path, offset, size, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW),
+    readBytes: (path, offset, size) => asyncTryCatch(async () => {
+        if (offset < 0) {
+            throw new Error(`Offset ${offset} is negative`)
+        }
+        if (size > maxFileSizeBytes) {
+            throw new Error(`Chunk size ${size} exceeds maximum allowed size of ${maxFileSizeBytes} bytes`)
+        }
+        const fh = await open(path, 'r')
+        try {
+            const buffer = Buffer.alloc(size)
+            const { bytesRead } = await fh.read(buffer, 0, size, offset)
+            return toVec(buffer.subarray(0, bytesRead))
+        } finally {
+            await fh.close()
+        }
+    }),
     randomInt: async () => randomInt(randomMax),
     access: path => asyncTryCatch(() => access(path)),
     createExclusive: path => asyncTryCatch(async () => {

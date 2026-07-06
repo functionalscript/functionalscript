@@ -113,18 +113,16 @@ const feed = <O extends Operation>(
 
 // Runs a session backed by the virtual node runner (for cas_upload which uses
 // Rename/ReadBytes/RandomInt/Mkdir). Uses fileKvStore so upload and get share
-// the same filesystem-backed CAS. `symlinks` seeds `State.symlinks` (see
-// `fs/effects/node/virtual/module.f.ts`) so a test can plant a symlink whose
-// target is resolved by `realpath` without modeling it in `root`.
+// the same filesystem-backed CAS.
 const runSessionVirtual =
-    (root: Dir, home = '/home/user', symlinks: { readonly [path: string]: string } = {}) =>
+    (root: Dir, home = '/home/user') =>
     (msgs: readonly unknown[]): readonly unknown[] => {
         type UploadOp = FileCasOperation | Rename | RandomInt | ReadBytes
         const effect = create(uninitializedState as McpSessionState).step(sessionKey => {
             const step = mcpStep(casConfig)(casMcpHandlers(home))(sessionKey)
             return feed(step)(msgs)
         })
-        return virtual({ ...emptyState, root, symlinks })(effect)[1]
+        return virtual({ ...emptyState, root })(effect)[1]
     }
 
 // ── Messages ────────────────────────────────────────────────────────────────────
@@ -755,53 +753,6 @@ export const proof = {
         const [resp] = session(call(2, 'cas_add', { content: '/home/user/cas_upload/../../etc/passwd', type: 'url' }))
         assert(resultOf(resp).isError === true)
         assert(textOf(resp).includes('/home/user/cas_upload/'))
-    },
-
-    // The string prefix/`..` check alone passes for a symlink planted inside
-    // cas_upload whose *target* escapes it — e.g.
-    // /home/user/cas_upload/passwd-link -> /home/user/secret.txt. `realpath`
-    // resolves the symlink and the containment re-check against the canonical
-    // path must reject it, so the secret is never read.
-    addUrlSymlinkEscapingUploadDirIsRejected: () => {
-        const root: Dir = {
-            'home': { 'user': {
-                'cas_upload': {},
-                'secret.txt': [utf8('top secret')],
-            } },
-        }
-        const symlinks = { '/home/user/cas_upload/passwd-link': '/home/user/secret.txt' }
-        const [resp] = runSessionVirtual(root, '/home/user', symlinks)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/passwd-link', type: 'url' }),
-        ]).slice(2) as readonly unknown[]
-        assert(resultOf(resp).isError === true)
-        assert(textOf(resp).includes('/home/user/cas_upload/'))
-    },
-
-    // A symlink whose target stays within cas_upload clears the containment
-    // check and is streamed from its *resolved* path (real.txt), even though
-    // the virtual filesystem model has no symlink entity for alias.txt itself.
-    addUrlSymlinkStayingWithinUploadDirSucceeds: () => {
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'real.txt': [utf8('ok')] } } } }
-        const symlinks = { '/home/user/cas_upload/alias.txt': '/home/user/cas_upload/real.txt' }
-        const [resp] = runSessionVirtual(root, '/home/user', symlinks)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/alias.txt', type: 'url' }),
-        ]).slice(2) as readonly unknown[]
-        assert(!resultOf(resp).isError)
-        assert(textOf(resp).length > 0)
-    },
-
-    // A symlink whose target does not exist fails like any other missing
-    // upload path, before the security check would even matter.
-    addUrlSymlinkToMissingTargetIsError: () => {
-        const root: Dir = { 'home': { 'user': { 'cas_upload': {} } } }
-        const symlinks = { '/home/user/cas_upload/dangling': '/home/user/cas_upload/nowhere' }
-        const [resp] = runSessionVirtual(root, '/home/user', symlinks)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/dangling', type: 'url' }),
-        ]).slice(2) as readonly unknown[]
-        assert(resultOf(resp).isError === true)
     },
 
     // cas_get with content:true on octet-stream (no magic bytes, not UTF-8) returns inline base64.
