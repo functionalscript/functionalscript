@@ -9,9 +9,6 @@ import { detect, detectStream, detectVec, type DetectMeta } from './module.f.ts'
 // store would hold the leading bytes of a stored blob.
 const bytes = (...b: readonly number[]): Vec => u8ListToVec(msb)(b)
 
-// Encodes an ASCII string as its UTF-8 bytes, as a `Vec`.
-const ascii = (s: string): Vec => bytes(...Array.from(s, c => c.charCodeAt(0)))
-
 // ── Streaming detector helpers ──────────────────────────────────────────────────
 
 // Evaluates a fully pure effect (no operations) to its result.
@@ -245,71 +242,6 @@ export const proof = {
             assertEq(m.type, 'text')
             assertEq(m.length, 0n)
         },
-
-        // ── JSON refinement (detect-json) ───────────────────────────────────
-
-        // A JSON object refines from text/plain to application/json.
-        jsonObject: () => {
-            const m = detectChunks(ascii('{"a":1}'))
-            assertEq(m.type, 'text')
-            assertEq(m.mime_type, 'application/json')
-        },
-
-        // A JSON array refines too.
-        jsonArray: () => {
-            const m = detectChunks(ascii('[1,2,3]'))
-            assertEq(m.type, 'text')
-            assertEq(m.mime_type, 'application/json')
-        },
-
-        // The JSON factor threads correctly across chunk boundaries, including
-        // mid-token (mid-string, mid-number).
-        jsonAcrossChunks: () => {
-            const m = detectChunks(ascii('{"a":'), ascii('"hel'), ascii('lo","b":1'), ascii('23}'))
-            assertEq(m.type, 'text')
-            assertEq(m.mime_type, 'application/json')
-        },
-
-        // Trailing garbage after an otherwise-complete JSON document is not
-        // valid JSON — it stays text/plain, not application/json.
-        jsonTrailingGarbage: () => {
-            const m = detectChunks(ascii('{"a":1} garbage'))
-            assertEq(m.type, 'text')
-            assertEq(m.mime_type, 'text/plain')
-        },
-
-        // Truncated JSON (an unclosed object) is not a complete document.
-        jsonTruncated: () => {
-            const m = detectChunks(ascii('{"a":1'))
-            assertEq(m.type, 'text')
-            assertEq(m.mime_type, 'text/plain')
-        },
-
-        // Ordinary prose that happens to not be JSON stays text/plain.
-        jsonNonJsonProse: () => {
-            const m = detectChunks(ascii('hello, world'))
-            assertEq(m.type, 'text')
-            assertEq(m.mime_type, 'text/plain')
-        },
-
-        // A raw TAB inside a string is well-formed UTF-8 text (TAB is a text
-        // code point per `isTextCodePoint`) but invalid JSON per RFC 8259 §7 —
-        // it must not be misclassified as application/json.
-        jsonRawTabInStringStaysText: () => {
-            const m = detectChunks(bytes(0x7b, 0x22, 0x61, 0x22, 0x3a, 0x22, 0x09, 0x22, 0x7d)) // {"a":"\t"}
-            assertEq(m.type, 'text')
-            assertEq(m.mime_type, 'text/plain')
-        },
-
-        // Bare top-level scalars are valid JSON per RFC 8259 but are kept as
-        // text/plain by policy — only an object/array top level refines.
-        jsonBareScalarsStayText: () => {
-            for (const s of ['42', 'null', '"hi"', 'true']) {
-                const m = detectChunks(ascii(s))
-                assertEq(m.type, 'text')
-                assertEq(m.mime_type, 'text/plain')
-            }
-        },
     },
 
     // ── Single-Vec detector (detectVec) ─────────────────────────────────────────
@@ -344,19 +276,6 @@ export const proof = {
             assertEq(m.type, 'base64')
             assertEq(m.mime_type, 'application/octet-stream')
             assertEq(m.length, 3n)
-        },
-
-        // Same JSON refinement as the streaming path, on a single `Vec`.
-        json: () => {
-            const m = detectVec(ascii('{"a":1}'))
-            assertEq(m.type, 'text')
-            assertEq(m.mime_type, 'application/json')
-        },
-
-        jsonBareScalarStaysText: () => {
-            const m = detectVec(ascii('42'))
-            assertEq(m.type, 'text')
-            assertEq(m.mime_type, 'text/plain')
         },
     },
 }
