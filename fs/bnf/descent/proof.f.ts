@@ -1,9 +1,9 @@
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
-import { commaJoin0Plus, fullRange, none, option, range, repeat0Plus, set } from '../module.f.ts'
+import { commaJoin0Plus, fullRange, option, range, repeat0Plus, set } from '../module.f.ts'
 import { deterministic } from '../testlib.f.ts'
 import { toData } from '../data/module.f.ts'
-import { createEmptyTagMap, descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult, type AstRuleMeta } from './module.f.ts'
+import { createEmptyTagMap, descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult } from './module.f.ts'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
 
@@ -18,23 +18,30 @@ const end = {
 } as const
 
 const code = {
-    comment: [`/*`, end, () => code],
+    comment: [`/*`, end],
     commentError: ['/*', repeat0Plus(fullRange)],
-    div: ['/', () => code],
-    mul: ['*', () => code],
-    none,
+    div: '/',
+    mul: '*',
 } as const
 
-const isCodePointMeta = <T>(item: AstRuleMeta<T>|CodePointMeta<T>): item is CodePointMeta<T> =>
-    Array.isArray(item)
-
-// `comment`/`commentError` are tried before `div`/`mul`, so any `/*` prefix is always
-// consumed as a comment. A `div` node's nested `code` match can therefore never be
-// tagged `mul`: that would mean a `/` was immediately followed by a `*` without the
-// comment rules claiming it first.
-const hasDivMulViolation = <T>(ast: AstRuleMeta<T>): boolean =>
-    (ast.tag === 'div' && ast.sequence.some(item => !isCodePointMeta(item) && item.tag === 'mul'))
-    || ast.sequence.some(item => !isCodePointMeta(item) && hasDivMulViolation(item))
+// A tokenizer applies `code` over and over, each call consuming exactly one token
+// (a single '/', a single '*', or a whole comment) starting from where the
+// previous call left off.
+const tokenize = (s: string): readonly string[] => {
+    const m = descentParser(code)
+    const cpm = toArray(map(mapCodePoint)(toArray(stringToCodePointList(s))))
+    const tags: string[] = []
+    let idx = 0
+    while (idx < cpm.length) {
+        const [ast, success, consumed] = m('', cpm.slice(idx))
+        if (!success || consumed === 0) {
+            throw `tokenizer stuck at index ${idx} for ${JSON.stringify(s)}`
+        }
+        tags.push(String(ast.tag))
+        idx += consumed
+    }
+    return tags
+}
 
 export const proof = {
     emptyTags: [
@@ -290,6 +297,8 @@ export const proof = {
     ],
     code: [
         () => {
+            // Each call to the `code` matcher consumes exactly one token: a single
+            // '/', a single '*', or a whole comment.
             const m = descentParser(code)
 
             const expect = (s: string, tag: string, len: number) => {
@@ -301,31 +310,33 @@ export const proof = {
                 }
             }
 
-            expect('', 'none', 0)
             expect('/', 'div', 1)
             expect('*', 'mul', 1)
-            expect('//', 'div', 2)
-            expect('**', 'mul', 2)
-            expect('*/', 'mul', 2)
+            expect('//', 'div', 1)
+            expect('**', 'mul', 1)
+            expect('*/', 'mul', 1)
             expect('/*', 'commentError', 2)
             expect('/*/', 'commentError', 3)
-            expect('**/', 'mul', 3)
+            expect('**/', 'mul', 1)
             expect('/**/', 'comment', 4)
             expect('/*abc*/', 'comment', 7)
             expect('/*a/*b*/', 'comment', 8)
+
+            // there is no empty alternative, so an empty input never matches.
+            const emptyMr = descentParserCpOnly(m, '', [])
+            if (emptyMr[1]) { throw JSON.stringify(emptyMr) }
         },
         () => {
-            // Exhaustively parse every '/'/'*' string up to length 6 and check that
-            // a `div` tag is never immediately followed by a `mul` tag: since
-            // `comment`/`commentError` are tried before `div`/`mul`, any `/*` in the
-            // input must always be claimed by a comment rule, never split into a
-            // `div` followed by a `mul`.
-            const m = descentParser(code)
+            // Tokenizer: apply `code` over and over, each call picking up where the
+            // previous one left off. The main invariant: two consecutive tokens must
+            // never be `div` followed by `mul`, because a '/' immediately followed by
+            // '*' must always be claimed together by `comment`/`commentError`, never
+            // split into separate `div`/`mul` tokens.
             const maxLen = 6
 
             const strings: string[] = []
             const gen = (s: string, depth: number) => {
-                strings.push(s)
+                if (s.length > 0) { strings.push(s) }
                 if (depth === maxLen) { return }
                 gen(s + '/', depth + 1)
                 gen(s + '*', depth + 1)
@@ -333,10 +344,11 @@ export const proof = {
             gen('', 0)
 
             for (const s of strings) {
-                const cp = toArray(stringToCodePointList(s))
-                const mr = descentParserCpOnly(m, '', cp)
-                if (hasDivMulViolation(mr[0])) {
-                    throw `div immediately followed by mul for input ${JSON.stringify(s)}: ${JSON.stringify(mr)}`
+                const tags = tokenize(s)
+                for (let i = 0; i + 1 < tags.length; ++i) {
+                    if (tags[i] === 'div' && tags[i + 1] === 'mul') {
+                        throw `div immediately followed by mul for input ${JSON.stringify(s)}: ${JSON.stringify(tags)}`
+                    }
                 }
             }
         },
