@@ -44,8 +44,19 @@ export const recognizerStep = (s: JsonRecognizerState, cp: number): JsonRecogniz
 export const recognizerAccepts = (s: JsonRecognizerState): boolean   // complete valid document at EOF?
 ```
 
-Reuse the existing grammar rather than writing a fourth JSON parser; drop only
-the accumulation:
+**One grammar → one state machine → two builders.** The architecture is not
+"two implementations kept equivalent by tests": there is a single grammar
+description, it drives a single state machine, and that machine is
+parameterized over a *builder*. `parse` is the machine instantiated with the
+value-building builder; the recognizer is the **same machine** instantiated
+with a no-op builder. Maximize shared code: the recognizer must not
+re-implement any transition the parser already encodes, and `parse` itself
+must be refactored to run on the shared machine — not left as a parallel copy
+next to it. A standalone recognizer that re-derives the grammar is explicitly
+out of scope, even if a test corpus shows it equivalent.
+
+Concretely, reuse the existing grammar rather than writing a fourth JSON
+parser; drop only the accumulation:
 
 - **Payload-free scanning.** Reuse the tokenizer's *transition structure*
   (range-map dispatch, escape / `\uXXXX` / surrogate handling, number-shape DFA)
@@ -72,9 +83,12 @@ the accumulation:
   (factored over a no-op builder, per the payload-free point above) rather than
   re-deriving the check.
 
-The recognizer and the value-building `parse` must share the grammar so they can
-never diverge — the point is one description of "valid JSON", read either into a
-value or into a boolean. Correctness property, scoped to make it actually hold:
+Because the recognizer and the value-building `parse` run on the same state
+machine over the same grammar, they cannot diverge **by construction** — the
+point is one description of "valid JSON", read either into a value or into a
+boolean. The equivalence proof below is then a regression check on the shared
+machine, not the mechanism holding two implementations together. Correctness
+property, scoped to make it actually hold:
 
 - **With the depth cap disabled** (the default), `recognizerAccepts(s)` ⟺
   `parse(...)[0] === 'ok'` for **every** input — both share the shared
@@ -90,8 +104,11 @@ value or into a boolean. Correctness property, scoped to make it actually hold:
 ### Tasks
 
 - [ ] Factor the `fs/js` string/number token ops and the `fs/json` parser fold
-      over their builders so a no-op builder yields payload-free / value-free
-      variants (or add dedicated recognizer ops sharing the transition tables).
+      over their builders so one state machine serves both instantiations — the
+      no-op builder yields the payload-free / value-free recognizer.
+- [ ] Refactor `parse` to run on the shared, builder-parameterized machine (the
+      value-building instantiation), so parser and recognizer use one state
+      machine and one grammar — no parallel copy of the transitions survives.
 - [ ] Implement `recognizerInit` / `recognizerStep` / `recognizerAccepts` with an
       O(depth) bracket stack and an **optional** max-depth cap (default: none);
       enforce RFC 8259 string-control strictness at scan time.
