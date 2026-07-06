@@ -23,6 +23,10 @@ export const proof = {
             assertPure(e, 7)
             if (!evaluated) { throw 'decode must force the thunk' }
         },
+        step: () => {
+            const e = lazy(() => 5).step(v => pure(v * 2))
+            assertPure(e, 10)
+        },
     },
     foldStep: {
         empty: () => {
