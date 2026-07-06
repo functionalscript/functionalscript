@@ -141,6 +141,21 @@ export type Rename = readonly['rename', (src: string, dst: string) => IoResult<v
 export const rename: Func<Rename> =
     do_('rename')
 
+// realpath
+
+/**
+ * Resolves `path` to its canonical absolute form — following symlinks and
+ * collapsing `.`/`..` — the way `fs.realpath` does. Unlike a string-only
+ * prefix check, the result reflects where the filesystem actually points,
+ * so a symlink planted inside an otherwise-approved directory cannot be used
+ * to read a file outside it: validate containment against this result,
+ * not the caller-supplied path.
+ */
+export type Realpath = readonly['realpath', (path: string) => IoResult<string>]
+
+export const realpath: Func<Realpath> =
+    do_('realpath')
+
 // readBytes
 
 export type ReadBytes = readonly['readBytes', (path: string, offset: number, size: number) => IoResult<Vec>]
@@ -249,7 +264,7 @@ export const stat: Func<Stat> =
 
 // Fs
 
-export type Fs = Mkdir | ReadFile | ReadBytes | Readdir | WriteFile | Rm | Rename | Exec | Access | CreateExclusive | WriteBytes | Stat
+export type Fs = Mkdir | ReadFile | ReadBytes | Readdir | WriteFile | Rm | Rename | Realpath | Exec | Access | CreateExclusive | WriteBytes | Stat
 
 // Server
 

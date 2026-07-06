@@ -68,6 +68,14 @@ JSON, prompts) can be stored without any encoding step. Pass `type: 'base64'`
 for pre-encoded binary payloads, or `type: 'url'` to store a file directly from
 the filesystem.
 
+`type: 'url'` paths are validated twice: first the caller-supplied string must
+start with `$HOME/cas_upload/` and contain no `..`, then the path's canonical
+real path (symlinks resolved via `realpath`) is checked against the same
+directory. The second check exists because the first is a string check on the
+path as written — it cannot see that, say, `cas_upload/link` is a symlink to
+`/etc/passwd`. Resolving and re-checking the real path closes that gap: a
+symlink inside `cas_upload` that points outside it is rejected, not followed.
+
 Inline content (`text`/`base64`) resolves into a single `Vec`, which caps at
 `maxLength` bits — **128 KiB**. Content that is malformed or exceeds this limit
 returns `isError` with a descriptive message. To store a larger blob, write it

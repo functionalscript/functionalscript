@@ -82,7 +82,7 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
     return result
 }
 
-const { mkdir, open, readFile, readdir, rename, writeFile, rm, access, stat } = fs.promises
+const { mkdir, open, readFile, readdir, rename, writeFile, rm, access, stat, realpath } = fs.promises
 
 const { exec } = childProcess
 
@@ -223,6 +223,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
     writeFile: (path, data) => asyncTryCatch(() => writeFile(path, fromVec(data))),
     rm: path => asyncTryCatch(() => rm(path)),
     rename: (src, dst) => asyncTryCatch(() => rename(src, dst)),
+    realpath: path => asyncTryCatch(async () => toPosix(await realpath(path))),
     readBytes: (path, offset, size) => asyncTryCatch(async () => {
         if (offset < 0) {
             throw new Error(`Offset ${offset} is negative`)
