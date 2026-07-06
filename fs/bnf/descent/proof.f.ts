@@ -1,9 +1,9 @@
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
-import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.ts'
+import { commaJoin0Plus, fullRange, none, option, range, repeat0Plus, set } from '../module.f.ts'
 import { deterministic } from '../testlib.f.ts'
 import { toData } from '../data/module.f.ts'
-import { createEmptyTagMap, descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult } from './module.f.ts'
+import { createEmptyTagMap, descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult, type AstRuleMeta } from './module.f.ts'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
 
@@ -11,6 +11,30 @@ const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: readonl
     const cpm = toArray(map(mapCodePoint)(cp))
     return m(name, cpm)
 }
+
+const end = {
+    end: '*/',
+    cont: () => [fullRange, end] as const,
+} as const
+
+const code = {
+    comment: [`/*`, end, () => code],
+    commentError: ['/*', repeat0Plus(fullRange)],
+    div: ['/', () => code],
+    mul: ['*', () => code],
+    none,
+} as const
+
+const isCodePointMeta = <T>(item: AstRuleMeta<T>|CodePointMeta<T>): item is CodePointMeta<T> =>
+    Array.isArray(item)
+
+// `comment`/`commentError` are tried before `div`/`mul`, so any `/*` prefix is always
+// consumed as a comment. A `div` node's nested `code` match can therefore never be
+// tagged `mul`: that would mean a `/` was immediately followed by a `*` without the
+// comment rules claiming it first.
+const hasDivMulViolation = <T>(ast: AstRuleMeta<T>): boolean =>
+    (ast.tag === 'div' && ast.sequence.some(item => !isCodePointMeta(item) && item.tag === 'mul'))
+    || ast.sequence.some(item => !isCodePointMeta(item) && hasDivMulViolation(item))
 
 export const proof = {
     emptyTags: [
@@ -262,6 +286,59 @@ export const proof = {
             const mr = m("", [[45, 'minus'], [50, 'two']])
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[{"tag":"minus","sequence":[[45,"minus"]]},{"sequence":[[50,"two"]]}]},true,2]') { throw result }
+        },
+    ],
+    code: [
+        () => {
+            const m = descentParser(code)
+
+            const expect = (s: string, tag: string, len: number) => {
+                const cp = toArray(stringToCodePointList(s))
+                const mr = descentParserCpOnly(m, '', cp)
+                const [ast, success, idx] = mr
+                if (!success || idx !== len || ast.tag !== tag) {
+                    throw JSON.stringify(mr)
+                }
+            }
+
+            expect('', 'none', 0)
+            expect('/', 'div', 1)
+            expect('*', 'mul', 1)
+            expect('//', 'div', 2)
+            expect('**', 'mul', 2)
+            expect('*/', 'mul', 2)
+            expect('/*', 'commentError', 2)
+            expect('/*/', 'commentError', 3)
+            expect('**/', 'mul', 3)
+            expect('/**/', 'comment', 4)
+            expect('/*abc*/', 'comment', 7)
+            expect('/*a/*b*/', 'comment', 8)
+        },
+        () => {
+            // Exhaustively parse every '/'/'*' string up to length 6 and check that
+            // a `div` tag is never immediately followed by a `mul` tag: since
+            // `comment`/`commentError` are tried before `div`/`mul`, any `/*` in the
+            // input must always be claimed by a comment rule, never split into a
+            // `div` followed by a `mul`.
+            const m = descentParser(code)
+            const maxLen = 6
+
+            const strings: string[] = []
+            const gen = (s: string, depth: number) => {
+                strings.push(s)
+                if (depth === maxLen) { return }
+                gen(s + '/', depth + 1)
+                gen(s + '*', depth + 1)
+            }
+            gen('', 0)
+
+            for (const s of strings) {
+                const cp = toArray(stringToCodePointList(s))
+                const mr = descentParserCpOnly(m, '', cp)
+                if (hasDivMulViolation(mr[0])) {
+                    throw `div immediately followed by mul for input ${JSON.stringify(s)}: ${JSON.stringify(mr)}`
+                }
+            }
         },
     ],
 }
