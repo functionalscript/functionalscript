@@ -23,7 +23,7 @@ export const images = {
 
 // Bootstrap package version used by generated smoke tests. Keep this on a
 // published FunctionalScript release; do not tie it to package.json's current
-// in-repo version. A separate maintenance job advances this pin.
+// in-repo version.
 // https://www.npmjs.com/package/functionalscript
 export const functionalscript = '0.35.2' as const
 
