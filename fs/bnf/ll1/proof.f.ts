@@ -1,9 +1,25 @@
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
-import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.ts'
+import { commaJoin0Plus, fullRange, option, range, repeat0Plus, set } from '../module.f.ts'
 import { deterministic } from '../testlib.f.ts'
 import { type RuleSet, toData } from '../data/module.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet } from './module.f.ts'
+
+const comment2 = {
+    div: '/',
+} as const
+
+const comment1 = {
+    star: ['*', comment2],
+    else: [fullRange, () => comment1],
+} as const
+
+const comment = ['*', comment1] as const
+
+const code = {
+    div: ['/', option(comment)],
+    mul: '*',
+} as const
 
 export const proof = {
     dispatch: [
