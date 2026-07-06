@@ -3,9 +3,8 @@
 **Priority:** P4
 **Status:** open
 **Blocked by:** [fold-stream-combinator](../../effects/todo/fold-stream-combinator.md)
-— partially: the chunk-loop task waits for `foldStream` (and, transitively,
-[step-adapters](../../effects/todo/step-adapters.md), which comes first in the
-sequence); the `publish`/`fail` hoisting can proceed independently at any time.
+— partially: the chunk-loop task waits for `foldStream`; the `publish`/`fail`
+hoisting can proceed independently at any time.
 
 ### Problem
 
@@ -64,5 +63,5 @@ by a one-line JSDoc claim, as above. No fragment extraction.
 
 - [fold-stream-combinator](../../effects/todo/fold-stream-combinator.md) —
   covers the chunk loop; this issue covers the remaining nested helpers.
-- [step-adapters](../../effects/todo/step-adapters.md) — `okStep` applies to
-  two steps inside `write` (`createExclusive`, and `casUpload` beside it).
+- `okStep` (`fs/effects/module.f.ts`) already applies to two steps inside
+  `write` (`createExclusive`, and `casUpload` beside it).
