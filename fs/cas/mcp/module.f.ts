@@ -181,18 +181,36 @@ const casToolRegistry =
                 // (e.g. a symlink to /etc/passwd). Resolve the canonical real path and
                 // re-check containment against *that*, so a symlink cannot smuggle a
                 // read outside the approved directory.
-                return realpath(content).step(rp => {
-                    if (rp[0] === 'error') {
-                        return pure(errorResult(`upload failed: ${rp[1]}`))
-                    }
-                    if (!isProperPrefix(parse(casUploadDir), parse(rp[1]))) {
+                //
+                // Both sides of the comparison must be canonical: if `home` (or any
+                // ancestor of casUploadDir) is itself a symlink, the resolved content
+                // path carries the *physical* prefix while the literal casUploadDir
+                // string would not — comparing canonical-to-literal would reject
+                // legitimate uploads in that environment.
+                return realpath(casUploadDir).step(rootRp => {
+                    if (rootRp[0] === 'error') {
                         return pure(errorResult(`cas_add type:url paths must be within ${casUploadDir}/ — got: ${content}`))
                     }
-                    return casAddFile(c)(content).step(([t, v]) =>
-                        t === 'error'
-                            ? pure(errorResult(`upload failed: ${v}`))
-                            : rm(content).step(() => pure(okResult(vecToCBase32(v))))
-                    )
+                    return realpath(content).step(rp => {
+                        if (rp[0] === 'error') {
+                            return pure(errorResult(`upload failed: ${rp[1]}`))
+                        }
+                        if (!isProperPrefix(parse(rootRp[1]), parse(rp[1]))) {
+                            return pure(errorResult(`cas_add type:url paths must be within ${casUploadDir}/ — got: ${content}`))
+                        }
+                        // Stream the *resolved* path, not `content`: casAddFile opens its
+                        // argument fresh, which re-resolves any symlink in `content` at
+                        // that moment. Reading `rp[1]` instead ties the read to exactly
+                        // the path just validated, so a symlink swapped in after the
+                        // check (and before the read) cannot redirect it. `rm` still
+                        // targets `content` — it deletes the uploaded artifact itself
+                        // (which may be the symlink), not the resolved target.
+                        return casAddFile(c)(rp[1]).step(([t, v]) =>
+                            t === 'error'
+                                ? pure(errorResult(`upload failed: ${v}`))
+                                : rm(content).step(() => pure(okResult(vecToCBase32(v))))
+                        )
+                    })
                 })
             }
             // type:'text' or 'base64' — resolve content to Vec, store via c.write()

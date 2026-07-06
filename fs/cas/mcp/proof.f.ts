@@ -778,21 +778,18 @@ export const proof = {
         assert(textOf(resp).includes('/home/user/cas_upload/'))
     },
 
-    // A symlink chain inside cas_upload that eventually resolves back inside
-    // cas_upload is allowed through the containment check (it still has to
-    // name a real file to be read).
-    addUrlSymlinkStayingWithinUploadDirPassesContainmentCheck: () => {
+    // A symlink whose target stays within cas_upload clears the containment
+    // check and is streamed from its *resolved* path (real.txt), even though
+    // the virtual filesystem model has no symlink entity for alias.txt itself.
+    addUrlSymlinkStayingWithinUploadDirSucceeds: () => {
         const root: Dir = { 'home': { 'user': { 'cas_upload': { 'real.txt': [utf8('ok')] } } } }
         const symlinks = { '/home/user/cas_upload/alias.txt': '/home/user/cas_upload/real.txt' }
         const [resp] = runSessionVirtual(root, '/home/user', symlinks)([
             init, initialized,
             call(2, 'cas_add', { content: '/home/user/cas_upload/alias.txt', type: 'url' }),
         ]).slice(2) as readonly unknown[]
-        // The containment check passes; the virtual filesystem model has no
-        // symlink entity so `root` has no file *named* alias.txt, and the
-        // subsequent read fails — but not with the security rejection message.
-        assert(resultOf(resp).isError === true)
-        assert(!textOf(resp).includes('/home/user/cas_upload/'))
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
     },
 
     // A symlink whose target does not exist fails like any other missing
