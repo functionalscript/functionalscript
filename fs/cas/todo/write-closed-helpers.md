@@ -2,6 +2,10 @@
 
 **Priority:** P4
 **Status:** open
+**Blocked by:** [fold-stream-combinator](../../effects/todo/fold-stream-combinator.md)
+— partially: the chunk-loop task waits for `foldStream` (and, transitively,
+[step-adapters](../../effects/todo/step-adapters.md), which comes first in the
+sequence); the `publish`/`fail` hoisting can proceed independently at any time.
 
 ### Problem
 

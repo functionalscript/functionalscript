@@ -2,6 +2,9 @@
 
 **Priority:** P4
 **Status:** open
+**Blocked by:** [step-adapters](../../todo/step-adapters.md) — batch the
+implementation there; alternatively unblocked early by a second consumer of
+the ENOENT-is-benign policy appearing.
 
 ### Problem
 

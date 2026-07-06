@@ -2,6 +2,10 @@
 
 **Priority:** P3
 **Status:** open
+**Blocked by:** [step-adapters](./step-adapters.md) — soft ordering, not a hard
+dependency: `foldStream` compiles without `okStep`, but its per-chunk step
+follows the step-adapter convention that issue documents, so land (or at least
+read) it first.
 
 ### Problem
 

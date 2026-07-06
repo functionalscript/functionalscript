@@ -95,7 +95,18 @@ signature, so the call-site annotations can be dropped.
 
 ### Related
 
+This issue is **first** in a sequence — it establishes the helper-shape
+convention the following issues build on. Recommended order:
+step-adapters → [fold-stream-combinator](./fold-stream-combinator.md) →
+[write-closed-helpers](../../cas/todo/write-closed-helpers.md), with
+[ornotfound-combinator](../node/todo/ornotfound-combinator.md) batched here or
+deferred to its second consumer.
+
 - [ornotfound-combinator](../node/todo/ornotfound-combinator.md) — the
-  ENOENT-is-benign policy, reshaped to this same adapter form.
+  ENOENT-is-benign policy, reshaped to this same adapter form; blocked by this
+  issue (or a second consumer).
 - [fold-stream-combinator](./fold-stream-combinator.md) — the stream-protocol
-  sibling; its per-chunk step is a Kleisli function of the same shape.
+  sibling; its per-chunk step is a Kleisli function of the same shape. Land
+  this issue first so the convention is documented before that one follows it.
+- [write-closed-helpers](../../cas/todo/write-closed-helpers.md) — last in the
+  sequence; applies `okStep` and `foldStream` inside `fileCas.write`.
