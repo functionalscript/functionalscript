@@ -15,13 +15,13 @@ import { reverse, type List as EffectList } from '../../types/list/module.f.ts'
 import { length, type Vec } from '../../types/bit_vec/module.f.ts'
 import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
-import { ok, error as resultError, mapOk, type Result } from '../../types/result/module.f.ts'
+import { error as resultError, mapOk, type Result } from '../../types/result/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
 import {
     type Effect, type Func, type Operation, type ToAsyncOperationMap,
     do_, okStep, pure
 } from '../module.f.ts'
-import type { List } from '../list/module.f.ts'
+import { foldStream, type List } from '../list/module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
 
@@ -201,30 +201,18 @@ export type WriteBytes = readonly['writeBytes', (path: string, offset: number, d
 export const writeBytes: Func<WriteBytes> =
     do_('writeBytes')
 
-const writeLoop = (path: string) => {
-    const f = <O extends Operation>(offset: number, e: List<O, IoResult<Vec>>): Effect<O | WriteBytes, IoResult<void>> =>
-        e.step(r => {
-            if (r === undefined) {
-                return pure(ok(undefined))
-            }
-            const { first: [t, v], tail } = r
-            if (t === 'error') {
-                return pure(resultError(v))
-            }
-            const lenV = length(v)
-            if ((lenV & 0b111n) !== 0n) {
-                return pure(resultError('invalid buffer size'))
-            }
-            return writeBytes(path, offset, v)
-            .step(okStep(() => f(offset + Number(lenV >> 3n), tail)))
-        })
-    return f
+/** `foldStream` step: writes one byte-aligned chunk at `offset` and advances it. */
+const writeChunk = (path: string) => (offset: number) => (v: Vec): Effect<WriteBytes, IoResult<number>> => {
+    const lenV = length(v)
+    return (lenV & 0b111n) !== 0n
+        ? pure(resultError('invalid buffer size'))
+        : writeBytes(path, offset, v).step(r => pure(mapOk(() => offset + Number(lenV >> 3n))(r)))
 }
 
 export const writeFromStream =
     <O extends Operation>(path: string, e: List<O, IoResult<Vec>>): Effect<O | WriteBytes | CreateExclusive, IoResult<void>> =>
     createExclusive(path)
-    .step(okStep(() => writeLoop(path)(0, e)))
+    .step(okStep(() => foldStream(writeChunk(path))(0)(e).step(r => pure(mapOk(() => undefined)(r)))))
 
 // stat
 

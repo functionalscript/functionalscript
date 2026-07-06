@@ -1,9 +1,10 @@
-import { empty, isVec, uint, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
+import { empty, isVec, uint, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { utf8, utf8ToString } from "../../text/module.f.ts"
+import { ok } from "../../types/result/module.f.ts"
 import { decode, pure } from "../module.f.ts"
 import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, type IoResult } from "./module.f.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
-import { empty as listEmpty } from "../list/module.f.ts"
+import { empty as listEmpty, nonEmpty } from "../list/module.f.ts"
 import { emptyState, virtual, type Dir } from "./virtual/module.f.ts"
 
 export const proof = {
@@ -390,6 +391,13 @@ export const proof = {
             if (t !== 'error') { throw result }
             const file = state.root.hello
             if (!Array.isArray(file) || uint(file[0]) !== 0x2An) { throw file }
+        },
+        invalidBufferSize: () => {
+            // A chunk whose bit length is not byte-aligned fails before `writeBytes`.
+            const chunk: IoResult<Vec> = ok(vec(4n)(0n))
+            const [_, [t, result]] = virtual(emptyState)(
+                writeFromStream('hello', nonEmpty(chunk, listEmpty<never, IoResult<Vec>>())))
+            if (t !== 'error' || result !== 'invalid buffer size') { throw result }
         },
     },
 }

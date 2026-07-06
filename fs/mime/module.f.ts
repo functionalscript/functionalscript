@@ -36,9 +36,9 @@ import { msb, fromSentinel, length, u8List, type Vec } from '../types/bit_vec/mo
 import { iterable } from '../types/list/module.f.ts'
 import type { Nullable } from '../types/nullable/module.f.ts'
 import { pure, type Effect, type Operation } from '../effects/module.f.ts'
-import type { List } from '../effects/list/module.f.ts'
+import { foldStream, type List } from '../effects/list/module.f.ts'
 import type { IoResult } from '../effects/node/module.f.ts'
-import { ok, error } from '../types/result/module.f.ts'
+import { ok, mapOk } from '../types/result/module.f.ts'
 import { isValidCodePoint, isTextCodePoint } from '../text/code_point/module.f.ts'
 import { utf8ByteToCodePointOp, type Utf8State } from '../text/utf8/module.f.ts'
 
@@ -280,20 +280,17 @@ export const finish = (s: DetectState): DetectMeta => {
  */
 export const detectVec = (bytes: Vec): DetectMeta => finish(push(detectInit)(bytes))
 
+/** `foldStream` step: feeds one chunk to the detector state machine. */
+const pushStep = (s: DetectState) => (chunk: Vec): Effect<never, IoResult<DetectState>> =>
+    pure(ok(push(s)(chunk)))
+
+const foldPush = foldStream(pushStep)(detectInit)
+
 /**
  * Folds a CAS read stream through {@link push} and reads {@link finish} at EOF,
  * deriving `cas_get` metadata without ever materializing the blob. A read `error`
  * item short-circuits into the `IoResult` error.
  */
 export const detectStream =
-    <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<DetectMeta>> => {
-        const loop = (s: DetectState) => (l: List<O, IoResult<Vec>>): Effect<O, IoResult<DetectMeta>> =>
-            l.step((node): Effect<O, IoResult<DetectMeta>> => {
-                if (node === undefined) { return pure(ok(finish(s))) }
-                const { first, tail } = node
-                const [t, v] = first
-                if (t === 'error') { return pure(error(v)) }
-                return loop(push(s)(v))(tail)
-            })
-        return loop(detectInit)(stream)
-    }
+    <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<DetectMeta>> =>
+    foldPush(stream).step(r => pure(mapOk(finish)(r)))

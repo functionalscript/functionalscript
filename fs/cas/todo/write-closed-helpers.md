@@ -2,9 +2,6 @@
 
 **Priority:** P4
 **Status:** open
-**Blocked by:** [fold-stream-combinator](../../effects/todo/fold-stream-combinator.md)
-— partially: the chunk-loop task waits for `foldStream`; the `publish`/`fail`
-hoisting can proceed independently at any time.
 
 ### Problem
 
@@ -41,12 +38,13 @@ const fail = (curPath: string) => (e: unknown): Effect<Rm, IoResult<Vec>> =>
     rm(curPath).step(() => pure(error(e)))
 ```
 
-The chunk `loop` is one of the four consumers listed in
-[fold-stream-combinator](../../effects/todo/fold-stream-combinator.md):
-prefer expressing it through `foldStream` once that lands, threading
-`{ state, offset, curPath }` as the accumulator. If that issue stalls, the
-loop can still be hoisted closed on its own, with `(sha2)(stageDir)(rndStr)`
-as curried context.
+The chunk `loop` cannot be expressed through `foldStream`
+(`fs/effects/list/module.f.ts`): both of its error arms must fail closed by
+deleting the in-flight staging file (`fail(curPath, …)`), and that path lives
+in the accumulator — lease renewal renames it on every chunk — while
+`foldStream`'s error channel propagates the error alone, discarding the
+accumulator (see the comment at the loop). So the loop is hoisted closed
+directly, with `(sha2)(stageDir)(rndStr)` as curried context.
 
 Split only along nameable seams — each extracted function must be describable
 by a one-line JSDoc claim, as above. No fragment extraction.
@@ -54,14 +52,12 @@ by a one-line JSDoc claim, as above. No fragment extraction.
 ### Tasks
 
 - [ ] Hoist `publish` and `fail` as closed module-scope helpers with curried context.
-- [ ] After [fold-stream-combinator](../../effects/todo/fold-stream-combinator.md)
-      lands, express the chunk loop through `foldStream`; otherwise hoist it
-      closed directly and note why here.
+- [ ] Hoist the chunk loop closed directly (it cannot use `foldStream` — see above).
 - [ ] `npx tsc`, `fjs t`; existing CAS proofs pass unchanged.
 
 ### Related
 
-- [fold-stream-combinator](../../effects/todo/fold-stream-combinator.md) —
-  covers the chunk loop; this issue covers the remaining nested helpers.
+- `foldStream` (`fs/effects/list/module.f.ts`) — the stream-fold combinator
+  the chunk loop cannot use; this issue covers the remaining nested helpers.
 - `okStep` (`fs/effects/module.f.ts`) already applies to two steps inside
   `write` (`createExclusive`, and `casUpload` beside it).

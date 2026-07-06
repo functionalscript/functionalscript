@@ -100,7 +100,7 @@ import { casAddFile, fileCas, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
-import { nonEmpty, empty as elEmpty, type List } from '../../effects/list/module.f.ts'
+import { foldStream, nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
@@ -122,29 +122,25 @@ export const casListArgs = {} as const
 // ── Stream helper ────────────────────────────────────────────────────────────────
 
 /**
+ * `foldStream` step: concatenates one chunk onto the accumulated `Vec`.
+ *
+ * A single `Vec` cannot exceed `maxLength` bits; concatenating past it would
+ * overflow the runtime's `bigint` constraint. Surface that as an error so the
+ * tool reports a failure rather than crashing the process.
+ */
+const concatStep = (acc: Vec) => (v: Vec): Effect<never, IoResult<Vec>> =>
+    pure(bitVecLength(acc) + bitVecLength(v) > maxLength
+        ? error(`cas blob exceeds maximum vector length of ${maxLength} bits`)
+        : ok(msb.concat(acc)(v)))
+
+/**
  * Drains a CAS read stream into a single `Vec`. Used only on the `content: true`
  * path, where the whole blob is needed for inline base64 / UTF-8 transfer; the
  * chunk stream is concatenated and an error item is surfaced as the result.
  * Metadata-only `cas_get` avoids this entirely via `fs/mime` `detectStream`,
- * which is why it is not bound by the `maxLength` ceiling below.
+ * which is why it is not bound by the `maxLength` ceiling in {@link concatStep}.
  */
-const collectRead = <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {
-    const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
-        s.step((node): Effect<O, IoResult<Vec>> => {
-            if (node === undefined) { return pure(ok(acc)) }
-            const { first, tail } = node
-            const [t, v] = first
-            if (t === 'error') { return pure(first) }
-            // A single `Vec` cannot exceed `maxLength` bits; concatenating past it would
-            // overflow the runtime's `bigint` constraint. Surface that as an error item
-            // so the tool reports a failure rather than crashing the process.
-            if (bitVecLength(acc) + bitVecLength(v) > maxLength) {
-                return pure(error(`cas blob exceeds maximum vector length of ${maxLength} bits`))
-            }
-            return loop(msb.concat(acc)(v))(tail)
-        })
-    return loop(empty)(stream)
-}
+const collectRead = foldStream(concatStep)(empty)
 
 // ── Tool registry ──────────────────────────────────────────────────────────────
 
@@ -296,7 +292,7 @@ export const proof = {
     // casMcpServer is never called in integration tests because it drives a
     // real stdio server; call it here to cover its Effect-building body.
     casMcpServer: () => { casMcpServer('/') },
-    // The overflow guard in collectRead (lines 125-126) is only reached when
+    // The overflow guard in concatStep is only reached when
     // the running total of two stream chunks would exceed maxLength.  Feed a
     // pure stream whose second chunk pushes it just over the limit so the
     // error branch executes without any real I/O.

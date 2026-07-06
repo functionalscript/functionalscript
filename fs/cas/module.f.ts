@@ -181,6 +181,11 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
             return gcStage(stageDir).step(() =>
                 random256.step(rnd => {
                     const rndStr = vecToCBase32(rnd)
+                    // Not expressible through `foldStream` (`fs/effects/list`): both error
+                    // arms must fail closed by deleting the in-flight staging file
+                    // (`fail(curPath, …)`), and that path lives in the accumulator — lease
+                    // renewal renames it on every chunk — while `foldStream`'s error
+                    // channel propagates the error alone, discarding the accumulator.
                     const loop = (state: Sha2State, offset: number, curPath: string) =>
                         (stream: List<O1, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> =>
                             stream
