@@ -1,5 +1,5 @@
-import { assertEq } from '../../../asserts/module.f.ts'
-import { awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes } from '../module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.ts'
+import { awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, readBytesNoFollow, realpath } from '../module.f.ts'
 import { maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.ts'
 import { emptyState, virtual, type Dir, type JsModule } from './module.f.ts'
 
@@ -167,5 +167,48 @@ export const proof = {
         const root: Dir = { 'large': [chunk0, chunk1] }
         const [, result] = virtual({ ...emptyState, root })(readBytes('large', chunkSize, 1))
         assertEq(result[0], 'ok')
+    },
+    realpathOfPlainFile: () => {
+        const root: Dir = { 'a': { 'file.txt': [vec8(0x42n)] } }
+        const [, result] = virtual({ ...emptyState, root })(realpath('a/file.txt'))
+        assertEq(result[0], 'ok')
+        assertEq(result[1], 'a/file.txt')
+    },
+    realpathFollowsSymlinkChain: () => {
+        const root: Dir = { 'real.txt': [vec8(0x42n)] }
+        const symlinks = { 'a': 'b', 'b': 'real.txt' }
+        const [, result] = virtual({ ...emptyState, root, symlinks })(realpath('a'))
+        assertEq(result[0], 'ok')
+        assertEq(result[1], 'real.txt')
+    },
+    realpathOfMissingPathIsError: () => {
+        const [, result] = virtual(emptyState)(realpath('nope'))
+        assertEq(result[0], 'error')
+    },
+    realpathOfDanglingSymlinkIsError: () => {
+        const symlinks = { 'link': 'nowhere' }
+        const [, result] = virtual({ ...emptyState, symlinks })(realpath('link'))
+        assertEq(result[0], 'error')
+    },
+    realpathOfSymlinkLoopIsError: () => {
+        const symlinks = { 'a': 'b', 'b': 'a' }
+        const [, result] = virtual({ ...emptyState, symlinks })(realpath('a'))
+        assertEq(result[0], 'error')
+    },
+    // readBytesNoFollow is readBytes' O_NOFOLLOW counterpart: it must behave
+    // identically to readBytes for an ordinary file...
+    readBytesNoFollowReadsPlainFile: () => {
+        const root: Dir = { 'file': [vec8(0x42n)] }
+        const [, result] = virtual({ ...emptyState, root })(readBytesNoFollow('file', 0, 1))
+        assertEq(result[0], 'ok')
+    },
+    // ...but must fail — not silently follow — when the path is a symlink,
+    // which is exactly the case a fresh readBytes() open cannot distinguish
+    // from an ordinary file (see fs/cas/mcp/module.f.ts casAddFileNoFollow).
+    readBytesNoFollowRejectsSymlink: () => {
+        const root: Dir = { 'real.txt': [vec8(0x42n)] }
+        const symlinks = { 'link': 'real.txt' }
+        const [, result] = virtual({ ...emptyState, root, symlinks })(readBytesNoFollow('link', 0, 1))
+        assert(result[0] === 'error')
     },
 }

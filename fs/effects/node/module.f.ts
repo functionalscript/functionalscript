@@ -163,6 +163,24 @@ export type ReadBytes = readonly['readBytes', (path: string, offset: number, siz
 export const readBytes: Func<ReadBytes> =
     do_('readBytes')
 
+// readBytesNoFollow
+
+/**
+ * Like {@link readBytes}, but opens `path` with `O_NOFOLLOW`: fails instead of
+ * following a symlink at the final path component. For a path whose
+ * containment was validated against its {@link realpath}'d form (e.g. an
+ * untrusted upload path), that validation is only as good as the file the
+ * read actually opens — a plain {@link readBytes} re-resolves the path fresh
+ * on every call, so a symlink swapped in after validation (and the store is
+ * writable by the caller) would be followed silently. `O_NOFOLLOW` closes
+ * that window: every chunk's open rejects a symlink rather than following
+ * it, not just the first.
+ */
+export type ReadBytesNoFollow = readonly['readBytesNoFollow', (path: string, offset: number, size: number) => IoResult<Vec>]
+
+export const readBytesNoFollow: Func<ReadBytesNoFollow> =
+    do_('readBytesNoFollow')
+
 // randomInt
 
 export type RandomInt = readonly['randomInt', () => number]
@@ -264,7 +282,7 @@ export const stat: Func<Stat> =
 
 // Fs
 
-export type Fs = Mkdir | ReadFile | ReadBytes | Readdir | WriteFile | Rm | Rename | Realpath | Exec | Access | CreateExclusive | WriteBytes | Stat
+export type Fs = Mkdir | ReadFile | ReadBytes | ReadBytesNoFollow | Readdir | WriteFile | Rm | Rename | Realpath | Exec | Access | CreateExclusive | WriteBytes | Stat
 
 // Server
 

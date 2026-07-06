@@ -314,6 +314,20 @@ const readBytesOp = (path: string, offset: number, size: number) => readOperatio
     return ok(result)
 })(path)
 
+/** Mirrors Node's `ELOOP`: `O_NOFOLLOW` hitting a symlink at the final path component. */
+const eloopSymlink = error({ code: 'ELOOP' })
+
+/**
+ * Like {@link readBytesOp}, but fails if `path` is a key in `state.symlinks`
+ * — the virtual-model equivalent of opening with `O_NOFOLLOW`, since `Dir`
+ * itself has no symlink entity to check against (see {@link State.symlinks}).
+ */
+const readBytesNoFollowOp = (path: string, offset: number, size: number) => (state: State): readonly[State, IoResult<Vec>] => {
+    const current = normalize(path)
+    const isSymlink = entries(state.symlinks).some(([k]) => normalize(k) === current)
+    return isSymlink ? [state, eloopSymlink] : readBytesOp(path, offset, size)(state)
+}
+
 /** Total byte size of a chunk-list file (each chunk is byte-aligned). */
 const fileSizeBytes = (chunks: readonly Vec[]): number =>
     chunks.reduce((acc, c) => acc + Number(length(c) / 8n), 0)
@@ -398,6 +412,7 @@ const map: MemOperationMap<NodeOp, State> = {
     rename,
     realpath: realpathOp,
     readBytes: readBytesOp,
+    readBytesNoFollow: readBytesNoFollowOp,
     createExclusive,
     writeBytes: writeBytesOp,
     stat: statOp,

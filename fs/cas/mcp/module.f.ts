@@ -90,7 +90,7 @@ import { tryUtf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../mime/module.f.ts'
 import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, vec, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
-import { realpath, rm, type IoResult, type Read, type Realpath, type Rm, type Write } from '../../effects/node/module.f.ts'
+import { realpath, rm, type IoResult, type Read, type Realpath, type ReadBytesNoFollow, type Rm, type Write } from '../../effects/node/module.f.ts'
 import { isProperPrefix, parse } from '../../path/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
@@ -99,7 +99,7 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { casAddFile, fileCas, type FileCasOperation } from '../module.f.ts'
+import { casAddFileNoFollow, fileCas, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
@@ -162,7 +162,7 @@ type Meta = {
 
 /** Registry of all CAS tools. */
 const casToolRegistry =
-(home: string): readonly ToolEntry<FileCasOperation|Rm|Realpath>[] => {
+(home: string): readonly ToolEntry<FileCasOperation|Rm|Realpath|ReadBytesNoFollow>[] => {
     const c = fileCas(sha256)(home)
     const casUploadDir = `${home}/cas_upload`
     return [
@@ -170,7 +170,7 @@ const casToolRegistry =
         'cas_add',
         'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content (text/base64) is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content use type:"url" to stream a file from $HOME/cas_upload/ (no size limit).',
         casAddArgs,
-        ({ type, content }): Effect<FileCasOperation | Rm | Realpath, ToolsCallResult> => {
+        ({ type, content }): Effect<FileCasOperation | Rm | Realpath | ReadBytesNoFollow, ToolsCallResult> => {
             // type:'url' — stream the file into cas, then delete the source on success
             if (type === 'url') {
                 if (!content.startsWith(`${casUploadDir}/`) || content.includes('..')) {
@@ -198,14 +198,17 @@ const casToolRegistry =
                         if (!isProperPrefix(parse(rootRp[1]), parse(rp[1]))) {
                             return pure(errorResult(`cas_add type:url paths must be within ${casUploadDir}/ — got: ${content}`))
                         }
-                        // Stream the *resolved* path, not `content`: casAddFile opens its
-                        // argument fresh, which re-resolves any symlink in `content` at
-                        // that moment. Reading `rp[1]` instead ties the read to exactly
-                        // the path just validated, so a symlink swapped in after the
-                        // check (and before the read) cannot redirect it. `rm` still
-                        // targets `content` — it deletes the uploaded artifact itself
-                        // (which may be the symlink), not the resolved target.
-                        return casAddFile(c)(rp[1]).step(([t, v]) =>
+                        // Stream the *resolved* path, not `content`, and use the
+                        // O_NOFOLLOW variant: a plain re-open of `content` would
+                        // re-resolve any symlink in it at that moment, and even
+                        // opening `rp[1]` with a normal open would follow a symlink
+                        // swapped in at that exact path between the check above and
+                        // this read (cas_upload is writable by the same caller this
+                        // validates against). `casAddFileNoFollow` fails instead of
+                        // following such a swap. `rm` still targets `content` — it
+                        // deletes the uploaded artifact itself (which may be the
+                        // symlink), not the resolved target.
+                        return casAddFileNoFollow(c)(rp[1]).step(([t, v]) =>
                             t === 'error'
                                 ? pure(errorResult(`upload failed: ${v}`))
                                 : rm(content).step(() => pure(okResult(vecToCBase32(v))))
@@ -296,7 +299,7 @@ const okResult = (text: string): ToolsCallResult =>
 /**
  * MCP handlers for `FileCas`.
  */
-export const casMcpHandlers = (home: string): McpHandlers<FileCasOperation | Rm | Realpath> =>
+export const casMcpHandlers = (home: string): McpHandlers<FileCasOperation | Rm | Realpath | ReadBytesNoFollow> =>
     fromRegistry(casToolRegistry(home))
 
 // ── Session configuration ───────────────────────────────────────────────────────
@@ -320,7 +323,7 @@ export const casConfig: McpConfig = {
  */
 export const casMcpServer = (
     home: string,
-): Effect<Read | Write | MemOp | FileCasOperation | Rm | Realpath, void> =>
+): Effect<Read | Write | MemOp | FileCasOperation | Rm | Realpath | ReadBytesNoFollow, void> =>
     create(uninitializedState).step(key =>
         stdioTransport(mcpStep(casConfig)(casMcpHandlers(home))(key)))
 
