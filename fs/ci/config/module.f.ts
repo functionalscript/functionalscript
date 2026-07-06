@@ -23,9 +23,9 @@ export const images = {
 
 // Bootstrap package version used by generated smoke tests. Keep this on a
 // published FunctionalScript release; do not tie it to package.json's current
-// in-repo version. A separate maintenance job advances this pin.
+// in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = '0.33.0' as const
+export const functionalscript = '0.35.2' as const
 
 // https://bun.sh/
 export const bun = '1.3.14'
@@ -50,7 +50,7 @@ export const wasmtime = '46.0.1'
 export const wasmer = '7.1.0'
 
 // https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
-export const tsgo = '7.0.0-dev.20260703.1'
+export const tsgo = '7.0.0-dev.20260704.1'
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as
