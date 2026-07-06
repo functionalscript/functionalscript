@@ -38,24 +38,56 @@ content limit is built around (`fs/cas/`'s 128 KiB inline limit, #1187/#1193)
 `decode` needs to know the final (post-trim) bit length before — or
 independently of — the raw chunk-accumulation cap, so a payload that is
 exactly at `maxLength` after trimming doesn't get measured against the
-pre-trim raw length. Candidate approaches (no design chosen yet):
+pre-trim raw length.
 
-- Make the `tryListToVec` / `unpackListToVec` cap parameterizable per call, so
-  `base64`/`cbase32` can pass `maxLength + (bits - 1)` slack (the maximum
-  padding any single partial trailing chunk can add) and let the caller
-  validate/trim the *final* length itself.
-- Have `decode` mask off the known pad bits from the last character *before*
-  building (so the builder never sees more than `maxLength` raw bits), rather
-  than building first and trimming after.
+**Constraint that rules out the obvious fix:** `maxLength`
+(`fs/types/bit_vec/module.f.ts:41-46`) is not an arbitrary logical limit —
+its doc comment says it's set to stay under *Bun's actual `bigint` size
+constraint*, the tightest limit across FunctionalScript's supported
+runtimes. A `Vec` is a signed `bigint` (`fs/types/bit_vec/module.f.ts:36-39`),
+so any intermediate value built while decoding — not just the final
+returned `Vec` — is subject to that same runtime ceiling. This means
+**loosening `tryListToVec`'s cap to admit a raw pre-trim length above
+`maxLength` (e.g. `maxLength + slack`) is not a valid fix**, even though the
+final trimmed result would be in range: `unpackListToVec`
+(`fs/types/bit_vec/module.f.ts:319-374`) actually constructs that
+over-`maxLength` intermediate `Unpacked`/`bigint` before any trimming
+happens, so the fix would just move the crash from "`decode` returns `null`"
+to "`decode` throws/hangs building an over-sized `bigint` on Bun" for
+`maxLength`-boundary input — worse, not better. Any fix must guarantee no
+single `bigint` involved in decoding ever exceeds `maxLength`, even
+transiently.
+
+Candidate approaches that respect that constraint (no design chosen yet):
+
+- Mask off the known pad bits from the *last character* before building —
+  i.e. decode all but the last chunk normally, then combine the last
+  (partial) chunk pre-trimmed, so the accumulator never holds more than
+  `maxLength` bits at any point, not just at the end.
 - Compute the target length analytically up front
-  (`body.length * 6n - removeBits`) and special-case the build when that
-  target lands exactly at `maxLength` with the raw length one chunk-width
-  over.
+  (`body.length * 6n - removeBits`) and, when it lands exactly at
+  `maxLength`, decode in a way that never forms the intermediate
+  `maxLength + removeBits`-bit value — e.g. split `body` into a prefix that
+  decodes to a `maxLength`-sized `Vec` and a separate last-chunk step that
+  only ever contributes its post-trim bits.
+- Avoid building a single `Vec` for the whole payload at all: have `decode`
+  (and the `stringToVec` it's built on) return multiple `Vec` chunks — a
+  `List<Vec>` — instead of one, each individually within `maxLength`, and
+  push concatenation-into-one-`bigint` to whichever caller actually needs a
+  single `Vec` (who then has to reckon with the same `maxLength` ceiling
+  explicitly, rather than `decode` hiding a false promise that it always
+  produces one). This is a bigger, more invasive change to `BaseN`'s and
+  `base64`/`cbase32`'s public shape and needs its own design pass before
+  starting.
 
 ### Tasks
 
-- [ ] Pick a fix approach (see Proposal) and confirm it doesn't reopen the
-      silent-overflow gap tracked in `encode-padding-overflow.md`.
+- [ ] Pick a fix approach (see Proposal) that never constructs a `bigint`
+      over `maxLength` at any intermediate step — confirm this explicitly
+      before implementing, e.g. with a proof case using a real Bun run, not
+      just Node.
+- [ ] Confirm the chosen approach doesn't reopen the silent-overflow gap
+      tracked in `encode-padding-overflow.md`.
 - [ ] Fix `decode` in `fs/base64/module.f.ts` so exactly-`maxLength`-sized
       payloads round-trip.
 - [ ] Add a proof case: `decode(encode(vec(maxLength)(...)))` round-trips for
