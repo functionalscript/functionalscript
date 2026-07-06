@@ -57,7 +57,7 @@ If MCP clients later need to store large blobs without CLI access, add a `type` 
 - [ ] Update the `cas_add` tool description string (drop the "use type:url for large content" guidance; point large-content users at the CLI instead)
 - [ ] Remove the `type:'url'` proof tests in `fs/cas/mcp/proof.f.ts` (`addUrl*`, `getMetaLargeMultiChunk*`, and the large-blob paths that stage via `type:'url'`); keep the `text`/`base64` coverage
 - [ ] Update `fs/cas/mcp/README.md`: remove the `type:'url'` row/section, state large files go through the CLI, and note remote-URL as a possible future addition
-- [ ] Reconcile [i66K-cas-cli-mcp-shared-upload](todo.md) and [i66J-cas-upload-dir-command](todo.md) with this removal (update scope to CLI-only, or close)
+- [x] Reconcile [i66K-cas-cli-mcp-shared-upload](todo.md) (marked `irrelevant` — superseded; delete when the removal lands) and [i66J-cas-upload-dir-command](todo.md) (reframed as a `cas add-dir` CLI command) with this removal
 
 ### Related
 

@@ -1,34 +1,62 @@
-## 66J-cas-upload-dir-command. Add `cas_upload_dir` command for batch uploads
+## 66J-cas-upload-dir-command. Add a `cas add-dir` CLI command for batch adds
 
 **Priority:** P4
 **Status:** open
 
 ### Problem
 
-After large-file support is implemented, users will want a convenient way to upload multiple files from `~/cas_upload/` in batch without calling `cas_add` individually for each file.
+Storing many files means invoking `cas add <path>` once per file. A single
+command that walks a directory and adds every file in it would be a convenience
+for bulk ingestion (e.g. seeding a store from an export).
+
+This was originally proposed as an MCP `cas_upload_dir` tool, but per
+[i66J-cas-symlink-escape](todo.md) the MCP server no longer opens local paths at
+all (`cas_add type:'url'` is removed). Batch-from-the-filesystem is therefore a
+**CLI** concern: the CLI is run directly by the user, whose own filesystem
+permissions bound what it can read — there is no sandboxed-caller trust boundary
+to defend, so no symlink-containment problem.
 
 ### Proposal
 
-Add a new MCP tool `cas_upload_dir` that:
+Add a `cas add-dir <dir>` command that:
 
-1. Scans `~/cas_upload/` for all files
-2. Processes each file through the streaming upload pipeline (stage → hash → finalize)
-3. Returns a summary: count of uploaded files, total bytes, any errors
+1. Walks `<dir>` (via `readdir`, recursively or one level — decide below) for
+   files.
+2. Streams each file through the same pipeline as `cas add` (`casAddFile` →
+   `readBytes` chunk loop → `c.write`), so there is no size limit and no extra
+   in-memory buffering.
+3. Prints a summary: count of files added, total bytes, and any per-file errors
+   (a failed file should not abort the whole run).
 
 Usage:
 ```
-cas_upload_dir({}) → {uploaded: 42, total_bytes: 1234567, errors: []}
+cas add-dir ./export
+# 42 files, 1234567 bytes, 0 errors
 ```
+
+Open questions to settle when implementing:
+- **Recursive or flat?** `cas add` itself follows symlinks (ordinary CLI
+  `cat`-like behavior — see [i66J-cas-symlink-escape](todo.md), which keeps the
+  CLI read path as-is). A recursive walk should decide whether to descend into
+  symlinked directories or skip them, and whether to hash symlinked files or skip
+  them, to avoid surprises / cycles.
+- **Output**: print each hash as it's stored (like `cas add`), the summary only,
+  or both.
 
 ### Tasks
 
-- [ ] Implement `cas_upload_dir` tool in `fs/cas/mcp/module.f.ts`
-- [ ] Reuse staging and recovery logic from large-file support
-- [ ] Return structured summary (uploaded count, bytes, error list)
-- [ ] Add tests for empty directory, mixed file types, permission errors
-- [ ] Document in `fs/cas/mcp/README.md`
+- [ ] Add a `cas add-dir <dir>` command to `fs/cas/cli/module.f.ts`
+- [ ] Walk the directory with `readdir` and add each file via `casAddFile`
+- [ ] Return a structured summary (added count, total bytes, error list); don't
+      abort on a single-file failure
+- [ ] Decide and document recursive-vs-flat and symlinked-entry handling
+- [ ] Add proof tests: empty directory, mixed file types/sizes, a missing/unreadable
+      entry, and the recursion/symlink decision above
+- [ ] Document the command in `fs/cas/README.md`
 
 ### Related
 
-- [i66J-cas-large-file-support](todo.md) — streaming upload infrastructure
-- [i66J-cas-periodic-stage-recovery](todo.md) — recovery mechanism
+- [i66J-cas-symlink-escape](todo.md) — removes MCP local-path upload, making
+  filesystem-batch ingestion a CLI-only concern
+- [i66J-cas-large-file-support](todo.md) — the streaming pipeline `cas add`
+  (and thus `cas add-dir`) rides on
