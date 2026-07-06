@@ -38,10 +38,12 @@ The general, fully airtight fix for that class of race — pin each directory co
 
 Instead of policing an arbitrarily nested tree, remove the nesting: **`cas_upload` may only contain files directly — no subdirectories.**
 
-1. Reject any `cas_add` `type:'url'` path whose remainder after `${casUploadDir}/` contains another `/`. A validated path is therefore always exactly `${casUploadDir}/<name>`, one segment, no exceptions.
+1. Reject any `cas_add` `type:'url'` path whose remainder after `${casUploadDir}/` contains another path separator. A validated path is therefore always exactly `${casUploadDir}/<name>`, one segment, no exceptions.
 2. Make `O_NOFOLLOW` the **default** (only) behavior of `readBytes` (and `readFile`, for consistency) — not a parallel opt-in effect.
 
 Why this closes the whole class, not just the cases found so far: with nesting banned, `<name>` is the *only* thing an attacker can ever turn into a symlink, and it is always the trailing component of the single `open()` call that reads it. `O_NOFOLLOW` rejecting a symlink at the trailing component is a guarantee the kernel makes atomically as part of that one syscall — there is no separate "check, then read" step to race, because the trailing-component-is-a-symlink test *is* the open. No `realpath` call is needed for the security property at all; the fix is two cheap checks (a string check, plus a flag on `open`), not a filesystem walk.
+
+**"Path separator" must include `\`, not just `/`.** This codebase normalizes paths to POSIX form (`toPosix` in `fs/effects/node/module.ts`, applied to `os.homedir()`), but that normalization only ever runs on `home` — the attacker-controlled part is `content`, as submitted by the caller, unnormalized. On Windows, Node's `fs` APIs accept `\` as a path separator exactly as they accept `/`. So `${casUploadDir}/x\passwd` has a remainder (`x\passwd`) containing no `/`, and a check that only looks for `/` would wrongly treat it as one segment — while the OS still resolves it as two (`x`, then `passwd`), reintroducing exactly the intermediate-directory-symlink case (attempt 1) if `x` is a symlink. The check must reject `content` outright if it contains a `\` anywhere (simplest: this codebase has no legitimate use for a literal backslash in a path), not only search for `/` in the remainder.
 
 ### Trade-offs / out of scope
 
@@ -52,12 +54,13 @@ Why this closes the whole class, not just the cases found so far: with nesting b
 
 ### Tasks
 
-- [ ] Reject any `cas_add` `type:'url'` path whose remainder after `${casUploadDir}/` contains a `/` (no nested paths)
+- [ ] Reject any `cas_add` `type:'url'` path whose remainder after `${casUploadDir}/` contains another `/` **or any `\`** (no nested paths, on any platform — see "must include `\`" above)
 - [ ] Change `readBytes` (and `readFile`, for consistency) to always open with `O_NOFOLLOW` — no follow-by-default variant, no parallel opt-in effect
 - [ ] Remove the subdirectory-upload support this supersedes, and update/replace its proof test (`addUrlFromSubdirectorySucceeds` in `fs/cas/mcp/proof.f.ts`) with a nested-path-is-rejected test
 - [ ] Add tests for:
   - a symlink placed directly in `cas_upload` (the original scenario) — rejected
   - a nested path (`cas_upload/sub/file`) — rejected outright by the flat-namespace check, whether or not `sub` exists or is a symlink
+  - a path using `\` instead of `/` to nest (`cas_upload/sub\file` or `cas_upload\sub\file`) — rejected the same way, not accepted as a single segment
   - a plain file directly in `cas_upload` — still succeeds
 - [ ] Update `fs/cas/mcp/README.md` to document the flat-namespace restriction and the `O_NOFOLLOW` default
 - [ ] If a future caller genuinely needs to follow a symlink at a path it chose directly (e.g. the CLI's `cas add <path>`, run by a trusted local user — unlike `cas_add` `type:'url'`, which is driven by a sandboxed/untrusted MCP client), introduce an explicit opt-in (e.g. `readBytesFollow`) at that point. Don't build it preemptively — YAGNI until a concrete need shows up.
