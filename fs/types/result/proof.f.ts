@@ -1,4 +1,4 @@
-import { error, ok, unwrap, invert, type Result } from "./module.f.ts"
+import { error, ok, unwrap, invert, mapOk, type Result } from "./module.f.ts"
 
 const example = () => {
     const success: Result<number, string> = ok(42)
@@ -27,4 +27,11 @@ const unwrapError = () => {
     if (!caught) { throw 'expected throw' }
 }
 
-export const proof = { example, invertTest, unwrapError }
+const mapOkTest = () => {
+    const [k0, v0] = mapOk((n: number) => n + 1)(ok(41))
+    if (k0 !== 'ok' || v0 !== 42) { throw [k0, v0] }
+    const [k1, v1] = mapOk((n: number) => n + 1)(error('oops'))
+    if (k1 !== 'error' || v1 !== 'oops') { throw [k1, v1] }
+}
+
+export const proof = { example, invertTest, unwrapError, mapOkTest }

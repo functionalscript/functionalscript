@@ -15,11 +15,11 @@ import { reverse, type List as EffectList } from '../../types/list/module.f.ts'
 import { length, type Vec } from '../../types/bit_vec/module.f.ts'
 import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
-import { ok, error as resultError, type Result } from '../../types/result/module.f.ts'
+import { ok, error as resultError, mapOk, type Result } from '../../types/result/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
 import {
     type Effect, type Func, type Operation, type ToAsyncOperationMap,
-    do_, pure
+    do_, okStep, pure
 } from '../module.f.ts'
 import type { List } from '../list/module.f.ts'
 
@@ -92,8 +92,7 @@ export const readFile: Func<ReadFile> =
  * call site.
  */
 export const readUtf8File = (path: string): Effect<ReadFile, IoResult<string>> =>
-    readFile(path).step(r =>
-        pure(r[0] === 'ok' ? ok(utf8ToString(r[1])) : r))
+    readFile(path).step(r => pure(mapOk(utf8ToString)(r)))
 
 // readdir
 
@@ -203,7 +202,7 @@ export const writeBytes: Func<WriteBytes> =
     do_('writeBytes')
 
 const writeLoop = (path: string) => {
-    const f = <O extends Operation>(offset: number, e: List<O, IoResult<Vec>>) =>
+    const f = <O extends Operation>(offset: number, e: List<O, IoResult<Vec>>): Effect<O | WriteBytes, IoResult<void>> =>
         e.step(r => {
             if (r === undefined) {
                 return pure(ok(undefined))
@@ -217,12 +216,7 @@ const writeLoop = (path: string) => {
                 return pure(resultError('invalid buffer size'))
             }
             return writeBytes(path, offset, v)
-            .step((r): Effect<O | WriteBytes, IoResult<void>> => {
-                if (r[0] === 'error') {
-                    return pure(r)
-                }
-                return f(offset + Number(lenV >> 3n), tail)
-            })
+            .step(okStep(() => f(offset + Number(lenV >> 3n), tail)))
         })
     return f
 }
@@ -230,12 +224,7 @@ const writeLoop = (path: string) => {
 export const writeFromStream =
     <O extends Operation>(path: string, e: List<O, IoResult<Vec>>): Effect<O | WriteBytes | CreateExclusive, IoResult<void>> =>
     createExclusive(path)
-    .step(([r, v]): Effect<O | WriteBytes, IoResult<void>> => {
-        if (r === 'error') {
-            return pure(resultError(v))
-        }
-        return writeLoop(path)(0, e)
-    })
+    .step(okStep(() => writeLoop(path)(0, e)))
 
 // stat
 

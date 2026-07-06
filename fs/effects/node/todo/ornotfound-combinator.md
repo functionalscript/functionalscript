@@ -2,9 +2,8 @@
 
 **Priority:** P4
 **Status:** open
-**Blocked by:** [step-adapters](../../todo/step-adapters.md) — batch the
-implementation there; alternatively unblocked early by a second consumer of
-the ENOENT-is-benign policy appearing.
+**Blocked by:** a second consumer of the ENOENT-is-benign policy appearing —
+`list` is the only live site today.
 
 ### Problem
 
@@ -15,13 +14,13 @@ the ENOENT-is-benign policy appearing.
 An earlier revision of this issue cited `read` as a second site, but `read`
 now streams explicit error items and no longer uses this policy — `list` is
 the only live site today. Per the second-consumer rule, implement this when
-another site appears, or batch it with
-[step-adapters](../../todo/step-adapters.md), which establishes the shape.
+another site appears.
 
 ### Proposal
 
-A **step adapter** (see [step-adapters](../../todo/step-adapters.md)): a
-continuation factory passed to `.step`, not a wrapper taking the effect. The
+A **step adapter**: a continuation factory passed to `.step`, not a wrapper
+taking the effect — the shape `okStep` (`fs/effects/module.f.ts`) already
+uses for the two-way ok/error case. The
 wrapper shape proposed earlier — `orNotFound(effect)(notFound)(onOk)` —
 recreates the nesting problem the moment two policies chain
 (`orNotFound(orNotFound(…)…)`); the adapter chains flat and leaves `Effect`
@@ -48,11 +47,11 @@ list: () => access(storePrefix).step(orNotFound<readonly Vec[]>([])(() =>
 ### Tasks
 
 - [ ] Add `orNotFound` beside `isNotFound` in `fs/effects/node/module.f.ts`
-      (once a second consumer exists, or as part of the step-adapters batch).
+      (once a second consumer exists).
 - [ ] Rewrite `list` in `fs/cas/module.f.ts` on top of it.
 - [ ] Cover all three branches (`ok`, `ENOENT`, non-`ENOENT` throw) in `fs/effects/node/proof.f.ts`.
 
 ### Related
 
-- [step-adapters](../../todo/step-adapters.md) — the helper-shape convention
-  this follows; `okStep` is the two-way sibling of this three-way policy.
+- `okStep` (`fs/effects/module.f.ts`) — the step-adapter convention this
+  follows; the two-way sibling of this three-way policy.
