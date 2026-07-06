@@ -34,6 +34,20 @@ Nothing legitimate is stranded, because the clients split cleanly:
 - **Clients that can write files** (agents with shell/file tools — the *only* clients that could ever stage something in `cas_upload`): small content already goes through `type:'text'`/`base64`; large files go through the **CLI** (`cas add <path>`), a local tool the user runs directly, where following a symlink to a file the invoking user chose is ordinary `cat`/`cp` behavior, not a sandbox escape. The trust boundary is completely different there — the person running the CLI *is* the user, not a sandboxed model.
 - **Clients that can't touch the filesystem**: `type:'url'` was never usable by them (they can't stage a file), so they lose nothing.
 
+### The invariant this restores
+
+State the boundary positively, as the rule every current and future MCP tool must satisfy:
+
+> **The MCP server only ever touches paths under `~/.cas/`, and every such path is one the server derives itself — never a path supplied (in whole or in part) by the client.**
+
+Concretely, after the removal every server file operation is on a self-derived path: `cas_add` writes via staging under `~/.cas/_stage/` then renames to the hash-sharded `~/.cas/<shard>`; `cas_get` reads `~/.cas/<shard>`; `cas_list` walks `~/.cas/`. The client contributes *content* (`text`/`base64` bytes) and *hashes* (which are validated cBase32 and only ever select a shard path, never escape the store), but never a filesystem path. `type:'url'` was the sole exception — it took a client-supplied path and opened it *outside* `~/.cas/` (in `~/cas_upload/`) — which is exactly why it was the whole vulnerability surface.
+
+This invariant is the acceptance test for anything added later: a new tool is safe on this axis iff it doesn't open, read, write, or `rename` a path derived from client input. The future remote-URL fetch (below) satisfies it — it downloads *into* `~/.cas/_stage/`, a server-derived path, and the client-supplied part is a URL handed to the network stack, not the filesystem.
+
+### The invariant this establishes
+
+**The MCP server performs file operations only inside `~/.cas/`, and only on paths it derives itself** — store root + hash-sharded layout + random staging names under `~/.cas/_stage/` — never on a path supplied by the caller. The caller's inputs are *content* (`text`/`base64` bytes) and *hashes* (cBase32, decoded and re-encoded into a sh
+
 ### Future: remote-URL upload
 
 If MCP clients later need to store large blobs without CLI access, add a `type` that fetches a **remote** `http(s)://…` URL server-side. That has no local-path/symlink surface by construction — the server pulls bytes over the network, never opens a local file by a caller-supplied name — so it doesn't reintroduce this issue. Out of scope here; noted so the removal isn't read as "large-file MCP upload is impossible forever."
@@ -56,7 +70,7 @@ If MCP clients later need to store large blobs without CLI access, add a `type` 
 - [ ] Remove the `type === 'url'` branch from the `cas_add` handler, plus now-unused imports/plumbing it pulled in (`casAddFile`, `rm`, the `Rm` op in the tool's effect type, `casUploadDir`)
 - [ ] Update the `cas_add` tool description string (drop the "use type:url for large content" guidance; point large-content users at the CLI instead)
 - [ ] Remove the `type:'url'` proof tests in `fs/cas/mcp/proof.f.ts` (`addUrl*`, `getMetaLargeMultiChunk*`, and the large-blob paths that stage via `type:'url'`); keep the `text`/`base64` coverage
-- [ ] Update `fs/cas/mcp/README.md`: remove the `type:'url'` row/section, state large files go through the CLI, and note remote-URL as a possible future addition
+- [ ] Update `fs/cas/mcp/README.md`: remove the `type:'url'` row/section, state large files go through the CLI, note remote-URL as a possible future addition, and record the **"server only touches self-derived paths under `~/.cas/`"** invariant (see "The invariant this restores") as a stated design rule, so a future tool that reintroduces a client-supplied path is caught in review
 - [x] Reconcile [i66K-cas-cli-mcp-shared-upload](todo.md) (marked `irrelevant` — superseded; delete when the removal lands) and [i66J-cas-upload-dir-command](todo.md) (reframed as a `cas add-dir` CLI command) with this removal
 
 ### Related
