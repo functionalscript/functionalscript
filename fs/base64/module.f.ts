@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { msb, type Vec, length, vec, empty } from "../types/bit_vec/module.f.ts"
+import { msb, type Vec, length, vec, empty, maxLength } from "../types/bit_vec/module.f.ts"
 import type { Nullable } from "../types/nullable/module.f.ts"
 import { baseN } from "../base_n/module.f.ts"
 
@@ -19,6 +19,9 @@ export const encode = (input: Vec): Nullable<string> => {
     if (len % 8n !== 0n) { return null }
     const rem = len % 24n
     const padBits = rem === 0n ? 0n : 6n - rem % 6n
+    // The padded vector must not exceed `maxLength`, or `concat` below would
+    // build an intermediate `Vec` past the runtime's `bigint` size ceiling.
+    if (len + padBits > maxLength) { return null }
     const v = padBits > 0n ? concat(input)(vec(padBits)(0n)) : input
     let result = vecToString(v)
     // Append `=` padding to make total length a multiple of 4.

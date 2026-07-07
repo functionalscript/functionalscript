@@ -13,10 +13,15 @@ chance to strip the trailing zero-padding bits the encoding added to reach a
 is exactly at the documented `maxLength` limit.
 
 Concretely: 131,072 zero bytes is exactly `maxLengthBytes`
-(`fs/types/bit_vec/module.f.ts:48`), the documented max payload size.
-`encode` of that input produces `'A'.repeat(174_763) + '='` (verified: 131,072
-bytes = 1,048,576 bits = `maxLength`; padded to a 6-bit boundary adds 2 bits →
+(`fs/types/bit_vec/module.f.ts:48`), the documented max payload size, and its
+base64 form is `'A'.repeat(174_763) + '='` (verified: 131,072 bytes =
+1,048,576 bits = `maxLength`; padded to a 6-bit boundary adds 2 bits →
 1,048,578 bits → 174,763 base64 chars → one `=` to reach a multiple of 4).
+`encode` itself now refuses to produce this string — its own padding-overflow
+guard rejects any padded intermediate that would exceed `maxLength`, so
+`encode(vec(maxLength)(...))` returns `null` — but the string is still valid
+base64 that a caller (or another encoder) can hand to `decode` directly, and
+`decode` must still handle it correctly — the bug described below.
 
 `decode` of that string strips the one `=`, leaving a 174,763-char body, and
 calls `stringToVec(body)`. That body decodes to 174,763 × 6 = 1,048,578 raw
@@ -86,13 +91,14 @@ Candidate approaches that respect that constraint (no design chosen yet):
       over `maxLength` at any intermediate step — confirm this explicitly
       before implementing, e.g. with a proof case using a real Bun run, not
       just Node.
-- [ ] Confirm the chosen approach doesn't reopen the silent-overflow gap
-      tracked in `encode-padding-overflow.md`.
 - [ ] Fix `decode` in `fs/base64/module.f.ts` so exactly-`maxLength`-sized
       payloads round-trip.
-- [ ] Add a proof case: `decode(encode(vec(maxLength)(...)))` round-trips for
-      an exactly-`maxLength`-sized vector (the boundary the existing
-      `decodeOverflow` test in `fs/base64/proof.f.ts` doesn't cover).
+- [ ] Add a proof case decoding a manually-constructed, exactly-`maxLength`-sized
+      base64 string back to a `maxLength`-sized `Vec` (the boundary the existing
+      `decodeOverflow` test in `fs/base64/proof.f.ts` doesn't cover). The string
+      must be built without calling `encode` — `encode` now rejects this exact
+      input (see Problem) — e.g. the direct char-arithmetic approach `base64OfA`
+      in `fs/cas/mcp/proof.f.ts` already uses for the same boundary.
 - [ ] Check `fs/cbase32/module.f.ts` for the same exposure — its sentinel-bit
       padding (`fs/cbase32/module.f.ts:37-38`) also adds bits before trimming,
       and cbase32 *always* emits a sentinel block even when aligned, so its
@@ -100,7 +106,8 @@ Candidate approaches that respect that constraint (no design chosen yet):
 
 ### Related
 
-- `fs/base64/todo/encode-padding-overflow.md` — the opposite-direction gap:
-  `encode` has no `maxLength` check at all on the padded output.
 - `fs/types/bit_vec/todo/u8-list-to-vec-call-sites.md` — related overflow
   handling work on the `tryU8ListToVec`/`u8ListToVec` consumers.
+- `fs/cas/mcp/proof.f.ts`'s `addBase64AtLimitIsError` — the CAS-level proof
+  case that currently documents this bug's failing behavior; flip it to a
+  success assertion once this issue is fixed.

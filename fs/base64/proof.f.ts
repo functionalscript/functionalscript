@@ -1,5 +1,5 @@
 import { assertEq } from '../asserts/module.f.ts'
-import { empty, vec, repeat, vec8, type Vec } from "../types/bit_vec/module.f.ts"
+import { empty, vec, repeat, vec8, maxLength, type Vec } from "../types/bit_vec/module.f.ts"
 import { encode, decode } from "./module.f.ts"
 
 const check = (s: string, v: Vec) => {
@@ -84,6 +84,13 @@ export const proof = {
         // while building) an oversized `bigint`.
         const oversized = 'A'.repeat(174_764)
         assertEq(decode(oversized), null)
+    },
+    encodeOverflow: () => {
+        // A `maxLength`-sized vector needs 2 more bits of zero-padding to
+        // reach the next 6-bit boundary, which would push the intermediate
+        // padded vector past `maxLength`. `encode` must return `null`
+        // instead of silently returning a string for an out-of-range vector.
+        assertEq(encode(vec(maxLength)(0n)), null)
     },
     // Regression guard: `encode` used to be quadratic in the input size, not
     // linear. `baseN`'s `vecToString` (`fs/base_n/module.f.ts`) popped one
