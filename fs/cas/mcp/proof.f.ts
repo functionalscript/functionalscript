@@ -140,7 +140,7 @@ const seedBlob = (root: Dir, home = '/home/user') => (chunks: readonly Vec[]): r
         chunks.reduceRight<List<never, IoResult<Vec>>>(
             (tail, chunk) => nonEmpty(resultOk(chunk), tail), elEmpty())
     const [state, result] = virtual({ ...emptyState, root })(c.write(stream))
-    if (result[0] === 'error') { throw new Error(`seedBlob failed: ${result[1]}`) }
+    assert(result[0] === 'ok', result)
     return [state.root, vecToCBase32(result[1])]
 }
 
