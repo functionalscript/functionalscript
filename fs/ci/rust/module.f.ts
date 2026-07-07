@@ -75,7 +75,7 @@ export const rustPlatformSteps = (v: Os, a: Architecture): readonly MetaStep[] =
 export const rustWasmSteps: readonly MetaStep[] = [
     test({ run: 'cargo fmt -- --check' }),
     install(uses('bytecodealliance/actions/wasmtime/setup', { version: wasmtime })),
-    install(uses('wasmerio/setup-wasmer', { version: `v${wasmer}` })),
+    install(uses('wasmerio/setup-wasmer', { version: wasmer })),
     ...wasmTarget('wasm32-wasip1'),
     ...wasmTarget('wasm32-wasip2'),
     ...wasmTarget('wasm32-unknown-unknown'),
