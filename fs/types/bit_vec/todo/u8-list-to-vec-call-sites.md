@@ -55,5 +55,5 @@ message from `mapUnwrap`.
 
 ### Related
 
-- `fs/base64/todo/encode-padding-overflow.md` — sibling overflow-handling gap
-  in the `base_n`/`base64` codec stack.
+- `fs/base64/todo/decode-rejects-max-size-input.md` — sibling overflow-handling
+  gap in the `base_n`/`base64` codec stack.

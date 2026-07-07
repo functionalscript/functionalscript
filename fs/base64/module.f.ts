@@ -9,7 +9,7 @@ import { baseN } from "../base_n/module.f.ts"
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 
-const { popFront, concat } = msb
+const { popFront } = msb
 
 const { vecToString, stringToVec } = baseN(6n, alphabet)
 
@@ -17,10 +17,11 @@ export const encode = (input: Vec): Nullable<string> => {
     const len = length(input)
     // Base64 is a byte codec; reject non-octet-aligned inputs.
     if (len % 8n !== 0n) { return null }
-    const rem = len % 24n
-    const padBits = rem === 0n ? 0n : 6n - rem % 6n
-    const v = padBits > 0n ? concat(input)(vec(padBits)(0n)) : input
-    let result = vecToString(v)
+    // `vecToString` (via `baseN`'s `chunkList`) already left-pads a trailing
+    // partial 6-bit chunk with zeros, so `input` needs no explicit padding —
+    // building one would risk pushing an intermediate `Vec` past `maxLength`
+    // for input already at or near that limit, for no benefit.
+    let result = vecToString(input)
     // Append `=` padding to make total length a multiple of 4.
     while (result.length % 4 !== 0) { result += '=' }
     return result
