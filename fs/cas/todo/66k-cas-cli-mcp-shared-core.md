@@ -21,7 +21,7 @@ get, list — but with duplicated logic:
 If a new operation or encoding rule is added, both transports must be updated
 separately, with no compile-time guarantee they stay in sync.
 
-> **Scope note (see [i66J-cas-symlink-escape](todo.md)):** the shared `add`
+> **Scope note (see [remove-local-file-urls-mcp](../mcp/todo/remove-local-file-urls-mcp.md)):** the shared `add`
 > design below originally included a `url` (file-path) source for *both*
 > transports. That issue removes local-path upload from the MCP server — the
 > server must never open a caller-supplied path. So the file-path source is a
@@ -87,13 +87,15 @@ accepted as-is, the same as `cp`.
 - [ ] Refactor CLI `commands` to delegate to the shared layer (inline + the
       CLI-only file-path `add`).
 - [ ] Refactor `casToolRegistry` to delegate to the shared layer (inline only —
-      no file-path source; consistent with [i66J-cas-symlink-escape](todo.md)).
+      no file-path source; consistent with
+      [remove-local-file-urls-mcp](../mcp/todo/remove-local-file-urls-mcp.md)).
 - [ ] Verify no behaviour change: existing CLI and MCP tests still pass; add
       new tests for the CLI staging flow.
 
 ### Related
 
-- [i66J-cas-symlink-escape](todo.md) — removes the MCP file-path (`url`) source;
+- [remove-local-file-urls-mcp](../mcp/todo/remove-local-file-urls-mcp.md) —
+  removes the MCP file-path (`url`) source;
   this issue's shared `add` must keep the file-path source CLI-only
 - `fs/cas/module.f.ts` — CLI commands and core types
 - `fs/cas/mcp/module.f.ts` — MCP tool registry and server
