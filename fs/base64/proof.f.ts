@@ -1,5 +1,5 @@
 import { assertEq } from '../asserts/module.f.ts'
-import { empty, vec, repeat, vec8, type Vec } from "../types/bit_vec/module.f.ts"
+import { empty, vec, repeat, vec8, maxLength, type Vec } from "../types/bit_vec/module.f.ts"
 import { encode, decode } from "./module.f.ts"
 
 const check = (s: string, v: Vec) => {
@@ -84,6 +84,15 @@ export const proof = {
         // while building) an oversized `bigint`.
         const oversized = 'A'.repeat(174_764)
         assertEq(decode(oversized), null)
+    },
+    encodeAtMaxLengthSucceeds: () => {
+        // A `maxLength`-sized vector's trailing partial 6-bit chunk is
+        // left-padded by `vecToString` itself (see `baseN`), so `encode`
+        // never needs to build an over-`maxLength` intermediate and must not
+        // reject this boundary input. (`decode` of the resulting string
+        // still fails on this exact boundary — a separate, still-open bug;
+        // see `fs/base64/todo/decode-rejects-max-size-input.md`.)
+        assertEq(encode(vec(maxLength)(0n)), 'A'.repeat(174_763) + '=')
     },
     // Regression guard: `encode` used to be quadratic in the input size, not
     // linear. `baseN`'s `vecToString` (`fs/base_n/module.f.ts`) popped one
