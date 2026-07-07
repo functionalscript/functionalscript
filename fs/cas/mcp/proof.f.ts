@@ -182,8 +182,9 @@ const pngSample = base64Encode(
     u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])) as string
 
 // Returns the RFC 4648 base64 encoding of `n` zero bytes, computed directly
-// without bigint arithmetic — safe near maxLengthBytes where base64Encode on a
-// padded Vec would trigger the encode-padding-overflow bug. Handles every n%3
+// without bigint arithmetic — independent of `base64.encode` so these tests
+// don't rely on the correctness of the function they're indirectly exercising
+// (`cas_add` decodes the string via `base64.decode`). Handles every n%3
 // residue: rem=0 → no padding, rem=1 → 'AA==', rem=2 → 'AAA='.
 const base64OfA = (n: bigint): string => {
     const groups = Number(n / 3n)
@@ -233,8 +234,7 @@ const binaryChunk = repeat(maxLengthBytes)(vec8(0xffn))
 // 100,000 raw bytes of 0xFF: comfortably under `maxLengthBytes` (so `cas_get`'s
 // own `length > maxLengthBytes` guard does not fire), but base64 inflates it to
 // ceil(100_000/3)*4 = 133,336 chars — already past `maxLength` (131,072 bytes)
-// before the JSON-RPC envelope adds anything. Small enough to stay clear of the
-// separate `base64Encode`-near-`maxLength` padding bug (see `base64OfA` above).
+// before the JSON-RPC envelope adds anything.
 const oversizedBase64Chunk = repeat(100_000n)(vec8(0xffn))
 // 90,000 raw bytes: base64 inflates to 120,000 chars, leaving ~11 KiB of margin
 // under `maxLength` once the envelope is added — the paired "still succeeds" case.
