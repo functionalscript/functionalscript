@@ -28,6 +28,7 @@ It's recommended to run `npm run update` after changing the source code.
 - Run `cargo fmt -- --check` to verify formatting.
 - To run only the tests under a specific directory, `cd` into it and run `npm run fst`. This scans for `test.f.ts` files in that subtree and reports per-test results.
 - New FunctionalScript (`.f.ts`) modules and functions must have **100% proof coverage** across every dimension: every exported function called, every line executed, and every branch (both sides of each conditional) taken. A new `module.f.ts` ships with a co-located `proof.f.ts` (its `proof` export) that exercises all of its exports along all code paths — partial coverage of new code is not acceptable. If a line or branch genuinely cannot be reached, restructure the code so it isn't there rather than leaving it uncovered.
+- Assert results in `proof` code with `assert`/`assertEq` from `fs/asserts/module.f.ts`, not a hand-written `if (cond) { throw ... }`. A local `if/throw` in a test is itself a new branch for the coverage tool to track, and its failure side is normally never exercised (the test is expected to pass), so it lands as a permanently-uncovered branch in the very module meant to close coverage gaps. `assert`/`assertEq` push that branch into a shared helper whose own branches are already fully covered elsewhere, so the call site adds no new uncovered branch.
 
 ## Documentation
 

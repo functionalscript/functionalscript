@@ -47,5 +47,5 @@ Open design points:
 
 ### Related
 
-- [i66G-cas-get-verify-option](todo.md) — per-read verification for the same invariant
+- [66g-cas-get-verify-option](66g-cas-get-verify-option.md) — per-read verification for the same invariant
 - `issues/plan/vision.md` — protocol-agnostic synchronization / copy-files sync
