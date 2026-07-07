@@ -68,11 +68,13 @@ for pre-encoded binary payloads.
 
 Inline content (`text`/`base64`) resolves into a single `Vec`, which caps at
 `maxLength` bits — **128 KiB**. Content that is malformed or exceeds this limit
-returns `isError` with a descriptive message. There is no MCP route to store a
-larger blob — use the `cas` CLI (`cas add <path>`) instead, run directly by the
-user against their own filesystem. A future `type` may add a *remote* `http(s)://`
-URL fetch, downloaded server-side into the store with no local-path involved;
-see the design invariant below.
+returns `isError` with a descriptive message pointing at the CLI. There is no
+MCP route to store a larger blob — run `npx functionalscript cas add <path>`
+instead, either yourself (if you're an agent with shell access) or by giving
+the user that exact command to run; it stores the file directly from the
+caller's own filesystem and prints the resulting hash. A future `type` may add
+a *remote* `http(s)://` URL fetch, downloaded server-side into the store with
+no local-path involved; see the design invariant below.
 
 ## `cas_get`: metadata + optional inline content
 
@@ -201,15 +203,16 @@ filesystem path.
 
 This tool previously accepted `type: 'url'`, a client-supplied path within
 `$HOME/cas_upload/` that the server opened on the client's behalf. That was
-removed (see `fs/cas/mcp/todo/remove-local-file-urls-mcp.md`) because a
-writable staging directory is exactly the sandbox an attacker who controls the
-MCP client could plant a symlink in (`cas_upload/x -> /etc/passwd`), and no
-purely-TypeScript check — leaf `O_NOFOLLOW`, `realpath` containment, or both
-together — closes every race and directory-symlink variant; the only airtight
-fix (per-component `openat()` pinning) isn't reachable without a native
-addon. Large files now go through the `cas` CLI instead, where the person
-running it *is* the user, not a sandboxed model, so following a symlink they
-planted themselves is ordinary `cat`/`cp` behavior, not a sandbox escape.
+removed because a writable staging directory is exactly the sandbox an
+attacker who controls the MCP client could plant a symlink in
+(`cas_upload/x -> /etc/passwd`), and no purely-TypeScript check — leaf
+`O_NOFOLLOW`, `realpath` containment, or both together — closes every race
+and directory-symlink variant; the only airtight fix (per-component
+`openat()` pinning) isn't reachable without a native addon. Large files now
+go through the `cas` CLI instead (`npx functionalscript cas add <path>`),
+where the person running it *is* the user, not a sandboxed model, so
+following a symlink they planted themselves is ordinary `cat`/`cp` behavior,
+not a sandbox escape.
 
 Treat this as the acceptance test for any tool added later: it's safe on this
 axis iff it never opens, reads, writes, or renames a path derived from client

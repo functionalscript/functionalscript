@@ -166,7 +166,7 @@ const casToolRegistry =
     return [
     toolEntry(
         'cas_add',
-        'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, use the `cas` CLI (`cas add <path>`) instead.',
+        'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, store the file with the `cas` CLI instead: run `npx functionalscript cas add <path>` yourself if you have shell access, or give the user that exact command to run — it prints the resulting hash on stdout.',
         casAddArgs,
         ({ type, content }): Effect<FileCasOperation, ToolsCallResult> => {
             // type:'text' or 'base64' — resolve content to Vec, store via c.write()
@@ -174,7 +174,7 @@ const casToolRegistry =
                 ? base64Decode(content)
                 : tryUtf8(content)
             return x === null
-                ? pure(errorResult('too large or malformed — use the `cas` CLI (`cas add <path>`) for large content'))
+                ? pure(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
                 : c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
                     ? errorResult('write')
