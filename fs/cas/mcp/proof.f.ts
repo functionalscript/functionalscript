@@ -4,11 +4,13 @@ import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../json/module.f.ts'
 import type { Response } from '../../json/rpc/module.f.ts'
-import { maxLength, msb, u8ListToVec, vec, vec8, repeat, length, type Vec, maxLengthBytes } from '../../types/bit_vec/module.f.ts'
+import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../../cbase32/module.f.ts'
 import { encode as base64Encode } from '../../base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
-import { type FileCasOperation } from '../module.f.ts'
+import { fileCas, type FileCasOperation } from '../module.f.ts'
+import { sha256 } from '../../crypto/sha2/module.f.ts'
+import { nonEmpty, empty as elEmpty, type List } from '../../effects/list/module.f.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
 } from '../../mcp/module.f.ts'
@@ -17,6 +19,7 @@ import type {
     ReaddirOptions,
     Access,
     CreateExclusive,
+    IoResult,
     Mkdir,
     Now,
     RandomInt,
@@ -54,10 +57,10 @@ type TestState = {
 
 const initialTestState: TestState = { memory: { next: 0, values: {} } }
 
-// The in-memory session helpers only exercise text/base64 paths (MemOp) and the
-// path-rejection branch of type:'url' (no file I/O). The upload ops from
-// FileCasOperation are only reached via runSessionVirtual; the stubs below
-// exist to satisfy the type-checker and will throw if unexpectedly called.
+// The in-memory session helpers only exercise text/base64 paths (MemOp, no file
+// I/O). The filesystem ops from FileCasOperation are only reached via
+// runSessionVirtual/seedBlob; the stubs below exist to satisfy the
+// type-checker and will throw if unexpectedly called.
 type MockOp = MemOp | Mkdir | Rename | RandomInt | ReadBytes | Now
     | Access | CreateExclusive | Readdir | Rm | Stat | WriteBytes
 
@@ -124,6 +127,22 @@ const runSessionVirtual =
         })
         return virtual({ ...emptyState, root })(effect)[1]
     }
+
+// Seeds a blob directly into the virtual store via `c.write`, bypassing the
+// MCP `cas_add` tool entirely — used by tests that need a stored blob larger
+// than `cas_add`'s inline limit, now that the removed `type:'url'` path is no
+// longer available to stage one through MCP. Returns the resulting root
+// `Dir` (with the new shard written) and the blob's cBase32 hash so a
+// subsequent `runSessionVirtual` call can read it back via `cas_get`.
+const seedBlob = (root: Dir, home = '/home/user') => (chunks: readonly Vec[]): readonly [Dir, string] => {
+    const c = fileCas(sha256)(home)
+    const stream: List<never, IoResult<Vec>> =
+        chunks.reduceRight<List<never, IoResult<Vec>>>(
+            (tail, chunk) => nonEmpty(resultOk(chunk), tail), elEmpty())
+    const [state, result] = virtual({ ...emptyState, root })(c.write(stream))
+    if (result[0] === 'error') { throw new Error(`seedBlob failed: ${result[1]}`) }
+    return [state.root, vecToCBase32(result[1])]
+}
 
 // ── Messages ────────────────────────────────────────────────────────────────────
 
@@ -204,17 +223,10 @@ const base64OfA = (n: bigint): string => {
 // two-chunk blob spans two read chunks without any one `Vec` exceeding the cap.
 const largeMultiChunkBlobMeta =
     (chunk0: Vec, chunk1: Vec, expectedType: string, expectedMime: string) => () => {
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'big': [chunk0, chunk1] } } } }
-        const [addResp] = runSessionVirtual(root)([
+        const [root, hash] = seedBlob({})([chunk0, chunk1])
+        const [metaResp] = runSessionVirtual(root)([
             init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
-        ]).slice(2) as readonly unknown[]
-        assert(!resultOf(addResp).isError)
-        const hash = textOf(addResp)
-        const [, metaResp] = runSessionVirtual(root)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
-            call(3, 'cas_get', { hash }),
+            call(2, 'cas_get', { hash }),
         ]).slice(2) as readonly unknown[]
         assert(!resultOf(metaResp).isError)
         const meta = JSON.parse(textOf(metaResp)) as CasGetResult
@@ -266,16 +278,10 @@ export const proof = {
     // "too large" error, not "no such hash" — the blob exists, it just can't be
     // buffered inline. The metadata-only path (above) still returns its size/type.
     getContentLargeBlobTooLargeError: () => {
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'big': [asciiChunk, asciiChunk] } } } }
-        const [addResp] = runSessionVirtual(root)([
+        const [root, hash] = seedBlob({})([asciiChunk, asciiChunk])
+        const [getResp] = runSessionVirtual(root)([
             init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
-        ]).slice(2) as readonly unknown[]
-        const hash = textOf(addResp)
-        const [, getResp] = runSessionVirtual(root)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
-            call(3, 'cas_get', { hash, content: true }),
+            call(2, 'cas_get', { hash, content: true }),
         ]).slice(2) as readonly unknown[]
         assertEq(resultOf(getResp).isError, true)
         const text = textOf(getResp)
@@ -306,32 +312,22 @@ export const proof = {
     // `fs/base64/proof.f.ts` `encodeLargeVecIsSlow`). Now well under budget on
     // both engines.
     getContentBase64InflationOverflowWritesInternalError: () => {
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'big': [oversizedBase64Chunk] } } } }
-        const [addResp] = runStdio(root)([
-            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
-        ])
-        const hash = textOf(addResp)
-        const [, getResp] = runStdio(root)([
-            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
-            call(3, 'cas_get', { hash, content: true }),
+        const [root, hash] = seedBlob({})([oversizedBase64Chunk])
+        const [getResp] = runStdio(root)([
+            call(2, 'cas_get', { hash, content: true }),
         ])
         const err = getResp as { readonly error?: { readonly code: number }, readonly id: unknown }
         assertEq(err.error?.code, -32603)
-        assertEq(err.id, 3)
+        assertEq(err.id, 2)
     },
 
     // The paired boundary case: a blob whose base64 inflation leaves enough
     // margin under `maxLength` for the envelope — confirms the fallback above
     // only triggers on genuine overflow, not on every `content:true` binary read.
     getContentBase64NearBoundarySucceeds: () => {
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'big': [boundaryBase64Chunk] } } } }
-        const [addResp] = runStdio(root)([
-            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
-        ])
-        const hash = textOf(addResp)
-        const [, getResp] = runStdio(root)([
-            call(2, 'cas_add', { content: '/home/user/cas_upload/big', type: 'url' }),
-            call(3, 'cas_get', { hash, content: true }),
+        const [root, hash] = seedBlob({})([boundaryBase64Chunk])
+        const [getResp] = runStdio(root)([
+            call(2, 'cas_get', { hash, content: true }),
         ])
         assert(!resultOf(getResp).isError)
         const result = JSON.parse(textOf(getResp)) as CasGetResult
@@ -343,25 +339,21 @@ export const proof = {
     // (33,000 bytes) well under `maxLengthBytes`, but each quote costs 2 bytes on
     // the inner CAS-JSON escape and 4 bytes once the outer JSON-RPC envelope
     // re-escapes that backslash-quote pair — no `cas_get`-level size guard could
-    // see this coming, only the transport's real encode attempt can. Uploaded via
-    // `type: 'url'` (a file, not an inlined JSON string) so the test exercises
-    // `cas_get`'s response-side escaping without also paying for parsing a huge
-    // inline `content` argument on the request side. Confirms `writeResponse`'s
+    // see this coming, only the transport's real encode attempt can. Seeded
+    // directly into the store via `seedBlob` (not an inlined `cas_add` JSON
+    // string) so the test exercises `cas_get`'s response-side escaping without
+    // also paying for parsing a huge inline `content` argument on the request
+    // side. Confirms `writeResponse`'s
     // `tryUtf8` fallback (not a crash) handles double-escaping overflow, again
     // preserving the request's `id`.
     getContentDoubleEscapedOverflowWritesInternalError: () => {
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'q': [quotesChunk] } } } }
-        const [addResp] = runStdio(root)([
-            call(2, 'cas_add', { content: '/home/user/cas_upload/q', type: 'url' }),
-        ])
-        const hash = textOf(addResp)
-        const [, getResp] = runStdio(root)([
-            call(2, 'cas_add', { content: '/home/user/cas_upload/q', type: 'url' }),
-            call(3, 'cas_get', { hash, content: true }),
+        const [root, hash] = seedBlob({})([quotesChunk])
+        const [getResp] = runStdio(root)([
+            call(2, 'cas_get', { hash, content: true }),
         ])
         const err = getResp as { readonly error?: { readonly code: number }, readonly id: unknown }
         assertEq(err.error?.code, -32603)
-        assertEq(err.id, 3)
+        assertEq(err.id, 2)
     },
 
     toolsListAdvertisesThreeTools: () => {
@@ -507,6 +499,7 @@ export const proof = {
         const [resp] = session(call(2, 'cas_add', { content: 'A'.repeat(174_764), type: 'base64' }))
         assertEq(resultOf(resp).isError, true)
         assert(textOf(resp).includes('too large or malformed'))
+        assert(textOf(resp).includes('cas add'))
     },
 
     // One ASCII byte past maxLengthBytes — tryUtf8 returns null and cas_add
@@ -515,6 +508,7 @@ export const proof = {
         const [resp] = session(call(2, 'cas_add', { content: 'a'.repeat(Number(maxLengthBytes) + 1) }))
         assertEq(resultOf(resp).isError, true)
         assert(textOf(resp).includes('too large or malformed'))
+        assert(textOf(resp).includes('cas add'))
     },
 
     // Exactly maxLengthBytes (131,072) ASCII bytes — tryUtf8 returns a non-null
@@ -534,6 +528,7 @@ export const proof = {
         const [resp] = session(call(2, 'cas_add', { content: base64OfA(maxLengthBytes), type: 'base64' }))
         assertEq(resultOf(resp).isError, true)
         assert(textOf(resp).includes('too large or malformed'))
+        assert(textOf(resp).includes('cas add'))
     },
 
     getUnterminatedHashIsError: () => {
@@ -573,83 +568,14 @@ export const proof = {
         assert('result' in (resp as object))
     },
 
-    // cas_add with type:'url' streams a file from /home/user/cas_upload/ into CAS.
-    addUrlStoresFileAndReturnsHash: () => {
-        const fileContent = utf8('hello from file')
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'hello.txt': [fileContent] } } } }
-        const [addUrlResp] = runSessionVirtual(root)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/hello.txt', type: 'url' }),
-        ]).slice(2) as readonly unknown[]
-        assert(!resultOf(addUrlResp).isError)
-        assert(textOf(addUrlResp).length > 0)
-    },
-
-    addBigFileRoundtrip: () => {
-        const chunk = vec(maxLength)(1234567890n)
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'hello.bin': [chunk, chunk] } } } }
-        const [addUrlResp] = runSessionVirtual(root)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/hello.bin', type: 'url' }),
-        ]).slice(2)
-        assert(!resultOf(addUrlResp).isError)
-        assert(textOf(addUrlResp).length > 0)
-        const hash = textOf(addUrlResp)
-        //
-        const [, getResp] = runSessionVirtual(root)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/hello.bin', type: 'url' }),
-            call(3, 'cas_get', { hash })
-        ]).slice(2)
-        assert(!resultOf(getResp).isError)
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
-    },
-
-    addUrlRoundTrips: () => {
-        const fileContent = utf8('round-trip content')
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'rt.txt': [fileContent] } } } }
-        // First pass: add to get the hash (deterministic for same content).
-        const [addResp] = runSessionVirtual(root)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/rt.txt', type: 'url' }),
-        ]).slice(2)
-        const hash = textOf(addResp)
-        // Second pass: add again + get in one session (file re-present in fresh virtual state).
-        const [, getResp] = runSessionVirtual(root)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/rt.txt', type: 'url' }),
-            call(3, 'cas_get', { hash, content: true }),
-        ]).slice(2)
-        assert(!resultOf(getResp).isError)
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
-        assertEq(result.type, 'text')
-        assertEq(result.content, 'round-trip content')
-    },
-
-    addUrlMissingFileIsError: () => {
-        const [resp] = runSessionVirtual({})([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/nonexistent.txt', type: 'url' }),
-        ]).slice(2) as readonly unknown[]
-        assertEq(resultOf(resp).isError, true)
-    },
-
     // cas_get without content:true returns only metadata.
     getMetaReturnsLengthAndMimeType: () => {
-        const fileContent = utf8('text content')
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'f': [fileContent] } } } }
-        // First pass: add to get the hash.
-        const [addResp] = runSessionVirtual(root)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/f', type: 'url' }),
-        ]).slice(2) as readonly unknown[]
+        const [addResp] = session(call(2, 'cas_add', { content: 'text content' }))
         const hash = textOf(addResp)
-        // Second pass: add + get metadata.
-        const [, metaResp] = runSessionVirtual(root)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/f', type: 'url' }),
+        const [, metaResp] = session(
+            call(2, 'cas_add', { content: 'text content' }),
             call(3, 'cas_get', { hash }),
-        ]).slice(2) as readonly unknown[]
+        )
         assert(!resultOf(metaResp).isError)
         const meta = JSON.parse(textOf(metaResp)) as CasGetResult
         assertEq(meta.mime_type, 'text/plain')
@@ -715,44 +641,6 @@ export const proof = {
     getMetaInvalidHashIsError: () => {
         const [resp] = session(call(2, 'cas_get', { hash: 'bad!' }))
         assertEq(resultOf(resp).isError, true)
-    },
-
-    // cas_add type:'url' with a subdirectory path flattens slashes to '-' in staging.
-    addUrlFromSubdirectorySucceeds: () => {
-        const fileContent = utf8('nested file content')
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'subdir': { 'file.txt': [fileContent] } } } } }
-        const [resp] = runSessionVirtual(root)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/subdir/file.txt', type: 'url' }),
-        ]).slice(2) as readonly unknown[]
-        assert(!resultOf(resp).isError)
-        assert(textOf(resp).length > 0)
-    },
-
-    // cas_add with type:'url' accepts paths within /home/user/cas_upload/
-    addUrlFromApprovedDirectorySucceeds: () => {
-        const fileContent = utf8('approved file')
-        const root: Dir = { 'home': { 'user': { 'cas_upload': { 'test.txt': [fileContent] } } } }
-        const [resp] = runSessionVirtual(root)([
-            init, initialized,
-            call(2, 'cas_add', { content: '/home/user/cas_upload/test.txt', type: 'url' }),
-        ]).slice(2) as readonly unknown[]
-        assert(!resultOf(resp).isError)
-        assert(textOf(resp).length > 0)
-    },
-
-    // cas_add with type:'url' rejects paths outside /home/user/cas_upload/
-    addUrlFromRandomDirectoryIsRejected: () => {
-        const [resp] = session(call(2, 'cas_add', { content: '/tmp/secret.txt', type: 'url' }))
-        assert(resultOf(resp).isError === true)
-        assert(textOf(resp).includes('/home/user/cas_upload/'))
-    },
-
-    // cas_add with type:'url' rejects path traversal attempts with ..
-    addUrlWithPathTraversalIsRejected: () => {
-        const [resp] = session(call(2, 'cas_add', { content: '/home/user/cas_upload/../../etc/passwd', type: 'url' }))
-        assert(resultOf(resp).isError === true)
-        assert(textOf(resp).includes('/home/user/cas_upload/'))
     },
 
     // cas_get with content:true on octet-stream (no magic bytes, not UTF-8) returns inline base64.

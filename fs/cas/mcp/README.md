@@ -53,7 +53,7 @@ advertised in `tools/list`, and [`validate`](../../types/rtti/validate/module.f.
 decodes the `arguments` object in `tools/call`. There is no drift between what we
 advertise and what we accept.
 
-## `cas_add`: text, base64, or file input
+## `cas_add`: text or base64 input
 
 `cas_add` accepts a `type` field that controls how `content` is interpreted:
 
@@ -61,18 +61,18 @@ advertise and what we accept.
 |---------------------|---------------------------------------------------|
 | `'text'` (default)  | UTF-8 string — stored as raw UTF-8 bytes          |
 | `'base64'`          | RFC 4648 base64 — decoded to bytes before store   |
-| `'url'`             | Filesystem path — file is read and stored as-is   |
 
 Omitting `type` defaults to `'text'`, so most agent-generated content (scripts,
 JSON, prompts) can be stored without any encoding step. Pass `type: 'base64'`
-for pre-encoded binary payloads, or `type: 'url'` to store a file directly from
-the filesystem.
+for pre-encoded binary payloads.
 
 Inline content (`text`/`base64`) resolves into a single `Vec`, which caps at
 `maxLength` bits — **128 KiB**. Content that is malformed or exceeds this limit
-returns `isError` with a descriptive message. To store a larger blob, write it
-under `$HOME/cas_upload/` and pass `type: 'url'`, which streams the file with no
-size limit.
+returns `isError` with a descriptive message. There is no MCP route to store a
+larger blob — use the `cas` CLI (`cas add <path>`) instead, run directly by the
+user against their own filesystem. A future `type` may add a *remote* `http(s)://`
+URL fetch, downloaded server-side into the store with no local-path involved;
+see the design invariant below.
 
 ## `cas_get`: metadata + optional inline content
 
@@ -180,12 +180,42 @@ MCP draws a line the dispatcher already respects:
   `isError: true` and a text explanation. This adapter returns `isError` for:
   - invalid arguments to any tool (`validate` rejects the argument object);
   - inline `content` that is malformed or exceeds 128 KiB (`tryUtf8` / `base64Decode` → `null`);
-  - `type: 'url'` with an unreadable or missing file;
   - malformed `hash` (`cBase32ToVec` → `null`);
   - `cas_get` on an absent hash (`c.read` → `undefined`);
   - `cas_get` with `content: true` on a blob larger than the inline limit
     (distinct "too large" message — see above — not "no such hash");
   - an unknown tool `name`.
+
+## Design invariant: the server never opens a client-named local path
+
+> The MCP server only ever touches paths under `~/.cas/`, and every such path
+> is one the server derives itself — never a path supplied (in whole or in
+> part) by the client.
+
+Every server file operation is on a self-derived path: `cas_add` writes via
+staging under `~/.cas/_stage/` then renames to the hash-sharded `~/.cas/<shard>`;
+`cas_get` reads `~/.cas/<shard>`; `cas_list` walks `~/.cas/`. The client
+contributes *content* (`text`/`base64` bytes) and *hashes* (validated cBase32,
+which only ever select a shard path and can't escape the store), but never a
+filesystem path.
+
+This tool previously accepted `type: 'url'`, a client-supplied path within
+`$HOME/cas_upload/` that the server opened on the client's behalf. That was
+removed (see `fs/cas/mcp/todo/remove-local-file-urls-mcp.md`) because a
+writable staging directory is exactly the sandbox an attacker who controls the
+MCP client could plant a symlink in (`cas_upload/x -> /etc/passwd`), and no
+purely-TypeScript check — leaf `O_NOFOLLOW`, `realpath` containment, or both
+together — closes every race and directory-symlink variant; the only airtight
+fix (per-component `openat()` pinning) isn't reachable without a native
+addon. Large files now go through the `cas` CLI instead, where the person
+running it *is* the user, not a sandboxed model, so following a symlink they
+planted themselves is ordinary `cat`/`cp` behavior, not a sandbox escape.
+
+Treat this as the acceptance test for any tool added later: it's safe on this
+axis iff it never opens, reads, writes, or renames a path derived from client
+input. A future *remote* `http(s)://` URL fetch would satisfy it — the server
+downloads into `~/.cas/_stage/`, a self-derived path, and the client-supplied
+part is a URL handed to the network stack, never the filesystem.
 
 ### Store location
 

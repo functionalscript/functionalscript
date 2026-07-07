@@ -1,7 +1,7 @@
 # Remove local file URLs (type:'url') from the MCP server
 
 **Priority:** P2
-**Status:** open
+**Status:** done
 
 ### Problem
 
@@ -67,12 +67,12 @@ If MCP clients later need to store large blobs without CLI access, add a `type` 
 
 ### Tasks
 
-- [ ] Drop `'url'` from `casAddArgs.type` in `fs/cas/mcp/module.f.ts` (leaves `or('text', 'base64', undefined)`)
-- [ ] Remove the `type === 'url'` branch from the `cas_add` handler, plus now-unused imports/plumbing it pulled in (`casAddFile`, `rm`, the `Rm` op in the tool's effect type, `casUploadDir`)
-- [ ] Update the `cas_add` tool description string (drop the "use type:url for large content" guidance; point large-content users at the CLI instead)
-- [ ] Update the oversized/malformed-inline runtime error message (`fs/cas/mcp/module.f.ts` — currently `'too large or malformed — use type:"url" for large content'`, ~line 187): it still tells the user to use the removed mode. Point at the CLI instead. The `addBase64OverLimitIsError` / `addTextOverLimitIsError` / `addBase64AtLimitIsError` proofs assert on the `'too large or malformed'` substring (which survives), but update them to also match the new CLI guidance so the message doesn't silently drift back.
-- [ ] In `fs/cas/mcp/proof.f.ts`, remove the **upload-specific** `type:'url'` tests (`addUrl*`, `addBigFileRoundtrip`, the path-rejection cases), but **do not delete the large-blob `cas_get` coverage** — `getMetaLargeMultiChunk*`, the `content:true` >128 KiB overflow error, and cross-chunk UTF-8 detection all exercise *retained* read behavior and currently just happen to seed the store via `type:'url'`. **Rewrite** those to seed a >128 KiB blob through the store directly (`c.write`/`casAddFile` on a virtual multi-chunk file, or a pre-populated shard) instead of the removed upload path, so large-blob read regressions still get caught. Keep the `text`/`base64` coverage.
-- [ ] Update `fs/cas/mcp/README.md`: remove the `type:'url'` row/section, state large files go through the CLI, note remote-URL as a possible future addition, and record the **"server only touches self-derived paths under `~/.cas/`"** invariant (see "The invariant this restores") as a stated design rule, so a future tool that reintroduces a client-supplied path is caught in review
+- [x] Drop `'url'` from `casAddArgs.type` in `fs/cas/mcp/module.f.ts` (leaves `or('text', 'base64', undefined)`)
+- [x] Remove the `type === 'url'` branch from the `cas_add` handler, plus now-unused imports/plumbing it pulled in (`casAddFile`, `rm`, the `Rm` op in the tool's effect type, `casUploadDir`)
+- [x] Update the `cas_add` tool description string (drop the "use type:url for large content" guidance; point large-content users at the CLI instead)
+- [x] Update the oversized/malformed-inline runtime error message (`fs/cas/mcp/module.f.ts` — currently `'too large or malformed — use type:"url" for large content'`, ~line 187): it still tells the user to use the removed mode. Point at the CLI instead. The `addBase64OverLimitIsError` / `addTextOverLimitIsError` / `addBase64AtLimitIsError` proofs assert on the `'too large or malformed'` substring (which survives), but update them to also match the new CLI guidance so the message doesn't silently drift back.
+- [x] In `fs/cas/mcp/proof.f.ts`, remove the **upload-specific** `type:'url'` tests (`addUrl*`, `addBigFileRoundtrip`, the path-rejection cases), but **do not delete the large-blob `cas_get` coverage** — `getMetaLargeMultiChunk*`, the `content:true` >128 KiB overflow error, and cross-chunk UTF-8 detection all exercise *retained* read behavior and currently just happen to seed the store via `type:'url'`. **Rewrite** those to seed a >128 KiB blob through the store directly (`c.write`/`casAddFile` on a virtual multi-chunk file, or a pre-populated shard) instead of the removed upload path, so large-blob read regressions still get caught. Keep the `text`/`base64` coverage.
+- [x] Update `fs/cas/mcp/README.md`: remove the `type:'url'` row/section, state large files go through the CLI, note remote-URL as a possible future addition, and record the **"server only touches self-derived paths under `~/.cas/`"** invariant (see "The invariant this restores") as a stated design rule, so a future tool that reintroduces a client-supplied path is caught in review
 - [x] Reconcile the other upload-touching todos with this removal: [66k-cas-cli-mcp-shared-upload](../../todo/66k-cas-cli-mcp-shared-upload.md) (marked `irrelevant` — superseded; delete when the removal lands), [66j-cas-add-directory](../../todo/66j-cas-add-directory.md) (reframed: `cas add` detects a directory, no separate command), [66k-cas-cli-mcp-shared-core](../../todo/66k-cas-cli-mcp-shared-core.md) (its shared `add` file-path source scoped CLI-only, not MCP), `66j-cas-large-file-support` (deleted — its streaming staged-move pipeline is implemented CLI-side and nothing wires it to MCP), and [66j-normalize-home-paths](../../todo/66j-normalize-home-paths.md) (marked `irrelevant` — its whole purpose was validating the removed client `cas_add` path)
 
 ### Related
