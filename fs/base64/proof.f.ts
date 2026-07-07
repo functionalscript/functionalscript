@@ -85,12 +85,14 @@ export const proof = {
         const oversized = 'A'.repeat(174_764)
         assertEq(decode(oversized), null)
     },
-    encodeOverflow: () => {
-        // A `maxLength`-sized vector needs 2 more bits of zero-padding to
-        // reach the next 6-bit boundary, which would push the intermediate
-        // padded vector past `maxLength`. `encode` must return `null`
-        // instead of silently returning a string for an out-of-range vector.
-        assertEq(encode(vec(maxLength)(0n)), null)
+    encodeAtMaxLengthSucceeds: () => {
+        // A `maxLength`-sized vector's trailing partial 6-bit chunk is
+        // left-padded by `vecToString` itself (see `baseN`), so `encode`
+        // never needs to build an over-`maxLength` intermediate and must not
+        // reject this boundary input. (`decode` of the resulting string
+        // still fails on this exact boundary — a separate, still-open bug;
+        // see `fs/base64/todo/decode-rejects-max-size-input.md`.)
+        assertEq(encode(vec(maxLength)(0n)), 'A'.repeat(174_763) + '=')
     },
     // Regression guard: `encode` used to be quadratic in the input size, not
     // linear. `baseN`'s `vecToString` (`fs/base_n/module.f.ts`) popped one
