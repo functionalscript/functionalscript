@@ -1,10 +1,18 @@
 /**
  * Core effect type constructors and combinators.
  *
+ * Effect helpers are **step adapters**: functions that return a continuation
+ * `(t: T) => Effect<Q, R>` meant to be passed into `.step`, never wrappers
+ * that take the effect itself as an argument. `Effect` has no pipeline
+ * operator to lean on and must not be extended with new methods, so
+ * `.step(adapterA).step(adapterB)` is how helpers compose — flat,
+ * left-to-right, in evaluation order. See {@link okStep} for an example.
+ *
  * @module
  */
 
 import { fold, type List } from '../types/list/module.f.ts'
+import type { Result } from '../types/result/module.f.ts'
 
 export type Operation =
     readonly[string, (..._: readonly never[]) => unknown]
@@ -91,6 +99,17 @@ export const forEachStep =
     <O extends Operation, T>(f: (item: T) => Effect<O, void>) =>
     (items: List<T>): Effect<O, void> =>
     foldStep((item: T) => () => f(item))(undefined)(items)
+
+/**
+ * A step adapter for the `error` short-circuit: `error` → pass it through
+ * unchanged as `pure`, `ok` → continue with `f`. Collapses the hand-written
+ * `r[0] === 'error' ? pure(r) : f(r[1])` check that recurs at every site
+ * chaining `Effect<O, Result<T, E>>` steps.
+ */
+export const okStep =
+    <T, E, O extends Operation, R>(f: (value: T) => Effect<O, Result<R, E>>) =>
+    (r: Result<T, E>): Effect<O, Result<R, E>> =>
+        r[0] === 'error' ? pure(r) : f(r[1])
 
 /**
  * The decoded form of an effect's next step: either a final `result`, or a
