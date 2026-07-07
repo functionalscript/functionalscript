@@ -102,5 +102,11 @@ export const proof = {
             b(undefined)
             union(a)(b)
         }
+    },
+    // `def` is the range-map's default handler; the public API never calls it directly
+    // (`init` covers every code point), so exercise it here where it's in scope.
+    defHandler: () => {
+        const result = def(undefined)
+        if (result !== unexpectedSymbol) { throw result }
     }
 }
