@@ -47,10 +47,10 @@ export const node = {
 export const wasmtime = '46.0.1'
 
 // https://github.com/wasmerio/wasmer/releases
-export const wasmer = '7.1.0'
+export const wasmer = '7.2.0'
 
 // https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
-export const tsgo = '7.0.0-dev.20260704.1'
+export const tsgo = '7.0.0-dev.20260707.2'
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as
