@@ -15,6 +15,7 @@ import { reduce as listReduce, toArray, map, type List } from '../types/list/mod
 import { range as asciiRange } from '../text/ascii/module.f.ts'
 import { fn } from '../types/function/module.f.ts'
 import { one, type Range } from '../types/range/module.f.ts'
+import { assertEq } from '../asserts/module.f.ts'
 
 const fromCharCode = String.fromCharCode
 
@@ -105,8 +106,6 @@ export const proof = {
     },
     // `def` is the range-map's default handler; the public API never calls it directly
     // (`init` covers every code point), so exercise it here where it's in scope.
-    defHandler: () => {
-        const result = def(undefined)
-        if (result !== unexpectedSymbol) { throw result }
-    }
+    defHandler: () =>
+        assertEq(def(undefined), unexpectedSymbol)
 }
