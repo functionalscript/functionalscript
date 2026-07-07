@@ -44,4 +44,6 @@ Add a periodic background task (e.g., every hour or on startup) that:
 
 ### Related
 
-- [i66J-cas-large-file-support](todo.md) — staging directory and streaming upload design
+- `fileCas.write` / `casAddFile` (`fs/cas/module.f.ts`) — the staging directory
+  and streaming upload implementation (design formerly tracked as
+  `66j-cas-large-file-support`, now implemented and deleted)
