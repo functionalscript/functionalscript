@@ -106,5 +106,6 @@ export const proof = {
     },
     // `def` is the range-map's default handler; the public API never calls it directly
     // (`init` covers every code point), so exercise it here where it's in scope.
-    defHandler: () => assertEq(def(undefined), unexpectedSymbol)
+    defHandler: () =>
+        assertEq(def(undefined), unexpectedSymbol)
 }

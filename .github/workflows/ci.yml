@@ -302,7 +302,7 @@
         {
           "uses": "wasmerio/setup-wasmer@v3.1",
           "with": {
-            "version": "v7.1.0"
+            "version": "v7.2.0"
           }
         },
         {
@@ -502,7 +502,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260704.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260707.2"
         },
         {
           "uses": "actions/checkout@v7"
