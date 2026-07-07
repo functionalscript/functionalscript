@@ -11,7 +11,7 @@
  *
  * | Tool       | args                          | action           | result                              |
  * |------------|-------------------------------|------------------|-------------------------------------|
- * | `cas_add`  | `{ content, type? }`          | write/upload     | hash (cBase32)                      |
+ * | `cas_add`  | `{ content, type? }`          | `c.write(...)`   | hash (cBase32)                      |
  * | `cas_get`  | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mime_type,type[,content]}` |
  * | `cas_list` | `{}`                          | `c.list()`       | hashes, one per line                |
  *
@@ -23,9 +23,11 @@
  *   without any encoding step.
  * - `'base64'`: `content` is RFC 4648 base64, decoded to bytes before storage.
  *   Use this for pre-encoded binary payloads.
- * - `'url'`: `content` is a filesystem path within `$HOME/cas_upload/`; the server
- *   moves the file via the streaming move-hash-move pipeline (no size limit).
- *   Paths outside `$HOME/cas_upload/` or containing `..` are rejected for security.
+ *
+ * Inline content (either encoding) is capped at 128 KiB (`maxLength`). There is
+ * no MCP route for larger content — the server never opens a local path named by
+ * the client (see the invariant in `fs/cas/mcp/README.md`); large files go
+ * through the `cas` CLI (`cas add <path>`) instead, run directly by the user.
  *
  * ## `cas_get` output
  *
@@ -88,7 +90,7 @@ import { tryUtf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../mime/module.f.ts'
 import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, vec, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
-import { rm, type IoResult, type Read, type Rm, type Write } from '../../effects/node/module.f.ts'
+import { type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
@@ -96,7 +98,7 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { casAddFile, fileCas, type FileCasOperation } from '../module.f.ts'
+import { fileCas, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
@@ -107,7 +109,7 @@ import { nonEmpty, empty as elEmpty, type List } from '../../effects/list/module
 /** Arguments for `cas_add`: content to store, with optional encoding type. */
 export const casAddArgs = {
     content: string,
-    type: or('text' as const, 'base64' as const, 'url' as const, undefined)
+    type: or('text' as const, 'base64' as const, undefined)
 } as const
 
 /** Arguments for `cas_get`: the cBase32 hash to look up; optionally request inline content. */
@@ -159,32 +161,20 @@ type Meta = {
 
 /** Registry of all CAS tools. */
 const casToolRegistry =
-(home: string): readonly ToolEntry<FileCasOperation|Rm>[] => {
+(home: string): readonly ToolEntry<FileCasOperation>[] => {
     const c = fileCas(sha256)(home)
-    const casUploadDir = `${home}/cas_upload`
     return [
     toolEntry(
         'cas_add',
-        'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content (text/base64) is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content use type:"url" to stream a file from $HOME/cas_upload/ (no size limit).',
+        'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, store the file with the `cas` CLI instead: run `npx functionalscript cas add <path>` yourself if you have shell access, or give the user that exact command to run — it prints the resulting hash on stdout.',
         casAddArgs,
-        ({ type, content }): Effect<FileCasOperation | Rm, ToolsCallResult> => {
-            // type:'url' — stream the file into cas, then delete the source on success
-            if (type === 'url') {
-                if (!content.startsWith(`${casUploadDir}/`) || content.includes('..')) {
-                    return pure(errorResult(`cas_add type:url paths must be within ${casUploadDir}/ — got: ${content}`))
-                }
-                return casAddFile(c)(content).step(([t, v]) =>
-                    t === 'error'
-                        ? pure(errorResult(`upload failed: ${v}`))
-                        : rm(content).step(() => pure(okResult(vecToCBase32(v))))
-                )
-            }
+        ({ type, content }): Effect<FileCasOperation, ToolsCallResult> => {
             // type:'text' or 'base64' — resolve content to Vec, store via c.write()
             let x: Vec|null = type === 'base64'
                 ? base64Decode(content)
                 : tryUtf8(content)
             return x === null
-                ? pure(errorResult('too large or malformed — use type:"url" for large content'))
+                ? pure(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
                 : c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
                     ? errorResult('write')
@@ -262,7 +252,7 @@ const okResult = (text: string): ToolsCallResult =>
 /**
  * MCP handlers for `FileCas`.
  */
-export const casMcpHandlers = (home: string): McpHandlers<FileCasOperation | Rm> =>
+export const casMcpHandlers = (home: string): McpHandlers<FileCasOperation> =>
     fromRegistry(casToolRegistry(home))
 
 // ── Session configuration ───────────────────────────────────────────────────────
@@ -286,7 +276,7 @@ export const casConfig: McpConfig = {
  */
 export const casMcpServer = (
     home: string,
-): Effect<Read | Write | MemOp | FileCasOperation | Rm, void> =>
+): Effect<Read | Write | MemOp | FileCasOperation, void> =>
     create(uninitializedState).step(key =>
         stdioTransport(mcpStep(casConfig)(casMcpHandlers(home))(key)))
 
