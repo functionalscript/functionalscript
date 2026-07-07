@@ -9,7 +9,7 @@ The CAS CLI (`fs/cas/module.f.ts` `commands`) and the CAS MCP server
 (`fs/cas/mcp/module.f.ts`) both implement the same three operations — add,
 get, list — but with duplicated logic:
 
-- Both construct `cas(sha256)(fileKvStore(home))` independently.
+- Both construct `fileCas(sha256)(home)` independently.
 - Both encode/decode hashes with `cBase32ToVec` / `vecToCBase32` in separate
   call sites.
 - Content encoding policy (UTF-8 detection, base64, magic-byte sniffing)
@@ -35,7 +35,7 @@ Extract a transport-agnostic CAS operation layer — a small set of typed
 functions that each accept a `Cas<O>` and return an `Effect` — shared by both
 the CLI command handlers and the MCP tool handlers. This layer owns:
 
-- building `cas(sha256)(fileKvStore(home))` once (or accepting it as a
+- building `fileCas(sha256)(home)` once (or accepting the `Cas<O>` as a
   parameter),
 - hash parsing and error reporting,
 - content encoding/decoding rules (text / base64 / mime detection).
@@ -54,38 +54,31 @@ the MCP server never opens a caller-supplied path):
 | Inline content (bytes / text / base64 string) | `cas add <content>` | `cas_add { content, type? }` |
 | File path | any path allowed | *not available* — MCP has no file-path source |
 
-**Path handling** (CLI only) uses a staging area (`./cas/stage/`) to avoid
-partial writes and to mark blobs read-only before they enter the store: copy (or
-move) the file into `./cas/stage/` while computing the hash, mark it read-only,
-then move it to its final CAS location. Because this path exists only on the CLI
-— run by the user, bounded by their own filesystem permissions — there is no
-sandbox-containment check to enforce; a plain path argument is accepted as-is,
-the same as `cp`.
+**Path handling** (CLI only) reuses the store's existing streaming write —
+`fileCas.write` already stages under `~/.cas/_stage/` (random staging names,
+lease-renewed, published to the hash-sharded path by `rename`) and `casAddFile`
+already wraps `write(streamFile(path))` to stream any file in without buffering.
+The CLI file-path `add` is therefore just `casAddFile(c)(path)` on a
+user-supplied path — no new staging pipeline to build. Because this exists only
+on the CLI — run by the user, bounded by their own filesystem permissions —
+there is no sandbox-containment check to enforce; a plain path argument is
+accepted as-is, the same as `cp`.
 
-#### `KvStore` interface change
-
-The current `KvStore.write` accepts a `(key, value: Vec)` pair and writes the
-bytes directly. To support the staging pipeline, `KvStore` needs a second entry
-point:
-
-```ts
-move: (stagePath: string, key: Vec) => Effect<O, void>
-```
-
-`move` assumes the blob is already on disk at `stagePath` (inside
-`./cas/stage/`), marked read-only, and simply renames it into its final CAS
-location. This avoids re-reading large files into memory and keeps the
-`write`-by-value path for inline content.
+> **Architecture note (2026-07):** an earlier draft of this issue proposed a
+> separate `./cas/stage/` read-only move pipeline and a new
+> `KvStore.move(stagePath, key)` entry point. That is obsolete — there is no
+> `KvStore`/`fileKvStore` abstraction any more (the store is `fileCas` returning
+> a `Cas<O>`), and `fileCas.write` already performs the streaming staged move
+> under `.cas/_stage`. Reuse that write path; do **not** build a parallel
+> staging design.
 
 ### Tasks
 
 - [ ] Identify all logic duplicated between `commands` (CLI) and
       `casToolRegistry` (MCP) — hash codec, store construction, encoding rules.
-- [ ] Add `move: (stagePath: string, key: Vec) => Effect<O, void>` to `KvStore`
-      and implement it in `fileKvStore`.
-- [ ] Design the staging directory (`./cas/stage/`) and the acquire-stage-store
-      pipeline; add `Rename` / `Copy` effects if missing from
-      `fs/effects/node/module.f.ts`.
+- [ ] For the CLI file-path `add`, reuse `casAddFile` / `fileCas.write` (already
+      streams and stages under `.cas/_stage`) — no new `KvStore.move` or
+      `./cas/stage/` pipeline (both obsolete; see architecture note above).
 - [ ] Define a shared `casOps` (or similar) module/functions in
       `fs/cas/ops/module.f.ts` (or inline in `fs/cas/module.f.ts`) that
       expose typed operations independent of transport. The inline
