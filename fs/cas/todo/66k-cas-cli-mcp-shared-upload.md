@@ -1,56 +1,35 @@
 ## 66K-cas-cli-mcp-shared-upload. CLI and MCP should share `cas_add`/`cas upload` logic
 
 **Priority:** P3
-**Status:** open
+**Status:** irrelevant
 
-### Problem
+### Why this is superseded
 
-The CLI (`fs/cas/module.f.ts`) and MCP server (`fs/cas/mcp/module.f.ts`) both
-implement "store a file from `~/cas_upload/`" independently:
+This issue existed because *two* transports uploaded a file from the filesystem
+via divergent implementations that would each need every future fix:
 
 | Path | Implementation |
 |------|---------------|
-| `cas upload <name>` (CLI) | move-hash-move via `random256` + `streamHash` + `rename` — no size limit |
-| `cas_add { type:'url' }` (MCP) | `readFile` — capped at 128 KiB |
+| `cas add <name>` (CLI) | streaming `casAddFile` / move-hash-move — no size limit |
+| `cas_add { type:'url' }` (MCP) | `readFile` — capped at 128 KiB, and the source of the symlink-escape hole |
 
-As the upload pipeline gains correctness fixes (symlink rejection, read-only
-chmod, cleanup policy), each fix must be applied in two places. The MCP path
-currently lags: it can silently truncate or reject large files while the CLI
-handles them correctly.
+[i66J-cas-symlink-escape](todo.md) removes `cas_add type:'url'` from the MCP
+server entirely (the server no longer opens caller-named local paths; large
+blobs go through the CLI, and a future remote-`http(s)` fetch has no local-path
+surface). With the MCP upload path gone, there is **no second implementation to
+converge** — the CLI is the sole filesystem-upload surface. The cross-transport
+duplication this issue was created to eliminate no longer exists.
 
-### Proposal
-
-Extract the upload pipeline into a shared function in `fs/cas/module.f.ts` (or a
-new `fs/cas/upload/module.f.ts`) that both the CLI handler and the MCP tool
-delegate to:
-
-```typescript
-// proposed shared primitive
-const casUpload = (home: string) => (fileName: string): Effect<..., Vec>
-```
-
-The function encapsulates `random256` → `mkdir` → `rename` to stage →
-`streamHash` → `mkdir` → `rename` to final, and returns the hash. Both callers
-then reduce to argument validation + calling `casUpload`.
-
-The MCP `cas_add` with `type:'url'` should be replaced or supplemented by a
-`cas_upload` tool that delegates to the same function, removing the 128 KiB cap
-and ensuring the same security invariants apply regardless of transport.
-
-### Tasks
-
-- [ ] Export (or move) `random256` and `streamHash` from `fs/cas/module.f.ts` so
-      they are reusable without re-implementing
-- [ ] Extract a `casUpload(home)(fileName): Effect<..., Vec>` function shared by
-      CLI and MCP
-- [ ] Replace `cas_add { type:'url' }` in the MCP registry with a `cas_upload`
-      tool (or upgrade the `type:'url'` branch) to use `casUpload` instead of
-      `readFile`
-- [ ] Ensure all future pipeline fixes (symlink rejection, chmod, cleanup) are
-      applied once in `casUpload` and inherited by both transports
+Keeping the file (rather than deleting it now) only because the removal in
+i66J-cas-symlink-escape is not yet implemented; **delete this file in the same
+change that lands that removal.** If, once MCP `type:'url'` is gone, some
+CLI-*internal* duplication turns out to be worth extracting (e.g. between
+`cas add`'s streaming path and the `casUpload` move-hash-move helper), file that
+as a new, narrower CLI-only issue rather than reviving this cross-transport one.
 
 ### Related
 
-- [i66J-cas-streaming-upload-design](todo.md) — streaming upload pipeline (CLI only so far)
-- [i66K-cas-upload-reject-symlinks](todo.md) — fix that must not be applied twice
-- [i66K-cas-get-return-path](todo.md) — analogous read-path gap between CLI and MCP
+- [i66J-cas-symlink-escape](todo.md) — removes the MCP upload path that this issue
+  assumed; supersedes it
+- [i66K-cas-upload-reject-symlinks](todo.md) — still relevant, but only to the CLI
+  upload pipeline now
