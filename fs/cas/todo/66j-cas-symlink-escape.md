@@ -60,7 +60,7 @@ If MCP clients later need to store large blobs without CLI access, add a `type` 
 ### Knock-on scope (other issues to reconcile)
 
 - **[i66K-cas-cli-mcp-shared-upload](todo.md)** directly proposes the *opposite*: unify CLI+MCP upload and add a `cas_upload` MCP tool. Its MCP half is mooted by this removal — update or close it so the two don't contradict. The CLI-side extraction it describes may still be worthwhile on its own.
-- **[i66J-cas-upload-dir-command](todo.md)** (batch `cas_upload_dir` MCP tool) assumes an MCP upload path exists — becomes moot or CLI-only.
+- **[i66J-cas-add-directory](todo.md)** (originally a batch `cas_upload_dir` MCP tool) assumed an MCP upload path exists — now reframed as CLI-only: `cas add` detects a directory and stores blobs + a JSON manifest, blockset-style.
 - **[i66K-cas-upload-reject-symlinks](todo.md)** still applies to the **CLI** `cas upload` pipeline (which moves a staged file), independent of this change — keep it.
 - `fs/cas/mcp/README.md` documents `type:'url'` extensively — must be updated.
 
@@ -71,11 +71,11 @@ If MCP clients later need to store large blobs without CLI access, add a `type` 
 - [ ] Update the `cas_add` tool description string (drop the "use type:url for large content" guidance; point large-content users at the CLI instead)
 - [ ] Remove the `type:'url'` proof tests in `fs/cas/mcp/proof.f.ts` (`addUrl*`, `getMetaLargeMultiChunk*`, and the large-blob paths that stage via `type:'url'`); keep the `text`/`base64` coverage
 - [ ] Update `fs/cas/mcp/README.md`: remove the `type:'url'` row/section, state large files go through the CLI, note remote-URL as a possible future addition, and record the **"server only touches self-derived paths under `~/.cas/`"** invariant (see "The invariant this restores") as a stated design rule, so a future tool that reintroduces a client-supplied path is caught in review
-- [x] Reconcile [i66K-cas-cli-mcp-shared-upload](todo.md) (marked `irrelevant` — superseded; delete when the removal lands) and [i66J-cas-upload-dir-command](todo.md) (reframed as a `cas add-dir` CLI command) with this removal
+- [x] Reconcile [i66K-cas-cli-mcp-shared-upload](todo.md) (marked `irrelevant` — superseded; delete when the removal lands) and [i66J-cas-add-directory](todo.md) (reframed: `cas add` detects a directory, no separate command) with this removal
 
 ### Related
 
 - [i66K-cas-cli-mcp-shared-upload](todo.md) — proposed the opposite (unify + add `cas_upload` MCP tool); MCP half now moot
-- [i66J-cas-upload-dir-command](todo.md) — batch MCP upload tool; moot or CLI-only
+- [i66J-cas-add-directory](todo.md) — directory ingestion via `cas add` (CLI-only, blockset-style manifest)
 - [i66K-cas-upload-reject-symlinks](todo.md) — still relevant to the CLI upload pipeline
 - [i66J-normalize-home-paths](todo.md) — string-based path normalization; no longer needed for the MCP path once `type:'url'` is gone
