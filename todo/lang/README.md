@@ -23,6 +23,10 @@ File Types:
 - [ ] [JSON](./1000-json.md).
 - [ ] [undefined-property](./1010-undefined-property.md).
 
+String literals at every level use JSON string syntax; full JS string
+spellings are a deferred feature, see
+[js-string-literals](./2460-js-string-literals.md).
+
 **VM**:
 
 We are introducing new commands in such a way that every new command depends only on previous commands.
@@ -83,7 +87,8 @@ We need it to use JSDoc and TypeScript.
 2. [x] [line-comment](./2420-line-comment.md),
 3. [x] [trailing-comma](./2430-trailing-comma.md),
 4. [ ] [shorthand](./2440-shorthand.md),
-5. [ ] [destructuring](./2450-destructuring.md).
+5. [ ] [destructuring](./2450-destructuring.md),
+6. [ ] [js-string-literals](./2460-js-string-literals.md).
 
 ## 3. FJS
 

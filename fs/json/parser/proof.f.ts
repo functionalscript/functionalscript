@@ -124,6 +124,20 @@ export const proof = {
             const result = stringify(obj)
             if (result !== '["error","unexpected token"]') { throw result }
         },
+        // A literal control character inside a string is not valid JSON (RFC
+        // 8259 §7) even though the shared tokenizer would otherwise accept it.
+        () => {
+            const tokenList = tokenizeString('"\t"')
+            const obj = parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('{"a":"\t"}')
+            const obj = parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
+        },
         () => {
             const tokenList = tokenizeString('[,]')
             const obj = parse(tokenList)

@@ -168,6 +168,14 @@ export const proof = {
             if (obj[0] !== 'error') { throw obj }
             if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
+        // A literal control character inside a string is not valid JSON
+        // syntax (RFC 8259 §7), and DJS string literals are JSON strings.
+        () => {
+            const tokenList = tokenizeString('export default "\t"')
+            const obj = parseFromTokens(tokenList)
+            if (obj[0] !== 'error') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
+        },
         () => {
             const tokenList = tokenizeString('export default [,]')
             const obj = parseFromTokens(tokenList)
