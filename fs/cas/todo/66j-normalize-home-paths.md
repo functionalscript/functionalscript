@@ -1,43 +1,34 @@
 ## 66J-normalize-home-paths. Normalize `~/` to absolute paths and validate directory containment
 
 **Priority:** P3
-**Status:** open
+**Status:** irrelevant
 
-### Problem
+### Why this is superseded
 
-The current path validation in `cas_add` uses the `home` parameter from `NodeProgramOptions` and rejects paths with `..`, which blocks common directory escape attempts. However, this is a string-based check that doesn't account for:
-- Symlinks that point outside the directory
-- Case-insensitive filesystems where directory boundaries are ambiguous
-- Relative paths like `./subdir/../../../etc/passwd` that contain `..` in a less obvious way
-- Future edge cases with canonical path resolution
+This issue's entire purpose was to harden the **MCP `cas_add` path validation**
+— replace the string prefix/`..` check on a client-supplied path with canonical
+normalization + directory-containment. [i66J-cas-symlink-escape](todo.md)
+removes local-path upload (`cas_add type:'url'`) from the MCP server entirely:
+the server no longer accepts a client-supplied filesystem path, so there is **no
+`cas_add` path to normalize or contain**. Every remaining server file operation
+is on a path the server derives itself under `~/.cas/` (see the invariant in
+i66J-cas-symlink-escape), which needs no containment check against client input.
 
-**Better approach**: Normalize the path (resolve `..` and `.`, handle symlinks) into a canonical absolute path, then verify containment using filesystem semantics rather than string matching.
+The path-traversal/symlink hardening this proposed is exactly the scaffolding
+that issue concluded is the wrong shape — removing the capability makes the whole
+check unnecessary rather than merely more robust.
 
-### Proposal
-
-1. **Add a Node effect** (e.g., `normalizePath`) that:
-   - Expands `~` to the home directory (using `os.homedir()`)
-   - Resolves relative components (`..`, `.`)
-   - Returns the canonical absolute path
-
-2. **Update `cas_add` path validation** to:
-   - Normalize the input path
-   - Compute the canonical approved directory path (e.g., `${HOME}/cas_upload`)
-   - Check that the normalized path starts with the approved directory (with proper directory boundary checking, not just string prefix)
-   - Reject if outside the directory
-
-3. **Handle errors gracefully**:
-   - If path normalization fails (e.g., EACCES), return an error
-   - If the normalized path escapes the sandbox, return a clear security error
-
-### Tasks
-
-- [ ] Define `normalizePath` effect in `fs/effects/node/module.f.ts` or similar
-- [ ] Implement path normalization: expand `~`, resolve `..`, get canonical path
-- [ ] Update `cas_add` to use normalized paths with proper directory boundary check
-- [ ] Add test cases for path traversal attacks: `~/cas_upload/..`, `~/cas_upload/../etc/passwd`, etc.
-- [ ] Ensure the check is robust: compare normalized paths, not string prefixes
+Keeping the file only until the removal in i66J-cas-symlink-escape lands;
+**delete it in the same change.** If some *internal* path handling (e.g.
+normalizing the server-derived staging directory in
+[i66J-cas-periodic-stage-recovery](todo.md)) turns out to need canonicalization,
+that is a separate, non-security concern — it operates on server-owned paths,
+not client input — and should be filed narrowly rather than reviving this
+client-path-validation issue.
 
 ### Related
 
-- [i66J-cas-periodic-stage-recovery](todo.md) — will also need path normalization for staging directory
+- [i66J-cas-symlink-escape](todo.md) — removes the client-supplied `cas_add`
+  path this issue exists to validate; supersedes it
+- [i66J-cas-periodic-stage-recovery](todo.md) — any staging-path normalization it
+  needs is over server-derived paths, not client input
