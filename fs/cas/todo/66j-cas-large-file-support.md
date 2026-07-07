@@ -16,7 +16,15 @@ Storing files in memory is infeasible for large files (GBs+), and the 131 KB art
 
 ### Proposal
 
-Two-phase staged move for `cas upload` (or `cas_add` with restricted paths):
+> **Scope note (see [i66J-cas-symlink-escape](todo.md)):** this streaming
+> pipeline is a **CLI-only** concern. That issue removes local-path upload
+> (`cas_add type:'url'`) from the MCP server — the server must never open a
+> caller-supplied path — so this pipeline has no MCP caller. Do not wire it to
+> an MCP tool or reintroduce a `cas_add`-with-restricted-paths entry point;
+> large blobs reach the store through the CLI (`cas add <path>`), which already
+> streams arbitrarily large files with no size cap.
+
+Two-phase staged move for `cas upload` (a CLI command):
 
 1. **Move from `~/cas_upload/` to staging**: File is atomically moved from `~/cas_upload/${fileName}` to `~/.cas/.stage/${rnd}-${fileName}`, where `rnd` is a random 256-bit number in CBase32.
 

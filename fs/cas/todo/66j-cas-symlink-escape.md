@@ -59,6 +59,8 @@ If MCP clients later need to store large blobs without CLI access, add a `type` 
 - **[i66K-cas-cli-mcp-shared-core](todo.md)** proposes a shared `add` with a `url` file-path source for *both* transports (MCP restricted to `~/cas_upload/`). Its shared inline/hash/store plumbing is still wanted, but the file-path source must be scoped **CLI-only** or it reintroduces exactly the surface this issue removes.
 - **[i66J-cas-add-directory](todo.md)** (originally a batch `cas_upload_dir` MCP tool) assumed an MCP upload path exists — now reframed as CLI-only: `cas add` detects a directory and stores blobs + a JSON manifest, blockset-style.
 - **[i66K-cas-upload-reject-symlinks](todo.md)** still applies to the **CLI** `cas upload` pipeline (which moves a staged file), independent of this change — keep it.
+- **[i66J-cas-large-file-support](todo.md)** (WIP) describes the streaming staged-move pipeline as applying to `cas upload` *or* `cas_add` with restricted paths — the latter would reintroduce the MCP local-path surface. Scope it CLI-only.
+- **[i66J-normalize-home-paths](todo.md)** exists solely to harden the MCP `cas_add` client-path check — fully superseded (no client path remains). Mark `irrelevant`.
 - `fs/cas/mcp/README.md` documents `type:'url'` extensively — must be updated.
 
 ### Tasks
@@ -68,7 +70,7 @@ If MCP clients later need to store large blobs without CLI access, add a `type` 
 - [ ] Update the `cas_add` tool description string (drop the "use type:url for large content" guidance; point large-content users at the CLI instead)
 - [ ] Remove the `type:'url'` proof tests in `fs/cas/mcp/proof.f.ts` (`addUrl*`, `getMetaLargeMultiChunk*`, and the large-blob paths that stage via `type:'url'`); keep the `text`/`base64` coverage
 - [ ] Update `fs/cas/mcp/README.md`: remove the `type:'url'` row/section, state large files go through the CLI, note remote-URL as a possible future addition, and record the **"server only touches self-derived paths under `~/.cas/`"** invariant (see "The invariant this restores") as a stated design rule, so a future tool that reintroduces a client-supplied path is caught in review
-- [x] Reconcile the other upload-touching todos with this removal: [i66K-cas-cli-mcp-shared-upload](todo.md) (marked `irrelevant` — superseded; delete when the removal lands), [i66J-cas-add-directory](todo.md) (reframed: `cas add` detects a directory, no separate command), and [i66K-cas-cli-mcp-shared-core](todo.md) (its shared `add` file-path source scoped CLI-only, not MCP)
+- [x] Reconcile the other upload-touching todos with this removal: [i66K-cas-cli-mcp-shared-upload](todo.md) (marked `irrelevant` — superseded; delete when the removal lands), [i66J-cas-add-directory](todo.md) (reframed: `cas add` detects a directory, no separate command), [i66K-cas-cli-mcp-shared-core](todo.md) (its shared `add` file-path source scoped CLI-only, not MCP), [i66J-cas-large-file-support](todo.md) (streaming staged-move pipeline scoped CLI-only, no `cas_add`-with-restricted-paths entry point), and [i66J-normalize-home-paths](todo.md) (marked `irrelevant` — its whole purpose was validating the removed client `cas_add` path)
 
 ### Related
 
@@ -76,4 +78,5 @@ If MCP clients later need to store large blobs without CLI access, add a `type` 
 - [i66K-cas-cli-mcp-shared-core](todo.md) — shared CLI/MCP core; its file-path `add` source scoped CLI-only by this removal
 - [i66J-cas-add-directory](todo.md) — directory ingestion via `cas add` (CLI-only, blockset-style manifest)
 - [i66K-cas-upload-reject-symlinks](todo.md) — still relevant to the CLI upload pipeline
-- [i66J-normalize-home-paths](todo.md) — string-based path normalization; no longer needed for the MCP path once `type:'url'` is gone
+- [i66J-cas-large-file-support](todo.md) — streaming staged-move pipeline; scoped CLI-only by this removal
+- [i66J-normalize-home-paths](todo.md) — was about hardening the MCP `cas_add` path check; marked `irrelevant` (no client path to validate once `type:'url'` is gone)
