@@ -81,3 +81,7 @@ f(ap) // compilation error.
 ```
 
 We may have a special version of TypeScript and it should have a run-time description, similar to [RTTI](../fs/types/rtti/README.md)
+
+## Benefits
+
+- **Use `.js` files.** Since types are defined as run-time values (RTTI) instead of TypeScript syntax, the code stays plain JavaScript and runs as-is, with no additional compilation step. This could be very attractive for projects which don't accept TypeScript because of the additional compilation step.
