@@ -395,7 +395,7 @@
           }
         },
         {
-          "run": "deno install -g -A npm:functionalscript@0.36.0"
+          "run": "deno install -g -A npm:functionalscript@0.36.0 --minimum-dependency-age=0"
         },
         {
           "uses": "actions/checkout@v7"
