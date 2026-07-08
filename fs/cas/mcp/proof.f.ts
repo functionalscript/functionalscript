@@ -519,16 +519,14 @@ export const proof = {
         assert(textOf(resp).length > 0)
     },
 
-    // base64 of exactly maxLengthBytes — currently returns isError because
-    // base64Decode measures the raw pre-trim body (1_048_578 bits) against
-    // maxLength before stripping the 2 padding bits that would land it exactly at
-    // maxLength. Assert the current failing behavior; flip to a success assertion
-    // once `fs/base64/todo/decode-rejects-max-size-input.md` is fixed.
-    addBase64AtLimitIsError: () => {
+    // base64 of exactly maxLengthBytes — base64Decode trims the encoding's
+    // padding bits from the last character before measuring the result
+    // against maxLength, so a payload landing exactly at the limit decodes
+    // and stores cleanly.
+    addBase64AtLimitSucceeds: () => {
         const [resp] = session(call(2, 'cas_add', { content: base64OfA(maxLengthBytes), type: 'base64' }))
-        assertEq(resultOf(resp).isError, true)
-        assert(textOf(resp).includes('too large or malformed'))
-        assert(textOf(resp).includes('cas add'))
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
     },
 
     getUnterminatedHashIsError: () => {
