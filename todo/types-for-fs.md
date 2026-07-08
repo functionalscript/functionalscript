@@ -84,4 +84,16 @@ We may have a special version of TypeScript and it should have a run-time descri
 
 ## Benefits
 
-- **Use `.js` files.** Since types are defined as run-time values (RTTI) instead of TypeScript syntax, the code stays plain JavaScript and runs as-is, with no additional compilation step. This could be very attractive for projects which don't accept TypeScript because of the additional compilation step.
+- **Use `.js` files.** Type annotations are written in comments, so the code stays plain JavaScript and runs as-is, with no additional compilation step. This could be very attractive for projects which don't accept TypeScript because of the additional compilation step. The syntax could be similar to JSDoc:
+
+  ```js
+  /** @type {RTTI-TYPE} */
+  const x = ...
+  ```
+
+  or even simpler:
+
+  ```js
+  const x = //: RTTI-TYPE
+      ...
+  ```
