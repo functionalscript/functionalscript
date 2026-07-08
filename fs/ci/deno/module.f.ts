@@ -16,7 +16,7 @@ export const denoSteps = (version: string): readonly MetaStep[] => clean([
     // which is the default minimum dependency age for Deno installs.
     // This way we can test the latest version of the package in CI without waiting for 24 hours.
     install({ run: `deno install -g -A --minimum-dependency-age=0 npm:functionalscript@${version}` }),
-    test({ run: `deno run -A npm:functionalscript@${version} t` }),
+    test({ run: `deno run -A --minimum-dependency-age=0 npm:functionalscript@${version} t` }),
     test({ run: 'deno install --frozen' }),
     test({ run: `${denoTest} --coverage && deno coverage --include='.*module\\.f\\.ts'` }),
 ])
