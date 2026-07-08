@@ -85,14 +85,17 @@ Notes on the shape:
   without a schema change. For now the value is the URL of the format spec
   (`"https://github.com/functionalscript/functionalscript/tree/main/fs/cas/evo"`) — the
   XML-namespace/JSON-LD approach: globally unique without a registry, and self-documenting.
-  Later it becomes a hash of the spec — the spec stored in CAS, its hash a universal
-  registry-free format identifier, per the deduplication principle. Two known costs of the
-  interim URL, both fixed by the spec-hash migration: `tree/main` is a mutable pointer, so
-  the value identifies the format but not its version; and it anchors the identifier to
-  GitHub/DNS, which vision.md argues against for the end state. The cost of the loose
-  `string` type is that the schema alone does not validate the discriminant; recognizing a
-  supported revision is a reader-side check against known values, which it would have to be
-  anyway once several values (URLs, then spec hashes) coexist.
+  Later it becomes a content-addressed revision reference, such as `hash.generation`: the
+  spec is itself a mutable object evolved by this very format, `hash` is the spec's object
+  identity (hash of its first content) and `generation` pins the exact version — stable
+  identity across versions, pinned version per blob, no registry, per the deduplication
+  principle. Two known costs of the interim URL, accepted knowingly and fixed by that
+  migration: `tree/main` is a mutable pointer, so the value identifies the format but not
+  its version; and it anchors the identifier to GitHub/DNS, which vision.md argues against
+  for the end state. The cost of the loose `string` type is that the schema alone does not
+  validate the discriminant; recognizing a supported revision is a reader-side check against
+  known values, which it would have to be anyway once several values (URLs, then CA revision
+  references) coexist.
 - `object` gives every revision of the same mutable thing a common anchor to resolve
   "current head(s)" against, without requiring a mutable pointer anywhere in CAS itself —
   the head is whatever revision(s) reference `object` and are not themselves a parent of
@@ -123,9 +126,8 @@ Notes on the shape:
 Open design points:
 
 - The `changes` event-log/CRDT format(s) still need to be defined.
-- How format versioning works under the URL tag (the URL points at `main`, so it does not
-  pin a spec version — breaking changes may need a new URL until the spec-hash migration),
-  and whether other content formats should share the same tagging convention.
+- Whether other content formats should share the same tagging convention, and the exact
+  syntax of the future CA revision reference (`hash.generation`).
 
 ### Tasks
 
