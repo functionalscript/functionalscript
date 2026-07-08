@@ -90,8 +90,9 @@ Notes on the shape:
   identity (hash of its first content) and `generation` pins the exact version — stable
   identity across versions, pinned version per blob, no registry, per the deduplication
   principle. Two known costs of the interim URL, accepted knowingly and fixed by that
-  migration: `tree/main` is a mutable pointer, so the value identifies the format but not
-  its version; and it anchors the identifier to DNS, which vision.md argues against
+  migration: the URL is a mutable pointer (the document behind it can change), so the value
+  identifies the format but not its version; and it anchors the identifier to DNS, which
+  vision.md argues against
   for the end state. The cost of the loose `string` type is that the schema alone does not
   validate the discriminant; recognizing a supported revision is a reader-side check against
   known values, which it would have to be anyway once several values (URLs, then CA revision
