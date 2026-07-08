@@ -17,8 +17,7 @@ with the latest matrix of jobs and steps.
   (`test`, `install`, `uses`, `clean`).
 - `config/module.f.ts` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests.
 - `node/module.f.ts` — Node.js job steps: platform smoke tests, canonical
-  per-version jobs, the TypeScript native preview (`tsgo`) step, coverage, and
-  package checks.
+  per-version jobs, coverage, and package checks.
 - `rust/module.f.ts` — Rust toolchain setup and `cargo` build/test steps.
 - `deno/module.f.ts` — Deno runtime steps.
 - `bun/module.f.ts` — Bun runtime steps.
@@ -45,7 +44,7 @@ split by Node version:
 - Node 22 runs `npm ci`, installs the pinned FunctionalScript package globally,
   and runs `fjs t`.
 - Node 24 runs `npm ci` and `node --test`.
-- Node 26 runs `npm ci`, `npx tsc`, `tsgo`, `npm run cov`, and `npm pack`.
+- Node 26 runs `npm ci`, `npx tsc`, `npm run cov`, and `npm pack`.
 - Playwright is also Node-based, so it runs `npm ci` before browser setup.
 
 The command that must be provided by `package.json` for generated CI is `cov`.
@@ -61,7 +60,7 @@ A typical FunctionalScript project can define it like this:
 ```
 
 Keep `npx tsc` passing independently because the generated CI runs it as its own
-step before `tsgo`, coverage, and package creation. Keep `test` as the fast local
+step before coverage and package creation. Keep `test` as the fast local
 correctness loop even though generated CI no longer calls `npm test` directly.
 
 For `node --test` and `npm run cov` to execute FunctionalScript proofs, the
