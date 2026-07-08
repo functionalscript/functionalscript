@@ -55,5 +55,6 @@ after the final `rename` in the upload pipeline. This:
 
 ### Related
 
-- [i66J-cas-streaming-upload-design](todo.md) — upload pipeline that stores files `cas get` cannot currently read back
-- [i66K-cas-upload-reject-symlinks](todo.md) — related upload-path hardening
+- `fileCas.write` / `casAddFile` (`fs/cas/module.f.ts`) — streaming upload
+  pipeline that stores files `cas get` cannot currently read back (design
+  formerly tracked as `66j-cas-large-file-support`, now implemented and deleted)

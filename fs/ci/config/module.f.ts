@@ -25,7 +25,7 @@ export const images = {
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = '0.35.2' as const
+export const functionalscript = '0.36.0' as const
 
 // https://bun.sh/
 export const bun = '1.3.14'
@@ -48,9 +48,6 @@ export const wasmtime = '46.0.1'
 
 // https://github.com/wasmerio/wasmer/releases
 export const wasmer = '7.2.0'
-
-// https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
-export const tsgo = '7.0.0-dev.20260707.2'
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as

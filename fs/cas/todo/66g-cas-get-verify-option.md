@@ -13,7 +13,7 @@ between the copy and a later scrub can consume invalid content under a hash that
 or referenced elsewhere. The reader has no way to ask "and prove these bytes actually hash
 to the address I requested."
 
-A separate batch [`cas verify`](todo.md) command catches corruption
+A separate batch [`cas verify`](66g-cas-verify-command.md) command catches corruption
 eventually, but there is a window before it runs, and some callers want certainty at the
 moment of read rather than relying on a background scrub.
 
@@ -47,5 +47,5 @@ Open design points:
 
 ### Related
 
-- [i66G-cas-verify-command](todo.md) — batch scrub for the same invariant
+- [66g-cas-verify-command](66g-cas-verify-command.md) — batch scrub for the same invariant
 - `issues/plan/vision.md` — protocol-agnostic synchronization / copy-files sync

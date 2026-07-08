@@ -13,10 +13,11 @@ tree" by a single hash.
 This was once proposed as a batch MCP `cas_upload_dir` tool, then as a separate
 `cas add-dir` CLI command. Neither is needed:
 
-- Per [i66J-cas-symlink-escape](todo.md) the MCP server no longer opens local
-  paths at all, so directory ingestion is a **CLI** concern — the CLI is run
-  directly by the user, bounded by their own filesystem permissions; there is no
-  sandboxed-caller trust boundary to defend.
+- Per `remove-local-file-urls-mcp` (implemented, todo file deleted) the MCP
+  server no longer opens local paths at all, so directory ingestion is a
+  **CLI** concern — the CLI is run directly by the user, bounded by their own
+  filesystem permissions; there is no sandboxed-caller trust boundary to
+  defend.
 - A separate command is redundant: `cas add <path>` can simply **detect** whether
   `<path>` is a file or a directory (`stat`) and act accordingly. One command,
   one mental model — same as `cp -r`-style tools that branch on the argument
@@ -88,9 +89,11 @@ Notes for the implementer:
 
 ### Related
 
-- [i66J-cas-symlink-escape](todo.md) — removes MCP local-path upload, making
-  filesystem ingestion (including directories) a CLI-only concern
-- [i66J-cas-large-file-support](todo.md) — the streaming pipeline every stored
-  file rides on
+- `remove-local-file-urls-mcp` (implemented, todo file deleted) — removed MCP
+  local-path upload, making filesystem ingestion (including directories) a
+  CLI-only concern
+- `casAddFile` / `fileCas.write` (`fs/cas/module.f.ts`) — the streaming pipeline
+  every stored file rides on (formerly tracked as `66j-cas-large-file-support`,
+  now implemented and deleted)
 - [blockset](https://github.com/datablockset/blockset) — prior art for the
   directory-as-JSON-manifest model
