@@ -89,10 +89,16 @@ export const proof = {
         // A `maxLength`-sized vector's trailing partial 6-bit chunk is
         // left-padded by `vecToString` itself (see `baseN`), so `encode`
         // never needs to build an over-`maxLength` intermediate and must not
-        // reject this boundary input. (`decode` of the resulting string
-        // still fails on this exact boundary — a separate, still-open bug;
-        // see `fs/base64/todo/decode-rejects-max-size-input.md`.)
+        // reject this boundary input.
         assertEq(encode(vec(maxLength)(0n)), 'A'.repeat(174_763) + '=')
+    },
+    decodeAtMaxLengthSucceeds: () => {
+        // Companion to `encodeAtMaxLengthSucceeds`: the encoded string's raw,
+        // pre-trim bit count (1_048_578) is 2 over `maxLength` even though
+        // the payload it decodes to is exactly `maxLength`. `decode` must
+        // trim the last character's 2 zero-padding bits before — not after —
+        // measuring the result against `maxLength`.
+        check('A'.repeat(174_763) + '=', vec(maxLength)(0n))
     },
     // Regression guard: `encode` used to be quadratic in the input size, not
     // linear. `baseN`'s `vecToString` (`fs/base_n/module.f.ts`) popped one

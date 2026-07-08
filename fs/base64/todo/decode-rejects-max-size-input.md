@@ -1,110 +1,56 @@
 ## `decode` rejects valid, exactly-`maxLength`-sized input
 
-**Priority:** P2
+**Priority:** P4
 **Status:** open
 
 ### Problem
 
-The `maxLength` cap added to `tryListToVec` (`fs/types/bit_vec/module.f.ts:301-369`)
-is checked against the *raw* accumulated chunk length while `base_n`'s
-`stringToVec` is still building the vector — before `base64.decode` has a
-chance to strip the trailing zero-padding bits the encoding added to reach a
-6-bit boundary. This makes `decode` reject input whose actual decoded payload
-is exactly at the documented `maxLength` limit.
+`base64.decode`'s fix (see Resolution below) leaves one related exposure
+unaudited: `fs/cbase32/module.f.ts`'s `cBase32ToVec` builds its decoded `Vec`
+the same way `base64.decode` used to — via `cBase32ToVec5x` (`baseN`'s
+`stringToVec`), which accumulates the *entire* raw body before any padding is
+stripped. cbase32's sentinel-bit padding differs from base64's zero-padding
+in a way that makes this **worse**, not just "the same bug elsewhere":
 
-Concretely: 131,072 zero bytes is exactly `maxLengthBytes`
-(`fs/types/bit_vec/module.f.ts:48`), the documented max payload size.
-`encode(vec(maxLength)(...))` produces `'A'.repeat(174_763) + '='` (verified:
-131,072 bytes = 1,048,576 bits = `maxLength`; padded to a 6-bit boundary adds
-2 bits → 1,048,578 bits → 174,763 base64 chars → one `=` to reach a multiple
-of 4) — `encode` itself handles this boundary fine, since `baseN`'s
-`vecToString` left-pads the trailing partial chunk internally rather than
-building a separate over-`maxLength` padded `Vec` (see
-`fs/base64/module.f.ts`'s `encode`).
-
-`decode` of that string strips the one `=`, leaving a 174,763-char body, and
-calls `stringToVec(body)`. That body decodes to 174,763 × 6 = 1,048,578 raw
-bits — 2 over `maxLength` — so `tryListToVec` bails with `null` on the last
-chunk, even though `decode` would have trimmed exactly those 2 padding bits
-afterward to land back at `maxLength`. `decode` returns `null` for legitimate,
-spec-sized input. (This is the same string surfaced in the existing
-`decodeOverflow` proof test, except that test's input is *actually* over the
-limit — `174_764` chars vs. the `174_763`-char boundary case here — so it
-didn't catch this.)
-
-This directly contradicts the documented capability: a maximally-sized
-(128 KiB / `maxLengthBytes`) base64 payload — the same size CAS's inline
-content limit is built around (`fs/cas/`'s 128 KiB inline limit, #1187/#1193)
-— cannot be read back.
-
-### Proposal
-
-`decode` needs to know the final (post-trim) bit length before — or
-independently of — the raw chunk-accumulation cap, so a payload that is
-exactly at `maxLength` after trimming doesn't get measured against the
-pre-trim raw length.
-
-**Constraint that rules out the obvious fix:** `maxLength`
-(`fs/types/bit_vec/module.f.ts:41-46`) is not an arbitrary logical limit —
-its doc comment says it's set to stay under *Bun's actual `bigint` size
-constraint*, the tightest limit across FunctionalScript's supported
-runtimes. A `Vec` is a signed `bigint` (`fs/types/bit_vec/module.f.ts:36-39`),
-so any intermediate value built while decoding — not just the final
-returned `Vec` — is subject to that same runtime ceiling. This means
-**loosening `tryListToVec`'s cap to admit a raw pre-trim length above
-`maxLength` (e.g. `maxLength + slack`) is not a valid fix**, even though the
-final trimmed result would be in range: `unpackListToVec`
-(`fs/types/bit_vec/module.f.ts:319-374`) actually constructs that
-over-`maxLength` intermediate `Unpacked`/`bigint` before any trimming
-happens, so the fix would just move the crash from "`decode` returns `null`"
-to "`decode` throws/hangs building an over-sized `bigint` on Bun" for
-`maxLength`-boundary input — worse, not better. Any fix must guarantee no
-single `bigint` involved in decoding ever exceeds `maxLength`, even
-transiently.
-
-Candidate approaches that respect that constraint (no design chosen yet):
-
-- Mask off the known pad bits from the *last character* before building —
-  i.e. decode all but the last chunk normally, then combine the last
-  (partial) chunk pre-trimmed, so the accumulator never holds more than
-  `maxLength` bits at any point, not just at the end.
-- Compute the target length analytically up front
-  (`body.length * 6n - removeBits`) and, when it lands exactly at
-  `maxLength`, decode in a way that never forms the intermediate
-  `maxLength + removeBits`-bit value — e.g. split `body` into a prefix that
-  decodes to a `maxLength`-sized `Vec` and a separate last-chunk step that
-  only ever contributes its post-trim bits.
-- Avoid building a single `Vec` for the whole payload at all: have `decode`
-  (and the `stringToVec` it's built on) return multiple `Vec` chunks — a
-  `List<Vec>` — instead of one, each individually within `maxLength`, and
-  push concatenation-into-one-`bigint` to whichever caller actually needs a
-  single `Vec` (who then has to reckon with the same `maxLength` ceiling
-  explicitly, rather than `decode` hiding a false promise that it always
-  produces one). This is a bigger, more invasive change to `BaseN`'s and
-  `base64`/`cbase32`'s public shape and needs its own design pass before
-  starting.
+- `vecToCBase32`'s `extraLen = 5n - len % 5n` always adds a padding block,
+  even when `len % 5n === 0n` — in that case `extraLen` is a full 5-bit
+  sentinel chunk, not a partial one. So a `maxLength`-sized payload can
+  encode to a body that's up to 5 bits (not base64's fixed 2 or 4) over
+  `maxLength` before trimming.
+- `cBase32ToVec`'s trim isn't a fixed-width slice off one known character
+  like base64's — it walks bit-by-bit from the end via `popBack1` looking
+  for the sentinel `1` bit, so the trim point isn't known statically before
+  decoding.
 
 ### Tasks
 
-- [ ] Pick a fix approach (see Proposal) that never constructs a `bigint`
-      over `maxLength` at any intermediate step — confirm this explicitly
-      before implementing, e.g. with a proof case using a real Bun run, not
-      just Node.
-- [ ] Fix `decode` in `fs/base64/module.f.ts` so exactly-`maxLength`-sized
-      payloads round-trip.
-- [ ] Add a proof case: `decode(encode(vec(maxLength)(...)))` round-trips for
-      an exactly-`maxLength`-sized vector (the boundary the existing
-      `decodeOverflow` test in `fs/base64/proof.f.ts` doesn't cover — `encode`
-      already succeeds on this input, see `encodeAtMaxLengthSucceeds`).
-- [ ] Check `fs/cbase32/module.f.ts` for the same exposure — its sentinel-bit
-      padding (`fs/cbase32/module.f.ts:37-38`) also adds bits before trimming,
-      and cbase32 *always* emits a sentinel block even when aligned, so its
-      boundary case differs from base64's and needs its own check.
+- [ ] Confirm whether `cBase32ToVec` actually rejects a legitimate
+      `maxLength`-boundary payload today (mirror
+      `decodeAtMaxLengthSucceeds`/`encodeAtMaxLengthSucceeds` in
+      `fs/base64/proof.f.ts` for cbase32, using `fs/cbase32/proof.f.ts`).
+- [ ] If confirmed, design a fix that never builds an intermediate `Vec`
+      over `maxLength` while decoding — the sentinel scan makes base64's
+      "decode the last character separately" approach not directly
+      applicable, so this needs its own design pass before implementing.
+- [ ] In practice cbase32 only decodes short, fixed-length CAS hashes
+      (`fs/cas/mcp/module.f.ts`), never `maxLength`-scale payloads, so this
+      is lower priority than the base64 case was — downgrade further or
+      close as irrelevant if no real call site can hit the boundary.
+
+### Resolution (base64)
+
+`base64.decode` (`fs/base64/module.f.ts`) now decodes every body character
+but the last through `stringToVec` as before, then decodes and trims the
+last character (which always holds the encoding's 2 or 4 zero-padding bits,
+per RFC 4648 — padding never spans more than one base64 character)
+separately, checking the combined length against `maxLength` only *after*
+trimming. No intermediate `Vec` built while decoding is ever wider than the
+final, post-trim result, so an exactly-`maxLength`-sized payload now decodes
+instead of being rejected. See `decodeAtMaxLengthSucceeds` in
+`fs/base64/proof.f.ts` and `addBase64AtLimitSucceeds` in
+`fs/cas/mcp/proof.f.ts` (flipped from `addBase64AtLimitIsError`).
 
 ### Related
 
 - `fs/types/bit_vec/todo/u8-list-to-vec-call-sites.md` — related overflow
   handling work on the `tryU8ListToVec`/`u8ListToVec` consumers.
-- `fs/cas/mcp/proof.f.ts`'s `addBase64AtLimitIsError` — the CAS-level proof
-  case that currently documents this bug's failing behavior; flip it to a
-  success assertion once this issue is fixed.
