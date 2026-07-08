@@ -37,8 +37,13 @@ export const revision = {
     /** Identity of the mutable object being revised. */
     object: ref,
 
-    /** Parent Revision BLOBs. Empty array means this is the first revision. */
-    parents: array(ref),
+    /**
+     * Parent Revision BLOBs. Empty array means this is the first revision.
+     *
+     * `hash` is the hash-only subset of `ref`: a parent is a CAS blob,
+     * so a bridge URL cannot stand in for it.
+     */
+    parents: array(hash),
 
     /**
      * Complete materialized content of this revision.
@@ -77,8 +82,10 @@ Notes on the shape:
 - `ref` is a URL in content-addressed digital space. For now two forms are recognized: a
   cbase32 hash (a native CAS address, see `fs/cbase32/`), and a standard `https://` URL as a
   bridge to the legacy location-addressed web. More forms are planned. Some ref positions
-  are restricted to hashes only — `parents` is one: a parent revision is a CAS blob, so a
-  bridge URL cannot stand in for it. Note that the `evolution` tag value is itself a ref
+  are restricted to hashes only and use the narrower `hash` type in the schema — `parents`
+  is one: a parent revision is a CAS blob, so a bridge URL cannot stand in for it, and a
+  revision with a non-CAS parent must not validate. Note that the `evolution` tag value is
+  itself a ref
   under this definition — an `https://` bridge URL today, a CA reference later — so the
   tag's migration path is just the general evolution of `ref`, not a special case.
 - `evolution` is a self-describing format tag. In a generic CAS a blob is just bytes under a
@@ -105,8 +112,9 @@ Notes on the shape:
   anchors the identifier to DNS, which vision.md argues against for the end state.
 - `object` gives every revision of the same mutable thing a common anchor to resolve
   "current head(s)" against, without requiring a mutable pointer anywhere in CAS itself —
-  the head is whatever revision(s) reference `object` and are not themselves a parent of
-  another revision. `object` identity normally comes from the first `content`: the hash of
+  the head is whatever revision(s) reference `object` and are not listed as a parent by
+  another revision *of the same `object`* — a revision of a different object referencing
+  the same hash (or an unrelated blob imported by sync) must not demote a head. `object` identity normally comes from the first `content`: the hash of
   the object's initial content is the object's identity. Two objects created from identical
   initial content therefore share an identity — this is by design: it is fine to have many
   changes of the same object from different users. When distinct identity is wanted, a ref
@@ -151,8 +159,8 @@ Open design points:
   first iteration).
 - Future `ref` forms beyond cbase32 hashes and `https://` bridge URLs (including the
   optional `{hash}-{nonce}` form for distinct object identity), and which ref positions
-  besides `parents` are hash-only (`object`? `content`? `changes`?) — possibly two schema
-  types, a general `ref` and a hash-only ref.
+  besides `parents` use the hash-only `hash` type rather than the general `ref`
+  (`object`? `content`? `changes`?).
 - Whether other content formats should share the same tagging convention, and the exact
   syntax of the future CA revision reference (e.g. `{hash}.{generation}.{hash}`; undefined
   for now — only hashes are used).
@@ -168,11 +176,12 @@ Open design points:
 - [ ] Create `fs/cas/evo/README.md` — the format spec the `evolution` tag URL points to
       (deployed automatically to functionalscript.com once it exists in the repo)
 - [ ] Define `ref` as a URL in CA digital space, recognizing cbase32 hashes and `https://`
-      bridge URLs for now
+      bridge URLs for now, and `hash` as its hash-only subset
 - [ ] Create `fs/cas/evo/module.f.ts` with the RTTI schema for `revision` (`fs/types/rtti`)
       and its derived TS type
-- [ ] Implement head resolution: given `object`, find revision(s) not reparented by any
-      other (a store-wide reverse index; heads can be demoted retroactively by sync)
+- [ ] Implement head resolution: given `object`, find revision(s) not listed as a parent
+      by any other revision of the same `object` (a reverse index scoped per object; heads
+      can be demoted retroactively by sync, but only by same-object children)
 - [ ] Implement content materialization for the first iteration (zero or one parent, no
       `changes`): `content` → base, where base = parent's materialization or `object`
 - [ ] Implement (or specify) a merge tool that resolves concurrent heads into a new revision
