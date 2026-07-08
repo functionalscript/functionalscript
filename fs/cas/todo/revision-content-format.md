@@ -76,10 +76,11 @@ Notes on the shape:
 
 - `ref` is a URL in content-addressed digital space. For now two forms are recognized: a
   cbase32 hash (a native CAS address, see `fs/cbase32/`), and a standard `https://` URL as a
-  bridge to the legacy location-addressed web. More forms are planned. Note that the
-  `evolution` tag value is itself a ref under this definition — an `https://` bridge URL
-  today, a CA reference later — so the tag's migration path is just the general evolution
-  of `ref`, not a special case.
+  bridge to the legacy location-addressed web. More forms are planned. Some ref positions
+  are restricted to hashes only — `parents` is one: a parent revision is a CAS blob, so a
+  bridge URL cannot stand in for it. Note that the `evolution` tag value is itself a ref
+  under this definition — an `https://` bridge URL today, a CA reference later — so the
+  tag's migration path is just the general evolution of `ref`, not a special case.
 - `evolution` is a self-describing format tag. In a generic CAS a blob is just bytes under a
   hash, so without a discriminant a reader can only recognize a revision by guessing from its
   shape, which collides with any other format that happens to have `object`/`parents` fields.
@@ -149,7 +150,9 @@ Open design points:
 - The `changes` event-log/CRDT format(s) still need to be defined (not implemented in the
   first iteration).
 - Future `ref` forms beyond cbase32 hashes and `https://` bridge URLs (including the
-  optional `{hash}-{nonce}` form for distinct object identity).
+  optional `{hash}-{nonce}` form for distinct object identity), and which ref positions
+  besides `parents` are hash-only (`object`? `content`? `changes`?) — possibly two schema
+  types, a general `ref` and a hash-only ref.
 - Whether other content formats should share the same tagging convention, and the exact
   syntax of the future CA revision reference (e.g. `{hash}.{generation}.{hash}`; undefined
   for now — only hashes are used).
