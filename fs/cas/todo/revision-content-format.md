@@ -28,9 +28,10 @@ materialization, and the diff format a shared home next to the schema.
 ```ts
 export const revision = {
     /**
-     * Format tag: identifies this BLOB as a revision and carries the
-     * format version. Key = type discriminant; value is a version
-     * string (e.g. "0.0.0") for now, later a hash of the format spec.
+     * Format tag: identifies this BLOB as a revision. Key = type
+     * discriminant; value is a URL of the format spec for now,
+     * later a hash of the spec:
+     * "https://github.com/functionalscript/functionalscript/tree/main/fs/cas/evo"
      */
     evolution: string,
 
@@ -81,12 +82,17 @@ Notes on the shape:
   versioning (readers reject or migrate blobs of an incompatible version instead of silently
   misreading them), and a cheap pre-validation gate. The key doubles as the type discriminant.
   The schema types the value as `string` rather than a literal so the value can migrate
-  without a schema change: a version string (`"0.0.0"`) for now, later a hash of the format
-  spec — the spec stored in CAS, its hash a universal registry-free format identifier, per
-  the deduplication principle. The cost of the loose type is that the schema alone does not
-  validate the discriminant; recognizing a supported revision is a reader-side check against
-  known values, which it would have to be anyway once several values (versions, then spec
-  hashes) coexist.
+  without a schema change. For now the value is the URL of the format spec
+  (`"https://github.com/functionalscript/functionalscript/tree/main/fs/cas/evo"`) — the
+  XML-namespace/JSON-LD approach: globally unique without a registry, and self-documenting.
+  Later it becomes a hash of the spec — the spec stored in CAS, its hash a universal
+  registry-free format identifier, per the deduplication principle. Two known costs of the
+  interim URL, both fixed by the spec-hash migration: `tree/main` is a mutable pointer, so
+  the value identifies the format but not its version; and it anchors the identifier to
+  GitHub/DNS, which vision.md argues against for the end state. The cost of the loose
+  `string` type is that the schema alone does not validate the discriminant; recognizing a
+  supported revision is a reader-side check against known values, which it would have to be
+  anyway once several values (URLs, then spec hashes) coexist.
 - `object` gives every revision of the same mutable thing a common anchor to resolve
   "current head(s)" against, without requiring a mutable pointer anywhere in CAS itself —
   the head is whatever revision(s) reference `object` and are not themselves a parent of
@@ -117,9 +123,9 @@ Notes on the shape:
 Open design points:
 
 - The `changes` event-log/CRDT format(s) still need to be defined.
-- Version-compatibility policy for the `evolution` tag: what a reader does with a newer
-  minor vs. a newer major version, and whether other content formats should share the
-  same tagging convention.
+- How format versioning works under the URL tag (the URL points at `main`, so it does not
+  pin a spec version — breaking changes may need a new URL until the spec-hash migration),
+  and whether other content formats should share the same tagging convention.
 
 ### Tasks
 
