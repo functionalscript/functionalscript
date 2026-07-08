@@ -29,11 +29,10 @@ materialization, and the diff format a shared home next to the schema.
 export const revision = {
     /**
      * Format tag: identifies this BLOB as a revision. Key = type
-     * discriminant; value is a URL of the format spec for now,
-     * later a hash of the spec:
-     * "https://functionalscript.com/fs/cas/evo/README.md"
+     * discriminant; value is the URL of the format spec for now,
+     * later a hash of the spec.
      */
-    evolution: string,
+    evolution: 'https://functionalscript.com/fs/cas/evo/README.md',
 
     /** Identity of the mutable object being revised. */
     object: ref,
@@ -81,22 +80,20 @@ Notes on the shape:
   The tag gives format detection (tools can recognize revisions while walking a store),
   versioning (readers reject or migrate blobs of an incompatible version instead of silently
   misreading them), and a cheap pre-validation gate. The key doubles as the type discriminant.
-  The schema types the value as `string` rather than a literal so the value can migrate
-  without a schema change. For now the value is the URL of the format spec
-  (`"https://functionalscript.com/fs/cas/evo/README.md"`) — the
-  XML-namespace/JSON-LD approach: globally unique without a registry, and self-documenting.
-  Later it becomes a content-addressed revision reference, such as `hash.generation`: the
-  spec is itself a mutable object evolved by this very format, `hash` is the spec's object
-  identity (hash of its first content) and `generation` pins the exact version — stable
-  identity across versions, pinned version per blob, no registry, per the deduplication
-  principle. Two known costs of the interim URL, accepted knowingly and fixed by that
-  migration: the URL is a mutable pointer (the document behind it can change), so the value
-  identifies the format but not its version; and it anchors the identifier to DNS, which
-  vision.md argues against
-  for the end state. The cost of the loose `string` type is that the schema alone does not
-  validate the discriminant; recognizing a supported revision is a reader-side check against
-  known values, which it would have to be anyway once several values (URLs, then CA revision
-  references) coexist.
+  In this first revision of the format the value is hard-coded as a literal — the URL of the
+  format spec, `"https://functionalscript.com/fs/cas/evo/README.md"` — the XML-namespace/
+  JSON-LD approach: globally unique without a registry, self-documenting, and validated by
+  the schema itself since the literal is part of the schema. The spec is the `README.md` of
+  the `fs/cas/evo` module (creating it is part of the tasks below); once it exists in the
+  repo it is automatically deployed to functionalscript.com, so the URL dereferences to the
+  live spec. Later versions of the format migrate the value to a content-addressed revision
+  reference, such as `hash.generation`: the spec is itself a mutable object evolved by this
+  very format, `hash` is the spec's object identity (hash of its first content) and
+  `generation` pins the exact version — stable identity across versions, pinned version per
+  blob, no registry, per the deduplication principle. Two known costs of the interim URL,
+  accepted knowingly and fixed by that migration: the URL is a mutable pointer (the document
+  behind it can change), so the value identifies the format but not its version; and it
+  anchors the identifier to DNS, which vision.md argues against for the end state.
 - `object` gives every revision of the same mutable thing a common anchor to resolve
   "current head(s)" against, without requiring a mutable pointer anywhere in CAS itself —
   the head is whatever revision(s) reference `object` and are not themselves a parent of
@@ -137,6 +134,8 @@ Open design points:
 
 ### Tasks
 
+- [ ] Create `fs/cas/evo/README.md` — the format spec the `evolution` tag URL points to
+      (deployed automatically to functionalscript.com once it exists in the repo)
 - [ ] Create `fs/cas/evo/module.f.ts` with the RTTI schema for `revision` (`fs/types/rtti`)
       and its derived TS type
 - [ ] Define the `changes` event-log/CRDT format, or reference an existing one
@@ -147,7 +146,7 @@ Open design points:
       with multiple `parents`
 - [ ] Tests: linear history, branch + merge, archived object, generation cache mismatch,
       first revision materializing from `object`
-- [ ] Document the format in `fs/cas/README.md`
+- [ ] Reference the format from `fs/cas/README.md`
 
 ### Related
 
