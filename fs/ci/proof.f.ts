@@ -112,20 +112,20 @@ export const proof = {
         functionalscriptPackage: () => {
             const gha = runDefault('{"name":"functionalscript"}')
             assert(hasRun('fjs t')(gha), 'expected fjs self-test')
-            assert(hasRun(`deno run -A npm:functionalscript@${functionalscript} t`)(gha), 'expected deno self-test')
+            assert(hasRun(`deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} t`)(gha), 'expected deno self-test')
             assert(hasRun(`bunx functionalscript@${functionalscript} t`)(gha), 'expected bun self-test')
         },
         otherPackage: () => {
             const gha = runDefault('{"name":"other-package"}')
-            assert(hasRun(`deno run -A npm:functionalscript@${functionalscript} t`)(gha), 'expected canonical deno self-test')
+            assert(hasRun(`deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} t`)(gha), 'expected canonical deno self-test')
             assert(hasRun(`bunx functionalscript@${functionalscript} t`)(gha), 'expected canonical bun self-test')
         },
         configuredPackageVersion: () => {
             const gha = runDefault('{"name":"other-package","version":"1.2.3"}')
             assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version platform install')
-            assert(hasRun(`deno install -g -A npm:functionalscript@${functionalscript}`)(gha), 'expected configured-version deno install cache')
+            assert(hasRun(`deno install -g -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript}`)(gha), 'expected configured-version deno install cache')
             assert(hasRun('deno install --frozen')(gha), 'expected deno lock install')
-            assert(hasRun(`deno run -A npm:functionalscript@${functionalscript} t`)(gha), 'expected configured-version deno install')
+            assert(hasRun(`deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} t`)(gha), 'expected configured-version deno install')
             assert(hasRun("deno test --allow-read --allow-env --allow-sys --coverage && deno coverage --include='.*module\\.f\\.ts'")(gha), 'expected limited-permission deno coverage')
             assert(hasRun(`bun install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version bun cache')
             assert(hasRun('bun install --frozen-lockfile')(gha), 'expected bun lock install')

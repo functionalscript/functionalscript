@@ -2,7 +2,7 @@
   "version": "5",
   "specifiers": {
     "npm:@playwright/test@1.61.1": "1.61.1",
-    "npm:@types/node@26.1.0": "26.1.0",
+    "npm:@types/node@26.1.1": "26.1.1",
     "npm:typescript@6.0.3": "6.0.3"
   },
   "npm": {
@@ -13,8 +13,8 @@
       ],
       "bin": true
     },
-    "@types/node@26.1.0": {
-      "integrity": "sha512-O0A1G3xPGy4w7AgQdAQYUlQ+BKk2Oovw8eRpofyp5KdBZULnbe+WqaOVNrm705SHphCiG4XHsACrSmPu1f+Kgw==",
+    "@types/node@26.1.1": {
+      "integrity": "sha512-nxAkRSVkN1Y0JC1W8ky/fTfkGsMmcrRsbx+3XoZE+rMOX71kLYTV7fLXpqud1GpbpP5TuffXFqfX7fH2GgZREw==",
       "dependencies": [
         "undici-types"
       ]
@@ -50,7 +50,7 @@
     "packageJson": {
       "dependencies": [
         "npm:@playwright/test@1.61.1",
-        "npm:@types/node@26.1.0",
+        "npm:@types/node@26.1.1",
         "npm:typescript@6.0.3"
       ]
     }

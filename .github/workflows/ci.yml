@@ -28,7 +28,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.35.2"
+          "run": "npm install -g functionalscript@0.36.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -81,7 +81,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.35.2"
+          "run": "npm install -g functionalscript@0.36.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -122,7 +122,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.35.2"
+          "run": "npm install -g functionalscript@0.36.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -163,7 +163,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.35.2"
+          "run": "npm install -g functionalscript@0.36.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -205,7 +205,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.35.2"
+          "run": "npm install -g functionalscript@0.36.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -258,7 +258,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.35.2"
+          "run": "npm install -g functionalscript@0.36.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -395,13 +395,13 @@
           }
         },
         {
-          "run": "deno install -g -A npm:functionalscript@0.35.2"
+          "run": "deno install -g -A --minimum-dependency-age=0 npm:functionalscript@0.36.0"
         },
         {
           "uses": "actions/checkout@v7"
         },
         {
-          "run": "deno run -A npm:functionalscript@0.35.2 t"
+          "run": "deno run -A --minimum-dependency-age=0 npm:functionalscript@0.36.0 t"
         },
         {
           "run": "deno install --frozen"
@@ -424,7 +424,7 @@
           }
         },
         {
-          "run": "bun install -g functionalscript@0.35.2"
+          "run": "bun install -g functionalscript@0.36.0"
         },
         {
           "uses": "actions/checkout@v7"
@@ -433,7 +433,7 @@
           "run": "bun install --frozen-lockfile"
         },
         {
-          "run": "bunx functionalscript@0.35.2 t"
+          "run": "bunx functionalscript@0.36.0 t"
         },
         {
           "run": "bun test --coverage"
@@ -453,7 +453,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.35.2"
+          "run": "npm install -g functionalscript@0.36.0"
         },
         {
           "uses": "actions/checkout@v7"
