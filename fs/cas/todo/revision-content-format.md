@@ -20,6 +20,11 @@ mutable object, linking back to its parent revision(s) (DAG, not just a chain, s
 edits can merge) and carrying either the full materialized content or an incremental diff
 against the parent(s).
 
+The format and its supporting functions live in a new `fs/cas/evo/module.f.ts` submodule
+("evo" for evolution), following the existing `fs/cas/cli/` and `fs/cas/mcp/` layout. This
+keeps `fs/cas/module.f.ts` focused on hashing/addressing, and gives head resolution,
+materialization, and the diff format a shared home next to the schema.
+
 ```ts
 export const revision = {
     /** Identity of the mutable object being revised. */
@@ -94,7 +99,8 @@ Open design points:
 ### Tasks
 
 - [ ] Decide `object` identity convention (nonce vs. genesis-revision hash)
-- [ ] Define the RTTI schema for `revision` (`fs/types/rtti`) and derive its TS type
+- [ ] Create `fs/cas/evo/module.f.ts` with the RTTI schema for `revision` (`fs/types/rtti`)
+      and its derived TS type
 - [ ] Define a `changes` diff format, or reference an existing one, for the incremental case
 - [ ] Implement head resolution: given `object`, find revision(s) not reparented by any other
 - [ ] Implement content materialization: replay `changes` from the nearest ancestor with
