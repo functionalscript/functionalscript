@@ -502,9 +502,6 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260707.2"
-        },
-        {
           "uses": "actions/checkout@v7"
         },
         {
@@ -512,9 +509,6 @@
         },
         {
           "run": "npx tsc"
-        },
-        {
-          "run": "tsgo"
         },
         {
           "run": "npm run cov"
