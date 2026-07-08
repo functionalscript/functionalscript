@@ -31,7 +31,7 @@ export const revision = {
      * Format tag: identifies this BLOB as a revision. Key = type
      * discriminant; value is a URL of the format spec for now,
      * later a hash of the spec:
-     * "http://functionalscript.com/fs/cas/evo/README.md"
+     * "https://functionalscript.com/fs/cas/evo/README.md"
      */
     evolution: string,
 
@@ -83,7 +83,7 @@ Notes on the shape:
   misreading them), and a cheap pre-validation gate. The key doubles as the type discriminant.
   The schema types the value as `string` rather than a literal so the value can migrate
   without a schema change. For now the value is the URL of the format spec
-  (`"http://functionalscript.com/fs/cas/evo/README.md"`) — the
+  (`"https://functionalscript.com/fs/cas/evo/README.md"`) — the
   XML-namespace/JSON-LD approach: globally unique without a registry, and self-documenting.
   Later it becomes a content-addressed revision reference, such as `hash.generation`: the
   spec is itself a mutable object evolved by this very format, `hash` is the spec's object
