@@ -128,6 +128,11 @@ Open design points:
 - The `changes` event-log/CRDT format(s) still need to be defined.
 - Whether other content formats should share the same tagging convention, and the exact
   syntax of the future CA revision reference (`hash.generation`).
+- Further out (subject for a separate spec): a `{public-key}/{name}.{generation}` form,
+  where the key's owner defines what `{name}` means. Anchoring the identifier in a signer
+  ties format identity to the web of trust (vision.md's `~/Alice/...` relative-path model)
+  and solves the many-generations-from-many-users problem: the key prefix says whose
+  evolution of `{name}` a blob follows.
 
 ### Tasks
 
