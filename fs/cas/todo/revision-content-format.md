@@ -27,6 +27,12 @@ materialization, and the diff format a shared home next to the schema.
 
 ```ts
 export const revision = {
+    /**
+     * Format tag: identifies this BLOB as a revision and carries the
+     * format version. Key = type discriminant, value = semver.
+     */
+    evolution: '0.0.0',
+
     /** Identity of the mutable object being revised. */
     object: ref,
 
@@ -67,6 +73,16 @@ export const revision = {
 
 Notes on the shape:
 
+- `evolution` is a self-describing format tag. In a generic CAS a blob is just bytes under a
+  hash, so without a discriminant a reader can only recognize a revision by guessing from its
+  shape, which collides with any other format that happens to have `object`/`parents` fields.
+  The tag gives format detection (tools can recognize revisions while walking a store),
+  versioning (readers reject or migrate blobs of an incompatible version instead of silently
+  misreading them), and a cheap pre-validation gate. The key doubles as the type discriminant,
+  the value is the format's semver. Longer term, the deduplication principle suggests the tag
+  could become a ref to the format definition blob itself — the spec stored in CAS, its hash
+  a universal registry-free format identifier — but that has a bootstrapping problem, so a
+  human-readable name + version is the pragmatic start.
 - `object` gives every revision of the same mutable thing a common anchor to resolve
   "current head(s)" against, without requiring a mutable pointer anywhere in CAS itself —
   the head is whatever revision(s) reference `object` and are not themselves a parent of
@@ -97,6 +113,9 @@ Notes on the shape:
 Open design points:
 
 - The `changes` event-log/CRDT format(s) still need to be defined.
+- Version-compatibility policy for the `evolution` tag: what a reader does with a newer
+  minor vs. a newer major version, and whether other content formats should share the
+  same tagging convention.
 
 ### Tasks
 
