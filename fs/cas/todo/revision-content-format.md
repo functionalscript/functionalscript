@@ -74,6 +74,12 @@ export const revision = {
 
 Notes on the shape:
 
+- `ref` is a URL in content-addressed digital space. For now two forms are recognized: a
+  cbase32 hash (a native CAS address, see `fs/cbase32/`), and a standard `https://` URL as a
+  bridge to the legacy location-addressed web. More forms are planned. Note that the
+  `evolution` tag value is itself a ref under this definition — an `https://` bridge URL
+  today, a CA reference later — so the tag's migration path is just the general evolution
+  of `ref`, not a special case.
 - `evolution` is a self-describing format tag. In a generic CAS a blob is just bytes under a
   hash, so without a discriminant a reader can only recognize a revision by guessing from its
   shape, which collides with any other format that happens to have `object`/`parents` fields.
@@ -142,7 +148,8 @@ Open design points:
 
 - The `changes` event-log/CRDT format(s) still need to be defined (not implemented in the
   first iteration).
-- The concrete `ref` definition (address encoding, and the optional `{hash}-{nonce}` form).
+- Future `ref` forms beyond cbase32 hashes and `https://` bridge URLs (including the
+  optional `{hash}-{nonce}` form for distinct object identity).
 - Whether other content formats should share the same tagging convention, and the exact
   syntax of the future CA revision reference (e.g. `{hash}.{generation}.{hash}`; undefined
   for now — only hashes are used).
@@ -157,7 +164,8 @@ Open design points:
 
 - [ ] Create `fs/cas/evo/README.md` — the format spec the `evolution` tag URL points to
       (deployed automatically to functionalscript.com once it exists in the repo)
-- [ ] Define `ref` (address encoding; optional `{hash}-{nonce}` form)
+- [ ] Define `ref` as a URL in CA digital space, recognizing cbase32 hashes and `https://`
+      bridge URLs for now
 - [ ] Create `fs/cas/evo/module.f.ts` with the RTTI schema for `revision` (`fs/types/rtti`)
       and its derived TS type
 - [ ] Implement head resolution: given `object`, find revision(s) not reparented by any
