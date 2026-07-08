@@ -31,7 +31,7 @@ export const revision = {
      * Format tag: identifies this BLOB as a revision. Key = type
      * discriminant; value is a URL of the format spec for now,
      * later a hash of the spec:
-     * "https://github.com/functionalscript/functionalscript/tree/main/fs/cas/evo"
+     * "http://functionalscript.com/fs/cas/evo/README.md"
      */
     evolution: string,
 
@@ -83,7 +83,7 @@ Notes on the shape:
   misreading them), and a cheap pre-validation gate. The key doubles as the type discriminant.
   The schema types the value as `string` rather than a literal so the value can migrate
   without a schema change. For now the value is the URL of the format spec
-  (`"https://github.com/functionalscript/functionalscript/tree/main/fs/cas/evo"`) — the
+  (`"http://functionalscript.com/fs/cas/evo/README.md"`) — the
   XML-namespace/JSON-LD approach: globally unique without a registry, and self-documenting.
   Later it becomes a content-addressed revision reference, such as `hash.generation`: the
   spec is itself a mutable object evolved by this very format, `hash` is the spec's object
@@ -91,7 +91,7 @@ Notes on the shape:
   identity across versions, pinned version per blob, no registry, per the deduplication
   principle. Two known costs of the interim URL, accepted knowingly and fixed by that
   migration: `tree/main` is a mutable pointer, so the value identifies the format but not
-  its version; and it anchors the identifier to GitHub/DNS, which vision.md argues against
+  its version; and it anchors the identifier to DNS, which vision.md argues against
   for the end state. The cost of the loose `string` type is that the schema alone does not
   validate the discriminant; recognizing a supported revision is a reader-side check against
   known values, which it would have to be anyway once several values (URLs, then CA revision
