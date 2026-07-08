@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { msb, type Vec, length, vec, empty } from "../types/bit_vec/module.f.ts"
+import { msb, type Vec, length, vec, maxLength } from "../types/bit_vec/module.f.ts"
 import type { Nullable } from "../types/nullable/module.f.ts"
 import { baseN } from "../base_n/module.f.ts"
 
@@ -38,18 +38,29 @@ export const decode = (input: string): Nullable<Vec> => {
     // Total chars must make a multiple of 4 with the padding.
     if ((body.length + padChars) % 4 !== 0) { return null }
 
-    // Decode each character to 6 bits.
-    const result = stringToVec(body)
-    if (result === null) { return null }
+    if (padChars === 0) { return stringToVec(body) }
 
-    // Remove the zero-padding bits introduced during encode.
-    // padChars=1 → 2 padding bits removed, padChars=2 → 4 padding bits removed.
+    // `encode`'s zero-padding bits (added to reach a 6-bit boundary) live
+    // entirely inside the *last* character's chunk — RFC 4648 padding never
+    // spans more than one base64 character. Decode every character but the
+    // last through `stringToVec` as usual, then decode and trim the last
+    // character on its own, so no intermediate `Vec` built here is ever
+    // wider than the final, post-trim result — even for input whose decoded
+    // payload lands exactly at `maxLength`.
     const removeBits = BigInt(padChars * 2)
-    const totalBits = length(result)
-    const targetLen = totalBits - removeBits
-    if (targetLen === 0n) { return empty }
-    const [kept, padVec] = popFront(targetLen)(result)
+    const realBits = 6n - removeBits
+
+    const head = stringToVec(body.slice(0, body.length - 1))
+    if (head === null) { return null }
+
+    const lastChunk = stringToVec(body.slice(body.length - 1))
+    if (lastChunk === null) { return null }
+
+    if (length(head) + realBits > maxLength) { return null }
+
+    const [kept, pad] = popFront(realBits)(lastChunk)
     // Padding bits must be zero (RFC 4648 §3.5).
-    if (removeBits > 0n && padVec !== vec(removeBits)(0n)) { return null }
-    return vec(targetLen)(kept)
+    if (pad !== vec(removeBits)(0n)) { return null }
+
+    return msb.concat(head)(vec(realBits)(kept))
 }
