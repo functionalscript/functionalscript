@@ -70,14 +70,23 @@ Notes on the shape:
 - `object` gives every revision of the same mutable thing a common anchor to resolve
   "current head(s)" against, without requiring a mutable pointer anywhere in CAS itself —
   the head is whatever revision(s) reference `object` and are not themselves a parent of
-  another revision.
+  another revision. `object` identity normally comes from the first `content`: the hash of
+  the object's initial content is the object's identity. This also makes `object` the
+  materialization fallback of last resort (see the algorithm below).
 - `parents` is an array to support merges (multiple concurrent lines of history converging),
   matching the "multi-device / multi-user, merge freely" model in
   [vision.md](../../../todo/plan/vision.md).
-- `content` vs `changes` lets a revision be self-sufficient (full snapshot, cheap random
-  reads) or cheap to write (diff-only, requires replay from an ancestor with `content` set).
-  Exactly one should be considered normative when both could theoretically apply — see open
-  design points.
+- **Materialization algorithm** — `content` has priority; the fields are not mutually
+  exclusive by schema, resolution is by precedence:
+  1. if `content` is present, use it;
+  2. otherwise, apply `changes` on the materialized parent;
+  3. otherwise (no `changes`), use the parent's materialization;
+  4. otherwise (no `parents`), use `object` itself as the content.
+- **Conflicting concurrent heads** are resolved the same way as in Git: a merge tool creates
+  a new revision that references the conflicting revisions as `parents`. The format itself
+  does not resolve conflicts; it records their resolution.
+- `changes` entries will most likely point to an event log, most likely CRDT-based, but the
+  refs may point to different (not yet defined) formats.
 - `generation` is a cache, not a source of truth — it must always be re-derivable from
   `parents`, and a consumer must not trust a `generation` it has not verified against the
   actual parent chain from an untrusted source.
@@ -87,26 +96,20 @@ Notes on the shape:
 
 Open design points:
 
-- How to resolve conflicting concurrent revisions (multiple non-ancestor heads) — is
-  reconciliation a job for a further revision with multiple `parents`, or does it stay
-  application-defined?
-- Whether `content`/`changes` should be mutually exclusive by schema (a tagged union) rather
-  than "both optional, pick one by convention."
-- What `changes` entries actually point to — a diff format is not yet defined.
-- Where `object` identity comes from: a random nonce chosen at creation, or the hash of the
-  first revision itself.
+- The `changes` event-log/CRDT format(s) still need to be defined.
 
 ### Tasks
 
-- [ ] Decide `object` identity convention (nonce vs. genesis-revision hash)
 - [ ] Create `fs/cas/evo/module.f.ts` with the RTTI schema for `revision` (`fs/types/rtti`)
       and its derived TS type
-- [ ] Define a `changes` diff format, or reference an existing one, for the incremental case
+- [ ] Define the `changes` event-log/CRDT format, or reference an existing one
 - [ ] Implement head resolution: given `object`, find revision(s) not reparented by any other
-- [ ] Implement content materialization: replay `changes` from the nearest ancestor with
-      `content` set
-- [ ] Decide and implement conflict handling for multiple concurrent heads
-- [ ] Tests: linear history, branch + merge, archived object, generation cache mismatch
+- [ ] Implement content materialization following the precedence algorithm
+      (`content` → `changes` on parent → parent → `object`)
+- [ ] Implement (or specify) a merge tool that resolves concurrent heads into a new revision
+      with multiple `parents`
+- [ ] Tests: linear history, branch + merge, archived object, generation cache mismatch,
+      first revision materializing from `object`
 - [ ] Document the format in `fs/cas/README.md`
 
 ### Related
