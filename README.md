@@ -51,6 +51,11 @@ fjs cas list             # list all stored hashes
 
 Blobs are stored under `~/.cas/` and addressed by their SHA-256 hash encoded in cBase32.
 
+CAS blobs are immutable, so evolving a mutable object (a document, a config) over
+time needs a shared shape for linking one version to the next. See
+[`fs/cas/evo/README.md`](fs/cas/evo/README.md) for the `revision` content format
+that provides it.
+
 ### MCP Server
 
 The CAS is also exposed as an [MCP](https://modelcontextprotocol.io/) server so LLM agents can read and write blobs without a shell:
