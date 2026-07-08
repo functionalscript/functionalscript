@@ -29,9 +29,10 @@ materialization, and the diff format a shared home next to the schema.
 export const revision = {
     /**
      * Format tag: identifies this BLOB as a revision and carries the
-     * format version. Key = type discriminant, value = semver.
+     * format version. Key = type discriminant; value is a version
+     * string (e.g. "0.0.0") for now, later a hash of the format spec.
      */
-    evolution: '0.0.0',
+    evolution: string,
 
     /** Identity of the mutable object being revised. */
     object: ref,
@@ -78,11 +79,14 @@ Notes on the shape:
   shape, which collides with any other format that happens to have `object`/`parents` fields.
   The tag gives format detection (tools can recognize revisions while walking a store),
   versioning (readers reject or migrate blobs of an incompatible version instead of silently
-  misreading them), and a cheap pre-validation gate. The key doubles as the type discriminant,
-  the value is the format's semver. Longer term, the deduplication principle suggests the tag
-  could become a ref to the format definition blob itself — the spec stored in CAS, its hash
-  a universal registry-free format identifier — but that has a bootstrapping problem, so a
-  human-readable name + version is the pragmatic start.
+  misreading them), and a cheap pre-validation gate. The key doubles as the type discriminant.
+  The schema types the value as `string` rather than a literal so the value can migrate
+  without a schema change: a version string (`"0.0.0"`) for now, later a hash of the format
+  spec — the spec stored in CAS, its hash a universal registry-free format identifier, per
+  the deduplication principle. The cost of the loose type is that the schema alone does not
+  validate the discriminant; recognizing a supported revision is a reader-side check against
+  known values, which it would have to be anyway once several values (versions, then spec
+  hashes) coexist.
 - `object` gives every revision of the same mutable thing a common anchor to resolve
   "current head(s)" against, without requiring a mutable pointer anywhere in CAS itself —
   the head is whatever revision(s) reference `object` and are not themselves a parent of
