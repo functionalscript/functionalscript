@@ -65,8 +65,16 @@ depends on what the format is a subset of:
   extra fields). So FJS is dialect `vnd.fjs.fjs` and DJS is dialect
   `vnd.fjs.djs`, both served as `text/javascript`.
 
-Multiple `fs/media/` directories may therefore share one mimeType and differ
-only by dialect. The `fjs.fjs` doubling is accepted for consistency; if
+Dialect surfacing is transport-generic: whenever a server knows the dialect,
+it can attach it to the response — an additional `dialect` field in MCP
+responses (MCP allows extra fields), a `Dialect` header in HTTP responses (a
+Content-Type parameter would not be conformant: media-type parameters must
+be defined by the type's registration, and RFC 9239 defines only `charset`
+for `text/javascript`). For JSON subsets the field is redundant with the
+derived mimeType, but harmless — clients get one uniform lookup order:
+`dialect` field/header, else the embedded `{"dialect":...}` tag, else
+mimeType. Multiple `fs/media/` directories may therefore share one mimeType
+and differ only by dialect. The `fjs.fjs` doubling is accepted for consistency; if
 FunctionalScript one day gets its own standard MIME type, a short form such
 as `text/fjs` can supersede the dialect name. The bucket is not FS-only: any
 media type qualifies, so formats from other vendors (`text/html`,

@@ -131,8 +131,10 @@ Notes on the shape:
   JSON tag at all — those keep the ordinary `fs/mime` detection path, are served as plain
   `text/javascript` (no `+javascript` suffix is registered, and JavaScript MIME types are
   a closed list nothing recognizes extensions of), and carry the same kind of short
-  dialect name (`vnd.fjs.fjs`, `vnd.fjs.djs`) out of band — e.g. an additional `dialect`
-  field in MCP responses, which MCP permits. The convention applies to **new JSON media
+  dialect name (`vnd.fjs.fjs`, `vnd.fjs.djs`) out of band. Out-of-band surfacing is
+  transport-generic: a server that knows the dialect can always attach it — an additional
+  `dialect` field in MCP responses (MCP permits extra fields) or a `Dialect` header in
+  HTTP responses. The convention applies to **new JSON media
   types designed in FunctionalScript**, and even there it is a recommendation (a good
   default), not a requirement: such a format MAY be a JSON object whose **first** key is
   `dialect`, so detection matches the byte prefix `{"dialect":"vnd.fjs.` and then
