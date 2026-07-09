@@ -173,6 +173,8 @@ type Main = Request
 
 See also [Unison](https://www.unison-lang.org/), [ScrapScript](https://scrapscript.org/), [Dhall](https://dhall-lang.org/). And ZK: [Lurk](https://filecoin.io/blog/posts/introducing-lurk-a-programming-language-for-recursive-zk-snarks/).
 
+Note that Dhall is not Turing-complete: it is a [total](https://en.wikipedia.org/wiki/Total_functional_programming) programming language, so every Dhall program is guaranteed to terminate. FunctionalScript as a CAPL can also have a total-functional subset, if needed. Another, more practical, option is that the VM can limit execution by time and memory parameters.
+
 The main target is run-time performance.
 
 Hash function: most likely SHA256 because there is a lot of hardware support from modern processors.
