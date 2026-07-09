@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [fs/media/json streaming-recognizer](../../json/todo/streaming-recognizer.md)
+**Blocked by:** [fs/media/json streaming-recognizer](../../media/json/todo/streaming-recognizer.md)
 
 ### Problem
 

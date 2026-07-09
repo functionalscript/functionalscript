@@ -48,7 +48,7 @@ Your client will use the `cas_add`, `cas_get`, and `cas_list` tools to interact 
 | `cas_list` | `{}`                                    | `c.list()`       | hashes, one per line                      |
 
 Each tool's argument schema is an rtti struct declared once and used twice:
-[`toJsonSchema`](../../json/schema/module.f.ts) derives the `inputSchema`
+[`toJsonSchema`](../../media/json/schema/module.f.ts) derives the `inputSchema`
 advertised in `tools/list`, and [`validate`](../../types/rtti/validate/module.f.ts)
 decodes the `arguments` object in `tools/call`. There is no drift between what we
 advertise and what we accept.
