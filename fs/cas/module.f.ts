@@ -5,7 +5,7 @@
  */
 import { sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/module.f.ts'
 import { join, normalize, parse } from '../path/module.f.ts'
-import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
+import { empty, length, maxLength, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
 import { foldStep, forEachStep, okStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
 import {
@@ -81,6 +81,30 @@ export type Cas<O extends Operation> = {
 
 /** Maximum chunk size for streaming reads: the largest `Vec` the runtime allows. */
 const chunkBytes = Number(maxLengthBytes)
+
+/**
+ * Drains a `Cas.read` stream into a single `Vec`. Used only where the whole
+ * blob is needed at once (inline MCP transfer, revision materialization);
+ * callers that only need size/type should fold the stream through
+ * `fs/mime` `detectStream` instead, which has no such bound.
+ */
+export const collectRead = <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {
+    const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
+        s.step((node): Effect<O, IoResult<Vec>> => {
+            if (node === undefined) { return pure(ok(acc)) }
+            const { first, tail } = node
+            const [t, v] = first
+            if (t === 'error') { return pure(first) }
+            // A single `Vec` cannot exceed `maxLength` bits; concatenating past it would
+            // overflow the runtime's `bigint` constraint. Surface that as an error item
+            // so the caller reports a failure rather than crashing the process.
+            if (length(acc) + length(v) > maxLength) {
+                return pure(error(`cas blob exceeds maximum vector length of ${maxLength} bits`))
+            }
+            return loop(msb.concat(acc)(v))(tail)
+        })
+    return loop(empty)(stream)
+}
 
 /** Staging directory under the store root; GC and every uploader share it. */
 const stageRel = '_stage'

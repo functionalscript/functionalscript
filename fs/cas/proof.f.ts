@@ -1,8 +1,8 @@
 import { length, maxLength, msb, vec, vec8, type Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
-import { fileCas, casAddFile, type FileCasOperation, casUpload } from './module.f.ts'
-import { pure, type Effect } from '../effects/module.f.ts'
+import { fileCas, casAddFile, collectRead, type FileCasOperation, casUpload } from './module.f.ts'
+import { pure, decode, type Effect } from '../effects/module.f.ts'
 import { mkdir, writeFile, rm, readFile, type ReadFile, type WriteFile, type Rm, type Mkdir, type IoResult, access } from '../effects/node/module.f.ts'
 import { error, ok, type Ok } from '../types/result/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
@@ -262,5 +262,18 @@ export const proof = {
         const c = fileCas(sha256)('.')
         const [, hashes] = virtual(state1)(c.list())
         if (hashes.length !== 0) { throw ['expected nothing published on failed upload', hashes] }
+    },
+    // The overflow guard in collectRead is only reached when the running total
+    // of two stream chunks would exceed maxLength. Feed a pure stream whose
+    // second chunk pushes it just over the limit so the error branch executes
+    // without any real I/O.
+    collectReadOverflow: () => {
+        const half = maxLength / 2n
+        const v1 = vec(half)(0n)
+        const v2 = vec(half + 1n)(0n)
+        const stream: List<FileCasOperation, IoResult<Vec>> =
+            nonEmpty(ok(v1), nonEmpty(ok(v2), empty()))
+        const d = decode(collectRead(stream))
+        if (!d.done || d.result[0] !== 'error') { throw 'expected overflow error' }
     },
 }
