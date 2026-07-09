@@ -22,6 +22,30 @@ Create `fs/common/` for cross-cutting reusable algorithms, starting by moving `m
 - `lang/` for language/format tooling (`json`, `djs`, `fjs`, `fsc`, `bnf`, `js`, `html`) — highest value but highest churn.
 - Storage bucket for `cas` + `sul`; testing bucket for `asserts` + `emergent_testing`.
 
+### Considered: `fs/mime/` as the format bucket
+
+Proposed: move file/blob format modules under `fs/mime/` (e.g. `fs/mime/html`,
+`fs/mime/json`). Rejected as the umbrella name, for three reasons:
+
+1. `fs/mime` already means something else — it is the magic-byte MIME
+   *detection* module consumed by `fs/cas/mcp`, not a namespace. Nesting format
+   implementations under the detection algorithm conflates the two, and the
+   detector itself would then have to move to `fs/mime/detect/`.
+2. MIME is the wrong taxonomy for most candidates: `json`/`html` map cleanly to
+   media types, but `djs`/`fjs` are FS dialects with no registered media type,
+   `base64`/`base_n`/`cbase32`/`base128` are transfer encodings, and
+   `bnf`/`asn.1`/`text` are notations/toolkits. The membership rule would need a
+   judgment call per module — worse than a flat layout.
+3. Directory paths are the public API (no `exports` map), so any move is a
+   breaking change; if one is paid for, `lang/` (above) or `format/` is a more
+   honest bucket name than `mime`.
+
+The part of the idea worth keeping without any move: a **declarative media-type
+registry** in `fs/mime` — entries like `{ mime: 'application/json', parse,
+serialize }` referencing the format modules — so detection refinements (see
+[fs/mime detect-json](../mime/todo/detect-json.md)) and content negotiation can
+dispatch over data instead of hardcoding per-format branches.
+
 ### Tasks
 
 - [ ] Create `fs/basen/` and move `base64`, `base128`, `cbase32` into it.
