@@ -45,5 +45,5 @@ return allReduce
 
 - `foldStep` / `forEachStep` — the sequential sibling.
 - Computational collections issue above — `allReduce` is the result-aggregating variant.
-- `fs/types/monoid/module.f.ts` — if `allReduce` takes a `Monoid<R>` it composes naturally with existing monoid definitions.
+- `fs/common/monoid/module.f.ts` — if `allReduce` takes a `Monoid<R>` it composes naturally with existing monoid definitions.
 - #885 review — origin of this issue.

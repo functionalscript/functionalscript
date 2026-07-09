@@ -178,7 +178,7 @@ Examples:
 ## Encoding split: hashes (cBase32) vs. content
 
 `Cas<O>` deals in `Vec` (bit vectors); MCP models only `textContent` today.
-Hashes travel as **cBase32** ([`fs/cbase32`](../../cbase32/module.f.ts)) — the
+Hashes travel as **cBase32** ([`fs/basen/cbase32`](../../basen/cbase32/module.f.ts)) — the
 canonical CAS hash format shared with the CLI and the on-disk store layout.
 Content encoding is determined at read time as described above.
 

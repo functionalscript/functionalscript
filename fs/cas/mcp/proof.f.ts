@@ -2,11 +2,11 @@ import { assert, assertEq } from '../../asserts/module.f.ts'
 import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
-import type { Unknown } from '../../json/module.f.ts'
-import type { Response } from '../../json/rpc/module.f.ts'
+import type { Unknown } from '../../media/json/module.f.ts'
+import type { Response } from '../../media/json/rpc/module.f.ts'
 import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../../types/bit_vec/module.f.ts'
-import { vecToCBase32 } from '../../cbase32/module.f.ts'
-import { encode as base64Encode } from '../../base64/module.f.ts'
+import { vecToCBase32 } from '../../basen/cbase32/module.f.ts'
+import { encode as base64Encode } from '../../basen/base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { fileCas, type FileCasOperation } from '../module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
@@ -311,7 +311,7 @@ export const proof = {
     // This test originally timed out under `bun test`'s native 5s per-test
     // limit (12-14s observed in CI on PR #1201) — the cost was in
     // `base64Encode`, quadratic before the `baseN.vecToString` fix (see
-    // `fs/base64/proof.f.ts` `encodeLargeVecIsSlow`). Now well under budget on
+    // `fs/basen/base64/proof.f.ts` `encodeLargeVecIsSlow`). Now well under budget on
     // both engines.
     getContentBase64InflationOverflowWritesInternalError: () => {
         const [root, hash] = seedBlob({})([oversizedBase64Chunk])

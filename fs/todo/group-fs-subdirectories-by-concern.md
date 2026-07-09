@@ -89,14 +89,14 @@ API (no `exports` map), so every move is a breaking change. The first wave is
 
 ### Tasks
 
-- [ ] Create `fs/basen/` and move `base64`, `base128`, `cbase32` into it.
-- [ ] Create `fs/common/` and move `monoid` from `fs/types/` into it.
-- [ ] Promote the `fjs` bin to `fs/` root; update `package.json`/`deno.json` script paths and fix relative imports.
-- [ ] Move `fs/json/` → `fs/media/json/` (one PR; establishes the `fs/media/` bucket).
-- [ ] Move `fs/html/` → `fs/media/html/` (one PR).
+- [x] Create `fs/basen/` and move `base64`, `base128`, `cbase32` into it.
+- [x] Create `fs/common/` and move `monoid` from `fs/types/` into it.
+- [x] Promote the `fjs` bin to `fs/` root; update `package.json`/`deno.json` script paths and fix relative imports.
+- [x] Move `fs/json/` → `fs/media/json/` (one PR; establishes the `fs/media/` bucket).
+- [x] Move `fs/html/` → `fs/media/html/` (one PR).
 - [ ] `fs/media/revision/` arrives as new code via [fs/cas revision-content-format](../cas/todo/revision-content-format.md) — no move needed.
 - [ ] Later: rename `fs/mime/` → `fs/media/type/`.
 - [ ] Later: move `fs/djs/` → `fs/media/djs/`.
-- [ ] Update all relative imports referencing the moved modules.
-- [ ] Update `deno.json` `exports` map and run `npm run update`.
-- [ ] Verify `npx tsc` and `fjs t` pass.
+- [x] Update all relative imports referencing the moved modules.
+- [ ] Update `deno.json` `exports` map and run `npm run update` (no `exports` map exists in `deno.json` currently; nothing to update).
+- [x] Verify `npx tsc` and `fjs t` pass.

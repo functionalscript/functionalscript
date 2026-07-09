@@ -111,7 +111,7 @@ contrast is an **external** DSL — React/JSX, TypeScript's type syntax — whic
 needs its own parser/transpiler; FunctionalScript builds the DSL *inside* the
 host language instead. The same move recurs across the codebase:
 
-- `fs/html` — markup as nested element values (`['a', { href }, 'Example']`),
+- `fs/media/html` — markup as nested element values (`['a', { href }, 'Example']`),
   not JSX; serialized by an emitter function;
 - `fs/types/rtti` — a type is a schema *value* from which `ts/` derives the
   TypeScript type, `validate/` a validator, and `parse/` a deserializer (the
@@ -222,7 +222,7 @@ Bigger automata are built from BNF pieces in two complementary ways:
 - [parser-structure](./parser-structure.md) — the AST-producing backend
 - `fs/types/rtti` — the type-level sibling of this strategy: types as schema
   values, many artifacts (TS type, validator, parser) derived by function
-- `fs/html` — the markup-level sibling: an embedded DSL of nested element
+- `fs/media/html` — the markup-level sibling: an embedded DSL of nested element
   values, not an external syntax (JSX)
 - [new-pl.md](../../../todo/new-pl.md) — `Function.getAst` / `fromAst` (functions
   as serializable IR); `toData` is the grammar-specific case, and the serialized

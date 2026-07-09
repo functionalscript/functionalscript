@@ -58,7 +58,7 @@ A migration that proceeds folder-by-folder, not all at once:
    intentional failures (intentionally break one assertion to read
    the failure message).
 3. **Expand** — propagate to the rest of `fs/types/*`, then `fs/text/*`,
-   `fs/json/*`, `fs/djs/*`, etc., one folder per PR. No mixing the
+   `fs/media/json/*`, `fs/djs/*`, etc., one folder per PR. No mixing the
    refactor with behaviour changes.
 
 Optional second helper for the remaining shapes:

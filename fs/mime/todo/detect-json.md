@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [fs/json streaming-recognizer](../../json/todo/streaming-recognizer.md)
+**Blocked by:** [fs/media/json streaming-recognizer](../../json/todo/streaming-recognizer.md)
 
 ### Problem
 
@@ -39,7 +39,7 @@ The detector state (`DetectState`, `:201-205`) is a product of independent
 factors — bit `length` × `MagicState` × `Utf8Detect` — that meet only in
 `finish`. Add a fourth factor `A_json`: a streaming JSON **recognizer**
 (accept/reject only, no value construction) driven by the code points the UTF-8
-factor already decodes. Its core is the `fs/json` recognizer (§2); `fs/mime`
+factor already decodes. Its core is the `fs/media/json` recognizer (§2); `fs/mime`
 wraps it with a one-code-point tag recording the top-level value's kind, so the
 object/array-only policy (§4) is applied at EOF — the recognizer stays pure
 (accepts any valid JSON), the MIME policy lives here:
@@ -65,12 +65,12 @@ is a mild coupling to the existing "factors never read each other" note at
 `:199-200`; document it, or, if strict independence is preferred, give the JSON
 factor its own `utf8ByteToCodePointOp` decode — at the cost of decoding twice.)
 
-#### 2. Consume the `fs/json` streaming recognizer — do not hand-adapt the tokenizer here
+#### 2. Consume the `fs/media/json` streaming recognizer — do not hand-adapt the tokenizer here
 
 `A_json` is exactly the *"is this stream valid JSON?"* question, and it must be
 answered without buffering — otherwise the size-independence `detectStream` is
-built for is lost. Reusing `fs/json`'s `tokenize`/`parse` as-is does **not**
-work for two reasons that are `fs/json`'s to own, not `fs/mime`'s to patch:
+built for is lost. Reusing `fs/media/json`'s `tokenize`/`parse` as-is does **not**
+work for two reasons that are `fs/media/json`'s to own, not `fs/mime`'s to patch:
 
 - `parse` builds the whole value in `top`/`stack` — O(n) memory in the document
   size.
@@ -80,7 +80,7 @@ work for two reasons that are `fs/json`'s to own, not `fs/mime`'s to patch:
   huge string or number — e.g. metadata-only `cas_get` on `{"x":"⟨1 MB⟩"}`.
 
 Both are addressed by the payload-free, O(depth) recognizer proposed in
-**`fs/json/todo/streaming-recognizer.md`** (`recognizerInit` / `recognizerStep`
+**`fs/media/json/todo/streaming-recognizer.md`** (`recognizerInit` / `recognizerStep`
 / `recognizerAccepts`, sharing the grammar with `parse` so they cannot diverge,
 with an optional max-depth cap `fs/mime` should enable as a DoS guard). `A_json`
 is the thin §1 wrapper over it — the recognizer plus the one-code-point
@@ -150,7 +150,7 @@ exactly the path `cas_get` uses.
 
 ### Tasks
 
-- [ ] Land the payload-free, O(depth) `fs/json` recognizer first (its own
+- [ ] Land the payload-free, O(depth) `fs/media/json` recognizer first (its own
       todo); this issue is blocked on it.
 - [ ] Add the `A_json` factor (recognizer + top-level `top` tag, §1) to
       `DetectState`/`detectInit`; drive `jsonStep` from the code points decoded
@@ -173,8 +173,8 @@ exactly the path `cas_get` uses.
 
 - `fs/mime/module.f.ts:264-272` — `finish`, where the text→JSON refinement lands.
 - `fs/mime/module.f.ts:180-195` — the UTF-8 factor whose decoded code points feed the JSON factor.
-- `fs/json/todo/streaming-recognizer.md` — **blocks this**; the payload-free, O(depth) validity recognizer `A_json` wraps.
+- `fs/media/json/todo/streaming-recognizer.md` — **blocks this**; the payload-free, O(depth) validity recognizer `A_json` wraps.
 - `fs/js/tokenizer/module.f.ts` — `parseStringStateOp`; already rejects raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
-- `fs/json/parser/module.f.ts:205-238` — `foldOp` / `parse`, the grammar the recognizer reuses value-free.
+- `fs/media/json/parser/module.f.ts:205-238` — `foldOp` / `parse`, the grammar the recognizer reuses value-free.
 - `fs/cas/mcp/module.f.ts:196-204` — `cas_get`, the consumer that gains `application/json` for free.
 - `fs/mime/todo/single-signature-table.md` — the sibling "one source of truth" cleanup; same single-classifier principle.
