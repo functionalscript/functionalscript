@@ -63,7 +63,7 @@ revoked-certificate list) and hits it.
       acceptable given ASN.1 structures in this codebase's actual usage
       (RFC 3161 timestamp requests/responses) are small.
 - [ ] If fixed, add a proof test with a `SEQUENCE OF` containing many
-      elements, timed the same way as `fs/base64/proof.f.ts`
+      elements, timed the same way as `fs/basen/base64/proof.f.ts`
       `encodeLargeVecIsSlow` (no timing assertion).
 
 ### Related

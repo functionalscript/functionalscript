@@ -1,0 +1,101 @@
+/**
+ * Tokenizer for JSON lexical analysis.
+ *
+ * @module
+ */
+import { type StateScan } from '../../../types/function/operator/module.f.ts'
+import { concat, empty, flat, stateScan, type List } from '../../../types/list/module.f.ts'
+import { multiply } from '../../../types/bigfloat/module.f.ts'
+import {
+    tokenize as jsTokenize,
+    type EofToken,
+    type ErrorToken,
+    type JsToken,
+    type JsTokenWithMetadata,
+    type NumberToken,
+    type StringToken
+} from '../../../js/tokenizer/module.f.ts'
+
+export type JsonToken = |
+    {readonly kind: 'true' | 'false' | 'null' } |
+    {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
+    StringToken |
+    NumberToken |
+    ErrorToken |
+    EofToken
+
+type ScanState = {readonly kind: 'def' | '-' }
+
+type ScanInput = JsTokenWithMetadata | null
+
+const mapToken
+    : (input: JsToken) => List<JsonToken>
+    = input => {
+        switch(input.kind)
+        {
+            case '{':
+            case '}':
+            case ':':
+            case ',':
+            case '[':
+            case ']':
+            case 'true':
+            case 'false':
+            case 'null':
+            case 'string':
+            case 'number':
+            case 'eof':
+            case 'error': return [input]
+            case 'ws':
+            case 'nl': return empty
+            default: return [{ kind: 'error', message: 'invalid token' }]
+        }
+    }
+
+const parseDefaultState
+    : (input: ScanInput) => readonly [List<JsonToken>, ScanState]
+    = input => {
+        if (input === null) return [empty, { kind: 'def'}]
+        switch(input.token.kind)
+        {
+            case '-': return [empty, { kind: '-'}]
+            default: return [mapToken(input.token),  { kind: 'def'}]
+        }
+    }
+
+const parseMinusState
+    : (input: ScanInput) => readonly [List<JsonToken>, ScanState]
+    = input => {
+        if (input === null) return [[{ kind: 'error', message: 'invalid token' }], { kind: 'def'}]
+        switch(input.token.kind)
+        {
+            case '-': return [[{ kind: 'error', message: 'invalid token' }], { kind: '-'}]
+            case 'number': return [[{ kind: 'number', bf: multiply(input.token.bf)(-1n), value: `-${input.token.value}` }], { kind: 'def'}]
+            default: return [{ first: { kind: 'error', message: 'invalid token' }, tail: mapToken(input.token)},  { kind: 'def'}]
+        }
+    }
+
+const scanToken
+    : StateScan<ScanInput, ScanState, List<JsonToken>>
+    = (input, state) => {
+        switch(state.kind)
+        {
+            case '-': return parseMinusState(input)
+            default: return parseDefaultState(input)
+        }
+    }
+
+/**
+ * Converts a stream of UTF-8 bytes into JSON tokens.
+ *
+ * The tokenizer accepts only JSON-compatible JavaScript tokens, ignores
+ * whitespace/newline tokens, and reports invalid token sequences as
+ * `{ kind: 'error' }` tokens.
+ */
+export const tokenize
+    = (input: List<number>): List<JsonToken> => {
+        const jsTokens
+            : List<ScanInput>
+            =  jsTokenize(input)('')
+        return flat(stateScan(scanToken)({ kind: 'def' })(concat(jsTokens)([null])))
+    }

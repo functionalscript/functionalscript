@@ -7,7 +7,7 @@
 
 `fs/base_n/module.f.ts` already factors the core alphabet chunk codec into a
 parameterized `baseN(bits, alphabet, normalize?)` factory, and both `base64` and
-`cbase32` consume it (`fs/base64/module.f.ts:14`, `fs/cbase32/module.f.ts:27`).
+`cbase32` consume it (`fs/basen/base64/module.f.ts:14`, `fs/basen/cbase32/module.f.ts:27`).
 That part of the DRY work is done.
 
 The remaining duplication is one layer up, in the **padding** each codec wraps
@@ -15,7 +15,7 @@ around the shared `vecToString` / `stringToVec`. Both modules independently
 implement "round the bit length up to a chunk-width multiple, append a pad
 vector, encode; on decode, strip the padding".
 
-`fs/base64/module.f.ts` (encode side) pads to a 6-bit boundary with zero bits
+`fs/basen/base64/module.f.ts` (encode side) pads to a 6-bit boundary with zero bits
 plus trailing `=` characters:
 
 ```ts
@@ -26,7 +26,7 @@ let result = vecToString(v)
 while (result.length % 4 !== 0) { result += '=' }
 ```
 
-`fs/cbase32/module.f.ts` pads to a 5-bit boundary with a sentinel bit:
+`fs/basen/cbase32/module.f.ts` pads to a 5-bit boundary with a sentinel bit:
 
 ```ts
 const extraLen = 5n - len % 5n
@@ -49,7 +49,7 @@ it is genuinely strategy-specific and must stay so:
   (`5n`) when `len % 5n === 0n`, so an aligned input still carries a terminator
   symbol. This is required, not incidental — `cBase32ToVec` scans backward for the
   sentinel `1` bit and **rejects** any input with no sentinel
-  (`fs/cbase32/module.f.ts:42-53`), and `fs/cbase32/proof.f.ts` proves a 5-bit
+  (`fs/basen/cbase32/module.f.ts:42-53`), and `fs/basen/cbase32/proof.f.ts` proves a 5-bit
   payload round-trips with the extra terminator. If the shared boundary math
   treated aligned cbase32 like base64 (zero extra bits), aligned values would be
   rejected or have payload bits stripped.
@@ -57,7 +57,7 @@ it is genuinely strategy-specific and must stay so:
 So the strategy layer must let each codec own its aligned-case decision; do not
 "normalize" it to a single rule across both.
 
-> Note: `base128` (`fs/base128/module.f.ts`) is a variable-length
+> Note: `base128` (`fs/basen/base128/module.f.ts`) is a variable-length
 > continuation-bit (LEB128-style) `bigint ↔ Vec` codec, **not** an alphabet
 > chunk codec. It correctly does not use `baseN` and is out of scope here.
 
@@ -72,7 +72,7 @@ characters. The shared `concat(v)(vec(extra)(padValue))` boundary application
 lives once in `base_n`. `base64` and `cbase32` then declare only their pad value,
 unpad rule, and aligned-case rule, and stop re-importing
 `concat`/`vec`/`length`/`empty` for the boundary math
-(`fs/base64/module.f.ts:6,12`, `fs/cbase32/module.f.ts:13`).
+(`fs/basen/base64/module.f.ts:6,12`, `fs/basen/cbase32/module.f.ts:13`).
 
 This is a "layer of abstraction for shared structure" extraction; per `AGENTS.md`
 the second real consumer already exists (base64 and cbase32 both ship), so the
@@ -96,6 +96,6 @@ and doesn't obscure the per-codec pad semantics.
 
 - `fs/base_n/todo/various-basen-encodings.md` — its "Base64" entry is **not**
   superseded by this work: that entry asks for an *identifier-safe* base64
-  (alphabet `0-9 A-Z a-z _ $`), whereas `fs/base64/module.f.ts` is the standard
+  (alphabet `0-9 A-Z a-z _ $`), whereas `fs/basen/base64/module.f.ts` is the standard
   RFC 4648 `+/` codec. The identifier variant is still unbuilt; this issue only
   refactors padding shared by the existing standard base64 and cbase32.

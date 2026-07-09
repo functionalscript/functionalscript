@@ -35,7 +35,7 @@ message:
 
 For each call site, switch to `tryU8ListToVec` and propagate `Nullable<Vec>`
 (or a `Nullable<string>` return for `utf8`) so callers get a clean `null`
-instead of a thrown assertion, consistent with how `fs/base64/module.f.ts`'s
+instead of a thrown assertion, consistent with how `fs/basen/base64/module.f.ts`'s
 `decode` and `fs/base_n/module.f.ts`'s `stringToVec` already surface overflow.
 Where a thrown error is still wanted at a given boundary (e.g. `toVec`'s
 existing `"the array is too big"` contract), wrap the `null` result in an
@@ -55,5 +55,5 @@ message from `mapUnwrap`.
 
 ### Related
 
-- `fs/base64/todo/decode-rejects-max-size-input.md` — sibling overflow-handling
+- `fs/basen/base64/todo/decode-rejects-max-size-input.md` — sibling overflow-handling
   gap in the `base_n`/`base64` codec stack.

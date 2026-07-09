@@ -12,7 +12,7 @@ import { type List, flat, flatMap, map, concat as listConcat } from '../../types
 const { entries } = Object
 import { compose, fn } from '../../types/function/module.f.ts'
 import { serialize as bigintSerialize } from '../../types/bigint/module.f.ts'
-import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../json/serializer/module.f.ts'
+import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.ts'
 
 const colon = [':']
 

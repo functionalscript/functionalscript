@@ -4,7 +4,7 @@ import { maxLength, vec, vec8 } from '../../types/bit_vec/module.f.ts'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
 import { type NodeProgramOptions } from '../../effects/node/module.f.ts'
 import { dispatch } from '../../cli/module.f.ts'
-import { vecToCBase32 } from '../../cbase32/module.f.ts'
+import { vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.ts'
 
 const makeOptions = (args: readonly string[]): NodeProgramOptions =>

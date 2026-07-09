@@ -6,7 +6,7 @@ import {
     stringToCodePointList,
     codePointListToString
 } from './module.f.ts'
-import { stringify as jsonStringify, type Unknown } from '../../json/module.f.ts'
+import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 

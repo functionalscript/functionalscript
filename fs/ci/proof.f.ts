@@ -6,7 +6,7 @@ import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAct
 import { assert } from '../asserts/module.f.ts'
 import type { State } from '../effects/node/virtual/module.f.ts'
 import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
-import { parse as jsonParse } from '../json/module.f.ts'
+import { parse as jsonParse } from '../media/json/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { definedValues } from '../types/object/module.f.ts'
 
