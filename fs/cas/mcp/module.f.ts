@@ -12,7 +12,7 @@
  * | Tool       | args                          | action           | result                              |
  * |------------|-------------------------------|------------------|-------------------------------------|
  * | `cas_add`  | `{ content, type? }`          | `c.write(...)`   | hash (cBase32)                      |
- * | `cas_get`  | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mime_type,type[,content]}` |
+ * | `cas_get`  | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
  * | `cas_list` | `{}`                          | `c.list()`       | hashes, one per line                |
  *
  * ## `cas_add` input encoding
@@ -31,32 +31,40 @@
  *
  * ## `cas_get` output
  *
- * Always returns a JSON object `{ length, mime_type, type[, url][, content] }`.
- * `type` is always present (`'text'` or `'base64'`). A single classifier — the
- * `fs/mime` detector state machine (length × magic-byte eliminator × UTF-8 DFA) —
- * produces the same three-way verdict on both paths, so there is no second,
- * divergent copy of the rules:
+ * Always returns a JSON object `{ length, mimeType, type[, uri][, text | blob] }`.
+ * These field names mirror the MCP resource-contents shape (`resources/read`
+ * results), so the tool view and the future resource view of a blob use the same
+ * vocabulary: `mimeType` (not `mime_type`), `uri` (not `url`) — the resource URI
+ * under which the same blob will be readable via `resources/read` — and `text` /
+ * `blob` (not a `type`-tagged `content`) for inline payloads. `type` is always
+ * present (`'text'` or `'base64'`) as the discriminator for which of `text` /
+ * `blob` a later `content: true` fetch would populate — MCP allows extra fields,
+ * so `type` and `length` simply stay alongside the required resource-contents
+ * fields. A single classifier — the `fs/mime` detector state machine (length ×
+ * magic-byte eliminator × UTF-8 DFA) — produces the same three-way verdict on
+ * both paths, so there is no second, divergent copy of the rules:
  *
  * 1. **Magic-byte hit** (PNG/JPEG/GIF/WebP/PDF/ZIP) → `type: 'base64'` with the
- *    detected `mime_type`.
- * 2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mime_type: 'text/plain'`.
- * 3. **Fallback** → `type: 'base64'`, `mime_type: 'application/octet-stream'`.
+ *    detected `mimeType`.
+ * 2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mimeType: 'text/plain'`.
+ * 3. **Fallback** → `type: 'base64'`, `mimeType: 'application/octet-stream'`.
  *
  * **Metadata-only (`content: false`, the default) is size-independent.** It folds
  * the read stream through `fs/mime` `detectStream` and never buffers the blob.
  * Because a single `Vec` caps at `maxLength` bits (128 KiB), the old
  * drain-into-one-`Vec` approach failed on any blob larger than one chunk even when
  * only metadata was asked for; streaming detection returns correct
- * `{ length, mime_type, type[, url] }` regardless of size.
+ * `{ length, mimeType, type[, uri] }` regardless of size.
  *
- * **`content: true`** first derives `{ length, mime_type, type }` with the same
+ * **`content: true`** first derives `{ length, mimeType, type }` with the same
  * size-independent `fs/mime` `detectStream` machine, then materializes the bytes
  * (via `collectRead`, bounded by `maxLength`) and encodes the inline payload by
- * `type` — a `fs/text/utf8` `fromVec` string for `text`, base64 for `base64`. A
- * blob larger than `maxLength` (128 KiB) cannot be buffered into one `Vec`, so it
- * is rejected here with a descriptive *"too large"* error (carrying the byte size
- * and `url`) rather than being misreported as absent; it should be fetched via
- * `url` or inspected with metadata-only `cas_get`.
+ * `type` — a `fs/text/utf8` `fromVec` string on `text` (for `type: 'text'`), base64
+ * on `blob` (for `type: 'base64'`). A blob larger than `maxLength` (128 KiB)
+ * cannot be buffered into one `Vec`, so it is rejected here with a descriptive
+ * *"too large"* error (carrying the byte size and `uri`) rather than being
+ * misreported as absent; it should be fetched via `uri` or inspected with
+ * metadata-only `cas_get`.
  *
  * ## Encoding split: hashes vs. content
  *
@@ -154,9 +162,9 @@ const toJson = stringify(identity)
 
 type Meta = {
     readonly length: number
-    readonly mime_type: string
+    readonly mimeType: string
     readonly type: 'text' | 'base64'
-    readonly url: string
+    readonly uri: string
 }
 
 /** Registry of all CAS tools. */
@@ -183,20 +191,20 @@ const casToolRegistry =
     ),
     toolEntry(
         'cas_get',
-        'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string, but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To download a blob, prefer the url field returned in the result instead of requesting inline content.',
+        'Inspect a blob by hash. Always returns JSON {length,mimeType,type[,uri]} where type is "text" or "base64". Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To download a blob, prefer the uri field returned in the result instead of requesting inline content.',
         casGetArgs,
         r => {
             const key = cBase32ToVec(r.hash)
             if (key === null) {
                 return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
             }
-            const url = c.url(key)
+            const uri = c.url(key)
             return detectStream(c.read(key)).step(([tag, detected]) => {
                 if (tag === 'error') {
                     return pure(errorResult(`no such hash: ${r.hash}`))
                 }
-                const { length, mime_type, type } = detected
-                const meta: Meta = { length: Number(length), mime_type, type, url }
+                const { length, mime_type: mimeType, type } = detected
+                const meta: Meta = { length: Number(length), mimeType, type, uri }
                 if (r.content !== true) {
                     // content:true path continues below; this is just the metadata step.
                     return pure(okResult(toJson(meta)))
@@ -207,7 +215,7 @@ const casToolRegistry =
                 // misreporting an existing blob as `no such hash`.
                 if (length > maxLengthBytes) {
                     return pure(errorResult(
-                        `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the url field (${url}) or omit content for metadata`))
+                        `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the uri field (${uri}) or omit content for metadata`))
                 }
                 return collectRead(c.read(key)).step(([collectTag, value]) => {
                     if (collectTag === 'error') {
@@ -219,13 +227,13 @@ const casToolRegistry =
                         const str = fromVec(value)
                         return pure(str === null
                             ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                            : okResult(toJson({ ...meta, content: str }))
+                            : okResult(toJson({ ...meta, text: str }))
                         )
                     }
                     const blob = base64Encode(value)
                     return pure(blob === null
                         ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                        : okResult(toJson({ ...meta, content: blob }))
+                        : okResult(toJson({ ...meta, blob }))
                     )
                 })
             })
