@@ -25,25 +25,31 @@ Create `fs/common/` for cross-cutting reusable algorithms, starting by moving `m
 
 ### 4. `fs/media/` — content formats and media-type detection
 
-The agreed design for the format bucket:
+The agreed design for the format bucket. First wave — only these three:
 
 ```
 fs/media/
-    html/       text/html
-    json/       application/json
-    djs/        application/vnd.functionalscript.djs
-    fjs/        application/vnd.functionalscript.fjs
+    html/       text/html (moved from fs/html)
+    json/       application/json (moved from fs/json)
     revision/   application/vnd.functionalscript.revision+json (format only, new code —
                 see fs/cas/todo/revision-content-format.md)
-    type/       media-type detection (today's fs/mime)
 ```
+
+Later candidates for the same bucket, deliberately deferred to keep each PR
+small:
+
+- `media/type/` — media-type detection (today's `fs/mime`), renamed;
+- `media/djs/` — `application/vnd.functionalscript.djs`.
 
 **Membership rule:** a module goes under `fs/media/` iff it implements content
 whose identity is — or can be, via the RFC 6838 vendor tree — a media type.
 Unregistered FS dialects qualify through `application/vnd.functionalscript.*`
 (only registered structured-syntax suffixes may be appended: `+json` yes,
-`+javascript` is not a registered suffix, so plain
-`application/vnd.functionalscript.fjs`).
+`+javascript` is not a registered suffix, so an FJS type would be plain
+`application/vnd.functionalscript.fjs`). Note there is no `media/fjs/` entry:
+today's `fs/fjs` is only the CLI dispatcher, which item 3 above promotes to
+`fs/` root, leaving nothing to move — a `media/fjs/` module appears only
+if a library-form FJS format module comes to exist.
 
 **`media/type/`** is the current `fs/mime` detector, renamed: detection is
 about media *types*; the sibling directories are the media themselves. This
@@ -77,20 +83,20 @@ module and reads as detection, not content), `format/`/`lang/` (no crisp
 membership rule — `media` + the vendor tree gives one).
 
 **Migration:** incremental, one move per PR — directory paths are the public
-API (no `exports` map), so every move is a breaking change. `media/revision/`
-is new code (no move) and together with the `fs/mime` → `media/type/` rename
-can establish the bucket first; `json`, `html`, `djs`, `fjs` follow.
+API (no `exports` map), so every move is a breaking change. The first wave is
+`json` and `html` (moves) plus `revision` (new code, no move); the
+`fs/mime` → `media/type/` rename and `djs` follow later.
 
 ### Tasks
 
 - [ ] Create `fs/basen/` and move `base64`, `base128`, `cbase32` into it.
 - [ ] Create `fs/common/` and move `monoid` from `fs/types/` into it.
 - [ ] Promote the `fjs` bin to `fs/` root; update `package.json`/`deno.json` script paths and fix relative imports.
-- [ ] Rename `fs/mime/` → `fs/media/type/` (establishes the `fs/media/` bucket; `fs/media/revision/` arrives as new code via [fs/cas revision-content-format](../cas/todo/revision-content-format.md)).
-- [ ] Move `fs/json/` → `fs/media/json/` (one PR).
+- [ ] Move `fs/json/` → `fs/media/json/` (one PR; establishes the `fs/media/` bucket).
 - [ ] Move `fs/html/` → `fs/media/html/` (one PR).
-- [ ] Move `fs/djs/` → `fs/media/djs/` (one PR).
-- [ ] Move `fs/fjs/` library part → `fs/media/fjs/` (after the bin promotion above).
+- [ ] `fs/media/revision/` arrives as new code via [fs/cas revision-content-format](../cas/todo/revision-content-format.md) — no move needed.
+- [ ] Later: rename `fs/mime/` → `fs/media/type/`.
+- [ ] Later: move `fs/djs/` → `fs/media/djs/`.
 - [ ] Update all relative imports referencing the moved modules.
 - [ ] Update `deno.json` `exports` map and run `npm run update`.
 - [ ] Verify `npx tsc` and `fjs t` pass.
