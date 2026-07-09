@@ -20,10 +20,20 @@ mutable object, linking back to its parent revision(s) (DAG, not just a chain, s
 edits can merge) and carrying either the full materialized content or an incremental diff
 against the parent(s).
 
-The format and its supporting functions live in a new `fs/cas/evo/module.f.ts` submodule
-("evo" for evolution), following the existing `fs/cas/cli/` and `fs/cas/mcp/` layout. This
-keeps `fs/cas/module.f.ts` focused on hashing/addressing, and gives head resolution,
-materialization, and the diff format a shared home next to the schema.
+The design splits the format from the store operations, to keep the dependency graph
+acyclic:
+
+- **`fs/media/revision/`** — the pure format: the RTTI schema, the `mimeType` constant,
+  encode/decode/validate, and the README spec. No store access, no effects. It must live
+  under `fs/media/` (see
+  [fs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md))
+  because media-type detection has to import the schema to recognize revision blobs, and
+  `fs/cas/mcp` already depends on the detector — a format inside `fs/cas` would therefore
+  close a `cas` ↔ detector cycle.
+- **`fs/cas/evo/`** ("evo" for evolution, following the existing `fs/cas/cli/` and
+  `fs/cas/mcp/` layout) — the store-touching operations: head resolution, materialization,
+  the per-object reverse index. Depends on `fs/cas` and `fs/media/revision`. This keeps
+  `fs/cas/module.f.ts` focused on hashing/addressing.
 
 ```ts
 export const revision = {
@@ -95,8 +105,8 @@ Notes on the shape:
   suffix tells generic tooling the underlying syntax is JSON. No registry entry is required
   for the vendor tree, the string is stable (no mutable URL, no DNS anchoring), and it is
   validated by the schema itself since the literal is part of the schema. The format spec
-  lives in the `README.md` of the `fs/cas/evo` module (creating it is part of the tasks
-  below; once in the repo it is automatically deployed to functionalscript.com) — the spec
+  lives in the `README.md` of the `fs/media/revision` module (creating it is part of the
+  tasks below; once in the repo it is automatically deployed to functionalscript.com) — the spec
   is referenced by the schema/docs rather than encoded in the tag value. **Versioning rule:**
   additive, compatible changes keep the tag — RTTI struct validation accepts undeclared keys
   by design, so a blob with extra fields still validates against the v1 schema, and that is
@@ -187,13 +197,15 @@ Open design points:
 
 ### Tasks
 
-- [ ] Create `fs/cas/evo/README.md` — the spec of the format tagged
+- [ ] Create `fs/media/revision/README.md` — the spec of the format tagged
       `application/vnd.functionalscript.revision+json`
       (deployed automatically to functionalscript.com once it exists in the repo)
 - [ ] Define `ref` as a URL in CA digital space, recognizing cbase32 hashes and `https://`
       bridge URLs for now, and `hash` as its hash-only subset
-- [ ] Create `fs/cas/evo/module.f.ts` with the RTTI schema for `revision` (`fs/types/rtti`)
-      and its derived TS type
+- [ ] Create `fs/media/revision/module.f.ts` with the RTTI schema for `revision`
+      (`fs/types/rtti`), the `mimeType` constant, and its derived TS type
+- [ ] Create `fs/cas/evo/module.f.ts` for the store-touching operations below, importing the
+      format from `fs/media/revision`
 - [ ] Implement head resolution: given `object`, find revision(s) not listed as a parent
       by any other revision of the same `object` (a reverse index scoped per object; heads
       can be demoted retroactively by sync, but only by same-object children)
@@ -215,6 +227,9 @@ Open design points:
 
 ### Related
 
+- [fs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
+  — the `fs/media/` bucket this format's pure part lives in, and the cycle rule that puts it
+  there
 - `todo/plan/vision.md` — DISOT block types (signature, trust, license, redirect) this format
   sits alongside
 - [66g-cas-verify-command](66g-cas-verify-command.md) — integrity checking applies equally to

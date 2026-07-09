@@ -19,38 +19,78 @@ Create `fs/common/` for cross-cutting reusable algorithms, starting by moving `m
 
 ### Later candidates
 
-- `lang/` for language/format tooling (`json`, `djs`, `fjs`, `fsc`, `bnf`, `js`, `html`) — highest value but highest churn.
+- Tooling bucket for `bnf`, `fsc`, and possibly `js` (grammar/compiler tooling;
+  the content-facing formats go to `fs/media/`, see below).
 - Storage bucket for `cas` + `sul`; testing bucket for `asserts` + `emergent_testing`.
 
-### Considered: `fs/mime/` as the format bucket
+### 4. `fs/media/` — content formats and media-type detection
 
-Proposed: move file/blob format modules under `fs/mime/` (e.g. `fs/mime/html`,
-`fs/mime/json`). Rejected as the umbrella name, for three reasons:
+The agreed design for the format bucket:
 
-1. `fs/mime` already means something else — it is the magic-byte MIME
-   *detection* module consumed by `fs/cas/mcp`, not a namespace. Nesting format
-   implementations under the detection algorithm conflates the two, and the
-   detector itself would then have to move to `fs/mime/detect/`.
-2. MIME is the wrong taxonomy for most candidates: `json`/`html` map cleanly to
-   media types, but `djs`/`fjs` are FS dialects with no registered media type,
-   `base64`/`base_n`/`cbase32`/`base128` are transfer encodings, and
-   `bnf`/`asn.1`/`text` are notations/toolkits. The membership rule would need a
-   judgment call per module — worse than a flat layout.
-3. Directory paths are the public API (no `exports` map), so any move is a
-   breaking change; if one is paid for, `lang/` (above) or `format/` is a more
-   honest bucket name than `mime`.
+```
+fs/media/
+    html/       text/html
+    json/       application/json
+    djs/        application/vnd.functionalscript.djs
+    fjs/        application/vnd.functionalscript.fjs
+    revision/   application/vnd.functionalscript.revision+json (format only, new code —
+                see fs/cas/todo/revision-content-format.md)
+    type/       media-type detection (today's fs/mime)
+```
 
-The part of the idea worth keeping without any move: a **declarative media-type
-registry** in `fs/mime` — entries like `{ mime: 'application/json', parse,
-serialize }` referencing the format modules — so detection refinements (see
-[fs/mime detect-json](../mime/todo/detect-json.md)) and content negotiation can
-dispatch over data instead of hardcoding per-format branches.
+**Membership rule:** a module goes under `fs/media/` iff it implements content
+whose identity is — or can be, via the RFC 6838 vendor tree — a media type.
+Unregistered FS dialects qualify through `application/vnd.functionalscript.*`
+(only registered structured-syntax suffixes may be appended: `+json` yes,
+`+javascript` is not a registered suffix, so plain
+`application/vnd.functionalscript.fjs`).
+
+**`media/type/`** is the current `fs/mime` detector, renamed: detection is
+about media *types*; the sibling directories are the media themselves. This
+placement enables the declarative step (see
+[fs/mime detect-json](../mime/todo/detect-json.md)): the detector can dispatch
+over its siblings' declared `{ mime, parse, serialize }` instead of hardcoding
+per-format branches.
+
+**Cycle rule** (the reason `revision` is in the list): whatever the detector
+must import to recognize a format — its schema, its `mimeType` constant — must
+be a `media/` sibling, never live inside a store or adapter. Concretely:
+`fs/cas/mcp` depends on the detector, and detecting revision blobs requires the
+revision schema, so a revision format inside `fs/cas` would create a
+`cas` ↔ detector cycle. The revision *format* (schema, tag, encode/decode)
+therefore lives at `fs/media/revision/`, while the store-touching evolution
+operations (head resolution, materialization) stay under `fs/cas` and import
+it — see [fs/cas revision-content-format](../cas/todo/revision-content-format.md).
+
+**Stays out:**
+
+- `text/` — character-encoding infrastructure (`utf8`, `utf16`, `ascii`,
+  `code_point`, `sgr`) with ~39 importers across the tree; the layer *below*
+  media formats, not an implementation of `text/plain`. Remains top-level.
+- `js/` — `identifier` + `tokenizer` only, i.e. language tooling consumed by
+  `djs`/`fsc`, closer in kind to `bnf`; decide with the tooling bucket, not here.
+- `base64`/`base_n`/`cbase32`/`base128` — transfer encodings, not media types
+  (they move under `fs/basen/`, item 1 above).
+
+**Rejected names** for the bucket: `mime/` (collides with the existing detector
+module and reads as detection, not content), `format/`/`lang/` (no crisp
+membership rule — `media` + the vendor tree gives one).
+
+**Migration:** incremental, one move per PR — directory paths are the public
+API (no `exports` map), so every move is a breaking change. `media/revision/`
+is new code (no move) and together with the `fs/mime` → `media/type/` rename
+can establish the bucket first; `json`, `html`, `djs`, `fjs` follow.
 
 ### Tasks
 
 - [ ] Create `fs/basen/` and move `base64`, `base128`, `cbase32` into it.
 - [ ] Create `fs/common/` and move `monoid` from `fs/types/` into it.
 - [ ] Promote the `fjs` bin to `fs/` root; update `package.json`/`deno.json` script paths and fix relative imports.
+- [ ] Rename `fs/mime/` → `fs/media/type/` (establishes the `fs/media/` bucket; `fs/media/revision/` arrives as new code via [fs/cas revision-content-format](../cas/todo/revision-content-format.md)).
+- [ ] Move `fs/json/` → `fs/media/json/` (one PR).
+- [ ] Move `fs/html/` → `fs/media/html/` (one PR).
+- [ ] Move `fs/djs/` → `fs/media/djs/` (one PR).
+- [ ] Move `fs/fjs/` library part → `fs/media/fjs/` (after the bin promotion above).
 - [ ] Update all relative imports referencing the moved modules.
 - [ ] Update `deno.json` `exports` map and run `npm run update`.
 - [ ] Verify `npx tsc` and `fjs t` pass.
