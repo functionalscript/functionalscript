@@ -1,7 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
-import {
-    mimeType, ref, hash, revision, isHash, isHttpsRef, isRef, decodeRevision,
-} from './module.f.ts'
+import { mimeType, ref, hash, revision, decodeRevision } from './module.f.ts'
 
 const validHash = '00000000000000000000000000000000000000000000000028t8'
 
@@ -13,27 +11,6 @@ export const proof = {
         // `ref`/`hash` are exported schema fragments (unconstrained `string`).
         assert(ref === hash)
         assert(typeof revision.mimeType === 'string')
-    },
-    isHashValid: () => {
-        assert(isHash(validHash))
-    },
-    isHashInvalid: () => {
-        assert(!isHash('not a hash!'))
-    },
-    isHttpsRefTrue: () => {
-        assert(isHttpsRef('https://example.com/x'))
-    },
-    isHttpsRefFalse: () => {
-        assert(!isHttpsRef('http://example.com/x'))
-    },
-    isRefHash: () => {
-        assert(isRef(validHash))
-    },
-    isRefHttps: () => {
-        assert(isRef('https://example.com/x'))
-    },
-    isRefNeither: () => {
-        assert(!isRef('ftp://example.com/x'))
     },
     decodeFirstRevisionNoContent: () => {
         const v = { mimeType, object: validHash, parents: [] }
@@ -48,13 +25,13 @@ export const proof = {
             mimeType,
             object: validHash,
             parents: [validHash],
-            content: 'https://example.com/doc',
+            content: validHash,
             generation: 1,
         }
         const [t, r] = decodeRevision(v)
         assertEq(t, 'ok')
         if (t === 'error') { throw r }
-        assertEq(r.content, 'https://example.com/doc')
+        assertEq(r.content, validHash)
         assertEq(r.generation, 1)
     },
     decodeArchived: () => {
@@ -75,23 +52,8 @@ export const proof = {
         const [t] = decodeRevision({ mimeType, object: validHash })
         assertEq(t, 'error')
     },
-    decodeRejectsBridgeUrlParent: () => {
-        const v = { mimeType, object: validHash, parents: ['https://example.com/x'] }
-        const [t] = decodeRevision(v)
-        assertEq(t, 'error')
-    },
-    decodeRejectsBadObjectRef: () => {
-        const v = { mimeType, object: 'ftp://nope', parents: [] }
-        const [t] = decodeRevision(v)
-        assertEq(t, 'error')
-    },
-    decodeRejectsBadContentRef: () => {
-        const v = { mimeType, object: validHash, parents: [], content: 'ftp://nope' }
-        const [t] = decodeRevision(v)
-        assertEq(t, 'error')
-    },
-    decodeRejectsBadChangesRef: () => {
-        const v = { mimeType, object: validHash, parents: [validHash], changes: ['ftp://nope'] }
+    decodeRejectsWrongMimeType: () => {
+        const v = { mimeType: 'text/plain', object: validHash, parents: [] }
         const [t] = decodeRevision(v)
         assertEq(t, 'error')
     },

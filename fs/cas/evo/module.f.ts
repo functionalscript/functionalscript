@@ -23,35 +23,30 @@
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { decodeRevision, type Revision } from '../../media/revision/module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
-import { parse as parseJson, type Unknown } from '../../media/json/module.f.ts'
+import { tokenize } from '../../media/json/tokenizer/module.f.ts'
+import { parse as parseJsonTokens } from '../../media/json/parser/module.f.ts'
+import { stringToList } from '../../text/utf16/module.f.ts'
 import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { foldStep, okStep, pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { collectRead, type Cas } from '../module.f.ts'
 import type { Vec } from '../../types/bit_vec/module.f.ts'
 import { toOption } from '../../types/nullable/module.f.ts'
 
-/** Parses `text` as JSON, reporting a syntax error as a `Result` instead of throwing. */
-const tryParseJson = (text: string): Result<Unknown, string> => {
-    try {
-        return ok(parseJson(text))
-    } catch {
-        return error('malformed JSON')
-    }
-}
-
 /**
  * Reads the blob at `hash` and decodes it as a `Revision`. Fails (rather
  * than throwing) when the blob is absent, not UTF-8, not JSON, or does not
- * satisfy the `revision` schema/semantic checks — any of which just means
- * "not a revision blob", a routine outcome when walking an arbitrary store.
+ * satisfy the `revision` schema — any of which just means "not a revision
+ * blob", a routine outcome when walking an arbitrary store.
  */
 export const readRevision = <O extends Operation>(c: Cas<O>) => (hash: Vec): Effect<O, Result<Revision, string>> =>
     collectRead(c.read(hash)).step(([tag, bytes]) => {
         if (tag === 'error') { return pure(error('no such hash')) }
         const text = fromVec(bytes)
         if (text === null) { return pure(error('content is not valid UTF-8')) }
-        const [jtag, value] = tryParseJson(text)
-        return pure(jtag === 'error' ? error(jtag) : decodeRevision(value))
+        const [jtag, value] = parseJsonTokens(tokenize(stringToList(text)))
+        if (jtag === 'error') { return pure(error(value)) }
+        const [dtag, revision] = decodeRevision(value)
+        return pure(dtag === 'error' ? error(revision.message) : ok(revision))
     })
 
 type RevisionEntry = readonly[Vec, Revision]
@@ -79,32 +74,50 @@ export const heads = <O extends Operation>(c: Cas<O>) => (object: string): Effec
     })
 
 /**
- * Resolves a `parents` hash string to its `Vec`. `decodeRevision` already
- * verified every `parents` entry is a valid hash, so `toOption` can never
- * drop an entry in practice; reusing it (rather than a dedicated error
- * branch here) is how the caller stays correct even in that unreachable case.
+ * Resolves a `parents` hash string to its `Vec`. `fs/media/revision` does
+ * not itself check that a `parents` entry decodes to a valid hash, so an
+ * invalid one is simply dropped here (`toOption`) rather than treated as an
+ * error — a store that only ever writes through `fs/media/revision`'s
+ * schema can still write a `parents` string that isn't a real hash, and
+ * silently ignoring it is the same graceful handling an absent parent gets.
  */
 const toVec = (s: string): readonly Vec[] => toOption(cBase32ToVec(s))
 
 /**
- * Materializes the ref (a CAS hash or bridge URL, never the bytes
- * themselves) that a revision resolves to: `content` if present, otherwise
- * — since `changes` is not implemented yet — the revision's single parent's
- * materialization, or `object` when there are no parents.
+ * Reads a `parents` entry and verifies it belongs to the same `object` as
+ * its child. A parent named by hash is just another blob in the store —
+ * nothing prevents it from being a revision of a *different* `object* — but
+ * per-object evolution (`heads`, `generation`) requires every step of one
+ * object's history to share its `object` identity, so a mismatched parent
+ * must fail rather than silently letting another object's content or
+ * generation leak into this one's.
+ */
+const readSameObjectParent = <O extends Operation>(c: Cas<O>) => (object: string) => (hash: Vec): Effect<O, Result<Revision, string>> =>
+    readRevision(c)(hash).step(okStep(revision =>
+        pure(revision.object === object ? ok(revision) : error('parent revision belongs to a different object'))))
+
+/**
+ * Materializes the ref (a CAS hash, never the bytes themselves) that a
+ * revision resolves to: `content` if present, otherwise — since `changes`
+ * is not implemented yet — the revision's single parent's materialization,
+ * or `object` when there are no parents.
  *
  * Fails when: the blob does not decode as a `Revision`; it carries
- * `changes` (unimplemented); or it has more than one parent without
- * `content` (a merge revision, per the spec, must carry `content`).
+ * `changes` (unimplemented); it has more than one parent without `content`
+ * (a merge revision, per the spec, must carry `content`); or its single
+ * parent is a revision of a different `object`.
  */
 export const materialize = <O extends Operation>(c: Cas<O>) => (hash: Vec): Effect<O, Result<string, string>> =>
-    readRevision(c)(hash).step(okStep(revision => {
-        if (revision.content !== undefined) { return pure(ok(revision.content)) }
-        if (revision.changes !== undefined) { return pure(error('changes materialization is not implemented yet')) }
-        const parentHashes = revision.parents.flatMap(toVec)
-        if (parentHashes.length === 0) { return pure(ok(revision.object)) }
-        if (parentHashes.length > 1) { return pure(error('multi-parent revision must carry content')) }
-        return materialize(c)(parentHashes[0])
-    }))
+    readRevision(c)(hash).step(okStep(revision => materializeRevision(c)(revision)))
+
+const materializeRevision = <O extends Operation>(c: Cas<O>) => (revision: Revision): Effect<O, Result<string, string>> => {
+    if (revision.content !== undefined) { return pure(ok(revision.content)) }
+    if (revision.changes !== undefined) { return pure(error('changes materialization is not implemented yet')) }
+    const parentHashes = revision.parents.flatMap(toVec)
+    if (parentHashes.length === 0) { return pure(ok(revision.object)) }
+    if (parentHashes.length > 1) { return pure(error('multi-parent revision must carry content')) }
+    return readSameObjectParent(c)(revision.object)(parentHashes[0]).step(okStep(materializeRevision(c)))
+}
 
 /**
  * Recomputes `object`'s evolution generation for `hash` from its `parents`
@@ -113,12 +126,15 @@ export const materialize = <O extends Operation>(c: Cas<O>) => (hash: Vec): Effe
  * instead of trusting an unverified value from an untrusted store.
  */
 export const computeGeneration = <O extends Operation>(c: Cas<O>) => (hash: Vec): Effect<O, Result<number, string>> =>
-    readRevision(c)(hash).step(okStep(revision => {
-        const parentHashes = revision.parents.flatMap(toVec)
-        if (parentHashes.length === 0) { return pure(ok(0)) }
-        return foldStep((parentHash: Vec) => (acc: Result<number, string>): Effect<O, Result<number, string>> =>
-            okStep<number, string, O, number>(accGen =>
-                computeGeneration(c)(parentHash).step(okStep<number, string, O, number>(g => pure(ok(Math.max(accGen, g))))))(acc))
-            (ok(-1))(parentHashes)
-            .step(okStep<number, string, O, number>(maxGen => pure(ok(maxGen + 1))))
-    }))
+    readRevision(c)(hash).step(okStep(revision => computeGenerationOf(c)(revision)))
+
+const computeGenerationOf = <O extends Operation>(c: Cas<O>) => (revision: Revision): Effect<O, Result<number, string>> => {
+    const parentHashes = revision.parents.flatMap(toVec)
+    if (parentHashes.length === 0) { return pure(ok(0)) }
+    return foldStep((parentHash: Vec) => (acc: Result<number, string>): Effect<O, Result<number, string>> =>
+        okStep<number, string, O, number>(accGen =>
+            readSameObjectParent(c)(revision.object)(parentHash).step(okStep(parentRevision =>
+                computeGenerationOf(c)(parentRevision).step(okStep<number, string, O, number>(g => pure(ok(Math.max(accGen, g))))))))(acc))
+        (ok(-1))(parentHashes)
+        .step(okStep<number, string, O, number>(maxGen => pure(ok(maxGen + 1))))
+}

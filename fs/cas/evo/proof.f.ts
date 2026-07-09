@@ -14,9 +14,9 @@ import { heads, materialize, computeGeneration, readRevision, revisionsOf } from
 
 /** `Result` values are tuples, so `assertEq`'s `===` never matches two
  *  independently constructed ones — compare tag and payload separately. */
-const assertOk = <T>(r: Result<T, unknown>, expected: T): void => {
-    assertEq(r[0], 'ok')
-    if (r[0] === 'ok') { assertEq(r[1], expected) }
+const assertOk = <T>([t, v]: Result<T, unknown>, expected: T): void => {
+    assertEq(t, 'ok')
+    if (t === 'ok') { assertEq(v, expected) }
 }
 
 const home = '.'
@@ -36,31 +36,33 @@ const writeJson = (value: unknown): Effect<FileCasOperation, Vec> => writeVec(ut
 
 const run = <T>(effect: Effect<FileCasOperation, T>): T => virtual(emptyState)(effect)[1]
 
+const rootJson = { mimeType, object: objectA, parents: [] as readonly string[], content: 'https://example.com/root' }
+const urlB = 'https://example.com/content-b'
+
 export const proof = {
     // Linear history: first revision has no parents and carries `content`;
     // the second revises it. `heads` resolves to only the tip, and
     // `materialize` on the tip returns its own `content` (highest precedence).
+    // A third revision with a single parent and no `content` of its own must
+    // recurse through that parent to materialize.
     linearHistory: () => {
         const effect =
-            writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/content-a' }).step(hashA => {
-                const a = vecToCBase32(hashA)
-                return writeJson({ mimeType, object: objectA, parents: [a], content: 'https://example.com/content-b' }).step(hashB => {
-                    const b = vecToCBase32(hashB)
-                    return heads(c)(objectA).step(hs => {
-                        assertEq(hs.length, 1)
-                        assertEq(vecToCBase32(hs[0]), b)
-                        return materialize(c)(hashB).step(mat => {
-                            assertOk(mat, 'https://example.com/content-b')
-                            // A third revision with a single parent and no `content` of its
-                            // own must recurse through that parent to materialize.
-                            return writeJson({ mimeType, object: objectA, parents: [b] }).step(hashC =>
-                                materialize(c)(hashC).step(mat2 => {
-                                    assertOk(mat2, 'https://example.com/content-b')
-                                    return pure(undefined)
-                                }))
-                        })
-                    })
-                })
+            writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/content-a' })
+            .step(hashA => writeJson({ mimeType, object: objectA, parents: [vecToCBase32(hashA)], content: urlB }))
+            .step(hashB => heads(c)(objectA).step(hs => pure({ hashB, hs })))
+            .step(({ hashB, hs }) => {
+                assertEq(hs.length, 1)
+                assertEq(vecToCBase32(hs[0]), vecToCBase32(hashB))
+                return materialize(c)(hashB).step(mat => pure({ hashB, mat }))
+            })
+            .step(({ hashB, mat }) => {
+                assertOk(mat, urlB)
+                return writeJson({ mimeType, object: objectA, parents: [vecToCBase32(hashB)] })
+            })
+            .step(hashC => materialize(c)(hashC))
+            .step(mat2 => {
+                assertOk(mat2, urlB)
+                return pure(undefined)
             })
         run(effect)
     },
@@ -68,11 +70,13 @@ export const proof = {
     // First revision (no parents, no `content`, no `changes`) materializes
     // from `object` itself.
     firstRevisionMaterializesFromObject: () => {
-        const effect = writeJson({ mimeType, object: objectA, parents: [] }).step(hashA =>
-            materialize(c)(hashA).step(mat => {
+        const effect =
+            writeJson({ mimeType, object: objectA, parents: [] })
+            .step(hashA => materialize(c)(hashA))
+            .step(mat => {
                 assertOk(mat, objectA)
                 return pure(undefined)
-            }))
+            })
         run(effect)
     },
 
@@ -80,32 +84,33 @@ export const proof = {
     // a merge revision (two parents, `content`) resolves both into one head.
     branchAndMerge: () => {
         const effect =
-            writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/root' }).step(hashRoot => {
-                const root = vecToCBase32(hashRoot)
-                return writeJson({ mimeType, object: objectA, parents: [root], content: 'https://example.com/left' }).step(hashLeft => {
-                    const left = vecToCBase32(hashLeft)
-                    return writeJson({ mimeType, object: objectA, parents: [root], content: 'https://example.com/right' }).step(hashRight => {
-                        const right = vecToCBase32(hashRight)
-                        return heads(c)(objectA).step(beforeMerge => {
-                            assertEq(beforeMerge.length, 2)
-                            return writeJson({ mimeType, object: objectA, parents: [left, right], content: 'https://example.com/merged' })
-                                .step(hashMerge => {
-                                    const merge = vecToCBase32(hashMerge)
-                                    return heads(c)(objectA).step(afterMerge => {
-                                        assertEq(afterMerge.length, 1)
-                                        assertEq(vecToCBase32(afterMerge[0]), merge)
-                                        return materialize(c)(hashMerge).step(mat => {
-                                            assertOk(mat, 'https://example.com/merged')
-                                            return computeGeneration(c)(hashMerge).step(gen => {
-                                                assertOk(gen, 2)
-                                                return pure(undefined)
-                                            })
-                                        })
-                                    })
-                                })
-                        })
-                    })
+            writeJson(rootJson)
+            .step(hashRoot => writeJson({ mimeType, object: objectA, parents: [vecToCBase32(hashRoot)], content: 'https://example.com/left' })
+                .step(hashLeft => pure({ hashRoot, hashLeft })))
+            .step(({ hashRoot, hashLeft }) => writeJson({ mimeType, object: objectA, parents: [vecToCBase32(hashRoot)], content: 'https://example.com/right' })
+                .step(hashRight => pure({ hashLeft, hashRight })))
+            .step(({ hashLeft, hashRight }) => heads(c)(objectA).step(beforeMerge => pure({ hashLeft, hashRight, beforeMerge })))
+            .step(({ hashLeft, hashRight, beforeMerge }) => {
+                assertEq(beforeMerge.length, 2)
+                return writeJson({
+                    mimeType, object: objectA,
+                    parents: [vecToCBase32(hashLeft), vecToCBase32(hashRight)],
+                    content: 'https://example.com/merged',
                 })
+            })
+            .step(hashMerge => heads(c)(objectA).step(afterMerge => pure({ hashMerge, afterMerge })))
+            .step(({ hashMerge, afterMerge }) => {
+                assertEq(afterMerge.length, 1)
+                assertEq(vecToCBase32(afterMerge[0]), vecToCBase32(hashMerge))
+                return materialize(c)(hashMerge).step(mat => pure({ hashMerge, mat }))
+            })
+            .step(({ hashMerge, mat }) => {
+                assertOk(mat, 'https://example.com/merged')
+                return computeGeneration(c)(hashMerge)
+            })
+            .step(gen => {
+                assertOk(gen, 2)
+                return pure(undefined)
             })
         run(effect)
     },
@@ -114,13 +119,14 @@ export const proof = {
     // all heads at once (no merge yet).
     manyHeadsForOneObject: () => {
         const effect =
-            writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/one' }).step(() =>
-                writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/two' }).step(() =>
-                    writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/three' }).step(() =>
-                        heads(c)(objectA).step(hs => {
-                            assertEq(hs.length, 3)
-                            return pure(undefined)
-                        }))))
+            writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/one' })
+            .step(() => writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/two' }))
+            .step(() => writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/three' }))
+            .step(() => heads(c)(objectA))
+            .step(hs => {
+                assertEq(hs.length, 3)
+                return pure(undefined)
+            })
         run(effect)
     },
 
@@ -128,16 +134,18 @@ export const proof = {
     // participates in head resolution like any other revision.
     archivedObject: () => {
         const effect =
-            writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/done', archived: true }).step(hash =>
-                readRevision(c)(hash).step(([tag, revision]) => {
-                    assertEq(tag, 'ok')
-                    if (tag === 'error') { throw revision }
-                    assertEq(revision.archived, true)
-                    return heads(c)(objectA).step(hs => {
-                        assertEq(hs.length, 1)
-                        return pure(undefined)
-                    })
-                }))
+            writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/done', archived: true })
+            .step(hash => readRevision(c)(hash))
+            .step(([tag, revision]) => {
+                assertEq(tag, 'ok')
+                if (tag === 'error') { throw revision }
+                assertEq(revision.archived, true)
+                return heads(c)(objectA)
+            })
+            .step(hs => {
+                assertEq(hs.length, 1)
+                return pure(undefined)
+            })
         run(effect)
     },
 
@@ -146,20 +154,20 @@ export const proof = {
     // trusting the stored field, so a caller can detect the mismatch.
     generationCacheMismatch: () => {
         const effect =
-            writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/root' }).step(hashRoot => {
-                const root = vecToCBase32(hashRoot)
-                // Cached `generation` (99) is wrong: the real value is 1.
-                return writeJson({ mimeType, object: objectA, parents: [root], content: 'https://example.com/child', generation: 99 })
-                    .step(hashChild =>
-                        readRevision(c)(hashChild).step(([tag, revision]) => {
-                            assertEq(tag, 'ok')
-                            if (tag === 'error') { throw revision }
-                            return computeGeneration(c)(hashChild).step(gen => {
-                                assertOk(gen, 1)
-                                assert(gen[0] === 'ok' && gen[1] !== revision.generation)
-                                return pure(undefined)
-                            })
-                        }))
+            writeJson(rootJson)
+            // Cached `generation` (99) is wrong: the real value is 1.
+            .step(hashRoot => writeJson({ mimeType, object: objectA, parents: [vecToCBase32(hashRoot)], content: 'https://example.com/child', generation: 99 }))
+            .step(hashChild => readRevision(c)(hashChild).step(r => pure({ hashChild, r })))
+            .step(({ hashChild, r }) => {
+                const [tag, revision] = r
+                assertEq(tag, 'ok')
+                if (tag === 'error') { throw revision }
+                return computeGeneration(c)(hashChild).step(gen => pure({ gen, revision }))
+            })
+            .step(({ gen, revision }) => {
+                assertOk(gen, 1)
+                assert(gen[0] === 'ok' && gen[1] !== revision.generation)
+                return pure(undefined)
             })
         run(effect)
     },
@@ -169,21 +177,18 @@ export const proof = {
     // never has to reason about "current head" itself.
     headDemotedRetroactivelyBySync: () => {
         const effect =
-            writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/root' }).step(hashRoot => {
-                const root = vecToCBase32(hashRoot)
-                return heads(c)(objectA).step(before => {
-                    assertEq(before.length, 1)
-                    // A revision synced in later, naming `root` as its parent.
-                    return writeJson({ mimeType, object: objectA, parents: [root], content: 'https://example.com/synced-child' })
-                        .step(hashChild => {
-                            const child = vecToCBase32(hashChild)
-                            return heads(c)(objectA).step(after => {
-                                assertEq(after.length, 1)
-                                assertEq(vecToCBase32(after[0]), child)
-                                return pure(undefined)
-                            })
-                        })
-                })
+            writeJson(rootJson)
+            .step(hashRoot => heads(c)(objectA).step(before => pure({ hashRoot, before })))
+            .step(({ hashRoot, before }) => {
+                assertEq(before.length, 1)
+                // A revision synced in later, naming `root` as its parent.
+                return writeJson({ mimeType, object: objectA, parents: [vecToCBase32(hashRoot)], content: 'https://example.com/synced-child' })
+            })
+            .step(hashChild => heads(c)(objectA).step(after => pure({ hashChild, after })))
+            .step(({ hashChild, after }) => {
+                assertEq(after.length, 1)
+                assertEq(vecToCBase32(after[0]), vecToCBase32(hashChild))
+                return pure(undefined)
             })
         run(effect)
     },
@@ -192,16 +197,18 @@ export const proof = {
     // different object, and a non-revision blob entirely, are both ignored.
     unrelatedObjectAndNonRevisionBlobAreIgnored: () => {
         const effect =
-            writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/a' }).step(() =>
-                writeJson({ mimeType, object: objectB, parents: [], content: 'https://example.com/b' }).step(() =>
-                    writeVec(utf8('just some unrelated text, not JSON at all {')).step(() =>
-                        revisionsOf(c)(objectA).step(entries => {
-                            assertEq(entries.length, 1)
-                            return heads(c)(objectA).step(hs => {
-                                assertEq(hs.length, 1)
-                                return pure(undefined)
-                            })
-                        }))))
+            writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/a' })
+            .step(() => writeJson({ mimeType, object: objectB, parents: [], content: 'https://example.com/b' }))
+            .step(() => writeVec(utf8('just some unrelated text, not JSON at all {')))
+            .step(() => revisionsOf(c)(objectA))
+            .step(entries => {
+                assertEq(entries.length, 1)
+                return heads(c)(objectA)
+            })
+            .step(hs => {
+                assertEq(hs.length, 1)
+                return pure(undefined)
+            })
         run(effect)
     },
 
@@ -219,27 +226,25 @@ export const proof = {
         assertEq(tag, 'error')
     },
     readRevisionInvalidUtf8IsError: () => {
-        const effect = writeVec(vec8(0xffn)).step(hash => readRevision(c)(hash))
-        const [tag] = run(effect)
+        const [tag] = run(writeVec(vec8(0xffn)).step(hash => readRevision(c)(hash)))
         assertEq(tag, 'error')
     },
     readRevisionMalformedJsonIsError: () => {
-        const effect = writeVec(utf8('not json {')).step(hash => readRevision(c)(hash))
-        const [tag] = run(effect)
+        const [tag, message] = run(writeVec(utf8('not json {')).step(hash => readRevision(c)(hash)))
         assertEq(tag, 'error')
+        // The diagnostic from the JSON parser is returned as-is, not just an opaque tag.
+        assert(typeof message === 'string' && message.length > 0)
     },
     readRevisionWrongShapeIsError: () => {
-        const effect = writeJson({ notARevision: true }).step(hash => readRevision(c)(hash))
-        const [tag] = run(effect)
+        const [tag] = run(writeJson({ notARevision: true }).step(hash => readRevision(c)(hash)))
         assertEq(tag, 'error')
     },
 
     // materialize surfaces `changes` as not-yet-implemented rather than
     // silently ignoring it.
     materializeChangesNotImplemented: () => {
-        const effect = writeJson({ mimeType, object: objectA, parents: [], changes: [objectA] })
-            .step(hash => materialize(c)(hash))
-        const [tag] = run(effect)
+        const [tag] = run(writeJson({ mimeType, object: objectA, parents: [], changes: [objectA] })
+            .step(hash => materialize(c)(hash)))
         assertEq(tag, 'error')
     },
 
@@ -247,14 +252,10 @@ export const proof = {
     // materialized — the spec requires a merge to carry `content`.
     materializeMultiParentWithoutContentIsError: () => {
         const effect =
-            writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/left' }).step(hashLeft => {
-                const left = vecToCBase32(hashLeft)
-                return writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/right' }).step(hashRight => {
-                    const right = vecToCBase32(hashRight)
-                    return writeJson({ mimeType, object: objectA, parents: [left, right] }).step(hashMerge =>
-                        materialize(c)(hashMerge))
-                })
-            })
+            writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/left' })
+            .step(hashLeft => writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/right' }).step(hashRight => pure({ hashLeft, hashRight })))
+            .step(({ hashLeft, hashRight }) => writeJson({ mimeType, object: objectA, parents: [vecToCBase32(hashLeft), vecToCBase32(hashRight)] }))
+            .step(hashMerge => materialize(c)(hashMerge))
         const [tag] = run(effect)
         assertEq(tag, 'error')
     },
@@ -262,11 +263,32 @@ export const proof = {
     // computeGeneration propagates a parent's decode failure rather than
     // treating a corrupt ancestor as generation 0.
     computeGenerationPropagatesParentError: () => {
-        const effect = writeVec(utf8('not json {')).step(hashBadParent => {
-            const bad = vecToCBase32(hashBadParent)
-            return writeJson({ mimeType, object: objectA, parents: [bad], content: 'https://example.com/child' })
-                .step(hashChild => computeGeneration(c)(hashChild))
-        })
+        const effect =
+            writeVec(utf8('not json {'))
+            .step(hashBadParent => writeJson({ mimeType, object: objectA, parents: [vecToCBase32(hashBadParent)], content: 'https://example.com/child' }))
+            .step(hashChild => computeGeneration(c)(hashChild))
+        const [tag] = run(effect)
+        assertEq(tag, 'error')
+    },
+
+    // materialize must not resolve a single parent's content when that
+    // parent is a revision of a *different* object — per-object evolution
+    // requires every step of one object's history to share its `object`.
+    materializeRejectsParentFromDifferentObject: () => {
+        const effect =
+            writeJson({ mimeType, object: objectB, parents: [], content: 'https://example.com/b-root' })
+            .step(hashBRoot => writeJson({ mimeType, object: objectA, parents: [vecToCBase32(hashBRoot)] }))
+            .step(hashChild => materialize(c)(hashChild))
+        const [tag] = run(effect)
+        assertEq(tag, 'error')
+    },
+
+    // Same cross-object guard for `computeGeneration`.
+    computeGenerationRejectsParentFromDifferentObject: () => {
+        const effect =
+            writeJson({ mimeType, object: objectB, parents: [], content: 'https://example.com/b-root' })
+            .step(hashBRoot => writeJson({ mimeType, object: objectA, parents: [vecToCBase32(hashBRoot)], content: 'https://example.com/a-child' }))
+            .step(hashChild => computeGeneration(c)(hashChild))
         const [tag] = run(effect)
         assertEq(tag, 'error')
     },

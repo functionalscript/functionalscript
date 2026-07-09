@@ -5,9 +5,9 @@
  * A revision blob links back to its parent revision(s) (a DAG, so concurrent
  * edits can merge) and carries either the full materialized content or an
  * incremental diff against the parent(s). This module is the pure format
- * only — the RTTI schema, the `mimeType` tag, and semantic decoding. It has
- * no store access and no effects; store-touching operations (head
- * resolution, materialization) live in `fs/cas/evo`.
+ * only — the RTTI schema and the `mimeType` tag. It has no store access and
+ * no effects; store-touching operations (head resolution, materialization)
+ * live in `fs/cas/evo`.
  *
  * See `README.md` for the full spec.
  *
@@ -16,40 +16,28 @@
 import { array, number, option, string, type String as RttiString } from '../../types/rtti/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
 import { validate } from '../../types/rtti/validate/module.f.ts'
-import { error, ok, type Result } from '../../types/result/module.f.ts'
-import type { Unknown } from '../../djs/module.f.ts'
-import { cBase32ToVec } from '../../basen/cbase32/module.f.ts'
 
 /**
  * Format tag: identifies a BLOB as a revision and names the media type it
  * should be served with (see `README.md`, "Versioning rule": additive
- * changes keep this tag, an incompatible change mints a new one).
+ * changes keep this tag, an incompatible change mints a new one). Content
+ * type is determined by `mimeType` (the referenced blob's own tag), not by
+ * the shape of a `ref`, so `ref` only ever names a cbase32 CAS hash.
  */
 export const mimeType = 'application/vnd.functionalscript.revision+json' as const
 
 /**
- * A ref: a URL in content-addressed digital space. Two forms are recognized
- * for now — a cbase32 hash (see `fs/basen/cbase32/`), and a standard
- * `https://` URL bridging to the legacy location-addressed web. Schema-wise
- * this is an unconstrained `string`; `isRef` performs the semantic check.
+ * A ref: a cbase32-encoded CAS hash (see `fs/basen/cbase32/`) naming another
+ * blob in this store. Schema-wise an unconstrained `string`; the rtti struct
+ * validation this module provides does not itself check that a `ref`/`hash`
+ * string decodes to a valid hash — a consumer resolving one against the
+ * store (see `fs/cas/evo`) already fails gracefully on an invalid hash.
  */
 export const ref: RttiString = string
 
-/**
- * The hash-only subset of `ref`: a parent revision is a CAS blob, so a
- * bridge URL cannot stand in for it. Schema-wise identical to `ref`;
- * `isHash` performs the semantic check.
- */
+/** The same shape as `ref`, named separately for documentation: every
+ *  `parents` entry is a hash-only reference to a parent revision blob. */
 export const hash: RttiString = string
-
-/** True when `s` is a valid cbase32-encoded CAS hash. */
-export const isHash = (s: string): boolean => cBase32ToVec(s) !== null
-
-/** True when `s` is a `https://` bridge URL. */
-export const isHttpsRef = (s: string): boolean => s.startsWith('https://')
-
-/** True when `s` is a recognized `ref`: a cbase32 hash or a `https://` URL. */
-export const isRef = (s: string): boolean => isHash(s) || isHttpsRef(s)
 
 export const revision = {
     mimeType,
@@ -85,20 +73,5 @@ export const revision = {
 
 export type Revision = Ts<typeof revision>
 
-const validateRevision = validate(revision)
-
-/**
- * Decodes an untrusted value as a `Revision`, validating both the shape
- * (via the rtti schema) and the semantic constraints the schema alone can't
- * express: every `parents` entry must be a hash (never a bridge URL), and
- * `object` / `content` / `changes` entries must be recognized `ref`s.
- */
-export const decodeRevision = (value: Unknown): Result<Revision, string> => {
-    const [tag, v] = validateRevision(value)
-    if (tag === 'error') { return error('invalid revision shape') }
-    if (!v.parents.every(isHash)) { return error('parents must be hashes, not bridge URLs') }
-    if (!isRef(v.object)) { return error('object is not a recognized ref') }
-    if (v.content !== undefined && !isRef(v.content)) { return error('content is not a recognized ref') }
-    if (v.changes !== undefined && !v.changes.every(isRef)) { return error('changes entries must be recognized refs') }
-    return ok(v)
-}
+/** Decodes an untrusted value as a `Revision` — plain rtti shape validation. */
+export const decodeRevision = validate(revision)

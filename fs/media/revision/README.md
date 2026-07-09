@@ -11,9 +11,9 @@ unavoidably a new hash with no address in common with the old one. A
 chain, so concurrent edits can merge — and carries either the full
 materialized content or an incremental diff against the parent(s).
 
-This module (`fs/media/revision`) is the pure format only: the RTTI schema,
-the `mimeType` constant, and semantic decoding. It has no store access and no
-effects. The store-touching operations that use this format — head
+This module (`fs/media/revision`) is the pure format only: the RTTI schema
+and the `mimeType` constant. It has no store access and no effects. The
+store-touching operations that use this format — head
 resolution, materialization — live in
 [`fs/cas/evo`](../../cas/evo/module.f.ts), which depends on this module and
 on `fs/cas` itself. The split keeps the dependency graph acyclic: media-type
@@ -47,18 +47,22 @@ export const revision = {
 
 ### `ref` and `hash`
 
-A `ref` is a URL in content-addressed digital space. Two forms are recognized
-today: a cbase32 hash (a native CAS address, see
-[`fs/basen/cbase32/`](../../basen/cbase32/)), and a standard `https://` URL as
-a bridge to the legacy location-addressed web. More forms are planned (see
-Open design points). `hash` is the hash-only subset of `ref` used where a
-non-CAS reference must never validate — `parents` is one: a parent revision
-is itself a CAS blob, so a bridge URL cannot stand in for it.
+A `ref` is a cbase32-encoded CAS hash (see
+[`fs/basen/cbase32/`](../../basen/cbase32/)) naming another blob in this
+store. `hash` is schema-identical to `ref`, named separately purely for
+documentation — every `parents` entry is a hash-only reference to a parent
+revision. Earlier drafts of this format also let a `ref` be a `https://`
+bridge URL to the legacy location-addressed web, with content type guessed
+from the URL; that was dropped in favor of always using the referenced
+blob's own `mimeType` to determine its type, so a `ref` only ever names a
+CAS hash now.
 
-`isHash`, `isHttpsRef`, and `isRef` implement these checks; `decodeRevision`
-runs the rtti shape check (`validate(revision)`) and then these semantic
-checks together, since rtti alone can only describe `string`, not "a cbase32
-hash or an `https://` URL."
+`decodeRevision` is plain rtti shape validation (`validate(revision)`) — it
+does not itself check that a `ref`/`hash` string decodes to a valid cbase32
+hash. A consumer that resolves a `ref` against the store (see
+[`fs/cas/evo`](../../cas/evo/module.f.ts)) already fails gracefully on an
+invalid one, so re-checking the string shape here would just duplicate that
+work.
 
 ## `mimeType`: format tag and versioning rule
 
@@ -167,10 +171,8 @@ elsewhere in the rtti-typed schemas under `fs/types/rtti`.
 
 - The `changes` event-log/CRDT format(s) still need to be defined (not
   implemented yet).
-- Future `ref` forms beyond cbase32 hashes and `https://` bridge URLs
-  (including the optional `{hash}-{nonce}` form for distinct object
-  identity), and which ref positions besides `parents` should use the
-  hash-only `hash` type rather than the general `ref`.
+- Future `ref` forms beyond a plain cbase32 hash (including the optional
+  `{hash}-{nonce}` form for distinct object identity).
 - Whether other content formats should share the same `mimeType` tagging
   convention (including its versioning rule).
 - The exact syntax of a content-addressed revision reference (e.g.

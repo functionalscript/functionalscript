@@ -50,8 +50,8 @@ export const revision = {
     /**
      * Parent Revision BLOBs. Empty array means this is the first revision.
      *
-     * `hash` is the hash-only subset of `ref`: a parent is a CAS blob,
-     * so a bridge URL cannot stand in for it.
+     * `hash` is schema-identical to `ref`, named separately for documentation:
+     * a parent is always a CAS blob referenced by hash.
      */
     parents: array(hash),
 
@@ -89,12 +89,15 @@ export const revision = {
 
 Notes on the shape:
 
-- `ref` is a URL in content-addressed digital space. For now two forms are recognized: a
-  cbase32 hash (a native CAS address, see `fs/basen/cbase32/`), and a standard `https://` URL as a
-  bridge to the legacy location-addressed web. More forms are planned. Some ref positions
-  are restricted to hashes only and use the narrower `hash` type in the schema — `parents`
-  is one: a parent revision is a CAS blob, so a bridge URL cannot stand in for it, and a
-  revision with a non-CAS parent must not validate.
+- `ref` is a cbase32 hash (a native CAS address, see `fs/basen/cbase32/`) naming another blob
+  in this store. More forms are planned. An earlier draft of this proposal also let a `ref` be
+  a `https://` bridge URL, guessing content type from the URL; that was dropped in favor of
+  always using the referenced blob's own `mimeType` to determine its type, so a `ref` only
+  ever names a CAS hash now. `hash` is schema-identical to `ref`, kept as a separate name
+  purely for documentation (every `parents` entry is a hash-only reference to a parent
+  revision). `decodeRevision` is plain RTTI shape validation (`validate(revision)`) — it does
+  not itself re-check that a `ref`/`hash` string decodes to a valid hash; a consumer resolving
+  one against the store (`fs/cas/evo`) already fails gracefully on an invalid one.
 - `mimeType` is a self-describing format tag. In a generic CAS a blob is just bytes under a
   hash, so without a discriminant a reader can only recognize a revision by guessing from its
   shape, which collides with any other format that happens to have `object`/`parents` fields.
@@ -178,10 +181,8 @@ Open design points:
 
 - The `changes` event-log/CRDT format(s) still need to be defined (not implemented in the
   first iteration).
-- Future `ref` forms beyond cbase32 hashes and `https://` bridge URLs (including the
-  optional `{hash}-{nonce}` form for distinct object identity), and which ref positions
-  besides `parents` use the hash-only `hash` type rather than the general `ref`
-  (`object`? `content`? `changes`?).
+- Future `ref` forms beyond a plain cbase32 hash (including the optional `{hash}-{nonce}`
+  form for distinct object identity).
 - Whether other content formats should share the same `mimeType` tagging convention
   (including its versioning rule: additive changes keep the tag, breaking changes mint a
   new one).
@@ -200,8 +201,9 @@ Open design points:
 - [x] Create `fs/media/revision/README.md` — the spec of the format tagged
       `application/vnd.functionalscript.revision+json`
       (deployed automatically to functionalscript.com once it exists in the repo)
-- [x] Define `ref` as a URL in CA digital space, recognizing cbase32 hashes and `https://`
-      bridge URLs for now, and `hash` as its hash-only subset
+- [x] Define `ref` as a cbase32 CAS hash, and `hash` as its schema-identical, separately
+      named form used for `parents` (`https://` bridge URLs were dropped in favor of using
+      the referenced blob's own `mimeType` to determine content type)
 - [x] Create `fs/media/revision/module.f.ts` with the RTTI schema for `revision`
       (`fs/types/rtti`), the `mimeType` constant, and its derived TS type
 - [x] Create `fs/cas/evo/module.f.ts` for the store-touching operations below, importing the
