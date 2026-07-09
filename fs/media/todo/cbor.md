@@ -55,7 +55,11 @@ represents it natively — the pairing is the point of having a binary encoding.
 Everything else CBOR allows (non-text map keys, `undefined`, simple values,
 other tags, indefinite lengths on decode) is **rejected** in the first
 iteration: a small, closed model keeps encode/decode a lossless round trip and
-keeps schema validation meaningful. Extensions widen the table deliberately,
+keeps schema validation meaningful. One exception: a single leading tag 55799
+(self-described CBOR, [detect-cbor](detect-cbor.md) tier 1) on the top-level
+item is accepted and **transparently unwrapped** — it is an encoding marker,
+not data, and a self-described dialect blob that passes the tier-2 prefix check
+must not then fail schema validation on the wrapper alone. Extensions widen the table deliberately,
 per dialect (each dialect's README owns what it admits beyond the JSON model).
 
 #### Serializer: canonical by construction
@@ -67,7 +71,11 @@ One encoding, not options:
 - the FS canonical tagged form from [detect-cbor.md](detect-cbor.md) §2 on top:
   when the value carries a `dialect` entry, that entry is encoded **first** and
   the remaining keys follow in §4.2 bytewise order — the documented deviation
-  from pure §4.2 sorting that buys a stable detection prefix.
+  from pure §4.2 sorting that buys a stable detection prefix;
+- no tag-55799 wrapper: the canonical form is the bare item (the dialect
+  signature already identifies FS blobs, and canonical bytes must not fork on
+  an optional wrapper — the parser accepts the tag on input, but a wrapped blob
+  is non-canonical).
 
 A canonical-only serializer makes "same value ⇒ same bytes ⇒ same CAS hash"
 hold by construction — in a content-addressed store the encoder *is* the
@@ -77,7 +85,8 @@ identity function, so encoding options would silently fork identities.
 
 - reject non-well-formed items, trailing bytes after the single top-level item,
   duplicate map keys, invalid UTF-8 in text strings, and (first iteration)
-  everything outside the data-model table above;
+  everything outside the data-model table above — after transparently unwrapping
+  an optional single leading tag 55799;
 - a max-depth cap as a DoS guard, like the JSON recognizer's
   ([fs/media/json streaming-recognizer](../json/todo/streaming-recognizer.md));
 - decoding does **not** require canonical input (a synced blob from elsewhere
@@ -95,7 +104,8 @@ identity function, so encoding options would silently fork identities.
 - [ ] `fs/media/cbor/parser/module.f.ts` — strict decoder (well-formedness,
       single item, no duplicate keys, UTF-8-valid text, depth cap), result-typed
       errors; proof cases including truncated items, trailing bytes, duplicate
-      keys, indefinite lengths (rejected), and round trips through the serializer
+      keys, indefinite lengths (rejected), a tag-55799-wrapped item (accepted,
+      unwrapped, reported non-canonical), and round trips through the serializer
 - [ ] `isCanonical` predicate (or a decode flag reporting canonicity) for
       consumers that require byte-identity
 - [ ] Root `fs/media/cbor/module.f.ts` re-exporting serializer/parser and the

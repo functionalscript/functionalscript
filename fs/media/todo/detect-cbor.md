@@ -60,7 +60,12 @@ structurally safe — any value yields an `application/*+cbor` type) →
 `application/{dialect}+cbor`; otherwise fall through.
 
 **Encoding rule for producers** (to be stated in the format specs): FS-produced
-tagged CBOR MUST use definite lengths with the `dialect` entry first. Note that
+tagged CBOR MUST use definite lengths with the `dialect` entry first, and no
+tag-55799 wrapper — the dialect signature already identifies the blob, and the
+canonical bytes must not fork on an optional prefix. The wrapper is an
+input-side allowance for externally produced blobs: the
+[`fs/media/cbor` codec](cbor.md) accepts and transparently unwraps it, so a
+self-described dialect blob still schema-validates. Note that
 RFC 8949 §4.2 core deterministic encoding sorts map keys by the bytewise order of
 their encodings — shorter keys sort first, ties by content. The `revision` schema
 happens to satisfy "dialect first" under that order (no key is shorter than 7
