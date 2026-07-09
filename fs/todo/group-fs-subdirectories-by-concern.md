@@ -39,14 +39,15 @@ Later candidates for the same bucket, deliberately deferred to keep each PR
 small:
 
 - `media/type/` — media-type detection (today's `fs/mime`), renamed;
-- `media/djs/` — `application/vnd.functionalscript.djs`.
+- `media/djs/` — `application/vnd.fjs.djs`.
 
 **Membership rule:** a module goes under `fs/media/` iff it implements content
 whose identity is — or can be, via the RFC 6838 vendor tree — a media type.
-Unregistered FS dialects qualify through `application/vnd.functionalscript.*`
+Unregistered FS dialects qualify through `application/vnd.fjs.*`
 (only registered structured-syntax suffixes may be appended: `+json` yes,
 `+javascript` is not a registered suffix, so an FJS type would be plain
-`application/vnd.functionalscript.fjs`). Note there is no `media/fjs/` entry:
+`application/vnd.fjs.fjs` — awkward, may be renamed later, but the `vnd.fjs.*`
+prefix stays consistent). Note there is no `media/fjs/` entry:
 today's `fs/fjs` is only the CLI dispatcher, which item 3 above promotes to
 `fs/` root, leaving nothing to move — a `media/fjs/` module appears only
 if a library-form FJS format module comes to exist.
