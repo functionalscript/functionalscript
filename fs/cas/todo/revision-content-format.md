@@ -121,10 +121,17 @@ Notes on the shape:
   validate such a blob and materialize the base, silently ignoring the changes. Incremental
   changes are therefore a future separate format, `application/vnd.fjs.change+json` —
   `snapshot` vs `change` is the standard snapshot/delta dichotomy of event-sourced systems.
-- **Universal detection convention** — the tag is not revision-specific: every FS content
-  format is a JSON object whose **first** key is `mediaType`, so detection matches the byte
-  prefix `{"mediaType":"application/vnd.fjs.` and then validates against the schema of the
-  named type. The key is spelled `mediaType`, not `mimeType` or `contentType`:
+- **Tagged-JSON detection convention** — the tag is not revision-specific, but it is not
+  universal either. `fs/media/` hosts formats from different vendors (`text/html`, plain
+  `application/json`, …), and FS's own non-JSON formats (e.g. `application/vnd.fjs.fjs`,
+  possibly with a non-JSON fallback such as `application/vnd.fjs.fjs+javascript`) cannot
+  carry an embedded JSON tag at all — those keep the ordinary `fs/mime` detection path.
+  The convention applies to **new JSON media types designed in FunctionalScript**, and even
+  there it is a recommendation (a good default), not a requirement: such a format MAY be a
+  JSON object whose **first** key is `mediaType`, so detection matches the byte prefix
+  `{"mediaType":"application/vnd.fjs.` and then validates against the schema of the named
+  type; anything that does not match falls through to normal media detection. This format
+  adopts the convention. The key is spelled `mediaType`, not `mimeType` or `contentType`:
   - `mimeType` is the field name MCP JSON uses at top level — resource contents are
     `{ uri, mimeType, text | blob }` and our own `cas_get` tool result is
     `{ length, mimeType, type[, uri] }` (see

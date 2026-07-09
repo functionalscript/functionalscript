@@ -44,10 +44,14 @@ small:
 **Membership rule:** a module goes under `fs/media/` iff it implements content
 whose identity is — or can be, via the RFC 6838 vendor tree — a media type.
 Unregistered FS dialects qualify through `application/vnd.fjs.*`
-(only registered structured-syntax suffixes may be appended: `+json` yes,
-`+javascript` is not a registered suffix, so an FJS type would be plain
-`application/vnd.fjs.fjs` — awkward, may be renamed later, but the `vnd.fjs.*`
-prefix stays consistent). Note there is no `media/fjs/` entry:
+(only registered structured-syntax suffixes appear in RFC 6839: `+json` yes,
+`+javascript` no — so the registered-safe FJS type is plain
+`application/vnd.fjs.fjs`, with an unregistered non-JSON fallback such as
+`application/vnd.fjs.fjs+javascript` as an option; the doubled name is
+awkward and may be renamed later, but the `vnd.fjs.*` prefix stays
+consistent). The bucket is not FS-only: any media type qualifies, so formats
+from other vendors (`text/html`, `application/json`, …) live here alongside
+the `vnd.fjs.*` ones. Note there is no `media/fjs/` entry:
 today's `fs/fjs` is only the CLI dispatcher, which item 3 above promotes to
 `fs/` root, leaving nothing to move — a `media/fjs/` module appears only
 if a library-form FJS format module comes to exist.
