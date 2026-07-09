@@ -1,114 +1,118 @@
-## cbor. Detect CBOR content
+## cbor. A CBOR serializer/parser: `fs/media/cbor`
 
 **Priority:** P3
 **Status:** open
 
+The codec (this todo) and CBOR *detection*
+([detect-cbor.md](detect-cbor.md)) are two different tasks: this one builds the
+pure `fs/media/cbor` module; detection consumes it (tiers 2–3) from the
+`fs/mime` classifier.
+
 ### Problem
 
-CBOR (RFC 8949) is the designated binary counterpart of the FS dialect scheme: it is
-the only binary JSON-family encoding with both a registered media type
-(`application/cbor`) and a registered structured-syntax suffix (`+cbor`, plus
-`+cbor-seq` for sequences, RFC 8742). The dialect naming rule
-(see [fs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md))
-therefore extends mechanically to a binary encoding: the same encoding-neutral
-dialect name is served as `application/{dialect}+json` when the blob is JSON and
-`application/{dialect}+cbor` when the blob is CBOR — the suffix names the
-encoding, the dialect names the format, and a system that does not know the
-dialect still has the correct generic fallback per encoding (`application/json` /
-`application/cbor`).
+CBOR (RFC 8949) is the designated binary counterpart of the FS dialect scheme
+(registered `application/cbor` media type, registered `+cbor` suffix — see
+[fs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)):
+a dialect-tagged blob is served as `application/{dialect}+cbor` exactly as its
+JSON twin is served as `application/{dialect}+json`. Nothing in the repo can
+read or write CBOR, so binary-encoded FS formats cannot exist: no encoder to
+produce them, no decoder for schema validation, nothing for
+[detect-cbor](detect-cbor.md) tier 2 to decode a dialect entry with, and no
+grammar for a future tier-3 recognizer to share.
 
-The `fs/mime` detector (the future `media/type/`) knows nothing about CBOR. A CBOR
-blob is binary, so today it falls through to `application/octet-stream`, and a
-dialect-tagged CBOR blob cannot be recognized or served with its derived media
-type the way tagged JSON can (see
-[fs/cas revision-content-format](../../cas/todo/revision-content-format.md),
-the tagged-JSON detection convention).
+By the `fs/media/` membership rule the codec belongs here: `media/cbor/`
+implements content whose identity is the media type `application/cbor`, a
+sibling of `media/json/` — same bucket, same reasons, different encoding.
 
 ### Proposal
 
-Recognize CBOR in three tiers, most reliable first. Tiers 1–2 are signature-based
-and cheap; tier 3 is structural and deliberately deferred.
+Create `fs/media/cbor/` following the `fs/media/json/` layout: a root
+`module.f.ts` re-exporting the pieces, `serializer/` (value → bytes) and
+`parser/` (bytes → value) submodules with their `proof.f.ts` tests, and a
+README specifying the data-model mapping. Pure functions only, no store access,
+no effects; errors as result values, not exceptions — matching the sibling
+modules. (No `tokenizer/`: CBOR items are self-delimiting binary, so the
+byte-level item reader plays the tokenizer's role inside `parser/`.)
 
-#### 1. Self-described CBOR — a true magic-byte signature
+#### Data model
 
-RFC 8949 §3.4.6 defines tag 55799 as CBOR's magic number: the encoded tag is the
-byte prefix `0xD9 0xD9 0xF7`, chosen so it is not valid UTF-8 and collides with no
-known format. A blob starting with it is CBOR by declaration → `application/cbor`,
-`type: 'base64'`. This is an ordinary entry in the existing `fs/mime` magic table —
-no new machinery.
+Start with the JSON-compatible subset plus what FS already needs beyond it:
 
-#### 2. Dialect-tagged CBOR — the binary analog of `{"dialect":"` prefix matching
+| CBOR (RFC 8949)                     | FS value                          |
+| ----------------------------------- | --------------------------------- |
+| major 0/1 (int) within safe range   | `number`                          |
+| major 0/1 outside safe range        | `bigint`                          |
+| tags 2/3 (bignum)                   | `bigint`                          |
+| major 7 float                       | `number`                          |
+| `false`/`true`/`null`               | same                              |
+| major 3 (text string, valid UTF-8)  | `string`                          |
+| major 4 (array)                     | array                             |
+| major 5 (map, text keys only)       | object                            |
+| major 2 (byte string)               | later — needs an FS `Vec` mapping |
 
-The tagged-JSON convention carries over: an FS-designed CBOR format is a CBOR map
-whose **first** entry is the text key `"dialect"` with a text-string value. In a
-definite-length encoding the key is the fixed byte sequence
-`0x67 'd' 'i' 'a' 'l' 'e' 'c' 't'` at offset 1 (after the map header
-`0xA0+n`, n < 24), optionally preceded by the tag-55799 prefix from tier 1 — a
-matchable signature, exactly as `{"dialect":"` is in JSON. On a hit: decode the
-dialect value, grammar-check each `+`-separated segment as an RFC 6838
-restricted-name, and apply the same allowlist + schema-validation +
-128 KiB size-bound rules as the JSON path (never a blind echo; the derivation is
-structurally safe — any value yields an `application/*+cbor` type) →
-`application/{dialect}+cbor`; otherwise fall through.
+`bigint` is required from the start: DJS adds `bigint` to JSON, and CBOR
+represents it natively — the pairing is the point of having a binary encoding.
+Everything else CBOR allows (non-text map keys, `undefined`, simple values,
+other tags, indefinite lengths on decode) is **rejected** in the first
+iteration: a small, closed model keeps encode/decode a lossless round trip and
+keeps schema validation meaningful. Extensions widen the table deliberately,
+per dialect (each dialect's README owns what it admits beyond the JSON model).
 
-**Encoding rule for producers** (to be stated in the format specs): FS-produced
-tagged CBOR MUST use definite lengths with the `dialect` entry first. Note that
-RFC 8949 §4.2 core deterministic encoding sorts map keys by the bytewise order of
-their encodings — shorter keys sort first, ties by content. The `revision` schema
-happens to satisfy "dialect first" under that order (no key is shorter than 7
-chars, and `dialect` is bytewise-first among the 7-char keys), but that is luck,
-not a guarantee: any future dialect with a shorter key (or a 7-char key starting
-`a`–`c`) would displace it. The FS canonical form is therefore **dialect-first,
-remaining keys in RFC 8949 deterministic order** — a documented, deliberate
-deviation from pure §4.2 ordering, in exchange for a stable detection prefix.
+#### Serializer: canonical by construction
 
-#### 3. Generic untagged CBOR — deferred
+One encoding, not options:
 
-A bare CBOR item without tier 1/2 markers has no signature, and structural
-detection is false-positive-prone by construction: almost any short byte string
-decodes as *some* valid CBOR item (every byte `0x00`–`0x17` alone is a valid
-unsigned integer). A trustworthy verdict needs a streaming, payload-free CBOR
-recognizer (accept/reject, O(depth), the analog of
-[fs/media/json streaming-recognizer](../json/todo/streaming-recognizer.md)) plus a
-policy gate like detect-json's "object/array top level only" — e.g. accept only a
-single complete map/array item spanning the whole blob. Out of scope for the first
-iteration; without it, untagged CBOR stays `application/octet-stream`, which is
-the honest answer.
+- RFC 8949 §4.2 core deterministic encoding — shortest-form integer heads,
+  definite lengths only, no duplicate keys;
+- the FS canonical tagged form from [detect-cbor.md](detect-cbor.md) §2 on top:
+  when the value carries a `dialect` entry, that entry is encoded **first** and
+  the remaining keys follow in §4.2 bytewise order — the documented deviation
+  from pure §4.2 sorting that buys a stable detection prefix.
+
+A canonical-only serializer makes "same value ⇒ same bytes ⇒ same CAS hash"
+hold by construction — in a content-addressed store the encoder *is* the
+identity function, so encoding options would silently fork identities.
+
+#### Parser: strict, bounded, total
+
+- reject non-well-formed items, trailing bytes after the single top-level item,
+  duplicate map keys, invalid UTF-8 in text strings, and (first iteration)
+  everything outside the data-model table above;
+- a max-depth cap as a DoS guard, like the JSON recognizer's
+  ([fs/media/json streaming-recognizer](../json/todo/streaming-recognizer.md));
+- decoding does **not** require canonical input (a synced blob from elsewhere
+  may be valid CBOR without being FS-canonical); an `isCanonical` check is a
+  separate predicate so consumers that need identity guarantees (CAS dedup,
+  detect-cbor's prefix assumption) can enforce it explicitly.
 
 ### Tasks
 
-- [ ] Add the tag-55799 prefix (`0xD9 0xD9 0xF7`) to the `fs/mime` magic table →
-      `application/cbor`, `type: 'base64'`; proof cases including a tagged blob
-      split across chunks
-- [ ] Specify the FS canonical tagged-CBOR form: definite lengths, `dialect`
-      entry first, remaining keys in RFC 8949 §4.2 order; document the deliberate
-      deviation from pure deterministic ordering and the reason (stable prefix)
-- [ ] Implement tier 2: match the map-header + `"dialect"` key prefix (with and
-      without the tier-1 tag prefix), decode the dialect value, grammar-check
-      `+`-separated segments, allowlist `vnd.fjs.*`, validate against the
-      dialect's schema, size-bounded to the 128 KiB inline cap →
-      `application/{dialect}+cbor`
-- [ ] Surface the derived type in `cas_get` / resource read alongside the JSON
-      path (same rules, different suffix); extend the optional `dialect`
-      field/header to CBOR blobs — see
-      [fs/cas/mcp cas-get-mcp-resource-response](../../cas/mcp/todo/cas-get-mcp-resource-response.md)
-- [ ] Decide per dialect what CBOR-only values (bigint, byte strings, non-string
-      keys) are admitted beyond the JSON data model — each dialect's README owns
-      this; the JSON-compatible subset is the default
-- [ ] Later: the tier-3 streaming CBOR recognizer and its top-level policy gate,
-      as a separate todo when generic CBOR detection is actually needed
+- [ ] Create `fs/media/cbor/README.md` — the data-model mapping table, the
+      canonical-form rules (§4.2 + dialect-first), and the strictness rules
+- [ ] `fs/media/cbor/serializer/module.f.ts` — canonical encoder over the
+      data-model subset, `bigint` included; proof cases against the RFC 8949
+      Appendix A test vectors that fall inside the model
+- [ ] `fs/media/cbor/parser/module.f.ts` — strict decoder (well-formedness,
+      single item, no duplicate keys, UTF-8-valid text, depth cap), result-typed
+      errors; proof cases including truncated items, trailing bytes, duplicate
+      keys, indefinite lengths (rejected), and round trips through the serializer
+- [ ] `isCanonical` predicate (or a decode flag reporting canonicity) for
+      consumers that require byte-identity
+- [ ] Root `fs/media/cbor/module.f.ts` re-exporting serializer/parser and the
+      `application/cbor` constant; reference the module from `fs/media` docs
+- [ ] Unblock [detect-cbor](detect-cbor.md) tier 2: expose a way to decode just
+      the leading `dialect` entry within the 128 KiB bound
+- [ ] Later: byte strings (major 2) once an FS `Vec` mapping is decided; a
+      payload-free O(depth) recognizer sharing this grammar (detect-cbor tier 3)
 
 ### Related
 
+- [detect-cbor.md](detect-cbor.md) — detection; consumes this codec in tiers 2–3
 - [fs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
-  — the dialect naming rule and fall-back chain convention this extends to a
-  binary encoding
+  — the dialect naming rule and the `fs/media/` membership rule placing the codec
 - [fs/cas revision-content-format](../../cas/todo/revision-content-format.md) —
-  the tagged-JSON detection convention tier 2 mirrors, and the serving rules
-  (allowlist, schema validation, size bound) it reuses
-- [fs/mime detect-json](../../mime/todo/detect-json.md) — the JSON refinement of
-  the same detector; tier 3 would be its CBOR sibling
+  the tagged-format convention whose binary twin this enables
+- `fs/media/json/` (`serializer/`, `parser/`, `tokenizer/`) — the sibling module
+  whose layout and purity conventions this follows
 - [fs/media/json streaming-recognizer](../json/todo/streaming-recognizer.md) —
-  the payload-free recognizer pattern a tier-3 CBOR recognizer would follow
-- `fs/mime/module.f.ts` — the magic table (tier 1) and `detectStream` (tiers 2–3)
-  this lands in
+  the payload-free recognizer pattern for the future tier-3 sibling
