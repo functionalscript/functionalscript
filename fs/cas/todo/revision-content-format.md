@@ -97,9 +97,15 @@ Notes on the shape:
   validated by the schema itself since the literal is part of the schema. The format spec
   lives in the `README.md` of the `fs/cas/evo` module (creating it is part of the tasks
   below; once in the repo it is automatically deployed to functionalscript.com) — the spec
-  is referenced by the schema/docs rather than encoded in the tag value. The tag is
-  deliberately version-free: if a version discriminant is ever needed it becomes a separate
-  optional field, not a change to the tag. The key is spelled `mimeType` — the same field
+  is referenced by the schema/docs rather than encoded in the tag value. **Versioning rule:**
+  additive, compatible changes keep the tag — RTTI struct validation accepts undeclared keys
+  by design, so a blob with extra fields still validates against the v1 schema, and that is
+  the intended forward-compatibility path. An **incompatible** change MUST NOT reuse the tag:
+  it introduces a new media type (for example
+  `application/vnd.functionalscript.revision2+json`), so readers of the old format never
+  validate — and never silently misread — a blob of the new one. The tag is therefore the
+  version discriminant for breaking changes; no `version` field is needed. The key is
+  spelled `mimeType` — the same field
   name MCP resource contents use — because CAS objects will be exposed as MCP resources
   and the server surfaces this value directly (see below and
   [../mcp/todo/cas-get-mcp-resource-response.md](../mcp/todo/cas-get-mcp-resource-response.md)).
@@ -110,7 +116,11 @@ Notes on the shape:
   into a content-type oracle. The rule: surface the stored `mimeType` only when it matches
   an allowlist of known `application/vnd.functionalscript.*+json` types and the blob
   validates against that type's schema; everything else falls through to the existing
-  `fs/mime` detector.
+  `fs/mime` detector. Validation requires materializing and parsing the blob, and the
+  metadata path is deliberately size-independent (`detectStream`, O(1) space, never
+  buffers), so the check is **size-bounded**: it is attempted only for blobs up to the
+  existing 128 KiB inline-content cap; a larger blob always gets the plain `detectStream`
+  result. Revision blobs are small JSON, so the bound costs nothing in practice.
 - `object` gives every revision of the same mutable thing a common anchor to resolve
   "current head(s)" against, without requiring a mutable pointer anywhere in CAS itself —
   the head is whatever revision(s) reference `object` and are not listed as a parent by
@@ -162,9 +172,9 @@ Open design points:
   optional `{hash}-{nonce}` form for distinct object identity), and which ref positions
   besides `parents` use the hash-only `hash` type rather than the general `ref`
   (`object`? `content`? `changes`?).
-- Whether other content formats should share the same `mimeType` tagging convention, and
-  how a format-version discriminant is expressed if one is ever needed (a separate optional
-  field; the tag itself stays version-free).
+- Whether other content formats should share the same `mimeType` tagging convention
+  (including its versioning rule: additive changes keep the tag, breaking changes mint a
+  new one).
 - The exact syntax of a content-addressed revision reference (e.g.
   `{hash}.{generation}.{hash}` — `hash.generation` alone does not pin a version across
   branches; undefined for now — only hashes are used).
@@ -196,7 +206,8 @@ Open design points:
       retroactively by a newly synced revision
 - [ ] Teach the MCP server to surface a stored `mimeType` (allowlisted
       `application/vnd.functionalscript.*+json` + schema validation, never a blind echo)
-      instead of the generic text fallback — see
+      instead of the generic text fallback, size-bounded to the 128 KiB inline cap so the
+      metadata path stays O(1)-space for larger blobs — see
       [../mcp/todo/cas-get-mcp-resource-response.md](../mcp/todo/cas-get-mcp-resource-response.md)
 - [ ] Later iteration: define the `changes` event-log/CRDT format and extend materialization
       to CRDT changes over a single common ancestor
