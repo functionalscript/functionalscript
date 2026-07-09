@@ -135,10 +135,8 @@ export const proof = {
     archivedObject: () => {
         const effect =
             writeJson({ mimeType, object: objectA, parents: [], content: 'https://example.com/done', archived: true })
-            .step(hash => readRevision(c)(hash))
-            .step(([tag, revision]) => {
-                assertEq(tag, 'ok')
-                if (tag === 'error') { throw revision }
+            .step(hash => readRevision(c)(hash).step(r => pure(unwrap(r))))
+            .step(revision => {
                 assertEq(revision.archived, true)
                 return heads(c)(objectA)
             })
@@ -157,13 +155,8 @@ export const proof = {
             writeJson(rootJson)
             // Cached `generation` (99) is wrong: the real value is 1.
             .step(hashRoot => writeJson({ mimeType, object: objectA, parents: [vecToCBase32(hashRoot)], content: 'https://example.com/child', generation: 99 }))
-            .step(hashChild => readRevision(c)(hashChild).step(r => pure({ hashChild, r })))
-            .step(({ hashChild, r }) => {
-                const [tag, revision] = r
-                assertEq(tag, 'ok')
-                if (tag === 'error') { throw revision }
-                return computeGeneration(c)(hashChild).step(gen => pure({ gen, revision }))
-            })
+            .step(hashChild => readRevision(c)(hashChild).step(r => pure({ hashChild, revision: unwrap(r) })))
+            .step(({ hashChild, revision }) => computeGeneration(c)(hashChild).step(gen => pure({ gen, revision })))
             .step(({ gen, revision }) => {
                 assertOk(gen, 1)
                 assert(gen[0] === 'ok' && gen[1] !== revision.generation)

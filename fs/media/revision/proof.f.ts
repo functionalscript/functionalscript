@@ -1,4 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
+import { unwrap } from '../../types/result/module.f.ts'
 import { mimeType, ref, hash, revision, decodeRevision } from './module.f.ts'
 
 const validHash = '00000000000000000000000000000000000000000000000028t8'
@@ -14,9 +15,7 @@ export const proof = {
     },
     decodeFirstRevisionNoContent: () => {
         const v = { mimeType, object: validHash, parents: [] }
-        const [t, r] = decodeRevision(v)
-        assertEq(t, 'ok')
-        if (t === 'error') { throw r }
+        const r = unwrap(decodeRevision(v))
         assertEq(r.object, validHash)
         assertEq(r.parents.length, 0)
     },
@@ -28,24 +27,18 @@ export const proof = {
             content: validHash,
             generation: 1,
         }
-        const [t, r] = decodeRevision(v)
-        assertEq(t, 'ok')
-        if (t === 'error') { throw r }
+        const r = unwrap(decodeRevision(v))
         assertEq(r.content, validHash)
         assertEq(r.generation, 1)
     },
     decodeArchived: () => {
         const v = { mimeType, object: validHash, parents: [], archived: true as const }
-        const [t, r] = decodeRevision(v)
-        assertEq(t, 'ok')
-        if (t === 'error') { throw r }
+        const r = unwrap(decodeRevision(v))
         assertEq(r.archived, true)
     },
     decodeWithChanges: () => {
         const v = { mimeType, object: validHash, parents: [validHash], changes: [validHash] }
-        const [t, r] = decodeRevision(v)
-        assertEq(t, 'ok')
-        if (t === 'error') { throw r }
+        const r = unwrap(decodeRevision(v))
         assertEq(r.changes?.length, 1)
     },
     decodeRejectsBadShape: () => {
