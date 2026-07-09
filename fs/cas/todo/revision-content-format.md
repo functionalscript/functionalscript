@@ -90,7 +90,7 @@ export const revision = {
 Notes on the shape:
 
 - `ref` is a URL in content-addressed digital space. For now two forms are recognized: a
-  cbase32 hash (a native CAS address, see `fs/cbase32/`), and a standard `https://` URL as a
+  cbase32 hash (a native CAS address, see `fs/basen/cbase32/`), and a standard `https://` URL as a
   bridge to the legacy location-addressed web. More forms are planned. Some ref positions
   are restricted to hashes only and use the narrower `hash` type in the schema — `parents`
   is one: a parent revision is a CAS blob, so a bridge URL cannot stand in for it, and a

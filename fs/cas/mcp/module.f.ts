@@ -69,7 +69,7 @@
  * ## Encoding split: hashes vs. content
  *
  * `Cas<O>` deals in `Vec` (bit vectors); MCP models only `textContent` today.
- * **Hashes** travel as cBase32 (`fs/cbase32`) — the canonical CAS hash format,
+ * **Hashes** travel as cBase32 (`fs/basen/cbase32`) — the canonical CAS hash format,
  * shared with the CLI and the on-disk store layout. **Content** encoding is
  * determined at read time as described above.
  *
@@ -89,11 +89,11 @@
  * @module
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
-import { stringify } from '../../json/module.f.ts'
+import { stringify } from '../../media/json/module.f.ts'
 import { pure, decode, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
-import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
-import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
+import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
+import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../mime/module.f.ts'
 import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, vec, type Vec } from '../../types/bit_vec/module.f.ts'

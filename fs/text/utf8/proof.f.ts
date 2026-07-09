@@ -1,5 +1,5 @@
 import { toCodePointList, fromCodePointList, fromVec } from './module.f.ts'
-import { stringify as jsonStringify } from '../../json/module.f.ts'
+import { stringify as jsonStringify } from '../../media/json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 import { msb, u8ListToVec } from '../../types/bit_vec/module.f.ts'

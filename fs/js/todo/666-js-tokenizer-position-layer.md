@@ -36,7 +36,7 @@ export const tokenize  // :912 — the ONLY public entry point; always emits met
 Because the metadata layer is fused into `tokenize`, a consumer that doesn't want
 positions cannot get bare tokens. This is the source of friction downstream: the
 JSON tokenizer passes an empty path purely to *discard* the position info it never
-wanted (`fs/json/tokenizer/module.f.ts` calls `jsTokenize(input)('')`), while the
+wanted (`fs/media/json/tokenizer/module.f.ts` calls `jsTokenize(input)('')`), while the
 DJS tokenizer threads metadata everywhere. Both build on the same core but each
 fights the single metadata-coupled entry point.
 
@@ -62,7 +62,7 @@ tokenizer's dummy-path workaround.
 ### Tasks
 
 - [ ] export a `tokenizeRaw` (no-metadata) entry point built on `tokenizeOp`
-- [ ] switch `fs/json/tokenizer` to consume it instead of `jsTokenize(input)('')`
+- [ ] switch `fs/media/json/tokenizer` to consume it instead of `jsTokenize(input)('')`
 - [ ] (defer) generic `withPosition` combinator once a second consumer appears
 
 ### Related
