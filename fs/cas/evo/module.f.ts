@@ -60,20 +60,6 @@ export const revisionsOf = <O extends Operation>(c: Cas<O>) => (object: string):
         ([])(hashes))
 
 /**
- * Resolves the current head(s) of `object`: every revision of `object` that
- * is not listed as a `parent` by any other revision of the same `object`.
- * A revision of a *different* object referencing the same hash (or an
- * unrelated blob) never demotes a head — the reverse index is scoped per
- * `object`, matching `fs/media/revision`'s materialization notes.
- */
-export const heads = <O extends Operation>(c: Cas<O>) => (object: string): Effect<O, readonly Vec[]> =>
-    revisionsOf(c)(object).step(entries => {
-        const parentHashes = new Set(entries.flatMap(([, revision]) => revision.parents))
-        return pure(entries.flatMap(([hash]) =>
-            parentHashes.has(vecToCBase32(hash)) ? [] : [hash]))
-    })
-
-/**
  * Resolves a `parents` hash string to its `Vec`. `fs/media/revision` does
  * not itself check that a `parents` entry decodes to a valid hash, so an
  * invalid one is simply dropped here (`toOption`) rather than treated as an
@@ -82,6 +68,27 @@ export const heads = <O extends Operation>(c: Cas<O>) => (object: string): Effec
  * silently ignoring it is the same graceful handling an absent parent gets.
  */
 const toVec = (s: string): readonly Vec[] => toOption(cBase32ToVec(s))
+
+/**
+ * Resolves the current head(s) of `object`: every revision of `object` that
+ * is not listed as a `parent` by any other revision of the same `object`.
+ * A revision of a *different* object referencing the same hash (or an
+ * unrelated blob) never demotes a head — the reverse index is scoped per
+ * `object`, matching `fs/media/revision`'s materialization notes.
+ *
+ * A `parents` entry is decoded and re-encoded to its canonical cbase32 form
+ * before comparison — cbase32 accepts more than one spelling of the same
+ * hash (case-insensitive, `fs/basen/cbase32`'s Crockford-style
+ * normalization), while `vecToCBase32` always produces the canonical one, so
+ * comparing the raw stored string would miss a same-hash parent recorded in
+ * a non-canonical spelling and wrongly leave it as a head.
+ */
+export const heads = <O extends Operation>(c: Cas<O>) => (object: string): Effect<O, readonly Vec[]> =>
+    revisionsOf(c)(object).step(entries => {
+        const parentHashes = new Set(entries.flatMap(([, revision]) => revision.parents.flatMap(toVec).map(vecToCBase32)))
+        return pure(entries.flatMap(([hash]) =>
+            parentHashes.has(vecToCBase32(hash)) ? [] : [hash]))
+    })
 
 /**
  * Reads a `parents` entry and verifies it belongs to the same `object` as

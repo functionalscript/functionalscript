@@ -193,6 +193,27 @@ export const proof = {
         run(effect)
     },
 
+    // `heads` must recognize a parent recorded in a non-canonical cbase32
+    // spelling (cbase32 decoding is case-insensitive) as the same hash
+    // `vecToCBase32` produces — otherwise the parent stays wrongly listed
+    // as a head after a same-hash-different-spelling sync.
+    headsCanonicalizesNonCanonicalParentSpelling: () => {
+        const effect =
+            writeJson(rootJson)
+            .step(hashRoot => writeJson({
+                mimeType, object: objectA,
+                parents: [vecToCBase32(hashRoot).toUpperCase()],
+                content: 'https://example.com/child',
+            }).step(hashChild => pure({ hashChild })))
+            .step(({ hashChild }) => heads(c)(objectA).step(hs => pure({ hashChild, hs })))
+            .step(({ hashChild, hs }) => {
+                assertEq(hs.length, 1)
+                assertEq(vecToCBase32(hs[0]), vecToCBase32(hashChild))
+                return pure(undefined)
+            })
+        run(effect)
+    },
+
     // `revisionsOf`/`heads` scope strictly to `object`: a revision of a
     // different object, and a non-revision blob entirely, are both ignored.
     unrelatedObjectAndNonRevisionBlobAreIgnored: () => {
