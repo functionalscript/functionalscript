@@ -108,7 +108,11 @@ Notes on the shape:
   here `application/vnd.fjs.revision+json` — because the `application/` top level and the
   RFC 6839 `+json` structured-syntax suffix are already implied by the file being JSON. Any
   system that does not know the dialect still has the correct generic fallback:
-  `application/json`. No registry entry is required for the vendor tree, the string is
+  `application/json`. A dialect name may itself be a `+`-separated **fall-back chain**,
+  most specific first (e.g. DJS, a subset of FJS, is `vnd.fjs.djs+vnd.fjs.fjs`); the
+  derivation appends `+json` as the final fall-back, and since only the final suffix of a
+  media type is standardized, the derived type remains a conformant `*+json` type whatever
+  the chain. No registry entry is required for the vendor tree, the string is
   stable (no mutable URL, no DNS anchoring), and it is validated by the schema itself since
   the literal is part of the schema. The format spec lives in the `README.md` of the
   `fs/media/revision` module (creating it is part of the tasks below; once in the repo it
@@ -131,7 +135,7 @@ Notes on the shape:
   JSON tag at all — those keep the ordinary `fs/mime` detection path, are served as plain
   `text/javascript` (no `+javascript` suffix is registered, and JavaScript MIME types are
   a closed list nothing recognizes extensions of), and carry the same kind of short
-  dialect name (`vnd.fjs.fjs`, `vnd.fjs.djs`) out of band. Out-of-band surfacing is
+  dialect name (`vnd.fjs.fjs`, `vnd.fjs.djs+vnd.fjs.fjs`) out of band. Out-of-band surfacing is
   transport-generic: a server that knows the dialect can always attach it — an additional
   `dialect` field in MCP responses (MCP permits extra fields) or a `Dialect` header in
   HTTP responses. The convention applies to **new JSON media
@@ -158,8 +162,9 @@ Notes on the shape:
   result is always an `application/*+json` type, so a hostile blob cannot turn the server
   into a `text/html` content-type oracle the way echoing a full stored media type could.
   Still, the server must not surface unknown tags: the rule is to derive the type only when
-  the dialect matches an allowlist of known `vnd.fjs.*` dialects (grammar-checked as an
-  RFC 6838 restricted-name) and the blob validates against that dialect's schema —
+  the dialect matches an allowlist of known `vnd.fjs.*` dialects (each `+`-separated
+  segment grammar-checked as an RFC 6838 restricted-name) and the blob validates against
+  that dialect's schema —
   everything else falls through to the existing `fs/mime` detector. Validation requires
   materializing and parsing the blob, and the metadata path is deliberately
   size-independent (`detectStream`, O(1) space, never buffers), so the check is

@@ -40,7 +40,7 @@ Later candidates for the same bucket, deliberately deferred to keep each PR
 small:
 
 - `media/type/` — media-type detection (today's `fs/mime`), renamed;
-- `media/djs/` — mimeType `text/javascript`, dialect `vnd.fjs.djs`.
+- `media/djs/` — mimeType `text/javascript`, dialect `vnd.fjs.djs+vnd.fjs.fjs`.
 
 **Membership rule:** a module goes under `fs/media/` iff it implements content
 whose identity is a media type — or a named **dialect** of one (see below).
@@ -63,7 +63,21 @@ depends on what the format is a subset of:
   mimeType stays plain `text/javascript` and the dialect is surfaced out of
   band (e.g. an additional `dialect` field in MCP responses — MCP allows
   extra fields). So FJS is dialect `vnd.fjs.fjs` and DJS is dialect
-  `vnd.fjs.djs`, both served as `text/javascript`.
+  `vnd.fjs.djs+vnd.fjs.fjs` (a fall-back chain, see below), both served as
+  `text/javascript`.
+
+A dialect name may be a **fall-back chain**: `+` separates dialects, most
+specific first, each segment an RFC 6838 restricted-name (no `+` inside a
+segment). A consumer that does not implement the first segment may process
+the content as the next one; the wire media type is the final fall-back
+after the chain. DJS is a subset of FJS, so its dialect is
+`vnd.fjs.djs+vnd.fjs.fjs`: process as DJS, else as FJS, else as plain
+`text/javascript`. The convention mirrors how MIME suffixes read
+(`application/did+ld+json`: most specific first) — and because the standards
+give meaning only to the *final* suffix of a media type, a derived
+`application/{dialect}+json` stays a conformant `*+json` type even when the
+dialect itself contains `+`: to existing systems, everything before the
+final `+json` is an opaque subtype name.
 
 Dialect surfacing is transport-generic: whenever a server knows the dialect,
 it can attach it to the response — an additional `dialect` field in MCP
