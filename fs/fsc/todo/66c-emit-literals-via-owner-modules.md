@@ -51,11 +51,11 @@ the intended import.
 #### 2. JS string literal `JSON.stringify(s)` — the operation has a de-facto home
 
 "Render a string as a double-quoted JS/JSON string literal" is exactly JSON
-string syntax, and `fs/json/serializer` already concentrates it: it aliases the
+string syntax, and `fs/media/json/serializer` already concentrates it: it aliases the
 built-in privately and wraps it as `stringSerialize`.
 
 ```ts
-// fs/json/serializer/module.f.ts:28
+// fs/media/json/serializer/module.f.ts:28
 const jsonStringify = JSON.stringify
 // :33
 export const stringSerialize: (_: string) => List<string> = input => [jsonStringify(input)]
@@ -80,7 +80,7 @@ case 'string': return JSON.stringify(c)
 ```
 
 All five sites want the identical thing: a valid double-quoted JS string
-literal with correct escaping. The concept is owned by `fs/json/serializer`
+literal with correct escaping. The concept is owned by `fs/media/json/serializer`
 but isn't exposed in a reusable (bare-string) form.
 
 ### Proposal
@@ -98,7 +98,7 @@ but isn't exposed in a reusable (bare-string) form.
    inside `fs/types/`).
 
 2. **string (do now where layering is clean).** Factor the bare-string renderer
-   out of `stringSerialize` in `fs/json/serializer`:
+   out of `stringSerialize` in `fs/media/json/serializer`:
 
    ```ts
    /** Renders a string as a double-quoted JS/JSON string literal. */
@@ -108,12 +108,12 @@ but isn't exposed in a reusable (bare-string) form.
 
    Then route `fs/emergent_testing`'s three quoting sites through
    `stringLiteral` instead of the built-in. `emergent_testing` is
-   application-level, so depending on `fs/json` is clean.
+   application-level, so depending on `fs/media/json` is clean.
 
 3. **string in `fs/types/ts` (judgment call — flag, don't force).** The two
    `JSON.stringify` sites in `fs/types/ts` are the same concern, but routing
-   them through `fs/json/serializer` would invert the layering (`fs/types/`
-   depending on `fs/json/`). `json/serializer` does not import `types/ts`, so
+   them through `fs/media/json/serializer` would invert the layering (`fs/types/`
+   depending on `fs/media/json/`). `json/serializer` does not import `types/ts`, so
    there is no import cycle, but a `types → json` edge may still be unwanted.
    Options, in order of preference:
    - leave `types/ts` string-quoting as-is (accept the one duplicated built-in
@@ -130,14 +130,14 @@ but isn't exposed in a reusable (bare-string) form.
 
 - [ ] `fs/types/ts`: import `serialize` from `../bigint/module.f.ts`; replace
       `case 'bigint': return \`${c}n\`` with `bigintSerialize(c)`.
-- [ ] `fs/json/serializer`: export `stringLiteral`; redefine `stringSerialize`
+- [ ] `fs/media/json/serializer`: export `stringLiteral`; redefine `stringSerialize`
       in terms of it (no behavior change).
-- [ ] `fs/emergent_testing`: import `stringLiteral` from `fs/json/serializer`;
+- [ ] `fs/emergent_testing`: import `stringLiteral` from `fs/media/json/serializer`;
       replace the three `JSON.stringify(...)` quoting sites (lines 281, 298,
       311).
 - [ ] Decide the `types/ts` string-quoting case per the layering note above;
       record the decision in this file before closing.
-- [ ] Run `npx tsc` and `fjs t`; confirm `fs/types/ts`, `fs/json/serializer`,
+- [ ] Run `npx tsc` and `fjs t`; confirm `fs/types/ts`, `fs/media/json/serializer`,
       and `fs/emergent_testing` proofs still pass with full coverage.
 
 ### Related

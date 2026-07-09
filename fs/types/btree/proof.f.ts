@@ -1,6 +1,6 @@
 import type { TNode } from './types/module.f.ts'
 import { values } from './module.f.ts'
-import { stringify as jsonStringify, type Unknown } from '../../json/module.f.ts'
+import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { cmp } from '../string/module.f.ts'
 import { next, toArray, type List, type Result } from '../list/module.f.ts'

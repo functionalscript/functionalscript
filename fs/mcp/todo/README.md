@@ -145,7 +145,7 @@ on top."
 
 ### Building blocks
 
-#### 1. JSON-RPC 2.0 layer — landed in `fs/json/rpc/module.f.ts`
+#### 1. JSON-RPC 2.0 layer — landed in `fs/media/json/rpc/module.f.ts`
 
 The envelope: request / notification / response / error schemas, decoders, and the
 pure dispatcher. MCP rides directly on this.
@@ -174,7 +174,7 @@ decoder via `validate` + static type via `Ts<>`). A representative subset:
 - **Content types:** the union used in tool/prompt/resource results —
   `text`, `image`, `audio`, embedded `resource` (and resource links).
 
-#### 3. rtti → JSON Schema printer — landed in `fs/json/schema/module.f.ts`
+#### 3. rtti → JSON Schema printer — landed in `fs/media/json/schema/module.f.ts`
 
 MCP declares each tool's `inputSchema` as **JSON Schema**, not TypeScript. rtti
 today only prints to TypeScript (`fs/types/rtti/ts/`, `toTs`). To describe a tool
@@ -231,8 +231,8 @@ server-answers-request.
 
 ### Related
 
-- `fs/json/rpc/module.f.ts` — the JSON-RPC 2.0 envelope
-- `fs/json/schema/module.f.ts` — rtti → JSON Schema printer
+- `fs/media/json/rpc/module.f.ts` — the JSON-RPC 2.0 envelope
+- `fs/media/json/schema/module.f.ts` — rtti → JSON Schema printer
 - `fs/types/rtti/module.f.ts` — schema combinators; `fs/types/rtti/ts/` is the precedent for a printer
 - `fs/effects/node/module.f.ts` — stdio (`write` / stdin) and HTTP (`createServer` / `listen`) for transports
 - [Model Context Protocol](https://modelcontextprotocol.io/) · [JSON-RPC 2.0](https://www.jsonrpc.org/specification)

@@ -2,11 +2,11 @@ import { assert, assertEq } from '../../asserts/module.f.ts'
 import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
-import type { Unknown } from '../../json/module.f.ts'
-import type { Response } from '../../json/rpc/module.f.ts'
+import type { Unknown } from '../../media/json/module.f.ts'
+import type { Response } from '../../media/json/rpc/module.f.ts'
 import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../../types/bit_vec/module.f.ts'
-import { vecToCBase32 } from '../../cbase32/module.f.ts'
-import { encode as base64Encode } from '../../base64/module.f.ts'
+import { vecToCBase32 } from '../../basen/cbase32/module.f.ts'
+import { encode as base64Encode } from '../../basen/base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { fileCas, type FileCasOperation } from '../module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
@@ -38,10 +38,11 @@ import { fromVec } from '../../types/uint8array/module.f.ts'
 
 type CasGetResult = {
     readonly length: number
-    readonly mime_type: string
+    readonly mimeType: string
     readonly type: string
-    readonly url?: string
-    readonly content?: string
+    readonly uri?: string
+    readonly text?: string
+    readonly blob?: string
 }
 
 // ── Memory mock (mirrors fs/mcp/proof.f.ts) ─────────────────────────────────────
@@ -196,7 +197,7 @@ const textSample = 'hello, world!'
 const binarySample = base64Encode(vec8(0x2An)) as string
 
 // A base64 blob whose leading bytes are the PNG magic-byte signature, so
-// `cas_get` detects its type and returns base64 with mime_type image/png.
+// `cas_get` detects its type and returns base64 with mimeType image/png.
 const pngSample = base64Encode(
     u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])) as string
 
@@ -231,9 +232,10 @@ const largeMultiChunkBlobMeta =
         assert(!resultOf(metaResp).isError)
         const meta = JSON.parse(textOf(metaResp)) as CasGetResult
         assertEq(meta.type, expectedType)
-        assertEq(meta.mime_type, expectedMime)
+        assertEq(meta.mimeType, expectedMime)
         assertEq(meta.length, Number((length(chunk0) + length(chunk1)) / 8n))
-        assertEq(meta.content, undefined)
+        assertEq(meta.text, undefined)
+        assertEq(meta.blob, undefined)
     }
 
 // A full `maxLengthBytes`-long chunk of repeated ASCII 'a' — valid UTF-8.
@@ -309,7 +311,7 @@ export const proof = {
     // This test originally timed out under `bun test`'s native 5s per-test
     // limit (12-14s observed in CI on PR #1201) — the cost was in
     // `base64Encode`, quadratic before the `baseN.vecToString` fix (see
-    // `fs/base64/proof.f.ts` `encodeLargeVecIsSlow`). Now well under budget on
+    // `fs/basen/base64/proof.f.ts` `encodeLargeVecIsSlow`). Now well under budget on
     // both engines.
     getContentBase64InflationOverflowWritesInternalError: () => {
         const [root, hash] = seedBlob({})([oversizedBase64Chunk])
@@ -381,10 +383,10 @@ export const proof = {
         )
         assert(!resultOf(getResp).isError)
         const result = JSON.parse(textOf(getResp)) as CasGetResult
-        assertEq(result.mime_type, 'text/plain')
+        assertEq(result.mimeType, 'text/plain')
         assertEq(result.type, 'text')
         assertEq(result.length, textSample.length)
-        assertEq(result.content, undefined)
+        assertEq(result.text, undefined)
     },
 
     // cas_get with content:true returns inline content.
@@ -398,8 +400,8 @@ export const proof = {
         assert(!resultOf(getResp).isError)
         const result = JSON.parse(textOf(getResp)) as CasGetResult
         assertEq(result.type, 'text')
-        assertEq(result.mime_type, 'text/plain')
-        assertEq(result.content, textSample)
+        assertEq(result.mimeType, 'text/plain')
+        assertEq(result.text, textSample)
     },
 
     // Binary add→get round-trip: store as base64, retrieve metadata without content.
@@ -412,9 +414,9 @@ export const proof = {
         )
         assert(!resultOf(getResp).isError)
         const result = JSON.parse(textOf(getResp)) as CasGetResult
-        assertEq(result.content, undefined)
+        assertEq(result.text, undefined)
         assertEq(result.type, 'text')
-        assertEq(result.mime_type, 'text/plain')
+        assertEq(result.mimeType, 'text/plain')
     },
 
     // Binary add→get with content:true returns inline base64 content.
@@ -428,7 +430,7 @@ export const proof = {
         assert(!resultOf(getResp).isError)
         const result = JSON.parse(textOf(getResp)) as CasGetResult
         assertEq(result.type, 'text')
-        assertEq(result.content, '*')
+        assertEq(result.text, '*')
     },
 
     addGetRoundTrips: () => {
@@ -440,7 +442,7 @@ export const proof = {
         )
         assert(!resultOf(getResp).isError)
         const result = JSON.parse(textOf(getResp)) as CasGetResult
-        assertEq(result.content, textSample)
+        assertEq(result.text, textSample)
     },
 
     // Text content (no magic-byte match, valid UTF-8) comes back with type:'text' when content requested.
@@ -454,10 +456,10 @@ export const proof = {
         assertEq(item0(getResp) === null ? null : (item0(getResp) as { type: string }).type, 'text')
         const result = JSON.parse(textOf(getResp)) as CasGetResult
         assertEq(result.type, 'text')
-        assertEq(result.mime_type, 'text/plain')
+        assertEq(result.mimeType, 'text/plain')
     },
 
-    // Bytes with a recognised PNG signature come back as base64 with mime_type image/png when content requested.
+    // Bytes with a recognised PNG signature come back as base64 with mimeType image/png when content requested.
     getTypedReturnsBinaryJson: () => {
         const [addResp] = session(call(2, 'cas_add', { content: pngSample, type: 'base64' }))
         const hash = textOf(addResp)
@@ -469,8 +471,8 @@ export const proof = {
         assertEq((item0(getResp) as { type: string }).type, 'text')
         const result = JSON.parse(textOf(getResp)) as CasGetResult
         assertEq(result.type, 'base64')
-        assertEq(result.mime_type, 'image/png')
-        assertEq(result.content, pngSample)
+        assertEq(result.mimeType, 'image/png')
+        assertEq(result.blob, pngSample)
     },
 
     listEnumeratesStoredHashes: () => {
@@ -576,10 +578,10 @@ export const proof = {
         )
         assert(!resultOf(metaResp).isError)
         const meta = JSON.parse(textOf(metaResp)) as CasGetResult
-        assertEq(meta.mime_type, 'text/plain')
+        assertEq(meta.mimeType, 'text/plain')
         assertEq(meta.type, 'text')
         assertEq(meta.length, 12)
-        assertEq(meta.content, undefined)
+        assertEq(meta.text, undefined)
     },
 
     getMetaBinaryBlob: () => {
@@ -591,10 +593,10 @@ export const proof = {
         )
         assert(!resultOf(metaResp).isError)
         const meta = JSON.parse(textOf(metaResp)) as CasGetResult
-        assertEq(meta.mime_type, 'image/png')
+        assertEq(meta.mimeType, 'image/png')
         assertEq(meta.type, 'base64')
         assertEq(meta.length, 10)
-        assertEq(meta.content, undefined)
+        assertEq(meta.blob, undefined)
     },
 
     getMetaOctetStreamForUnknownBinary: () => {
@@ -608,9 +610,9 @@ export const proof = {
         )
         assert(!resultOf(metaResp).isError)
         const meta = JSON.parse(textOf(metaResp)) as CasGetResult
-        assertEq(meta.mime_type, 'application/octet-stream')
+        assertEq(meta.mimeType, 'application/octet-stream')
         assertEq(meta.type, 'base64')
-        assertEq(meta.content, undefined)
+        assertEq(meta.blob, undefined)
     },
 
     // A NUL-bearing blob is valid UTF-8 yet binary: cas_get must report
@@ -626,7 +628,7 @@ export const proof = {
         )
         assert(!resultOf(metaResp).isError)
         const meta = JSON.parse(textOf(metaResp)) as CasGetResult
-        assertEq(meta.mime_type, 'application/octet-stream')
+        assertEq(meta.mimeType, 'application/octet-stream')
         assertEq(meta.type, 'base64')
     },
 
@@ -653,8 +655,8 @@ export const proof = {
         )
         assert(!resultOf(getResp).isError)
         const result = JSON.parse(textOf(getResp)) as CasGetResult
-        assertEq(result.mime_type, 'application/octet-stream')
+        assertEq(result.mimeType, 'application/octet-stream')
         assertEq(result.type, 'base64')
-        assertEq(result.content, binaryB64)
+        assertEq(result.blob, binaryB64)
     },
 }

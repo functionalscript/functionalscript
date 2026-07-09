@@ -4,9 +4,9 @@
  *
  * @module
  */
-import type { Unknown } from '../../json/module.f.ts'
-import { parse as jsonParse } from '../../json/parser/module.f.ts'
-import { tokenize as jsonTokenize } from '../../json/tokenizer/module.f.ts'
+import type { Unknown } from '../../media/json/module.f.ts'
+import { parse as jsonParse } from '../../media/json/parser/module.f.ts'
+import { tokenize as jsonTokenize } from '../../media/json/tokenizer/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { option, record, string } from '../../types/rtti/module.f.ts'
 import { validate as rttiValidate } from '../../types/rtti/validate/module.f.ts'

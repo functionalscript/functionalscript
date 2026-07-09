@@ -1,13 +1,13 @@
 import { assertEq } from '../../asserts/module.f.ts'
 import { pure, type Effect } from '../../effects/module.f.ts'
 import { emptyState, virtual, type State } from '../../effects/node/virtual/module.f.ts'
-import type { Unknown } from '../../json/module.f.ts'
-import { stringify } from '../../json/module.f.ts'
+import type { Unknown } from '../../media/json/module.f.ts'
+import { stringify } from '../../media/json/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { fromVec } from '../../types/uint8array/module.f.ts'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { internalError, jsonrpc, parseError, type Id, type Response } from '../../json/rpc/module.f.ts'
+import { internalError, jsonrpc, parseError, type Id, type Response } from '../../media/json/rpc/module.f.ts'
 import { stdioTransport, type Step } from './module.f.ts'
 
 const stringifyJson = stringify(sort)

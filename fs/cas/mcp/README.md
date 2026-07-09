@@ -44,11 +44,11 @@ Your client will use the `cas_add`, `cas_get`, and `cas_list` tools to interact 
 | Tool       | args                                    | CAS call         | result                                    |
 |------------|-----------------------------------------|------------------|-------------------------------------------|
 | `cas_add`  | `{ content, type? }`                    | `c.write(value)` | hash (cBase32)                            |
-| `cas_get`  | `{ hash, content?: boolean }`           | `c.read(key)`    | JSON `{length,mime_type,type[,url,content]}` |
+| `cas_get`  | `{ hash, content?: boolean }`           | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
 | `cas_list` | `{}`                                    | `c.list()`       | hashes, one per line                      |
 
 Each tool's argument schema is an rtti struct declared once and used twice:
-[`toJsonSchema`](../../json/schema/module.f.ts) derives the `inputSchema`
+[`toJsonSchema`](../../media/json/schema/module.f.ts) derives the `inputSchema`
 advertised in `tools/list`, and [`validate`](../../types/rtti/validate/module.f.ts)
 decodes the `arguments` object in `tools/call`. There is no drift between what we
 advertise and what we accept.
@@ -78,30 +78,39 @@ no local-path involved; see the design invariant below.
 
 ## `cas_get`: metadata + optional inline content
 
+The response fields mirror the MCP resource-contents shape (`resources/read`
+results — `uri`, `mimeType`, `text` / `blob`), so the tool view and the future
+resource view of the same blob share one vocabulary and a client can move
+between them without translation. `type` and `length` are additional fields
+alongside that shape — MCP allows extra fields — and `type` stays present even
+in the metadata-only response as the discriminator for which of `text` /
+`blob` a later `content: true` fetch would populate.
+
 `cas_get` always returns a JSON object in a `text` block with metadata and
 content type:
 
 ```json
-{ "length": 42, "mime_type": "text/plain", "type": "text" }
+{ "length": 42, "mimeType": "text/plain", "type": "text" }
 ```
 
-When `content: true` is passed, the inline payload is also included:
+When `content: true` is passed, the inline payload is also included — as
+`text` for `type: 'text'`, or `blob` for `type: 'base64'`:
 
 ```json
-{ "length": 42, "mime_type": "text/plain", "type": "text", "content": "hello world\n" }
+{ "length": 42, "mimeType": "text/plain", "type": "text", "text": "hello world\n" }
 ```
 
 The `type` field (`'text'` or `'base64'`) is always present and lets the agent
 decide whether to fetch the content without paying token cost for the bytes
 themselves. The typical decision protocol:
 
-1. Call `cas_get` (default `content: false`) — inspect `length`, `mime_type`,
+1. Call `cas_get` (default `content: false`) — inspect `length`, `mimeType`,
    and `type`.
 2. If `type: 'text'` and `length` is small → call again with `content: true`.
-3. If `type: 'base64'` or `length` is large → use `url` from the response
+3. If `type: 'base64'` or `length` is large → use `uri` from the response
    to download directly (when present; see below).
 
-`url` is present only when the server was started with a `toUrl` resolver
+`uri` is present only when the server was started with a `toUrl` resolver
 (production filesystem-backed server); it is omitted in memory-backed contexts
 such as tests.
 
@@ -110,7 +119,7 @@ such as tests.
 The metadata-only call **never buffers the blob**. It folds the CAS read stream
 through [`fs/mime`](../../mime/module.f.ts) `detectStream` — a byte-accepting
 state machine (running byte count × magic-byte signature eliminator × UTF-8
-validity DFA) that derives `{ length, mime_type, type }` in O(1) space. The
+validity DFA) that derives `{ length, mimeType, type }` in O(1) space. The
 detector stops decoding once the verdict is fixed — a magic match settles it
 immediately, otherwise once UTF-8 turns invalid — so a large blob costs ≈ length
 counting past that point.
@@ -130,15 +139,16 @@ Only the `content: true` path materializes the bytes (bounded by `maxLength`). I
 classifies them with the **same** detector — [`fs/mime`](../../mime/module.f.ts)
 `detectVec`, the single-`Vec` form of the `detectStream` machine above — so the
 three-way verdict is computed in exactly one place, never re-derived from a
-parallel `detect` + UTF-8 check. The `type` then selects how `content` is encoded:
+parallel `detect` + UTF-8 check. The `type` then selects whether the inline
+payload lands in `text` or `blob`:
 
-1. **Magic-byte hit** (PNG/JPEG/GIF/WebP/PDF/ZIP) → `type: 'base64'`, `content` is
+1. **Magic-byte hit** (PNG/JPEG/GIF/WebP/PDF/ZIP) → `type: 'base64'`, `blob` is
    RFC 4648 base64.
-2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mime_type: 'text/plain'`, and
-   `content` is the decoded string ([`fs/text/utf8`](../../text/utf8/module.f.ts)
+2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mimeType: 'text/plain'`, and
+   `text` is the decoded string ([`fs/text/utf8`](../../text/utf8/module.f.ts)
    `fromVec`, used here purely as the decoder).
-3. **Fallback** → `type: 'base64'`, `mime_type: 'application/octet-stream'`,
-   `content` is base64.
+3. **Fallback** → `type: 'base64'`, `mimeType: 'application/octet-stream'`,
+   `blob` is base64.
 
 ### Inline-content size limit (`content: true`)
 
@@ -150,25 +160,25 @@ Because the size and type are derived first with the size-independent
 the byte size and pointing at the alternatives, e.g.
 
 ```
-blob too large to fetch inline (262144 bytes, limit 131072 bytes); use the url field (…) or omit content for metadata
+blob too large to fetch inline (262144 bytes, limit 131072 bytes); use the uri field (…) or omit content for metadata
 ```
 
 So `no such hash` means the hash genuinely is not in the store, while the message
-above means the blob exists but exceeds the inline limit — fetch it via `url`, or
+above means the blob exists but exceeds the inline limit — fetch it via `uri`, or
 call `cas_get` without `content: true` for size-independent metadata.
 
 Examples:
 
 ```json
-{ "length": 12, "mime_type": "text/plain",               "type": "text",   "content": "hello world\n" }
-{ "length": 10, "mime_type": "image/png",                 "type": "base64", "content": "iVBOR..."      }
-{ "length":  4, "mime_type": "application/octet-stream",  "type": "base64", "content": "/v8A..."       }
+{ "length": 12, "mimeType": "text/plain",               "type": "text",   "text": "hello world\n" }
+{ "length": 10, "mimeType": "image/png",                 "type": "base64", "blob": "iVBOR..."      }
+{ "length":  4, "mimeType": "application/octet-stream",  "type": "base64", "blob": "/v8A..."       }
 ```
 
 ## Encoding split: hashes (cBase32) vs. content
 
 `Cas<O>` deals in `Vec` (bit vectors); MCP models only `textContent` today.
-Hashes travel as **cBase32** ([`fs/cbase32`](../../cbase32/module.f.ts)) — the
+Hashes travel as **cBase32** ([`fs/basen/cbase32`](../../basen/cbase32/module.f.ts)) — the
 canonical CAS hash format shared with the CLI and the on-disk store layout.
 Content encoding is determined at read time as described above.
 
@@ -231,7 +241,7 @@ its cBase32 hash:
 ```
 
 where `AB`, `CD`, and `<rest-of-hash>` are the first two, next two, and
-remaining characters of the cBase32 hash. The `url` field returned by
+remaining characters of the cBase32 hash. The `uri` field returned by
 `cas_get` contains the full absolute path to the blob file.
 
 ### Testing without a live process
