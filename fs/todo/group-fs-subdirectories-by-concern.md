@@ -39,27 +39,34 @@ Later candidates for the same bucket, deliberately deferred to keep each PR
 small:
 
 - `media/type/` — media-type detection (today's `fs/mime`), renamed;
-- `media/djs/` — `text/vnd.fjs.djs+javascript`.
+- `media/djs/` — mimeType `text/javascript`, dialect `text/vnd.fjs.djs`.
 
 **Membership rule:** a module goes under `fs/media/` iff it implements content
-whose identity is — or can be, via the RFC 6838 vendor tree — a media type.
-Unregistered FS dialects qualify through the `vnd.fjs.*` vendor tree, with
-the top-level type and suffix chosen by what the dialect is a subset of:
+whose identity is a media type — or a named **dialect** of one (see below).
+Unregistered FS formats are named through the `vnd.fjs.*` vendor tree, in two
+different ways depending on what the format is a subset of:
 
-- JSON subsets: `application/vnd.fjs.*+json` — matching `application/json`
-  (RFC 8259) and the RFC 6839-registered `+json` suffix;
-- JavaScript subsets: `text/vnd.fjs.*+javascript` — matching `text/javascript`
-  (RFC 9239); `+javascript` is not an RFC 6839-registered suffix, it is our
-  vendor-tree hint that the payload parses as JavaScript, and delivery to an
-  actual JS engine still uses plain `text/javascript` on the wire. So the FJS
-  dialect is `text/vnd.fjs.fjs+javascript` and DJS is
-  `text/vnd.fjs.djs+javascript`.
+- JSON subsets are **new media types**: `application/vnd.fjs.*+json`. The
+  RFC 6839-registered `+json` suffix makes them recognizable to existing
+  systems (browsers classify any `*+json` as a JSON MIME type — e.g. JSON
+  module imports accept it), so the vendor type itself goes on the wire.
+- JavaScript subsets are **not new media types** — there is no registered
+  `+javascript` suffix, and JavaScript MIME types are a closed list
+  (RFC 9239: `text/javascript` plus obsolete aliases) that nothing extends,
+  so a vendor type would be opaque to every existing consumer. Instead the
+  mimeType stays plain `text/javascript` and the precise format is a
+  **dialect**: a vendor-tree-style name without a suffix, surfaced out of
+  band (e.g. an additional `dialect` field in MCP responses — MCP allows
+  extra fields). So FJS is dialect `text/vnd.fjs.fjs` and DJS is dialect
+  `text/vnd.fjs.djs`, both served as `text/javascript`.
 
-The `fjs.fjs` doubling is accepted for consistency; if FunctionalScript one
-day gets its own standard MIME type, a short form such as `text/fjs` can
-supersede the vendor name. The bucket is not FS-only: any media type
-qualifies, so formats from other vendors (`text/html`, `application/json`, …)
-live here alongside the `vnd.fjs.*` ones. Note there is no `media/fjs/` entry:
+Multiple `fs/media/` directories may therefore share one mimeType and differ
+only by dialect. The `fjs.fjs` doubling is accepted for consistency; if
+FunctionalScript one day gets its own standard MIME type, a short form such
+as `text/fjs` can supersede the dialect name. The bucket is not FS-only: any
+media type qualifies, so formats from other vendors (`text/html`,
+`application/json`, …) live here alongside the `vnd.fjs.*` ones. Note there
+is no `media/fjs/` entry:
 today's `fs/fjs` is only the CLI dispatcher, which item 3 above promotes to
 `fs/` root, leaving nothing to move — a `media/fjs/` module appears only
 if a library-form FJS format module comes to exist.
