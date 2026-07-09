@@ -38,8 +38,19 @@ and cheap; tier 3 is structural and deliberately deferred.
 RFC 8949 §3.4.6 defines tag 55799 as CBOR's magic number: the encoded tag is the
 byte prefix `0xD9 0xD9 0xF7`, chosen so it is not valid UTF-8 and collides with no
 known format. A blob starting with it is CBOR by declaration → `application/cbor`,
-`type: 'base64'`. This is an ordinary entry in the existing `fs/mime` magic table —
-no new machinery.
+`type: 'base64'`.
+
+Unlike the existing magic entries, though, this signature must **not settle** the
+detector: a tag-55799-wrapped dialect map (tier 2) starts with the same three
+bytes, and an early-exit magic hit (`isSettled` treating `matched` as terminal,
+magic-first `finish`) would freeze the verdict at generic `application/cbor`
+before the dialect probe ever sees the map. The rule: tier 2 is checked
+**before** the tier-1 verdict — generic `application/cbor` is the answer only
+when no dialect signature follows the tag, or when the tier-2 validation falls
+through. The cost of keeping the verdict open is bounded: deciding whether a
+dialect map follows takes at most the map header (≤ 9 bytes) plus the 8-byte
+key; the full dialect decode + schema validation is the same 128 KiB
+size-bounded refinement as the tagged-JSON path.
 
 #### 2. Dialect-tagged CBOR — the binary analog of `{"dialect":"` prefix matching
 
@@ -91,8 +102,11 @@ the honest answer.
 ### Tasks
 
 - [ ] Add the tag-55799 prefix (`0xD9 0xD9 0xF7`) to the `fs/mime` magic table →
-      `application/cbor`, `type: 'base64'`; proof cases including a tagged blob
-      split across chunks
+      `application/cbor`, `type: 'base64'` — as a **non-settling** signature:
+      `isSettled` must not treat this match as terminal, and `finish` checks the
+      tier-2 dialect probe before emitting the generic verdict; proof cases
+      including a tagged blob split across chunks and a tag-wrapped dialect map
+      that must report the derived type, not generic `application/cbor`
 - [ ] Specify the FS canonical tagged-CBOR form: definite lengths, `dialect`
       entry first, remaining keys in RFC 8949 §4.2 order; document the deliberate
       deviation from pure deterministic ordering and the reason (stable prefix)
