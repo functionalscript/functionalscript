@@ -44,11 +44,15 @@ no new machinery.
 #### 2. Dialect-tagged CBOR — the binary analog of `{"dialect":"` prefix matching
 
 The tagged-JSON convention carries over: an FS-designed CBOR format is a CBOR map
-whose **first** entry is the text key `"dialect"` with a text-string value. In a
-definite-length encoding the key is the fixed byte sequence
-`0x67 'd' 'i' 'a' 'l' 'e' 'c' 't'` at offset 1 (after the map header
-`0xA0+n`, n < 24), optionally preceded by the tag-55799 prefix from tier 1 — a
-matchable signature, exactly as `{"dialect":"` is in JSON. On a hit: decode the
+whose **first** entry is the text key `"dialect"` with a text-string value. The
+signature is a definite-length map header followed immediately by the fixed key
+bytes `0x67 'd' 'i' 'a' 'l' 'e' 'c' 't'`, optionally preceded by the tag-55799
+prefix from tier 1. The header is not a single fixed byte: it is `0xA0+n` for
+n < 24 entries, or `0xB8`/`0xB9`/`0xBA`/`0xBB` followed by 1/2/4/8 length bytes
+for larger maps — so the detector parses the header (at most 9 bytes, a bounded
+decode, not a fixed-offset compare) and then matches the key. Still a cheap
+prefix check, just header-aware, and it accepts every valid FS-produced map size
+rather than only maps with fewer than 24 entries. On a hit: decode the
 dialect value, grammar-check each `+`-separated segment as an RFC 6838
 restricted-name, and apply the same allowlist + schema-validation +
 128 KiB size-bound rules as the JSON path (never a blind echo; the derivation is
@@ -87,7 +91,9 @@ the honest answer.
 - [ ] Specify the FS canonical tagged-CBOR form: definite lengths, `dialect`
       entry first, remaining keys in RFC 8949 §4.2 order; document the deliberate
       deviation from pure deterministic ordering and the reason (stable prefix)
-- [ ] Implement tier 2: match the map-header + `"dialect"` key prefix (with and
+- [ ] Implement tier 2: parse the definite-length map header (`0xA0`–`0xB7`
+      immediate, `0xB8`–`0xBB` with 1/2/4/8 length bytes — not a fixed-offset
+      compare) and match the `"dialect"` key right after it (with and
       without the tier-1 tag prefix), decode the dialect value, grammar-check
       `+`-separated segments, allowlist `vnd.fjs.*`, validate against the
       dialect's schema, size-bounded to the 128 KiB inline cap →
