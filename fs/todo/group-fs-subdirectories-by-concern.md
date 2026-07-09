@@ -31,7 +31,7 @@ The agreed design for the format bucket. First wave — only these three:
 fs/media/
     html/       text/html (moved from fs/html)
     json/       application/json (moved from fs/json)
-    revision/   application/vnd.functionalscript.revision+json (format only, new code —
+    revision/   application/vnd.fjs.revision+json (format only, new code —
                 see fs/cas/todo/revision-content-format.md)
 ```
 

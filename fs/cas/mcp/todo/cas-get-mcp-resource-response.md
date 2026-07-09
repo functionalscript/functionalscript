@@ -52,5 +52,5 @@ and the (future) resource view of a blob use the same terminology:
 
 - [remote-url.md](remote-url.md) — serving URLs as resources
 - [../../todo/revision-content-format.md](../../todo/revision-content-format.md) —
-  the `mimeType` format tag inside revision blobs that the server can surface (after
+  the `mediaType` format tag inside revision blobs that the server can surface (after
   validation) as the response `mimeType`
