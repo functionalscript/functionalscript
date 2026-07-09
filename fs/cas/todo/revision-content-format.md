@@ -187,21 +187,21 @@ Open design points:
 
 ### Tasks
 
-- [ ] Create `fs/cas/evo/README.md` — the spec of the format tagged
+- [x] Create `fs/cas/evo/README.md` — the spec of the format tagged
       `application/vnd.functionalscript.revision+json`
       (deployed automatically to functionalscript.com once it exists in the repo)
-- [ ] Define `ref` as a URL in CA digital space, recognizing cbase32 hashes and `https://`
+- [x] Define `ref` as a URL in CA digital space, recognizing cbase32 hashes and `https://`
       bridge URLs for now, and `hash` as its hash-only subset
-- [ ] Create `fs/cas/evo/module.f.ts` with the RTTI schema for `revision` (`fs/types/rtti`)
+- [x] Create `fs/cas/evo/module.f.ts` with the RTTI schema for `revision` (`fs/types/rtti`)
       and its derived TS type
-- [ ] Implement head resolution: given `object`, find revision(s) not listed as a parent
+- [x] Implement head resolution: given `object`, find revision(s) not listed as a parent
       by any other revision of the same `object` (a reverse index scoped per object; heads
       can be demoted retroactively by sync, but only by same-object children)
-- [ ] Implement content materialization for the first iteration (zero or one parent, no
+- [x] Implement content materialization for the first iteration (zero or one parent, no
       `changes`): `content` → base, where base = parent's materialization or `object`
-- [ ] Implement (or specify) a merge tool that resolves concurrent heads into a new revision
+- [x] Implement (or specify) a merge tool that resolves concurrent heads into a new revision
       with multiple `parents` and `content`
-- [ ] Tests: linear history, branch + merge, many heads for one object, archived object,
+- [x] Tests: linear history, branch + merge, many heads for one object, archived object,
       generation cache mismatch, first revision materializing from `object`, a head demoted
       retroactively by a newly synced revision
 - [ ] Teach the MCP server to surface a stored `mimeType` (allowlisted
@@ -211,7 +211,7 @@ Open design points:
       [../mcp/todo/cas-get-mcp-resource-response.md](../mcp/todo/cas-get-mcp-resource-response.md)
 - [ ] Later iteration: define the `changes` event-log/CRDT format and extend materialization
       to CRDT changes over a single common ancestor
-- [ ] Reference the format from `fs/cas/README.md`
+- [x] Reference the format from `fs/cas/README.md`
 
 ### Related
 
