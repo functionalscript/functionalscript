@@ -68,11 +68,14 @@ depends on what the format is a subset of:
 
 A dialect name may be a **fall-back chain**: `+` separates dialects, most
 specific first, each segment an RFC 6838 restricted-name (no `+` inside a
-segment). A consumer that does not implement the first segment may process
-the content as the next one; the wire media type is the final fall-back
-after the chain. DJS is a subset of FJS, so its dialect is
-`vnd.fjs.djs+vnd.fjs.fjs`: process as DJS, else as FJS, else as plain
-`text/javascript`. The convention mirrors how MIME suffixes read
+segment). A consumer scans the chain left to right and processes the content
+as the **first segment it implements**, ignoring unknown segments — safe
+because each dialect in the chain guarantees the content is also valid as
+everything to its right, so skipping a more specific dialect loses only its
+extra semantics, never correctness. If no segment is known, the wire media
+type is the final fall-back after the chain. DJS is a subset of FJS, so its
+dialect is `vnd.fjs.djs+vnd.fjs.fjs`: process as DJS, else as FJS, else as
+plain `text/javascript`. The convention mirrors how MIME suffixes read
 (`application/did+ld+json`: most specific first) — and because the standards
 give meaning only to the *final* suffix of a media type, a derived
 `application/{dialect}+json` stays a conformant `*+json` type even when the
