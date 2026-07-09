@@ -31,7 +31,8 @@ The agreed design for the format bucket. First wave — only these three:
 fs/media/
     html/       text/html (moved from fs/html)
     json/       application/json (moved from fs/json)
-    revision/   application/vnd.fjs.revision+json (format only, new code —
+    revision/   dialect vnd.fjs.revision, served as
+                application/vnd.fjs.revision+json (format only, new code —
                 see fs/cas/todo/revision-content-format.md)
 ```
 
@@ -39,26 +40,30 @@ Later candidates for the same bucket, deliberately deferred to keep each PR
 small:
 
 - `media/type/` — media-type detection (today's `fs/mime`), renamed;
-- `media/djs/` — mimeType `text/javascript`, dialect `text/vnd.fjs.djs`.
+- `media/djs/` — mimeType `text/javascript`, dialect `vnd.fjs.djs`.
 
 **Membership rule:** a module goes under `fs/media/` iff it implements content
 whose identity is a media type — or a named **dialect** of one (see below).
-Unregistered FS formats are named through the `vnd.fjs.*` vendor tree, in two
-different ways depending on what the format is a subset of:
+Unregistered FS formats are named by short **dialect** names in the RFC 6838
+vendor-tree style (`vnd.fjs.*`); how a dialect maps to a wire media type
+depends on what the format is a subset of:
 
-- JSON subsets are **new media types**: `application/vnd.fjs.*+json`. The
-  RFC 6839-registered `+json` suffix makes them recognizable to existing
-  systems (browsers classify any `*+json` as a JSON MIME type — e.g. JSON
-  module imports accept it), so the vendor type itself goes on the wire.
-- JavaScript subsets are **not new media types** — there is no registered
-  `+javascript` suffix, and JavaScript MIME types are a closed list
-  (RFC 9239: `text/javascript` plus obsolete aliases) that nothing extends,
-  so a vendor type would be opaque to every existing consumer. Instead the
-  mimeType stays plain `text/javascript` and the precise format is a
-  **dialect**: a vendor-tree-style name without a suffix, surfaced out of
+- JSON subsets embed their dialect as the first key of the payload
+  (`{"dialect":"vnd.fjs.revision",...}`) and are served with the **derived**
+  media type `application/{dialect}+json` — e.g. `vnd.fjs.revision` →
+  `application/vnd.fjs.revision+json`. The RFC 6839-registered `+json`
+  suffix makes the derived type recognizable to existing systems (browsers
+  classify any `*+json` as a JSON MIME type — e.g. JSON module imports
+  accept it), and any system that does not know the dialect still has the
+  correct generic fallback: `application/json`.
+- JavaScript subsets get **no new media type at all** — there is no
+  registered `+javascript` suffix, and JavaScript MIME types are a closed
+  list (RFC 9239: `text/javascript` plus obsolete aliases) that nothing
+  extends, so a vendor type would be opaque to every existing consumer. The
+  mimeType stays plain `text/javascript` and the dialect is surfaced out of
   band (e.g. an additional `dialect` field in MCP responses — MCP allows
-  extra fields). So FJS is dialect `text/vnd.fjs.fjs` and DJS is dialect
-  `text/vnd.fjs.djs`, both served as `text/javascript`.
+  extra fields). So FJS is dialect `vnd.fjs.fjs` and DJS is dialect
+  `vnd.fjs.djs`, both served as `text/javascript`.
 
 Multiple `fs/media/` directories may therefore share one mimeType and differ
 only by dialect. The `fjs.fjs` doubling is accepted for consistency; if
@@ -79,7 +84,7 @@ over its siblings' declared `{ mime, parse, serialize }` instead of hardcoding
 per-format branches.
 
 **Cycle rule** (the reason `revision` is in the list): whatever the detector
-must import to recognize a format — its schema, its `mimeType` constant — must
+must import to recognize a format — its schema, its `dialect` constant — must
 be a `media/` sibling, never live inside a store or adapter. Concretely:
 `fs/cas/mcp` depends on the detector, and detecting revision blobs requires the
 revision schema, so a revision format inside `fs/cas` would create a
