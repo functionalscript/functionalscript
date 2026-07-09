@@ -123,9 +123,9 @@ Notes on the shape:
   `snapshot` vs `change` is the standard snapshot/delta dichotomy of event-sourced systems.
 - **Tagged-JSON detection convention** — the tag is not revision-specific, but it is not
   universal either. `fs/media/` hosts formats from different vendors (`text/html`, plain
-  `application/json`, …), and FS's own non-JSON formats (e.g. `application/vnd.fjs.fjs`,
-  possibly with a non-JSON fallback such as `application/vnd.fjs.fjs+javascript`) cannot
-  carry an embedded JSON tag at all — those keep the ordinary `fs/mime` detection path.
+  `application/json`, …), and FS's own JavaScript-subset dialects (tagged
+  `text/vnd.fjs.*+javascript`, e.g. `text/vnd.fjs.fjs+javascript`) cannot carry an
+  embedded JSON tag at all — those keep the ordinary `fs/mime` detection path.
   The convention applies to **new JSON media types designed in FunctionalScript**, and even
   there it is a recommendation (a good default), not a requirement: such a format MAY be a
   JSON object whose **first** key is `mediaType`, so detection matches the byte prefix

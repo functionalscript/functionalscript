@@ -39,19 +39,27 @@ Later candidates for the same bucket, deliberately deferred to keep each PR
 small:
 
 - `media/type/` — media-type detection (today's `fs/mime`), renamed;
-- `media/djs/` — `application/vnd.fjs.djs`.
+- `media/djs/` — `text/vnd.fjs.djs+javascript`.
 
 **Membership rule:** a module goes under `fs/media/` iff it implements content
 whose identity is — or can be, via the RFC 6838 vendor tree — a media type.
-Unregistered FS dialects qualify through `application/vnd.fjs.*`
-(only registered structured-syntax suffixes appear in RFC 6839: `+json` yes,
-`+javascript` no — so the registered-safe FJS type is plain
-`application/vnd.fjs.fjs`, with an unregistered non-JSON fallback such as
-`application/vnd.fjs.fjs+javascript` as an option; the doubled name is
-awkward and may be renamed later, but the `vnd.fjs.*` prefix stays
-consistent). The bucket is not FS-only: any media type qualifies, so formats
-from other vendors (`text/html`, `application/json`, …) live here alongside
-the `vnd.fjs.*` ones. Note there is no `media/fjs/` entry:
+Unregistered FS dialects qualify through the `vnd.fjs.*` vendor tree, with
+the top-level type and suffix chosen by what the dialect is a subset of:
+
+- JSON subsets: `application/vnd.fjs.*+json` — matching `application/json`
+  (RFC 8259) and the RFC 6839-registered `+json` suffix;
+- JavaScript subsets: `text/vnd.fjs.*+javascript` — matching `text/javascript`
+  (RFC 9239); `+javascript` is not an RFC 6839-registered suffix, it is our
+  vendor-tree hint that the payload parses as JavaScript, and delivery to an
+  actual JS engine still uses plain `text/javascript` on the wire. So the FJS
+  dialect is `text/vnd.fjs.fjs+javascript` and DJS is
+  `text/vnd.fjs.djs+javascript`.
+
+The `fjs.fjs` doubling is accepted for consistency; if FunctionalScript one
+day gets its own standard MIME type, a short form such as `text/fjs` can
+supersede the vendor name. The bucket is not FS-only: any media type
+qualifies, so formats from other vendors (`text/html`, `application/json`, …)
+live here alongside the `vnd.fjs.*` ones. Note there is no `media/fjs/` entry:
 today's `fs/fjs` is only the CLI dispatcher, which item 3 above promotes to
 `fs/` root, leaving nothing to move — a `media/fjs/` module appears only
 if a library-form FJS format module comes to exist.
