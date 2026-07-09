@@ -28,11 +28,11 @@ materialization, and the diff format a shared home next to the schema.
 ```ts
 export const revision = {
     /**
-     * Format tag: identifies this BLOB as a revision. Key = type
-     * discriminant; value is the URL of the format spec for now,
-     * later a hash of the spec.
+     * Format tag: identifies this BLOB as a revision and names the
+     * media type it should be served with. Same key as MCP resource
+     * contents use for the served type.
      */
-    evolution: 'https://functionalscript.com/fs/cas/evo/README.md',
+    mimeType: 'application/vnd.functionalscript.revision+json',
 
     /** Identity of the mutable object being revised. */
     object: ref,
@@ -84,32 +84,43 @@ Notes on the shape:
   bridge to the legacy location-addressed web. More forms are planned. Some ref positions
   are restricted to hashes only and use the narrower `hash` type in the schema — `parents`
   is one: a parent revision is a CAS blob, so a bridge URL cannot stand in for it, and a
-  revision with a non-CAS parent must not validate. Note that the `evolution` tag value is
-  itself a ref
-  under this definition — an `https://` bridge URL today, a CA reference later — so the
-  tag's migration path is just the general evolution of `ref`, not a special case.
-- `evolution` is a self-describing format tag. In a generic CAS a blob is just bytes under a
+  revision with a non-CAS parent must not validate.
+- `mimeType` is a self-describing format tag. In a generic CAS a blob is just bytes under a
   hash, so without a discriminant a reader can only recognize a revision by guessing from its
   shape, which collides with any other format that happens to have `object`/`parents` fields.
-  The tag gives format detection (tools can recognize revisions while walking a store),
-  versioning (readers reject or migrate blobs of an incompatible version instead of silently
-  misreading them), and a cheap pre-validation gate. The key doubles as the type discriminant.
-  In this first revision of the format the value is hard-coded as a literal — the URL of the
-  format spec, `"https://functionalscript.com/fs/cas/evo/README.md"` — the XML-namespace/
-  JSON-LD approach: globally unique without a registry, self-documenting, and validated by
-  the schema itself since the literal is part of the schema. The spec is the `README.md` of
-  the `fs/cas/evo` module (creating it is part of the tasks below); once it exists in the
-  repo it is automatically deployed to functionalscript.com, so the URL dereferences to the
-  live spec. Later versions of the format migrate the value to a content-addressed revision
-  reference: the spec is itself a mutable object evolved by this very format, so the
-  reference combines the spec's object identity with a version pin — stable identity across
-  versions, pinned version per blob, no registry, per the deduplication principle. The exact
-  reference syntax is not defined yet (`hash.generation` alone does not pin a version across
-  branches; something like `{hash}.{generation}.{hash}` may be needed) — for now we use only
-  hashes. Two known costs of the interim URL,
-  accepted knowingly and fixed by that migration: the URL is a mutable pointer (the document
-  behind it can change), so the value identifies the format but not its version; and it
-  anchors the identifier to DNS, which vision.md argues against for the end state.
+  The tag gives format detection (tools can recognize revisions while walking a store) and a
+  cheap pre-validation gate; the key doubles as the type discriminant. The value is a media
+  type in the RFC 6838 vendor tree with the RFC 6839 `+json` structured-syntax suffix:
+  the part before `+` (`vnd.functionalscript.revision`) names the specific format, the
+  suffix tells generic tooling the underlying syntax is JSON. No registry entry is required
+  for the vendor tree, the string is stable (no mutable URL, no DNS anchoring), and it is
+  validated by the schema itself since the literal is part of the schema. The format spec
+  lives in the `README.md` of the `fs/cas/evo` module (creating it is part of the tasks
+  below; once in the repo it is automatically deployed to functionalscript.com) — the spec
+  is referenced by the schema/docs rather than encoded in the tag value. **Versioning rule:**
+  additive, compatible changes keep the tag — RTTI struct validation accepts undeclared keys
+  by design, so a blob with extra fields still validates against the v1 schema, and that is
+  the intended forward-compatibility path. An **incompatible** change MUST NOT reuse the tag:
+  it introduces a new media type (for example
+  `application/vnd.functionalscript.revision2+json`), so readers of the old format never
+  validate — and never silently misread — a blob of the new one. The tag is therefore the
+  version discriminant for breaking changes; no `version` field is needed. The key is
+  spelled `mimeType` — the same field
+  name MCP resource contents use — because CAS objects will be exposed as MCP resources
+  and the server surfaces this value directly (see below and
+  [../mcp/todo/cas-get-mcp-resource-response.md](../mcp/todo/cas-get-mcp-resource-response.md)).
+- **Serving the tag as the response `mimeType`**: the MCP server (`cas_get` and the future
+  resource read) can respond with the blob's own `mimeType` instead of falling back to the
+  generic `text/plain` sniff — but it must never echo the field blindly. A stored blob is
+  untrusted input: anyone can store `{"mimeType": "text/html", ...}` and turn the server
+  into a content-type oracle. The rule: surface the stored `mimeType` only when it matches
+  an allowlist of known `application/vnd.functionalscript.*+json` types and the blob
+  validates against that type's schema; everything else falls through to the existing
+  `fs/mime` detector. Validation requires materializing and parsing the blob, and the
+  metadata path is deliberately size-independent (`detectStream`, O(1) space, never
+  buffers), so the check is **size-bounded**: it is attempted only for blobs up to the
+  existing 128 KiB inline-content cap; a larger blob always gets the plain `detectStream`
+  result. Revision blobs are small JSON, so the bound costs nothing in practice.
 - `object` gives every revision of the same mutable thing a common anchor to resolve
   "current head(s)" against, without requiring a mutable pointer anywhere in CAS itself —
   the head is whatever revision(s) reference `object` and are not listed as a parent by
@@ -161,9 +172,12 @@ Open design points:
   optional `{hash}-{nonce}` form for distinct object identity), and which ref positions
   besides `parents` use the hash-only `hash` type rather than the general `ref`
   (`object`? `content`? `changes`?).
-- Whether other content formats should share the same tagging convention, and the exact
-  syntax of the future CA revision reference (e.g. `{hash}.{generation}.{hash}`; undefined
-  for now — only hashes are used).
+- Whether other content formats should share the same `mimeType` tagging convention
+  (including its versioning rule: additive changes keep the tag, breaking changes mint a
+  new one).
+- The exact syntax of a content-addressed revision reference (e.g.
+  `{hash}.{generation}.{hash}` — `hash.generation` alone does not pin a version across
+  branches; undefined for now — only hashes are used).
 - Digital signatures for filtering changes from unknown users — a separate, future spec.
 - Further out (subject for a separate spec): a `{public-key}/{name}.{generation}` form,
   where the key's owner defines what `{name}` means. Anchoring the identifier in a signer
@@ -173,7 +187,8 @@ Open design points:
 
 ### Tasks
 
-- [ ] Create `fs/cas/evo/README.md` — the format spec the `evolution` tag URL points to
+- [ ] Create `fs/cas/evo/README.md` — the spec of the format tagged
+      `application/vnd.functionalscript.revision+json`
       (deployed automatically to functionalscript.com once it exists in the repo)
 - [ ] Define `ref` as a URL in CA digital space, recognizing cbase32 hashes and `https://`
       bridge URLs for now, and `hash` as its hash-only subset
@@ -189,6 +204,11 @@ Open design points:
 - [ ] Tests: linear history, branch + merge, many heads for one object, archived object,
       generation cache mismatch, first revision materializing from `object`, a head demoted
       retroactively by a newly synced revision
+- [ ] Teach the MCP server to surface a stored `mimeType` (allowlisted
+      `application/vnd.functionalscript.*+json` + schema validation, never a blind echo)
+      instead of the generic text fallback, size-bounded to the 128 KiB inline cap so the
+      metadata path stays O(1)-space for larger blobs — see
+      [../mcp/todo/cas-get-mcp-resource-response.md](../mcp/todo/cas-get-mcp-resource-response.md)
 - [ ] Later iteration: define the `changes` event-log/CRDT format and extend materialization
       to CRDT changes over a single common ancestor
 - [ ] Reference the format from `fs/cas/README.md`
