@@ -39,11 +39,11 @@ and the (future) resource view of a blob use the same terminology:
 
 ### Tasks
 
-- [ ] Rename `mime_type` to `mimeType` in `Meta`, the `cas_get` handler, the tool
+- [x] Rename `mime_type` to `mimeType` in `Meta`, the `cas_get` handler, the tool
       description string, `proof.f.ts`, and `README.md`
-- [ ] Replace `type`/`content` with `text`/`blob` for inline-content responses,
+- [x] Replace `type`/`content` with `text`/`blob` for inline-content responses,
       keeping `type` as the metadata-only discriminator
-- [ ] Rename `url` to `uri` and define its relation to the future resource URI
+- [x] Rename `url` to `uri` and define its relation to the future resource URI
 - [ ] When resources land: serve blobs via `resources/read` with the identical
       `{ uri, mimeType, text | blob }` derivation, sharing the detector path with
       `cas_get`
