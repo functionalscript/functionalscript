@@ -17,7 +17,7 @@ a dialect-tagged blob is served as `application/{dialect}+cbor` exactly as its
 JSON twin is served as `application/{dialect}+json`. Nothing in the repo can
 read or write CBOR, so binary-encoded FS formats cannot exist: no encoder to
 produce them, no decoder for schema validation, nothing for
-[detect-cbor](detect-cbor.md) tier 2 to decode a dialect entry with, and no
+[detect-cbor](detect-cbor.md) tier 2 to decode tagged blobs with, and no
 grammar for a future tier-3 recognizer to share.
 
 By the `fs/media/` membership rule the codec belongs here: `media/cbor/`
@@ -108,8 +108,10 @@ identity function, so encoding options would silently fork identities.
       consumers that require byte-identity
 - [ ] Root `fs/media/cbor/module.f.ts` re-exporting serializer/parser and the
       `application/cbor` constant; reference the module from `fs/media` docs
-- [ ] Unblock [detect-cbor](detect-cbor.md) tier 2: expose a way to decode just
-      the leading `dialect` entry within the 128 KiB bound
+- [ ] Unblock [detect-cbor](detect-cbor.md) tier 2: the strict parser's full
+      decode of a size-bounded (128 KiB) blob is the detection primitive — tier 2
+      decodes the whole blob and looks up the `dialect` key in the resulting map;
+      no leading-entry or partial-decode helper is needed
 - [ ] Later: byte strings (major 2) once an FS `Vec` mapping is decided; a
       payload-free O(depth) recognizer sharing this grammar (detect-cbor tier 3)
 
