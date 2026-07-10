@@ -54,8 +54,10 @@ export const revision = {
     /**
      * The subject of this revision: the identity of the mutable object
      * being revised ("subject" as in the subject of a certificate).
+     * Usually any string; it must be a hash only when it is used as
+     * the fallback content reference.
      */
-    subject: hash,
+    subject: string,
 
     /**
      * Parent Revision BLOBs. Empty array means this is the first revision.
@@ -65,12 +67,12 @@ export const revision = {
     parents: array(hash),
 
     /**
-     * Complete materialized content (snapshot) of this revision.
+     * Complete materialized content of this revision.
      *
-     * If absent, the revision materializes to its base: the parent's
-     * materialization, or `subject` itself for a first revision.
+     * If absent and there is not exactly one parent, `subject` is used
+     * as the fallback content reference and must validate as a hash.
      */
-    snapshot: option(hash),
+    content: option(hash),
 
     /**
      * Optional cached generation number within the subject's evolution.
@@ -92,12 +94,13 @@ export const revision = {
 
 Notes on the shape:
 
-- `hash` is the only reference type in this first revision format. It is a cbase32 native
-  CAS address (see `fs/basen/cbase32/`). Revision blobs do not accept `https://` bridge
-  URLs or any other location-addressed reference form: `subject`, `parents`, and `snapshot`
-  all validate as hashes. Future non-hash reference forms, if needed, belong in a later
-  dialect or a separate design so v1 readers never silently accept references they cannot
-  resolve as CAS blobs.
+- `hash` is the only content-reference type in this first revision format. It is a cbase32
+  native CAS address (see `fs/basen/cbase32/`). Revision blobs do not accept `https://`
+  bridge URLs or any other location-addressed reference form for CAS content references:
+  `parents` and `content` always validate as hashes. `subject` is an identity string, not
+  necessarily a content reference; it validates as a hash only in the fallback case where
+  `content === undefined` and `parents.length !== 1`, because then the revision uses
+  `subject` as the content reference.
 - `dialect` is a self-describing format tag. In a generic CAS a blob is just bytes under a
   hash, so without a discriminant a reader can only recognize a revision by guessing from its
   shape, which collides with any other format that happens to have `subject`/`parents` fields.
@@ -128,7 +131,7 @@ Notes on the shape:
   over the base) was dropped: it is *schema*-additive but *semantically* breaking — a v1
   reader would still validate such a blob and materialize the base, silently ignoring the
   changes. Incremental changes are therefore a future separate dialect, `vnd.fjs.change` —
-  `snapshot` vs `change` is the standard snapshot/delta dichotomy of event-sourced systems.
+  `content` vs `change` is the standard snapshot/delta dichotomy of event-sourced systems.
 - **Tagged-JSON detection convention** — the tag is not revision-specific, but it is not
   universal either. `fs/media/` hosts formats from different vendors (`text/html`, plain
   `application/json`, …), and FS's own JavaScript-subset dialects cannot carry an embedded
@@ -160,15 +163,11 @@ Notes on the shape:
   the head is whatever revision(s) reference `subject` and are not listed as a parent by
   another revision *of the same `subject`* — a revision of a different subject referencing
   the same hash (or an unrelated blob imported by sync) must not demote a head. Subject
-  identity normally comes from the first `snapshot`: the hash of
-  the subject's initial content is the subject's identity. Two subjects created from identical
-  initial content therefore share an identity — this is by design: it is fine to have many
-  changes of the same object from different users. This hash-only dialect does not support
-  distinct identities for identical initial content. A nonce-bearing reference form such as
-  `{hash}-{nonce}` would not be a cbase32 hash, so it is explicitly future/out-of-scope and
-  would require a later dialect or separate design. Digital signatures (a separate, future
-  spec) will filter changes from unknown users. `subject` is also the fallback for `parents`:
-  a revision with no parents uses `subject` as its base.
+  identity can be any string when `content` or exactly one parent supplies the content
+  reference. When neither is available, `subject` doubles as the fallback content reference
+  and must be a hash. A nonce-bearing subject such as `{hash}-{nonce}` is therefore valid
+  only when `subject` is not being used as that fallback content reference. Digital
+  signatures (a separate, future spec) will filter changes from unknown users.
 - `parents` is an array to support merges (multiple concurrent lines of history converging),
   matching the "multi-device / multi-user, merge freely" model in
   [vision.md](../../../todo/plan/vision.md).
@@ -191,8 +190,8 @@ Open design points:
 - The future incremental-change dialect `vnd.fjs.change` (event log, most likely
   CRDT-based): its shape, and how it links to revisions — as a new dialect, not as a field
   of this format (see the versioning rule above).
-- Future reference forms beyond cbase32 hashes, including a possible nonce-bearing form for
-  distinct subject identity. Such forms are out of scope for this hash-only dialect.
+- Future content-reference forms beyond cbase32 hashes. Subject identity strings can already
+  use non-hash forms when `content` or exactly one parent supplies the content reference.
 - The exact syntax of a content-addressed revision reference (e.g.
   `{hash}.{generation}.{hash}` — `hash.generation` alone does not pin a version across
   branches; undefined for now — only hashes are used).
@@ -208,16 +207,18 @@ Open design points:
 - [ ] Create `fs/media/revision/README.md` — the spec of the dialect `vnd.fjs.revision`,
       served as `application/vnd.fjs.revision+json`
       (deployed automatically to functionalscript.com once it exists in the repo)
-- [ ] Define `hash` as the only reference type accepted by this dialect, recognizing
-      cbase32 native CAS addresses and rejecting `https://` bridge URLs
+- [ ] Define `hash` as the only content-reference type accepted by this dialect, recognizing
+      cbase32 native CAS addresses and rejecting `https://` bridge URLs for `parents`,
+      `content`, and fallback `subject` references
 - [ ] Create `fs/media/revision/module.f.ts` with the RTTI schema for `revision`
       (`fs/types/rtti`), the `dialect` constant, and its derived TS type
 - [ ] Teach `fs/media` detection to recognize valid revision JSON and return the derived
       media type `application/vnd.fjs.revision+json`, falling through to the existing
       detector for unknown dialects or invalid revision blobs
 - [ ] Tests: valid revision detection, invalid revision fallthrough, `https://` bridge URL
-      rejection in `subject`, `parents`, and `snapshot`, first-key `dialect` prefix matching,
-      and ordinary JSON fallback behavior
+      rejection in `parents`, `content`, and fallback `subject`, arbitrary string `subject`
+      acceptance when `content` is present or `parents.length === 1`, first-key `dialect`
+      prefix matching, and ordinary JSON fallback behavior
 - [ ] Later, as a separate spec: define the incremental-change dialect `vnd.fjs.change`
       (event log, likely CRDT-based) and how revisions link to it — a new dialect, not a
       new field of this format
