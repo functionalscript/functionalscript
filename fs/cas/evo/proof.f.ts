@@ -65,14 +65,20 @@ export const proof = {
     },
     generationCacheMismatch: () => {
         const bad: Entry = { ...r2, revision: { ...r2.revision, generation: 9 } }
-        assertEq(expectedGeneration([r1])(r2), 1)
+        assertEq(expectedGeneration([r1])(r2)[0] === 'ok' ? expectedGeneration([r1])(r2)[1] : -1, 1)
         assertEq(verifyGeneration([r1])(r2)[0], 'ok')
         assertEq(verifyGeneration([r1])(bad)[0], 'error')
     },
     materializeErrors: () => {
         const missing: Entry = { ...r2, revision: { ...r2.revision, parents: [r3Hash], snapshot: undefined } }
         const multi: Entry = { ...r4, revision: { ...r4.revision, snapshot: undefined } }
+        const cycleA: Entry = { ...r1, revision: { ...r1.revision, parents: [r2Hash] } }
+        const cycleB: Entry = { ...r2, revision: { ...r2.revision, parents: [r1Hash], snapshot: undefined } }
         assertEq(materialize([missing])(missing)[0], 'error')
         assertEq(materialize([r2, r3, multi])(multi)[0], 'error')
+        assertEq(materialize([cycleA, cycleB])(cycleA)[0], 'error')
+        assertEq(expectedGeneration([missing])(missing)[0], 'error')
+        assertEq(expectedGeneration([cycleA, cycleB])(cycleA)[0], 'error')
+        assertEq(verifyGeneration([missing])(missing)[0], 'error')
     },
 }
