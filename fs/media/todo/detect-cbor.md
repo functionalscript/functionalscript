@@ -66,6 +66,19 @@ safe — any value yields an `application/*+cbor` type) →
 satisfies a dialect's schema is detected as that dialect, whatever its entry
 order or encoding details.
 
+The non-settling requirement is therefore **not** limited to tier-1 tag
+matches. A canonical FS blob carries no wrapper (see the producer rule below),
+so its first byte is an ordinary CBOR header (e.g. a map header such as
+`0xA4`): no magic signature matches and the UTF-8 factor goes invalid almost
+immediately — exactly the state today's `isSettled`
+(`fs/media/type/module.f.ts`) treats as terminal `application/octet-stream`,
+which would freeze the verdict before this tier ever decodes the buffer. Tier 2
+must add a detector factor that keeps such streams unsettled — buffering up to
+the 128 KiB cap — until the CBOR decode + schema validation succeeds or
+definitively fails; only on a failed decode, a non-validating value, or a blob
+exceeding the cap does the verdict fall back to `application/octet-stream` (or
+generic `application/cbor` on a tier-1 tag match).
+
 **Encoding rule for producers** (to be stated in the format specs): FS-produced
 tagged CBOR MUST use RFC 8949 §4.2 core deterministic encoding (definite
 lengths, keys in deterministic bytewise order) and no tag-55799 wrapper — the
@@ -104,7 +117,13 @@ the honest answer.
       without the tier-1 tag prefix; on a map, decode the `dialect` value,
       grammar-check `+`-separated segments, allowlist `vnd.fjs.*`, validate
       against the dialect's schema — no entry-order or byte-signature
-      assumptions → `application/{dialect}+cbor`
+      assumptions → `application/{dialect}+cbor`. Includes a tier-2 detector
+      factor keeping **every** stream unsettled up to the size cap — not only
+      tag-55799 matches: an unwrapped canonical dialect map (first byte an
+      ordinary CBOR header, magic dead, UTF-8 invalid) must not settle as
+      `application/octet-stream` before the decode runs; the fallback verdict
+      applies only after a failed decode, a non-validating value, or the cap
+      being exceeded — proof cases covering the unwrapped canonical map
 - [ ] Surface the derived type in `cas_get` / resource read alongside the JSON
       path (same rules, different suffix); extend the optional `dialect`
       field/header to CBOR blobs — see
