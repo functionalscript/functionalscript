@@ -55,7 +55,7 @@ export const revision = {
      * The subject of this revision: the identity of the mutable object
      * being revised ("subject" as in the subject of a certificate).
      * Usually any string; it must be a hash only when it is used as
-     * the fallback content reference.
+     * the fallback snapshot reference.
      */
     subject: string,
 
@@ -67,12 +67,14 @@ export const revision = {
     parents: array(hash),
 
     /**
-     * Complete materialized content of this revision.
+     * Complete materialized content (snapshot) of this revision.
      *
-     * If absent and there is not exactly one parent, `subject` is used
-     * as the fallback content reference and must validate as a hash.
+     * If absent and there are zero parents, `subject` is used
+     * as the fallback snapshot reference and must validate as a hash.
+     * If absent with exactly one parent, the parent is inherited.
+     * If absent with multiple parents, validation fails.
      */
-    content: option(hash),
+    snapshot: option(hash),
 
     /**
      * Optional cached generation number within the subject's evolution.
@@ -94,13 +96,16 @@ export const revision = {
 
 Notes on the shape:
 
-- `hash` is the only content-reference type in this first revision format. It is a cbase32
+- `hash` is the only snapshot-reference type in this first revision format. It is a cbase32
   native CAS address (see `fs/basen/cbase32/`). Revision blobs do not accept `https://`
-  bridge URLs or any other location-addressed reference form for CAS content references:
-  `parents` and `content` always validate as hashes. `subject` is an identity string, not
-  necessarily a content reference; it validates as a hash only in the fallback case where
-  `content === undefined` and `parents.length !== 1`, because then the revision uses
-  `subject` as the content reference.
+  bridge URLs or any other location-addressed reference form for CAS snapshot references:
+  `parents` and `snapshot` always validate as hashes. `subject` is an identity string, not
+  necessarily a snapshot reference; it validates as a hash only when `snapshot === undefined`
+  and `parents.length === 0`, because then the revision uses `subject` as the snapshot
+  reference. A revision with `snapshot === undefined` and `parents.length === 1` inherits
+  the single parent snapshot. A revision with `snapshot === undefined` and
+  `parents.length > 1` is invalid because there is no single parent snapshot to inherit, and
+  falling back to `subject` would silently lose the merge result.
 - `dialect` is a self-describing format tag. In a generic CAS a blob is just bytes under a
   hash, so without a discriminant a reader can only recognize a revision by guessing from its
   shape, which collides with any other format that happens to have `subject`/`parents` fields.
@@ -131,7 +136,7 @@ Notes on the shape:
   over the base) was dropped: it is *schema*-additive but *semantically* breaking — a v1
   reader would still validate such a blob and materialize the base, silently ignoring the
   changes. Incremental changes are therefore a future separate dialect, `vnd.fjs.change` —
-  `content` vs `change` is the standard snapshot/delta dichotomy of event-sourced systems.
+  `snapshot` vs `change` is the standard snapshot/delta dichotomy of event-sourced systems.
 - **Tagged-JSON detection convention** — the tag is not revision-specific, but it is not
   universal either. `fs/media/` hosts formats from different vendors (`text/html`, plain
   `application/json`, …), and FS's own JavaScript-subset dialects cannot carry an embedded
@@ -156,6 +161,10 @@ Notes on the shape:
     response would invite exactly the confusion the vocabulary split is meant to prevent.
 - **Media detection**: `fs/media` should detect revision blobs by the embedded dialect tag and
   schema validation, then report the derived media type `application/vnd.fjs.revision+json`.
+  Prefix matching can stay streaming, but schema validation requires buffering and parsing
+  JSON, so it must be attempted only when the blob is already buffered or within a
+  size-bounded path such as the existing 128 KiB inline-content cap. Larger blobs must fall
+  back to the existing streaming detector so metadata-only reads remain size-independent.
   This recognition is local to media detection; response shaping is out of scope for this
   issue and can be designed later once the pure detector exists.
 - `subject` gives every revision of the same mutable thing a common anchor to resolve
@@ -163,10 +172,10 @@ Notes on the shape:
   the head is whatever revision(s) reference `subject` and are not listed as a parent by
   another revision *of the same `subject`* — a revision of a different subject referencing
   the same hash (or an unrelated blob imported by sync) must not demote a head. Subject
-  identity can be any string when `content` or exactly one parent supplies the content
-  reference. When neither is available, `subject` doubles as the fallback content reference
-  and must be a hash. A nonce-bearing subject such as `{hash}-{nonce}` is therefore valid
-  only when `subject` is not being used as that fallback content reference. Digital
+  identity can be any string when `snapshot` or exactly one parent supplies the snapshot
+  reference. With zero parents and no `snapshot`, `subject` doubles as the fallback snapshot
+  reference and must be a hash. A nonce-bearing subject such as `{hash}-{nonce}` is therefore valid
+  only when `subject` is not being used as that fallback snapshot reference. Digital
   signatures (a separate, future spec) will filter changes from unknown users.
 - `parents` is an array to support merges (multiple concurrent lines of history converging),
   matching the "multi-device / multi-user, merge freely" model in
@@ -190,8 +199,8 @@ Open design points:
 - The future incremental-change dialect `vnd.fjs.change` (event log, most likely
   CRDT-based): its shape, and how it links to revisions — as a new dialect, not as a field
   of this format (see the versioning rule above).
-- Future content-reference forms beyond cbase32 hashes. Subject identity strings can already
-  use non-hash forms when `content` or exactly one parent supplies the content reference.
+- Future snapshot-reference forms beyond cbase32 hashes. Subject identity strings can already
+  use non-hash forms when `snapshot` or exactly one parent supplies the snapshot reference.
 - The exact syntax of a content-addressed revision reference (e.g.
   `{hash}.{generation}.{hash}` — `hash.generation` alone does not pin a version across
   branches; undefined for now — only hashes are used).
@@ -207,18 +216,20 @@ Open design points:
 - [ ] Create `fs/media/revision/README.md` — the spec of the dialect `vnd.fjs.revision`,
       served as `application/vnd.fjs.revision+json`
       (deployed automatically to functionalscript.com once it exists in the repo)
-- [ ] Define `hash` as the only content-reference type accepted by this dialect, recognizing
+- [ ] Define `hash` as the only snapshot-reference type accepted by this dialect, recognizing
       cbase32 native CAS addresses and rejecting `https://` bridge URLs for `parents`,
-      `content`, and fallback `subject` references
+      `snapshot`, and zero-parent fallback `subject` references
 - [ ] Create `fs/media/revision/module.f.ts` with the RTTI schema for `revision`
       (`fs/types/rtti`), the `dialect` constant, and its derived TS type
 - [ ] Teach `fs/media` detection to recognize valid revision JSON and return the derived
       media type `application/vnd.fjs.revision+json`, falling through to the existing
       detector for unknown dialects or invalid revision blobs
 - [ ] Tests: valid revision detection, invalid revision fallthrough, `https://` bridge URL
-      rejection in `parents`, `content`, and fallback `subject`, arbitrary string `subject`
-      acceptance when `content` is present or `parents.length === 1`, first-key `dialect`
-      prefix matching, and ordinary JSON fallback behavior
+      rejection in `parents`, `snapshot`, and zero-parent fallback `subject`, arbitrary string
+      `subject` acceptance when `snapshot` is present or `parents.length === 1`, invalid
+      multi-parent revisions without `snapshot`, size-bounded schema validation with large
+      blobs falling through to the streaming detector, first-key `dialect` prefix matching,
+      and ordinary JSON fallback behavior
 - [ ] Later, as a separate spec: define the incremental-change dialect `vnd.fjs.change`
       (event log, likely CRDT-based) and how revisions link to it — a new dialect, not a
       new field of this format
