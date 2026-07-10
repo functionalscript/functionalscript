@@ -30,6 +30,13 @@
  * sits between the `RIFF` and `WEBP` markers, so it is matched as a prefix plus
  * a second marker at byte offset 8 rather than a single contiguous run.
  *
+ * `detectVec` additionally recognizes `fs/media/revision` blobs (dialect
+ * `vnd.fjs.revision`, served as `application/vnd.fjs.revision+json`) by their
+ * `{"dialect":"vnd.fjs.` prefix and full schema validation. This only runs on
+ * an already-buffered `Vec` — schema validation needs the whole document
+ * parsed — so `detectStream` (the unbounded streaming path) does not gain it;
+ * a large blob still falls back to the plain magic/UTF-8 verdict there.
+ *
  * @module
  */
 import { msb, fromSentinel, length, u8List, type Vec } from '../../types/bit_vec/module.f.ts'
@@ -40,7 +47,8 @@ import type { List } from '../../effects/list/module.f.ts'
 import type { IoResult } from '../../effects/node/module.f.ts'
 import { ok, error } from '../../types/result/module.f.ts'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.ts'
-import { utf8ByteToCodePointOp, type Utf8State } from '../../text/utf8/module.f.ts'
+import { fromVec, utf8ByteToCodePointOp, type Utf8State } from '../../text/utf8/module.f.ts'
+import { decodeRevision, mediaType as revisionMediaType } from '../revision/module.f.ts'
 
 const { startsWith, removeFront } = msb
 
@@ -271,14 +279,39 @@ export const finish = (s: DetectState): DetectMeta => {
     return { length: byteLength, mime_type: 'application/octet-stream', type: 'base64' }
 }
 
+// The byte prefix a `vnd.fjs.revision` blob always starts with — `dialect` is
+// required to be the first JSON key (see `fs/media/revision`'s README) so this
+// prefix check is a cheap gate before the full parse + schema validation below.
+const revisionPrefix = '{"dialect":"vnd.fjs.revision'
+
 /**
- * Classifies a whole `Vec` with the same state machine as {@link detectStream}.
- * The single-buffer counterpart for callers that already hold the bytes (the
- * `cas_get` `content: true` path materializes the blob anyway): both paths read
- * the three-way `{ length, mime_type, type }` verdict from one machine instead of
+ * Recognizes a `vnd.fjs.revision` blob held in a single `Vec`. Schema
+ * validation needs the whole document parsed, so — unlike the magic-byte
+ * `table` above — this only runs on already-buffered bytes (`detectVec`),
+ * never on the unbounded `detectStream` path; a blob larger than the
+ * `maxLength` cap that some caller buffers anyway is checked all the same,
+ * since the cost here is proportional to the buffer already held, not to
+ * the store's blob size. Returns `null` for anything that isn't valid UTF-8,
+ * doesn't start with the dialect prefix, or fails schema/semantic validation
+ * — those fall through to the generic {@link finish} verdict.
+ */
+const detectRevision = (bytes: Vec): Nullable<DetectMeta> => {
+    const text = fromVec(bytes)
+    if (text === null || !text.startsWith(revisionPrefix)) { return null }
+    const [tag] = decodeRevision(text)
+    return tag === 'error' ? null : { length: length(bytes) >> 3n, mime_type: revisionMediaType, type: 'text' }
+}
+
+/**
+ * Classifies a whole `Vec` with the same state machine as {@link detectStream},
+ * refined by the revision-format check above. The single-buffer counterpart
+ * for callers that already hold the bytes (the `cas_get` `content: true` path
+ * materializes the blob anyway): both paths read the three-way
+ * `{ length, mime_type, type }` verdict from one machine instead of
  * re-deriving it from `detect` + a separate UTF-8 check.
  */
-export const detectVec = (bytes: Vec): DetectMeta => finish(push(detectInit)(bytes))
+export const detectVec = (bytes: Vec): DetectMeta =>
+    detectRevision(bytes) ?? finish(push(detectInit)(bytes))
 
 /**
  * Folds a CAS read stream through {@link push} and reads {@link finish} at EOF,

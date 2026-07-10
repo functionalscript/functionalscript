@@ -3,11 +3,16 @@ import { msb, u8ListToVec, vec8, repeat, empty, type Vec } from '../../types/bit
 import { decode, type Effect } from '../../effects/module.f.ts'
 import { nonEmpty, empty as emptyList, type List } from '../../effects/list/module.f.ts'
 import { ok, type Result } from '../../types/result/module.f.ts'
+import { tryUtf8 } from '../../text/module.f.ts'
+import { unwrap } from '../../types/nullable/module.f.ts'
 import { detect, detectStream, detectVec, type DetectMeta } from './module.f.ts'
 
 // Builds a big-endian `Vec` from a list of byte values — mirrors how the CAS
 // store would hold the leading bytes of a stored blob.
 const bytes = (...b: readonly number[]): Vec => u8ListToVec(msb)(b)
+
+// Builds a `Vec` from UTF-8 text — mirrors how the CAS store holds a JSON blob.
+const text = (s: string): Vec => unwrap(tryUtf8(s))
 
 // ── Streaming detector helpers ──────────────────────────────────────────────────
 
@@ -276,6 +281,39 @@ export const proof = {
             assertEq(m.type, 'base64')
             assertEq(m.mime_type, 'application/octet-stream')
             assertEq(m.length, 3n)
+        },
+
+        // A valid `vnd.fjs.revision` blob is recognized by its dialect tag and
+        // reported with the derived media type.
+        revision: () => {
+            const json = '{"dialect":"vnd.fjs.revision","subject":"2g","parents":[]}'
+            const m = detectVec(text(json))
+            assertEq(m.type, 'text')
+            assertEq(m.mime_type, 'application/vnd.fjs.revision+json')
+            assertEq(m.length, BigInt(json.length))
+        },
+
+        // The dialect prefix matches, but the document fails schema validation
+        // (`parents` is not an array of hashes here) — falls through to plain JSON text.
+        revisionInvalidFallsThrough: () => {
+            const json = '{"dialect":"vnd.fjs.revision","subject":"x","parents":["https://example/x"]}'
+            const m = detectVec(text(json))
+            assertEq(m.type, 'text')
+            assertEq(m.mime_type, 'text/plain')
+        },
+
+        // An unrelated dialect tag doesn't match the `vnd.fjs.revision` prefix at all.
+        revisionUnknownDialectFallsThrough: () => {
+            const m = detectVec(text('{"dialect":"vnd.fjs.other","x":1}'))
+            assertEq(m.type, 'text')
+            assertEq(m.mime_type, 'text/plain')
+        },
+
+        // Non-UTF-8 bytes never reach the revision prefix check.
+        revisionNonUtf8FallsThrough: () => {
+            const m = detectVec(bytes(0xff, 0xfe, 0x00, 0x01))
+            assertEq(m.type, 'base64')
+            assertEq(m.mime_type, 'application/octet-stream')
         },
     },
 }

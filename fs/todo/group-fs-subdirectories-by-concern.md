@@ -145,7 +145,7 @@ API (no `exports` map), so every move is a breaking change. The first wave is
 - [x] Promote the `fjs` bin to `fs/` root; update `package.json`/`deno.json` script paths and fix relative imports.
 - [x] Move `fs/json/` → `fs/media/json/` (one PR; establishes the `fs/media/` bucket).
 - [x] Move `fs/html/` → `fs/media/html/` (one PR).
-- [ ] `fs/media/revision/` arrives as new code via [fs/cas revision-content-format](../cas/todo/revision-content-format.md) — no move needed.
+- [x] `fs/media/revision/` arrives as new code via [fs/cas revision-content-format](../cas/todo/revision-content-format.md) — no move needed.
 - [x] Rename `fs/mime/` → `fs/media/type/`.
 - [ ] Later: move `fs/djs/` → `fs/media/djs/`.
 - [x] Update all relative imports referencing the moved modules.

@@ -38,6 +38,20 @@ WebP is the only non-contiguous signature: the four-byte little-endian file size
 sits between the `RIFF` and `WEBP` markers, so it is matched as a prefix plus a
 second marker at byte offset 8.
 
+## Revision blobs (`vnd.fjs.revision`)
+
+`detectVec` also recognizes [`fs/media/revision`](../revision/) blobs: a
+`vnd.fjs.revision`-tagged JSON document is reported as
+`application/vnd.fjs.revision+json` (`type: 'text'`) instead of falling into
+the generic text bucket below. Detection is a cheap `{"dialect":"vnd.fjs.`
+prefix check followed by full parse + schema validation — schema validation
+needs the whole document, so this only runs on a `Vec` a caller already holds
+(e.g. within the 128 KiB inline-content cap), never on the unbounded
+`detectStream` path. A blob that doesn't match the prefix, isn't valid UTF-8,
+or fails validation falls through to the plain magic/UTF-8 verdict below
+unchanged; response shaping beyond the detected `mime_type` is out of scope
+here.
+
 ## Streaming detector (`detectStream`)
 
 `detectVec` classifies a whole blob held in a single `Vec`, which caps at
