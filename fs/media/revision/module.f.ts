@@ -14,6 +14,9 @@ import { validate as rttiValidate } from '../../types/rtti/validate/module.f.ts'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.ts'
 import { length } from '../../types/bit_vec/module.f.ts'
 import { stringify, type Unknown as JsonUnknown } from '../json/module.f.ts'
+import { parse as parseJson } from '../json/parser/module.f.ts'
+import { tokenize } from '../json/tokenizer/module.f.ts'
+import { stringToList } from '../../text/utf16/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { ok, error, type Result } from '../../types/result/module.f.ts'
 
@@ -89,9 +92,8 @@ export const validate = (value: JsonUnknown): Result<Revision, string> => {
 
 /** Parses and validates a revision JSON document. */
 export const decode = (text: string): Result<Revision, string> => {
-    try {
-        return validate(JSON.parse(text))
-    } catch (e) {
-        return error(`${e}`)
-    }
+    const parsed = parseJson(tokenize(stringToList(text)))
+    return parsed[0] === 'error'
+        ? error(parsed[1])
+        : validate(parsed[1])
 }
