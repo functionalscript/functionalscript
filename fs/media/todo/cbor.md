@@ -6,7 +6,7 @@
 The codec (this todo) and CBOR *detection*
 ([detect-cbor.md](detect-cbor.md)) are two different tasks: this one builds the
 pure `fs/media/cbor` module; detection consumes it (tiers 2–3) from the
-`fs/mime` classifier.
+`fs/media/type` classifier.
 
 ### Problem
 

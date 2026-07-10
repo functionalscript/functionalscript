@@ -39,8 +39,9 @@ fs/media/
 Later candidates for the same bucket, deliberately deferred to keep each PR
 small:
 
-- `media/type/` — media-type detection (today's `fs/mime`), renamed;
 - `media/djs/` — mimeType `text/javascript`, dialect `vnd.fjs.djs+vnd.fjs.fjs`.
+
+`media/type/` — media-type detection, renamed from `fs/mime` — has landed; see below.
 
 **Membership rule:** a module goes under `fs/media/` iff it implements content
 whose identity is a media type — or a named **dialect** of one (see below).
@@ -101,10 +102,10 @@ today's `fs/fjs` is only the CLI dispatcher, which item 3 above promotes to
 `fs/` root, leaving nothing to move — a `media/fjs/` module appears only
 if a library-form FJS format module comes to exist.
 
-**`media/type/`** is the current `fs/mime` detector, renamed: detection is
+**`media/type/`** is the former `fs/mime` detector, renamed: detection is
 about media *types*; the sibling directories are the media themselves. This
 placement enables the declarative step (see
-[fs/mime detect-json](../mime/todo/detect-json.md)): the detector can dispatch
+[fs/media/type detect-json](../media/type/todo/detect-json.md)): the detector can dispatch
 over its siblings' declared `{ mime, parse, serialize }` instead of hardcoding
 per-format branches.
 
@@ -135,7 +136,7 @@ membership rule — `media` + the vendor tree gives one).
 **Migration:** incremental, one move per PR — directory paths are the public
 API (no `exports` map), so every move is a breaking change. The first wave is
 `json` and `html` (moves) plus `revision` (new code, no move); the
-`fs/mime` → `media/type/` rename and `djs` follow later.
+`fs/mime` → `media/type/` rename has since landed; `djs` follows later.
 
 ### Tasks
 
@@ -145,7 +146,7 @@ API (no `exports` map), so every move is a breaking change. The first wave is
 - [x] Move `fs/json/` → `fs/media/json/` (one PR; establishes the `fs/media/` bucket).
 - [x] Move `fs/html/` → `fs/media/html/` (one PR).
 - [ ] `fs/media/revision/` arrives as new code via [fs/cas revision-content-format](../cas/todo/revision-content-format.md) — no move needed.
-- [ ] Later: rename `fs/mime/` → `fs/media/type/`.
+- [x] Rename `fs/mime/` → `fs/media/type/`.
 - [ ] Later: move `fs/djs/` → `fs/media/djs/`.
 - [x] Update all relative imports referencing the moved modules.
 - [ ] Update `deno.json` `exports` map and run `npm run update` (no `exports` map exists in `deno.json` currently; nothing to update).

@@ -17,11 +17,11 @@ point is text unless it is a control character — C0 (`U+0000`–`U+001F`), `U+
 (DEL), and C1 (`U+0080`–`U+009F`) — minus the whitespace block `U+0009`–`U+000D`
 (TAB, LF, VT, FF, CR), which is legitimate in text. The two are deliberately
 distinct: a control byte such as NUL is perfectly valid UTF-8 yet not text, which
-is exactly what `fs/mime` needs to split text from binary. `isValidCodePoint`
+is exactly what `fs/media/type` needs to split text from binary. `isValidCodePoint`
 gates decoding (`fromVec`); `isTextCodePoint` gates classification.
 
 `isValidCodePoint` was previously exported from `utf8/module.f.ts`; it now lives
-solely on `code_point`. Importers — `fs/mime` and `utf8`'s own `fromVec` — take
+solely on `code_point`. Importers — `fs/media/type` and `utf8`'s own `fromVec` — take
 it from `code_point` directly. This was a deliberate breaking change rather than
 a re-export, on the principle that the predicate's canonical home is the shared
 Unicode contract.

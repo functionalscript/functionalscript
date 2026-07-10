@@ -1,7 +1,7 @@
 # MIME detection
 
 Magic-byte MIME type detection: a pure table lookup over the leading bytes of a
-`Vec`. No I/O, no dependencies beyond [`fs/types/bit_vec`](../types/bit_vec/).
+`Vec`. No I/O, no dependencies beyond [`fs/types/bit_vec`](../../types/bit_vec/).
 
 ```ts
 import { detect } from './module.f.ts'
@@ -12,7 +12,7 @@ detect(textBytes)  // null
 
 ## Why detect rather than store
 
-The content-addressable store ([`fs/cas`](../cas/)) is type-agnostic by design —
+The content-addressable store ([`fs/cas`](../../cas/)) is type-agnostic by design —
 it keeps raw bytes only, with no room for a per-blob type tag. Type is therefore
 **recovered on read** by sniffing the content, not written on `cas_add`. This
 keeps the store a pure `hash → bytes` map and confines all type knowledge to the
@@ -93,7 +93,7 @@ blob costs ≈ length counting past the settling point.
 
 `magic` and `utf8` are recognizers (`δ` step + `λ` verdict on the final state),
 the exact shape a declarative BNF→DFA recognizer backend would generate — see
-[`fs/bnf` recognizer-backend](../bnf/todo/recognizer-backend.md). That backend
+[`fs/bnf` recognizer-backend](../../bnf/todo/recognizer-backend.md). That backend
 does not exist yet, so the two factors are hand-written here: `magicStep` does
 signature elimination (the streaming form of the table above) and `utf8Step`
 rides the existing `fs/text/utf8` decoder. When the backend lands, these should
@@ -104,7 +104,7 @@ clause, touching no existing transition.
 
 ## Consumers
 
-- [`fs/cas/mcp`](../cas/mcp/) — `cas_get` classifies with the state machine on
+- [`fs/cas/mcp`](../../cas/mcp/) — `cas_get` classifies with the state machine on
   both paths: `detectStream` folds the read stream for the default metadata-only
   call (size-independent), and `detectVec` classifies the collected blob when
   `content: true` is requested, so the three-way verdict has a single

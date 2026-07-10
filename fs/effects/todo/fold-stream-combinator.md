@@ -9,7 +9,7 @@ Every consumer of a `List<O, IoResult<Vec>>` re-hand-writes the same
 three-case fold: *EOF → finalize; error item → propagate; chunk → fold and
 recurse on the tail.* The skeleton currently appears four times:
 
-`detectStream` (`fs/mime/module.f.ts:290-299`) — pure fold:
+`detectStream` (`fs/media/type/module.f.ts:290-299`) — pure fold:
 
 ```ts
 const loop = (s: DetectState) => (l: List<O, IoResult<Vec>>): Effect<O, IoResult<DetectMeta>> =>
@@ -98,7 +98,7 @@ consumers first; the writers follow only if the shape stays clean.
 ### Tasks
 
 - [ ] Add `foldStream` to `fs/effects/list/module.f.ts` with proof coverage.
-- [ ] Convert `detectStream` (`fs/mime`) and `collectRead` (`fs/cas/mcp`).
+- [ ] Convert `detectStream` (`fs/media/type`) and `collectRead` (`fs/cas/mcp`).
 - [ ] Convert `writeLoop` (`fs/effects/node`) if the effectful step fits
       without contortion; otherwise document why in this issue and keep it.
 - [ ] Evaluate `fileCas.write`'s loop; convert or document why not.
