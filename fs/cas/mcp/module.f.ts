@@ -96,6 +96,7 @@ import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../mime/module.f.ts'
+import { decode as decodeRevision, mimeType as revisionMimeType } from '../../media/revision/module.f.ts'
 import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, vec, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
 import { type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
@@ -203,31 +204,36 @@ const casToolRegistry =
                 if (tag === 'error') {
                     return pure(errorResult(`no such hash: ${r.hash}`))
                 }
-                const { length, mime_type: mimeType, type } = detected
-                const meta: Meta = { length: Number(length), mimeType, type, uri }
-                if (r.content !== true) {
-                    // content:true path continues below; this is just the metadata step.
-                    return pure(okResult(toJson(meta)))
-                }
-                // A single `Vec` caps at `maxLength` bits (`maxLengthBytes` bytes), so
-                // a larger blob cannot be buffered for inline transfer. Report the
-                // size and point at the size-independent alternatives instead of
-                // misreporting an existing blob as `no such hash`.
+                const { length, mime_type: detectedMimeType, type } = detected
+                const detectedMeta: Meta = { length: Number(length), mimeType: detectedMimeType, type, uri }
+                // Known tagged-JSON dialects may refine the generic text/plain verdict, but
+                // only after bounded materialization and schema validation. Larger blobs keep
+                // the O(1)-space streaming detector result.
                 if (length > maxLengthBytes) {
-                    return pure(errorResult(
-                        `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the uri field (${uri}) or omit content for metadata`))
+                    return r.content === true
+                        ? pure(errorResult(
+                            `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the uri field (${uri}) or omit content for metadata`))
+                        : pure(okResult(toJson(detectedMeta)))
                 }
                 return collectRead(c.read(key)).step(([collectTag, value]) => {
+                    const text = collectTag === 'ok' ? fromVec(value) : null
+                    const revision = text === null ? error('not text') : decodeRevision(text)
+                    const meta: Meta = {
+                        ...detectedMeta,
+                        mimeType: revision[0] === 'ok' ? revisionMimeType : detectedMeta.mimeType,
+                    }
+                    if (r.content !== true) {
+                        return pure(okResult(toJson(meta)))
+                    }
                     if (collectTag === 'error') {
                         return pure(errorResult(`no such hash: ${r.hash}`))
                     }
                     if (type === 'text') {
                         // `type: 'text'` means the detector validated `value` as UTF-8,
-                        // so `fromVec` is non-null here; guard defensively regardless.
-                        const str = fromVec(value)
-                        return pure(str === null
+                        // so `text` is non-null here; guard defensively regardless.
+                        return pure(text === null
                             ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                            : okResult(toJson({ ...meta, text: str }))
+                            : okResult(toJson({ ...meta, text }))
                         )
                     }
                     const blob = base64Encode(value)

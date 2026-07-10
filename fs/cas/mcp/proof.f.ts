@@ -4,7 +4,7 @@ import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../media/json/module.f.ts'
 import type { Response } from '../../media/json/rpc/module.f.ts'
-import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../../types/bit_vec/module.f.ts'
+import { msb, u8ListToVec, vec8, repeat, length, vec, type Vec, maxLengthBytes } from '../../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { encode as base64Encode } from '../../basen/base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
@@ -32,6 +32,7 @@ import type {
 } from '../../effects/node/module.f.ts'
 import { emptyState, virtual, type Dir } from '../../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
+import { encode as encodeRevision } from '../../media/revision/module.f.ts'
 import { ok as resultOk } from '../../types/result/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import { fromVec } from '../../types/uint8array/module.f.ts'
@@ -192,6 +193,14 @@ const textOf = (resp: unknown): string => (item0(resp) as { readonly text: strin
 
 // A plain text sample for text add→get round-trips.
 const textSample = 'hello, world!'
+
+const revisionSubject = vecToCBase32(vec(256n)(1n))
+
+const revisionSample = encodeRevision({
+    dialect: 'vnd.fjs.revision',
+    subject: revisionSubject,
+    parents: [],
+})
 
 // A base64-encoded binary payload for binary add→get round-trips.
 const binarySample = base64Encode(vec8(0x2An)) as string
@@ -386,6 +395,20 @@ export const proof = {
         assertEq(result.mimeType, 'text/plain')
         assertEq(result.type, 'text')
         assertEq(result.length, textSample.length)
+        assertEq(result.text, undefined)
+    },
+
+    revisionGetMetaReturnsRevisionMimeType: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: revisionSample }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: revisionSample }),
+            call(3, 'cas_get', { hash }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        assertEq(result.mimeType, 'application/vnd.fjs.revision+json')
+        assertEq(result.type, 'text')
         assertEq(result.text, undefined)
     },
 
