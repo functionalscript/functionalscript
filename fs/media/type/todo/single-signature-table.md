@@ -6,7 +6,7 @@
 ### Problem
 
 Every recognized signature (PNG, JPEG, 2×GIF, PDF, 3×ZIP, WebP) is declared
-twice in `fs/mime/module.f.ts`, in two representations that must stay in
+twice in `fs/media/type/module.f.ts`, in two representations that must stay in
 byte-for-byte lockstep:
 
 - sentinel-`Vec` form for the pure path — `table` at `:56-69` plus the
@@ -23,7 +23,7 @@ special-cased in both (a bespoke `isWebp` here, a wildcard run there).
 
 Note the consumer situation: `detectStream` is the only export with a real
 consumer (`fs/cas/mcp/module.f.ts:88`); `detect` and `detectVec` are
-exercised only by `fs/mime/proof.f.ts`.
+exercised only by `fs/media/type/proof.f.ts`.
 
 ### Proposal
 
@@ -60,10 +60,10 @@ overview; it is documentation, not a third implementation.
 - [ ] Confirm `detect`'s "too short to match" behavior is preserved (a
       `scan`-state machine at EOF yields `null`, matching today's prefix
       semantics).
-- [ ] `npx tsc`, `fjs t`; `fs/mime/proof.f.ts` must pass unchanged.
+- [ ] `npx tsc`, `fjs t`; `fs/media/type/proof.f.ts` must pass unchanged.
 
 ### Related
 
-- `fs/mime/module.f.ts:116` — the comment acknowledging the duplication.
+- `fs/media/type/module.f.ts:116` — the comment acknowledging the duplication.
 - `fs/cas/mcp/module.f.ts:88` — the sole external consumer
   (`detectStream`).
