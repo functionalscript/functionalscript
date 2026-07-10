@@ -36,6 +36,12 @@ and the (future) resource view of a blob use the same terminology:
   blob is (or will be) readable via `resources/read`, so a client can move from
   the tool result to the resource without translation.
 - `length` stays — MCP allows additional fields alongside the required ones.
+- Future: an optional `dialect` field may accompany `mimeType` when the blob is a
+  recognized FS dialect of a standard type — e.g. `mimeType: "text/javascript"` with
+  `dialect: "vnd.fjs.djs+vnd.fjs.fjs"`. The wire type stays interoperable while the precise
+  format is still reported; HTTP responses can carry the same value as a `Dialect`
+  header. See the dialect naming rule in
+  [../../../todo/group-fs-subdirectories-by-concern.md](../../../todo/group-fs-subdirectories-by-concern.md).
 
 ### Tasks
 
@@ -52,5 +58,6 @@ and the (future) resource view of a blob use the same terminology:
 
 - [remote-url.md](remote-url.md) — serving URLs as resources
 - [../../todo/revision-content-format.md](../../todo/revision-content-format.md) —
-  the `mimeType` format tag inside revision blobs that the server can surface (after
-  validation) as the response `mimeType`
+  the `dialect` format tag inside revision blobs whose derived media type
+  (`application/{dialect}+json`) the server can surface (after validation) as the
+  response `mimeType`
