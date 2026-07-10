@@ -46,5 +46,3 @@ utf16 work, land that first and fold this in.
 - `fs/text/README.md` — the layout's specification tables.
 - `fs/text/todo/666-utf16-encode-errormask.md` — adjacent errorMask
   contract work; coordinate ordering.
-- [lead-byte-classifier-dedup](./lead-byte-classifier-dedup.md) — sibling
-  cleanup in the same function family.
