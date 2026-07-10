@@ -67,5 +67,5 @@ drives it.
 
 - `fs/text/code_point/module.f.ts:33-41` — `decoder` (i168), the factory this
   completes.
-- [codec-restart-shared](./codec-restart-shared.md) — the companion
-  fresh-dispatch extraction.
+- [lead-byte-classifier-dedup](../utf8/todo/lead-byte-classifier-dedup.md) —
+  the companion fresh-dispatch extraction across both codecs.
