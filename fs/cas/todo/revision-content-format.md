@@ -35,10 +35,10 @@ recognition:
   `fs/media` detector should be able to identify a valid revision blob and return the
   derived media type `application/vnd.fjs.revision+json`.
 
-Store-touching evolution operations (head resolution, materialization, per-object reverse
-indexes, MCP resource behavior) are intentionally deferred. This issue only defines the
-revision type and teaches media detection to recognize it; it does not add an `fs/cas/evo`
-module and does not materialize revisions.
+Store-touching evolution operations (head resolution, materialization, and per-object
+reverse indexes) are intentionally deferred. This issue only defines the revision type and
+teaches media detection to recognize it; it does not add store-side evolution code and does
+not materialize revisions.
 
 ```ts
 export const revision = {
@@ -136,29 +136,25 @@ Notes on the shape:
   `text/javascript` (no `+javascript` suffix is registered, and JavaScript MIME types are
   a closed list nothing recognizes extensions of), and carry the same kind of short
   dialect name (`vnd.fjs.fjs`, `vnd.fjs.djs+vnd.fjs.fjs`) out of band. Out-of-band surfacing is
-  transport-generic: a server that knows the dialect can always attach it — an additional
-  `dialect` field in MCP responses (MCP permits extra fields) or a `Dialect` header in
-  HTTP responses. The convention applies to **new JSON media
+  transport-generic: a server that knows the dialect can always attach it alongside the
+  payload, for example with a response field or header. The convention applies to **new JSON media
   types designed in FunctionalScript**, and even there it is a recommendation (a good
   default), not a requirement: such a format MAY be a JSON object whose **first** key is
   `dialect`, so detection matches the byte prefix `{"dialect":"vnd.fjs.` and then
   validates against the schema of the named dialect; anything that does not match falls
   through to normal media detection. This format adopts the convention. The key is spelled
   `dialect` — one vocabulary for both the embedded tag and the out-of-band field — and not:
-  - `mimeType` — the field name MCP JSON uses at top level: resource contents are
-    `{ uri, mimeType, text | blob }` and our own `cas_get` tool result is
-    `{ length, mimeType, type[, uri] }` (see
-    [../mcp/todo/cas-get-mcp-resource-response.md](../mcp/todo/cas-get-mcp-resource-response.md)).
-    Any such response stored back into CAS would false-positive a `{"mimeType":` prefix
-    sniff, and the value here is not a MIME type anyway.
+  - `mimeType` — a common response field name. Any response envelope stored back into CAS
+    would false-positive a `{"mimeType":` prefix sniff, and the value here is not a MIME
+    type anyway.
   - `contentType` — echoes the HTTP header, and `content` is already a colliding term in
-    MCP (`CallToolResult.content`), the very reason `cas_get` renamed its `content` key away.
+    many response envelopes.
   - `mediaType` — near-synonym of `mimeType`; serving both keys side by side in one
     response would invite exactly the confusion the vocabulary split is meant to prevent.
 - **Media detection**: `fs/media` should detect revision blobs by the embedded dialect tag and
   schema validation, then report the derived media type `application/vnd.fjs.revision+json`.
-  This recognition is local to media detection; CAS/MCP response shaping is out of scope
-  for this issue and can be designed later once the pure detector exists.
+  This recognition is local to media detection; response shaping is out of scope for this
+  issue and can be designed later once the pure detector exists.
 - `subject` gives every revision of the same mutable thing a common anchor to resolve
   "current head(s)" against, without requiring a mutable pointer anywhere in CAS itself —
   the head is whatever revision(s) reference `subject` and are not listed as a parent by
@@ -167,18 +163,13 @@ Notes on the shape:
   identity normally comes from the first `snapshot`: the hash of
   the subject's initial content is the subject's identity. Two subjects created from identical
   initial content therefore share an identity — this is by design: it is fine to have many
-  changes of the same object from different users. When distinct identity is wanted, a ref
-  can carry an additional nonce (`{hash}-{nonce}`). Digital signatures (a separate, future
-  spec) will filter changes from unknown users. `subject` is also the fallback for `parents`:
-  a revision with no parents uses `subject` as its base (see the algorithm below).
+  changes of the same object from different users. When distinct identity is wanted, a
+  future reference form can carry an additional nonce (`{hash}-{nonce}`). Digital signatures
+  (a separate, future spec) will filter changes from unknown users. `subject` is also the
+  fallback for `parents`: a revision with no parents uses `subject` as its base.
 - `parents` is an array to support merges (multiple concurrent lines of history converging),
   matching the "multi-device / multi-user, merge freely" model in
   [vision.md](../../../todo/plan/vision.md).
-- **Future materialization algorithm** — out of scope for the first detector-only change.
-  The intended rule is that the base of a revision is its materialized parent, or `subject`
-  itself when `parents` is empty: if `snapshot` is present, use it; otherwise, use the base.
-  A revision with multiple `parents` (a merge) must carry `snapshot`: with more than one
-  parent there is no single base to fall back to.
 - **Conflicting concurrent heads** are resolved the same way as in Git: a merge tool creates
   a new revision that references the conflicting revisions as `parents`. The format itself
   does not resolve conflicts; it records their resolution. CAS synchronization MUST never
