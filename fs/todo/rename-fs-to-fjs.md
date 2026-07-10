@@ -30,9 +30,9 @@ Rename the top-level source directory `fs/` to `fjs/`.
   `fs/` re-exports from `fjs/` for a version or two.
 - **`fs/fjs/` remnant.** After the `fjs` bin was promoted to the `fs/` root
   (see [group-fs-subdirectories-by-concern](group-fs-subdirectories-by-concern.md)),
-  `fs/fjs/` holds only leftover `todo/` files describing the CLI. Move them
-  to `fs/todo/` (i.e. the future `fjs/todo/`) and delete `fs/fjs/` before or
-  as part of the rename, so the result is not a confusing `fjs/fjs/`.
+  `fs/fjs/` holds only leftover `todo/` files describing the CLI. As part of
+  the rename, move `fs/fjs/todo/*` to `fjs/todo/` and delete the emptied
+  directory, so the result is not a confusing `fjs/fjs/`.
 
 ### Considered alternative
 
@@ -43,9 +43,13 @@ much bigger break and mixes source with repo infrastructure (`docker/`,
 
 ### Tasks
 
-- [ ] Move `fs/fjs/todo/*` to `fs/todo/` and delete `fs/fjs/`.
 - [ ] `git mv fs fjs`.
+- [ ] Move `fs/fjs/todo/*` (now `fjs/fjs/todo/*`) to `fjs/todo/` and delete
+      the emptied `fjs/fjs/`.
 - [ ] Update `package.json`: `bin.fjs` and all script paths.
+- [ ] Regenerate `package-lock.json` (`npm install`) — it duplicates the root
+      package metadata, including `bin.fjs: "fs/module.js"`. `deno.lock` and
+      `bun.lock` carry no `fs/` paths.
 - [ ] Update `deno.json`: `fjs` task path.
 - [ ] Update path references in README, docs, and `todo/` files.
 - [ ] Add a **breaking** CHANGELOG entry (`functionalscript/fs/...` →
