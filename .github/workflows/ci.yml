@@ -24,7 +24,7 @@
         {
           "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.4.0"
+            "node-version": "26.5.0"
           }
         },
         {
@@ -77,7 +77,7 @@
         {
           "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.4.0"
+            "node-version": "26.5.0"
           }
         },
         {
@@ -118,7 +118,7 @@
         {
           "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.4.0"
+            "node-version": "26.5.0"
           }
         },
         {
@@ -159,7 +159,7 @@
         {
           "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.4.0"
+            "node-version": "26.5.0"
           }
         },
         {
@@ -201,7 +201,7 @@
         {
           "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.4.0"
+            "node-version": "26.5.0"
           }
         },
         {
@@ -254,7 +254,7 @@
         {
           "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.4.0"
+            "node-version": "26.5.0"
           }
         },
         {
@@ -391,7 +391,7 @@
         {
           "uses": "denoland/setup-deno@v2.0.5",
           "with": {
-            "deno-version": "2.9.1"
+            "deno-version": "2.9.2"
           }
         },
         {
@@ -498,7 +498,7 @@
         {
           "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.4.0"
+            "node-version": "26.5.0"
           }
         },
         {
@@ -527,7 +527,7 @@
         {
           "uses": "actions/setup-node@v6.4.0",
           "with": {
-            "node-version": "26.4.0"
+            "node-version": "26.5.0"
           }
         },
         {
