@@ -73,6 +73,25 @@ const contByte = (x: number) => x & contMask | contTag
 const contPayload = (b: number) => b & contMask
 
 /**
+ * The valid lead-byte range for 2-, 3-, and 4-byte sequences (RFC 3629);
+ * excludes overlong 2-byte leads (`C0`, `C1`) and leads above `U+10FFFF` (`F5`-`F7`).
+ */
+const leadMin = 0b1100_0010
+const leadMax = 0b1111_0100
+const isLeadByte = (b: number): boolean => b >= leadMin && b <= leadMax
+
+/**
+ * Dispatches a fresh-state byte, emitting `prefix` ahead of whatever the byte
+ * itself produces. Shared by the `state === null` arm and by error recovery
+ * after {@link utf8StateToError}, which differ only in `prefix`.
+ */
+const restart = (prefix: readonly I32[]) =>
+    (byte: number): readonly [readonly I32[], Utf8State] =>
+        byte < contTag ? [[...prefix, byte], null]
+        : isLeadByte(byte) ? [[...prefix], [byte]]
+        : [[...prefix, byte | errorMask], null]
+
+/**
  * Converts a Unicode code point to a sequence of UTF-8 bytes.
  * @param input The Unicode code point to be converted. Valid range:
  *   - 0x0000 to 0x007F for 1-byte sequences.
@@ -191,11 +210,7 @@ export const utf8ByteToCodePointOp: StateScan<number, Utf8State, readonly I32[]>
     if (byte < 0x00 || byte > 0xff) {
         return [[errorMask], state]
     }
-    if (state === null) {
-        if (byte < contTag) return [[byte], null]
-        if (byte >= 0b1100_0010 && byte <= 0b1111_0100) return [[], [byte]]
-        return [[byte | errorMask], null]
-    }
+    if (state === null) return restart([])(byte)
     if (byte >= contTag && byte < lead2Tag) {
         switch (state.length) {
             case 1: {
@@ -233,10 +248,7 @@ export const utf8ByteToCodePointOp: StateScan<number, Utf8State, readonly I32[]>
             }
         }
     }
-    const error = utf8StateToError(state)
-    if (byte < contTag) return [[error, byte], null]
-    if (byte >= 0b1100_0010 && byte <= 0b1111_0100) return [[error], [byte]]
-    return [[error, byte | errorMask], null]
+    return restart([utf8StateToError(state)])(byte)
 }
 
 /**
