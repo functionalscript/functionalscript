@@ -163,10 +163,12 @@ Notes on the shape:
   identity normally comes from the first `snapshot`: the hash of
   the subject's initial content is the subject's identity. Two subjects created from identical
   initial content therefore share an identity — this is by design: it is fine to have many
-  changes of the same object from different users. When distinct identity is wanted, a
-  future reference form can carry an additional nonce (`{hash}-{nonce}`). Digital signatures
-  (a separate, future spec) will filter changes from unknown users. `subject` is also the
-  fallback for `parents`: a revision with no parents uses `subject` as its base.
+  changes of the same object from different users. This hash-only dialect does not support
+  distinct identities for identical initial content. A nonce-bearing reference form such as
+  `{hash}-{nonce}` would not be a cbase32 hash, so it is explicitly future/out-of-scope and
+  would require a later dialect or separate design. Digital signatures (a separate, future
+  spec) will filter changes from unknown users. `subject` is also the fallback for `parents`:
+  a revision with no parents uses `subject` as its base.
 - `parents` is an array to support merges (multiple concurrent lines of history converging),
   matching the "multi-device / multi-user, merge freely" model in
   [vision.md](../../../todo/plan/vision.md).
@@ -189,8 +191,8 @@ Open design points:
 - The future incremental-change dialect `vnd.fjs.change` (event log, most likely
   CRDT-based): its shape, and how it links to revisions — as a new dialect, not as a field
   of this format (see the versioning rule above).
-- Future reference forms beyond cbase32 hashes (including the optional `{hash}-{nonce}`
-  form for distinct subject identity), if a later dialect needs them.
+- Future reference forms beyond cbase32 hashes, including a possible nonce-bearing form for
+  distinct subject identity. Such forms are out of scope for this hash-only dialect.
 - The exact syntax of a content-addressed revision reference (e.g.
   `{hash}.{generation}.{hash}` — `hash.generation` alone does not pin a version across
   branches; undefined for now — only hashes are used).
