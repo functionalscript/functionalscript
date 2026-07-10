@@ -24,20 +24,21 @@ change in disguise. Incremental changes will arrive later as their own dialect
 (`vnd.fjs.change`, served as `application/vnd.fjs.change+json`; see the versioning rule
 below), not as a field of this one.
 
-The design splits the format from the store operations, to keep the dependency graph
-acyclic:
+The first implementation step is deliberately limited to the pure format and media
+recognition:
 
 - **`fs/media/revision/`** — the pure format: the RTTI schema, the `dialect` constant,
   encode/decode/validate, and the README spec. No store access, no effects. It must live
   under `fs/media/` (see
   [fs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md))
-  because media-type detection has to import the schema to recognize revision blobs, and
-  `fs/cas/mcp` already depends on the detector — a format inside `fs/cas` would therefore
-  close a `cas` ↔ detector cycle.
-- **`fs/cas/evo/`** ("evo" for evolution, following the existing `fs/cas/cli/` and
-  `fs/cas/mcp/` layout) — the store-touching operations: head resolution, materialization,
-  the per-object reverse index. Depends on `fs/cas` and `fs/media/revision`. This keeps
-  `fs/cas/module.f.ts` focused on hashing/addressing.
+  because media-type detection has to import the schema to recognize revision blobs. The
+  `fs/media` detector should be able to identify a valid revision blob and return the
+  derived media type `application/vnd.fjs.revision+json`.
+
+Store-touching evolution operations (head resolution, materialization, per-object reverse
+indexes, MCP resource behavior) are intentionally deferred. This issue only defines the
+revision type and teaches media detection to recognize it; it does not add an `fs/cas/evo`
+module and does not materialize revisions.
 
 ```ts
 export const revision = {
@@ -54,13 +55,12 @@ export const revision = {
      * The subject of this revision: the identity of the mutable object
      * being revised ("subject" as in the subject of a certificate).
      */
-    subject: ref,
+    subject: hash,
 
     /**
      * Parent Revision BLOBs. Empty array means this is the first revision.
      *
-     * `hash` is the hash-only subset of `ref`: a parent is a CAS blob,
-     * so a bridge URL cannot stand in for it.
+     * Parent revisions are CAS blobs, so each parent is a hash.
      */
     parents: array(hash),
 
@@ -70,7 +70,7 @@ export const revision = {
      * If absent, the revision materializes to its base: the parent's
      * materialization, or `subject` itself for a first revision.
      */
-    snapshot: option(ref),
+    snapshot: option(hash),
 
     /**
      * Optional cached generation number within the subject's evolution.
@@ -92,12 +92,12 @@ export const revision = {
 
 Notes on the shape:
 
-- `ref` is a URL in content-addressed digital space. For now two forms are recognized: a
-  cbase32 hash (a native CAS address, see `fs/basen/cbase32/`), and a standard `https://` URL as a
-  bridge to the legacy location-addressed web. More forms are planned. Some ref positions
-  are restricted to hashes only and use the narrower `hash` type in the schema — `parents`
-  is one: a parent revision is a CAS blob, so a bridge URL cannot stand in for it, and a
-  revision with a non-CAS parent must not validate.
+- `hash` is the only reference type in this first revision format. It is a cbase32 native
+  CAS address (see `fs/basen/cbase32/`). Revision blobs do not accept `https://` bridge
+  URLs or any other location-addressed reference form: `subject`, `parents`, and `snapshot`
+  all validate as hashes. Future non-hash reference forms, if needed, belong in a later
+  dialect or a separate design so v1 readers never silently accept references they cannot
+  resolve as CAS blobs.
 - `dialect` is a self-describing format tag. In a generic CAS a blob is just bytes under a
   hash, so without a discriminant a reader can only recognize a revision by guessing from its
   shape, which collides with any other format that happens to have `subject`/`parents` fields.
@@ -155,22 +155,10 @@ Notes on the shape:
     MCP (`CallToolResult.content`), the very reason `cas_get` renamed its `content` key away.
   - `mediaType` — near-synonym of `mimeType`; serving both keys side by side in one
     response would invite exactly the confusion the vocabulary split is meant to prevent.
-- **Serving the derived media type as the response `mimeType`**: the MCP server (`cas_get`
-  and the future resource read) can respond with the media type derived from the blob's own
-  `dialect` — `application/{dialect}+json` — instead of falling back to the generic
-  `text/plain` sniff. The derivation is structurally safe: whatever the stored value, the
-  result is always an `application/*+json` type, so a hostile blob cannot turn the server
-  into a `text/html` content-type oracle the way echoing a full stored media type could.
-  Still, the server must not surface unknown tags: the rule is to derive the type only when
-  the dialect matches an allowlist of known `vnd.fjs.*` dialects (each `+`-separated
-  segment grammar-checked as an RFC 6838 restricted-name) and the blob validates against
-  that dialect's schema —
-  everything else falls through to the existing `fs/mime` detector. Validation requires
-  materializing and parsing the blob, and the metadata path is deliberately
-  size-independent (`detectStream`, O(1) space, never buffers), so the check is
-  **size-bounded**: it is attempted only for blobs up to the existing 128 KiB
-  inline-content cap; a larger blob always gets the plain `detectStream` result. Revision
-  blobs are small JSON, so the bound costs nothing in practice.
+- **Media detection**: `fs/media` should detect revision blobs by the embedded dialect tag and
+  schema validation, then report the derived media type `application/vnd.fjs.revision+json`.
+  This recognition is local to media detection; CAS/MCP response shaping is out of scope
+  for this issue and can be designed later once the pure detector exists.
 - `subject` gives every revision of the same mutable thing a common anchor to resolve
   "current head(s)" against, without requiring a mutable pointer anywhere in CAS itself —
   the head is whatever revision(s) reference `subject` and are not listed as a parent by
@@ -186,10 +174,9 @@ Notes on the shape:
 - `parents` is an array to support merges (multiple concurrent lines of history converging),
   matching the "multi-device / multi-user, merge freely" model in
   [vision.md](../../../todo/plan/vision.md).
-- **Materialization algorithm** — the base of a revision is its materialized parent, or
-  `subject` itself when `parents` is empty:
-  1. if `snapshot` is present, use it;
-  2. otherwise, use the base.
+- **Future materialization algorithm** — out of scope for the first detector-only change.
+  The intended rule is that the base of a revision is its materialized parent, or `subject`
+  itself when `parents` is empty: if `snapshot` is present, use it; otherwise, use the base.
   A revision with multiple `parents` (a merge) must carry `snapshot`: with more than one
   parent there is no single base to fall back to.
 - **Conflicting concurrent heads** are resolved the same way as in Git: a merge tool creates
@@ -211,10 +198,8 @@ Open design points:
 - The future incremental-change dialect `vnd.fjs.change` (event log, most likely
   CRDT-based): its shape, and how it links to revisions — as a new dialect, not as a field
   of this format (see the versioning rule above).
-- Future `ref` forms beyond cbase32 hashes and `https://` bridge URLs (including the
-  optional `{hash}-{nonce}` form for distinct subject identity), and which ref positions
-  besides `parents` use the hash-only `hash` type rather than the general `ref`
-  (`subject`? `snapshot`?).
+- Future reference forms beyond cbase32 hashes (including the optional `{hash}-{nonce}`
+  form for distinct subject identity), if a later dialect needs them.
 - The exact syntax of a content-addressed revision reference (e.g.
   `{hash}.{generation}.{hash}` — `hash.generation` alone does not pin a version across
   branches; undefined for now — only hashes are used).
@@ -230,29 +215,16 @@ Open design points:
 - [ ] Create `fs/media/revision/README.md` — the spec of the dialect `vnd.fjs.revision`,
       served as `application/vnd.fjs.revision+json`
       (deployed automatically to functionalscript.com once it exists in the repo)
-- [ ] Define `ref` as a URL in CA digital space, recognizing cbase32 hashes and `https://`
-      bridge URLs for now, and `hash` as its hash-only subset
+- [ ] Define `hash` as the only reference type accepted by this dialect, recognizing
+      cbase32 native CAS addresses and rejecting `https://` bridge URLs
 - [ ] Create `fs/media/revision/module.f.ts` with the RTTI schema for `revision`
       (`fs/types/rtti`), the `dialect` constant, and its derived TS type
-- [ ] Create `fs/cas/evo/module.f.ts` for the store-touching operations below, importing the
-      format from `fs/media/revision`
-- [ ] Implement head resolution: given `subject`, find revision(s) not listed as a parent
-      by any other revision of the same `subject` (a reverse index scoped per subject; heads
-      can be demoted retroactively by sync, but only by same-subject children)
-- [ ] Implement content materialization: `snapshot` if present, otherwise the base
-      (parent's materialization, or `subject` when `parents` is empty); reject a
-      multi-parent revision without `snapshot`
-- [ ] Implement (or specify) a merge tool that resolves concurrent heads into a new revision
-      with multiple `parents` and a `snapshot`
-- [ ] Tests: linear history, branch + merge, many heads for one subject, archived object,
-      generation cache mismatch, first revision materializing from `subject`, a head demoted
-      retroactively by a newly synced revision
-- [ ] Teach the MCP server to surface the media type derived from a stored `dialect` as the
-      response `mimeType` (`application/{dialect}+json`, allowlisted `vnd.fjs.*` dialects +
-      schema validation, never a blind echo) instead of the generic text fallback,
-      size-bounded to the 128 KiB inline cap so the metadata path stays O(1)-space for
-      larger blobs — see
-      [../mcp/todo/cas-get-mcp-resource-response.md](../mcp/todo/cas-get-mcp-resource-response.md)
+- [ ] Teach `fs/media` detection to recognize valid revision JSON and return the derived
+      media type `application/vnd.fjs.revision+json`, falling through to the existing
+      detector for unknown dialects or invalid revision blobs
+- [ ] Tests: valid revision detection, invalid revision fallthrough, `https://` bridge URL
+      rejection in `subject`, `parents`, and `snapshot`, first-key `dialect` prefix matching,
+      and ordinary JSON fallback behavior
 - [ ] Later, as a separate spec: define the incremental-change dialect `vnd.fjs.change`
       (event log, likely CRDT-based) and how revisions link to it — a new dialect, not a
       new field of this format
