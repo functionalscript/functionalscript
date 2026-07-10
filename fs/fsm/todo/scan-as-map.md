@@ -32,11 +32,19 @@ idiom makes the reader hunt for evolving state that isn't there.
 Replace both with `map`:
 
 ```ts
-const scanStringify = map(([sortedSet, max]: Entry<SortedSet<string>>) =>
-    [stringifyIdentity(sortedSet), max] as const)
+const scanStringify = map(([sortedSet, max]: Entry<SortedSet<string>>): Entry<string> =>
+    [stringifyIdentity(sortedSet), max])
 
 const scanFetch = map(([item]: Entry<SortedSet<string>>) => item)
 ```
+
+Note the explicit `Entry<string>` return annotation instead of `as const`:
+`Entry<T>` (`fs/types/range_map/module.f.ts:46`) is the *mutable* tuple
+`[T, number]`, and `Dfa` stores `RangeMapArray<string> = readonly
+Entry<string>[]` (`:54`), so a `readonly [string, number]` produced by
+`as const` would not be assignable where
+`toArray(scanStringify(setMap))` lands in `newDfa`. The annotation pins the
+tuple type without widening and matches what `stringifyOp` returns today.
 
 Six lines (two ops plus two `scan` wrappers) become two, and the intent —
 element-wise projection — is visible in the name. Both consumers
