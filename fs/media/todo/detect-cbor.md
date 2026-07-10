@@ -21,7 +21,7 @@ encoding, the dialect names the format, and a system that does not know the
 dialect still has the correct generic fallback per encoding (`application/json` /
 `application/cbor`).
 
-The `fs/mime` detector (the future `media/type/`) knows nothing about CBOR. A CBOR
+The `fs/media/type` detector knows nothing about CBOR. A CBOR
 blob is binary, so today it falls through to `application/octet-stream`, and a
 dialect-tagged CBOR blob cannot be recognized or served with its derived media
 type the way tagged JSON can (see
@@ -101,7 +101,7 @@ the honest answer.
 
 ### Tasks
 
-- [ ] Add the tag-55799 prefix (`0xD9 0xD9 0xF7`) to the `fs/mime` magic table →
+- [ ] Add the tag-55799 prefix (`0xD9 0xD9 0xF7`) to the `fs/media/type` magic table →
       `application/cbor`, `type: 'base64'` — as a **non-settling** signature:
       `isSettled` must not treat this match as terminal, and `finish` checks the
       tier-2 dialect probe before emitting the generic verdict; proof cases
@@ -138,9 +138,9 @@ the honest answer.
 - [fs/cas revision-content-format](../../cas/todo/revision-content-format.md) —
   the tagged-JSON detection convention tier 2 mirrors, and the serving rules
   (allowlist, schema validation, size bound) it reuses
-- [fs/mime detect-json](../../mime/todo/detect-json.md) — the JSON refinement of
+- [fs/media/type detect-json](../type/todo/detect-json.md) — the JSON refinement of
   the same detector; tier 3 would be its CBOR sibling
 - [fs/media/json streaming-recognizer](../json/todo/streaming-recognizer.md) —
   the payload-free recognizer pattern a tier-3 CBOR recognizer would follow
-- `fs/mime/module.f.ts` — the magic table (tier 1) and `detectStream` (tiers 2–3)
+- `fs/media/type/module.f.ts` — the magic table (tier 1) and `detectStream` (tiers 2–3)
   this lands in
