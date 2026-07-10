@@ -118,3 +118,15 @@ export const transpile
                 return pure(ok(result))
             }
         )
+
+// ── Tests ────────────────────────────────────────────────────────────────────
+
+export const proof = {
+    throw: {
+        // `mapDjs` is only ever called with an import path that `foldNextModuleOp`
+        // has already resolved into `context.complete`, so the `res === null`
+        // guard is an internal-invariant check unreachable through `transpile`'s
+        // public API. Call it directly with an empty `complete` map to cover it.
+        mapDjsUnresolvedImport: () => mapDjs({ complete: null, stack: null, error: null })('missing.djs'),
+    },
+}
