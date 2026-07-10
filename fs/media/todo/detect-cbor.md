@@ -46,45 +46,35 @@ bytes, and an early-exit magic hit (`isSettled` treating `matched` as terminal,
 magic-first `finish`) would freeze the verdict at generic `application/cbor`
 before the dialect probe ever sees the map. The rule: tier 2 is checked
 **before** the tier-1 verdict — generic `application/cbor` is the answer only
-when no dialect signature follows the tag, or when the tier-2 validation falls
-through. The cost of keeping the verdict open is bounded: deciding whether a
-dialect map follows takes at most the map header (≤ 9 bytes) plus the 8-byte
-key; the full dialect decode + schema validation is the same 128 KiB
-size-bounded refinement as the tagged-JSON path.
+when the tier-2 validation falls through. The tier-2 refinement is the same
+size-bounded decode + schema validation as the tagged-JSON path; blobs beyond
+the size bound keep the generic tier-1 verdict.
 
-#### 2. Dialect-tagged CBOR — the binary analog of `{"dialect":"` prefix matching
+#### 2. Dialect-tagged CBOR — the binary analog of tagged-JSON detection
 
 The tagged-JSON convention carries over: an FS-designed CBOR format is a CBOR map
-whose **first** entry is the text key `"dialect"` with a text-string value. The
-signature is a definite-length map header followed immediately by the fixed key
-bytes `0x67 'd' 'i' 'a' 'l' 'e' 'c' 't'`, optionally preceded by the tag-55799
-prefix from tier 1. The header is not a single fixed byte: it is `0xA0+n` for
-n < 24 entries, or `0xB8`/`0xB9`/`0xBA`/`0xBB` followed by 1/2/4/8 length bytes
-for larger maps — so the detector parses the header (at most 9 bytes, a bounded
-decode, not a fixed-offset compare) and then matches the key. Still a cheap
-prefix check, just header-aware, and it accepts every valid FS-produced map size
-rather than only maps with fewer than 24 entries. On a hit: decode the
-dialect value, grammar-check each `+`-separated segment as an RFC 6838
-restricted-name, and apply the same allowlist + schema-validation +
-128 KiB size-bound rules as the JSON path (never a blind echo; the derivation is
-structurally safe — any value yields an `application/*+cbor` type) →
-`application/{dialect}+cbor`; otherwise fall through.
+carrying the text key `"dialect"` with a text-string value. Detection is
+semantic, matching the JSON path — no entry-order assumption, no byte-level
+signature: within the size-bounded path (the 128 KiB inline cap — a limit of the
+buffering decoder, not of the format), decode the blob as CBOR, transparently
+unwrapping an optional tier-1 tag-55799 prefix. If the result is a map whose
+`dialect` value grammar-checks (each `+`-separated segment an RFC 6838
+restricted-name) and is allowlisted (`vnd.fjs.*`), validate the map against the
+named dialect's schema (never a blind echo; the derivation is structurally
+safe — any value yields an `application/*+cbor` type) →
+`application/{dialect}+cbor`; otherwise fall through. Any CBOR map that
+satisfies a dialect's schema is detected as that dialect, whatever its entry
+order or encoding details.
 
 **Encoding rule for producers** (to be stated in the format specs): FS-produced
-tagged CBOR MUST use definite lengths with the `dialect` entry first, and no
-tag-55799 wrapper — the dialect signature already identifies the blob, and the
-canonical bytes must not fork on an optional prefix. The wrapper is an
-input-side allowance for externally produced blobs: the
-[`fs/media/cbor` codec](cbor.md) accepts and transparently unwraps it, so a
-self-described dialect blob still schema-validates. Note that
-RFC 8949 §4.2 core deterministic encoding sorts map keys by the bytewise order of
-their encodings — shorter keys sort first, ties by content. The `revision` schema
-happens to satisfy "dialect first" under that order (no key is shorter than 7
-chars, and `dialect` is bytewise-first among the 7-char keys), but that is luck,
-not a guarantee: any future dialect with a shorter key (or a 7-char key starting
-`a`–`c`) would displace it. The FS canonical form is therefore **dialect-first,
-remaining keys in RFC 8949 deterministic order** — a documented, deliberate
-deviation from pure §4.2 ordering, in exchange for a stable detection prefix.
+tagged CBOR MUST use RFC 8949 §4.2 core deterministic encoding (definite
+lengths, keys in deterministic bytewise order) and no tag-55799 wrapper — the
+dialect entry already identifies the blob, and the canonical bytes must not
+fork on an optional prefix. Detection does not depend on entry order, so no
+deviation from §4.2 ordering is needed. The wrapper is an input-side allowance
+for externally produced blobs: the [`fs/media/cbor` codec](cbor.md) accepts and
+transparently unwraps it, so a self-described dialect blob still
+schema-validates.
 
 #### 3. Generic untagged CBOR — deferred
 
@@ -107,16 +97,14 @@ the honest answer.
       tier-2 dialect probe before emitting the generic verdict; proof cases
       including a tagged blob split across chunks and a tag-wrapped dialect map
       that must report the derived type, not generic `application/cbor`
-- [ ] Specify the FS canonical tagged-CBOR form: definite lengths, `dialect`
-      entry first, remaining keys in RFC 8949 §4.2 order; document the deliberate
-      deviation from pure deterministic ordering and the reason (stable prefix)
-- [ ] Implement tier 2: parse the definite-length map header (`0xA0`–`0xB7`
-      immediate, `0xB8`–`0xBB` with 1/2/4/8 length bytes — not a fixed-offset
-      compare) and match the `"dialect"` key right after it (with and
-      without the tier-1 tag prefix), decode the dialect value, grammar-check
-      `+`-separated segments, allowlist `vnd.fjs.*`, validate against the
-      dialect's schema, size-bounded to the 128 KiB inline cap →
-      `application/{dialect}+cbor`
+- [ ] Specify the FS canonical tagged-CBOR form: RFC 8949 §4.2 core
+      deterministic encoding (definite lengths, deterministic key order), no
+      tag-55799 wrapper
+- [ ] Implement tier 2: size-bounded (128 KiB inline cap) CBOR decode, with and
+      without the tier-1 tag prefix; on a map, decode the `dialect` value,
+      grammar-check `+`-separated segments, allowlist `vnd.fjs.*`, validate
+      against the dialect's schema — no entry-order or byte-signature
+      assumptions → `application/{dialect}+cbor`
 - [ ] Surface the derived type in `cas_get` / resource read alongside the JSON
       path (same rules, different suffix); extend the optional `dialect`
       field/header to CBOR blobs — see

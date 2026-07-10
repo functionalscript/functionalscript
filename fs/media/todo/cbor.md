@@ -58,8 +58,8 @@ iteration: a small, closed model keeps encode/decode a lossless round trip and
 keeps schema validation meaningful. One exception: a single leading tag 55799
 (self-described CBOR, [detect-cbor](detect-cbor.md) tier 1) on the top-level
 item is accepted and **transparently unwrapped** — it is an encoding marker,
-not data, and a self-described dialect blob that passes the tier-2 prefix check
-must not then fail schema validation on the wrapper alone. Extensions widen the table deliberately,
+not data, and a self-described dialect blob must not fail tier-2 schema
+validation on the wrapper alone. Extensions widen the table deliberately,
 per dialect (each dialect's README owns what it admits beyond the JSON model).
 
 #### Serializer: canonical by construction
@@ -67,13 +67,11 @@ per dialect (each dialect's README owns what it admits beyond the JSON model).
 One encoding, not options:
 
 - RFC 8949 §4.2 core deterministic encoding — shortest-form integer heads,
-  definite lengths only, no duplicate keys;
-- the FS canonical tagged form from [detect-cbor.md](detect-cbor.md) §2 on top:
-  when the value carries a `dialect` entry, that entry is encoded **first** and
-  the remaining keys follow in §4.2 bytewise order — the documented deviation
-  from pure §4.2 sorting that buys a stable detection prefix;
+  definite lengths only, no duplicate keys, keys in §4.2 bytewise order
+  (detection is semantic — [detect-cbor.md](detect-cbor.md) §2 — so no
+  entry-order deviation is needed);
 - no tag-55799 wrapper: the canonical form is the bare item (the dialect
-  signature already identifies FS blobs, and canonical bytes must not fork on
+  entry already identifies FS blobs, and canonical bytes must not fork on
   an optional wrapper — the parser accepts the tag on input, but a wrapped blob
   is non-canonical).
 
@@ -91,13 +89,13 @@ identity function, so encoding options would silently fork identities.
   ([fs/media/json streaming-recognizer](../json/todo/streaming-recognizer.md));
 - decoding does **not** require canonical input (a synced blob from elsewhere
   may be valid CBOR without being FS-canonical); an `isCanonical` check is a
-  separate predicate so consumers that need identity guarantees (CAS dedup,
-  detect-cbor's prefix assumption) can enforce it explicitly.
+  separate predicate so consumers that need identity guarantees (CAS dedup)
+  can enforce it explicitly.
 
 ### Tasks
 
 - [ ] Create `fs/media/cbor/README.md` — the data-model mapping table, the
-      canonical-form rules (§4.2 + dialect-first), and the strictness rules
+      canonical-form rules (§4.2 deterministic encoding), and the strictness rules
 - [ ] `fs/media/cbor/serializer/module.f.ts` — canonical encoder over the
       data-model subset, `bigint` included; proof cases against the RFC 8949
       Appendix A test vectors that fall inside the model
