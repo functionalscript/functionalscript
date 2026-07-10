@@ -8,7 +8,7 @@
 The two decoders' end-of-input steps are the same one-liner differing only in
 a state→error function.
 
-`fs/text/utf8/module.f.ts:250-255`:
+`fs/text/utf8/module.f.ts:262-267`:
 
 ```ts
 export const utf8EofToCodePointOp = (
@@ -67,5 +67,5 @@ drives it.
 
 - `fs/text/code_point/module.f.ts:33-41` — `decoder` (i168), the factory this
   completes.
-- [lead-byte-classifier-dedup](../utf8/todo/lead-byte-classifier-dedup.md) —
-  the companion fresh-dispatch extraction across both codecs.
+- [word-classifier-dedup](../utf16/todo/word-classifier-dedup.md) — the
+  companion fresh-dispatch extraction (utf8's half landed in PR #1258).
