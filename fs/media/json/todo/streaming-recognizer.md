@@ -23,7 +23,7 @@ pipeline unfit as a validity check for a size-independent streaming consumer:
    before the parser runs. So a recognizer built by discarding only the parser's
    values still buffers whole tokens.
 
-The immediate driver is `fs/mime` (`fs/mime/todo/detect-json.md`): its
+The immediate driver is `fs/media/type` (`fs/media/type/todo/detect-json.md`): its
 `detectStream` classifier is deliberately O(1)-space over blobs larger than one
 `Vec`, and it wants to fold JSON validity in alongside its UTF-8 / magic-byte
 factors. It cannot adopt anything that is O(n) or O(token length). More broadly,
@@ -124,4 +124,4 @@ property, scoped to make it actually hold:
 
 - `fs/media/json/parser/module.f.ts:205-238` — `foldOp` / `parse`; the control machine to reuse value-free.
 - `fs/js/tokenizer/module.f.ts:571-602,694-700` — string/number states that buffer payloads and must gain payload-free variants.
-- `fs/mime/todo/detect-json.md` — first consumer; needs O(depth), payload-free validity to keep `detectStream` size-independent.
+- `fs/media/type/todo/detect-json.md` — first consumer; needs O(depth), payload-free validity to keep `detectStream` size-independent.

@@ -40,7 +40,7 @@
  * present (`'text'` or `'base64'`) as the discriminator for which of `text` /
  * `blob` a later `content: true` fetch would populate — MCP allows extra fields,
  * so `type` and `length` simply stay alongside the required resource-contents
- * fields. A single classifier — the `fs/mime` detector state machine (length ×
+ * fields. A single classifier — the `fs/media/type` detector state machine (length ×
  * magic-byte eliminator × UTF-8 DFA) — produces the same three-way verdict on
  * both paths, so there is no second, divergent copy of the rules:
  *
@@ -50,14 +50,14 @@
  * 3. **Fallback** → `type: 'base64'`, `mimeType: 'application/octet-stream'`.
  *
  * **Metadata-only (`content: false`, the default) is size-independent.** It folds
- * the read stream through `fs/mime` `detectStream` and never buffers the blob.
+ * the read stream through `fs/media/type` `detectStream` and never buffers the blob.
  * Because a single `Vec` caps at `maxLength` bits (128 KiB), the old
  * drain-into-one-`Vec` approach failed on any blob larger than one chunk even when
  * only metadata was asked for; streaming detection returns correct
  * `{ length, mimeType, type[, uri] }` regardless of size.
  *
  * **`content: true`** first derives `{ length, mimeType, type }` with the same
- * size-independent `fs/mime` `detectStream` machine, then materializes the bytes
+ * size-independent `fs/media/type` `detectStream` machine, then materializes the bytes
  * (via `collectRead`, bounded by `maxLength`) and encodes the inline payload by
  * `type` — a `fs/text/utf8` `fromVec` string on `text` (for `type: 'text'`), base64
  * on `blob` (for `type: 'base64'`). A blob larger than `maxLength` (128 KiB)
@@ -95,7 +95,7 @@ import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
-import { detectStream } from '../../mime/module.f.ts'
+import { detectStream } from '../../media/type/module.f.ts'
 import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, vec, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
 import { type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
@@ -135,7 +135,7 @@ export const casListArgs = {} as const
  * Drains a CAS read stream into a single `Vec`. Used only on the `content: true`
  * path, where the whole blob is needed for inline base64 / UTF-8 transfer; the
  * chunk stream is concatenated and an error item is surfaced as the result.
- * Metadata-only `cas_get` avoids this entirely via `fs/mime` `detectStream`,
+ * Metadata-only `cas_get` avoids this entirely via `fs/media/type` `detectStream`,
  * which is why it is not bound by the `maxLength` ceiling below.
  */
 const collectRead = <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {

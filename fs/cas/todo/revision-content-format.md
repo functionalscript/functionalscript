@@ -132,7 +132,7 @@ Notes on the shape:
 - **Tagged-JSON detection convention** — the tag is not revision-specific, but it is not
   universal either. `fs/media/` hosts formats from different vendors (`text/html`, plain
   `application/json`, …), and FS's own JavaScript-subset dialects cannot carry an embedded
-  JSON tag at all — those keep the ordinary `fs/mime` detection path, are served as plain
+  JSON tag at all — those keep the ordinary `fs/media/type` detection path, are served as plain
   `text/javascript` (no `+javascript` suffix is registered, and JavaScript MIME types are
   a closed list nothing recognizes extensions of), and carry the same kind of short
   dialect name (`vnd.fjs.fjs`, `vnd.fjs.djs+vnd.fjs.fjs`) out of band. Out-of-band surfacing is
@@ -165,7 +165,7 @@ Notes on the shape:
   the dialect matches an allowlist of known `vnd.fjs.*` dialects (each `+`-separated
   segment grammar-checked as an RFC 6838 restricted-name) and the blob validates against
   that dialect's schema —
-  everything else falls through to the existing `fs/mime` detector. Validation requires
+  everything else falls through to the existing `fs/media/type` detector. Validation requires
   materializing and parsing the blob, and the metadata path is deliberately
   size-independent (`detectStream`, O(1) space, never buffers), so the check is
   **size-bounded**: it is attempted only for blobs up to the existing 128 KiB
