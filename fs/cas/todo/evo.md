@@ -1,5 +1,7 @@
 # Evo API
 
+## Proposed API
+
 The server scans the whole CAS at the start and form a cache using `Mem` effects. Then, it can periodically scan for a new hashes in CAS and update the cache. The following MCP API should use the cache.
 
 ```ts
@@ -24,3 +26,10 @@ type Evo = {
     add: (rev: AddRevision) => Hash
 }
 ```
+
+### In-Memory Cache
+
+In-memory cache is per process, so every new STDIO MCP server creates a new in-memory cache. An alternative is to use HTTP(S) MCP server. Two possible approaches:
+
+1. A proper HTTP(S) MCP server. It requires an implementation of authentication.
+2. One API HTTP(S) server and multiple STDIO MCP proxy servers.
