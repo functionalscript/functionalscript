@@ -194,13 +194,22 @@ export const toolEntry = <T extends Type, O extends Operation>(
 })
 
 /**
+ * Helper to create a successful single-text-block tool result.
+ *
+ * @param text - The text to return to the client
+ * @returns A `ToolsCallResult` with the text content
+ */
+export const okResult = (text: string): ToolsCallResult =>
+    ({ content: [{ type: 'text', text }] })
+
+/**
  * Helper to create a tool-level error result with plain text explanation.
  *
  * @param text - The error message to return to the client
  * @returns A `ToolsCallResult` with `isError: true` and the text explanation
  */
 export const errorResult = (text: string): ToolsCallResult =>
-    ({ content: [{ type: 'text', text }], isError: true })
+    ({ ...okResult(text), isError: true })
 
 /**
  * Builds `McpHandlers` from a registry of tool entries.
