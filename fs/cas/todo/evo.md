@@ -42,7 +42,7 @@ type Evo = {
 In-memory cache is per process, so every STDIO MCP server instance creates a new in-memory cache. An alternative is to use HTTP(S) MCP server. Two possible approaches:
 
 1. A proper HTTP(S) MCP server. It requires an implementation of authentication.
-2. One API HTTP(S) server and multiple STDIO MCP proxy servers.
+2. One API HTTP(S) server and multiple STDIO MCP proxy servers. It makes sense only for clients that doesn't support HTTP(S) MCP servers.
 
 ## Tasks
 
