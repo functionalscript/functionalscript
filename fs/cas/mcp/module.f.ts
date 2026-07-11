@@ -114,7 +114,7 @@ import { type IoResult, type Read, type Write } from '../../effects/node/module.
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
-    toolEntry, fromRegistry, errorResult,
+    toolEntry, fromRegistry, errorResult, okResult,
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
@@ -278,12 +278,6 @@ const casToolRegistry =
     ),
     ]
 }
-
-// ── Result helpers ──────────────────────────────────────────────────────────────
-
-/** A successful single-text-block tool result. */
-const okResult = (text: string): ToolsCallResult =>
-    ({ content: [{ type: 'text', text }] })
 
 // ── Handlers ────────────────────────────────────────────────────────────────────
 
