@@ -1,15 +1,15 @@
-## Evo API
+# Evo API
 
 **Priority:** P2
 **Status:** open
 
-### Problem
+## Problem
 
 CAS users need a way to work with evolving subjects whose revisions are stored
 as content-addressed values. Without a small Evo API, clients must repeatedly
 scan the CAS and reconstruct revision heads themselves.
 
-### Proposal
+## Proposal
 
 The server scans the whole CAS at startup and builds a cache using `Mem`
 effects. Then it can periodically scan for new hashes in CAS and update the
@@ -37,15 +37,22 @@ type Evo = {
     add: (rev: AddRevision) => Hash
 }
 ```
+### In-Memory Cache
 
-### Tasks
+In-memory cache is per process, so every new STDIO MCP server creates a new in-memory cache. An alternative is to use HTTP(S) MCP server. Two possible approaches:
+
+1. A proper HTTP(S) MCP server. It requires an implementation of authentication.
+2. One API HTTP(S) server and multiple STDIO MCP proxy servers.
+
+## Tasks
 
 - [ ] Define the revision representation stored in CAS.
 - [ ] Build and refresh the in-memory subject/head cache from CAS.
 - [ ] Expose `list`, `head`, and `add` through the MCP API.
 - [ ] Add proof and integration coverage for revision creation and head updates.
 
-### Related
+## Related
 
 - PR feedback — add required todo metadata so this design is triageable by the
   priority/status workflow.
+
