@@ -31,6 +31,7 @@ import type { Vec } from '../types/bit_vec/module.f.ts'
 import { fromVec } from '../text/utf8/module.f.ts'
 import { detectVec, type DetectMeta } from './type/module.f.ts'
 import { decodeText as decodeRevisionText, mediaType as revisionMediaType } from './revision/module.f.ts'
+import { assert } from '../asserts/module.f.ts'
 
 /**
  * Classifies a whole buffered `Vec`, the same three-way `{ length, mime_type,
@@ -43,7 +44,10 @@ export const detect = (bytes: Vec): DetectMeta => {
     // or binary fallback is never a dialect match.
     if (base.type !== 'text') { return base }
     const text = fromVec(bytes)
-    if (text === null) { return base }
+    // `detectVec`'s `type: 'text'` verdict already means `bytes` is byte-aligned,
+    // whole-blob-valid UTF-8 — the same two conditions `fromVec` checks, via the
+    // same decoder — so `fromVec` cannot return `null` here.
+    assert(text !== null, 'detect: type text implies fromVec succeeds')
     const [tag] = decodeRevisionText(text)
     return tag === 'ok' ? { ...base, mime_type: revisionMediaType } : base
 }
