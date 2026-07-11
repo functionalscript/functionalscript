@@ -223,19 +223,19 @@ Open design points:
 
 ### Tasks
 
-- [ ] Create `fs/media/revision/README.md` — the spec of the dialect `vnd.fjs.revision`,
+- [x] Create `fs/media/revision/README.md` — the spec of the dialect `vnd.fjs.revision`,
       served as `application/vnd.fjs.revision+json`
       (deployed automatically to functionalscript.com once it exists in the repo)
-- [ ] Define `hash` as the only snapshot-reference type accepted by this dialect, recognizing
+- [x] Define `hash` as the only snapshot-reference type accepted by this dialect, recognizing
       cbase32 native CAS addresses and rejecting `https://` bridge URLs for `parents`,
       `snapshot`, and zero-parent fallback `subject` references
-- [ ] Create `fs/media/revision/module.f.ts` with the RTTI schema for `revision`
+- [x] Create `fs/media/revision/module.f.ts` with the RTTI schema for `revision`
       (`fs/types/rtti`), the `dialect` constant, and its derived TS type
-- [ ] Teach `fs/media` detection to recognize valid revision JSON — by parsing and RTTI
+- [x] Teach `fs/media` detection to recognize valid revision JSON — by parsing and RTTI
       schema validation, with no key-order or byte-prefix assumptions — and return the
       derived media type `application/vnd.fjs.revision+json`, falling through to the
       existing detector for unknown dialects or invalid revision blobs
-- [ ] Tests: valid revision detection, invalid revision fallthrough, `https://` bridge URL
+- [x] Tests: valid revision detection, invalid revision fallthrough, `https://` bridge URL
       rejection in `parents`, `snapshot`, and zero-parent fallback `subject`, arbitrary string
       `subject` acceptance when `snapshot` is present or `parents.length === 1`, invalid
       multi-parent revisions without `snapshot`, size-bounded schema validation with large
@@ -245,7 +245,7 @@ Open design points:
 - [ ] Later, as a separate spec: define the incremental-change dialect `vnd.fjs.change`
       (event log, likely CRDT-based) and how revisions link to it — a new dialect, not a
       new field of this format
-- [ ] Reference the format from `fs/cas/README.md`
+- [x] Reference the format from `fs/cas/README.md`
 
 ### Related
 
