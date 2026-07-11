@@ -4,7 +4,16 @@ The server scans the whole CAS at the start and form a cache. Then, it can perio
 
 ```ts
 type Hash = string
+
 type Subject = string
+
+type AddRevision = {
+    readonly parents: readonly Hash[]
+    readonly snapshot?: Hash
+    readonly subject?: Subject
+    readonly archived?: true
+}
+
 type Evo = {
     // Returns a list of all subjects.
     list: () => Subject[]
@@ -12,6 +21,6 @@ type Evo = {
     // Each hash can be used get a Revision using `cas_get`.
     head: (subject: Subject) => Hash[]
     // Add a new head.
-    add: (parents: Hash[], snapshot: Hash, subject?: Subject) => Hash
+    add: (rev: AddRevision) => Hash
 }
 ```
