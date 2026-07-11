@@ -9,6 +9,7 @@ import { vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { encode as base64Encode } from '../../basen/base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { fileCas, type FileCasOperation } from '../module.f.ts'
+import { dialect as revisionDialect, mediaType as revisionMediaType } from '../../media/revision/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
 import { nonEmpty, empty as elEmpty, type List } from '../../effects/list/module.f.ts'
 import {
@@ -192,6 +193,10 @@ const textOf = (resp: unknown): string => (item0(resp) as { readonly text: strin
 
 // A plain text sample for text add→get round-trips.
 const textSample = 'hello, world!'
+
+// A valid `vnd.fjs.revision` blob: zero parents, so `subject` must be (and is,
+// per `fs/media/revision/proof.f.ts`) a valid cbase32 hash on its own.
+const revisionSample = `{"dialect":"${revisionDialect}","subject":"8","parents":[]}`
 
 // A base64-encoded binary payload for binary add→get round-trips.
 const binarySample = base64Encode(vec8(0x2An)) as string
@@ -473,6 +478,39 @@ export const proof = {
         assertEq(result.type, 'base64')
         assertEq(result.mimeType, 'image/png')
         assertEq(result.blob, pngSample)
+    },
+
+    // A stored `vnd.fjs.revision` blob is recognized by metadata-only
+    // `cas_get` (content:false, the default) — the CAS read path routes the
+    // bounded, whole-blob-text case through the dialect-aware detector rather
+    // than only reporting the streaming text/plain verdict.
+    getMetaRecognizesRevisionDialect: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: revisionSample }))
+        const hash = textOf(addResp)
+        const [, metaResp] = session(
+            call(2, 'cas_add', { content: revisionSample }),
+            call(3, 'cas_get', { hash }),
+        )
+        assert(!resultOf(metaResp).isError)
+        const meta = JSON.parse(textOf(metaResp)) as CasGetResult
+        assertEq(meta.mimeType, revisionMediaType)
+        assertEq(meta.type, 'text')
+    },
+
+    // Same dialect recognition on the `content: true` path, alongside the
+    // inline text payload.
+    getContentRecognizesRevisionDialect: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: revisionSample }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: revisionSample }),
+            call(3, 'cas_get', { hash, content: true }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        assertEq(result.mimeType, revisionMediaType)
+        assertEq(result.type, 'text')
+        assertEq(result.text, revisionSample)
     },
 
     listEnumeratesStoredHashes: () => {
