@@ -84,6 +84,7 @@ const nodeSet
                     case 2: { return [[x[0]], value, [x[1]]] }
                 }
                 // TODO: remove after TSGO fix the regression.
+                // See https://github.com/microsoft/typescript-go/issues/4613
                 throw 'unreachable'
             }
             case 3: {
