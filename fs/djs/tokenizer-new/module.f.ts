@@ -63,20 +63,6 @@ export const jsGrammar = (): Rule => {
 
     const digits = [digit, digits0]
 
-    const number = [
-        {
-            0: '0',
-            onenine: [onenine, digits0],
-        },
-        option({
-            bigint: 'n',
-            frac: [
-                option(['.', digits]),
-                option([set('Ee'), option(set('+-')), digits])
-            ]
-        })
-    ]
-
     const ws = set(' \t')
 
     const newLine = set('\n\r')
@@ -92,6 +78,32 @@ export const jsGrammar = (): Rule => {
         ...idStart,
         digit
     }
+
+    // '.' and 'e'/'E' always succeed once seen, tagging missing digits as `numError`,
+    // so a malformed fraction/exponent (e.g. `0.`, `0e`) fails the whole number instead
+    // of silently ending it early. The sign is matched via string-literal branches
+    // (not `set('+-')`) because a range-variant branch's tag is the matched character
+    // itself, which would collide with the '+'/'-' operator tags in filterFunc.
+    const fracPart = { withDot: ['.', { valid: digits, numError: none }], noDot: none }
+    const expPart = { withExp: [set('Ee'), option({ plus: '+', minus: '-' }), { valid: digits, numError: none }], noExp: none }
+
+    // ECMAScript disallows a NumericLiteral immediately followed by an IdentifierStart
+    // or DecimalDigit (e.g. `00`, `123abc`). Consume that character into the number and
+    // tag it `numError` instead of leaving it to silently start a new token. idChar is
+    // wrapped in a sequence so this branch's own `numError` tag survives — a variant
+    // referenced directly as another variant's branch loses the outer tag to whichever
+    // of its own branches matches.
+    const number = [
+        {
+            0: '0',
+            onenine: [onenine, digits0],
+        },
+        option({
+            bigint: 'n',
+            frac: [fracPart, expPart]
+        }),
+        { numError: [idChar], ok: none }
+    ]
 
     const id = [idStart, repeat0Plus(idChar)]
 

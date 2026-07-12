@@ -14,6 +14,11 @@ import type { StateScan } from '../../types/function/operator/module.f.ts'
 import { contains } from '../../types/range/module.f.ts'
 import { concat, filter, flat, flatMap, map, stateScan, toArray, type List } from '../../types/list/module.f.ts'
 import { jsGrammar, parse } from './module.f.ts'
+import { stringifyAsTree } from '../serializer/module.f.ts'
+import { sort } from '../../types/object/module.f.ts'
+import type { Unknown } from '../module.f.ts'
+
+const stringify = stringifyAsTree(sort)
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
 
@@ -29,7 +34,7 @@ const tokenizeString
         const cp = toArray(stringToCodePointList(s))
         const [ast, ok, len] = descentParserCpOnly(m, '', cp)
         if (cp.length === 0) {
-            return JSON.stringify([{kind: 'eof'}])
+            return stringify([{kind: 'eof'}] as Unknown)
         }
         if (!ok)
             return 'error'
@@ -37,15 +42,15 @@ const tokenizeString
             return 'error'
 
         const flatTokens = toArray(getTokensFromAstRule(ast))
-        // multilineContent tags an unterminated block comment as 'unterminated' rather than
-        // failing (see module.f.ts), so we detect it here instead of via a failed parse.
-        if (flatTokens.includes('unterminated')) return 'error'
+        // multilineContent tags an unterminated block comment as 'unterminated', and number
+        // tags a malformed fraction/exponent or a disallowed trailing char as 'numError',
+        // rather than failing outright (see module.f.ts) — detect them here instead.
+        if (flatTokens.includes('unterminated') || flatTokens.includes('numError')) return 'error'
         const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
         const tokens = flat(stateScan(scanFunc)(['', []])(filterTokens))
         const jsTokens = concat(flatMap(toJsTokens)(tokens))([{kind: 'eof'}])
         const result = toArray(filter(v => v !== null)(jsTokens))
-        //return JSON.stringify(toArray(filterTokens))
-        return JSON.stringify(result)
+        return stringify(result as Unknown)
     }
 
 type Token = [string, readonly number[]]
@@ -148,6 +153,21 @@ const decodeJsonString
     : (codePoints: readonly number[]) => string
     = codePoints => String.fromCodePoint(...toArray(flat(stateScan(stringDecodeScan)({ kind: 'normal' })(codePoints.slice(1, -1)))))
 
+// value is grammar-validated: (0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)? — no need to re-check its shape here.
+const decodeNumber
+    : (value: string) => readonly [bigint, number]
+    = value => {
+        const eIndex = Math.max(value.indexOf('e'), value.indexOf('E'))
+        const mantissaText = eIndex < 0 ? value : value.slice(0, eIndex)
+        const expText = eIndex < 0 ? '' : value.slice(eIndex + 1)
+        const dotIndex = mantissaText.indexOf('.')
+        const intDigits = dotIndex < 0 ? mantissaText : mantissaText.slice(0, dotIndex)
+        const fracDigits = dotIndex < 0 ? '' : mantissaText.slice(dotIndex + 1)
+        const mantissa = BigInt(intDigits + fracDigits)
+        const exp = (expText === '' ? 0 : Number(expText)) - fracDigits.length
+        return [mantissa, exp]
+    }
+
 const keywords = new Set<string>([
     'true', 'false', 'null', 'undefined',
     'arguments', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
@@ -174,6 +194,11 @@ const toJsToken
                 const value = String.fromCodePoint(...tk[1])
                 if (keywords.has(value)) return {kind: value} as JsToken
                 return {kind: 'id', value}
+            }
+            case 'number': {
+                const value = String.fromCodePoint(...tk[1])
+                if (value.endsWith('n')) return {kind: 'bigint', value: BigInt(value.slice(0, -1))}
+                return {kind: 'number', value, bf: decodeNumber(value)}
             }
             case 'comment':
                 if (tk[1][1] === asterisk) // block comment /*...*/
@@ -496,126 +521,126 @@ export const proof = {
             const result = tokenizeString('"\\uEeFg"')
             if (result !== 'error') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('0')
-    //         if (result !== '[{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
-    //     },
-        // () => {
-        //     const result = tokenizeString('[0]')
-        //     if (result !== '[{"kind":"["},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"]"},{"kind":"eof"}]') { throw result }
-        // },
-        // () => {
-        //     const result = tokenizeString('00')
-        //     if (result !== 'error') { throw result }
-        // },
-        // () => {
-        //     const result = tokenizeString('0abc,')
-        //     if (result !== 'error') { throw result }
-        // },
-    //     () => {
-    //         const result = tokenizeString('123456789012345678901234567890')
-    //         if (result !== '[{"bf":[123456789012345678901234567890n,0],"kind":"number","value":"123456789012345678901234567890"},{"kind":"eof"}]') { throw result }
-    //     },
-        // () => {
-        //     const result = tokenizeString('{90}')
-        //     if (result !== '[{"kind":"{"},{"bf":[90n,0],"kind":"number","value":"90"},{"kind":"}"},{"kind":"eof"}]') { throw result }
-        // },
-    //     () => {
-    //         const result = tokenizeString('1 2')
-    //         if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"kind":"ws"},{"bf":[2n,0],"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('0. 2')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('10-0')
-    //         if (result !== '[{"bf":[10n,0],"kind":"number","value":"10"},{"kind":"-"},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('9a:')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('-10')
-    //         if (result !== '[{"kind":"-"},{"bf":[10n,0],"kind":"number","value":"10"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('-0')
-    //         if (result !== '[{"kind":"-"},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('-00')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('-.123')
-    //         if (result !== '[{"kind":"-"},{"kind":"."},{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('0.01')
-    //         if (result !== '[{"bf":[1n,-2],"kind":"number","value":"0.01"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('-0.9')
-    //         if (result !== '[{"kind":"-"},{"bf":[9n,-1],"kind":"number","value":"0.9"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('-0.')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('-0.]')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('12.34')
-    //         if (result !== '[{"bf":[1234n,-2],"kind":"number","value":"12.34"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('-12.00')
-    //         if (result !== '[{"kind":"-"},{"bf":[1200n,-2],"kind":"number","value":"12.00"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('-12.')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('12.]')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('0e1')
-    //         if (result !== '[{"bf":[0n,1],"kind":"number","value":"0e1"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('0e+2')
-    //         if (result !== '[{"bf":[0n,2],"kind":"number","value":"0e+2"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('0e-0')
-    //         if (result !== '[{"bf":[0n,0],"kind":"number","value":"0e-0"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('12e0000')
-    //         if (result !== '[{"bf":[12n,0],"kind":"number","value":"12e0000"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('-12e-0001')
-    //         if (result !== '[{"kind":"-"},{"bf":[12n,-1],"kind":"number","value":"12e-0001"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('-12.34e1234')
-    //         if (result !== '[{"kind":"-"},{"bf":[1234n,1232],"kind":"number","value":"12.34e1234"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('0e')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('0e-')
-    //         if (result !== 'error') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('0')
+            if (result !== '[{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('[0]')
+            if (result !== '[{"kind":"["},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"]"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('00')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('0abc,')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('123456789012345678901234567890')
+            if (result !== '[{"bf":[123456789012345678901234567890n,0],"kind":"number","value":"123456789012345678901234567890"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('{90}')
+            if (result !== '[{"kind":"{"},{"bf":[90n,0],"kind":"number","value":"90"},{"kind":"}"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('1 2')
+            if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"kind":"ws"},{"bf":[2n,0],"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('0. 2')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('10-0')
+            if (result !== '[{"bf":[10n,0],"kind":"number","value":"10"},{"kind":"-"},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('9a:')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('-10')
+            if (result !== '[{"kind":"-"},{"bf":[10n,0],"kind":"number","value":"10"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('-0')
+            if (result !== '[{"kind":"-"},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('-00')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('-.123')
+            if (result !== '[{"kind":"-"},{"kind":"."},{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('0.01')
+            if (result !== '[{"bf":[1n,-2],"kind":"number","value":"0.01"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('-0.9')
+            if (result !== '[{"kind":"-"},{"bf":[9n,-1],"kind":"number","value":"0.9"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('-0.')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('-0.]')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('12.34')
+            if (result !== '[{"bf":[1234n,-2],"kind":"number","value":"12.34"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('-12.00')
+            if (result !== '[{"kind":"-"},{"bf":[1200n,-2],"kind":"number","value":"12.00"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('-12.')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('12.]')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('0e1')
+            if (result !== '[{"bf":[0n,1],"kind":"number","value":"0e1"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('0e+2')
+            if (result !== '[{"bf":[0n,2],"kind":"number","value":"0e+2"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('0e-0')
+            if (result !== '[{"bf":[0n,0],"kind":"number","value":"0e-0"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('12e0000')
+            if (result !== '[{"bf":[12n,0],"kind":"number","value":"12e0000"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('-12e-0001')
+            if (result !== '[{"kind":"-"},{"bf":[12n,-1],"kind":"number","value":"12e-0001"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('-12.34e1234')
+            if (result !== '[{"kind":"-"},{"bf":[1234n,1232],"kind":"number","value":"12.34e1234"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('0e')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('0e-')
+            if (result !== 'error') { throw result }
+        },
         () => {
             const result = tokenizeString('ABCdef1234567890$_')
             if (result !== '[{"kind":"id","value":"ABCdef1234567890$_"},{"kind":"eof"}]') { throw result }
@@ -624,50 +649,50 @@ export const proof = {
             const result = tokenizeString('{ABCdef1234567890$_}')
             if (result !== '[{"kind":"{"},{"kind":"id","value":"ABCdef1234567890$_"},{"kind":"}"},{"kind":"eof"}]') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('123 _123')
-    //         if (result !== '[{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"_123"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('123 $123')
-    //         if (result !== '[{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"$123"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('123_123')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('123$123')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('1234567890n')
-    //         if (result !== '[{"kind":"bigint","value":1234567890n},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('0n')
-    //         if (result !== '[{"kind":"bigint","value":0n},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('[-1234567890n]')
-    //         if (result !== '[{"kind":"["},{"kind":"-"},{"kind":"bigint","value":1234567890n},{"kind":"]"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('123.456n')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('123e456n')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('1234567890na')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('1234567890nn')
-    //         if (result !== 'error') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('123 _123')
+            if (result !== '[{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"_123"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('123 $123')
+            if (result !== '[{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"$123"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('123_123')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('123$123')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('1234567890n')
+            if (result !== '[{"kind":"bigint","value":1234567890n},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('0n')
+            if (result !== '[{"kind":"bigint","value":0n},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('[-1234567890n]')
+            if (result !== '[{"kind":"["},{"kind":"-"},{"kind":"bigint","value":1234567890n},{"kind":"]"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('123.456n')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('123e456n')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('1234567890na')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('1234567890nn')
+            if (result !== 'error') { throw result }
+        },
     ],
     operators:
     [
@@ -683,10 +708,10 @@ export const proof = {
             const result = tokenizeString('-')
             if (result !== '[{"kind":"-"},{"kind":"eof"}]') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('1*2')
-    //         if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"kind":"*"},{"bf":[2n,0],"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('1*2')
+            if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"kind":"*"},{"bf":[2n,0],"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
+        },
         () => {
             const result = tokenizeString('( )')
             if (result !== '[{"kind":"("},{"kind":"ws"},{"kind":")"},{"kind":"eof"}]') { throw result }
