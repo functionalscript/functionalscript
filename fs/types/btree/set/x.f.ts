@@ -12,7 +12,7 @@ const f = ([i, x]: F): undefined => {
                 case 1: case 2: { return undefined }
             }
             // TODO: remove after TSGO fix the regression.
-            throw 'unreachable'
+            //throw 'unreachable'
         }
         case 3: {
             // replace
@@ -22,7 +22,7 @@ const f = ([i, x]: F): undefined => {
                 case 2: case 5: { return undefined }
             }
             // TODO: remove after TSGO fix the regression.
-            //throw 'unreachable'
+            throw 'unreachable'
         }
         case 4: {
             // insert
