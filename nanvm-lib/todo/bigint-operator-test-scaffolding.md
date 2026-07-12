@@ -24,23 +24,30 @@ known-but-unfiled task living as four comment clones.
 
 ### Proposal
 
-Two options, in preference order:
+Primary plan: a `#[cfg(test)] mod test_util` under `vm/bigint/` exporting
+`T`/`int`/`pos`/`neg`, imported by each operator's `tests` module; the four
+TODO comment clones collapse to one at the shared module.
 
-1. Do what the copy-pasted TODO asks: move the operator tests into the
-   crate's integration tests (`nanvm-lib/tests/`), where a single support
-   module owns `T`/`int`/`pos`/`neg`. This resolves the TODO comments and the
-   helper duplication at once.
-2. Interim: a `#[cfg(test)] mod test_util` under `vm/bigint/` exporting
-   `T`/`int`/`pos`/`neg`, imported by each operator's `tests` module; the
-   four TODO comments collapse to one at the shared module.
+The copy-pasted TODO's wish — move these tests to integration tests
+(`nanvm-lib/tests/`) — cannot simply own these helpers: integration tests
+compile as an external crate, and `pos`/`neg` are built on
+`BigInt::unchecked_new`, which is private (`nanvm-lib/src/vm/bigint/mod.rs:51`)
+— deliberately, since it can construct non-normalized values. Moving the
+`unchecked_new`-based tests out therefore requires either widening that
+constructor's visibility just for tests (a bad trade) or rebuilding the raw
+multi-word operands through public API. Tests that only need `int` (public
+`From<i64>`) can move; the `pos`/`neg` internal-representation tests should
+stay in-crate with the shared helper. If the integration-test move is still
+wanted for the rest, that partial split rides on top of this consolidation.
 
 Either way, delete the per-file comment clones.
 
 ### Tasks
 
-- [ ] Pick option 1 or 2; consolidate `T`/`int`/`pos`/`neg`/`TestBigInt`.
-- [ ] Remove the duplicated TODO comments (the shared location keeps one, or
-      option 1 deletes them all).
+- [ ] Add `#[cfg(test)] mod test_util` with `T`/`int`/`pos`/`neg`; migrate
+      the operator `tests` modules and `mod.rs`'s `TestBigInt` to it.
+- [ ] Remove the duplicated TODO comments, keeping one at the shared module
+      (re-scoped to the `From<i64>`-only tests that *can* move out).
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
 
 ### Related

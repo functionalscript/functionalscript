@@ -43,13 +43,21 @@ TS2589).
 ### Proposal
 
 Hoist a single `or` handler into `fs/types/rtti/common/module.f.ts`,
-parameterized by the recursive walker, next to `visit`/`verror`:
+parameterized by the recursive walker, next to `visit`/`verror`. The
+signature cannot mention `Result<T>` at bare `Type` — `Result<T extends
+Type>` expands to `CommonResult<Ts<T>, ValidationError>`, and instantiating
+`Ts<Type>` is exactly the TS2589 blow-up the existing casts dodge — so the
+handler is typed over *erased* aliases that never invoke `Ts`:
 
 ```ts
+/** `Result` with the payload type erased; avoids instantiating `Ts<Type>`. */
+type ResultE = CommonResult<Unknown, ValidationError>
+type ValidateE = (value: Unknown) => ResultE
+
 /** First variant that accepts `value`, else `verror('no match')`. */
 export const orVisit =
-    (recurse: (t: Type) => (value: Unknown) => Result) =>
-    (variants: readonly Type[]) => (value: Unknown): Result => {
+    (recurse: (t: Type) => ValidateE) =>
+    (variants: readonly Type[]) => (value: Unknown): ResultE => {
         for (const t of variants) {
             const r = recurse(t)(value)
             if (r[0] === 'ok') { return r }
@@ -58,14 +66,26 @@ export const orVisit =
     }
 ```
 
-`validate` uses `orVisit(validate)`, `parse` uses `orVisit(parse)`; `parse`
-drops `findFirst` and its `listMap` import. The TS2589-driven cast then lives
-in one place instead of two.
+Each consumer then passes its recursive function with one deliberately
+localized cast at the boundary (typing `validate`/`parse` *as* `(t: Type) =>
+ValidateE` would itself instantiate `Validate<Type>` and hit TS2589, so the
+erasure must be a cast, not an annotation):
+
+```ts
+const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly['or', ...T]> =>
+    orVisit(validate as (t: Type) => ValidateE)(rtti) as Validate<() => readonly['or', ...T]>
+```
+
+and likewise for `parse`; `parse` drops `findFirst` and its `listMap` import.
+Net: the loop body exists once with no cast inside it, and each consumer
+carries exactly one documented boundary cast — down from a cast inside the
+loop (`validate`) plus two `any`s (`parse`).
 
 ### Tasks
 
-- [ ] Add `orVisit` to `fs/types/rtti/common/module.f.ts`; rewrite
-      `orValidate`/`orParse` through it; delete `findFirst`.
+- [ ] Add `ResultE`/`ValidateE` and `orVisit` to
+      `fs/types/rtti/common/module.f.ts`; rewrite `orValidate`/`orParse`
+      through it with one boundary cast each; delete `findFirst`.
 - [ ] `npx tsc`, `fjs t`; rtti proofs pass unchanged.
 
 ### Related

@@ -36,23 +36,28 @@ verdict.
 
 ### Proposal
 
-A local adapter naming the verdict→wire mapping once (it captures `uri`, so
-it stays local to the handler body):
+A closed module-scope adapter naming the verdict→wire mapping once, with the
+per-request `uri` lifted into a leading curried parameter (per the AGENTS.md
+hoisting rule — don't keep a named helper nested just because it captures a
+local):
 
 ```ts
-const toMeta = (d: { readonly length: bigint, readonly mime_type: string, readonly type: 'text' | 'base64' }): Meta =>
+/** Maps a `fs/media/type` detector verdict to the `cas_get` wire `Meta` record. */
+const toMeta = (uri: string) =>
+    (d: { readonly length: bigint, readonly mime_type: string, readonly type: 'text' | 'base64' }): Meta =>
     ({ length: Number(d.length), mimeType: d.mime_type, type: d.type, uri })
 ```
 
-so `meta = toMeta(detected)` and `refinedMeta = toMeta(refined)`. Optionally
+The handler applies it once where `uri` is bound — `const meta =
+toMeta(uri)` — then `meta(detected)` and `meta(refined)`. Optionally
 fold the shared "buffer then `detectDialect`" prefix of the two `collectRead`
 arms into one small step that yields the refined verdict (or the error), so
 only the two genuinely different tail actions remain at the call sites.
 
 ### Tasks
 
-- [ ] Add `toMeta` in the `cas_get` handler and route both `Meta`
-      constructions through it.
+- [ ] Add the module-scope curried `toMeta`; apply `toMeta(uri)` once in the
+      `cas_get` handler and route both `Meta` constructions through it.
 - [ ] Evaluate folding the two `collectRead` + `detectDialect` arms into a
       shared refine step; apply if it stays readable.
 - [ ] `npx tsc`, `fjs t`; `fs/cas/mcp/proof.f.ts` passes with full coverage
