@@ -1,10 +1,10 @@
-export type F<T> =
-    | readonly[0|1|2, 1]
-    | readonly[1, 3]
+export type F =
+    | readonly[0|1|2,     1]
+    | readonly[1,         3]
     | readonly[0|1|2|3|4, 2]
-    | readonly[1|3, 5]
+    | readonly[1|3,       5]
 
-const f = <T>([i, x]: F<T>): undefined => {
+const f = ([i, x]: F): undefined => {
     switch (i) {
         case 0: {
             // insert
@@ -38,7 +38,7 @@ const f = <T>([i, x]: F<T>): undefined => {
                 case 2: case 5: { return undefined }
             }
             // TODO: remove after TSGO fix the regression.
-            throw 'unreachable'
+            //throw 'unreachable'
         }
         case 4: {
             // insert
