@@ -99,6 +99,8 @@ const nodeSet
             }
             case 4: {
                 // insert
+                // TODO: remove after TSGO fix the regression.
+                const _xl: 2 = x.length
                 const [v0, v1] = x;
                 return [[v0], v1, [g(null)]]
             }
@@ -168,10 +170,12 @@ const t
                     case 5: { return [[x[0], x[1], x[2], g(x[3]), x[4]]] }
                 }
                 // TODO: remove after TSGO fix the regression.
-                //throw 'unreachable'
+                throw 'unreachable'
             }
             case 4: {
                 // insert
+                // TODO: remove after TSGO fix the regression.
+                const _xl: 2 = x.length
                 const [v0, v1] = x;
                 return [[v0], v1, [g(null)]]
             }
