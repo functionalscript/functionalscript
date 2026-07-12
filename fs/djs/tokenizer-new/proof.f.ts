@@ -157,7 +157,9 @@ const decodeJsonString
 const decodeNumber
     : (value: string) => readonly [bigint, number]
     = value => {
-        const eIndex = Math.max(value.indexOf('e'), value.indexOf('E'))
+        // at most one of 'e'/'E' can occur, so whichever indexOf finds it (if any) is the exponent marker
+        const lowerEIndex = value.indexOf('e')
+        const eIndex = lowerEIndex < 0 ? value.indexOf('E') : lowerEIndex
         const mantissaText = eIndex < 0 ? value : value.slice(0, eIndex)
         const expText = eIndex < 0 ? '' : value.slice(eIndex + 1)
         const dotIndex = mantissaText.indexOf('.')
