@@ -30,18 +30,23 @@ written four times (`:703` ≡ `:720` exactly; `:791` ≡ `:797` exactly).
 ### Proposal
 
 Two module-scope helpers mirroring the `numberToken`/`escapeTo` factories
-proposed in 667:
+proposed in 667. Note the `:720` call site lives in a
+`rangeSetFunc<ParseEscapeCharState>` row, so its callback receives
+`{ kind: 'escapeChar', value: string }`, not `ParseStringState` — the helper
+therefore takes only the shared shape it actually reads (`value`) and always
+emits `kind: 'string'`, which is correct for both sites (the escape
+self-insert returns to the string state):
 
 ```ts
-const continueString = (state: ParseStringState) => (input: number): readonly[List<JsToken>, TokenizerState] =>
+const continueString = (state: { readonly value: string }) => (input: number): readonly[List<JsToken>, TokenizerState] =>
     [empty, { kind: 'string', value: appendChar(state.value)(input) }]
 
 const continueComment = (state: ParseCommentState) => (input: number): readonly[List<JsToken>, TokenizerState] =>
     [empty, { ...state, value: appendChar(state.value)(input) }]
 ```
 
-Route `:703` and `:720` through `continueString`, and `:791`/`:797` through
-`continueComment`.
+Route `:703` (`ParseStringState`) and `:720` (`ParseEscapeCharState`) through
+`continueString`, and `:791`/`:797` through `continueComment`.
 
 ### Tasks
 

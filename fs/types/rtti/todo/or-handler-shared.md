@@ -51,8 +51,8 @@ handler is typed over *erased* aliases that never invoke `Ts`:
 
 ```ts
 /** `Result` with the payload type erased; avoids instantiating `Ts<Type>`. */
-type ResultE = CommonResult<Unknown, ValidationError>
-type ValidateE = (value: Unknown) => ResultE
+export type ResultE = CommonResult<Unknown, ValidationError>
+export type ValidateE = (value: Unknown) => ResultE
 
 /** First variant that accepts `value`, else `verror('no match')`. */
 export const orVisit =
@@ -66,8 +66,10 @@ export const orVisit =
     }
 ```
 
-Each consumer then passes its recursive function with one deliberately
-localized cast at the boundary (typing `validate`/`parse` *as* `(t: Type) =>
+The aliases are `export`ed because the boundary casts live in the sibling
+`validate`/`parse` modules — real external consumers from day one, per the
+AGENTS.md export rule. Each consumer passes its recursive function with one
+deliberately localized cast at the boundary (typing `validate`/`parse` *as* `(t: Type) =>
 ValidateE` would itself instantiate `Validate<Type>` and hit TS2589, so the
 erasure must be a cast, not an annotation):
 
