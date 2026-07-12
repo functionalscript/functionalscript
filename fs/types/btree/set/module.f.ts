@@ -100,7 +100,7 @@ const nodeSet
             case 4: {
                 // insert
                 // TODO: remove after TSGO fix the regression.
-                const _xl: 2 = x.length
+                // const _xl: 2 = x.length
                 const [v0, v1] = x;
                 return [[v0], v1, [g(null)]]
             }
@@ -114,7 +114,7 @@ export const set
     = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)
 
 const t
-    = <T>(c: Compare<T>) => (g: (value: T | null) => T) => (node: TNode<T>): TNode<T> => {
+    = <T>(c: Compare<T>) => (g: (value: T | null) => T) => (node: TNode<T>): undefined => {
     // export type Result<T> = {
     //    readonly first: First<T>,
     //    readonly tail: Path<T>
@@ -153,7 +153,7 @@ const t
                 // insert
                 const value = g(null)
                 // TODO: remove after TSGO fix the regression.
-                // const _xl: 1|2 = x.length
+                const _xl: 1|2 = x.length
                 switch (x.length) {
                     case 1: { return [[x[0], value]] }
                     case 2: { return [[x[0]], value, [x[1]]] }
@@ -164,7 +164,7 @@ const t
             case 3: {
                 // replace
                 // TODO: remove after TSGO fix the regression.
-                // const _xl: 2|5 = x.length
+                const _xl: 2|5 = x.length
                 switch (x.length) {
                     case 2: { return [[x[0], g(x[1])]] }
                     case 5: { return [[x[0], x[1], x[2], g(x[3]), x[4]]] }
@@ -181,5 +181,5 @@ const t
             }
         }
     }
-    return collapseRoot(reduceBranch(f())(tail))
+    return undefined // collapseRoot(reduceBranch(f())(tail))
 }
