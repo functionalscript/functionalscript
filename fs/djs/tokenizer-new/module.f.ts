@@ -156,11 +156,14 @@ export const jsGrammar = (): Rule => {
     }
 
     // Recursive rule: tries end (*/) first at every position so **/  → content(*) + terminator(*/).
+    // Falls back to the empty `unterminated` alternative at EOF instead of failing, so `comment`
+    // always succeeds and the descent parser never backtracks into matching '/' and '*' as
+    // separate operators. Callers detect an unterminated comment by checking for this tag.
     const multilineContent = (): DataRule => {
         const char: Rule = { na: notSet('*'), a: '*' }
         const end: Rule = ['*', '/']
         const more: Rule = [char, multilineContent]
-        return { end, more }
+        return { end, more, unterminated: none }
     }
 
     const comment = ['/', {
