@@ -1,28 +1,20 @@
 export type F =
-    | readonly[2  , readonly[number]]
-    | readonly[2|3, readonly[number,number]]
-    | readonly[  3, readonly[number,number,number,number,number]]
+    | readonly[0  , readonly[number]]
+    | readonly[0|1, readonly[number,number]]
+    | readonly[  1, readonly[number,number,number]]
 
 const f = ([i, x]: F): undefined => {
     switch (i) {
-        case 2: {
-            // TODO: remove after TSGO fix the regression.
-            const _xl: 1|2 = x.length
+        case 0: {
+            const _x0: 1|2 = x.length
             switch (x.length) {
                 case 1: case 2: { return undefined }
             }
-            // TODO: remove after TSGO fix the regression.
-            //throw 'unreachable'
+            // // Workaround:
+            // throw 'unreachable'
         }
-        case 3: {
-            // replace
-            // TODO: remove after TSGO fix the regression.
-            const _xl: 2|5 = x.length
-            switch (x.length) {
-                case 2: case 5: { return undefined }
-            }
-            // TODO: remove after TSGO fix the regression.
-            //throw 'unreachable'
+        case 1: {
+            const _x1: 2|3 = x.length
         }
     }
 }
