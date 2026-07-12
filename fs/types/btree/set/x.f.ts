@@ -13,7 +13,7 @@ const f = ([i, x]: F): undefined => {
             switch (x.length) {
                 case 1: case 2: { return undefined }
             }
-            // // Workaround:
+            // // Workaround (w/o this workaround TS 7.0.2 fails to compile the valid code):
             // throw 'unreachable'
         }
         // cover cases:
