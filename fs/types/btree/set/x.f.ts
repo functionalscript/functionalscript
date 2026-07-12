@@ -20,6 +20,8 @@ const f = ([i, x]: F): undefined => {
         // `readonly[1, readonly[number,number]]` and
         // `readonly[1, readonly[number,number,number]]`
         case 1: {
+            // TS 6.0.3: no errors
+            // TS 7.0.2: error TS2339: Property 'length' does not exist on type 'never'.
             const _x1: 2|3 = x.length
         }
     }
