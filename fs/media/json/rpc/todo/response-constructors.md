@@ -28,8 +28,9 @@ const _okResponse = (id: Id) => (result: Unknown): Response =>
 `mcp` already imports `jsonrpc`, `rpcError`, `invalidRequest`, `invalidParams`,
 and `methodNotFound` from `json/rpc` — the error *values* travel across the
 module boundary, but the envelope *constructors* had to be reinvented because
-they are private. That is the same separation-of-concerns smell as
-[share-ok-result](../../../mcp/todo/share-ok-result.md) one layer down: the
+they are private. That is the same separation-of-concerns smell already fixed
+for `ToolsCallResult` (`okResult`/`errorResult` now live in `mcp` and
+`cas/mcp` imports `okResult` instead of hand-rolling it) one layer down: the
 owner module exports half of a pair and every consumer hand-rolls the rest.
 `_errResponse` is byte-identical to `errorResponseOf`; `_okResponse` is the
 inlined success literal from `dispatch` given a name. Both are used throughout
@@ -84,7 +85,7 @@ after this change it builds on the imported one.
 
 - `fs/media/json/rpc/module.f.ts` — owner of the `Response` envelope.
 - `fs/mcp/module.f.ts:240-244` — the duplicated private constructors.
-- [share-ok-result](../../../mcp/todo/share-ok-result.md) — the same
-  owner-exports-the-pair pattern for `ToolsCallResult`.
+- `fs/mcp/module.f.ts` `okResult`/`errorResult` — the same
+  owner-exports-the-pair pattern, already applied to `ToolsCallResult`.
 - [66D-mcp-validate-response-envelope](../../../mcp/todo/README.md) — builds
   its `validated` helper on top of these constructors.

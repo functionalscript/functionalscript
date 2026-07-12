@@ -43,9 +43,10 @@ not materialize revisions.
 ```ts
 export const revision = {
     /**
-     * Format tag: names the dialect of this BLOB. Must be the first key
-     * in the serialized JSON so detection can match the `{"dialect":"`
-     * prefix. The media type it is served with is derived:
+     * Format tag: names the dialect of this BLOB. Key order carries no
+     * meaning: detection parses the JSON and validates the parsed value
+     * against this schema, so the tag is recognized wherever it appears
+     * in the object. The media type it is served with is derived:
      * `application/` + dialect + `+json`, i.e.
      * `application/vnd.fjs.revision+json`.
      */
@@ -109,8 +110,9 @@ Notes on the shape:
 - `dialect` is a self-describing format tag. In a generic CAS a blob is just bytes under a
   hash, so without a discriminant a reader can only recognize a revision by guessing from its
   shape, which collides with any other format that happens to have `subject`/`parents` fields.
-  The tag gives format detection (tools can recognize revisions while walking a store) and a
-  cheap pre-validation gate; the key doubles as the type discriminant. The value is a
+  The tag gives format detection (tools can recognize revisions while walking a store) and,
+  once the JSON is parsed, a cheap dispatch key selecting which dialect schema to validate
+  against; the key doubles as the type discriminant. The value is a
   **short dialect name** in the RFC 6838 vendor-tree style (`vnd.fjs.revision`); the media
   type the blob is served with is derived mechanically — `application/` + dialect + `+json`,
   here `application/vnd.fjs.revision+json` — because the `application/` top level and the
@@ -147,26 +149,34 @@ Notes on the shape:
   transport-generic: a server that knows the dialect can always attach it alongside the
   payload, for example with a response field or header. The convention applies to **new JSON media
   types designed in FunctionalScript**, and even there it is a recommendation (a good
-  default), not a requirement: such a format MAY be a JSON object whose **first** key is
-  `dialect`, so detection matches the byte prefix `{"dialect":"vnd.fjs.` and then
-  validates against the schema of the named dialect; anything that does not match falls
-  through to normal media detection. This format adopts the convention. The key is spelled
+  default), not a requirement: such a format is a JSON object carrying a `dialect` key that
+  names its dialect. Detection is semantic, not syntactic: the detector parses the JSON and
+  validates the parsed value against the schema of the named dialect — **any** JSON that
+  satisfies the schema is detected, regardless of key order, whitespace, or any other
+  serialization detail; anything that does not validate falls through to normal media
+  detection. This format adopts the convention. The key is spelled
   `dialect` — one vocabulary for both the embedded tag and the out-of-band field — and not:
-  - `mimeType` — a common response field name. Any response envelope stored back into CAS
-    would false-positive a `{"mimeType":` prefix sniff, and the value here is not a MIME
-    type anyway.
+  - `mimeType` — a common response field name. A response envelope stored back into CAS
+    would carry a colliding key, inviting confusion between the envelope's transport
+    metadata and the payload's format tag, and the value here is not a MIME type anyway.
   - `contentType` — echoes the HTTP header, and `content` is already a colliding term in
     many response envelopes.
   - `mediaType` — near-synonym of `mimeType`; serving both keys side by side in one
     response would invite exactly the confusion the vocabulary split is meant to prevent.
-- **Media detection**: `fs/media` should detect revision blobs by the embedded dialect tag and
-  schema validation, then report the derived media type `application/vnd.fjs.revision+json`.
-  Prefix matching can stay streaming, but schema validation requires buffering and parsing
-  JSON, so it must be attempted only when the blob is already buffered or within a
-  size-bounded path such as the existing 128 KiB inline-content cap. Larger blobs must fall
+- **Media detection**: `fs/media` should detect revision blobs by parsing the JSON and
+  validating the parsed value against the revision RTTI schema, then report the derived
+  media type `application/vnd.fjs.revision+json`. There is no byte-level shortcut: no
+  assumption about key order, a `{"dialect":` prefix, or any other serialization detail —
+  any JSON that satisfies the schema is a revision. The only limitation, for now, is size:
+  parsing requires buffering the blob into a bit vector (`Vec`, `fs/types/bit_vec`), so
+  schema validation is attempted only when the blob is already buffered or within a
+  size-bounded path such as the existing 128 KiB inline-content cap. Larger blobs fall
   back to the existing streaming detector so metadata-only reads remain size-independent.
-  This recognition is local to media detection; response shaping is out of scope for this
-  issue and can be designed later once the pure detector exists.
+  The size bound is an implementation limit of today's buffering parser, not part of the
+  format; a future streaming parser/recognizer may lift it without changing the format or
+  the detection contract, but detection must never regain byte-prefix assumptions to get
+  there. This recognition is local to media detection; response shaping is out of scope for
+  this issue and can be designed later once the pure detector exists.
 - `subject` gives every revision of the same mutable thing a common anchor to resolve
   "current head(s)" against, without requiring a mutable pointer anywhere in CAS itself —
   the head is whatever revision(s) reference `subject` and are not listed as a parent by
@@ -213,27 +223,29 @@ Open design points:
 
 ### Tasks
 
-- [ ] Create `fs/media/revision/README.md` — the spec of the dialect `vnd.fjs.revision`,
+- [x] Create `fs/media/revision/README.md` — the spec of the dialect `vnd.fjs.revision`,
       served as `application/vnd.fjs.revision+json`
       (deployed automatically to functionalscript.com once it exists in the repo)
-- [ ] Define `hash` as the only snapshot-reference type accepted by this dialect, recognizing
+- [x] Define `hash` as the only snapshot-reference type accepted by this dialect, recognizing
       cbase32 native CAS addresses and rejecting `https://` bridge URLs for `parents`,
       `snapshot`, and zero-parent fallback `subject` references
-- [ ] Create `fs/media/revision/module.f.ts` with the RTTI schema for `revision`
+- [x] Create `fs/media/revision/module.f.ts` with the RTTI schema for `revision`
       (`fs/types/rtti`), the `dialect` constant, and its derived TS type
-- [ ] Teach `fs/media` detection to recognize valid revision JSON and return the derived
-      media type `application/vnd.fjs.revision+json`, falling through to the existing
-      detector for unknown dialects or invalid revision blobs
-- [ ] Tests: valid revision detection, invalid revision fallthrough, `https://` bridge URL
+- [x] Teach `fs/media` detection to recognize valid revision JSON — by parsing and RTTI
+      schema validation, with no key-order or byte-prefix assumptions — and return the
+      derived media type `application/vnd.fjs.revision+json`, falling through to the
+      existing detector for unknown dialects or invalid revision blobs
+- [x] Tests: valid revision detection, invalid revision fallthrough, `https://` bridge URL
       rejection in `parents`, `snapshot`, and zero-parent fallback `subject`, arbitrary string
       `subject` acceptance when `snapshot` is present or `parents.length === 1`, invalid
       multi-parent revisions without `snapshot`, size-bounded schema validation with large
-      blobs falling through to the streaming detector, first-key `dialect` prefix matching,
-      and ordinary JSON fallback behavior
+      blobs falling through to the streaming detector, key-order independence (a valid
+      revision whose `dialect` key is not first must still be detected), and ordinary JSON
+      fallback behavior
 - [ ] Later, as a separate spec: define the incremental-change dialect `vnd.fjs.change`
       (event log, likely CRDT-based) and how revisions link to it — a new dialect, not a
       new field of this format
-- [ ] Reference the format from `fs/cas/README.md`
+- [x] Reference the format from `fs/cas/README.md`
 
 ### Related
 

@@ -49,21 +49,32 @@
  * 2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mimeType: 'text/plain'`.
  * 3. **Fallback** → `type: 'base64'`, `mimeType: 'application/octet-stream'`.
  *
- * **Metadata-only (`content: false`, the default) is size-independent.** It folds
- * the read stream through `fs/media/type` `detectStream` and never buffers the blob.
- * Because a single `Vec` caps at `maxLength` bits (128 KiB), the old
- * drain-into-one-`Vec` approach failed on any blob larger than one chunk even when
- * only metadata was asked for; streaming detection returns correct
- * `{ length, mimeType, type[, uri] }` regardless of size.
+ * **Metadata-only (`content: false`, the default) is size-independent for
+ * non-text and oversized blobs.** It folds the read stream through
+ * `fs/media/type` `detectStream` and never buffers the blob. Because a single
+ * `Vec` caps at `maxLength` bits (128 KiB), the old drain-into-one-`Vec`
+ * approach failed on any blob larger than one chunk even when only metadata
+ * was asked for; streaming detection returns correct
+ * `{ length, mimeType, type[, uri] }` regardless of size. A dialect (e.g.
+ * `vnd.fjs.revision`, see `fs/media/module.f.ts`) can only be recognized by
+ * parsing the whole blob as JSON, so when the streaming verdict is
+ * whole-blob-valid text within the same bounded inline cap as `content: true`
+ * (`maxLengthBytes`), one extra bounded read materializes the blob purely to
+ * refine `mimeType` through the dialect-aware detector; a larger or non-text
+ * blob is never a dialect match and is returned from the streaming verdict
+ * alone, unbuffered.
  *
  * **`content: true`** first derives `{ length, mimeType, type }` with the same
- * size-independent `fs/media/type` `detectStream` machine, then materializes the bytes
- * (via `collectRead`, bounded by `maxLength`) and encodes the inline payload by
- * `type` — a `fs/text/utf8` `fromVec` string on `text` (for `type: 'text'`), base64
- * on `blob` (for `type: 'base64'`). A blob larger than `maxLength` (128 KiB)
- * cannot be buffered into one `Vec`, so it is rejected here with a descriptive
- * *"too large"* error (carrying the byte size and `uri`) rather than being
- * misreported as absent; it should be fetched via `uri` or inspected with
+ * size-independent `fs/media/type` `detectStream` machine (to decide whether the
+ * blob even fits inline), then materializes the bytes (via `collectRead`, bounded
+ * by `maxLength`) and re-derives the verdict from the dialect-aware detector
+ * (`fs/media/module.f.ts` `detect`) — now that the whole blob is in hand, a
+ * dialect match is reflected in the result — before encoding the inline payload
+ * by `type` — a `fs/text/utf8` `fromVec` string on `text` (for `type: 'text'`),
+ * base64 on `blob` (for `type: 'base64'`). A blob larger than `maxLength` (128
+ * KiB) cannot be buffered into one `Vec`, so it is rejected here with a
+ * descriptive *"too large"* error (carrying the byte size and `uri`) rather than
+ * being misreported as absent; it should be fetched via `uri` or inspected with
  * metadata-only `cas_get`.
  *
  * ## Encoding split: hashes vs. content
@@ -96,13 +107,14 @@ import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../media/type/module.f.ts'
+import { detect as detectDialect } from '../../media/module.f.ts'
 import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, vec, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
 import { type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
-    toolEntry, fromRegistry, errorResult,
+    toolEntry, fromRegistry, errorResult, okResult,
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
@@ -206,8 +218,20 @@ const casToolRegistry =
                 const { length, mime_type: mimeType, type } = detected
                 const meta: Meta = { length: Number(length), mimeType, type, uri }
                 if (r.content !== true) {
-                    // content:true path continues below; this is just the metadata step.
-                    return pure(okResult(toJson(meta)))
+                    // A dialect match can only be decided from the whole parsed blob;
+                    // only attempt the extra bounded read when it stands a chance
+                    // (whole-blob text within the same cap `content: true` allows).
+                    if (type !== 'text' || length > maxLengthBytes) {
+                        return pure(okResult(toJson(meta)))
+                    }
+                    return collectRead(c.read(key)).step(([collectTag, value]) => {
+                        // Already known to fit from the streaming pass above, so an
+                        // error here means the hash vanished between reads; fall back
+                        // to the streaming verdict rather than fail the whole request.
+                        if (collectTag === 'error') { return pure(okResult(toJson(meta))) }
+                        const refined = detectDialect(value)
+                        return pure(okResult(toJson({ ...meta, mimeType: refined.mime_type })))
+                    })
                 }
                 // A single `Vec` caps at `maxLength` bits (`maxLengthBytes` bytes), so
                 // a larger blob cannot be buffered for inline transfer. Report the
@@ -221,19 +245,25 @@ const casToolRegistry =
                     if (collectTag === 'error') {
                         return pure(errorResult(`no such hash: ${r.hash}`))
                     }
-                    if (type === 'text') {
+                    // Re-derive the verdict from the now-materialized blob so a
+                    // dialect match — only decidable with the whole parsed JSON in
+                    // hand — is reflected in the inline result too, not just the
+                    // streaming guess.
+                    const refined = detectDialect(value)
+                    const refinedMeta: Meta = { length: Number(refined.length), mimeType: refined.mime_type, type: refined.type, uri }
+                    if (refined.type === 'text') {
                         // `type: 'text'` means the detector validated `value` as UTF-8,
                         // so `fromVec` is non-null here; guard defensively regardless.
                         const str = fromVec(value)
                         return pure(str === null
                             ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                            : okResult(toJson({ ...meta, text: str }))
+                            : okResult(toJson({ ...refinedMeta, text: str }))
                         )
                     }
                     const blob = base64Encode(value)
                     return pure(blob === null
                         ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                        : okResult(toJson({ ...meta, blob }))
+                        : okResult(toJson({ ...refinedMeta, blob }))
                     )
                 })
             })
@@ -248,12 +278,6 @@ const casToolRegistry =
     ),
     ]
 }
-
-// ── Result helpers ──────────────────────────────────────────────────────────────
-
-/** A successful single-text-block tool result. */
-const okResult = (text: string): ToolsCallResult =>
-    ({ content: [{ type: 'text', text }] })
 
 // ── Handlers ────────────────────────────────────────────────────────────────────
 

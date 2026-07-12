@@ -49,8 +49,10 @@ Unregistered FS formats are named by short **dialect** names in the RFC 6838
 vendor-tree style (`vnd.fjs.*`); how a dialect maps to a wire media type
 depends on what the format is a subset of:
 
-- JSON subsets embed their dialect as the first key of the payload
-  (`{"dialect":"vnd.fjs.revision",...}`) and are served with the **derived**
+- JSON subsets embed their dialect as a `dialect` key of the payload
+  (`{"dialect":"vnd.fjs.revision",...}`; key position carries no meaning —
+  detection validates the parsed JSON against the dialect's schema) and are
+  served with the **derived**
   media type `application/{dialect}+json` — e.g. `vnd.fjs.revision` →
   `application/vnd.fjs.revision+json`. The RFC 6839-registered `+json`
   suffix makes the derived type recognizable to existing systems (browsers

@@ -1,5 +1,5 @@
 import { assertEq } from '../../../asserts/module.f.ts'
-import { awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes } from '../module.f.ts'
+import { access, awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes } from '../module.f.ts'
 import { maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.ts'
 import { emptyState, virtual, type Dir, type JsModule } from './module.f.ts'
 
@@ -36,6 +36,15 @@ export const proof = {
         assertEq(result[0], 'ok')
         if (result[0] !== 'ok') { throw result }
         assertEq(result[1].length, 2)
+    },
+    accessNestedPathThroughFile: () => {
+        // 'a/b/c' where 'a' is a file: the operation wrapper's "not a directory"
+        // fallback passes the full remaining path through unchanged, covering the
+        // path.length !== 1 branch of the access op (only path.length === 0 was
+        // otherwise exercised).
+        const root: Dir = { 'a': [vec8(0x42n)] }
+        const [, result] = virtual({ ...emptyState, root })(access('a/b/c'))
+        assertEq(result[0], 'error')
     },
     readFileIntoDir: () => {
         // 'a/b' where both 'a' and 'b' are directories
