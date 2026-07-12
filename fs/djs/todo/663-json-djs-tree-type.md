@@ -11,7 +11,7 @@ codebase. The three copies have the **identical container structure** and differ
 only in which leaf (`Primitive`) types are allowed:
 
 ```ts
-// fs/json/module.f.ts:16
+// fs/media/json/module.f.ts:16
 type Object = { readonly [k in string]: Unknown }
 type Array = readonly Unknown[]
 export type Primitive = boolean | string | number | null
@@ -27,7 +27,7 @@ export type Unknown = Primitive | Object | Array
 ```
 
 ```ts
-// fs/json/serializer/module.f.ts:10
+// fs/media/json/serializer/module.f.ts:10
 type Obj<T> = { readonly [k in string]: Unknown<T> }
 type Arr<T> = readonly Unknown<T>[]
 type Primitive = boolean | string | number | null           // ← unused (see below)
@@ -40,9 +40,9 @@ The only axis of real variation is the leaf set:
 
 | Module | Leaf set (`Primitive`) |
 |---|---|
-| `fs/json/module.f.ts` | `boolean \| string \| number \| null` |
+| `fs/media/json/module.f.ts` | `boolean \| string \| number \| null` |
 | `fs/djs/module.f.ts` | json's `+ bigint \| undefined` |
-| `fs/json/serializer/module.f.ts` | generic `T` (with `null` baked in) |
+| `fs/media/json/serializer/module.f.ts` | generic `T` (with `null` baked in) |
 
 Two further observations sharpen the case:
 
@@ -61,7 +61,7 @@ Two further observations sharpen the case:
 
 3. **The serializer's local `Primitive` (`serializer/module.f.ts:16`) is dead.**
    `Unknown<T>` never references it — it bakes `null` in directly and takes the
-   rest of the leaf set as `T`. `grep -n Primitive fs/json/serializer/module.f.ts`
+   rest of the leaf set as `T`. `grep -n Primitive fs/media/json/serializer/module.f.ts`
    finds only the declaration. It's a leftover copy of json's leaf set with no
    consumer (companion to the i65Y-dead-code-cleanup
    theme).
@@ -70,7 +70,7 @@ Two further observations sharpen the case:
 
 Define the recursive container **once**, parameterized over the leaf type, and
 make `json` and `djs` two instantiations. Home: a small shared module
-`fs/json/common/module.f.ts`, since both `json` and `djs` already sit on the
+`fs/media/json/common/module.f.ts`, since both `json` and `djs` already sit on the
 json leaf set.
 
 **Naming (per review on PR #928).** Keep the names the modules already use —
@@ -80,7 +80,7 @@ pull them in under a namespace alias so the call sites read `Tree.Unknown<P>`,
 existing role and avoids minting new bespoke identifiers:
 
 ```ts
-// fs/json/common/module.f.ts
+// fs/media/json/common/module.f.ts
 /** A recursive JSON-shaped tree over a leaf/primitive type `P`. */
 export type Unknown<P> = P | Object<P> | Array<P>
 export type Object<P> = { readonly [k in string]: Unknown<P> }
@@ -88,7 +88,7 @@ export type Array<P> = readonly Unknown<P>[]
 ```
 
 ```ts
-// fs/json/module.f.ts
+// fs/media/json/module.f.ts
 import type * as Tree from './common/module.f.ts'
 export type Primitive = boolean | string | number | null
 export type Unknown = Tree.Unknown<Primitive>
@@ -107,7 +107,7 @@ export type Array = Tree.Array<Primitive>
 ```
 
 ```ts
-// fs/json/serializer/module.f.ts
+// fs/media/json/serializer/module.f.ts
 // delete the local Obj<T>/Arr<T>/Primitive/Unknown<T> block; use the namespace instead.
 import type * as Tree from '../common/module.f.ts'
 // every `Unknown<T>` site becomes `Tree.Unknown<T>` (T includes/excludes null per caller)
@@ -163,7 +163,7 @@ relationship explicit at the container level instead of only the leaf level.
   sure the serializer's call sites pass a leaf type that already includes `null`
   (or that the common definition folds `null` in consistently) so the migration
   doesn't quietly add/drop `null` from any position.
-- **Decide the home, don't over-engineer it.** A new `fs/json/common/` module is
+- **Decide the home, don't over-engineer it.** A new `fs/media/json/common/` module is
   the obvious fit (json owns the base leaf set; djs already imports from json).
   Don't promote this to `fs/types/` "just in case" — there is no consumer
   outside the json/djs family.
@@ -184,6 +184,6 @@ relationship explicit at the container level instead of only the leaf level.
 - i65Y-dead-code-cleanup — same spirit; the unused
   `Primitive` in `json/serializer/module.f.ts:16` can be removed here or there.
 
-- `fs/json/module.f.ts:16,20,22,24` — copy 1 (json leaf set).
+- `fs/media/json/module.f.ts:16,20,22,24` — copy 1 (json leaf set).
 - `fs/djs/module.f.ts:19,23,25,27` — copy 2 (djs leaf set).
-- `fs/json/serializer/module.f.ts:10,14,16,22` — copy 3 (generic, private; line 16 dead).
+- `fs/media/json/serializer/module.f.ts:10,14,16,22` — copy 3 (generic, private; line 16 dead).

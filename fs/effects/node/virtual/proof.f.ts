@@ -1,5 +1,5 @@
 import { assertEq } from '../../../asserts/module.f.ts'
-import { awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes } from '../module.f.ts'
+import { awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes } from '../module.f.ts'
 import { maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.ts'
 import { emptyState, virtual, type Dir, type JsModule } from './module.f.ts'
 
@@ -157,6 +157,13 @@ export const proof = {
         const root: Dir = { 'big': [chunk0, chunk1] }
         const [, result] = virtual({ ...emptyState, root })(readBytes('big', chunkSize - 1, 2))
         assertEq(result[0], 'ok')
+    },
+    writeBytesWrongOffset: () => {
+        // writeBytes is append-only; an offset that doesn't match the current
+        // file size must fail rather than silently create a hole.
+        const root: Dir = { 'file': [vec8(0x42n)] }
+        const [, result] = virtual({ ...emptyState, root })(writeBytes('file', 5, vec8(0x43n)))
+        assertEq(result[0], 'error')
     },
     largeFileReadBytes: () => {
         // A file stored as two 128 KiB chunks is larger than maxLengthBytes.

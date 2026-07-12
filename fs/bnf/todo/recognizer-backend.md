@@ -16,7 +16,7 @@ Separately, several callers need to **recognize** input without building an
 AST — they only want "did it match, and what is the final state":
 
 - `fs/cas/mcp` `cas_get` metadata detection (magic-byte MIME + UTF-8 validity)
-  over a streaming blob — shipped in `fs/mime` `detectStream` with the
+  over a streaming blob — shipped in `fs/media/type` `detectStream` with the
   `A_magic`/`A_utf8` factors hand-rolled, ready to lower onto this backend;
 - "is this valid JSON / valid identifier" checks that should not allocate a tree;
 - the scanner/lexer tier of the layered parser
@@ -111,7 +111,7 @@ contrast is an **external** DSL — React/JSX, TypeScript's type syntax — whic
 needs its own parser/transpiler; FunctionalScript builds the DSL *inside* the
 host language instead. The same move recurs across the codebase:
 
-- `fs/html` — markup as nested element values (`['a', { href }, 'Example']`),
+- `fs/media/html` — markup as nested element values (`['a', { href }, 'Example']`),
   not JSX; serialized by an emitter function;
 - `fs/types/rtti` — a type is a schema *value* from which `ts/` derives the
   TypeScript type, `validate/` a validator, and `parse/` a deserializer (the
@@ -152,7 +152,7 @@ There is no code-point coupling in BNF itself. The string-literal constructors
 helpers** sitting *above* the agnostic core; a parallel family of **binary
 helpers** — byte / hex literals, byte sequences, byte-range sets — would author
 byte grammars the same way, all bottoming out in the agnostic `rangeEncode` /
-`oneEncode` primitives. (`fs/mime`'s `fromSentinel` hex-signature notation,
+`oneEncode` primitives. (`fs/media/type`'s `fromSentinel` hex-signature notation,
 `0x1_89_50_4e_47…n`, is a precedent for compact byte-sequence literals — just
 targeting `Vec` today rather than `RuleSet` terminals. The matcher's
 `CodePoint[]` typing is likewise nominal — structurally numbers.)
@@ -222,12 +222,12 @@ Bigger automata are built from BNF pieces in two complementary ways:
 - [parser-structure](./parser-structure.md) — the AST-producing backend
 - `fs/types/rtti` — the type-level sibling of this strategy: types as schema
   values, many artifacts (TS type, validator, parser) derived by function
-- `fs/html` — the markup-level sibling: an embedded DSL of nested element
+- `fs/media/html` — the markup-level sibling: an embedded DSL of nested element
   values, not an external syntax (JSX)
 - [new-pl.md](../../../todo/new-pl.md) — `Function.getAst` / `fromAst` (functions
   as serializable IR); `toData` is the grammar-specific case, and the serialized
   forms become content-addressable via `Object.id`
-- `fs/mime` `detectStream` — first concrete consumer (streaming MIME/UTF-8
+- `fs/media/type` `detectStream` — first concrete consumer (streaming MIME/UTF-8
   recognizer), shipped with hand-rolled `A_magic`/`A_utf8` factors that this
   backend should later replace
 - `fs/fsm`, `fs/types/byte_set`, `fs/types/range_map` — engines to reuse as the

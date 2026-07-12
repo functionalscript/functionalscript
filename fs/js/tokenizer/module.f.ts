@@ -266,6 +266,7 @@ type ErrorMessage = |
     'invalid token' |
     '*\/ expected' |
     'unterminated string literal' |
+    'unescaped control character in string' |
     'eof'
 
 type InitialState = { readonly kind: 'initial'}
@@ -691,12 +692,19 @@ const invalidNumberStateOp
         })
     ])
 
+const rangeSetStringControl = [
+    [0x00, 0x09],
+    [0x0b, 0x0c],
+    [0x0e, 0x1f],
+] as const satisfies readonly NumberRange[]
+
 const parseStringStateOp
     : (state: ParseStringState) => (input: number) => readonly[List<JsToken>, TokenizerState]
     = create((state: ParseStringState) => input => [empty, { kind: 'string', value: appendChar(state.value)(input) }])([
         rangeFunc<ParseStringState>(one(quotationMark))(state => () => [[{ kind: 'string', value: state.value }], { kind: 'initial' }]),
         rangeFunc<ParseStringState>(one(reverseSolidus))(state => () => [empty, { kind: 'escapeChar', value: state.value }]),
-        rangeSetFunc<ParseStringState>(rangeSetNewLine)(() => () => [[{ kind: 'error', message: 'unterminated string literal'}], { kind: 'nl'}])
+        rangeSetFunc<ParseStringState>(rangeSetNewLine)(() => () => [[{ kind: 'error', message: 'unterminated string literal'}], { kind: 'nl'}]),
+        rangeSetFunc<ParseStringState>(rangeSetStringControl)(state => () => [[{ kind: 'error', message: 'unescaped control character in string' }], { kind: 'string', value: state.value }])
     ])
 
 const parseEscapeDefault

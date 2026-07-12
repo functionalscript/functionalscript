@@ -6,8 +6,8 @@
 import { sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/module.f.ts'
 import { join, normalize, parse } from '../path/module.f.ts'
 import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
-import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
-import { foldStep, forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
+import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
+import { foldStep, forEachStep, okStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
 import {
     access,
     createExclusive,
@@ -211,10 +211,7 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                         .step(t0 => {
                             const path0 = join(stageDir, stageName(t0 + leaseDelta, rndStr))
                             return createExclusive(path0)
-                            .step(([c, e]) => c === 'error'
-                                ? pure(error(e))
-                                : loop(sha2.init, 0, path0)(payload)
-                            )
+                            .step(okStep(() => loop(sha2.init, 0, path0)(payload)))
                         }))
                 }))
         },
@@ -277,9 +274,6 @@ export const casAddFile = <O extends Operation>(cas: Cas<O>) => (path: string): 
 export const casUpload = (home: string) => (fileName: string): Effect<FileCasOperation, IoResult<Vec>> => {
     const src = join(home, 'cas_upload', fileName)
     const c = fileCas(sha256)(home)
-    return casAddFile(c)(src).step((result): Effect<FileCasOperation, IoResult<Vec>> => {
-        if (result[0] === 'error') { return pure(result) }
-        return rm(src).step(() => pure(result))
-    })
+    return casAddFile(c)(src).step(okStep<Vec, unknown, Rm, Vec>(v => rm(src).step(() => pure(ok(v)))))
 }
 

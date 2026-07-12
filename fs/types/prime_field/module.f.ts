@@ -7,7 +7,7 @@
  * @module
  */
 import type { Unary, Reduce } from '../bigint/module.f.ts'
-import { repeat } from '../monoid/module.f.ts'
+import { repeat } from '../../common/monoid/module.f.ts'
 import { assert } from '../../asserts/module.f.ts'
 
 /**

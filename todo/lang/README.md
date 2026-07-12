@@ -23,6 +23,10 @@ File Types:
 - [ ] [JSON](./1000-json.md).
 - [ ] [undefined-property](./1010-undefined-property.md).
 
+String literals at every level use JSON string syntax; full JS string
+spellings are a deferred feature, see
+[js-string-literals](./2460-js-string-literals.md).
+
 **VM**:
 
 We are introducing new commands in such a way that every new command depends only on previous commands.
@@ -83,7 +87,8 @@ We need it to use JSDoc and TypeScript.
 2. [x] [line-comment](./2420-line-comment.md),
 3. [x] [trailing-comma](./2430-trailing-comma.md),
 4. [ ] [shorthand](./2440-shorthand.md),
-5. [ ] [destructuring](./2450-destructuring.md).
+5. [ ] [destructuring](./2450-destructuring.md),
+6. [ ] [js-string-literals](./2460-js-string-literals.md).
 
 ## 3. FJS
 
@@ -166,7 +171,9 @@ type Main = Request
 
 ## 6. Content-Addressable VM
 
-See also [Unison](https://www.unison-lang.org/), [ScrapScript](https://scrapscript.org/). And ZK: [Lurk](https://filecoin.io/blog/posts/introducing-lurk-a-programming-language-for-recursive-zk-snarks/).
+See also [Unison](https://www.unison-lang.org/), [ScrapScript](https://scrapscript.org/), [Dhall](https://dhall-lang.org/). And ZK: [Lurk](https://filecoin.io/blog/posts/introducing-lurk-a-programming-language-for-recursive-zk-snarks/).
+
+Note that Dhall is not Turing-complete: it is a [total](https://en.wikipedia.org/wiki/Total_functional_programming) programming language, so every Dhall program is guaranteed to terminate. FunctionalScript as a CAPL can also have a total-functional subset, if needed. Another, more practical, option is that the VM can limit execution by time and memory parameters.
 
 The main target is run-time performance.
 

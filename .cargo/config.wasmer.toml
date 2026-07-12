@@ -1,5 +1,5 @@
 [target.wasm32-wasip1]
-runner = "wasmer run --dir . --"
+runner = "wasmer run --volume .:/ --"
 
 [target.wasm32-wasip1-threads]
-runner = "wasmer run --enable-threads --dir . --"
+runner = "wasmer run --enable-threads --volume .:/ --"

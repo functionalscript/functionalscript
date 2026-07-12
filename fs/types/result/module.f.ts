@@ -66,3 +66,9 @@ export const unwrap = <T, E>([kind, v]: Result<T, E>): T => {
  */
 export const invert = <T, E>([k, v]: Result<T, E>): Result<E, T> =>
     k === 'ok' ? error(v) : ok(v)
+
+/**
+ * Maps the `ok` case of a result, passing an `error` through unchanged.
+ */
+export const mapOk = <T, R>(f: (value: T) => R) => <E>(r: Result<T, E>): Result<R, E> =>
+    r[0] === 'ok' ? ok(f(r[1])) : r

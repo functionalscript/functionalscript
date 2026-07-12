@@ -1,11 +1,11 @@
 /**
  * CI step builders for Node.js: setup-node installation, platform smoke tests,
- * per-version canonical jobs, and the main TSGO step.
+ * per-version canonical jobs.
  *
  * @module
  */
-import { node, tsgo } from '../config/module.f.ts'
-import { type Job, type Jobs, type MetaStep, type Os, clean, install, test, ubuntuArm, uses } from '../common/module.f.ts'
+import { node } from '../config/module.f.ts'
+import { type Job, type Jobs, type MetaStep, clean, install, test, ubuntuArm, uses } from '../common/module.f.ts'
 
 export const major = (v: string): string => v.split('.')[0]
 
@@ -44,9 +44,7 @@ const node24Steps: readonly MetaStep[] = clean([
 
 const node26Steps: readonly MetaStep[] = clean([
     ...nodeInstall(node.default),
-    install({ run: `npm install -g @typescript/native-preview@${tsgo}` }),
     test({ run: 'npx tsc' }),
-    test({ run: 'tsgo' }),
     test({ run: 'npm run cov' }),
     test({ run: 'npm pack' }),
 ])

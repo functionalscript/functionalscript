@@ -11,8 +11,8 @@
  *
  * | Tool       | args                          | action           | result                              |
  * |------------|-------------------------------|------------------|-------------------------------------|
- * | `cas_add`  | `{ content, type? }`          | write/upload     | hash (cBase32)                      |
- * | `cas_get`  | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mime_type,type[,content]}` |
+ * | `cas_add`  | `{ content, type? }`          | `c.write(...)`   | hash (cBase32)                      |
+ * | `cas_get`  | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
  * | `cas_list` | `{}`                          | `c.list()`       | hashes, one per line                |
  *
  * ## `cas_add` input encoding
@@ -23,43 +23,53 @@
  *   without any encoding step.
  * - `'base64'`: `content` is RFC 4648 base64, decoded to bytes before storage.
  *   Use this for pre-encoded binary payloads.
- * - `'url'`: `content` is a filesystem path within `$HOME/cas_upload/`; the server
- *   moves the file via the streaming move-hash-move pipeline (no size limit).
- *   Paths outside `$HOME/cas_upload/` or containing `..` are rejected for security.
+ *
+ * Inline content (either encoding) is capped at 128 KiB (`maxLength`). There is
+ * no MCP route for larger content — the server never opens a local path named by
+ * the client (see the invariant in `fs/cas/mcp/README.md`); large files go
+ * through the `cas` CLI (`cas add <path>`) instead, run directly by the user.
  *
  * ## `cas_get` output
  *
- * Always returns a JSON object `{ length, mime_type, type[, url][, content] }`.
- * `type` is always present (`'text'` or `'base64'`). A single classifier — the
- * `fs/mime` detector state machine (length × magic-byte eliminator × UTF-8 DFA) —
- * produces the same three-way verdict on both paths, so there is no second,
- * divergent copy of the rules:
+ * Always returns a JSON object `{ length, mimeType, type[, uri][, text | blob] }`.
+ * These field names mirror the MCP resource-contents shape (`resources/read`
+ * results), so the tool view and the future resource view of a blob use the same
+ * vocabulary: `mimeType` (not `mime_type`), `uri` (not `url`) — the resource URI
+ * under which the same blob will be readable via `resources/read` — and `text` /
+ * `blob` (not a `type`-tagged `content`) for inline payloads. `type` is always
+ * present (`'text'` or `'base64'`) as the discriminator for which of `text` /
+ * `blob` a later `content: true` fetch would populate — MCP allows extra fields,
+ * so `type` and `length` simply stay alongside the required resource-contents
+ * fields. A single classifier — the `fs/media/type` detector state machine (length ×
+ * magic-byte eliminator × UTF-8 DFA) — produces the same three-way verdict on
+ * both paths, so there is no second, divergent copy of the rules:
  *
  * 1. **Magic-byte hit** (PNG/JPEG/GIF/WebP/PDF/ZIP) → `type: 'base64'` with the
- *    detected `mime_type`.
- * 2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mime_type: 'text/plain'`.
- * 3. **Fallback** → `type: 'base64'`, `mime_type: 'application/octet-stream'`.
+ *    detected `mimeType`.
+ * 2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mimeType: 'text/plain'`.
+ * 3. **Fallback** → `type: 'base64'`, `mimeType: 'application/octet-stream'`.
  *
  * **Metadata-only (`content: false`, the default) is size-independent.** It folds
- * the read stream through `fs/mime` `detectStream` and never buffers the blob.
+ * the read stream through `fs/media/type` `detectStream` and never buffers the blob.
  * Because a single `Vec` caps at `maxLength` bits (128 KiB), the old
  * drain-into-one-`Vec` approach failed on any blob larger than one chunk even when
  * only metadata was asked for; streaming detection returns correct
- * `{ length, mime_type, type[, url] }` regardless of size.
+ * `{ length, mimeType, type[, uri] }` regardless of size.
  *
- * **`content: true`** first derives `{ length, mime_type, type }` with the same
- * size-independent `fs/mime` `detectStream` machine, then materializes the bytes
+ * **`content: true`** first derives `{ length, mimeType, type }` with the same
+ * size-independent `fs/media/type` `detectStream` machine, then materializes the bytes
  * (via `collectRead`, bounded by `maxLength`) and encodes the inline payload by
- * `type` — a `fs/text/utf8` `fromVec` string for `text`, base64 for `base64`. A
- * blob larger than `maxLength` (128 KiB) cannot be buffered into one `Vec`, so it
- * is rejected here with a descriptive *"too large"* error (carrying the byte size
- * and `url`) rather than being misreported as absent; it should be fetched via
- * `url` or inspected with metadata-only `cas_get`.
+ * `type` — a `fs/text/utf8` `fromVec` string on `text` (for `type: 'text'`), base64
+ * on `blob` (for `type: 'base64'`). A blob larger than `maxLength` (128 KiB)
+ * cannot be buffered into one `Vec`, so it is rejected here with a descriptive
+ * *"too large"* error (carrying the byte size and `uri`) rather than being
+ * misreported as absent; it should be fetched via `uri` or inspected with
+ * metadata-only `cas_get`.
  *
  * ## Encoding split: hashes vs. content
  *
  * `Cas<O>` deals in `Vec` (bit vectors); MCP models only `textContent` today.
- * **Hashes** travel as cBase32 (`fs/cbase32`) — the canonical CAS hash format,
+ * **Hashes** travel as cBase32 (`fs/basen/cbase32`) — the canonical CAS hash format,
  * shared with the CLI and the on-disk store layout. **Content** encoding is
  * determined at read time as described above.
  *
@@ -79,16 +89,16 @@
  * @module
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
-import { stringify } from '../../json/module.f.ts'
+import { stringify } from '../../media/json/module.f.ts'
 import { pure, decode, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
-import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
-import { decode as base64Decode, encode as base64Encode } from '../../base64/module.f.ts'
+import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
+import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
-import { detectStream } from '../../mime/module.f.ts'
+import { detectStream } from '../../media/type/module.f.ts'
 import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, vec, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
-import { rm, type IoResult, type Read, type Rm, type Write } from '../../effects/node/module.f.ts'
+import { type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
@@ -96,7 +106,7 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { casAddFile, fileCas, type FileCasOperation } from '../module.f.ts'
+import { fileCas, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
@@ -107,7 +117,7 @@ import { nonEmpty, empty as elEmpty, type List } from '../../effects/list/module
 /** Arguments for `cas_add`: content to store, with optional encoding type. */
 export const casAddArgs = {
     content: string,
-    type: or('text' as const, 'base64' as const, 'url' as const, undefined)
+    type: or('text' as const, 'base64' as const, undefined)
 } as const
 
 /** Arguments for `cas_get`: the cBase32 hash to look up; optionally request inline content. */
@@ -125,7 +135,7 @@ export const casListArgs = {} as const
  * Drains a CAS read stream into a single `Vec`. Used only on the `content: true`
  * path, where the whole blob is needed for inline base64 / UTF-8 transfer; the
  * chunk stream is concatenated and an error item is surfaced as the result.
- * Metadata-only `cas_get` avoids this entirely via `fs/mime` `detectStream`,
+ * Metadata-only `cas_get` avoids this entirely via `fs/media/type` `detectStream`,
  * which is why it is not bound by the `maxLength` ceiling below.
  */
 const collectRead = <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {
@@ -152,39 +162,27 @@ const toJson = stringify(identity)
 
 type Meta = {
     readonly length: number
-    readonly mime_type: string
+    readonly mimeType: string
     readonly type: 'text' | 'base64'
-    readonly url: string
+    readonly uri: string
 }
 
 /** Registry of all CAS tools. */
 const casToolRegistry =
-(home: string): readonly ToolEntry<FileCasOperation|Rm>[] => {
+(home: string): readonly ToolEntry<FileCasOperation>[] => {
     const c = fileCas(sha256)(home)
-    const casUploadDir = `${home}/cas_upload`
     return [
     toolEntry(
         'cas_add',
-        'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content (text/base64) is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content use type:"url" to stream a file from $HOME/cas_upload/ (no size limit).',
+        'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, store the file with the `cas` CLI instead: run `npx functionalscript cas add <path>` yourself if you have shell access, or give the user that exact command to run — it prints the resulting hash on stdout.',
         casAddArgs,
-        ({ type, content }): Effect<FileCasOperation | Rm, ToolsCallResult> => {
-            // type:'url' — stream the file into cas, then delete the source on success
-            if (type === 'url') {
-                if (!content.startsWith(`${casUploadDir}/`) || content.includes('..')) {
-                    return pure(errorResult(`cas_add type:url paths must be within ${casUploadDir}/ — got: ${content}`))
-                }
-                return casAddFile(c)(content).step(([t, v]) =>
-                    t === 'error'
-                        ? pure(errorResult(`upload failed: ${v}`))
-                        : rm(content).step(() => pure(okResult(vecToCBase32(v))))
-                )
-            }
+        ({ type, content }): Effect<FileCasOperation, ToolsCallResult> => {
             // type:'text' or 'base64' — resolve content to Vec, store via c.write()
             let x: Vec|null = type === 'base64'
                 ? base64Decode(content)
                 : tryUtf8(content)
             return x === null
-                ? pure(errorResult('too large or malformed — use type:"url" for large content'))
+                ? pure(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
                 : c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
                     ? errorResult('write')
@@ -193,20 +191,20 @@ const casToolRegistry =
     ),
     toolEntry(
         'cas_get',
-        'Inspect a blob by hash. Always returns JSON {length,mime_type,type[,url]} where type is "text" or "base64". Pass content:true to also include the inline content string, but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To download a blob, prefer the url field returned in the result instead of requesting inline content.',
+        'Inspect a blob by hash. Always returns JSON {length,mimeType,type[,uri]} where type is "text" or "base64". Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To download a blob, prefer the uri field returned in the result instead of requesting inline content.',
         casGetArgs,
         r => {
             const key = cBase32ToVec(r.hash)
             if (key === null) {
                 return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
             }
-            const url = c.url(key)
+            const uri = c.url(key)
             return detectStream(c.read(key)).step(([tag, detected]) => {
                 if (tag === 'error') {
                     return pure(errorResult(`no such hash: ${r.hash}`))
                 }
-                const { length, mime_type, type } = detected
-                const meta: Meta = { length: Number(length), mime_type, type, url }
+                const { length, mime_type: mimeType, type } = detected
+                const meta: Meta = { length: Number(length), mimeType, type, uri }
                 if (r.content !== true) {
                     // content:true path continues below; this is just the metadata step.
                     return pure(okResult(toJson(meta)))
@@ -217,7 +215,7 @@ const casToolRegistry =
                 // misreporting an existing blob as `no such hash`.
                 if (length > maxLengthBytes) {
                     return pure(errorResult(
-                        `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the url field (${url}) or omit content for metadata`))
+                        `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the uri field (${uri}) or omit content for metadata`))
                 }
                 return collectRead(c.read(key)).step(([collectTag, value]) => {
                     if (collectTag === 'error') {
@@ -229,13 +227,13 @@ const casToolRegistry =
                         const str = fromVec(value)
                         return pure(str === null
                             ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                            : okResult(toJson({ ...meta, content: str }))
+                            : okResult(toJson({ ...meta, text: str }))
                         )
                     }
                     const blob = base64Encode(value)
                     return pure(blob === null
                         ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                        : okResult(toJson({ ...meta, content: blob }))
+                        : okResult(toJson({ ...meta, blob }))
                     )
                 })
             })
@@ -262,7 +260,7 @@ const okResult = (text: string): ToolsCallResult =>
 /**
  * MCP handlers for `FileCas`.
  */
-export const casMcpHandlers = (home: string): McpHandlers<FileCasOperation | Rm> =>
+export const casMcpHandlers = (home: string): McpHandlers<FileCasOperation> =>
     fromRegistry(casToolRegistry(home))
 
 // ── Session configuration ───────────────────────────────────────────────────────
@@ -286,7 +284,7 @@ export const casConfig: McpConfig = {
  */
 export const casMcpServer = (
     home: string,
-): Effect<Read | Write | MemOp | FileCasOperation | Rm, void> =>
+): Effect<Read | Write | MemOp | FileCasOperation, void> =>
     create(uninitializedState).step(key =>
         stdioTransport(mcpStep(casConfig)(casMcpHandlers(home))(key)))
 

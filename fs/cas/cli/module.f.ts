@@ -4,7 +4,7 @@
  * @module
  */
 import { sha256 } from '../../crypto/sha2/module.f.ts'
-import { cBase32ToVec, vecToCBase32 } from '../../cbase32/module.f.ts'
+import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { forEachStep, pure } from '../../effects/module.f.ts'
 import {
     errorExit,

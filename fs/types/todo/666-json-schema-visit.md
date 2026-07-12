@@ -17,7 +17,7 @@ not mention it. Its own module doc even says it "mirrors the visitor structure o
 The recognition logic is duplicated verbatim:
 
 ```ts
-// fs/json/schema/module.f.ts:119-135      // fs/types/rtti/common/module.f.ts:124-137
+// fs/media/json/schema/module.f.ts:119-135      // fs/types/rtti/common/module.f.ts:124-137
 export const toJsonSchema = (rtti) => {     export const visit = v => rtti => {
   if (typeof rtti !== 'function')             if (typeof rtti === 'function') {
     { return constToJsonSchema(rtti) }          const [tag, ...value] = rtti()
@@ -33,7 +33,7 @@ export const toJsonSchema = (rtti) => {     export const visit = v => rtti => {
                                                 return visitConst(v)(rtti)
 ```
 
-and `constToJsonSchema` (`fs/json/schema/module.f.ts:72-100`) is `visitConst`
+and `constToJsonSchema` (`fs/media/json/schema/module.f.ts:72-100`) is `visitConst`
 (`common:94-97`) with the leaves swapped — same `typeof !== 'object' || === null`
 primitive test, same `instanceof Array` tuple-vs-struct split. The thunk gate, the
 `rtti()` evaluation, the `Const` array/object split, and `null`-as-primitive are all
@@ -83,11 +83,11 @@ through `visit`."
 
 - [ ] rewrite `toJsonSchema` as a `Visitor<Unknown>` driven by `visit`
 - [ ] move struct/`constPrimitive` JSON-Schema specifics into handlers, drop the `as Const` cast
-- [ ] confirm `fs/json/schema/proof.f.ts` passes unchanged (pure refactor)
+- [ ] confirm `fs/media/json/schema/proof.f.ts` passes unchanged (pure refactor)
 
 ### Related
 
 - [i662](todo.md) — same move for the `ts` printer; land together
 - [i172](todo.md) — the `validate`/`parse` container skeleton
 - `fs/types/rtti/common/module.f.ts` — `visit` (:124), `Visitor` (:83)
-- `fs/json/schema/module.f.ts` — `toJsonSchema` (:119), `constToJsonSchema` (:72)
+- `fs/media/json/schema/module.f.ts` — `toJsonSchema` (:119), `constToJsonSchema` (:72)
