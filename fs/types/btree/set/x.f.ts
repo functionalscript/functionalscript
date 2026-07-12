@@ -43,7 +43,7 @@ const f = <T>([i, x]: F<T>): undefined => {
         case 4: {
             // insert
             // TODO: remove after TSGO fix the regression.
-            const _xl: 2 = x.length
+            const _xl: 2 = x
             return undefined
         }
     }
