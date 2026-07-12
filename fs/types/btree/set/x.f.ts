@@ -1,7 +1,7 @@
 export type F =
-    | readonly[1|2, readonly[number]]
-    | readonly[1|2|3|4, readonly[number,number]]
-    | readonly[1|3, readonly[number,number,number,number,number]]
+    | readonly[2, readonly[number]]
+    | readonly[2|3|4, readonly[number,number]]
+    | readonly[3, readonly[number,number,number,number,number]]
 
 const f = ([i, x]: F): undefined => {
     switch (i) {
