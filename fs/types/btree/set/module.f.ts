@@ -78,7 +78,7 @@ const nodeSet
                 // insert
                 const value = g(null)
                 // TODO: remove after TSGO fix the regression.
-                const _xl: 1|2 = x.length
+                // const _xl: 1|2 = x.length
                 switch (x.length) {
                     case 1: { return [[x[0], value]] }
                     case 2: { return [[x[0]], value, [x[1]]] }
