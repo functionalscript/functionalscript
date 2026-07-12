@@ -5,6 +5,9 @@ export type F =
 
 const f = ([i, x]: F): undefined => {
     switch (i) {
+        // cover cases:
+        // - `readonly[0, readonly[number]]` and
+        // - `readonly[0, readonly[number,number]]`
         case 0: {
             const _x0: 1|2 = x.length
             switch (x.length) {
@@ -13,6 +16,9 @@ const f = ([i, x]: F): undefined => {
             // // Workaround:
             // throw 'unreachable'
         }
+        // cover cases:
+        // `readonly[1, readonly[number,number]]` and
+        // `readonly[1, readonly[number,number,number]]`
         case 1: {
             const _x1: 2|3 = x.length
         }
