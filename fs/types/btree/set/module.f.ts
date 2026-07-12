@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { collapseRoot, type Branch1, type Branch3, type Branch5, type Branch7, type TNode, type Tree } from '../types/module.f.ts'
+import { collapseRoot, type Branch1, type Branch3, type Branch5, type Branch7, type Leaf1, type Leaf2, type TNode, type Tree } from '../types/module.f.ts'
 import { find, type First, type PathItem, type Result } from '../find/module.f.ts'
 import type { Compare } from '../../function/compare/module.f.ts'
 import { fold } from '../../list/module.f.ts'
@@ -112,49 +112,3 @@ const nodeSet
 export const set
     : <T>(c: Compare<T>) => (f: (value: T|null) => T) => (tree: Tree<T>) => TNode<T>
     = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)
-
-const f = <T>([i, x]: First<T>): undefined => {
-    switch (i) {
-        case 0: {
-            // insert
-            switch (x.length) {
-                case 1: { return undefined }
-                case 2: { return undefined }
-            }
-        }
-        case 1: {
-            // replace
-            switch (x.length) {
-                case 1: { return undefined }
-                case 2: { return undefined }
-                case 3: { return undefined }
-                case 5: { return undefined }
-            }
-        }
-        case 2: {
-            // TODO: remove after TSGO fix the regression.
-            const _xl: 1|2 = x.length
-            switch (x.length) {
-                case 1: case 2: { return undefined }
-            }
-            // TODO: remove after TSGO fix the regression.
-            throw 'unreachable'
-        }
-        case 3: {
-            // replace
-            // TODO: remove after TSGO fix the regression.
-            const _xl: 2|5 = x.length
-            switch (x.length) {
-                case 2: case 5: { return undefined }
-            }
-            // TODO: remove after TSGO fix the regression.
-            //throw 'unreachable'
-        }
-        case 4: {
-            // insert
-            // TODO: remove after TSGO fix the regression.
-            const _xl: 2 = x.length
-            return undefined
-        }
-    }
-}
