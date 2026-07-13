@@ -33,14 +33,14 @@ import {
     type Tuple,
     type Type,
 } from '../module.f.ts'
-import { ok, type Error, type Result as CommonResult } from '../../result/module.f.ts'
+import { ok, type Result as CommonResult } from '../../result/module.f.ts'
 import type { StringMap } from '../../object/module.f.ts'
-import { find, map as listMap } from '../../list/module.f.ts'
+import { find, map as listMap, reverse, toArray, type List } from '../../list/module.f.ts'
 import {
     constPrimitiveValidate,
+    eachEntry,
     isArray,
     isObject,
-    prependPath,
     primitive0Validate,
     verror,
     visit,
@@ -65,15 +65,6 @@ export type Parse<T extends Type> = Validate<T>
 
 type ItemResult = CommonResult<Unknown, ValidationError>
 
-type KeyedResult = readonly[string, ItemResult]
-
-const keyedFirstError = (
-    results: readonly KeyedResult[],
-): readonly[string, Error<ValidationError>] | null => {
-    const e = results.find(([, r]) => r[0] === 'error')
-    return e === undefined ? null : [e[0], e[1] as Error<ValidationError>]
-}
-
 /** Rebuilds a parsed container from its `[key, parsedValue]` entries. */
 type Rebuild = (entries: ReadonlyArray<readonly[string, Unknown]>) => Unknown
 
@@ -81,9 +72,16 @@ const arrayRebuild: Rebuild = entries => entries.map(([, v]) => v)
 
 const recordRebuild: Rebuild = entries => Object.fromEntries(entries)
 
-/** Drops the `'ok'` tag from each result, yielding the rebuild's `[key, value]` entries. */
-const okEntries = (results: readonly KeyedResult[]): ReadonlyArray<readonly[string, Unknown]> =>
-    results.map(([k, r]) => [k, r[1]] as const)
+/** `eachEntry`'s accumulator seed: entries are consed on in reverse as they parse. */
+const emptyEntries: List<readonly [string, Unknown]> = null
+
+/** `eachEntry`'s accumulate step: an O(1) prepend, unlike rebuilding an array on every entry. */
+const consEntry = (acc: List<readonly [string, Unknown]>, k: string, v: Unknown): List<readonly [string, Unknown]> =>
+    ({ first: [k, v], tail: acc })
+
+/** Restores forward order from `consEntry`'s reverse-order list, in one linear pass. */
+const orderedEntries = (list: List<readonly [string, Unknown]>): ReadonlyArray<readonly [string, Unknown]> =>
+    toArray(reverse(list))
 
 /**
  * Builds a parser for `array` or `record` schemas. Mirrors `validate`'s
@@ -107,11 +105,8 @@ const containerParse =
         return ok(rebuild([])) as any
     }
     const itemParse = parse(item) as (v: Unknown) => ItemResult
-    const results = e.map(([k, v]) => [k, itemParse(v)] as const)
-    const err = keyedFirstError(results)
-    return err === null
-        ? ok(rebuild(okEntries(results))) as any
-        : prependPath(err[0], err[1])
+    const r = eachEntry(e, (_k, v) => itemParse(v), emptyEntries, consEntry)
+    return r[0] === 'error' ? r : ok(rebuild(orderedEntries(r[1]))) as any
 }
 
 const arrayParse = containerParse<'array'>(isArray, arrayRebuild)
@@ -135,13 +130,13 @@ const constContainerParse =
     if (!isContainer(value)) {
         return verror('unexpected value')
     }
-    const results = entries(rtti).map(
-        ([k, t]) => [k, (parse(t) as any)(getItem(value, k)) as ItemResult] as const,
+    const r = eachEntry(
+        entries(rtti),
+        (k, t) => (parse(t) as any)(getItem(value, k)) as ItemResult,
+        emptyEntries,
+        consEntry,
     )
-    const err = keyedFirstError(results)
-    return err === null
-        ? ok(rebuild(okEntries(results))) as any
-        : prependPath(err[0], err[1])
+    return r[0] === 'error' ? r : ok(rebuild(orderedEntries(r[1]))) as any
 }
 
 const tupleParse = constContainerParse<ReadonlyArray<Unknown>>(

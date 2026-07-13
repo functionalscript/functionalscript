@@ -92,8 +92,8 @@ loop (`validate`) plus two `any`s (`parse`).
 
 ### Related
 
-- [parse-validate-shared-entry-loop.md](./parse-validate-shared-entry-loop.md)
-  — the *container* handlers' shared entry loop; explicitly leaves
-  `orValidate`/`orParse` untouched. Complementary.
+- `fs/types/rtti/common/module.f.ts`'s `eachEntry` — the *container* handlers'
+  shared entry loop (already hoisted); explicitly leaves `orValidate`/`orParse`
+  untouched. Complementary.
 - [../../todo/172.md](../../todo/172.md) — container validate/parse
   factories; same boundary, does not mention `or`.
