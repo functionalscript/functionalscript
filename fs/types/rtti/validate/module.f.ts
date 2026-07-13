@@ -39,9 +39,9 @@ import { ok } from '../../result/module.f.ts'
 import type { StringMap } from '../../object/module.f.ts'
 import {
     constPrimitiveValidate,
+    eachEntry,
     isArray,
     isObject,
-    prependPath,
     primitive0Validate,
     verror,
     visit,
@@ -64,6 +64,9 @@ export {
 
 const { entries } = Object
 
+/** `validate` has nothing to collect from a successful entry — only pass/fail matters. */
+const noAccumulate = (): undefined => undefined
+
 /**
  * Builds a validator for `array` or `record` schemas.
  * The inner item validator is instantiated lazily (only when the container is
@@ -83,15 +86,10 @@ const containerValidate =
     // Note: we shouldn't instantiate `itemValidate` until we make sure `entries` is not empty.
     //       Otherwise, we can get infinite recursion on empty arrays and objects
     const itemValidate = validate(item)
-    for (const [k, v] of e) {
-        const r = itemValidate(v)
-        if (r[0] === 'error') {
-            return prependPath(k, r)
-        }
-    }
+    const r = eachEntry(e, (_k, v) => itemValidate(v), undefined, noAccumulate)
     // `value` is Container<K>, but Ts<Info1<K,I>> = readonly Ts<I>[] | Record<string,Ts<I>>.
     // TypeScript can't narrow the container's element types through the validation loop.
-    return ok(value) as any
+    return r[0] === 'error' ? r : ok(value) as any
 }
 
 const arrayValidate = containerValidate<'array'>(isArray)
@@ -110,16 +108,15 @@ const constContainerValidate =
     if (!isContainer(value)) {
         return verror('unexpected value')
     }
-    for (const [k, v] of Object.entries(rtti)) {
-        const item = getItem(value, k)
-        const r = (validate(v) as any)(item) as ReturnType<Validate<T>>
-        if (r[0] === 'error') {
-            return prependPath(k, r)
-        }
-    }
+    const r = eachEntry(
+        Object.entries(rtti),
+        (k, v) => (validate(v) as any)(getItem(value, k)) as ReturnType<Validate<T>>,
+        undefined,
+        noAccumulate,
+    )
     // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
     // structurally equivalent to C — TypeScript can't narrow element types through the loop.
-    return ok(value) as any
+    return r[0] === 'error' ? r : ok(value) as any
 }
 
 const tupleValidate = constContainerValidate<ReadonlyArray<Unknown>>(

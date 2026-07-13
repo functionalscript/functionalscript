@@ -25,7 +25,7 @@ export const images = {
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = '0.36.0' as const
+export const functionalscript = '0.37.0' as const
 
 // https://bun.sh/
 export const bun = '1.3.14'
@@ -69,5 +69,5 @@ export const actions = {
     // https://github.com/wasmerio/setup-wasmer
     'wasmerio/setup-wasmer': 'v3.1',
     // https://rust-lang.org/ - value is Rust version, not action version
-    'dtolnay/rust-toolchain': '1.96.1',
+    'dtolnay/rust-toolchain': '1.97.0',
 } as const
