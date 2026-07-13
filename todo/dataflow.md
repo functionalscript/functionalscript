@@ -1,7 +1,7 @@
 # Dataflow graphs with deferred input binding
 
 **Priority:** P3
-**Status:** wip
+**Status:** open
 
 ## Problem
 
@@ -107,9 +107,9 @@ Planned engine work, each a separate change:
 
 ## Tasks
 
-- [x] `fs/dataflow/module.f.ts` — `Node<E, O>`, four primitives, derived
+- [ ] `fs/dataflow/module.f.ts` — `Node<E, O>`, four primitives, derived
   `map`/`filter`/`last`/`reduce`, naive `run` engine over `types/list`
-- [x] `fs/dataflow/proof.f.ts` — full proof coverage
+- [ ] `fs/dataflow/proof.f.ts` — full proof coverage
 - [ ] engine interface for external engine modules
 - [ ] memoizing engine (shared node evaluated once per run)
 - [ ] RTTI-typed named inputs
