@@ -127,13 +127,13 @@ export const eachEntry = <V, R>(
     entries: ReadonlyArray<readonly [string, V]>,
     item: (k: string, v: V) => CommonResult<R, ValidationError>,
 ): CommonResult<ReadonlyArray<readonly [string, R]>, ValidationError> => {
-    const results: Array<readonly [string, R]> = []
+    let results: ReadonlyArray<readonly [string, R]> = []
     for (const [k, v] of entries) {
         const r = item(k, v)
         if (r[0] === 'error') {
             return prependPath(k, r)
         }
-        results.push([k, r[1]])
+        results = [...results, [k, r[1]]]
     }
     return ok(results)
 }
