@@ -38,6 +38,7 @@ import { error, ok, type Error, type Result as CommonResult } from '../../result
 import type { Ts } from '../ts/module.f.ts'
 import { isArray as commonIsArray } from '../../array/module.f.ts'
 import { isObject as commonIsObject, type StringMap } from '../../object/module.f.ts'
+import { reverse, toArray, type List } from '../../list/module.f.ts'
 
 /** A path to a sub-value within the validated structure. Each step is an object key or stringified array index. */
 export type Path = readonly string[]
@@ -122,20 +123,26 @@ export const isObject: IsContainer<StringMap<string, Unknown>> =
  * Shared by `validate` and `parse`'s container builders (array/record/tuple/
  * struct), which differ only in what `item` does with the value and how
  * they use (or ignore) the returned entries.
+ *
+ * Collected entries are consed onto an immutable `List` (`fs/types/list`) in
+ * reverse order as they succeed — an O(1) prepend, unlike rebuilding an array
+ * with `[...results, entry]` on every iteration, which is quadratic. `reverse`
+ * + `toArray` restore forward order in one linear pass, run only once, after
+ * the loop exits.
  */
 export const eachEntry = <V, R>(
     entries: ReadonlyArray<readonly [string, V]>,
     item: (k: string, v: V) => CommonResult<R, ValidationError>,
 ): CommonResult<ReadonlyArray<readonly [string, R]>, ValidationError> => {
-    let results: ReadonlyArray<readonly [string, R]> = []
+    let reversed: List<readonly [string, R]> = null
     for (const [k, v] of entries) {
         const r = item(k, v)
         if (r[0] === 'error') {
             return prependPath(k, r)
         }
-        results = [...results, [k, r[1]]]
+        reversed = { first: [k, r[1]], tail: reversed }
     }
-    return ok(results)
+    return ok(toArray(reverse(reversed)))
 }
 
 /**
