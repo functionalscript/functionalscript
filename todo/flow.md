@@ -1,4 +1,4 @@
-# Dataflow graphs with deferred input binding
+# Flow: dataflow graphs with deferred input binding
 
 **Priority:** P3
 **Status:** open
@@ -35,11 +35,13 @@ are checked by TypeScript.
 
 ### Module
 
-`fs/dataflow/module.f.ts` defines `Node<E, O>`: a graph node describing a
-sequence of `O` computed from an environment of type `E`. The environment
-is the *input schema*: instead of RTTI-typed named inputs, an input node
-holds an accessor `(env: E) => List<O>`, so binding is fully type-checked
-by TypeScript and the "names" are the fields of `E`:
+`fs/flow/module.f.ts` defines `Flow<E, O>`: a node of the graph, describing
+a sequence of `O` computed from an environment of type `E`. A `Flow` is
+*cold* — an immutable description, not a running computation (cf. Kotlin's
+`Flow`, which is also a cold, later-bound stream description). The
+environment is the *input schema*: instead of RTTI-typed named inputs, an
+input node holds an accessor `(env: E) => List<O>`, so binding is fully
+type-checked by TypeScript and the "names" are the fields of `E`:
 
 ```ts
 type Env = { readonly text: List<string> }
@@ -107,9 +109,9 @@ Planned engine work, each a separate change:
 
 ## Tasks
 
-- [ ] `fs/dataflow/module.f.ts` — `Node<E, O>`, four primitives, derived
+- [ ] `fs/flow/module.f.ts` — `Flow<E, O>`, four primitives, derived
   `map`/`filter`/`last`/`reduce`, naive `run` engine over `types/list`
-- [ ] `fs/dataflow/proof.f.ts` — full proof coverage
+- [ ] `fs/flow/proof.f.ts` — full proof coverage
 - [ ] engine interface for external engine modules
 - [ ] memoizing engine (shared node evaluated once per run)
 - [ ] RTTI-typed named inputs
