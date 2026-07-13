@@ -64,6 +64,9 @@ export {
 
 const { entries } = Object
 
+/** `validate` has nothing to collect from a successful entry — only pass/fail matters. */
+const noAccumulate = (): undefined => undefined
+
 /**
  * Builds a validator for `array` or `record` schemas.
  * The inner item validator is instantiated lazily (only when the container is
@@ -83,7 +86,7 @@ const containerValidate =
     // Note: we shouldn't instantiate `itemValidate` until we make sure `entries` is not empty.
     //       Otherwise, we can get infinite recursion on empty arrays and objects
     const itemValidate = validate(item)
-    const r = eachEntry(e, (_k, v) => itemValidate(v))
+    const r = eachEntry(e, (_k, v) => itemValidate(v), undefined, noAccumulate)
     // `value` is Container<K>, but Ts<Info1<K,I>> = readonly Ts<I>[] | Record<string,Ts<I>>.
     // TypeScript can't narrow the container's element types through the validation loop.
     return r[0] === 'error' ? r : ok(value) as any
@@ -108,6 +111,8 @@ const constContainerValidate =
     const r = eachEntry(
         Object.entries(rtti),
         (k, v) => (validate(v) as any)(getItem(value, k)) as ReturnType<Validate<T>>,
+        undefined,
+        noAccumulate,
     )
     // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
     // structurally equivalent to C — TypeScript can't narrow element types through the loop.

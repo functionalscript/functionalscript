@@ -35,7 +35,7 @@ import {
 } from '../module.f.ts'
 import { ok, type Result as CommonResult } from '../../result/module.f.ts'
 import type { StringMap } from '../../object/module.f.ts'
-import { find, map as listMap } from '../../list/module.f.ts'
+import { find, map as listMap, reverse, toArray, type List } from '../../list/module.f.ts'
 import {
     constPrimitiveValidate,
     eachEntry,
@@ -72,6 +72,17 @@ const arrayRebuild: Rebuild = entries => entries.map(([, v]) => v)
 
 const recordRebuild: Rebuild = entries => Object.fromEntries(entries)
 
+/** `eachEntry`'s accumulator seed: entries are consed on in reverse as they parse. */
+const emptyEntries: List<readonly [string, Unknown]> = null
+
+/** `eachEntry`'s accumulate step: an O(1) prepend, unlike rebuilding an array on every entry. */
+const consEntry = (acc: List<readonly [string, Unknown]>, k: string, v: Unknown): List<readonly [string, Unknown]> =>
+    ({ first: [k, v], tail: acc })
+
+/** Restores forward order from `consEntry`'s reverse-order list, in one linear pass. */
+const orderedEntries = (list: List<readonly [string, Unknown]>): ReadonlyArray<readonly [string, Unknown]> =>
+    toArray(reverse(list))
+
 /**
  * Builds a parser for `array` or `record` schemas. Mirrors `validate`'s
  * `containerValidate`, but rebuilds a fresh container from each item's parsed
@@ -94,8 +105,8 @@ const containerParse =
         return ok(rebuild([])) as any
     }
     const itemParse = parse(item) as (v: Unknown) => ItemResult
-    const r = eachEntry(e, (_k, v) => itemParse(v))
-    return r[0] === 'error' ? r : ok(rebuild(r[1])) as any
+    const r = eachEntry(e, (_k, v) => itemParse(v), emptyEntries, consEntry)
+    return r[0] === 'error' ? r : ok(rebuild(orderedEntries(r[1]))) as any
 }
 
 const arrayParse = containerParse<'array'>(isArray, arrayRebuild)
@@ -119,8 +130,13 @@ const constContainerParse =
     if (!isContainer(value)) {
         return verror('unexpected value')
     }
-    const r = eachEntry(entries(rtti), (k, t) => (parse(t) as any)(getItem(value, k)) as ItemResult)
-    return r[0] === 'error' ? r : ok(rebuild(r[1])) as any
+    const r = eachEntry(
+        entries(rtti),
+        (k, t) => (parse(t) as any)(getItem(value, k)) as ItemResult,
+        emptyEntries,
+        consEntry,
+    )
+    return r[0] === 'error' ? r : ok(rebuild(orderedEntries(r[1]))) as any
 }
 
 const tupleParse = constContainerParse<ReadonlyArray<Unknown>>(

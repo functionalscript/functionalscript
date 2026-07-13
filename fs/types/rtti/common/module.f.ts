@@ -16,7 +16,8 @@
  *   calls the matching handler. Both consumers compose their top-level
  *   function from a visitor.
  * - `eachEntry`: the container entry loop (array/record/tuple/struct), shared
- *   by both consumers' container builders.
+ *   by both consumers' container builders. Callers choose what (if anything)
+ *   to accumulate, so `validate`'s pure pass/fail check pays no allocation.
  *
  * Keeping the kernel here also removes `parse`'s incidental dependency on
  * `validate` and gives future schema-driven consumers (e.g. the data form
@@ -38,7 +39,6 @@ import { error, ok, type Error, type Result as CommonResult } from '../../result
 import type { Ts } from '../ts/module.f.ts'
 import { isArray as commonIsArray } from '../../array/module.f.ts'
 import { isObject as commonIsObject, type StringMap } from '../../object/module.f.ts'
-import { reverse, toArray, type List } from '../../list/module.f.ts'
 
 /** A path to a sub-value within the validated structure. Each step is an object key or stringified array index. */
 export type Path = readonly string[]
@@ -117,32 +117,33 @@ export const isObject: IsContainer<StringMap<string, Unknown>> =
 
 /**
  * Runs `item` over each `[key, value]` entry, bailing out with the first
- * error, path-prefixed with that entry's key. On success, returns the
- * `[key, result]` entries so the caller can rebuild a container from them.
+ * error, path-prefixed with that entry's key. On success, folds each item's
+ * result into `acc` (starting from `init`) with `accumulate` and returns the
+ * final accumulator.
  *
  * Shared by `validate` and `parse`'s container builders (array/record/tuple/
- * struct), which differ only in what `item` does with the value and how
- * they use (or ignore) the returned entries.
- *
- * Collected entries are consed onto an immutable `List` (`fs/types/list`) in
- * reverse order as they succeed — an O(1) prepend, unlike rebuilding an array
- * with `[...results, entry]` on every iteration, which is quadratic. `reverse`
- * + `toArray` restore forward order in one linear pass, run only once, after
- * the loop exits.
+ * struct), which differ only in what `item` does with the value and what
+ * they accumulate: `validate` has nothing to collect — its entire schema is
+ * "did every entry succeed?" — so it passes `undefined`/`(acc) => acc` and
+ * pays no allocation per entry; `parse` needs the rebuilt `[key, value]`
+ * pairs, so it folds them into a `List` (see its call site) and converts to
+ * an array once at the end.
  */
-export const eachEntry = <V, R>(
+export const eachEntry = <V, R, A>(
     entries: ReadonlyArray<readonly [string, V]>,
     item: (k: string, v: V) => CommonResult<R, ValidationError>,
-): CommonResult<ReadonlyArray<readonly [string, R]>, ValidationError> => {
-    let reversed: List<readonly [string, R]> = null
+    init: A,
+    accumulate: (acc: A, k: string, value: R) => A,
+): CommonResult<A, ValidationError> => {
+    let acc = init
     for (const [k, v] of entries) {
         const r = item(k, v)
         if (r[0] === 'error') {
             return prependPath(k, r)
         }
-        reversed = { first: [k, r[1]], tail: reversed }
+        acc = accumulate(acc, k, r[1])
     }
-    return ok(toArray(reverse(reversed)))
+    return ok(acc)
 }
 
 /**
