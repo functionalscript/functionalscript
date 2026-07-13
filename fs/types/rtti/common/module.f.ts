@@ -15,6 +15,8 @@
  *   with one handler per variant; `visit(v)(rtti)` recognizes `rtti` and
  *   calls the matching handler. Both consumers compose their top-level
  *   function from a visitor.
+ * - `eachEntry`: the container entry loop (array/record/tuple/struct), shared
+ *   by both consumers' container builders.
  *
  * Keeping the kernel here also removes `parse`'s incidental dependency on
  * `validate` and gives future schema-driven consumers (e.g. the data form
@@ -111,6 +113,30 @@ export const isArray: IsContainer<ReadonlyArray<Unknown>> =
 /** `IsContainer` guard for records/structs, shared by `validate` and `parse`. */
 export const isObject: IsContainer<StringMap<string, Unknown>> =
     value => commonIsObject(value)
+
+/**
+ * Runs `item` over each `[key, value]` entry, bailing out with the first
+ * error, path-prefixed with that entry's key. On success, returns the
+ * `[key, result]` entries so the caller can rebuild a container from them.
+ *
+ * Shared by `validate` and `parse`'s container builders (array/record/tuple/
+ * struct), which differ only in what `item` does with the value and how
+ * they use (or ignore) the returned entries.
+ */
+export const eachEntry = <V, R>(
+    entries: ReadonlyArray<readonly [string, V]>,
+    item: (k: string, v: V) => CommonResult<R, ValidationError>,
+): CommonResult<ReadonlyArray<readonly [string, R]>, ValidationError> => {
+    const results: Array<readonly [string, R]> = []
+    for (const [k, v] of entries) {
+        const r = item(k, v)
+        if (r[0] === 'error') {
+            return prependPath(k, r)
+        }
+        results.push([k, r[1]])
+    }
+    return ok(results)
+}
 
 /**
  * Visits a schema `Type` by dispatching to the matching handler in `v`.
