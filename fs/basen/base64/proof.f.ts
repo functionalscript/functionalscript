@@ -85,6 +85,20 @@ export const proof = {
         const oversized = 'A'.repeat(174_764)
         assertEq(decode(oversized), null)
     },
+    decodePaddedTailRejections: () => {
+        // These all take the padded branch of `decode` (`padChars > 0`,
+        // i.e. the `head`/`lastChunk` split), unlike `decodeOverflow` above
+        // which takes the unpadded fast path. An invalid character before
+        // the final char must be rejected via the `head` decode...
+        assertEq(decode('!A=='), null)
+        // ...and an invalid final character (the one holding the padding
+        // bits) must be rejected via the last-character decode.
+        assertEq(decode('A!=='), null)
+        // Same as `decodeOverflow`, but with a padded tail so it's the
+        // padded branch that measures the result against `maxLength` and
+        // rejects it.
+        assertEq(decode('A'.repeat(174_764) + '='), null)
+    },
     encodeAtMaxLengthSucceeds: () => {
         // A `maxLength`-sized vector's trailing partial 6-bit chunk is
         // left-padded by `vecToString` itself (see `baseN`), so `encode`
