@@ -485,7 +485,32 @@ const test2 = () => {
     }
 }
 
+// Exercises the branch-merge-into-Branch5-sibling path in reduceValue0
+// (removing an underflowed left leaf merges into a 5-wide right branch).
+const test3 = () => {
+    let _map: TNode<string> | null = ['1']
+    for (let i = 2; i <= 50; i++)
+        _map = set(_map)(i.toString())
+
+    _map = remove(_map)('40')
+    if (_map === null) { throw _map }
+
+    _map = remove(_map)('10')
+    if (_map === null) { throw _map }
+    const r = jsonStr(_map)
+    if (r !==
+        '[[[[["1","11"],"12",["13"],"14",["15"]],"16",[["17"],"18",["19"]],"2",[["20"],"21",["22"]]],' +
+        '"23",' +
+        '[[["24"],"25",["26"]],"27",[["28"],"29",["3"]]]],' +
+        '"30",' +
+        '[[[["31"],"32",["33"]],"34",[["35"],"36",["37"],"38",["39"]]],' +
+        '"4",' +
+        '[[["41","42"],"43",["44"],"45",["46"]],"47",[["48"],"49",["5","50"]],"6",[["7"],"8",["9"]]]]]'
+    ) { throw r }
+}
+
 export const proof = {
     test,
     test2,
+    test3,
 }
