@@ -5,10 +5,10 @@ import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/m
 import type { Unknown } from '../../media/json/module.f.ts'
 import type { Response } from '../../media/json/rpc/module.f.ts'
 import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../../types/bit_vec/module.f.ts'
-import { vecToCBase32 } from '../../basen/cbase32/module.f.ts'
+import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { encode as base64Encode } from '../../basen/base64/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
-import { fileCas, type FileCasOperation } from '../module.f.ts'
+import { fileCas, toPath, type FileCasOperation } from '../module.f.ts'
 import { dialect as revisionDialect, mediaType as revisionMediaType } from '../../media/revision/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
 import { nonEmpty, empty as elEmpty, type List } from '../../effects/list/module.f.ts'
@@ -32,6 +32,7 @@ import type {
     WriteBytes
 } from '../../effects/node/module.f.ts'
 import { emptyState, virtual, type Dir } from '../../effects/node/virtual/module.f.ts'
+import { join, parse } from '../../path/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
 import { ok as resultOk } from '../../types/result/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
@@ -144,6 +145,18 @@ const seedBlob = (root: Dir, home = '/home/user') => (chunks: readonly Vec[]): r
     const [state, result] = virtual({ ...emptyState, root })(c.write(stream))
     assert(result[0] === 'ok', result)
     return [state.root, vecToCBase32(result[1])]
+}
+
+// Replaces the shard file stored at `key` (under `home`) with `replacement`,
+// simulating on-disk corruption of a blob already written via `seedBlob`.
+const corruptShard = (root: Dir, home: string, key: Vec, replacement: Vec): Dir => {
+    const set = (dir: Dir, segments: readonly string[]): Dir => {
+        const [head, ...rest] = segments
+        return rest.length === 0
+            ? { ...dir, [head]: [replacement] }
+            : { ...dir, [head]: set(dir[head] as Dir, rest) }
+    }
+    return set(root, parse(join(home, toPath(key))))
 }
 
 // ── Messages ────────────────────────────────────────────────────────────────────
@@ -511,6 +524,36 @@ export const proof = {
         assertEq(result.mimeType, revisionMediaType)
         assertEq(result.type, 'text')
         assertEq(result.text, revisionSample)
+    },
+
+    // cas_get with verify:true on an intact blob rehashes it, confirms the
+    // match, and returns the same result as a plain get.
+    getVerifySucceeds: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: textSample }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: textSample }),
+            call(3, 'cas_get', { hash, verify: true }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        assertEq(result.mimeType, 'text/plain')
+    },
+
+    // A shard tampered with after storage no longer hashes to its address;
+    // verify:true must report a distinct "hash mismatch" error, not the
+    // stored (corrupted) content.
+    getVerifyDetectsCorruption: () => {
+        const [root, hash] = seedBlob({})([vec8(0x2An)])
+        const key = cBase32ToVec(hash)
+        assert(key !== null)
+        const corrupted = corruptShard(root, '/home/user', key, vec8(0x99n))
+        const [getResp] = runSessionVirtual(corrupted)([
+            init, initialized,
+            call(2, 'cas_get', { hash, verify: true }),
+        ]).slice(2) as readonly unknown[]
+        assertEq(resultOf(getResp).isError, true)
+        assert(textOf(getResp).includes('hash mismatch'))
     },
 
     listEnumeratesStoredHashes: () => {

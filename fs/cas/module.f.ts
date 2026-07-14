@@ -256,6 +256,29 @@ const streamFile = (filePath: string): List<ReadBytes, IoResult<Vec>> => {
 }
 
 /**
+ * Rehashes the bytes stored at `hash` and reports whether they still hash to
+ * it — the read-time integrity check for a store whose "same hash = same
+ * content" invariant a corrupted, truncated, or misnamed blob could otherwise
+ * violate silently (see "Read-time integrity" in `fs/cas/README.md`).
+ * Never writes anything and never buffers the stream into one `Vec`: the
+ * chunks are folded straight into a fresh `sha2` state, so this scales to
+ * blobs larger than `maxLength`. A caller that also wants the bytes (e.g. the
+ * `cas get --verify` CLI flag) reads the stream a second time rather than
+ * buffering it here to serve both purposes at once.
+ */
+export const verifyHash = <O extends Operation>(cas: Cas<O>) => (sha2: Sha2) => (hash: Vec): Effect<O, IoResult<boolean>> => {
+    const loop = (state: Sha2State) => (stream: List<O, IoResult<Vec>>): Effect<O, IoResult<boolean>> =>
+        stream.step((node): Effect<O, IoResult<boolean>> => {
+            if (node === undefined) { return pure(ok(msb.cmp(sha2.end(state))(hash) === 0)) }
+            const { first, tail } = node
+            const [t, v] = first
+            if (t === 'error') { return pure(first) }
+            return loop(sha2.append(v)(state))(tail)
+        })
+    return loop(sha2.init)(cas.read(hash))
+}
+
+/**
  * Streams the file at `path` through `cas.write`, returning the content hash.
  * Both the CLI `cas add` and the MCP `add` delegate to this; the MCP layer
  * additionally deletes the source file on success.

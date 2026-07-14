@@ -12,7 +12,7 @@
  * | Tool       | args                          | action           | result                              |
  * |------------|-------------------------------|------------------|-------------------------------------|
  * | `cas_add`  | `{ content, type? }`          | `c.write(...)`   | hash (cBase32)                      |
- * | `cas_get`  | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
+ * | `cas_get`  | `{ hash, content?: boolean, verify?: boolean }` | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
  * | `cas_list` | `{}`                          | `c.list()`       | hashes, one per line                |
  *
  * ## `cas_add` input encoding
@@ -95,6 +95,8 @@
  * - `cas_get` on an absent hash (`c.read` → `undefined`) → `isError`
  * - `cas_get` with `content: true` on a blob larger than `maxLength` → `isError`
  *   (distinct "too large" message, not "no such hash")
+ * - `cas_get` with `verify: true` whose rehash does not match the requested
+ *   hash → `isError` (distinct "hash mismatch" message, not "no such hash")
  * - unknown tool `name` → `isError`
  *
  * @module
@@ -118,7 +120,7 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { fileCas, type FileCasOperation } from '../module.f.ts'
+import { fileCas, verifyHash, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
@@ -135,7 +137,8 @@ export const casAddArgs = {
 /** Arguments for `cas_get`: the cBase32 hash to look up; optionally request inline content. */
 export const casGetArgs = {
     hash: string,
-    content: option(boolean)
+    content: option(boolean),
+    verify: option(boolean)
 } as const
 
 /** Arguments for `cas_list`: none. */
@@ -203,7 +206,7 @@ const casToolRegistry =
     ),
     toolEntry(
         'cas_get',
-        'Inspect a blob by hash. Always returns JSON {length,mimeType,type[,uri]} where type is "text" or "base64". Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To download a blob, prefer the uri field returned in the result instead of requesting inline content.',
+        'Inspect a blob by hash. Always returns JSON {length,mimeType,type[,uri]} where type is "text" or "base64". Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. Pass verify:true to rehash the stored bytes and confirm they match the requested hash before returning anything — an extra full read, so it costs more than a plain lookup. To download a blob, prefer the uri field returned in the result instead of requesting inline content.',
         casGetArgs,
         r => {
             const key = cBase32ToVec(r.hash)
@@ -211,7 +214,7 @@ const casToolRegistry =
                 return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
             }
             const uri = c.url(key)
-            return detectStream(c.read(key)).step(([tag, detected]) => {
+            const proceed = () => detectStream(c.read(key)).step(([tag, detected]) => {
                 if (tag === 'error') {
                     return pure(errorResult(`no such hash: ${r.hash}`))
                 }
@@ -266,6 +269,11 @@ const casToolRegistry =
                         : okResult(toJson({ ...refinedMeta, blob }))
                     )
                 })
+            })
+            if (r.verify !== true) { return proceed() }
+            return verifyHash(c)(sha256)(key).step(([tag, matched]) => {
+                if (tag === 'error') { return pure(errorResult(`no such hash: ${r.hash}`)) }
+                return matched ? proceed() : pure(errorResult(`hash mismatch: stored content does not hash to ${r.hash}`))
             })
         },
     ),

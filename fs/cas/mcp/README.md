@@ -44,7 +44,7 @@ Your client will use the `cas_add`, `cas_get`, and `cas_list` tools to interact 
 | Tool       | args                                    | CAS call         | result                                    |
 |------------|-----------------------------------------|------------------|-------------------------------------------|
 | `cas_add`  | `{ content, type? }`                    | `c.write(value)` | hash (cBase32)                            |
-| `cas_get`  | `{ hash, content?: boolean }`           | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
+| `cas_get`  | `{ hash, content?: boolean, verify?: boolean }` | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
 | `cas_list` | `{}`                                    | `c.list()`       | hashes, one per line                      |
 
 Each tool's argument schema is an rtti struct declared once and used twice:
@@ -113,6 +113,18 @@ themselves. The typical decision protocol:
 `uri` is present only when the server was started with a `toUrl` resolver
 (production filesystem-backed server); it is omitted in memory-backed contexts
 such as tests.
+
+### `verify: true` — read-time integrity check
+
+Passing `verify: true` rehashes the blob's bytes and confirms they still match
+the requested `hash` before anything else runs — a corrupted, truncated, or
+misnamed blob (bit-rot, an unscrubbed copy-files sync) is reported as a
+distinct `isError` ("hash mismatch: ...") instead of being handed back or
+conflated with an absent hash ("no such hash"). It costs a full extra read of
+the blob (the same streaming, unbounded rehash `verifyHash` in
+`fs/cas/module.f.ts` uses), so it is opt-in — omit it for the common case
+where the store is already trusted. See "Read-time integrity" in
+[`fs/cas/README.md`](../README.md#read-time-integrity).
 
 ### Metadata is size-independent (the default `content: false`)
 
@@ -196,6 +208,8 @@ MCP draws a line the dispatcher already respects:
   - `cas_get` on an absent hash (`c.read` → `undefined`);
   - `cas_get` with `content: true` on a blob larger than the inline limit
     (distinct "too large" message — see above — not "no such hash");
+  - `cas_get` with `verify: true` whose rehash does not match the requested
+    hash (distinct "hash mismatch" message — see above — not "no such hash");
   - an unknown tool `name`.
 
 ## Design invariant: the server never opens a client-named local path

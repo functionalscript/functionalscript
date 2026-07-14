@@ -17,7 +17,7 @@ import {
 } from '../../effects/node/module.f.ts'
 import { dispatch, type Commands } from '../../cli/module.f.ts'
 import { type MemOp } from '../../effects/memory/module.f.ts'
-import { casAddFile, fileCas, type FileCasOperation } from '../module.f.ts'
+import { casAddFile, fileCas, verifyHash, type FileCasOperation } from '../module.f.ts'
 
 export const commands: Commands<FileCasOperation | WriteFile | Write | All | MemOp | Read> = [
     {
@@ -36,8 +36,10 @@ export const commands: Commands<FileCasOperation | WriteFile | Write | All | Mem
     },
     {
         names: ['get'],
-        description: 'Restore content by hash into a file',
-        handler: ({ home, args: [hashCBase32, path, ...rest] }) => {
+        description: 'Restore content by hash into a file. Pass --verify to rehash the stored bytes and confirm they match the requested address before writing the file.',
+        handler: ({ home, args }) => {
+            const verify = args.includes('--verify')
+            const [hashCBase32, path, ...rest] = args.filter(a => a !== '--verify')
             if (hashCBase32 === undefined || path === undefined || rest.length !== 0) {
                 return errorExit("'cas get' expects two parameters")
             }
@@ -46,9 +48,13 @@ export const commands: Commands<FileCasOperation | WriteFile | Write | All | Mem
                 return errorExit(`invalid hash format: ${hashCBase32}`)
             }
             const c = fileCas(sha256)(home)
-            const x = c.read(hash)
-            return writeFromStream(path, x)
+            const restore = () => writeFromStream(path, c.read(hash))
                 .step(([r, v]) => r === 'error' ? errorExit(`e: ` + String(v)) : pure(0))
+            if (!verify) { return restore() }
+            return verifyHash(c)(sha256)(hash).step(([r, v]) => {
+                if (r === 'error') { return errorExit(`e: ` + String(v)) }
+                return v ? restore() : errorExit(`hash mismatch: stored content does not hash to ${hashCBase32}`)
+            })
         },
     },
     {

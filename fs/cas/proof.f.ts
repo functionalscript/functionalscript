@@ -1,12 +1,12 @@
 import { length, maxLength, msb, vec, vec8, type Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
-import { fileCas, casAddFile, type FileCasOperation, casUpload } from './module.f.ts'
+import { fileCas, casAddFile, verifyHash, toPath, type FileCasOperation, casUpload } from './module.f.ts'
 import { pure, type Effect } from '../effects/module.f.ts'
 import { mkdir, writeFile, rm, readFile, type ReadFile, type WriteFile, type Rm, type Mkdir, type IoResult, access } from '../effects/node/module.f.ts'
 import { error, ok, type Ok } from '../types/result/module.f.ts'
-import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
-import { join } from '../path/module.f.ts'
+import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
+import { join, parse } from '../path/module.f.ts'
 import { nonEmpty, empty, type List } from '../effects/list/module.f.ts'
 
 const testDir = './test-cas-cli'
@@ -251,6 +251,44 @@ export const proof = {
         const srcPath = join('.', 'cas_upload', 'myfile')
         const [, srcAccess] = virtual(state1)(access(srcPath))
         if (srcAccess[0] !== 'error') { throw 'expected source to be deleted after successful upload' }
+    },
+    verifyHashMatches: () => {
+        // A freshly written blob rehashes to the same address: verifyHash reports true.
+        const content = vec8(0x2An)
+        const c = fileCas(sha256)('.')
+        const payload: List<FileCasOperation, IoResult<Vec>> = nonEmpty(ok(content), empty())
+        const [state1, w] = virtual(emptyState)(c.write(payload))
+        if (w[0] !== 'ok') { throw ['expected write ok', w] }
+        const hash = w[1]
+        const [, v] = virtual(state1)(verifyHash(c)(sha256)(hash))
+        if (v[0] !== 'ok' || v[1] !== true) { throw ['expected verify true', v] }
+    },
+    verifyHashDetectsCorruption: () => {
+        // A shard whose bytes were tampered with after write no longer hashes to
+        // its address; verifyHash must report false, not silently pass.
+        const content = vec8(0x2An)
+        const c = fileCas(sha256)('.')
+        const payload: List<FileCasOperation, IoResult<Vec>> = nonEmpty(ok(content), empty())
+        const [state1, w] = virtual(emptyState)(c.write(payload))
+        if (w[0] !== 'ok') { throw ['expected write ok', w] }
+        const hash = w[1]
+        const [p0, p1, p2, p3] = parse(toPath(hash))
+        const dir0 = state1.root[p0] as Dir
+        const dir1 = dir0[p1] as Dir
+        const dir2 = dir1[p2] as Dir
+        const corrupted = {
+            ...state1,
+            root: { ...state1.root, [p0]: { ...dir0, [p1]: { ...dir1, [p2]: { ...dir2, [p3]: [vec8(0x99n)] } } } },
+        }
+        const [, v] = virtual(corrupted)(verifyHash(c)(sha256)(hash))
+        if (v[0] !== 'ok' || v[1] !== false) { throw ['expected verify false', v] }
+    },
+    verifyHashMissingShardIsError: () => {
+        // A missing shard surfaces as an explicit error, not a false verification.
+        const c = fileCas(sha256)('.')
+        const hash = computeSync(sha256)([vec8(0x2An)])
+        const [, v] = virtual(emptyState)(verifyHash(c)(sha256)(hash))
+        if (v[0] !== 'error') { throw ['expected verify error on missing shard', v] }
     },
     casUploadFailureKeepsSource: () => {
         // A missing source file causes write to fail; casUpload returns error and the

@@ -47,5 +47,6 @@ Open design points:
 
 ### Related
 
-- [66g-cas-get-verify-option](66g-cas-get-verify-option.md) — per-read verification for the same invariant
+- [Read-time integrity](../README.md#read-time-integrity) — per-read `verifyHash` /
+  `cas get --verify` / `cas_get { verify: true }` for the same invariant
 - `issues/plan/vision.md` — protocol-agnostic synchronization / copy-files sync

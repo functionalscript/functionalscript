@@ -1,11 +1,13 @@
 import { commands } from './module.f.ts'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.ts'
 import { maxLength, vec, vec8 } from '../../types/bit_vec/module.f.ts'
-import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
+import { defaultNodeProgramOptions, emptyState, virtual, type Dir } from '../../effects/node/virtual/module.f.ts'
 import { type NodeProgramOptions } from '../../effects/node/module.f.ts'
 import { dispatch } from '../../cli/module.f.ts'
-import { vecToCBase32 } from '../../basen/cbase32/module.f.ts'
+import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.ts'
+import { toPath } from '../module.f.ts'
+import { parse } from '../../path/module.f.ts'
 
 const makeOptions = (args: readonly string[]): NodeProgramOptions =>
     ({ ...defaultNodeProgramOptions, args })
@@ -66,6 +68,41 @@ export const proof = {
         const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['get', hashStr, 'output'])))
         if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
         if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
+    },
+    mainGetVerifySucceeds: () => {
+        // `get --verify` on an intact blob rehashes it, confirms the match, and
+        // still restores the file.
+        const content = vec8(0x2An)
+        const state = { ...emptyState, root: { myfile: [content] } }
+        const [state1, exitCode1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
+        assertEq(exitCode1, 0)
+        const hashStr = state1.stdout.trim()
+        const [state2, exitCode2] = virtual(state1)(main(makeOptions(['get', hashStr, 'output', '--verify'])))
+        assertEq(exitCode2, 0)
+        assert(state2.root.output !== undefined)
+    },
+    mainGetVerifyDetectsCorruption: () => {
+        // A shard tampered with after `add` no longer hashes to its address.
+        // `get --verify` must fail and must not write the (corrupted) output file.
+        const content = vec8(0x2An)
+        const state = { ...emptyState, root: { myfile: [content] } }
+        const [state1, exitCode1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
+        assertEq(exitCode1, 0)
+        const hashStr = state1.stdout.trim()
+        const hash = cBase32ToVec(hashStr)
+        assert(hash !== null)
+        const [p0, p1, p2, p3] = parse(toPath(hash))
+        const dir0 = state1.root[p0] as Dir
+        const dir1 = dir0[p1] as Dir
+        const dir2 = dir1[p2] as Dir
+        const corrupted = {
+            ...state1,
+            root: { ...state1.root, [p0]: { ...dir0, [p1]: { ...dir1, [p2]: { ...dir2, [p3]: [vec8(0x99n)] } } } },
+        }
+        const [state2, exitCode2] = virtual(corrupted)(main(makeOptions(['get', hashStr, 'output', '--verify'])))
+        assertEq(exitCode2, 1)
+        assert(state2.stderr.length !== 0)
+        assert(state2.root.output === undefined)
     },
     mainGetWrongArgs: () => {
         const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['get'])))

@@ -11,6 +11,19 @@ need them.
 - [`cas` CLI](cli/module.f.ts) — direct filesystem access for content larger
   than the MCP inline-content cap.
 
+## Read-time integrity
+
+The store never rehashes a blob on plain `read`/`cas get`/`cas_get`, so a blob
+corrupted, truncated, or misnamed on disk (bit-rot, a copy-files sync that has
+not yet been scrubbed) would otherwise be handed back silently. `verifyHash`
+(`fs/cas/module.f.ts`) rehashes the streamed bytes and reports whether they
+still match the requested address, without buffering the stream into memory.
+It is opt-in — a full rehash costs a second read — via `cas get --verify` (CLI)
+and `cas_get { verify: true }` (MCP); both fail with a distinct "hash mismatch"
+error rather than the (corrupted) content. A separate batch
+[`cas verify`](todo/66g-cas-verify-command.md) scans the whole store for the
+same invariant.
+
 ## Content formats
 
 Because the store is type-agnostic, a blob's format is recovered on read, not
