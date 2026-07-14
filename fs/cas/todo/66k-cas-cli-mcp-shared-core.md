@@ -1,7 +1,16 @@
 ## 66K-cas-cli-mcp-shared-core. Share code between CAS CLI and MCP
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
+**Blocked by:** [command-architecture](command-architecture.md)
+
+> **Re-scoped (2026-07):** this issue is now the *implementation* follow-up
+> of the CAS command architecture design
+> ([command-architecture](command-architecture.md)). The design decides the
+> command set, the typed input/output contracts, the error taxonomy, and the
+> per-transport exposure matrix; the duplication inventory and the unified
+> `add` notes below feed into that design and are then implemented against
+> it, not independently.
 
 ### Problem
 
