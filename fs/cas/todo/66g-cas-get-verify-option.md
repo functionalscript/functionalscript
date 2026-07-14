@@ -1,7 +1,8 @@
 ## 66G-cas-get-verify-option. Option to verify the hash during cas get / read
 
-**Priority:** P3
-**Status:** open
+**Priority:** P4
+**Status:** blocked
+**Blocked by:** [fs/cli options-edsl](../../cli/todo/options-edsl.md), [command-architecture](command-architecture.md)
 
 ### Problem
 
@@ -31,11 +32,24 @@ Keep it opt-in: verification costs a full rehash per read, which is wasteful for
 that already trust the store. Callers that need integrity (untrusted source, security-sensitive
 content, freshly synced data not yet scrubbed) turn it on.
 
+**Blocked** (see the metadata above): the `--verify` flag must be declared through the CLI
+options eDSL ([fs/cli options-edsl](../../cli/todo/options-edsl.md)), not hand-parsed out of
+`args`; and whether/where the option surfaces on other transports is an exposure-matrix
+decision for the CAS command architecture
+([command-architecture](command-architecture.md)). A working prototype exists in the closed
+PR [#1277](https://github.com/functionalscript/functionalscript/pull/1277): a streaming
+`verifyHash` core (folds the read stream into a fresh SHA-2 state, so it is not bound by the
+128 KiB `Vec` cap) plus CLI/MCP wiring and tests. The core function and its tests are worth
+reusing; the transport wiring is what the blockers replace.
+
 Open design points:
 
 - default off vs. on for `cas get`;
-- whether to expose it through the MCP CAS tools as well;
-- error shape on mismatch (treat as not-found vs. a distinct "corrupted" error).
+- whether to expose it through the MCP CAS tools as well — deferred to the
+  [command-architecture](command-architecture.md) exposure matrix;
+- error shape on mismatch (treat as not-found vs. a distinct "corrupted" error; the
+  prototype used a distinct "hash mismatch" error, which keeps a present-but-corrupted
+  blob distinguishable from an absent one).
 
 ### Tasks
 
@@ -48,4 +62,8 @@ Open design points:
 ### Related
 
 - [66g-cas-verify-command](66g-cas-verify-command.md) — batch scrub for the same invariant
+- [command-architecture](command-architecture.md) — decides which transports expose this
+- [fs/cli options-edsl](../../cli/todo/options-edsl.md) — the declarative `--verify` flag
+- PR [#1277](https://github.com/functionalscript/functionalscript/pull/1277) (closed) —
+  prototype implementation kept for reference
 - `issues/plan/vision.md` — protocol-agnostic synchronization / copy-files sync
