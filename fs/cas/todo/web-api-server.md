@@ -34,9 +34,17 @@ set over HTTP(S):
   before the server is reachable beyond localhost;
 - request/response validation should derive from the same command
   declarations that drive the CLI and MCP adapters;
-- large blobs favour HTTP: streaming request/response bodies avoid the MCP
-  128 KiB inline-content cap, so `add`/`get` of arbitrary-size content is a
-  natural fit for this transport.
+- large blobs favour HTTP *in principle*: the protocol streams
+  request/response bodies, so `add`/`get` of arbitrary-size content is a
+  natural fit for this transport where MCP is capped at 128 KiB of inline
+  content. But the current HTTP effects do not stream:
+  `IncomingMessage.body` / `ServerResponse.body`
+  (`fs/effects/node/module.f.ts`) are single `Vec`s, and the Node runner
+  buffers the whole request (`collect(req)` → `listToVec`) — past the
+  128 KiB `Vec` limit it throws. The CAS store side already streams
+  (`Cas.read`/`Cas.write` deal in chunk lists), so lifting the cap needs
+  **streaming request/response body effects** as a prerequisite; until that
+  design exists, an HTTP adapter inherits the same inline cap as MCP.
 
 **Human-readable HTML pages.** The same server should also serve HTML, so a
 human can browse a CAS in an ordinary browser — one server, two
@@ -62,6 +70,11 @@ HTML form is an exposure-matrix decision for
 
 - [ ] Wait for the CAS command architecture design
       ([command-architecture](./command-architecture.md)).
+- [ ] Design streaming HTTP request/response body effects in
+      `fs/effects/node` (today `IncomingMessage`/`ServerResponse` carry a
+      single `Vec` body, buffered whole by the runner) — prerequisite for
+      arbitrary-size `add`/`get`; without it the adapter keeps the 128 KiB
+      inline cap.
 - [ ] Design authentication and the exposed command subset.
 - [ ] Design the HTML browsing surface: routes / content negotiation, the
       list and blob pages, dialect-aware rendering (revision DAG links).
@@ -80,3 +93,6 @@ HTML form is an exposure-matrix decision for
   navigable DAG.
 - `fs/effects/node/todo/requestlistener-stateful.md` — HTTP listener
   effects groundwork.
+- `fs/effects/node/module.f.ts` (`IncomingMessage`/`ServerResponse`) — the
+  whole-body `Vec` HTTP effects that need a streaming redesign before this
+  transport can carry blobs past 128 KiB.
