@@ -23,7 +23,12 @@ reason). Hand-parsing is stringly-typed and wrong in every direction:
   place to document it is free text in `description`;
 - every next flag copies the same pattern — one divergent parser per
   command, with no compile-time link between what is parsed and what the
-  handler reads.
+  handler reads;
+- non-declarative parsing must keep `help` and documentation in sync with
+  the parser by hand: the parsing code, the `description` text, and any
+  README all state the option independently, and nothing detects when they
+  drift apart. With a declarative option, the declaration *is* the single
+  source the help and docs are generated from.
 
 ### Proposal
 
