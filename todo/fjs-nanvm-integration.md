@@ -16,6 +16,10 @@ Integrating first means every later feature (operators, functions, control)
 lands into an already-working pipeline and is verified end-to-end from day
 one, instead of a big-bang integration at the end.
 
+An AST has no starting point of its own, so merely loading it would not prove
+much. The entry point is the module's `export default`: `nanvm` evaluates it,
+runs it if it is a function, and prints the result to stdout as JSON.
+
 ### Tasks
 
 - [ ] Create the `nanvm` executable
@@ -25,7 +29,7 @@ one, instead of a big-bang integration at the end.
 - [ ] Add an `fjs` CLI subcommand that parses/compiles a module and sends the
       serialized AST to `nanvm`.
 - [ ] Prove the pipeline with a minimal AST subset: a constant default export,
-      parsed by `fjs`, executed by `nanvm`, result printed.
+      parsed by `fjs`, executed by `nanvm`, result printed to stdout as JSON.
 
 ### Related
 

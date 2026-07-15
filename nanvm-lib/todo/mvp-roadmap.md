@@ -59,9 +59,10 @@ avoiding the ambiguous binary↔decimal number conversion of text formats.
       Spec: [operators](../../todo/lang/2340-operators.md).
 - [ ] **Deserializer** for the serialized AST (Rust).
       Related: [fs-vm-load-save](./fs-vm-load-save.md).
-- [ ] **`nanvm` executable** — receives the serialized AST, deserializes, and
-      runs it; the MVP's delivery vehicle.
-      See [console-program](./console-program.md).
+- [ ] **`nanvm` executable** — receives the serialized AST, deserializes it,
+      evaluates the module's `export default` (running it if it is a
+      function), and prints the result to stdout as JSON; the MVP's delivery
+      vehicle. See [console-program](./console-program.md).
 - [ ] **`fjs`–`nanvm` integration** — wire the pipeline end-to-end early
       ("walking skeleton"): a minimal AST subset (e.g. a constant default
       export) is enough to start, before the other tasks are complete, so
@@ -97,3 +98,6 @@ avoiding the ambiguous binary↔decimal number conversion of text formats.
 2. **Priority mismatch.** The Rust deserializer is P1 but the FJS AST
    serializer producing its input is P2. Until the serializer lands, does the
    Rust side test against hand-written AST data?
+3. **Result printing.** `nanvm` prints the result to stdout as JSON, but a
+   result can be non-JSON (`undefined`, `bigint`, a function). Does the MVP
+   print DJS for those, or report an error?
