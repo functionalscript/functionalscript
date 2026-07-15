@@ -37,7 +37,8 @@ avoiding the ambiguous binary↔decimal number conversion of text formats.
 - [ ] **AST spec** — the single schema (tags/shapes + CBOR mapping) that the
       parser, the serializer, and the deserializer implement.
       Blocks all three. See [ast-spec](../../todo/ast-spec.md).
-- [ ] **Complete all basic FunctionalScript operators** (Rust).
+- [ ] **Complete all basic FunctionalScript operators** (Rust), including the
+      short-circuit operators `&&`, `||`, `??` (lazy evaluation, like `?:`).
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../todo/lang/2340-operators.md).
 - [ ] **Deserializer** for the serialized AST (Rust).
@@ -72,6 +73,3 @@ avoiding the ambiguous binary↔decimal number conversion of text formats.
 2. **Priority mismatch.** The Rust deserializer is P1 but the FJS AST
    serializer producing its input is P2. Until the serializer lands, does the
    Rust side test against hand-written AST data?
-3. **Short-circuit operators.** `&&`, `||`, `??` need lazy evaluation like
-   `?:`. Do they belong to the P1 "basic operators" task (eager, value-level)
-   or to the P2 control task (lazy, expression-level)?
