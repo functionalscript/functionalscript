@@ -37,8 +37,14 @@ avoiding the ambiguous binary↔decimal number conversion of text formats.
 - [ ] **AST spec** — the single schema (tags/shapes + CBOR mapping) that the
       parser, the serializer, and the deserializer implement.
       Blocks all three. See [ast-spec](../../todo/ast-spec.md).
+- [ ] **Test generation for operators** — one test-data module drives both
+      the FJS proof (JS engine reference) and the generated Rust tests.
+      Implement **before** the operators task below, so every new operator is
+      tested once, not twice. See
+      [single-source-of-truth-for-operator-tests](./single-source-of-truth-for-operator-tests.md).
 - [ ] **Complete all basic FunctionalScript operators** (Rust), including the
       short-circuit operators `&&`, `||`, `??` (lazy evaluation, like `?:`).
+      Preceded by the test-generation task above.
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../todo/lang/2340-operators.md).
 - [ ] **Deserializer** for the serialized AST (Rust).
