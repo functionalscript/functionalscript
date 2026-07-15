@@ -10,6 +10,7 @@ import { type JsonToken } from '../tokenizer/module.f.ts'
 import { setReplace, type OrderedMap } from '../../../types/ordered_map/module.f.ts'
 import { type Unknown } from '../module.f.ts'
 import { fromMap } from '../../../types/object/module.f.ts'
+import { assertEq } from '../../../asserts/module.f.ts'
 
 type JsonObject = {
     readonly kind: 'object'
@@ -239,3 +240,17 @@ export const parse
             default: return error('unexpected end')
         }
     }
+
+export const proof = {
+    pushKey: {
+        // `pushKey` is only ever invoked while `state.top` is an object (the
+        // state machine's `'{'`/`'{,'` statuses guarantee it), so its
+        // non-object guard is a defensive branch unreachable through `parse`.
+        // Call it directly to cover that branch.
+        nonObjectTop: () => {
+            const state: StateParse = { status: '[', top: { kind: 'array', values: null }, stack: null }
+            const result = pushKey(state)('key')
+            assertEq(result.status, 'error')
+        },
+    },
+}
