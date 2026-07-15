@@ -10,14 +10,24 @@ source is parsed (FJS), serialized as an AST, and loaded and executed by
 See [`todo/lang/`](../../todo/lang/README.md) for language details. Details for
 individual items below are added only after discussion.
 
-## Serializable format: AST, not bytecode
+## Serializable format: AST, not bytecode (decided)
 
-We lean towards **AST** instead of bytecode as the serializable standard
-representation of functions, because we want a simple, standard, serializable
-representation of FJS functions. For FJS, that means JSON or DJS. While we
-would like to have a JSON representation of an FJS function, we may prefer to
-serialize it into **CBOR**, because we need a precise number representation
-(IEEE 754 double).
+The stable, serializable, standard representation of functions is the **AST**.
+The reasons:
+
+1. We need a canonical data representation of functions in FunctionalScript —
+   and in the future content-addressable VM (CAVM) — to compute a hash.
+2. The AST can be transformed back to source code; this transformation will be
+   used in `toString(f)`.
+
+Bytecode is an advanced, performance-oriented representation that may vary
+across architectures, VM implementations, and versions, while the AST is the
+stable representation. See
+[`todo/lang/README.md` §9](../../todo/lang/README.md#9-serialization-ast-not-bytecode).
+
+For FJS, the AST means JSON or DJS. While we would like to have a JSON
+representation of an FJS function, we may prefer to serialize it into **CBOR**,
+because we need a precise number representation (IEEE 754 double).
 
 ## Tasks
 
@@ -26,8 +36,7 @@ serialize it into **CBOR**, because we need a precise number representation
 - [ ] **Complete all basic FunctionalScript operators** (Rust).
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../todo/lang/2340-operators.md).
-- [ ] **Deserializer** from the serializable format (AST preferred over
-      bytecode, see above) (Rust).
+- [ ] **Deserializer** for the serialized AST (Rust).
       Related: [fs-vm-load-save](./fs-vm-load-save.md).
 - [ ] **Parser**, using [`fs/bnf/`](../../fs/bnf/README.md) (FJS).
 
@@ -50,23 +59,16 @@ serialize it into **CBOR**, because we need a precise number representation
 
 ## Open questions
 
-1. **Commit to AST?** The deserializer task says "bytecode or AST" while this
-   document leans AST. If AST is the decision, the bytecode-oriented docs
-   ([`todo/lang/README.md` §9](../../todo/lang/README.md),
-   [call-like-instructions](../../todo/lang/9100-call-like-instructions.md),
-   [function-frame](../../todo/lang/3111-function-frame.md), and the
-   "Compiler (codegen): bytecode ISA" row in
-   [`todo/plan/roadmap.md`](../../todo/plan/roadmap.md)) need updating.
-2. **Which encoding does the P1 Rust deserializer consume first** — CBOR,
+1. **Which encoding does the P1 Rust deserializer consume first** — CBOR,
    JSON/DJS text, or both?
-3. **AST schema as its own task.** The parser (P1, FJS), the serializer (P2,
+2. **AST schema as its own task.** The parser (P1, FJS), the serializer (P2,
    FJS), and the deserializer (P1, Rust) all depend on one agreed AST schema
    (tags/shapes). Is the tag table in
    [`todo/lang/README.md`](../../todo/lang/README.md) the spec of record, or
    does the schema need its own design issue first?
-4. **Priority mismatch.** The Rust deserializer is P1 but the FJS AST
+3. **Priority mismatch.** The Rust deserializer is P1 but the FJS AST
    serializer producing its input is P2. Until the serializer lands, does the
    Rust side test against hand-written AST data?
-5. **Short-circuit operators.** `&&`, `||`, `??` need lazy evaluation like
+4. **Short-circuit operators.** `&&`, `||`, `??` need lazy evaluation like
    `?:`. Do they belong to the P1 "basic operators" task (eager, value-level)
    or to the P2 control task (lazy, expression-level)?
