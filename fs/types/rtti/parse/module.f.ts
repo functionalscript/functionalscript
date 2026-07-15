@@ -35,12 +35,13 @@ import {
 } from '../module.f.ts'
 import { ok, type Result as CommonResult } from '../../result/module.f.ts'
 import type { StringMap } from '../../object/module.f.ts'
-import { find, map as listMap, reverse, toArray, type List } from '../../list/module.f.ts'
+import { reverse, toArray, type List } from '../../list/module.f.ts'
 import {
     constPrimitiveValidate,
     eachEntry,
     isArray,
     isObject,
+    orVisit,
     primitive0Validate,
     verror,
     visit,
@@ -48,6 +49,7 @@ import {
     type IsContainer,
     type Result as CommonValidateResult,
     type Validate,
+    type ValidateE,
     type ValidationError,
     type Visitor,
 } from '../common/module.f.ts'
@@ -151,13 +153,8 @@ const structParse = constContainerParse<StringMap<string, Unknown>>(
     recordRebuild,
 )
 
-const findFirst = find
-    (verror('no match'))
-    ((k: any) => k[0] === 'ok')
-
 const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or', ...T]> =>
-    // `parse(t)` where t: Type forces Ts<Type> evaluation → TS2589; cast keeps result as any.
-    value => findFirst(listMap(t => (parse as any)(t)(value))(rtti))
+    orVisit(parse as (t: Type) => ValidateE)(rtti) as Parse<() => readonly['or', ...T]>
 
 /**
  * Creates a parser function for the given RTTI schema.

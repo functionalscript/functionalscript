@@ -18,6 +18,8 @@
  * - `eachEntry`: the container entry loop (array/record/tuple/struct), shared
  *   by both consumers' container builders. Callers choose what (if anything)
  *   to accumulate, so `validate`'s pure pass/fail check pays no allocation.
+ * - `orVisit`: the shared `or` handler — try each variant's recursive walker,
+ *   return the first match.
  *
  * Keeping the kernel here also removes `parse`'s incidental dependency on
  * `validate` and gives future schema-driven consumers (e.g. the data form
@@ -145,6 +147,34 @@ export const eachEntry = <V, R, A>(
     }
     return ok(acc)
 }
+
+/** `Result` with the payload type erased; avoids instantiating `Ts<Type>`. */
+export type ResultE = CommonResult<Unknown, ValidationError>
+
+/** A `Validate`-shaped function with the payload type erased. */
+export type ValidateE = (value: Unknown) => ResultE
+
+/**
+ * First variant in `variants` that `recurse` accepts, else `verror('no match')`.
+ *
+ * Shared `or` handler for `validate` and `parse`: both try each variant
+ * against the value and return the first `'ok'` verbatim, differing only in
+ * which recursive function (`validate` or `parse`) walks each variant. `recurse`
+ * is typed over the erased `ValidateE` alias — annotating it as `(t: Type) =>
+ * Validate<Type>` would itself instantiate `Validate<Type>` and hit TS2589 —
+ * so each caller passes its recursive function through one boundary cast.
+ */
+export const orVisit =
+    (recurse: (t: Type) => ValidateE) =>
+    (variants: readonly Type[]) => (value: Unknown): ResultE => {
+        for (const t of variants) {
+            const r = recurse(t)(value)
+            if (r[0] === 'ok') {
+                return r
+            }
+        }
+        return verror('no match')
+    }
 
 /**
  * Visits a schema `Type` by dispatching to the matching handler in `v`.
