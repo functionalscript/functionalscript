@@ -3,9 +3,18 @@
 **Priority:** P1
 **Status:** open
 
-The primary focus is to get to MVP ASAP: a minimal end-to-end pipeline where FJS
-source is parsed (FJS), serialized as an AST, and loaded and executed by
-`nanvm-lib` (Rust).
+The primary focus is to get to MVP ASAP.
+
+**MVP definition:** the MVP is reached when we use our FJS CLI executable to
+parse and compile FJS code, and then run it by sending the serialized AST to
+our `nanvm` executable:
+
+```
+source ──(fjs: parse, compile)──> serialized AST ──(nanvm: deserialize, run)──> result
+```
+
+So the MVP requires two executables: the FJS CLI (`fjs`) and `nanvm`
+(see [console-program](./console-program.md)).
 
 See [`todo/lang/`](../../todo/lang/README.md) for language details. Details for
 individual items below are added only after discussion.
@@ -50,6 +59,9 @@ avoiding the ambiguous binary↔decimal number conversion of text formats.
       Spec: [operators](../../todo/lang/2340-operators.md).
 - [ ] **Deserializer** for the serialized AST (Rust).
       Related: [fs-vm-load-save](./fs-vm-load-save.md).
+- [ ] **`nanvm` executable** — receives the serialized AST, deserializes, and
+      runs it; the MVP's delivery vehicle.
+      See [console-program](./console-program.md).
 - [ ] **Parser**, using [`fs/bnf/`](../../fs/bnf/README.md) (FJS).
 
 ### P2
