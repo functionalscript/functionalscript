@@ -34,6 +34,9 @@ avoiding the ambiguous binary↔decimal number conversion of text formats.
 
 ### P1
 
+- [ ] **AST spec** — the single schema (tags/shapes + CBOR mapping) that the
+      parser, the serializer, and the deserializer implement.
+      Blocks all three. See [ast-spec](../../todo/ast-spec.md).
 - [ ] **Complete all basic FunctionalScript operators** (Rust).
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../todo/lang/2340-operators.md).
@@ -66,14 +69,9 @@ avoiding the ambiguous binary↔decimal number conversion of text formats.
    (a double that fits in a 16/32-bit float must be encoded shorter), which
    conflicts with "always 8-byte doubles". Do we adopt RFC 8949 §4.2 as-is, or
    define our own profile (e.g. always 64-bit floats)?
-2. **AST schema as its own task.** The parser (P1, FJS), the serializer (P2,
-   FJS), and the deserializer (P1, Rust) all depend on one agreed AST schema
-   (tags/shapes). Is the tag table in
-   [`todo/lang/README.md`](../../todo/lang/README.md) the spec of record, or
-   does the schema need its own design issue first?
-3. **Priority mismatch.** The Rust deserializer is P1 but the FJS AST
+2. **Priority mismatch.** The Rust deserializer is P1 but the FJS AST
    serializer producing its input is P2. Until the serializer lands, does the
    Rust side test against hand-written AST data?
-4. **Short-circuit operators.** `&&`, `||`, `??` need lazy evaluation like
+3. **Short-circuit operators.** `&&`, `||`, `??` need lazy evaluation like
    `?:`. Do they belong to the P1 "basic operators" task (eager, value-level)
    or to the P2 control task (lazy, expression-level)?
