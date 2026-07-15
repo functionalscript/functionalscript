@@ -62,6 +62,11 @@ avoiding the ambiguous binary↔decimal number conversion of text formats.
 - [ ] **`nanvm` executable** — receives the serialized AST, deserializes, and
       runs it; the MVP's delivery vehicle.
       See [console-program](./console-program.md).
+- [ ] **`fjs`–`nanvm` integration** — wire the pipeline end-to-end early
+      ("walking skeleton"): a minimal AST subset (e.g. a constant default
+      export) is enough to start, before the other tasks are complete, so
+      every later feature lands into a working pipeline.
+      See [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
 - [ ] **Parser**, using [`fs/bnf/`](../../fs/bnf/README.md) (FJS).
 
 ### P2
