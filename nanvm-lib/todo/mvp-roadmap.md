@@ -25,9 +25,10 @@ across architectures, VM implementations, and versions, while the AST is the
 stable representation. See
 [`todo/lang/README.md` §9](../../todo/lang/README.md#9-serialization-ast-not-bytecode).
 
-For FJS, the AST means JSON or DJS. While we would like to have a JSON
-representation of an FJS function, we may prefer to serialize it into **CBOR**,
-because we need a precise number representation (IEEE 754 double).
+For FJS, the AST means JSON or DJS. The binary encoding is **CBOR**
+([RFC 8949](https://www.rfc-editor.org/rfc/rfc8949)) — a CBOR representation
+of JSON/DJS — because it represents numbers as exact IEEE 754 doubles,
+avoiding the ambiguous binary↔decimal number conversion of text formats.
 
 ## Tasks
 
@@ -59,8 +60,12 @@ because we need a precise number representation (IEEE 754 double).
 
 ## Open questions
 
-1. **Which encoding does the P1 Rust deserializer consume first** — CBOR,
-   JSON/DJS text, or both?
+1. **Deterministic CBOR profile.** For content hashing (CAVM), the encoding
+   must be canonical: one AST, one byte sequence, one hash. RFC 8949 §4.2
+   ("Core Deterministic Encoding") requires shortest-form integers and floats
+   (a double that fits in a 16/32-bit float must be encoded shorter), which
+   conflicts with "always 8-byte doubles". Do we adopt RFC 8949 §4.2 as-is, or
+   define our own profile (e.g. always 64-bit floats)?
 2. **AST schema as its own task.** The parser (P1, FJS), the serializer (P2,
    FJS), and the deserializer (P1, Rust) all depend on one agreed AST schema
    (tags/shapes). Is the tag table in

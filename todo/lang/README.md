@@ -433,7 +433,10 @@ optimization opportunities for calling well-known host (built-in) functions that
 without excessive copying / slot allocations.
 
 The AST loader targets simplicity, speed, and precision; for example, we represent number literals
-as a double floating point (8 bytes) to keep the representation exact.
+as a double floating point (8 bytes) to keep the representation exact. The binary encoding of the
+serialized AST is **CBOR** ([RFC 8949](https://www.rfc-editor.org/rfc/rfc8949)) — a CBOR
+representation of JSON/DJS — chosen to avoid the ambiguous binary↔decimal number conversion of
+text formats.
 
 1. [ ] [Call-like instructions](./9100-call-like-instructions.md) — VM-internal bytecode design.
 
