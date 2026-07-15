@@ -42,12 +42,14 @@ import {
     eachEntry,
     isArray,
     isObject,
+    orVisit,
     primitive0Validate,
     verror,
     visit,
     type Container,
     type IsContainer,
     type Validate,
+    type ValidateE,
     type Visitor,
 } from '../common/module.f.ts'
 
@@ -129,19 +131,8 @@ const structValidate = constContainerValidate<StringMap<string, Unknown>>(
     (value, k) => value[k]
 )
 
-const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly['or', ...T]> => {
-    const all = rtti.map(r => validate(r))
-    return value => {
-        for (const i of all) {
-            // `i` is Validate<Type>; calling without cast forces Ts<Type> evaluation → TS2589.
-            const r = (i as any)(value)
-            if (r[0] === 'ok') {
-                return r
-            }
-        }
-        return verror('no match')
-    }
-}
+const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly['or', ...T]> =>
+    orVisit(validate as (t: Type) => ValidateE)(rtti) as Validate<() => readonly['or', ...T]>
 
 /**
  * Creates a validator function for the given RTTI schema.
