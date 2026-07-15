@@ -22,7 +22,8 @@ The reasons:
 
 Bytecode is an advanced, performance-oriented representation that may vary
 across architectures, VM implementations, and versions, while the AST is the
-stable representation. See
+stable representation. A VM can also use the AST itself as its byte code,
+interpreting it directly — the simplest option for the MVP. See
 [`todo/lang/README.md` §9](../../todo/lang/README.md#9-serialization-ast-not-bytecode).
 
 For FJS, the AST means JSON or DJS. The binary encoding is **CBOR**

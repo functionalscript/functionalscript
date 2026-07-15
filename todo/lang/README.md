@@ -423,8 +423,9 @@ m.push(s)    // error: `m` is immutable
 
 Bytecode is an advanced, performance-oriented representation that may vary across architectures,
 VM implementations, and versions, while the AST is the stable representation. A VM implementation
-has an option to transform the AST into its internal bytecode on loading; bytecode is never used
-as an interchange or storage format.
+has an option to transform the AST into its internal bytecode on loading — or to use the AST
+itself as its byte code, interpreting it directly; internal bytecode is never used as an
+interchange or storage format.
 
 Since bytecode is VM-internal, it can be designed in the most flexible manner, allowing
 for various kinds of optimizations in VM implementations. For example, bytecode that always copies
