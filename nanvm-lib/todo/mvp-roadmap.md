@@ -1,7 +1,9 @@
-# MVP Roadmap
+## MVP Roadmap
 
 **Priority:** P1
 **Status:** open
+
+### Problem
 
 The primary focus is to get to MVP ASAP.
 
@@ -19,7 +21,9 @@ So the MVP requires two executables: the FJS CLI (`fjs`) and `nanvm`
 See [`todo/lang/`](../../todo/lang/README.md) for language details. Details for
 individual items below are added only after discussion.
 
-## Serializable format: AST, not bytecode (decided)
+### Proposal
+
+#### Serializable format: AST, not bytecode (decided)
 
 The stable, serializable, standard representation of functions is the **AST**.
 The reasons:
@@ -35,14 +39,18 @@ stable representation. A VM can also use the AST itself as its byte code,
 interpreting it directly — the simplest option for the MVP. See
 [`todo/lang/README.md` §9](../../todo/lang/README.md#9-serialization-ast-not-bytecode).
 
-For FJS, the AST means JSON or DJS. The binary encoding is **CBOR**
-([RFC 8949](https://www.rfc-editor.org/rfc/rfc8949)) — a CBOR representation
-of JSON/DJS — because it represents numbers as exact IEEE 754 doubles,
-avoiding the ambiguous binary↔decimal number conversion of text formats.
+The AST is plain data, expressible as JSON/DJS values; it covers all levels of
+the language, including the FJS-level nodes — function, parameters, captured
+consts — represented as data (see
+[`todo/lang/README.md` §3](../../todo/lang/README.md#3-fjs)). The binary
+encoding is **CBOR** ([RFC 8949](https://www.rfc-editor.org/rfc/rfc8949)) — a
+CBOR representation of that JSON/DJS-shaped data — because it represents
+numbers as exact IEEE 754 doubles, avoiding the ambiguous binary↔decimal
+number conversion of text formats.
 
-## Tasks
+### Tasks
 
-### P1
+#### P1
 
 - [ ] **AST spec** — the single schema (tags/shapes + CBOR mapping) that the
       parser, the serializer, and the deserializer implement.
@@ -70,7 +78,7 @@ avoiding the ambiguous binary↔decimal number conversion of text formats.
       See [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
 - [ ] **Parser**, using [`fs/bnf/`](../../fs/bnf/README.md) (FJS).
 
-### P2
+#### P2
 
 - [ ] **Basic control operator `?:`** (Rust).
 - [ ] **Nested functions** (function frame) (Rust).
@@ -78,16 +86,16 @@ avoiding the ambiguous binary↔decimal number conversion of text formats.
       [function-frame](../../todo/lang/3111-function-frame.md).
 - [ ] **AST serializer** (FJS).
 
-### P3
+#### P3
 
 - [ ] **Control statements**: `if`, `while`, etc. (Rust).
       See [`todo/lang/README.md` §3.2](../../todo/lang/README.md).
 
-### P4
+#### P4
 
 - [ ] **Generators**, etc. (Rust).
 
-## Open questions
+### Open questions
 
 1. **Deterministic CBOR profile.** For content hashing (CAVM), the encoding
    must be canonical: one AST, one byte sequence, one hash. RFC 8949 §4.2
@@ -101,3 +109,16 @@ avoiding the ambiguous binary↔decimal number conversion of text formats.
 3. **Result printing.** `nanvm` prints the result to stdout as JSON, but a
    result can be non-JSON (`undefined`, `bigint`, a function). Does the MVP
    print DJS for those, or report an error?
+
+### Related
+
+- [`todo/lang/README.md`](../../todo/lang/README.md) — the language spec and
+  serialization tag tables; §9 records the AST-not-bytecode decision.
+- [ast-spec](../../todo/ast-spec.md) — the AST schema (RTTI) that the P1
+  tasks implement.
+- [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) — the
+  walking-skeleton integration and the `fjs vm build` / `fjs vm run` CLI.
+- [console-program](./console-program.md) — the `nanvm` executable.
+- [single-source-of-truth-for-operator-tests](./single-source-of-truth-for-operator-tests.md)
+  — test generation preceding the operators task.
+- [fs-vm-load-save](./fs-vm-load-save.md) — load/execute/save semantics.
