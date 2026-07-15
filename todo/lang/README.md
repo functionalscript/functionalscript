@@ -411,26 +411,39 @@ s.push(m)    // ok, but now `m` is immutable
 m.push(s)    // error: `m` is immutable
 ```
 
-## 9. Bytecode
+## 9. Serialization: AST, not Bytecode
 
-Let's have a concise and relatively stable "external" bytecode model that is fit for representation
-of processed FS code upon serialization (saving in-memory function object) / deserialization
-(loading previously saved function objects). A VM implementation has an option to transform that
-external bytecode into its internal representation on loading.
+**Decision:** the stable, serializable, standard representation of functions is the **AST**
+(the tag tables above). The reasons:
 
-Looking from that perspective we should design external bytecode in most flexible manner, allowing
+1. We need a canonical data representation of functions in FunctionalScript — and in the future
+   content-addressable VM (CAVM) — to compute a hash.
+2. The AST can be transformed back to source code; this transformation will be used in
+   `toString(f)`.
+
+Bytecode is an advanced, performance-oriented representation that may vary across architectures,
+VM implementations, and versions, while the AST is the stable representation. A VM implementation
+has an option to transform the AST into its internal bytecode on loading — or to use the AST
+itself as its byte code, interpreting it directly; internal bytecode is never used as an
+interchange or storage format.
+
+Since bytecode is VM-internal, it can be designed in the most flexible manner, allowing
 for various kinds of optimizations in VM implementations. For example, bytecode that always copies
-arguments of a function call to devoted stack slots (before the proper call instruction) disallow
+arguments of a function call to devoted stack slots (before the proper call instruction) disallows
 optimization opportunities for calling well-known host (built-in) functions that can be implemented
 without excessive copying / slot allocations.
 
-On the other hand we target for simplicity and speed of bytecode loader, for example, we represent
-number literals as an LSB double floating point (8 bytes - LSB picked here since it's an in-memory
-representation more commonly used in popular processor architectures).
+The AST loader targets simplicity, speed, and precision; for example, we represent number literals
+as a double floating point (8 bytes) to keep the representation exact. The binary encoding of the
+serialized AST is **CBOR** ([RFC 8949](https://www.rfc-editor.org/rfc/rfc8949)) — a CBOR
+representation of JSON/DJS — chosen to avoid the ambiguous binary↔decimal number conversion of
+text formats.
 
-1. [ ] [Call-like instructions](./9100-call-like-instructions.md)
+1. [ ] [Call-like instructions](./9100-call-like-instructions.md) — VM-internal bytecode design.
 
 ### Byte Code Structures
+
+VM-internal sketches; not part of the stable serializable format.
 
 ```rust
 struct Array<T> {
@@ -445,7 +458,7 @@ type BigUInt = Array<u64>;
 
 type Object = Array<(String, Any)>;
 
-// The main structure for serialization.
+// The in-memory code of a function (VM-internal).
 type Code = Array<u8>;
 
 struct Function {

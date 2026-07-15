@@ -1,7 +1,11 @@
 ## Single source of truth for operator tests
 
-**Priority:** P3
+**Priority:** P1
 **Status:** open
+
+Part of the [MVP roadmap](./mvp-roadmap.md): implement before completing the
+basic operators, so every new operator is tested once (in the shared test
+data) instead of twice (FJS proof + Rust tests written by hand).
 
 ### Problem
 
