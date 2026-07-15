@@ -20,14 +20,27 @@ An AST has no starting point of its own, so merely loading it would not prove
 much. The entry point is the module's `export default`: `nanvm` evaluates it,
 runs it if it is a function, and prints the result to stdout as JSON.
 
+### CLI commands (decided)
+
+A `vm` command group in the `fjs` CLI (following the pattern of the existing
+`cas` group):
+
+- `fjs vm build <module>` — parse + compile into a serialized AST;
+- `fjs vm run <module>` — `vm build`, then hand the serialized AST to the
+  `nanvm` executable, which evaluates `export default` (running it if it is a
+  function) and prints the result to stdout as JSON.
+
+The group is named `vm` (not `nanvm`) because the CLI names the stable
+contract — running FunctionalScript on a VM via the serialized AST — not one
+VM implementation; a future VM fits the same group.
+
 ### Tasks
 
 - [ ] Create the `nanvm` executable
       ([console-program](../nanvm-lib/todo/console-program.md)).
-- [ ] Define how `fjs` invokes `nanvm` and hands over the serialized AST
+- [ ] Define how `fjs vm run` hands the serialized AST to `nanvm`
       (file, stdin, …).
-- [ ] Add an `fjs` CLI subcommand that parses/compiles a module and sends the
-      serialized AST to `nanvm`.
+- [ ] Add the `vm` command group (`vm build`, `vm run`) to the `fjs` CLI.
 - [ ] Prove the pipeline with a minimal AST subset: a constant default export,
       parsed by `fjs`, executed by `nanvm`, result printed to stdout as JSON.
 
