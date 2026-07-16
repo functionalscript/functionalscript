@@ -16,8 +16,8 @@ export const images = {
         arm: 'macos-26'
     },
     windows: {
-        intel: 'windows-2025',
-        arm: 'windows-11-arm',
+        intel: 'windows-2025-vs2026',
+        arm: 'windows-11-vs2026-arm',
     }
 } as const
 
@@ -25,7 +25,7 @@ export const images = {
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = '0.37.0' as const
+export const functionalscript = '0.0.517' as const
 
 // https://bun.sh/
 export const bun = '1.3.14'
