@@ -1,4 +1,4 @@
-import { toCodePointList, fromCodePointList, fromVec } from './module.f.ts'
+import { toCodePointList, fromCodePointList, fromVec, utf8ByteToCodePointOp } from './module.f.ts'
 import { stringify as jsonStringify } from '../../media/json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
@@ -74,6 +74,13 @@ export const proof = {
         () => {
             const result = stringify(toArray(toCodePointList([240, 144, 128, 128])))
             if (result !== '[65536]') { throw result }
+        },
+        // A byte stream never accumulates a 2-byte state whose lead is >= F8
+        // (isLeadByte caps leads at F4), so this defensive fallthrough is
+        // only reachable by calling the scan op directly with such a state.
+        () => {
+            const result = stringify(utf8ByteToCodePointOp(0x80, [0xf8, 0x80]))
+            if (result !== '[[-2147483136,-2147483520],null]') { throw result }
         }
     ],
     fromCodePointList: [
