@@ -70,5 +70,3 @@ is still accepted, since `djs.Unknown ⊆ rtti.Unknown`.
 ### Related
 
 - `fs/types/rtti/ts/module.f.ts` — states the keep-rtti-free-of-djs intent.
-- `fs/types/rtti/todo/parse-validate-shared-entry-loop.md` — surfaced alongside
-  this while reading the parse/validate container builders.

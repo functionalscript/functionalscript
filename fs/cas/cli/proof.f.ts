@@ -47,6 +47,13 @@ export const proof = {
         assertEq(exitCode, 1)
         assert(finalState.stderr.length !== 0)
     },
+    mainAddMissingFile: () => {
+        // The source path doesn't exist, so `streamFile`'s first read comes back as an
+        // error item; `write` fails closed with that error and the handler exits 1
+        // without ever calling `log` — covers the `hashResult[0] === 'error'` branch.
+        const [, exitCode] = virtual(emptyState)(main(makeOptions(['add', 'missing'])))
+        assertEq(exitCode, 1)
+    },
     mainGetFound: () => {
         const content = vec8(0x2An)
         const state = { ...emptyState, root: { myfile: [content] } }

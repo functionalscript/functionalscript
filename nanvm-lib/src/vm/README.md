@@ -20,9 +20,12 @@ struct String<T: IVm>;
 // ...
 ```
 
-## ByteCode
+## AST
 
-Byte code is a VM agnostic.
+The AST is VM-agnostic and is the stable, serializable representation of functions
+(see [`todo/lang/README.md` §9](../../../todo/lang/README.md#9-serialization-ast-not-bytecode)).
+A VM implementation may transform it into internal bytecode on loading, or use the AST itself
+as its byte code, interpreting it directly.
 
 ```rust
 /// ```
