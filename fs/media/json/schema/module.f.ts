@@ -1,12 +1,14 @@
 /**
  * Converts an rtti schema to a JSON Schema (draft 2020-12) object.
  *
- * Mirrors the visitor structure of `fs/types/rtti/ts/module.f.ts` (`printer` / `toTs`),
- * but emits a JSON Schema object instead of a TypeScript type string.
+ * Driven by `fs/types/rtti/common/module.f.ts`'s `visit`, the same shared
+ * `Type`-ADT walker used by `validate` and `parse`.
  *
  * @module
  */
-import { type Const, type Type as RttiType, array, option, or, record, string } from '../../../types/rtti/module.f.ts'
+import { type Struct, type Tuple, type Type as RttiType, array, option, or, record, string } from '../../../types/rtti/module.f.ts'
+import { visit, type Visitor } from '../../../types/rtti/common/module.f.ts'
+import type { Primitive } from '../../../djs/module.f.ts'
 import type { Ts } from '../../../types/rtti/ts/module.f.ts'
 import type { Phantom } from '../../../types/phantom/module.f.ts'
 import { unknown as jsonUnknown } from '../module.f.ts'
@@ -70,22 +72,10 @@ const stripUndefined = (rtti: RttiType): RttiType => {
     return rest.length === 1 ? rest[0] : or(...rest)
 }
 
-const constToJsonSchema = (rtti: Const): Unknown => {
-    if (typeof rtti === 'undefined') { return { not: {} } }
-    if (typeof rtti !== 'object' || rtti === null) {
-        // bigint consts are represented as numbers (lossy for |value| > MAX_SAFE_INTEGER)
-        return { const: typeof rtti === 'bigint' ? Number(rtti) : rtti }
-    }
-    if (rtti instanceof Array) {
-        return {
-            type: 'array',
-            prefixItems: rtti.map(toJsonSchema),
-            items: false,
-        }
-    }
-    // Struct: keys not admitting undefined go into `required`; optional keys have
-    // undefined stripped from their property schema. additionalProperties is omitted
-    // (lenient), matching rtti's open-struct validation semantics.
+// Struct: keys not admitting undefined go into `required`; optional keys have
+// undefined stripped from their property schema. additionalProperties is omitted
+// (lenient), matching rtti's open-struct validation semantics.
+const structSchema = (rtti: Struct): Unknown => {
     const ents = Object.entries(rtti)
     const properties = Object.fromEntries(
         ents.map(([k, v]) => [k, toJsonSchema(stripUndefined(v))])
@@ -98,6 +88,24 @@ const constToJsonSchema = (rtti: Const): Unknown => {
         properties,
         ...(required.length > 0 ? { required } : {}),
     }
+}
+
+const constPrimitiveSchema = (rtti: Primitive): Unknown =>
+    rtti === undefined
+        ? { not: {} }
+        // bigint consts are represented as numbers (lossy for |value| > MAX_SAFE_INTEGER)
+        : { const: typeof rtti === 'bigint' ? Number(rtti) : rtti }
+
+const visitor: Visitor<Unknown> = {
+    tuple: (t: Tuple) => ({ type: 'array', prefixItems: t.map(toJsonSchema), items: false }),
+    struct: structSchema,
+    array: item => ({ type: 'array', items: toJsonSchema(item) }),
+    record: item => ({ type: 'object', additionalProperties: toJsonSchema(item) }),
+    or: variants => ({ anyOf: variants.map(toJsonSchema) }),
+    constPrimitive: constPrimitiveSchema,
+    // bigint is not representable in JSON Schema; 'integer' is the closest approximation
+    primitive0: tag => ({ type: tag === 'bigint' ? 'integer' : tag }),
+    unknown: () => ({}),
 }
 
 /**
@@ -117,20 +125,4 @@ const constToJsonSchema = (rtti: Const): Unknown => {
  * | `record(T)`                                   | `{ "type": "object", "additionalProperties": …T… }`                                 |
  * | `or(...types)`                                | `{ "anyOf": […each…] }`                                                             |
  */
-export const toJsonSchema = (rtti: RttiType): Unknown => {
-    if (typeof rtti !== 'function') { return constToJsonSchema(rtti) }
-    const [tag, ...rest] = rtti()
-    switch (tag) {
-        case 'const': return constToJsonSchema(rest[0] as Const)
-        case 'boolean': return { type: 'boolean' }
-        case 'number': return { type: 'number' }
-        case 'string': return { type: 'string' }
-        // bigint is not representable in JSON Schema; 'integer' is the closest approximation
-        case 'bigint': return { type: 'integer' }
-        case 'unknown': return {}
-        case 'array': return { type: 'array', items: toJsonSchema(rest[0]) }
-        case 'record': return { type: 'object', additionalProperties: toJsonSchema(rest[0]) }
-        case 'or': return { anyOf: rest.map(toJsonSchema) }
-        default: return {}
-    }
-}
+export const toJsonSchema: (rtti: RttiType) => Unknown = visit(visitor)
