@@ -2,7 +2,7 @@ import { utf8 } from '../../text/module.f.ts'
 import { empty, uint } from '../../types/bit_vec/module.f.ts'
 import { computeSync, sha224, sha256 } from '../sha2/module.f.ts'
 import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBits } from './module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.ts'
 
 const p256 = sha256Pow
 const p224 = pow(sha224)
@@ -24,28 +24,28 @@ const block0Hash =
     0x000000000019d6689c085ae165831e934ff763ae46a2a6cffb388491c27dc990n
 
 const expectNull = (nBits: bigint) => {
-    assert(targetFromNBits(nBits) === null, nBits)
+    assertEq(targetFromNBits(nBits), null, nBits)
 }
 
 export const proof = {
     targetFromNBits: {
         genesis: () => {
-            assert(targetFromNBits(genesisNBits) === genesisTarget, 'genesis target')
+            assertEq(targetFromNBits(genesisNBits), genesisTarget, 'genesis target')
         },
         block0HashWithinGenesisTarget: () => {
             assert(!(block0Hash > genesisTarget), 'block0 hash exceeds genesis target')
         },
         exponent3: () => {
-            assert(targetFromNBits(0x030000ffn) === 0xffn, 'exponent 3')
+            assertEq(targetFromNBits(0x030000ffn), 0xffn, 'exponent 3')
         },
         exponent2: () => {
-            assert(targetFromNBits(0x02008000n) === 0x80n, 'exponent 2')
+            assertEq(targetFromNBits(0x02008000n), 0x80n, 'exponent 2')
         },
         hardTargetOne: () => {
-            assert(targetFromNBits(hardNBits) === 1n, 'hard target')
+            assertEq(targetFromNBits(hardNBits), 1n, 'hard target')
         },
         zero: () => {
-            assert(targetFromNBits(0n) === 0n, 'zero nBits')
+            assertEq(targetFromNBits(0n), 0n, 'zero nBits')
         },
         negative: () => {
             expectNull(0x01800001n)
@@ -78,8 +78,7 @@ export const proof = {
         },
         hashLeqTarget: () => {
             const h = p256.hashInt(sample)
-            const target = targetFromNBits(easyNBits)
-            assert(target !== null, 'easy nBits decode')
+            const target = assertNotNullish(targetFromNBits(easyNBits), 'easy nBits decode')
             assert(!(h > target), 'hash above easy target')
             assert(h <= target, 'hash <= target')
         },
@@ -87,35 +86,35 @@ export const proof = {
     hashInt: {
         sha256Sample: () => {
             const digest = computeSync(sha256)([sample])
-            assert(p256.hashInt(sample) === uint(digest), 'sha256 sample')
+            assertEq(p256.hashInt(sample), uint(digest), 'sha256 sample')
         },
         sha256Empty: () => {
-            assert(p256.hashInt(emptyData) === sha256EmptyHash, 'sha256 empty constant')
+            assertEq(p256.hashInt(emptyData), sha256EmptyHash, 'sha256 empty constant')
             const digest = computeSync(sha256)([emptyData])
-            assert(p256.hashInt(emptyData) === uint(digest), 'sha256 empty')
+            assertEq(p256.hashInt(emptyData), uint(digest), 'sha256 empty')
         },
         sha224: () => {
             const digest = computeSync(sha224)([sample])
-            assert(p224.hashInt(sample) === uint(digest), 'sha224')
+            assertEq(p224.hashInt(sample), uint(digest), 'sha224')
         },
         stable: () => {
-            assert(p256.hashInt(sample) === p256.hashInt(sample), 'stable')
+            assertEq(p256.hashInt(sample), p256.hashInt(sample), 'stable')
         },
     },
     pow: {
         sha256Pow: () => {
             const built = pow(sha256)
-            assert(sha256Pow.hashInt(sample) === built.hashInt(sample), 'hashInt')
-            assert(sha256Pow.meets(easyNBits)(sample) === built.meets(easyNBits)(sample), 'meets')
+            assertEq(sha256Pow.hashInt(sample), built.hashInt(sample), 'hashInt')
+            assertEq(sha256Pow.meets(easyNBits)(sample), built.meets(easyNBits)(sample), 'meets')
         },
         bitcoinPow: () => {
-            assert(bitcoinPow.hashInt(sample) === sha256Pow.hashInt(sample), 'bitcoinPow')
+            assertEq(bitcoinPow.hashInt(sample), sha256Pow.hashInt(sample), 'bitcoinPow')
         },
         independentInstances: () => {
             const a = pow(sha256)
             const b = pow(sha256)
-            assert(a.hashInt(sample) === b.hashInt(sample), 'hashInt')
-            assert(a.meets(easyNBits)(sample) === b.meets(easyNBits)(sample), 'meets')
+            assertEq(a.hashInt(sample), b.hashInt(sample), 'hashInt')
+            assertEq(a.meets(easyNBits)(sample), b.meets(easyNBits)(sample), 'meets')
         },
     },
 }

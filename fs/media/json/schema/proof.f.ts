@@ -1,14 +1,14 @@
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../../../types/rtti/module.f.ts'
 import { stringify, type Unknown as JsonValue } from '../module.f.ts'
 import { toJsonSchema, type Unknown, unknown as schemaUnknown } from './module.f.ts'
-import { assert } from '../../../asserts/module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.ts'
 
 const serialize = (v: Unknown) => stringify(e => e)(v as unknown as JsonValue)
 
 const eq = (rtti: Parameters<typeof toJsonSchema>[0], expected: Unknown) => () => {
     const result = serialize(toJsonSchema(rtti))
     const exp = serialize(expected)
-    assert(result === exp, [result, exp])
+    assertEq(result, exp, [result, exp])
 }
 
 export const proof = {
@@ -64,7 +64,7 @@ export const proof = {
     },
     schemaUnknownTag: () => {
         const r = schemaUnknown()
-        assert(r[0] === 'const', r[0])
+        assert(r[0] === 'const')
     },
     nested: {
         arrayOfRecords: eq(array(record(boolean)), {

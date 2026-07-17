@@ -1,16 +1,16 @@
 import { mapSet, mapDelete } from './module.f.ts'
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
     set: () => {
         const map = mapSet(new Map(), 'a', 'b')
-        assert(map.get('a') === 'b', 'error')
-        assert(map.size === 1, 'error')
+        assertEq(map.get('a'), 'b', 'error')
+        assertEq(map.size, 1, 'error')
     },
     delete: () => {
         const map = mapDelete(mapSet(new Map(), 'a', 'b'), 'a')
-        assert(map.get('a') === undefined, 'error')
-        assert(map.size === 0, 'error')
+        assertEq(map.get('a'), undefined, 'error')
+        assertEq(map.size, 0, 'error')
     },
     deleteOneOfMany: () => {
         const m0 = mapSet(new Map<string, number>(), 'a', 1)

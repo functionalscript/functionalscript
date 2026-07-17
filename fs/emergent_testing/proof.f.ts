@@ -64,7 +64,7 @@ export const flat = () => {
     const [e0, e1, e2] = events
     assert(e0[0] === 'result' && e0[2][0] === 'a')
     assert(e1[0] === 'result' && e1[2][0] === 'b')
-    assertEq(e2[0], 'summary')
+    assert(e2[0] === 'summary')
     const [, pass, fail] = e2
     assertEq(pass, 2)
     assertEq(fail, 0)
@@ -79,7 +79,7 @@ export const nested = () => {
     const [e0, e1, e2] = events
     assert(e0[0] === 'result' && e0[2][1] === 'add')
     assert(e1[0] === 'result' && e1[2][1] === 'sub')
-    assertEq(e2[0], 'summary')
+    assert(e2[0] === 'summary')
     const [, pass, fail] = e2
     assertEq(pass, 2)
     assertEq(fail, 0)
@@ -93,7 +93,7 @@ export const throwKey = () => {
     assertEq(exit, 0)
     const [e0, e1] = events
     assert(e0[0] === 'result' && e0[2][0] === 'throw' && e0[2][1] === 'a')
-    assertEq(e1[0], 'summary')
+    assert(e1[0] === 'summary')
     const [, pass, fail] = e1
     assertEq(pass, 1)
     assertEq(fail, 0)
@@ -106,7 +106,7 @@ export const throwKeyFail = () => {
     })
     assertEq(exit, 1)
     const [e0, e1] = events
-    assertEq(e0[0], 'result')
+    assert(e0[0] === 'result')
     const [, pass, fail] = e1
     assertEq(pass, 0)
     assertEq(fail, 1)
@@ -119,7 +119,7 @@ export const mixedPassFail = () => {
     })
     assertEq(exit, 1)
     const summary = events[events.length - 1]
-    assertEq(summary[0], 'summary')
+    assert(summary[0] === 'summary')
     const [, pass, fail] = summary
     assertEq(pass, 1)
     assertEq(fail, 1)
@@ -298,13 +298,13 @@ export const registerSuffixes = () => {
     // Node (star = ''): no suffixes
     const [nodeNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ''))
     assertEq(nodeNames.length, 2)
-    assertEq(nodeNames[0], 'import("./a.f.ts").proof.ok()')
+    assert(nodeNames[0] === 'import("./a.f.ts").proof.ok()')
     assertEq(nodeNames[1], 'import("./a.f.ts").proof.throw.a()')
 
     // Bun/Playwright (star = ' ...'): ... on normal tests, path shows throw for throw-tests
     const [inlineNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ' ...'))
     assertEq(inlineNames.length, 2)
-    assertEq(inlineNames[0], 'import("./a.f.ts").proof.ok() ...')
+    assert(inlineNames[0] === 'import("./a.f.ts").proof.ok() ...')
     assertEq(inlineNames[1], 'import("./a.f.ts").proof.throw.a()')
 }
 

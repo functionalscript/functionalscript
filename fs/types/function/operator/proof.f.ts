@@ -1,4 +1,4 @@
-import { assert } from '../../../asserts/module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.ts'
 import {
     join,
     concat,
@@ -14,17 +14,17 @@ import {
 
 const joinTest = () => {
     const result = join(', ')('world')('hello')
-    assert(result === 'hello, world', result)
+    assertEq(result, 'hello, world')
 }
 
 const concatTest = () => {
     const result = concat('world')('hello')
-    assert(result === 'helloworld', result)
+    assertEq(result, 'helloworld')
 }
 
 const logicalNotTest = () => {
-    assert(logicalNot(true) === false, 'expected false')
-    assert(logicalNot(false) === true, 'expected true')
+    assertEq(logicalNot(true), false, 'expected false')
+    assertEq(logicalNot(false), true, 'expected true')
 }
 
 const strictEqualTest = () => {
@@ -34,42 +34,42 @@ const strictEqualTest = () => {
 
 const additionTest = () => {
     const result = addition(3)(4)
-    assert(result === 7, result)
+    assertEq(result, 7)
 }
 
 const incrementTest = () => {
-    assert(increment(4) === 5, 'increment(4)')
-    assert(increment(0) === 1, 'increment(0)')
+    assertEq(increment(4), 5, 'increment(4)')
+    assertEq(increment(0), 1, 'increment(0)')
 }
 
 const foldToScanTest = () => {
     const scan = foldToScan(addition)(0)
     const [v1, scan2] = scan(3)
-    assert(v1 === 3, v1)
+    assertEq(v1, 3)
     const [v2] = scan2(4)
-    assert(v2 === 7, v2)
+    assertEq(v2, 7)
 }
 
 const reduceToScanTest = () => {
     const scan = reduceToScan(addition)
     const [v0, scan2] = scan(10)
-    assert(v0 === 10, v0)
+    assertEq(v0, 10)
     const [v1] = scan2(5)
-    assert(v1 === 15, v1)
+    assertEq(v1, 15)
 }
 
 const counterTest = () => {
     const fn = counter()
-    assert(fn(4) === 5, 'counter() returned wrong function')
+    assertEq(fn(4), 5, 'counter() returned wrong function')
 }
 
 const stateScanToScanTest = () => {
     const op = (input: number, state: number) => [input + state, input + state] as const
     const scan = stateScanToScan(op)(0)
     const [v1, scan2] = scan(3)
-    assert(v1 === 3, v1)
+    assertEq(v1, 3)
     const [v2] = scan2(4)
-    assert(v2 === 7, v2)
+    assertEq(v2, 7)
 }
 
 export const proof = { joinTest, concatTest, logicalNotTest, strictEqualTest, additionTest, incrementTest, counterTest, stateScanToScanTest, foldToScanTest, reduceToScanTest }

@@ -1,5 +1,5 @@
 import { repeat, type Monoid } from "./module.f.ts";
-import { assert } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
     numberAdd: () => {
@@ -8,10 +8,10 @@ export const proof = {
              operation: a => b => a + b,
         };
         const resultAdd = repeat(add)(10n)(2) // 20
-        assert(resultAdd === 20, resultAdd)
+        assertEq(resultAdd, 20)
 
         const id = repeat(add)(0n)(42)
-        assert(id === 0, id)
+        assertEq(id, 0)
     },
     stringConcat: () => {
         const concat: Monoid<string> = {
@@ -20,6 +20,6 @@ export const proof = {
         };
 
         const resultConcat = repeat(concat)(3n)('ha') // 'hahaha'
-        assert(resultConcat === 'hahaha', resultConcat)
+        assertEq(resultConcat, 'hahaha')
     }
 }

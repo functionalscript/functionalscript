@@ -5,7 +5,7 @@ import { sort } from '../../types/object/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
 import { stringify } from '../../media/json/module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly DjsTokenWithMetadata[]
@@ -20,77 +20,77 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[null]]', result)
+            assertEq(result, '[[],[null]]')
         },
         () => {
             const tokenList = tokenizeString('export default true')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[true]]', result)
+            assertEq(result, '[[],[true]]')
         },
         () => {
             const tokenList = tokenizeString('export default false')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[false]]', result)
+            assertEq(result, '[[],[false]]')
         },
         () => {
             const tokenList = tokenizeString('export default undefined')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[undefined]]', result)
+            assertEq(result, '[[],[undefined]]')
         },
         () => {
             const tokenList = tokenizeString('export default 0.1')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[0.1]]', result)
+            assertEq(result, '[[],[0.1]]')
         },
         () => {
             const tokenList = tokenizeString('export default 1.1e+2')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[110]]', result)
+            assertEq(result, '[[],[110]]')
         },
         () => {
             const tokenList = tokenizeString('export default "abc"')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],["abc"]]', result)
+            assertEq(result, '[[],["abc"]]')
         },
         () => {
             const tokenList = tokenizeString('export default []')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[["array",[]]]]', result)
+            assertEq(result, '[[],[["array",[]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [1]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[["array",[1]]]]', result)
+            assertEq(result, '[[],[["array",[1]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [[]]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[["array",[["array",[]]]]]]', result)
+            assertEq(result, '[[],[["array",[["array",[]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [0,[1,[2,[]]],3]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[["array",[0,["array",[1,["array",[2,["array",[]]]]]],3]]]]', result)
+            assertEq(result, '[[],[["array",[0,["array",[1,["array",[2,["array",[]]]]]],3]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default {}')
@@ -132,21 +132,21 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[1234567890n]]', result)
+            assertEq(result, '[[],[1234567890n]]')
         },
         () => {
             const tokenList = tokenizeString('export default [1234567890n]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[["array",[1234567890n]]]]', result)
+            assertEq(result, '[[],[["array",[1234567890n]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [1,]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[["array",[1]]]]', result)
+            assertEq(result, '[[],[["array",[1]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default {"a":1,}')
@@ -161,13 +161,13 @@ export const proof = {
             const tokenList = tokenizeString('export default')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected end', obj[1].message)
+            assertEq(obj[1].message, 'unexpected end')
         },
         () => {
             const tokenList = tokenizeString('export default "123')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         // A literal control character inside a string is not valid JSON
         // syntax (RFC 8259 §7), and DJS string literals are JSON strings.
@@ -175,127 +175,127 @@ export const proof = {
             const tokenList = tokenizeString('export default "\t"')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default [,]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default [1 2]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default [1,,2]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default []]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default ["a"')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected end', obj[1].message)
+            assertEq(obj[1].message, 'unexpected end')
         },
         () => {
             const tokenList = tokenizeString('export default [,1]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default [:]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default ]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default {,}')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default {1:2}')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default {"1"2}')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default {"1"::2}')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default {"1":2,,"3":4')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default {}}')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default {"1":2')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected end', obj[1].message)
+            assertEq(obj[1].message, 'unexpected end')
         },
         () => {
             const tokenList = tokenizeString('export default {,"1":2}')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default }')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default [{]}')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default {[}]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('export default 10-5')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj[1].message)
+            assertEq(obj[1].message, 'unexpected token')
         },
     ],
     errorMetadata: [
@@ -313,7 +313,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[["array",[0,1,2]]]]', result)
+            assertEq(result, '[[],[["array",[0,1,2]]]]')
         },
         () => {
             const tokenList = tokenizeString(' export default { "a" : 0 , "b" : 1 } ')
@@ -327,7 +327,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[["array",[0,1,2]]]]', result)
+            assertEq(result, '[[],[["array",[0,1,2]]]]')
         },
         () => {
             const tokenList = tokenizeString('\rexport\rdefault\r{\r"a"\r:\r0\r,\r"b"\r:\r1\r}\r')
@@ -343,21 +343,21 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[null]]', result)
+            assertEq(result, '[[],[null]]')
         },
         () => {
             const tokenList = tokenizeString('1')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[1]]', result)
+            assertEq(result, '[[],[1]]')
         },
         () => {
             const tokenList = tokenizeString('[]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[["array",[]]]]', result)
+            assertEq(result, '[[],[["array",[]]]]')
         },
         () => {
             const tokenList = tokenizeString('{"valid":"json"}')
@@ -372,19 +372,19 @@ export const proof = {
             const tokenList = tokenizeString('module=null')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'const not found', obj)
+            assertEq(obj[1].message, 'const not found', obj)
         },
         () => {
             const tokenList = tokenizeString('export null')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj)
+            assertEq(obj[1].message, 'unexpected token', obj)
         },
         () => {
             const tokenList = tokenizeString('export default = null')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj)
+            assertEq(obj[1].message, 'unexpected token', obj)
         },
     ],
     validWithConst:[
@@ -393,21 +393,21 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[1,2,3]]', result)
+            assertEq(result, '[[],[1,2,3]]')
         },
         () => {
             const tokenList = tokenizeString('const a = 1 \n const b = 2 \n export default b')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[1,2,["cref",1]]]', result)
+            assertEq(result, '[[],[1,2,["cref",1]]]')
         },
         () => {
             const tokenList = tokenizeString('const a = 1 \n const b = 2 \n export default [b,a,b]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[1,2,["array",[["cref",1],["cref",0],["cref",1]]]]]', result)
+            assertEq(result, '[[],[1,2,["array",[["cref",1],["cref",0],["cref",1]]]]]')
         },
         () => {
             const tokenList = tokenizeString('const a = 1 \n const b = 2 \n export default {"1st":b,"2nd":a,"3rd":b}')
@@ -422,19 +422,19 @@ export const proof = {
             const tokenList = tokenizeString('const a = 1 const b = 2 export default 3')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj)
+            assertEq(obj[1].message, 'unexpected token', obj)
         },
         () => {
             const tokenList = tokenizeString('const = 1 \n const b = 2 \n export default 3')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj)
+            assertEq(obj[1].message, 'unexpected token', obj)
         },
         () => {
             const tokenList = tokenizeString('const a = 1 \n const a = 2 \n export default 3')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'duplicate id', obj)
+            assertEq(obj[1].message, 'duplicate id', obj)
         },
     ],
     validWithArgs:[
@@ -443,21 +443,21 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[["test/test.f.mjs"],[["aref",0]]]', result)
+            assertEq(result, '[["test/test.f.mjs"],[["aref",0]]]')
         },
         () => {
             const tokenList = tokenizeString('import a from "first/test.f.mjs" \n import b from "second/test.f.mjs" \n export default [b, a, b]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[["first/test.f.mjs","second/test.f.mjs"],[["array",[["aref",1],["aref",0],["aref",1]]]]]', result)
+            assertEq(result, '[["first/test.f.mjs","second/test.f.mjs"],[["array",[["aref",1],["aref",0],["aref",1]]]]]')
         },
         () => {
             const tokenList = tokenizeString('import a from "test/test.f.mjs" \n const b = null \n export default [b, a, b]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[["test/test.f.mjs"],[null,["array",[["cref",0],["aref",0],["cref",0]]]]]', result)
+            assertEq(result, '[["test/test.f.mjs"],[null,["array",[["cref",0],["aref",0],["cref",0]]]]]')
         },
     ],
     invalidWithArgs:[
@@ -465,37 +465,37 @@ export const proof = {
             const tokenList = tokenizeString('import a from "test/test.f.mjs" export default a')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj)
+            assertEq(obj[1].message, 'unexpected token', obj)
         },
         () => {
             const tokenList = tokenizeString('import a from \n export default a')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj)
+            assertEq(obj[1].message, 'unexpected token', obj)
         },
         () => {
             const tokenList = tokenizeString('import a "test/test.f.mjs" \n export default a')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj)
+            assertEq(obj[1].message, 'unexpected token', obj)
         },
         () => {
             const tokenList = tokenizeString('import from "test/test.f.mjs" \n export default a')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'unexpected token', obj)
+            assertEq(obj[1].message, 'unexpected token', obj)
         },
         () => {
             const tokenList = tokenizeString('import a from "first/test.f.mjs" \n import a from "second/test.f.mjs" \n export default [b, a, b]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'duplicate id', obj)
+            assertEq(obj[1].message, 'duplicate id', obj)
         },
         () => {
             const tokenList = tokenizeString('import a from "test/test.f.mjs" \n const a = null \n export default null')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assert(obj[1].message === 'duplicate id', obj)
+            assertEq(obj[1].message, 'duplicate id', obj)
         },
     ],
     comments: [
@@ -504,7 +504,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assert(result === '[[],[null]]', result)
+            assertEq(result, '[[],[null]]')
         },
     ]
 }

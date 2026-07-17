@@ -1,102 +1,102 @@
 import { decToBin } from './module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
     decToBin: [
         () => {
             const result = decToBin([0n, 0])
-            assert(result[0] === 0b0_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
-            assert(result[1] === 0, result[1])
+            assertEq(result[0], 0b0_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
+            assertEq(result[1], 0)
         },
         () => {
             const result = decToBin([0n, 10])
-            assert(result[0] === 0b0_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
-            assert(result[1] === 0, result[1])
+            assertEq(result[0], 0b0_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
+            assertEq(result[1], 0)
         },
         () => {
             const result = decToBin([0n, -10])
-            assert(result[0] === 0b0_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
-            assert(result[1] === 0, result[1])
+            assertEq(result[0], 0b0_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
+            assertEq(result[1], 0)
         },
         () => {
             const result = decToBin([1n, 0])
-            assert(result[0] === 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
-            assert(result[1] === -52, result[1])
+            assertEq(result[0], 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
+            assertEq(result[1], -52)
         },
         () => {
             const result = decToBin([1n, 1])
-            assert(result[0] === 0b1_0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
-            assert(result[1] === -49, result[1])
+            assertEq(result[0], 0b1_0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
+            assertEq(result[1], -49)
         },
         () => {
             const result = decToBin([1000n, -2])
-            assert(result[0] === 0b1_0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
-            assert(result[1] === -49, result[1])
+            assertEq(result[0], 0b1_0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
+            assertEq(result[1], -49)
         },
         () => {
             const result = decToBin([1n, -1])
-            assert(result[0] === 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2)) //+1
-            assert(result[1] === -56, result[1])
+            assertEq(result[0], 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2)) //+1
+            assertEq(result[1], -56)
         },
         () => {
             const result = decToBin([-1n, 0])
-            assert(result[0] === -0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
-            assert(result[1] === -52, result[1])
+            assertEq(result[0], -0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
+            assertEq(result[1], -52)
         },
         () => {
             const result = decToBin([-1n, 1])
-            assert(result[0] === -0b1_0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
-            assert(result[1] === -49, result[1])
+            assertEq(result[0], -0b1_0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
+            assertEq(result[1], -49)
         },
         () => {
             const result = decToBin([-1000n, -2])
-            assert(result[0] === -0b1_0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
-            assert(result[1] === -49, result[1])
+            assertEq(result[0], -0b1_0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
+            assertEq(result[1], -49)
         },
         () => {
             const result = decToBin([-1n, -1])
-            assert(result[0] === -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2)) //+1
-            assert(result[1] === -56, result[1])
+            assertEq(result[0], -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2)) //+1
+            assertEq(result[1], -56)
         },
         () => {
             const result = decToBin([0b10_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001n, 0]) //54bits (...0.1)
-            assert(result[0] === 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
-            assert(result[1] === 1, result[1])
+            assertEq(result[0], 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
+            assertEq(result[1], 1)
         },
         () => {
             const result = decToBin([-0b10_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0011n, 0]) //54bits (...1.1)
-            assert(result[0] === -0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010n, result[0].toString(2))
-            assert(result[1] === 1, result[1])
+            assertEq(result[0], -0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010n, result[0].toString(2))
+            assertEq(result[1], 1)
         },
         () => {
             const result = decToBin([-0b10_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001n, 0]) //54bits (...0.1)
-            assert(result[0] === -0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
-            assert(result[1] === 1, result[1])
+            assertEq(result[0], -0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
+            assertEq(result[1], 1)
         },
         () => {
             const result = decToBin([-0b10_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0011n, 0]) //54bits (...1.1)
-            assert(result[0] === -0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010n, result[0].toString(2))
-            assert(result[1] === 1, result[1])
+            assertEq(result[0], -0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010n, result[0].toString(2))
+            assertEq(result[1], 1)
         },
         () => {
             const result = decToBin([0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001n, 0]) //55bits (...0.01)
-            assert(result[0] === 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010n, 0]) //55bits (...0.10)
-            assert(result[0] === 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0110n, 0]) //55bits (...1.10)
-            assert(result[0] === 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0011n, 0]) //55bits (0.11)
-            assert(result[0] === 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
     ],
     roundingPositive: [
@@ -105,56 +105,56 @@ export const proof = {
             // reminder = 0
             // m = 11001100110011001100110011001100110011001100110011001.101
             // rounding up
-            assert(result[0] === 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0000n, -1])
             // reminder = 0
             // m = 11001100110011001100110011001100110011001100110011010.000
             // rounding down
-            assert(result[0] === 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010_0100n, -1])
             // reminder = 0
             // m = 11001100110011001100110011001100110011001100110011010.100
             // rounding down (to even)
-            assert(result[0] === 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010_0101n, -1])
             // reminder = 1
             // m = 11001100110011001100110011001100110011001100110011010.100
             // rounding up
-            assert(result[0] === 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1011n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1011n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010_1001n, -1])
             // reminder = 0
             // m = 11001100110011001100110011001100110011001100110011010.101
             // rounding up
-            assert(result[0] === 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1011n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1011n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0011_1101n, -1])
             // reminder = 0
             // m = 11001100110011001100110011001100110011001100110011011.001
             // rounding down
-            assert(result[0] === 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1011n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1011n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0100_1100n, -1])
             // reminder = 0
             // m = 11001100110011001100110011001100110011001100110011011.100
             // rounding up (to even)
-            assert(result[0] === 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1100n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], 0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1100n, result[0].toString(2))
+            assertEq(result[1], 2)
         }
     ],
     roundingNegative: [
@@ -163,56 +163,56 @@ export const proof = {
             // reminder = 0
             // m = -11001100110011001100110011001100110011001100110011001.101
             // rounding down
-            assert(result[0] === -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([-0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0000n, -1])
             // reminder = 0
             // m = -11001100110011001100110011001100110011001100110011010.000
             // rounding up
-            assert(result[0] === -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([-0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010_0100n, -1])
             // reminder = 0
             // m = -11001100110011001100110011001100110011001100110011010.100
             // rounding up (to even)
-            assert(result[0] === -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([-0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010_0101n, -1])
             // reminder = 1
             // m = -11001100110011001100110011001100110011001100110011010.100
             // rounding down
-            assert(result[0] === -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1011n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1011n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([-0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010_1001n, -1])
             // reminder = 0
             // m = -11001100110011001100110011001100110011001100110011010.101
             // rounding down
-            assert(result[0] === -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1011n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1011n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([-0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0011_1101n, -1])
             // reminder = 0
             // m = -11001100110011001100110011001100110011001100110011011.001
             // rounding up
-            assert(result[0] === -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1011n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1011n, result[0].toString(2))
+            assertEq(result[1], 2)
         },
         () => {
             const result = decToBin([-0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0100_1100n, -1])
             // reminder = 0
             // m = -11001100110011001100110011001100110011001100110011011.100
             // rounding down (to even)
-            assert(result[0] === -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1100n, result[0].toString(2))
-            assert(result[1] === 2, result[1])
+            assertEq(result[0], -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1100n, result[0].toString(2))
+            assertEq(result[1], 2)
         }
     ]
 }

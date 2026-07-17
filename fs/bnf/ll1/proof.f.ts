@@ -4,7 +4,7 @@ import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.ts'
 import { deterministic } from '../testlib.f.ts'
 import { type RuleSet, toData } from '../data/module.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet } from './module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
     dispatch: [
@@ -197,7 +197,7 @@ export const proof = {
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
                 const mr = m('', toArray(stringToCodePointList(s)))
-                assert(isSuccess(mr) === success, mr)
+                assertEq(isSuccess(mr), success, mr)
             }
 
             expect('a', true)
@@ -222,7 +222,7 @@ export const proof = {
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
                 const mr = m('value', toArray(stringToCodePointList(s)))
-                assert(isSuccess(mr) === success, mr)
+                assertEq(isSuccess(mr), success, mr)
             }
 
             expect('', false)
@@ -237,7 +237,7 @@ export const proof = {
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
                 const mr = m('', toArray(stringToCodePointList(s)))
-                assert(isSuccess(mr) === success, mr)
+                assertEq(isSuccess(mr), success, mr)
             }
 
             expect('   true   ', true)

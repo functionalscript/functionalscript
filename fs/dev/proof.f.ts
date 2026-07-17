@@ -1,4 +1,4 @@
-import { assert, todo } from '../asserts/module.f.ts'
+import { assert, assertEq, todo } from '../asserts/module.f.ts'
 import { shouldLoad } from './module.f.ts'
 
 export const proof = {
@@ -19,7 +19,7 @@ export const proof = {
         const c = (() => { })['constructor']
         const f = c('return 5')
         const result = f()
-        assert(result === 5, 'function')
+        assertEq(result, 5, 'function')
     },
     ctorEmpty: () => {
         /** @type {any} */

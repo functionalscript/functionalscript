@@ -8,7 +8,7 @@ import { error, ok, type Ok } from '../types/result/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { join } from '../path/module.f.ts'
 import { nonEmpty, empty, type List } from '../effects/list/module.f.ts'
-import { assert } from '../asserts/module.f.ts'
+import { assert, assertEq, assertNotNullish } from '../asserts/module.f.ts'
 
 const testDir = './test-cas-cli'
 
@@ -48,8 +48,7 @@ const testAddBigFile = (): Effect<TestOp, void> =>
 
                 // Verify hash can be encoded/decoded
                 const hashCBase32 = vecToCBase32(hash)
-                const decodedHash = cBase32ToVec(hashCBase32)
-                assert(decodedHash !== null, new Error('Failed to decode hash from base32'))
+                assertNotNullish(cBase32ToVec(hashCBase32), new Error('Failed to decode hash from base32'))
 
                 return rm(testDir).step(() => pure(undefined))
             })
@@ -116,8 +115,8 @@ export const proof = {
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         assert(writeResult[0] === 'ok', ['expected write ok', writeResult])
         const hash = writeResult[1]
-        assert(length(hash) === 256n, ['expected 256-bit hash', length(hash)])
-        assert(msb.cmp(hash)(computeSync(sha256)([content])) === 0, 'write hash mismatch')
+        assertEq(length(hash), 256n, ['expected 256-bit hash', length(hash)])
+        assertEq(msb.cmp(hash)(computeSync(sha256)([content])), 0, 'write hash mismatch')
         const drain = (acc: readonly Vec[]) =>
             (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<readonly Vec[]>> =>
                 stream.step((node): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
@@ -128,7 +127,7 @@ export const proof = {
                 })
         const [, readResult] = virtual(state1)(drain([])(c.read(hash)))
         assert(readResult[0] === 'ok', ['expected read ok', readResult])
-        assert(msb.cmp(msb.listToVec(readResult[1]))(content) === 0, 'read content mismatch')
+        assertEq(msb.cmp(msb.listToVec(readResult[1]))(content), 0, 'read content mismatch')
     },
     casReadMissingShard: () => {
         // A missing shard surfaces as an explicit error *item*, never as end-of-stream.
@@ -150,7 +149,7 @@ export const proof = {
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         assert(writeResult[0] === 'ok', ['expected write ok', writeResult])
         const hash = writeResult[1]
-        assert(msb.cmp(hash)(computeSync(sha256)(chunks)) === 0, 'multi-chunk write hash mismatch')
+        assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'multi-chunk write hash mismatch')
         const drain = (acc: readonly Vec[]) =>
             (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<readonly Vec[]>> =>
                 stream.step((node): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
@@ -162,7 +161,7 @@ export const proof = {
         const [, readResult] = virtual(state1)(drain([])(c.read(hash)))
         assert(readResult[0] === 'ok', ['expected read ok', readResult])
         const expected = msb.concat(msb.concat(chunks[0])(chunks[1]))(chunks[2])
-        assert(msb.cmp(msb.listToVec(readResult[1]))(expected) === 0, 'multi-chunk read content mismatch')
+        assertEq(msb.cmp(msb.listToVec(readResult[1]))(expected), 0, 'multi-chunk read content mismatch')
     },
     casWriteDedup: () => {
         // Same content ⇒ same hash; the second upload's replace-`rename` publishes over the
@@ -174,9 +173,9 @@ export const proof = {
         const [state1, w1] = virtual(emptyState)(c.write(payload()))
         const [state2, w2] = virtual(state1)(c.write(payload()))
         assert(!(w1[0] !== 'ok' || w2[0] !== 'ok'), ['expected both writes ok', w1, w2])
-        assert(msb.cmp(w1[1])(w2[1]) === 0, 'dedup hash mismatch')
+        assertEq(msb.cmp(w1[1])(w2[1]), 0, 'dedup hash mismatch')
         const [, hashes] = virtual(state2)(c.list())
-        assert(hashes.length === 1, ['expected one shard after dedup', hashes.length])
+        assertEq(hashes.length, 1, ['expected one shard after dedup', hashes.length])
     },
     casWriteErrorItemAborts: () => {
         // An error item mid-stream deletes the partial staging file and fails; nothing is
@@ -190,7 +189,7 @@ export const proof = {
         const [state1, result] = virtual(emptyState)(c.write(payload))
         assert(result[0] === 'error', ['expected write error', result])
         const [, hashes] = virtual(state1)(c.list())
-        assert(hashes.length === 0, ['expected nothing published on abort', hashes])
+        assertEq(hashes.length, 0, ['expected nothing published on abort', hashes])
     },
     casWriteReadExceedsMaxLength: () => {
         // The point of streaming: a payload larger than a single `Vec`'s `maxLength`
@@ -208,7 +207,7 @@ export const proof = {
         const [state1, w] = virtual(emptyState)(c.write(payload))
         assert(w[0] === 'ok', ['expected write ok', w])
         const hash = w[1]
-        assert(msb.cmp(hash)(computeSync(sha256)(chunks)) === 0, 'oversized write hash mismatch')
+        assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'oversized write hash mismatch')
         // Fold the read stream straight into a fresh SHA-2 state — never one `Vec`.
         const rehash = (state: typeof sha256.init) =>
             (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<Vec>> =>
@@ -220,7 +219,7 @@ export const proof = {
                 })
         const [, readBack] = virtual(state1)(rehash(sha256.init)(c.read(hash)))
         assert(readBack[0] === 'ok', ['expected read ok', readBack])
-        assert(msb.cmp(readBack[1])(hash) === 0, 'oversized read-back hash mismatch')
+        assertEq(msb.cmp(readBack[1])(hash), 0, 'oversized read-back hash mismatch')
     },
     casWriteGcReclaimsExpired: () => {
         // A staging file whose deadline is in the past is reclaimed by the GC that `write`
@@ -245,7 +244,7 @@ export const proof = {
         const state0 = { ...emptyState, root: { 'cas_upload': { 'myfile': [content] } } }
         const [state1, result] = virtual(state0)(casUpload('.')('myfile'))
         assert(result[0] === 'ok', ['expected casUpload ok', result])
-        assert(length(result[1]) === 256n, ['expected 256-bit hash', length(result[1])])
+        assertEq(length(result[1]), 256n, ['expected 256-bit hash', length(result[1])])
         // Source must be deleted after successful publish.
         const srcPath = join('.', 'cas_upload', 'myfile')
         const [, srcAccess] = virtual(state1)(access(srcPath))
@@ -260,6 +259,6 @@ export const proof = {
         // Nothing published to the store.
         const c = fileCas(sha256)('.')
         const [, hashes] = virtual(state1)(c.list())
-        assert(hashes.length === 0, ['expected nothing published on failed upload', hashes])
+        assertEq(hashes.length, 0, ['expected nothing published on failed upload', hashes])
     },
 }

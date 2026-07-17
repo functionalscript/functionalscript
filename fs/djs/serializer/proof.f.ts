@@ -2,7 +2,7 @@ import { countRefs, stringify, stringifyAsTree } from './module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { setProperty } from '../../media/json/module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
     stringify: [
@@ -10,34 +10,34 @@ export const proof = {
             testPrimitives: () => {
                 const djs = [1, 2, 2, 2, true, false, undefined, null, 3n, "str"]
                 const refs = countRefs(djs)
-                assert(refs.size === 3, refs.size)
+                assertEq(refs.size, 3)
                 const refsBigInt = stringifyAsTree(sort)(refs.get(3n))
-                assert(refsBigInt === '[0,1]', refsBigInt)
+                assertEq(refsBigInt, '[0,1]')
                 const refsString = stringifyAsTree(sort)(refs.get("str"))
-                assert(refsString === '[1,1]', refsString)
+                assertEq(refsString, '[1,1]')
                 const refsRoot = stringifyAsTree(sort)(refs.get(djs))
-                assert(refsRoot === '[2,1]', refsRoot)
-                assert(refs.get(null) === undefined, refs.get(null))
+                assertEq(refsRoot, '[2,1]')
+                assertEq(refs.get(null), undefined)
             },
             testArray: () => {
                 const array = [null]
                 const djs = [array, array, array]
                 const refs = countRefs(djs)
-                assert(refs.size === 2, refs.size)
+                assertEq(refs.size, 2)
                 const refsArray = stringifyAsTree(sort)(refs.get(array))
-                assert(refsArray === '[0,3]', refsArray)
+                assertEq(refsArray, '[0,3]')
                 const refsRoot = stringifyAsTree(sort)(refs.get(djs))
-                assert(refsRoot === '[1,1]', refsRoot)
+                assertEq(refsRoot, '[1,1]')
             },
             testObj: () => {
                 const obj = { "a": 1, "b": 2 }
                 const djs = [obj, obj, 1]
                 const refs = countRefs(djs)
-                assert(refs.size === 2, refs.size)
+                assertEq(refs.size, 2)
                 const refsObj = stringifyAsTree(sort)(refs.get(obj))
-                assert(refsObj === '[0,2]', refsObj)
+                assertEq(refsObj, '[0,2]')
                 const refsRoot = stringifyAsTree(sort)(refs.get(djs))
-                assert(refsRoot === '[1,1]', refsRoot)
+                assertEq(refsRoot, '[1,1]')
             },
         },
         {
@@ -95,14 +95,14 @@ export const proof = {
             stringify: () => {
                 const bi = 1234567890n
                 const result = stringifyAsTree(sort)(bi)
-                assert(result === '1234567890n', result)
+                assertEq(result, '1234567890n')
             }
         },
         {
             stringify: () => {
                 const arr = [0n, 1, 2n]
                 const result = stringifyAsTree(sort)(arr)
-                assert(result === '[0n,1,2n]', result)
+                assertEq(result, '[0n,1,2n]')
             }
         },
         {

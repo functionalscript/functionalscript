@@ -1,32 +1,32 @@
 import { join, concat, repeat, cmp, splitAt } from './module.f.ts'
 import { repeat as repeatList } from '../list/module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
     example: () => {
         const words = ['hello', 'world']
-        assert(join(' ')(words) === 'hello world', 0)
-        assert(concat(words) === 'helloworld', 1)
-        assert(repeat('abc')(3) === 'abcabcabc', 2)
-        assert(cmp('apple')('banana') === -1, 3)
+        assertEq(join(' ')(words), 'hello world', 0)
+        assertEq(concat(words), 'helloworld', 1)
+        assertEq(repeat('abc')(3), 'abcabcabc', 2)
+        assertEq(cmp('apple')('banana'), -1, 3)
     },
     join: {
         0: () => {
             const result = join('/')([])
-            assert(result === '', result)
+            assertEq(result, '')
         },
         1: () => {
             const result = join('/')([''])
-            assert(result === '', result)
+            assertEq(result, '')
         },
         3: () => {
             const result = join(' ')(['hello', 'world', '!'])
-            assert(result === 'hello world !', result)
+            assertEq(result, 'hello world !')
         }
     },
     concat: () => {
         const result = concat(['hello', 'world'])
-        assert(result === 'helloworld', result)
+        assertEq(result, 'helloworld')
     },
     repeatList: {
         0: () => {
@@ -44,33 +44,33 @@ export const proof = {
     },
     cmp: () => {
         const result = cmp('3')('4')
-        assert(result === -1, result)
+        assertEq(result, -1)
     },
     splitAt: {
         middle: () => {
             const [a, b] = splitAt(3)('hello')
-            assert(a === 'hel', a)
-            assert(b === 'lo', b)
+            assertEq(a, 'hel')
+            assertEq(b, 'lo')
         },
         zero: () => {
             const [a, b] = splitAt(0)('hello')
-            assert(a === '', a)
-            assert(b === 'hello', b)
+            assertEq(a, '')
+            assertEq(b, 'hello')
         },
         full: () => {
             const [a, b] = splitAt(5)('hello')
-            assert(a === 'hello', a)
-            assert(b === '', b)
+            assertEq(a, 'hello')
+            assertEq(b, '')
         },
         beyond: () => {
             const [a, b] = splitAt(10)('hello')
-            assert(a === 'hello', a)
-            assert(b === '', b)
+            assertEq(a, 'hello')
+            assertEq(b, '')
         },
         empty: () => {
             const [a, b] = splitAt(0)('')
-            assert(a === '', a)
-            assert(b === '', b)
+            assertEq(a, '')
+            assertEq(b, '')
         },
     }
 }

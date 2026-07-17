@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../asserts/module.f.ts'
+import { assertEq, assertNotNullish } from '../asserts/module.f.ts'
 import { flat, utf8, utf8ToString, tryUtf8, type Block } from './module.f.ts'
 import { join } from '../types/string/module.f.ts'
 import { empty, maxLengthBytes } from '../types/bit_vec/module.f.ts'
@@ -17,16 +17,15 @@ export const proof = {
             'e',
         ]
         const result = join('\n')(flat(':')(text))
-        assert(result === 'a\nb\n:c\n::d\ne', result)
+        assertEq(result, 'a\nb\n:c\n::d\ne')
     },
     encoding: () => {
         const v = utf8('Hello world!')
         const r = utf8ToString(v)
-        assert(r === 'Hello world!', r)
+        assertEq(r, 'Hello world!')
     },
     tryUtf8RoundTrip: () => {
-        const v = tryUtf8('Hello world!')
-        assert(v !== null)
+        const v = assertNotNullish(tryUtf8('Hello world!'))
         assertEq(v, utf8('Hello world!'))
         assertEq(utf8ToString(v), 'Hello world!')
     },

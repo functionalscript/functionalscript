@@ -1,15 +1,15 @@
 import { error, ok, unwrap, invert, mapOk, type Result } from "./module.f.ts"
-import { assert } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.ts'
 
 const example = () => {
     const success: Result<number, string> = ok(42)
     const failure: Result<number, string> = error('Something went wrong')
 
-    assert(unwrap(success) === 42, 'error')
+    assertEq(unwrap(success), 42, 'error')
     const [kind, v] = failure
-    assert(kind === 'error', 'error')
+    assertEq(kind, 'error')
     // `v` is inferred as `string` here
-    assert(v === 'Something went wrong', 'error')
+    assertEq(v, 'Something went wrong', 'error')
 }
 
 const invertTest = () => {
@@ -22,7 +22,7 @@ const invertTest = () => {
 const unwrapError = () => {
     let caught = false
     try { unwrap(error('oops')) } catch (e) {
-        assert(e === 'oops', e)
+        assertEq(e, 'oops')
         caught = true
     }
     assert(caught, 'expected throw')

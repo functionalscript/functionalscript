@@ -2,7 +2,7 @@ import { pure } from '../effects/module.f.ts'
 import type { NodeOp, NodeProgramOptions } from '../effects/node/module.f.ts'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { dispatch, type Commands } from './module.f.ts'
-import { assert } from '../asserts/module.f.ts'
+import { assert, assertEq } from '../asserts/module.f.ts'
 
 const makeOptions = (args: readonly string[]): NodeProgramOptions =>
     ({ ...defaultNodeProgramOptions, args })
@@ -21,25 +21,25 @@ const run = (commands: Commands<NodeOp>) => (args: readonly string[]) =>
 export const proof = {
     knownCommand: () => {
         const [, code] = run(echoCommands)(['echo', 'hello'])
-        assert(code === 5, ['expected length 5', code])
+        assertEq(code, 5, ['expected length 5', code])
     },
     alias: () => {
         const [, code] = run(echoCommands)(['e', 'hi'])
-        assert(code === 2, ['expected length 2', code])
+        assertEq(code, 2, ['expected length 2', code])
     },
     noArgs: () => {
         const [state, code] = run(echoCommands)([])
-        assert(code === 1, ['expected exit 1', code])
+        assertEq(code, 1, ['expected exit 1', code])
         assert(state.stderr.length !== 0, 'expected error in stderr')
     },
     unknownCommand: () => {
         const [state, code] = run(echoCommands)(['bogus'])
-        assert(code === 1, ['expected exit 1', code])
+        assertEq(code, 1, ['expected exit 1', code])
         assert(state.stderr.length !== 0, 'expected error in stderr')
     },
     help: () => {
         const [state, code] = run(echoCommands)(['help'])
-        assert(code === 0, ['expected exit 0', code])
+        assertEq(code, 0, ['expected exit 0', code])
         assert(state.stdout.includes('echo'), 'expected command name in stdout')
         assert(state.stdout.includes('help'), 'expected help entry in stdout')
     },
@@ -58,7 +58,7 @@ export const proof = {
             },
         }]
         run(commands)(['grab', 'a', 'b', 'c'])
-        assert(captured.join(',') === 'a,b,c', ['unexpected args', captured])
+        assertEq(captured.join(','), 'a,b,c', ['unexpected args', captured])
     },
     nestedCommands: () => {
         const inner: Commands<NodeOp> = [{
@@ -72,7 +72,7 @@ export const proof = {
             handler: inner,
         }]
         const [, code] = run(outer)(['sub', 'ping'])
-        assert(code === 42, ['expected 42', code])
+        assertEq(code, 42, ['expected 42', code])
     },
     nestedHelp: () => {
         const inner: Commands<NodeOp> = [{
@@ -86,17 +86,17 @@ export const proof = {
             handler: inner,
         }]
         const [state, code] = run(outer)(['sub', 'help'])
-        assert(code === 0, ['expected exit 0', code])
+        assertEq(code, 0, ['expected exit 0', code])
         assert(state.stdout.includes('ping'), 'expected inner command in help')
     },
     prototypeNameIsUnknownCommand: () => {
         const [state, code] = run(echoCommands)(['toString'])
-        assert(code === 1, ['expected exit 1 for prototype-name command', code])
+        assertEq(code, 1, ['expected exit 1 for prototype-name command', code])
         assert(state.stderr.includes('unknown command'), 'expected unknown-command error in stderr')
     },
     helpPrototypeSafe: () => {
         const [state, code] = run(echoCommands)(['help', 'toString'])
-        assert(code === 0, ['expected exit 0, not a throw', code])
+        assertEq(code, 0, ['expected exit 0, not a throw', code])
         assert(state.stdout.includes('echo'), 'expected top-level help for unknown target')
     },
     helpWithTarget: () => {
@@ -111,7 +111,7 @@ export const proof = {
             handler: inner,
         }]
         const [state, code] = run(outer)(['help', 'sub'])
-        assert(code === 0, ['expected exit 0', code])
+        assertEq(code, 0, ['expected exit 0', code])
         assert(state.stdout.includes('ping'), 'expected inner command in help')
         assert(!(state.stdout.includes('Subcommand group')), 'expected inner help, not outer')
     },

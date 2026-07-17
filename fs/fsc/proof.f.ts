@@ -1,7 +1,7 @@
 import { init, terminal } from './module.f.ts'
 import { one } from '../text/ascii/module.f.ts'
 import { stringify } from '../media/json/module.f.ts'
-import { assert, assertEq } from '../asserts/module.f.ts'
+import { assertEq } from '../asserts/module.f.ts'
 
 const s = stringify(i => i)
 
@@ -22,18 +22,18 @@ const withName = (name: string): () => undefined =>
 export const proof = {
     a: () => {
         const x = f('1')
-        assert(x === '["1"]', x)
+        assertEq(x, '["1"]')
     },
     b: () => {
         // exercises toInit: terminal returns empty output and loops back to init
         const result = init(terminal)
-        assert(result[0].length === 0, result[0])
+        assertEq(result[0].length, 0, result[0])
     },
     c: () => {
         // exercises unexpectedSymbol: next state after a token returns an error message
         const next = init(one('1'))[1]
         const result = next(42)
-        assert(result[0][0] === 'unexpected symbol 42', result[0][0])
+        assertEq(result[0][0], 'unexpected symbol 42')
     },
     fn: () => {
         const o = {
@@ -41,42 +41,42 @@ export const proof = {
         }
         const f = o["hello world!"]
         const { name } = f
-        assert(name === "hello world!", name)
+        assertEq(name, "hello world!")
         //
         const f1 = { ["boring"]: () => undefined }["boring"]
-        assert(f1.name === "boring", f1.name)
+        assertEq(f1.name, "boring")
         //
         const x = fn(() => undefined, "hello").name
-        assert(x === "", x)
+        assertEq(x, "")
         //
         const m = withName("boring2").name
-        assert(m === "boring2", m)
+        assertEq(m, "boring2")
         //
         const a = function x() { return undefined }
-        assert(a.name === "x", a.name)
+        assertEq(a.name, "x")
     },
     //
     f1: () => {
         const m1 = () => undefined
-        assert(m1.name === "m1", m1.name)
+        assertEq(m1.name, "m1")
     },
     //
     f2: () => {
         const m11 = (() => undefined)
-        assert(m11.name === "m11", m11.name)
+        assertEq(m11.name, "m11")
     },
     //
     f3: () => {
         const m2: any = true ? () => undefined : () => undefined
         // for `bun` it is `m2`:
-        // assert(m2.name === "", m2.name)
+        // assertEq(m2.name, "")
         // see also https://github.com/oven-sh/bun/issues/20398
     },
     f4: () => {
         const id = <T>(i: T): T => i
         const f: any = id(() => undefined)
         // for `bun` it is `m2`:
-        assert(f.name === "", f.name)
+        assertEq(f.name, "")
     },
     chars: {
         whitespace: () => {

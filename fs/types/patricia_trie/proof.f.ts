@@ -1,4 +1,4 @@
-import { assert } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.ts'
 import { emptyState, patriciaTrie, type State } from './module.f.ts'
 
 type NodeList = readonly [bigint, bigint, bigint][]
@@ -27,55 +27,55 @@ const runExample = (
         state = push([x, x], state)
 
         const actual = leaves(state)
-        assert(actual.length === expectedLeaves[i].length)
+        assertEq(actual.length, expectedLeaves[i].length)
         for (let j = 0; j < actual.length; j++) {
-            assert(actual[j] === expectedLeaves[i][j])
+            assertEq(actual[j], expectedLeaves[i][j])
         }
 
         const newNodes = state[0].slice(prevCount)
-        assert(newNodes.length === expectedNodeCounts[i])
-        for (const [l, r, h] of newNodes) { assert(h === combine(l, r)) }
+        assertEq(newNodes.length, expectedNodeCounts[i])
+        for (const [l, r, h] of newNodes) { assertEq(h, combine(l, r)) }
     }
     const prevCount = state[0].length
     const [root, finalStorage] = end(state)
     const finalNodes = finalStorage.slice(prevCount)
-    assert(finalNodes.length === expectedLeaves[expectedLeaves.length - 1].length - 1)
+    assertEq(finalNodes.length, expectedLeaves[expectedLeaves.length - 1].length - 1)
     assert(root !== undefined)
-    for (const [l, r, h] of finalNodes) { assert(h === combine(l, r)) }
+    for (const [l, r, h] of finalNodes) { assertEq(h, combine(l, r)) }
 }
 
 const empty = () => {
     const [root, storage] = end(emptyState([]))
-    assert(storage.length === 0)
-    assert(root === undefined)
+    assertEq(storage.length, 0)
+    assertEq(root, undefined)
 }
 
 const singleLeaf = () => {
     const state = push([42n, 42n], emptyState([]))
-    assert(state[0].length === 0)
-    assert(leaves(state).length === 1)
-    assert(leaves(state)[0] === 42n)
+    assertEq(state[0].length, 0)
+    assertEq(leaves(state).length, 1)
+    assertEq(leaves(state)[0], 42n)
 
     const [root, finalStorage] = end(state)
-    assert(finalStorage.length === 0)
-    assert(root === 42n)
+    assertEq(finalStorage.length, 0)
+    assertEq(root, 42n)
 }
 
 const twoLeaves = () => {
     const s1 = push([7n, 7n], emptyState([]))
     const prevCount = s1[0].length
     const s2 = push([3n, 3n], s1)
-    assert(s2[0].slice(prevCount).length === 0)
-    assert(leaves(s2).length === 2)
+    assertEq(s2[0].slice(prevCount).length, 0)
+    assertEq(leaves(s2).length, 2)
 
     const prevCount2 = s2[0].length
     const [root, finalStorage] = end(s2)
     const finalNodes = finalStorage.slice(prevCount2)
-    assert(finalNodes.length === 1)
-    assert(finalNodes[0][0] === 7n)
-    assert(finalNodes[0][1] === 3n)
-    assert(finalNodes[0][2] === combine(7n, 3n))
-    assert(root === combine(7n, 3n))
+    assertEq(finalNodes.length, 1)
+    assertEq(finalNodes[0][0], 7n)
+    assertEq(finalNodes[0][1], 3n)
+    assertEq(finalNodes[0][2], combine(7n, 3n))
+    assertEq(root, combine(7n, 3n))
 }
 
 // example.md — descending

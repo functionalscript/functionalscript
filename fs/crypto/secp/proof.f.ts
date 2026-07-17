@@ -1,4 +1,4 @@
-import { assert } from '../../asserts/module.f.ts'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.ts'
 import { prime_field } from '../../types/prime_field/module.f.ts'
 import { curve, secp256k1, secp192r1, secp256r1, eq, type Point, secp384r1, secp521r1, type Curve, type Init } from './module.f.ts'
 
@@ -47,7 +47,7 @@ const poker = (param: Curve) => () => {
     for (const p of dN) {
         assert(p !== null, 'null')
         const x = p[0] & 0x3Fn
-        assert(x === m, [p[0], x, m])
+        assertEq(x, m, [p[0], x, m])
         ++m
     }
 }
@@ -74,16 +74,15 @@ export const proof = {
             const point_check = (p: Point): void => {
                 assert(p !== null, 'p === null')
                 const [x, y] = p
-                const ye = yf(x)
-                assert(ye !== null, 'ye === null')
-                assert(abs(ye) === abs(y), 'ye')
+                const ye = assertNotNullish(yf(x), 'ye === null')
+                assertEq(abs(ye), abs(y), 'ye')
             }
             point_check(g)
             point_check(neg(g))
             const test_mul = (p: Point): void => {
-                assert(mul(0n)(p) === null, 'O')
-                assert(mul(1n)(p) === p, 'p')
-                assert(mul(n)(p) === null, 'n')
+                assertEq(mul(0n)(p), null, 'O')
+                assertEq(mul(1n)(p), p, 'p')
+                assertEq(mul(n)(p), null, 'n')
                 const pn = neg(p)
                 assert(eq(mul(n - 1n)(p))(pn), 'n - 1')
                 const f
@@ -122,7 +121,7 @@ export const proof = {
     // Cover null (point at infinity) branches in neg, add, and eq.
     nullPointOps: () => {
         const c = secp256k1
-        assert(c.neg(null) === null)
+        assertEq(c.neg(null), null)
         assert(eq(null)(null))
         assert(!eq(null)(c.g))
         assert(!eq(c.g)(null))

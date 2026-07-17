@@ -1,4 +1,4 @@
-import { assert } from '../asserts/module.f.ts'
+import { assert, assertEq } from '../asserts/module.f.ts'
 import { classic, deterministic } from './testlib.f.ts'
 import {
     rangeEncode,
@@ -31,13 +31,13 @@ export const proof = {
     str: [
         () => {
             const result = str('a')
-            assert(typeof result === 'number', result)
-            assert(result === oneEncode(0x61), result)
+            assertEq(typeof result, 'number', result)
+            assertEq(result, oneEncode(0x61))
         },
         () => {
             const result = str('ab')
             assert(Array.isArray(result), result)
-            assert((result as readonly number[]).length === 2, result)
+            assertEq((result as readonly number[]).length, 2, result)
         },
     ],
     set: () => {
@@ -66,13 +66,13 @@ export const proof = {
     repeat1Plus: [
         () => {
             const result = repeat1Plus('x')
-            assert(result[0] === 'x', result[0])
-            assert(typeof result[1] === 'function', 'expected repeat0Plus function')
+            assert(result[0] === 'x')
+            assertEq(typeof result[1], 'function', 'expected repeat0Plus function')
         },
         () => {
             const rule: Rule = 'ab'
             const result = repeat1Plus(rule)
-            assert(result[0] === rule, result[0])
+            assertEq(result[0], rule)
             const inner = result[1]()
             assert(!(!('some' in inner) || !('none' in inner)), 'expected Option shape')
         },

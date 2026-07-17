@@ -1,28 +1,28 @@
 import { sort } from '../../types/object/module.f.ts'
 import { run } from './module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
     test: () => {
         const djs = run([1])([])
         const result = stringifyAsTree(sort)(djs)
-        assert(result === '1', result)
+        assertEq(result, '1')
     },
     testCref: () => {
         const djs = run([1, 2, 3, 4, 5, ['cref', 3]])([11, 12, 13, 14, 15])
         const result = stringifyAsTree(sort)(djs)
-        assert(result === '4', result)
+        assertEq(result, '4')
     },
     testAref: () => {
         const djs = run([1, 2, 3, 4, 5, ['aref', 3]])([11, 12, 13, 14, 15])
         const result = stringifyAsTree(sort)(djs)
-        assert(result === '14', result)
+        assertEq(result, '14')
     },
     testArray: () => {
         const djs = run([1, 2, 3, 4, 5, ['array', [['aref', 3], ['cref', 3]]]])([11, 12, 13, 14, 15])
         const result = stringifyAsTree(sort)(djs)
-        assert(result === '[14,4]', result)
+        assertEq(result, '[14,4]')
     },
     testObj: () => {
         const djs = run([1, 2, 3, 4, 5, {"key": { "key2": ['array', [['aref', 3], ['cref', 3]]]}}])([11, 12, 13, 14, 15])

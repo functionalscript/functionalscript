@@ -2,7 +2,7 @@ import { has, empty, set, setRange, unset, universe, complement, toRangeMap } fr
 import { every, countdown, map, toArray } from '../list/module.f.ts'
 import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.ts'
 
 const stringify: (a: readonly Unknown[]) => string
     = jsonStringify(sort)
@@ -16,14 +16,14 @@ export const proof = {
         },
         () => {
             const s = set(0)(empty)
-            assert(s === 1n, s)
+            assertEq(s, 1n)
             assert(has(0)(s), s)
             assert(!(has(1)(s)), s)
             assert(!(has(33)(s)), s)
         },
         () => {
             const s = set(33)(empty)
-            assert(s === 8589934592n, s)
+            assertEq(s, 8589934592n)
             assert(!(has(0)(s)), s)
             assert(!(has(1)(s)), s)
             assert(has(33)(s), s)
@@ -31,18 +31,18 @@ export const proof = {
     ],
     setRange: () => {
         const result = setRange([2, 5])(empty)
-        assert(result === 60n, result)
+        assertEq(result, 60n)
     },
     unset: [
         () => {
             const a = set(0)(empty)
             const result = unset(0)(a)
-            assert(result === 0n, result)
+            assertEq(result, 0n)
         },
         () => {
             const a = set(255)(empty)
             const result = unset(255)(a)
-            assert(result === 0n, result)
+            assertEq(result, 0n)
         }
     ],
     universe: () => {
@@ -52,31 +52,31 @@ export const proof = {
     compliment: {
         empty: () => {
             const r = complement(empty)
-            assert(r === universe, r)
+            assertEq(r, universe)
         },
         universe: () => {
             const r = complement(universe)
-            assert(r === empty, r)
+            assertEq(r, empty)
         },
     },
     toRangeMap: [
         () => {
             const result = stringify(toArray(toRangeMap(empty)('a')))
-            assert(result === '[]', result)
+            assertEq(result, '[]')
         },
         () => {
             const s = set(0)(empty)
             const result = stringify(toArray(toRangeMap(s)('a')))
-            assert(result === '[[["a"],0]]', result)
+            assertEq(result, '[[["a"],0]]')
         },
         () => {
             const s = setRange([1, 2])(empty)
             const result = stringify(toArray(toRangeMap(s)('a')))
-            assert(result === '[[[],0],[["a"],2]]', result)
+            assertEq(result, '[[[],0],[["a"],2]]')
         },
         () => {
             const result = stringify(toArray(toRangeMap(universe)('a')))
-            assert(result === '[[["a"],255]]', result)
+            assertEq(result, '[[["a"],255]]')
         },
     ]
 }

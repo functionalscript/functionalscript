@@ -1,5 +1,5 @@
 import { chunkList, msb, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
-import { assert } from '../../../asserts/module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.ts'
 import { map, stateScan, toArray } from '../../../types/list/module.f.ts'
 import {
     emptyEncodeState,
@@ -33,25 +33,25 @@ const tests = (n: bigint) => {
             const a =toArray(stateScan(push)(emptyEncodeState)(word))
             assert(a.slice(0, -1).every(i => i === undefined), a)
             const x = a.at(-1)
-            assert(x === expected, x)
+            assertEq(x, expected)
         }
     }
 }
 
 const l = (f: (literal: bigint) => Vec) => (l: bigint, e: Vec) => {
     const result = f(l)
-    assert(result === e, [result, e])
+    assertEq(result, e, [result, e])
 }
 
 const vecToBits = (v: Vec) => map((b: Vec) => msb.front(1n)(b))(chunkList(msb)(1n)(v))
 
 const w = (symbol: bigint, expected: Vec) => {
     const result = literal3ToVec(symbol)
-    assert(result === expected, [result, expected])
+    assertEq(result, expected, [result, expected])
     const a = toArray(stateScan(pipelineStep)(emptyPipelineState)(vecToBits(expected)))
     assert(a.slice(0, -1).every(o => o === undefined), a)
     const out = a.at(-1)
-    assert(out === symbol, out)
+    assertEq(out, symbol)
 }
 
 export const proof = {
@@ -753,7 +753,7 @@ export const proof = {
     },
     wordToString: () => {
         const result = wordToString([0n, 1n, 0xABn])
-        assert(result === '0,1,ab', result)
+        assertEq(result, '0,1,ab')
     },
     pipeline: () => {
         // 4 L1 [0,0] words → 2 L2 [0,0] words → L3 [0,0] word → symbol 0
@@ -761,12 +761,12 @@ export const proof = {
         let s = emptyPipelineState
         for (let i = 0; i < 7; i++) {
             const [out, next] = pipelineStep(0n, s)
-            assert(out === undefined, out)
+            assertEq(out, undefined)
             s = next
         }
         // 8th zero emits L3 symbol 0
         const [out0, s2] = pipelineStep(0n, s)
-        assert(out0 === 0n, out0)
+        assertEq(out0, 0n)
         // state resets after emit: second batch of 8 zeros also emits 0
         let s3 = s2
         for (let i = 0; i < 7; i++) {
@@ -774,7 +774,7 @@ export const proof = {
             s3 = next
         }
         const [out1] = pipelineStep(0n, s3)
-        assert(out1 === 0n, out1)
+        assertEq(out1, 0n)
         // 8 ones emit a different symbol than 8 zeros
         let s4 = emptyPipelineState
         for (let i = 0; i < 7; i++) {

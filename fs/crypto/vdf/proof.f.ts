@@ -1,5 +1,5 @@
 import { sloth, p } from './module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.ts'
 
 const { eval: evalVdf, verify, modSqrt, quadRes } = sloth
 
@@ -27,33 +27,33 @@ const y4 =
 export const proof = {
     p: {
         matchesField: () => {
-            assert(sloth.p === p, [sloth.p, p])
+            assertEq(sloth.p, p, [sloth.p, p])
         },
     },
     eval: {
         steps100: () => {
             const y = evalVdf(100n)(sampleX)
-            assert(y === sampleY, [y, sampleY])
+            assertEq(y, sampleY, [y, sampleY])
         },
         steps10: () => {
             const y = evalVdf(10n)(smallX)
-            assert(y === smallY, [y, smallY])
+            assertEq(y, smallY, [y, smallY])
         },
         steps6: () => {
             const y = evalVdf(6n)(largeX)
-            assert(y === y6, [y, y6])
+            assertEq(y, y6, [y, y6])
         },
         steps4: () => {
             const y = evalVdf(4n)(smallX)
-            assert(y === y4, [y, y4])
+            assertEq(y, y4, [y, y4])
         },
         zeroSteps: () => {
             const y = evalVdf(0n)(sampleX)
-            assert(y === sampleX % p, [y, sampleX % p])
+            assertEq(y, sampleX % p, [y, sampleX % p])
         },
         negativeSteps: () => {
             const y = evalVdf(-1n)(sampleX)
-            assert(y === null, y)
+            assertEq(y, null)
         },
     },
     verify: {

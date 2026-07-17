@@ -6,7 +6,7 @@ import { cmp } from '../string/module.f.ts'
 import { next, toArray, type List, type Result } from '../list/module.f.ts'
 import { set as setSet } from './set/module.f.ts'
 import { value, find as findFind } from './find/module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 const jsonStr = jsonStringify(sort)
 
@@ -26,7 +26,7 @@ const valueTest1 =() => {
     _map = set(_map)('e')
     _map = set(_map)('f')
     const result = stringify(values(_map))
-    assert(result === '["a","b","c","d","e","f"]', result)
+    assertEq(result, '["a","b","c","d","e","f"]')
 }
 
 const valuesTest2 = () => {
@@ -34,7 +34,7 @@ const valuesTest2 = () => {
     for(let i = 2; i <= 10; i++)
         _map = set(_map)((i*i).toString())
     const result = stringify(values(_map))
-    assert(result === '["1","100","16","25","36","4","49","64","81","9"]', result)
+    assertEq(result, '["1","100","16","25","36","4","49","64","81","9"]')
 }
 
 const findTrue = () => {
@@ -42,7 +42,7 @@ const findTrue = () => {
     _map = set(_map)('b')
     _map = set(_map)('c')
     const result = value(findFind(cmp('b'))(_map).first)
-    assert(result === 'b', result)
+    assertEq(result, 'b')
 }
 
 const find = () => {
@@ -50,7 +50,7 @@ const find = () => {
     _map = set(_map)('b')
     _map = set(_map)('c')
     const result = value(findFind(cmp('e'))(_map).first)
-    assert(result === null, result)
+    assertEq(result, null)
 }
 
 const test = () => {

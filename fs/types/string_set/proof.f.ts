@@ -1,5 +1,5 @@
 import { contains, fromValues, remove, set } from './module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
     example: () => {
@@ -41,6 +41,6 @@ export const proof = {
         assert(!(contains('HELLO')(r)), r)
         assert(contains('WORLD!')(r), r)
         r = remove('WORLD!')(r)
-        assert(r === null, r)
+        assertEq(r, null)
     }
 }

@@ -4,7 +4,7 @@ import { sort } from '../object/module.f.ts'
 import { toArray, countdown, length } from '../list/module.f.ts'
 import { flip } from '../function/module.f.ts'
 import { cmp } from '../number/module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.ts'
 
 const str: (a: readonly Unknown[]) => string
     = a => stringify(sort)(a)
@@ -19,10 +19,10 @@ export const proof = {
         const setB = [3, 4, 5]
 
         const unionSet = union(cmp)(setA)(setB) // [1, 3, 4, 5]
-        assert(str(unionSet) === '[1,3,4,5]', 0)
+        assertEq(str(unionSet), '[1,3,4,5]', 0)
 
         const intersectionSet = intersect(cmp)(setA)(setB) // [3, 5]
-        assert(str(intersectionSet) === '[3,5]', 1)
+        assertEq(str(intersectionSet), '[3,5]', 1)
 
         assert(has(cmp)(3)(setA), 2)
         assert(!(has(cmp)(2)(setA)), 3)
@@ -30,11 +30,11 @@ export const proof = {
     union: [
         () => {
             const result = str(toArray(union(cmp)([2, 3, 4])([1, 3, 5])))
-            assert(result === '[1,2,3,4,5]', result)
+            assertEq(result, '[1,2,3,4,5]')
         },
         () => {
             const result = str(toArray(union(cmp)([1, 2, 3])([])))
-            assert(result === '[1,2,3]', result)
+            assertEq(result, '[1,2,3]')
         },
         () => {
             const n = 10_000
@@ -47,11 +47,11 @@ export const proof = {
     intersect: [
         () => {
             const result = str(toArray(intersect(cmp)([2, 3, 4])([1, 3, 5])))
-            assert(result === '[3]', result)
+            assertEq(result, '[3]')
         },
         () => {
             const result = str(toArray(intersect(cmp)([1, 2, 3])([])))
-            assert(result === '[]', result)
+            assertEq(result, '[]')
         }
     ],
     has: [

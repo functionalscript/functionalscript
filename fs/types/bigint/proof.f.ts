@@ -141,11 +141,11 @@ const benchmark: Benchmark = f => () => {
     for (let i = 0n; i < 1_100; ++i) {
         {
             const x = f(c)
-            assert(x === e, x)
+            assertEq(x, e)
         }
         {
             const x = f(c - 1n)
-            assert(x === e - 1n, [e, x])
+            assertEq(x, e - 1n, [e, x])
         }
         c >>= 1n
         --e
@@ -159,11 +159,11 @@ const benchmarkSmall: Benchmark = f => () => {
     do {
         {
             const x = f(c)
-            assert(x === e, [e, x])
+            assertEq(x, e, [e, x])
         }
         for (let j = 1n; j < min(c >> 1n)(1000n); ++j) {
             const x = f(c - j)
-            assert(x === e - 1n, [j, e, x])
+            assertEq(x, e - 1n, [j, e, x])
         }
         c >>= 1n
         --e
@@ -173,25 +173,25 @@ const benchmarkSmall: Benchmark = f => () => {
 export const proof = {
     example: () => {
         const total = sum([1n, 2n, 3n]) // 6n
-        assert(total === 6n, total)
+        assertEq(total, 6n)
 
         const absoluteValue = abs(-42n) // 42n
-        assert(absoluteValue === 42n, absoluteValue)
+        assertEq(absoluteValue, 42n)
 
         const logValue = log2(8n) // 3n
-        assert(logValue === 3n, logValue)
+        assertEq(logValue, 3n)
 
         const bitCount = bitLength(255n) // 8n
-        assert(bitCount === 8n, bitCount)
+        assertEq(bitCount, 8n)
 
         const bitmask = mask(5n) // 31n
-        assert(bitmask === 31n, benchmark)
+        assertEq(bitmask, 31n, benchmark)
 
         const m = min(3n)(13n) // 3n
-        assert(m === 3n, m)
+        assertEq(m, 3n)
 
         const c = combination(3n, 2n, 1n) // 60n
-        assert(c === 60n, c)
+        assertEq(c, 60n)
     },
     benchmark: () => {
         const list = {
@@ -212,100 +212,100 @@ export const proof = {
     },
     mask: () => {
         const result = mask(3n) // 7n
-        assert(result === 7n, result)
+        assertEq(result, 7n)
     },
     sum: () => {
         const result = sum([2n, 3n, 4n, 5n])
-        assert(result === 14n, result)
+        assertEq(result, 14n)
     },
     abs: [
         () => {
             const result = abs(10n)
-            assert(result === 10n, result)
+            assertEq(result, 10n)
         },
         () => {
             const result = abs(-10n)
-            assert(result === 10n, result)
+            assertEq(result, 10n)
         }
     ],
     serialize: [
         () => {
             const result = serialize(0n)
-            assert(result === '0n', result)
+            assertEq(result, '0n')
         },
         () => {
             const result = serialize(123456789012345678901234567890n)
-            assert(result === '123456789012345678901234567890n', result)
+            assertEq(result, '123456789012345678901234567890n')
         },
         () => {
             const result = serialize(-55555n)
-            assert(result === '-55555n', result)
+            assertEq(result, '-55555n')
         },
     ],
     log2: [
         () => {
             const result = log2(-3n)
-            assert(result === -1n, result)
+            assertEq(result, -1n)
         },
         () => {
             const result = log2(0n)
-            assert(result === -1n, result)
+            assertEq(result, -1n)
         },
         () => {
             const result = log2(1n)
-            assert(result === 0n, result)
+            assertEq(result, 0n)
         },
         () => {
             const result = log2(2n)
-            assert(result === 1n, result)
+            assertEq(result, 1n)
         },
         () => {
             const result = log2(3n)
-            assert(result === 1n, result)
+            assertEq(result, 1n)
         },
         () => {
             const result = log2(4n)
-            assert(result === 2n, result)
+            assertEq(result, 2n)
         },
         () => {
             const result = log2(7n)
-            assert(result === 2n, result)
+            assertEq(result, 2n)
         },
         () => {
             const result = log2(8n)
-            assert(result === 3n, result)
+            assertEq(result, 3n)
         },
         () => {
             const result = log2(15n)
-            assert(result === 3n, result)
+            assertEq(result, 3n)
         },
         () => {
             const result = log2(16n)
-            assert(result === 4n, result)
+            assertEq(result, 4n)
         },
         () => {
             // max for Bun (131_072 Bytes)
             const v = 1_048_575n
             const result = log2(1n << v)
-            assert(result === v, result)
+            assertEq(result, v)
         },
         () => {
             const v = 0x18945n
             const result = log2(v)
-            assert(result === 16n, result)
+            assertEq(result, 16n)
         }
     ],
     toString2: () => {
         // max for Bun (131_072 Bytes)
         const v = 1_048_575n
         const result = (1n << v).toString(2).length - 1
-        assert(result === 1_048_575, result)
+        assertEq(result, 1_048_575)
     },
     minus: () => {
         let i = 0n
         while (i < 1_048_575n) {
             const s = -i
-            assert(i === -s, [i, s])
+            assertEq(i, -s, [i, s])
             i += 1n
         }
     },
@@ -313,54 +313,54 @@ export const proof = {
         let i = 0n
         while (i < 1_048_575n) {
             const s = ~i
-            assert(i === ~s, [i, s])
+            assertEq(i, ~s, [i, s])
             i += 1n
         }
     },
     bitLen: {
         0: () => {
             const s = bitLength(0n)
-            assert(s === 0n, s)
+            assertEq(s, 0n)
         },
         m: () => {
             let i = 0n
             while (i < 10_000n) {
                 const s = bitLength(1n << i)
-                assert(s === i + 1n, [s, i])
+                assertEq(s, i + 1n, [s, i])
                 i += 1n
             }
         },
         big: () => {
             const s = bitLength(1n << 1_000_000n)
-            assert(s === 1_000_001n, s)
+            assertEq(s, 1_000_001n)
         },
         neg: [
             () => {
                 const s = bitLength(-1n)
-                assert(s === 1n, s)
+                assertEq(s, 1n)
             },
             () => {
                 const s = bitLength(-2n)
-                assert(s === 2n, s)
+                assertEq(s, 2n)
             },
             () => {
                 const s = bitLength(-3n)
-                assert(s === 2n, s)
+                assertEq(s, 2n)
             },
             () => {
                 const s = bitLength(-4n)
-                assert(s === 3n, s)
+                assertEq(s, 3n)
             },
         ]
     },
     factorial: () => {
         {
             const r = factorial(3n)
-            assert(r === 6n, r)
+            assertEq(r, 6n)
         }
         {
             const r = factorial(5n)
-            assert(r === 120n, r)
+            assertEq(r, 120n)
         }
     },
     combination: () => {
@@ -370,19 +370,19 @@ export const proof = {
     combination50x50: () => {
         {
             const r = combination(1n, 1n)
-            assert(r === 2n, r)
+            assertEq(r, 2n)
         }
         {
             const r = combination(2n, 2n)
-            assert(r === 6n, r)
+            assertEq(r, 6n)
         }
         {
             const r = combination(3n, 3n)
-            assert(r === 20n, r)
+            assertEq(r, 20n)
         }
         {
             const r = combination(4n, 4n)
-            assert(r === 70n, r)
+            assertEq(r, 70n)
         }
     },
     combination3: () => {
@@ -391,7 +391,7 @@ export const proof = {
         // 2+3+4+2 = 5*6*7*8*9*10*11
         // e = 5 * 6 * 7 * 8 * 9 * 10 * 11 / (2n * 2n * 6n) =
         // e = 5     * 7 * 2 * 9 * 10 * 11 = 69300
-        assert(r === 69300n, r)
+        assertEq(r, 69300n)
     },
     divUp: () => {
         assertEq(divUp(8n)(0b1000n), 1n)

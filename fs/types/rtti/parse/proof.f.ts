@@ -4,10 +4,10 @@ import type { Equal } from '../../ts/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 import type { Assert } from '../../../asserts/module.f.ts'
-import { assert } from '../../../asserts/module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.ts'
 
-const assertOk = ([k]: readonly [string, unknown]) => { assert(k === 'ok', 'expected ok') }
-const assertError = ([k]: readonly [string, unknown]) => { assert(k === 'error', 'expected error') }
+const assertOk = ([k]: readonly [string, unknown]) => { assertEq(k, 'ok', 'expected ok') }
+const assertError = ([k]: readonly [string, unknown]) => { assertEq(k, 'error', 'expected error') }
 
 const unwrap = <T>(r: readonly [string, unknown]): T => {
     assert(r[0] === 'ok', 'expected ok')

@@ -5,7 +5,7 @@ import { union, type SortedSet } from '../sorted_set/module.f.ts'
 import { equal, toArray } from '../list/module.f.ts'
 import { strictEqual } from '../function/operator/module.f.ts'
 import { cmp } from '../string/module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 const str
     : (a: readonly Unknown[]) => string
@@ -35,17 +35,17 @@ export const proof = {
 
         // Retrieve values from the merged range map
         //
-        assert(rmOps.get(-1)(merged) === 0, 'error')
+        assertEq(rmOps.get(-1)(merged), 0, 'error')
         //
-        assert(rmOps.get(0)(merged) === 2, 'error')
-        assert(rmOps.get(2)(merged) === 2, 'error')
+        assertEq(rmOps.get(0)(merged), 2, 'error')
+        assertEq(rmOps.get(2)(merged), 2, 'error')
         // 2 | 5 = 7
-        assert(rmOps.get(7)(merged) === 7, 'error')
+        assertEq(rmOps.get(7)(merged), 7, 'error')
         //
-        assert(rmOps.get(12)(merged) === 5, 'error')
-        assert(rmOps.get(15)(merged) === 5, 'error')
+        assertEq(rmOps.get(12)(merged), 5, 'error')
+        assertEq(rmOps.get(15)(merged), 5, 'error')
         //
-        assert(rmOps.get(16)(merged) === 0, 'error')
+        assertEq(rmOps.get(16)(merged), 0, 'error')
     },
     merge: [
         () => {
@@ -55,7 +55,7 @@ export const proof = {
                 = null
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
-            assert(result === '[[["a"],1],[["b"],2]]', result)
+            assertEq(result, '[[["a"],1],[["b"],2]]')
         },
         () => {
             const a: RangeMap<SortedSet<string>>
@@ -64,7 +64,7 @@ export const proof = {
                 = [[['a'], 1], [['b'], 2]]
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
-            assert(result === '[[["a"],1],[["b"],2]]', result)
+            assertEq(result, '[[["a"],1],[["b"],2]]')
         },
         () => {
             const a: RangeMap<SortedSet<string>>
@@ -73,7 +73,7 @@ export const proof = {
                 = [[['a'], 1], [['b'], 2]]
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
-            assert(result === '[[["a"],1],[["b"],2]]', result)
+            assertEq(result, '[[["a"],1],[["b"],2]]')
         },
         () => {
             const a: RangeMap<SortedSet<string>>
@@ -82,7 +82,7 @@ export const proof = {
                 = [[['b'], 2], [['d'], 4]]
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
-            assert(result === '[[["a","b"],1],[["b","c"],2],[["c","d"],3],[["d"],4]]', result)
+            assertEq(result, '[[["a","b"],1],[["b","c"],2],[["c","d"],3],[["d"],4]]')
         },
         () => {
             const a: RangeMap<SortedSet<string>>
@@ -91,7 +91,7 @@ export const proof = {
                 = [[['b'], 2], [['c'], 3]]
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
-            assert(result === '[[["a","b"],1],[["b","d"],2],[["c","d"],3],[["d"],4]]', result)
+            assertEq(result, '[[["a","b"],1],[["b","d"],2],[["c","d"],3],[["d"],4]]')
         },
         () => {
             const a: RangeMap<SortedSet<string>>
@@ -100,7 +100,7 @@ export const proof = {
                 = [[['b'], 1], [['a'], 2]]
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
-            assert(result === '[[["a","b"],2]]', result)
+            assertEq(result, '[[["a","b"],2]]')
         },
         () => {
             const a: RangeMap<SortedSet<string>>
@@ -109,7 +109,7 @@ export const proof = {
                 = [[['a'], 5]]
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
-            assert(result === '[[["a"],1],[["a","b"],2],[["a"],5]]', result)
+            assertEq(result, '[[["a"],1],[["a","b"],2],[["a"],5]]')
         }
     ],
     get: () => {
@@ -120,49 +120,49 @@ export const proof = {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(5)(rm))
-                assert(result === '["a"]', result)
+                assertEq(result, '["a"]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(10)(rm))
-                assert(result === '["a"]', result)
+                assertEq(result, '["a"]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(15)(rm))
-                assert(result === '["b"]', result)
+                assertEq(result, '["b"]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(20)(rm))
-                assert(result === '["b"]', result)
+                assertEq(result, '["b"]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(25)(rm))
-                assert(result === '["c"]', result)
+                assertEq(result, '["c"]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(30)(rm))
-                assert(result === '["c"]', result)
+                assertEq(result, '["c"]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(35)(rm))
-                assert(result === '[]', result)
+                assertEq(result, '[]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = []
                 const result = str(at(10)(rm))
-                assert(result === '[]', result)
+                assertEq(result, '[]')
             }
         ]
     },
@@ -172,23 +172,23 @@ export const proof = {
         return [
             () => {
                 const result = get(def)(0)(rm)
-                assert(result === -1, result)
+                assertEq(result, -1)
             },
             () => {
                 const result = get(def)(1)(rm)
-                assert(result === 42, result)
+                assertEq(result, 42)
             },
             () => {
                 const result = get(def)(3)(rm)
-                assert(result === 42, result)
+                assertEq(result, 42)
             },
             () => {
                 const result = get(def)(7)(rm)
-                assert(result === 42, result)
+                assertEq(result, 42)
             },
             () => {
                 const result = get(def)(9)(rm)
-                assert(result === -1, result)
+                assertEq(result, -1)
             },
         ]
     }

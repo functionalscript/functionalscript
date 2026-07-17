@@ -5,7 +5,7 @@ import { sort } from '../../object/module.f.ts'
 import { type TNode } from '../types/module.f.ts'
 import { cmp } from '../../string/module.f.ts'
 import { set as setSet } from '../set/module.f.ts'
-import { assert } from '../../../asserts/module.f.ts'
+import { assertEq } from '../../../asserts/module.f.ts'
 
 const jsonStr = stringify(sort)
 
@@ -28,92 +28,92 @@ const test = () => {
     }
     {
         const s = jsonStr(_map)
-        assert(s === '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]', s)
+        assertEq(s, '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]')
     }
     //
     {
         const r = find("0")(_map)
-        assert(r === '[0,0,0]', r)
+        assertEq(r, '[0,0,0]')
     }
     {
         const r = find("1")(_map)
-        assert(r === '[1,0,0]', r)
+        assertEq(r, '[1,0,0]')
     }
     {
         const r = find("10")(_map)
-        assert(r === '[2,0,0]', r)
+        assertEq(r, '[2,0,0]')
     }
     {
         const r = find("100")(_map)
-        assert(r === '[3,0,0]', r)
+        assertEq(r, '[3,0,0]')
     }
     {
         const r = find("12")(_map)
-        assert(r === '[4,0,0]', r)
+        assertEq(r, '[4,0,0]')
     }
     {
         const r = find("16")(_map)
-        assert(r === '[1,0]', r)
+        assertEq(r, '[1,0]')
     }
     {
         const r = find("17")(_map)
-        assert(r === '[0,2,0]', r)
+        assertEq(r, '[0,2,0]')
     }
     {
         const r = find("25")(_map)
-        assert(r === '[1,2,0]', r)
+        assertEq(r, '[1,2,0]')
     }
     {
         const r = find("26")(_map)
-        assert(r === '[2,2,0]', r)
+        assertEq(r, '[2,2,0]')
     }
     {
         const r = find("36")(_map)
-        assert(r === '[3,2,0]', r)
+        assertEq(r, '[3,2,0]')
     }
     {
         const r = find("37")(_map)
-        assert(r === '[4,2,0]', r)
+        assertEq(r, '[4,2,0]')
     }
     {
         const r = find("4")(_map)
-        assert(r === '[1]', r)
+        assertEq(r, '[1]')
     }
     {
         const r = find("41")(_map)
-        assert(r === '[0,0,2]', r)
+        assertEq(r, '[0,0,2]')
     }
     {
         const r = find("49")(_map)
-        assert(r === '[1,0,2]', r)
+        assertEq(r, '[1,0,2]')
     }
     {
         const r = find("5")(_map)
-        assert(r === '[2,0,2]', r)
+        assertEq(r, '[2,0,2]')
     }
     {
         const r = find("64")(_map)
-        assert(r === '[1,2]', r)
+        assertEq(r, '[1,2]')
     }
     {
         const r = find("65")(_map)
-        assert(r === '[0,2,2]', r)
+        assertEq(r, '[0,2,2]')
     }
     {
         const r = find("81")(_map)
-        assert(r === '[1,2,2]', r)
+        assertEq(r, '[1,2,2]')
     }
     {
         const r = find("85")(_map)
-        assert(r === '[2,2,2]', r)
+        assertEq(r, '[2,2,2]')
     }
     {
         const r = find("9")(_map)
-        assert(r === '[3,2,2]', r)
+        assertEq(r, '[3,2,2]')
     }
     {
         const r = find("91")(_map)
-        assert(r === '[4,2,2]', r)
+        assertEq(r, '[4,2,2]')
     }
 }
 

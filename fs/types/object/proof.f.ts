@@ -1,6 +1,6 @@
 import { at } from './module.f.ts'
 import type { StringMap } from './module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 type E<A, B> = A extends B ? B extends A ? true : false : false
 
@@ -15,11 +15,11 @@ export const proof = {
     ctor: () => {
         const a = {}
         const value = at('constructor')(a)
-        assert(value === null, value)
+        assertEq(value, null)
     },
     property: () => {
         const a = { constructor: 42 }
         const value = at('constructor')(a)
-        assert(value === 42, value)
+        assertEq(value, 42)
     }
 }

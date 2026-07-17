@@ -5,7 +5,7 @@ import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, 
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
 import { empty as listEmpty } from "../list/module.f.ts"
 import { emptyState, virtual, type Dir } from "./virtual/module.f.ts"
-import { assert } from '../../asserts/module.f.ts'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.ts'
 
 export const proof = {
     map: () => {
@@ -16,11 +16,11 @@ export const proof = {
         //
         let d = decode(e)
         while (!d.done) {
-            assert(d.command === 'readFile', d.command)
+            assertEq(d.command, 'readFile')
             assert(d.payload[0] === 'hello', d.payload)
             d = decode(d.continuation(['ok', vec8(0x15n)]))
         }
-        assert(d.result === 0x2An, d.result)
+        assertEq(d.result, 0x2An)
     },
     fetch: () => {
         const [_, [t, result]] = virtual({
@@ -31,7 +31,7 @@ export const proof = {
         })(fetch('https://example.com/data'))
         assert(t !== 'error', result)
         assert(isVec(result), result)
-        assert(uint(result) === 0x2An, result)
+        assertEq(uint(result), 0x2An, result)
     },
     mkdir: {
         one: () => {
@@ -55,7 +55,7 @@ export const proof = {
                 mkdir('tmp/cache')
             )
             assert(t === 'error', result)
-            assert(state.root.tmp === undefined, state.root.tmp)
+            assertEq(state.root.tmp, undefined)
         }
     },
     readFile: {
@@ -69,7 +69,7 @@ export const proof = {
             const [state, [t, result]] = virtual(initial)(readFile('hello'))
             assert(t !== 'error', result)
             assert(isVec(result), result)
-            assert(uint(result) === 0x2An, result)
+            assertEq(uint(result), 0x2An, result)
             assert(state.root.hello !== undefined, state.root)
         },
         nested: () => {
@@ -78,7 +78,7 @@ export const proof = {
                 root: { tmp: { cache: [vec8(0x15n)] } }
             })(readFile('tmp/cache'))
             assert(tag !== 'error', result)
-            assert(uint(result) === 0x15n, result)
+            assertEq(uint(result), 0x15n, result)
         },
         noSuchFile: () => {
             const [_, [t, result]] = virtual(emptyState)(readFile('hello'))
@@ -109,7 +109,7 @@ export const proof = {
                 root: { hello: [utf8('Hello, world!')] },
             })(readUtf8File('hello'))
             assert(t === 'ok', result)
-            assert(result === 'Hello, world!', result)
+            assertEq(result, 'Hello, world!')
         },
         noSuchFile: () => {
             const [_, [t, result]] = virtual(emptyState)(readUtf8File('hello'))
@@ -144,11 +144,9 @@ export const proof = {
                 },
             })(readdir('', { }))
             assert(t === 'ok', result)
-            assert(result.length === 2, result)
-            const file = result.find(x => x.name === 'file')
-            assert(file !== undefined, file)
-            const dir = result.find(x => x.name === 'dir')
-            assert(dir !== undefined, dir)
+            assertEq(result.length, 2, result)
+            assertNotNullish(result.find(x => x.name === 'file'))
+            assertNotNullish(result.find(x => x.name === 'dir'))
         },
         nested: () => {
             const [_, [t, result]] = virtual({
@@ -156,15 +154,15 @@ export const proof = {
                 root: { tmp: { cache: [vec8(0x15n)] } }
             })(readdir('tmp', { recursive: true }))
             assert(t === 'ok', result)
-            assert(result.length === 1, result)
+            assertEq(result.length, 1, result)
             const [r0] = result
-            assert(r0.name === 'cache', r0)
-            assert(r0.parentPath === 'tmp', r0)
+            assertEq(r0.name, 'cache', r0)
+            assertEq(r0.parentPath, 'tmp', r0)
         },
         noSuchDir: () => {
             const [_, [t, result]] = virtual(emptyState)(readdir('tmp', { recursive: true }))
             assert(t === 'error', result)
-            assert(result === 'invalid path', result)
+            assertEq(result, 'invalid path')
         },
     },
     writeFile: {
@@ -175,7 +173,7 @@ export const proof = {
             assert(t === 'ok', result)
             const file = state.root.hello
             assert(Array.isArray(file), file)
-            assert(uint(file[0]) === 0x2An, file)
+            assertEq(uint(file[0]), 0x2An, file)
         },
         overwrite: () => {
             const [state, [t, result]] = virtual({
@@ -189,15 +187,15 @@ export const proof = {
             assert(t === 'ok', result)
             const file = state.root.hello
             assert(Array.isArray(file), file)
-            assert(uint(file[0]) === 0x2An, file)
+            assertEq(uint(file[0]), 0x2An, file)
         },
         nestedPath: () => {
             const [state, [t, result]] = virtual(emptyState)(
                 writeFile('tmp/cache', vec8(0x2An))
             )
             assert(t === 'error', result)
-            assert(result === 'invalid file', result)
-            assert(state.root.tmp === undefined, state.root)
+            assertEq(result, 'invalid file')
+            assertEq(state.root.tmp, undefined, state.root)
         },
         directory: () => {
             const [state, [t, result]] = virtual({
@@ -209,7 +207,7 @@ export const proof = {
                 writeFile('tmp', vec8(0x2An))
             )
             assert(t === 'error', result)
-            assert(result === 'invalid file', result)
+            assertEq(result, 'invalid file')
             const tmp = state.root.tmp
             assert(!(tmp === undefined || Array.isArray(tmp)), tmp)
         },
@@ -221,7 +219,7 @@ export const proof = {
         assert(t === 'ok', result)
         const file = state.root.hello
         assert(Array.isArray(file), file)
-        assert(utf8ToString(file[0]) === 'Hello, world!', file)
+        assertEq(utf8ToString(file[0]), 'Hello, world!', file)
     },
     rm: {
         one: () => {
@@ -230,7 +228,7 @@ export const proof = {
                 root: { hello: [vec8(0x2An)] },
             })(rm('hello'))
             assert(t === 'ok', result)
-            assert(state.root.hello === undefined, state.root)
+            assertEq(state.root.hello, undefined, state.root)
         },
         nested: () => {
             const [state, [t, result]] = virtual({
@@ -240,12 +238,12 @@ export const proof = {
             assert(t === 'ok', result)
             const tmp = state.root.tmp
             assert(!(typeof tmp !== 'object' || Array.isArray(tmp)), state.root)
-            assert((tmp as Dir).cache === undefined, tmp)
+            assertEq((tmp as Dir).cache, undefined, tmp)
         },
         noSuchFile: () => {
             const [_, [t, result]] = virtual(emptyState)(rm('hello'))
             assert(t === 'error', result)
-            assert(result === 'no such file', result)
+            assertEq(result, 'no such file')
         },
         isDirectory: () => {
             const [state, [t, result]] = virtual({
@@ -253,7 +251,7 @@ export const proof = {
                 root: { tmp: {} },
             })(rm('tmp'))
             assert(t === 'error', result)
-            assert(result === 'invalid path', result)
+            assertEq(result, 'invalid path')
             assert(state.root.tmp !== undefined, state.root)
         },
     },
@@ -267,12 +265,12 @@ export const proof = {
         })(both(readFile('a'))(readFile('b')))
         assert(results[0][0] === 'ok', results[0])
         assert(results[1][0] === 'ok', results[1])
-        assert(uint(results[0][1]) === 0x2An, results[0][1])
-        assert(uint(results[1][1]) === 0x15n, results[1][1])
+        assertEq(uint(results[0][1]), 0x2An, results[0][1])
+        assertEq(uint(results[1][1]), 0x15n, results[1][1])
     },
     now: () => {
         const [_, result] = virtual({ ...emptyState, epochNs: 1_000_000 })(now())
-        assert(result === 1_000_000, result)
+        assertEq(result, 1_000_000)
     },
     sandbox: {
         // Virtual `sandbox` is now a pass-through: the function is expected
@@ -282,29 +280,29 @@ export const proof = {
             const [_, { result, duration }] = virtual(emptyState)(
                 sandbox(() => ({ result: ['ok', 42], duration: 0 }) as never))
             assert(result[0] === 'ok', result)
-            assert(result[1] === 42, result[1])
-            assert(duration === 0, duration)
+            assertEq(result[1], 42)
+            assertEq(duration, 0)
         },
         error: () => {
             const err = new Error('fail')
             const [_, { result }] = virtual(emptyState)(
                 sandbox(() => ({ result: ['error', err], duration: 0 }) as never))
             assert(result[0] === 'error', result)
-            assert(result[1] === err, result[1])
+            assertEq(result[1], err)
         },
     },
     memory: {
         createAndRead: () => {
             const effect = memCreate(42).step(key => memRead(key))
             const [_, value] = virtual(emptyState)(effect)
-            assert(value === 42, value)
+            assertEq(value, 42)
         },
         createAndWrite: () => {
             const effect = memCreate(1).step(key =>
                 memWrite(key, 99).step(() => memRead(key))
             )
             const [_, value] = virtual(emptyState)(effect)
-            assert(value === 99, value)
+            assertEq(value, 99)
         },
     },
     rename: {
@@ -314,9 +312,9 @@ export const proof = {
                 root: { src: [vec8(0x2An)], dst: [vec8(0x15n)] },
             })(rename('src', 'dst'))
             assert(t === 'ok', result)
-            assert(state.root.src === undefined, state.root)
+            assertEq(state.root.src, undefined, state.root)
             assert(Array.isArray(state.root.dst), state.root)
-            assert(uint((state.root.dst as readonly Vec[])[0]) === 0x2An, state.root)
+            assertEq(uint((state.root.dst as readonly Vec[])[0]), 0x2An, state.root)
         },
         nestedRename: () => {
             const [state, [t, result]] = virtual({
@@ -326,7 +324,7 @@ export const proof = {
             assert(t === 'ok', result)
             const tmp = state.root.tmp
             assert(!(typeof tmp !== 'object' || Array.isArray(tmp)), state.root)
-            assert((tmp as Dir).src === undefined, tmp)
+            assertEq((tmp as Dir).src, undefined, tmp)
         },
         dirOverFile: () => {
             const [state, [t, result]] = virtual({
@@ -373,11 +371,11 @@ export const proof = {
     randomInt: {
         increments: () => {
             const [state1, r1] = virtual(emptyState)(randomInt())
-            assert(r1 === 0, r1)
+            assertEq(r1, 0)
             const [state2, r2] = virtual(state1)(randomInt())
-            assert(r2 === 1, r2)
+            assertEq(r2, 1)
             const [_, r3] = virtual(state2)(randomInt())
-            assert(r3 === 2, r3)
+            assertEq(r3, 2)
         },
     },
     writeFromStream: {

@@ -47,9 +47,9 @@ export const proof = {
     // All symbols before the terminator return undefined
     intermediate_undefined: () => {
         const [r0, st0] = enc(s1, initial)
-        assert(r0 === undefined)
+        assertEq(r0, undefined)
         const [r1, st1] = enc(s0, st0)
-        assert(r1 === undefined)
+        assertEq(r1, undefined)
         const [r2] = enc(s1, st1)
         assert(r2 !== undefined)
     },
@@ -112,14 +112,14 @@ export const proof = {
     // Trie-internal merges have isSymbol=false; only the terminal merge has isSymbol=true
     isSymbol_terminal_only: () => {
         const [, storage] = runWord([s1, s0, s0])
-        assert(storage[0][3] === false)  // Patricia trie merge
-        assert(storage[1][3] === true)   // terminal compress(root, t)
+        assertEq(storage[0][3], false)  // Patricia trie merge
+        assertEq(storage[1][3], true)   // terminal compress(root, t)
     },
 
     // Single-step word: no trie merges, exactly one isSymbol=true
     isSymbol_min_word: () => {
         const [, storage] = runWord([s0, s0])
         assertEq(storage.length, 1)
-        assert(storage[0][3] === true)
+        assertEq(storage[0][3], true)
     },
 }

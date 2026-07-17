@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { uint, vec } from '../../types/bit_vec/module.f.ts'
 import { sha256, sha384, sha512 } from '../sha2/module.f.ts'
@@ -7,22 +7,22 @@ import { hmac } from './module.f.ts'
 export const proof = {
     example: () => {
         const r = hmac(sha256)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
-        assert(r === vec(256n)(0xf7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8n), r)
+        assertEq(r, vec(256n)(0xf7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8n))
     },
     sha256: () => {
         const r = hmac(sha256)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
-        assert(uint(r) === 0xf7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8n, r)
+        assertEq(uint(r), 0xf7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8n, r)
     },
     sha384: () => {
         const k = vec(384n)(0n)
         const m = vec(904n)(
              0x0101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010069c7548c21d0dfea6b9a51c9ead4e27c33d3b3f180316e5bcab92c933f0e4dbc9a9083505bc92276aec4be312696ef7bf3bf603f4bbd381196a029f340585312n)
         const r = hmac(sha384)(k)(m)
-        assert(r === vec(384n)(0x8F858157CE005CD52FD8E8F1A46B55E6CFAE21C8C183D9C2F7504BEDF450609EDD7D3C6171DC0BDD2D2444FAA28F18BAn), uint(r).toString(16))
+        assertEq(r, vec(384n)(0x8F858157CE005CD52FD8E8F1A46B55E6CFAE21C8C183D9C2F7504BEDF450609EDD7D3C6171DC0BDD2D2444FAA28F18BAn), uint(r).toString(16))
     },
     sha512: () => {
         const r = hmac(sha512)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
-        assert(r === vec(512n)(0xb42af09057bac1e2d41708e48a902e09b5ff7f12ab428a4fe86653c73dd248fb82f948a549f7b791a5b41915ee4d1ec3935357e4e2317250d0372afa2ebeeb3an), r)
+        assertEq(r, vec(512n)(0xb42af09057bac1e2d41708e48a902e09b5ff7f12ab428a4fe86653c73dd248fb82f948a549f7b791a5b41915ee4d1ec3935357e4e2317250d0372afa2ebeeb3an))
     },
     // RFC 4231 Test Case 6: key (131 bytes of 0xaa = 1048 bits) exceeds SHA-256 block size (512 bits),
     // so the key is first compressed via the hash function before use.

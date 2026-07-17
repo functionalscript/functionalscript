@@ -23,40 +23,40 @@ const assertEq2 = <T>([a0, a1]: readonly[bigint, T], [b0, b1]: readonly[bigint, 
 
 const frontTest = (e: BitOrder) => (r0: bigint) => (r1: bigint) => () => {
     const vector = vec(8n)(0xF5n) // 0xF5n
-    assert(vector === unsafeVec(0xF5n), vector)
+    assertEq(vector, unsafeVec(0xF5n))
     const result = e.front(4n)(vector)
-    assert(result === r0, result)
+    assertEq(result, r0)
     const result2 = e.front(16n)(vector)
-    assert(result2 === r1, result2)
+    assertEq(result2, r1)
 }
 
 const popFront = (e: BitOrder) => ([r00, r01]: readonly [bigint, bigint]) => ([r10, r11]: readonly [bigint, bigint]) => () => {
     const vector = vec(8n)(0xF5n) // 0xF5n
     const [result, rest] = e.popFront(4n)(vector)
-    assert(result === r00, result)
-    assert(rest === unsafeVec(r01), rest)
+    assertEq(result, r00)
+    assertEq(rest, unsafeVec(r01))
     const [result2, rest2] = e.popFront(16n)(vector)
-    assert(result2 === r10, result2)
-    assert(rest2 === unsafeVec(r11), rest2)
+    assertEq(result2, r10)
+    assertEq(rest2, unsafeVec(r11))
 }
 
 const removeFront = (e: BitOrder) => (r0: Vec) => (r1: Vec) => () => {
     const v = vec(16n)(0x3456n) // -0xB456n
-    assert(v === unsafeVec(-0xB456n), v)
+    assertEq(v, unsafeVec(-0xB456n))
     const r = e.removeFront(4n)(v)
-    assert(r === r0, r)
+    assertEq(r, r0)
     const r2 = e.removeFront(24n)(v)
-    assert(r2 === r1, r2)
+    assertEq(r2, r1)
 }
 
 const concat = (e: BitOrder) => (r: Vec) => () => {
     const u8 = vec(8n)
     const a = u8(0x45n) // -0xC5n
-    assert(a === unsafeVec(-0xC5n), a)
+    assertEq(a, unsafeVec(-0xC5n))
     const b = u8(0x89n) // 0x89n
-    assert(b === unsafeVec(0x89n), b)
+    assertEq(b, unsafeVec(0x89n))
     const ab = e.concat(a)(b) // 0x8945n
-    assert(ab === r, ab)
+    assertEq(ab, r)
 }
 
 export const proof = {
@@ -76,15 +76,15 @@ export const proof = {
         vec: () => {
             const vec4 = vec(4n)
             const v0 = vec4(5n) // 0b0101 => -0b1101
-            assert(v0 === unsafeVec(-0xDn), v0)
+            assertEq(v0, unsafeVec(-0xDn))
             const v1 = vec4(0x5FEn) // 0xEn
-            assert(v1 === unsafeVec(0xEn), v1)
+            assertEq(v1, unsafeVec(0xEn))
         },
         uint: () => {
             const vector = vec(8n)(0x5n) // -0x85n
-            assert(vector === unsafeVec(-0x85n), vector)
+            assertEq(vector, unsafeVec(-0x85n))
             const result = uint(vector) // result is 0x5n
-            assert(result === 0x5n, result)
+            assertEq(result, 0x5n)
         },
         front: () => {
             const vector = vec(8n)(0xF5n) // 0xF5n
@@ -142,131 +142,131 @@ export const proof = {
         const vector: Vec = asNominal(0b110101n)
         const extract3Bits = lsb.front(3n)
         const result = extract3Bits(vector) // result is 0b101n (5n)
-        assert(result === 0b101n, result)
+        assertEq(result, 0b101n)
     },
     uintSmall: () => {
         const vector: Vec = asNominal(0b1n)
         const extract3Bits = lsb.front(3n)(vector)
-        assert(extract3Bits === 0b1n, extract3Bits)
+        assertEq(extract3Bits, 0b1n)
     },
     vecExample: () => {
         const createVector = vec(4n)
         const vector = createVector(5n) // vector is -0b1101n
-        assert(vector === unsafeVec(-0b1101n), vector)
+        assertEq(vector, unsafeVec(-0b1101n))
     },
     length: () => {
         const len = length(empty)
-        assert(len === 0n, len)
+        assertEq(len, 0n)
     },
     bitset: () => {
         const v = vec(8n)(0x5FEn)
-        assert(v === unsafeVec(0xFEn), v)
-        assert(length(v) === 8n, 'len')
+        assertEq(v, unsafeVec(0xFEn))
+        assertEq(length(v), 8n, 'len')
         const u = lsb.front(8n)(v)
-        assert(u === 0xFEn, v)
+        assertEq(u, 0xFEn, v)
     },
     appendBack: () => {
         const vec8 = vec(8n)
         const a = vec8(0x345n)
         const b = vec8(0x789n)
         const ab = lsb.concat(a)(b)
-        assert(ab === unsafeVec(0x8945n), ab)
+        assertEq(ab, unsafeVec(0x8945n))
         const s = length(ab)
         if (s !== 16n) { throw `appendBack: ${s}` }
     },
     removeBack: () => {
         const v = vec(17n)(0x12345n)
-        assert(v === unsafeVec(0x12345n), (asBase(v) as bigint).toString(16))
+        assertEq(v, unsafeVec(0x12345n), (asBase(v) as bigint).toString(16))
         const r = lsb.removeFront(9n)(v)
-        assert(r === unsafeVec(0x91n), (asBase(r) as bigint).toString(16))
+        assertEq(r, unsafeVec(0x91n), (asBase(r) as bigint).toString(16))
     },
     uint: [
         // 0
         () => {
             const x = uint(asNominal(0n))
-            assert(x === 0n, x)
+            assertEq(x, 0n)
         },
         // 1
         () => {
             const v: Vec = asNominal(1n)
             const x = uint(v)
-            assert(x === 1n, x)
+            assertEq(x, 1n)
             const len = length(v)
-            assert(len === 1n, len)
+            assertEq(len, 1n)
         },
         // 2
         () => {
             const v: Vec = asNominal(0b10n)
             const x = uint(v)
-            assert(x === 0b10n, x)
+            assertEq(x, 0b10n)
             const len = length(v)
-            assert(len === 2n, len)
+            assertEq(len, 2n)
         },
         // 3
         () => {
             const v: Vec = asNominal(0b11n)
             const x = uint(v)
-            assert(x === 0b11n, x)
+            assertEq(x, 0b11n)
             const len = length(v)
-            assert(len === 2n, len)
+            assertEq(len, 2n)
         },
         // 4
         () => {
             const v: Vec = asNominal(-1n)
             const x = uint(v)
-            assert(x === 0n, x)
+            assertEq(x, 0n)
             const len = length(v)
-            assert(len === 1n, len)
+            assertEq(len, 1n)
         },
         () => {
             const v: Vec = asNominal(-0b10n)
             const x = uint(v)
-            assert(x === 0n, x)
+            assertEq(x, 0n)
             const len = length(v)
-            assert(len === 2n, len)
+            assertEq(len, 2n)
         },
         () => {
             const v: Vec = asNominal(-0b11n)
             const x = uint(v)
-            assert(x === 1n, x)
+            assertEq(x, 1n)
             const len = length(v)
-            assert(len === 2n, len)
+            assertEq(len, 2n)
         }
     ],
     vec: [
         // 0
         () => {
             const v = asBase(vec(0n)(0n))
-            assert(v === 0n, v)
+            assertEq(v, 0n)
         },
         () => {
             const v = asBase(vec(0n)(1n))
-            assert(v === 0n, v)
+            assertEq(v, 0n)
         },
         () => {
             const v = asBase(vec(0n)(-1n))
-            assert(v === 0n, v)
+            assertEq(v, 0n)
         },
         // 1
         () => {
             const v = asBase(vec(1n)(0n))
-            assert(v === -1n, v)
+            assertEq(v, -1n)
         },
         () => {
             const v = asBase(vec(1n)(1n))
-            assert(v === 1n, v)
+            assertEq(v, 1n)
         },
         () => {
             const v = asBase(vec(1n)(-1n))
-            assert(v === 1n, v)
+            assertEq(v, 1n)
         },
         () => {
             const v = asBase(vec(1n)(0b10n))
-            assert(v === -1n, v)
+            assertEq(v, -1n)
         },
         () => {
             const v = asBase(vec(1n)(0b11n))
-            assert(v === 1n, v)
+            assertEq(v, 1n)
         }
     ],
     both: () => {
@@ -275,10 +275,10 @@ export const proof = {
             const x = asBase(v)
             if (x !== raw) { throw `x: ${x}, raw: ${raw}` }
             const len2 = length(v)
-            assert(len2 === len, len2)
+            assertEq(len2, len)
             const u = uint(v)
             const mui = mask(len) & ui
-            assert(u === mui, [u, mui])
+            assertEq(u, mui, [u, mui])
         }
         // 0n
         for (const i of [0n, 1n, -1n, 2n, -2n, 3n, -3n]) {
@@ -310,10 +310,10 @@ export const proof = {
             const ab = msb.concat(a)(b)
             const abLen = length(ab)
             const abxLen = length(abx)
-            assert(abLen === abxLen, abLen)
+            assertEq(abLen, abxLen)
             const abU = uint(ab)
             const abxU = uint(abx)
-            assert(abU === abxU, abU)
+            assertEq(abU, abxU)
         }
         c(vec(4n)(0xFn))(vec(8n)(0xA7n))(vec(12n)(0xFA7n))
         c(vec(4n)(0xFn))(vec(8n)(0x57n))(vec(12n)(0xF57n))
@@ -323,20 +323,20 @@ export const proof = {
     lsbXor: () => {
         const c = (a: Vec) => (b: Vec) => (e: Vec) => {
             const r = lsb.xor(a)(b)
-            assert(r === e, r)
+            assertEq(r, e)
         }
         c(vec(4n)(0x7n))(vec(8n)(0x12n))(vec(8n)(0x7n ^ 0x12n))
     },
     msbXor: () => {
         const c = (a: Vec) => (b: Vec) => (e: Vec) => {
             const r = msb.xor(a)(b)
-            assert(r === e, r)
+            assertEq(r, e)
         }
         c(vec(4n)(0x7n))(vec(8n)(0x12n))(vec(8n)(0x70n ^ 0x12n))
     },
     repeat: () => {
-        assert(repeat(4n)(vec8(0xA5n)) === vec(32n)(0xA5A5A5A5n), 'repeat failed')
-        assert(repeat(7n)(vec(5n)(0x13n)) === vec(35n)(0b10011_10011_10011_10011_10011_10011_10011n), 'repeat failed')
+        assertEq(repeat(4n)(vec8(0xA5n)), vec(32n)(0xA5A5A5A5n), 'repeat failed')
+        assertEq(repeat(7n)(vec(5n)(0x13n)), vec(35n)(0b10011_10011_10011_10011_10011_10011_10011n), 'repeat failed')
     },
     lsbCmp: () => {
         const c = (a: Vec) => (b: Vec) => (r: Sign) => {
@@ -435,20 +435,20 @@ export const proof = {
     chunkList: {
         empty: () => {
             const chunks = toArray(chunkList(lsb)(4n)(empty))
-            assert(chunks.length === 0, chunks.length)
+            assertEq(chunks.length, 0)
         },
         // 8-bit vector 0xF5 = 0b1111_0101, aligned to 4-bit chunks
         lsb_aligned: () => {
             const chunks = toArray(chunkList(lsb)(4n)(vec(8n)(0xF5n)))
             // LSB: low nibble first — bits 0-3 = 0101 = 5, bits 4-7 = 1111 = 15
-            assert(chunks.length === 2, chunks.length)
+            assertEq(chunks.length, 2)
             assert(!(length(chunks[0]) !== 4n || uint(chunks[0]) !== 5n), chunks[0])
             assert(!(length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xFn), chunks[1])
         },
         msb_aligned: () => {
             const chunks = toArray(chunkList(msb)(4n)(vec(8n)(0xF5n)))
             // MSB: high nibble first — bits 0-3 = 1111 = 15, bits 4-7 = 0101 = 5
-            assert(chunks.length === 2, chunks.length)
+            assertEq(chunks.length, 2)
             assert(!(length(chunks[0]) !== 4n || uint(chunks[0]) !== 0xFn), chunks[0])
             assert(!(length(chunks[1]) !== 4n || uint(chunks[1]) !== 5n), chunks[1])
         },
@@ -456,7 +456,7 @@ export const proof = {
         lsb_unaligned: () => {
             const chunks = toArray(chunkList(lsb)(4n)(vec(10n)(0x1B5n)))
             // LSB: bits 0-3 = 0101 = 5, bits 4-7 = 1011 = 11, bits 8-9 = 01 = 1
-            assert(chunks.length === 3, chunks.length)
+            assertEq(chunks.length, 3)
             assert(!(length(chunks[0]) !== 4n || uint(chunks[0]) !== 5n), chunks[0])
             assert(!(length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xBn), chunks[1])
             assert(!(length(chunks[2]) !== 2n || uint(chunks[2]) !== 1n), chunks[2])
@@ -464,7 +464,7 @@ export const proof = {
         msb_unaligned: () => {
             const chunks = toArray(chunkList(msb)(4n)(vec(10n)(0x1B5n)))
             // MSB: bits 0-3 = 0110 = 6, bits 4-7 = 1101 = 13, bits 8-9 = 01 = 1
-            assert(chunks.length === 3, chunks.length)
+            assertEq(chunks.length, 3)
             assert(!(length(chunks[0]) !== 4n || uint(chunks[0]) !== 6n), chunks[0])
             assert(!(length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xDn), chunks[1])
             assert(!(length(chunks[2]) !== 2n || uint(chunks[2]) !== 1n), chunks[2])

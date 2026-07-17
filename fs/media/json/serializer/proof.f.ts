@@ -1,6 +1,6 @@
 import { arrayWrap, boolSerialize, numberSerialize, objectWrap, stringSerialize } from './module.f.ts'
 import * as list from '../../../types/list/module.f.ts'
-import { assert } from '../../../asserts/module.f.ts'
+import { assertEq } from '../../../asserts/module.f.ts'
 
 const { toArray } = list
 
@@ -8,15 +8,15 @@ export const proof = {
     arrayWrap: [
         () => {
             const result = JSON.stringify(toArray(arrayWrap(null)))
-            assert(result === '["[","]"]', result)
+            assertEq(result, '["[","]"]')
         },
         () => {
             const result = JSON.stringify(toArray(arrayWrap([['a','b']])))
-            assert(result === '["[","a","b","]"]', result)
+            assertEq(result, '["[","a","b","]"]')
         },
         () => {
             const result = JSON.stringify(toArray(arrayWrap([['a'],['b']])))
-            assert(result === '["[","a",",","b","]"]', result)
+            assertEq(result, '["[","a",",","b","]"]')
         }
     ],
     objectWrap: [
@@ -36,31 +36,31 @@ export const proof = {
     stringSerialize: [
         () => {
             const result = JSON.stringify(toArray(stringSerialize('abc')))
-            assert(result === '["\\"abc\\""]', result)
+            assertEq(result, '["\\"abc\\""]')
         },
         () => {
             const result = JSON.stringify(toArray(stringSerialize('123')))
-            assert(result === '["\\"123\\""]', result)
+            assertEq(result, '["\\"123\\""]')
         }
     ],
     numberSerialize: [
         () => {
             const result = JSON.stringify(toArray(numberSerialize(123)))
-            assert(result === '["123"]', result)
+            assertEq(result, '["123"]')
         },
         () => {
             const result = JSON.stringify(toArray(numberSerialize(10e20)))
-            assert(result === '["1e+21"]', result)
+            assertEq(result, '["1e+21"]')
         }
     ],
     boolSerialize: [
         () => {
             const result = JSON.stringify(toArray(boolSerialize(false)))
-            assert(result === '["false"]', result)
+            assertEq(result, '["false"]')
         },
         () => {
             const result = JSON.stringify(toArray(boolSerialize(true)))
-            assert(result === '["true"]', result)
+            assertEq(result, '["true"]')
         }
     ]
 }

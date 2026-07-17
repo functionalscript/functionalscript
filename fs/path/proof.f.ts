@@ -1,124 +1,124 @@
 import { concat, isProperPrefix, join, normalize, relativize, toPosix } from "./module.f.ts"
-import { assert } from '../asserts/module.f.ts'
+import { assertEq } from '../asserts/module.f.ts'
 
 const normalizeTest = [
     () => {
         const norm = normalize("dir/file.json")
-        assert(norm === "dir/file.json", norm)
+        assertEq(norm, "dir/file.json")
     },
     () => {
         const norm = normalize("dir//file.json")
-        assert(norm === "dir/file.json", norm)
+        assertEq(norm, "dir/file.json")
     },
     () => {
         const norm = normalize("../../dir/file.json")
-        assert(norm === "../../dir/file.json", norm)
+        assertEq(norm, "../../dir/file.json")
     },
     () => {
         const norm = normalize("../../dir/../file.json")
-        assert(norm === "../../file.json", norm)
+        assertEq(norm, "../../file.json")
     },
 ]
 
 const concatTest = [
     () => {
         const c = concat("a")("b")
-        assert(c === "a/b", c)
+        assertEq(c, "a/b")
     },
     () => {
         const c = concat("a///b/")("c")
-        assert(c === "a/b/c", c)
+        assertEq(c, "a/b/c")
     },
     () => {
         const c = concat("a/../b/..")("c")
-        assert(c === "c", c)
+        assertEq(c, "c")
     },
 ]
 
 const joinTest = [
     () => {
         const r = join('a', 'b')
-        assert(r === 'a/b', r)
+        assertEq(r, 'a/b')
     },
     () => {
         const r = join('/abs/root', 'x')
-        assert(r === '/abs/root/x', r)
+        assertEq(r, '/abs/root/x')
     },
     () => {
         const r = join('a', 'b', 'c', 'd')
-        assert(r === 'a/b/c/d', r)
+        assertEq(r, 'a/b/c/d')
     },
     () => {
         const r = join('', 'x')
-        assert(r === '/x', r)
+        assertEq(r, '/x')
     },
     () => {
         const r = join()
-        assert(r === '', r)
+        assertEq(r, '')
     },
     () => {
         const r = join('only')
-        assert(r === 'only', r)
+        assertEq(r, 'only')
     },
 ]
 
 const relativizeTest = [
     () => {
         const r = relativize('/repo', '/repo/fs/a.ts')
-        assert(r === './fs/a.ts', r)
+        assertEq(r, './fs/a.ts')
     },
     () => {
         const r = relativize('/repo', '/other/a.ts')
-        assert(r === '/other/a.ts', r)
+        assertEq(r, '/other/a.ts')
     },
     () => {
         const r = relativize('', './fs/a.ts')
-        assert(r === './fs/a.ts', r)
+        assertEq(r, './fs/a.ts')
     },
 ]
 const toPosixTest = [
     () => {
         const p = toPosix('a\\b\\c')
-        assert(p === 'a/b/c', p)
+        assertEq(p, 'a/b/c')
     },
     () => {
         const p = toPosix('a/b/c')
-        assert(p === 'a/b/c', p)
+        assertEq(p, 'a/b/c')
     },
     () => {
         const p = toPosix('C:\\Users\\x')
-        assert(p === 'C:/Users/x', p)
+        assertEq(p, 'C:/Users/x')
     },
     () => {
         const p = toPosix('')
-        assert(p === '', p)
+        assertEq(p, '')
     },
 ]
 
 const isProperPrefixTest = [
     () => {
         const r = isProperPrefix(['a', 'b'], ['a', 'b', 'c'])
-        assert(r === true, r)
+        assertEq(r, true)
     },
     () => {
         const r = isProperPrefix(['a', 'b'], ['a', 'b'])
-        assert(r === false, r)
+        assertEq(r, false)
     },
     () => {
         const r = isProperPrefix(['a', 'x'], ['a', 'b', 'c'])
-        assert(r === false, r)
+        assertEq(r, false)
     },
     () => {
         const r = isProperPrefix(['a', 'b', 'c'], ['a', 'b'])
-        assert(r === false, r)
+        assertEq(r, false)
     },
     () => {
         const r = isProperPrefix([], ['a'])
-        assert(r === true, r)
+        assertEq(r, true)
     },
     () => {
         const r = isProperPrefix([], [])
-        assert(r === false, r)
+        assertEq(r, false)
     },
 ]
 

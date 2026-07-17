@@ -3,7 +3,7 @@ import { functionalscript } from './config/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
-import { assert } from '../asserts/module.f.ts'
+import { assert, assertEq } from '../asserts/module.f.ts'
 import type { State } from '../effects/node/virtual/module.f.ts'
 import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 import { parse as jsonParse } from '../media/json/module.f.ts'
@@ -37,22 +37,22 @@ const workflow = (state: State): GitHubAction => {
 
 const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): GitHubAction => {
     const [state, result] = virtual(makeState(rust))(ci({ nodeExtra }))
-    assert(result === 0, result)
+    assertEq(result, 0)
     return workflow(state)
 }
 
 const runDefault = (packageJson?: string): GitHubAction => {
     const [state, result] = virtual(makeState(false, packageJson))(main())
-    assert(result === 0, result)
+    assertEq(result, 0)
     return workflow(state)
 }
 
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assert(Object.keys(gha.jobs).length === 13, 'expected 13 CI jobs')
-        assert(gha.permissions.contents === 'read', 'expected read-only contents permission')
-        assert(Object.keys(gha.permissions).length === 1, 'expected least-privilege workflow permissions')
+        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
+        assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
+        assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu --release')(gha), 'expected Ubuntu Intel i686 release check')
         assert(hasRunInJob('ubuntu-intel', 'cargo clippy --target i686-unknown-linux-gnu -- -D warnings')(gha), 'expected Ubuntu Intel i686 lint')

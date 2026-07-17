@@ -17,8 +17,7 @@ import {
     decodeObjectIdentifier,
     type ObjectIdentifier,
 } from "./module.f.ts"
-import { assertEq } from "../asserts/module.f.ts"
-import { assert } from '../asserts/module.f.ts'
+import { assert, assertEq } from '../asserts/module.f.ts'
 
 const { concat, popFront: pop, listToVec } = msb
 const pop8 = pop(8n)
@@ -35,7 +34,7 @@ const integerValueCheck = (i: bigint, v: Vec) => {
     const v0 = encodeInteger(i)
     if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
     const i0 = decodeInteger(v)
-    assert(i === i0, [i, i0])
+    assertEq(i, i0, [i, i0])
 }
 
 const ch0 = (r: SupportedRecord, v: Vec, rest: Vec) => {
@@ -58,14 +57,14 @@ export const proof = {
         const v = vec8(0x13n)
         const x = encodeRaw([integer, v])
         const lx = length(x)
-        assert(lx === 24n, lx)
+        assertEq(lx, 24n)
         const [tag, x1] = pop8(x)
-        assert(tag === BigInt(integer), tag)
+        assertEq(tag, BigInt(integer))
         const [len, x2] = pop8(x1)
-        assert(len === 1n, len)
+        assertEq(len, 1n)
         const { length: intLen, uint } = unpack(x2)
-        assert(intLen === 8n, intLen)
-        assert(uint === 0x13n, uint)
+        assertEq(intLen, 8n)
+        assertEq(uint, 0x13n)
     },
     encode7F: () => {
         const valueLen = 0x7Fn << 3n
@@ -73,14 +72,14 @@ export const proof = {
         const v = vec(valueLen)(value)
         const x = encodeRaw([integer, v])
         const lx = length(x)
-        assert(lx === 0x81n << 3n, lx)
+        assertEq(lx, 0x81n << 3n)
         const [tag, x1] = pop8(x)
-        assert(tag === BigInt(integer), tag)
+        assertEq(tag, BigInt(integer))
         const [len, x2] = pop8(x1)
-        assert(len === 0x7Fn, len)
+        assertEq(len, 0x7Fn)
         const { length: intLen, uint } = unpack(x2)
-        assert(intLen === valueLen, intLen)
-        assert(uint === value, uint)
+        assertEq(intLen, valueLen)
+        assertEq(uint, value)
     },
     encode80: () => {
         const valueLen = 0x80n << 3n
@@ -88,16 +87,16 @@ export const proof = {
         const v = vec(valueLen)(value)
         const x = encodeRaw([integer, v])
         const lx = length(x)
-        assert(lx === 0x83n << 3n, lx)
+        assertEq(lx, 0x83n << 3n)
         const [tag, x1] = pop8(x)
-        assert(tag === BigInt(integer), tag)
+        assertEq(tag, BigInt(integer))
         const [lenLen, x2] = pop8(x1)
-        assert(lenLen === 0x81n, lenLen)
+        assertEq(lenLen, 0x81n)
         const [len, x3] = pop8(x2)
-        assert(len === 0x80n, len)
+        assertEq(len, 0x80n)
         const { length: intLen, uint } = unpack(x3)
-        assert(intLen === valueLen, intLen)
-        assert(uint === value, uint)
+        assertEq(intLen, valueLen)
+        assertEq(uint, value)
     },
     encodeFF: () => {
         const valueLen = 0xFFn << 3n
@@ -107,14 +106,14 @@ export const proof = {
         const lx = length(x)
         if (lx !== valueLen + (3n << 3n)) { throw `lx: ${lx}` }
         const [tag, x1] = pop8(x)
-        assert(tag === BigInt(integer), tag)
+        assertEq(tag, BigInt(integer))
         const [lenLen, x2] = pop8(x1)
-        assert(lenLen === 0x81n, lenLen)
+        assertEq(lenLen, 0x81n)
         const [len, x3] = pop8(x2)
-        assert(len === 0xFFn, len)
+        assertEq(len, 0xFFn)
         const { length: intLen, uint } = unpack(x3)
-        assert(intLen === valueLen, intLen)
-        assert(uint === value, uint)
+        assertEq(intLen, valueLen)
+        assertEq(uint, value)
     },
     encode103: () => {
         const valueLen = 0x103n << 3n
@@ -124,20 +123,20 @@ export const proof = {
         const lx = length(x)
         if (lx !== valueLen + (4n << 3n)) { throw `lx: ${lx}` }
         const [tag, x1] = pop8(x)
-        assert(tag === BigInt(integer), tag)
+        assertEq(tag, BigInt(integer))
         const [lenLen, x2] = pop8(x1)
-        assert(lenLen === 0x82n, lenLen)
+        assertEq(lenLen, 0x82n)
         const [len, x3] = pop(16n)(x2)
-        assert(len === 0x103n, len)
+        assertEq(len, 0x103n)
         const { length: intLen, uint } = unpack(x3)
-        assert(intLen === valueLen, intLen)
-        assert(uint === value, uint)
+        assertEq(intLen, valueLen)
+        assertEq(uint, value)
     },
     ed: [
         () => {
             const tag = integer
             const v = vec(0x10n)(0x8234n)
-            assert(asBase(v) === 0x8234n, asBase(v).toString(16))
+            assertEq(asBase(v), 0x8234n, asBase(v).toString(16))
             check(integer, v, empty)
         },
         {
@@ -258,9 +257,9 @@ export const proof = {
         const raw = encodeRaw([0x03n, vec8(0x42n)])
         const [decoded, rest] = decode(raw)
         assert(isVec(decoded), 'expected UnsupportedRecord (Vec)')
-        assert(rest === empty, 'expected empty rest')
+        assertEq(rest, empty, 'expected empty rest')
         // Re-encoding an UnsupportedRecord returns it unchanged (it is already the TLV bytes)
-        assert(encode(decoded) === raw, 'encode should round-trip UnsupportedRecord')
+        assertEq(encode(decoded), raw, 'encode should round-trip UnsupportedRecord')
     },
     raw: [
         () => {
