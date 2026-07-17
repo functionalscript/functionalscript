@@ -1,45 +1,46 @@
 import { contains, fromValues, remove, set } from './module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
     example: () => {
         let mySet = fromValues(['apple', 'banana', 'cherry']);
-        if (!contains('banana')(mySet)) { throw '1' }
-        if (contains('date')(mySet)) { throw '2' }
+        assert(contains('banana')(mySet), '1')
+        assert(!(contains('date')(mySet)), '2')
 
         mySet = set('date')(mySet);
-        if (!contains('date')(mySet)) { throw '3' }
+        assert(contains('date')(mySet), '3')
 
         mySet = remove('banana')(mySet);
-        if (contains('banana')(mySet)) { throw '4' }
+        assert(!(contains('banana')(mySet)), '4')
     },
     contains: () => {
         const r = set('hello')(null)
-        if (!contains('hello')(r)) { throw r }
-        if (contains('hello1')(r)) { throw r }
+        assert(contains('hello')(r), r)
+        assert(!(contains('hello1')(r)), r)
     },
     remove: () => {
         let r = set('hello')(null)
         r = set('world')(r)
         r = set('HELLO')(r)
         r = set('WORLD!')(r)
-        if (!contains('hello')(r)) { throw r }
-        if (contains('hello1')(r)) { throw r }
-        if (!contains('HELLO')(r)) { throw r }
-        if (contains('WORLD')(r)) { throw r }
-        if (!contains('world')(r)) { throw r }
-        if (contains('world!')(r)) { throw r }
-        if (!contains('WORLD!')(r)) { throw r }
+        assert(contains('hello')(r), r)
+        assert(!(contains('hello1')(r)), r)
+        assert(contains('HELLO')(r), r)
+        assert(!(contains('WORLD')(r)), r)
+        assert(contains('world')(r), r)
+        assert(!(contains('world!')(r)), r)
+        assert(contains('WORLD!')(r), r)
         //
         r = remove('hello')(r)
-        if (contains('hello')(r)) { throw r }
-        if (!contains('world')(r)) { throw r }
+        assert(!(contains('hello')(r)), r)
+        assert(contains('world')(r), r)
         r = remove('world')(r)
-        if (contains('world')(r)) { throw r }
-        if (!contains('HELLO')(r)) { throw r }
+        assert(!(contains('world')(r)), r)
+        assert(contains('HELLO')(r), r)
         r = remove('HELLO')(r)
-        if (contains('HELLO')(r)) { throw r }
-        if (!contains('WORLD!')(r)) { throw r }
+        assert(!(contains('HELLO')(r)), r)
+        assert(contains('WORLD!')(r), r)
         r = remove('WORLD!')(r)
-        if (r !== null) { throw r }
+        assertEq(r, null)
     }
 }

@@ -106,18 +106,18 @@ const initNotif = { jsonrpc: '2.0', method: 'notifications/initialized' }
 export const proof = {
     lifecycle: {
         initialStateIsUninitialized: () => {
-            assertEq(uninitializedState[0], 'uninitialized')
+            assert(uninitializedState[0] === 'uninitialized')
         },
 
         initializeTransitionsToInitializing: () => {
             const [, newState] = step1(config)(initMsg)
-            assertEq(newState[0], 'initializing')
+            assert(newState[0] === 'initializing')
         },
 
         initializedNotificationTransitionsToInitialized: () => {
             const [resp, newState] = step2(config)(initMsg)(initNotif)
             assertEq(resp, null)
-            assertEq(newState[0], 'initialized')
+            assert(newState[0] === 'initialized')
         },
 
         initializeReturnsResult: () => {
@@ -130,13 +130,13 @@ export const proof = {
         initializeWithBadParamsReturnsInvalidParams: () => {
             const bad = { jsonrpc: '2.0', method: 'initialize', id: 2, params: { wrong: true } }
             const [resp, newState] = step1(config)(bad)
-            assertEq(newState[0], 'uninitialized')
+            assert(newState[0] === 'uninitialized')
             assertEq((resp as { error: { code: number } }).error.code, -32602)
         },
 
         notificationBeforeInitReturnNull: () => {
             const [resp, newState] = step1(config)(initNotif)
-            assertEq(newState[0], 'uninitialized')
+            assert(newState[0] === 'uninitialized')
             assertEq(resp, null)
         },
 
@@ -148,21 +148,21 @@ export const proof = {
 
         doubleInitializeReturnsInvalidRequest: () => {
             const [resp, newState] = step2(config)(initMsg)(initMsg)
-            assertEq(newState[0], 'initializing')
+            assert(newState[0] === 'initializing')
             assertEq((resp as { error: { code: number } }).error.code, -32600)
         },
 
         pingBeforeInitSucceeds: () => {
             const msg = { jsonrpc: '2.0', method: 'ping', id: 11 }
             const [resp, newState] = step1(config)(msg)
-            assertEq(newState[0], 'uninitialized')
+            assert(newState[0] === 'uninitialized')
             assert(!('error' in (resp as object)))
         },
 
         pingDuringInitializingSucceeds: () => {
             const msg = { jsonrpc: '2.0', method: 'ping', id: 12 }
             const [resp, newState] = step2(config)(initMsg)(msg)
-            assertEq(newState[0], 'initializing')
+            assert(newState[0] === 'initializing')
             assert(!('error' in (resp as object)))
         },
 
@@ -188,27 +188,27 @@ export const proof = {
             const notif = { jsonrpc: '2.0', method: 'notifications/initialized', params: {} }
             const [resp, newState] = step2(config)(initMsg)(notif)
             assertEq(resp, null)
-            assertEq(newState[0], 'initialized')
+            assert(newState[0] === 'initialized')
         },
 
         initializedNotificationBadParamsIgnored: () => {
             const notif = { jsonrpc: '2.0', method: 'notifications/initialized', params: 1 }
             const [resp, newState] = step2(config)(initMsg)(notif)
             assertEq(resp, null)
-            assertEq(newState[0], 'initializing')
+            assert(newState[0] === 'initializing')
         },
 
         methodBeforeInitReturnsNotInitialized: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 3 }
             const [resp, newState] = step1(config)(msg)
-            assertEq(newState[0], 'uninitialized')
+            assert(newState[0] === 'uninitialized')
             assertEq((resp as { error: { code: number } }).error.code, notInitialized.code)
         },
 
         methodDuringInitializingReturnsNotInitialized: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/list', id: 16 }
             const [resp, newState] = step2(config)(initMsg)(msg)
-            assertEq(newState[0], 'initializing')
+            assert(newState[0] === 'initializing')
             assertEq((resp as { error: { code: number } }).error.code, notInitialized.code)
         },
 

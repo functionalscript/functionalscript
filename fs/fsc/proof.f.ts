@@ -22,18 +22,18 @@ const withName = (name: string): () => undefined =>
 export const proof = {
     a: () => {
         const x = f('1')
-        if (x !== '["1"]') { throw x }
+        assertEq(x, '["1"]')
     },
     b: () => {
         // exercises toInit: terminal returns empty output and loops back to init
         const result = init(terminal)
-        if (result[0].length !== 0) { throw result[0] }
+        assertEq(result[0].length, 0, result[0])
     },
     c: () => {
         // exercises unexpectedSymbol: next state after a token returns an error message
         const next = init(one('1'))[1]
         const result = next(42)
-        if (result[0][0] !== 'unexpected symbol 42') { throw result[0][0] }
+        assertEq(result[0][0], 'unexpected symbol 42')
     },
     fn: () => {
         const o = {
@@ -41,42 +41,42 @@ export const proof = {
         }
         const f = o["hello world!"]
         const { name } = f
-        if (name !== "hello world!") { throw name }
+        assertEq(name, "hello world!")
         //
         const f1 = { ["boring"]: () => undefined }["boring"]
-        if (f1.name !== "boring") { throw f1.name }
+        assertEq(f1.name, "boring")
         //
         const x = fn(() => undefined, "hello").name
-        if (x !== "") { throw x }
+        assertEq(x, "")
         //
         const m = withName("boring2").name
-        if (m !== "boring2") { throw m }
+        assertEq(m, "boring2")
         //
         const a = function x() { return undefined }
-        if (a.name !== "x") { throw a.name }
+        assertEq(a.name, "x")
     },
     //
     f1: () => {
         const m1 = () => undefined
-        if (m1.name !== "m1") { throw m1.name }
+        assertEq(m1.name, "m1")
     },
     //
     f2: () => {
         const m11 = (() => undefined)
-        if (m11.name !== "m11") { throw m11.name }
+        assertEq(m11.name, "m11")
     },
     //
     f3: () => {
         const m2: any = true ? () => undefined : () => undefined
         // for `bun` it is `m2`:
-        // if (m2.name !== "") { throw m2.name }
+        // assertEq(m2.name, "")
         // see also https://github.com/oven-sh/bun/issues/20398
     },
     f4: () => {
         const id = <T>(i: T): T => i
         const f: any = id(() => undefined)
         // for `bun` it is `m2`:
-        if (f.name !== "") { throw f.name }
+        assertEq(f.name, "")
     },
     chars: {
         whitespace: () => {

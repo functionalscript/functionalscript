@@ -1,3 +1,4 @@
+import { assert, assertEq } from '../../asserts/module.f.ts'
 import { run, type MemOperationMap } from '../mock/module.f.ts'
 import { pure } from '../module.f.ts'
 import {
@@ -26,7 +27,7 @@ const mock: MemOperationMap<MemOp, MemoryState> = {
         [state, state.values[asBase(key)]],
     memWrite: (key, value) => state => {
         const id = asBase(key)
-        if (!(id in state.values)) { throw id }
+        assert(id in state.values, id)
         return [{
             ...state,
             values: { ...state.values, [id]: value },
@@ -45,8 +46,8 @@ const program = create(1).step(key =>
 export const proof = {
     roundTrip: () => {
         const [state, result] = run(mock)(initial)(program)
-        if (result !== 42) { throw result }
-        if (state.values.k0 !== 42) { throw state }
+        assertEq(result, 42)
+        assertEq(state.values.k0, 42, state)
     },
     allocatesFreshKeys: () => {
         const effect = create('a').step(a =>
@@ -58,10 +59,10 @@ export const proof = {
             )
         )
         const [state, [a, b]] = run(mock)(initial)(effect)
-        if (a !== 'k0') { throw a }
-        if (b !== 'k1') { throw b }
-        if (state.values.k0 !== 'a') { throw state }
-        if (state.values.k1 !== 'b') { throw state }
+        assertEq(a, 'k0')
+        assertEq(b, 'k1')
+        assertEq(state.values.k0, 'a', state)
+        assertEq(state.values.k1, 'b', state)
     },
     typeTest: () => {
         // const e = create(1).step(k => write(k, 'bad').step(() => read(k)))

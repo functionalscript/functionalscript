@@ -1,123 +1,124 @@
 import { concat, isProperPrefix, join, normalize, relativize, toPosix } from "./module.f.ts"
+import { assertEq } from '../asserts/module.f.ts'
 
 const normalizeTest = [
     () => {
         const norm = normalize("dir/file.json")
-        if (norm !== "dir/file.json") { throw norm }
+        assertEq(norm, "dir/file.json")
     },
     () => {
         const norm = normalize("dir//file.json")
-        if (norm !== "dir/file.json") { throw norm }
+        assertEq(norm, "dir/file.json")
     },
     () => {
         const norm = normalize("../../dir/file.json")
-        if (norm !== "../../dir/file.json") { throw norm }
+        assertEq(norm, "../../dir/file.json")
     },
     () => {
         const norm = normalize("../../dir/../file.json")
-        if (norm !== "../../file.json") { throw norm }
+        assertEq(norm, "../../file.json")
     },
 ]
 
 const concatTest = [
     () => {
         const c = concat("a")("b")
-        if (c !== "a/b") { throw c }
+        assertEq(c, "a/b")
     },
     () => {
         const c = concat("a///b/")("c")
-        if (c !== "a/b/c") { throw c }
+        assertEq(c, "a/b/c")
     },
     () => {
         const c = concat("a/../b/..")("c")
-        if (c !== "c") { throw c }
+        assertEq(c, "c")
     },
 ]
 
 const joinTest = [
     () => {
         const r = join('a', 'b')
-        if (r !== 'a/b') { throw r }
+        assertEq(r, 'a/b')
     },
     () => {
         const r = join('/abs/root', 'x')
-        if (r !== '/abs/root/x') { throw r }
+        assertEq(r, '/abs/root/x')
     },
     () => {
         const r = join('a', 'b', 'c', 'd')
-        if (r !== 'a/b/c/d') { throw r }
+        assertEq(r, 'a/b/c/d')
     },
     () => {
         const r = join('', 'x')
-        if (r !== '/x') { throw r }
+        assertEq(r, '/x')
     },
     () => {
         const r = join()
-        if (r !== '') { throw r }
+        assertEq(r, '')
     },
     () => {
         const r = join('only')
-        if (r !== 'only') { throw r }
+        assertEq(r, 'only')
     },
 ]
 
 const relativizeTest = [
     () => {
         const r = relativize('/repo', '/repo/fs/a.ts')
-        if (r !== './fs/a.ts') { throw r }
+        assertEq(r, './fs/a.ts')
     },
     () => {
         const r = relativize('/repo', '/other/a.ts')
-        if (r !== '/other/a.ts') { throw r }
+        assertEq(r, '/other/a.ts')
     },
     () => {
         const r = relativize('', './fs/a.ts')
-        if (r !== './fs/a.ts') { throw r }
+        assertEq(r, './fs/a.ts')
     },
 ]
 const toPosixTest = [
     () => {
         const p = toPosix('a\\b\\c')
-        if (p !== 'a/b/c') { throw p }
+        assertEq(p, 'a/b/c')
     },
     () => {
         const p = toPosix('a/b/c')
-        if (p !== 'a/b/c') { throw p }
+        assertEq(p, 'a/b/c')
     },
     () => {
         const p = toPosix('C:\\Users\\x')
-        if (p !== 'C:/Users/x') { throw p }
+        assertEq(p, 'C:/Users/x')
     },
     () => {
         const p = toPosix('')
-        if (p !== '') { throw p }
+        assertEq(p, '')
     },
 ]
 
 const isProperPrefixTest = [
     () => {
         const r = isProperPrefix(['a', 'b'], ['a', 'b', 'c'])
-        if (r !== true) { throw r }
+        assertEq(r, true)
     },
     () => {
         const r = isProperPrefix(['a', 'b'], ['a', 'b'])
-        if (r !== false) { throw r }
+        assertEq(r, false)
     },
     () => {
         const r = isProperPrefix(['a', 'x'], ['a', 'b', 'c'])
-        if (r !== false) { throw r }
+        assertEq(r, false)
     },
     () => {
         const r = isProperPrefix(['a', 'b', 'c'], ['a', 'b'])
-        if (r !== false) { throw r }
+        assertEq(r, false)
     },
     () => {
         const r = isProperPrefix([], ['a'])
-        if (r !== true) { throw r }
+        assertEq(r, true)
     },
     () => {
         const r = isProperPrefix([], [])
-        if (r !== false) { throw r }
+        assertEq(r, false)
     },
 ]
 

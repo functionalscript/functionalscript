@@ -4,18 +4,19 @@ import type { Equal } from '../../ts/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 import type { Assert } from '../../../asserts/module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.ts'
 
-const assertOk = ([k]: readonly [string, unknown]) => { if (k !== 'ok') { throw 'expected ok' } }
-const assertError = ([k]: readonly [string, unknown]) => { if (k !== 'error') { throw 'expected error' } }
+const assertOk = ([k]: readonly [string, unknown]) => { assertEq(k, 'ok', 'expected ok') }
+const assertError = ([k]: readonly [string, unknown]) => { assertEq(k, 'error', 'expected error') }
 
 const unwrap = <T>(r: readonly [string, unknown]): T => {
-    if (r[0] !== 'ok') { throw 'expected ok' }
+    assert(r[0] === 'ok', 'expected ok')
     return r[1] as T
 }
 
 const assertErrorPath = (expected: readonly string[]) =>
     (r: readonly [string, unknown]) => {
-        if (r[0] !== 'error') { throw 'expected error' }
+        assert(r[0] === 'error', 'expected error')
         const e = r[1] as ValidationError
         if (e.path.length !== expected.length) { throw `path length ${e.path.length} != ${expected.length}` }
         for (let i = 0; i < expected.length; i++) {
@@ -200,7 +201,7 @@ export const proof = {
         freshArray: () => {
             const input = [1, 2, 3]
             const out = unwrap<readonly number[]>(parse(array(number))(input))
-            if (out === input as unknown) { throw 'expected a fresh array' }
+            assert(out !== input as unknown, 'expected a fresh array')
             assertDeepEqual(out, [1, 2, 3])
         },
         error: () => {
@@ -227,7 +228,7 @@ export const proof = {
         freshRecord: () => {
             const input = { a: 1, b: 2 }
             const out = unwrap<Record<string, number>>(parse(record(number))(input))
-            if (out === input as unknown) { throw 'expected a fresh record' }
+            assert(out !== input as unknown, 'expected a fresh record')
             assertDeepEqual(out, { a: 1, b: 2 })
         },
         error: () => {

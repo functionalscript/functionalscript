@@ -1,33 +1,34 @@
 import { sum, min, max, cmp, countOnes } from './module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
     sum: () => {
         const result = sum([2, 3, 4, 5])
-        if (result !== 14) { throw result }
+        assertEq(result, 14)
     },
     min: {
         empty: () => {
             const result = min([])
-            if (result !== null) { throw result }
+            assertEq(result, null)
         },
         multi: () => {
             const result = min([1, 2, 12, -4, 8])
-            if (result !== -4) { throw result }
+            assertEq(result, -4)
         }
     },
     max: () => {
         const result = max([1, 2, 12, -4, 8])
-        if (result !== 12) { throw result }
+        assertEq(result, 12)
     },
     cmp: () => {
         const result = cmp(4)(5)
-        if (result !== -1) { throw result }
+        assertEq(result, -1)
     },
     standard: () => {
         const check
             : (a: bigint) => (a: bigint) => void
             = a => b => {
-            if (BigInt(Number(a)) !== b) { throw [a, b] }
+            assertEq(BigInt(Number(a)), b, [a, b])
         }
 
         const eq
@@ -194,12 +195,12 @@ export const proof = {
         () => {
             //                    1121 2231 = 5 + 8 = 13
             const r = countOnes(0x1234_5678)
-            if (r !== 13) { throw r }
+            assertEq(r, 13)
         },
         () => {
             //                    2232 3340 = 9 + 10 = 19
             const r = countOnes(0x9ABC_DEF0)
-            if (r !== 19) { throw r }
+            assertEq(r, 19)
         }
     ]
 }

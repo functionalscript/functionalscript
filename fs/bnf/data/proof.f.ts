@@ -4,17 +4,18 @@ import { sort } from '../../types/object/module.f.ts'
 import { oneEncode, option, range, rangeDecode, repeat0Plus, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
 import { toData } from './module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
     rangeDecode: () => {
         const decoded1 = stringify(sort)(rangeDecode(0x000079_000087))
-        if (decoded1 !== '[121,135]') { throw decoded1 }
+        assertEq(decoded1, '[121,135]')
 
         const decoded2 = stringify(sort)(rangeDecode(0x000080_000087))
-        if (decoded2 !== '[128,135]') { throw decoded2 }
+        assertEq(decoded2, '[128,135]')
 
         const decoded3 = stringify(sort)(rangeDecode(0x10FFFF_10FFFF))
-        if (decoded3 !== '[1114111,1114111]') { throw decoded3 }
+        assertEq(decoded3, '[1114111,1114111]')
     },
     rangeEncode: () => {
         const encoded1 = oneEncode(0x79)
@@ -55,20 +56,20 @@ export const proof = {
             const varintRule = { true: 'true', false: 'false'}
             const result = stringify(sort)(toData(varintRule))
             const expected = '[{"":{"false":"5","true":"0"},"0":["1","2","3","4"],"1":1946157172,"2":1912602738,"3":1962934389,"4":1694498917,"5":["6","7","8","9","4"],"6":1711276134,"7":1627390049,"8":1811939436,"9":1929379955},""]'
-            if (result !== expected) { throw [result, expected] }
+            assertEq(result, expected, [result, expected])
         },
         () => {
             const lazyRule = () => 'true'
             const lazyRule0 = () => 'false'
             const result = stringify(sort)(toData([lazyRule, lazyRule0]))
             const expected = '[{"":["lazyRule","lazyRule0"],"0":1946157172,"1":1912602738,"2":1962934389,"3":1694498917,"4":1711276134,"5":1627390049,"6":1811939436,"7":1929379955,"lazyRule":["0","1","2","3"],"lazyRule0":["4","5","6","7","3"]},""]'
-            if (result !== expected) { throw [result, expected] }
+            assertEq(result, expected, [result, expected])
         },
         () => {
             const emptyRule = ''
             const result = stringify(sort)(toData(emptyRule))
             const expected = '[{"":[]},""]'
-            if (result !== expected) { throw [result, expected] }
+            assertEq(result, expected, [result, expected])
         },
         () => {
             const optionRule = option('a')

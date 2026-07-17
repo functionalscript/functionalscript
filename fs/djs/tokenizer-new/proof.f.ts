@@ -2,6 +2,7 @@ import { descentParser } from '../../bnf/descent/module.f.ts'
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 import { jsGrammar, parse, tokenizeString, descentParserCpOnly } from './module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
     isValid: [() => {
@@ -11,9 +12,7 @@ export const proof = {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, '', cp)
                 const success = mr[1] && mr[2] === cp.length
-                if (success !== expected) {
-                    throw JSON.stringify([s, mr])
-                }
+                assertEq(success, expected, JSON.stringify([s, mr]))
             }
 
             expect('"', false)
@@ -51,120 +50,120 @@ export const proof = {
             const cp = toArray(stringToCodePointList('tr'))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== 'id') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assertEq(seq.tag, 'id', JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('"tr"'))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== 'string') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assertEq(seq.tag, 'string', JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('56.7e+5'))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== 'number') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assertEq(seq.tag, 'number', JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('56n'))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== 'number') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assertEq(seq.tag, 'number', JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('*'))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== '*') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assertEq(seq.tag, '*', JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('**'))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== '**') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assertEq(seq.tag, '**', JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('=>'))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== '=>') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assertEq(seq.tag, '=>', JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('=='))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== '==') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assert(!(seq.tag !== '=='), JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('==='))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== '===') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assert(!(seq.tag !== '==='), JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('='))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== '=') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assertEq(seq.tag, '=', JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList(' '))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== ' ') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assertEq(seq.tag, ' ', JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('\n'))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== '\n') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assertEq(seq.tag, '\n', JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('/\n'))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== '/') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assertEq(seq.tag, '/', JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('//\n'))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== 'comment') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assertEq(seq.tag, 'comment', JSON.stringify(mr))
         },
         () => {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('/*1*/'))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
-            if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== 'comment') throw JSON.stringify(mr)
+            assert(!(seq instanceof Array), JSON.stringify(mr))
+            assertEq(seq.tag, 'comment', JSON.stringify(mr))
         }
     ],
     djs: [
@@ -198,7 +197,7 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('ᄑ')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('{ \t\n\r}')
@@ -214,7 +213,7 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"value')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('"value1" "value2"')
@@ -222,7 +221,7 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('"\\\\"')
@@ -238,19 +237,19 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"\\x"')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('"\\')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('"\r"')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('"\n null')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('"\\b\\f\\n\\r\\t"')
@@ -266,7 +265,7 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"\\uEeFg"')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('0')
@@ -278,11 +277,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('00')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('0abc,')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('123456789012345678901234567890')
@@ -298,7 +297,7 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('0. 2')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('10-0')
@@ -306,7 +305,7 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('9a:')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('-10')
@@ -318,7 +317,7 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('-00')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('-.123')
@@ -334,11 +333,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('-0.')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('-0.]')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('12.34')
@@ -350,11 +349,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('-12.')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('12.]')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('0e1')
@@ -382,11 +381,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('0e')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('0e-')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('ABCdef1234567890$_')
@@ -406,11 +405,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('123_123')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('123$123')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('1234567890n')
@@ -426,19 +425,19 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('123.456n')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('123e456n')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('1234567890na')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('1234567890nn')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
     ],
     operators:
@@ -756,11 +755,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('/* multiline comment *')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('/* multiline comment ')
-            if (result !== 'error') { throw result }
+            assertEq(result, 'error')
         },
         () => {
             const result = tokenizeString('/* multiline comment \n * **/')

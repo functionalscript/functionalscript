@@ -2,15 +2,14 @@ import { maxLength, maxLengthBytes, vec } from '../bit_vec/module.f.ts'
 import { toVec, fromVec, listToVec, decodeUtf8, encodeUtf8 } from './module.f.ts'
 import { strictEqual } from '../function/operator/module.f.ts'
 import { equal, fromArrayLike } from '../list/module.f.ts'
+import { assert } from '../../asserts/module.f.ts'
 
 const assertEq = <T>(a: T, b: T) => {
-    if (a !== b) { throw [a, b] }
+    assert(a === b, [a, b])
 }
 
 const assertArrayEq = (a: Uint8Array, b: Uint8Array) => {
-    if (!equal(strictEqual)(fromArrayLike(a))(fromArrayLike(b))) {
-        throw [a, b]
-    }
+    assert(equal(strictEqual)(fromArrayLike(a))(fromArrayLike(b)), [a, b])
 }
 
 export const proof = {

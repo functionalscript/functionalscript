@@ -4,6 +4,7 @@ import { set as setSet } from '../set/module.f.ts'
 import { cmp } from '../../string/module.f.ts'
 import { stringify } from '../../../media/json/module.f.ts'
 import { sort } from '../../object/module.f.ts'
+import { assertEq, assertNotNullish } from '../../../asserts/module.f.ts'
 
 const set = (node: TNode<string>) => (value: string) =>
     setSet(cmp(value))(() => value)(node)
@@ -31,8 +32,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("0")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("0"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[[["1"],"100",["1024"]],"1089",[["1156"],"121",["1225"]]],' +
@@ -45,8 +45,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("1")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("1"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["100","1024"],"1089",["1156"],"121",["1225"]],"1296",[["1369"],"144",["1444"]],"16",[["169"],"196",["225"]]],' +
@@ -57,8 +56,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("4")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("4"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["100","1024"],"1089",["1156"],"121",["1225"]],"1296",[["1369"],"144",["1444"]],"16",[["169"],"196",["225"]]],' +
@@ -69,8 +67,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("9")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("9"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["100","1024"],"1089",["1156"],"121",["1225"]],"1296",[["1369"],"144",["1444"]],"16",[["169"],"196",["225"]]],' +
@@ -81,8 +78,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("16")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("16"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["100","1024"],"1089",["1156"],"121",["1225"]],"1296",[["1369"],"144",["1444"],"169",["196","225"]]],' +
@@ -93,8 +89,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("25")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("25"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["100","1024"],"1089",["1156"],"121",["1225"]],"1296",[["1369"],"144",["1444"],"169",["196","225"]],"256",[["289","324"],"36",["361"],"400",["441","484"]]],' +
@@ -103,8 +98,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("36")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("36"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["100","1024"],"1089",["1156"],"121",["1225"]],"1296",[["1369"],"144",["1444"],"169",["196","225"]],"256",[["289"],"324",["361"],"400",["441","484"]]],' +
@@ -113,8 +107,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("49")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("49"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["100","1024"],"1089",["1156"],"121",["1225"]],"1296",[["1369"],"144",["1444"],"169",["196","225"]],"256",[["289"],"324",["361"],"400",["441","484"]]],' +
@@ -123,8 +116,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("64")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("64"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["100","1024"],"1089",["1156"],"121",["1225"]],"1296",[["1369"],"144",["1444"],"169",["196","225"]],"256",[["289"],"324",["361"],"400",["441","484"]]],' +
@@ -133,8 +125,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("81")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("81"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["100","1024"],"1089",["1156"],"121",["1225"]],"1296",[["1369"],"144",["1444"],"169",["196","225"]],"256",[["289"],"324",["361"],"400",["441","484"]]],' +
@@ -143,8 +134,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("100")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("100"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["1024"],"1089",["1156"],"121",["1225"]],"1296",[["1369"],"144",["1444"],"169",["196","225"]],"256",[["289"],"324",["361"],"400",["441","484"]]],' +
@@ -153,8 +143,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("121")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("121"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["1024"],"1089",["1156","1225"]],"1296",[["1369"],"144",["1444"],"169",["196","225"]],"256",[["289"],"324",["361"],"400",["441","484"]]],' +
@@ -163,8 +152,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("144")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("144"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["1024"],"1089",["1156","1225"]],"1296",[["1369","1444"],"169",["196","225"]],"256",[["289"],"324",["361"],"400",["441","484"]]],' +
@@ -173,8 +161,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("169")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("169"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["1024"],"1089",["1156","1225"]],"1296",[["1369","1444"],"196",["225"]],"256",[["289"],"324",["361"],"400",["441","484"]]],' +
@@ -183,8 +170,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("196")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("196"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["1024"],"1089",["1156","1225"]],"1296",[["1369"],"1444",["225"]],"256",[["289"],"324",["361"],"400",["441","484"]]],' +
@@ -193,8 +179,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("225")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("225"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["1024"],"1089",["1156","1225"],"1296",["1369","1444"]],"256",[["289"],"324",["361"],"400",["441","484"]]],' +
@@ -203,8 +188,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("256")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("256"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["1024"],"1089",["1156","1225"],"1296",["1369","1444"]],"289",[["324","361"],"400",["441","484"]]],' +
@@ -213,8 +197,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("289")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("289"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["1024"],"1089",["1156","1225"],"1296",["1369","1444"]],"324",[["361"],"400",["441","484"]]],' +
@@ -223,8 +206,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("324")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("324"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["1024"],"1089",["1156","1225"],"1296",["1369","1444"]],"361",[["400"],"441",["484"]]],' +
@@ -233,8 +215,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("361")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("361"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["1024"],"1089",["1156","1225"]],"1296",[["1369","1444"],"400",["441","484"]]],' +
@@ -243,8 +224,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("400")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("400"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["1024"],"1089",["1156","1225"]],"1296",[["1369","1444"],"441",["484"]]],' +
@@ -253,8 +233,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("441")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("441"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[[["1024"],"1089",["1156","1225"]],"1296",[["1369"],"1444",["484"]]],' +
@@ -263,8 +242,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("484")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("484"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[["1024"],"1089",["1156","1225"],"1296",["1369","1444"]],' +
@@ -275,8 +253,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("529")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("529"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[["1024"],"1089",["1156","1225"]],"1296",[["1369","1444"],"576",["625","676"]],' +
@@ -285,8 +262,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("576")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("576"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[["1024"],"1089",["1156","1225"]],"1296",[["1369","1444"],"625",["676"]],' +
@@ -295,8 +271,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("625")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("625"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[["1024"],"1089",["1156","1225"]],"1296",[["1369"],"1444",["676"]],' +
@@ -305,8 +280,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("676")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("676"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[["1024"],"1089",["1156","1225"],"1296",["1369","1444"]],' +
@@ -315,8 +289,7 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("729")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("729"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[["1024"],"1089",["1156","1225"],"1296",["1369","1444"]],' +
@@ -325,86 +298,76 @@ const test = () => {
         ) { throw r }
     }
     {
-        _map = remove(_map)("784")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("784"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[["1024"],"1089",["1156","1225"]],"1296",[["1369","1444"],"841",["900","961"]]]'
         ) { throw r }
     }
     {
-        _map = remove(_map)("841")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("841"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[["1024"],"1089",["1156","1225"]],"1296",[["1369","1444"],"900",["961"]]]'
         ) { throw r }
     }
     {
-        _map = remove(_map)("900")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("900"), null)
         const r = jsonStr(_map)
         if (r !==
             '[[["1024"],"1089",["1156","1225"]],"1296",[["1369"],"1444",["961"]]]'
         ) { throw r }
     }
     {
-        _map = remove(_map)("961")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("961"), null)
         const r = jsonStr(_map)
         if (r !==
             '[["1024"],"1089",["1156","1225"],"1296",["1369","1444"]]'
         ) { throw r }
     }
     {
-        _map = remove(_map)("1024")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("1024"), null)
         const r = jsonStr(_map)
         if (r !==
             '[["1089"],"1156",["1225"],"1296",["1369","1444"]]'
         ) { throw r }
     }
     {
-        _map = remove(_map)("1089")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("1089"), null)
         const r = jsonStr(_map)
         if (r !==
             '[["1156","1225"],"1296",["1369","1444"]]'
         ) { throw r }
     }
     {
-        _map = remove(_map)("1156")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("1156"), null)
         const r = jsonStr(_map)
         if (r !==
             '[["1225"],"1296",["1369","1444"]]'
         ) { throw r }
     }
     {
-        _map = remove(_map)("1225")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("1225"), null)
         const r = jsonStr(_map)
         if (r !==
             '[["1296"],"1369",["1444"]]'
         ) { throw r }
     }
     {
-        _map = remove(_map)("1296")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("1296"), null)
         const r = jsonStr(_map)
         if (r !==
             '["1369","1444"]'
         ) { throw r }
     }
     {
-        _map = remove(_map)("1369")
-        if (_map === null) { throw null }
+        _map = assertNotNullish(remove(_map)("1369"), null)
         const r = jsonStr(_map)
-        if (r !== '["1444"]') { throw r }
+        assertEq(r, '["1444"]')
     }
     {
         _map = remove(_map)("1444")
-        if (_map !== null) { throw _map }
+        assertEq(_map, null)
     }
 }
 
@@ -412,76 +375,67 @@ const test2 = () => {
     let _map: TNode<string>|null = ['1']
     for (let i = 2; i <= 10; i++)
         _map = set(_map)((i * i).toString())
-    if (_map.length !== 3) { throw _map }
+    assertEq(_map.length, 3, _map)
     let _s = jsonStr(_map)
-    if (_s !== '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]') { throw _s }
+    assertEq(_s, '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]')
 
     {
-        _map = remove(_map)("4")
-        if (_map === null) { throw _map }
+        _map = assertNotNullish(remove(_map)("4"), _map)
         _s = jsonStr(_map);
-        if (_s !== '[[["1","100"],"16",["25","36"]],"49",[["64"],"81",["9"]]]') { throw _s }
+        assertEq(_s, '[[["1","100"],"16",["25","36"]],"49",[["64"],"81",["9"]]]')
     }
 
     {
-        _map = remove(_map)("49")
-        if (_map === null) { throw _map }
+        _map = assertNotNullish(remove(_map)("49"), _map)
         _s = jsonStr(_map);
-        if (_s !== '[["1","100"],"16",["25","36"],"64",["81","9"]]') { throw _s }
+        assertEq(_s, '[["1","100"],"16",["25","36"],"64",["81","9"]]')
     }
 
     {
-        _map = remove(_map)("64")
-        if (_map === null) { throw _map }
+        _map = assertNotNullish(remove(_map)("64"), _map)
         _s = jsonStr(_map);
-        if (_s !== '[["1","100"],"16",["25","36"],"81",["9"]]') { throw _s }
+        assertEq(_s, '[["1","100"],"16",["25","36"],"81",["9"]]')
     }
 
     {
-        _map = remove(_map)("81")
-        if (_map === null) { throw _map }
+        _map = assertNotNullish(remove(_map)("81"), _map)
         _s = jsonStr(_map);
-        if (_s !== '[["1","100"],"16",["25"],"36",["9"]]') { throw _s }
+        assertEq(_s, '[["1","100"],"16",["25"],"36",["9"]]')
     }
 
     {
-        _map = remove(_map)("36")
-        if (_map === null) { throw _map }
+        _map = assertNotNullish(remove(_map)("36"), _map)
         _s = jsonStr(_map);
-        if (_s !== '[["1","100"],"16",["25","9"]]') { throw _s }
+        assertEq(_s, '[["1","100"],"16",["25","9"]]')
     }
 
     {
-        _map = remove(_map)("16")
-        if (_map === null) { throw _map }
+        _map = assertNotNullish(remove(_map)("16"), _map)
         _s = jsonStr(_map);
-        if (_s !== '[["1","100"],"25",["9"]]') { throw _s }
+        assertEq(_s, '[["1","100"],"25",["9"]]')
     }
 
     {
-        _map = remove(_map)("25")
-        if (_map === null) { throw _map }
+        _map = assertNotNullish(remove(_map)("25"), _map)
         _s = jsonStr(_map);
-        if (_s !== '[["1"],"100",["9"]]') { throw _s }
+        assertEq(_s, '[["1"],"100",["9"]]')
     }
 
     {
-        _map = remove(_map)("100")
-        if (_map === null) { throw _map }
+        _map = assertNotNullish(remove(_map)("100"), _map)
         _s = jsonStr(_map);
-        if (_s !== '["1","9"]') { throw _s }
+        assertEq(_s, '["1","9"]')
     }
 
     {
-        _map = remove(_map)("9")
-        if (_map === null) { throw _map }
+        _map = assertNotNullish(remove(_map)("9"), _map)
         _s = jsonStr(_map);
-        if (_s !== '["1"]') { throw _s }
+        assertEq(_s, '["1"]')
     }
 
     {
         _map = remove(_map)("1")
-        if (_map !== null) { throw _map }
+        assertEq(_map, null)
     }
 }
 
@@ -492,11 +446,9 @@ const test3 = () => {
     for (let i = 2; i <= 50; i++)
         _map = set(_map)(i.toString())
 
-    _map = remove(_map)('40')
-    if (_map === null) { throw _map }
+    _map = assertNotNullish(remove(_map)('40'), _map)
 
-    _map = remove(_map)('10')
-    if (_map === null) { throw _map }
+    _map = assertNotNullish(remove(_map)('10'), _map)
     const r = jsonStr(_map)
     if (r !==
         '[[[[["1","11"],"12",["13"],"14",["15"]],"16",[["17"],"18",["19"]],"2",[["20"],"21",["22"]]],' +

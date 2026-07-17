@@ -14,7 +14,7 @@ const bytes = (...b: readonly number[]): Vec => u8ListToVec(msb)(b)
 // Evaluates a fully pure effect (no operations) to its result.
 const runPure = <T>(e: Effect<never, T>): T => {
     const d = decode(e)
-    if (!d.done) { throw 'effect is not pure' }
+    assert(d.done, 'effect is not pure')
     return d.result
 }
 
@@ -27,7 +27,7 @@ const stream = (...chunks: readonly Vec[]): List<never, Result<Vec, unknown>> =>
 // Runs the streaming detector over the given chunks and unwraps the metadata.
 const detectChunks = (...chunks: readonly Vec[]): DetectMeta => {
     const r = runPure(detectStream(stream(...chunks)))
-    if (r[0] === 'error') { throw r[1] }
+    assert(r[0] !== 'error', r[1])
     return r[1]
 }
 

@@ -4,6 +4,7 @@ import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.ts'
 import { deterministic } from '../testlib.f.ts'
 import { toData } from '../data/module.f.ts'
 import { createEmptyTagMap, descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult } from './module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
 
@@ -178,9 +179,7 @@ export const proof = {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, '', cp)
                 const success = mr[1] && mr[2] === cp.length
-                if (success !== expected) {
-                    throw mr
-                }
+                assertEq(success, expected, mr)
             }
 
             expect('a', true)
@@ -206,9 +205,7 @@ export const proof = {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, 'value', cp)
                 const success = mr[1] && mr[2] === cp.length
-                if (success !== expected) {
-                    throw mr
-                }
+                assertEq(success, expected, mr)
             }
 
             expect('', false)
@@ -224,9 +221,7 @@ export const proof = {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, '', cp)
                 const success = mr[1] && mr[2] === cp.length
-                if (success !== expected) {
-                    throw mr
-                }
+                assertEq(success, expected, mr)
             }
 
             expect('   true   ', true)
