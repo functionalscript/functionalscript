@@ -4,9 +4,9 @@ const throws = (f: () => unknown, expected: unknown): void => {
     let caught = false
     try { f() } catch (e) {
         caught = true
-        if (e !== expected) { throw ['unexpected throw value', e] }
+        assert(e === expected, ['unexpected throw value', e])
     }
-    if (!caught) { throw 'expected function to throw but it did not' }
+    assert(caught, 'expected function to throw but it did not')
 }
 
 export const proof = {
@@ -29,9 +29,9 @@ export const proof = {
         try { assertEq(1, 2) } catch (e) {
             caught = true
             const arr = e as readonly [unknown, unknown]
-            if (arr[0] !== 1 || arr[1] !== 2) { throw ['wrong throw value', e] }
+            assert(!(arr[0] !== 1 || arr[1] !== 2), ['wrong throw value', e])
         }
-        if (!caught) { throw 'expected assertEq to throw' }
+        assert(caught, 'expected assertEq to throw')
     },
     todoThrows: () => {
         throws(() => todo(), 'not implemented')

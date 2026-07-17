@@ -11,6 +11,7 @@ import {
     type Key, type MemOp,
 } from '../../memory/module.f.ts'
 import { memoryOperationMap, run } from './module.ts'
+import { assert } from '../../../asserts/module.f.ts'
 
 export const proof = {
     nodeInterpreter: async () => {
@@ -19,14 +20,14 @@ export const proof = {
                 read(key)
             )
         ))
-        if (result !== 2) { throw result }
+        assert(result === 2, result)
     },
     reusedOperationMapPersists: async () => {
         const runner = asyncRun<MemOp>(memoryOperationMap())
         const key = await runner(create(1))
         await runner(write(key, 2))
         const result = await runner(read(key))
-        if (result !== 2) { throw result }
+        assert(result === 2, result)
     },
     missingKeyThrows: async () => {
         const key: Key<number> = asNominal('missing')
@@ -34,7 +35,7 @@ export const proof = {
             () => undefined,
             error => error,
         )
-        if (!(result instanceof Error)) { throw result }
-        if (result.message !== 'memory key not found: missing') { throw result }
+        assert(result instanceof Error, result)
+        assert(result.message === 'memory key not found: missing', result)
     },
 }

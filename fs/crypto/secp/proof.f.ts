@@ -45,11 +45,9 @@ const poker = (param: Curve) => () => {
     //
     let m = 0n
     for (const p of dN) {
-        if (p === null) {
-            throw 'null'
-        }
+        assert(p !== null, 'null')
         const x = p[0] & 0x3Fn
-        if (x !== m) { throw [p[0], x, m] }
+        assert(x === m, [p[0], x, m])
         ++m
     }
 }
@@ -74,20 +72,20 @@ export const proof = {
         = c => {
             const { mul, neg, pf: { abs }, y: yf, nf: { p: n }, g } = c
             const point_check = (p: Point): void => {
-                if (p === null) { throw 'p === null' }
+                assert(p !== null, 'p === null')
                 const [x, y] = p
                 const ye = yf(x)
-                if (ye === null) { throw 'ye === null' }
-                if (abs(ye) !== abs(y)) { throw 'ye' }
+                assert(ye !== null, 'ye === null')
+                assert(abs(ye) === abs(y), 'ye')
             }
             point_check(g)
             point_check(neg(g))
             const test_mul = (p: Point): void => {
-                if (mul(0n)(p) !== null) { throw 'O' }
-                if (mul(1n)(p) !== p) { throw 'p' }
-                if (mul(n)(p) !== null) { throw 'n' }
+                assert(mul(0n)(p) === null, 'O')
+                assert(mul(1n)(p) === p, 'p')
+                assert(mul(n)(p) === null, 'n')
                 const pn = neg(p)
-                if (!eq(mul(n - 1n)(p))(pn)) { throw 'n - 1' }
+                assert(eq(mul(n - 1n)(p))(pn), 'n - 1')
                 const f
                 : (s: bigint) => void
                 = s => {
@@ -95,7 +93,7 @@ export const proof = {
                     point_check(r)
                     const rn = mul(s)(pn)
                     point_check(rn)
-                    if (!eq(r)(neg(rn))) { throw 'r != -rn' }
+                    assert(eq(r)(neg(rn)), 'r != -rn')
                 }
                 f(2n)
                 f(3n)

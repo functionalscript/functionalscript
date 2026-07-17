@@ -5,7 +5,7 @@ import { assert } from '../asserts/module.f.ts'
 export const proof = {
     main: () => {
         const program = main()
-        if (program === undefined) { throw 'expected a program effect' }
+        assert(program !== undefined, 'expected a program effect')
     },
     run: () => {
         const state = { ...emptyState, root: { '.github': { workflows: {} } } }

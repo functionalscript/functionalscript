@@ -1,10 +1,11 @@
 import { decode, do_, foldStep, forEachStep, lazy, match, okStep, pure, type Effect, type Operation } from './module.f.ts'
 import { error, ok } from '../types/result/module.f.ts'
+import { assert } from '../asserts/module.f.ts'
 
 const assertPure = <O extends Operation, T>(e: Effect<O, T>, expected: T) => {
     const d = decode(e)
-    if (!d.done) { throw e.value }
-    if (d.result !== expected) { throw d.result }
+    assert(d.done, e.value)
+    assert(d.result === expected, d.result)
 }
 
 type AddOp = readonly['add', (a: number, b: number) => number]
@@ -20,9 +21,9 @@ export const proof = {
             // The thunk runs only when the effect is decoded, not when `lazy` is called.
             let evaluated = false
             const e = lazy(() => { evaluated = true; return 7 })
-            if (evaluated) { throw 'lazy must not evaluate eagerly' }
+            assert(!(evaluated), 'lazy must not evaluate eagerly')
             assertPure(e, 7)
-            if (!evaluated) { throw 'decode must force the thunk' }
+            assert(evaluated, 'decode must force the thunk')
         },
         step: () => {
             const e = lazy(() => 5).step(v => pure(v * 2))
@@ -66,34 +67,34 @@ export const proof = {
         ok: () => {
             const e = pure(ok(5)).step(okStep((v: number) => pure(ok(v * 2))))
             const d = decode(e)
-            if (!d.done || d.result[0] !== 'ok' || d.result[1] !== 10) { throw e.value }
+            assert(!(!d.done || d.result[0] !== 'ok' || d.result[1] !== 10), e.value)
         },
         error: () => {
             const e = pure(error<string>('oops')).step(okStep<number, string, never, number>(v => pure(ok(v * 2))))
             const d = decode(e)
-            if (!d.done || d.result[0] !== 'error' || d.result[1] !== 'oops') { throw e.value }
+            assert(!(!d.done || d.result[0] !== 'error' || d.result[1] !== 'oops'), e.value)
         },
     },
     decode: () => {
         const d = decode(do_<AddOp>('add')(2, 3))
-        if (d.done) { throw d }
-        if (d.command !== 'add') { throw d.command }
-        if (d.payload[0] !== 2 || d.payload[1] !== 3) { throw d.payload }
+        assert(!(d.done), d)
+        assert(d.command === 'add', d.command)
+        assert(!(d.payload[0] !== 2 || d.payload[1] !== 3), d.payload)
         assertPure(d.continuation(5), 5)
     },
     match: {
         done: () => {
             const r = next(pure(7))
-            if (r[0] !== 'done') { throw r }
-            if (r[1] !== 7) { throw r[1] }
+            assert(r[0] === 'done', r)
+            assert(r[1] === 7, r[1])
         },
         cont: () => {
             const r = next(do_<AddOp>('add')(2, 3))
-            if (r[0] !== 'cont') { throw r }
-            if (r[1] !== 5) { throw r[1] }
+            assert(r[0] === 'cont', r)
+            assert(r[1] === 5, r[1])
             const r2 = next(r[2](r[1]))
-            if (r2[0] !== 'done') { throw r2 }
-            if (r2[1] !== 5) { throw r2[1] }
+            assert(r2[0] === 'done', r2)
+            assert(r2[1] === 5, r2[1])
         },
     },
 }

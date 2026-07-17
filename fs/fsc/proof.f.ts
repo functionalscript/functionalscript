@@ -1,7 +1,7 @@
 import { init, terminal } from './module.f.ts'
 import { one } from '../text/ascii/module.f.ts'
 import { stringify } from '../media/json/module.f.ts'
-import { assertEq } from '../asserts/module.f.ts'
+import { assert, assertEq } from '../asserts/module.f.ts'
 
 const s = stringify(i => i)
 
@@ -22,18 +22,18 @@ const withName = (name: string): () => undefined =>
 export const proof = {
     a: () => {
         const x = f('1')
-        if (x !== '["1"]') { throw x }
+        assert(x === '["1"]', x)
     },
     b: () => {
         // exercises toInit: terminal returns empty output and loops back to init
         const result = init(terminal)
-        if (result[0].length !== 0) { throw result[0] }
+        assert(result[0].length === 0, result[0])
     },
     c: () => {
         // exercises unexpectedSymbol: next state after a token returns an error message
         const next = init(one('1'))[1]
         const result = next(42)
-        if (result[0][0] !== 'unexpected symbol 42') { throw result[0][0] }
+        assert(result[0][0] === 'unexpected symbol 42', result[0][0])
     },
     fn: () => {
         const o = {
@@ -41,42 +41,42 @@ export const proof = {
         }
         const f = o["hello world!"]
         const { name } = f
-        if (name !== "hello world!") { throw name }
+        assert(name === "hello world!", name)
         //
         const f1 = { ["boring"]: () => undefined }["boring"]
-        if (f1.name !== "boring") { throw f1.name }
+        assert(f1.name === "boring", f1.name)
         //
         const x = fn(() => undefined, "hello").name
-        if (x !== "") { throw x }
+        assert(x === "", x)
         //
         const m = withName("boring2").name
-        if (m !== "boring2") { throw m }
+        assert(m === "boring2", m)
         //
         const a = function x() { return undefined }
-        if (a.name !== "x") { throw a.name }
+        assert(a.name === "x", a.name)
     },
     //
     f1: () => {
         const m1 = () => undefined
-        if (m1.name !== "m1") { throw m1.name }
+        assert(m1.name === "m1", m1.name)
     },
     //
     f2: () => {
         const m11 = (() => undefined)
-        if (m11.name !== "m11") { throw m11.name }
+        assert(m11.name === "m11", m11.name)
     },
     //
     f3: () => {
         const m2: any = true ? () => undefined : () => undefined
         // for `bun` it is `m2`:
-        // if (m2.name !== "") { throw m2.name }
+        // assert(m2.name === "", m2.name)
         // see also https://github.com/oven-sh/bun/issues/20398
     },
     f4: () => {
         const id = <T>(i: T): T => i
         const f: any = id(() => undefined)
         // for `bun` it is `m2`:
-        if (f.name !== "") { throw f.name }
+        assert(f.name === "", f.name)
     },
     chars: {
         whitespace: () => {

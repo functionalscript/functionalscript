@@ -35,9 +35,7 @@ export const proof = {
 
     // Non-commutativity: argument order is preserved in concatenation
     non_commutative: () => {
-        if (compress(level3Id(0n), level3Id(1n)) === compress(level3Id(1n), level3Id(0n))) {
-            throw compress(level3Id(0n), level3Id(1n))
-        }
+        assert(compress(level3Id(0n), level3Id(1n)) !== compress(level3Id(1n), level3Id(0n)), compress(level3Id(0n), level3Id(1n)))
     },
 
     // Overflow: two 127-bit raw payloads sum to 254 bits, exceeding the 253-bit inline limit
@@ -47,34 +45,28 @@ export const proof = {
     hash_left_is_hash:  () => assert(isHash(compress(overflowHash, level3Id(0n)))),
     hash_right_is_hash: () => assert(isHash(compress(level3Id(0n), overflowHash))),
     hash_non_commutative: () => {
-        if (compress(overflowHash, level3Id(0n)) === compress(level3Id(0n), overflowHash)) {
-            throw compress(overflowHash, level3Id(0n))
-        }
+        assert(compress(overflowHash, level3Id(0n)) !== compress(level3Id(0n), overflowHash), compress(overflowHash, level3Id(0n)))
     },
 
     // High-bit sensitivity: prefix bit of `a` is included in the SHA2 upper half
     hash_merge_a_high_bits: () => {
-        if (compress(hashId(0n), hashId(0n)) === compress(level3Id(0n), hashId(0n))) {
-            throw compress(hashId(0n), hashId(0n))
-        }
+        assert(compress(hashId(0n), hashId(0n)) !== compress(level3Id(0n), hashId(0n)), compress(hashId(0n), hashId(0n)))
     },
     // High-bit sensitivity: prefix bit of `b` is included in the SHA2 lower half
     hash_merge_b_high_bits: () => {
-        if (compress(hashId(0n), hashId(0n)) === compress(hashId(0n), level3Id(0n))) {
-            throw compress(hashId(0n), hashId(0n))
-        }
+        assert(compress(hashId(0n), hashId(0n)) !== compress(hashId(0n), level3Id(0n)), compress(hashId(0n), hashId(0n)))
     },
 
     // Shift correctness: changing a bit in `a` (upper 256 bits of SHA2 input) changes result
     hash_merge_a_sensitivity: () => {
-        if (compress(hFF, hFF) === compress(hFE, hFF)) { throw compress(hFF, hFF) }
+        assert(compress(hFF, hFF) !== compress(hFE, hFF), compress(hFF, hFF))
     },
     // Shift correctness: changing a bit in `b` (lower 256 bits of SHA2 input) changes result
     hash_merge_b_sensitivity: () => {
-        if (compress(hFF, hFF) === compress(hFF, hFE)) { throw compress(hFF, hFF) }
+        assert(compress(hFF, hFF) !== compress(hFF, hFE), compress(hFF, hFF))
     },
     // Shift correctness: same bit-flip in `a` vs `b` lands at different SHA2 input positions
     hash_merge_shift: () => {
-        if (compress(hFE, hFF) === compress(hFF, hFE)) { throw compress(hFE, hFF) }
+        assert(compress(hFE, hFF) !== compress(hFF, hFE), compress(hFE, hFF))
     },
 }

@@ -1,62 +1,63 @@
 import type { Assert } from '../../asserts/module.f.ts'
 import { printer, primitive, union, type Equal } from './module.f.ts'
+import { assert } from '../../asserts/module.f.ts'
 
 const ro = printer()
 const mut = printer(true)
 
 export const primitiveNull = () => {
     const r = primitive(null)
-    if (r !== 'null') { throw r }
+    assert(r === 'null', r)
 }
 
 export const primitiveBigint = () => {
     const r = primitive(42n)
-    if (r !== '42n') { throw r }
+    assert(r === '42n', r)
 }
 
 export const primitiveString = () => {
     const r = primitive('hello')
-    if (r !== '"hello"') { throw r }
+    assert(r === '"hello"', r)
 }
 
 export const primitiveNumberFinite = () => {
     const r = primitive(3.14)
-    if (r !== '3.14') { throw r }
+    assert(r === '3.14', r)
 }
 
 export const primitiveNumberInfinite = () => {
     const r = primitive(Infinity)
-    if (r !== 'number') { throw r }
+    assert(r === 'number', r)
 }
 
 export const primitiveUndefined = () => {
     const r = primitive(undefined)
-    if (r !== 'undefined') { throw r }
+    assert(r === 'undefined', r)
 }
 
 export const primitiveBoolean = () => {
     const r = primitive(true)
-    if (r !== 'true') { throw r }
+    assert(r === 'true', r)
 }
 
 export const unionEmpty = () => {
     const r = union([])
-    if (r !== 'never') { throw r }
+    assert(r === 'never', r)
 }
 
 export const unionSingle = () => {
     const r = union(['string'])
-    if (r !== 'string') { throw r }
+    assert(r === 'string', r)
 }
 
 export const unionMulti = () => {
     const r = union(['string', 'number'])
-    if (r !== 'string|number') { throw r }
+    assert(r === 'string|number', r)
 }
 
 export const printerReadonlyTuple = () => {
     const r = ro.tuple(['string', 'number'])
-    if (r !== 'readonly[string,number]') { throw r }
+    assert(r === 'readonly[string,number]', r)
 }
 
 export const printerReadonlyStruct = () => {
@@ -66,7 +67,7 @@ export const printerReadonlyStruct = () => {
 
 export const printerReadonlyArray = () => {
     const r = ro.array('string')
-    if (r !== 'readonly(string)[]') { throw r }
+    assert(r === 'readonly(string)[]', r)
 }
 
 export const printerReadonlyRecord = () => {
@@ -76,7 +77,7 @@ export const printerReadonlyRecord = () => {
 
 export const printerMutableTuple = () => {
     const r = mut.tuple(['string', 'number'])
-    if (r !== '[string,number]') { throw r }
+    assert(r === '[string,number]', r)
 }
 
 export const printerMutableStruct = () => {
@@ -86,7 +87,7 @@ export const printerMutableStruct = () => {
 
 export const printerMutableArray = () => {
     const r = mut.array('string')
-    if (r !== '(string)[]') { throw r }
+    assert(r === '(string)[]', r)
 }
 
 export const printerMutableRecord = () => {

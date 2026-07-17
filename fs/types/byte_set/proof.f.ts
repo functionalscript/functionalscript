@@ -2,6 +2,7 @@ import { has, empty, set, setRange, unset, universe, complement, toRangeMap } fr
 import { every, countdown, map, toArray } from '../list/module.f.ts'
 import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
+import { assert } from '../../asserts/module.f.ts'
 
 const stringify: (a: readonly Unknown[]) => string
     = jsonStringify(sort)
@@ -9,73 +10,73 @@ const stringify: (a: readonly Unknown[]) => string
 export const proof = {
     has: [
         () => {
-            if (has(0)(empty)) { throw empty }
-            if (has(1)(empty)) { throw empty }
-            if (has(33)(empty)) { throw empty }
+            assert(!(has(0)(empty)), empty)
+            assert(!(has(1)(empty)), empty)
+            assert(!(has(33)(empty)), empty)
         },
         () => {
             const s = set(0)(empty)
-            if (s !== 1n) { throw s }
-            if (!has(0)(s)) { throw s }
-            if (has(1)(s)) { throw s }
-            if (has(33)(s)) { throw s }
+            assert(s === 1n, s)
+            assert(has(0)(s), s)
+            assert(!(has(1)(s)), s)
+            assert(!(has(33)(s)), s)
         },
         () => {
             const s = set(33)(empty)
-            if (s !== 8589934592n) { throw s }
-            if (has(0)(s)) { throw s }
-            if (has(1)(s)) { throw s }
-            if (!has(33)(s)) { throw s }
+            assert(s === 8589934592n, s)
+            assert(!(has(0)(s)), s)
+            assert(!(has(1)(s)), s)
+            assert(has(33)(s), s)
         }
     ],
     setRange: () => {
         const result = setRange([2, 5])(empty)
-        if (result !== 60n) { throw result }
+        assert(result === 60n, result)
     },
     unset: [
         () => {
             const a = set(0)(empty)
             const result = unset(0)(a)
-            if (result !== 0n) { throw result }
+            assert(result === 0n, result)
         },
         () => {
             const a = set(255)(empty)
             const result = unset(255)(a)
-            if (result !== 0n) { throw result }
+            assert(result === 0n, result)
         }
     ],
     universe: () => {
         const x = every(map((v: any) => has(v)(universe))(countdown(256)))
-        if (!x) { throw x }
+        assert(x, x)
     },
     compliment: {
         empty: () => {
             const r = complement(empty)
-            if (r !== universe) { throw r }
+            assert(r === universe, r)
         },
         universe: () => {
             const r = complement(universe)
-            if (r !== empty) { throw r }
+            assert(r === empty, r)
         },
     },
     toRangeMap: [
         () => {
             const result = stringify(toArray(toRangeMap(empty)('a')))
-            if (result !== '[]') { throw result }
+            assert(result === '[]', result)
         },
         () => {
             const s = set(0)(empty)
             const result = stringify(toArray(toRangeMap(s)('a')))
-            if (result !== '[[["a"],0]]') { throw result }
+            assert(result === '[[["a"],0]]', result)
         },
         () => {
             const s = setRange([1, 2])(empty)
             const result = stringify(toArray(toRangeMap(s)('a')))
-            if (result !== '[[[],0],[["a"],2]]') { throw result }
+            assert(result === '[[[],0],[["a"],2]]', result)
         },
         () => {
             const result = stringify(toArray(toRangeMap(universe)('a')))
-            if (result !== '[[["a"],255]]') { throw result }
+            assert(result === '[[["a"],255]]', result)
         },
     ]
 }

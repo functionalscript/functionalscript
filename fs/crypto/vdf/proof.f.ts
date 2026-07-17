@@ -1,4 +1,5 @@
 import { sloth, p } from './module.f.ts'
+import { assert } from '../../asserts/module.f.ts'
 
 const { eval: evalVdf, verify, modSqrt, quadRes } = sloth
 
@@ -26,80 +27,80 @@ const y4 =
 export const proof = {
     p: {
         matchesField: () => {
-            if (sloth.p !== p) { throw [sloth.p, p] }
+            assert(sloth.p === p, [sloth.p, p])
         },
     },
     eval: {
         steps100: () => {
             const y = evalVdf(100n)(sampleX)
-            if (y !== sampleY) { throw [y, sampleY] }
+            assert(y === sampleY, [y, sampleY])
         },
         steps10: () => {
             const y = evalVdf(10n)(smallX)
-            if (y !== smallY) { throw [y, smallY] }
+            assert(y === smallY, [y, smallY])
         },
         steps6: () => {
             const y = evalVdf(6n)(largeX)
-            if (y !== y6) { throw [y, y6] }
+            assert(y === y6, [y, y6])
         },
         steps4: () => {
             const y = evalVdf(4n)(smallX)
-            if (y !== y4) { throw [y, y4] }
+            assert(y === y4, [y, y4])
         },
         zeroSteps: () => {
             const y = evalVdf(0n)(sampleX)
-            if (y !== sampleX % p) { throw [y, sampleX % p] }
+            assert(y === sampleX % p, [y, sampleX % p])
         },
         negativeSteps: () => {
             const y = evalVdf(-1n)(sampleX)
-            if (y !== null) { throw y }
+            assert(y === null, y)
         },
     },
     verify: {
         steps100: () => {
-            if (!verify(100n)(sampleX)(sampleY)) { throw false }
+            assert(verify(100n)(sampleX)(sampleY), false)
         },
         steps10: () => {
-            if (!verify(10n)(smallX)(smallY)) { throw false }
+            assert(verify(10n)(smallX)(smallY), false)
         },
         steps6: () => {
-            if (!verify(6n)(largeX)(y6)) { throw false }
+            assert(verify(6n)(largeX)(y6), false)
         },
         steps4: () => {
-            if (!verify(4n)(smallX)(y4)) { throw false }
+            assert(verify(4n)(smallX)(y4), false)
         },
         tampered: () => {
-            if (verify(4n)(smallX)((y4 + 1n) % p)) { throw (y4 + 1n) % p }
+            assert(!(verify(4n)(smallX)((y4 + 1n) % p)), (y4 + 1n) % p)
         },
         wrongY: () => {
-            if (verify(100n)(sampleX)(sampleY + 1n)) { throw sampleY + 1n }
+            assert(!(verify(100n)(sampleX)(sampleY + 1n)), sampleY + 1n)
         },
         zeroSteps: () => {
-            if (!verify(0n)(sampleX)(sampleX % p)) { throw [sampleX % p] }
+            assert(verify(0n)(sampleX)(sampleX % p), [sampleX % p])
         },
         negativeSteps: () => {
-            if (verify(-1n)(sampleX)(sampleY)) { throw sampleY }
+            assert(!(verify(-1n)(sampleX)(sampleY)), sampleY)
         },
         invalidY: () => {
-            if (verify(100n)(sampleX)(0n)) { throw 0n }
+            assert(!(verify(100n)(sampleX)(0n)), 0n)
         },
     },
     modSqrt: {
         roundTrip: () => {
             const x = 999n
-            if (!verify(1n)(x)(modSqrt(x))) { throw modSqrt(x) }
+            assert(verify(1n)(x)(modSqrt(x)), modSqrt(x))
         },
         nonResidue: () => {
-            if (quadRes(nonResidue)) { throw nonResidue }
-            if (!verify(1n)(nonResidue)(modSqrt(nonResidue))) { throw modSqrt(nonResidue) }
+            assert(!(quadRes(nonResidue)), nonResidue)
+            assert(verify(1n)(nonResidue)(modSqrt(nonResidue)), modSqrt(nonResidue))
         },
     },
     quadRes: {
         one: () => {
-            if (!quadRes(1n)) { throw 1n }
+            assert(quadRes(1n), 1n)
         },
         nonResidue: () => {
-            if (quadRes(nonResidue)) { throw nonResidue }
+            assert(!(quadRes(nonResidue)), nonResidue)
         },
     },
 }

@@ -1,66 +1,67 @@
 import { at, first, last, head, tail, splitFirst, splitLast, empty } from './module.f.ts'
 import { stringify as jsonStringify } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
+import { assert } from '../../asserts/module.f.ts'
 
 const stringify = jsonStringify(sort)
 
 export const proof = {
     stringify: () => {
         const result = stringify([1, 20, 300])
-        if (result !== '[1,20,300]') { throw result }
+        assert(result === '[1,20,300]', result)
     },
     at: [
         () => {
             const result = at(2)([1, 20, 300])
-            if (result !== 300) { throw result }
+            assert(result === 300, result)
         },
 
         () => {
             const result = at(3)([1, 20, 300])
-            if (result !== null) { throw result }
+            assert(result === null, result)
         }
     ],
     first: [
         () => {
             const result = first([1, 20, 300])
-            if (result !== 1) { throw result }
+            assert(result === 1, result)
         },
         () => {
             const result = first([])
-            if (result !== null) { throw result }
+            assert(result === null, result)
         }
     ],
     last: [
         () => {
             const result = last([1, 20, 300])
-            if (result !== 300) { throw result }
+            assert(result === 300, result)
         },
         () => {
             const result = last([])
-            if (result !== null) { throw result }
+            assert(result === null, result)
         }
     ],
     head: [
         () => {
             const result = head([1, 20, 300])
-            if (result === null) { throw result }
+            assert(result !== null, result)
             const str = stringify(result)
-            if (str !== '[1,20]') { throw str }
+            assert(str === '[1,20]', str)
         },
         () => {
             const result = head([])
-            if (result !== null) { throw result }
+            assert(result === null, result)
         }
     ],
     tail: [
         () => {
             const result = tail([1, 20, 300])
             const str = stringify(result)
-            if (str !== '[20,300]') { throw str }
+            assert(str === '[20,300]', str)
         },
         () => {
             const result = tail([])
-            if (result !== null) { throw result }
+            assert(result === null, result)
         }
     ],
 
@@ -68,22 +69,22 @@ export const proof = {
         () => {
             const result = splitFirst([1, 20, 300])
             const str = stringify(result)
-            if (str !== '[1,[20,300]]') { throw str }
+            assert(str === '[1,[20,300]]', str)
         },
         () => {
             const result = splitFirst([])
-            if (result !== null) { throw result }
+            assert(result === null, result)
         },
     ],
     splitLast: [
         () => {
             const result = splitLast([1, 20, 300])
             const str = stringify(result)
-            if (str !== '[[1,20],300]') { throw str }
+            assert(str === '[[1,20],300]', str)
         },
         () => {
             const result = splitLast([])
-            if (result !== null) { throw result }
+            assert(result === null, result)
         }
     ],
     empty: () => {
@@ -91,6 +92,6 @@ export const proof = {
         const a: readonly number[] = x
         const b: readonly string[] = x
         const c = [...a, ...b, ...x]
-        if (c.length !== 0) { throw c }
+        assert(c.length === 0, c)
     }
 }

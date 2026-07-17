@@ -1,40 +1,41 @@
 import { join, concat, repeat, cmp, splitAt } from './module.f.ts'
 import { repeat as repeatList } from '../list/module.f.ts'
+import { assert } from '../../asserts/module.f.ts'
 
 export const proof = {
     example: () => {
         const words = ['hello', 'world']
-        if (join(' ')(words) !== 'hello world') { throw 0 }
-        if (concat(words) !== 'helloworld') { throw 1 }
-        if (repeat('abc')(3) !== 'abcabcabc') { throw 2 }
-        if (cmp('apple')('banana') !== -1) { throw 3 }
+        assert(join(' ')(words) === 'hello world', 0)
+        assert(concat(words) === 'helloworld', 1)
+        assert(repeat('abc')(3) === 'abcabcabc', 2)
+        assert(cmp('apple')('banana') === -1, 3)
     },
     join: {
         0: () => {
             const result = join('/')([])
-            if (result !== '') { throw result }
+            assert(result === '', result)
         },
         1: () => {
             const result = join('/')([''])
-            if (result !== '') { throw result }
+            assert(result === '', result)
         },
         3: () => {
             const result = join(' ')(['hello', 'world', '!'])
-            if (result !== 'hello world !') { throw result }
+            assert(result === 'hello world !', result)
         }
     },
     concat: () => {
         const result = concat(['hello', 'world'])
-        if (result !== 'helloworld') { throw result }
+        assert(result === 'helloworld', result)
     },
     repeatList: {
         0: () => {
             const s = join('.')(repeatList('x')(0))
-            if (s != '') { throw s }
+            assert(s == '', s)
         },
         5: () => {
             const s = join('.')(repeatList('x')(5))
-            if (s != 'x.x.x.x.x') { throw s }
+            assert(s == 'x.x.x.x.x', s)
         }
     },
     repeat: () => {
@@ -43,33 +44,33 @@ export const proof = {
     },
     cmp: () => {
         const result = cmp('3')('4')
-        if (result !== -1) { throw result }
+        assert(result === -1, result)
     },
     splitAt: {
         middle: () => {
             const [a, b] = splitAt(3)('hello')
-            if (a !== 'hel') { throw a }
-            if (b !== 'lo') { throw b }
+            assert(a === 'hel', a)
+            assert(b === 'lo', b)
         },
         zero: () => {
             const [a, b] = splitAt(0)('hello')
-            if (a !== '') { throw a }
-            if (b !== 'hello') { throw b }
+            assert(a === '', a)
+            assert(b === 'hello', b)
         },
         full: () => {
             const [a, b] = splitAt(5)('hello')
-            if (a !== 'hello') { throw a }
-            if (b !== '') { throw b }
+            assert(a === 'hello', a)
+            assert(b === '', b)
         },
         beyond: () => {
             const [a, b] = splitAt(10)('hello')
-            if (a !== 'hello') { throw a }
-            if (b !== '') { throw b }
+            assert(a === 'hello', a)
+            assert(b === '', b)
         },
         empty: () => {
             const [a, b] = splitAt(0)('')
-            if (a !== '') { throw a }
-            if (b !== '') { throw b }
+            assert(a === '', a)
+            assert(b === '', b)
         },
     }
 }

@@ -19,7 +19,7 @@ export const proof = {
         const c = (() => { })['constructor']
         const f = c('return 5')
         const result = f()
-        if (result !== 5) { throw 'function' }
+        assert(result === 5, 'function')
     },
     ctorEmpty: () => {
         /** @type {any} */

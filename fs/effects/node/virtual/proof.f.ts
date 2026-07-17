@@ -1,4 +1,4 @@
-import { assertEq } from '../../../asserts/module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.ts'
 import { access, awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes } from '../module.f.ts'
 import { maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.ts'
 import { emptyState, virtual, type Dir, type JsModule } from './module.f.ts'
@@ -34,7 +34,7 @@ export const proof = {
         const root: Dir = { 'mydir': outer }
         const [, result] = virtual({ ...emptyState, root })(readdir('mydir', { recursive: true }))
         assertEq(result[0], 'ok')
-        if (result[0] !== 'ok') { throw result }
+        assert(result[0] === 'ok', result)
         assertEq(result[1].length, 2)
     },
     accessNestedPathThroughFile: () => {

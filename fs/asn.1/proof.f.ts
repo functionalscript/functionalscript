@@ -18,6 +18,7 @@ import {
     type ObjectIdentifier,
 } from "./module.f.ts"
 import { assertEq } from "../asserts/module.f.ts"
+import { assert } from '../asserts/module.f.ts'
 
 const { concat, popFront: pop, listToVec } = msb
 const pop8 = pop(8n)
@@ -34,7 +35,7 @@ const integerValueCheck = (i: bigint, v: Vec) => {
     const v0 = encodeInteger(i)
     if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
     const i0 = decodeInteger(v)
-    if (i !== i0) { throw [i, i0] }
+    assert(i === i0, [i, i0])
 }
 
 const ch0 = (r: SupportedRecord, v: Vec, rest: Vec) => {
@@ -57,14 +58,14 @@ export const proof = {
         const v = vec8(0x13n)
         const x = encodeRaw([integer, v])
         const lx = length(x)
-        if (lx !== 24n) { throw lx }
+        assert(lx === 24n, lx)
         const [tag, x1] = pop8(x)
-        if (tag !== BigInt(integer)) { throw tag }
+        assert(tag === BigInt(integer), tag)
         const [len, x2] = pop8(x1)
-        if (len !== 1n) { throw len }
+        assert(len === 1n, len)
         const { length: intLen, uint } = unpack(x2)
-        if (intLen !== 8n) { throw intLen }
-        if (uint !== 0x13n) { throw uint }
+        assert(intLen === 8n, intLen)
+        assert(uint === 0x13n, uint)
     },
     encode7F: () => {
         const valueLen = 0x7Fn << 3n
@@ -72,14 +73,14 @@ export const proof = {
         const v = vec(valueLen)(value)
         const x = encodeRaw([integer, v])
         const lx = length(x)
-        if (lx !== 0x81n << 3n) { throw lx }
+        assert(lx === 0x81n << 3n, lx)
         const [tag, x1] = pop8(x)
-        if (tag !== BigInt(integer)) { throw tag }
+        assert(tag === BigInt(integer), tag)
         const [len, x2] = pop8(x1)
-        if (len !== 0x7Fn) { throw len }
+        assert(len === 0x7Fn, len)
         const { length: intLen, uint } = unpack(x2)
-        if (intLen !== valueLen) { throw intLen }
-        if (uint !== value) { throw uint }
+        assert(intLen === valueLen, intLen)
+        assert(uint === value, uint)
     },
     encode80: () => {
         const valueLen = 0x80n << 3n
@@ -87,16 +88,16 @@ export const proof = {
         const v = vec(valueLen)(value)
         const x = encodeRaw([integer, v])
         const lx = length(x)
-        if (lx !== 0x83n << 3n) { throw lx }
+        assert(lx === 0x83n << 3n, lx)
         const [tag, x1] = pop8(x)
-        if (tag !== BigInt(integer)) { throw tag }
+        assert(tag === BigInt(integer), tag)
         const [lenLen, x2] = pop8(x1)
-        if (lenLen !== 0x81n) { throw lenLen }
+        assert(lenLen === 0x81n, lenLen)
         const [len, x3] = pop8(x2)
-        if (len !== 0x80n) { throw len }
+        assert(len === 0x80n, len)
         const { length: intLen, uint } = unpack(x3)
-        if (intLen !== valueLen) { throw intLen }
-        if (uint !== value) { throw uint }
+        assert(intLen === valueLen, intLen)
+        assert(uint === value, uint)
     },
     encodeFF: () => {
         const valueLen = 0xFFn << 3n
@@ -106,14 +107,14 @@ export const proof = {
         const lx = length(x)
         if (lx !== valueLen + (3n << 3n)) { throw `lx: ${lx}` }
         const [tag, x1] = pop8(x)
-        if (tag !== BigInt(integer)) { throw tag }
+        assert(tag === BigInt(integer), tag)
         const [lenLen, x2] = pop8(x1)
-        if (lenLen !== 0x81n) { throw lenLen }
+        assert(lenLen === 0x81n, lenLen)
         const [len, x3] = pop8(x2)
-        if (len !== 0xFFn) { throw len }
+        assert(len === 0xFFn, len)
         const { length: intLen, uint } = unpack(x3)
-        if (intLen !== valueLen) { throw intLen }
-        if (uint !== value) { throw uint }
+        assert(intLen === valueLen, intLen)
+        assert(uint === value, uint)
     },
     encode103: () => {
         const valueLen = 0x103n << 3n
@@ -123,20 +124,20 @@ export const proof = {
         const lx = length(x)
         if (lx !== valueLen + (4n << 3n)) { throw `lx: ${lx}` }
         const [tag, x1] = pop8(x)
-        if (tag !== BigInt(integer)) { throw tag }
+        assert(tag === BigInt(integer), tag)
         const [lenLen, x2] = pop8(x1)
-        if (lenLen !== 0x82n) { throw lenLen }
+        assert(lenLen === 0x82n, lenLen)
         const [len, x3] = pop(16n)(x2)
-        if (len !== 0x103n) { throw len }
+        assert(len === 0x103n, len)
         const { length: intLen, uint } = unpack(x3)
-        if (intLen !== valueLen) { throw intLen }
-        if (uint !== value) { throw uint }
+        assert(intLen === valueLen, intLen)
+        assert(uint === value, uint)
     },
     ed: [
         () => {
             const tag = integer
             const v = vec(0x10n)(0x8234n)
-            if (asBase(v) !== 0x8234n) { throw asBase(v).toString(16) }
+            assert(asBase(v) === 0x8234n, asBase(v).toString(16))
             check(integer, v, empty)
         },
         {
@@ -256,10 +257,10 @@ export const proof = {
         // bitString (0x03) is not in SupportedRecord, exercises the default case in rawToRecord
         const raw = encodeRaw([0x03n, vec8(0x42n)])
         const [decoded, rest] = decode(raw)
-        if (!isVec(decoded)) { throw 'expected UnsupportedRecord (Vec)' }
-        if (rest !== empty) { throw 'expected empty rest' }
+        assert(isVec(decoded), 'expected UnsupportedRecord (Vec)')
+        assert(rest === empty, 'expected empty rest')
         // Re-encoding an UnsupportedRecord returns it unchanged (it is already the TLV bytes)
-        if (encode(decoded) !== raw) { throw 'encode should round-trip UnsupportedRecord' }
+        assert(encode(decoded) === raw, 'encode should round-trip UnsupportedRecord')
     },
     raw: [
         () => {

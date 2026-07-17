@@ -17,12 +17,12 @@ export const proof = {
             'e',
         ]
         const result = join('\n')(flat(':')(text))
-        if (result !== 'a\nb\n:c\n::d\ne') { throw result }
+        assert(result === 'a\nb\n:c\n::d\ne', result)
     },
     encoding: () => {
         const v = utf8('Hello world!')
         const r = utf8ToString(v)
-        if (r !== 'Hello world!') { throw r }
+        assert(r === 'Hello world!', r)
     },
     tryUtf8RoundTrip: () => {
         const v = tryUtf8('Hello world!')

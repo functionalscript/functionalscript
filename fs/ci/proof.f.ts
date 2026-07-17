@@ -31,7 +31,7 @@ const workflow = (state: State): GitHubAction => {
     const workflows = (dotGithub as Dir)['workflows']
     assert(typeof workflows === 'object' && !Array.isArray(workflows), workflows)
     const file = (workflows as Dir)['ci.yml']
-    if (!Array.isArray(file) || file.length === 0) { throw file }
+    assert(!(!Array.isArray(file) || file.length === 0), file)
     return unwrap(parseGitHubAction(jsonParse(utf8ToString(file[0]))))
 }
 
