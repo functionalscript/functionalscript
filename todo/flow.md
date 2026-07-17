@@ -64,12 +64,15 @@ type Step<S, O, A> = |
     Terminal<O, A>
 
 type Transducer<I, S, O, A> = {
-    readonly init: S
+    readonly init: Step<S, O, A>
     readonly update: (state: S, item: I) => Step<S, O, A>
     readonly end: (state: S) => Terminal<O, A>
 }
 ```
 
+- `init` is the stage's first step, interpreted *before any input is
+  pulled*: it may emit an initial chunk and either provide the first state
+  (`next`) or terminate immediately (`done`).
 - `update` consumes one input item and emits a chunk of outputs; it either
   continues with a new state (`next`) or terminates early (`done`) — e.g.
   `take`/`takeWhile`, or a parser aborting on invalid input. Early
@@ -106,6 +109,18 @@ Design decisions, in the order they were made:
   `['done', flush, a]` is a parser's final production. In automata terms
   the operator is a *subsequential* transducer — a Mealy machine with a
   terminal output word.
+- **`init` is a `Step`, not a state**: an engine pulls input only while it
+  holds a continuation state `S`, and the only way to obtain an `S` is
+  from a `next` step — so "needs no (more) input" is knowable *before*
+  every read, including the first. `take(0)(readFile(...))` therefore
+  never opens the file at all: resource acquisition is lazy, and a source
+  is touched only when some live consumer's step demands it. It also
+  gives initial emission for free (`['next', header, s]`, or constant
+  stages via `['done', chunk, a]`). Composition runs the downstream
+  stage's `init` first, so termination propagates upstream before any
+  data flows. (With `init: S` this was broken: a stage could only refuse
+  input *after* consuming one item, so `take(0)` forced a blocking read —
+  found by Codex review on the PR.)
 - **No error channel**: the core is total; every stage always completes.
   Failure is ordinary data — see the failure convention below. (An
   `['error', E]` variant was considered and dropped: it taxed every
@@ -115,7 +130,9 @@ Design decisions, in the order they were made:
 Naming follows the closest conventions elsewhere: the concept and the
 three functions are Clojure's transducer (`init`/`step`/`completion`
 arities, `reduced` = early `done`); the record shape matches the Web
-Streams `Transformer` (`start`/`transform`/`flush`); `Step` and its
+Streams `Transformer` (`start`/`transform`/`flush` — and `start` may
+`enqueue()` and `terminate()`, which is exactly `init` as a `Step`;
+Clojure's 0-arity `init` cannot do this); `Step` and its
 variants match Haskell's `machines` (`Yield`/`Stop`); `next` is Rx's
 `onNext`; `A` is Akka's materialized value.
 
@@ -128,7 +145,15 @@ Two primitives:
   sharing one stage: `{ out: Flow<E, O>, result: Flow<E, A> }` (`result`
   is a one-element sequence).
 
-Everything else derives, so an engine only interprets the two primitives:
+Stages are **single-input**: fan-out is free (several stages consuming
+one shared node is the DAG diamond the memoizing engine exploits), but
+fan-in — `zip`, `merge`, `concat` of two flows — is not expressible by
+any composition of single-input stages. Multi-input node kinds are future
+primitives, listed under *Tasks* so the limitation is a decision, not an
+oversight.
+
+An engine interprets only those two node kinds. All other operations are
+library-level derivations:
 
 - `map(f)`: `update = (s, i) => ['next', [f(i)], s]`
 - `filter(p)`: `update = (s, i) => ['next', p(i) ? [i] : [], s]`
@@ -137,8 +162,10 @@ Everything else derives, so an engine only interprets the two primitives:
 - `scan(op)`: state = accumulator, one output per item
 - `fold(op)(init)`: emits nothing per item, accumulates into `S = A`,
   consumers read `result`; `reduce` likewise with the first item as init
-- `take(n)`: counts down, `['done', [i], null]` on the last item;
-  `takeWhile(p)`: `['done', [], null]` on the first failing item
+- `take(n)`: `init = n > 0 ? ['next', [], n] : ['done', [], null]` — so
+  `take(0)` consumes no input at all — then counts down, terminating with
+  `['done', [i], null]` on the last item; `takeWhile(p)`:
+  `['done', [], null]` on the first failing item
 - stateful decoders/parsers (`utf8Decode`, tokenizers): buffer in `S`,
   flush in `end`, report `A = Result`
 
@@ -199,8 +226,10 @@ Planned engine work, each a separate change:
   primitives `input` and `transduce`, derived operations, naive `run`
   engine over `types/list`
 - [ ] `fs/flow/proof.f.ts` — full proof coverage, including early
-  termination, `end` flush, and a fallible stage using `A = Result`
+  termination, pre-pull termination (`take(0)` pulls nothing), `end`
+  flush, and a fallible stage using `A = Result`
 - [ ] memoizing engine (shared node evaluated once per run)
+- [ ] multi-input (fan-in) primitives: `zip`, `merge`, `concat`
 - [ ] structured node kinds carrying their `Transducer` lowering
 - [ ] RTTI-typed named inputs
 - [ ] unordered collection kinds with law-constrained operations
