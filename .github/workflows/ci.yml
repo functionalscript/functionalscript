@@ -15,14 +15,14 @@
           "run": "sudo apt-get update && sudo apt-get install -y libc6-dev-i386"
         },
         {
-          "uses": "dtolnay/rust-toolchain@1.97.0",
+          "uses": "dtolnay/rust-toolchain@1.97.1",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "i686-unknown-linux-gnu"
           }
         },
         {
-          "uses": "actions/setup-node@v6.4.0",
+          "uses": "actions/setup-node@v7.0.0",
           "with": {
             "node-version": "26.5.0"
           }
@@ -69,13 +69,13 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.97.0",
+          "uses": "dtolnay/rust-toolchain@1.97.1",
           "with": {
             "components": "rustfmt,clippy"
           }
         },
         {
-          "uses": "actions/setup-node@v6.4.0",
+          "uses": "actions/setup-node@v7.0.0",
           "with": {
             "node-version": "26.5.0"
           }
@@ -110,13 +110,13 @@
       "runs-on": "macos-26-intel",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.97.0",
+          "uses": "dtolnay/rust-toolchain@1.97.1",
           "with": {
             "components": "rustfmt,clippy"
           }
         },
         {
-          "uses": "actions/setup-node@v6.4.0",
+          "uses": "actions/setup-node@v7.0.0",
           "with": {
             "node-version": "26.5.0"
           }
@@ -151,13 +151,13 @@
       "runs-on": "macos-26",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.97.0",
+          "uses": "dtolnay/rust-toolchain@1.97.1",
           "with": {
             "components": "rustfmt,clippy"
           }
         },
         {
-          "uses": "actions/setup-node@v6.4.0",
+          "uses": "actions/setup-node@v7.0.0",
           "with": {
             "node-version": "26.5.0"
           }
@@ -192,14 +192,14 @@
       "runs-on": "windows-2025",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.97.0",
+          "uses": "dtolnay/rust-toolchain@1.97.1",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "i686-pc-windows-msvc"
           }
         },
         {
-          "uses": "actions/setup-node@v6.4.0",
+          "uses": "actions/setup-node@v7.0.0",
           "with": {
             "node-version": "26.5.0"
           }
@@ -246,13 +246,13 @@
       "runs-on": "windows-11-arm",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.97.0",
+          "uses": "dtolnay/rust-toolchain@1.97.1",
           "with": {
             "components": "rustfmt,clippy"
           }
         },
         {
-          "uses": "actions/setup-node@v6.4.0",
+          "uses": "actions/setup-node@v7.0.0",
           "with": {
             "node-version": "26.5.0"
           }
@@ -287,7 +287,7 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.97.0",
+          "uses": "dtolnay/rust-toolchain@1.97.1",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
@@ -391,7 +391,7 @@
         {
           "uses": "denoland/setup-deno@v2.0.5",
           "with": {
-            "deno-version": "2.9.2"
+            "deno-version": "2.9.3"
           }
         },
         {
@@ -447,7 +447,7 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "actions/setup-node@v6.4.0",
+          "uses": "actions/setup-node@v7.0.0",
           "with": {
             "node-version": "22.23.1"
           }
@@ -473,7 +473,7 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "actions/setup-node@v6.4.0",
+          "uses": "actions/setup-node@v7.0.0",
           "with": {
             "node-version": "24.18.0"
           }
@@ -496,7 +496,7 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "actions/setup-node@v6.4.0",
+          "uses": "actions/setup-node@v7.0.0",
           "with": {
             "node-version": "26.5.0"
           }
@@ -525,7 +525,7 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "actions/setup-node@v6.4.0",
+          "uses": "actions/setup-node@v7.0.0",
           "with": {
             "node-version": "26.5.0"
           }
