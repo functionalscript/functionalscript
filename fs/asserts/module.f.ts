@@ -10,3 +10,8 @@ export const assertEq = <T>(...x: readonly[T, T, unknown?]): void => {
 }
 
 export type Assert<T extends true> = T
+
+export const assertNotNullish = <T>(a: T|null|undefined, msg?: unknown): T => {
+    assert(a !== null && a !== undefined, msg)
+    return a
+}
