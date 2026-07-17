@@ -21,7 +21,7 @@ export const assert: (v: boolean, msg?: unknown) => asserts v = (v, msg = 'asser
 
 /**
  * Asserts that `a` and `b` are `===`, throwing `x` (the `[a, b]` pair, plus
- * an optional third element) if they differ.
+ * an optional third element used as an extra message) if they differ.
  */
 export const assertEq = <T>(...x: readonly[T, T, unknown?]): void => {
     const [a, b] = x

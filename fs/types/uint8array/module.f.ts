@@ -23,7 +23,7 @@ const u8ListMsb = u8List(msb)
  * Converts a Uint8Array into an MSB-first bit vector.
  */
 export const toVec = (input: Uint8Array): Vec => {
-    assert(input.length > maxLengthBytes, "the array is too big")
+    assert(input.length <= maxLengthBytes, "the array is too big")
     return u8ListToVecMsb(fromArrayLike(input))
 }
 
