@@ -49,8 +49,3 @@ final, post-trim result, so an exactly-`maxLength`-sized payload now decodes
 instead of being rejected. See `decodeAtMaxLengthSucceeds` in
 `fs/basen/base64/proof.f.ts` and `addBase64AtLimitSucceeds` in
 `fs/cas/mcp/proof.f.ts` (flipped from `addBase64AtLimitIsError`).
-
-### Related
-
-- `fs/types/bit_vec/todo/u8-list-to-vec-call-sites.md` — related overflow
-  handling work on the `tryU8ListToVec`/`u8ListToVec` consumers.

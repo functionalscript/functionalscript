@@ -61,5 +61,8 @@ export const proof = {
         assertArrayEq(fromVec(result), Uint8Array.from([1, 2, 3]))
     },
     maxLength: () => toVec(new Uint8Array(Number(maxLengthBytes))),
-    throw: () => toVec(new Uint8Array(Number(maxLengthBytes) + 1)),
+    throw: {
+        toVec: () => toVec(new Uint8Array(Number(maxLengthBytes) + 1)),
+        listToVec: () => listToVec([new Uint8Array(Number(maxLengthBytes)), Uint8Array.from([0])]),
+    },
 }

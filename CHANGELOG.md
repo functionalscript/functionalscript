@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `types/uint8array`: `listToVec` no longer throws the generic `assert`
+  failure on oversized input — it now goes through `tryU8ListToVec` and
+  throws the descriptive `"the array is too big"` message on overflow,
+  matching its sibling `toVec`. Adds a `throw.listToVec` overflow proof.
+  Remaining `u8ListToVec` call sites are all test/proof code with small,
+  fixed-size literal inputs, not oversized-prone callers. Implements and
+  deletes `fs/types/bit_vec/todo/u8-list-to-vec-call-sites.md`
+
 ## 0.37.0
 
 - `fs/media/revision`: add the `vnd.fjs.revision` dialect — a BLOB format for one step in the evolution of a mutable object on top of the immutable CAS store (a parent DAG, not just a chain, so concurrent edits can merge; each revision carries the full materialized content, never an incremental diff). Adds the pure format only (RTTI schema, `dialect`/`mediaType` constants, `validate`/`decodeText`, no store access or effects), enforcing snapshot-reference semantics: zero parents fall back to `subject`, which must then be a valid cbase32 hash; exactly one parent inherits that parent's snapshot; more than one parent without an explicit `snapshot` is rejected, since there is no single parent snapshot to inherit and falling back to `subject` would silently lose the merge result. `isHash` accepts only cbase32-decodable strings, rejecting `https://` bridge URLs and any other location-addressed reference form. Wires semantic (not byte-prefix) dialect recognition into `fs/media`'s `detect`, layered ahead of the plain `text/plain` fallback, and routes `cas_get` (both metadata-only and `content: true`) through the dialect-aware detector for whole-blob-valid text within the existing 128 KiB inline cap — a stored revision blob now reports its derived media type `application/vnd.fjs.revision+json` instead of `text/plain` (found by Codex review). Documents the format in `fs/media/revision/README.md`, referenced from `fs/cas/README.md`; marks the corresponding tasks done in `fs/cas/todo/revision-content-format.md` (store-side head resolution/materialization and the incremental `vnd.fjs.change` dialect remain deferred) PR [#1265](https://github.com/functionalscript/functionalscript/pull/1265)
