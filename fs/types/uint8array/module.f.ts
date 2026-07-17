@@ -9,6 +9,7 @@
  *
  * @module
  */
+import { assert } from '../../asserts/module.f.ts'
 import { utf8, utf8ToString } from '../../text/module.f.ts'
 import { maxLengthBytes, msb, tryU8ListToVec, u8List, u8ListToVec, type Vec } from '../bit_vec/module.f.ts'
 import { compose } from '../function/module.f.ts'
@@ -32,7 +33,7 @@ const m = map(fromArrayLike)
 
 export const listToVec = (input: List<Uint8Array>): Vec => {
     const result = tryU8ListToVecMsb(flat(m(input)))
-    if (result === null) { throw "the array is too big" }
+    assert(result !== null, "the array is too big")
     return result
 }
 
