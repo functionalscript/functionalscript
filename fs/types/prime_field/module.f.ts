@@ -8,7 +8,7 @@
  */
 import type { Unary, Reduce } from '../bigint/module.f.ts'
 import { repeat } from '../../common/monoid/module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { assertNotNullish } from '../../asserts/module.f.ts'
 
 /**
  * A type representing a prime field and its associated operations.
@@ -139,16 +139,11 @@ export const modSqrt = (field: PrimeField): Unary => {
     return x => {
         const v = reduce(x)
         const r = sqrt_p(v)
-        if (r !== null) {
-            return r
-        }
         // For a prime `p ≡ 3 (mod 4)`, `−1` is a non-residue, so exactly one of
         // `±v` is a quadratic residue: if `v` has no root, `neg(v)` must — hence
         // `s` is non-null. `sqrt` already enforces `p ≡ 3 (mod 4)`, but primality
         // is never checked, so the only way to reach `s === null` is a *composite*
         // modulus (where the residue argument breaks).
-        const s = sqrt_p(neg(v))
-        assert(s !== null, 'modSqrt')
-        return s
+        return r !== null ? r : assertNotNullish(sqrt_p(neg(v)), 'modSqrt')
     }
 }
