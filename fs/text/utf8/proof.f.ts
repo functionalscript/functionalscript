@@ -3,6 +3,7 @@ import { stringify as jsonStringify } from '../../media/json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 import { msb, u8ListToVec, vec } from '../../types/bit_vec/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 const stringify = jsonStringify(sort)
 
@@ -210,7 +211,7 @@ export const proof = {
         // Vec length not a multiple of 8 bits → null
         () => {
             const v = vec(4n)(0n)
-            if (fromVec(v) !== null) { throw 'expected null for non-octet-aligned Vec' }
+            assertEq(fromVec(v), null)
         },
     ]
 }
