@@ -2,7 +2,8 @@ import { toCodePointList, fromCodePointList, fromVec, utf8ByteToCodePointOp } fr
 import { stringify as jsonStringify } from '../../media/json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
-import { msb, u8ListToVec } from '../../types/bit_vec/module.f.ts'
+import { msb, u8ListToVec, vec } from '../../types/bit_vec/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 const stringify = jsonStringify(sort)
 
@@ -206,6 +207,11 @@ export const proof = {
         () => {
             const v = u8ListToVec(msb)([0xf0, 0x80, 0x80, 0x80])
             if (fromVec(v) !== null) { throw 'expected null for overlong 4-byte encoding' }
+        },
+        // Vec length not a multiple of 8 bits → null
+        () => {
+            const v = vec(4n)(0n)
+            assertEq(fromVec(v), null)
         },
     ]
 }
