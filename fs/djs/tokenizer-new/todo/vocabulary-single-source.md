@@ -16,16 +16,27 @@ as a `Set`, whose only consumer is `filterFunc`
 (`fs/djs/tokenizer-new/module.f.ts:277-295`): a grammar tag survives as a token
 only if `operatorTags.has(tk)`.
 
-The drift is live: the grammar key on line 150 is `'<<<<='` (four `<`)
+The drift is live, and both copies are wrong in different ways. JavaScript
+has no `<<<` / `<<<=` operators — the old tokenizer's `OperatorToken` union
+(`fs/js/tokenizer/module.f.ts:126-127`) includes `<<`, `<<=`, `>>`, `>>=`,
+`>>>`, `>>>=` but nothing with three `<`. Yet:
 
-```ts
-'<<<<=': '<<<=',
-```
+- the grammar (lines 150-151) declares both, one under a typo'd key:
 
-while `operatorTags` contains `'<<<='` (three `<`, line 269). When the input
-contains `<<<=`, the rule matches and the grammar emits the tag `'<<<<='`,
-which is absent from `operatorTags`, so `filterFunc` silently drops the token.
-This is exactly the silent-failure mode a single source of truth prevents.
+  ```ts
+  '<<<<=': '<<<=',
+  '<<<': '<<<',
+  ```
+
+- `operatorTags` (line 269) hand-copies `'<<<='` and `'<<<'` — where
+  `'<<<='` is a tag the grammar never emits (it emits `'<<<<='`), so that
+  branch's output is silently dropped by `filterFunc`, and any tag that
+  *did* pass through would leave `toJsToken`'s `default` arm producing a
+  `kind` outside `JsToken`, hidden only by its `as JsToken` cast.
+
+Two hand-maintained copies let a phantom operator and a typo'd key coexist
+unnoticed — exactly the silent-failure mode a single source of truth
+prevents.
 
 The same pattern repeats for trivia: the grammar defines `ws = set(' \t')`
 (line 91) and `newLine = set('\n\r')` (line 93), but the characters are
@@ -35,10 +46,16 @@ re-spelled in `isNlTag`/`isWsTag` (lines 244-245) and a third time in
 
 ## Proposal
 
-Make the grammar the single source of the vocabulary:
+Make the grammar the single source of the vocabulary, after pruning it to
+the real JS operator set:
 
-- Hoist the `operator` object out of the `jsGrammar()` closure to module scope
-  (it captures nothing), fix the `'<<<<='` key to `'<<<='`, and derive the set:
+- Remove the invalid `'<<<<='` and `'<<<'` entries from the grammar (and
+  `'<<<='`/`'<<<'` from `operatorTags`) — do **not** "fix" the typo'd key:
+  `<<<`/`<<<=` are not JavaScript operators and must not become single
+  tokens. Input like `a <<< b` should tokenize the way the old tokenizer
+  does (`<<` then `<`), keeping every emitted tag inside `JsToken`.
+- Hoist the `operator` object out of the `jsGrammar()` closure to module
+  scope (it captures nothing) and derive the set:
 
   ```ts
   const operatorTags = new Set<string>(Object.keys(operator))
@@ -58,8 +75,10 @@ keys vs. downstream filter set), so it is tracked separately.
 
 ## Tasks
 
-- [ ] Fix the `'<<<<='` grammar key to `'<<<='` and add a proof case showing
-      `<<<=` tokenizes (it is silently dropped today).
+- [ ] Remove the `'<<<<='` and `'<<<'` grammar entries and the
+      `'<<<='`/`'<<<'` set entries; add a proof case showing `<<<`-containing
+      input tokenizes old-tokenizer-compatibly (as `<<` + `<`, never as one
+      token).
 - [ ] Hoist `operator` to module scope; derive `operatorTags` from
       `Object.keys(operator)`.
 - [ ] Single-source the ws/newline character lists shared by the grammar rules,
