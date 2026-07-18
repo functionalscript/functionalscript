@@ -39,9 +39,11 @@ throw happened.
 
 ### Proposal
 
-Two alternatives; not mutually exclusive.
+A short-term workaround (A) to unblock the sites that lost coverage now, and a long-term fix
+(B) that makes payload checks a first-class part of the marker vocabulary. Not mutually
+exclusive — land A now, land B when it's built, then migrate A's sites onto B.
 
-#### A. Move payload-checking cases to a sibling vanilla `proof.ts`
+#### A. Workaround: move payload-checking cases to a sibling vanilla `proof.ts`
 
 No new rule or framework change needed — the distinction already exists and is documented in
 [fs/todo/document-file-type-naming-conventions.md](../../todo/document-file-type-naming-conventions.md#proof--a-module-that-proves-other-modules):
@@ -59,7 +61,14 @@ directory, using ordinary `try`/`catch`, while the rest of each module's coverag
 `proof.f.ts`. `loadModuleMap` treats the two files as independent module-map entries, so both
 `proof` exports run.
 
-#### B. A `try`/`catch` structural leaf pair
+This is a workaround, not the destination: it splits one module's proof coverage across two
+files for a single test's sake, forces the split file's cases into raw `try`/`catch` instead of
+the `assert`/`assertEq` + structural-marker style the rest of the proof uses, and doesn't scale
+if payload checks turn out to be common (every directory that needs one grows a second proof
+file). It's the right move *today* because it's zero-design and immediately closes the Codex
+gap; B is where this should end up.
+
+#### B. Long-term fix: a `try`/`catch` structural leaf pair
 
 Extend the marker vocabulary (`throw` / [`todo`](./todo-property.md) /
 [`skip`](./skip-property.md)) with a leaf shape recognized by `parseTestSet`: an object with
@@ -87,15 +96,13 @@ export const proof = {
   already encodes "expected to throw" on its own. Nesting one under `throw` should probably be
   a static error (redundant/contradictory expectation) rather than silently accepted.
 
-This keeps the flat "`.f.ts` never uses `try`/`catch`" rule intact and gives every proof author
-a supported way to check a thrown payload, not just the three sites this issue is about.
+This keeps the flat "`.f.ts` never uses `try`/`catch`" rule intact, keeps payload checks
+inline in the same `proof.f.ts` and same structural-marker style as `throw`/`todo`/`skip`, and
+gives every proof author a supported way to check a thrown payload without reaching for a
+second file — the outcome A only approximates.
 
 ### Open questions
 
-- Is A sufficient on its own? It requires a whole extra file per directory that needs even one
-  payload check, which is heavier than a single `{ try, catch }` leaf inline in the existing
-  `proof.f.ts` — worth revisiting once A is tried on the sites below to see whether the extra
-  file is annoying enough in practice to justify B.
 - Exact discriminator in `parseTestSet` for B: matching on `{ try, catch }` two-key objects
   works as long as no real sub-tree of tests is ever named with keys `try` and `catch`
   together. Worth a quick grep before committing to the shape.
@@ -108,20 +115,22 @@ a supported way to check a thrown payload, not just the three sites this issue i
 
 ### Tasks
 
+**Now (A, workaround):**
+
 - [ ] Move `assertThrowsCustomMsg`, `assertEqThrowsOnUnequal`, `assertEqThrowsOnUnequal3`,
       `todoThrows` (`fs/asserts/`) and `unwrapError` (`fs/types/result/`) into a sibling
-      `proof.ts` per directory (Proposal A), restoring the dropped payload checks with
-      `try`/`catch`.
-- [ ] Decide, after using A for a while, whether B's inline `{ try, catch }` marker is still
-      worth building, or whether A's file-per-directory cost is acceptable.
-- [ ] If B: add the `{ try, catch }` leaf shape to `parseTestSet`/`collectTests`/`TestEntry` in
+      `proof.ts` per directory, restoring the dropped payload checks with `try`/`catch`.
+
+**Later (B, long-term fix):**
+
+- [ ] Add the `{ try, catch }` leaf shape to `parseTestSet`/`collectTests`/`TestEntry` in
       `fs/emergent_testing/module.f.ts`, wire `defaultTest` to sandbox `catch` on a caught
       throw, and extend `registerModule` for the external-framework path (Node `--test`,
       Bun, Playwright).
-- [ ] If B lands and simplifies things, consider migrating the `proof.ts` siblings from A back
-      into their `proof.f.ts`.
-- [ ] Document whichever marker/pattern is chosen in `fs/emergent_testing/README.md` next to
+- [ ] Document the `{ try, catch }` marker in `fs/emergent_testing/README.md` next to
       [Throw tests](../README.md#throw-tests).
+- [ ] Migrate the `proof.ts` siblings from A back into `proof.f.ts` using the new marker, and
+      delete the now-empty `proof.ts` files.
 - [ ] Confirm `fjs t` proofs pass with full branch coverage and `npx tsc` is clean.
 
 ### Related
