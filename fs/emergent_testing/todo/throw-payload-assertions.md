@@ -39,19 +39,27 @@ throw happened.
 
 ### Proposal
 
-Two alternatives; pick one (or both, for different situations):
+Two alternatives; not mutually exclusive.
 
-#### A. Narrow `try`/`catch` exception for payload-checking proofs
+#### A. Move payload-checking cases to a sibling vanilla `proof.ts`
 
-Carve out an explicit, narrow exception in AGENTS.md: `try`/`catch` is allowed in a `proof.f.ts`
-leaf **only** when the test's entire purpose is to inspect the thrown value, and only paired
-with a comment stating why the `throw` marker isn't enough (mirroring the existing
-"self-test independence" comment `fs/asserts/proof.f.ts` used to carry). This is the smallest
-change — it reverts the three sites above — but re-opens the door AGENTS.md just closed, and
-gives every future proof author a judgement call ("is my case one of the exceptions?") instead
-of a flat rule.
+No new rule or framework change needed — the distinction already exists and is documented in
+[fs/todo/document-file-type-naming-conventions.md](../../todo/document-file-type-naming-conventions.md#proof--a-module-that-proves-other-modules):
+`proof.f.ts` is FunctionalScript (no `try`/`catch`, ever), `proof.ts` is vanilla TS and is
+already exempt from that rule — [`fs/effects/node/memory/proof.ts`](../../effects/node/memory/proof.ts)
+is a live example (it isn't the shape we need here, since it captures a rejected `Promise` via
+`.then(onFulfilled, onRejected)` rather than `try`/`catch`, but it proves the file-type split
+already works and is already discovered by `fjs t` — `shouldLoad` in
+[`fs/dev/module.f.ts`](../../dev/module.f.ts#L41) matches any `*proof.ts` filename alongside
+`*.f.ts`). AGENTS.md's `.f.ts` rule needs no change: it never applied to `proof.ts` in the first
+place. The fix for `fs/asserts/proof.f.ts` and `fs/types/result/proof.f.ts` is simply to move
+just the payload-checking cases (`assertThrowsCustomMsg`, `assertEqThrowsOnUnequal`,
+`assertEqThrowsOnUnequal3`, `todoThrows`, `unwrapError`) into a sibling `proof.ts` in the same
+directory, using ordinary `try`/`catch`, while the rest of each module's coverage stays in
+`proof.f.ts`. `loadModuleMap` treats the two files as independent module-map entries, so both
+`proof` exports run.
 
-#### B. A `try`/`catch` structural leaf pair (preferred)
+#### B. A `try`/`catch` structural leaf pair
 
 Extend the marker vocabulary (`throw` / [`todo`](./todo-property.md) /
 [`skip`](./skip-property.md)) with a leaf shape recognized by `parseTestSet`: an object with
@@ -84,9 +92,13 @@ a supported way to check a thrown payload, not just the three sites this issue i
 
 ### Open questions
 
-- Exact discriminator in `parseTestSet`: matching on `{ try, catch }` two-key objects works as
-  long as no real sub-tree of tests is ever named with keys `try` and `catch` together. Worth a
-  quick grep before committing to the shape.
+- Is A sufficient on its own? It requires a whole extra file per directory that needs even one
+  payload check, which is heavier than a single `{ try, catch }` leaf inline in the existing
+  `proof.f.ts` — worth revisiting once A is tried on the sites below to see whether the extra
+  file is annoying enough in practice to justify B.
+- Exact discriminator in `parseTestSet` for B: matching on `{ try, catch }` two-key objects
+  works as long as no real sub-tree of tests is ever named with keys `try` and `catch`
+  together. Worth a quick grep before committing to the shape.
 - Should `catch`'s own return value be walked as a sub-tree (like a normal test), or treated as
   a pure leaf (like `todo`)? Leaning toward leaf-only — `catch` exists to assert, not to
   generate further cases.
@@ -96,23 +108,27 @@ a supported way to check a thrown payload, not just the three sites this issue i
 
 ### Tasks
 
-- [ ] Decide between Proposal A and Proposal B (or land B and treat A as unnecessary once B
-      exists).
+- [ ] Move `assertThrowsCustomMsg`, `assertEqThrowsOnUnequal`, `assertEqThrowsOnUnequal3`,
+      `todoThrows` (`fs/asserts/`) and `unwrapError` (`fs/types/result/`) into a sibling
+      `proof.ts` per directory (Proposal A), restoring the dropped payload checks with
+      `try`/`catch`.
+- [ ] Decide, after using A for a while, whether B's inline `{ try, catch }` marker is still
+      worth building, or whether A's file-per-directory cost is acceptable.
 - [ ] If B: add the `{ try, catch }` leaf shape to `parseTestSet`/`collectTests`/`TestEntry` in
       `fs/emergent_testing/module.f.ts`, wire `defaultTest` to sandbox `catch` on a caught
       throw, and extend `registerModule` for the external-framework path (Node `--test`,
       Bun, Playwright).
-- [ ] Migrate `fs/asserts/proof.f.ts`, `fs/types/result/proof.f.ts` (`unwrapError`) back to
-      payload-checking tests using whichever proposal is chosen.
-- [ ] Document the new marker in `fs/emergent_testing/README.md` next to
+- [ ] If B lands and simplifies things, consider migrating the `proof.ts` siblings from A back
+      into their `proof.f.ts`.
+- [ ] Document whichever marker/pattern is chosen in `fs/emergent_testing/README.md` next to
       [Throw tests](../README.md#throw-tests).
-- [ ] Update AGENTS.md's `try`/`catch` rule to point at the supported payload-checking path.
 - [ ] Confirm `fjs t` proofs pass with full branch coverage and `npx tsc` is clean.
 
 ### Related
 
 - [PR #1295](https://github.com/functionalscript/functionalscript/pull/1295) — introduced the
-  flat `try`/`catch` ban this issue proposes a supported escape hatch for.
+  `.f.ts` `try`/`catch` ban and, as a side effect, dropped the payload checks this issue
+  proposes to restore.
 - [todo-property](./todo-property.md), [skip-property](./skip-property.md) — the same
   structural-marker mechanism this proposal extends.
 - `fs/asserts/proof.f.ts`, `fs/types/result/proof.f.ts` — the sites that lost payload checks.
