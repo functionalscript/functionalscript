@@ -94,7 +94,7 @@ Then:
       shared pass; update `fs/bnf/descent/proof.f.ts` and the module JSDoc.
 - [ ] Drop the inline `emptyTag` derivation from `dispatchRule` in
       `fs/bnf/ll1`; read the precomputed map instead.
-- [ ] `npx tsc`, `fjs t`; verify `fs/djs/tokenizer-new` (a `descentParser`
+- [ ] `npx tsc`, `fjs t`; verify `fs/djs/tokenizer` (a `descentParser`
       consumer) still passes.
 
 ### Related
