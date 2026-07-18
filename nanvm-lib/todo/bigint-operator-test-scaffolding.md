@@ -13,7 +13,9 @@ in `nanvm-lib/src/vm/bigint/`:
 - `type T` + `fn pos(items: Vec<u64>) -> T` / `fn neg(items: Vec<u64>) -> T`
   (both `T::unchecked_new(...)`) — duplicated in `shl.rs:68-79` and
   `shr.rs:45-57`.
-- `mod.rs:229` uses a parallel `type TestBigInt = BigInt<Naive>`.
+- `mod.rs:229` uses a parallel `type TestBigInt = BigInt<Naive>`, and
+  `cmp.rs:31` declares the same `type TestBigInt = BigInt<Naive>` with the
+  same `.into()` construction pattern in its tests.
 
 The identical comment
 `// TODO: The unit tests should not use \`naive\` or other VM implementations.
