@@ -264,21 +264,22 @@ const isWsTag = (tag: string): boolean => tag === ' ' || tag === '\t'
 const scanFunc
     : StateScan<FlatToken, TokenScanState, List<Token>>
     = (input, state) => {
+        const [stateTag, stateMetadata, stateCodePoints] = state
         if (typeof input === 'string') {
-            if (isNlTag(input) && isNlTag(state[0])) return [null, state]
-            if (isWsTag(input) && isWsTag(state[0])) return [null, state]
-            if (isNlTag(input) && isWsTag(state[0])) return [null, [input, null, []]]
-            if (isWsTag(input) && isNlTag(state[0])) return [null, state]
+            if (isNlTag(input) && isNlTag(stateTag)) return [null, state]
+            if (isWsTag(input) && isWsTag(stateTag)) return [null, state]
+            if (isNlTag(input) && isWsTag(stateTag)) return [null, [input, null, []]]
+            if (isWsTag(input) && isNlTag(stateTag)) return [null, state]
             const newState: TokenScanState = [input, null, []]
-            if (state[0] === '') {
+            if (stateTag === '') {
                 return [null, newState]
             }
-            const tk: Token = [state[0], state[1]!, toArray(state[2])]
+            const tk: Token = [stateTag, stateMetadata!, toArray(stateCodePoints)]
             return [[tk], newState]
         }
-        const [cp, metadata] = input
-        const startMetadata = state[1] === null ? metadata : state[1]
-        return [null, [state[0], startMetadata, concat(state[2])([cp])]]
+        const [cp, codePointMetadata] = input
+        const startMetadata = stateMetadata === null ? codePointMetadata : stateMetadata
+        return [null, [stateTag, startMetadata, concat(stateCodePoints)([cp])]]
     }
 
 // All operator tag strings produced by the grammar's operator rule
@@ -384,7 +385,8 @@ const keywords = new Set<string>([
 const toJsToken
     : (tk: Token) => JsToken | null
     = tk => {
-        switch(tk[0]) {
+        const [tag, , codePoints] = tk
+        switch(tag) {
             case '\n':
             case '\r':
                 return {kind: 'nl'}
@@ -392,23 +394,23 @@ const toJsToken
             case '\t':
                 return {kind: 'ws'}
             case 'string':
-                return {kind: 'string', value: decodeJsonString(tk[2])}
+                return {kind: 'string', value: decodeJsonString(codePoints)}
             case 'id': {
-                const value = String.fromCodePoint(...tk[2])
+                const value = String.fromCodePoint(...codePoints)
                 if (keywords.has(value)) return {kind: value} as JsToken
                 return {kind: 'id', value}
             }
             case 'number': {
-                const value = String.fromCodePoint(...tk[2])
+                const value = String.fromCodePoint(...codePoints)
                 if (value.endsWith('n')) return {kind: 'bigint', value: BigInt(value.slice(0, -1))}
                 return {kind: 'number', value, bf: decodeNumber(value)}
             }
             case 'comment':
-                if (tk[2][1] === asterisk) // block comment /*...*/
-                    return {kind: '/*', value: String.fromCodePoint(...tk[2].slice(2, -2))}
-                return {kind: '//', value: String.fromCodePoint(...tk[2].slice(2))}
+                if (codePoints[1] === asterisk) // block comment /*...*/
+                    return {kind: '/*', value: String.fromCodePoint(...codePoints.slice(2, -2))}
+                return {kind: '//', value: String.fromCodePoint(...codePoints.slice(2))}
             default:
-                return {kind: tk[0]} as JsToken
+                return {kind: tag} as JsToken
         }
     }
 
@@ -428,13 +430,14 @@ const toJsTokens
 const toJsTokenWithMetadata
     : (tk: Token) => List<JsTokenWithMetadata>
     = tk => {
+        const [, metadata] = tk
         const token = toJsToken(tk)
         if (token === null) return []
         if (token.kind === '/*') {
             const hasNl = token.value.includes('\n') || token.value.includes('\r')
-            if (hasNl) return [{ token, metadata: tk[1] }, { token: { kind: 'nl' }, metadata: tk[1] }]
+            if (hasNl) return [{ token, metadata }, { token: { kind: 'nl' }, metadata }]
         }
-        return [{ token, metadata: tk[1] }]
+        return [{ token, metadata }]
     }
 
 const getTokensFromAstRuleOrCodePoint
