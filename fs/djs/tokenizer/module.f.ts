@@ -27,7 +27,6 @@ import {
     type DataRule,
     type Rule
 } from "../../bnf/module.f.ts"
-import { todo } from "../../asserts/module.f.ts"
 import {
     isKeywordToken,
     type BigIntToken,
@@ -60,11 +59,6 @@ import { concat, empty, filter, flat, flatMap, fold, map, stateScan, toArray, ty
 import { stringifyAsTree } from "../serializer/module.f.ts"
 import { sort } from "../../types/object/module.f.ts"
 import type { Unknown } from "../module.f.ts"
-
-export const parse = (input: string): boolean => {
-    descentParser(jsGrammar())
-    return todo()
-}
 
 export const jsGrammar = (): Rule => {
 

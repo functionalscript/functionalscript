@@ -1,7 +1,7 @@
 import { descentParser } from '../../bnf/descent/module.f.ts'
 import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
-import { jsGrammar, parse, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.ts'
+import { jsGrammar, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
@@ -744,9 +744,6 @@ export const proof = {
             if (result !== '[{"kind":"yield"},{"kind":"eof"}]') { throw result }
         },
     ],
-    throw: {
-        parse: () => { parse('') }
-    },
     comments: [
         () => {
             const result = tokenizeString('//singleline comment')
