@@ -6,37 +6,33 @@
 ## Problem
 
 The operator vocabulary is declared twice in
-`fs/djs/tokenizer-new/module.f.ts`, and the two copies have already drifted.
+`fs/djs/tokenizer/module.f.ts`, and the two copies have already drifted.
 
 The grammar's `operator` variant lists every operator as an object key
-(`fs/djs/tokenizer-new/module.f.ts:135-193`); the descent parser emits the
+(`fs/djs/tokenizer/module.f.ts:135-193`); the descent parser emits the
 matched branch's **key** as the `AstTag`. Then `operatorTags`
-(`fs/djs/tokenizer-new/module.f.ts:266-275`) re-lists the same strings by hand
+(`fs/djs/tokenizer/module.f.ts:266-275`) re-lists the same strings by hand
 as a `Set`, whose only consumer is `filterFunc`
-(`fs/djs/tokenizer-new/module.f.ts:277-295`): a grammar tag survives as a token
+(`fs/djs/tokenizer/module.f.ts:277-295`): a grammar tag survives as a token
 only if `operatorTags.has(tk)`.
 
 The drift is live, and both copies are wrong in different ways. JavaScript
 has no `<<<` / `<<<=` operators — the old tokenizer's `OperatorToken` union
 (`fs/js/tokenizer/module.f.ts:126-127`) includes `<<`, `<<=`, `>>`, `>>=`,
-`>>>`, `>>>=` but nothing with three `<`. Yet:
+`>>>`, `>>>=` but nothing with three `<`. Yet the grammar declares both
+entries. **Update:** at the time this was written the key was typo'd
+(`'<<<<=': '<<<='`), so `operatorTags`' hand-copy of `'<<<='` never actually
+matched the tag the grammar emitted (`'<<<<='`) and `filterFunc` silently
+dropped it. A separate fix (PR review comment) "corrected" the typo to
+`'<<<=': '<<<='` without checking whether the operator should exist at all
+— it shouldn't, per the analysis above — so `<<<=` is now *actively*
+recognized as one bogus token instead of being silently dropped. Either way
+the fix below (remove both entries entirely) is what's needed; the typo fix
+made the bug more active, not the wrong diagnosis.
 
-- the grammar (lines 150-151) declares both, one under a typo'd key:
-
-  ```ts
-  '<<<<=': '<<<=',
-  '<<<': '<<<',
-  ```
-
-- `operatorTags` (line 269) hand-copies `'<<<='` and `'<<<'` — where
-  `'<<<='` is a tag the grammar never emits (it emits `'<<<<='`), so that
-  branch's output is silently dropped by `filterFunc`, and any tag that
-  *did* pass through would leave `toJsToken`'s `default` arm producing a
-  `kind` outside `JsToken`, hidden only by its `as JsToken` cast.
-
-Two hand-maintained copies let a phantom operator and a typo'd key coexist
-unnoticed — exactly the silent-failure mode a single source of truth
-prevents.
+Two hand-maintained copies let a phantom operator and a mistaken "fix" for
+its typo'd key coexist unnoticed — exactly the silent-failure mode a single
+source of truth prevents.
 
 The same pattern repeats for trivia: the grammar defines `ws = set(' \t')`
 (line 91) and `newLine = set('\n\r')` (line 93), but the characters are
@@ -75,10 +71,11 @@ keys vs. downstream filter set), so it is tracked separately.
 
 ## Tasks
 
-- [ ] Remove the `'<<<<='` and `'<<<'` grammar entries and the
+- [x] Remove the `'<<<<='`/`'<<<='` and `'<<<'` grammar entries and the
       `'<<<='`/`'<<<'` set entries; add a proof case showing `<<<`-containing
       input tokenizes old-tokenizer-compatibly (as `<<` + `<`, never as one
-      token).
+      token). Done — verified `<<<` → `<<`+`<` and `<<<=` → `<<`+`<=` via a
+      new `tokenizer/proof.f.ts` case.
 - [ ] Hoist `operator` to module scope; derive `operatorTags` from
       `Object.keys(operator)`.
 - [ ] Single-source the ws/newline character lists shared by the grammar rules,
@@ -89,5 +86,3 @@ keys vs. downstream filter set), so it is tracked separately.
 
 - `fs/js/todo/tokenizer-token-tables.md` — sibling single-source issue in the
   old JS tokenizer (union type vs. runtime table).
-- `fs/djs/tokenizer-new/todo/replace-old-tokenizer.md` — the vocabulary must
-  stay correct through the planned swap.

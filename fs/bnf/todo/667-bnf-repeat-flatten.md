@@ -27,6 +27,31 @@ repetition." Every consumer (the fold evaluator from i207, a future code
 generator, a TypeScript emitter) would otherwise have to re-derive that fact by
 re-analyzing the rule graph.
 
+**Concrete impact — stack overflow, not just a data-shape concern.**
+`fs/bnf/descent/module.f.ts`'s `f` matcher mirrors this right-recursion at
+*runtime*: for a `repeat0Plus`-built rule, matching each additional item is
+one more nested call to `f` (sequence branch → variant branch → sequence
+branch → …). Any right-recursive rule blows the JS call stack once the
+repeated content is long enough — reproduced via `fs/djs/tokenizer`, whose
+`id`/`digits0`/string-body rules are all `repeat0Plus`-based: tokenizing an
+identifier around ~2,000–3,000 characters throws `RangeError: Maximum call
+stack size exceeded` from inside `f`'s recursion
+(`fs/bnf/descent/module.f.ts:137`/`151`), well before any other size limit
+(e.g. `String.fromCodePoint`'s own argument-spread limit, which is
+comfortably higher) would matter. This affects every `descentParser`
+consumer with unbounded-length tokens, not just DJS. The "parser output:
+flat array" part of this proposal — matching `repeat(item)` in a loop
+instead of via recursion — is what actually fixes this; it's not solely a
+serialization nicety.
+
+A follow-up PR review (codex) found this is worse than "one long token":
+`fs/djs/tokenizer/module.f.ts`'s *outer* token stream (`repeat0Plus(token)`
+over the whole file) recurses the same way, so a file with many short
+tokens crashes just as easily as one long token — `' '.repeat(5000)`
+overflows, and the old tokenizer handled 20 KB comments the new one can't.
+See [fs/djs/tokenizer/todo/stack-recursive-tokenization.md](../../djs/tokenizer/todo/stack-recursive-tokenization.md)
+for the concrete repro and impact scope.
+
 ### Proposal
 
 Introduce a `repeat` primitive into the **data** representation only, and detect

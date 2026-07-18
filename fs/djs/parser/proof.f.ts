@@ -300,11 +300,14 @@ export const proof = {
     ],
     errorMetadata: [
         () => {
+            // column 17 is the ',' itself — the tokenizer's metadata is start-anchored
+            // (each token's own position), unlike the previous tokenizer's metadata, which
+            // lagged by one token (an artifact of when its state machine flushed a token).
             const tokenList = tokenizeString('export default [,]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             const errorString = stringify(sort)(obj[1])
-            if (errorString !== '{"message":"unexpected token","metadata":{"column":18,"line":1,"path":""}}') { throw errorString }
+            if (errorString !== '{"message":"unexpected token","metadata":{"column":17,"line":1,"path":""}}') { throw errorString }
         },
     ],
     validWhiteSpaces:[
