@@ -1,0 +1,74 @@
+# Derive `operatorTags` and trivia tag checks from the grammar
+
+**Priority:** P3
+**Status:** open
+
+## Problem
+
+The operator vocabulary is declared twice in
+`fs/djs/tokenizer-new/module.f.ts`, and the two copies have already drifted.
+
+The grammar's `operator` variant lists every operator as an object key
+(`fs/djs/tokenizer-new/module.f.ts:135-193`); the descent parser emits the
+matched branch's **key** as the `AstTag`. Then `operatorTags`
+(`fs/djs/tokenizer-new/module.f.ts:266-275`) re-lists the same strings by hand
+as a `Set`, whose only consumer is `filterFunc`
+(`fs/djs/tokenizer-new/module.f.ts:277-295`): a grammar tag survives as a token
+only if `operatorTags.has(tk)`.
+
+The drift is live: the grammar key on line 150 is `'<<<<='` (four `<`)
+
+```ts
+'<<<<=': '<<<=',
+```
+
+while `operatorTags` contains `'<<<='` (three `<`, line 269). When the input
+contains `<<<=`, the rule matches and the grammar emits the tag `'<<<<='`,
+which is absent from `operatorTags`, so `filterFunc` silently drops the token.
+This is exactly the silent-failure mode a single source of truth prevents.
+
+The same pattern repeats for trivia: the grammar defines `ws = set(' \t')`
+(line 91) and `newLine = set('\n\r')` (line 93), but the characters are
+re-spelled in `isNlTag`/`isWsTag` (lines 244-245) and a third time in
+`filterFunc`'s `case '\n': case '\r': case ' ': case '\t':` list
+(lines 287-290).
+
+## Proposal
+
+Make the grammar the single source of the vocabulary:
+
+- Hoist the `operator` object out of the `jsGrammar()` closure to module scope
+  (it captures nothing), fix the `'<<<<='` key to `'<<<='`, and derive the set:
+
+  ```ts
+  const operatorTags = new Set<string>(Object.keys(operator))
+  ```
+
+- Hoist the whitespace and newline character lists to one module-scope
+  declaration each (e.g. `const wsChars = [' ', '\t'] as const`,
+  `const nlChars = ['\n', '\r'] as const`), build the grammar's `ws`/`newLine`
+  rules from them (`set(wsChars.join(''))`), and implement `isWsTag`/`isNlTag`
+  and `filterFunc`'s trivia cases via membership in the same lists.
+
+Only `jsGrammar`, `operatorTags`, `isNlTag`/`isWsTag`, and `filterFunc` change;
+the public API is untouched. This mirrors the single-source remedy of
+`fs/js/todo/tokenizer-token-tables.md` for the old tokenizer's parallel
+union/table, but applies to a different module and structure (grammar variant
+keys vs. downstream filter set), so it is tracked separately.
+
+## Tasks
+
+- [ ] Fix the `'<<<<='` grammar key to `'<<<='` and add a proof case showing
+      `<<<=` tokenizes (it is silently dropped today).
+- [ ] Hoist `operator` to module scope; derive `operatorTags` from
+      `Object.keys(operator)`.
+- [ ] Single-source the ws/newline character lists shared by the grammar rules,
+      `isNlTag`/`isWsTag`, and `filterFunc`.
+- [ ] Run `npx tsc` and `fjs t`; keep 100% proof coverage of the module.
+
+## Related
+
+- `fs/js/todo/tokenizer-token-tables.md` — sibling single-source issue in the
+  old JS tokenizer (union type vs. runtime table).
+- `fs/djs/tokenizer-new/todo/replace-old-tokenizer.md` — the vocabulary must
+  stay correct through the planned swap.
