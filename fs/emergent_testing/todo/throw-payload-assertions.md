@@ -1,6 +1,6 @@
 ## throw-payload-assertions. Recover thrown-value checks lost by the `throw` marker
 
-**Priority:** P3
+**Priority:** P5
 **Status:** open
 
 ### Problem
@@ -30,18 +30,36 @@ Under the plain `throw` key, `assert(false, 'oops')` throwing `'anything'` inste
 still pass. The same gap exists in `fs/types/result/proof.f.ts`'s `unwrapError` (dropped the
 check that `unwrap(error('oops'))` throws exactly `'oops'`, not some wrapped value) and
 `fs/cas/cli/proof.f.ts`'s `mainListCorruptStore` (only checks *that* the storage error
-surfaces, which was already all it checked). `fs/asserts/proof.f.ts` is the sharpest case
-because it is the self-test of `assert`/`assertEq` themselves — the file that must catch a
-regression where, say, `assert` degrades to swallowing its message.
+surfaces, which was already all it checked).
+
+**Why this is low-severity, not a correctness gap.** In FunctionalScript, `throw` is closer to
+Rust's `panic!` than to a language-level `Result`/`Error` value: nothing in FunctionalScript can
+catch it (no `try`/`catch` in the language), so a thrown value is never pattern-matched,
+branched on, or otherwise consumed by other FunctionalScript code. A correctly working program
+never throws at all — recoverable failure is expressed with `Result` (`fs/types/result`), which
+*is* inspectable and *is* worth asserting on precisely, because callers actually destructure
+it. A panic's payload, by contrast, is read only by a human or an external system (a stack
+trace, a CI log, `stderr`) after something has already gone wrong outside the checked contract.
+So the payload is worth keeping *useful* (a `throw` with no message is worse than one with a
+clear one), but it is not part of any program's correctness contract the way a `Result`'s `ok`/
+`error` payload is — nothing downstream depends on `assert(false, 'oops')` throwing the string
+`'oops'` specifically rather than some other truthy message. That is why this issue is filed at
+low priority rather than treated as a regression to fix immediately: the `throw` marker's
+existing throw/no-throw check already covers the part of the contract that matters (`assert`
+still rejects a false condition), and the payload checks below are a debugging-quality nicety,
+not a load-bearing test.
 
 There is currently no supported way in a proof to assert on a thrown *value*, only on whether a
-throw happened.
+throw happened — worth having eventually for message-quality regressions, but not worth
+blocking on.
 
 ### Proposal
 
-A short-term workaround (A) to unblock the sites that lost coverage now, and a long-term fix
-(B) that makes payload checks a first-class part of the marker vocabulary. Not mutually
-exclusive — land A now, land B when it's built, then migrate A's sites onto B.
+A cheap workaround (A) that restores the specific checks the sites above lost, and a long-term
+fix (B) that makes payload checks a first-class part of the marker vocabulary. Not mutually
+exclusive, but given the low severity above, neither is worth picking up proactively — land A
+opportunistically if someone is already touching one of these files, land B only if payload
+checks turn out to come up often enough to justify the framework work.
 
 #### A. Workaround: move payload-checking cases to a sibling vanilla `proof.ts`
 
@@ -115,13 +133,13 @@ second file — the outcome A only approximates.
 
 ### Tasks
 
-**Now (A, workaround):**
+**Step 1 — workaround (A), opportunistic:**
 
 - [ ] Move `assertThrowsCustomMsg`, `assertEqThrowsOnUnequal`, `assertEqThrowsOnUnequal3`,
       `todoThrows` (`fs/asserts/`) and `unwrapError` (`fs/types/result/`) into a sibling
       `proof.ts` per directory, restoring the dropped payload checks with `try`/`catch`.
 
-**Later (B, long-term fix):**
+**Step 2 — long-term fix (B), only if payload checks prove common:**
 
 - [ ] Add the `{ try, catch }` leaf shape to `parseTestSet`/`collectTests`/`TestEntry` in
       `fs/emergent_testing/module.f.ts`, wire `defaultTest` to sandbox `catch` on a caught
