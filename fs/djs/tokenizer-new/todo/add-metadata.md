@@ -84,8 +84,9 @@ actually needed.
 
 - [replace-old-tokenizer](replace-old-tokenizer.md) — next step; wraps
   `tokenize` with DJS-level keyword remapping/minus-folding and swaps in
-  `fs/djs/parser`/`fs/djs/transpiler`. Also owns the error-recovery gap
-  noted above.
+  `fs/djs/parser`/`fs/djs/transpiler`.
+- [error-message-specificity](error-message-specificity.md) — the
+  error-recovery gap noted above, split out into its own todo.
 - `fs/js/tokenizer/module.f.ts` — `TokenMetadata`, `tokenizeWithPositionOp`.
 - `fs/djs/parser/module.f.ts` — the consumer that needs `metadata` on every
   token for error reporting.

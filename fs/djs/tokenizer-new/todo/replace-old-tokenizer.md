@@ -91,6 +91,8 @@ unrelated to tokenization, out of scope here.
 ### Related
 
 - [add-metadata](add-metadata.md) — prerequisite, landed first.
+- [error-message-specificity](error-message-specificity.md) — the deferred
+  message-specificity/continuation gap, split out into its own todo.
 - `fs/djs/todo/157.md` — notes tokenizer-new as excluded from the old
   tokenizer's dedup pass.
 - `fs/djs/parser/module.f.ts` — the heaviest consumer of `DjsTokenWithMetadata`.
