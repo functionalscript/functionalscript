@@ -490,6 +490,12 @@ export const proof = {
             if (result !== '[{"kind":"&="},{"kind":"ws"},{"kind":"|="},{"kind":"ws"},{"kind":"^="},{"kind":"ws"},{"kind":"<<="},{"kind":"ws"},{"kind":">>="},{"kind":"ws"},{"kind":">>>="},{"kind":"eof"}]') { throw result }
         },
         () => {
+            // '<<<' and '<<<=' are not JS operators; maximal munch tokenizes them
+            // as '<<' followed by '<' / '<=', matching the old tokenizer's behavior.
+            const result = tokenizeString('<<< <<<=')
+            if (result !== '[{"kind":"<<"},{"kind":"<"},{"kind":"ws"},{"kind":"<<"},{"kind":"<="},{"kind":"eof"}]') { throw result }
+        },
+        () => {
             const result = tokenizeString('&& || ! ??')
             if (result !== '[{"kind":"&&"},{"kind":"ws"},{"kind":"||"},{"kind":"ws"},{"kind":"!"},{"kind":"ws"},{"kind":"??"},{"kind":"eof"}]') { throw result }
         },

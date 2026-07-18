@@ -152,8 +152,6 @@ export const jsGrammar = (): Rule => {
         '>>': '>>',
         '>=': '>=',
         '>': '>',
-        '<<<=': '<<<=',
-        '<<<': '<<<',
         '<<=': '<<=',
         '<<': '<<',
         '<=': '<=',
@@ -291,7 +289,7 @@ const scanFunc
 const operatorTags = new Set<string>([
     '.', '=>', '===', '==', '=', '!==', '!=', '!',
     '>>>=', '>>>', '>>=', '>>', '>=', '>',
-    '<<<=', '<<<', '<<=', '<<', '<=', '<',
+    '<<=', '<<', '<=', '<',
     '+=', '++', '+', '-=', '--', '-',
     '**=', '**', '*=', '*', '/=', '/', '%=', '%', // TODO: '/' here causes multi-char line comments (e.g. //ab\n) to fall through as two '/' operator tokens because the oneline rule only consumes one non-newline character (option vs repeat0Plus). Fix the comment rule to use repeat0Plus, or make filterFunc distinguish operator-branch '/' from slash characters inside comments.
     '&&=', '&&', '&=', '&', '||=', '||', '|=', '|',

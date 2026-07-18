@@ -71,10 +71,11 @@ keys vs. downstream filter set), so it is tracked separately.
 
 ## Tasks
 
-- [ ] Remove the `'<<<<='` and `'<<<'` grammar entries and the
+- [x] Remove the `'<<<<='`/`'<<<='` and `'<<<'` grammar entries and the
       `'<<<='`/`'<<<'` set entries; add a proof case showing `<<<`-containing
       input tokenizes old-tokenizer-compatibly (as `<<` + `<`, never as one
-      token).
+      token). Done — verified `<<<` → `<<`+`<` and `<<<=` → `<<`+`<=` via a
+      new `tokenizer/proof.f.ts` case.
 - [ ] Hoist `operator` to module scope; derive `operatorTags` from
       `Object.keys(operator)`.
 - [ ] Single-source the ws/newline character lists shared by the grammar rules,
