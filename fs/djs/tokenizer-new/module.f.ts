@@ -32,7 +32,7 @@ import {
     type Rule
 } from "../../bnf/module.f.ts"
 import { todo } from "../../asserts/module.f.ts"
-import type { JsToken } from "../../js/tokenizer/module.f.ts"
+import type { JsToken, JsTokenWithMetadata, TokenMetadata } from "../../js/tokenizer/module.f.ts"
 import {
     asterisk, backspace, ht, lf, ff, cr,
     quotationMark, solidus, reverseSolidus,
@@ -45,7 +45,7 @@ import {
 import { type CodePoint, stringToCodePointList } from "../../text/utf16/module.f.ts"
 import type { StateScan } from "../../types/function/operator/module.f.ts"
 import { contains } from "../../types/range/module.f.ts"
-import { concat, filter, flat, flatMap, map, stateScan, toArray, type List } from "../../types/list/module.f.ts"
+import { concat, filter, flat, flatMap, fold, map, stateScan, toArray, type List } from "../../types/list/module.f.ts"
 import { stringifyAsTree } from "../serializer/module.f.ts"
 import { sort } from "../../types/object/module.f.ts"
 import type { Unknown } from "../module.f.ts"
@@ -235,11 +235,28 @@ export const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: 
     return m(name, cpm)
 }
 
-type Token = [string, readonly number[]]
+// Advances path/line/column by one code point, mirroring fs/js/tokenizer's tokenizeWithPositionOp.
+const advanceMetadata
+    : (cp: number) => (metadata: TokenMetadata) => TokenMetadata
+    = cp => metadata => cp === lf
+        ? { path: metadata.path, line: metadata.line + 1, column: 1 }
+        : { path: metadata.path, line: metadata.line, column: metadata.column + 1 }
 
-type FlatToken = string | number
+// Pairs each code point with the metadata of its position *before* it's consumed.
+const metadataScan
+    : StateScan<number, TokenMetadata, readonly [CodePointMeta<TokenMetadata>]>
+    = (cp, metadata) => [[[cp, metadata]], advanceMetadata(cp)(metadata)]
 
-type TokenScanState = [string, List<number>]
+const codePointsWithMetadata
+    : (path: string) => (cp: readonly number[]) => readonly CodePointMeta<TokenMetadata>[]
+    = path => cp => toArray(flat(stateScan(metadataScan)({ path, line: 1, column: 1 })(cp)))
+
+// tag, the metadata of the token's first code point, and its code points.
+type Token = [string, TokenMetadata, readonly number[]]
+
+type FlatToken = string | CodePointMeta<TokenMetadata>
+
+type TokenScanState = [string, TokenMetadata | null, List<number>]
 
 const isNlTag = (tag: string): boolean => tag === '\n' || tag === '\r'
 const isWsTag = (tag: string): boolean => tag === ' ' || tag === '\t'
@@ -250,16 +267,18 @@ const scanFunc
         if (typeof input === 'string') {
             if (isNlTag(input) && isNlTag(state[0])) return [null, state]
             if (isWsTag(input) && isWsTag(state[0])) return [null, state]
-            if (isNlTag(input) && isWsTag(state[0])) return [null, [input, []]]
+            if (isNlTag(input) && isWsTag(state[0])) return [null, [input, null, []]]
             if (isWsTag(input) && isNlTag(state[0])) return [null, state]
-            const newState: TokenScanState = [input, []]
+            const newState: TokenScanState = [input, null, []]
             if (state[0] === '') {
                 return [null, newState]
             }
-            const tk: Token = [state[0], toArray(state[1])]
+            const tk: Token = [state[0], state[1]!, toArray(state[2])]
             return [[tk], newState]
         }
-        return [null, [state[0], concat(state[1])([input])]]
+        const [cp, metadata] = input
+        const startMetadata = state[1] === null ? metadata : state[1]
+        return [null, [state[0], startMetadata, concat(state[2])([cp])]]
     }
 
 // All operator tag strings produced by the grammar's operator rule
@@ -277,7 +296,7 @@ const operatorTags = new Set<string>([
 const filterFunc
     : (tk: FlatToken) => boolean
     = tk => {
-        if (typeof tk === 'number')
+        if (tk instanceof Array)
             return true
         switch(tk) {
             case 'number':
@@ -373,21 +392,21 @@ const toJsToken
             case '\t':
                 return {kind: 'ws'}
             case 'string':
-                return {kind: 'string', value: decodeJsonString(tk[1])}
+                return {kind: 'string', value: decodeJsonString(tk[2])}
             case 'id': {
-                const value = String.fromCodePoint(...tk[1])
+                const value = String.fromCodePoint(...tk[2])
                 if (keywords.has(value)) return {kind: value} as JsToken
                 return {kind: 'id', value}
             }
             case 'number': {
-                const value = String.fromCodePoint(...tk[1])
+                const value = String.fromCodePoint(...tk[2])
                 if (value.endsWith('n')) return {kind: 'bigint', value: BigInt(value.slice(0, -1))}
                 return {kind: 'number', value, bf: decodeNumber(value)}
             }
             case 'comment':
-                if (tk[1][1] === asterisk) // block comment /*...*/
-                    return {kind: '/*', value: String.fromCodePoint(...tk[1].slice(2, -2))}
-                return {kind: '//', value: String.fromCodePoint(...tk[1].slice(2))}
+                if (tk[2][1] === asterisk) // block comment /*...*/
+                    return {kind: '/*', value: String.fromCodePoint(...tk[2].slice(2, -2))}
+                return {kind: '//', value: String.fromCodePoint(...tk[2].slice(2))}
             default:
                 return {kind: tk[0]} as JsToken
         }
@@ -404,17 +423,31 @@ const toJsTokens
         return [token]
     }
 
+// Same as toJsTokens, but pairs each emitted token with tk's start metadata instead of
+// discarding it — used by tokenize (the metadata-aware entry point), not tokenizeString.
+const toJsTokenWithMetadata
+    : (tk: Token) => List<JsTokenWithMetadata>
+    = tk => {
+        const token = toJsToken(tk)
+        if (token === null) return []
+        if (token.kind === '/*') {
+            const hasNl = token.value.includes('\n') || token.value.includes('\r')
+            if (hasNl) return [{ token, metadata: tk[1] }, { token: { kind: 'nl' }, metadata: tk[1] }]
+        }
+        return [{ token, metadata: tk[1] }]
+    }
+
 const getTokensFromAstRuleOrCodePoint
-    : (value: AstRuleMeta<unknown>|CodePointMeta<unknown>) => List<FlatToken>
+    : (value: AstRuleMeta<TokenMetadata>|CodePointMeta<TokenMetadata>) => List<FlatToken>
     = value => {
         if (value instanceof Array)
-            return [value[0]]
+            return [value]
 
         return getTokensFromAstRule(value)
     }
 
 const getTokensFromAstSequence
-    : (seq: AstSequenceMeta<unknown>) => List<FlatToken>
+    : (seq: AstSequenceMeta<TokenMetadata>) => List<FlatToken>
     = seq => {
         return flatMap(getTokensFromAstRuleOrCodePoint)(seq)
     }
@@ -430,7 +463,7 @@ const tagToToken
     }
 
 const getTokensFromAstRule
-    : (ast: AstRuleMeta<unknown>) => List<FlatToken>
+    : (ast: AstRuleMeta<TokenMetadata>) => List<FlatToken>
     = ast => {
         const token = tagToToken(ast.tag)
         if (ast.sequence.length === 0)
@@ -442,9 +475,10 @@ const getTokensFromAstRule
 export const tokenizeString
     : (s: string) => string
     = s => {
-        const m = descentParser(jsGrammar())
+        const m = descentParser<TokenMetadata>(jsGrammar())
         const cp = toArray(stringToCodePointList(s))
-        const [ast, ok, len] = descentParserCpOnly(m, '', cp)
+        const cpm = codePointsWithMetadata('')(cp)
+        const [ast, ok, len] = m('', cpm)
         if (cp.length === 0) {
             return stringify([{kind: 'eof'}] as Unknown)
         }
@@ -459,8 +493,34 @@ export const tokenizeString
         // rather than failing outright — detect them here instead.
         if (flatTokens.includes('unterminated') || flatTokens.includes('numError')) return 'error'
         const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
-        const tokens = flat(stateScan(scanFunc)(['', []])(filterTokens))
+        const tokens = flat(stateScan(scanFunc)(['', null, []])(filterTokens))
         const jsTokens = concat(flatMap(toJsTokens)(tokens))([{kind: 'eof'}])
         const result = toArray(filter(v => v !== null)(jsTokens))
         return stringify(result as Unknown)
+    }
+
+export const tokenize
+    : (input: List<number>) => (path: string) => List<JsTokenWithMetadata>
+    = input => path => {
+        const cp = toArray(input)
+        const initial: TokenMetadata = { path, line: 1, column: 1 }
+        if (cp.length === 0) return [{ token: { kind: 'eof' }, metadata: initial }]
+
+        const m = descentParser<TokenMetadata>(jsGrammar())
+        const cpm = codePointsWithMetadata(path)(cp)
+        const [ast, ok, len] = m('', cpm)
+        if (!ok || len !== cp.length) {
+            return [{ token: { kind: 'error', message: 'invalid token' }, metadata: initial }]
+        }
+
+        const flatTokens = toArray(getTokensFromAstRule(ast))
+        if (flatTokens.includes('unterminated') || flatTokens.includes('numError')) {
+            return [{ token: { kind: 'error', message: 'invalid token' }, metadata: initial }]
+        }
+
+        const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
+        const tokens = flat(stateScan(scanFunc)(['', null, []])(filterTokens))
+        const withMetadata = concat(flatMap(toJsTokenWithMetadata)(tokens))
+        const finalMetadata = fold(advanceMetadata)(initial)(cp)
+        return withMetadata([{ token: { kind: 'eof' }, metadata: finalMetadata }])
     }

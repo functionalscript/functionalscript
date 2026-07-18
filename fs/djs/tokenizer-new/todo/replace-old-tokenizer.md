@@ -14,11 +14,17 @@ following number/bigint token.
 `fs/djs/tokenizer-new/module.f.ts` is a parallel, BNF-grammar-based
 implementation driven by `descentParser` (`fs/bnf/descent`). It's had solid
 proof coverage built up incrementally (strings, ids, keywords, comments,
-numbers, bigint — see `fs/djs/tokenizer-new/proof.f.ts`), but its only public
-entry point is `tokenizeString: (s: string) => string`, a debug/test helper
-that serializes the whole token list to a string (or returns the literal
-`'error'`). It has no `List<DjsTokenWithMetadata>`-shaped API, and `parse`
-is still `todo()`-stubbed (`fs/djs/tokenizer-new/module.f.ts`).
+numbers, bigint — see `fs/djs/tokenizer-new/proof.f.ts`), and — since
+[add-metadata](add-metadata.md) landed — a JS-level `tokenize: (input:
+List<number>) => (path: string) => List<JsTokenWithMetadata>` export
+matching `fs/js/tokenizer`'s own shape. It still has no DJS-level
+`List<DjsTokenWithMetadata>` API (keyword remapping, minus-folding into
+negative numbers), and `parse` is still `todo()`-stubbed
+(`fs/djs/tokenizer-new/module.f.ts`). It also has no per-character
+error-recovery: a hard grammar failure or `numError`/`unterminated` produces
+a single generic `{kind: 'error', message: 'invalid token'}` entry at the
+start of input rather than pinpointing the failure and continuing — see
+add-metadata.md's "Known limitation."
 
 The old tokenizer has real consumers today:
 
@@ -35,14 +41,18 @@ from a `tokenize`-minus-rewriter dedup pass, since it's a separate track.
 
 ### Proposal
 
-Give tokenizer-new a real `tokenize` export matching the old signature
-(`(input: List<number>) => (path: string) => List<DjsTokenWithMetadata>`),
-built on top of [add-metadata](add-metadata.md) — this is blocked on that
-todo, since `DjsTokenWithMetadata` requires per-token `TokenMetadata`
-(`path`/`line`/`column`) that tokenizer-new doesn't compute yet.
+Wrap tokenizer-new's JS-level `tokenize` (from
+[add-metadata](add-metadata.md)) with a DJS-level `tokenize` export matching
+the old signature (`(input: List<number>) => (path: string) =>
+List<DjsTokenWithMetadata>`) — mirroring `fs/djs/tokenizer/module.f.ts`'s
+`mapToken`/`scanToken` (keyword remapping, folding a leading `-` into the
+following number/bigint token).
 
-Once that exists:
+Then:
 
+- Decide whether the error-recovery gap (see above) needs closing first —
+  check what `fs/djs/parser/module.f.ts` actually does with inline error
+  tokens vs. a single terminal error before assuming it's required.
 - Swap the import in `fs/djs/transpiler/module.f.ts` and
   `fs/djs/parser/module.f.ts` from `fs/djs/tokenizer` to
   `fs/djs/tokenizer-new`.
@@ -55,11 +65,12 @@ Once that exists:
 
 ### Tasks
 
-- [ ] Land [add-metadata](add-metadata.md) so tokens carry `TokenMetadata`.
-- [ ] Add a `tokenize: (input: List<number>) => (path: string) =>
+- [x] Land [add-metadata](add-metadata.md) so tokens carry `TokenMetadata`.
+- [ ] Add a DJS-level `tokenize: (input: List<number>) => (path: string) =>
       List<DjsTokenWithMetadata>` export to `fs/djs/tokenizer-new/module.f.ts`
-      with the same keyword-remapping / DjsToken-narrowing behavior as the
-      old `fs/djs/tokenizer`.
+      wrapping the existing JS-level `tokenize`, with the same
+      keyword-remapping / DjsToken-narrowing behavior as the old
+      `fs/djs/tokenizer`.
 - [ ] Point `fs/djs/transpiler/module.f.ts` and `fs/djs/parser/module.f.ts`
       at `fs/djs/tokenizer-new`.
 - [ ] Update `fs/djs/parser/proof.f.ts` and re-run its assertions (including

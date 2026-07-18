@@ -1,7 +1,7 @@
 import { descentParser } from '../../bnf/descent/module.f.ts'
-import { stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
-import { jsGrammar, parse, tokenizeString, descentParserCpOnly } from './module.f.ts'
+import { jsGrammar, parse, tokenizeString, descentParserCpOnly, tokenize } from './module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
@@ -768,6 +768,45 @@ export const proof = {
         () => {
             const result = tokenizeString('/* multiline comment *\n * **/')
             if (result !== '[{"kind":"/*","value":" multiline comment *\\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
+        },
+    ],
+    metadata: [
+        () => {
+            const result = toArray(tokenize(stringToList(''))('a.js'))
+            assertEq(JSON.stringify(result), '[{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":1,"column":1}}]')
+        },
+        () => {
+            const result = toArray(tokenize(stringToList('true'))('a.js'))
+            assertEq(JSON.stringify(result), '[{"token":{"kind":"true"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":1,"column":5}}]')
+        },
+        () => {
+            const result = toArray(tokenize(stringToList('true false'))('a.js'))
+            assertEq(JSON.stringify(result), '[{"token":{"kind":"true"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"ws"},"metadata":{"path":"a.js","line":1,"column":5}},{"token":{"kind":"false"},"metadata":{"path":"a.js","line":1,"column":6}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":1,"column":11}}]')
+        },
+        () => {
+            // a lone \n collapses into a single nl token, but line/column still advance
+            // correctly for whatever comes after it
+            const result = toArray(tokenize(stringToList('a\nb'))('a.js'))
+            assertEq(JSON.stringify(result), '[{"token":{"kind":"id","value":"a"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"nl"},"metadata":{"path":"a.js","line":1,"column":2}},{"token":{"kind":"id","value":"b"},"metadata":{"path":"a.js","line":2,"column":1}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":2,"column":2}}]')
+        },
+        () => {
+            // two consecutive newlines still collapse into one nl token, but line still
+            // advances by two for the token after them
+            const result = toArray(tokenize(stringToList('a\n\nb'))('a.js'))
+            assertEq(JSON.stringify(result), '[{"token":{"kind":"id","value":"a"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"nl"},"metadata":{"path":"a.js","line":1,"column":2}},{"token":{"kind":"id","value":"b"},"metadata":{"path":"a.js","line":3,"column":1}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":3,"column":2}}]')
+        },
+        () => {
+            // position after a multi-line block comment resumes on the comment's closing line
+            const result = toArray(tokenize(stringToList('/* c\n */ x'))('a.js'))
+            assertEq(JSON.stringify(result), '[{"token":{"kind":"/*","value":" c\\n "},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"nl"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"ws"},"metadata":{"path":"a.js","line":2,"column":4}},{"token":{"kind":"id","value":"x"},"metadata":{"path":"a.js","line":2,"column":5}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":2,"column":6}}]')
+        },
+        () => {
+            const result = toArray(tokenize(stringToList('"unterminated'))('a.js'))
+            assertEq(JSON.stringify(result), '[{"token":{"kind":"error","message":"invalid token"},"metadata":{"path":"a.js","line":1,"column":1}}]')
+        },
+        () => {
+            const result = toArray(tokenize(stringToList('00'))('a.js'))
+            assertEq(JSON.stringify(result), '[{"token":{"kind":"error","message":"invalid token"},"metadata":{"path":"a.js","line":1,"column":1}}]')
         },
     ],
 }
