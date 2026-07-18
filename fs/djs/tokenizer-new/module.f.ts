@@ -383,7 +383,7 @@ const keywords = new Set<string>([
 ])
 
 const toJsToken
-    : (tk: Token) => JsToken | null
+    : (tk: Token) => JsToken
     = tk => {
         const [tag, , codePoints] = tk
         switch(tag) {
@@ -415,10 +415,10 @@ const toJsToken
     }
 
 const toJsTokens
-    : (tk: Token) => List<JsToken | null>
+    : (tk: Token) => List<JsToken>
     = tk => {
         const token = toJsToken(tk)
-        if (token !== null && token.kind === '/*') {
+        if (token.kind === '/*') {
             const hasNl = token.value.includes('\n') || token.value.includes('\r')
             if (hasNl) return [token, { kind: 'nl' }]
         }
@@ -432,7 +432,6 @@ const toJsTokenWithMetadata
     = tk => {
         const [, metadata] = tk
         const token = toJsToken(tk)
-        if (token === null) return []
         if (token.kind === '/*') {
             const hasNl = token.value.includes('\n') || token.value.includes('\r')
             if (hasNl) return [{ token, metadata }, { token: { kind: 'nl' }, metadata }]
@@ -498,7 +497,7 @@ export const tokenizeString
         const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
         const tokens = flat(stateScan(scanFunc)(['', null, []])(filterTokens))
         const jsTokens = concat(flatMap(toJsTokens)(tokens))([{kind: 'eof'}])
-        const result = toArray(filter(v => v !== null)(jsTokens))
+        const result = toArray(jsTokens)
         return stringify(result as Unknown)
     }
 
