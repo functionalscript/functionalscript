@@ -14,18 +14,14 @@ import {
 } from "../../bnf/descent/module.f.ts"
 import {
     eof,
-    join0Plus,
     max,
     none,
-    not,
     notSet,
-    oneEncode,
     option,
     range,
     remove,
     repeat,
     repeat0Plus,
-    repeat1Plus,
     set,
     unicodeRange,
     type DataRule,
@@ -57,7 +53,7 @@ import {
     latinSmallLetterN, latinSmallLetterR, latinSmallLetterT, latinSmallLetterU,
     range as asciiRange,
 } from "../../text/ascii/module.f.ts"
-import { type CodePoint, stringToCodePointList } from "../../text/utf16/module.f.ts"
+import { type CodePoint, codePointListToString, stringToCodePointList } from "../../text/utf16/module.f.ts"
 import type { StateScan } from "../../types/function/operator/module.f.ts"
 import { contains } from "../../types/range/module.f.ts"
 import { concat, empty, filter, flat, flatMap, fold, map, stateScan, toArray, type List } from "../../types/list/module.f.ts"
@@ -66,7 +62,7 @@ import { sort } from "../../types/object/module.f.ts"
 import type { Unknown } from "../module.f.ts"
 
 export const parse = (input: string): boolean => {
-    const m = descentParser(jsGrammar())
+    descentParser(jsGrammar())
     return todo()
 }
 
@@ -162,7 +158,7 @@ export const jsGrammar = (): Rule => {
         '>>': '>>',
         '>=': '>=',
         '>': '>',
-        '<<<<=': '<<<=',
+        '<<<=': '<<<=',
         '<<<': '<<<',
         '<<=': '<<=',
         '<<': '<<',
@@ -368,7 +364,7 @@ const stringDecodeScan
 
 const decodeJsonString
     : (codePoints: readonly number[]) => string
-    = codePoints => String.fromCodePoint(...toArray(flat(stateScan(stringDecodeScan)({ kind: 'normal' })(codePoints.slice(1, -1)))))
+    = codePoints => codePointListToString(flat(stateScan(stringDecodeScan)({ kind: 'normal' })(codePoints.slice(1, -1))))
 
 // value is grammar-validated: (0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)? — no need to re-check its shape here.
 const decodeNumber
@@ -411,19 +407,19 @@ const toJsToken
             case 'string':
                 return {kind: 'string', value: decodeJsonString(codePoints)}
             case 'id': {
-                const value = String.fromCodePoint(...codePoints)
+                const value = codePointListToString(codePoints)
                 if (keywords.has(value)) return {kind: value} as JsToken
                 return {kind: 'id', value}
             }
             case 'number': {
-                const value = String.fromCodePoint(...codePoints)
+                const value = codePointListToString(codePoints)
                 if (value.endsWith('n')) return {kind: 'bigint', value: BigInt(value.slice(0, -1))}
                 return {kind: 'number', value, bf: decodeNumber(value)}
             }
             case 'comment':
                 if (codePoints[1] === asterisk) // block comment /*...*/
-                    return {kind: '/*', value: String.fromCodePoint(...codePoints.slice(2, -2))}
-                return {kind: '//', value: String.fromCodePoint(...codePoints.slice(2))}
+                    return {kind: '/*', value: codePointListToString(codePoints.slice(2, -2))}
+                return {kind: '//', value: codePointListToString(codePoints.slice(2))}
             default:
                 return {kind: tag} as JsToken
         }
