@@ -44,6 +44,14 @@ flat array" part of this proposal — matching `repeat(item)` in a loop
 instead of via recursion — is what actually fixes this; it's not solely a
 serialization nicety.
 
+A follow-up PR review (codex) found this is worse than "one long token":
+`fs/djs/tokenizer/module.f.ts`'s *outer* token stream (`repeat0Plus(token)`
+over the whole file) recurses the same way, so a file with many short
+tokens crashes just as easily as one long token — `' '.repeat(5000)`
+overflows, and the old tokenizer handled 20 KB comments the new one can't.
+See [fs/djs/tokenizer/todo/stack-recursive-tokenization.md](../../djs/tokenizer/todo/stack-recursive-tokenization.md)
+for the concrete repro and impact scope.
+
 ### Proposal
 
 Introduce a `repeat` primitive into the **data** representation only, and detect

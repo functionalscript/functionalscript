@@ -103,6 +103,12 @@ unrelated to tokenization, out of scope here.
 - [add-metadata](add-metadata.md) — prerequisite, landed first.
 - [error-message-specificity](error-message-specificity.md) — the deferred
   message-specificity/continuation gap, split out into its own todo.
+- [stack-recursive-tokenization](stack-recursive-tokenization.md) — this
+  swap turned a latent recursion-depth limitation in the shared descent
+  parser into a live crash for normal-size files (P1, found via PR review
+  after this task shipped).
+- [vocabulary-single-source](vocabulary-single-source.md) — a related PR
+  review finding (grammar/`operatorTags` drift for `<<<`/`<<<=`).
 - `fs/djs/todo/157.md` — notes this tokenizer as excluded from the old
   one's dedup pass.
 - `fs/djs/parser/module.f.ts` — the heaviest consumer of `DjsTokenWithMetadata`.
