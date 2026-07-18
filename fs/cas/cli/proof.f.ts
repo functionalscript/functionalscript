@@ -98,14 +98,6 @@ export const proof = {
         assertEq(exitCode, 0, ['expected exit 0', exitCode])
         assertEq(finalState.stdout, '', ['expected empty stdout', finalState.stdout])
     },
-    mainListCorruptStore: () => {
-        // `.cas` exists but is a file, not a directory: a real storage error
-        // that must surface, not be masked as an empty list.
-        const state = { ...emptyState, root: { '.cas': [vec8(0x2An)] } }
-        let threw = false
-        try { virtual(state)(main(makeOptions(['list']))) } catch { threw = true }
-        assert(threw, 'expected list to surface the storage error')
-    },
     mainNoCmd: () => {
         const [finalState, exitCode] = virtual(emptyState)(main(makeOptions([])))
         assertEq(exitCode, 1, ['expected exit 1', exitCode])
@@ -115,5 +107,10 @@ export const proof = {
         const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['bogus'])))
         assertEq(exitCode, 1, ['expected exit 1', exitCode])
         assert(finalState.stderr.length !== 0, 'expected error in stderr')
+    },
+    throw: {
+        // `.cas` exists but is a file, not a directory: a real storage error
+        // that must surface, not be masked as an empty list.
+        mainListCorruptStore: () => virtual({ ...emptyState, root: { '.cas': [vec8(0x2An)] } })(main(makeOptions(['list']))),
     },
 }

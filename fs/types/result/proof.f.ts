@@ -19,15 +19,6 @@ const invertTest = () => {
     assert(!(k1 !== 'ok' || v1 !== 'oops'), [k1, v1])
 }
 
-const unwrapError = () => {
-    let caught = false
-    try { unwrap(error('oops')) } catch (e) {
-        assertEq(e, 'oops')
-        caught = true
-    }
-    assert(caught, 'expected throw')
-}
-
 const mapOkTest = () => {
     const [k0, v0] = mapOk((n: number) => n + 1)(ok(41))
     assert(!(k0 !== 'ok' || v0 !== 42), [k0, v0])
@@ -35,4 +26,11 @@ const mapOkTest = () => {
     assert(!(k1 !== 'error' || v1 !== 'oops'), [k1, v1])
 }
 
-export const proof = { example, invertTest, unwrapError, mapOkTest }
+export const proof = {
+    example,
+    invertTest,
+    mapOkTest,
+    throw: {
+        unwrapError: () => unwrap(error('oops')),
+    },
+}
