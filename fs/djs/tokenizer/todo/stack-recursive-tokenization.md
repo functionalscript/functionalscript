@@ -10,9 +10,8 @@ valid inputs only a few KB long can throw `RangeError: Maximum call stack
 size exceeded` instead of producing tokens. Confirmed repro:
 `tokenizeString(' '.repeat(5000))` and a 5 KB string/block comment both
 overflow in Node 22, while the previous state-machine tokenizer
-(`fs/djs/tokenizer`, since deleted — see
-[replace-old-tokenizer](replace-old-tokenizer.md)) handled a 20 KB block
-comment without issue.
+(`fs/djs/tokenizer`, since deleted and replaced by this grammar-based one)
+handled a 20 KB block comment without issue.
 
 Root cause: `fs/djs/tokenizer/module.f.ts`'s `jsGrammar()` returns
 `tokens = repeat0Plus(token)` — the *entire token stream for the whole
@@ -76,10 +75,6 @@ written up.
 - [../../../bnf/todo/667-bnf-repeat-flatten.md](../../../bnf/todo/667-bnf-repeat-flatten.md)
   — the real fix; already has the concrete-impact note for the narrower
   single-long-token case, cross-linked both ways.
-- [replace-old-tokenizer](replace-old-tokenizer.md) — the swap that made
-  this tokenizer the one real consumers (`fs/djs/parser`,
-  `fs/djs/transpiler`) actually run through, turning a latent limitation
-  into a live crash risk.
 - [error-message-specificity](error-message-specificity.md) — a different,
   already-tracked gap in the same tokenizer (message quality on failure);
   unrelated to this one (stack depth on success-shaped input).

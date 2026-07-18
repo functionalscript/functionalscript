@@ -86,5 +86,3 @@ keys vs. downstream filter set), so it is tracked separately.
 
 - `fs/js/todo/tokenizer-token-tables.md` — sibling single-source issue in the
   old JS tokenizer (union type vs. runtime table).
-- `fs/djs/tokenizer/todo/replace-old-tokenizer.md` — the vocabulary must
-  stay correct through the planned swap.

@@ -5,9 +5,9 @@
 
 ### Problem
 
-The old tokenizer (`fs/djs/tokenizer`, deleted in
-[replace-old-tokenizer](replace-old-tokenizer.md)) reported ~10 distinct,
-specific messages depending on what went wrong — `'invalid number'`,
+The old tokenizer (`fs/djs/tokenizer`, deleted when this grammar-based one
+replaced it) reported ~10 distinct, specific messages depending on what
+went wrong — `'invalid number'`,
 `'unexpected character'`, `'" are missing'`, `'unescaped character'`,
 `'invalid hex value'`, `'*/ expected'`, `'invalid token'` — each at the
 exact position of the failing character, and it kept tokenizing afterward,
@@ -27,10 +27,10 @@ collapse every failure mode — malformed numbers, unterminated strings,
 unterminated comments, unrecognized characters, anything the grammar can't
 fully parse — into a single `{kind: 'error', message: 'invalid token'}`,
 and tokenization stops there instead of continuing. Position accuracy was
-fixed in `replace-old-tokenizer.md` (via `len` and `metadataAfterTag`), but
-message specificity and continuation were explicitly deferred — confirmed
-with the user before that task, since closing this gap properly is a much
-bigger, separate undertaking than the metadata/swap work.
+fixed when the DJS-level wrapper landed (via `len` and `metadataAfterTag`),
+but message specificity and continuation were explicitly deferred —
+confirmed with the user before that work, since closing this gap properly
+is a much bigger, separate undertaking than the metadata/swap work was.
 
 This is a real DX regression for anyone editing malformed DJS source: they
 now get "invalid token" wherever the file happens to become unparseable,
@@ -38,7 +38,7 @@ instead of a message that tells them what's actually wrong (missing closing
 quote vs. bad number vs. bad escape, etc.), and nothing after the first
 problem gets checked.
 
-No current test depends on this (confirmed during `replace-old-tokenizer.md`
+No current test depends on this (confirmed during the tokenizer-swap
 research: `fs/djs/parser/proof.f.ts` had zero tests exercising an actual
 tokenizer-emitted error token), so there's no urgency — this is tracked so
 it doesn't get silently forgotten, not because something is broken today.
@@ -84,8 +84,6 @@ diagnostics per file) shows up.
 
 ### Related
 
-- [replace-old-tokenizer](replace-old-tokenizer.md) — where this was
-  deferred.
 - [add-metadata](add-metadata.md) — "Known limitation" section, first place
   this gap was written down.
 - `fs/djs/tokenizer/module.f.ts` — `numError`/`unterminated` tagging,

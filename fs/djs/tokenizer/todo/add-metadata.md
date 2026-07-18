@@ -9,11 +9,11 @@
 column}`) per token via `tokenizeWithPositionOp`: it walks code points with a
 `stateScan`, bumping `line`/resetting `column` on `lf` and incrementing
 `column` otherwise, seeded as `{path, line: 1, column: 1}`. The old DJS
-tokenizer (since deleted, see [replace-old-tokenizer](replace-old-tokenizer.md))
-carried that metadata straight through into `DjsTokenWithMetadata =
-{token, metadata}`, and `fs/djs/parser/module.f.ts` depends on it
-pervasively — every parse error and every `pushRef` call threads `metadata`
-for error reporting.
+tokenizer (since deleted and replaced by this grammar-based one) carried
+that metadata straight through into `DjsTokenWithMetadata = {token,
+metadata}`, and `fs/djs/parser/module.f.ts` depends on it pervasively —
+every parse error and every `pushRef` call threads `metadata` for error
+reporting.
 
 `fs/djs/tokenizer/module.f.ts` had no position tracking at all. Its
 `descentParserCpOnly` built `CodePointMeta<T> = [CodePoint, T]` pairs via
@@ -46,8 +46,8 @@ populated. `tokenizeString`'s output had no `path`/`line`/`column` anywhere.
   used by both `tokenizeString` and the new `tokenize` export.
 - New export: `tokenize: (input: List<number>) => (path: string) =>
   List<JsTokenWithMetadata>`, matching `fs/js/tokenizer`'s own `tokenize`
-  shape (JS-level, not yet DJS-level — that wrapping is
-  [replace-old-tokenizer](replace-old-tokenizer.md)'s job).
+  shape (JS-level, not yet DJS-level — that wrapping was the next task,
+  since completed and the covering todo removed).
 - Proof coverage in `fs/djs/tokenizer/proof.f.ts`'s new `metadata` block:
   column advance per character, line advance + column reset on `\n`
   (including consecutive newlines collapsing into one `nl` token while line
@@ -64,9 +64,9 @@ error-recovery path. On failure (a hard grammar failure, or the `numError`/
 message: 'invalid token'}` entry at the *start* of input, rather than
 pinpointing the failing token or continuing to scan afterward the way the
 old tokenizer's inline `{kind: 'error', ...}` tokens do. Closing this gap is
-a grammar-completeness concern, not a metadata one — leaving it for whoever
-picks up [replace-old-tokenizer](replace-old-tokenizer.md) next, since the
-DJS parser's error-recovery expectations should drive how much of this is
+a grammar-completeness concern, not a metadata one — tracked in
+[error-message-specificity](error-message-specificity.md), since the DJS
+parser's error-recovery expectations should drive how much of this is
 actually needed.
 
 ### Tasks
@@ -83,9 +83,6 @@ actually needed.
 
 ### Related
 
-- [replace-old-tokenizer](replace-old-tokenizer.md) — next step; wraps
-  `tokenize` with DJS-level keyword remapping/minus-folding and swaps in
-  `fs/djs/parser`/`fs/djs/transpiler`.
 - [error-message-specificity](error-message-specificity.md) — the
   error-recovery gap noted above, split out into its own todo.
 - `fs/js/tokenizer/module.f.ts` — `TokenMetadata`, `tokenizeWithPositionOp`.
