@@ -224,6 +224,10 @@ export const jsGrammar = (): Rule => {
         eof
     }
 
+    // TODO: this matches the whole file's token stream as one right-recursive grammar
+    // rule, and descentParser recurses once per matched token — so files of just a few
+    // KB (many short tokens, not only one long one) can throw "Maximum call stack size
+    // exceeded" instead of producing tokens. See todo/stack-recursive-tokenization.md.
     const tokens = repeat0Plus(token)
 
     return tokens
