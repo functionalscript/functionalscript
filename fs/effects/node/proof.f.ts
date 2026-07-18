@@ -1,9 +1,9 @@
-import { empty, isVec, uint, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
+import { empty, isVec, uint, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { decode, pure } from "../module.f.ts"
 import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, type IoResult } from "./module.f.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
-import { empty as listEmpty } from "../list/module.f.ts"
+import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.ts"
 import { emptyState, virtual, type Dir } from "./virtual/module.f.ts"
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.ts'
 
@@ -389,6 +389,15 @@ export const proof = {
             assert(t === 'error', result)
             const file = state.root.hello
             assert(!(!Array.isArray(file) || uint(file[0]) !== 0x2An), file)
+        },
+        invalidBufferSize: () => {
+            // A chunk whose bit length isn't a multiple of 8 trips the
+            // byte-alignment guard before `writeBytes` is ever called.
+            const [_, [t, result]] = virtual(emptyState)(
+                writeFromStream('hello', listNonEmpty<never, IoResult<Vec>>(['ok', vec(4n)(0b1010n)], listEmpty()))
+            )
+            assert(t === 'error', result)
+            assertEq(result, 'invalid buffer size')
         },
     },
 }
