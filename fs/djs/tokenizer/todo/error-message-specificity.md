@@ -16,7 +16,6 @@ so the parser still saw whatever valid tokens came later.
 `fs/djs/tokenizer/module.f.ts`'s grammar (`descentParser`) has no
 cut/commit mechanism — it either parses the whole input as tokens or fails
 as one unit. This is why `numError`/`unterminated` exist at all (see
-[add-metadata](add-metadata.md)'s "Known limitation" and
 `multilineContent`'s comment in `module.f.ts`): they turn what would be a
 hard grammar failure into an always-succeeding, specially-tagged match, so
 the descent parser doesn't fall back to matching stray characters as
@@ -84,7 +83,5 @@ diagnostics per file) shows up.
 
 ### Related
 
-- [add-metadata](add-metadata.md) — "Known limitation" section, first place
-  this gap was written down.
 - `fs/djs/tokenizer/module.f.ts` — `numError`/`unterminated` tagging,
   `tokenizeJs`'s error branch.
