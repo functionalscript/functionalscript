@@ -34,6 +34,24 @@ export const proof = {
         const s = stringifyAsTree(sort)(result[1])
         assertEq(s, '[[0,2],[1,2],[0,2]]')
     },
+    parseWithIdentifierKeys: () => {
+        const result = run({ a: [utf8('export default {a:1,b:2}')] })('a')
+        assert(result[0] !== 'error', result[1])
+        const s = stringifyAsTree(sort)(result[1])
+        assertEq(s, '{"a":1,"b":2}')
+    },
+    parseWithConstIdentifier: () => {
+        const result = run({ a: [utf8('const a = 1\nconst b = a\nexport default {x:a,y:b}')] })('a')
+        assert(result[0] !== 'error', result[1])
+        const s = stringifyAsTree(sort)(result[1])
+        assertEq(s, '{"x":1,"y":1}')
+    },
+    parseWithUnaryMinusOperator: () => {
+        const result = run({ a: [utf8('export default [-1,2,-3]')] })('a')
+        assert(result[0] !== 'error', result[1])
+        const s = stringifyAsTree(sort)(result[1])
+        assertEq(s, '[-1,2,-3]')
+    },
     parseWithFileNotFoundError: () => {
         const result = run({ a: [utf8('import b from "b"\nexport default b')] })('a')
         assert(result[0] === 'error', result)
