@@ -1,87 +1,96 @@
 ## replace-old-tokenizer. Replace `fs/djs/tokenizer` (and `fs/js/tokenizer`) with tokenizer-new
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ### Problem
 
-DJS currently tokenizes through a hand-written state machine:
+DJS used to tokenize through a hand-written state machine:
 `fs/js/tokenizer/module.f.ts` (char-by-char range-map scanner) wrapped by
 `fs/djs/tokenizer/module.f.ts` (`tokenize: (input: List<number>) => (path:
-string) => List<DjsTokenWithMetadata>`), which folds a leading `-` into the
+string) => List<DjsTokenWithMetadata>`), which folded a leading `-` into the
 following number/bigint token.
 
 `fs/djs/tokenizer-new/module.f.ts` is a parallel, BNF-grammar-based
-implementation driven by `descentParser` (`fs/bnf/descent`). It's had solid
-proof coverage built up incrementally (strings, ids, keywords, comments,
-numbers, bigint — see `fs/djs/tokenizer-new/proof.f.ts`), and — since
-[add-metadata](add-metadata.md) landed — a JS-level `tokenize: (input:
-List<number>) => (path: string) => List<JsTokenWithMetadata>` export
-matching `fs/js/tokenizer`'s own shape. It still has no DJS-level
-`List<DjsTokenWithMetadata>` API (keyword remapping, minus-folding into
-negative numbers), and `parse` is still `todo()`-stubbed
-(`fs/djs/tokenizer-new/module.f.ts`). It also has no per-character
-error-recovery: a hard grammar failure or `numError`/`unterminated` produces
-a single generic `{kind: 'error', message: 'invalid token'}` entry at the
-start of input rather than pinpointing the failure and continuing — see
-add-metadata.md's "Known limitation."
+implementation driven by `descentParser` (`fs/bnf/descent`), with proof
+coverage built up incrementally (strings, ids, keywords, comments, numbers,
+bigint, metadata — see `fs/djs/tokenizer-new/proof.f.ts`).
 
-The old tokenizer has real consumers today:
+The old tokenizer had 3 real consumers: `fs/djs/transpiler/module.f.ts`,
+`fs/djs/parser/module.f.ts`, `fs/djs/parser/proof.f.ts`.
 
-- `fs/djs/transpiler/module.f.ts` — `tokenize(stringToList(result[1]))(path)`
-  then `parseFromTokens(tokens)`.
-- `fs/djs/parser/module.f.ts` — destructures `{token, metadata}` from every
-  `DjsTokenWithMetadata`, switches on every `DjsToken` kind, and threads
-  `metadata` into every parse error and `pushRef` call. Heavy, pervasive use.
-- `fs/djs/parser/proof.f.ts` — imports `tokenize`/`DjsTokenWithMetadata`
-  directly and asserts on serialized `metadata` (`path`/`line`/`column`).
+`fs/djs/todo/157.md` already flagged tokenizer-new as intentionally excluded
+from a `tokenize`-minus-rewriter dedup pass, since it was a separate track.
 
-`fs/djs/todo/157.md` already flags tokenizer-new as intentionally excluded
-from a `tokenize`-minus-rewriter dedup pass, since it's a separate track.
+### What shipped
 
-### Proposal
+- Renamed tokenizer-new's JS-level `tokenize` to `tokenizeJs`, freeing up
+  `tokenize` for a new DJS-level export with the old signature
+  (`(input: List<number>) => (path: string) => List<DjsTokenWithMetadata>`),
+  ported near-verbatim from the old `mapToken`/`parseDefaultState`/
+  `parseMinusState`/`scanToken` (keyword remapping via `isKeywordToken`,
+  `-`-folding into negative numbers/bigints).
+- Improved `tokenizeJs`'s error position: it used to always report
+  `{line:1, column:1}` regardless of where the problem was. It now uses the
+  descent match's `len` (how far parsing got) for a partial-match failure,
+  and a new `metadataAfterTag` helper (finds the next code point after a
+  `numError`/`unterminated` tag in the flattened AST) for the structural
+  cases. Message text stays a single generic `'invalid token'` — see
+  "Deferred" below.
+- Swapped the three consumer imports to `fs/djs/tokenizer-new/module.f.ts`
+  and deleted `fs/djs/tokenizer/` (`module.f.ts` + `proof.f.ts`) — confirmed
+  zero other importers first. `fs/js/tokenizer` was untouched (still used
+  by `fs/media/json/tokenizer`).
+- Found and fixed one real behavioral difference along the way: the old
+  tokenizer's per-token metadata was *lagging by one token* — a token's
+  reported position was actually where the *next* token started, an
+  artifact of when its state machine flushed a completed token. tokenizer-new's
+  metadata is start-anchored (a token's own position), which is more
+  intuitive/correct. `fs/djs/parser/proof.f.ts`'s `errorMetadata[0]` test
+  was calibrated to the old lagging value (`column:18`) and got updated to
+  the new correct one (`column:17`, the actual `,` that failed to parse).
+- Added a `djsTokenize` proof block in `fs/djs/tokenizer-new/proof.f.ts`
+  covering what's DJS-specific and wasn't already covered at the JS level:
+  keyword remap, minus-folding (`-10`, `-0`, negative bigint, `--`/`---`,
+  dangling `-`), and position accuracy flowing through the DJS wrapper.
 
-Wrap tokenizer-new's JS-level `tokenize` (from
-[add-metadata](add-metadata.md)) with a DJS-level `tokenize` export matching
-the old signature (`(input: List<number>) => (path: string) =>
-List<DjsTokenWithMetadata>`) — mirroring `fs/djs/tokenizer/module.f.ts`'s
-`mapToken`/`scanToken` (keyword remapping, folding a leading `-` into the
-following number/bigint token).
+### Deferred
 
-Then:
+Message-specificity was intentionally not pursued (decided with the user
+before implementing): the old tokenizer reports ~10 distinct messages
+("invalid number", "unexpected character", `"` are missing", etc.) and
+keeps tokenizing after an error so the parser can still see later valid
+tokens; tokenizer-new's grammar has no cut/commit mechanism to support
+per-error-type tagging or continuation cleanly (this was the whole reason
+`add-metadata.md` needed the `numError`/`unterminated` tagging trick in the
+first place). tokenizer-new now reports the *position* of a failure
+accurately but always with the message `'invalid token'`, and stops
+tokenizing there rather than continuing. Closing this gap — if it turns out
+to matter in practice for DJS error messages — is its own follow-up, not
+filed as a separate todo yet since `fs/djs/parser/proof.f.ts` has zero tests
+today that exercise an actual tokenizer-emitted error token (confirmed via
+research before this task), so there's no concrete pressure for it yet.
 
-- Decide whether the error-recovery gap (see above) needs closing first —
-  check what `fs/djs/parser/module.f.ts` actually does with inline error
-  tokens vs. a single terminal error before assuming it's required.
-- Swap the import in `fs/djs/transpiler/module.f.ts` and
-  `fs/djs/parser/module.f.ts` from `fs/djs/tokenizer` to
-  `fs/djs/tokenizer-new`.
-- Update `fs/djs/parser/proof.f.ts`'s `tokenizeString` test helper.
-- Delete `fs/djs/tokenizer/module.f.ts` (+ its `proof.f.ts`) once nothing
-  imports it.
-- Check whether `fs/js/tokenizer` still has other consumers (e.g.
-  `fs/media/json/tokenizer`) before removing it — it may need to stay even
-  after DJS moves off it.
+`parse` in `fs/djs/tokenizer-new/module.f.ts` is still `todo()`-stubbed —
+unrelated to tokenization, out of scope here.
 
 ### Tasks
 
 - [x] Land [add-metadata](add-metadata.md) so tokens carry `TokenMetadata`.
-- [ ] Add a DJS-level `tokenize: (input: List<number>) => (path: string) =>
-      List<DjsTokenWithMetadata>` export to `fs/djs/tokenizer-new/module.f.ts`
-      wrapping the existing JS-level `tokenize`, with the same
-      keyword-remapping / DjsToken-narrowing behavior as the old
-      `fs/djs/tokenizer`.
-- [ ] Point `fs/djs/transpiler/module.f.ts` and `fs/djs/parser/module.f.ts`
+- [x] Add a DJS-level `tokenize` export to `fs/djs/tokenizer-new/module.f.ts`
+      wrapping `tokenizeJs`, with the same keyword-remapping /
+      DjsToken-narrowing behavior as the old `fs/djs/tokenizer`.
+- [x] Point `fs/djs/transpiler/module.f.ts` and `fs/djs/parser/module.f.ts`
       at `fs/djs/tokenizer-new`.
-- [ ] Update `fs/djs/parser/proof.f.ts` and re-run its assertions (including
-      the metadata-in-error-message case).
-- [ ] Remove `fs/djs/tokenizer/` once unused; confirm `fs/js/tokenizer` still
-      has a live consumer before touching it.
-- [ ] Run `npx tsc` and `fjs t`.
+- [x] Update `fs/djs/parser/proof.f.ts` and re-run its assertions (including
+      the metadata-in-error-message case — required a genuine fix, see above).
+- [x] Remove `fs/djs/tokenizer/`; confirmed `fs/js/tokenizer` still has a
+      live consumer (`fs/media/json/tokenizer`) before leaving it alone.
+- [x] Run `npx tsc` and `fjs t` — clean, 2105 passing.
 
 ### Related
 
-- [add-metadata](add-metadata.md) — blocking prerequisite.
+- [add-metadata](add-metadata.md) — prerequisite, landed first.
 - `fs/djs/todo/157.md` — notes tokenizer-new as excluded from the old
   tokenizer's dedup pass.
 - `fs/djs/parser/module.f.ts` — the heaviest consumer of `DjsTokenWithMetadata`.

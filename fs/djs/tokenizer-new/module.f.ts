@@ -32,7 +32,22 @@ import {
     type Rule
 } from "../../bnf/module.f.ts"
 import { todo } from "../../asserts/module.f.ts"
-import type { JsToken, JsTokenWithMetadata, TokenMetadata } from "../../js/tokenizer/module.f.ts"
+import {
+    isKeywordToken,
+    type BigIntToken,
+    type CommentToken,
+    type EofToken,
+    type ErrorToken,
+    type IdToken,
+    type JsToken,
+    type JsTokenWithMetadata,
+    type NewLineToken,
+    type NumberToken,
+    type StringToken,
+    type TokenMetadata,
+    type WhitespaceToken,
+} from "../../js/tokenizer/module.f.ts"
+import { multiply } from "../../types/bigfloat/module.f.ts"
 import {
     asterisk, backspace, ht, lf, ff, cr,
     quotationMark, solidus, reverseSolidus,
@@ -45,7 +60,7 @@ import {
 import { type CodePoint, stringToCodePointList } from "../../text/utf16/module.f.ts"
 import type { StateScan } from "../../types/function/operator/module.f.ts"
 import { contains } from "../../types/range/module.f.ts"
-import { concat, filter, flat, flatMap, fold, map, stateScan, toArray, type List } from "../../types/list/module.f.ts"
+import { concat, empty, filter, flat, flatMap, fold, map, stateScan, toArray, type List } from "../../types/list/module.f.ts"
 import { stringifyAsTree } from "../serializer/module.f.ts"
 import { sort } from "../../types/object/module.f.ts"
 import type { Unknown } from "../module.f.ts"
@@ -501,7 +516,18 @@ export const tokenizeString
         return stringify(result as Unknown)
     }
 
-export const tokenize
+// Finds `tag` in flatTokens and returns the metadata of the next code point after it.
+// numError/unterminated tags are followed by the poisoning char / EOF-hitting position
+// in the flattened AST walk order, so this pinpoints roughly where tokenization failed.
+const metadataAfterTag
+    : (tag: string, flatTokens: readonly FlatToken[], fallback: TokenMetadata) => TokenMetadata
+    = (tag, flatTokens, fallback) => {
+        const idx = flatTokens.indexOf(tag)
+        const found = idx < 0 ? undefined : flatTokens.slice(idx + 1).find((t): t is CodePointMeta<TokenMetadata> => t instanceof Array)
+        return found === undefined ? fallback : found[1]
+    }
+
+export const tokenizeJs
     : (input: List<number>) => (path: string) => List<JsTokenWithMetadata>
     = input => path => {
         const cp = toArray(input)
@@ -511,18 +537,121 @@ export const tokenize
         const m = descentParser<TokenMetadata>(jsGrammar())
         const cpm = codePointsWithMetadata(path)(cp)
         const [ast, ok, len] = m('', cpm)
+        const finalMetadata = fold(advanceMetadata)(initial)(cp)
+
         if (!ok || len !== cp.length) {
-            return [{ token: { kind: 'error', message: 'invalid token' }, metadata: initial }]
+            const errorMetadata = len < cpm.length ? cpm[len][1] : finalMetadata
+            return [{ token: { kind: 'error', message: 'invalid token' }, metadata: errorMetadata }]
         }
 
         const flatTokens = toArray(getTokensFromAstRule(ast))
-        if (flatTokens.includes('unterminated') || flatTokens.includes('numError')) {
-            return [{ token: { kind: 'error', message: 'invalid token' }, metadata: initial }]
+        const structuralError = flatTokens.includes('unterminated') ? 'unterminated'
+            : flatTokens.includes('numError') ? 'numError'
+            : null
+        if (structuralError !== null) {
+            const errorMetadata = metadataAfterTag(structuralError, flatTokens, finalMetadata)
+            return [{ token: { kind: 'error', message: 'invalid token' }, metadata: errorMetadata }]
         }
 
         const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
         const tokens = flat(stateScan(scanFunc)(['', null, []])(filterTokens))
         const withMetadata = concat(flatMap(toJsTokenWithMetadata)(tokens))
-        const finalMetadata = fold(advanceMetadata)(initial)(cp)
         return withMetadata([{ token: { kind: 'eof' }, metadata: finalMetadata }])
     }
+
+// DJS-level token set: a narrower view of JsToken (only true/false/null/undefined survive
+// as bare keywords; every other keyword becomes an id) plus its own punctuator kinds.
+export type DjsToken = |
+  {readonly kind: 'true' | 'false' | 'null' | 'undefined'} |
+  {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | '.' | '=' } |
+  StringToken |
+  NumberToken |
+  ErrorToken |
+  IdToken |
+  BigIntToken |
+  WhitespaceToken |
+  NewLineToken |
+  CommentToken |
+  EofToken
+
+export type DjsTokenWithMetadata = {readonly token: DjsToken, readonly metadata: TokenMetadata}
+
+type DjsScanState = {readonly kind: 'def' | '-' }
+
+const mapDjsToken
+    : (input: JsToken) => List<DjsToken>
+    = input => {
+        switch(input.kind) {
+            case 'id':
+            case 'bigint':
+            case '{':
+            case '}':
+            case ':':
+            case ',':
+            case '[':
+            case ']':
+            case '.':
+            case '=':
+            case 'true':
+            case 'false':
+            case 'null':
+            case 'string':
+            case 'number':
+            case 'ws':
+            case 'nl':
+            case 'undefined':
+            case '//':
+            case '/*':
+            case 'eof':
+            case 'error': return [input]
+            default: return isKeywordToken(input) ? [{ kind: 'id', value: input.kind }] : [{ kind: 'error', message: 'invalid token' }]
+        }
+    }
+
+const parseDjsDefaultState
+    : (input: JsToken) => readonly [List<DjsToken>, DjsScanState]
+    = input => {
+        switch(input.kind) {
+            case 'eof': return [[{ kind: 'eof' }], { kind: 'def' }]
+            case '-': return [empty, { kind: '-' }]
+            default: return [mapDjsToken(input), { kind: 'def' }]
+        }
+    }
+
+// Folds a leading '-' into the following number/bigint token, mirroring the old
+// fs/djs/tokenizer's minus-state exactly.
+const parseDjsMinusState
+    : (input: JsToken) => readonly [List<DjsToken>, DjsScanState]
+    = input => {
+        switch(input.kind) {
+            case 'eof': return [[{ kind: 'error', message: 'invalid token' }, { kind: 'eof' }], { kind: 'def' }]
+            case '-': return [[{ kind: 'error', message: 'invalid token' }], { kind: '-' }]
+            case 'bigint': return [[{ kind: 'bigint', value: -1n * input.value }], { kind: 'def' }]
+            case 'number': return [[{ kind: 'number', bf: multiply(input.bf)(-1n), value: `-${input.value}` }], { kind: 'def' }]
+            default: return [{ first: { kind: 'error', message: 'invalid token' }, tail: mapDjsToken(input) }, { kind: 'def' }]
+        }
+    }
+
+const scanDjsToken
+    : StateScan<JsToken, DjsScanState, List<DjsToken>>
+    = (input, state) => {
+        switch(state.kind) {
+            case '-': return parseDjsMinusState(input)
+            default: return parseDjsDefaultState(input)
+        }
+    }
+
+const mapDjsTokenWithMetadata
+    : (metadata: TokenMetadata) => (token: DjsToken) => DjsTokenWithMetadata
+    = metadata => token => ({ token, metadata })
+
+const scanDjsTokenWithMetadata
+    : StateScan<JsTokenWithMetadata, DjsScanState, List<DjsTokenWithMetadata>>
+    = (input, state) => {
+        const [djsTokens, newState] = scanDjsToken(input.token, state)
+        return [map(mapDjsTokenWithMetadata(input.metadata))(djsTokens), newState]
+    }
+
+export const tokenize
+    : (input: List<number>) => (path: string) => List<DjsTokenWithMetadata>
+    = input => path => flat(stateScan(scanDjsTokenWithMetadata)({ kind: 'def' })(tokenizeJs(input)(path)))

@@ -1,8 +1,15 @@
 import { descentParser } from '../../bnf/descent/module.f.ts'
 import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
-import { jsGrammar, parse, tokenizeString, descentParserCpOnly, tokenize } from './module.f.ts'
+import { jsGrammar, parse, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.ts'
+import { stringifyAsTree } from '../serializer/module.f.ts'
+import { sort } from '../../types/object/module.f.ts'
+import type { Unknown } from '../module.f.ts'
+
+// DjsTokenWithMetadata carries bigint fields (bf, bigint value) that JSON.stringify can't
+// serialize — reuse the same djs stringifyAsTree serializer tokenizeString uses internally.
+const stringify = stringifyAsTree(sort)
 
 export const proof = {
     isValid: [() => {
@@ -772,41 +779,86 @@ export const proof = {
     ],
     metadata: [
         () => {
-            const result = toArray(tokenize(stringToList(''))('a.js'))
+            const result = toArray(tokenizeJs(stringToList(''))('a.js'))
             assertEq(JSON.stringify(result), '[{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":1,"column":1}}]')
         },
         () => {
-            const result = toArray(tokenize(stringToList('true'))('a.js'))
+            const result = toArray(tokenizeJs(stringToList('true'))('a.js'))
             assertEq(JSON.stringify(result), '[{"token":{"kind":"true"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":1,"column":5}}]')
         },
         () => {
-            const result = toArray(tokenize(stringToList('true false'))('a.js'))
+            const result = toArray(tokenizeJs(stringToList('true false'))('a.js'))
             assertEq(JSON.stringify(result), '[{"token":{"kind":"true"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"ws"},"metadata":{"path":"a.js","line":1,"column":5}},{"token":{"kind":"false"},"metadata":{"path":"a.js","line":1,"column":6}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":1,"column":11}}]')
         },
         () => {
             // a lone \n collapses into a single nl token, but line/column still advance
             // correctly for whatever comes after it
-            const result = toArray(tokenize(stringToList('a\nb'))('a.js'))
+            const result = toArray(tokenizeJs(stringToList('a\nb'))('a.js'))
             assertEq(JSON.stringify(result), '[{"token":{"kind":"id","value":"a"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"nl"},"metadata":{"path":"a.js","line":1,"column":2}},{"token":{"kind":"id","value":"b"},"metadata":{"path":"a.js","line":2,"column":1}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":2,"column":2}}]')
         },
         () => {
             // two consecutive newlines still collapse into one nl token, but line still
             // advances by two for the token after them
-            const result = toArray(tokenize(stringToList('a\n\nb'))('a.js'))
+            const result = toArray(tokenizeJs(stringToList('a\n\nb'))('a.js'))
             assertEq(JSON.stringify(result), '[{"token":{"kind":"id","value":"a"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"nl"},"metadata":{"path":"a.js","line":1,"column":2}},{"token":{"kind":"id","value":"b"},"metadata":{"path":"a.js","line":3,"column":1}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":3,"column":2}}]')
         },
         () => {
             // position after a multi-line block comment resumes on the comment's closing line
-            const result = toArray(tokenize(stringToList('/* c\n */ x'))('a.js'))
+            const result = toArray(tokenizeJs(stringToList('/* c\n */ x'))('a.js'))
             assertEq(JSON.stringify(result), '[{"token":{"kind":"/*","value":" c\\n "},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"nl"},"metadata":{"path":"a.js","line":1,"column":1}},{"token":{"kind":"ws"},"metadata":{"path":"a.js","line":2,"column":4}},{"token":{"kind":"id","value":"x"},"metadata":{"path":"a.js","line":2,"column":5}},{"token":{"kind":"eof"},"metadata":{"path":"a.js","line":2,"column":6}}]')
         },
         () => {
-            const result = toArray(tokenize(stringToList('"unterminated'))('a.js'))
+            const result = toArray(tokenizeJs(stringToList('"unterminated'))('a.js'))
             assertEq(JSON.stringify(result), '[{"token":{"kind":"error","message":"invalid token"},"metadata":{"path":"a.js","line":1,"column":1}}]')
         },
         () => {
-            const result = toArray(tokenize(stringToList('00'))('a.js'))
-            assertEq(JSON.stringify(result), '[{"token":{"kind":"error","message":"invalid token"},"metadata":{"path":"a.js","line":1,"column":1}}]')
+            // position points at the poisoning trailing char ('0'), not the start of input
+            const result = toArray(tokenizeJs(stringToList('00'))('a.js'))
+            assertEq(JSON.stringify(result), '[{"token":{"kind":"error","message":"invalid token"},"metadata":{"path":"a.js","line":1,"column":2}}]')
+        },
+    ],
+    // DJS-level: keyword remapping and '-'-folding on top of tokenizeJs. Doesn't re-test
+    // JS-level token shapes already covered above/elsewhere in this file.
+    djsTokenize: [
+        () => {
+            // keywords other than true/false/null/undefined become plain ids
+            const result = toArray(tokenize(stringToList('break'))(''))
+            assertEq(stringify(result as Unknown), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"id","value":"break"}},{"metadata":{"column":6,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
+        () => {
+            const result = toArray(tokenize(stringToList('-10'))(''))
+            assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"bf":[-10n,0],"kind":"number","value":"-10"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
+        () => {
+            const result = toArray(tokenize(stringToList('-0'))(''))
+            assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"bf":[0n,0],"kind":"number","value":"-0"}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
+        () => {
+            const result = toArray(tokenize(stringToList('-1234567890n'))(''))
+            assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"bigint","value":-1234567890n}},{"metadata":{"column":13,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
+        () => {
+            // '-' followed by '-': one error, stays in minus-state waiting for what follows
+            const result = toArray(tokenize(stringToList('--'))(''))
+            assertEq(stringify(result as Unknown), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
+        () => {
+            const result = toArray(tokenize(stringToList('---'))(''))
+            assertEq(stringify(result as Unknown), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
+        () => {
+            // dangling '-' at eof
+            const result = toArray(tokenize(stringToList('-'))(''))
+            assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
+        () => {
+            const result = toArray(tokenize(stringToList('[-1234567890n]'))(''))
+            assertEq(stringify(result as Unknown), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"["}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"bigint","value":-1234567890n}},{"metadata":{"column":14,"line":1,"path":""},"token":{"kind":"]"}},{"metadata":{"column":15,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
+        () => {
+            // grammar-level tokenizer error position flows through the DJS wrapper unchanged
+            const result = toArray(tokenize(stringToList('00'))(''))
+            assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}}]')
         },
     ],
 }
