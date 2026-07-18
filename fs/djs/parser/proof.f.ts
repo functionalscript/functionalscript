@@ -1,5 +1,5 @@
 import { parseFromTokens } from './module.f.ts'
-import { tokenize, type DjsTokenWithMetadata } from '../tokenizer-new/module.f.ts'
+import { tokenize, type DjsTokenWithMetadata } from '../tokenizer/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
@@ -300,8 +300,8 @@ export const proof = {
     ],
     errorMetadata: [
         () => {
-            // column 17 is the ',' itself — tokenizer-new's metadata is start-anchored
-            // (each token's own position), unlike the old tokenizer's metadata, which
+            // column 17 is the ',' itself — the tokenizer's metadata is start-anchored
+            // (each token's own position), unlike the previous tokenizer's metadata, which
             // lagged by one token (an artifact of when its state machine flushed a token).
             const tokenList = tokenizeString('export default [,]')
             const obj = parseFromTokens(tokenList)

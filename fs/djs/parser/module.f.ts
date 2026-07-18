@@ -6,7 +6,7 @@
 import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { fold, first, drop, toArray, length, concat, type List } from '../../types/list/module.f.ts'
 import type { Fold } from '../../types/function/operator/module.f.ts'
-import type { DjsToken, DjsTokenWithMetadata } from '../tokenizer-new/module.f.ts'
+import type { DjsToken, DjsTokenWithMetadata } from '../tokenizer/module.f.ts'
 import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
 import type { AstArray, AstConst, AstModule, AstModuleRef } from '../ast/module.f.ts'

@@ -9,12 +9,13 @@
 column}`) per token via `tokenizeWithPositionOp`: it walks code points with a
 `stateScan`, bumping `line`/resetting `column` on `lf` and incrementing
 `column` otherwise, seeded as `{path, line: 1, column: 1}`. The old DJS
-tokenizer (`fs/djs/tokenizer/module.f.ts`) carries that metadata straight
-through into `DjsTokenWithMetadata = {token, metadata}`, and
-`fs/djs/parser/module.f.ts` depends on it pervasively — every parse error and
-every `pushRef` call threads `metadata` for error reporting.
+tokenizer (since deleted, see [replace-old-tokenizer](replace-old-tokenizer.md))
+carried that metadata straight through into `DjsTokenWithMetadata =
+{token, metadata}`, and `fs/djs/parser/module.f.ts` depends on it
+pervasively — every parse error and every `pushRef` call threads `metadata`
+for error reporting.
 
-`fs/djs/tokenizer-new/module.f.ts` had no position tracking at all. Its
+`fs/djs/tokenizer/module.f.ts` had no position tracking at all. Its
 `descentParserCpOnly` built `CodePointMeta<T> = [CodePoint, T]` pairs via
 `mapCodePoint`, but always set `T = undefined` — the metadata slot existed in
 the descent parser's type (`fs/bnf/descent/module.f.ts`) but was never
@@ -47,7 +48,7 @@ populated. `tokenizeString`'s output had no `path`/`line`/`column` anywhere.
   List<JsTokenWithMetadata>`, matching `fs/js/tokenizer`'s own `tokenize`
   shape (JS-level, not yet DJS-level — that wrapping is
   [replace-old-tokenizer](replace-old-tokenizer.md)'s job).
-- Proof coverage in `fs/djs/tokenizer-new/proof.f.ts`'s new `metadata` block:
+- Proof coverage in `fs/djs/tokenizer/proof.f.ts`'s new `metadata` block:
   column advance per character, line advance + column reset on `\n`
   (including consecutive newlines collapsing into one `nl` token while line
   still advances correctly for what follows), position resuming correctly
@@ -56,7 +57,7 @@ populated. `tokenizeString`'s output had no `path`/`line`/`column` anywhere.
 
 ### Known limitation (not closed here)
 
-Unlike the old char-by-char state machine, tokenizer-new's grammar either
+Unlike the old char-by-char state machine, this tokenizer's grammar either
 parses the *whole* input as tokens or fails — it has no per-character
 error-recovery path. On failure (a hard grammar failure, or the `numError`/
 `unterminated` tags) `tokenize` returns a single generic `{kind: 'error',

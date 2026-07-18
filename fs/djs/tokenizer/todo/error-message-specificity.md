@@ -1,4 +1,4 @@
-## error-message-specificity. tokenizer-new only reports one generic error, not the old tokenizer's specific ones
+## error-message-specificity. tokenizer only reports one generic error, not the old tokenizer's specific ones
 
 **Priority:** P4
 **Status:** open
@@ -13,7 +13,7 @@ specific messages depending on what went wrong — `'invalid number'`,
 exact position of the failing character, and it kept tokenizing afterward,
 so the parser still saw whatever valid tokens came later.
 
-`fs/djs/tokenizer-new/module.f.ts`'s grammar (`descentParser`) has no
+`fs/djs/tokenizer/module.f.ts`'s grammar (`descentParser`) has no
 cut/commit mechanism — it either parses the whole input as tokens or fails
 as one unit. This is why `numError`/`unterminated` exist at all (see
 [add-metadata](add-metadata.md)'s "Known limitation" and
@@ -22,7 +22,7 @@ hard grammar failure into an always-succeeding, specially-tagged match, so
 the descent parser doesn't fall back to matching stray characters as
 unrelated operator tokens.
 
-As a result, `tokenizeJs`/`tokenize` in `fs/djs/tokenizer-new/module.f.ts`
+As a result, `tokenizeJs`/`tokenize` in `fs/djs/tokenizer/module.f.ts`
 collapse every failure mode — malformed numbers, unterminated strings,
 unterminated comments, unrecognized characters, anything the grammar can't
 fully parse — into a single `{kind: 'error', message: 'invalid token'}`,
@@ -88,5 +88,5 @@ diagnostics per file) shows up.
   deferred.
 - [add-metadata](add-metadata.md) — "Known limitation" section, first place
   this gap was written down.
-- `fs/djs/tokenizer-new/module.f.ts` — `numError`/`unterminated` tagging,
+- `fs/djs/tokenizer/module.f.ts` — `numError`/`unterminated` tagging,
   `tokenizeJs`'s error branch.
