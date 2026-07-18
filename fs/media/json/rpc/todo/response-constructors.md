@@ -23,7 +23,15 @@ const _errResponse = (id: Id) => (error: RpcError): Response =>
     ({ jsonrpc, error, id })
 const _okResponse = (id: Id) => (result: Unknown): Response =>
     ({ jsonrpc, result, id })
+
+// fs/mcp/stdio/module.f.ts:52,55 — third and fourth copies of the error envelope
+const parseErrorResponse: Response = { jsonrpc, error: parseError, id: null }
+const internalErrorResponse = (id: Response['id']): Response => ({ jsonrpc, error: internalError, id })
 ```
+
+(`parseErrorResponse` is `errorResponseOf(null)(parseError)` evaluated once;
+`internalErrorResponse` is `errorResponseOf` specialized to `internalError` —
+both collapse onto the exported constructor.)
 
 `mcp` already imports `jsonrpc`, `rpcError`, `invalidRequest`, `invalidParams`,
 and `methodNotFound` from `json/rpc` — the error *values* travel across the
@@ -78,6 +86,8 @@ after this change it builds on the imported one.
       `fs/media/json/rpc/module.f.ts`; use it in `dispatch`.
 - [ ] Replace `_errResponse`/`_okResponse` in `fs/mcp/module.f.ts` with the
       imported constructors.
+- [ ] Rebuild `parseErrorResponse`/`internalErrorResponse` in
+      `fs/mcp/stdio/module.f.ts` on the imported `errorResponseOf`.
 - [ ] `npx tsc` clean; `fjs t` passes (`fs/media/json/rpc/proof.f.ts`,
       `fs/mcp/proof.f.ts`).
 
