@@ -124,7 +124,28 @@ const a = 2   // typeof(a) === 'bigint'
 const b = 2.0 // typeof(b) === 'number' (IEEE 754 64-bit double)
 ```
 
+**JS compatibility.** The `n` suffix stays valid too, as an accepted-but-redundant alternate spelling: `2n` parses to the same `bigint` value as `2`. This costs nothing in the grammar (`n` is not needed to disambiguate anything once bare integers are already `bigint`) and keeps the parser compatible with existing JS/FunctionalScript/djs source that already spells bigints as `123n` — matching this document's own design constraint that "most existing FunctionalScript modules should be reusable in the new language with little or no modification." `2.0n` (fraction with a bigint suffix) is a syntax error, same as in JS.
+
 Python provides a useful precedent. Python 2 had two integer types: `int` (fixed-width, 32 or 64-bit) and `long` (arbitrary-precision), with `2L` as the bigint literal — mirroring JavaScript's current split between `number` and `bigint`. [Python 3 unified them](https://docs.python.org/3/whatsnew/3.0.html#integers): `int` is now always arbitrary-precision and `long` was removed ([PEP 237](https://peps.python.org/pep-0237/)). The literal `2` is a bigint in Python 3 with no special suffix needed — exactly the behaviour proposed here.
+
+**Mixed arithmetic.** Current JS throws when an operator mixes `bigint` and `number`:
+
+```js
+2n + 2.0 // TypeError: Cannot mix BigInt and other types, use explicit conversions
+```
+
+**Proposal:** keep JS's behavior — an operation that mixes `bigint` and `number` throws a `TypeError` rather than implicitly converting either operand. This matches the [TC39 `proposal-bigint`](https://github.com/tc39/proposal-bigint) design rationale ("Design Goals, Or Why Is This Like This?"): implicit coercion has no single correct answer (`bigint`→`number` risks silent precision loss; `number`→`bigint` breaks on non-integer floats like `1.5`), so the proposal "errs on the side of throwing an exception rather than rely on type coercion and risk giving an imprecise answer." Explicit conversion is required at the boundary instead.
+
+Contrast with Python 3, which goes the other way and promotes `int` to `float` silently:
+
+```python
+2 + 2.0        # 4.0 (float) — int promoted to float, no error
+10**30 + 1.0   # 1e+30 — silent precision loss, everything past ~15-17 significant digits is gone
+```
+
+Python's convenience trades away exactly the precision guarantee that motivates defaulting integer literals to `bigint` in the first place, so JS's stricter behavior is the better fit here despite the extra conversion calls it forces at `bigint`/`number` boundaries.
+
+This `2`/`2.0` split doesn't have to wait for a new PL. [fs/djs/todo/json-bigint-serialization.md](../fs/djs/todo/json-bigint-serialization.md) proposes the same convention — a dot-free numeric literal is `bigint`, a literal with a `.` (or exponent) is `number` — as a JSON-*compatible* serialization inside today's `fs/djs`, and independently lands on the same Python precedent (CPython's `json` scanner uses the identical `frac`/`exp`-presence test to choose `int` vs `float`). It's a concrete, buildable-now instance of this section's idea, scoped to serialization rather than the full language.
 
 ### UTF8 String
 
@@ -332,7 +353,8 @@ Notes and open questions:
 
 ## Tasks
 
-- [ ] Decide on integer literal syntax (`2` = bigint, `2.0` = float)
+- [ ] Decide on integer literal syntax (`2` = bigint, `2.0` = float); accept `2n` as a redundant-but-valid alternate spelling for JS/djs source compatibility
+- [ ] Specify the `TypeError` thrown on mixed `bigint`/`number` arithmetic (matching current JS behavior) and the explicit conversion functions required at the boundary
 - [ ] Define UTF-8 string type and drop UTF-16
 - [ ] Specify `typeof` returning `'array'` for arrays
 - [ ] Define lexicographic key ordering rules
