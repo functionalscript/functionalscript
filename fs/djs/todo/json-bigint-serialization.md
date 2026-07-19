@@ -159,6 +159,12 @@ logic; JS's single `number` type is what makes it necessary here.
 
 ### Related
 
+- [todo/new-pl.md § Numbers](../../../todo/new-pl.md#numbers) — the
+  from-scratch-language version of this same idea (`2` = bigint, `2.0` =
+  number as the *default* literal syntax, no suffix). This proposal is the
+  scoped-down, buildable-today instance of it: same `int`/`float` split,
+  same Python precedent, but as a JSON-compatible serialization convention
+  inside today's `fs/djs` rather than a change to literal syntax.
 - [663-json-djs-tree-type](./663-json-djs-tree-type.md) — generalizes the
   json/djs recursive tree type over its leaf set; this proposal's value type
   is naturally a third instantiation of that generic if the narrower-type
