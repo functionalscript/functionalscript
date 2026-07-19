@@ -2,7 +2,7 @@ import { length, maxLength, msb, vec, vec8, type Vec } from '../types/bit_vec/mo
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
 import { fileCas, casAddFile, type FileCasOperation, casUpload } from './module.f.ts'
-import { pure, type Effect } from '../effects/module.f.ts'
+import { decode, pure, type Effect } from '../effects/module.f.ts'
 import { mkdir, writeFile, rm, readFile, type ReadFile, type WriteFile, type Rm, type Mkdir, type IoResult, access } from '../effects/node/module.f.ts'
 import { error, ok, type Ok } from '../types/result/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
@@ -260,5 +260,22 @@ export const proof = {
         const c = fileCas(sha256)('.')
         const [, hashes] = virtual(state1)(c.list())
         assertEq(hashes.length, 0, ['expected nothing published on failed upload', hashes])
+    },
+    casListPropagatesNonNotFoundAccessError: () => {
+        // A non-ENOENT `access` failure (permissions, corruption) is a genuine storage
+        // error and must propagate out of `list`, not be swallowed as an empty store.
+        const c = fileCas(sha256)('.')
+        const boom = { code: 'EACCES' }
+        const d = decode(c.list())
+        assert(!d.done, 'expected list() to issue an access command first')
+        assertEq(d.command, 'access')
+        const continuation = d.continuation as (r: IoResult<void>) => Effect<FileCasOperation, readonly Vec[]>
+        let threw: unknown
+        try {
+            continuation(error(boom))
+        } catch (e) {
+            threw = e
+        }
+        assertEq(threw, boom)
     },
 }
