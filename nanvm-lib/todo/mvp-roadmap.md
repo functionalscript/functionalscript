@@ -110,13 +110,14 @@ dependencies.
 
 **Publish-time generation (decided):** the generated Rust of the compiler
 is never committed to git and adds no build dependencies for consumers. The
-generated directory is `.gitignore`d; `Cargo.toml`'s `include` field lists
-it explicitly (when `include` is specified, cargo packages exactly those
-paths, gitignore notwithstanding); the publish workflow runs the code
-generator and then `cargo publish`, so the generated `.rs` rides along in
-the `.crate` only — the same arrangement as npm packages shipping built
-`dist/` files that are never committed. The `.crate` is a distribution
-artifact, not the source of record.
+generated code lives in an underscore-prefixed directory — the repository
+reserves `_*` for generated files in `.gitignore` — and `Cargo.toml`'s
+`include` field lists it explicitly (when `include` is specified, cargo
+packages exactly those paths, gitignore notwithstanding); the publish
+workflow runs the code generator and then `cargo publish`, so the generated
+`.rs` rides along in the `.crate` only — the same arrangement as npm
+packages shipping built `dist/` files that are never committed. The
+`.crate` is a distribution artifact, not the source of record.
 
 Rejected alternatives: committing the generated code to the repository
 (generated code in git); generating on the fly in `build.rs` with a JS
@@ -124,6 +125,28 @@ engine as a build dependency — Deno/V8 downloads binaries at build time,
 breaking docs.rs and offline builds, and even a hermetic lightweight engine
 (QuickJS, Boa) would tax every consumer with a third-party engine build and
 make build correctness depend on a third engine.
+
+**Developer workflow (decided):** regeneration is unconditional — the
+developer entry point for the crate is "regenerate, then build", with the
+codegen step folded into `npm run update`, and the generator writes a file
+only when its content actually changed, so a no-op regeneration leaves
+mtimes untouched and cargo's fingerprinting skips the rebuild. There is
+deliberately **no `build.rs`**: a presence check would wave through the
+dangerous case (stale generated code), and sound staleness detection would
+re-implement a build system inside a build script — unconditional-but-cheap
+beats conditional-but-clever, and a crate without a build script also
+builds faster and is friendlier to consumers who audit or restrict
+build-script execution. The failure modes sort themselves out: a fresh
+checkout without the script fails with rustc's plain "couldn't read
+`…/_generated/…`" error (documented in CONTRIBUTING); locally stale output
+cannot survive past the developer's machine because CI regenerates from
+scratch, so the merge gate and the publish reproducibility check always
+operate on fresh output; consumers are never affected, since the published
+`.crate` always contains matching generated code. The workspace's
+`default-members` excludes the `nanvm` crate, so plain `cargo build` /
+`cargo test` for `nanvm-lib` development stays Node-free; building the
+`nanvm` crate explicitly is the case that needs the pre-step (Node
+installed and the wrapper script run).
 
 Dual shipping doubles as a permanent conformance test: both distributions
 must emit **byte-identical** `.rs` output for the same input. This also

@@ -12,8 +12,10 @@ directly — no Node/Deno, no rustc at the user's run time — executing code
 via the interpreter behind the `Function` constructor.
 
 The generated compiler source is **never committed to git**: it is packaged
-into the `.crate` at publish time (`.gitignore`d, listed in `Cargo.toml`'s
-`include` field), so consumers build pure Rust with no build dependencies —
+into the `.crate` at publish time (an underscore-prefixed directory — the
+repository reserves `_*` for generated files in `.gitignore` — listed in
+`Cargo.toml`'s `include` field), so consumers build pure Rust with no build
+dependencies —
 no Node, no network, no third-party JS engine — while the repository stays
 free of generated code. See the distribution section of
 [mvp-roadmap](./mvp-roadmap.md) for the full arrangement, the rejected
