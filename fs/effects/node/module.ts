@@ -28,7 +28,6 @@ import { memoryOperationMap } from './memory/module.ts'
 import {
     type Server as EffectServer,
     type Headers,
-    type IoResult,
     type Module,
     type NodeOp,
     type RequestListener as Erl,
