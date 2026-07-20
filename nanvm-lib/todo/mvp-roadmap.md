@@ -72,7 +72,12 @@ Invariants:
 - A natively compiled function still **carries its `Any` code description**
   (as static data), so content hashing and `toString(f)` apply uniformly to
   all functions: the AST is the identity of a function; native code is a
-  cached acceleration of it.
+  cached acceleration of it. This invariant is **staged**: the MVP code
+  generator omits the embedded description while the
+  [ast-spec](../../todo/ast-spec.md) (P2) is not yet defined — it must not
+  invent its own shapes ahead of the spec. Embedding becomes mandatory once
+  the spec lands, and before the `Function` constructor, hashing, or
+  `toString(f)` ship.
 - The interpreter sits behind a cargo **feature flag**, so AOT builds for
   embedded targets that never construct functions from data at run time can
   compile without it.
@@ -180,7 +185,14 @@ packages exactly those paths, gitignore notwithstanding); the publish
 workflow runs the code generator and then `cargo publish`, so the generated
 `.rs` rides along in the `.crate` only — the same arrangement as npm
 packages shipping built `dist/` files that are never committed. The
-`.crate` is a distribution artifact, not the source of record.
+`.crate` is a distribution artifact, not the source of record. The publish
+invocation passes **`--allow-dirty`**: cargo's VCS dirty check refuses to
+package files not committed to git — including gitignored files explicitly
+listed in `include` — and here that "dirt" is exactly the deliberately
+uncommitted `_*` output. The flag is safe in this workflow because CI
+publishes from a clean checkout where the only uncommitted files are the
+just-regenerated outputs, already verified by the reproducibility check
+below.
 
 Rejected alternatives: committing the generated code to the repository
 (generated code in git); generating on the fly in `build.rs` with a JS
@@ -263,6 +275,9 @@ as a generic `Any` facility, post-MVP.
 - [ ] **AST spec** — the RTTI schema of the code-describing `Any`; the
       contract of the `Function` constructor, shared by the compiler, the
       interpreter, and the code generator (which embeds it as static data).
+      Blocks the staged embedding invariant above and the `Function`
+      constructor below — the MVP code generator does not embed code
+      descriptions until this spec exists.
       See [ast-spec](../../todo/ast-spec.md).
 - [ ] **`Function` constructor + interpreter** (Rust) — accepts an `Any`
       described by the AST spec and executes it; behind a cargo feature
