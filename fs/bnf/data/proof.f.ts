@@ -3,7 +3,7 @@ import { identity } from '../../types/function/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { oneEncode, option, range, rangeDecode, repeat0Plus, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { toData } from './module.f.ts'
+import { emptyTagMap, toData } from './module.f.ts'
 import { assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
@@ -92,6 +92,44 @@ export const proof = {
         const result = stringify(sort)(toData(varintRule))
         if (result !== '[{"":{"a":"0","b":"2"},"0":["1"],"1":1627390049,"2":["3"],"3":1644167266},""]') { throw result }
     },
+    emptyTagMap: [
+        () => {
+            const stringRule = 'true'
+            const result = JSON.stringify(emptyTagMap(toData(stringRule)[0]))
+            if (result !== '{}') { throw result }
+        },
+        () => {
+            const emptyRule = ''
+            const result = JSON.stringify(emptyTagMap(toData(emptyRule)[0]))
+            if (result !== '{"":true}') { throw result }
+        },
+        () => {
+            const emptyRule = ''
+            const varintRule = { true: 'true', e: emptyRule }
+            const result = JSON.stringify(emptyTagMap(toData(varintRule)[0]))
+            if (result !== '{"5":true,"":"e"}') { throw result }
+        },
+        () => {
+            const repeatRule = repeat0Plus(option('a'))
+            const result = JSON.stringify(emptyTagMap(toData(repeatRule)[0]))
+            if (result !== '{"0":"none","3":true,"":true,"r":"none"}') { throw result }
+        },
+        () => {
+            // Regression for the sequence case: a sequence is nullable iff
+            // *all* of its items are, not just the first one. `numberRule`
+            // is `[optionalMinusRule, digitRule]`: the first item is
+            // nullable, the second never is, so the whole sequence must not
+            // be reported as nullable.
+            const emptyRule = ''
+            const minusRule = range('--')
+            const optionalMinusRule = { none: emptyRule, minus: minusRule }
+            const digitRule = range('09')
+            const numberRule = [optionalMinusRule, digitRule]
+            const data = toData(numberRule)
+            const emptyTags = emptyTagMap(data[0])
+            assertEq(emptyTags[data[1]], undefined, emptyTags)
+        },
+    ],
     example: () => {
         const grammar = {
             space: 0x000020_000020,
