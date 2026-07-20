@@ -92,6 +92,47 @@ One FJS module compiles to one Rust file, and the generated file is a Rust
 crate, or a user's own crate. This way the same generated output serves
 testing, self-hosting, and AOT embedding.
 
+#### Effects: the `nanvm-effects-node` runner crate (decided)
+
+The compiler CLI is pure FJS that *returns* effect descriptions
+(`Effect<NodeOp, T>`); all actual impurity lives in thin `.ts` runner
+modules (e.g. [`fs/effects/node/module.ts`](../../fs/effects/node/module.ts)),
+which are not FJS and never pass through the code generator. The
+`.f.ts`/`.ts` split is exactly the compiled/hand-written boundary: every
+`.f.ts` module compiles to Rust; every impure `.ts` runner needs a
+hand-written Rust twin interpreting the same operation vocabulary against
+the OS (`std::fs`, `std::process`, stdio) instead of Node built-ins.
+
+The Rust twin of `fs/effects/node` is the **`nanvm-effects-node`** library
+crate — named to mirror the effect directory structure: this specific
+effect set is the CLI-on-Node vocabulary, and future sets (e.g. a browser
+set with `fetch`, DOM, and some shared effects) follow the same pattern.
+It is a separate crate in the same workspace, published on crates.io:
+`nanvm-lib` stays pure (no OS dependencies — keeping a future `no_std`
+embedded profile open), and the `nanvm` binary depends on both. It serves
+any AOT-compiled effectful FJS program, not just the embedded compiler —
+it is to native FJS what `fs/effects/node/module.ts` is to Node FJS.
+
+Scoping notes:
+
+- **Sync subset first.** The compiler CLI needs file read/write, console,
+  and possibly `exec` — a blocking `std` implementation covers it. `Http`,
+  `Fetch`, and parallel effects are where an async-runtime decision
+  (tokio?) lurks; implement operations incrementally, driven by what the
+  CLI actually exercises, and defer that decision entirely.
+- **`import` is the special operation.** On Node it delegates to the module
+  loader; natively, importing an FJS module means invoking the embedded
+  compiler and the `Function`-constructor interpreter — its implementation
+  is the VM itself, not an OS call. It is part of the self-hosting loop,
+  not a syscall port.
+- **Testing comes cheap.** The in-memory/mock interpreters
+  ([`fs/effects/mock`](../../fs/effects/mock),
+  [`fs/effects/node/memory`](../../fs/effects/node/memory)) are pure
+  `.f.ts` code, so they compile through the code generator unchanged: the
+  compiled CLI can run against in-memory effects with no Rust twins, and
+  the `nanvm-effects-node` runner can be cross-checked against the pure
+  interpreter operation by operation.
+
 #### Distribution: one source, two packages (decided)
 
 The compiler has a single source (FJS), shipped two ways:
@@ -208,6 +249,10 @@ as a generic `Any` facility, post-MVP.
 - [ ] **Nested functions** (function frame) (Rust).
       See [function](../../todo/lang/3110-function.md),
       [function-frame](../../todo/lang/3111-function-frame.md).
+- [ ] **`nanvm-effects-node` crate** (Rust) — the effect runner: interprets
+      the `NodeOp` vocabulary against the OS; sync subset (fs, console)
+      first. Required for the self-hosted CLI (see the effects section
+      above).
 
 #### P3
 
@@ -227,7 +272,9 @@ Compile the compiler itself (written in FJS) to Rust with the code generator
 and ship it as the `nanvm` crate
 ([console-program](./console-program.md)): a single native executable that
 parses and runs `.f.js` directly — no Node/Deno, no rustc at the user's run
-time — executing code via the interpreter behind the `Function` constructor.
+time — executing code via the interpreter behind the `Function` constructor,
+with its I/O interpreted by the `nanvm-effects-node` runner (see the effects
+section above).
 
 Reached incrementally: the code generator's language coverage grows with the
 operator/function/control tasks above until it covers everything the
