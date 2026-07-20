@@ -113,6 +113,23 @@ embedded profile open), and the `nanvm` binary depends on both. It serves
 any AOT-compiled effectful FJS program, not just the embedded compiler —
 it is to native FJS what `fs/effects/node/module.ts` is to Node FJS.
 
+**Generated stub — the vocabulary is machine-checked.** The Rust side of
+the effect vocabulary is not written by hand: a **generated stub** (op,
+parameter, and result types, plus a trait with one method per operation)
+is produced from the effects description, and the hand-written
+`nanvm-effects-node` runner implements the generated trait — so rustc
+enforces that the runner covers exactly the same effects, and any
+vocabulary drift (a new operation, a changed signature) breaks the Rust
+build until the twin catches up. Since `NodeOp` today is TypeScript types
+only and the code generator compiles FJS values, the vocabulary becomes an
+**RTTI schema** (the specification of record) from which both the TS types
+(`Ts<T>`) and the Rust stub are derived — the third instance of the
+single-source pattern, after the [ast-spec](../../todo/ast-spec.md) and the
+operator tests. The stub is generated code: it lives in an
+underscore-prefixed directory and follows the same regenerate-then-build /
+publish-time packaging rules as the generated compiler source (see the
+distribution section below).
+
 Scoping notes:
 
 - **Sync subset first.** The compiler CLI needs file read/write, console,
@@ -249,10 +266,12 @@ as a generic `Any` facility, post-MVP.
 - [ ] **Nested functions** (function frame) (Rust).
       See [function](../../todo/lang/3110-function.md),
       [function-frame](../../todo/lang/3111-function-frame.md).
-- [ ] **`nanvm-effects-node` crate** (Rust) — the effect runner: interprets
-      the `NodeOp` vocabulary against the OS; sync subset (fs, console)
-      first. Required for the self-hosted CLI (see the effects section
-      above).
+- [ ] **`nanvm-effects-node` crate** (Rust) — the effect runner: implements
+      the generated stub trait against the OS; sync subset (fs, console)
+      first. Preceded by defining the effect vocabulary as an RTTI schema
+      and generating the Rust stub from it, so rustc enforces that the
+      runner implements the same effects (see the effects section above).
+      Required for the self-hosted CLI.
 
 #### P3
 
