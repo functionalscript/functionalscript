@@ -116,16 +116,12 @@ export const proof = {
         },
         () => {
             // Regression for the sequence case: a sequence is nullable iff
-            // *all* of its items are, not just the first one. `numberRule`
-            // is `[optionalMinusRule, digitRule]`: the first item is
-            // nullable, the second never is, so the whole sequence must not
-            // be reported as nullable.
-            const emptyRule = ''
-            const minusRule = range('--')
-            const optionalMinusRule = { none: emptyRule, minus: minusRule }
-            const digitRule = range('09')
-            const numberRule = [optionalMinusRule, digitRule]
-            const data = toData(numberRule)
+            // *all* of its items are, not just the first one. The old
+            // descent-only implementation pinned the result to nullable as
+            // soon as it saw the leading empty item, and reported this
+            // 2-item sequence as nullable even though its second item is a
+            // mandatory terminal.
+            const data = toData(['', range('AA')])
             const emptyTags = emptyTagMap(data[0])
             assertEq(emptyTags[data[1]], undefined, emptyTags)
         },
