@@ -11,6 +11,7 @@ import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.
 import { fromMap } from '../../types/object/module.f.ts'
 import type { AstArray, AstConst, AstModule, AstModuleRef } from '../ast/module.f.ts'
 import type { TokenMetadata } from '../../js/tokenizer/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 export type ParseError = {
     readonly message: string,
@@ -529,4 +530,24 @@ export const parseFromTokens = (tokenList: List<DjsTokenWithMetadata>): Result<A
         case 'error': return error(state.error)
         default: return error({message: 'unexpected end', metadata: null})
     }
+}
+
+export const proof = {
+    pushKey: {
+        // `pushKey` is only ever invoked while `state.top` is an object (the
+        // `'{'`/`'{,'` value-states guarantee it), so its non-object guard is
+        // a defensive branch unreachable through `parseFromTokens`. Call it
+        // directly to cover that branch.
+        nonObjectTop: () => {
+            const state: ParseValueState = {
+                state: 'exportValue',
+                module: { refs: null, modules: null, consts: null },
+                valueState: '[',
+                top: null,
+                stack: null,
+            }
+            const result = pushKey(state)('key')({ path: 'test', line: 0, column: 0 })
+            assertEq(result.state, 'error')
+        },
+    },
 }
