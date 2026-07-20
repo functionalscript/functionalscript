@@ -7,21 +7,21 @@
 
 The primary focus is to get to MVP ASAP.
 
-**MVP definition:** the MVP is reached when we use our FJS CLI executable to
-parse and compile FJS code into generated Rust code that calls the
-`nanvm-lib` API, build it with the Rust compiler, and run the resulting
-executable:
+**MVP definition:** the MVP is reached when `fjs compile` can emit Rust code
+that calls the `nanvm-lib` API, and a harness crate builds and runs the
+generated code with cargo:
 
 ```
-source ──(fjs: parse, compile, generate Rust)──> Rust code
-       ──(rustc + nanvm-lib)──> executable ──(run)──> result
+source ──(fjs compile <module> <output>.rs)──> Rust code
+       ──(cargo: harness crate + nanvm-lib)──> executable ──(run)──> result
 ```
 
-The generated program evaluates the module's `export default` (running it if
-it is a function) and prints the result to stdout as JSON.
+The harness evaluates the module's `export default` (running it if it is a
+function) and prints the result to stdout as JSON.
 
-So the MVP requires the FJS CLI (`fjs`) and the Rust toolchain; the
-self-hosted `nanvm` executable is the post-MVP milestone below
+`fjs` never invokes cargo: the npm-shipped tool emits `.rs` files, and
+building/running them is an ordinary cargo workflow. Each ecosystem keeps its
+native tool. The self-hosted `nanvm` crate is the post-MVP milestone below
 (see [console-program](./console-program.md)).
 
 See [`todo/lang/`](../../todo/lang/README.md) for language details. Details
@@ -56,12 +56,12 @@ constructor.
 
 1. **Interpretation** — the `Function` constructor executes the `Any` code
    description directly. This is the baseline path, required for the
-   self-hosted `nanvm` and for code constructed at run time.
+   self-hosted `nanvm` crate and for code constructed at run time.
 2. **AOT compilation** — the FJS compiler generates Rust code that calls the
    `nanvm-lib` API, and rustc compiles it to native code. This path is the
    MVP pipeline, the bootstrap vehicle for compiling the compiler itself into
-   `nanvm`, and the future AOT backend for platforms where interpretation is
-   undesirable or JIT is forbidden (e.g. iOS, embedded).
+   the `nanvm` crate, and the future AOT backend for platforms where
+   interpretation is undesirable or JIT is forbidden (e.g. iOS, embedded).
 
 Invariants:
 
@@ -76,6 +76,40 @@ Invariants:
 - The interpreter sits behind a cargo **feature flag**, so AOT builds for
   embedded targets that never construct functions from data at run time can
   compile without it.
+
+#### Rust code generation: an output target of `fjs compile` (decided)
+
+`fjs compile <input> <output>` already dispatches on the output extension
+(`.json` vs. DJS — see [`fs/djs/module.f.ts`](../../fs/djs/module.f.ts));
+Rust code generation is a third branch, selected by the `.rs` extension. No
+new CLI surface: the previously proposed `fjs vm build` / `fjs vm run`
+command group is dropped.
+
+One FJS module compiles to one Rust file, and the generated file is a Rust
+**module** — exposing the module's value via the `nanvm-lib` API (e.g.
+`pub fn module<A: IVm>() -> Any<A>`) — not a `main`. A thin, hand-written
+`main` lives in the consumer: the test harness in this repo, the `nanvm`
+crate, or a user's own crate. This way the same generated output serves
+testing, self-hosting, and AOT embedding.
+
+#### Distribution: one source, two packages (decided)
+
+The compiler has a single source (FJS), shipped two ways:
+
+- **npm** — FJS code only, running on Node/Deno; the `fjs` CLI as today.
+- **crates.io** — the `nanvm` crate: the `nanvm-lib` runtime plus the
+  **committed generated Rust** of the same compiler source, built by cargo
+  into a native executable (see [console-program](./console-program.md)).
+
+The generated Rust of the compiler is checked into the repository (the
+classic bootstrap arrangement, like a committed generated parser), so the
+crate builds on crates.io without Node; `npm run update` regenerates it, and
+CI verifies the committed output matches the FJS source.
+
+Dual shipping doubles as a permanent conformance test: both distributions
+must emit **byte-identical** `.rs` output for the same input. Once the crate
+ships, the check closes into a fixed point: the crate-shipped compiler
+regenerates its own embedded source, identically.
 
 #### What changed (vs. the earlier serialized-AST proposal)
 
@@ -92,14 +126,16 @@ as a generic `Any` facility, post-MVP.
 
 #### P1
 
-- [ ] **Rust code generator** (FJS) — compiles an FJS module into a Rust
-      crate that builds the module's value via the `nanvm-lib` API. The
-      central MVP task; rustc replaces the previous deserializer task.
-- [ ] **`fjs`–Rust integration** — wire the pipeline end-to-end early
-      ("walking skeleton"): a minimal subset (e.g. a constant default
-      export) is enough to start — generate the crate, `cargo run` it, print
-      the result as JSON — so every later feature lands into a working
-      pipeline. See
+- [ ] **Rust code generator** (FJS) — the `.rs` output branch of
+      `fjs compile`: compiles an FJS module into a Rust module that builds
+      the module's value via the `nanvm-lib` API. The central MVP task;
+      rustc replaces the previous deserializer task.
+- [ ] **Harness + walking skeleton** — a harness crate (or generated tests
+      in `nanvm-lib`) whose `main` evaluates a generated module's
+      `export default` and prints the result as JSON; wire the pipeline
+      end-to-end early with a minimal subset (e.g. a constant default
+      export), driven by `cargo test` in CI, so every later feature lands
+      into a working pipeline. See
       [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
 - [ ] **Test generation for operators** — one test-data module drives both
       the FJS proof (JS engine reference) and the generated Rust tests.
@@ -143,10 +179,10 @@ as a generic `Any` facility, post-MVP.
 ### Post-MVP milestone: self-hosting
 
 Compile the compiler itself (written in FJS) to Rust with the code generator
-and embed it into the `nanvm` executable
+and ship it as the `nanvm` crate
 ([console-program](./console-program.md)): a single native executable that
-parses and runs `.f.js` directly — no Node/Deno, no interprocess handoff —
-executing code via the interpreter behind the `Function` constructor.
+parses and runs `.f.js` directly — no Node/Deno, no rustc at the user's run
+time — executing code via the interpreter behind the `Function` constructor.
 
 Reached incrementally: the code generator's language coverage grows with the
 operator/function/control tasks above until it covers everything the
@@ -161,13 +197,16 @@ compiler's own code uses.
    conflicts with "always 8-byte doubles". Do we adopt RFC 8949 §4.2 as-is,
    or define our own profile (e.g. always 64-bit floats)? Belongs to the
    `Any` serialization task (P3).
-2. **Rust toolchain in the loop.** `fjs vm run` invokes cargo/rustc; a
-   compile per program run is acceptable for the MVP dev loop, but how do we
-   keep it fast (shared target dir, prebuilt `nanvm-lib`), and what is the
-   fallback for users without a Rust toolchain before self-hosting lands?
-3. **Result printing.** The generated program prints the result to stdout as
-   JSON, but a result can be non-JSON (`undefined`, `bigint`, a function).
-   Does the MVP print DJS for those, or report an error?
+2. **Generated module imports.** An FJS module imports other modules. What is
+   the convention for how generated Rust modules reference each other
+   (`use` paths, file/directory layout mirroring the FJS module graph)? And
+   does `fjs compile <input> <output>.rs` emit the transitive closure as
+   multiple files, or is it invoked per module?
+3. **Result printing.** The harness prints the result to stdout as JSON, but
+   a result can be non-JSON (`undefined`, `bigint`, a function). Does the MVP
+   print DJS for those, or report an error?
+4. **Binary name.** The npm tool is `fjs`; the crate is `nanvm`. Should the
+   crate's binary also be named `fjs` (same CLI surface, native), or `nanvm`?
 
 ### Related
 
@@ -177,9 +216,9 @@ compiler's own code uses.
 - [ast-spec](../../todo/ast-spec.md) — the schema (RTTI) of the
   code-describing `Any`; the `Function` constructor contract.
 - [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) — the
-  walking-skeleton integration and the `fjs vm build` / `fjs vm run` CLI.
-- [console-program](./console-program.md) — the self-hosted `nanvm`
-  executable (post-MVP).
+  walking-skeleton integration: the `.rs` output target and the harness.
+- [console-program](./console-program.md) — the self-hosted `nanvm` crate
+  (post-MVP).
 - [single-source-of-truth-for-operator-tests](./single-source-of-truth-for-operator-tests.md)
   — test generation preceding the operators task.
 - [fs-vm-load-save](./fs-vm-load-save.md) — load/execute/save semantics.
