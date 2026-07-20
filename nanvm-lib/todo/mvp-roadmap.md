@@ -142,13 +142,18 @@ Scoping notes:
   compiler and the `Function`-constructor interpreter — its implementation
   is the VM itself, not an OS call. It is part of the self-hosting loop,
   not a syscall port.
-- **Testing comes cheap.** The in-memory/mock interpreters
+- **Testing comes cheap.** The pure in-memory interpreters
   ([`fs/effects/mock`](../../fs/effects/mock),
-  [`fs/effects/node/memory`](../../fs/effects/node/memory)) are pure
-  `.f.ts` code, so they compile through the code generator unchanged: the
-  compiled CLI can run against in-memory effects with no Rust twins, and
-  the `nanvm-effects-node` runner can be cross-checked against the pure
-  interpreter operation by operation.
+  [`fs/effects/node/virtual`](../../fs/effects/node/virtual)) are `.f.ts`
+  code, so they compile through the code generator unchanged: the compiled
+  CLI can run against in-memory effects with no Rust twins, and the
+  `nanvm-effects-node` runner can be cross-checked against the pure
+  interpreter operation by operation. The exception is
+  [`fs/effects/node/memory`](../../fs/effects/node/memory) — the runner for
+  the mutable memory effects (`MemOp`) — which is an impure `.ts` module
+  (mutable state, `node:crypto` UUIDs) and so joins the hand-written Rust
+  twin set: implementing mutable memory effects in Rust is fine, same as
+  the OS operations.
 
 #### Distribution: one source, two packages (decided)
 
