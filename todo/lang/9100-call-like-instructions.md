@@ -2,7 +2,7 @@
 
 > **Note:** bytecode is a VM-internal, performance-oriented representation that may vary across
 > architectures, VM implementations, and versions; the stable serializable representation of
-> functions is the AST (see [§9 of the language README](./README.md#9-serialization-ast-not-bytecode)).
+> functions is the AST (see [§9 of the language README](./README.md#9-serialization-ast-as-data-not-bytecode)).
 > This document describes a possible internal bytecode design.
 
 Call-like bytecode instructions include following groups:

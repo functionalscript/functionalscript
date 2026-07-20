@@ -12,14 +12,15 @@ Each input token is an integer and may carry additional information:
 ### FunctionalScript pipeline
 
 ```
-tokenizer(CFG) ==AST==> ToFsToken(Fun) ==Token[]==> parser(CFG) ==AST==> serializer(Fun) ==serialized AST==>
+tokenizer(CFG) ==AST==> ToFsToken(Fun) ==Token[]==> parser(CFG) ==AST==> backend(Fun) ==generated Rust | Any==>
 ```
 
 This allows a simple and fast `LL(1)` parser. **CFG** = context-free grammar, **Fun** = functional transformation.
 
-The AST is the stable serializable representation of functions (see
-[`todo/lang/README.md` §9](../../../todo/lang/README.md#9-serialization-ast-not-bytecode)); a VM
-may transform it into internal bytecode on loading.
+The AST is the stable representation of functions, expressed as an FJS value (see
+[`todo/lang/README.md` §9](../../../todo/lang/README.md#9-serialization-ast-as-data-not-bytecode));
+a backend either generates Rust code calling the `nanvm-lib` API (AOT) or hands the AST as data to
+the `Function` constructor (interpretation).
 
 Result of tokenizer and token transformation:
 
