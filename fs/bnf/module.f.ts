@@ -10,6 +10,8 @@ import { codePointListToString, stringToCodePointList } from '../text/utf16/modu
 import { definedValues, type StringMap } from '../types/object/module.f.ts'
 import { type Array2, isArray2 } from '../types/array/module.f.ts'
 import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
+import { contains } from '../types/range/module.f.ts'
+import { assert } from '../asserts/module.f.ts'
 
 // Types
 
@@ -91,12 +93,10 @@ const offset = 24
 
 const mask = (1 << offset) - 1
 
-const isValid = (r: number): boolean => r >= 0 && r <= mask
+const isValid = contains(0, mask)
 
 export const rangeEncode = (a: number, b: number): TerminalRange => {
-    if (!isValid(a) || !isValid(b) || a > b) {
-        throw `Invalid range ${a} ${b}.`
-    }
+    assert(isValid(a) && isValid(b) && a <= b)
     return Number((BigInt(a) << BigInt(offset)) | BigInt(b))
 }
 
@@ -108,7 +108,7 @@ export const oneEncode = (a: number): TerminalRange => rangeEncode(a, a)
 /**
  * End-of-file marker represented as one code point beyond Unicode range.
  */
-export const eof: TerminalRange = oneEncode(0x110000)
+export const eof: TerminalRange = oneEncode(mask)
 
 /**
  * Decodes a packed range into `[start, end]` symbols.
