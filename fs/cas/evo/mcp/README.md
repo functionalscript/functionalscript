@@ -16,8 +16,10 @@ for how to run it and register it with an MCP client.
 
 | Tool       | args                                             | action        | result                    |
 |------------|--------------------------------------------------|---------------|---------------------------|
-| `evo_list` | `{}`                                              | `e.list()`    | subjects, one per line    |
+| `evo_list` | `{}`                                              | `e.list()`    | subjects, as a JSON array of strings |
 | `evo_head` | `{ subject }`                                     | `e.head(...)` | head hashes, one per line |
+
+`evo_list` returns JSON rather than the newline-joined line format `evo_head`/`cas_list` use: subjects are arbitrary caller-supplied strings, not constrained to a newline-free alphabet the way hashes are, so a subject containing `\n` (or an empty subject) would be ambiguous in a line-based format.
 | `evo_add`  | `{ parents, snapshot?, subject?, archived? }`     | `e.add(...)`  | hash (cBase32)            |
 
 Each tool's argument schema is an rtti struct declared once and used twice:

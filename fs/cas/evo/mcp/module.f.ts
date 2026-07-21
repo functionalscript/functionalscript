@@ -7,7 +7,7 @@
  *
  * | Tool        | args                                     | action        | result                    |
  * |-------------|-------------------------------------------|---------------|---------------------------|
- * | `evo_list`  | `{}`                                       | `e.list()`    | subjects, one per line    |
+ * | `evo_list`  | `{}`                                       | `e.list()`    | subjects, as a JSON array of strings |
  * | `evo_head`  | `{ subject }`                              | `e.head(...)` | head hashes, one per line |
  * | `evo_add`   | `{ parents, snapshot?, subject?, archived? }` | `e.add(...)`  | hash (cBase32)            |
  *
@@ -26,6 +26,8 @@ import {
     toolEntry, errorResult, okResult,
     type ToolEntry, type ToolsCallResult,
 } from '../../../mcp/module.f.ts'
+import { stringify } from '../../../media/json/module.f.ts'
+import { identity } from '../../../types/function/module.f.ts'
 import { type Evo } from '../module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
@@ -48,15 +50,22 @@ export const evoAddArgs = {
 
 // ── Tool registry ────────────────────────────────────────────────────────────────
 
+/** Canonical JSON encoder for `evo_list`'s result. */
+const toJson = stringify(identity)
+
 /** Registry of all Evo tools, bound to an `Evo<O>`. */
 export const evoToolRegistry =
     <O extends Operation>(e: Evo<O>): readonly ToolEntry<O | MemOp>[] => [
     toolEntry(
         'evo_list',
-        'List all subjects with at least one stored revision, one per line.',
+        'List all subjects with at least one stored revision, as a JSON array of strings.',
         evoListArgs,
+        // Subjects are arbitrary caller-supplied strings (unlike hashes, not
+        // constrained to a newline-free alphabet), so a `join('\n')` line
+        // format could not represent an empty subject or one containing a
+        // newline without ambiguity — JSON encoding can.
         (): Effect<MemOp, ToolsCallResult> =>
-            e.list().step(subjects => pure(okResult(subjects.join('\n')))),
+            e.list().step(subjects => pure(okResult(toJson(subjects)))),
     ),
     toolEntry(
         'evo_head',

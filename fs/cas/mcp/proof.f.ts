@@ -386,7 +386,7 @@ export const proof = {
         assert(!resultOf(addResp).isError)
         const hash = textOf(addResp)
         assert(hash.length > 0)
-        assertEq(textOf(listResp), 'doc')
+        assertEq(textOf(listResp), '["doc"]')
         assertEq(textOf(headResp), hash)
     },
 
@@ -409,7 +409,7 @@ export const proof = {
         )
         assert(!resultOf(addResp).isError)
         const hash = textOf(addResp)
-        assertEq(textOf(listResp), '8')
+        assertEq(textOf(listResp), '["8"]')
         assertEq(textOf(headResp), hash)
     },
 

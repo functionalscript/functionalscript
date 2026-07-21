@@ -35,7 +35,28 @@ export const proof = {
         const entry = findEntry(evoToolRegistry(e), 'evo_list')
         const [, result] = virtual(state0)(entry.handle({}))
         assert(!result.isError)
-        assertEq(textOf(result), '')
+        assertEq(textOf(result), '[]')
+    },
+    // Regression: subjects are arbitrary strings, not constrained to a
+    // newline-free alphabet like hashes, so evo_list must not join them with
+    // '\n' — a subject containing a newline, or an empty subject, would be
+    // indistinguishable from multiple/no subjects in that format. JSON
+    // encoding preserves both exactly.
+    evoListEncodesArbitrarySubjectsAsJson: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const [state1, addA] = virtual(state0)(e.add({ parents: [], subject: 'line one\nline two', snapshot: vecToCBase32(vec8(0x2an)) }))
+        assert(addA[0] === 'ok', ['expected add ok', addA])
+        const [state2, addB] = virtual(state1)(e.add({ parents: [], subject: '', snapshot: vecToCBase32(vec8(0x2bn)) }))
+        assert(addB[0] === 'ok', ['expected add ok', addB])
+        const entry = findEntry(evoToolRegistry(e), 'evo_list')
+        const [, result] = virtual(state2)(entry.handle({}))
+        assert(!result.isError)
+        const subjects = JSON.parse(textOf(result)) as readonly string[]
+        assertEq(subjects.length, 2)
+        assert(subjects.includes('line one\nline two'), ['unexpected subjects', subjects])
+        assert(subjects.includes(''), ['unexpected subjects', subjects])
     },
     evoHeadReflectsTheCache: () => {
         const c = fileCas(sha256)(home)

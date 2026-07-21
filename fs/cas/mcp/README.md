@@ -56,7 +56,7 @@ work with subjects and revision heads on top of it (see
 | `cas_add`  | `{ content, type? }`                    | `c.write(value)` | hash (cBase32)                            |
 | `cas_get`  | `{ hash, content?: boolean }`           | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
 | `cas_list` | `{}`                                    | `c.list()`       | hashes, one per line                      |
-| `evo_list` | `{}`                                    | `e.list()`       | subjects, one per line                    |
+| `evo_list` | `{}`                                    | `e.list()`       | subjects, as a JSON array of strings      |
 | `evo_head` | `{ subject }`                           | `e.head(...)`    | head hashes, one per line                 |
 | `evo_add`  | `{ parents, snapshot?, subject?, archived? }` | `e.add(...)` | hash (cBase32)                       |
 
