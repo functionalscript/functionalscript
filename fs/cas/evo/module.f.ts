@@ -44,6 +44,7 @@ import { identity } from '../../types/function/module.f.ts'
 import { ok, error, type Ok, type Result } from '../../types/result/module.f.ts'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
 import { at, definedEntries, type StringMap } from '../../types/object/module.f.ts'
+import { unwrap } from '../../types/nullable/module.f.ts'
 import type { Vec } from '../../types/bit_vec/module.f.ts'
 
 /** A cBase32 content hash, as accepted/returned by `Cas<O>`. */
@@ -95,15 +96,30 @@ const emptySubjectState: SubjectState = { hashes: [], parents: [] }
 const union = (set: readonly Hash[]) => (items: readonly Hash[]): readonly Hash[] =>
     items.reduce((acc: readonly Hash[], h) => acc.includes(h) ? acc : [...acc, h], set)
 
+/**
+ * Re-encodes `h` in its canonical cBase32 spelling. `cBase32ToVec` accepts
+ * more than one spelling of the same hash (e.g. case, or alphabet aliases),
+ * but {@link headsOf} compares hash strings directly, so a parent reference
+ * recorded in a non-canonical spelling would never match the canonical
+ * spelling a revision's own hash is always recorded under ({@link
+ * addRevisionToCache}'s `hash` parameter is always produced by
+ * `vecToCBase32`) — silently keeping a demoted revision listed as a head.
+ * Every caller of this module reaches {@link addRevisionToCache} only with a
+ * `revision` whose `parents` already passed `isHash`
+ * (`fs/media/revision` `checkReferences`), so decoding here cannot fail.
+ */
+const canonicalHash = (h: Hash): Hash => vecToCBase32(unwrap(cBase32ToVec(h)))
+
 /** A subject's current heads: revision hashes seen that no other revision of the same subject names as a parent. */
 const headsOf = (state: SubjectState): readonly Hash[] =>
     state.hashes.filter(h => !state.parents.includes(h))
 
 /**
  * Folds one more stored revision into `cache`: `hash` joins its subject's
- * `hashes` set, and `revision.parents` join its `parents` set. Order
- * independent (see the module doc) — used both for a full-store scan and for
- * a single incremental `add`.
+ * `hashes` set, and `revision.parents` (canonicalized, see
+ * {@link canonicalHash}) join its `parents` set. Order independent (see the
+ * module doc) — used both for a full-store scan and for a single
+ * incremental `add`.
  *
  * Looks `revision.subject` up via {@link at} (own-property only), not plain
  * bracket indexing: a subject is an arbitrary caller-supplied string
@@ -117,7 +133,7 @@ const addRevisionToCache = (hash: Hash, revision: Revision) => (cache: Cache): C
     const existing = at(revision.subject)(cache.bySubject) ?? emptySubjectState
     const state: SubjectState = {
         hashes: union(existing.hashes)([hash]),
-        parents: union(existing.parents)(revision.parents),
+        parents: union(existing.parents)(revision.parents.map(canonicalHash)),
     }
     return { bySubject: { ...cache.bySubject, [revision.subject]: state } }
 }

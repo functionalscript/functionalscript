@@ -125,6 +125,30 @@ export const proof = {
         assertEq(heads.length, 1)
         assertEq(heads[0], childCBase32)
     },
+    // Regression: `cBase32ToVec` accepts more than one spelling of the same
+    // hash (case, and the `i`/`l`/`o` alphabet aliases). A parent reference
+    // recorded in a non-canonical spelling must still demote the parent from
+    // the head set — `headsOf` compares hash strings directly, so caching
+    // the parent verbatim (instead of its canonical `vecToCBase32` spelling)
+    // would leave the parent listed as a head alongside its child.
+    buildCacheCanonicalizesNonCanonicalParentHashes: () => {
+        const rootHash = vec8(0xffn)
+        const rootCanonical = vecToCBase32(rootHash) // "zy" — has letters to uppercase
+        const rootNonCanonical = rootCanonical.toUpperCase()
+        assert(rootNonCanonical !== rootCanonical, 'expected the sample hash to contain letters')
+        const childHash = vec8(0xeen)
+        const snapshotHash = vecToCBase32(vec8(0xddn))
+        const rootText = `{"dialect":"${revisionDialect}","subject":"doc","parents":[],"snapshot":"${snapshotHash}"}`
+        const childText = `{"dialect":"${revisionDialect}","subject":"doc","parents":["${rootNonCanonical}"]}`
+        const rootBytes = tryUtf8(rootText)
+        const childBytes = tryUtf8(childText)
+        assert(rootBytes !== null && childBytes !== null, 'expected sample revisions to encode as UTF-8')
+        const cas = fixedCas([[rootHash, rootBytes], [childHash, childBytes]])
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(cas))
+        const [, heads] = virtual(state0)(evo(cas)(cacheKey).head('doc'))
+        assertEq(heads.length, 1)
+        assertEq(heads[0], vecToCBase32(childHash))
+    },
     // Two concurrent children of one root: both become heads, the root stops
     // being one. Exercises addRevisionToCache's fold across a first insert
     // (no prior heads for the subject), a removal (a parent leaving the head
