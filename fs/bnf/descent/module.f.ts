@@ -4,23 +4,17 @@
  * Built from the serializable IR in `fs/bnf/data`, this is a sibling of the
  * LL(1) dispatch builder (`fs/bnf/ll1`). It walks the grammar by recursive
  * descent and preserves per-code-point metadata, producing a metadata-aware
- * AST ({@link AstRuleMeta}). It also exposes {@link createEmptyTagMap}, which
- * records whether each rule can match the empty input.
+ * AST ({@link AstRuleMeta}). Nullability (which rule can match empty input) is
+ * computed once by {@link emptyTagMap} in `fs/bnf/data`.
  *
  * @module
  */
 import { type CodePoint } from '../../text/utf16/module.f.ts'
 import { rangeDecode } from '../module.f.ts'
 import { contains as rangeContains } from '../../types/range/module.f.ts'
-import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
-import { type RuleSet, toData } from '../data/module.f.ts'
+import { definedEntries } from '../../types/object/module.f.ts'
+import { emptyTagMap, toData } from '../data/module.f.ts'
 import { type Rule as FRule } from '../module.f.ts'
-
-type EmptyTag = string|true|undefined
-
-type EmptyTagEntry = string|boolean
-
-type EmptyTagMap = StringMap<string, EmptyTagEntry>
 
 export type AstTag = string|true|undefined
 
@@ -57,61 +51,13 @@ export type AstRuleMeta<T> = {
     readonly sequence: AstSequenceMeta<T>
 }
 
-const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string): readonly [RuleSet, EmptyTagMap, EmptyTagEntry] => {
-    if (name in map) {
-        return [ruleSet, map, map[name]!]
-    }
-
-    const rule = ruleSet[name]
-
-    if (typeof rule === 'number') {
-        return [ruleSet, { ...map, [name]: false }, false]
-    } else if (rule instanceof Array) {
-        map = { ...map, [name]: true}
-        let emptyTag: EmptyTagEntry = rule.length == 0
-        for (const item of rule) {
-            const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
-            map = newMap
-            if (emptyTag === false) {
-                emptyTag = itemEmptyTag !== false
-            }
-        }
-        return [ruleSet, { ...map, [name]: emptyTag }, emptyTag]
-    } else {
-        map = { ...map, [name]: true}
-        const entries = definedEntries(rule)
-        let emptyTag: EmptyTagEntry = false
-        for (const [tag, item] of entries) {
-            const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
-            map = newMap
-            if (itemEmptyTag !== false) {
-                emptyTag = tag
-            }
-        }
-        return [ruleSet, { ...map, [name]: emptyTag }, emptyTag]
-    }
-}
-
-/**
- * Creates a map that describes whether each rule can consume empty input and,
- * for tagged variants, which tag represents the empty match.
- */
-export const createEmptyTagMap = (data: readonly [RuleSet, string]): EmptyTagMap => {
-    return emptyTagMapAdd(data[0])({})(data[1])[1]
-}
-
 /**
  * Creates a recursive descent parser that preserves metadata for each consumed
  * code point.
  */
 export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
     const data = toData(fr)
-    const emptyTagMap = createEmptyTagMap(data)
-
-    const getEmptyTag = (name: string): EmptyTag => {
-        const res = emptyTagMap[name]
-        return res === false ? undefined : res
-    }
+    const emptyTags = emptyTagMap(data[0])
 
     const f: DescentMatchRule<T> = (name, tag, cp, idx): DescentMatchResult<T> => {
         const mrSuccess = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): DescentMatchResult<T> => [{tag, sequence}, true, idx]
@@ -119,7 +65,7 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
 
         const rule = data[0][name]
         if (typeof rule === 'number') {
-            const emptyTag = getEmptyTag(name)
+            const emptyTag = emptyTags[name]
             if (idx >= cp.length) {
                 return emptyTag === undefined ? mrFail(emptyTag, [], idx) : mrSuccess(emptyTag, [], idx)
             }
@@ -145,7 +91,7 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
             return mrSuccess(tag, seq, tidx)
         } else {
             const entries = definedEntries(rule)
-            const emptyTag = getEmptyTag(name)
+            const emptyTag = emptyTags[name]
             let emptyResult = mrFail(emptyTag, [], idx)
             for (const [tag, item] of entries) {
                 const m = f(item, tag, cp, idx)
