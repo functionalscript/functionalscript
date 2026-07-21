@@ -43,7 +43,7 @@ import { stringify } from '../../media/json/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { ok, error, type Ok, type Result } from '../../types/result/module.f.ts'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
-import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
+import { at, definedEntries, type StringMap } from '../../types/object/module.f.ts'
 import type { Vec } from '../../types/bit_vec/module.f.ts'
 
 /** A cBase32 content hash, as accepted/returned by `Cas<O>`. */
@@ -104,9 +104,17 @@ const headsOf = (state: SubjectState): readonly Hash[] =>
  * `hashes` set, and `revision.parents` join its `parents` set. Order
  * independent (see the module doc) — used both for a full-store scan and for
  * a single incremental `add`.
+ *
+ * Looks `revision.subject` up via {@link at} (own-property only), not plain
+ * bracket indexing: a subject is an arbitrary caller-supplied string
+ * (`AddRevision.subject`, or the MCP `evo_add`/`evo_head` argument), so it
+ * can collide with an inherited `Object.prototype` name (`toString`,
+ * `constructor`, …) — bracket indexing would then return that inherited
+ * value instead of "no entry yet" and crash on the (non-array) `.hashes`
+ * access below.
  */
 const addRevisionToCache = (hash: Hash, revision: Revision) => (cache: Cache): Cache => {
-    const existing = cache.bySubject[revision.subject] ?? emptySubjectState
+    const existing = at(revision.subject)(cache.bySubject) ?? emptySubjectState
     const state: SubjectState = {
         hashes: union(existing.hashes)([hash]),
         parents: union(existing.parents)(revision.parents),
@@ -270,8 +278,8 @@ export type Evo<O extends Operation> = {
 export const evo = <O extends Operation>(cas: Cas<O>) => (cacheKey: Key<Cache>): Evo<O> => ({
     list: () => read(cacheKey).step(cache => pure(definedEntries(cache.bySubject).map(([subject]) => subject))),
     head: subject => read(cacheKey).step(cache => {
-        const state = cache.bySubject[subject]
-        return pure(state === undefined ? [] : headsOf(state))
+        const state = at(subject)(cache.bySubject)
+        return pure(state === null ? [] : headsOf(state))
     }),
     add: input => addRevision(cas)(cacheKey)(input),
 })

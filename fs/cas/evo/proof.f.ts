@@ -307,4 +307,27 @@ export const proof = {
         const [, heads] = virtual(state0)(e.head('nope'))
         assertEq(heads.length, 0)
     },
+    // Regression: subjects are arbitrary caller-supplied strings, so one can
+    // collide with an inherited `Object.prototype` name. Plain bracket
+    // indexing on the `bySubject` map would return the inherited value
+    // (e.g. the `toString` function) instead of "no entry yet", crashing on
+    // `.hashes` — the cache must use an own-property lookup instead.
+    evoHeadUnknownPrototypeNamedSubjectIsEmpty: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const [, heads] = virtual(state0)(e.head('constructor'))
+        assertEq(heads.length, 0)
+    },
+    evoAddAndHeadHandlePrototypeNamedSubject: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const input: AddRevision = { parents: [], subject: 'toString', snapshot: vecToCBase32(vec8(0x16n)) }
+        const [state1, result] = virtual(state0)(e.add(input))
+        assert(result[0] === 'ok', ['expected add ok', result])
+        const [, heads] = virtual(state1)(e.head('toString'))
+        assertEq(heads.length, 1)
+        assertEq(heads[0], result[1])
+    },
 }
