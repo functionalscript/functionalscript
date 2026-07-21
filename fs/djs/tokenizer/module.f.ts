@@ -14,7 +14,6 @@ import {
 } from "../../bnf/descent/module.f.ts"
 import {
     eof,
-    max,
     none,
     notSet,
     option,
@@ -23,6 +22,7 @@ import {
     repeat,
     repeat0Plus,
     set,
+    unicodeMax,
     unicodeRange,
     type DataRule,
     type Rule
@@ -70,7 +70,7 @@ const buildToken = (): Rule => {
     const string = [
         '"',
         repeat0Plus({
-            ...remove(range(` ${max}`), set('"\\')),
+            ...remove(range(` ${unicodeMax}`), set('"\\')),
             escape: [
                 '\\',
                 {
