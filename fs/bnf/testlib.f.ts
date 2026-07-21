@@ -1,6 +1,5 @@
 import {
     commaJoin0Plus,
-    max,
     none,
     option,
     range,
@@ -8,13 +7,14 @@ import {
     repeat,
     repeat0Plus,
     set,
+    unicodeMax,
     type Rule
 } from './module.f.ts'
 
 export const classic = (): Rule => {
 
     // https://www.json.org/json-en.html
-    
+
     const json = () => [element]
 
     const value = () => ({
@@ -133,7 +133,7 @@ export const deterministic = (): Rule => {
     const string = [
         '"',
         repeat0Plus({
-            ...remove(range(` ${max}`), set('"\\')),
+            ...remove(range(` ${unicodeMax}`), set('"\\')),
             escape: [
                 '\\',
                 {

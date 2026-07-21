@@ -50,11 +50,6 @@ export const fullRange: TerminalRange = 0x000000_FFFFFF
 export const unicodeRange: TerminalRange = 0x000000_10FFFF
 
 /**
- * Maximal non-Unicode symbol encoded as a string value.
- */
-export const max: string = codePointListToString([0xFFFFFF])
-
-/**
  * Maximal Unicode code point encoded as a string value.
  */
 export const unicodeMax: string = codePointListToString([0x10FFFF])
