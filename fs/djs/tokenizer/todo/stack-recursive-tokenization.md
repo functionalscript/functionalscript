@@ -3,28 +3,29 @@
 **Priority:** P2
 **Status:** done
 
-> **Resolved, in two steps.**
+> **Resolved** — by fixing the matcher itself rather than either proposal below:
+> `fs/bnf/descent`'s matcher `f` was rewritten as an explicit-stack machine (two frame
+> kinds — suspended sequence, suspended variant — on a cons-cell stack), so descent
+> matching uses O(1) JS call stack for *any* grammar shape and *any* input length. That
+> fixes both halves at once: the outer whole-file `repeat0Plus(token)` loop (many short
+> tokens) and a single long token (long string/identifier, and long block comments via the
+> hand-written recursive `multilineContent`, which the `repeat`-detection proposed in
+> [../../../bnf/todo/667-bnf-repeat-flatten.md](../../../bnf/todo/667-bnf-repeat-flatten.md)
+> would *not* have caught — it has an `end` branch, so it isn't the pure 0-or-more shape).
 >
-> 1. Interim fix (2) below: `tokenizeString`/`tokenizeJs` match `token` in a plain JS loop
->    (`tokenizeToAsts` in `fs/djs/tokenizer/module.f.ts`) instead of matching the whole file
->    as one `repeat0Plus(token)` grammar rule — fixed the outer/many-tokens crash
->    (`' '.repeat(5000)`, thousands of short tokens).
-> 2. The general fix, a variant of (1) that needed no grammar/data changes at all:
->    `fs/bnf/descent`'s matcher `f` was rewritten as an explicit-stack machine (two frame
->    kinds — suspended sequence, suspended variant — on a cons-cell stack), so descent
->    matching uses O(1) JS call stack for *any* grammar shape and *any* input length. This
->    fixed the single-long-token half (long string/identifier, and long block comments via
->    the hand-written recursive `multilineContent`, which the `repeat`-detection proposed in
->    [../../../bnf/todo/667-bnf-repeat-flatten.md](../../../bnf/todo/667-bnf-repeat-flatten.md)
->    would *not* have caught — it has an `end` branch, so it isn't the pure 0-or-more shape).
+> `tokenizeString`/`tokenizeJs` therefore still match the whole file as one grammar rule —
+> the interim per-token driver (2) was landed first (`tokenizeToAsts`) and then removed
+> again: with the stack-based matcher it was no longer needed, and its per-token
+> `cpm.slice(offset)` made it O(n²) where the whole-file match is linear (measured ~4×
+> slower at 30,000 tokens).
 >
 > Verified sizes (see the `largeInputs` proof group): 5 KB string literal, 20 KB block
 > comment, 10 KB identifier, thousands of short tokens; a 100 KB block comment and a
-> 20,000-token file matched via the whole-file `jsGrammar()` rule were also checked manually.
-> 667 is no longer needed as a stack fix — its remaining value is the data-representation /
-> flat-AST improvement it originally proposed. The AST for right-recursive rules is still
-> nested; current consumers walk it via the stack-safe lazy `List`, so that is a data-shape
-> concern (667's), not a crash concern.
+> 30,000-token file were also checked manually. 667 is no longer needed as a stack fix —
+> its remaining value is the data-representation / flat-AST improvement it originally
+> proposed. The AST for right-recursive rules is still nested; current consumers walk it
+> via the stack-safe lazy `List`, so that is a data-shape concern (667's), not a crash
+> concern.
 
 ### Problem
 
@@ -82,28 +83,19 @@ written up.
 
 ### Tasks
 
-- [x] Decide whether to pursue (1), (2), or both, and in what order — did (2)
-      first since it needed no shared `fs/bnf` changes and (1) is blocked;
-      (1) is still needed for the single-long-token case.
-- [x] (2): iterative outer-loop driver landed as `tokenizeToAsts` in
-      `fs/djs/tokenizer/module.f.ts` — matches `buildToken()` (the grammar
-      factored out of `jsGrammar`) one token at a time via `descentParser`,
-      advancing a plain code-point offset; ws/nl merging, metadata threading,
-      and error detection (`unterminated`/`numError` tags) are unchanged,
-      just fed from a flat array of per-token ASTs (`flatMap(getTokensFromAstRule)`)
-      instead of one whole-file AST.
+- [x] Decide whether to pursue (1), (2), or both — ultimately neither as
+      written: (2) landed first as an interim (`tokenizeToAsts`), then the
+      matcher itself was made iterative (explicit frame stack in
+      `fs/bnf/descent/module.f.ts`), which subsumed both halves without
+      grammar/data changes, and the interim driver was removed again (it was
+      O(n²) via per-token `cpm.slice`; the whole-file match is linear).
 - [x] Add proof coverage at realistic sizes — `largeInputs` group in
       `fs/djs/tokenizer/proof.f.ts` covers `' '.repeat(5000)` (the reported
-      repro), 3000 distinct id tokens, and the `tokenizeJs` entry point, all
-      comfortably past the ~1000-1500 token point where the old whole-file
-      match crashed.
-- [x] Re-run the codex-reported repro — `' '.repeat(5000)` no longer throws.
-- [x] Fix the remaining single-long-token case — done by making `descentParser`
-      itself iterative (explicit frame stack in `fs/bnf/descent/module.f.ts`)
-      rather than by waiting on 667/i207: broader coverage (works for shapes
-      667's conservative repeat-detection skips, e.g. `multilineContent`) and
-      no data-format change. 5 KB strings, 20 KB comments, and 10 KB
-      identifiers are covered in the `largeInputs` proof group.
+      repro), 3000 distinct id tokens, the `tokenizeJs` entry point, and
+      single long tokens (5 KB string, 20 KB block comment, 10 KB
+      identifier).
+- [x] Re-run the codex-reported repros — `' '.repeat(5000)` and the 5 KB+
+      string/comment all tokenize successfully.
 
 ### Related
 
