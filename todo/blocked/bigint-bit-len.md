@@ -16,3 +16,4 @@ Node.js LTS.
 ### Related
 
 - https://github.com/nicolo-ribaudo/tc39-proposal-bigint-math
+- [new-pl.md § `BigInt.bitLen`](../new-pl.md#bigintbitlen) — the new-PL section tracking this same gap.

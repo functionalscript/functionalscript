@@ -147,9 +147,13 @@ Python's convenience trades away exactly the precision guarantee that motivates 
 
 This `2`/`2.0` split doesn't have to wait for a new PL. [fs/djs/todo/json-bigint-serialization.md](../fs/djs/todo/json-bigint-serialization.md) proposes the same convention — a dot-free numeric literal is `bigint`, a literal with a `.` (or exponent) is `number` — as a JSON-*compatible* serialization inside today's `fs/djs`, and independently lands on the same Python precedent (CPython's `json` scanner uses the identical `frac`/`exp`-presence test to choose `int` vs `float`). It's a concrete, buildable-now instance of this section's idea, scoped to serialization rather than the full language.
 
+[todo/blocked/integer-as-bigint.md](./blocked/integer-as-bigint.md) tracks the ECMAScript-level version of this same idea (`123` becoming the language's own default integer type) — blocked because ECMAScript is unlikely to ever make `bigint` the primary numeric type for compatibility reasons. This section is the escape hatch: a new PL isn't bound by that compatibility constraint, so it doesn't have to wait.
+
 ### UTF8 String
 
 Current implementation of a `string` in JavaScript is UTF-16. While we can have a proposal that ECMAScript supports a new type `utf8`, something like `u'Hello, world!'`, the default JS string will always be UTF-16. In a new PL, we don't want to have UTF-16 at all, only UTF-8.
+
+See [todo/blocked/utf8-strings.md](./blocked/utf8-strings.md) — blocked on ECMAScript ever adopting a native UTF-8 string primitive, which a new PL doesn't need to wait for.
 
 ### Separation Between Arrays and Objects
 
@@ -176,6 +180,8 @@ const y = { 2: 2, b: 5, a: 3, 11: 11 } // { '11': 11, '2': 2, a: 3, b: 5 }
 
 Note: JS already sorts integer-like keys numerically before string keys, so the output above matches current JS behavior. In the new PL the same result would be produced by pure lexicographic order (`'11' < '2' < 'a' < 'b'`), which happens to agree here. The key difference is that JS's numeric-key special-casing is eliminated — the rule is simply: sort by string comparison.
 
+See [todo/blocked/lexicographic-integer-keys.md](./blocked/lexicographic-integer-keys.md) — blocked on ECMAScript, which is unlikely to ever drop the numeric-key special-casing for compatibility reasons; a new PL adopts pure lexicographic order directly instead.
+
 ### Assigning
 
 Assigning `undefined` to a property should remove the property.
@@ -186,11 +192,15 @@ const x = { a: undefined } // {}
 
 This way we can also keep better compatibility with JSON.
 
+See [todo/blocked/undefined-removes-property.md](./blocked/undefined-removes-property.md) — blocked on ECMAScript for compatibility reasons; a new PL isn't bound by that and adopts the behavior directly.
+
 ### Pipeline Operator
 
 ```js
 a |> b
 ```
+
+See [todo/blocked/pipeline-operator.md](./blocked/pipeline-operator.md) — blocked on the TC39 pipeline operator proposal reaching Stage 4; a new PL can adopt the syntax without waiting on that.
 
 ### Automatic Binding
 
@@ -201,13 +211,19 @@ m(0) // 42
 
 This would break JavaScript compatibility.
 
+See [todo/blocked/automatic-method-binding.md](./blocked/automatic-method-binding.md) — blocked because ECMAScript is unlikely to ever fix this for compatibility reasons; a new PL, not being bound by that compatibility constraint, can define `this`-free method extraction directly.
+
 ### `BigInt.bitLen`
 
 ECMAScript proposal for `BigInt.bitLen()`
 
+See [todo/blocked/bigint-bit-len.md](./blocked/bigint-bit-len.md) — blocked on the same proposal reaching Stage 4 and shipping in Node.js LTS.
+
 ### Type Annotations
 
 Switch back to `.js` extension if [Type Annotations](https://github.com/tc39/proposal-type-annotations) lands in ECMAScript.
+
+See [todo/blocked/js-extension-type-annotations.md](./blocked/js-extension-type-annotations.md) — the FunctionalScript-specific tracking issue for this same trigger.
 
 ### Type System
 
