@@ -109,7 +109,7 @@ export const eof: TerminalRange = oneEncode(mask)
  * Decodes a packed range into `[start, end]` symbols.
  */
 export const rangeDecode = (r: number): Array2<number> =>
-    [Number(BigInt(r) >> BigInt(offset)), Number(BigInt(r) & BigInt(mask))]
+    [Number(BigInt(r) >> BigInt(offset)), r & mask]
 
 const mapOneEncode = map(oneEncode)
 
