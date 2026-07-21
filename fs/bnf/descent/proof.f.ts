@@ -2,8 +2,8 @@ import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f
 import { map, toArray } from '../../types/list/module.f.ts'
 import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.ts'
 import { deterministic } from '../testlib.f.ts'
-import { toData } from '../data/module.f.ts'
-import { createEmptyTagMap, descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult } from './module.f.ts'
+import { emptyTagMap, toData } from '../data/module.f.ts'
+import { descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult } from './module.f.ts'
 import { assertEq } from '../../asserts/module.f.ts'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
@@ -18,28 +18,28 @@ export const proof = {
         () => {
             const stringRule = 'true'
             const data = toData(stringRule)
-            const emptyTags = createEmptyTagMap(data)
+            const emptyTags = emptyTagMap(data[0])
             const result = JSON.stringify(emptyTags)
-            if (result !== '{"0":false,"1":false,"2":false,"3":false,"":false}') { throw result }
+            if (result !== '{}') { throw result }
         },
         () => {
             const terminalRangeRule = range('AF')
             const data = toData(terminalRangeRule)
-            const emptyTags = createEmptyTagMap(data)
+            const emptyTags = emptyTagMap(data[0])
             const result = JSON.stringify(emptyTags)
-            if (result !== '{"":false}') { throw result }
+            if (result !== '{}') { throw result }
         },
         () => {
             const varintRule = { true: 'true', false: 'false'}
             const data = toData(varintRule)
-            const emptyTags = createEmptyTagMap(data)
+            const emptyTags = emptyTagMap(data[0])
             const result = JSON.stringify(emptyTags)
-            if (result !== '{"0":false,"1":false,"2":false,"3":false,"4":false,"5":false,"6":false,"7":false,"8":false,"9":false,"":false}') { throw result }
+            if (result !== '{}') { throw result }
         },
         () => {
             const emptyRule = ''
             const data = toData(emptyRule)
-            const emptyTags = createEmptyTagMap(data)
+            const emptyTags = emptyTagMap(data[0])
             const result = JSON.stringify(emptyTags)
             if (result !== '{"":true}') { throw result }
         },
@@ -47,23 +47,23 @@ export const proof = {
             const emptyRule = ''
             const varintRule = { true: 'true', e: emptyRule}
             const data = toData(varintRule)
-            const emptyTags = createEmptyTagMap(data)
+            const emptyTags = emptyTagMap(data[0])
             const result = JSON.stringify(emptyTags)
-            if (result !== '{"0":false,"1":false,"2":false,"3":false,"4":false,"5":true,"":"e"}') { throw result }
+            if (result !== '{"5":true,"":"e"}') { throw result }
         },
         () => {
             const repeatRule = repeat0Plus(option('a'))
             const data = toData(repeatRule)
-            const emptyTags = createEmptyTagMap(data)
+            const emptyTags = emptyTagMap(data[0])
             const result = JSON.stringify(emptyTags)
-            if (result !== '{"0":"none","1":false,"2":false,"3":true,"r":"none","":true}') { throw result }
+            if (result !== '{"0":"none","3":true,"":true,"r":"none"}') { throw result }
         },
         () => {
             const repeatRule = repeat0Plus(set(' \n\r\t'))
             const data = toData(repeatRule)
-            const emptyTags = createEmptyTagMap(data)
+            const emptyTags = emptyTagMap(data[0])
             const result = JSON.stringify(emptyTags)
-            if (result !== '{"0":false,"1":false,"2":false,"3":false,"4":false,"5":true,"r":"none","":true}') { throw result }
+            if (result !== '{"5":true,"r":"none"}') { throw result }
         }
     ],
     descentParser: [
