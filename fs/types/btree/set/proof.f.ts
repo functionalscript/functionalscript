@@ -8,6 +8,9 @@ import { assertEq } from '../../../asserts/module.f.ts'
 const set = (node: TNode<string>) => (value: string): TNode<string> =>
     setSet(cmp(value))(() => value)(node)
 
+const replace = (node: TNode<string>) => (value: string) => (g: (v: string | null) => string): TNode<string> =>
+    setSet(cmp(value))(g)(node)
+
 const jsonStr = stringify(sort)
 
 const test = [
@@ -349,6 +352,35 @@ const test = [
             '"49",' +
             '[[["529"],"576",["625"]],"64",[["676"],"729",["784"]],"81",[["841"],"9",["900","961"]]]]]'
         ) { throw r }
+    },
+
+    // Replacing a key already stored as a branch separator (rather than in a
+    // leaf) exercises the `x.length === 3` and `x.length === 5` arms of the
+    // "replace" case, which plain sequential inserts never reach.
+    () => {
+        let _map: TNode<string> = ['1']
+        for (let i = 2; i <= 10; i++)
+            _map = set(_map)((i * i).toString())
+        // top level is a Branch3 with "4" as its separator (x.length === 3)
+        assertEq(jsonStr(_map), '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]')
+        const replaced = replace(_map)('4')(() => '4-updated')
+        assertEq(jsonStr(replaced), '[[["1","100"],"16",["25","36"]],"4-updated",[["49"],"64",["81","9"]]]')
+    },
+
+    () => {
+        let _map: TNode<string> = ['1']
+        for (let i = 2; i <= 13; i++)
+            _map = set(_map)((i * i).toString())
+        // top level is a Branch5 with "16" as its first separator (x.length === 5)
+        assertEq(
+            jsonStr(_map),
+            '[[["1"],"100",["121","144"]],"16",[["169"],"25",["36"]],"4",[["49"],"64",["81","9"]]]',
+        )
+        const replaced = replace(_map)('16')(() => '16-updated')
+        assertEq(
+            jsonStr(replaced),
+            '[[["1"],"100",["121","144"]],"16-updated",[["169"],"25",["36"]],"4",[["49"],"64",["81","9"]]]',
+        )
     }
 ]
 
