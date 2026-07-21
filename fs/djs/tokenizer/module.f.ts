@@ -60,7 +60,10 @@ import { stringifyAsTree } from "../serializer/module.f.ts"
 import { sort } from "../../types/object/module.f.ts"
 import type { Unknown } from "../module.f.ts"
 
-export const jsGrammar = (): Rule => {
+// Builds the single-token grammar (everything jsGrammar's whole-file `tokens` rule repeats).
+// Factored out so tokenizeString/tokenizeJs can match one token at a time from a plain JS
+// loop instead of via descentParser's whole-file recursion — see todo/stack-recursive-tokenization.md.
+const buildToken = (): Rule => {
 
     const onenine = range('19')
 
@@ -224,14 +227,15 @@ export const jsGrammar = (): Rule => {
         eof
     }
 
-    // TODO: this matches the whole file's token stream as one right-recursive grammar
-    // rule, and descentParser recurses once per matched token — so files of just a few
-    // KB (many short tokens, not only one long one) can throw "Maximum call stack size
-    // exceeded" instead of producing tokens. See todo/stack-recursive-tokenization.md.
-    const tokens = repeat0Plus(token)
-
-    return tokens
+    return token
 }
+
+// The whole file's token stream as one right-recursive grammar rule: descentParser
+// recurses once per matched token, so matching this directly against realistic-size
+// input can throw "Maximum call stack size exceeded" (see
+// todo/stack-recursive-tokenization.md). Kept for grammar-level tests against small
+// inputs; tokenizeString/tokenizeJs match `buildToken()` in a loop instead.
+export const jsGrammar = (): Rule => repeat0Plus(buildToken())
 
 const stringify = stringifyAsTree(sort)
 
@@ -481,22 +485,40 @@ const getTokensFromAstRule
         return { first: token, tail: getTokensFromAstSequence(ast.sequence)}
     }
 
+// Matches `buildToken()` in a plain JS loop, advancing the code-point offset one token at
+// a time. This keeps descentParser's call-stack depth bounded by a single token's length
+// instead of the whole file's token count — see todo/stack-recursive-tokenization.md.
+// Returns the matched token ASTs in file order and how many code points were consumed;
+// `consumed < cpm.length` means the token at that offset failed to match (invalid input).
+const tokenizeToAsts
+    : (cpm: readonly CodePointMeta<TokenMetadata>[]) => readonly [readonly AstRuleMeta<TokenMetadata>[], number]
+    = cpm => {
+        const m = descentParser<TokenMetadata>(buildToken())
+        const asts: AstRuleMeta<TokenMetadata>[] = []
+        let offset = 0
+        while (offset < cpm.length) {
+            const [ast, ok, len] = m('', cpm.slice(offset))
+            if (!ok)
+                break
+            asts.push(ast)
+            offset += len
+        }
+        return [asts, offset]
+    }
+
 export const tokenizeString
     : (s: string) => string
     = s => {
-        const m = descentParser<TokenMetadata>(jsGrammar())
         const cp = toArray(stringToCodePointList(s))
-        const cpm = codePointsWithMetadata('')(cp)
-        const [ast, ok, len] = m('', cpm)
         if (cp.length === 0) {
             return stringify([{kind: 'eof'}] as Unknown)
         }
-        if (!ok)
-            return 'error'
-        if (cp.length > 0 && len !== cp.length)
+        const cpm = codePointsWithMetadata('')(cp)
+        const [asts, len] = tokenizeToAsts(cpm)
+        if (len !== cp.length)
             return 'error'
 
-        const flatTokens = toArray(getTokensFromAstRule(ast))
+        const flatTokens = toArray(flatMap(getTokensFromAstRule)(asts))
         // multilineContent tags an unterminated block comment as 'unterminated', and number
         // tags a malformed fraction/exponent or a disallowed trailing char as 'numError',
         // rather than failing outright — detect them here instead.
@@ -526,17 +548,16 @@ export const tokenizeJs
         const initial: TokenMetadata = { path, line: 1, column: 1 }
         if (cp.length === 0) return [{ token: { kind: 'eof' }, metadata: initial }]
 
-        const m = descentParser<TokenMetadata>(jsGrammar())
         const cpm = codePointsWithMetadata(path)(cp)
-        const [ast, ok, len] = m('', cpm)
+        const [asts, len] = tokenizeToAsts(cpm)
         const finalMetadata = fold(advanceMetadata)(initial)(cp)
 
-        if (!ok || len !== cp.length) {
+        if (len !== cp.length) {
             const errorMetadata = len < cpm.length ? cpm[len][1] : finalMetadata
             return [{ token: { kind: 'error', message: 'invalid token' }, metadata: errorMetadata }]
         }
 
-        const flatTokens = toArray(getTokensFromAstRule(ast))
+        const flatTokens = toArray(flatMap(getTokensFromAstRule)(asts))
         const structuralError = flatTokens.includes('unterminated') ? 'unterminated'
             : flatTokens.includes('numError') ? 'numError'
             : null

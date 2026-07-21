@@ -1,7 +1,20 @@
 ## stack-recursive-tokenization. Avoid stack-recursive tokenization for normal-size files
 
-**Priority:** P1
+**Priority:** P2
 **Status:** open
+
+> **Progress.** Interim fix (2) below has landed: `tokenizeString`/`tokenizeJs` now match
+> `token` in a plain JS loop (`tokenizeToAsts` in `fs/djs/tokenizer/module.f.ts`) instead of
+> matching the whole file as one `repeat0Plus(token)` grammar rule, so the outer/many-tokens
+> crash is fixed (`' '.repeat(5000)`, thousands of short tokens — see the `largeInputs` proof
+> group). `jsGrammar()` still returns the old whole-file `repeat0Plus(token)` rule for the
+> small-input grammar-level tests in `proof.f.ts` (`isValid`/`tokenizer` groups); production
+> tokenization no longer uses it. **A single long token (long string/comment/identifier)
+> still overflows** — that half needs fix (1), which is still blocked on
+> [../../../bnf/todo/667-bnf-repeat-flatten.md](../../../bnf/todo/667-bnf-repeat-flatten.md)
+> (itself blocked on the not-yet-split i207 design doc). Lowered from P1 to P2 since the more
+> common "many short tokens" trigger is now fixed; the remaining single-long-token gap is the
+> same narrower case i207/667 already tracked before this issue existed.
 
 ### Problem
 
@@ -59,16 +72,25 @@ written up.
 
 ### Tasks
 
-- [ ] Decide whether to pursue (1), (2), or both, and in what order.
-- [ ] If (2): design the iterative outer-loop driver (metadata threading,
-      ws/nl merging, EOF handling all currently happen inside the
-      grammar-match → flatten → scan pipeline in `module.f.ts`; some of that
-      may need to move).
-- [ ] Add proof coverage at realistic file sizes (tens of KB) once fixed —
-      today's proof suite only exercises small inputs, which is exactly why
-      this shipped unnoticed.
-- [ ] Re-run the codex-reported repro (`' '.repeat(5000)`, a 5 KB string/
-      comment) to confirm it no longer throws.
+- [x] Decide whether to pursue (1), (2), or both, and in what order — did (2)
+      first since it needed no shared `fs/bnf` changes and (1) is blocked;
+      (1) is still needed for the single-long-token case.
+- [x] (2): iterative outer-loop driver landed as `tokenizeToAsts` in
+      `fs/djs/tokenizer/module.f.ts` — matches `buildToken()` (the grammar
+      factored out of `jsGrammar`) one token at a time via `descentParser`,
+      advancing a plain code-point offset; ws/nl merging, metadata threading,
+      and error detection (`unterminated`/`numError` tags) are unchanged,
+      just fed from a flat array of per-token ASTs (`flatMap(getTokensFromAstRule)`)
+      instead of one whole-file AST.
+- [x] Add proof coverage at realistic sizes — `largeInputs` group in
+      `fs/djs/tokenizer/proof.f.ts` covers `' '.repeat(5000)` (the reported
+      repro), 3000 distinct id tokens, and the `tokenizeJs` entry point, all
+      comfortably past the ~1000-1500 token point where the old whole-file
+      match crashed.
+- [x] Re-run the codex-reported repro — `' '.repeat(5000)` no longer throws.
+      A single long token (5 KB+ string/block comment) still throws; that's
+      the still-open (1) half, tracked by 667/i207.
+- [ ] Land (1) (via 667/i207) to fix the remaining single-long-token case.
 
 ### Related
 

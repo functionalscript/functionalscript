@@ -864,4 +864,32 @@ export const proof = {
             assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}}]')
         },
     ],
+    // Regression coverage for todo/stack-recursive-tokenization.md: tokenizeString/tokenizeJs
+    // match tokens one at a time in a loop instead of via one whole-file recursive grammar
+    // match, so files with many tokens no longer overflow the call stack. A single very long
+    // token (long string/comment/identifier) is a separate, still-open limitation (needs the
+    // `repeat` primitive from fs/bnf/todo/667-bnf-repeat-flatten.md) and isn't exercised here.
+    largeInputs: [
+        () => {
+            // many short whitespace tokens: the reported repro (`' '.repeat(5000)`)
+            const result = tokenizeString(' '.repeat(5000))
+            assertEq(result, '[{"kind":"ws"},{"kind":"eof"}]')
+        },
+        () => {
+            // many distinct short tokens, well past the ~1000-1500 token crash threshold
+            // the old whole-file recursive match hit for this shape
+            const src = Array.from({ length: 3000 }, (_, i) => `a${i % 10}`).join(' ')
+            const result = tokenizeString(src)
+            assert(result !== 'error', result)
+            const parsed = JSON.parse(result)
+            // 3000 ids + 2999 separating ws + a trailing eof token
+            assertEq(parsed.length, 3000 + 2999 + 1)
+        },
+        () => {
+            // same many-short-tokens shape through the metadata-aware entry point
+            const src = 'x '.repeat(3000)
+            const result = toArray(tokenizeJs(stringToList(src))('a.js'))
+            assertEq(result.length, 3000 * 2 + 1)
+        },
+    ],
 }
