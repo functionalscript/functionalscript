@@ -11,5 +11,4 @@ FunctionalScript's purely functional model would benefit from `undefined` meanin
 
 ### Trigger
 
-Unblocked when ECMAScript specifies that assigning `undefined` to an object property removes
-the key, or a TC39 proposal reaches Stage 4 providing this semantics.
+Unblocked when ECMAScript specifies that assigning `undefined` to an object property removes the key, or a TC39 proposal reaches Stage 4 providing this semantics.

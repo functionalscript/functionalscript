@@ -6,8 +6,7 @@
 ### Problem
 
 In JavaScript, `123` is a `number` (IEEE 754 double), which loses precision for large
-integers and conflates integer and float semantics. FunctionalScript would prefer `123` to
-be a `bigint` for exactness.
+integers and conflates integer and float semantics. FunctionalScript would prefer `123` to be a `bigint` for exactness.
 
 ### Trigger
 
