@@ -18,7 +18,7 @@ import {
     type Rule as FRule,
     type Sequence as FSequence,
 } from '../module.f.ts'
-import { type StringMap } from '../../types/object/module.f.ts'
+import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
 
 /**
  * Encoded terminal range value used by BNF data rules.
@@ -47,6 +47,66 @@ export type Rule = Variant | Sequence | TerminalRange
 
 /** The full grammar */
 export type RuleSet = Readonly<Record<string, Rule>>
+
+/**
+ * Whether a rule can match empty input: `undefined` if it never can, `true`
+ * if it can with no tag (a nullable sequence), or the tag of the nullable
+ * variant branch.
+ */
+export type EmptyTag = string | true | undefined
+
+type EmptyTagMap = StringMap<string, EmptyTag>
+
+const emptyTagOf = (map: EmptyTagMap) => (rule: Rule): EmptyTag => {
+    if (typeof rule === 'number') {
+        return undefined
+    } else if (rule instanceof Array) {
+        return rule.every(item => map[item] !== undefined) ? true : undefined
+    } else {
+        let tag: EmptyTag = undefined
+        for (const [k, item] of definedEntries(rule)) {
+            if (map[item] !== undefined) {
+                tag = k
+            }
+        }
+        return tag
+    }
+}
+
+const emptyTagStep = (ruleSet: RuleSet) => (map: EmptyTagMap): readonly [EmptyTagMap, boolean] => {
+    let next = map
+    let changed = false
+    for (const name in ruleSet) {
+        const tag = emptyTagOf(map)(ruleSet[name])
+        if (tag !== next[name]) {
+            changed = true
+        }
+        next = { ...next, [name]: tag }
+    }
+    return [next, changed]
+}
+
+/**
+ * Computes, for every rule in the set, whether it can match empty input, by
+ * the standard nullable-set fixpoint: a sequence is nullable iff all of its
+ * items are (AND semantics), a variant iff at least one branch is (its tag is
+ * that branch's). Rules may reference each other cyclically (e.g. a `repeat`
+ * rule referring to itself), so this starts every rule as non-nullable and
+ * relaxes every rule, one round at a time, until a full round changes
+ * nothing. A round only ever grows the nullable set or moves a variant's
+ * chosen tag to a later (still-nullable) branch, both bounded, so this always
+ * terminates — but a rule's tag can still change for rounds *after* its own
+ * nullable/non-nullable status has already settled, while a cyclic
+ * dependency's tag catches up, so a fixed round count isn't enough.
+ */
+export const emptyTagMap = (ruleSet: RuleSet): EmptyTagMap => {
+    const step = emptyTagStep(ruleSet)
+    const relax = (map: EmptyTagMap): EmptyTagMap => {
+        const [next, changed] = step(map)
+        return changed ? relax(next) : next
+    }
+    return relax({})
+}
 
 //
 
