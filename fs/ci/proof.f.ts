@@ -16,6 +16,9 @@ const hasRun = (cmd: string) => (gha: GitHubAction): boolean =>
 const hasRunInJob = (jobId: string, cmd: string) => (gha: GitHubAction): boolean =>
     gha.jobs[jobId]?.steps.some(step => step.run?.includes(cmd)) ?? false
 
+const hasExactRunInJob = (jobId: string, cmd: string) => (gha: GitHubAction): boolean =>
+    gha.jobs[jobId]?.steps.some(step => step.run === cmd) ?? false
+
 const makeState = (rust: boolean, packageJson?: string) => ({
     ...emptyState,
     root: {
@@ -63,6 +66,12 @@ export const proof = {
         assert(hasRunInJob('wasm', 'cargo test --target wasm32-wasip1 --release')(gha), 'expected target-specific WASM release check')
         assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1 -- -D warnings')(gha), 'expected target-specific WASM Rust lint')
         assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1 --release -- -D warnings')(gha), 'expected target-specific WASM release lint')
+        // Wasmtime 47 removed wasi-threads: the threads target must run under
+        // Wasmer only, while Clippy (no runner) stays.
+        assert(hasRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml')(gha), 'expected Wasmer WASM threads check')
+        assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1-threads -- -D warnings')(gha), 'expected WASM threads lint')
+        assert(!hasExactRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads')(gha), 'unexpected Wasmtime WASM threads check')
+        assert(!hasExactRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads --release')(gha), 'unexpected Wasmtime WASM threads release check')
         assert(hasRunInJob('node22', 'fjs t')(gha), 'expected Node 22 FunctionalScript smoke test')
         assert(hasRunInJob('node26', 'npm pack')(gha), 'expected Node 26 package check')
         assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')

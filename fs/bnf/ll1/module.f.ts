@@ -5,7 +5,8 @@
  * family of automaton builders that consume a {@link RuleSet}: it compiles the
  * grammar into a predictive {@link dispatchMap} and matches input into an AST
  * ({@link MatchResult}). It throws at build time (`can not merge …`) when the
- * grammar is not LL(1) — a first/first conflict.
+ * grammar is not LL(1) — a first/first conflict. Nullability is looked up from
+ * {@link emptyTagMap} in `fs/bnf/data` rather than re-derived here.
  *
  * @module
  */
@@ -16,10 +17,8 @@ import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
 import { contains, set, type StringSet } from '../../types/string_set/module.f.ts'
 import { rangeDecode } from '../module.f.ts'
 import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
-import { type RuleSet, toData } from '../data/module.f.ts'
+import { emptyTagMap, type EmptyTag, type RuleSet, toData } from '../data/module.f.ts'
 import { type Rule as FRule } from '../module.f.ts'
-
-type EmptyTag = string|true|undefined
 
 type DispatchRule = {
     readonly emptyTag: EmptyTag,
@@ -95,6 +94,8 @@ const dispatchOp = rangeMap<DispatchResult>({
  */
 export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 
+    const nullMap = emptyTagMap(ruleSet)
+
     const addRuleToDispatch = (dr: DispatchResult, name: string): DispatchResult => {
         if (dr === null)
             return null
@@ -130,7 +131,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
                     if (emptyTag === true) {
                         result = result.map(x => [addRuleToDispatch(x[0], item), x[1]])
                         result = toArray(dispatchOp.merge(result)(dr.rangeMap))
-                        emptyTag = dr.emptyTag !== undefined ? true : undefined
+                        emptyTag = nullMap[item] !== undefined ? true : undefined
                     } else {
                         result = result.map(x => [addRuleToDispatch(x[0], item), x[1]])
                     }
@@ -145,7 +146,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
             for (const [tag, item] of entries) {
                 dm = dispatchRule(dm, item, newCurrent)
                 const dr = dm[item]!
-                if (dr.emptyTag !== undefined) {
+                if (nullMap[item] !== undefined) {
                     emptyTag = tag
                 } else {
                     const d: Dispatch = dr.rangeMap.map(x => [addTagToDispatch(x[0], tag), x[1]])
