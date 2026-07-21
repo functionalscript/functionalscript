@@ -12,11 +12,12 @@ const m = [42].at
 m(0) // TypeError or wrong result
 ```
 
-FunctionalScript would benefit from automatically bound method references so extracted
-methods behave like standalone functions.
-
 ### Trigger
 
-Unblocked when ECMAScript introduces automatic binding for method references (e.g. via a
-TC39 proposal reaching Stage 4), or when TypeScript provides a type-safe mechanism that
-compiles away the binding overhead.
+Most likely, ECMAScript would never address this issue for a compatibility reason. A [pipeline operator](./pipeline-operator.md) can provide a good alternative for chaining methods.
+
+When TypeScript provides a type-definition for prototype methods which will trigger a compilation error on previous code. `at` should be defined not as a method of `Array` but as a method of `Array.prototype`, or something like that.
+
+### Related
+
+- [new-pl.md § Automatic Binding](../new-pl.md#automatic-binding) — a from-scratch PL isn't bound by ECMAScript's compatibility constraint and can adopt this behavior directly.

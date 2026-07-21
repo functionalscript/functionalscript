@@ -5,8 +5,7 @@
 
 ### Problem
 
-JavaScript engines sort integer-like keys numerically before string keys, regardless of
-insertion order:
+JavaScript engines sort integer-like keys numerically before string keys, regardless of insertion order:
 
 ```ts
 const x = { 11: 11, 2: 2, a: 3, b: 5 }
@@ -18,6 +17,8 @@ serialization and comparison. Integer keys violating this is a spec-level incons
 
 ### Trigger
 
-Unblocked when ECMAScript changes the property enumeration order so integer-index keys
-follow the same lexicographic ordering as string keys, or a TC39 proposal reaches Stage 4
-providing opt-in deterministic ordering.
+Most likely, ECMAScript would never fix it because of compatibility reasons.
+
+### Related
+
+- [new-pl.md § Always Lexicographical Order](../new-pl.md#always-lexicographical-order) — a from-scratch PL isn't bound by ECMAScript's compatibility constraint and adopts pure lexicographic key order directly.
