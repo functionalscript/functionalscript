@@ -371,15 +371,22 @@ const test = [
         let _map: TNode<string> = ['1']
         for (let i = 2; i <= 13; i++)
             _map = set(_map)((i * i).toString())
-        // top level is a Branch5 with "16" as its first separator (x.length === 5)
+        // top level is a Branch5 with "16" as its first separator (i === 1) and
+        // "4" as its second separator (i === 3), so both x.length === 5 replace
+        // arms are reachable from this one fixture.
         assertEq(
             jsonStr(_map),
             '[[["1"],"100",["121","144"]],"16",[["169"],"25",["36"]],"4",[["49"],"64",["81","9"]]]',
         )
-        const replaced = replace(_map)('16')(() => '16-updated')
+        const replacedFirst = replace(_map)('16')(() => '16-updated')
         assertEq(
-            jsonStr(replaced),
+            jsonStr(replacedFirst),
             '[[["1"],"100",["121","144"]],"16-updated",[["169"],"25",["36"]],"4",[["49"],"64",["81","9"]]]',
+        )
+        const replacedSecond = replace(_map)('4')(() => '4-updated')
+        assertEq(
+            jsonStr(replacedSecond),
+            '[[["1"],"100",["121","144"]],"16",[["169"],"25",["36"]],"4-updated",[["49"],"64",["81","9"]]]',
         )
     }
 ]
