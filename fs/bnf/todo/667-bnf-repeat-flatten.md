@@ -32,8 +32,9 @@ re-analyzing the rule graph.
 right-recursion at *runtime* on the native JS call stack, so any
 right-recursive rule blew the stack once the repeated content was long
 enough (a ~2,000–3,000 character identifier, a few-KB file of short tokens —
-see [fs/djs/tokenizer/todo/stack-recursive-tokenization.md](../../djs/tokenizer/todo/stack-recursive-tokenization.md)
-for the full history). That crash was fixed without this proposal: `f` is
+see the CHANGELOG entry for PR
+[#1303](https://github.com/functionalscript/functionalscript/pull/1303) for
+the full history). That crash was fixed without this proposal: `f` is
 now an explicit-stack machine (two suspended-frame kinds on a cons-cell
 stack), which handles *any* rule shape — including right-recursive shapes
 this proposal's conservative detection deliberately skips, such as

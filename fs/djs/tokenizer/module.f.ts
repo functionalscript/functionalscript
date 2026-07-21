@@ -229,8 +229,8 @@ const buildToken = (): Rule => {
 }
 
 // The whole file's token stream as one right-recursive grammar rule. Safe at any input
-// length: descentParser matches on an explicit frame stack, not the JS call stack — see
-// todo/stack-recursive-tokenization.md for the history.
+// length: descentParser matches on an explicit frame stack, not the JS call stack
+// (see fs/bnf/descent/module.f.ts).
 export const jsGrammar = (): Rule => repeat0Plus(buildToken())
 
 const stringify = stringifyAsTree(sort)

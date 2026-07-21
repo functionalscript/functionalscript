@@ -102,7 +102,7 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
     // its first child) or feeds the pending result into the innermost frame. Semantics are
     // identical to the former recursive `f`, but the JS call stack stays O(1) regardless of
     // grammar recursion depth — right-recursive rules (e.g. repeat0Plus chains) no longer
-    // overflow on long input. See fs/djs/tokenizer/todo/stack-recursive-tokenization.md.
+    // overflow on long input (see the longInput proof group).
     const f: DescentMatchRule<T> = (name, tag, cp, idx): DescentMatchResult<T> => {
         const mrSuccess = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): DescentMatchResult<T> => [{tag, sequence}, true, idx]
         const mrFail = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): DescentMatchResult<T> => [{tag, sequence}, false, idx]

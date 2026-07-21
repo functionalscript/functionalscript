@@ -19,11 +19,11 @@ the threshold is higher than the descent backend's old ~2,000–3,000 because
 LL(1)'s per-repetition frame chain is shallower, but the failure mode is
 identical).
 
-This is the same bug that was fixed in the sibling descent backend: see
-[../../../djs/tokenizer/todo/stack-recursive-tokenization.md](../../../djs/tokenizer/todo/stack-recursive-tokenization.md)
-for the history. `fs/bnf/descent/module.f.ts`'s matcher now runs as an
-explicit-stack machine and handles 100 KB+ inputs; the LL(1) matcher was not
-touched. Today nothing outside `fs/bnf/ll1`'s own proofs consumes this
+This is the same bug that was fixed in the sibling descent backend in PR
+[#1303](https://github.com/functionalscript/functionalscript/pull/1303) (see
+its CHANGELOG entry for the history): `fs/bnf/descent/module.f.ts`'s matcher
+now runs as an explicit-stack machine and handles 100 KB+ inputs; the LL(1)
+matcher was not touched. Today nothing outside `fs/bnf/ll1`'s own proofs consumes this
 parser (hence P3, not P1), but any future consumer with realistic input
 sizes will hit it.
 
@@ -62,10 +62,10 @@ grammar size, not input size — it does not need to change.
 ### Related
 
 - `fs/bnf/descent/module.f.ts` — the ported fix to mirror (explicit frame
-  stack; see the `longInput` proof group in its `proof.f.ts`).
-- [../../../djs/tokenizer/todo/stack-recursive-tokenization.md](../../../djs/tokenizer/todo/stack-recursive-tokenization.md)
-  — history of the same bug in the descent backend and why the fix belongs
-  in the matcher, not the grammar.
+  stack; see the `longInput` proof group in its `proof.f.ts`), landed in PR
+  [#1303](https://github.com/functionalscript/functionalscript/pull/1303),
+  whose CHANGELOG entry records the history of the same bug in the descent
+  backend and why the fix belongs in the matcher, not the grammar.
 - [../../todo/667-bnf-repeat-flatten.md](../../todo/667-bnf-repeat-flatten.md)
   — the `repeat` data-node proposal; would reduce repetition depth for
   detected shapes but is not a complete fix (deep nesting, undetected

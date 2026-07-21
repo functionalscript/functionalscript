@@ -246,10 +246,9 @@ export const proof = {
             expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
         }
     ],
-    // Regression for the stack-recursive matcher bug (see
-    // ../../djs/tokenizer/todo/stack-recursive-tokenization.md): the matcher used to
-    // recurse natively once per grammar step, so match depth grew with input length and
-    // these inputs threw "RangeError: Maximum call stack size exceeded" at a few thousand
+    // Regression for the stack-recursive matcher bug: the matcher used to recurse
+    // natively once per grammar step, so match depth grew with input length and these
+    // inputs threw "RangeError: Maximum call stack size exceeded" at a few thousand
     // code points. The explicit-frame-stack matcher handles them in O(1) JS call stack.
     longInput: [
         () => {

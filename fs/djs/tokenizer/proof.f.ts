@@ -864,10 +864,10 @@ export const proof = {
             assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}}]')
         },
     ],
-    // Regression coverage for todo/stack-recursive-tokenization.md: both a file with many
-    // short tokens and a single very long token used to overflow the JS call stack, because
-    // fs/bnf/descent's matcher recursed once per grammar step. It now runs on an explicit
-    // frame stack, so the whole-file jsGrammar() match is safe at any input length.
+    // Regression coverage for large inputs: both a file with many short tokens and a
+    // single very long token used to overflow the JS call stack, because fs/bnf/descent's
+    // matcher recursed once per grammar step. It now runs on an explicit frame stack, so
+    // the whole-file jsGrammar() match is safe at any input length.
     largeInputs: [
         () => {
             // many short whitespace tokens: the reported repro (`' '.repeat(5000)`)
