@@ -27,30 +27,26 @@ repetition." Every consumer (the fold evaluator from i207, a future code
 generator, a TypeScript emitter) would otherwise have to re-derive that fact by
 re-analyzing the rule graph.
 
-**Concrete impact — stack overflow, not just a data-shape concern.**
-`fs/bnf/descent/module.f.ts`'s `f` matcher mirrors this right-recursion at
-*runtime*: for a `repeat0Plus`-built rule, matching each additional item is
-one more nested call to `f` (sequence branch → variant branch → sequence
-branch → …). Any right-recursive rule blows the JS call stack once the
-repeated content is long enough — reproduced via `fs/djs/tokenizer`, whose
-`id`/`digits0`/string-body rules are all `repeat0Plus`-based: tokenizing an
-identifier around ~2,000–3,000 characters throws `RangeError: Maximum call
-stack size exceeded` from inside `f`'s recursion
-(`fs/bnf/descent/module.f.ts:137`/`151`), well before any other size limit
-(e.g. `String.fromCodePoint`'s own argument-spread limit, which is
-comfortably higher) would matter. This affects every `descentParser`
-consumer with unbounded-length tokens, not just DJS. The "parser output:
-flat array" part of this proposal — matching `repeat(item)` in a loop
-instead of via recursion — is what actually fixes this; it's not solely a
-serialization nicety.
+**Concrete impact — historical note; the stack-overflow half is now fixed.**
+`fs/bnf/descent/module.f.ts`'s `f` matcher used to mirror this
+right-recursion at *runtime* on the native JS call stack, so any
+right-recursive rule blew the stack once the repeated content was long
+enough (a ~2,000–3,000 character identifier, a few-KB file of short tokens —
+see [fs/djs/tokenizer/todo/stack-recursive-tokenization.md](../../djs/tokenizer/todo/stack-recursive-tokenization.md)
+for the full history). That crash was fixed without this proposal: `f` is
+now an explicit-stack machine (two suspended-frame kinds on a cons-cell
+stack), which handles *any* rule shape — including right-recursive shapes
+this proposal's conservative detection deliberately skips, such as
+terminated lists like the DJS tokenizer's `multilineContent` — with O(1)
+JS call-stack depth. So this issue is no longer needed as a crash fix.
 
-A follow-up PR review (codex) found this is worse than "one long token":
-`fs/djs/tokenizer/module.f.ts`'s *outer* token stream (`repeat0Plus(token)`
-over the whole file) recurses the same way, so a file with many short
-tokens crashes just as easily as one long token — `' '.repeat(5000)`
-overflows, and the old tokenizer handled 20 KB comments the new one can't.
-See [fs/djs/tokenizer/todo/stack-recursive-tokenization.md](../../djs/tokenizer/todo/stack-recursive-tokenization.md)
-for the concrete repro and impact scope.
+What remains is the original data-shape motivation, which the stack-based
+matcher does **not** address: the *AST* for a right-recursive rule is still
+a deeply nested cons structure, and the data form still has no node that
+says "this is a repetition." Consumers that walk the AST with stack-safe
+lazy lists are fine, but every consumer still has to re-derive list-ness
+structurally, and a flat `[x0, x1, …]` sequence is what downstream actions
+(i207) actually want.
 
 ### Proposal
 

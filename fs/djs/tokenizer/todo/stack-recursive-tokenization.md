@@ -1,20 +1,30 @@
 ## stack-recursive-tokenization. Avoid stack-recursive tokenization for normal-size files
 
 **Priority:** P2
-**Status:** open
+**Status:** done
 
-> **Progress.** Interim fix (2) below has landed: `tokenizeString`/`tokenizeJs` now match
-> `token` in a plain JS loop (`tokenizeToAsts` in `fs/djs/tokenizer/module.f.ts`) instead of
-> matching the whole file as one `repeat0Plus(token)` grammar rule, so the outer/many-tokens
-> crash is fixed (`' '.repeat(5000)`, thousands of short tokens — see the `largeInputs` proof
-> group). `jsGrammar()` still returns the old whole-file `repeat0Plus(token)` rule for the
-> small-input grammar-level tests in `proof.f.ts` (`isValid`/`tokenizer` groups); production
-> tokenization no longer uses it. **A single long token (long string/comment/identifier)
-> still overflows** — that half needs fix (1), which is still blocked on
-> [../../../bnf/todo/667-bnf-repeat-flatten.md](../../../bnf/todo/667-bnf-repeat-flatten.md)
-> (itself blocked on the not-yet-split i207 design doc). Lowered from P1 to P2 since the more
-> common "many short tokens" trigger is now fixed; the remaining single-long-token gap is the
-> same narrower case i207/667 already tracked before this issue existed.
+> **Resolved, in two steps.**
+>
+> 1. Interim fix (2) below: `tokenizeString`/`tokenizeJs` match `token` in a plain JS loop
+>    (`tokenizeToAsts` in `fs/djs/tokenizer/module.f.ts`) instead of matching the whole file
+>    as one `repeat0Plus(token)` grammar rule — fixed the outer/many-tokens crash
+>    (`' '.repeat(5000)`, thousands of short tokens).
+> 2. The general fix, a variant of (1) that needed no grammar/data changes at all:
+>    `fs/bnf/descent`'s matcher `f` was rewritten as an explicit-stack machine (two frame
+>    kinds — suspended sequence, suspended variant — on a cons-cell stack), so descent
+>    matching uses O(1) JS call stack for *any* grammar shape and *any* input length. This
+>    fixed the single-long-token half (long string/identifier, and long block comments via
+>    the hand-written recursive `multilineContent`, which the `repeat`-detection proposed in
+>    [../../../bnf/todo/667-bnf-repeat-flatten.md](../../../bnf/todo/667-bnf-repeat-flatten.md)
+>    would *not* have caught — it has an `end` branch, so it isn't the pure 0-or-more shape).
+>
+> Verified sizes (see the `largeInputs` proof group): 5 KB string literal, 20 KB block
+> comment, 10 KB identifier, thousands of short tokens; a 100 KB block comment and a
+> 20,000-token file matched via the whole-file `jsGrammar()` rule were also checked manually.
+> 667 is no longer needed as a stack fix — its remaining value is the data-representation /
+> flat-AST improvement it originally proposed. The AST for right-recursive rules is still
+> nested; current consumers walk it via the stack-safe lazy `List`, so that is a data-shape
+> concern (667's), not a crash concern.
 
 ### Problem
 
@@ -88,9 +98,12 @@ written up.
       comfortably past the ~1000-1500 token point where the old whole-file
       match crashed.
 - [x] Re-run the codex-reported repro — `' '.repeat(5000)` no longer throws.
-      A single long token (5 KB+ string/block comment) still throws; that's
-      the still-open (1) half, tracked by 667/i207.
-- [ ] Land (1) (via 667/i207) to fix the remaining single-long-token case.
+- [x] Fix the remaining single-long-token case — done by making `descentParser`
+      itself iterative (explicit frame stack in `fs/bnf/descent/module.f.ts`)
+      rather than by waiting on 667/i207: broader coverage (works for shapes
+      667's conservative repeat-detection skips, e.g. `multilineContent`) and
+      no data-format change. 5 KB strings, 20 KB comments, and 10 KB
+      identifiers are covered in the `largeInputs` proof group.
 
 ### Related
 

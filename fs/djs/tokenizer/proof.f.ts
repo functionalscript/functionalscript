@@ -864,11 +864,10 @@ export const proof = {
             assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}}]')
         },
     ],
-    // Regression coverage for todo/stack-recursive-tokenization.md: tokenizeString/tokenizeJs
-    // match tokens one at a time in a loop instead of via one whole-file recursive grammar
-    // match, so files with many tokens no longer overflow the call stack. A single very long
-    // token (long string/comment/identifier) is a separate, still-open limitation (needs the
-    // `repeat` primitive from fs/bnf/todo/667-bnf-repeat-flatten.md) and isn't exercised here.
+    // Regression coverage for todo/stack-recursive-tokenization.md, which had two halves:
+    // many short tokens (fixed by tokenizeToAsts matching one token at a time in a loop)
+    // and a single very long token (fixed by fs/bnf/descent's matcher running on an
+    // explicit frame stack instead of native recursion).
     largeInputs: [
         () => {
             // many short whitespace tokens: the reported repro (`' '.repeat(5000)`)
@@ -890,6 +889,26 @@ export const proof = {
             const src = 'x '.repeat(3000)
             const result = toArray(tokenizeJs(stringToList(src))('a.js'))
             assertEq(result.length, 3000 * 2 + 1)
+        },
+        () => {
+            // a single long token: a 5 KB string literal, matched within one descent call —
+            // overflows unless the descent matcher itself is iterative
+            const value = 'a'.repeat(5000)
+            const result = tokenizeString(`"${value}"`)
+            assertEq(result, `[{"kind":"string","value":"${value}"},{"kind":"eof"}]`)
+        },
+        () => {
+            // a single long token via the hand-written recursive multilineContent rule:
+            // a 20 KB block comment (the size the pre-grammar tokenizer handled)
+            const value = 'x'.repeat(20000)
+            const result = tokenizeString(`/*${value}*/`)
+            assertEq(result, `[{"kind":"/*","value":"${value}"},{"kind":"eof"}]`)
+        },
+        () => {
+            // a single long identifier (repeat0Plus(idChar) inside one token match)
+            const value = 'x'.repeat(10000)
+            const result = tokenizeString(value)
+            assertEq(result, `[{"kind":"id","value":"${value}"},{"kind":"eof"}]`)
         },
     ],
 }
