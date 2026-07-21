@@ -14,11 +14,14 @@ const home = '/home/user'
 const findEntry = <O extends Operation>(registry: readonly ToolEntry<O>[], name: string): ToolEntry<O> => {
     const entry = registry.find(e => e.name === name)
     assert(entry !== undefined, ['missing tool entry', name])
-    return entry as ToolEntry<O>
+    return entry
 }
 
-const textOf = (result: ToolsCallResult): string =>
-    (result.content[0] as { readonly text: string }).text
+const textOf = (result: ToolsCallResult): string => {
+    const [item] = result.content
+    assert(item.type === 'text', ['expected a text content item', item])
+    return item.text
+}
 
 export const proof = {
     toolNamesMatchTheDesign: () => {
