@@ -254,6 +254,23 @@ export const proof = {
         assertEq(result[0], 'error')
         assert(result[0] === 'error' && result[1].includes('parent is not a revision blob'), ['unexpected message', result])
     },
+    // A revision models one step in the evolution of a single subject: a
+    // parent that actually belongs to a *different* subject must be
+    // rejected, even though it exists and is a valid revision — otherwise
+    // the new revision would silently graft onto an unrelated object's
+    // history, and head demotion (scoped to the child's own subject) would
+    // never remove the parent from its real subject's head set.
+    addRevisionRejectsCrossSubjectParent: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const rootA: AddRevision = { parents: [], subject: 'A', snapshot: vecToCBase32(vec8(0x67n)) }
+        const [state1, rootAResult] = virtual(state0)(e.add(rootA))
+        assert(rootAResult[0] === 'ok', ['expected rootA ok', rootAResult])
+        const [, result] = virtual(state1)(e.add({ parents: [rootAResult[1]], subject: 'B' }))
+        assertEq(result[0], 'error')
+        assert(result[0] === 'error' && result[1].includes('different subject'), ['unexpected message', result])
+    },
     // With multiple parents, a failure on an earlier one short-circuits the
     // fold — the second (here, a well-formed but nonexistent) parent is
     // never even looked up.

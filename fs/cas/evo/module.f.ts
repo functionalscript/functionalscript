@@ -236,18 +236,36 @@ const resolveSubject = (input: AddRevision) => (parents: readonly Revision[]): R
 }
 
 /**
+ * Checks that every already-resolved parent belongs to `subject`. A revision
+ * models one step in the evolution of a single mutable object, so a parent
+ * from a different subject would silently graft the new revision (and any
+ * inherited `snapshot`) onto an unrelated object's history; head demotion is
+ * also scoped to `revision.subject` ({@link addRevisionToCache}), so a
+ * cross-subject parent would never even leave its own subject's head set —
+ * this must be rejected rather than merely producing a head mismatch later.
+ */
+const validateParentSubjects = (subject: Subject) => (parents: readonly Revision[]): Result<void, string> => {
+    const mismatch = parents.find(p => p.subject !== subject)
+    return mismatch === undefined
+        ? ok(undefined)
+        : error(`parent belongs to a different subject (${mismatch.subject}), expected ${subject}`)
+}
+
+/**
  * Adds a new revision to `cas` and folds it into the cache at `cacheKey`.
  *
  * Steps: resolve and validate every parent ({@link resolveParents}), resolve
- * `subject` from them ({@link resolveSubject}), assemble a `Revision` and
- * check its snapshot-reference semantics (`fs/media/revision`
+ * `subject` from them ({@link resolveSubject}) and check every parent
+ * actually belongs to it ({@link validateParentSubjects}), assemble a
+ * `Revision` and check its snapshot-reference semantics (`fs/media/revision`
  * `checkReferences` — the same rule a reader applies; the shape itself is
  * already guaranteed by this function's own field types), encode and write it
  * to `cas`, then fold the new revision into the cache. Every
- * failure — an invalid or missing parent, an unresolvable subject, an
- * invalid revision, a blob too large to encode, or a store write failure —
- * is reported as `error(message)` rather than thrown, so a caller (e.g. an
- * MCP tool handler) can surface it without a `throw`/`catch`.
+ * failure — an invalid or missing parent, a cross-subject parent, an
+ * unresolvable subject, an invalid revision, a blob too large to encode, or a
+ * store write failure — is reported as `error(message)` rather than thrown,
+ * so a caller (e.g. an MCP tool handler) can surface it without a
+ * `throw`/`catch`.
  */
 export const addRevision =
     <O extends Operation>(cas: Cas<O>) =>
@@ -257,6 +275,8 @@ export const addRevision =
         if (parentsResult[0] === 'error') { return pure(parentsResult) }
         const subjectResult = resolveSubject(input)(parentsResult[1])
         if (subjectResult[0] === 'error') { return pure(subjectResult) }
+        const parentSubjectsResult = validateParentSubjects(subjectResult[1])(parentsResult[1])
+        if (parentSubjectsResult[0] === 'error') { return pure(parentSubjectsResult) }
         const revision: Revision = {
             dialect,
             subject: subjectResult[1],
