@@ -60,7 +60,8 @@ import { stringifyAsTree } from "../serializer/module.f.ts"
 import { sort } from "../../types/object/module.f.ts"
 import type { Unknown } from "../module.f.ts"
 
-export const jsGrammar = (): Rule => {
+// Builds the single-token grammar that jsGrammar's whole-file `tokens` rule repeats.
+const buildToken = (): Rule => {
 
     const onenine = range('19')
 
@@ -224,14 +225,13 @@ export const jsGrammar = (): Rule => {
         eof
     }
 
-    // TODO: this matches the whole file's token stream as one right-recursive grammar
-    // rule, and descentParser recurses once per matched token — so files of just a few
-    // KB (many short tokens, not only one long one) can throw "Maximum call stack size
-    // exceeded" instead of producing tokens. See todo/stack-recursive-tokenization.md.
-    const tokens = repeat0Plus(token)
-
-    return tokens
+    return token
 }
+
+// The whole file's token stream as one right-recursive grammar rule. Safe at any input
+// length: descentParser matches on an explicit frame stack, not the JS call stack
+// (see fs/bnf/descent/module.f.ts).
+export const jsGrammar = (): Rule => repeat0Plus(buildToken())
 
 const stringify = stringifyAsTree(sort)
 
@@ -484,16 +484,14 @@ const getTokensFromAstRule
 export const tokenizeString
     : (s: string) => string
     = s => {
-        const m = descentParser<TokenMetadata>(jsGrammar())
         const cp = toArray(stringToCodePointList(s))
-        const cpm = codePointsWithMetadata('')(cp)
-        const [ast, ok, len] = m('', cpm)
         if (cp.length === 0) {
             return stringify([{kind: 'eof'}] as Unknown)
         }
-        if (!ok)
-            return 'error'
-        if (cp.length > 0 && len !== cp.length)
+        const m = descentParser<TokenMetadata>(jsGrammar())
+        const cpm = codePointsWithMetadata('')(cp)
+        const [ast, ok, len] = m('', cpm)
+        if (!ok || len !== cp.length)
             return 'error'
 
         const flatTokens = toArray(getTokensFromAstRule(ast))

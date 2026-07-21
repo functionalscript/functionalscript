@@ -864,4 +864,51 @@ export const proof = {
             assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}}]')
         },
     ],
+    // Regression coverage for large inputs: both a file with many short tokens and a
+    // single very long token used to overflow the JS call stack, because fs/bnf/descent's
+    // matcher recursed once per grammar step. It now runs on an explicit frame stack, so
+    // the whole-file jsGrammar() match is safe at any input length.
+    largeInputs: [
+        () => {
+            // many short whitespace tokens: the reported repro (`' '.repeat(5000)`)
+            const result = tokenizeString(' '.repeat(5000))
+            assertEq(result, '[{"kind":"ws"},{"kind":"eof"}]')
+        },
+        () => {
+            // many distinct short tokens, well past the ~1000-1500 token crash threshold
+            // the old whole-file recursive match hit for this shape
+            const src = Array.from({ length: 3000 }, (_, i) => `a${i % 10}`).join(' ')
+            const result = tokenizeString(src)
+            assert(result !== 'error', result)
+            const parsed = JSON.parse(result)
+            // 3000 ids + 2999 separating ws + a trailing eof token
+            assertEq(parsed.length, 3000 + 2999 + 1)
+        },
+        () => {
+            // same many-short-tokens shape through the metadata-aware entry point
+            const src = 'x '.repeat(3000)
+            const result = toArray(tokenizeJs(stringToList(src))('a.js'))
+            assertEq(result.length, 3000 * 2 + 1)
+        },
+        () => {
+            // a single long token: a 5 KB string literal — overflows unless the descent
+            // matcher itself is iterative
+            const value = 'a'.repeat(5000)
+            const result = tokenizeString(`"${value}"`)
+            assertEq(result, `[{"kind":"string","value":"${value}"},{"kind":"eof"}]`)
+        },
+        () => {
+            // a single long token via the hand-written recursive multilineContent rule:
+            // a 20 KB block comment (the size the pre-grammar tokenizer handled)
+            const value = 'x'.repeat(20000)
+            const result = tokenizeString(`/*${value}*/`)
+            assertEq(result, `[{"kind":"/*","value":"${value}"},{"kind":"eof"}]`)
+        },
+        () => {
+            // a single long identifier (repeat0Plus(idChar) inside one token match)
+            const value = 'x'.repeat(10000)
+            const result = tokenizeString(value)
+            assertEq(result, `[{"kind":"id","value":"${value}"},{"kind":"eof"}]`)
+        },
+    ],
 }
