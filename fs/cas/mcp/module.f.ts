@@ -1,19 +1,26 @@
 /**
- * MCP adapter for the content-addressable store.
+ * MCP adapter for the content-addressable store and the Evo API layered on
+ * top of it.
  *
  * Maps `Cas<O>` operations onto MCP tools, so an agent that speaks MCP can
  * store a blob and get back its hash, fetch a blob by hash, and enumerate
  * what is stored — without shelling out to the `cas` CLI. The store itself
  * (`fs/cas/module.f.ts`) stays transport-agnostic; this is an additional
- * front end alongside the CLI `main`.
+ * front end alongside the CLI `main`. The same server also exposes
+ * `fs/cas/evo`'s subject/head API (`evo_list`/`evo_head`/`evo_add`,
+ * `fs/cas/evo/mcp`) — one process, one `~/.cas/` store, one in-memory Evo
+ * cache scanned once at startup (`initEvo`).
  *
  * ## Tools
  *
- * | Tool       | args                          | action           | result                              |
- * |------------|-------------------------------|------------------|-------------------------------------|
- * | `cas_add`  | `{ content, type? }`          | `c.write(...)`   | hash (cBase32)                      |
- * | `cas_get`  | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
- * | `cas_list` | `{}`                          | `c.list()`       | hashes, one per line                |
+ * | Tool        | args                                           | action        | result                              |
+ * |-------------|-------------------------------------------------|---------------|--------------------------------------|
+ * | `cas_add`   | `{ content, type? }`                            | `c.write(...)`| hash (cBase32)                      |
+ * | `cas_get`   | `{ hash, content?: boolean }`                    | `c.read(key)` | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
+ * | `cas_list`  | `{}`                                             | `c.list()`    | hashes, one per line                |
+ * | `evo_list`  | `{}`                                             | `e.list()`    | subjects, one per line              |
+ * | `evo_head`  | `{ subject }`                                    | `e.head(...)` | head hashes, one per line           |
+ * | `evo_add`   | `{ parents, snapshot?, subject?, archived? }`    | `e.add(...)`  | hash (cBase32)                      |
  *
  * ## `cas_add` input encoding
  *
@@ -123,6 +130,9 @@ import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
+import { initEvo, evo, type Cache } from '../evo/module.f.ts'
+import { evoToolRegistry } from '../evo/mcp/module.f.ts'
+import type { Key } from '../../effects/memory/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
@@ -255,10 +265,11 @@ export const casToolRegistry =
 // ── Handlers ────────────────────────────────────────────────────────────────────
 
 /**
- * MCP handlers for `FileCas`.
+ * MCP handlers for `FileCas` plus the Evo API (`fs/cas/evo`) layered on it,
+ * bound to `home` and an already-built Evo cache slot (see `initEvo`).
  */
-export const casMcpHandlers = (home: string): McpHandlers<FileCasOperation> =>
-    fromRegistry(casToolRegistry(home))
+export const casMcpHandlers = (home: string) => (cacheKey: Key<Cache>): McpHandlers<FileCasOperation | MemOp> =>
+    fromRegistry([...casToolRegistry(home), ...evoToolRegistry(evo(fileCas(sha256)(home))(cacheKey))])
 
 // ── Session configuration ───────────────────────────────────────────────────────
 
@@ -275,15 +286,17 @@ export const casConfig: McpConfig = {
 // ── Server ──────────────────────────────────────────────────────────────────────
 
 /**
- * Runs the file CAS MCP server over stdio: allocates the session-state slot, builds
- * the `mcpStep` for `c`, and drives the read → parse → dispatch → write loop
- * until stdin EOF.
+ * Runs the combined CAS + Evo MCP server over stdio: scans `~/.cas/` once to
+ * build the Evo subject/head cache (`initEvo`), allocates the session-state
+ * slot, builds the `mcpStep` for the merged tool registry, and drives the
+ * read → parse → dispatch → write loop until stdin EOF.
  */
 export const casMcpServer = (
     home: string,
 ): Effect<Read | Write | MemOp | FileCasOperation, void> =>
-    create(uninitializedState).step(key =>
-        stdioTransport(mcpStep(casConfig)(casMcpHandlers(home))(key)))
+    initEvo(fileCas(sha256)(home)).step(cacheKey =>
+        create(uninitializedState).step(sessionKey =>
+            stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))))
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 

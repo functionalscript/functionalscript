@@ -1,30 +1,16 @@
-# Evo MCP server
+# Evo MCP tools
 
-An [MCP](../../../mcp/) front end for the Evo API ([`fs/cas/evo`](../)):
-subjects and revision heads over the content-addressable store
-([`fs/cas`](../../)), backed by the in-memory cache the core module
-maintains.
+MCP tool definitions for the Evo API ([`fs/cas/evo`](../)): subjects and
+revision heads over the content-addressable store ([`fs/cas`](../../)),
+backed by the in-memory cache the core module maintains.
 
-## Running it
-
-Register the Evo MCP server command with your LLM client:
-
-```sh
-npx functionalscript v
-```
-
-Follow your LLM client's instructions to register that command as an MCP
-server. For example:
-
-```sh
-# register the MCP for Claude
-claude mcp add cas-evo -- npx functionalscript v
-# register the MCP for Codex
-codex mcp add cas-evo -- npx functionalscript v
-```
-
-Your client will use the `evo_list`, `evo_head`, and `evo_add` tools to
-interact with your CAS's subjects and revisions.
+These tools are not their own server. They are served by the same process as
+`cas_add`/`cas_get`/`cas_list`: [`fs/cas/mcp`](../../mcp/) builds one
+`Evo<O>` from its own `Cas<O>` and cache slot (`initEvo`, scanned once at
+startup), concatenates `evoToolRegistry` onto its own tool registry, and
+serves everything — one `~/.cas/` store, one Evo cache, one server, one
+`npx functionalscript m`. See [`fs/cas/mcp/README.md`](../../mcp/README.md)
+for how to run it and register it with an MCP client.
 
 ## Tools
 
@@ -41,28 +27,18 @@ Each tool's argument schema is an rtti struct declared once and used twice:
 `arguments` object in `tools/call` — the same pattern as
 [`fs/cas/mcp`](../../mcp/).
 
-## Startup: one scan, then cache-only reads
-
-`evoMcpServer` scans the whole store once at startup (`initEvo`, see
-[`fs/cas/evo`](../)) to build the subject/head cache, then serves every
-`tools/call` request off that cache: `evo_list`/`evo_head` never touch the
-store, and `evo_add` updates both the store and the cache in one step —
-there is no per-request rescan.
-
 ## Errors
 
 - Invalid `arguments` (rtti `validate` rejects the object, e.g. a missing
   `parents`) → `isError`, reported by the shared `toolEntry` machinery before
-  the domain logic runs (same as `fs/cas/mcp`).
+  the domain logic runs.
 - A domain-level `evo_add` failure — an unresolvable `subject`, an invalid
   `vnd.fjs.revision` (see [`fs/media/revision`](../../../media/revision/)),
   a blob too large to encode, or a store write failure — → `isError` with the
   message from `Evo.add`'s `Result`.
-- An unknown tool `name` → `isError`.
 
 ## Testing without a live process
 
-Like [`fs/cas/mcp`](../../mcp/), the adapter is generic in the store's
-operation type `O`; `proof.f.ts` drives the handlers through a full
-`initialize` → `notifications/initialized` → `tools/call` sequence over an
-in-memory virtual filesystem, no live process required.
+`evoToolRegistry` is generic in the store's operation type `O` and takes a
+plain `Evo<O>`, so `proof.f.ts` exercises each tool entry's `handle` directly
+against an in-memory `Evo` — no MCP session or live process required.

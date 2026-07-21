@@ -1,16 +1,23 @@
 # CAS MCP server
 
-An [MCP](../../mcp/) front end for the content-addressable store ([`fs/cas`](../)).
-It exposes `Cas<O>` operations as MCP tools, so an agent that speaks MCP can
-store a blob and get back its hash, fetch a blob by hash, and enumerate what is
-stored — without shelling out to the `cas` CLI.
+An [MCP](../../mcp/) front end for the content-addressable store ([`fs/cas`](../))
+and the Evo API layered on top of it ([`fs/cas/evo`](../evo/)). It exposes
+`Cas<O>` operations as MCP tools, so an agent that speaks MCP can store a
+blob and get back its hash, fetch a blob by hash, and enumerate what is
+stored — without shelling out to the `cas` CLI — and it exposes Evo's
+subject/head API (`evo_list`/`evo_head`/`evo_add`,
+[`fs/cas/evo/mcp`](../evo/mcp/)) from the same process.
 
 The store (`fs/cas/module.f.ts`) stays transport-agnostic; this adapter is an
 additional front end alongside the CLI `main`.
 
-`casMcpServer(c)` allocates the session-state slot, builds the `mcpStep` for an
-injected `Cas<O>`, and drives the stdio read → parse → dispatch → write loop
-([`fs/mcp/stdio`](../../mcp/stdio/module.f.ts)) until stdin EOF.
+`casMcpServer(home)` scans `~/.cas/` once at startup to build the Evo
+subject/head cache (`initEvo`, [`fs/cas/evo`](../evo/)), allocates the
+session-state slot, builds the `mcpStep` for the combined `cas_*`/`evo_*`
+tool registry, and drives the stdio read → parse → dispatch → write loop
+([`fs/mcp/stdio`](../../mcp/stdio/module.f.ts)) until stdin EOF. `evo_add` is
+the only tool that writes: it updates both the store and the cache in one
+step, so `evo_list`/`evo_head` never rescan.
 
 ## Running it
 
@@ -37,7 +44,10 @@ You can now ask questions like:
 - "What's stored in the content-addressable store?"
 - "List the available CAS hashes"
 
-Your client will use the `cas_add`, `cas_get`, and `cas_list` tools to interact with your CAS instance.
+Your client will use the `cas_add`, `cas_get`, and `cas_list` tools to interact
+with your CAS instance, and the `evo_list`, `evo_head`, and `evo_add` tools to
+work with subjects and revision heads on top of it (see
+[`fs/cas/evo/mcp/README.md`](../evo/mcp/README.md) for that API).
 
 ## Tools
 
@@ -46,6 +56,13 @@ Your client will use the `cas_add`, `cas_get`, and `cas_list` tools to interact 
 | `cas_add`  | `{ content, type? }`                    | `c.write(value)` | hash (cBase32)                            |
 | `cas_get`  | `{ hash, content?: boolean }`           | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
 | `cas_list` | `{}`                                    | `c.list()`       | hashes, one per line                      |
+| `evo_list` | `{}`                                    | `e.list()`       | subjects, one per line                    |
+| `evo_head` | `{ subject }`                           | `e.head(...)`    | head hashes, one per line                 |
+| `evo_add`  | `{ parents, snapshot?, subject?, archived? }` | `e.add(...)` | hash (cBase32)                       |
+
+`evo_*` tools are documented in full in
+[`fs/cas/evo/mcp/README.md`](../evo/mcp/README.md); the rest of this page
+covers `cas_add`/`cas_get`/`cas_list`.
 
 Each tool's argument schema is an rtti struct declared once and used twice:
 [`toJsonSchema`](../../media/json/schema/module.f.ts) derives the `inputSchema`

@@ -36,6 +36,7 @@ import { casConfig, casMcpHandlers } from './module.f.ts'
 import { ok as resultOk } from '../../types/result/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import { fromVec } from '../../types/uint8array/module.f.ts'
+import { initEvo } from '../evo/module.f.ts'
 
 type CasGetResult = {
     readonly length: number
@@ -123,10 +124,11 @@ const runSessionVirtual =
     (root: Dir, home = '/home/user') =>
     (msgs: readonly unknown[]): readonly unknown[] => {
         type UploadOp = FileCasOperation | Rename | RandomInt | ReadBytes
-        const effect = create(uninitializedState as McpSessionState).step(sessionKey => {
-            const step = mcpStep(casConfig)(casMcpHandlers(home))(sessionKey)
-            return feed(step)(msgs)
-        })
+        const effect = initEvo(fileCas(sha256)(home)).step(cacheKey =>
+            create(uninitializedState as McpSessionState).step(sessionKey => {
+                const step = mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)
+                return feed(step)(msgs)
+            }))
         return virtual({ ...emptyState, root })(effect)[1]
     }
 
@@ -176,8 +178,9 @@ const runStdio =
     (root: Dir, home = '/home/user') =>
     (msgs: readonly unknown[]): readonly unknown[] => {
         const input = [init, initialized, ...msgs].map(m => JSON.stringify(m)).join('\n') + '\n'
-        const effect = create(uninitializedState as McpSessionState).step(sessionKey =>
-            stdioTransport(mcpStep(casConfig)(casMcpHandlers(home))(sessionKey)))
+        const effect = initEvo(fileCas(sha256)(home)).step(cacheKey =>
+            create(uninitializedState as McpSessionState).step(sessionKey =>
+                stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))))
         const stdout = virtual({ ...emptyState, root, stdin: toBytes(input) })(effect)[0].stdout
         // Only requests get a written line (notifications, like `initialized`,
         // write nothing) — drop the `init` response, keep one line per `msgs` entry.
@@ -363,13 +366,36 @@ export const proof = {
         assertEq(err.id, 2)
     },
 
-    toolsListAdvertisesThreeTools: () => {
+    toolsListAdvertisesSixTools: () => {
         const [resp] = runSessionVirtual({})([init, initialized, list(2)]).slice(2)
         const tools = (resp as { result: { tools: readonly { name: string }[] } }).result.tools
-        assertEq(tools.length, 3)
-        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list')
+        assertEq(tools.length, 6)
+        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list,evo_list,evo_head,evo_add')
         const add = (resp as { result: { tools: readonly { inputSchema: { type?: string } }[] } }).result.tools[0]
         assertEq(add.inputSchema.type, 'object')
+    },
+
+    // The same server also exposes Evo (fs/cas/evo): add a revision, then
+    // find it via evo_list/evo_head — one process, one store, one cache.
+    evoAddListHeadRoundTripsThroughCasServer: () => {
+        const [addResp, listResp, headResp] = session(
+            call(2, 'evo_add', { parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x1n)) }),
+            call(3, 'evo_list', {}),
+            call(4, 'evo_head', { subject: 'doc' }),
+        )
+        assert(!resultOf(addResp).isError)
+        const hash = textOf(addResp)
+        assert(hash.length > 0)
+        assertEq(textOf(listResp), 'doc')
+        assertEq(textOf(headResp), hash)
+    },
+
+    evoAddDomainErrorIsErrorThroughCasServer: () => {
+        // Valid arguments, but the domain rule fails: `subject` is required
+        // unless there is exactly one parent.
+        const [resp] = session(call(2, 'evo_add', { parents: [] }))
+        assertEq(resultOf(resp).isError, true)
+        assert(textOf(resp).includes('subject is required'))
     },
 
     addReturnsHash: () => {

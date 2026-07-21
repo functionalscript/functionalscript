@@ -71,16 +71,18 @@ or a store write failure — comes back as `error(message)`
 
 ## Front ends
 
-- [`fs/cas/evo/mcp`](mcp/) — an MCP front end (`evo_list` / `evo_head` /
-  `evo_add`) for agents.
+- [`fs/cas/evo/mcp`](mcp/) — MCP tool definitions (`evo_list` / `evo_head` /
+  `evo_add`) for agents, served by the same process as
+  [`fs/cas/mcp`](../mcp/)'s `cas_add`/`cas_get`/`cas_list` — one
+  `~/.cas/` store, one Evo cache, one server (`npx functionalscript m`).
 
 ## In-memory cache is per process
 
-The cache lives in one process's memory, so every STDIO MCP server instance
-([`fs/cas/evo/mcp`](mcp/)) builds and holds its own — there is no sharing
-across concurrently running instances. An HTTP(S) MCP server would let many
-clients share one cache and one process; two possible shapes for that,
-neither implemented yet:
+The cache lives in one process's memory, so every `cas`/`evo` MCP server
+instance ([`fs/cas/mcp`](../mcp/)) builds and holds its own — there is no
+sharing across concurrently running instances. An HTTP(S) MCP server would
+let many clients share one cache and one process; two possible shapes for
+that, neither implemented yet:
 
 1. A proper HTTP(S) MCP server — requires an authentication design first
    (see [`fs/cas/todo/web-api-server.md`](../todo/web-api-server.md), which
