@@ -53,6 +53,15 @@ const wasmTarget = (target: string): readonly MetaStep[] => [
     ...cargoTestPair(target, '.cargo/config.wasmer.toml')
 ]
 
+// Wasmtime 47 removed wasi-threads, so the threads target runs under Wasmer
+// only; Clippy needs no runner and stays. See todo/blocked/wasmtime-threads.md.
+const wasmerOnlyTarget = (target: string): readonly MetaStep[] => [
+    { type: 'rust', target },
+    cargoClippy(target),
+    cargoReleaseClippy(target),
+    ...cargoTestPair(target, '.cargo/config.wasmer.toml')
+]
+
 const i686 = (a: Architecture, v: Os): readonly MetaStep[] => {
     if (a === 'intel') {
         switch (v) {
@@ -79,5 +88,5 @@ export const rustWasmSteps: readonly MetaStep[] = [
     ...wasmTarget('wasm32-wasip1'),
     ...wasmTarget('wasm32-wasip2'),
     ...wasmTarget('wasm32-unknown-unknown'),
-    ...wasmTarget('wasm32-wasip1-threads'),
+    ...wasmerOnlyTarget('wasm32-wasip1-threads'),
 ]

@@ -17,3 +17,4 @@ emitting `.js` files with inline type annotations that engines ignore.
 ### Related
 
 - https://github.com/tc39/proposal-type-annotations
+- [new-pl.md § Type Annotations](../new-pl.md#type-annotations) — the new-PL section tracking this same trigger.

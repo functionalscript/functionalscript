@@ -296,7 +296,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1.1.3",
           "with": {
-            "version": "46.0.1"
+            "version": "47.0.1"
           }
         },
         {
@@ -364,12 +364,6 @@
         },
         {
           "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads"
-        },
-        {
-          "run": "cargo test --target wasm32-wasip1-threads --release"
         },
         {
           "run": "cargo clippy --target wasm32-wasip1-threads -- -D warnings"
