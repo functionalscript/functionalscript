@@ -3,7 +3,7 @@ import { identity } from '../../types/function/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { oneEncode, option, range, rangeDecode, repeat0Plus, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { emptyTagMap, toData } from './module.f.ts'
+import { emptyTagMap, type RuleSet, toData } from './module.f.ts'
 import { assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
@@ -96,23 +96,23 @@ export const proof = {
         () => {
             const stringRule = 'true'
             const result = JSON.stringify(emptyTagMap(toData(stringRule)[0]))
-            if (result !== '{}') { throw result }
+            assertEq(result, '{}')
         },
         () => {
             const emptyRule = ''
             const result = JSON.stringify(emptyTagMap(toData(emptyRule)[0]))
-            if (result !== '{"":true}') { throw result }
+            assertEq(result, '{"":true}')
         },
         () => {
             const emptyRule = ''
             const varintRule = { true: 'true', e: emptyRule }
             const result = JSON.stringify(emptyTagMap(toData(varintRule)[0]))
-            if (result !== '{"5":true,"":"e"}') { throw result }
+            assertEq(result, '{"5":true,"":"e"}')
         },
         () => {
             const repeatRule = repeat0Plus(option('a'))
             const result = JSON.stringify(emptyTagMap(toData(repeatRule)[0]))
-            if (result !== '{"0":"none","3":true,"":true,"r":"none"}') { throw result }
+            assertEq(result, '{"0":"none","3":true,"":true,"r":"none"}')
         },
         () => {
             // Regression for the sequence case: a sequence is nullable iff
@@ -124,6 +124,18 @@ export const proof = {
             const data = toData(['', range('AA')])
             const emptyTags = emptyTagMap(data[0])
             assertEq(emptyTags[data[1]], undefined, emptyTags)
+        },
+        () => {
+            // Regression: a fixed round count (one round per rule) settles
+            // the nullable/non-nullable *set* — a standard result — but a
+            // variant's chosen *tag* can still change for rounds after that,
+            // while a cyclic dependency's own tag catches up. Here A is
+            // nullable via 'x' (A -> E, both settle in 2 rounds), but B (a
+            // 1-item sequence over A) only becomes nullable once A does, and
+            // once B is nullable, A's true winning branch is 'y' (A -> B) —
+            // reachable only by iterating to an actual fixpoint.
+            const rs: RuleSet = { A: { x: 'E', y: 'B' }, B: ['A'], E: [] }
+            assertEq(emptyTagMap(rs).A, 'y')
         },
     ],
     example: () => {

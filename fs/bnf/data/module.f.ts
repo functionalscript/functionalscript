@@ -73,12 +73,17 @@ const emptyTagOf = (map: EmptyTagMap) => (rule: Rule): EmptyTag => {
     }
 }
 
-const emptyTagStep = (ruleSet: RuleSet) => (map: EmptyTagMap): EmptyTagMap => {
+const emptyTagStep = (ruleSet: RuleSet) => (map: EmptyTagMap): readonly [EmptyTagMap, boolean] => {
     let next = map
+    let changed = false
     for (const name in ruleSet) {
-        next = { ...next, [name]: emptyTagOf(map)(ruleSet[name]) }
+        const tag = emptyTagOf(map)(ruleSet[name])
+        if (tag !== next[name]) {
+            changed = true
+        }
+        next = { ...next, [name]: tag }
     }
-    return next
+    return [next, changed]
 }
 
 /**
@@ -87,14 +92,20 @@ const emptyTagStep = (ruleSet: RuleSet) => (map: EmptyTagMap): EmptyTagMap => {
  * items are (AND semantics), a variant iff at least one branch is (its tag is
  * that branch's). Rules may reference each other cyclically (e.g. a `repeat`
  * rule referring to itself), so this starts every rule as non-nullable and
- * relaxes one rule at a time, monotonically, for as many rounds as there are
- * rules — enough for nullability to propagate through the longest possible
- * dependency chain.
+ * relaxes every rule, one round at a time, until a full round changes
+ * nothing. A round only ever grows the nullable set or moves a variant's
+ * chosen tag to a later (still-nullable) branch, both bounded, so this always
+ * terminates — but a rule's tag can still change for rounds *after* its own
+ * nullable/non-nullable status has already settled, while a cyclic
+ * dependency's tag catches up, so a fixed round count isn't enough.
  */
 export const emptyTagMap = (ruleSet: RuleSet): EmptyTagMap => {
     const step = emptyTagStep(ruleSet)
-    const rounds = Object.keys(ruleSet).length
-    return Array.from({ length: rounds }).reduce((map: EmptyTagMap) => step(map), {})
+    const relax = (map: EmptyTagMap): EmptyTagMap => {
+        const [next, changed] = step(map)
+        return changed ? relax(next) : next
+    }
+    return relax({})
 }
 
 //
