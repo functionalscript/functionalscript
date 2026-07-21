@@ -10,6 +10,9 @@ integers and conflates integer and float semantics. FunctionalScript would prefe
 
 ### Trigger
 
-Unblocked when ECMAScript introduces a syntax or type-level mechanism that makes integer
-literals default to `bigint`, or when a TC39 proposal reaches Stage 4 that enables this
-distinction without a suffix (`123n`).
+Most likely, ECMAScript never introduce bigint as the main integer type for such functions as `.length`.
+
+### Related
+
+- [new-pl.md § Numbers](../new-pl.md#numbers) — a from-scratch PL isn't bound by ECMAScript's backward-compatibility constraint and adopts `123` = `bigint` directly instead of waiting on this trigger.
+- [fs/djs/todo/json-bigint-serialization.md](../../fs/djs/todo/json-bigint-serialization.md) — a buildable-today, JSON-compatible instance of the same underlying idea, scoped to serialization rather than the full language.

@@ -11,4 +11,8 @@ FunctionalScript's purely functional model would benefit from `undefined` meanin
 
 ### Trigger
 
-Unblocked when ECMAScript specifies that assigning `undefined` to an object property removes the key, or a TC39 proposal reaches Stage 4 providing this semantics.
+Most likely, ECMAScript would never fix it because of compatibility reasons.
+
+### Related
+
+- [new-pl.md § Assigning](../new-pl.md#assigning) — a from-scratch PL isn't bound by ECMAScript's compatibility constraint and adopts the behavior directly.
