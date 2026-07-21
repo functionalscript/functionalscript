@@ -5,11 +5,16 @@
 
 ### Problem
 
-`fs/bnf/data/module.f.ts` carries two distinct DRY / hoisting smells in its
-parser machinery. Neither is covered by the existing fold-children work in
+`fs/bnf/data/module.f.ts` carries a DRY / hoisting smell in its parser
+machinery, not covered by the existing fold-children work in
 [i665-bnf-data-fold-children](todo.md) (that issue is
 about the `sequence` / `variant` AST-fold helpers, a different pair of
 functions).
+
+(A second smell used to be listed here — duplicated `emptyTagMapAdd` branches
+in `fs/bnf/descent` — but that function was deleted and replaced by a single
+shared `emptyTagMap` fixpoint in `fs/bnf/data/module.f.ts` while fixing
+nullable-analysis-shared, so it no longer applies.)
 
 #### 1. `mrSuccess` / `mrFail` match-result constructors
 
@@ -38,74 +43,27 @@ Two problems:
   (`number` index vs `Remainder`) and the sequence type — both of which a
   generic parameter captures.
 
-#### 2. `emptyTagMapAdd` branch duplication + mutable accumulators
-
-`emptyTagMapAdd` (lines 336-359) has an Array branch and a Variant/Object branch
-that share almost their entire body — seed `map[name] = true`, fold over the
-children threading `map` and an `emptyTag`, then return
-`[ruleSet, { ...map, [name]: emptyTag }, emptyTag]`:
-
-```ts
-} else if (rule instanceof Array) {
-    map = { ...map, [name]: true}
-    let emptyTag: EmptyTagEntry = rule.length == 0
-    for (const item of rule) {
-        const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
-        map = newMap
-        if (emptyTag === false) { emptyTag = itemEmptyTag !== false }
-    }
-    return [ruleSet, { ...map, [name]: emptyTag }, emptyTag]
-} else {
-    map = { ...map, [name]: true}
-    const entries = Object.entries(rule)
-    let emptyTag: EmptyTagEntry = false
-    for (const [tag, item] of entries) {
-        const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
-        map = newMap
-        if (itemEmptyTag !== false) { emptyTag = tag }
-    }
-    return [ruleSet, { ...map, [name]: emptyTag }, emptyTag]
-}
-```
-
-Both branches additionally reassign the `map` parameter and a `let emptyTag`
-accumulator in place inside a `for` loop, which contradicts the codebase's
-"don't reassign accumulators / build new values" convention.
-
-The only real differences are: (a) the seed `emptyTag` (`rule.length == 0` vs
-`false`), (b) what is iterated (the array's items vs `Object.entries`), and
-(c) the per-item combine (`emptyTag ||= itemEmptyTag !== false` vs
-`itemEmptyTag !== false ? tag : emptyTag`).
-
 ### Proposal
 
-1. **Hoist a single match-result constructor** to module scope, generic over the
-   sequence and third-element types, and derive `mrSuccess` / `mrFail` (or call
-   it directly with the success flag) in both parsers:
+**Hoist a single match-result constructor** to module scope, generic over the
+sequence and third-element types, and derive `mrSuccess` / `mrFail` (or call
+it directly with the success flag) in both parsers:
 
-   ```ts
-   const mr = <S, R>(success: boolean) =>
-       (tag: AstTag, sequence: S, r: R): readonly [{ readonly tag: AstTag, readonly sequence: S }, boolean, R] =>
-           [{ tag, sequence }, success, r]
-   ```
+```ts
+const mr = <S, R>(success: boolean) =>
+    (tag: AstTag, sequence: S, r: R): readonly [{ readonly tag: AstTag, readonly sequence: S }, boolean, R] =>
+        [{ tag, sequence }, success, r]
+```
 
-   `descentParser` uses `mr<AstSequenceMeta<T>, number>`; `parserRuleSet` uses
-   `mr<AstSequence, Remainder>`. Both `f` bodies drop their four local
-   declarations.
+`descentParser` uses `mr<AstSequenceMeta<T>, number>`; `parserRuleSet` uses
+`mr<AstSequence, Remainder>`. Both `f` bodies drop their four local
+declarations.
 
-2. **Unify the `emptyTagMapAdd` branches** into one fold over a list of child
-   items, parameterized by the seed `emptyTag` and the combine function, and
-   replace the `let`/reassignment loop with a `reduce` that threads
-   `{ map, emptyTag }` immutably. This collapses the two near-identical bodies to
-   one and removes the in-place mutation.
-
-Both are local, single-module refactors with no cross-module coordination.
+This is a local, single-module refactor with no cross-module coordination.
 
 ### Tasks
 
 - [ ] Hoist the shared `mr` constructor to module scope; update both `f` bodies.
-- [ ] Extract a shared child-fold for `emptyTagMapAdd`; thread the accumulator
-      immutably instead of reassigning `map` / `emptyTag`.
 - [ ] Run `npx tsc`, `fjs t`, and confirm `fs/bnf/data/proof.f.ts` still passes
       with full coverage.
 
