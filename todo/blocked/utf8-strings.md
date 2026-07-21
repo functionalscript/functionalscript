@@ -14,4 +14,4 @@ Unblocked when ECMAScript adopts a UTF-8 string primitive or a standard `StringV
 
 ### Related
 
-- https://github.com/tc39/proposal-is-usv-string
+- [new-pl.md § UTF8 String](../new-pl.md#utf8-string) — a from-scratch PL isn't bound by this trigger and drops UTF-16 entirely.
