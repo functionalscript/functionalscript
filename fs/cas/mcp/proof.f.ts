@@ -398,6 +398,21 @@ export const proof = {
         assert(textOf(resp).includes('subject is required'))
     },
 
+    // A plain `cas_add` of `vnd.fjs.revision` content is folded into the Evo
+    // cache too (`syncRevision`), not just `evo_add` — `cas_add`/`evo_add`
+    // are two ways to reach the same store and cache.
+    casAddSyncsEvoCacheForRevisionContent: () => {
+        const [addResp, listResp, headResp] = session(
+            call(2, 'cas_add', { content: revisionSample }),
+            call(3, 'evo_list', {}),
+            call(4, 'evo_head', { subject: '8' }),
+        )
+        assert(!resultOf(addResp).isError)
+        const hash = textOf(addResp)
+        assertEq(textOf(listResp), '8')
+        assertEq(textOf(headResp), hash)
+    },
+
     addReturnsHash: () => {
         const [resp] = session(call(2, 'cas_add', { content: textSample }))
         assert(!resultOf(resp).isError)

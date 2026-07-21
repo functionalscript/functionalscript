@@ -130,7 +130,7 @@ import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
-import { initEvo, evo, type Cache } from '../evo/module.f.ts'
+import { initEvo, evo, syncRevision, type Cache } from '../evo/module.f.ts'
 import { evoToolRegistry } from '../evo/mcp/module.f.ts'
 import type { Key } from '../../effects/memory/module.f.ts'
 
@@ -162,16 +162,24 @@ type Meta = {
     readonly uri: string
 }
 
-/** Registry of all CAS tools. */
+/**
+ * Registry of all CAS tools, bound to `home` and the Evo cache at
+ * `cacheKey`. `cas_add` is the only tool that writes, so it is the only one
+ * that needs `cacheKey`: a successfully stored blob is folded into the Evo
+ * cache via `syncRevision` when it happens to be a `vnd.fjs.revision` — a
+ * plain `cas_add` and `evo_add` are two ways to reach the same store, and
+ * this keeps `evo_list`/`evo_head` honest about either one without a
+ * rescan.
+ */
 export const casToolRegistry =
-(home: string): readonly ToolEntry<FileCasOperation>[] => {
+(home: string) => (cacheKey: Key<Cache>): readonly ToolEntry<FileCasOperation | MemOp>[] => {
     const c = fileCas(sha256)(home)
     return [
     toolEntry(
         'cas_add',
         'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, store the file with the `cas` CLI instead: run `npx functionalscript cas add <path>` yourself if you have shell access, or give the user that exact command to run — it prints the resulting hash on stdout.',
         casAddArgs,
-        ({ type, content }): Effect<FileCasOperation, ToolsCallResult> => {
+        ({ type, content }): Effect<FileCasOperation | MemOp, ToolsCallResult> => {
             // type:'text' or 'base64' — resolve content to Vec, store via c.write()
             let x: Vec|null = type === 'base64'
                 ? base64Decode(content)
@@ -179,9 +187,11 @@ export const casToolRegistry =
             return x === null
                 ? pure(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
-                    ? errorResult('write')
-                    : okResult(vecToCBase32(hash))))
+                : c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())).step((writeResult): Effect<MemOp, ToolsCallResult> => {
+                    if (writeResult[0] === 'error') { return pure(errorResult('write')) }
+                    const hash = writeResult[1]
+                    return syncRevision(cacheKey)(hash)(x).step(() => pure(okResult(vecToCBase32(hash))))
+                })
         },
     ),
     toolEntry(
@@ -269,7 +279,7 @@ export const casToolRegistry =
  * bound to `home` and an already-built Evo cache slot (see `initEvo`).
  */
 export const casMcpHandlers = (home: string) => (cacheKey: Key<Cache>): McpHandlers<FileCasOperation | MemOp> =>
-    fromRegistry([...casToolRegistry(home), ...evoToolRegistry(evo(fileCas(sha256)(home))(cacheKey))])
+    fromRegistry([...casToolRegistry(home)(cacheKey), ...evoToolRegistry(evo(fileCas(sha256)(home))(cacheKey))])
 
 // ── Session configuration ───────────────────────────────────────────────────────
 

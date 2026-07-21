@@ -9,17 +9,26 @@
  * every query. This module scans the store once into an in-memory `Cache`
  * ([`fs/effects/memory`](../../effects/memory/module.f.ts)) mapping subject →
  * head hashes, then keeps the cache current as new revisions are `add`ed
- * through it.
+ * through it — or, for a revision stored some other way (e.g. the generic
+ * `cas_add` MCP tool), via {@link syncRevision}.
  *
  * A **head** of a subject is any stored revision of that subject whose hash
  * is not referenced as a `parents` entry by another revision of the same
  * subject (see [`fs/media/revision/README.md`](../../media/revision/README.md)).
- * Because revisions form a DAG (no cycles), that definition is order
- * independent: folding "add this hash as a head, then drop its parents from
- * the head set" over every stored revision, in any order, converges to the
- * same result — which is what {@link buildCache} and {@link addRevision} both
- * do, the former over the whole store at once, the latter incrementally for
- * one new revision.
+ * `Cache` therefore tracks, per subject, every revision hash seen and every
+ * hash referenced as somebody's parent; heads are the set difference between
+ * the two, computed at read time ({@link headsOf}). Storing both sets rather
+ * than a running head list is what makes folding revisions truly order
+ * independent: `cas.list()` (used by {@link buildCache} to scan an existing
+ * store) returns hashes in hash order, not revision ancestry, so a child can
+ * be seen before its parent — an incremental "drop this hash from the head
+ * set, then re-add whichever hash we just saw" would wrongly resurrect the
+ * parent as a head once it is scanned after its child. Tracking the two sets
+ * separately and only subtracting at read time has no such ordering
+ * dependency: whichever order revisions are folded in, `hashes − parents`
+ * converges to the same result. {@link buildCache} and {@link addRevision}
+ * both fold through the same {@link addRevisionToCache}, the former over the
+ * whole store at once, the latter incrementally for one new revision.
  *
  * @module
  */
@@ -58,46 +67,74 @@ export type AddRevision = {
     readonly archived?: true | undefined
 }
 
-/** In-memory index: subject → its current head hashes. */
+/**
+ * Per-subject bookkeeping: every revision hash seen for the subject, and
+ * every hash any of those revisions names as a parent. See the module doc
+ * for why both sets are kept (rather than a running head list) and
+ * {@link headsOf} for how heads are derived from them.
+ */
+export type SubjectState = {
+    readonly hashes: readonly Hash[]
+    readonly parents: readonly Hash[]
+}
+
+/** In-memory index: subject → its {@link SubjectState}. */
 export type Cache = {
-    readonly heads: StringMap<string, readonly Hash[]>
+    readonly bySubject: StringMap<string, SubjectState>
 }
 
 /** A cache with no known subjects yet — the starting point for {@link buildCache}. */
-export const emptyCache: Cache = { heads: {} }
+export const emptyCache: Cache = { bySubject: {} }
 
 /** Canonical JSON encoder for a `Revision` — key order carries no meaning for detection. */
 const toJson = stringify(identity)
 
+const emptySubjectState: SubjectState = { hashes: [], parents: [] }
+
+/** Adds every item of `items` to `set` that isn't already there, preserving `set`'s existing order. */
+const union = (set: readonly Hash[]) => (items: readonly Hash[]): readonly Hash[] =>
+    items.reduce((acc: readonly Hash[], h) => acc.includes(h) ? acc : [...acc, h], set)
+
+/** A subject's current heads: revision hashes seen that no other revision of the same subject names as a parent. */
+const headsOf = (state: SubjectState): readonly Hash[] =>
+    state.hashes.filter(h => !state.parents.includes(h))
+
 /**
- * Folds one more stored revision into `cache`: the revision's own `hash`
- * becomes a head of its `subject` (unless already present), and every one of
- * its `parents` is dropped from that subject's head set. Order independent
- * (see the module doc) — used both for a full-store scan and for a single
- * incremental `add`.
+ * Folds one more stored revision into `cache`: `hash` joins its subject's
+ * `hashes` set, and `revision.parents` join its `parents` set. Order
+ * independent (see the module doc) — used both for a full-store scan and for
+ * a single incremental `add`.
  */
 const addRevisionToCache = (hash: Hash, revision: Revision) => (cache: Cache): Cache => {
-    const existing = cache.heads[revision.subject] ?? []
-    const withoutParents = existing.filter(h => !revision.parents.includes(h))
-    const heads = withoutParents.includes(hash) ? withoutParents : [...withoutParents, hash]
-    return { heads: { ...cache.heads, [revision.subject]: heads } }
+    const existing = cache.bySubject[revision.subject] ?? emptySubjectState
+    const state: SubjectState = {
+        hashes: union(existing.hashes)([hash]),
+        parents: union(existing.parents)(revision.parents),
+    }
+    return { bySubject: { ...cache.bySubject, [revision.subject]: state } }
+}
+
+/**
+ * Decodes already-read bytes as a `vnd.fjs.revision`. Returns `null` for
+ * anything that is not a valid revision — bytes that are not valid UTF-8, or
+ * text that does not parse/validate as the dialect.
+ */
+export const decodeRevisionVec = (value: Vec): Revision | null => {
+    const text = fromVec(value)
+    if (text === null) { return null }
+    const [decodeTag, revision] = decodeText(text)
+    return decodeTag === 'error' ? null : revision
 }
 
 /**
  * Reads and decodes the blob at `hash` as a `vnd.fjs.revision`. Returns
- * `null` for anything that is not a valid revision — a missing hash, bytes
- * that are not valid UTF-8, or text that does not parse/validate as the
- * dialect — so a store containing arbitrary other content can be scanned
- * without failing the whole cache build.
+ * `null` for anything that is not a valid revision — a missing hash, or (via
+ * {@link decodeRevisionVec}) bytes that are not valid UTF-8 or do not
+ * parse/validate as the dialect — so a store containing arbitrary other
+ * content can be scanned without failing the whole cache build.
  */
 export const decodeRevisionBlob = <O extends Operation>(cas: Cas<O>) => (hash: Vec): Effect<O, Revision | null> =>
-    collectRead(cas.read(hash)).step(([tag, value]) => {
-        if (tag === 'error') { return pure(null) }
-        const text = fromVec(value)
-        if (text === null) { return pure(null) }
-        const [decodeTag, revision] = decodeText(text)
-        return pure(decodeTag === 'error' ? null : revision)
-    })
+    collectRead(cas.read(hash)).step(([tag, value]) => pure(tag === 'error' ? null : decodeRevisionVec(value)))
 
 /**
  * Scans every hash in `cas` and builds a fresh {@link Cache} from the
@@ -114,47 +151,87 @@ export const buildCache = <O extends Operation>(cas: Cas<O>): Effect<O, Cache> =
 export const initEvo = <O extends Operation>(cas: Cas<O>): Effect<O | MemOp, Key<Cache>> =>
     buildCache(cas).step(cache => create(cache))
 
+/** Reads, then rewrites, the cache at `cacheKey` with `revision` folded in at `hash`. */
+const foldIntoCache = (cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revision): Effect<MemOp, void> =>
+    read(cacheKey).step(cache => write(cacheKey, addRevisionToCache(hash, revision)(cache)).step(() => pure(undefined)))
+
 /**
- * Resolves the `subject` of a new revision: the caller's explicit `subject`
- * when given, otherwise the single parent's own `subject` (a revision does
- * not carry its own subject-inheritance rule the way `snapshot` does, so this
- * module derives it explicitly by looking the parent up). More or fewer than
- * one parent without an explicit `subject` cannot be resolved.
+ * Folds `value` — bytes already written to a `Cas` at `hash` by some other
+ * caller — into the cache at `cacheKey` if it decodes as a `vnd.fjs.revision`
+ * ({@link decodeRevisionVec}); a no-op otherwise. `cas_add`/`evo_add`
+ * (`fs/cas/mcp`) are two ways to reach the same store — a plain `cas_add`
+ * call can store a revision blob without going through {@link addRevision},
+ * and this is what keeps the cache honest about it without rescanning the
+ * whole store.
  */
-const resolveSubject = <O extends Operation>(cas: Cas<O>) => (input: AddRevision): Effect<O, Result<Subject, string>> => {
-    if (input.subject !== undefined) { return pure(ok(input.subject)) }
-    if (input.parents.length !== 1) {
-        return pure(error('subject is required unless there is exactly one parent to inherit it from'))
-    }
-    const [parentRef] = input.parents
+export const syncRevision = (cacheKey: Key<Cache>) => (hash: Vec) => (value: Vec): Effect<MemOp, void> => {
+    const revision = decodeRevisionVec(value)
+    return revision === null ? pure(undefined) : foldIntoCache(cacheKey)(vecToCBase32(hash))(revision)
+}
+
+/**
+ * Resolves and validates one `parents` entry: the hash must decode as
+ * cBase32 and the blob it names must itself be a `vnd.fjs.revision`. Used
+ * unconditionally for every parent — even when `subject` is given explicitly
+ * — so `add` never stores a revision whose declared parent is missing or not
+ * a revision.
+ */
+const resolveParent = <O extends Operation>(cas: Cas<O>) => (parentRef: Hash): Effect<O, Result<Revision, string>> => {
     const parentHash = cBase32ToVec(parentRef)
     if (parentHash === null) {
         return pure(error(`invalid parent hash: ${parentRef}`))
     }
     return decodeRevisionBlob(cas)(parentHash).step(parent =>
-        pure(parent === null
-            ? error(`parent is not a revision blob: ${parentRef}`)
-            : ok(parent.subject)))
+        pure(parent === null ? error(`parent is not a revision blob: ${parentRef}`) : ok(parent)))
+}
+
+/** Resolves and validates every entry of `parents`, in order, short-circuiting on the first failure. */
+const resolveParents = <O extends Operation>(cas: Cas<O>) => (parents: readonly Hash[]): Effect<O, Result<readonly Revision[], string>> => {
+    const init: Result<readonly Revision[], string> = ok([])
+    return foldStep((parentRef: Hash) => (acc: Result<readonly Revision[], string>): Effect<O, Result<readonly Revision[], string>> => {
+        if (acc[0] === 'error') { return pure(acc) }
+        return resolveParent(cas)(parentRef).step((parentResult): Effect<never, Result<readonly Revision[], string>> =>
+            pure(parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]])))
+    })(init)(parents)
+}
+
+/**
+ * Resolves the `subject` of a new revision from its already-resolved
+ * `parents`: the caller's explicit `subject` when given, otherwise the
+ * single parent's own `subject` (a revision does not carry its own
+ * subject-inheritance rule the way `snapshot` does, so this is derived
+ * explicitly). More or fewer than one parent without an explicit `subject`
+ * cannot be resolved.
+ */
+const resolveSubject = (input: AddRevision) => (parents: readonly Revision[]): Result<Subject, string> => {
+    if (input.subject !== undefined) { return ok(input.subject) }
+    if (parents.length !== 1) {
+        return error('subject is required unless there is exactly one parent to inherit it from')
+    }
+    return ok(parents[0].subject)
 }
 
 /**
  * Adds a new revision to `cas` and folds it into the cache at `cacheKey`.
  *
- * Steps: resolve `subject` ({@link resolveSubject}), assemble a `Revision` and
+ * Steps: resolve and validate every parent ({@link resolveParents}), resolve
+ * `subject` from them ({@link resolveSubject}), assemble a `Revision` and
  * check its snapshot-reference semantics (`fs/media/revision`
  * `checkReferences` — the same rule a reader applies; the shape itself is
  * already guaranteed by this function's own field types), encode and write it
  * to `cas`, then fold the new revision into the cache. Every
- * failure — unresolvable subject, an invalid revision, a blob too large to
- * encode, or a store write failure — is reported as `error(message)` rather
- * than thrown, so a caller (e.g. an MCP tool handler) can surface it without
- * a `throw`/`catch`.
+ * failure — an invalid or missing parent, an unresolvable subject, an
+ * invalid revision, a blob too large to encode, or a store write failure —
+ * is reported as `error(message)` rather than thrown, so a caller (e.g. an
+ * MCP tool handler) can surface it without a `throw`/`catch`.
  */
 export const addRevision =
     <O extends Operation>(cas: Cas<O>) =>
     (cacheKey: Key<Cache>) =>
     (input: AddRevision): Effect<O | MemOp, Result<Hash, string>> =>
-    resolveSubject(cas)(input).step((subjectResult): Effect<O | MemOp, Result<Hash, string>> => {
+    resolveParents(cas)(input.parents).step((parentsResult): Effect<O | MemOp, Result<Hash, string>> => {
+        if (parentsResult[0] === 'error') { return pure(parentsResult) }
+        const subjectResult = resolveSubject(input)(parentsResult[1])
         if (subjectResult[0] === 'error') { return pure(subjectResult) }
         const revision: Revision = {
             dialect,
@@ -175,8 +252,7 @@ export const addRevision =
                 return pure(error('failed to write revision to CAS'))
             }
             const hash = vecToCBase32(writeResult[1])
-            return read(cacheKey).step(cache =>
-                write(cacheKey, addRevisionToCache(hash, revision)(cache)).step(() => pure(ok(hash))))
+            return foldIntoCache(cacheKey)(hash)(revision).step(() => pure(ok(hash)))
         })
     })
 
@@ -192,7 +268,10 @@ export type Evo<O extends Operation> = {
 
 /** Builds the {@link Evo} API over `cas`, backed by the cache at `cacheKey` (see {@link initEvo}). */
 export const evo = <O extends Operation>(cas: Cas<O>) => (cacheKey: Key<Cache>): Evo<O> => ({
-    list: () => read(cacheKey).step(cache => pure(definedEntries(cache.heads).map(([subject]) => subject))),
-    head: subject => read(cacheKey).step(cache => pure(cache.heads[subject] ?? [])),
+    list: () => read(cacheKey).step(cache => pure(definedEntries(cache.bySubject).map(([subject]) => subject))),
+    head: subject => read(cacheKey).step(cache => {
+        const state = cache.bySubject[subject]
+        return pure(state === undefined ? [] : headsOf(state))
+    }),
     add: input => addRevision(cas)(cacheKey)(input),
 })
