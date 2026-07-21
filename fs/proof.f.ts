@@ -35,6 +35,12 @@ export const proof = {
         const [, code] = run({})(['mcp'])
         assertEq(code, 0)
     },
+    evo: () => {
+        // Same as `mcp` above, but for the `evo` handler: an empty store scans
+        // to an empty cache, then stdin EOF shuts the server down cleanly.
+        const [, code] = run({})(['evo'])
+        assertEq(code, 0)
+    },
     throw: {
         runImportError: () => {
             run({})(['run', 'missing.f.ts'])

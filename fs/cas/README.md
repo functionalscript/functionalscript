@@ -10,6 +10,10 @@ need them.
   for agents, including read-time media-type detection.
 - [`cas` CLI](cli/module.f.ts) — direct filesystem access for content larger
   than the MCP inline-content cap.
+- [`fs/cas/evo`](evo/) — the Evo API: subjects and revision heads
+  ([`vnd.fjs.revision`](../media/revision/)) cached in memory over this
+  store, with its own MCP front end ([`fs/cas/evo/mcp`](evo/mcp/),
+  `evo_list` / `evo_head` / `evo_add`).
 
 ## Content formats
 

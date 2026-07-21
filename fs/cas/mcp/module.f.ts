@@ -101,14 +101,14 @@
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
 import { stringify } from '../../media/json/module.f.ts'
-import { pure, decode, type Effect, type Operation } from '../../effects/module.f.ts'
+import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../media/type/module.f.ts'
 import { detect as detectDialect } from '../../media/module.f.ts'
-import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, vec, type Vec } from '../../types/bit_vec/module.f.ts'
+import { maxLengthBytes, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
 import { type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
@@ -118,11 +118,11 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { fileCas, type FileCasOperation } from '../module.f.ts'
+import { collectRead, fileCas, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
-import { nonEmpty, empty as elEmpty, type List } from '../../effects/list/module.f.ts'
+import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
@@ -141,33 +141,6 @@ export const casGetArgs = {
 /** Arguments for `cas_list`: none. */
 export const casListArgs = {} as const
 
-// ── Stream helper ────────────────────────────────────────────────────────────────
-
-/**
- * Drains a CAS read stream into a single `Vec`. Used only on the `content: true`
- * path, where the whole blob is needed for inline base64 / UTF-8 transfer; the
- * chunk stream is concatenated and an error item is surfaced as the result.
- * Metadata-only `cas_get` avoids this entirely via `fs/media/type` `detectStream`,
- * which is why it is not bound by the `maxLength` ceiling below.
- */
-const collectRead = <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {
-    const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
-        s.step((node): Effect<O, IoResult<Vec>> => {
-            if (node === undefined) { return pure(ok(acc)) }
-            const { first, tail } = node
-            const [t, v] = first
-            if (t === 'error') { return pure(first) }
-            // A single `Vec` cannot exceed `maxLength` bits; concatenating past it would
-            // overflow the runtime's `bigint` constraint. Surface that as an error item
-            // so the tool reports a failure rather than crashing the process.
-            if (bitVecLength(acc) + bitVecLength(v) > maxLength) {
-                return pure(error(`cas blob exceeds maximum vector length of ${maxLength} bits`))
-            }
-            return loop(msb.concat(acc)(v))(tail)
-        })
-    return loop(empty)(stream)
-}
-
 // ── Tool registry ──────────────────────────────────────────────────────────────
 
 const toJson = stringify(identity)
@@ -180,7 +153,7 @@ type Meta = {
 }
 
 /** Registry of all CAS tools. */
-const casToolRegistry =
+export const casToolRegistry =
 (home: string): readonly ToolEntry<FileCasOperation>[] => {
     const c = fileCas(sha256)(home)
     return [
@@ -318,16 +291,4 @@ export const proof = {
     // casMcpServer is never called in integration tests because it drives a
     // real stdio server; call it here to cover its Effect-building body.
     casMcpServer: () => { casMcpServer('/') },
-    // The overflow guard in collectRead (lines 125-126) is only reached when
-    // the running total of two stream chunks would exceed maxLength.  Feed a
-    // pure stream whose second chunk pushes it just over the limit so the
-    // error branch executes without any real I/O.
-    collectReadOverflow: () => {
-        const half = maxLength / 2n
-        const v1 = vec(half)(0n)
-        const v2 = vec(half + 1n)(0n)
-        const stream = nonEmpty<never, IoResult<Vec>>(ok(v1), nonEmpty<never, IoResult<Vec>>(ok(v2), elEmpty<never, IoResult<Vec>>()))
-        const d = decode(collectRead(stream))
-        if (!d.done || d.result[0] !== 'error') { throw 'expected overflow error' }
-    },
 }
