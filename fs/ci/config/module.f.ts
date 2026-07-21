@@ -44,7 +44,12 @@ export const node = {
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases
-export const wasmtime = '47.0.1'
+// Pinned below 47.0.0: that release removed wasi-threads support (the
+// `wasi-common` crate and `-Sthreads`/`--wasi threads` CLI flag) with no
+// drop-in replacement yet, which the wasm32-wasip1-threads CI target in
+// .cargo/config.toml relies on. See:
+// https://github.com/bytecodealliance/rfcs/blob/main/accepted/wasmtime-remove-wasi-threads.md
+export const wasmtime = '46.0.1'
 
 // https://github.com/wasmerio/wasmer/releases
 export const wasmer = '7.2.0'
