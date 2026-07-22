@@ -89,3 +89,8 @@ that, neither implemented yet:
    this same per-process limitation motivates for CAS more broadly).
 2. One API HTTP(S) server plus multiple STDIO MCP proxy servers — only worth
    it for clients that can't speak HTTP(S) MCP directly.
+
+A related but distinct gap: even a single running server's cache can go
+stale if something other than this process writes to `~/.cas/` (the `cas`
+CLI, another MCP server instance) — see
+[`todo/cache-staleness.md`](todo/cache-staleness.md).
