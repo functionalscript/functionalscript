@@ -82,9 +82,13 @@ export type RevisionData = {
 - Optionality means different things per direction, documented per field:
   - `subject` — input: absent means "infer from my single parent"; output:
     always present.
-  - `snapshot` — input: absent means "inherit per the format rules";
-    output: passed through as stored (absent = inherited — server-side
-    resolution can be a later option).
+  - `snapshot` — input: absent is a write-boundary convenience, resolved
+    at `add` (zero parents → `subject` as the reference, one parent → the
+    parent's snapshot) and written explicitly; output: **always present**
+    — the canonical stored snapshot. The required-fields change
+    ([`fs/media/revision/todo/required-fields.md`](../../../media/revision/todo/required-fields.md))
+    makes every stored blob carry it, so clients never handle
+    inheritance.
   - `generation` — input: **ignored**; the server computes the
     authoritative value (see below), so a value read from `evo_revision`
     can be fed back into `evo_add` unchanged without stripping fields —
@@ -175,7 +179,8 @@ recorded so the decision is made deliberately, not by accident.
   neither can go stale — but that is an optimization, not a requirement:
   the cache holds only part of what `evo_revision` returns.
 - **MCP output** is the JSON of `RevisionData` with the output guarantees
-  above: `{ subject, parents, snapshot?, archived?, generation }`.
+  above: `{ subject, parents, snapshot, archived?, generation }` — only
+  `archived` is genuinely optional on output.
 
 ### Tasks
 
