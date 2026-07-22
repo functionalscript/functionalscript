@@ -26,9 +26,15 @@ type _Assert0 = Assert<Equal<Const, ConstObject | Primitive>>
  * The TypeScript type that rtti's `unknown` schema validates — any value that
  * an rtti schema can represent: a primitive, an array, or an object.
  *
- * Currently equivalent to `djs.Unknown`, but defined here to keep `rtti` free
- * of `djs` dependencies. May be extended to include functions or other
- * non-JSON-primitives in the future.
+ * This is the single source of truth for the rtti value domain: every rtti
+ * module (`common`, `validate`, `parse`, …) imports `Unknown`/`Primitive`
+ * from here, not from `djs`, keeping `rtti` free of a `djs` dependency (djs
+ * depends on rtti, not the other way around).
+ *
+ * The relationship to djs is a subset one — `djs.Unknown ⊆ rtti.Unknown` — not
+ * equality: the two happen to coincide today, but `rtti.Unknown` may widen to
+ * admit values djs cannot represent (e.g. functions) without djs following.
+ * Do not re-point rtti imports at `djs.Unknown` on the assumption they match.
  */
 export type Unknown = Primitive | Array | Object
 
