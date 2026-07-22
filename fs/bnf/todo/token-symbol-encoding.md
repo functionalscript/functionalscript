@@ -10,7 +10,8 @@ input symbol per token (see [tokens-with-extra-information](./tokens-with-extra-
 and [layered-parser](./layered-parser.md)). Token categories map naturally to
 single ASCII symbols (`i` for identifier, `0` for number), single-character
 operators map to themselves, and values travel as metadata. Multi-character
-operators (`>>`, `&&=`, `>>>=`, …) have no obvious single-symbol encoding.
+operators (`>>`, `&&=`, `>>>=`, …) and keywords have no obvious single-symbol
+encoding.
 
 Constraints on any encoding:
 
@@ -23,19 +24,28 @@ Constraints on any encoding:
   have collided with end-of-file). The free range for synthetic token
   symbols is now `0x110000`–`0xFFFFFE` (~15.6M values, `eof` excluded).
 - Token symbols must not collide with each other (injective). Whether they
-  must also avoid the code-point/`eof` region depends on which option below
-  is chosen — see the "packing range" note under option 2.
-- Construction must fail fast (throw at grammar-construction time) on input
-  that cannot be encoded.
+  must also avoid the code-point/`eof` region depends on which encoding family
+  is chosen.
+- Construction must fail fast at grammar-construction time on input that
+  cannot be encoded.
 - A reverse mapping (symbol → token string) is wanted for parser error
   messages and debugging.
 - The longest JS operator is `>>>=` (4 characters), so packing raw code
   points (7–8 bits each) does not fit into 24 bits; a naive packing function
   would reject legitimate operators.
 
-### Options
+### Encoding families
 
-No decision has been made yet.
+No decision has been made yet. There are two main families.
+
+#### 1. Intrinsic string encoding
+
+The symbol is derived from the string alone. The same string always has the
+same symbol without registering the complete grammar alphabet, and decoding
+does not require a table. Because arbitrary strings cannot map injectively into
+24 bits, this family necessarily supports only a restricted string language.
+
+Possible intrinsic encodings:
 
 1. **Deterministic packing over a restricted alphabet.** A function
    `tokenSymbol(s: string): TerminalRange` encodes `s` positionally over an
@@ -49,68 +59,117 @@ No decision has been made yet.
    headroom left to add the `0x110000` offset and still land under
    `0xFFFFFE`. Cannot encode keywords (10 characters do not fit in 24 bits
    under any base).
-2. **Base64-style packing over the full 24-bit range.** Same positional
-   mechanism as option 1, but with a 64-symbol (6-bit) alphabet — lowercase
-   `a`–`z` (26) + digits `0`–`9` (10) + the 14 operator characters from
-   option 1 (50 total), leaving spare codes for `_`, `$`, and a few more.
-   4 characters × 6 bits = 24 bits exactly, so this **cannot** also carry
-   option 1's "offset above `eof`" — there is no spare bit left for it. This
-   is fine as long as token symbols are a distinct alphabet from code points
-   rather than merely values *outside* the code-point range: per
-   [layered-parser](./layered-parser.md), the tokenizer layer (code-points →
-   tokens) and the parser layer (tokens → AST) already consume different
-   alphabets end to end, so nothing downstream of the tokenizer ever
-   interprets a token symbol as a code point — the two 24-bit spaces don't
-   need to be numerically disjoint, only never compared to each other.
-   **The one real wrinkle**: this problem statement's own "single-character
-   operators map to themselves" convention (`{`, `}`, `[`, `]`, `,`, `-`, …
-   reuse their own code point as their token symbol, per
-   [tokens-with-extra-information](./tokens-with-extra-information.md)) *is*
-   a same-grammar collision risk — those literal single-char symbols sit in
-   the same `Variant`/rule set as the packed multi-char symbols, so the
-   packing alphabet must still avoid whichever single-char code points are
-   actually used as token literals in that grammar (a small, enumerable set,
-   not all of Unicode) — or every token, single- and multi-character alike,
-   goes through the same packing function for full consistency, giving up
-   the "maps to itself" convenience entirely.
-   **`eof` falls out of the same encoding, for free.** Reserve code `0b11_1111`
-   (63) as an explicit stop marker rather than a real character — needed
-   anyway to decode strings shorter than 4 characters unambiguously (padding
-   position, not a leading offset like option 1's "digit values start at
-   1": once a `63` appears, decoding stops there, and every following digit
-   is `63` too by convention). Real characters get the remaining 63 codes
-   (`0`–`62`) — still 13 to spare over the 50-character alphabet above. Under
-   this scheme the *empty* token string packs to four stop digits,
-   `63,63,63,63` in base 64, which is exactly `0xFFFFFF` — `eof`'s value
-   (see [PR #1308](https://github.com/functionalscript/functionalscript/pull/1308)).
-   So `eof` isn't a value the packing function must avoid; it's the packed
-   form of `""`, decodable by the exact same function as any other token
-   symbol, with no separate reservation or special case needed.
-3. **Enumerated table.** One append-only list of all multi-symbol tokens;
-   symbols assigned sequentially from `0x110001`. A lookup function throws on
-   unknown strings. Uniform for operators *and* keywords, no length limit;
-   symbol values depend on list order, so the list must be append-only.
-4. Rejected: hashing (collisions, not decodable); hand-picked mnemonic
-   characters per operator (mnemonics run out, typos become silent grammar
-   bugs).
 
-Open question that drives the choice: are keywords (`if`, `const`,
-`instanceof`, …) distinct terminals in the parser grammar? Option 2's larger
-alphabet covers every keyword up to 4 characters (`if`, `do`, `in`, `of`,
-`for`, `let`, `var`, `new`, `try`, `else`, `case`, `enum`, `this`, `void`,
-`with`, `null`, `true`, …) that option 1 cannot, but neither packing option
-reaches 5+ character keywords (`class`, `const`, `while`, `yield`, `throw`,
-`function`, `instanceof`, …) — those still need option 3, either for
-keywords alone (mixed with option 1 or 2 for operators) or for everything.
+2. **Base64-style packing over the full 24-bit range.** Same positional
+   mechanism as above, but with a 64-symbol (6-bit) alphabet — lowercase
+   `a`–`z` (26) + digits `0`–`9` (10) + the 14 operator characters (50 total),
+   leaving spare codes for `_`, `$`, and a few more. 4 characters × 6 bits =
+   24 bits exactly, so this **cannot** also carry an offset above Unicode or
+   `eof`.
+
+   This is acceptable if token symbols form a distinct alphabet from code
+   points rather than merely values outside the code-point range: per
+   [layered-parser](./layered-parser.md), the tokenizer layer (code-points →
+   tokens) and parser layer (tokens → AST) consume different alphabets end to
+   end. Nothing downstream of the tokenizer interprets a token symbol as a
+   code point.
+
+   The one same-grammar collision risk comes from the convention that
+   single-character operators map to themselves (`{`, `}`, `[`, `]`, `,`,
+   `-`, …). Those literal values occur in the same grammar as packed token
+   symbols. The packing must avoid the single-character values used by that
+   grammar, or all tokens must go through the same packing function.
+
+   Reserve code `0b11_1111` (63) as an explicit stop marker, with all following
+   digits also set to 63. The empty string then packs to `63,63,63,63`, exactly
+   `0xFFFFFF`, so `eof` is the intrinsic encoding of `""` rather than a separate
+   special case.
+
+Intrinsic packing preserves symbols when unrelated names are added or reordered,
+but it cannot encode names longer than the fixed information capacity. Keywords
+such as `function` and `instanceof` therefore require another mechanism.
+
+#### 2. Registered-alphabet encoding
+
+The constructor receives the complete finite list of symbol names and returns
+an encoding limited to that alphabet:
+
+```ts
+const encoding = createEncoding(names)
+```
+
+The names may have arbitrary length; only the number of registered names must
+fit into the symbol range. The registry also supplies the reverse mapping.
+There are two main assignment strategies.
+
+1. **Hash assignment with collision validation.** Compute a candidate symbol
+   from a seed and name, register every name, and reject the complete encoding
+   if two names produce the same symbol:
+
+   ```ts
+   const encoding = hashEncoding(seed, names)
+   // Encoding<typeof names[number]> | undefined
+   ```
+
+   For static grammars, a helper can assert successful construction:
+
+   ```ts
+   const encoding = hashEncodingUnwrap(seed, names)
+   ```
+
+   Names are independent of list position, so reordering the list does not
+   change symbols and appending a name normally preserves existing symbols.
+   Construction can fail because of a collision; changing the seed selects a
+   different mapping. Decoding still uses the registered reverse table because
+   a truncated hash is not intrinsically reversible.
+
+2. **Positional/index assignment.** Use each name's position in the passed
+   array as its symbol, optionally offset into the synthetic range:
+
+   ```ts
+   symbol = start + index
+   ```
+
+   This is dense, simple, and collision-free after validating duplicate names
+   and capacity. Symbol values depend on array order. Keeping the list
+   append-only preserves existing values; insertion or reordering changes them.
+
+Both registered strategies can expose the same interface:
+
+```ts
+type Encoding<T extends string> = {
+    readonly encode: (name: T) => number
+    readonly decode: (symbol: number) => T | undefined
+}
+```
+
+The hash strategy is preferable when symbol values should depend on names rather
+than list order. The positional strategy is preferable when the simplest,
+densest, guaranteed construction matters more than order independence.
+
+Rejected: hand-picked mnemonic characters per operator (mnemonics run out and
+typos become silent grammar bugs).
+
+### Open questions
+
+- Are keywords (`if`, `const`, `instanceof`, …) distinct terminals in the
+  parser grammar?
+- Should one encoding cover every parser terminal, or should intrinsic packing
+  cover short operators while a registered encoding covers longer names?
+- For a registered encoding, is order-independent hash assignment worth
+  collision checking and seed management, or is positional assignment simpler?
+- Must token symbols be numerically disjoint from code points, or is separation
+  between parser layers sufficient?
 
 ### Tasks
 
 - [ ] Decide whether keywords are distinct terminal symbols
-- [ ] Choose between packing (option 1 or 2) and enumeration (option 3)
-- [ ] If packing: settle the exact alphabet (including the stop/terminator
-      code under option 2, and its `""` ↔ `eof` identity)
-- [ ] Implement the encoding function with validation and the reverse mapping
-- [ ] Use it in the tokenizer output and the parser grammar
+- [ ] Choose intrinsic packing, registered encoding, or a combination
+- [ ] If intrinsic: settle the exact alphabet, range, and stop-marker rules
+- [ ] If registered: choose hash or positional assignment and define the symbol
+      range
+- [ ] Implement validation, encoding, and reverse mapping
+- [ ] Use the encoding in the tokenizer output and parser grammar
 
 ### Related
 
