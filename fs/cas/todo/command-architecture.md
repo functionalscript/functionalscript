@@ -41,7 +41,9 @@ The design should answer:
 2. **The command set** — today's `add`, `get`, `list`; planned commands
    such as the batch scrub ([66g-cas-verify-command](./66g-cas-verify-command.md)),
    read-time verification ([66g-cas-get-verify-option](./66g-cas-get-verify-option.md)),
-   and the Evo operations ([evo](./evo.md)).
+   and the Evo operations (implemented as their own transport,
+   [`fs/cas/evo`](../evo/), rather than folded into this command set — a
+   candidate for reconciling once this design lands).
 3. **The exposure matrix** — which transports (CLI, MCP,
    [Web API](./web-api-server.md)) expose which commands, with what
    restrictions. Known constraint to encode: file-path `add` is CLI-only —
@@ -77,5 +79,7 @@ The design should answer:
   declaration mechanism a shared command declaration would plug into.
 - [web-api-server](./web-api-server.md) — the third transport this design
   must anticipate.
-- [evo](./evo.md) — future commands facing the same CLI/MCP/HTTP question.
+- [`fs/cas/evo`](../evo/) — implemented as its own MCP server rather than
+  through this (still undesigned) shared command layer; a candidate to
+  reconcile once this design lands.
 - PR #1277 (closed) — the motivating ad hoc feature patch.

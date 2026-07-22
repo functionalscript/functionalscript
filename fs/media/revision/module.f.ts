@@ -78,8 +78,15 @@ export type RevisionError = ValidationError | string
  * more than one parent without an explicit `snapshot` is invalid — there is
  * no single parent snapshot to inherit, and falling back to `subject` would
  * silently lose the merge result.
+ *
+ * Exported separately from {@link validate} for callers that assemble a
+ * `Revision` themselves from already-typed fields (e.g. `fs/cas/evo`'s
+ * `addRevision`): the shape is then guaranteed by TypeScript already, so only
+ * these semantic (string-only error) checks are worth re-running — routing
+ * through the combined structural-plus-semantic `validate` would add an
+ * unreachable structural-error branch on the caller's side.
  */
-const checkReferences = (r: Revision): Result<Revision, string> => {
+export const checkReferences = (r: Revision): Result<Revision, string> => {
     for (const p of r.parents) {
         if (!isHash(p)) { return error(`parent is not a valid hash: ${p}`) }
     }

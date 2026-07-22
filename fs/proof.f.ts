@@ -32,6 +32,8 @@ export const proof = {
     mcp: () => {
         // stdin is empty in the virtual environment, so the server sees EOF
         // immediately and shuts down cleanly, exercising the `mcp` handler.
+        // The store is empty too, so `casMcpServer`'s Evo cache scan
+        // (`initEvo`) also runs and finds nothing.
         const [, code] = run({})(['mcp'])
         assertEq(code, 0)
     },

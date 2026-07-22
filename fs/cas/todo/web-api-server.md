@@ -9,8 +9,10 @@
 CAS is reachable only through the CLI and the stdio MCP server. Both are
 per-user, per-process front ends: browsers and remote clients cannot reach
 a store at all, and every stdio MCP instance carries its own process state —
-the Evo proposal ([evo](./evo.md)) already runs into this and floats an
-HTTP(S) server as the way to share one cache across many clients.
+the Evo API ([`fs/cas/evo`](../evo/)) already runs into this — its cache is
+per-process, so every STDIO MCP server instance builds its own — and its
+README floats an HTTP(S) server as the way to share one cache across many
+clients.
 
 There is also no way for a *human* to look at a store: every existing front
 end targets a program (shell scripts, MCP agents). Inspecting what a store
@@ -30,8 +32,8 @@ set over HTTP(S):
 - the exposed subset and its restrictions come from the architecture's
   exposure matrix (e.g. no client-named local paths, same as MCP);
 - authentication/authorization is a hard prerequisite for anything
-  non-local (also flagged in [evo](./evo.md)) and needs its own design
-  before the server is reachable beyond localhost;
+  non-local (also flagged in [`fs/cas/evo`](../evo/)) and needs its own
+  design before the server is reachable beyond localhost;
 - request/response validation should derive from the same command
   declarations that drive the CLI and MCP adapters;
 - large blobs favour HTTP *in principle*: the protocol streams
@@ -86,7 +88,8 @@ HTML form is an exposure-matrix decision for
 ### Related
 
 - [command-architecture](./command-architecture.md) — prerequisite design.
-- [evo](./evo.md) — already floats an HTTP(S) server and its auth question.
+- [`fs/cas/evo`](../evo/) — already floats an HTTP(S) server and its auth
+  question.
 - [fs/media/json-html](../../media/html/todo/665-json-html.md) — JSON →
   syntax-highlighted HTML rendering for the blob page.
 - `fs/media/revision/` — dialect whose blobs the browser should render as a
