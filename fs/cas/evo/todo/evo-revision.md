@@ -98,7 +98,10 @@ export type RevisionData = {
 ### `generation`: required in the format, computed at `add`
 
 Decided together with this tool (the format is still being designed and no
-stored records exist yet, so this is free):
+stored records exist yet, so this is free). The format-level change itself
+is tracked — with P0 priority, together with requiring `snapshot` — in
+[`fs/media/revision/todo/required-fields.md`](../../../media/revision/todo/required-fields.md);
+what follows is the semantics and the evo layer's part:
 
 - **The format requires `generation`**: `revisionSchema`
   (`fs/media/revision/module.f.ts`) changes `option(number)` → `number`,
@@ -168,25 +171,23 @@ recorded so the decision is made deliberately, not by accident.
 
 ### Tasks
 
-- [ ] Describe `generation` as a required field in the revision format
-      documentation (`fs/media/revision/README.md`): schema snippet and
-      field table say `number`, required; the "cache, not a source of
-      truth" paragraph is reframed as existence/integer-ness being the
-      correctness check, the `1 + max` formula being what conforming
-      writers produce, and a deviation being an epoch-reset signal, not a
-      validity failure.
-- [ ] Make `generation` required in code: `revisionSchema`
-      `option(number)` → `number`, non-negative-integer check in
-      `validate`, with proof coverage for a missing, non-integer, and
-      negative `generation`. Must land in the same change as the `add`
-      task below — a schema that requires `generation` while `add` still
-      writes blobs without it rejects its own writer's output.
+- [ ] Format change — `generation` (and `snapshot`) required, schema +
+      `validate` + README: tracked in
+      [`fs/media/revision/todo/required-fields.md`](../../../media/revision/todo/required-fields.md)
+      (P0). The `add` task below must land in the same change — a schema
+      that requires fields `add` doesn't yet write rejects its own
+      writer's output.
 - [ ] Rename `AddRevision` → `RevisionData` (adding the optional
       `generation` field), update the `fs/cas/evo/mcp` doc table.
 - [ ] Compute and write `generation` in `add` (base case `0`, else
-      `1 + max`; a caller-supplied `generation` is ignored), with proof
-      coverage including a merge of parents with differing generations and
-      an input whose supplied `generation` differs from the computed one.
+      `1 + max`; a caller-supplied `generation` is ignored), and resolve
+      an absent input `snapshot` at `add` by the rules the format used to
+      carry (zero parents → `subject` as the reference, which must then be
+      a hash; one parent → the parent's snapshot; more than one parent →
+      error, an explicit `snapshot` is required), writing the resolved
+      hash explicitly. Proof coverage includes a merge of parents with
+      differing generations, an input whose supplied `generation` differs
+      from the computed one, and each snapshot-resolution case.
 - [ ] Implement `revision(hash)` on `Evo<O>` with proof coverage for all
       three error cases and for canonicalized output (a parent stored under
       an alias spelling comes back canonical).
@@ -199,5 +200,8 @@ recorded so the decision is made deliberately, not by accident.
 
 - [`todo/subject-history.md`](subject-history.md) — the mainline walk this
   tool is the node-detail companion to.
+- [`fs/media/revision/todo/required-fields.md`](../../../media/revision/todo/required-fields.md)
+  — the P0 format change (require `generation` and `snapshot`) this
+  design's `generation` semantics land through.
 - `fs/media/revision/README.md` — the `vnd.fjs.revision` format whose
   `generation` field this makes required.
