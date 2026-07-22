@@ -57,21 +57,37 @@ much new format they invent:
    arbitrary strings the way subjects are, so this is a much smaller concern
    here, but a consumer indexing this object should still look up by own
    property, not bare `obj[hash]`.
-4. **Flattened sequence with branch markers**, as originally sketched:
-   ```ts
-   [
-     "headRevHash",
-     ["previousRevisionHash", "anotherParentHash", "parentHash"],
-     "prevPrevRevHash",
-   ]
-   ```
-   An array mixing plain hash entries and arrays-of-parents at some
-   position. This wasn't fully specified — it's not yet clear what a bare
-   string entry means relative to the array entries around it (which
-   revision's parents an array entry belongs to isn't stated), so this
-   option needs its exact reconstruction algorithm pinned down before it's
-   comparable to the others. Likely more compact than option 3 for a mostly
-   linear history, but the ambiguity has to be resolved first.
+4. **Flattened left-branch sequence.** An array read left to right while
+   tracking a "current" node, starting at the head:
+   - a plain hash entry is a parent of the current node (edge
+     `current → hash`), and becomes the new current — the walk continues
+     along this (the "left") branch;
+   - an array entry `[h, ...rest]` also means `h` is a parent of the current
+     node and becomes the new current (same as a plain entry — the left
+     branch continues through `h`), but each further element in `rest` is an
+     *additional* parent of `h` itself (not of the outer current), i.e. edges
+     `h → rest[i]`.
+
+   Worked example: `['a', 'b', 'c']` is a straight chain — `a`'s parent is
+   `b`, `b`'s parent is `c`. `['a', ['b', 'd'], 'c', 'd']`:
+   - `a` starts as current;
+   - `['b', 'd']`: `a`'s parent is `b` (current becomes `b`); `b`'s
+     *additional* parent is `d` (`b → d`);
+   - `'c'`: current (`b`)'s parent is `c` (current becomes `c`);
+   - `'d'`: current (`c`)'s parent is `d`.
+
+   Edges: `a→b`, `b→d`, `b→c`, `c→d` — `a` has one parent (`b`); `b` has two
+   (`c` and `d`); `c` has one (`d`); `d` is a root. More compact than option 3
+   for a mostly-linear history (no hash is repeated as a key), and the
+   grammar is recursive (an element of `rest` could itself be an array, to
+   show more of that parent's own history) so it isn't limited to one level
+   of branching.
+
+   Still open: a subject can have more than one *current* head at once (see
+   `head(subject)`'s return type, `readonly Hash[]`), but every worked
+   example above starts from a single head. Does `history` take/return one
+   sequence per head, or does the grammar need a way to start several
+   left-branch chains in one value?
 
 Whatever is chosen should also settle:
 
