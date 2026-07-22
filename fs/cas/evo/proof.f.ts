@@ -5,6 +5,7 @@ import { sha256 } from '../../crypto/sha2/module.f.ts'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
 import { vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
+import { unwrap } from '../../types/nullable/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
 import type { IoResult } from '../../effects/node/module.f.ts'
@@ -256,18 +257,16 @@ export const proof = {
         const subjectHash = vecToCBase32(vec8(0x71n))
         const [state1, rootResult] = virtual(state0)(e.add({ parents: [], subject: subjectHash }))
         assert(rootResult[0] === 'ok', ['expected root ok', rootResult])
-        const rootHashVec = cBase32ToVec(rootResult[1])
-        assert(rootHashVec !== null, 'expected the root hash to decode')
-        const [state2, root] = virtual(state1)(decodeRevisionBlob(c)(rootHashVec as Vec))
+        const rootHashVec = unwrap(cBase32ToVec(rootResult[1]))
+        const [state2, root] = virtual(state1)(decodeRevisionBlob(c)(rootHashVec))
         assert(root !== null, 'expected the stored root to decode')
         assertEq(root?.generation, 0)
         assertEq(root?.snapshot, subjectHash)
 
         const [state3, childResult] = virtual(state2)(e.add({ parents: [rootResult[1]], subject: subjectHash }))
         assert(childResult[0] === 'ok', ['expected child ok', childResult])
-        const childHashVec = cBase32ToVec(childResult[1])
-        assert(childHashVec !== null, 'expected the child hash to decode')
-        const [, child] = virtual(state3)(decodeRevisionBlob(c)(childHashVec as Vec))
+        const childHashVec = unwrap(cBase32ToVec(childResult[1]))
+        const [, child] = virtual(state3)(decodeRevisionBlob(c)(childHashVec))
         assert(child !== null, 'expected the stored child to decode')
         assertEq(child?.generation, 1)
         assertEq(child?.snapshot, subjectHash)
@@ -292,9 +291,8 @@ export const proof = {
         // Merge of b(gen2) and c(gen1) → gen3.
         const [state5, merge] = virtual(state4)(e.add({ parents: [b[1], cRev[1]], subject: 'm', snapshot: snap }))
         assert(merge[0] === 'ok', ['expected merge ok', merge])
-        const mergeHashVec = cBase32ToVec(merge[1])
-        assert(mergeHashVec !== null, 'expected the merge hash to decode')
-        const [, mergeRev] = virtual(state5)(decodeRevisionBlob(c)(mergeHashVec as Vec))
+        const mergeHashVec = unwrap(cBase32ToVec(merge[1]))
+        const [, mergeRev] = virtual(state5)(decodeRevisionBlob(c)(mergeHashVec))
         assert(mergeRev !== null, 'expected the stored merge to decode')
         assertEq(mergeRev?.generation, 3)
     },
