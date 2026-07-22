@@ -14,7 +14,6 @@ import {
 } from "../../bnf/descent/module.f.ts"
 import {
     eof,
-    max,
     none,
     notSet,
     option,
@@ -23,6 +22,7 @@ import {
     repeat,
     repeat0Plus,
     set,
+    unicodeMax,
     unicodeRange,
     type DataRule,
     type Rule
@@ -70,7 +70,7 @@ const buildToken = (): Rule => {
     const string = [
         '"',
         repeat0Plus({
-            ...remove(range(` ${max}`), set('"\\')),
+            ...remove(range(` ${unicodeMax}`), set('"\\')),
             escape: [
                 '\\',
                 {
@@ -347,8 +347,8 @@ const stringDecodeScan
                 }
             case 'unicode': {
                 // convert hex digit char to its numeric value: '0'-'9', 'A'-'F', 'a'-'f'
-                const digit = contains(digitRange)(cp) ? cp - digit0
-                    : contains(rangeCapitalAF)(cp) ? cp - (latinCapitalLetterA - 10)
+                const digit = contains(...digitRange)(cp) ? cp - digit0
+                    : contains(...rangeCapitalAF)(cp) ? cp - (latinCapitalLetterA - 10)
                     : cp - (latinSmallLetterA - 10)
                 const acc = (state.acc << 4) | digit
                 return state.count === 3 ? [[acc], { kind: 'normal' }] : [null, { kind: 'unicode', acc, count: state.count + 1 }]

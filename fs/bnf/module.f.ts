@@ -10,6 +10,8 @@ import { codePointListToString, stringToCodePointList } from '../text/utf16/modu
 import { definedValues, type StringMap } from '../types/object/module.f.ts'
 import { type Array2, isArray2 } from '../types/array/module.f.ts'
 import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
+import { contains } from '../types/range/module.f.ts'
+import { assert } from '../asserts/module.f.ts'
 
 // Types
 
@@ -46,11 +48,6 @@ export const fullRange: TerminalRange = 0x000000_FFFFFF
  * Unicode scalar value range packed into a single {@link TerminalRange}.
  */
 export const unicodeRange: TerminalRange = 0x000000_10FFFF
-
-/**
- * Maximal non-Unicode symbol encoded as a string value.
- */
-export const max: string = codePointListToString([0xFFFFFF])
 
 /**
  * Maximal Unicode code point encoded as a string value.
@@ -91,12 +88,10 @@ const offset = 24
 
 const mask = (1 << offset) - 1
 
-const isValid = (r: number): boolean => r >= 0 && r <= mask
+const isValid = contains(0, mask)
 
 export const rangeEncode = (a: number, b: number): TerminalRange => {
-    if (!isValid(a) || !isValid(b) || a > b) {
-        throw `Invalid range ${a} ${b}.`
-    }
+    assert(isValid(a) && isValid(b) && a <= b)
     return Number((BigInt(a) << BigInt(offset)) | BigInt(b))
 }
 
@@ -106,15 +101,18 @@ export const rangeEncode = (a: number, b: number): TerminalRange => {
 export const oneEncode = (a: number): TerminalRange => rangeEncode(a, a)
 
 /**
- * End-of-file marker represented as one code point beyond Unicode range.
+ * End-of-file marker: `mask`, the single largest value the 24-bit symbol
+ * space can hold (the top of `fullRange`). Deliberately outside Unicode
+ * (`unicodeRange` tops out at `0x10FFFF`) so it can never collide with a
+ * real code point.
  */
-export const eof: TerminalRange = oneEncode(0x110000)
+export const eof: TerminalRange = oneEncode(mask)
 
 /**
  * Decodes a packed range into `[start, end]` symbols.
  */
 export const rangeDecode = (r: number): Array2<number> =>
-    [Number(BigInt(r) >> BigInt(offset)), Number(BigInt(r) & BigInt(mask))]
+    [Number(BigInt(r) >> BigInt(offset)), r & mask]
 
 const mapOneEncode = map(oneEncode)
 

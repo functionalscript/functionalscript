@@ -126,7 +126,7 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
                     } else {
                         const cpi = cp[idx]
                         const range = rangeDecode(rule)
-                        result = rangeContains(range)(cpi[0]) ? mrSuccess(tag, [cpi], idx + 1) : mrFail(emptyTag, [], idx)
+                        result = rangeContains(...range)(cpi[0]) ? mrSuccess(tag, [cpi], idx + 1) : mrFail(emptyTag, [], idx)
                     }
                 } else if (rule instanceof Array) {
                     if (rule.length === 0) {
