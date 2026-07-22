@@ -286,7 +286,19 @@ export const addRevision =
         }
         const referencesResult = checkReferences(revision)
         if (referencesResult[0] === 'error') { return pure(referencesResult) }
-        const bytes = tryUtf8(toJson(revision))
+        // Canonicalize parent/snapshot spellings now that checkReferences has
+        // confirmed they decode (`unwrap` inside `canonicalHash` is safe):
+        // two `add` calls describing the same logical revision but spelled
+        // differently (case, `i`/`l`/`o` aliases) must serialize identically,
+        // or they'd produce two distinct CAS blobs that both remain heads —
+        // the point of `canonicalHash` (see the module doc) is defeated if
+        // this module itself writes non-canonical spellings.
+        const canonicalRevision: Revision = {
+            ...revision,
+            parents: revision.parents.map(canonicalHash),
+            snapshot: revision.snapshot === undefined ? undefined : canonicalHash(revision.snapshot),
+        }
+        const bytes = tryUtf8(toJson(canonicalRevision))
         if (bytes === null) {
             return pure(error('revision too large to encode'))
         }
@@ -296,7 +308,7 @@ export const addRevision =
                 return pure(error('failed to write revision to CAS'))
             }
             const hash = vecToCBase32(writeResult[1])
-            return foldIntoCache(cacheKey)(hash)(revision).step(() => pure(ok(hash)))
+            return foldIntoCache(cacheKey)(hash)(canonicalRevision).step(() => pure(ok(hash)))
         })
     })
 

@@ -199,6 +199,31 @@ export const proof = {
         const [, heads] = virtual(state2)(e.head('x'))
         assertEq(heads.length, 1)
     },
+    // Two `add` calls describing the same logical revision but spelling the
+    // parent reference differently (canonical vs. an accepted uppercase
+    // alias) must serialize identically and dedupe to one head — otherwise
+    // `addRevision` itself would be the source of the very spelling drift
+    // `canonicalHash` exists to prevent.
+    addRevisionCanonicalizesParentSpellingBeforeSerializing: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const root: AddRevision = { parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x2en)) }
+        const [state1, rootResult] = virtual(state0)(e.add(root))
+        assert(rootResult[0] === 'ok', ['expected root ok', rootResult])
+        const rootHash = rootResult[1]
+        assert(rootHash !== rootHash.toUpperCase(), 'expected the sample hash to contain letters')
+        const child1: AddRevision = { parents: [rootHash], subject: 'doc' }
+        const [state2, child1Result] = virtual(state1)(e.add(child1))
+        assert(child1Result[0] === 'ok', ['expected child1 ok', child1Result])
+        const child2: AddRevision = { parents: [rootHash.toUpperCase()], subject: 'doc' }
+        const [state3, child2Result] = virtual(state2)(e.add(child2))
+        assert(child2Result[0] === 'ok', ['expected child2 ok', child2Result])
+        assertEq(child1Result[1], child2Result[1])
+        const [, heads] = virtual(state3)(e.head('doc'))
+        assertEq(heads.length, 1)
+        assertEq(heads[0], child1Result[1])
+    },
     // `subject` omitted with exactly one parent is inherited from that
     // parent's own `subject`.
     addRevisionResolvesSubjectFromSingleParent: () => {
