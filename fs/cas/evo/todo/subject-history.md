@@ -83,6 +83,31 @@ much new format they invent:
    show more of that parent's own history) so it isn't limited to one level
    of branching.
 
+   **Three or more parents.** A node with parents `[p1, ..., pk]` (`p1` =
+   primary/first-listed) nests once per parent beyond the first, building
+   from the *last*-listed parent inward and the *first*-listed parent
+   outermost: pair the node with `pk` (innermost), then wrap that pair with
+   `p(k-1)`, and so on out to `p1` (outermost). Worked example — `a` with
+   three parents `b, c, d` (`a → b`, `a → c`, `a → d`) is
+   `[[[a, d], c], b]`: innermost `[a, d]` pairs `a` with its last parent
+   `d`; wrapping with `c` adds the next; wrapping with `b` (outermost) adds
+   the first/primary parent last.
+
+   This does not, on its own, explain why the *earlier* two-parent example
+   (`['b', 'd']`, embedded inside `['a', ['b', 'd'], 'c', 'd']`) only wraps
+   the one non-primary parent (`d`) and leaves the primary parent (`c`) to
+   continue as plain flat elements afterward, while this three-parent
+   example wraps *all three* parents, including the primary (`b`), with no
+   flat continuation at all. The difference is presumably that `b` in the
+   earlier example is reached by continuing an already-flat chain from `a`
+   (so its primary parent can keep extending that same flat array), whereas
+   `a` here has no predecessor to continue from — it's the value's own
+   starting point, so even its primary parent must be wrapped. That's a
+   plausible unifying rule, but it hasn't been confirmed, and the exact
+   point at which a branch "detaches" from an enclosing flat array (versus
+   staying self-contained) needs to be pinned down precisely, with more
+   worked examples, before this option is fully specified.
+
    Still open: a subject can have more than one *current* head at once (see
    `head(subject)`'s return type, `readonly Hash[]`), but every worked
    example above starts from a single head. Does `history` take/return one
