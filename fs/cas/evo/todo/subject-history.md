@@ -57,56 +57,50 @@ much new format they invent:
    arbitrary strings the way subjects are, so this is a much smaller concern
    here, but a consumer indexing this object should still look up by own
    property, not bare `obj[hash]`.
-4. **Flattened left-branch sequence.** An array read left to right while
-   tracking a "current" node, starting at the head:
-   - a plain hash entry is a parent of the current node (edge
-     `current → hash`), and becomes the new current — the walk continues
-     along this (the "left") branch;
-   - an array entry `[h, ...rest]` also means `h` is a parent of the current
-     node and becomes the new current (same as a plain entry — the left
-     branch continues through `h`), but each further element in `rest` is an
-     *additional* parent of `h` itself (not of the outer current), i.e. edges
-     `h → rest[i]`.
+4. **Flattened left-branch sequence**, modeled on Git: the *left* (first-
+   listed) parent is the mainline — the branch this history is "of" — and
+   any further (*right*) parents are other branches that merged into it, the
+   way Git's first-parent link marks the branch a merge commit landed on.
+   Rendered history tools (`git log --first-parent`) walk exactly this link
+   and treat the rest as detail; this format encodes that same asymmetry
+   instead of treating all parents as interchangeable.
 
-   Worked example: `['a', 'b', 'c']` is a straight chain — `a`'s parent is
-   `b`, `b`'s parent is `c`. `['a', ['b', 'd'], 'c', 'd']`:
-   - `a` starts as current;
-   - `['b', 'd']`: `a`'s parent is `b` (current becomes `b`); `b`'s
-     *additional* parent is `d` (`b → d`);
-   - `'c'`: current (`b`)'s parent is `c` (current becomes `c`);
-   - `'d'`: current (`c`)'s parent is `d`.
+   A flat array is the mainline: each element is normally a bare hash,
+   continuing to that hash's own mainline parent as the next element. A
+   node that is *also* a merge (has more than one parent) replaces its bare
+   entry with a binary bracket `[node, mergedParent]`, where `mergedParent`
+   is the (recursively encoded) branch that merged in. The mainline then
+   continues as usual: if this node has a predecessor already extending a
+   flat array, its own mainline parent becomes the *next* element of that
+   same array; if the node is the value's own starting point (no
+   predecessor to continue from), its mainline parent has nowhere else to
+   go and is wrapped in too, as the outermost element of the same bracket.
 
-   Edges: `a→b`, `b→d`, `b→c`, `c→d` — `a` has one parent (`b`); `b` has two
-   (`c` and `d`); `c` has one (`d`); `d` is a root. More compact than option 3
-   for a mostly-linear history (no hash is repeated as a key), and the
-   grammar is recursive (an element of `rest` could itself be an array, to
-   show more of that parent's own history) so it isn't limited to one level
-   of branching.
+   Worked examples:
+   - `['a', 'b', 'c']` — no merges, pure mainline: `a`'s parent is `b`,
+     `b`'s parent is `c`.
+   - `['a', ['b', 'd'], 'c', 'd']` — `a`'s mainline parent is `b`; `b` is a
+     merge (bracket `['b', 'd']`: `b`'s merged-in parent is `d`); `b`'s own
+     mainline parent, `c`, continues the *outer* array (there was already
+     one to continue, from `a`); `c`'s parent is `d`. Edges: `a→b`, `b→d`,
+     `b→c`, `c→d`.
+   - `[[[a, d], c], b]` — `a` is a three-way merge (`a → b, c, d`) and is
+     itself the sequence's starting point, so *all three* parents end up
+     wrapped: innermost `[a, d]` pairs `a` with its last-listed parent `d`;
+     wrapping with `c` adds the next; wrapping with `b` (outermost) adds the
+     mainline parent last, because there's no enclosing array for `b` to
+     continue instead. Edges: `a→b`, `a→c`, `a→d`.
 
-   **Three or more parents.** A node with parents `[p1, ..., pk]` (`p1` =
-   primary/first-listed) nests once per parent beyond the first, building
-   from the *last*-listed parent inward and the *first*-listed parent
-   outermost: pair the node with `pk` (innermost), then wrap that pair with
-   `p(k-1)`, and so on out to `p1` (outermost). Worked example — `a` with
-   three parents `b, c, d` (`a → b`, `a → c`, `a → d`) is
-   `[[[a, d], c], b]`: innermost `[a, d]` pairs `a` with its last parent
-   `d`; wrapping with `c` adds the next; wrapping with `b` (outermost) adds
-   the first/primary parent last.
+   Three-or-more-parent merges are expected to be extremely rare (as in
+   Git), so the format doesn't need a flat "list of siblings" shape for
+   them — nesting one binary bracket per extra parent, as above, is an
+   acceptable fallback for a case this uncommon, in exchange for keeping the
+   common one-merged-parent case (`[node, mergedParent]`) simple.
 
-   This does not, on its own, explain why the *earlier* two-parent example
-   (`['b', 'd']`, embedded inside `['a', ['b', 'd'], 'c', 'd']`) only wraps
-   the one non-primary parent (`d`) and leaves the primary parent (`c`) to
-   continue as plain flat elements afterward, while this three-parent
-   example wraps *all three* parents, including the primary (`b`), with no
-   flat continuation at all. The difference is presumably that `b` in the
-   earlier example is reached by continuing an already-flat chain from `a`
-   (so its primary parent can keep extending that same flat array), whereas
-   `a` here has no predecessor to continue from — it's the value's own
-   starting point, so even its primary parent must be wrapped. That's a
-   plausible unifying rule, but it hasn't been confirmed, and the exact
-   point at which a branch "detaches" from an enclosing flat array (versus
-   staying self-contained) needs to be pinned down precisely, with more
-   worked examples, before this option is fully specified.
+   More compact than option 3 for a mostly-linear history (no hash is
+   repeated as a key), and the grammar is recursive (a merged parent is
+   itself encoded the same way, so it can carry its own further history)
+   rather than limited to one level of branching.
 
    Still open: a subject can have more than one *current* head at once (see
    `head(subject)`'s return type, `readonly Hash[]`), but every worked
