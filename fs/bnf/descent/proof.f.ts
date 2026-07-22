@@ -126,6 +126,13 @@ export const proof = {
             if (result !== '[{"tag":"e","sequence":[]},true,0]') { throw result }
         },
         () => {
+            const emptyVariantRule = {}
+            const m = descentParser(emptyVariantRule)
+            const mr = m("", [])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},false,0]') { throw result }
+        },
+        () => {
             const stringRule = 'AB'
             const m = descentParser(stringRule)
             const mr = descentParserCpOnly(m, "", [65,66])
