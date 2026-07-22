@@ -23,14 +23,27 @@ FunctionalScript can't currently be installed from Git using NPM.
 
 - [x] Check if the version is new, then publish.
 
-### Mixed TypeScript and JavaScript sources
+### Authored and generated JavaScript extensions
 
-During the transition from TypeScript to JavaScript, the repository may contain both:
+During the transition from TypeScript to JavaScript, use different extensions for authored and generated JavaScript:
 
-- `.ts` source files, compiled to `.js` and `.d.ts` files for NPM;
-- hand-written `.js` source files with JSDoc, published as-is and used to generate `.d.ts` files.
+```text
+source.ts  -> source.js + source.d.ts
+source.mjs -> source.mjs + source.d.mts
+```
 
-The transition initially applies to `.ts` and `.js` sources, not `.mjs` utility or benchmark files. The main `tsconfig.json` can validate both source types in one pass while excluding `.mjs`:
+The extension invariant is:
+
+- `.ts` is authored TypeScript;
+- `.mjs` is authored ESM JavaScript with JSDoc types;
+- `.js` is generated JavaScript and is never authored;
+- `.d.ts` and `.d.mts` are generated declarations and are never authored.
+
+This removes the need to distinguish authored and generated `.js` files through Git state. Cleanup can remove every generated `.js`, `.d.ts`, and `.d.mts` package output without risking deletion of authored JavaScript.
+
+The existing `fs/types/bigint/benchmark.mjs` is an authored benchmark rather than package source. Rename it to `benchmark.bench.mjs` and exclude `*.bench.mjs` files from normal validation and packaging until they are independently migrated to checked JSDoc.
+
+The main `tsconfig.json` should select authored extensions explicitly so generated files never become root inputs:
 
 ```jsonc
 {
@@ -40,65 +53,102 @@ The transition initially applies to `.ts` and `.js` sources, not `.mjs` utility 
     "noEmit": true,
     "declaration": true
   },
+  "include": [
+    "**/*.ts",
+    "**/*.mjs"
+  ],
   "exclude": [
     "target",
-    "**/*.mjs"
+    "**/*.d.ts",
+    "**/*.d.mts",
+    "**/*.bench.mjs"
   ]
 }
 ```
 
-Then `tsc` validates both `.ts` and `.js` files without generating package files. The `.mjs` exclusion keeps existing non-JSDoc utilities such as `fs/types/bigint/benchmark.mjs` outside this transition. If an `.mjs` file later becomes a checked or published source, add its type information first and then narrow or remove the exclusion.
+`**/*.d.ts` must be excluded because it also matches the `**/*.ts` include pattern. The explicit include list excludes generated `.js` files while retaining authored `.mjs` files.
 
-Publishing in place requires cleaning old generated package files and then running two emission passes. Git can remove ignored outputs without deleting tracked hand-written JavaScript:
+Package emission should use a package-specific configuration so `prepack` does not emit files for repository-only TypeScript outside `fs`:
+
+```jsonc
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "fs/**/*.ts",
+    "fs/**/*.mjs"
+  ],
+  "exclude": [
+    "fs/**/*.d.ts",
+    "fs/**/*.d.mts",
+    "fs/**/*.bench.mjs"
+  ]
+}
+```
+
+Update the package allowlist for both runtime extensions and both declaration extensions while excluding benchmarks:
+
+```json
+{
+  "files": [
+    "fs/**/*.js",
+    "fs/**/*.mjs",
+    "fs/**/*.d.ts",
+    "fs/**/*.d.mts",
+    "!fs/**/*.bench.mjs"
+  ]
+}
+```
+
+Publishing in place requires cleaning old generated package files and then running two emission passes:
 
 ```json
 {
   "scripts": {
-    "clean:package-output": "git clean -fX -- \":(glob)fs/**/*.js\" \":(glob)fs/**/*.d.ts\"",
-    "emit:declarations": "tsc --noEmit false --emitDeclarationOnly",
-    "emit:typescript": "tsc --noEmit false --allowJs false --checkJs false --declaration false",
+    "clean:package-output": "git clean -fX -- \":(glob)fs/**/*.js\" \":(glob)fs/**/*.d.ts\" \":(glob)fs/**/*.d.mts\"",
+    "emit:declarations": "tsc -p tsconfig.package.json --noEmit false --emitDeclarationOnly",
+    "emit:typescript": "tsc -p tsconfig.package.json --noEmit false --allowJs false --checkJs false --declaration false",
     "prepack": "npm run clean:package-output && npm run emit:declarations && npm run emit:typescript"
   }
 }
 ```
 
-`git restore` is not sufficient because generated package files are ignored and untracked. In the cleanup command:
-
-- `-f` permits deletion;
-- `-X` selects only ignored, untracked files, so tracked hand-written `.js` files are preserved;
-- the pathspecs restrict deletion to `.js` and `.d.ts` files under the published `fs` source tree, so dependency and cache directories such as root `node_modules` and `target` are not traversed.
-
-A new hand-written `.js` source must be added to Git before running `prepack`; otherwise it is indistinguishable from an ignored generated output and will be cleaned.
-
-The first emission pass includes both `.ts` and `.js` sources and emits only declarations:
+The first emission pass includes both authored source extensions and emits declarations only:
 
 ```text
-source.ts -> source.d.ts
-source.js -> source.d.ts
+source.ts  -> source.d.ts
+source.mjs -> source.d.mts
 ```
 
-The second pass excludes JavaScript inputs and emits JavaScript only from TypeScript:
+The second pass disables JavaScript inputs and emits JavaScript only from TypeScript:
 
 ```text
 source.ts -> source.js
 ```
 
-`--checkJs false` is required in the second pass because the base configuration enables `checkJs`, while that pass disables `allowJs`. `--declaration false` avoids regenerating the TypeScript declarations already emitted by the first pass. It can be omitted if regenerating those declarations is preferable.
+`--checkJs false` is required in the second pass because the base configuration enables `checkJs`, while that pass disables `allowJs`. `--declaration false` avoids regenerating the TypeScript declarations already emitted by the first pass.
+
+Changing a module from `.ts` to `.mjs` changes its runtime import extension. Importers that previously referenced `source.ts` or generated `source.js` must be updated to reference `source.mjs`. The package test must cover imports in both directions between `.ts` and `.mjs` modules.
 
 Constraints:
 
-- Do not keep an authored `x.ts` and authored `x.js` for the same module, because they target the same output paths.
-- Hand-written `.js` files must be tracked even though generated `.js` files are ignored.
-- Every package build, including local `npm pack`, must start by removing stale generated package outputs.
-- Existing non-JSDoc `.mjs` utilities remain outside the checked source set until they are explicitly migrated.
+- Do not keep authored `x.ts` and `x.mjs` implementations for the same logical module.
+- Authored JavaScript must use `.mjs`; authored `.js` files are forbidden.
+- Generated `.js`, `.d.ts`, and `.d.mts` files remain ignored and untracked.
+- Every package build, including local `npm pack`, must remove stale generated package outputs first.
+- Benchmarks use the `.bench.mjs` suffix and are excluded from the package.
 
 Tasks:
 
-- [ ] Exclude `.mjs` files from the initial mixed-source TypeScript program.
-- [ ] Enable `allowJs` and `checkJs` in `tsconfig.json` and verify `npx tsc` succeeds with `fs/types/bigint/benchmark.mjs` present but excluded.
-- [ ] Add the scoped `git clean -fX` package-output command.
+- [ ] Rename `fs/types/bigint/benchmark.mjs` to `benchmark.bench.mjs`.
+- [ ] Enable `allowJs` and `checkJs` and add the explicit authored-source `include` and generated-output `exclude` patterns to `tsconfig.json`.
+- [ ] Add `tsconfig.package.json` for package-only emission under `fs`.
+- [ ] Update the package `files` allowlist to include `.mjs` and `.d.mts` and exclude `.bench.mjs`.
+- [ ] Add the scoped `git clean -fX` command for generated `.js`, `.d.ts`, and `.d.mts` outputs.
 - [ ] Replace the current one-pass `prepack` script with cleanup followed by the two-pass build.
-- [ ] Add a package test containing one `.ts` module and one tracked, hand-written JSDoc `.js` module.
-- [ ] Verify cleanup removes ignored generated `.js` and `.d.ts` files but preserves the tracked hand-written `.js` file.
-- [ ] In the package test, generate outputs for a temporary source, delete or rename that source, rerun `prepack`, and verify its stale `.js` and `.d.ts` outputs are absent from the packed archive.
-- [ ] Verify the packed archive preserves the original hand-written `.js`, includes generated `.js` from TypeScript, and includes declarations for both.
+- [ ] Add a package test containing one `.ts` module and one hand-written JSDoc `.mjs` module.
+- [ ] Test `.ts` importing `.mjs` and `.mjs` importing the `.js` runtime path generated from `.ts`.
+- [ ] Verify the first pass emits `.d.ts` from `.ts` and `.d.mts` from `.mjs`.
+- [ ] Verify cleanup removes ignored generated outputs but preserves authored `.mjs` files.
+- [ ] Generate outputs for a temporary source, delete or rename that source, rerun `prepack`, and verify its stale outputs are absent from the packed archive.
+- [ ] Verify `benchmark.bench.mjs` is absent from the packed archive.
+- [ ] Verify the packed archive contains authored `.mjs`, generated `.js`, and declarations for both source types.
