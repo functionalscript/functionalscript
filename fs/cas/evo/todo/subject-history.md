@@ -51,9 +51,14 @@ readonly history: (start: Hash, limit?: number) => Effect<O | MemOp, Result<read
   starting *revision*, not a subject: the client calls `head(subject)`
   (`readonly Hash[]`) and then `history(h)` per head. One operation covers
   heads, merged-in branches, and pagination resumption alike.
-- **Pagination** is the optional `limit`. To continue, re-call `history`
-  with the last returned hash — the first element of the continuation
-  repeats it, which the client drops. No cursor machinery.
+- **Pagination** is the optional `limit`, and a supplied `limit` must be
+  at least 2 — rejected as an error, not clamped, when smaller. The last
+  element of a page doubles as the resume anchor, so every page must carry
+  at least one element *beyond* it; with `limit = 1` a caller could never
+  advance (`history(h, 1)` returns `[h]`, and resuming from `h` returns
+  `[h]` again, forever). To continue, re-call `history` with the last
+  returned hash — the first element of the continuation repeats it, which
+  the client drops. No cursor machinery.
 - **Convergence rule.** Expanding a merged-in branch eventually rejoins
   ancestry the client already holds (at the common ancestor, then all the
   way to the root). The client-side rule is: stop at the first hash you
@@ -134,8 +139,8 @@ the rare consumer, still reachable in O(branches) calls.
       map (immutable, never stale).
 - [ ] Implement `history(start, limit?)` on `Evo<O>` with proof coverage,
       including a subject with a merge (multiple parents), a subject with
-      multiple concurrent heads, `limit`/resume, and an unknown or
-      non-revision `start`.
+      multiple concurrent heads, `limit`/resume, rejection of `limit < 2`,
+      and an unknown or non-revision `start`.
 - [ ] Expose it through MCP (`fs/cas/evo/mcp`) and document it in
       `fs/cas/evo/README.md` / `fs/cas/evo/mcp/README.md`.
 

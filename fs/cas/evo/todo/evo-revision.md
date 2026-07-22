@@ -106,6 +106,18 @@ stored records exist yet, so this is free):
   structural schema, the same layering as `isHash`. Existence and
   integer-ness are the *correctness* check — a blob failing it is not a
   revision.
+- **Why this keeps the dialect tag.** The README's versioning rule —
+  an incompatible change must take a new dialect — exists to protect
+  *stored* blobs from silently falling out of detection, and no
+  `vnd.fjs.revision` records have ever been stored: the format is still
+  being designed, so this lands in-place as a pre-release design revision,
+  not a versioned format change. Two consequences the implementation must
+  respect: the schema change and `add` writing `generation` must land in
+  the **same change** (a writer that trails the schema produces blobs its
+  own reader rejects — including today's `add`, which writes
+  generation-less blobs); and this move is available only while no records
+  exist — once they do, any further requirement change takes a new dialect,
+  exactly as the rule says.
 - **Continuity is observed, not enforced.** The normative value — `0` for a
   root (`parents: []`), else `1 + max(parents' generations)` — is what
   evo's `add` always writes. But equality with that formula is *not* a
@@ -166,7 +178,9 @@ recorded so the decision is made deliberately, not by accident.
 - [ ] Make `generation` required in code: `revisionSchema`
       `option(number)` → `number`, non-negative-integer check in
       `validate`, with proof coverage for a missing, non-integer, and
-      negative `generation`.
+      negative `generation`. Must land in the same change as the `add`
+      task below — a schema that requires `generation` while `add` still
+      writes blobs without it rejects its own writer's output.
 - [ ] Rename `AddRevision` → `RevisionData` (adding the optional
       `generation` field), update the `fs/cas/evo/mcp` doc table.
 - [ ] Compute and write `generation` in `add` (base case `0`, else
