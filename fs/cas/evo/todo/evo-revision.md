@@ -172,8 +172,10 @@ recorded so the decision is made deliberately, not by accident.
   separately from the decode (a failure → "not a revision") — the same
   split `decodeRevisionBlob` composes internally, just without discarding
   which stage failed.
-- **Serving.** v1 reads through `decodeRevisionBlob` like `resolveParent`
-  does. The per-revision cache planned in
+- **Serving.** v1 serves each call with a store round trip, but per the
+  error contract above it is a separate `cas.read` followed by a decode
+  step — not a `decodeRevisionBlob` call, which cannot tell "not present"
+  from "not a revision". The per-revision cache planned in
   [`todo/subject-history.md`](subject-history.md) (`hash → ordered
   parents`) can memoize `generation` alongside — both are immutable, so
   neither can go stale — but that is an optimization, not a requirement:
