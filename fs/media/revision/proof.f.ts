@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
 import type { Object as JsonObject } from '../json/module.f.ts'
-import { dialect, mediaType, isHash, validate, decodeText, type Revision } from './module.f.ts'
+import { dialect, mediaType, isHash, validate, decodeText } from './module.f.ts'
 
 // Valid cbase32 hashes (round-tripped in fs/basen/cbase32/proof.f.ts): single
 // cbase32 symbols, cheap to write inline here.
@@ -41,18 +41,18 @@ export const proof = {
         // zero-parent revision whose `subject` is not a hash is now valid,
         // because `snapshot` is always stated explicitly.
         nonHashSubjectAccepted: () => {
-            const [t, v] = validate(revisionOf({ subject: 'my-config' }))
-            assertEq(t, 'ok')
-            assertEq((v as Revision).subject, 'my-config')
+            const r = validate(revisionOf({ subject: 'my-config' }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].subject, 'my-config')
         },
 
         // A merge revision (more than one parent) is valid like any other —
         // there is no "multiple parents without snapshot" case left, because
         // `snapshot` is required.
         multiParentAccepted: () => {
-            const [t, v] = validate(revisionOf({ subject: 'my-config', parents: [h1, h2], snapshot: h2 }))
-            assertEq(t, 'ok')
-            assertEq((v as Revision).snapshot, h2)
+            const r = validate(revisionOf({ subject: 'my-config', parents: [h1, h2], snapshot: h2 }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].snapshot, h2)
         },
 
         // `snapshot` is required: absent is a shape error.
@@ -96,9 +96,9 @@ export const proof = {
 
         // A positive integer generation is accepted.
         positiveGenerationAccepted: () => {
-            const [t, v] = validate(revisionOf({ parents: [h1], generation: 3 }))
-            assertEq(t, 'ok')
-            assertEq((v as Revision).generation, 3)
+            const r = validate(revisionOf({ parents: [h1], generation: 3 }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].generation, 3)
         },
 
         // `https://` bridge URLs are rejected wherever a hash is required.
@@ -135,9 +135,9 @@ export const proof = {
 
     decodeText: {
         validJson: () => {
-            const [t, v] = decodeText(JSON.stringify(revisionOf({})))
-            assertEq(t, 'ok')
-            assertEq((v as Revision).subject, h1)
+            const r = decodeText(JSON.stringify(revisionOf({})))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].subject, h1)
         },
 
         // Key order carries no meaning: detection parses the JSON and
