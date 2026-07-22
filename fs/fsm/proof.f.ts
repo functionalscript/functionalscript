@@ -5,6 +5,7 @@ import { stringify } from '../media/json/module.f.ts'
 import { identity } from '../types/function/module.f.ts'
 import { toArray } from '../types/list/module.f.ts'
 import { stringToList } from '../text/utf16/module.f.ts'
+import { assertEq } from '../asserts/module.f.ts'
 
 const stringifyIdentity = stringify(identity)
 
@@ -92,7 +93,7 @@ export const proof = {
                 '["id"]'
             ]
             const expectedResult = stringifyIdentity(expectedOutput)
-            if (result !== expectedResult) { throw result }
+            assertEq(result, expectedResult)
         },
         () => {
             const dfa = buildDfa()
@@ -105,7 +106,7 @@ export const proof = {
                 '["float"]'
             ]
             const expectedResult = stringifyIdentity(expectedOutput)
-            if (result !== expectedResult) { throw result }
+            assertEq(result, expectedResult)
         },
         () => {
             const dfa = buildDfa()
@@ -117,7 +118,7 @@ export const proof = {
                 '[]'
             ]
             const expectedResult = stringifyIdentity(expectedOutput)
-            if (result !== expectedResult) { throw result }
+            assertEq(result, expectedResult)
         },
         () => {
             const dfa = buildDfa()
@@ -129,7 +130,7 @@ export const proof = {
                 '[]'
             ]
             const expectedResult = stringifyIdentity(expectedOutput)
-            if (result !== expectedResult) { throw result }
+            assertEq(result, expectedResult)
         }
     ]
 }

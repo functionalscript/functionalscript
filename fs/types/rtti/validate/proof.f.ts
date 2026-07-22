@@ -4,13 +4,14 @@ import type { Equal } from '../../ts/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 import type { Assert } from '../../../asserts/module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.ts'
 
-const assertOk = ([k]: readonly [string, unknown]) => { if (k !== 'ok') { throw 'expected ok' } }
-const assertError = ([k]: readonly [string, unknown]) => { if (k !== 'error') { throw 'expected error' } }
+const assertOk = ([k]: readonly [string, unknown]) => { assertEq(k, 'ok', 'expected ok') }
+const assertError = ([k]: readonly [string, unknown]) => { assertEq(k, 'error', 'expected error') }
 
 const assertErrorPath = (expected: readonly string[]) =>
     (r: readonly [string, unknown]) => {
-        if (r[0] !== 'error') { throw 'expected error' }
+        assert(r[0] === 'error', 'expected error')
         const e = r[1] as ValidationError
         if (e.path.length !== expected.length) { throw `path length ${e.path.length} != ${expected.length}` }
         for (let i = 0; i < expected.length; i++) {

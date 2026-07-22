@@ -1,4 +1,5 @@
 import { asBase, asNominal, type Nominal } from "./module.f.ts"
+import { assert } from '../../asserts/module.f.ts'
 
 declare const noCompareBrand: unique symbol
 
@@ -9,7 +10,7 @@ export const proof = {
         type Str = Nominal<'utf8', 'v0', bigint>
         const strA: Str = asNominal(0b1_11000010_10100010_11000010_10100011n) // "¢£"
         const strB: Str = asNominal(0b1_11000010_10100010_11000010_10100100n) // "¢¤"
-        if (strA === strB) { throw [strA, strB] }
+        assert(strA !== strB, [strA, strB])
         // // TypeScript compilation error.
         // const x1 = strA > strB
 
@@ -57,13 +58,13 @@ export const proof = {
         type UserId2 = Nominal<'UserId', '2', number>
         const userIdA: UserId = asNominal(123)
         const userIdB: UserId = asNominal(456)
-        if (userIdA === userIdB) { throw [userIdA, userIdB] }
+        assert(userIdA !== userIdB, [userIdA, userIdB])
         const to: (_: UserId) => number = asBase
         const to2: (_: UserId2) => number = asBase
         const userId2A: UserId2 = asNominal(123)
         const userId2B: UserId2 = asNominal(456)
-        if (userId2A === userId2B) { throw [userId2A, userId2B] }
-        // if (userIdA === userId2A) { throw [userIdA, userId2A] } // compilation error
+        assert(userId2A !== userId2B, [userId2A, userId2B])
+        // assert(userIdA !== userId2A, [userIdA, userId2A]) // compilation error
         const n1: number = to(userIdA)
         const n2: number = to2(userId2A)
         // const x = to(userId2A) // compilation error

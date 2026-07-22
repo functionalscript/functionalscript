@@ -9,28 +9,28 @@
  *
  * @module
  */
+import { assert, assertNotNullish } from '../../asserts/module.f.ts'
 import { utf8, utf8ToString } from '../../text/module.f.ts'
-import { maxLengthBytes, msb, u8List, u8ListToVec, type Vec } from '../bit_vec/module.f.ts'
+import { maxLengthBytes, msb, tryU8ListToVec, u8List, u8ListToVec, type Vec } from '../bit_vec/module.f.ts'
 import { compose } from '../function/module.f.ts'
 import { flat, fromArrayLike, iterable, map, type List } from '../list/module.f.ts'
 
 const u8ListToVecMsb = u8ListToVec(msb)
+const tryU8ListToVecMsb = tryU8ListToVec(msb)
 const u8ListMsb = u8List(msb)
 
 /**
  * Converts a Uint8Array into an MSB-first bit vector.
  */
 export const toVec = (input: Uint8Array): Vec => {
-    if (input.length > maxLengthBytes) {
-        throw "the array is too big"
-    }
+    assert(input.length <= maxLengthBytes, "the array is too big")
     return u8ListToVecMsb(fromArrayLike(input))
 }
 
 const m = map(fromArrayLike)
 
-export const listToVec = (input: List<Uint8Array>): Vec =>
-    u8ListToVecMsb(flat(m(input)))
+export const listToVec = (input: List<Uint8Array>): Vec => 
+    assertNotNullish(tryU8ListToVecMsb(flat(m(input))), "the array is too big")
 
 /**
  * Converts an MSB-first bit vector into a Uint8Array.

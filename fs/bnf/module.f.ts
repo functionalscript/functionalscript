@@ -10,6 +10,8 @@ import { codePointListToString, stringToCodePointList } from '../text/utf16/modu
 import { definedValues, type StringMap } from '../types/object/module.f.ts'
 import { type Array2, isArray2 } from '../types/array/module.f.ts'
 import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
+import { contains } from '../types/range/module.f.ts'
+import { assert } from '../asserts/module.f.ts'
 
 // Types
 
@@ -19,6 +21,21 @@ import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
  * For example: 0xBBBBBB_EEEEEE
  * - 0xBBBBBB is the first symbol (24 bits)
  * - 0xEEEEEE is the last symbol (24 bits)
+ *
+ * 24 bits per half, not 26 (the most `float64`'s 52-bit safe-integer mantissa
+ * could fit two of): 24 is divisible by 4, so each half is exactly 6 hex
+ * digits, and the packed pair reads as a plain `0xYYYYYY_ZZZZZZ` literal with
+ * no partial hex digit at either boundary. 26 bits would still be safe to
+ * store but wouldn't align to hex nibbles, making the packed literal harder
+ * to read and split by eye.
+ *
+ * Not 16 bits (32 bits total) either, even though a 32-bit pair would fit in
+ * a JS bitwise operator's native 32-bit range (JS `|`/`&`/`<<`/etc. operate on
+ * 32-bit ints, whereas the 48-bit pair used here, and even a 52-bit one,
+ * would need converting to `BigInt` for bitwise operations). 16 bits per
+ * symbol can't hold a full Unicode code point: the max scalar value `0x10FFFF`
+ * needs 21 bits, well past `0xFFFF`. So the bitwise-op convenience of 16 loses
+ * to the requirement of representing every Unicode code point in one half.
  */
 export type TerminalRange = number
 
@@ -31,11 +48,6 @@ export const fullRange: TerminalRange = 0x000000_FFFFFF
  * Unicode scalar value range packed into a single {@link TerminalRange}.
  */
 export const unicodeRange: TerminalRange = 0x000000_10FFFF
-
-/**
- * Maximal non-Unicode symbol encoded as a string value.
- */
-export const max: string = codePointListToString([0xFFFFFF])
 
 /**
  * Maximal Unicode code point encoded as a string value.
@@ -76,12 +88,10 @@ const offset = 24
 
 const mask = (1 << offset) - 1
 
-const isValid = (r: number): boolean => r >= 0 && r <= mask
+const isValid = contains(0, mask)
 
 export const rangeEncode = (a: number, b: number): TerminalRange => {
-    if (!isValid(a) || !isValid(b) || a > b) {
-        throw `Invalid range ${a} ${b}.`
-    }
+    assert(isValid(a) && isValid(b) && a <= b)
     return Number((BigInt(a) << BigInt(offset)) | BigInt(b))
 }
 
@@ -91,15 +101,18 @@ export const rangeEncode = (a: number, b: number): TerminalRange => {
 export const oneEncode = (a: number): TerminalRange => rangeEncode(a, a)
 
 /**
- * End-of-file marker represented as one code point beyond Unicode range.
+ * End-of-file marker: `mask`, the single largest value the 24-bit symbol
+ * space can hold (the top of `fullRange`). Deliberately outside Unicode
+ * (`unicodeRange` tops out at `0x10FFFF`) so it can never collide with a
+ * real code point.
  */
-export const eof: TerminalRange = oneEncode(0x110000)
+export const eof: TerminalRange = oneEncode(mask)
 
 /**
  * Decodes a packed range into `[start, end]` symbols.
  */
 export const rangeDecode = (r: number): Array2<number> =>
-    [Number(BigInt(r) >> BigInt(offset)), Number(BigInt(r) & BigInt(mask))]
+    [Number(BigInt(r) >> BigInt(offset)), r & mask]
 
 const mapOneEncode = map(oneEncode)
 

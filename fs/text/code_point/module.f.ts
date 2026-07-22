@@ -57,20 +57,20 @@ const maxCodePoint = 0x10_ffff as const
  * Checks whether the 16-bit word (U16) is a high surrogate.
  * Range: 0xD800 - 0xDBFF.
  */
-export const isHighSurrogate = contains([surrogateMin, lowSurrogateMin - 1])
+export const isHighSurrogate = contains(surrogateMin, lowSurrogateMin - 1)
 
 /**
  * Checks whether the 16-bit word (U16) is a low surrogate.
  * Range: 0xDC00 - 0xDFFF.
  */
-export const isLowSurrogate = contains([lowSurrogateMin, surrogateMax])
+export const isLowSurrogate = contains(lowSurrogateMin, surrogateMax)
 
 /**
  * Ranges of code points for the lower (Low) and higher (High) parts of the BMP
  * (Basic Multilingual Plane), i.e. the BMP with the surrogate block removed.
  */
-const lowBmp = contains([0x0000, surrogateMin - 1])
-const highBmp = contains([surrogateMax + 1, bmpMax])
+const lowBmp = contains(0x0000, surrogateMin - 1)
+const highBmp = contains(surrogateMax + 1, bmpMax)
 
 /**
  * Checks whether the code point is in the BMP range.
@@ -84,14 +84,14 @@ export const isBmpCodePoint = (codePoint: number): boolean =>
  * Checks whether the code point belongs to a supplementary (additional) Unicode
  * plane. Supplementary planes cover code points from 0x010000 to 0x10FFFF.
  */
-export const isSupplementaryPlane = contains([bmpMax + 1, maxCodePoint])
+export const isSupplementaryPlane = contains(bmpMax + 1, maxCodePoint)
 
 /**
  * The full assignable code-point range and the surrogate block, used to gate
  * overall validity below.
  */
-const validRange = contains([0, maxCodePoint])
-const isSurrogate = contains([surrogateMin, surrogateMax])
+const validRange = contains(0, maxCodePoint)
+const isSurrogate = contains(surrogateMin, surrogateMax)
 
 /**
  * Checks whether the code point is a valid scalar value: within the assignable
@@ -107,9 +107,9 @@ export const isValidCodePoint = (c: number): boolean =>
  * contiguous run; the whitespace block 0x0009 - 0x000D (TAB, LF, VT, FF, CR) is
  * the only control range legitimate in text.
  */
-const c0Control = contains([0x00, 0x1f])
-const delAndC1Control = contains([0x7f, 0x9f])
-const textWhitespace = contains([0x09, 0x0d])
+const c0Control = contains(0x00, 0x1f)
+const delAndC1Control = contains(0x7f, 0x9f)
+const textWhitespace = contains(0x09, 0x0d)
 
 /**
  * Checks whether the code point is a *text* code point — distinct from

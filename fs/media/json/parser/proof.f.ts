@@ -4,6 +4,7 @@ import { toArray } from '../../../types/list/module.f.ts'
 import { stringify as jsonStringify } from '../module.f.ts'
 import { sort } from '../../../types/object/module.f.ts'
 import { stringToList } from '../../../text/utf16/module.f.ts'
+import { assertEq } from '../../../asserts/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly JsonToken[]
@@ -17,61 +18,61 @@ export const proof = {
             const tokenList = tokenizeString('null')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",null]') { throw result }
+            assertEq(result, '["ok",null]')
         },
         () => {
             const tokenList = tokenizeString('true')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",true]') { throw result }
+            assertEq(result, '["ok",true]')
         },
         () => {
             const tokenList = tokenizeString('false')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",false]') { throw result }
+            assertEq(result, '["ok",false]')
         },
         () => {
             const tokenList = tokenizeString('0.1')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",0.1]') { throw result }
+            assertEq(result, '["ok",0.1]')
         },
         () => {
             const tokenList = tokenizeString('1.1e+2')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",110]') { throw result }
+            assertEq(result, '["ok",110]')
         },
         () => {
             const tokenList = tokenizeString('"abc"')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok","abc"]') { throw result }
+            assertEq(result, '["ok","abc"]')
         },
         () => {
             const tokenList = tokenizeString('[]')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",[]]') { throw result }
+            assertEq(result, '["ok",[]]')
         },
         () => {
             const tokenList = tokenizeString('[1]')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",[1]]') { throw result }
+            assertEq(result, '["ok",[1]]')
         },
         () => {
             const tokenList = tokenizeString('[[]]')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",[[]]]') { throw result }
+            assertEq(result, '["ok",[[]]]')
         },
         () => {
             const tokenList = tokenizeString('[0,[1,[2,[]]],3]')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",[0,[1,[2,[]]],3]]') { throw result }
+            assertEq(result, '["ok",[0,[1,[2,[]]],3]]')
         },
         () => {
             const tokenList = tokenizeString('{}')
@@ -103,26 +104,26 @@ export const proof = {
             const tokenList = tokenizeString('')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected end"]') { throw result }
+            assertEq(result, '["error","unexpected end"]')
         },
         // Trailing commas are not valid JSON — strict parser rejects them.
         () => {
             const tokenList = tokenizeString('[1,]')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('{"a":1,}')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('"123')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         // A literal control character inside a string is not valid JSON (RFC
         // 8259 §7) even though the shared tokenizer would otherwise accept it.
@@ -130,145 +131,145 @@ export const proof = {
             const tokenList = tokenizeString('"\t"')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('{"a":"\t"}')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('[,]')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('[1 2]')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('[1,,2]')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('[]]')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('["a"')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected end"]') { throw result }
+            assertEq(result, '["error","unexpected end"]')
         },
         () => {
             const tokenList = tokenizeString('[,1]')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('[:]')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString(']')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('{,}')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('{1:2}')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('{"1"2}')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('{"1"::2}')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('{"1":2,,"3":4')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('{}}')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('{"1":2')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected end"]') { throw result }
+            assertEq(result, '["error","unexpected end"]')
         },
         () => {
             const tokenList = tokenizeString('{,"1":2}')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('}')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('{"a":1 "b":2}')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('[{]}')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('{[}]')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('10-5')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
         () => {
             const tokenList = tokenizeString('undefined')
             const obj = parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
+            assertEq(result, '["error","unexpected token"]')
         },
     ]
 }

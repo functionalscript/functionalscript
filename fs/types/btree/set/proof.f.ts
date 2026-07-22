@@ -3,9 +3,13 @@ import type { TNode } from '../types/module.f.ts'
 import { cmp } from '../../string/module.f.ts'
 import { stringify } from '../../../media/json/module.f.ts'
 import { sort } from '../../object/module.f.ts'
+import { assertEq } from '../../../asserts/module.f.ts'
 
 const set = (node: TNode<string>) => (value: string): TNode<string> =>
     setSet(cmp(value))(() => value)(node)
+
+const replace = (node: TNode<string>) => (value: string) => (g: (v: string | null) => string): TNode<string> =>
+    setSet(cmp(value))(g)(node)
 
 const jsonStr = stringify(sort)
 
@@ -15,7 +19,7 @@ const test = [
         for (let i = 2; i <= 10; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
-        if (r !== '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]') { throw r }
+        assertEq(r, '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]')
     },
 
     () => {
@@ -23,7 +27,7 @@ const test = [
         for (let i = 2; i <= 11; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
-        if (r !== '[[["1"],"100",["121"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]') { throw r }
+        assertEq(r, '[[["1"],"100",["121"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]')
     },
 
     () => {
@@ -31,7 +35,7 @@ const test = [
         for (let i = 2; i <= 12; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
-        if (r !== '[[["1"],"100",["121","144"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]') { throw r }
+        assertEq(r, '[[["1"],"100",["121","144"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]')
     },
 
     () => {
@@ -39,7 +43,7 @@ const test = [
         for (let i = 2; i <= 13; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
-        if (r !== '[[["1"],"100",["121","144"]],"16",[["169"],"25",["36"]],"4",[["49"],"64",["81","9"]]]') { throw r }
+        assertEq(r, '[[["1"],"100",["121","144"]],"16",[["169"],"25",["36"]],"4",[["49"],"64",["81","9"]]]')
     },
 
     () => {
@@ -47,7 +51,7 @@ const test = [
         for (let i = 2; i <= 14; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
-        if (r !== '[[["1"],"100",["121","144"]],"16",[["169","196"],"25",["36"]],"4",[["49"],"64",["81","9"]]]') { throw r }
+        assertEq(r, '[[["1"],"100",["121","144"]],"16",[["169","196"],"25",["36"]],"4",[["49"],"64",["81","9"]]]')
     },
 
     () => {
@@ -55,7 +59,7 @@ const test = [
         for (let i = 2; i <= 15; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
-        if (r !== '[[["1"],"100",["121","144"]],"16",[["169"],"196",["225"],"25",["36"]],"4",[["49"],"64",["81","9"]]]') { throw r }
+        assertEq(r, '[[["1"],"100",["121","144"]],"16",[["169"],"196",["225"],"25",["36"]],"4",[["49"],"64",["81","9"]]]')
     },
 
     () => {
@@ -63,7 +67,7 @@ const test = [
         for (let i = 2; i <= 16; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
-        if (r !== '[[["1"],"100",["121","144"]],"16",[["169"],"196",["225"],"25",["256","36"]],"4",[["49"],"64",["81","9"]]]') { throw r }
+        assertEq(r, '[[["1"],"100",["121","144"]],"16",[["169"],"196",["225"],"25",["256","36"]],"4",[["49"],"64",["81","9"]]]')
     },
 
     () => {
@@ -71,7 +75,7 @@ const test = [
         for (let i = 2; i <= 17; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
-        if (r !== '[[[["1"],"100",["121","144"]],"16",[["169"],"196",["225"]]],"25",[[["256"],"289",["36"]],"4",[["49"],"64",["81","9"]]]]') { throw r }
+        assertEq(r, '[[[["1"],"100",["121","144"]],"16",[["169"],"196",["225"]]],"25",[[["256"],"289",["36"]],"4",[["49"],"64",["81","9"]]]]')
     },
 
     () => {
@@ -348,6 +352,42 @@ const test = [
             '"49",' +
             '[[["529"],"576",["625"]],"64",[["676"],"729",["784"]],"81",[["841"],"9",["900","961"]]]]]'
         ) { throw r }
+    },
+
+    // Replacing a key already stored as a branch separator (rather than in a
+    // leaf) exercises the `x.length === 3` and `x.length === 5` arms of the
+    // "replace" case, which plain sequential inserts never reach.
+    () => {
+        let _map: TNode<string> = ['1']
+        for (let i = 2; i <= 10; i++)
+            _map = set(_map)((i * i).toString())
+        // top level is a Branch3 with "4" as its separator (x.length === 3)
+        assertEq(jsonStr(_map), '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]')
+        const replaced = replace(_map)('4')(() => '4-updated')
+        assertEq(jsonStr(replaced), '[[["1","100"],"16",["25","36"]],"4-updated",[["49"],"64",["81","9"]]]')
+    },
+
+    () => {
+        let _map: TNode<string> = ['1']
+        for (let i = 2; i <= 13; i++)
+            _map = set(_map)((i * i).toString())
+        // top level is a Branch5 with "16" as its first separator (i === 1) and
+        // "4" as its second separator (i === 3), so both x.length === 5 replace
+        // arms are reachable from this one fixture.
+        assertEq(
+            jsonStr(_map),
+            '[[["1"],"100",["121","144"]],"16",[["169"],"25",["36"]],"4",[["49"],"64",["81","9"]]]',
+        )
+        const replacedFirst = replace(_map)('16')(() => '16-updated')
+        assertEq(
+            jsonStr(replacedFirst),
+            '[[["1"],"100",["121","144"]],"16-updated",[["169"],"25",["36"]],"4",[["49"],"64",["81","9"]]]',
+        )
+        const replacedSecond = replace(_map)('4')(() => '4-updated')
+        assertEq(
+            jsonStr(replacedSecond),
+            '[[["1"],"100",["121","144"]],"16",[["169"],"25",["36"]],"4-updated",[["49"],"64",["81","9"]]]',
+        )
     }
 ]
 

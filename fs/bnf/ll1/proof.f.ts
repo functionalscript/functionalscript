@@ -4,6 +4,7 @@ import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.ts'
 import { deterministic } from '../testlib.f.ts'
 import { type RuleSet, toData } from '../data/module.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet } from './module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
     dispatch: [
@@ -196,9 +197,7 @@ export const proof = {
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
                 const mr = m('', toArray(stringToCodePointList(s)))
-                if (isSuccess(mr) !== success) {
-                    throw mr
-                }
+                assertEq(isSuccess(mr), success, mr)
             }
 
             expect('a', true)
@@ -223,9 +222,7 @@ export const proof = {
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
                 const mr = m('value', toArray(stringToCodePointList(s)))
-                if (isSuccess(mr) !== success) {
-                    throw mr
-                }
+                assertEq(isSuccess(mr), success, mr)
             }
 
             expect('', false)
@@ -240,9 +237,7 @@ export const proof = {
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
                 const mr = m('', toArray(stringToCodePointList(s)))
-                if (isSuccess(mr) !== success) {
-                    throw mr
-                }
+                assertEq(isSuccess(mr), success, mr)
             }
 
             expect('   true   ', true)
@@ -311,5 +306,29 @@ export const proof = {
             const conflictRule = { 'a': range('AA'), 'b': range('AA') }
             dispatchMap(toData(conflictRule)[0])
         }
-    }
+    },
+    // Regression: `emptyTagMap` must stay correct for cyclic rule references.
+    // A naive single-pass, memoized derivation that marks a rule nullable as
+    // a placeholder *before* recursing into its own children (to break the
+    // cycle) over-approximates nullability here, and made `dispatchMap`
+    // falsely report a first/first conflict for this grammar even though it
+    // has none — `value` only ever nests inside brackets or is the literal
+    // `a`, and `ws` is genuinely optional on both sides of it.
+    cyclicNullability: () => {
+        const ws = option(' ')
+        const value = () => ({ array: ['[', value, ']'], leaf: 'a' })
+        const m = parser([ws, value, ws]) // must not throw 'can not merge'
+
+        const expect = (s: string, success: boolean) => {
+            const mr = m('', toArray(stringToCodePointList(s)))
+            assertEq(mr[1] && mr[2]?.length === 0, success, mr)
+        }
+
+        expect('a', true)
+        expect(' a ', true)
+        expect('[a]', true)
+        expect('[[a]]', true)
+        expect(' [[a]] ', true)
+        expect('b', false)
+    },
 }

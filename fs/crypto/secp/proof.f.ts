@@ -1,4 +1,4 @@
-import { assert } from '../../asserts/module.f.ts'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.ts'
 import { prime_field } from '../../types/prime_field/module.f.ts'
 import { curve, secp256k1, secp192r1, secp256r1, eq, type Point, secp384r1, secp521r1, type Curve, type Init } from './module.f.ts'
 
@@ -45,11 +45,9 @@ const poker = (param: Curve) => () => {
     //
     let m = 0n
     for (const p of dN) {
-        if (p === null) {
-            throw 'null'
-        }
+        assert(p !== null, 'null')
         const x = p[0] & 0x3Fn
-        if (x !== m) { throw [p[0], x, m] }
+        assertEq(x, m, [p[0], x, m])
         ++m
     }
 }
@@ -74,20 +72,19 @@ export const proof = {
         = c => {
             const { mul, neg, pf: { abs }, y: yf, nf: { p: n }, g } = c
             const point_check = (p: Point): void => {
-                if (p === null) { throw 'p === null' }
+                assert(p !== null, 'p === null')
                 const [x, y] = p
-                const ye = yf(x)
-                if (ye === null) { throw 'ye === null' }
-                if (abs(ye) !== abs(y)) { throw 'ye' }
+                const ye = assertNotNullish(yf(x), 'ye === null')
+                assertEq(abs(ye), abs(y), 'ye')
             }
             point_check(g)
             point_check(neg(g))
             const test_mul = (p: Point): void => {
-                if (mul(0n)(p) !== null) { throw 'O' }
-                if (mul(1n)(p) !== p) { throw 'p' }
-                if (mul(n)(p) !== null) { throw 'n' }
+                assertEq(mul(0n)(p), null, 'O')
+                assertEq(mul(1n)(p), p, 'p')
+                assertEq(mul(n)(p), null, 'n')
                 const pn = neg(p)
-                if (!eq(mul(n - 1n)(p))(pn)) { throw 'n - 1' }
+                assert(eq(mul(n - 1n)(p))(pn), 'n - 1')
                 const f
                 : (s: bigint) => void
                 = s => {
@@ -95,7 +92,7 @@ export const proof = {
                     point_check(r)
                     const rn = mul(s)(pn)
                     point_check(rn)
-                    if (!eq(r)(neg(rn))) { throw 'r != -rn' }
+                    assert(eq(r)(neg(rn)), 'r != -rn')
                 }
                 f(2n)
                 f(3n)
@@ -124,7 +121,7 @@ export const proof = {
     // Cover null (point at infinity) branches in neg, add, and eq.
     nullPointOps: () => {
         const c = secp256k1
-        assert(c.neg(null) === null)
+        assertEq(c.neg(null), null)
         assert(eq(null)(null))
         assert(!eq(null)(c.g))
         assert(!eq(c.g)(null))

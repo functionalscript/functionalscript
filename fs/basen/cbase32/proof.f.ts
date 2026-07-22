@@ -1,20 +1,21 @@
 import { empty, vec, type Vec } from "../../types/bit_vec/module.f.ts"
 import { cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from "./module.f.ts"
+import { assertEq } from '../../asserts/module.f.ts'
 
 const check5x = (s: string, v: Vec) => {
     const sr = vec5xToCBase32(v)
-    if (sr !== s) { throw [sr, s] }
+    assertEq(sr, s, [sr, s])
     const vr = cBase32ToVec5x(s)
-    if (vr !== v) { throw [vr, v] }
+    assertEq(vr, v, [vr, v])
     //
     check(`${s}g`, v)
 }
 
 const check = (s: string, v: Vec) => {
     const sr = vecToCBase32(v)
-    if (sr !== s) { throw [sr, s] }
+    assertEq(sr, s, [sr, s])
     const vr = cBase32ToVec(s)
-    if (vr !== v) { throw [vr, v] }
+    assertEq(vr, v, [vr, v])
 }
 
 export const proof = {
@@ -45,20 +46,20 @@ export const proof = {
     unalignedBits: () => {
         const v = vec(1n)(1n)
         const cr = vec5xToCBase32(v)
-        if (cr !== "g") { throw ['g', cr] }
+        assertEq(cr, "g", ['g', cr])
     },
     caseInsensitive: () => {
-        if (cBase32ToVec5x("A") !== cBase32ToVec5x("a")) { throw 'case-insensitive expected' }
-        if (cBase32ToVec5x("I") !== cBase32ToVec5x("1")) { throw 'i maps to 1' }
-        if (cBase32ToVec5x("l") !== cBase32ToVec5x("1")) { throw 'l maps to 1' }
-        if (cBase32ToVec5x("o") !== cBase32ToVec5x("0")) { throw 'o maps to 0' }
-        if (cBase32ToVec5x("u") !== null) { throw 'should error on invalid character' }
+        assertEq(cBase32ToVec5x("A"), cBase32ToVec5x("a"), 'case-insensitive expected')
+        assertEq(cBase32ToVec5x("I"), cBase32ToVec5x("1"), 'i maps to 1')
+        assertEq(cBase32ToVec5x("l"), cBase32ToVec5x("1"), 'l maps to 1')
+        assertEq(cBase32ToVec5x("o"), cBase32ToVec5x("0"), 'o maps to 0')
+        assertEq(cBase32ToVec5x("u"), null, 'should error on invalid character')
     },
     unterminated: () => {
         // No sentinel `1` bit → invalid; must return null, not loop forever.
-        if (cBase32ToVec("") !== null) { throw 'empty must be null' }
-        if (cBase32ToVec("0") !== null) { throw 'single zero symbol must be null' }
-        if (cBase32ToVec("00") !== null) { throw 'all-zero symbols must be null' }
-        if (cBase32ToVec("o") !== null) { throw 'o (maps to 0) must be null' }
+        assertEq(cBase32ToVec(""), null, 'empty must be null')
+        assertEq(cBase32ToVec("0"), null, 'single zero symbol must be null')
+        assertEq(cBase32ToVec("00"), null, 'all-zero symbols must be null')
+        assertEq(cBase32ToVec("o"), null, 'o (maps to 0) must be null')
     }
 }

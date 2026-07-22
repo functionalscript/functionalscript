@@ -31,7 +31,7 @@ export const functionalscript = '0.37.0' as const
 export const bun = '1.3.14'
 
 // https://deno.com/
-export const deno = '2.9.2'
+export const deno = '2.9.3'
 
 // https://www.npmjs.com/package/playwright
 export const playwright = '1.61.1'
@@ -44,7 +44,7 @@ export const node = {
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases
-export const wasmtime = '46.0.1'
+export const wasmtime = '47.0.1'
 
 // https://github.com/wasmerio/wasmer/releases
 export const wasmer = '7.2.0'
@@ -57,7 +57,7 @@ export const actions = {
     // https://github.com/marketplace/actions/checkout
     'actions/checkout': 'v7',
     // https://github.com/marketplace/actions/setup-node-js-environment
-    'actions/setup-node': 'v6.4.0',
+    'actions/setup-node': 'v7.0.0',
     // https://github.com/marketplace/actions/cache
     'actions/cache': 'v6.1.0',
     // https://github.com/marketplace/actions/setup-deno
@@ -69,5 +69,5 @@ export const actions = {
     // https://github.com/wasmerio/setup-wasmer
     'wasmerio/setup-wasmer': 'v3.1',
     // https://rust-lang.org/ - value is Rust version, not action version
-    'dtolnay/rust-toolchain': '1.97.0',
+    'dtolnay/rust-toolchain': '1.97.1',
 } as const

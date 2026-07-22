@@ -9,6 +9,7 @@ import {
 import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 
 const stringify = (a: readonly Unknown[]) =>
     jsonStringify(sort)(a)
@@ -17,100 +18,100 @@ export const proof = {
     toCodePointList: [
         () => {
             const result = stringify(toArray(toCodePointList([-1, 65536])))
-            if (result !== '[4294967295,4294967295]') { throw result }
+            assertEq(result, '[4294967295,4294967295]')
         },
         () => {
             const result = stringify(toArray(toCodePointList([0, 36, 8364, 55295, 57344, 65535])))
-            if (result !== '[0,36,8364,55295,57344,65535]') { throw result }
+            assertEq(result, '[0,36,8364,55295,57344,65535]')
         },
         () => {
             const result = stringify(toArray(toCodePointList([56320, 57343])))
-            if (result !== '[-2147427328,-2147426305]') { throw result }
+            assertEq(result, '[-2147427328,-2147426305]')
         },
         () => {
             const result = stringify(toArray(toCodePointList([55296, 56320, 55297, 56375, 55378, 57186, 56319, 57343])))
-            if (result !== '[65536,66615,150370,1114111]') { throw result }
+            assertEq(result, '[65536,66615,150370,1114111]')
         },
         () => {
             const result = stringify(toArray(toCodePointList([55296, 55296])))
-            if (result !== '[-2147428352,-2147428352]') { throw result }
+            assertEq(result, '[-2147428352,-2147428352]')
         },
         () => {
             const result = stringify(toArray(toCodePointList([55296, 0])))
-            if (result !== '[-2147428352,0]') { throw result }
+            assertEq(result, '[-2147428352,0]')
         },
         () => {
             const result = stringify(toArray(toCodePointList([56320])))
-            if (result !== '[-2147427328]') { throw result }
+            assertEq(result, '[-2147427328]')
         },
         () => {
             const result = stringify(toArray(toCodePointList([56320, 0])))
-            if (result !== '[-2147427328,0]') { throw result }
+            assertEq(result, '[-2147427328,0]')
         }
     ],
     fromCodePointList: [
         () => {
             const result = stringify(toArray(fromCodePointList([0])))
-            if (result !== '[0]') { throw result }
+            assertEq(result, '[0]')
         },
         () => {
             const result = stringify(toArray(fromCodePointList([0x24])))
-            if (result !== '[36]') { throw result }
+            assertEq(result, '[36]')
         },
         () => {
             const result = stringify(toArray(fromCodePointList([0x20AC])))
-            if (result !== '[8364]') { throw result }
+            assertEq(result, '[8364]')
         },
         () => {
             const result = stringify(toArray(fromCodePointList([0xd7ff])))
-            if (result !== '[55295]') { throw result }
+            assertEq(result, '[55295]')
         },
         () => {
             const result = stringify(toArray(fromCodePointList([0xe000])))
-            if (result !== '[57344]') { throw result }
+            assertEq(result, '[57344]')
         },
         () => {
             const result = stringify(toArray(fromCodePointList([0xffff])))
-            if (result !== '[65535]') { throw result }
+            assertEq(result, '[65535]')
         },
         () => {
             const result = stringify(toArray(fromCodePointList([0x10000])))
-            if (result !== '[55296,56320]') { throw result }
+            assertEq(result, '[55296,56320]')
         },
         () => {
             const result = stringify(toArray(fromCodePointList([0x10437])))
-            if (result !== '[55297,56375]') { throw result }
+            assertEq(result, '[55297,56375]')
         },
         () => {
             const result = stringify(toArray(fromCodePointList([0x24B62])))
-            if (result !== '[55378,57186]') { throw result }
+            assertEq(result, '[55378,57186]')
         },
         () => {
             const result = stringify(toArray(fromCodePointList([0x10ffff])))
-            if (result !== '[56319,57343]') { throw result }
+            assertEq(result, '[56319,57343]')
         },
         () => {
             const result = stringify(toArray(fromCodePointList([-1, 0xd800, 0xdfff, 0x110000])))
-            if (result !== '[65535,55296,57343,0]') { throw result }
+            assertEq(result, '[65535,55296,57343,0]')
         }
     ],
     string: [
         () => {
             const utf16List = stringToList("Hello world!😂🚜🚲")
             const result = listToString(utf16List)
-            if (result !== "Hello world!😂🚜🚲") { throw result }
+            assertEq(result, "Hello world!😂🚜🚲")
         },
         () => {
             const cpList = stringToCodePointList("Hello world!😂🚜🚲")
             const result = codePointListToString(cpList)
-            if (result !== "Hello world!😂🚜🚲") { throw result }
+            assertEq(result, "Hello world!😂🚜🚲")
         },
         () => {
             const a = stringToList("Hello world!😂🚜🚲")
             const b = toCodePointList(a)
             const c = fromCodePointList(b)
             const result = listToString(c)
-            if (result !== "Hello world!😂🚜🚲") { throw result }
+            assertEq(result, "Hello world!😂🚜🚲")
         }
     ],
     stringToList: [

@@ -3,7 +3,7 @@ import { functionalscript } from './config/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
-import { assert } from '../asserts/module.f.ts'
+import { assert, assertEq } from '../asserts/module.f.ts'
 import type { State } from '../effects/node/virtual/module.f.ts'
 import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 import { parse as jsonParse } from '../media/json/module.f.ts'
@@ -15,6 +15,9 @@ const hasRun = (cmd: string) => (gha: GitHubAction): boolean =>
 
 const hasRunInJob = (jobId: string, cmd: string) => (gha: GitHubAction): boolean =>
     gha.jobs[jobId]?.steps.some(step => step.run?.includes(cmd)) ?? false
+
+const hasExactRunInJob = (jobId: string, cmd: string) => (gha: GitHubAction): boolean =>
+    gha.jobs[jobId]?.steps.some(step => step.run === cmd) ?? false
 
 const makeState = (rust: boolean, packageJson?: string) => ({
     ...emptyState,
@@ -31,28 +34,28 @@ const workflow = (state: State): GitHubAction => {
     const workflows = (dotGithub as Dir)['workflows']
     assert(typeof workflows === 'object' && !Array.isArray(workflows), workflows)
     const file = (workflows as Dir)['ci.yml']
-    if (!Array.isArray(file) || file.length === 0) { throw file }
+    assert(!(!Array.isArray(file) || file.length === 0), file)
     return unwrap(parseGitHubAction(jsonParse(utf8ToString(file[0]))))
 }
 
 const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): GitHubAction => {
     const [state, result] = virtual(makeState(rust))(ci({ nodeExtra }))
-    assert(result === 0, result)
+    assertEq(result, 0)
     return workflow(state)
 }
 
 const runDefault = (packageJson?: string): GitHubAction => {
     const [state, result] = virtual(makeState(false, packageJson))(main())
-    assert(result === 0, result)
+    assertEq(result, 0)
     return workflow(state)
 }
 
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assert(Object.keys(gha.jobs).length === 13, 'expected 13 CI jobs')
-        assert(gha.permissions.contents === 'read', 'expected read-only contents permission')
-        assert(Object.keys(gha.permissions).length === 1, 'expected least-privilege workflow permissions')
+        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
+        assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
+        assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu --release')(gha), 'expected Ubuntu Intel i686 release check')
         assert(hasRunInJob('ubuntu-intel', 'cargo clippy --target i686-unknown-linux-gnu -- -D warnings')(gha), 'expected Ubuntu Intel i686 lint')
@@ -63,6 +66,12 @@ export const proof = {
         assert(hasRunInJob('wasm', 'cargo test --target wasm32-wasip1 --release')(gha), 'expected target-specific WASM release check')
         assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1 -- -D warnings')(gha), 'expected target-specific WASM Rust lint')
         assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1 --release -- -D warnings')(gha), 'expected target-specific WASM release lint')
+        // Wasmtime 47 removed wasi-threads: the threads target must run under
+        // Wasmer only, while Clippy (no runner) stays.
+        assert(hasRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml')(gha), 'expected Wasmer WASM threads check')
+        assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1-threads -- -D warnings')(gha), 'expected WASM threads lint')
+        assert(!hasExactRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads')(gha), 'unexpected Wasmtime WASM threads check')
+        assert(!hasExactRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads --release')(gha), 'unexpected Wasmtime WASM threads release check')
         assert(hasRunInJob('node22', 'fjs t')(gha), 'expected Node 22 FunctionalScript smoke test')
         assert(hasRunInJob('node26', 'npm pack')(gha), 'expected Node 26 package check')
         assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')
