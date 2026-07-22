@@ -35,12 +35,16 @@ Three options, not mutually exclusive:
    staleness window, but wastes work when nothing changed and still leaves a
    window where a client can observe stale data right after an external
    write.
-2. **Explicit `refresh` operation.** Add a `refresh` function to the `Evo<O>`
-   API (and an `evo_refresh` MCP tool) that re-scans the store and merges
-   findings into the existing cache, callable on demand. Puts the client in
-   control of the staleness/cost tradeoff, but requires the client to know
-   to call it — an agent that doesn't know external writes are happening has
-   no reason to.
+2. **Explicit refresh operation.** Add a `refresh` function to the `Evo<O>`
+   API that re-scans the store and merges findings into the existing cache,
+   callable on demand. Expose it through a single, cache-agnostic MCP tool
+   (e.g. `refresh` or `cache_refresh`) rather than an `evo_refresh` — more
+   in-memory caches beyond Evo's are planned, and a one-tool-per-cache naming
+   scheme doesn't scale; a generic tool that refreshes every cache the
+   running server currently maintains fits that future instead. Puts the
+   client in control of the staleness/cost tradeoff, but requires the client
+   to know to call it — an agent that doesn't know external writes are
+   happening has no reason to.
 3. **Refresh-on-read for `cas_list`/`evo_list`.** Have the list-shaped
    operations refresh (or at least check for new hashes) before answering,
    since those are exactly the calls that enumerate the whole store and are
@@ -57,7 +61,11 @@ not already known.
 ### Tasks
 
 - [ ] Decide which option(s) to implement (a periodic timer, an explicit
-      `refresh`/`evo_refresh`, refresh-on-`list`, or some combination).
+      generic `refresh` tool, refresh-on-`list`, or some combination).
+- [ ] If a `refresh` tool is chosen, design it as a single, cache-agnostic
+      entry point that refreshes every in-memory cache the running server
+      currently maintains, not one tool per cache (more caches beyond Evo's
+      are planned).
 - [ ] Design how "hashes not already known" is computed efficiently — a full
       `cas.list()` diff is O(store size) per refresh; is that acceptable, or
       does this need the store to expose something cheaper (e.g. a
