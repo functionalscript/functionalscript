@@ -44,15 +44,24 @@ type AddRevision = {
 }
 ```
 
-`snapshot`, when omitted, follows the `vnd.fjs.revision` format's own
-inheritance/fallback rules (zero parents fall back to `subject` as the
-snapshot reference, one parent inherits its snapshot, more than one parent
-without an explicit `snapshot` is invalid) — this module does not re-derive
-that. `subject`, when omitted, is inherited from the single parent's own
-`subject` field (a revision has no format-level subject-inheritance rule the
-way it does for `snapshot`, so `addRevision` resolves it explicitly by
-reading the parent); it cannot be resolved with zero or more than one parent
-and no explicit `subject`.
+The stored `vnd.fjs.revision` blob requires an explicit `snapshot` and
+`generation` (see [`fs/media/revision`](../../media/revision/)), so `add`
+resolves both at the write boundary — the inference the format used to carry,
+run once here with the parents already fetched:
+
+- `snapshot`, when omitted, is resolved from the parents: zero parents fall
+  back to `subject` as the snapshot reference (which must then be a hash), one
+  parent inherits its stored `snapshot`, and more than one parent without an
+  explicit `snapshot` cannot be resolved (an explicit `snapshot` is required
+  for a merge). An explicit input `snapshot` is used as-is.
+- `generation` is computed, never taken from input: `0` for a root, else
+  `1 + max(parents' generations)`. Everything `add` writes follows the formula
+  by construction.
+- `subject`, when omitted, is inherited from the single parent's own `subject`
+  field (a revision has no format-level subject-inheritance rule the way it
+  does for `snapshot`, so `addRevision` resolves it explicitly by reading the
+  parent); it cannot be resolved with zero or more than one parent and no
+  explicit `subject`.
 
 ## Head resolution
 
@@ -67,9 +76,9 @@ revision, incrementally.
 
 ## Failure reporting
 
-Every `add` failure — an unresolvable `subject`, a revision that fails the
-`vnd.fjs.revision` snapshot-reference semantics, a blob too large to encode,
-or a store write failure — comes back as `error(message)`
+Every `add` failure — an unresolvable `subject` or `snapshot`, a revision that
+fails the `vnd.fjs.revision` hash / generation semantics, a blob too large to
+encode, or a store write failure — comes back as `error(message)`
 (`fs/types/result`), never a `throw`, so a transport (e.g. the MCP adapter,
 [`fs/cas/evo/mcp`](mcp/)) can surface it to the caller directly.
 

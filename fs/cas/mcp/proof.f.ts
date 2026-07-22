@@ -197,9 +197,9 @@ const textOf = (resp: unknown): string => (item0(resp) as { readonly text: strin
 // A plain text sample for text add→get round-trips.
 const textSample = 'hello, world!'
 
-// A valid `vnd.fjs.revision` blob: zero parents, so `subject` must be (and is,
-// per `fs/media/revision/proof.f.ts`) a valid cbase32 hash on its own.
-const revisionSample = `{"dialect":"${revisionDialect}","subject":"8","parents":[]}`
+// A valid `vnd.fjs.revision` blob: every required field present, including the
+// explicit `snapshot` and `generation` the format now mandates.
+const revisionSample = `{"dialect":"${revisionDialect}","subject":"8","parents":[],"snapshot":"8","generation":0}`
 
 // A base64-encoded binary payload for binary add→get round-trips.
 const binarySample = base64Encode(vec8(0x2An)) as string

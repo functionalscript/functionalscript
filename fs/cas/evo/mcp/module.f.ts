@@ -76,7 +76,7 @@ export const evoToolRegistry =
     ),
     toolEntry(
         'evo_add',
-        'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot` follows the `vnd.fjs.revision` inheritance rules when omitted (see `fs/media/revision`).',
+        'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot`, when omitted, is resolved from the parents (zero parents → `subject`, one parent → the parent\'s snapshot; a merge requires an explicit `snapshot`) and written explicitly. `generation` is computed by the server.',
         evoAddArgs,
         (input): Effect<O | MemOp, ToolsCallResult> =>
             e.add(input).step(result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(result[1]))),
