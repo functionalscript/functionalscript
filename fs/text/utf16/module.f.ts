@@ -148,7 +148,7 @@ export const fromCodePointList: (input: List<CodePoint>) => Thunk<U16>
  * const edgeCaseHigh = u16(0xFFFF)  // true: Maximum valid value for UTF-16
  * ```
  */
-const u16: (i: U16) => boolean = contains([0x0000, 0xFFFF])
+const u16: (i: U16) => boolean = contains(0x0000, 0xFFFF)
 
 
 /**
