@@ -29,6 +29,10 @@ type Evo<O> = {
   parent — see below), assembles and checks a `vnd.fjs.revision` blob, writes
   it to the store, and folds it into the cache in one step.
 
+There is no way yet to fetch a subject's full history (every revision behind
+its head(s), not just the head(s) themselves) — see
+[`todo/subject-history.md`](todo/subject-history.md).
+
 `AddRevision`:
 
 ```ts
