@@ -29,7 +29,7 @@ export const revisionSchema = {
 |--------------|-------------------------|------------------------------------------------------------------------|
 | `dialect`    | `'vnd.fjs.revision'`    | Format tag — see [Media type](#media-type-and-dialect-tag) below.      |
 | `subject`    | `string`                | Identity of the mutable object this revision revises.                  |
-| `parents`    | `hash[]`                | Parent revision BLOBs. `[]` means this is the first revision.          |
+| `parents`    | `hash[]`                | Parent revision BLOBs, mainline (first-parent) first — see below. `[]` means this is the first revision. |
 | `snapshot`   | `hash` (optional)       | Complete materialized content of this revision.                        |
 | `generation` | `number` (optional)     | Cached generation number — `0` for the first revision, else `1 + max(parent.generation)`. |
 | `archived`   | `true` (optional)       | Marks the mutable object as archived/inactive.                         |
@@ -121,6 +121,16 @@ creates a new revision listing the conflicting revisions as `parents`. The
 format only records conflict resolution; it never resolves conflicts itself,
 and CAS synchronization never needs to care — a subject can legitimately have
 many heads in a store at any time.
+
+Parent *order* is significant: `parents[0]` is the **mainline** parent — the
+branch this revision landed on, in the sense of Git's first-parent link. A
+merge tool merging branch B into branch A lists A's head first, then B's.
+Walking only first parents from a head therefore yields that head's mainline
+history, with every later `parents` entry marking a branch that merged in —
+this is the walk the planned history API performs
+([`fs/cas/evo/todo/subject-history.md`](../../cas/evo/todo/subject-history.md)).
+Reordering `parents` changes the meaning of a revision (which branch the
+merge landed on), not just its serialization.
 
 `generation` is a cache, not a source of truth: it must always be
 re-derivable from `parents`, and a consumer must not trust a `generation` it
