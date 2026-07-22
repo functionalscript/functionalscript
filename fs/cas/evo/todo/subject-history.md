@@ -31,14 +31,14 @@ The history operation walks exactly that link:
 
 ```ts
 /** First-parent chain starting at (and including) `start`. */
-readonly history: (start: Hash, limit?: number) => Effect<O | MemOp, Result<readonly Hash[], string>>
+readonly history: (start: Hash) => Effect<O | MemOp, Result<readonly Hash[], string>>
 ```
 
 - **Return shape is just `readonly Hash[]`** — the same primitive
   `head(subject)` already returns. Element 0 is `start`; each next element
   is the previous element's `parents[0]`; the array ends at a root
-  (`parents: []`) or at `limit` elements. Adjacency *is* the mainline edge;
-  there is no other structure in the value.
+  (`parents: []`). Adjacency *is* the mainline edge; there is no other
+  structure in the value.
 - **Merges are discovered by the client, not encoded here.** A v1 item is a
   bare hash. A client that wants merge markers (or the merged-in branches)
   fetches the revision via the typed companion read
@@ -50,15 +50,15 @@ readonly history: (start: Hash, limit?: number) => Effect<O | MemOp, Result<read
 - **Multiple concurrent heads need no special encoding.** `history` takes a
   starting *revision*, not a subject: the client calls `head(subject)`
   (`readonly Hash[]`) and then `history(h)` per head. One operation covers
-  heads, merged-in branches, and pagination resumption alike.
-- **Pagination** is the optional `limit`, and a supplied `limit` must be
-  at least 2 — rejected as an error, not clamped, when smaller. The last
-  element of a page doubles as the resume anchor, so every page must carry
-  at least one element *beyond* it; with `limit = 1` a caller could never
-  advance (`history(h, 1)` returns `[h]`, and resuming from `h` returns
-  `[h]` again, forever). To continue, re-call `history` with the last
-  returned hash — the first element of the continuation repeats it, which
-  the client drops. No cursor machinery.
+  heads and merged-in branches alike.
+- **No pagination in v1** — `history` returns the full chain to the root.
+  A `limit` parameter can be added compatibly in a future release (an
+  optional parameter is a non-breaking addition). When it is, the designed
+  semantics are: the last element of a page doubles as the resume anchor
+  (re-call `history` with it and drop the repeated first element), so a
+  supplied `limit` must be at least 2 — rejected, not clamped, when
+  smaller, since with `limit = 1` a caller could never advance
+  (`history(h, 1)` would return `[h]` forever).
 - **Convergence rule.** Expanding a merged-in branch eventually rejoins
   ancestry the client already holds (at the common ancestor, then all the
   way to the root). The client-side rule is: stop at the first hash you
@@ -96,9 +96,8 @@ readonly history: (start: Hash, limit?: number) => Effect<O | MemOp, Result<read
   the in-memory cache like everything else in `Evo<O>`.
 - **MCP surface.** A new `evo_history` tool (`fs/cas/evo/mcp/module.f.ts`)
   alongside `evo_list`/`evo_head`/`evo_add`, taking `start` (hash) and
-  optional `limit`, returning the hash array. Evo-specific, so a dedicated
-  tool name is fine (unlike the generic refresh tool in
-  `cache-staleness.md`).
+  returning the hash array. Evo-specific, so a dedicated tool name is fine
+  (unlike the generic refresh tool in `cache-staleness.md`).
 
 ### Discarded alternatives
 
@@ -130,17 +129,17 @@ the rare consumer, still reachable in O(branches) calls.
 
 - [x] Pick a history representation and write out its exact shape and
       reconstruction algorithm (this document).
-- [x] Decide the open questions (archived revisions: included; size: `limit`
-      + resume-by-last-hash; staleness: inherited from
+- [x] Decide the open questions (archived revisions: included; size: full
+      chain in v1, `limit` deferred to a future release with
+      resume-by-last-hash semantics; staleness: inherited from
       `cache-staleness.md`; MCP tool: `evo_history`).
 - [x] Document the `parents[0]`-is-mainline commitment in
       `fs/media/revision/README.md`.
 - [ ] Extend the Evo cache with the per-revision `hash → ordered parents`
       map (immutable, never stale).
-- [ ] Implement `history(start, limit?)` on `Evo<O>` with proof coverage,
+- [ ] Implement `history(start)` on `Evo<O>` with proof coverage,
       including a subject with a merge (multiple parents), a subject with
-      multiple concurrent heads, `limit`/resume, rejection of `limit < 2`,
-      and an unknown or non-revision `start`.
+      multiple concurrent heads, and an unknown or non-revision `start`.
 - [ ] Expose it through MCP (`fs/cas/evo/mcp`) and document it in
       `fs/cas/evo/README.md` / `fs/cas/evo/mcp/README.md`.
 
