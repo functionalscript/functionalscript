@@ -85,8 +85,9 @@ export type RevisionData = {
   - `snapshot` — input: absent is a write-boundary convenience, resolved
     at `add` (zero parents → `subject` as the reference, one parent → the
     parent's snapshot) and written explicitly; output: **always present**
-    — the canonical stored snapshot. The required-fields change
-    ([`fs/media/revision/todo/required-fields.md`](../../../media/revision/todo/required-fields.md))
+    — the canonical stored snapshot. The required-fields change (the
+    `required-fields` issue, now landed; see
+    [`fs/media/revision/README.md`](../../../media/revision/README.md))
     makes every stored blob carry it, so clients never handle
     inheritance.
   - `generation` — input: **ignored**; the server computes the
@@ -103,9 +104,10 @@ export type RevisionData = {
 
 Decided together with this tool (the format is still being designed and no
 stored records exist yet, so this is free). The format-level change itself
-is tracked — with P1 priority, together with requiring `snapshot` — in
-[`fs/media/revision/todo/required-fields.md`](../../../media/revision/todo/required-fields.md);
-what follows is the semantics and the evo layer's part:
+landed with P1 priority, together with requiring `snapshot` (the
+`required-fields` issue; see
+[`fs/media/revision/README.md`](../../../media/revision/README.md)); what
+follows is the semantics and the evo layer's part:
 
 - **The format requires `generation`**: `revisionSchema`
   (`fs/media/revision/module.f.ts`) changes `option(number)` → `number`,
@@ -187,11 +189,9 @@ recorded so the decision is made deliberately, not by accident.
 ### Tasks
 
 - [x] Format change — `generation` (and `snapshot`) required, schema +
-      `validate` + README: tracked in
-      [`fs/media/revision/todo/required-fields.md`](../../../media/revision/todo/required-fields.md)
-      (P1). The `add` task below must land in the same change — a schema
-      that requires fields `add` doesn't yet write rejects its own
-      writer's output.
+      `validate` + README: landed via the `required-fields` issue (P1). The
+      `add` task below must land in the same change — a schema that requires
+      fields `add` doesn't yet write rejects its own writer's output.
 - [ ] Rename `AddRevision` → `RevisionData` (adding the optional
       `generation` field), update the `fs/cas/evo/mcp` doc table.
 - [~] Compute and write `generation` in `add` (base case `0`, else
@@ -221,8 +221,8 @@ recorded so the decision is made deliberately, not by accident.
 
 - [`todo/subject-history.md`](subject-history.md) — the mainline walk this
   tool is the node-detail companion to.
-- [`fs/media/revision/todo/required-fields.md`](../../../media/revision/todo/required-fields.md)
-  — the P1 format change (require `generation` and `snapshot`) this
-  design's `generation` semantics land through.
-- `fs/media/revision/README.md` — the `vnd.fjs.revision` format whose
-  `generation` field this makes required.
+- `required-fields` issue (P1, now landed) — the format change (require
+  `generation` and `snapshot`) this design's `generation` semantics land
+  through; its decisions are recorded in
+  [`fs/media/revision/README.md`](../../../media/revision/README.md), the
+  `vnd.fjs.revision` format whose `generation` field this makes required.
