@@ -99,7 +99,7 @@ export type RevisionData = {
 
 Decided together with this tool (the format is still being designed and no
 stored records exist yet, so this is free). The format-level change itself
-is tracked — with P0 priority, together with requiring `snapshot` — in
+is tracked — with P1 priority, together with requiring `snapshot` — in
 [`fs/media/revision/todo/required-fields.md`](../../../media/revision/todo/required-fields.md);
 what follows is the semantics and the evo layer's part:
 
@@ -156,10 +156,18 @@ recorded so the decision is made deliberately, not by accident.
 ### Implementation notes
 
 - **Errors.** Three distinct failures, each a proper message rather than
-  `null`: hash not present in the store; blob present but not a valid
-  revision (wrong dialect, failed schema, failed reference check); decode
-  failure. `resolveParent` (`fs/cas/evo/module.f.ts`) already implements
-  the shape of this check for `add`'s parents.
+  `null`: `hash` is not a cbase32 string; the hash is not present in the
+  store; the blob is present but not a valid revision (bad UTF-8/JSON,
+  wrong dialect, failed schema or reference check). `decodeRevisionBlob`
+  (`fs/cas/evo/module.f.ts`) cannot serve this contract as-is — it
+  deliberately collapses the read error and every decode failure into one
+  `null`, because it exists for scanning stores containing arbitrary
+  content, and `resolveParent` built on it likewise folds "missing" and
+  "not a revision" into a single message. `revision(hash)` therefore
+  performs the two stages itself — the read (a miss → "not present")
+  separately from the decode (a failure → "not a revision") — the same
+  split `decodeRevisionBlob` composes internally, just without discarding
+  which stage failed.
 - **Serving.** v1 reads through `decodeRevisionBlob` like `resolveParent`
   does. The per-revision cache planned in
   [`todo/subject-history.md`](subject-history.md) (`hash → ordered
@@ -174,7 +182,7 @@ recorded so the decision is made deliberately, not by accident.
 - [ ] Format change — `generation` (and `snapshot`) required, schema +
       `validate` + README: tracked in
       [`fs/media/revision/todo/required-fields.md`](../../../media/revision/todo/required-fields.md)
-      (P0). The `add` task below must land in the same change — a schema
+      (P1). The `add` task below must land in the same change — a schema
       that requires fields `add` doesn't yet write rejects its own
       writer's output.
 - [ ] Rename `AddRevision` → `RevisionData` (adding the optional
@@ -201,7 +209,7 @@ recorded so the decision is made deliberately, not by accident.
 - [`todo/subject-history.md`](subject-history.md) — the mainline walk this
   tool is the node-detail companion to.
 - [`fs/media/revision/todo/required-fields.md`](../../../media/revision/todo/required-fields.md)
-  — the P0 format change (require `generation` and `snapshot`) this
+  — the P1 format change (require `generation` and `snapshot`) this
   design's `generation` semantics land through.
 - `fs/media/revision/README.md` — the `vnd.fjs.revision` format whose
   `generation` field this makes required.

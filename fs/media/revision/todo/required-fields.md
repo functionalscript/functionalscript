@@ -1,6 +1,6 @@
 ## Require all fields whose absence forces inference
 
-**Priority:** P0
+**Priority:** P1
 **Status:** open
 
 ### Problem
@@ -12,7 +12,8 @@ window closes the moment the first revision is written — after that, any
 requirement change takes a new dialect (see the versioning rule in
 [`README.md`](../README.md), and the rationale recorded in
 [`fs/cas/evo/todo/evo-revision.md`](../../../cas/evo/todo/evo-revision.md)).
-Hence P0: this must land before the API is used to create revisions.
+Hence P1, blocking: this must land before the API is used to create
+revisions.
 
 The rule: **a field whose absent value must be *derived from other data*
 is required.** Optional stays reserved for fields whose absent value is a

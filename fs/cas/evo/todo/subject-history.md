@@ -35,8 +35,12 @@ readonly history: (start: Hash) => Effect<O | MemOp, Result<readonly Hash[], str
 ```
 
 - **Return shape is just `readonly Hash[]`** — the same primitive
-  `head(subject)` already returns. Element 0 is `start`; each next element
-  is the previous element's `parents[0]`; the array ends at a root
+  `head(subject)` already returns. Element 0 is `start` in its *canonical*
+  cbase32 spelling — decoded and re-encoded, never echoed: cbase32 accepts
+  alias spellings (case, `i`/`l`/`o`), and an input alias leaking into the
+  result would be the one non-canonical hash in an otherwise canonical
+  API, breaking the client-side seen-hash comparison. Each next element is
+  the previous element's `parents[0]`; the array ends at a root
   (`parents: []`). Adjacency *is* the mainline edge; there is no other
   structure in the value.
 - **Merges are discovered by the client, not encoded here.** A v1 item is a
@@ -139,7 +143,8 @@ the rare consumer, still reachable in O(branches) calls.
       map (immutable, never stale).
 - [ ] Implement `history(start)` on `Evo<O>` with proof coverage,
       including a subject with a merge (multiple parents), a subject with
-      multiple concurrent heads, and an unknown or non-revision `start`.
+      multiple concurrent heads, an unknown or non-revision `start`, and a
+      `start` given in an alias spelling (element 0 comes back canonical).
 - [ ] Expose it through MCP (`fs/cas/evo/mcp`) and document it in
       `fs/cas/evo/README.md` / `fs/cas/evo/mcp/README.md`.
 
