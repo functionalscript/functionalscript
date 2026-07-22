@@ -35,7 +35,7 @@ A typed read, alongside the existing operations:
 
 ```ts
 /** The revision at `hash`, decoded, validated, and canonicalized. */
-readonly revision: (hash: Hash) => Effect<O | MemOp, Result<RevisionView, string>>
+readonly revision: (hash: Hash) => Effect<O | MemOp, Result<RevisionData, string>>
 ```
 
 exposed over MCP as **`evo_revision`**, args `{ hash }`. The name follows
@@ -59,9 +59,11 @@ expands a branch — without the client ever touching raw bytes.
 ### One shared structure: `AddRevision` → `RevisionData`
 
 `AddRevision` (`fs/cas/evo/module.f.ts`) is renamed **`RevisionData`** and
-becomes the shared vocabulary of both directions — `evo_add` takes it,
-`evo_revision` returns it (refined), and "what you add is what you get
-back":
+becomes the *single* vocabulary of both directions — `evo_add` takes it,
+`evo_revision` returns it, and "what you add is what you get back". No
+extension or intersection types: one structure, every direction-specific
+field optional, with the per-direction guarantees documented rather than
+typed:
 
 ```ts
 export type RevisionData = {
@@ -69,25 +71,25 @@ export type RevisionData = {
     readonly snapshot?: Hash | undefined
     readonly subject?: Subject | undefined
     readonly archived?: true | undefined
-}
-
-/** What `revision(hash)` returns: the data plus what the server always knows. */
-export type RevisionView = RevisionData & {
-    readonly subject: Subject
-    readonly generation: number
+    readonly generation?: number | undefined
 }
 ```
 
-- `RevisionData` is exactly the media-level `Revision` minus `dialect` and
-  `generation` — and dropping `dialect` on output is a feature: it is a
-  serialization tag with no information once past validation. The evo layer
-  speaks the semantic content of a revision, the same in both directions.
-- Optionality means different things per direction, which the refinement
-  captures: on input, absent `subject` means "infer from my single parent"
-  and absent `snapshot` means "inherit per the format rules"; on output,
-  `subject` is always known (the intersection makes the compiler know it
-  too) while `snapshot` passes through as stored (absent = inherited —
-  server-side resolution can be a later option).
+- `RevisionData` is the media-level `Revision` minus `dialect` — and
+  dropping `dialect` on output is a feature: it is a serialization tag with
+  no information once past validation. The evo layer speaks the semantic
+  content of a revision, the same in both directions.
+- Optionality means different things per direction, documented per field:
+  - `subject` — input: absent means "infer from my single parent"; output:
+    always present.
+  - `snapshot` — input: absent means "inherit per the format rules";
+    output: passed through as stored (absent = inherited — server-side
+    resolution can be a later option).
+  - `generation` — input: **ignored**; the server computes the
+    authoritative value (see below), so a value read from `evo_revision`
+    can be fed back into `evo_add` unchanged without stripping fields —
+    the round trip is the point of the shared type. Output: always
+    present.
 - The returned `parents`/`snapshot` are canonical cbase32 spellings, so
   they compare directly against `evo_head`/`evo_history` output.
 - The rename touches the `fs/cas/evo/mcp` doc table but not `evo_add`'s
@@ -114,11 +116,14 @@ stored records exist yet, so this is free):
   epoch-reset indicator); they must not reject the blob for it. Ordering by
   `generation` is therefore reliable within an epoch, and the one-level
   comparison against parents is the cheap epoch-boundary detector.
-- **`evo_add` computes it.** `RevisionData` has no `generation` field —
-  callers never supply it. `resolveParents` already fetches and decodes
-  every parent during `add`, so the computation is a `max` over values
-  already in hand, plus the base case `0` for zero parents. Everything evo
-  writes follows the formula by construction.
+- **`evo_add` computes it.** A `generation` supplied in the input
+  `RevisionData` is ignored — the server writes its own computed value, so
+  the round trip (read via `evo_revision`, add via `evo_add`) needs no
+  field-stripping and can never smuggle a wrong generation into a blob.
+  `resolveParents` already fetches and decodes every parent during `add`,
+  so the computation is a `max` over values already in hand, plus the base
+  case `0` for zero parents. Everything evo writes follows the formula by
+  construction.
 - **`evo_revision` returns the stored value** — always present by format.
 
 ### Open question: cross-subject parents
@@ -146,21 +151,28 @@ recorded so the decision is made deliberately, not by accident.
   parents`) can memoize `generation` alongside — both are immutable, so
   neither can go stale — but that is an optimization, not a requirement:
   the cache holds only part of what `evo_revision` returns.
-- **MCP output** is the JSON of `RevisionView`:
-  `{ subject, parents, snapshot?, archived?, generation }`.
+- **MCP output** is the JSON of `RevisionData` with the output guarantees
+  above: `{ subject, parents, snapshot?, archived?, generation }`.
 
 ### Tasks
 
-- [ ] Make `generation` required: `revisionSchema` `option(number)` →
-      `number`, non-negative-integer check in `validate`, README update
-      (`fs/media/revision/README.md`) including the epoch-reset semantics
-      and the continuity-is-not-validity rule, with proof coverage for a
-      missing, non-integer, and negative `generation`.
-- [ ] Rename `AddRevision` → `RevisionData`, add `RevisionView`, update the
-      `fs/cas/evo/mcp` doc table.
+- [ ] Describe `generation` as a required field in the revision format
+      documentation (`fs/media/revision/README.md`): schema snippet and
+      field table say `number`, required; the "cache, not a source of
+      truth" paragraph is reframed as existence/integer-ness being the
+      correctness check, the `1 + max` formula being what conforming
+      writers produce, and a deviation being an epoch-reset signal, not a
+      validity failure.
+- [ ] Make `generation` required in code: `revisionSchema`
+      `option(number)` → `number`, non-negative-integer check in
+      `validate`, with proof coverage for a missing, non-integer, and
+      negative `generation`.
+- [ ] Rename `AddRevision` → `RevisionData` (adding the optional
+      `generation` field), update the `fs/cas/evo/mcp` doc table.
 - [ ] Compute and write `generation` in `add` (base case `0`, else
-      `1 + max`), with proof coverage including a merge of parents with
-      differing generations.
+      `1 + max`; a caller-supplied `generation` is ignored), with proof
+      coverage including a merge of parents with differing generations and
+      an input whose supplied `generation` differs from the computed one.
 - [ ] Implement `revision(hash)` on `Evo<O>` with proof coverage for all
       three error cases and for canonicalized output (a parent stored under
       an alias spelling comes back canonical).
