@@ -15,9 +15,13 @@ operators (`>>`, `&&=`, `>>>=`, …) have no obvious single-symbol encoding.
 Constraints on any encoding:
 
 - An input symbol is 24 bits (`TerminalRange` packs two 24-bit symbols,
-  `fs/bnf/module.f.ts:23`). Unicode occupies `0x000000`–`0x10FFFF` and `eof`
-  is `0x110000`, so `0x110001`–`0xFFFFFF` (~15.6M values) is free for
-  synthetic token symbols.
+  `fs/bnf/module.f.ts:40`). Unicode occupies `0x000000`–`0x10FFFF`; `eof` is
+  `0xFFFFFF`, the top of the 24-bit range, not `0x110000`, as of
+  [#1308](https://github.com/functionalscript/functionalscript/pull/1308)
+  (flagged by Codex on that PR: the old `0x110001`–`0xFFFFFF` free range
+  included `eof`'s new value, so a real token encoded as `0xFFFFFF` would
+  have collided with end-of-file). The free range for synthetic token
+  symbols is now `0x110000`–`0xFFFFFE` (~15.6M values, `eof` excluded).
 - Token symbols must not collide with each other (injective) nor with the
   code-point/`eof` region.
 - Construction must fail fast (throw at grammar-construction time) on input
@@ -66,5 +70,8 @@ is needed.
   token-stream pipeline this encoding plugs into
 - [layered-parser](./layered-parser.md) — tokens as the alphabet of the next
   parser layer
-- `fs/bnf/module.f.ts:23` — 24-bit `TerminalRange` encoding; `eof` at
-  `fs/bnf/module.f.ts:96`
+- `fs/bnf/module.f.ts:40` — 24-bit `TerminalRange` encoding; `eof` at
+  `fs/bnf/module.f.ts:106`
+- [PR #1308](https://github.com/functionalscript/functionalscript/pull/1308)
+  — moved `eof` to `0xFFFFFF`; the Codex review comment on that PR is what
+  prompted narrowing the free range above

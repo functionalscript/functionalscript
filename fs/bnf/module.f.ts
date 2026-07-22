@@ -101,7 +101,11 @@ export const rangeEncode = (a: number, b: number): TerminalRange => {
 export const oneEncode = (a: number): TerminalRange => rangeEncode(a, a)
 
 /**
- * End-of-file marker represented as one code point beyond Unicode range.
+ * End-of-file marker: `mask`, the single largest value the 24-bit symbol
+ * space can hold (the top of `fullRange`). Deliberately outside Unicode
+ * (`unicodeRange` tops out at `0x10FFFF`) so it can never collide with a
+ * real code point; see `fs/bnf/todo/token-symbol-encoding.md` for the free
+ * range this leaves for synthetic (non-code-point) token symbols.
  */
 export const eof: TerminalRange = oneEncode(mask)
 
