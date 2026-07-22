@@ -69,16 +69,19 @@ No decision has been made yet.
    not all of Unicode) — or every token, single- and multi-character alike,
    goes through the same packing function for full consistency, giving up
    the "maps to itself" convenience entirely.
-   **`eof` boundary:** with a full 64-code alphabet and no reserved pad
-   value, the all-max digit combination (`63,63,63,63` in base 64) packs to
-   exactly `0xFFFFFF` — `eof`'s value (see
-   [PR #1308](https://github.com/functionalscript/functionalscript/pull/1308)).
-   Reserving one code as an explicit pad/terminator (mirroring option 1's
-   "digit values start at 1" prefix-free trick — needed anyway to decode
-   strings shorter than 4 characters unambiguously) already keeps every real
-   digit ≤ 62, capping the maximum packed value below `0xFFFFFF` and closing
-   this collision for free; still comfortably fits the 50-character alphabet
-   above.
+   **`eof` falls out of the same encoding, for free.** Reserve code `0b11_1111`
+   (63) as an explicit stop marker rather than a real character — needed
+   anyway to decode strings shorter than 4 characters unambiguously (padding
+   position, not a leading offset like option 1's "digit values start at
+   1": once a `63` appears, decoding stops there, and every following digit
+   is `63` too by convention). Real characters get the remaining 63 codes
+   (`0`–`62`) — still 13 to spare over the 50-character alphabet above. Under
+   this scheme the *empty* token string packs to four stop digits,
+   `63,63,63,63` in base 64, which is exactly `0xFFFFFF` — `eof`'s value
+   (see [PR #1308](https://github.com/functionalscript/functionalscript/pull/1308)).
+   So `eof` isn't a value the packing function must avoid; it's the packed
+   form of `""`, decodable by the exact same function as any other token
+   symbol, with no separate reservation or special case needed.
 3. **Enumerated table.** One append-only list of all multi-symbol tokens;
    symbols assigned sequentially from `0x110001`. A lookup function throws on
    unknown strings. Uniform for operators *and* keywords, no length limit;
@@ -100,8 +103,8 @@ keywords alone (mixed with option 1 or 2 for operators) or for everything.
 
 - [ ] Decide whether keywords are distinct terminal symbols
 - [ ] Choose between packing (option 1 or 2) and enumeration (option 3)
-- [ ] If packing: settle the exact alphabet (including the pad/terminator
-      code) and confirm the `eof`-collision analysis under option 2
+- [ ] If packing: settle the exact alphabet (including the stop/terminator
+      code under option 2, and its `""` ↔ `eof` identity)
 - [ ] Implement the encoding function with validation and the reverse mapping
 - [ ] Use it in the tokenizer output and the parser grammar
 
