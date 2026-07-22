@@ -25,6 +25,18 @@ their own cache. This issue is about a *single* running server's cache going
 stale because of writes it didn't perform itself, even with only one server
 process active.
 
+### Requirements
+
+Whichever option(s) are implemented, the update **must be incremental**: it
+only examines and decodes hashes the cache has not already folded in, never
+the whole store from scratch. `cas.list()` (or equivalent) is cheap to call
+repeatedly and may be used to discover the current hash set each time, but
+every hash already known to the cache is skipped — not re-read, not
+re-decoded, not re-validated. This is not a performance nice-to-have; a
+"refresh" that silently redoes full-store work on every call (every `list`
+call, every timer tick, every explicit `refresh`) does not scale with store
+size and defeats the purpose of caching in the first place.
+
 ### Proposal
 
 Three options, not mutually exclusive:
@@ -54,9 +66,10 @@ Three options, not mutually exclusive:
 
 Whatever is chosen needs to reuse `buildCache`'s fold rather than
 duplicating it (see `addRevisionToCache`'s "any order converges to the same
-result" property in the module doc) — a partial rescan is just `buildCache`
-seeded from the current cache instead of `emptyCache`, applied only to hashes
-not already known.
+result" property in the module doc): a refresh is `buildCache`'s fold seeded
+from the current cache instead of `emptyCache`, applied only to the hashes
+not already known (see Requirements above) — never a re-fold over the whole
+store.
 
 ### Tasks
 
@@ -66,10 +79,13 @@ not already known.
       entry point that refreshes every in-memory cache the running server
       currently maintains, not one tool per cache (more caches beyond Evo's
       are planned).
-- [ ] Design how "hashes not already known" is computed efficiently — a full
-      `cas.list()` diff is O(store size) per refresh; is that acceptable, or
-      does this need the store to expose something cheaper (e.g. a
-      last-modified marker)?
+- [ ] Design how the set of "hashes not already known" is computed on each
+      refresh (a `cas.list()` diff against the cache's known hashes is the
+      obvious baseline) — the diff itself may cost O(store size), but only
+      the previously-unseen hashes it finds may be read/decoded/folded in
+      (see Requirements above; this is not optional). Consider whether the
+      store should expose something cheaper than a full `list()` for finding
+      new hashes (e.g. a last-modified marker), as a further optimization.
 - [ ] Decide whether a periodic timer fits the current effect model
       (`fs/effects`) — is there already a precedent for scheduled/background
       work, or does this need new effect primitives?
