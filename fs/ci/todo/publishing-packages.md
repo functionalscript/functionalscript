@@ -45,17 +45,22 @@ The main `tsconfig.json` can validate both source types in one pass:
 
 Then `tsc` validates both `.ts` and `.js` files without generating package files.
 
-Publishing in place requires two emission passes because TypeScript must not overwrite hand-written `.js` sources:
+Publishing in place requires cleaning old generated package files and then running two emission passes. A dedicated cross-platform cleanup script should run first:
 
 ```json
 {
   "scripts": {
-    "prepack": "tsc --noEmit false --emitDeclarationOnly && tsc --noEmit false --allowJs false --checkJs false --declaration false"
+    "clean:package-output": "node ./fs/ci/npm/clean-package-output.js",
+    "emit:declarations": "tsc --noEmit false --emitDeclarationOnly",
+    "emit:typescript": "tsc --noEmit false --allowJs false --checkJs false --declaration false",
+    "prepack": "npm run clean:package-output && npm run emit:declarations && npm run emit:typescript"
   }
 }
 ```
 
-The first pass includes both `.ts` and `.js` sources and emits only declarations:
+The cleanup script must remove stale generated `.js` and `.d.ts` files before either compiler pass. It must remove only ignored, untracked package outputs and preserve tracked hand-written `.js` files. It must not traverse or modify dependency and cache directories such as `node_modules` and `target`.
+
+The first emission pass includes both `.ts` and `.js` sources and emits only declarations:
 
 ```text
 source.ts -> source.d.ts
@@ -74,11 +79,13 @@ Constraints:
 
 - Do not keep an authored `x.ts` and authored `x.js` for the same module, because they target the same output paths.
 - Hand-written `.js` files must be tracked even though generated `.js` files are ignored.
-- CI starts from a clean checkout, but local packaging should remove stale generated `.js` and `.d.ts` files after sources are renamed or deleted.
+- Every package build, including local `npm pack`, must start by removing stale generated package outputs.
 
 Tasks:
 
 - [ ] Enable `allowJs` and `checkJs` in `tsconfig.json`.
-- [ ] Replace the current one-pass `prepack` script with the two-pass build.
-- [ ] Add a package test containing one `.ts` module and one hand-written JSDoc `.js` module.
-- [ ] Verify the packed archive contains the original hand-written `.js`, generated `.js` from TypeScript, and declarations for both.
+- [ ] Add the tracked-file-aware package-output cleanup script.
+- [ ] Replace the current one-pass `prepack` script with cleanup followed by the two-pass build.
+- [ ] Add a package test containing one `.ts` module and one tracked, hand-written JSDoc `.js` module.
+- [ ] In the package test, generate outputs for a temporary source, delete or rename that source, rerun `prepack`, and verify its stale `.js` and `.d.ts` outputs are absent from the packed archive.
+- [ ] Verify the packed archive preserves the original hand-written `.js`, includes generated `.js` from TypeScript, and includes declarations for both.
