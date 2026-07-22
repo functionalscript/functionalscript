@@ -27,7 +27,7 @@
  *
  * @module
  */
-import type { Primitive, Unknown } from '../../../djs/module.f.ts'
+import type { Primitive, Unknown } from '../ts/module.f.ts'
 import {
     type Const,
     type Info0,

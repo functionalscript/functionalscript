@@ -27,7 +27,7 @@
  *
  * @module
  */
-import type { Unknown } from '../../../djs/module.f.ts'
+import type { Unknown } from '../ts/module.f.ts'
 import {
     type Info1,
     type Struct,
