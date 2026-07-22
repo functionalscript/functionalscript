@@ -6,7 +6,7 @@ import { dialect } from './revision/module.f.ts'
 // All test strings here are ASCII, so char code === UTF-8 byte value.
 const utf8Bytes = (s: string): Vec => u8ListToVec(msb)([...s].map(c => c.charCodeAt(0)))
 
-const revisionJson = `{"dialect":"${dialect}","subject":"8","parents":[]}`
+const revisionJson = `{"dialect":"${dialect}","subject":"8","parents":[],"snapshot":"8","generation":0}`
 
 export const proof = {
     // A valid revision blob is recognized and reported under its derived media type.
@@ -19,13 +19,14 @@ export const proof = {
     // Key order carries no meaning: a valid revision whose `dialect` key is
     // not first must still be detected.
     keyOrderIndependent: () => {
-        const text = `{"parents":[],"subject":"8","dialect":"${dialect}"}`
+        const text = `{"parents":[],"subject":"8","dialect":"${dialect}","snapshot":"8","generation":0}`
         const m = detect(utf8Bytes(text))
         assertEq(m.mime_type, 'application/vnd.fjs.revision+json')
     },
 
-    // Structurally invalid revision (bad multi-parent snapshot rule) falls
-    // through to the ordinary text/plain classification.
+    // A revision missing a required field (here `snapshot` and `generation`)
+    // fails validation and falls through to the ordinary text/plain
+    // classification.
     invalidRevisionFallsThrough: () => {
         const text = `{"dialect":"${dialect}","subject":"8","parents":["8","r"]}`
         const m = detect(utf8Bytes(text))

@@ -55,8 +55,8 @@ export const revision = {
     /**
      * The subject of this revision: the identity of the mutable object
      * being revised ("subject" as in the subject of a certificate).
-     * Usually any string; it must be a hash only when it is used as
-     * the fallback snapshot reference.
+     * Any string — a pure identity, never a snapshot reference (see the
+     * required-fields change, which removed the fallback role below).
      */
     subject: string,
 
@@ -69,22 +69,21 @@ export const revision = {
 
     /**
      * Complete materialized content (snapshot) of this revision.
-     *
-     * If absent and there are zero parents, `subject` is used
-     * as the fallback snapshot reference and must validate as a hash.
-     * If absent with exactly one parent, the parent is inherited.
-     * If absent with multiple parents, validation fails.
+     * Required — every revision states its content explicitly (see the
+     * required-fields change), so a revision is interpretable in
+     * isolation and there is no inheritance to resolve at read time.
      */
-    snapshot: option(hash),
+    snapshot: hash,
 
     /**
-     * Optional cached generation number within the subject's evolution.
+     * Generation number within the subject's evolution. Required.
      *
-     * Normally:
-     *   generation = 0 for the first revision
-     *   generation = 1 + max(parent.generation)
+     * Correctness is existence + non-negative-integer only; a conforming
+     * writer produces `0` for the first revision, else
+     * `1 + max(parent.generation)`, but a deviation is an epoch-reset
+     * signal, not an invalid blob (see the required-fields change).
      */
-    generation: option(number),
+    generation: number,
 
     /**
      * Marks the mutable object as archived/inactive.
@@ -97,16 +96,18 @@ export const revision = {
 
 Notes on the shape:
 
-- `hash` is the only snapshot-reference type in this first revision format. It is a cbase32
+- `hash` is the only snapshot-reference type in this revision format. It is a cbase32
   native CAS address (see `fs/basen/cbase32/`). Revision blobs do not accept `https://`
   bridge URLs or any other location-addressed reference form for CAS snapshot references:
-  `parents` and `snapshot` always validate as hashes. `subject` is an identity string, not
-  necessarily a snapshot reference; it validates as a hash only when `snapshot === undefined`
-  and `parents.length === 0`, because then the revision uses `subject` as the snapshot
-  reference. A revision with `snapshot === undefined` and `parents.length === 1` inherits
-  the single parent snapshot. A revision with `snapshot === undefined` and
-  `parents.length > 1` is invalid because there is no single parent snapshot to inherit, and
-  falling back to `subject` would silently lose the merge result.
+  `parents` and `snapshot` always validate as hashes. `subject` is a pure identity string,
+  never a snapshot reference, so it is never validated as a hash — any string is valid.
+  **`snapshot` and `generation` are required** (the required-fields change made them so
+  while no records existed): every revision states its content and generation explicitly,
+  and is fully interpretable in isolation. The former snapshot-resolution algorithm —
+  `subject`-as-fallback for zero parents, single-parent inheritance, multi-parent
+  rejection — is gone; that inference now runs once at the write boundary in `fs/cas/evo`'s
+  `add`, which resolves an absent input `snapshot` and computes `generation` before writing
+  every field explicitly.
 - `dialect` is a self-describing format tag. In a generic CAS a blob is just bytes under a
   hash, so without a discriminant a reader can only recognize a revision by guessing from its
   shape, which collides with any other format that happens to have `subject`/`parents` fields.
@@ -182,11 +183,10 @@ Notes on the shape:
   the head is whatever revision(s) reference `subject` and are not listed as a parent by
   another revision *of the same `subject`* — a revision of a different subject referencing
   the same hash (or an unrelated blob imported by sync) must not demote a head. Subject
-  identity can be any string when `snapshot` or exactly one parent supplies the snapshot
-  reference. With zero parents and no `snapshot`, `subject` doubles as the fallback snapshot
-  reference and must be a hash. A nonce-bearing subject such as `{hash}-{nonce}` is therefore valid
-  only when `subject` is not being used as that fallback snapshot reference. Digital
-  signatures (a separate, future spec) will filter changes from unknown users.
+  identity is always an arbitrary string now that `snapshot` is required and never inferred
+  from `subject`; a nonce-bearing subject such as `{hash}-{nonce}` is therefore always
+  valid. Digital signatures (a separate, future spec) will filter changes from unknown
+  users.
 - `parents` is an array to support merges (multiple concurrent lines of history converging),
   matching the "multi-device / multi-user, merge freely" model in
   [vision.md](../../../todo/plan/vision.md).
@@ -195,9 +195,11 @@ Notes on the shape:
   does not resolve conflicts; it records their resolution. CAS synchronization MUST never
   care about merge conflicts — a subject can legitimately have many heads in a store at any
   time. An application can propose a merge revision; sync just moves blobs.
-- `generation` is a cache, not a source of truth — it must always be re-derivable from
-  `parents`, and a consumer must not trust a `generation` it has not verified against the
-  actual parent chain from an untrusted source.
+- `generation`'s correctness is existence + non-negative-integer only. Equality with
+  `1 + max(parents' generations)` (or `0` for a root) is what a conforming writer produces,
+  but it is observed, not enforced: a deviation is an epoch-reset signal, not an invalid
+  blob (see the required-fields change). Ordering by `generation` is reliable within an
+  epoch; the one-level comparison against parents is the epoch-boundary detector.
 - `archived` signals that we no longer work with the object — for example, a task that is
   done. An archived object's blobs can be deleted from a local CAS after a backup. The field
   follows the existing `option(true)` idiom (a presence-only flag) rather than
@@ -210,7 +212,7 @@ Open design points:
   CRDT-based): its shape, and how it links to revisions — as a new dialect, not as a field
   of this format (see the versioning rule above).
 - Future snapshot-reference forms beyond cbase32 hashes. Subject identity strings can already
-  use non-hash forms when `snapshot` or exactly one parent supplies the snapshot reference.
+  use any non-hash form, since `subject` is never a snapshot reference.
 - The exact syntax of a content-addressed revision reference (e.g.
   `{hash}.{generation}.{hash}` — `hash.generation` alone does not pin a version across
   branches; undefined for now — only hashes are used).
@@ -236,12 +238,12 @@ Open design points:
       derived media type `application/vnd.fjs.revision+json`, falling through to the
       existing detector for unknown dialects or invalid revision blobs
 - [x] Tests: valid revision detection, invalid revision fallthrough, `https://` bridge URL
-      rejection in `parents`, `snapshot`, and zero-parent fallback `subject`, arbitrary string
-      `subject` acceptance when `snapshot` is present or `parents.length === 1`, invalid
-      multi-parent revisions without `snapshot`, size-bounded schema validation with large
-      blobs falling through to the streaming detector, key-order independence (a valid
-      revision whose `dialect` key is not first must still be detected), and ordinary JSON
-      fallback behavior
+      rejection in `parents` and `snapshot`, arbitrary string `subject` acceptance (now
+      that `subject` is a pure identity, never a snapshot reference), missing/non-integer/
+      negative `generation` and missing/non-hash `snapshot` rejection, size-bounded schema
+      validation with large blobs falling through to the streaming detector, key-order
+      independence (a valid revision whose `dialect` key is not first must still be
+      detected), and ordinary JSON fallback behavior (updated by the required-fields change)
 - [ ] Later, as a separate spec: define the incremental-change dialect `vnd.fjs.change`
       (event log, likely CRDT-based) and how revisions link to it — a new dialect, not a
       new field of this format

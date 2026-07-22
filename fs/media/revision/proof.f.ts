@@ -1,16 +1,20 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
 import type { Object as JsonObject } from '../json/module.f.ts'
-import { dialect, mediaType, isHash, validate, decodeText, type Revision } from './module.f.ts'
+import { dialect, mediaType, isHash, validate, decodeText } from './module.f.ts'
 
 // Valid cbase32 hashes (round-tripped in fs/basen/cbase32/proof.f.ts): single
 // cbase32 symbols, cheap to write inline here.
 const h1 = '8'
 const h2 = 'r'
 
+// A shape-valid revision: every required field present (`snapshot` and
+// `generation` included), with `extra` overriding or adding fields per test.
 const revisionOf = (extra: JsonObject): JsonObject => ({
     dialect,
     subject: h1,
     parents: [],
+    snapshot: h2,
+    generation: 0,
     ...extra,
 })
 
@@ -27,60 +31,79 @@ export const proof = {
     },
 
     validate: {
-        // Zero parents, no `snapshot`: `subject` is the fallback snapshot
-        // reference and must itself be a hash.
-        firstRevisionFallsBackToSubjectHash: () => {
+        // A fully explicit revision validates.
+        allFieldsPresent: () => {
             const [t] = validate(revisionOf({}))
             assertEq(t, 'ok')
         },
 
-        // Zero parents, no `snapshot`, `subject` is not a hash: invalid.
-        firstRevisionRejectsNonHashSubject: () => {
-            const [t] = validate(revisionOf({ subject: 'my-config' }))
+        // `subject` is a pure identity string, never a snapshot reference: a
+        // zero-parent revision whose `subject` is not a hash is now valid,
+        // because `snapshot` is always stated explicitly.
+        nonHashSubjectAccepted: () => {
+            const r = validate(revisionOf({ subject: 'my-config' }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].subject, 'my-config')
+        },
+
+        // A merge revision (more than one parent) is valid like any other —
+        // there is no "multiple parents without snapshot" case left, because
+        // `snapshot` is required.
+        multiParentAccepted: () => {
+            const r = validate(revisionOf({ subject: 'my-config', parents: [h1, h2], snapshot: h2 }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].snapshot, h2)
+        },
+
+        // `snapshot` is required: absent is a shape error.
+        missingSnapshotRejected: () => {
+            const [t] = validate({ dialect, subject: h1, parents: [], generation: 0 })
             assertEq(t, 'error')
         },
 
-        // `snapshot` present: `subject` may be an arbitrary string.
-        explicitSnapshotAllowsArbitrarySubject: () => {
-            const [t] = validate(revisionOf({ subject: 'my-config', snapshot: h2 }))
-            assertEq(t, 'ok')
-        },
-
-        // Exactly one parent, no `snapshot`: the parent's snapshot is inherited,
-        // and `subject` may be an arbitrary string.
-        singleParentInheritsSnapshot: () => {
-            const [t] = validate(revisionOf({ subject: 'my-config', parents: [h2] }))
-            assertEq(t, 'ok')
-        },
-
-        // More than one parent with no `snapshot`: invalid — no single parent
-        // snapshot to inherit, and falling back to `subject` would silently
-        // lose the merge result.
-        multiParentWithoutSnapshotRejected: () => {
-            const [t] = validate(revisionOf({ subject: 'my-config', parents: [h1, h2] }))
+        // `snapshot` must decode as a hash — `https://` bridge URLs rejected.
+        nonHashSnapshotRejected: () => {
+            const [t] = validate(revisionOf({ snapshot: 'https://example.com/x' }))
             assertEq(t, 'error')
         },
 
-        // A merge revision with an explicit `snapshot` is valid.
-        multiParentWithSnapshotAccepted: () => {
-            const [t, v] = validate(revisionOf({ subject: 'my-config', parents: [h1, h2], snapshot: h2 }))
-            assertEq(t, 'ok')
-            assertEq((v as Revision).snapshot, h2)
+        // `generation` is required: absent is a shape error.
+        missingGenerationRejected: () => {
+            const [t] = validate({ dialect, subject: h1, parents: [], snapshot: h2 })
+            assertEq(t, 'error')
+        },
+
+        // `generation` must be an integer: a fractional value is rejected.
+        nonIntegerGenerationRejected: () => {
+            const [t] = validate(revisionOf({ generation: 1.5 }))
+            assertEq(t, 'error')
+        },
+
+        // `generation` must be non-negative.
+        negativeGenerationRejected: () => {
+            const [t] = validate(revisionOf({ generation: -1 }))
+            assertEq(t, 'error')
+        },
+
+        // `generation` must be a *safe* integer: at `2 ** 53` and above the
+        // value is no longer uniquely representable, so `1 + max(...)` could
+        // fail to advance — such a blob is rejected (`Number.isInteger` would
+        // accept it; `Number.isSafeInteger` does not).
+        unsafeIntegerGenerationRejected: () => {
+            const [t] = validate(revisionOf({ generation: 2 ** 53 }))
+            assertEq(t, 'error')
+        },
+
+        // A positive integer generation is accepted.
+        positiveGenerationAccepted: () => {
+            const r = validate(revisionOf({ parents: [h1], generation: 3 }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].generation, 3)
         },
 
         // `https://` bridge URLs are rejected wherever a hash is required.
         httpsRejectedInParents: () => {
-            const [t] = validate(revisionOf({ subject: 'my-config', parents: ['https://example.com/x'], snapshot: h2 }))
-            assertEq(t, 'error')
-        },
-
-        httpsRejectedInSnapshot: () => {
-            const [t] = validate(revisionOf({ subject: 'my-config', snapshot: 'https://example.com/x' }))
-            assertEq(t, 'error')
-        },
-
-        httpsRejectedAsFallbackSubject: () => {
-            const [t] = validate(revisionOf({ subject: 'https://example.com/x' }))
+            const [t] = validate(revisionOf({ parents: ['https://example.com/x'] }))
             assertEq(t, 'error')
         },
 
@@ -92,13 +115,13 @@ export const proof = {
 
         // Wrong dialect tag: structural validation rejects it outright.
         wrongDialectRejected: () => {
-            const [t] = validate({ dialect: 'vnd.fjs.other', subject: h1, parents: [] })
+            const [t] = validate({ dialect: 'vnd.fjs.other', subject: h1, parents: [], snapshot: h2, generation: 0 })
             assertEq(t, 'error')
         },
 
         // Missing required fields: rejected.
         missingSubjectRejected: () => {
-            const [t] = validate({ dialect, parents: [] })
+            const [t] = validate({ dialect, parents: [], snapshot: h2, generation: 0 })
             assertEq(t, 'error')
         },
 
@@ -112,15 +135,15 @@ export const proof = {
 
     decodeText: {
         validJson: () => {
-            const [t, v] = decodeText(JSON.stringify(revisionOf({ generation: 0 })))
-            assertEq(t, 'ok')
-            assertEq((v as Revision).subject, h1)
+            const r = decodeText(JSON.stringify(revisionOf({})))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].subject, h1)
         },
 
         // Key order carries no meaning: detection parses the JSON and
         // validates the parsed value, so `dialect` need not be first.
         keyOrderIndependent: () => {
-            const text = `{"parents":[],"subject":"${h1}","dialect":"${dialect}"}`
+            const text = `{"generation":0,"snapshot":"${h2}","parents":[],"subject":"${h1}","dialect":"${dialect}"}`
             const [t] = decodeText(text)
             assertEq(t, 'ok')
         },

@@ -53,31 +53,41 @@ export const revisionSchema = {
     dialect,
     subject: string,
     parents: array(hash),
-    snapshot: option(hash),
-    generation: option(number),
+    snapshot: hash,
+    generation: number,
     archived: option(true),
 } as const
 
 /** The TypeScript type derived from {@link revisionSchema} — the single source of truth. */
 export type Revision = Ts<typeof revisionSchema>
 
-/** Structural-only validator: checks the shape, not the snapshot-reference semantics. */
+/** Structural-only validator: checks the shape, not the hash / generation semantics. */
 const validateShape = rttiValidate(revisionSchema)
 
 /** True when `s` decodes as a cbase32 CAS hash (rejects `https://` and any other non-cbase32 string). */
 export const isHash = (s: string): boolean => cBase32ToVec(s) !== null
 
-/** Either a structural validation error or a semantic (snapshot-reference) error message. */
+/** Either a structural validation error or a semantic (hash / generation) error message. */
 export type RevisionError = ValidationError | string
 
 /**
- * Checks the snapshot-reference semantics of an already shape-valid revision:
- * every parent must be a hash; `snapshot`, when present, must be a hash;
- * when `snapshot` is absent, zero parents fall back to `subject` (which must
- * then be a hash), exactly one parent inherits that parent's snapshot, and
- * more than one parent without an explicit `snapshot` is invalid — there is
- * no single parent snapshot to inherit, and falling back to `subject` would
- * silently lose the merge result.
+ * Checks the semantic refinements the structural schema can't express on an
+ * already shape-valid revision: every `parents` entry and the `snapshot` must
+ * decode as a cbase32 hash ({@link isHash}), and `generation` must be a
+ * non-negative *safe* integer. `subject` is not checked — it is an identity
+ * string, never a snapshot reference, so any string is valid.
+ *
+ * `generation` uses `Number.isSafeInteger`, not `Number.isInteger`: a value at
+ * or above `2 ** 53` passes `isInteger` but is no longer uniquely
+ * representable, so `1 + max(parents' generations)` — how a writer derives the
+ * next generation — can round back to the parent's value and fail to advance.
+ * Rejecting unsafe integers keeps stored generations exact.
+ *
+ * Both `snapshot` and `generation` are required by the schema, so no absence
+ * ever has to be resolved here: a revision states its content and its
+ * generation explicitly, and is fully interpretable in isolation (see the
+ * README). The former snapshot-resolution algorithm (subject-as-fallback,
+ * single-parent inheritance, multi-parent rejection) is gone.
  *
  * Exported separately from {@link validate} for callers that assemble a
  * `Revision` themselves from already-typed fields (e.g. `fs/cas/evo`'s
@@ -90,23 +100,16 @@ export const checkReferences = (r: Revision): Result<Revision, string> => {
     for (const p of r.parents) {
         if (!isHash(p)) { return error(`parent is not a valid hash: ${p}`) }
     }
-    if (r.snapshot !== undefined) {
-        return isHash(r.snapshot) ? ok(r) : error(`snapshot is not a valid hash: ${r.snapshot}`)
+    if (!isHash(r.snapshot)) { return error(`snapshot is not a valid hash: ${r.snapshot}`) }
+    if (!Number.isSafeInteger(r.generation) || r.generation < 0) {
+        return error(`generation must be a non-negative safe integer: ${r.generation}`)
     }
-    if (r.parents.length === 0) {
-        return isHash(r.subject)
-            ? ok(r)
-            : error(`subject must be a valid hash when snapshot is absent and there are no parents: ${r.subject}`)
-    }
-    if (r.parents.length === 1) {
-        return ok(r)
-    }
-    return error('snapshot is required when a revision has more than one parent')
+    return ok(r)
 }
 
 /**
  * Validates an already-parsed JSON value as a `revision` BLOB: structural
- * (rtti) validation followed by the snapshot-reference semantic checks.
+ * (rtti) validation followed by the hash / generation semantic checks.
  */
 export const validate = (value: Unknown): Result<Revision, RevisionError> => {
     const [t, v] = validateShape(value)
