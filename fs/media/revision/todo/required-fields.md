@@ -7,7 +7,15 @@
 
 While the `vnd.fjs.revision` format is still being designed and **no
 revision records exist anywhere**, requirement changes are free: they land
-in-place, under the same dialect tag, with nothing stored to migrate. That
+in-place, under the same dialect tag, with nothing stored to migrate.
+This is a matter of record, not an assumption: the format was introduced
+a few weeks ago, no released version of FunctionalScript has ever
+included the evo API, and the only writers that have ever run are this
+repository's own proofs against in-memory stores — no persistent store
+has ever been populated with revision blobs. The same applies to every
+semantic commitment made while designing the format (e.g. the
+first-parent ordering in [`README.md`](../README.md)): there are no
+pre-existing blobs whose meaning could shift. That
 window closes the moment the first revision is written — after that, any
 requirement change takes a new dialect (see the versioning rule in
 [`README.md`](../README.md), and the rationale recorded in
