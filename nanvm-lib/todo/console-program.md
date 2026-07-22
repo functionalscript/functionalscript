@@ -1,15 +1,37 @@
 ## Console program
 
-**Priority:** P1
+**Priority:** P2
 **Status:** open
 
-The `nanvm` executable. Part of the [MVP roadmap](./mvp-roadmap.md): the MVP
-is reached when the FJS CLI parses and compiles FJS code and then runs it by
-sending the serialized AST to `nanvm`, which deserializes and executes it.
+The `nanvm` **crate** — the self-hosting milestone of the
+[MVP roadmap](./mvp-roadmap.md), shipped on crates.io (not npm): the
+`nanvm-lib` runtime, the `nanvm-effects-node` effect runner (the Rust twin
+of `fs/effects/node` — see the effects section of the roadmap), the
+generated Rust of the FJS compiler (the same single source that ships on
+npm as FJS code), and a thin hand-written `main`, built by cargo into a
+single native executable that parses and runs `.f.js` directly — no
+Node/Deno, no rustc at the user's run time — executing code via the
+interpreter behind the `Function` constructor.
 
-A console program similar to the one in the NaNVM repo.
+The generated compiler source is **never committed to git**: it is packaged
+into the `.crate` at publish time (an underscore-prefixed directory — the
+repository reserves `_*` for generated files in `.gitignore` — listed in
+`Cargo.toml`'s `include` field), so consumers build pure Rust with no build
+dependencies —
+no Node, no network, no third-party JS engine — while the repository stays
+free of generated code. See the distribution section of
+[mvp-roadmap](./mvp-roadmap.md) for the full arrangement, the rejected
+alternatives, and the reproducibility check: both distributions must emit
+byte-identical `.rs` output for the same input; once the crate ships, the
+check closes into a fixed point — the crate-shipped compiler regenerates its
+own packaged source, identically.
 
-**Execution semantics:** an AST has no starting point of its own, so merely
+Open question (see [mvp-roadmap](./mvp-roadmap.md#open-questions)): is the
+crate's binary named `fjs` (same CLI surface as the npm tool, native) or
+`nanvm`?
+
+**Execution semantics:** a module has no starting point of its own, so merely
 loading it proves little. The entry point is the module's `export default`:
-after deserializing the AST, the VM evaluates the default export, if any;
-if it is a function, the VM runs it; the result is printed to stdout as JSON.
+after parsing and compiling the module, the VM evaluates the default export,
+if any; if it is a function, the VM runs it; the result is printed to stdout
+as JSON.
