@@ -41,10 +41,14 @@ No decision has been made yet.
    `tokenSymbol(s: string): TerminalRange` encodes `s` positionally over an
    explicit, append-only alphabet of the ~14 characters used by multi-char
    operators (`= ! < > + - * / % & | ^ ? .`), base 32, digit values starting
-   at 1 (prefix-free across lengths), offset above `eof`. 4 characters × 5
-   bits = 20 bits — fits, with 4 bits of headroom left to add the offset
-   above `0x110000` and still land under `0xFFFFFE`. Cannot encode keywords
-   (10 characters do not fit in 24 bits under any base).
+   at 1 (prefix-free across lengths), offset above `0x110000` (Unicode's end,
+   *not* `eof` — `eof` itself is `0xFFFFFF` as of
+   [PR #1308](https://github.com/functionalscript/functionalscript/pull/1308)
+   and offsetting above it would either overflow the 24-bit symbol or land on
+   `eof` itself). 4 characters × 5 bits = 20 bits — fits, with 4 bits of
+   headroom left to add the `0x110000` offset and still land under
+   `0xFFFFFE`. Cannot encode keywords (10 characters do not fit in 24 bits
+   under any base).
 2. **Base64-style packing over the full 24-bit range.** Same positional
    mechanism as option 1, but with a 64-symbol (6-bit) alphabet — lowercase
    `a`–`z` (26) + digits `0`–`9` (10) + the 14 operator characters from
