@@ -283,9 +283,14 @@ const resolveSnapshot = (input: AddRevision) => (subject: Subject) => (parents: 
  * the already-decoded parents, never taken from input — everything evo writes
  * follows the formula by construction (see the `generation` semantics in
  * [`fs/cas/evo/todo/evo-revision.md`](todo/evo-revision.md)).
+ *
+ * The max is a `reduce`, not `Math.max(...parents.map(...))`: `parents` is
+ * caller-sized (the direct API or the `evo_add` MCP tool), and argument-spread
+ * of a large array overflows the JS call stack with a `RangeError` before the
+ * documented `Result` error path can run — a `reduce` has no such limit.
  */
 const computeGeneration = (parents: readonly Revision[]): number =>
-    parents.length === 0 ? 0 : 1 + Math.max(...parents.map(p => p.generation))
+    parents.length === 0 ? 0 : 1 + parents.reduce((max, p) => Math.max(max, p.generation), 0)
 
 /**
  * Adds a new revision to `cas` and folds it into the cache at `cacheKey`.
