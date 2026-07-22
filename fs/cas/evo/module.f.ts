@@ -38,7 +38,7 @@ import { collectRead, type Cas } from '../module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
-import { decodeText, dialect, checkReferences, type Revision } from '../../media/revision/module.f.ts'
+import { decodeText, dialect, checkReferences, isHash, type Revision } from '../../media/revision/module.f.ts'
 import { stringify } from '../../media/json/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { ok, error, type Ok, type Result } from '../../types/result/module.f.ts'
@@ -55,11 +55,14 @@ export type Subject = string
 
 /**
  * Input to {@link addRevision}: everything the caller supplies for a new
- * revision. `subject` is optional — omitted, it is inherited from the single
- * parent's own `subject` (see {@link resolveSubject}); `snapshot`, when
- * omitted, follows the inheritance/fallback rules of the `vnd.fjs.revision`
- * format itself (`fs/media/revision`), so this module does not need to
- * resolve it.
+ * revision. Both `subject` and `snapshot` are input conveniences the write
+ * boundary resolves, because the stored `vnd.fjs.revision` blob requires
+ * them explicitly (see `fs/media/revision`): `subject`, when omitted, is
+ * inherited from the single parent's own `subject` (see
+ * {@link resolveSubject}); `snapshot`, when omitted, is resolved from the
+ * parents (see {@link resolveSnapshot}) — the inference the format used to
+ * carry, run once here with the parents already in hand. `generation` is
+ * never an input: {@link computeGeneration} derives the authoritative value.
  */
 export type AddRevision = {
     readonly parents: readonly Hash[]
@@ -252,20 +255,54 @@ const validateParentSubjects = (subject: Subject) => (parents: readonly Revision
 }
 
 /**
+ * Resolves the `snapshot` of a new revision — the inference the
+ * `vnd.fjs.revision` format used to carry, now run once at the write boundary
+ * with the parents already resolved and written explicitly into the stored
+ * blob (which requires `snapshot`; see `fs/media/revision`). The caller's
+ * explicit `snapshot` is used as-is when given; otherwise zero parents fall
+ * back to `subject` as the snapshot reference (which must then be a hash),
+ * exactly one parent inherits that parent's stored `snapshot`, and more than
+ * one parent without an explicit `snapshot` cannot be resolved — there is no
+ * single parent snapshot to inherit, and falling back to `subject` would
+ * silently lose the merge result.
+ */
+const resolveSnapshot = (input: AddRevision) => (subject: Subject) => (parents: readonly Revision[]): Result<Hash, string> => {
+    if (input.snapshot !== undefined) { return ok(input.snapshot) }
+    if (parents.length === 0) {
+        return isHash(subject)
+            ? ok(subject)
+            : error(`subject must be a valid hash when snapshot is omitted and there are no parents: ${subject}`)
+    }
+    if (parents.length === 1) { return ok(parents[0].snapshot) }
+    return error('snapshot is required when a revision has more than one parent')
+}
+
+/**
+ * The authoritative `generation` of a new revision: `0` for a root
+ * (`parents: []`), else `1 + max(parents' generations)`. Computed here from
+ * the already-decoded parents, never taken from input — everything evo writes
+ * follows the formula by construction (see the `generation` semantics in
+ * [`fs/cas/evo/todo/evo-revision.md`](todo/evo-revision.md)).
+ */
+const computeGeneration = (parents: readonly Revision[]): number =>
+    parents.length === 0 ? 0 : 1 + Math.max(...parents.map(p => p.generation))
+
+/**
  * Adds a new revision to `cas` and folds it into the cache at `cacheKey`.
  *
  * Steps: resolve and validate every parent ({@link resolveParents}), resolve
  * `subject` from them ({@link resolveSubject}) and check every parent
- * actually belongs to it ({@link validateParentSubjects}), assemble a
- * `Revision` and check its snapshot-reference semantics (`fs/media/revision`
- * `checkReferences` — the same rule a reader applies; the shape itself is
- * already guaranteed by this function's own field types), encode and write it
- * to `cas`, then fold the new revision into the cache. Every
- * failure — an invalid or missing parent, a cross-subject parent, an
- * unresolvable subject, an invalid revision, a blob too large to encode, or a
- * store write failure — is reported as `error(message)` rather than thrown,
- * so a caller (e.g. an MCP tool handler) can surface it without a
- * `throw`/`catch`.
+ * actually belongs to it ({@link validateParentSubjects}), resolve `snapshot`
+ * ({@link resolveSnapshot}) and compute `generation`
+ * ({@link computeGeneration}), assemble a `Revision` and check its hash /
+ * generation semantics (`fs/media/revision` `checkReferences` — the same rule
+ * a reader applies; the shape itself is already guaranteed by this function's
+ * own field types), encode and write it to `cas`, then fold the new revision
+ * into the cache. Every failure — an invalid or missing parent, a
+ * cross-subject parent, an unresolvable subject or snapshot, an invalid
+ * revision, a blob too large to encode, or a store write failure — is
+ * reported as `error(message)` rather than thrown, so a caller (e.g. an MCP
+ * tool handler) can surface it without a `throw`/`catch`.
  */
 export const addRevision =
     <O extends Operation>(cas: Cas<O>) =>
@@ -277,11 +314,14 @@ export const addRevision =
         if (subjectResult[0] === 'error') { return pure(subjectResult) }
         const parentSubjectsResult = validateParentSubjects(subjectResult[1])(parentsResult[1])
         if (parentSubjectsResult[0] === 'error') { return pure(parentSubjectsResult) }
+        const snapshotResult = resolveSnapshot(input)(subjectResult[1])(parentsResult[1])
+        if (snapshotResult[0] === 'error') { return pure(snapshotResult) }
         const revision: Revision = {
             dialect,
             subject: subjectResult[1],
             parents: input.parents,
-            snapshot: input.snapshot,
+            snapshot: snapshotResult[1],
+            generation: computeGeneration(parentsResult[1]),
             archived: input.archived,
         }
         const referencesResult = checkReferences(revision)
@@ -296,7 +336,7 @@ export const addRevision =
         const canonicalRevision: Revision = {
             ...revision,
             parents: revision.parents.map(canonicalHash),
-            snapshot: revision.snapshot === undefined ? undefined : canonicalHash(revision.snapshot),
+            snapshot: canonicalHash(revision.snapshot),
         }
         const bytes = tryUtf8(toJson(canonicalRevision))
         if (bytes === null) {

@@ -19,8 +19,8 @@ export const revisionSchema = {
     dialect: 'vnd.fjs.revision',
     subject: string,
     parents: array(hash),
-    snapshot: option(hash),
-    generation: option(number),
+    snapshot: hash,
+    generation: number,
     archived: option(true),
 } as const
 ```
@@ -30,36 +30,47 @@ export const revisionSchema = {
 | `dialect`    | `'vnd.fjs.revision'`    | Format tag — see [Media type](#media-type-and-dialect-tag) below.      |
 | `subject`    | `string`                | Identity of the mutable object this revision revises.                  |
 | `parents`    | `hash[]`                | Parent revision BLOBs, mainline (first-parent) first — see below. `[]` means this is the first revision. |
-| `snapshot`   | `hash` (optional)       | Complete materialized content of this revision.                        |
-| `generation` | `number` (optional)     | Cached generation number — `0` for the first revision, else `1 + max(parent.generation)`. |
+| `snapshot`   | `hash`                  | Complete materialized content of this revision. Always stated explicitly. |
+| `generation` | `number`                | Generation number — `0` for the first revision, else `1 + max(parent.generation)` for conforming writers. |
 | `archived`   | `true` (optional)       | Marks the mutable object as archived/inactive.                         |
 
 `hash` is a cbase32 native CAS address ([`fs/basen/cbase32`](../../basen/cbase32/)).
 It is the only snapshot-reference type this dialect accepts: `parents` and
 `snapshot` always validate as hashes — never `https://` bridge URLs or any
-other location-addressed reference form. `subject` is an identity string, not
-necessarily a snapshot reference, and validates as a hash only when it is
-used as the fallback snapshot reference (see below).
+other location-addressed reference form. `subject` is a pure identity string,
+never a snapshot reference, so it is never validated as a hash — any string is
+a valid `subject`.
 
 Because rtti struct schemas can't express string-content refinements, `hash`
-is `string` at the schema level; cbase32 decodability (and the rejection of
-non-cbase32 strings such as `https://` URLs) is enforced by `isHash` /
-`validate`, layered on top of the structural schema.
+is `string` at the schema level and `generation` is `number`; cbase32
+decodability (and the rejection of non-cbase32 strings such as `https://`
+URLs), plus `generation` being a **non-negative integer**, are enforced by
+`isHash` / `validate`, layered on top of the structural schema.
 
-## Snapshot resolution
+## Interpretable in isolation
 
-`snapshot` is the complete materialized content, but it can be omitted and
-inherited:
+Every field a revision needs is present in the revision itself: `snapshot` and
+`generation` are **required**, so no field's meaning ever depends on fetching
+another blob. A reader can materialize a revision's content (`snapshot`) and
+order it (`generation`) from the blob alone — there is no inheritance to
+resolve, no ancestry to walk, no third-case algorithm. This is the property
+every future field proposal is measured against.
 
-- **Absent, zero parents** — `subject` is used as the fallback snapshot
-  reference and must itself validate as a hash.
-- **Absent, exactly one parent** — the parent's snapshot is inherited.
-- **Absent, more than one parent** — invalid. There is no single parent
-  snapshot to inherit, and falling back to `subject` would silently lose the
-  merge result.
-- **Present** — used as-is, regardless of parent count.
+The rule that produces it: **a field whose absent value would have to be
+*derived from other data* is required; optional is reserved for fields whose
+absent value is a constant default.** `snapshot` and `generation` are required
+because their absence would force inference (a resolution algorithm and an
+ancestry walk, respectively). `archived` is the documented boundary of the
+rule and stays **optional**: its absence is the constant `false`, derivable
+from nothing, so the `option(true)` presence-flag idiom is exactly right —
+forcing `archived: false` onto every blob would be pure noise.
 
-`validate` / `decodeText` enforce this after structural validation succeeds.
+Inference has not disappeared; it moved to the write boundary. The `evo_add`
+API ([`fs/cas/evo`](../../cas/evo/)) keeps its input conveniences — infer
+`subject` from a single parent, compute `generation`, resolve an absent input
+`snapshot` (zero parents → `subject` as the reference, one parent → the
+parent's snapshot) — and writes every field explicitly. APIs infer; the stored
+record never does.
 
 ## Media type and dialect tag
 
@@ -92,6 +103,16 @@ one. This is why incremental diffs are not a field here: an optional
 reader would still validate such a blob and materialize the base, silently
 ignoring the changes). Incremental changes are a future separate dialect,
 `vnd.fjs.change`, served as `application/vnd.fjs.change+json`.
+
+**Relaxing a required field is also incompatible.** Making a currently
+required field (`snapshot`, `generation`) optional again is allowed, but only
+together with a *specified inference algorithm* for the absent value — and,
+per the versioning rule above, under a **new dialect**, since a reader of this
+dialect rejects a blob missing a required field. The relaxation and its
+algorithm are one decision. (This was possible in-place for the current
+requirement only because the format is still being designed and no
+`vnd.fjs.revision` records have ever been stored — that window closes the
+moment the first revision is written.)
 
 ## Tagged-JSON detection
 
@@ -132,9 +153,18 @@ this is the walk the planned history API performs
 Reordering `parents` changes the meaning of a revision (which branch the
 merge landed on), not just its serialization.
 
-`generation` is a cache, not a source of truth: it must always be
-re-derivable from `parents`, and a consumer must not trust a `generation` it
-has not verified against the actual parent chain from an untrusted source.
+`generation`'s *correctness* is existence and integer-ness only: a blob is a
+revision iff it carries a `generation` that is a non-negative integer.
+Equality with `1 + max(parents' generations)` (or `0` for a root) is what a
+conforming writer produces — evo's `add` always does — but it is **observed,
+not enforced**. A deviation is not an invalid blob; it is a *signal* that
+someone reset the history/clock — e.g. a revision starting a new epoch, such
+as a new subject that still lists its origin as `parents` to show how it was
+formed. Consumers may surface the discontinuity (an epoch-reset indicator);
+they must not reject the blob for it. Ordering by `generation` is therefore
+reliable within an epoch, and the cheap one-level comparison against parents
+is the epoch-boundary detector (see
+[`fs/cas/evo/todo/evo-revision.md`](../../cas/evo/todo/evo-revision.md)).
 
 `archived` marks a mutable object as no longer worked on (e.g. a finished
 task); its blobs can be deleted from a local CAS after a backup. It follows

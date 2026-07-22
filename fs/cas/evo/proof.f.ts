@@ -4,7 +4,7 @@ import { fileCas, type Cas } from '../module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
 import { vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
-import { vecToCBase32 } from '../../basen/cbase32/module.f.ts'
+import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
 import type { IoResult } from '../../effects/node/module.f.ts'
@@ -77,7 +77,7 @@ export const proof = {
     decodeRevisionBlobValidRevisionRoundTrips: () => {
         const c = fileCas(sha256)(home)
         const subjectHash = vecToCBase32(vec8(0x11n))
-        const text = `{"dialect":"${revisionDialect}","subject":"${subjectHash}","parents":[]}`
+        const text = `{"dialect":"${revisionDialect}","subject":"${subjectHash}","parents":[],"snapshot":"${subjectHash}","generation":0}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
         const [state1, w] = virtual(emptyState)(c.write(nonEmpty(ok(bytes), elEmpty<never, Ok<Vec>>())))
@@ -93,7 +93,7 @@ export const proof = {
         // branch of the full-store fold.
         const c = fileCas(sha256)(home)
         const subjectHash = vecToCBase32(vec8(0x12n))
-        const text = `{"dialect":"${revisionDialect}","subject":"${subjectHash}","parents":[]}`
+        const text = `{"dialect":"${revisionDialect}","subject":"${subjectHash}","parents":[],"snapshot":"${subjectHash}","generation":0}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
         const [state1, w] = virtual(emptyState)(fileCas(sha256)(home).write(nonEmpty(ok(bytes), elEmpty<never, Ok<Vec>>())))
@@ -114,8 +114,8 @@ export const proof = {
         const rootCBase32 = vecToCBase32(rootHash)
         const childCBase32 = vecToCBase32(childHash)
         const snapshotHash = vecToCBase32(vec8(0xccn))
-        const rootText = `{"dialect":"${revisionDialect}","subject":"doc","parents":[],"snapshot":"${snapshotHash}"}`
-        const childText = `{"dialect":"${revisionDialect}","subject":"doc","parents":["${rootCBase32}"]}`
+        const rootText = `{"dialect":"${revisionDialect}","subject":"doc","parents":[],"snapshot":"${snapshotHash}","generation":0}`
+        const childText = `{"dialect":"${revisionDialect}","subject":"doc","parents":["${rootCBase32}"],"snapshot":"${snapshotHash}","generation":1}`
         const rootBytes = tryUtf8(rootText)
         const childBytes = tryUtf8(childText)
         assert(rootBytes !== null && childBytes !== null, 'expected sample revisions to encode as UTF-8')
@@ -138,8 +138,8 @@ export const proof = {
         assert(rootNonCanonical !== rootCanonical, 'expected the sample hash to contain letters')
         const childHash = vec8(0xeen)
         const snapshotHash = vecToCBase32(vec8(0xddn))
-        const rootText = `{"dialect":"${revisionDialect}","subject":"doc","parents":[],"snapshot":"${snapshotHash}"}`
-        const childText = `{"dialect":"${revisionDialect}","subject":"doc","parents":["${rootNonCanonical}"]}`
+        const rootText = `{"dialect":"${revisionDialect}","subject":"doc","parents":[],"snapshot":"${snapshotHash}","generation":0}`
+        const childText = `{"dialect":"${revisionDialect}","subject":"doc","parents":["${rootNonCanonical}"],"snapshot":"${snapshotHash}","generation":1}`
         const rootBytes = tryUtf8(rootText)
         const childBytes = tryUtf8(childText)
         assert(rootBytes !== null && childBytes !== null, 'expected sample revisions to encode as UTF-8')
@@ -164,12 +164,15 @@ export const proof = {
         assert(rev0Result[0] === 'ok', ['expected rev0 ok', rev0Result])
         const rev0Hash = rev0Result[1]
 
+        // rev1 inherits rev0's snapshot; rev2 states a different one — so the
+        // two concurrent children are genuinely distinct blobs (both children
+        // of rev0, same generation), not one deduplicated revision.
         const rev1: AddRevision = { parents: [rev0Hash], subject: 'doc' }
         const [state2, rev1Result] = virtual(state1)(e.add(rev1))
         assert(rev1Result[0] === 'ok', ['expected rev1 ok', rev1Result])
         const rev1Hash = rev1Result[1]
 
-        const rev2: AddRevision = { parents: [rev0Hash], subject: 'doc', snapshot: snapshotHash }
+        const rev2: AddRevision = { parents: [rev0Hash], subject: 'doc', snapshot: vecToCBase32(vec8(0x23n)) }
         const [state3, rev2Result] = virtual(state2)(e.add(rev2))
         assert(rev2Result[0] === 'ok', ['expected rev2 ok', rev2Result])
         const rev2Hash = rev2Result[1]
@@ -242,6 +245,59 @@ export const proof = {
         assertEq(heads.length, 1)
         assertEq(heads[0], childHash)
     },
+    // `add` writes both inference-derived fields explicitly: a root gets
+    // `generation` 0 and, with no input `snapshot`, its `subject` (a hash) as
+    // the snapshot reference; a single-parent child with no input `snapshot`
+    // inherits the parent's stored snapshot and gets `generation` 1.
+    addComputesGenerationAndResolvesSnapshot: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const subjectHash = vecToCBase32(vec8(0x71n))
+        const [state1, rootResult] = virtual(state0)(e.add({ parents: [], subject: subjectHash }))
+        assert(rootResult[0] === 'ok', ['expected root ok', rootResult])
+        const rootHashVec = cBase32ToVec(rootResult[1])
+        assert(rootHashVec !== null, 'expected the root hash to decode')
+        const [state2, root] = virtual(state1)(decodeRevisionBlob(c)(rootHashVec as Vec))
+        assert(root !== null, 'expected the stored root to decode')
+        assertEq(root?.generation, 0)
+        assertEq(root?.snapshot, subjectHash)
+
+        const [state3, childResult] = virtual(state2)(e.add({ parents: [rootResult[1]], subject: subjectHash }))
+        assert(childResult[0] === 'ok', ['expected child ok', childResult])
+        const childHashVec = cBase32ToVec(childResult[1])
+        assert(childHashVec !== null, 'expected the child hash to decode')
+        const [, child] = virtual(state3)(decodeRevisionBlob(c)(childHashVec as Vec))
+        assert(child !== null, 'expected the stored child to decode')
+        assertEq(child?.generation, 1)
+        assertEq(child?.snapshot, subjectHash)
+    },
+    // A merge takes `1 + max(parents' generations)`: a parent at generation 2
+    // and one at generation 1 yield generation 3.
+    addComputesMergeGenerationFromMaxOfParents: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const snap = vecToCBase32(vec8(0x72n))
+        // Mainline chain: root(gen0) → a(gen1) → b(gen2).
+        const [state1, root] = virtual(state0)(e.add({ parents: [], subject: 'm', snapshot: snap }))
+        assert(root[0] === 'ok', ['expected root ok', root])
+        const [state2, a] = virtual(state1)(e.add({ parents: [root[1]], subject: 'm', snapshot: snap }))
+        assert(a[0] === 'ok', ['expected a ok', a])
+        const [state3, b] = virtual(state2)(e.add({ parents: [a[1]], subject: 'm', snapshot: snap }))
+        assert(b[0] === 'ok', ['expected b ok', b])
+        // Side branch off root: c(gen1).
+        const [state4, cRev] = virtual(state3)(e.add({ parents: [root[1]], subject: 'm', snapshot: snap }))
+        assert(cRev[0] === 'ok', ['expected c ok', cRev])
+        // Merge of b(gen2) and c(gen1) → gen3.
+        const [state5, merge] = virtual(state4)(e.add({ parents: [b[1], cRev[1]], subject: 'm', snapshot: snap }))
+        assert(merge[0] === 'ok', ['expected merge ok', merge])
+        const mergeHashVec = cBase32ToVec(merge[1])
+        assert(mergeHashVec !== null, 'expected the merge hash to decode')
+        const [, mergeRev] = virtual(state5)(decodeRevisionBlob(c)(mergeHashVec as Vec))
+        assert(mergeRev !== null, 'expected the stored merge to decode')
+        assertEq(mergeRev?.generation, 3)
+    },
     addRevisionSubjectRequiredForZeroParents: () => {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
@@ -308,9 +364,10 @@ export const proof = {
         assertEq(result[0], 'error')
         assert(result[0] === 'error' && result[1].includes('invalid parent hash'), ['unexpected message', result])
     },
-    // Two *valid* parents without an explicit `snapshot` fail the
-    // `vnd.fjs.revision` reference semantics (no single parent snapshot to
-    // inherit) — a distinct failure from a missing/invalid parent.
+    // Two *valid* parents without an explicit `snapshot` cannot resolve one
+    // (no single parent snapshot to inherit) — a distinct failure from a
+    // missing/invalid parent, reported by `resolveSnapshot` at the write
+    // boundary now that the format requires an explicit `snapshot`.
     addRevisionInvalidReferencesIsError: () => {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
@@ -350,7 +407,7 @@ export const proof = {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
         const subjectHash = vecToCBase32(vec8(0x13n))
-        const text = `{"dialect":"${revisionDialect}","subject":"${subjectHash}","parents":[]}`
+        const text = `{"dialect":"${revisionDialect}","subject":"${subjectHash}","parents":[],"snapshot":"${subjectHash}","generation":0}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected sample revision to encode as UTF-8')
         const hashVec = vec8(0x14n)

@@ -1,7 +1,7 @@
 ## Require all fields whose absence forces inference
 
 **Priority:** P1
-**Status:** open
+**Status:** done
 
 ### Problem
 
@@ -92,21 +92,21 @@ algorithm are one decision; this todo just keeps the door open.
 
 ### Tasks
 
-- [ ] `revisionSchema`: `snapshot` `option(hash)` → `hash`, `generation`
+- [x] `revisionSchema`: `snapshot` `option(hash)` → `hash`, `generation`
       `option(number)` → `number`; non-negative-integer check for
       `generation` in `validate`; remove the snapshot-resolution logic and
       the `subject`-as-hash fallback from `validate`/`decodeText`.
-- [ ] Proof coverage: missing/non-integer/negative `generation`, missing
+- [x] Proof coverage: missing/non-integer/negative `generation`, missing
       `snapshot`, and a zero-parent revision whose `subject` is not a hash
       (now valid — `subject` is never a snapshot reference).
-- [ ] `README.md`: update the schema snippet and field table (`snapshot`
+- [x] `README.md`: update the schema snippet and field table (`snapshot`
       and `generation` required); delete the "Snapshot resolution"
       section; reframe the `generation` paragraph (correctness =
       existence + integer-ness, `1 + max` is what conforming writers
       produce, deviation = epoch-reset signal); state the
       interpretable-in-isolation property and the required-fields rule
       with the `archived` boundary; note the future-relaxation rule.
-- [ ] Land before any revision records are created (and in the same change
+- [x] Land before any revision records are created (and in the same change
       as `evo_add` writing the required fields — see the sequencing note
       in [`evo-revision.md`](../../../cas/evo/todo/evo-revision.md)).
 
