@@ -95,16 +95,18 @@ See [architecture.md §Human-readable paths](./architecture.md).
 **Current state:**
 - `fs/bnf/` — combinator framework exists; no FunctionalScript grammar written yet
 - `fs/djs/` — full data pipeline (tokenizer → parser → AST → evaluator) for `const`, `import`, objects, arrays; **functions not yet supported**
-- `nanvm-lib` (Rust) — type system implemented (primitives, arrays, objects, bigints); **no AST deserializer, no execution loop**
+- `nanvm-lib` (Rust) — type system implemented (primitives, arrays, objects, bigints); **no interpreter, no execution loop**
 
 **Remaining work:**
 1. Function support in `fs/djs/`
 2. FunctionalScript grammar in `fs/bnf/` (single source for parser + generated language spec)
-3. AST serializer (FJS) — the AST is the stable serializable representation of functions
-   (see [`todo/lang/README.md` §9](../lang/README.md#9-serialization-ast-not-bytecode));
+3. Rust code generator (FJS) — compiles FJS modules into Rust code calling the `nanvm-lib` API;
+   the MVP pipeline, the compiler-bootstrap vehicle, and the AOT backend
+   (see [`nanvm-lib/todo/mvp-roadmap.md`](../../nanvm-lib/todo/mvp-roadmap.md))
+4. `Function` constructor + interpreter in `nanvm-lib` — executes the AST as data
+   (see [`todo/lang/README.md` §9](../lang/README.md#9-serialization-ast-as-data-not-bytecode));
    bytecode is an optional, VM-internal, performance-oriented representation
-4. AST deserializer in `nanvm-lib`
-5. VM execution loop in `nanvm-lib`
+5. Generic `Any` serialization (CBOR) in `nanvm-lib` — covers code as data; needed for CAS/CAVM
 
 This is the longest dependency chain. Everything after it depends on it.
 
@@ -142,7 +144,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | Signed directories | — | Directory block type + path resolver |
 | SUL deduplication | `fs/sul/` L1–L4 ✓ | CAS integration layer |
 | Compiler (parsing) | `fs/djs/` data pipeline ✓, `fs/bnf/` framework ✓ | Function support, FS grammar |
-| Compiler (codegen) | — | AST serializer (FJS), AST deserializer + VM loop in `nanvm-lib` |
+| Compiler (codegen) | — | Rust code generator (FJS), `Function` constructor + interpreter in `nanvm-lib` |
 | CA FunctionalScript | — | Depends on VM + AST canonicalization |
 | Sandboxed execution | — | Depends on CA FS |
 | Hybrid intelligence | — | Depends on all above |
