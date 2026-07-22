@@ -54,7 +54,7 @@ Publishing in place requires cleaning old generated package files and then runni
 ```json
 {
   "scripts": {
-    "clean:package-output": "git clean -fX -- \"\:(glob)fs/**/*.js\" \"\:(glob)fs/**/*.d.ts\"",
+    "clean:package-output": "git clean -fX -- \":(glob)fs/**/*.js\" \":(glob)fs/**/*.d.ts\"",
     "emit:declarations": "tsc --noEmit false --emitDeclarationOnly",
     "emit:typescript": "tsc --noEmit false --allowJs false --checkJs false --declaration false",
     "prepack": "npm run clean:package-output && npm run emit:declarations && npm run emit:typescript"
