@@ -6,10 +6,15 @@ raw bytes only, sharded by cBase32 hash under `~/.cas/` — and never records a
 mutable pointer or a per-blob type tag; both are recovered at the edges that
 need them.
 
-- [`fs/cas/mcp`](mcp/) — an MCP front end (`cas_add` / `cas_get` / `cas_list`)
-  for agents, including read-time media-type detection.
+- [`fs/cas/mcp`](mcp/) — an MCP front end for agents, including read-time
+  media-type detection: `cas_add` / `cas_get` / `cas_list` plus
+  [`fs/cas/evo`](evo/)'s `evo_list` / `evo_head` / `evo_add`, all served from
+  one process.
 - [`cas` CLI](cli/module.f.ts) — direct filesystem access for content larger
   than the MCP inline-content cap.
+- [`fs/cas/evo`](evo/) — the Evo API: subjects and revision heads
+  ([`vnd.fjs.revision`](../media/revision/)) cached in memory over this
+  store.
 
 ## Content formats
 

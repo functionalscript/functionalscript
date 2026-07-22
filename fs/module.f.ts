@@ -30,7 +30,7 @@ const commands: Commands<NodeOp> = [
     },
     {
         names: ['mcp', 'm'],
-        description: 'Run an MCP server over stdio exposing the CAS as tools',
+        description: 'Run an MCP server over stdio exposing the CAS and Evo (subjects/heads) as tools',
         handler: ({ home }) => casMcpServer(home).step(() => pure(0)),
     },
     {

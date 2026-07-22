@@ -5,7 +5,7 @@
  */
 import { sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/module.f.ts'
 import { join, normalize, parse } from '../path/module.f.ts'
-import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
+import { empty, length, maxLength, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
 import { foldStep, forEachStep, okStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
 import {
@@ -77,6 +77,30 @@ export type Cas<O extends Operation> = {
     readonly write: <O1 extends Operation>(payload: List<O1, IoResult<Vec>>) => Effect<O | O1, IoResult<Vec>>
     /** Lists all stored content hashes. */
     readonly list: () => Effect<O, readonly Vec[]>
+}
+
+/**
+ * Drains a `Cas<O>.read` chunk stream into a single `Vec`. Used by any caller
+ * that needs the whole blob at once (an MCP `content: true` fetch, an Evo
+ * revision decode): the chunk stream is concatenated and an error item is
+ * surfaced as the result. A single `Vec` cannot exceed `maxLength` bits;
+ * concatenating past it would overflow the runtime's `bigint` constraint, so
+ * that case is surfaced as an error item too, rather than crashing the
+ * process.
+ */
+export const collectRead = <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {
+    const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
+        s.step((node): Effect<O, IoResult<Vec>> => {
+            if (node === undefined) { return pure(ok(acc)) }
+            const { first, tail } = node
+            const [t, v] = first
+            if (t === 'error') { return pure(first) }
+            if (length(acc) + length(v) > maxLength) {
+                return pure(error(`cas blob exceeds maximum vector length of ${maxLength} bits`))
+            }
+            return loop(msb.concat(acc)(v))(tail)
+        })
+    return loop(empty)(stream)
 }
 
 /** Maximum chunk size for streaming reads: the largest `Vec` the runtime allows. */

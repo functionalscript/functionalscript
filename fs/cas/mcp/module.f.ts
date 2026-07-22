@@ -1,19 +1,26 @@
 /**
- * MCP adapter for the content-addressable store.
+ * MCP adapter for the content-addressable store and the Evo API layered on
+ * top of it.
  *
  * Maps `Cas<O>` operations onto MCP tools, so an agent that speaks MCP can
  * store a blob and get back its hash, fetch a blob by hash, and enumerate
  * what is stored — without shelling out to the `cas` CLI. The store itself
  * (`fs/cas/module.f.ts`) stays transport-agnostic; this is an additional
- * front end alongside the CLI `main`.
+ * front end alongside the CLI `main`. The same server also exposes
+ * `fs/cas/evo`'s subject/head API (`evo_list`/`evo_head`/`evo_add`,
+ * `fs/cas/evo/mcp`) — one process, one `~/.cas/` store, one in-memory Evo
+ * cache scanned once at startup (`initEvo`).
  *
  * ## Tools
  *
- * | Tool       | args                          | action           | result                              |
- * |------------|-------------------------------|------------------|-------------------------------------|
- * | `cas_add`  | `{ content, type? }`          | `c.write(...)`   | hash (cBase32)                      |
- * | `cas_get`  | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
- * | `cas_list` | `{}`                          | `c.list()`       | hashes, one per line                |
+ * | Tool        | args                                           | action        | result                              |
+ * |-------------|-------------------------------------------------|---------------|--------------------------------------|
+ * | `cas_add`   | `{ content, type? }`                            | `c.write(...)`| hash (cBase32)                      |
+ * | `cas_get`   | `{ hash, content?: boolean }`                    | `c.read(key)` | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
+ * | `cas_list`  | `{}`                                             | `c.list()`    | hashes, one per line                |
+ * | `evo_list`  | `{}`                                             | `e.list()`    | subjects, one per line              |
+ * | `evo_head`  | `{ subject }`                                    | `e.head(...)` | head hashes, one per line           |
+ * | `evo_add`   | `{ parents, snapshot?, subject?, archived? }`    | `e.add(...)`  | hash (cBase32)                      |
  *
  * ## `cas_add` input encoding
  *
@@ -101,14 +108,14 @@
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
 import { stringify } from '../../media/json/module.f.ts'
-import { pure, decode, type Effect, type Operation } from '../../effects/module.f.ts'
+import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../media/type/module.f.ts'
 import { detect as detectDialect } from '../../media/module.f.ts'
-import { empty, length as bitVecLength, maxLength, maxLengthBytes, msb, vec, type Vec } from '../../types/bit_vec/module.f.ts'
+import { maxLengthBytes, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, error, type Ok } from '../../types/result/module.f.ts'
 import { type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
@@ -118,11 +125,14 @@ import {
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
 } from '../../mcp/module.f.ts'
-import { fileCas, type FileCasOperation } from '../module.f.ts'
+import { collectRead, fileCas, type FileCasOperation } from '../module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
-import { nonEmpty, empty as elEmpty, type List } from '../../effects/list/module.f.ts'
+import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
+import { initEvo, evo, syncRevision, type Cache } from '../evo/module.f.ts'
+import { evoToolRegistry } from '../evo/mcp/module.f.ts'
+import type { Key } from '../../effects/memory/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
@@ -141,33 +151,6 @@ export const casGetArgs = {
 /** Arguments for `cas_list`: none. */
 export const casListArgs = {} as const
 
-// ── Stream helper ────────────────────────────────────────────────────────────────
-
-/**
- * Drains a CAS read stream into a single `Vec`. Used only on the `content: true`
- * path, where the whole blob is needed for inline base64 / UTF-8 transfer; the
- * chunk stream is concatenated and an error item is surfaced as the result.
- * Metadata-only `cas_get` avoids this entirely via `fs/media/type` `detectStream`,
- * which is why it is not bound by the `maxLength` ceiling below.
- */
-const collectRead = <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {
-    const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
-        s.step((node): Effect<O, IoResult<Vec>> => {
-            if (node === undefined) { return pure(ok(acc)) }
-            const { first, tail } = node
-            const [t, v] = first
-            if (t === 'error') { return pure(first) }
-            // A single `Vec` cannot exceed `maxLength` bits; concatenating past it would
-            // overflow the runtime's `bigint` constraint. Surface that as an error item
-            // so the tool reports a failure rather than crashing the process.
-            if (bitVecLength(acc) + bitVecLength(v) > maxLength) {
-                return pure(error(`cas blob exceeds maximum vector length of ${maxLength} bits`))
-            }
-            return loop(msb.concat(acc)(v))(tail)
-        })
-    return loop(empty)(stream)
-}
-
 // ── Tool registry ──────────────────────────────────────────────────────────────
 
 const toJson = stringify(identity)
@@ -179,16 +162,24 @@ type Meta = {
     readonly uri: string
 }
 
-/** Registry of all CAS tools. */
-const casToolRegistry =
-(home: string): readonly ToolEntry<FileCasOperation>[] => {
+/**
+ * Registry of all CAS tools, bound to `home` and the Evo cache at
+ * `cacheKey`. `cas_add` is the only tool that writes, so it is the only one
+ * that needs `cacheKey`: a successfully stored blob is folded into the Evo
+ * cache via `syncRevision` when it happens to be a `vnd.fjs.revision` — a
+ * plain `cas_add` and `evo_add` are two ways to reach the same store, and
+ * this keeps `evo_list`/`evo_head` honest about either one without a
+ * rescan.
+ */
+export const casToolRegistry =
+(home: string) => (cacheKey: Key<Cache>): readonly ToolEntry<FileCasOperation | MemOp>[] => {
     const c = fileCas(sha256)(home)
     return [
     toolEntry(
         'cas_add',
         'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, store the file with the `cas` CLI instead: run `npx functionalscript cas add <path>` yourself if you have shell access, or give the user that exact command to run — it prints the resulting hash on stdout.',
         casAddArgs,
-        ({ type, content }): Effect<FileCasOperation, ToolsCallResult> => {
+        ({ type, content }): Effect<FileCasOperation | MemOp, ToolsCallResult> => {
             // type:'text' or 'base64' — resolve content to Vec, store via c.write()
             let x: Vec|null = type === 'base64'
                 ? base64Decode(content)
@@ -196,9 +187,11 @@ const casToolRegistry =
             return x === null
                 ? pure(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())).step(([tag, hash]) => pure(tag === 'error'
-                    ? errorResult('write')
-                    : okResult(vecToCBase32(hash))))
+                : c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())).step((writeResult): Effect<MemOp, ToolsCallResult> => {
+                    if (writeResult[0] === 'error') { return pure(errorResult('write')) }
+                    const hash = writeResult[1]
+                    return syncRevision(cacheKey)(hash)(x).step(() => pure(okResult(vecToCBase32(hash))))
+                })
         },
     ),
     toolEntry(
@@ -282,10 +275,11 @@ const casToolRegistry =
 // ── Handlers ────────────────────────────────────────────────────────────────────
 
 /**
- * MCP handlers for `FileCas`.
+ * MCP handlers for `FileCas` plus the Evo API (`fs/cas/evo`) layered on it,
+ * bound to `home` and an already-built Evo cache slot (see `initEvo`).
  */
-export const casMcpHandlers = (home: string): McpHandlers<FileCasOperation> =>
-    fromRegistry(casToolRegistry(home))
+export const casMcpHandlers = (home: string) => (cacheKey: Key<Cache>): McpHandlers<FileCasOperation | MemOp> =>
+    fromRegistry([...casToolRegistry(home)(cacheKey), ...evoToolRegistry(evo(fileCas(sha256)(home))(cacheKey))])
 
 // ── Session configuration ───────────────────────────────────────────────────────
 
@@ -302,15 +296,17 @@ export const casConfig: McpConfig = {
 // ── Server ──────────────────────────────────────────────────────────────────────
 
 /**
- * Runs the file CAS MCP server over stdio: allocates the session-state slot, builds
- * the `mcpStep` for `c`, and drives the read → parse → dispatch → write loop
- * until stdin EOF.
+ * Runs the combined CAS + Evo MCP server over stdio: scans `~/.cas/` once to
+ * build the Evo subject/head cache (`initEvo`), allocates the session-state
+ * slot, builds the `mcpStep` for the merged tool registry, and drives the
+ * read → parse → dispatch → write loop until stdin EOF.
  */
 export const casMcpServer = (
     home: string,
 ): Effect<Read | Write | MemOp | FileCasOperation, void> =>
-    create(uninitializedState).step(key =>
-        stdioTransport(mcpStep(casConfig)(casMcpHandlers(home))(key)))
+    initEvo(fileCas(sha256)(home)).step(cacheKey =>
+        create(uninitializedState).step(sessionKey =>
+            stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))))
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
@@ -318,16 +314,4 @@ export const proof = {
     // casMcpServer is never called in integration tests because it drives a
     // real stdio server; call it here to cover its Effect-building body.
     casMcpServer: () => { casMcpServer('/') },
-    // The overflow guard in collectRead (lines 125-126) is only reached when
-    // the running total of two stream chunks would exceed maxLength.  Feed a
-    // pure stream whose second chunk pushes it just over the limit so the
-    // error branch executes without any real I/O.
-    collectReadOverflow: () => {
-        const half = maxLength / 2n
-        const v1 = vec(half)(0n)
-        const v2 = vec(half + 1n)(0n)
-        const stream = nonEmpty<never, IoResult<Vec>>(ok(v1), nonEmpty<never, IoResult<Vec>>(ok(v2), elEmpty<never, IoResult<Vec>>()))
-        const d = decode(collectRead(stream))
-        if (!d.done || d.result[0] !== 'error') { throw 'expected overflow error' }
-    },
 }
