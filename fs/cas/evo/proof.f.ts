@@ -304,6 +304,19 @@ export const proof = {
         assertEq(result[0], 'error')
         assert(result[0] === 'error' && result[1].includes('subject is required'), ['unexpected message', result])
     },
+    // Zero parents and no input `snapshot`: `resolveSnapshot` falls back to
+    // `subject` as the reference, which must itself be a hash. A subject with
+    // characters outside the cbase32 alphabet ('not-a-hash!') therefore has
+    // nothing to resolve the snapshot to and is an error — the format requires
+    // an explicit `snapshot`.
+    addRevisionNonHashSubjectWithoutSnapshotIsError: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const [, result] = virtual(state0)(e.add({ parents: [], subject: 'not-a-hash!' }))
+        assertEq(result[0], 'error')
+        assert(result[0] === 'error' && result[1].includes('subject must be a valid hash'), ['unexpected message', result])
+    },
     addRevisionInvalidParentHashIsError: () => {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))

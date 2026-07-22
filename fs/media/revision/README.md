@@ -44,8 +44,9 @@ a valid `subject`.
 Because rtti struct schemas can't express string-content refinements, `hash`
 is `string` at the schema level and `generation` is `number`; cbase32
 decodability (and the rejection of non-cbase32 strings such as `https://`
-URLs), plus `generation` being a **non-negative integer**, are enforced by
-`isHash` / `validate`, layered on top of the structural schema.
+URLs), plus `generation` being a **non-negative safe integer** (`≤ 2 ** 53 −
+1`, so `1 + max(...)` stays exact), are enforced by `isHash` / `validate`,
+layered on top of the structural schema.
 
 ## Interpretable in isolation
 
@@ -154,7 +155,7 @@ Reordering `parents` changes the meaning of a revision (which branch the
 merge landed on), not just its serialization.
 
 `generation`'s *correctness* is existence and integer-ness only: a blob is a
-revision iff it carries a `generation` that is a non-negative integer.
+revision iff it carries a `generation` that is a non-negative safe integer.
 Equality with `1 + max(parents' generations)` (or `0` for a root) is what a
 conforming writer produces — evo's `add` always does — but it is **observed,
 not enforced**. A deviation is not an invalid blob; it is a *signal* that

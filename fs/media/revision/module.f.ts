@@ -74,8 +74,14 @@ export type RevisionError = ValidationError | string
  * Checks the semantic refinements the structural schema can't express on an
  * already shape-valid revision: every `parents` entry and the `snapshot` must
  * decode as a cbase32 hash ({@link isHash}), and `generation` must be a
- * non-negative integer. `subject` is not checked — it is an identity string,
- * never a snapshot reference, so any string is valid.
+ * non-negative *safe* integer. `subject` is not checked — it is an identity
+ * string, never a snapshot reference, so any string is valid.
+ *
+ * `generation` uses `Number.isSafeInteger`, not `Number.isInteger`: a value at
+ * or above `2 ** 53` passes `isInteger` but is no longer uniquely
+ * representable, so `1 + max(parents' generations)` — how a writer derives the
+ * next generation — can round back to the parent's value and fail to advance.
+ * Rejecting unsafe integers keeps stored generations exact.
  *
  * Both `snapshot` and `generation` are required by the schema, so no absence
  * ever has to be resolved here: a revision states its content and its
@@ -95,8 +101,8 @@ export const checkReferences = (r: Revision): Result<Revision, string> => {
         if (!isHash(p)) { return error(`parent is not a valid hash: ${p}`) }
     }
     if (!isHash(r.snapshot)) { return error(`snapshot is not a valid hash: ${r.snapshot}`) }
-    if (!Number.isInteger(r.generation) || r.generation < 0) {
-        return error(`generation must be a non-negative integer: ${r.generation}`)
+    if (!Number.isSafeInteger(r.generation) || r.generation < 0) {
+        return error(`generation must be a non-negative safe integer: ${r.generation}`)
     }
     return ok(r)
 }

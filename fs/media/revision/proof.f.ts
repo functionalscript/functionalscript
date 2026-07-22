@@ -85,6 +85,15 @@ export const proof = {
             assertEq(t, 'error')
         },
 
+        // `generation` must be a *safe* integer: at `2 ** 53` and above the
+        // value is no longer uniquely representable, so `1 + max(...)` could
+        // fail to advance — such a blob is rejected (`Number.isInteger` would
+        // accept it; `Number.isSafeInteger` does not).
+        unsafeIntegerGenerationRejected: () => {
+            const [t] = validate(revisionOf({ generation: 2 ** 53 }))
+            assertEq(t, 'error')
+        },
+
         // A positive integer generation is accepted.
         positiveGenerationAccepted: () => {
             const [t, v] = validate(revisionOf({ parents: [h1], generation: 3 }))
