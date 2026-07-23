@@ -130,5 +130,8 @@ _*
 **/*.d.ts
 **/*.js
 
-deno.lock
 test-results/
+
+index.html
+
+.cas/

@@ -1,0 +1,78 @@
+import type { TNode } from './types/module.f.ts'
+import { values } from './module.f.ts'
+import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
+import { sort } from '../object/module.f.ts'
+import { cmp } from '../string/module.f.ts'
+import { next, toArray, type List, type Result } from '../list/module.f.ts'
+import { set as setSet } from './set/module.f.ts'
+import { value, find as findFind } from './find/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
+
+const jsonStr = jsonStringify(sort)
+
+const stringify
+    : (sequence: List<Unknown>) => string
+    = sequence => jsonStr(toArray(sequence))
+
+const set
+    : (node: TNode<string>) => (value: string) => TNode<string>
+    = node => value => setSet(cmp(value))(() => value)(node)
+
+const valueTest1 =() => {
+    let _map: TNode<string> = ['a']
+    _map = set(_map)('b')
+    _map = set(_map)('c')
+    _map = set(_map)('d')
+    _map = set(_map)('e')
+    _map = set(_map)('f')
+    const result = stringify(values(_map))
+    assertEq(result, '["a","b","c","d","e","f"]')
+}
+
+const valuesTest2 = () => {
+    let _map: TNode<string> = ['1']
+    for(let i = 2; i <= 10; i++)
+        _map = set(_map)((i*i).toString())
+    const result = stringify(values(_map))
+    assertEq(result, '["1","100","16","25","36","4","49","64","81","9"]')
+}
+
+const findTrue = () => {
+    let _map: TNode<string> = ['a']
+    _map = set(_map)('b')
+    _map = set(_map)('c')
+    const result = value(findFind(cmp('b'))(_map).first)
+    assertEq(result, 'b')
+}
+
+const find = () => {
+    let _map: TNode<string> = ['a']
+    _map = set(_map)('b')
+    _map = set(_map)('c')
+    const result = value(findFind(cmp('e'))(_map).first)
+    assertEq(result, null)
+}
+
+const test = () => {
+    let _map: TNode<string> = ['a']
+    _map = set(_map)('b')
+    _map = set(_map)('c')
+    _map = set(_map)('d')
+    _map = set(_map)('e')
+    _map = set(_map)('f')
+    //
+    {
+        let _item: Result<string> = next(values(_map))
+        while (_item !== null) {
+            _item = next(_item.tail)
+        }
+    }
+}
+
+export const proof = {
+    valueTest1,
+    valuesTest2,
+    findTrue,
+    find,
+    test,
+}

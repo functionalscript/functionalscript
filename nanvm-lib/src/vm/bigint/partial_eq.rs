@@ -5,3 +5,5 @@ impl<A: IVm> PartialEq for BigInt<A> {
         self.0.items_eq(&other.0)
     }
 }
+
+impl<A: IVm> Eq for BigInt<A> {}

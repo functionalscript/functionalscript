@@ -9,8 +9,9 @@ use crate::vm::IVm;
 
 /// ```
 /// use nanvm_lib::{
-///     vm::{ToArray, IVm, Array, Any, ToAny, naive::Naive},
+///     vm::{ToArray, IVm, Array, Any, ToAny},
 ///     common::{sized_index::SizedIndex, default::default},
+///     naive::Naive
 /// };
 /// fn array_test<A: IVm>() {
 ///     let b: Array<A> = [1.0.to_any(), true.to_any()].to_array();

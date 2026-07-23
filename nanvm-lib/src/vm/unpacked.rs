@@ -1,6 +1,5 @@
-use crate::{
-    nullish::Nullish,
-    vm::{dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String},
+use crate::vm::{
+    Array, BigInt, Function, IVm, Object, String, dispatch::Dispatch, nullish::Nullish,
 };
 
 #[derive(Clone)]

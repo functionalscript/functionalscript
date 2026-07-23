@@ -1,0 +1,114 @@
+# CAS Implementation Plan
+
+Make the content-addressable store stream-native and build it on the lock-free staging
+algorithm, removing the key-value layer it is currently (awkwardly) built on.
+
+Design references: [staging-lease.md](staging-lease.md) (the upload algorithm), [scrub.md](scrub.md)
+(corruption detection/repair), [README.md](README.md) (strategy layering). Current code:
+`fjs/cas/module.f.ts`.
+
+## Goal interface
+
+```ts
+type Cas<O extends Operation> = {
+    // stream the content out in <=128 KiB chunks; a missing shard or I/O error is an
+    // explicit error *item* in the stream, never collapsed into EOF
+    readonly read:  (hash: Vec) => ListEffect<O, IoResult<Vec>>
+    // consume a chunk stream (each item ok(chunk) or error), hash incrementally, return the address
+    readonly write: (payload: ListEffect<O, IoResult<Vec>>) => Effect<O, IoResult<Vec>>
+    // all stored content hashes
+    readonly list:  () => Effect<O, readonly Vec[]>
+}
+```
+
+`ListEffect<O, T> = Effect<O, readonly[T, ListEffect<O, T>] | undefined>` (from
+`fjs/effects/module.f.ts`) — a lazy, effectful cons-stream: each pull yields `[item, rest]`
+or `undefined` at end. Wrapping `T = IoResult<Vec>` gives every pull an explicit ok/error, so
+a missing shard or read error is distinguishable from end-of-stream (`undefined`), and the
+payload type matches the `ListEffect<O, IoResult<Vec>>` shape used by the CAS interface. This is
+what keeps memory constant for arbitrarily large files.
+
+## Step 1 — Remove the key-value interface
+
+The CAS is currently `cas = (sha2) => (kvStore) => Cas`, layered on a generic
+`KvStore.read/write(key,value)/list`. That doesn't fit content addressing: the key is
+*derived* from the value (never supplied), streaming has no shape in `write(key, value)`,
+and `fileKvStore.write` is truncate-in-place where CAS needs no-clobber publish. The effect
+system already provides the mockability the KV layer was giving.
+
+- Delete `KvStore<O>`, `Kv`, `fileKvStore`, and the `cas(sha2)(kvStore)` wrapper from
+  `fjs/cas/module.f.ts`.
+- Define `Cas` directly over filesystem effects (no intermediate store).
+- Keep `toPath` (sharding) and `random256`.
+- Update the `add` / `get` / `list` CLI commands to the new direct CAS.
+- `readFile` / `writeFile` stay as the ≤128 KiB small-object effect primitive (Strategy 3
+  nodes use them directly) — only the *KV facade over CAS* is removed, not these effects.
+
+## Step 2 — Stream payloads with `ListEffect`
+
+Replace whole-`Vec` in/out with chunk streams:
+
+- `write(payload: ListEffect<O, IoResult<Vec>>)` — fold the stream; for each item, propagate
+  an error item as an upload failure, otherwise feed the chunk to both the staging file and
+  the running SHA-2 state. Return the computed hash. Never holds the whole payload in memory.
+- `read(hash)` — produce a `ListEffect<O, IoResult<Vec>>` that pulls `readBytes(toPath(hash),
+  offset, CHUNK_BYTES)` lazily (`CHUNK_BYTES = maxLengthBytes`). Emit **every non-empty** read
+  as an `ok(chunk)` item — including a final short (`< CHUNK_BYTES`) chunk — and end the stream
+  (`undefined`) only on an **empty** read. A missing shard or read error is an `error` *item*,
+  never folded into EOF.
+- `list()` stays `readonly Vec[]` (or a `ListEffect` of hashes if we want it lazy too).
+
+This is the interface the lock-free algorithm consumes (`write`) and produces (`read`); the
+existing `streamHash` helper folds into `write`.
+
+## Step 3 — Implement the lock-free staging algorithm
+
+Implement `write` as the `upload` algorithm from [staging-lease.md](staging-lease.md):
+
+1. `rand = random256()`; staging file `.cas/_stage/<deadline>-<rand>` (the `_` prefix
+   excludes it from `list` via `cBase32ToVec`).
+2. `mkdir(_stage, {recursive})`; `createExclusive` the file.
+3. Fold the payload stream: `writeBytes(path, offset, chunk)`, advance `offset`, update the
+   hash, and renew the lease each chunk by renaming to a fresh `now()+delta` deadline. Any
+   error ⇒ `rm(path)` and return an upload error.
+4. `hash = shaFinal(...)`; `dst = toPath(hash)` (already `.cas`-rooted — do **not** prepend
+   `.cas` again).
+5. `mkdir(dirOf(dst), {recursive})`, `rename(path, dst)`, `rm(path)` — results ignored.
+6. Success iff `stat(dst).size === offset`; else upload error.
+
+### New effects (`fjs/effects/node/module.f.ts`)
+
+`rename`, `rm`, `mkdir`, `readBytes`, `readdir` already exist. Add:
+
+- `createExclusive(path) => IoResult<void>` — `O_CREAT|O_EXCL`.
+- `writeBytes(path, offset, data: Vec) => IoResult<void>` — open existing (no create),
+  pwrite at `offset`; the mirror of `readBytes`. Contract: writes the **entire** `Vec` or
+  returns an error — no partial writes (the runner loops over short writes); otherwise the
+  size check could pass over a hole.
+- `stat(path) => IoResult<{ size }>` — used by the publish size check (and future resume).
+
+No `fsync`, `FileHandle`, or read-only effects in the baseline (durability is best-effort;
+corruption is caught by scrub — see staging-lease.md *Future optimizations*).
+
+### Garbage collection
+
+Lazy, piggy-backed on `write`: `readdir(_stage/)`, delete entries whose `<deadline>` is in
+the past (sorted lexically = chronologically, so expired names are a prefix).
+
+### Migrate `casUpload`
+
+Replace the existing `casUpload` (`.cas/.stage/` move-hash-move) with the new pipeline writing
+into `_stage/`; remove the `.stage/` path once no callers remain.
+
+### Tests
+
+Virtual-runner coverage in `fjs/effects/node/virtual/`: streaming write of a multi-chunk
+payload, read-back streaming, dedup (same content ⇒ same hash, second upload is a no-op
+publish), a simulated mid-stream error (staging file deleted, error returned), and GC
+reclaiming an expired staging file.
+
+## Dependency order
+
+Step 1 and Step 2 reshape the interface (`Cas` direct + streaming); Step 3 implements `write`
+behind it and adds the three effects. Land them in order: remove KV → stream interface →
+staging algorithm + effects + GC + `casUpload` migration.

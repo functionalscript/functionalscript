@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
 import { main } from './module.f.ts'
-import node from '../io/module.ts'
+import { run } from './effects/node/module.ts'
 
-await node(main)
+await run(main)
