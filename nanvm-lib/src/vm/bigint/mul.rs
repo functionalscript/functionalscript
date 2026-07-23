@@ -43,3 +43,30 @@ impl<A: IVm> Mul for BigInt<A> {
         Self::normalize_new(sign, value)
     }
 }
+
+// TODO: The unit tests should not use `naive` or other VM implementations.
+//       We should move these tests into integration tests.
+#[cfg(test)]
+mod tests {
+    use crate::{naive::Naive, vm::bigint::BigInt};
+
+    type T = BigInt<Naive>;
+
+    fn int(value: i64) -> T {
+        value.into()
+    }
+
+    #[test]
+    fn sign_combinations() {
+        assert_eq!(int(3) * int(5), int(15));
+        assert_eq!(int(-3) * int(5), int(-15));
+        assert_eq!(int(3) * int(-5), int(-15));
+        assert_eq!(int(-3) * int(-5), int(15));
+    }
+
+    #[test]
+    fn zero_operand() {
+        assert_eq!(int(3) * int(0), T::default());
+        assert_eq!(int(0) * int(-3), T::default());
+    }
+}

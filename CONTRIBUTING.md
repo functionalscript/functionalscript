@@ -1,6 +1,6 @@
 # Contributing to FunctionalScript
 
-Check the [./issues/README.md](./issues/README.md) file for existing issues.
+Check the [./todo/README.md](./todo/README.md) file for existing issues.
 
 ## Requirements
 

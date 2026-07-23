@@ -69,6 +69,27 @@ impl<A: IVm> BigInt<A> {
         Self::unchecked_new(sign, once(value))
     }
 
+    /// `self + (rhs with its sign replaced by rhs_sign)`.
+    ///
+    /// The single signed dispatch shared by `Add` and `Sub` (`a - b = a + (-b)`).
+    /// The effective sign is threaded as a parameter instead of negating `rhs`
+    /// via `Neg`, because `Neg` rebuilds the container (copying every word) —
+    /// don't "simplify" `sub` back to `self + (-rhs)`.
+    fn add_signed(self, rhs: Self, rhs_sign: Sign) -> Self {
+        let lhs_sign = *self.0.header();
+        let (sign, vec) = if lhs_sign == rhs_sign {
+            (lhs_sign, self.abs_add_vec(rhs))
+        } else {
+            // Signs differ: the result takes the sign of the larger magnitude.
+            match self.clone().abs_cmp_vec(rhs.clone()) {
+                Ordering::Equal => return Self::default(),
+                Ordering::Greater => (lhs_sign, self.abs_sub_vec(rhs)),
+                Ordering::Less => (rhs_sign, rhs.abs_sub_vec(self)),
+            }
+        };
+        Self::unchecked_new(sign, vec)
+    }
+
     fn add_to_vec(mut vec: Vec<u64>, index: u32, add: u128) -> Vec<u64> {
         // TODO: replace recursion with loop.
         let sum = vec[index as usize] as u128 + add;
