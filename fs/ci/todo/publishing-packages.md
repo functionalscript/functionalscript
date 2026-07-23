@@ -56,15 +56,18 @@ The main `tsconfig.json` should validate authored TypeScript and JavaScript whil
   "exclude": [
     "target",
     "**/*.d.ts",
-    "**/*.d.mts",
-    "fs/types/bigint/benchmark.mjs"
+    "**/*.d.mts"
   ]
 }
 ```
 
-`**/*.d.ts` must be excluded because it also matches `**/*.ts`. The existing benchmark is excluded because it is not checked JSDoc source.
+`**/*.d.ts` must be excluded because it also matches `**/*.ts`.
 
-NPM must include both runtime extensions and both declaration extensions. Non-package `.mjs` files, such as the benchmark, must remain excluded from the packed archive.
+### Existing benchmark
+
+Enabling `checkJs` includes `fs/types/bigint/benchmark.mjs`. Before enabling it, either make the benchmark pass TypeScript validation or delete the benchmark if it is no longer needed. The benchmark should not be excluded from `tsconfig.json`.
+
+NPM must include both runtime extensions and both declaration extensions. Non-package `.mjs` files must remain excluded from the packed archive.
 
 Publishing requires two TypeScript emission passes:
 
@@ -95,6 +98,7 @@ Changing a module from `.ts` to `.mjs` also changes its import extension. Import
 
 Tasks:
 
+- [ ] Make `fs/types/bigint/benchmark.mjs` pass TypeScript validation or delete it.
 - [ ] Enable `allowJs` and `checkJs` and add the authored-source `include` and generated-declaration `exclude` patterns to `tsconfig.json`.
 - [ ] Update the NPM package rules to include `.mjs` and `.d.mts` while excluding non-package `.mjs` files.
 - [ ] Replace the current one-pass `prepack` script with the two emission passes.
