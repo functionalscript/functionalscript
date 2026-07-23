@@ -130,10 +130,10 @@ only and the code generator compiles FJS values, the vocabulary becomes an
 **RTTI schema** (the specification of record) from which both the TS types
 (`Ts<T>`) and the Rust stub are derived — the third instance of the
 single-source pattern, after the [ast-spec](../../todo/ast-spec.md) and the
-operator tests. The stub is generated code: it lives in an
-underscore-prefixed directory and follows the same regenerate-then-build /
-publish-time packaging rules as the generated compiler source (see the
-distribution section below).
+operator tests. The stub is generated code: it is committed to the
+repository and regenerated through the same single-script / drift-check
+rules as the generated compiler source (see the distribution section
+below).
 
 Scoping notes:
 
@@ -166,8 +166,8 @@ The compiler has a single source (FJS), shipped two ways:
 
 - **npm** — FJS code only, running on Node/Deno; the `fjs` CLI as today.
 - **crates.io** — the `nanvm` crate: the `nanvm-lib` runtime plus the
-  generated Rust of the same compiler source (packaged at publish time, see
-  below), built by cargo into a native executable
+  generated Rust of the same compiler source (committed to the repository,
+  see below), built by cargo into a native executable
   (see [console-program](./console-program.md)).
 
 Crates.io never builds the crate itself: the published package is built by
@@ -176,59 +176,75 @@ network**), and by offline/vendored downstream builds. So the published
 `.crate` must build with nothing but cargo, rustc, and its declared
 dependencies.
 
-**Publish-time generation (decided):** the generated Rust of the compiler
-is never committed to git and adds no build dependencies for consumers. The
-generated code lives in an underscore-prefixed directory — the repository
-reserves `_*` for generated files in `.gitignore` — and `Cargo.toml`'s
-`include` field lists it explicitly (when `include` is specified, cargo
-packages exactly those paths, gitignore notwithstanding); the publish
-workflow runs the code generator and then `cargo publish`, so the generated
-`.rs` rides along in the `.crate` only — the same arrangement as npm
-packages shipping built `dist/` files that are never committed. The
-`.crate` is a distribution artifact, not the source of record. The publish
-invocation passes **`--allow-dirty`**: cargo's VCS dirty check refuses to
-package files not committed to git — including gitignored files explicitly
-listed in `include` — and here that "dirt" is exactly the deliberately
-uncommitted `_*` output. The flag is safe in this workflow because CI
-publishes from a clean checkout where the only uncommitted files are the
-just-regenerated outputs, already verified by the reproducibility check
-below.
+**Committed generation (decided):** the generated Rust of the compiler is
+committed to git and adds no build dependencies for consumers. Cargo
+packages it like any other source file — no `include` special-casing and no
+`cargo publish --allow-dirty`, so cargo's VCS dirty check runs at full
+strength and nothing uncommitted can ride into the `.crate`. The committed
+copy is a **verified cache** of the generator's output, not a second
+source: the CI drift check (the generated Node 26 job runs
+`npm run ci-update`, then fails via `git add -A && git diff --cached
+--exit-code` — see [fjs/ci](../../fjs/ci/README.md)) regenerates on every
+PR and rejects any change whose committed output is stale, so the files can
+neither drift nor be hand-edited unnoticed. Reviewers see the generated
+diff alongside the generator change — for output whose contract is
+byte-exactness, a direct correctness signal; mark the generated paths
+`linguist-generated=true` in `.gitattributes` so the diffs stay collapsed
+by default. The gitignored `_*` convention remains reserved for
+*uncommitted* generated scratch, so the committed generated code lives in a
+normally-named location (its layout is part of the generated-module-imports
+open question below).
 
-Rejected alternatives: committing the generated code to the repository
-(generated code in git); generating on the fly in `build.rs` with a JS
-engine as a build dependency — Deno/V8 downloads binaries at build time,
-breaking docs.rs and offline builds, and even a hermetic lightweight engine
-(QuickJS, Boa) would tax every consumer with a third-party engine build and
-make build correctness depend on a third engine.
+This reverses the earlier publish-time-generation decision (gitignored
+`_*` output packaged via `Cargo.toml`'s `include`, published with
+`cargo publish --allow-dirty`). That arrangement predated the CI drift
+check: without a drift gate, committed generated code could go stale — the
+classic objection — while publish-time generation kept the repository
+clean. With the drift check in place the balance flips: staleness is
+mechanically excluded, whereas `--allow-dirty` waives the VCS check for
+the *whole tree*, so any stray uncommitted file in the publish environment
+would be packaged silently. Committing also makes a fresh checkout build
+with cargo alone (no Node preinstalled), gives rust-analyzer and
+`git bisect` real files at every commit, and turns the publish-time
+reproducibility check into a continuous, per-PR one.
+
+Rejected alternatives: publish-time-only generation (above); generating on
+the fly in `build.rs` with a JS engine as a build dependency — Deno/V8
+downloads binaries at build time, breaking docs.rs and offline builds, and
+even a hermetic lightweight engine (QuickJS, Boa) would tax every consumer
+with a third-party engine build and make build correctness depend on a
+third engine.
 
 **Developer workflow (decided):** regeneration is unconditional — the
-developer entry point for the crate is "regenerate, then build", with the
-codegen step folded into `npm run update`, and the generator writes a file
-only when its content actually changed, so a no-op regeneration leaves
-mtimes untouched and cargo's fingerprinting skips the rebuild. There is
-deliberately **no `build.rs`**: a presence check would wave through the
-dangerous case (stale generated code), and sound staleness detection would
-re-implement a build system inside a build script — unconditional-but-cheap
-beats conditional-but-clever, and a crate without a build script also
-builds faster and is friendlier to consumers who audit or restrict
-build-script execution. The failure modes sort themselves out: a fresh
-checkout without the script fails with rustc's plain "couldn't read
-`…/_generated/…`" error (documented in CONTRIBUTING); locally stale output
-cannot survive past the developer's machine because CI regenerates from
-scratch, so the merge gate and the publish reproducibility check always
-operate on fresh output; consumers are never affected, since the published
-`.crate` always contains matching generated code. The workspace's
-`default-members` excludes the `nanvm` crate, so plain `cargo build` /
-`cargo test` for `nanvm-lib` development stays Node-free; building the
-`nanvm` crate explicitly is the case that needs the pre-step (Node
-installed and the wrapper script run).
+developer entry point is "regenerate, then commit what changed", and the
+generator writes a file only when its content actually changed, so a no-op
+regeneration leaves mtimes untouched and cargo's fingerprinting skips the
+rebuild. **One `package.json` script is the single regeneration entry
+point for every generated file** — the `ci-update` contract already
+required by generated CI (see [fjs/ci](../../fjs/ci/README.md)): today it
+generates `.github/workflows/ci.yml`; the compiler Rust, the effects stub,
+and any future generated files fold into the same script (possibly renamed
+to something generation-neutral once it outgrows CI), so each new
+generator is automatically covered by the whole-tree drift check with no
+CI changes. There is deliberately **no `build.rs`**: sound staleness
+detection would re-implement a build system inside a build script,
+unconditional-but-cheap beats conditional-but-clever, and a crate without
+a build script builds faster and is friendlier to consumers who audit or
+restrict build-script execution — and with the generated sources
+committed, a fresh checkout builds with cargo alone, no Node and no
+pre-step, which also keeps plain `cargo build` / `cargo test` for
+`nanvm-lib` development Node-free. Locally stale output cannot reach the
+default branch: the drift check regenerates from scratch on every PR, and
+the published `.crate` packages the same committed, check-verified files,
+so consumers are never affected.
 
 Dual shipping doubles as a permanent conformance test: both distributions
-must emit **byte-identical** `.rs` output for the same input. This also
-makes the published artifact reproducible — anyone can regenerate from the
-FJS source and diff against the shipped code, and CI does exactly that as a
-reproducibility check before publishing. Once the crate ships, the check
-closes into a fixed point: the crate-shipped compiler regenerates its own
+must emit **byte-identical** `.rs` output for the same input. With the
+generated code committed, this reproducibility check is continuous — every
+PR regenerates and diffs against the repository via the CI drift check,
+rather than a publish-time-only gate — and anyone can regenerate from the
+FJS source and diff against git. Once the crate ships, the check closes
+into a fixed point: the crate-shipped compiler regenerates its own
 packaged source, identically.
 
 #### What changed (vs. the earlier serialized-AST proposal)
