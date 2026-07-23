@@ -75,14 +75,29 @@ the tag first, so a `write` node's continuation is only ever called with
 enables only the widening direction (`Effect<A>` <: `Effect<A | B>`); it does
 **not** enable the unsound narrowing.
 
-Verified **cast-free** end-to-end against the real shapes: concrete widening,
-generic widening (`Effect<Q>` → `Effect<O | Q>`, which `step`/`both` need
-internally), `decode` (positional `v[0]/v[1]/v[2]`), `doFull` (returns
-`[cmd, param, cont]`), external `step`, `all`, and `both` all type-check. The
-`Do` tuple keeps its positional shape, so `decode`/`match`/runners are
-unchanged in how they read a node. The one caveat is ordinary inference
-(`all(w, r)` unifies `O` to the first argument); call sites that already pass
-explicit type arguments (`both` does) are unaffected.
+The **variance handling is cast-free** — no `as` is needed to make the widening
+type-check. Verified against the real shapes: concrete widening, generic
+widening (`Effect<Q>` → `Effect<O | Q>`, which `step`/`both` need internally),
+`decode` (positional `v[0]/v[1]/v[2]`), `doFull` (returns `[cmd, param, cont]`),
+and external `step`. The `Do` tuple keeps its positional shape, so
+`decode`/`match`/runners are unchanged in how they read a node. The one
+inference caveat is that `all(w, r)` unifies `O` to the first argument; sites
+that pass explicit type arguments (`both` does) are unaffected.
+
+**`all` / `both` keep their existing casts.** These are *pre-existing and
+orthogonal* to this change — they exist in today's wrapper-based code and carry
+over unchanged; the variance work neither adds to nor removes them:
+
+- `all = do_('all') as <O, T>(...a: readonly Effect<O, T>[]) => Effect<O | All, readonly T[]>`
+  — `do_('all')` is typed against `All`'s erased operation signature
+  (`Effect<never, T>[]`), so the precise variadic signature is asserted with a
+  cast regardless of raw-vs-wrapper representation.
+- `both` casts `all<O0 | O1, T0 | T1>(a, b)`'s homogeneous
+  `readonly (T0 | T1)[]` result into the `readonly [T0, T1]` tuple it returns.
+
+Removing those two casts is a separate concern (a more precise `do_` / `All`
+signature, and a tuple-aware `all`), out of scope here; this issue does not
+claim to eliminate them.
 
 ### Design
 
