@@ -29,13 +29,13 @@ Wasmtime will not revive.
 ### Tasks
 
 - [ ] add a Wasmtime runner for the new threads target to `.cargo/config.toml`
-- [ ] extend `fs/ci/rust/module.f.ts` so the threads target runs under
+- [ ] extend `fjs/ci/rust/module.f.ts` so the threads target runs under
   Wasmtime again (replace `wasmerOnlyTarget` with the full `wasmTarget`
   treatment, or add the new target alongside)
 
 ### Related
 
-- [fs/ci/rust/module.f.ts](../../fs/ci/rust/module.f.ts) — `wasmerOnlyTarget`
+- [fjs/ci/rust/module.f.ts](../../fjs/ci/rust/module.f.ts) — `wasmerOnlyTarget`
   is the workaround this issue removes
 - [.cargo/config.toml](../../.cargo/config.toml) — missing
   `wasm32-wasip1-threads` runner points here

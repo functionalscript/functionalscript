@@ -6,7 +6,7 @@
 The `nanvm` **crate** — the self-hosting milestone of the
 [MVP roadmap](./mvp-roadmap.md), shipped on crates.io (not npm): the
 `nanvm-lib` runtime, the `nanvm-effects-node` effect runner (the Rust twin
-of `fs/effects/node` — see the effects section of the roadmap), the
+of `fjs/effects/node` — see the effects section of the roadmap), the
 generated Rust of the FJS compiler (the same single source that ships on
 npm as FJS code), and a thin hand-written `main`, built by cargo into a
 single native executable that parses and runs `.f.js` directly — no

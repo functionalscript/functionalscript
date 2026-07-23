@@ -145,7 +145,7 @@ Contrast with Python 3, which goes the other way and promotes `int` to `float` s
 
 Python's convenience trades away exactly the precision guarantee that motivates defaulting integer literals to `bigint` in the first place, so JS's stricter behavior is the better fit here despite the extra conversion calls it forces at `bigint`/`number` boundaries.
 
-This `2`/`2.0` split doesn't have to wait for a new PL. [fs/djs/todo/json-bigint-serialization.md](../fs/djs/todo/json-bigint-serialization.md) proposes the same convention — a dot-free numeric literal is `bigint`, a literal with a `.` (or exponent) is `number` — as a JSON-*compatible* serialization inside today's `fs/djs`, and independently lands on the same Python precedent (CPython's `json` scanner uses the identical `frac`/`exp`-presence test to choose `int` vs `float`). It's a concrete, buildable-now instance of this section's idea, scoped to serialization rather than the full language.
+This `2`/`2.0` split doesn't have to wait for a new PL. [fjs/djs/todo/json-bigint-serialization.md](../fjs/djs/todo/json-bigint-serialization.md) proposes the same convention — a dot-free numeric literal is `bigint`, a literal with a `.` (or exponent) is `number` — as a JSON-*compatible* serialization inside today's `fjs/djs`, and independently lands on the same Python precedent (CPython's `json` scanner uses the identical `frac`/`exp`-presence test to choose `int` vs `float`). It's a concrete, buildable-now instance of this section's idea, scoped to serialization rather than the full language.
 
 [todo/blocked/integer-as-bigint.md](./blocked/integer-as-bigint.md) tracks the ECMAScript-level version of this same idea (`123` becoming the language's own default integer type) — blocked because ECMAScript is unlikely to ever make `bigint` the primary numeric type for compatibility reasons. This section is the escape hatch: a new PL isn't bound by that compatibility constraint, so it doesn't have to wait.
 
@@ -229,7 +229,7 @@ See [todo/blocked/js-extension-type-annotations.md](./blocked/js-extension-type-
 
 The new PL starts with type stripping: type annotations are syntax only and are erased before execution, with no built-in type checker. This keeps the core runtime simple and avoids baking in a specific type system.
 
-In the future, type checking is provided as a library — similar to the existing [RTTI module](../fs/rtti/) — that users opt into by importing it:
+In the future, type checking is provided as a library — similar to the existing [RTTI module](../fjs/rtti/) — that users opt into by importing it:
 
 ```js
 import { check } from 'my-type-system'
@@ -314,13 +314,13 @@ const a = effect() => {
 }
 ```
 
-`effect` marks a function that may perform effects; `perform` suspends the computation and delegates to the nearest handler, similar to how `await` delegates to the runtime scheduler. See [Effects](../fs/effects/)
+`effect` marks a function that may perform effects; `perform` suspends the computation and delegates to the nearest handler, similar to how `await` delegates to the runtime scheduler. See [Effects](../fjs/effects/)
 
 ### Result Syntax Sugar
 
 In modern software engineering, `throw` is increasingly treated as a way to signal an *unexpected, fatal* condition — a bug, a broken invariant, a crash. It unwinds the stack, is invisible in a function's signature, and is easy to forget to handle. That model is a poor fit for *expected* failures. IO errors (a missing file, a refused connection, a malformed response) are a normal part of a program's behavior and must be handled deliberately, not caught as exceptions somewhere up the stack. Encoding these errors as values — handling errors instead of throwing exceptions — makes them explicit, type-checkable, and impossible to ignore by accident.
 
-FunctionalScript already has a [`Result`](../fs/types/result/) type:
+FunctionalScript already has a [`Result`](../fjs/types/result/) type:
 
 ```ts
 type Ok<T>      = readonly ['ok', T]

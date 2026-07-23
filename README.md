@@ -60,7 +60,7 @@ The CAS is also exposed as an [MCP](https://modelcontextprotocol.io/) server so 
 claude mcp add cas -- npx functionalscript m
 ```
 
-See [`fs/cas/mcp/README.md`](fs/cas/mcp/README.md) for details on the `cas_add`, `cas_get`, and `cas_list` tools.
+See [`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md) for details on the `cas_add`, `cas_get`, and `cas_list` tools.
 
 ## Vision
 

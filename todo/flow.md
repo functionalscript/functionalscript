@@ -31,12 +31,12 @@ is the Boom hierarchy; see the *Future work* section.
 ## Proposal
 
 Start minimal: one input kind — an ordered sequence bound to
-`fs/types/list` — and a naive in-process engine. No RTTI yet: input types
+`fjs/types/list` — and a naive in-process engine. No RTTI yet: input types
 are checked by TypeScript.
 
 ### Module
 
-`fs/flow/module.f.ts` defines `Flow<E, O>`: a node of the graph, describing
+`fjs/flow/module.f.ts` defines `Flow<E, O>`: a node of the graph, describing
 a sequence of `O` computed from an environment of type `E`. A `Flow` is
 *cold* — an immutable description, not a running computation (cf. Kotlin's
 `Flow`, which is also a cold, later-bound stream description). The
@@ -88,7 +88,7 @@ type Transducer<I, S, O, A> = {
 Design decisions, in the order they were made:
 
 - **Explicit state `S`, not self-returning closures** (cf. `Scan` in
-  `fs/types/function/operator`): a transducer is a record of closed
+  `fjs/types/function/operator`): a transducer is a record of closed
   module-scope functions plus plain-data state, so operators can be
   content-addressed, deduplicated, and shipped to remote engines, and an
   engine can checkpoint `S` mid-stream and resume (how Flink does
@@ -187,7 +187,7 @@ must surface failure in one of two ways:
 ### Engines
 
 `run` in the same module is the first, naive engine: it binds the graph
-directly to `fs/types/list` and recomputes shared nodes. Flow variant
+directly to `fjs/types/list` and recomputes shared nodes. Flow variant
 types stay private until an external engine needs to pattern-match on
 them.
 
@@ -211,7 +211,7 @@ Planned engine work, each a separate change:
 ### Future work: RTTI and collection kinds
 
 - Replace the TypeScript-only environment with RTTI-described named inputs
-  (`fs/types/rtti`), so a graph can be validated, serialized, and shipped
+  (`fjs/types/rtti`), so a graph can be validated, serialized, and shipped
   to a remote engine.
 - Add collection kinds beyond the ordered sequence: `UnorderedBag`, `Set`,
   ordered-per-key. Operations then declare the algebraic laws they need
@@ -222,10 +222,10 @@ Planned engine work, each a separate change:
 
 ## Tasks
 
-- [ ] `fs/flow/module.f.ts` — `Flow<E, O>`, `Transducer`/`Step`/`Terminal`,
+- [ ] `fjs/flow/module.f.ts` — `Flow<E, O>`, `Transducer`/`Step`/`Terminal`,
   primitives `input` and `transduce`, derived operations, naive `run`
   engine over `types/list`
-- [ ] `fs/flow/proof.f.ts` — full proof coverage, including early
+- [ ] `fjs/flow/proof.f.ts` — full proof coverage, including early
   termination, pre-pull termination (`take(0)` pulls nothing), `end`
   flush, and a fallible stage using `A = Result`
 - [ ] memoizing engine (shared node evaluated once per run)
@@ -236,14 +236,14 @@ Planned engine work, each a separate change:
 
 ## Related
 
-- [fs/types/list/module.f.ts](../fs/types/list/module.f.ts) — the sequence
+- [fjs/types/list/module.f.ts](../fjs/types/list/module.f.ts) — the sequence
   type the naive engine binds to
-- [fs/types/function/operator/module.f.ts](../fs/types/function/operator/module.f.ts)
+- [fjs/types/function/operator/module.f.ts](../fjs/types/function/operator/module.f.ts)
   — `Scan`, `StateScan`, `Fold`: the closure-form operators `Transducer`
   generalizes (its JSDoc already frames them as Mealy machines)
-- [fs/types/rtti](../fs/types/rtti) — runtime type descriptions for the
+- [fjs/types/rtti](../fjs/types/rtti) — runtime type descriptions for the
   future named-input schema
-- [fs/effects](../fs/effects) — the same deep-embedding idea for effects:
+- [fjs/effects](../fjs/effects) — the same deep-embedding idea for effects:
   describe now, interpret later
 - [Clojure transducers](https://clojure.org/reference/transducers) — the
   `init`/`step`/`completion` arities and `reduced` early termination

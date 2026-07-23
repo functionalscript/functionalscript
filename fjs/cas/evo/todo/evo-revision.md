@@ -1,0 +1,228 @@
+## `evo_revision`: typed read of a single revision
+
+**Priority:** P3
+**Status:** open — design chosen, not yet implemented
+
+### Problem
+
+The mainline history design
+([`todo/subject-history.md`](subject-history.md)) deliberately returns bare
+hashes and leaves node detail — merge parents, the snapshot pointer, the
+`archived` flag — to the client. The only path to that detail today is
+`cas_get` + client-side decoding, which has three problems:
+
+1. **Canonicalization.** cbase32 hashes have alias spellings (case,
+   `i`/`l`/`o`), and `Evo` normalizes everything through `canonicalHash`
+   (`fjs/cas/evo/module.f.ts`): `evo_head` — and the planned `evo_history` —
+   return canonical spellings. A raw blob's `parents` carry whatever
+   spellings its writer used, so the history design's client-side rules
+   ("expand `parents[i]` with `history(...)`", "stop at the first hash
+   you've seen") compare raw-blob strings against canonical API output — an
+   alias spelling breaks the comparison silently. Every client would need
+   to know about cbase32 aliasing; that does not scale.
+2. **Validation duplication.** With bare `cas_get`, each client
+   re-implements JSON parsing, schema validation, the `dialect` check, and
+   `isHash` on every reference. `decodeRevisionBlob`
+   (`fjs/cas/evo/module.f.ts`) already does all of it, server-side, and is
+   already exported.
+3. **Consumer profile.** The MCP tools are consumed by agents; leaving the
+   *interpretation* of raw bytes to the least reliable layer is the wrong
+   default.
+
+### Chosen design
+
+A typed read, alongside the existing operations:
+
+```ts
+/** The revision at `hash`, decoded, validated, and canonicalized. */
+readonly revision: (hash: Hash) => Effect<O | MemOp, Result<RevisionData, string>>
+```
+
+exposed over MCP as **`evo_revision`**, args `{ hash }`. The name follows
+the house pattern — one noun per read tool, namespace as scope: `evo_head`
+is "the heads of this subject", `evo_revision` is "the revision at this
+hash". (`evo_get` was rejected: it implies `cas_get`-scoped-to-evo, i.e.
+raw bytes, which is exactly what this tool is not — the `get` verb stays
+reserved for "raw bytes by hash". `evo_get_revision` says nothing
+`evo_revision` doesn't and breaks the one-token-per-tool style.)
+
+`cas_get` remains the generic raw-bytes tool for arbitrary blobs
+(snapshots, non-revision content); `evo_revision` is the typed view for
+revisions specifically. Layering, not duplication — `evo_add` validates on
+the way in, `evo_revision` validates on the way out.
+
+Together with `evo_history` the merge-expansion loop becomes mechanical:
+`evo_history` gives the chain, `evo_revision` gives node detail (every
+`parents` entry past index 0 is a merged-in branch), `evo_history(parent)`
+expands a branch — without the client ever touching raw bytes.
+
+### One shared structure: `AddRevision` → `RevisionData`
+
+`AddRevision` (`fjs/cas/evo/module.f.ts`) is renamed **`RevisionData`** and
+becomes the *single* vocabulary of both directions — `evo_add` takes it,
+`evo_revision` returns it, and "what you add is what you get back". No
+extension or intersection types: one structure, every direction-specific
+field optional, with the per-direction guarantees documented rather than
+typed:
+
+```ts
+export type RevisionData = {
+    readonly parents: readonly Hash[]
+    readonly snapshot?: Hash | undefined
+    readonly subject?: Subject | undefined
+    readonly archived?: true | undefined
+    readonly generation?: number | undefined
+}
+```
+
+- `RevisionData` is the media-level `Revision` minus `dialect` — and
+  dropping `dialect` on output is a feature: it is a serialization tag with
+  no information once past validation. The evo layer speaks the semantic
+  content of a revision, the same in both directions.
+- Optionality means different things per direction, documented per field:
+  - `subject` — input: absent means "infer from my single parent"; output:
+    always present.
+  - `snapshot` — input: absent is a write-boundary convenience, resolved
+    at `add` (zero parents → `subject` as the reference, one parent → the
+    parent's snapshot) and written explicitly; output: **always present**
+    — the canonical stored snapshot. The required-fields change (the
+    `required-fields` issue, now landed; see
+    [`fjs/media/revision/README.md`](../../../media/revision/README.md))
+    makes every stored blob carry it, so clients never handle
+    inheritance.
+  - `generation` — input: **ignored**; the server computes the
+    authoritative value (see below), so a value read from `evo_revision`
+    can be fed back into `evo_add` unchanged without stripping fields —
+    the round trip is the point of the shared type. Output: always
+    present.
+- The returned `parents`/`snapshot` are canonical cbase32 spellings, so
+  they compare directly against `evo_head`/`evo_history` output.
+- The rename touches the `fjs/cas/evo/mcp` doc table but not `evo_add`'s
+  wire shape.
+
+### `generation`: required in the format, computed at `add`
+
+Decided together with this tool (the format is still being designed and no
+stored records exist yet, so this is free). The format-level change itself
+landed with P1 priority, together with requiring `snapshot` (the
+`required-fields` issue; see
+[`fjs/media/revision/README.md`](../../../media/revision/README.md)); what
+follows is the semantics and the evo layer's part:
+
+- **The format requires `generation`**: `revisionSchema`
+  (`fjs/media/revision/module.f.ts`) changes `option(number)` → `number`,
+  with "is a non-negative integer" enforced by `validate` on top of the
+  structural schema, the same layering as `isHash`. Existence and
+  integer-ness are the *correctness* check — a blob failing it is not a
+  revision.
+- **Why this keeps the dialect tag.** The README's versioning rule —
+  an incompatible change must take a new dialect — exists to protect
+  *stored* blobs from silently falling out of detection, and no
+  `vnd.fjs.revision` records have ever been stored: the format is still
+  being designed, so this lands in-place as a pre-release design revision,
+  not a versioned format change. Two consequences the implementation must
+  respect: the schema change and `add` writing `generation` must land in
+  the **same change** (a writer that trails the schema produces blobs its
+  own reader rejects — including today's `add`, which writes
+  generation-less blobs); and this move is available only while no records
+  exist — once they do, any further requirement change takes a new dialect,
+  exactly as the rule says.
+- **Continuity is observed, not enforced.** The normative value — `0` for a
+  root (`parents: []`), else `1 + max(parents' generations)` — is what
+  evo's `add` always writes. But equality with that formula is *not* a
+  validity condition for blobs from elsewhere: a deviation is a **signal**
+  that someone reset the history/clock — e.g. a revision starting a new
+  epoch, such as a new subject that still lists its origin as `parents` to
+  show how it was formed. Consumers may surface the discontinuity (an
+  epoch-reset indicator); they must not reject the blob for it. Ordering by
+  `generation` is therefore reliable within an epoch, and the one-level
+  comparison against parents is the cheap epoch-boundary detector.
+- **`evo_add` computes it.** A `generation` supplied in the input
+  `RevisionData` is ignored — the server writes its own computed value, so
+  the round trip (read via `evo_revision`, add via `evo_add`) needs no
+  field-stripping and can never smuggle a wrong generation into a blob.
+  `resolveParents` already fetches and decodes every parent during `add`,
+  so the computation is a `max` over values already in hand, plus the base
+  case `0` for zero parents. Everything evo writes follows the formula by
+  construction.
+- **`evo_revision` returns the stored value** — always present by format.
+
+### Open question: cross-subject parents
+
+The epoch-reset scenario above ("new subject formed from an old one") is
+currently rejected at the *evo* layer: `validateParentSubjects`
+(`fjs/cas/evo/module.f.ts`) requires every parent to share the revision's
+`subject`. The format itself never forbade cross-subject parents, so
+allowing that scenario is an evo-layer relaxation — one that would also
+touch the closure assumption behind the subject-history design (a mainline
+walk could then cross into another subject's revisions, which is arguably
+the point: the history *shows how it was formed*). Not decided here;
+recorded so the decision is made deliberately, not by accident.
+
+### Implementation notes
+
+- **Errors.** Three distinct failures, each a proper message rather than
+  `null`: `hash` is not a cbase32 string; the hash is not present in the
+  store; the blob is present but not a valid revision (bad UTF-8/JSON,
+  wrong dialect, failed schema or reference check). `decodeRevisionBlob`
+  (`fjs/cas/evo/module.f.ts`) cannot serve this contract as-is — it
+  deliberately collapses the read error and every decode failure into one
+  `null`, because it exists for scanning stores containing arbitrary
+  content, and `resolveParent` built on it likewise folds "missing" and
+  "not a revision" into a single message. `revision(hash)` therefore
+  performs the two stages itself — the read (a miss → "not present")
+  separately from the decode (a failure → "not a revision") — the same
+  split `decodeRevisionBlob` composes internally, just without discarding
+  which stage failed.
+- **Serving.** v1 serves each call with a store round trip, but per the
+  error contract above it is a separate `cas.read` followed by a decode
+  step — not a `decodeRevisionBlob` call, which cannot tell "not present"
+  from "not a revision". The per-revision cache planned in
+  [`todo/subject-history.md`](subject-history.md) (`hash → ordered
+  parents`) can memoize `generation` alongside — both are immutable, so
+  neither can go stale — but that is an optimization, not a requirement:
+  the cache holds only part of what `evo_revision` returns.
+- **MCP output** is the JSON of `RevisionData` with the output guarantees
+  above: `{ subject, parents, snapshot, archived?, generation }` — only
+  `archived` is genuinely optional on output.
+
+### Tasks
+
+- [x] Format change — `generation` (and `snapshot`) required, schema +
+      `validate` + README: landed via the `required-fields` issue (P1). The
+      `add` task below must land in the same change — a schema that requires
+      fields `add` doesn't yet write rejects its own writer's output.
+- [ ] Rename `AddRevision` → `RevisionData` (adding the optional
+      `generation` field), update the `fjs/cas/evo/mcp` doc table.
+- [~] Compute and write `generation` in `add` (base case `0`, else
+      `1 + max`; a caller-supplied `generation` is ignored), and resolve
+      an absent input `snapshot` at `add` by the rules the format used to
+      carry (zero parents → `subject` as the reference, which must then be
+      a hash; one parent → the parent's snapshot; more than one parent →
+      error, an explicit `snapshot` is required), writing the resolved
+      hash explicitly. Proof coverage includes a merge of parents with
+      differing generations, an input whose supplied `generation` differs
+      from the computed one, and each snapshot-resolution case.
+      **Landed with the required-fields change: `add` now computes
+      `generation` and resolves `snapshot`, with proof coverage for the
+      merge-generation and snapshot-resolution cases. The
+      "supplied-`generation`-ignored" case still awaits the
+      `AddRevision` → `RevisionData` rename (task above), which adds the
+      `generation` input field.**
+- [ ] Implement `revision(hash)` on `Evo<O>` with proof coverage for all
+      three error cases and for canonicalized output (a parent stored under
+      an alias spelling comes back canonical).
+- [ ] Expose `evo_revision` through MCP (`fjs/cas/evo/mcp`) and document it
+      in `fjs/cas/evo/README.md` / `fjs/cas/evo/mcp/README.md`.
+- [ ] Decide the cross-subject-parents question (separate todo if
+      accepted).
+
+### Related
+
+- [`todo/subject-history.md`](subject-history.md) — the mainline walk this
+  tool is the node-detail companion to.
+- `required-fields` issue (P1, now landed) — the format change (require
+  `generation` and `snapshot`) this design's `generation` semantics land
+  through; its decisions are recorded in
+  [`fjs/media/revision/README.md`](../../../media/revision/README.md), the
+  `vnd.fjs.revision` format whose `generation` field this makes required.

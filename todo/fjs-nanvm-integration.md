@@ -25,7 +25,7 @@ as JSON.
 ### CLI: an output target, not a command group (decided)
 
 `fjs compile <input> <output>` already dispatches on the output extension
-(`.json` vs. DJS — see [`fs/djs/module.f.ts`](../fs/djs/module.f.ts)). Rust
+(`.json` vs. DJS — see [`fjs/djs/module.f.ts`](../fjs/djs/module.f.ts)). Rust
 code generation is a third branch, selected by the `.rs` extension:
 
 - `fjs compile <module> <output>.rs` — parse + compile into a generated Rust

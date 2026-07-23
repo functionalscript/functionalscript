@@ -85,7 +85,7 @@ Invariants:
 #### Rust code generation: an output target of `fjs compile` (decided)
 
 `fjs compile <input> <output>` already dispatches on the output extension
-(`.json` vs. DJS — see [`fs/djs/module.f.ts`](../../fs/djs/module.f.ts));
+(`.json` vs. DJS — see [`fjs/djs/module.f.ts`](../../fjs/djs/module.f.ts));
 Rust code generation is a third branch, selected by the `.rs` extension. No
 new CLI surface: the previously proposed `fjs vm build` / `fjs vm run`
 command group is dropped.
@@ -101,14 +101,14 @@ testing, self-hosting, and AOT embedding.
 
 The compiler CLI is pure FJS that *returns* effect descriptions
 (`Effect<NodeOp, T>`); all actual impurity lives in thin `.ts` runner
-modules (e.g. [`fs/effects/node/module.ts`](../../fs/effects/node/module.ts)),
+modules (e.g. [`fjs/effects/node/module.ts`](../../fjs/effects/node/module.ts)),
 which are not FJS and never pass through the code generator. The
 `.f.ts`/`.ts` split is exactly the compiled/hand-written boundary: every
 `.f.ts` module compiles to Rust; every impure `.ts` runner needs a
 hand-written Rust twin interpreting the same operation vocabulary against
 the OS (`std::fs`, `std::process`, stdio) instead of Node built-ins.
 
-The Rust twin of `fs/effects/node` is the **`nanvm-effects-node`** library
+The Rust twin of `fjs/effects/node` is the **`nanvm-effects-node`** library
 crate — named to mirror the effect directory structure: this specific
 effect set is the CLI-on-Node vocabulary, and future sets (e.g. a browser
 set with `fetch`, DOM, and some shared effects) follow the same pattern.
@@ -116,7 +116,7 @@ It is a separate crate in the same workspace, published on crates.io:
 `nanvm-lib` stays pure (no OS dependencies — keeping a future `no_std`
 embedded profile open), and the `nanvm` binary depends on both. It serves
 any AOT-compiled effectful FJS program, not just the embedded compiler —
-it is to native FJS what `fs/effects/node/module.ts` is to Node FJS.
+it is to native FJS what `fjs/effects/node/module.ts` is to Node FJS.
 
 **Generated stub — the vocabulary is machine-checked.** The Rust side of
 the effect vocabulary is not written by hand: a **generated stub** (op,
@@ -148,13 +148,13 @@ Scoping notes:
   is the VM itself, not an OS call. It is part of the self-hosting loop,
   not a syscall port.
 - **Testing comes cheap.** The pure in-memory interpreters
-  ([`fs/effects/mock`](../../fs/effects/mock),
-  [`fs/effects/node/virtual`](../../fs/effects/node/virtual)) are `.f.ts`
+  ([`fjs/effects/mock`](../../fjs/effects/mock),
+  [`fjs/effects/node/virtual`](../../fjs/effects/node/virtual)) are `.f.ts`
   code, so they compile through the code generator unchanged: the compiled
   CLI can run against in-memory effects with no Rust twins, and the
   `nanvm-effects-node` runner can be cross-checked against the pure
   interpreter operation by operation. The exception is
-  [`fs/effects/node/memory`](../../fs/effects/node/memory) — the runner for
+  [`fjs/effects/node/memory`](../../fjs/effects/node/memory) — the runner for
   the mutable memory effects (`MemOp`) — which is an impure `.ts` module
   (mutable state, `node:crypto` UUIDs) and so joins the hand-written Rust
   twin set: implementing mutable memory effects in Rust is fine, same as
@@ -268,7 +268,7 @@ as a generic `Any` facility, post-MVP.
       Preceded by the test-generation task above.
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../todo/lang/2340-operators.md).
-- [ ] **Parser**, using [`fs/bnf/`](../../fs/bnf/README.md) (FJS).
+- [ ] **Parser**, using [`fjs/bnf/`](../../fjs/bnf/README.md) (FJS).
 
 #### P2
 

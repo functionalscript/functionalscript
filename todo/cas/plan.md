@@ -5,7 +5,7 @@ algorithm, removing the key-value layer it is currently (awkwardly) built on.
 
 Design references: [staging-lease.md](staging-lease.md) (the upload algorithm), [scrub.md](scrub.md)
 (corruption detection/repair), [README.md](README.md) (strategy layering). Current code:
-`fs/cas/module.f.ts`.
+`fjs/cas/module.f.ts`.
 
 ## Goal interface
 
@@ -22,7 +22,7 @@ type Cas<O extends Operation> = {
 ```
 
 `ListEffect<O, T> = Effect<O, readonly[T, ListEffect<O, T>] | undefined>` (from
-`fs/effects/module.f.ts`) — a lazy, effectful cons-stream: each pull yields `[item, rest]`
+`fjs/effects/module.f.ts`) — a lazy, effectful cons-stream: each pull yields `[item, rest]`
 or `undefined` at end. Wrapping `T = IoResult<Vec>` gives every pull an explicit ok/error, so
 a missing shard or read error is distinguishable from end-of-stream (`undefined`), and the
 payload type matches the `ListEffect<O, IoResult<Vec>>` shape used by the CAS interface. This is
@@ -37,7 +37,7 @@ and `fileKvStore.write` is truncate-in-place where CAS needs no-clobber publish.
 system already provides the mockability the KV layer was giving.
 
 - Delete `KvStore<O>`, `Kv`, `fileKvStore`, and the `cas(sha2)(kvStore)` wrapper from
-  `fs/cas/module.f.ts`.
+  `fjs/cas/module.f.ts`.
 - Define `Cas` directly over filesystem effects (no intermediate store).
 - Keep `toPath` (sharding) and `random256`.
 - Update the `add` / `get` / `list` CLI commands to the new direct CAS.
@@ -76,7 +76,7 @@ Implement `write` as the `upload` algorithm from [staging-lease.md](staging-leas
 5. `mkdir(dirOf(dst), {recursive})`, `rename(path, dst)`, `rm(path)` — results ignored.
 6. Success iff `stat(dst).size === offset`; else upload error.
 
-### New effects (`fs/effects/node/module.f.ts`)
+### New effects (`fjs/effects/node/module.f.ts`)
 
 `rename`, `rm`, `mkdir`, `readBytes`, `readdir` already exist. Add:
 
@@ -102,7 +102,7 @@ into `_stage/`; remove the `.stage/` path once no callers remain.
 
 ### Tests
 
-Virtual-runner coverage in `fs/effects/node/virtual/`: streaming write of a multi-chunk
+Virtual-runner coverage in `fjs/effects/node/virtual/`: streaming write of a multi-chunk
 payload, read-back streaming, dedup (same content ⇒ same hash, second upload is a no-op
 publish), a simulated mid-stream error (staging file deleted, error returned), and GC
 reclaiming an expired staging file.
