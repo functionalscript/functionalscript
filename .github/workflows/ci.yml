@@ -402,9 +402,6 @@
         },
         {
           "run": "deno test --allow-read --allow-env --allow-sys --coverage && deno coverage --include='.*module\\.f\\.ts'"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         }
       ]
     },
@@ -431,9 +428,6 @@
         },
         {
           "run": "bun test --coverage"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         }
       ]
     },
@@ -457,9 +451,6 @@
         },
         {
           "run": "fjs t"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         }
       ]
     },
@@ -480,9 +471,6 @@
         },
         {
           "run": "node --test"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         }
       ]
     },
@@ -515,9 +503,6 @@
         },
         {
           "run": "npm pack"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         }
       ]
     },
@@ -560,9 +545,6 @@
         },
         {
           "run": "npx playwright test --browser=webkit"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         }
       ]
     }

@@ -5,11 +5,11 @@
  * @module
  */
 import { deno } from '../config/module.f.ts'
-import { type MetaStep, clean, install, test, uses } from '../common/module.f.ts'
+import { type MetaStep, install, test, uses } from '../common/module.f.ts'
 
 const denoTest = 'deno test --allow-read --allow-env --allow-sys' as const
 
-export const denoSteps = (version: string): readonly MetaStep[] => clean([
+export const denoSteps = (version: string): readonly MetaStep[] => [
     install(uses('denoland/setup-deno', { 'deno-version': deno })),
     // We need --minimum-dependency-age=0 for functionalscript because we would like to use
     // the latest version of the package even if it is not yet 24 hours old,
@@ -19,4 +19,4 @@ export const denoSteps = (version: string): readonly MetaStep[] => clean([
     test({ run: `deno run -A --minimum-dependency-age=0 npm:functionalscript@${version} t` }),
     test({ run: 'deno install --frozen' }),
     test({ run: `${denoTest} --coverage && deno coverage --include='.*module\\.f\\.ts'` }),
-])
+]

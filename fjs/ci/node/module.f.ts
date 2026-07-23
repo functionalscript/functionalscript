@@ -5,7 +5,7 @@
  * @module
  */
 import { node } from '../config/module.f.ts'
-import { type Job, type Jobs, type MetaStep, clean, install, test, ubuntuArm, uses } from '../common/module.f.ts'
+import { type Job, type Jobs, type MetaStep, install, test, ubuntuArm, uses } from '../common/module.f.ts'
 
 export const major = (v: string): string => v.split('.')[0]
 
@@ -17,10 +17,10 @@ const nodeInstall = (v: string) => [
     test({ run: 'npm ci' }),
 ]
 
-export const basicNode = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => clean([
+export const basicNode = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => [
     ...nodeInstall(version),
     ...extra,
-])
+]
 
 const fjsGlobalInstall = (version: string): MetaStep =>
     install({ run: `npm install -g functionalscript@${version}` })
@@ -31,25 +31,25 @@ export const platformNodeSteps = (version: string): readonly MetaStep[] => [
     test({ run: 'fjs t' }),
 ]
 
-const node22Steps = (version: string): readonly MetaStep[] => clean([
+const node22Steps = (version: string): readonly MetaStep[] => [
     ...nodeInstall(node.node22),
     fjsGlobalInstall(version),
     test({ run: 'fjs t' }),
-])
+]
 
-const node24Steps: readonly MetaStep[] = clean([
+const node24Steps: readonly MetaStep[] = [
     ...nodeInstall(node.node24),
     test({ run: 'node --test' }),
-])
+]
 
-const node26Steps: readonly MetaStep[] = clean([
+const node26Steps: readonly MetaStep[] = [
     ...nodeInstall(node.default),
     test({ run: 'npm run ci-update' }),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
     test({ run: 'npx tsc' }),
     test({ run: 'npm run cov' }),
     test({ run: 'npm pack' }),
-])
+]
 
 const nodeJob = (steps: readonly MetaStep[]): Job => ubuntuArm(steps)
 
