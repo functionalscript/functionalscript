@@ -1,88 +1,564 @@
-# This workflow will do a clean install of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
-
-name: CI
-
-on:
-  push:
-    branches:
-    - master
-  pull_request:
-
-jobs:
-  locks:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-node@v2
-      with:
-        node-version: 20
-    - run: npm install
-    - uses: actions/upload-artifact@v4
-      with:
-        name: package-lock.json
-        path: package-lock.json
-
-  node:
-    needs: locks
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [16.x, 18.x, 20.x, 22.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-node@v2
-      with:
-        node-version: ${{ matrix.node-version }}
-    - uses: actions/download-artifact@v4
-      with:
-        name: package-lock.json
-    - run: npm ci
-    - run: npm test
-    - run: npm run version
-    - run: npm pack
-
-  deno:
-
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-    - uses: denoland/setup-deno@v1
-      with:
-        deno-version: v1.x
-    - run: deno run --quiet --allow-read --allow-env --allow-net --allow-hrtime ./dev/test.mjs
-
-  bun:
-
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-    - run: curl https://bun.sh/install | bash
-    - run: /home/runner/.bun/bin/bun ./dev/test.mjs
-
-  COM:
-    needs: locks
-    strategy:
-      matrix:
-        os: ['ubuntu-latest', 'windows-latest', 'macos-14']
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-node@v2
-      with:
-        node-version: 20
-    - uses: actions/download-artifact@v4
-      with:
-        name: package-lock.json
-    - uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 8
-    - run: npm ci
-    - run: npm run comtest
+{
+  "name": "CI",
+  "on": {
+    "pull_request": {},
+    "merge_group": {}
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "jobs": {
+    "ubuntu-intel": {
+      "runs-on": "ubuntu-26.04",
+      "steps": [
+        {
+          "run": "sudo apt-get update && sudo apt-get install -y libc6-dev-i386"
+        },
+        {
+          "uses": "dtolnay/rust-toolchain@1.97.1",
+          "with": {
+            "components": "rustfmt,clippy",
+            "targets": "i686-unknown-linux-gnu"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.0.0",
+          "with": {
+            "node-version": "26.5.0"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.37.0"
+        },
+        {
+          "uses": "actions/checkout@v7"
+        },
+        {
+          "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "cargo test --target i686-unknown-linux-gnu"
+        },
+        {
+          "run": "cargo test --target i686-unknown-linux-gnu --release"
+        },
+        {
+          "run": "cargo clippy --target i686-unknown-linux-gnu -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "fjs t"
+        }
+      ]
+    },
+    "ubuntu-arm": {
+      "runs-on": "ubuntu-26.04-arm",
+      "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.97.1",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.0.0",
+          "with": {
+            "node-version": "26.5.0"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.37.0"
+        },
+        {
+          "uses": "actions/checkout@v7"
+        },
+        {
+          "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "fjs t"
+        }
+      ]
+    },
+    "macos-intel": {
+      "runs-on": "macos-26-intel",
+      "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.97.1",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.0.0",
+          "with": {
+            "node-version": "26.5.0"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.37.0"
+        },
+        {
+          "uses": "actions/checkout@v7"
+        },
+        {
+          "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "fjs t"
+        }
+      ]
+    },
+    "macos-arm": {
+      "runs-on": "macos-26",
+      "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.97.1",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.0.0",
+          "with": {
+            "node-version": "26.5.0"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.37.0"
+        },
+        {
+          "uses": "actions/checkout@v7"
+        },
+        {
+          "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "fjs t"
+        }
+      ]
+    },
+    "windows-intel": {
+      "runs-on": "windows-2025",
+      "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.97.1",
+          "with": {
+            "components": "rustfmt,clippy",
+            "targets": "i686-pc-windows-msvc"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.0.0",
+          "with": {
+            "node-version": "26.5.0"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.37.0"
+        },
+        {
+          "uses": "actions/checkout@v7"
+        },
+        {
+          "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "cargo test --target i686-pc-windows-msvc"
+        },
+        {
+          "run": "cargo test --target i686-pc-windows-msvc --release"
+        },
+        {
+          "run": "cargo clippy --target i686-pc-windows-msvc -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --target i686-pc-windows-msvc --release -- -D warnings"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "fjs t"
+        }
+      ]
+    },
+    "windows-arm": {
+      "runs-on": "windows-11-arm",
+      "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.97.1",
+          "with": {
+            "components": "rustfmt,clippy"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.0.0",
+          "with": {
+            "node-version": "26.5.0"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.37.0"
+        },
+        {
+          "uses": "actions/checkout@v7"
+        },
+        {
+          "run": "cargo test"
+        },
+        {
+          "run": "cargo test --release"
+        },
+        {
+          "run": "cargo clippy -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "fjs t"
+        }
+      ]
+    },
+    "wasm": {
+      "runs-on": "ubuntu-26.04-arm",
+      "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.97.1",
+          "with": {
+            "components": "rustfmt,clippy",
+            "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
+          }
+        },
+        {
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1.1.3",
+          "with": {
+            "version": "47.0.2"
+          }
+        },
+        {
+          "uses": "wasmerio/setup-wasmer@v3.1",
+          "with": {
+            "version": "v7.2.0"
+          }
+        },
+        {
+          "uses": "actions/checkout@v7"
+        },
+        {
+          "run": "cargo fmt -- --check"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1 --release"
+        },
+        {
+          "run": "cargo clippy --target wasm32-wasip1 -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --target wasm32-wasip1 --release -- -D warnings"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --release"
+        },
+        {
+          "run": "cargo clippy --target wasm32-wasip2 -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --target wasm32-wasip2 --release -- -D warnings"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown --release"
+        },
+        {
+          "run": "cargo clippy --target wasm32-unknown-unknown -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --target wasm32-unknown-unknown --release -- -D warnings"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
+        },
+        {
+          "run": "cargo clippy --target wasm32-wasip1-threads -- -D warnings"
+        },
+        {
+          "run": "cargo clippy --target wasm32-wasip1-threads --release -- -D warnings"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
+        }
+      ]
+    },
+    "deno": {
+      "runs-on": "ubuntu-26.04-arm",
+      "steps": [
+        {
+          "uses": "denoland/setup-deno@v2.0.5",
+          "with": {
+            "deno-version": "2.9.3"
+          }
+        },
+        {
+          "run": "deno install -g -A --minimum-dependency-age=0 npm:functionalscript@0.37.0"
+        },
+        {
+          "uses": "actions/checkout@v7"
+        },
+        {
+          "run": "deno run -A --minimum-dependency-age=0 npm:functionalscript@0.37.0 t"
+        },
+        {
+          "run": "deno install --frozen"
+        },
+        {
+          "run": "deno test --allow-read --allow-env --allow-sys --coverage && deno coverage --include='.*module\\.f\\.ts'"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        }
+      ]
+    },
+    "bun": {
+      "runs-on": "ubuntu-26.04-arm",
+      "steps": [
+        {
+          "uses": "oven-sh/setup-bun@v2.2.0",
+          "with": {
+            "bun-version": "1.3.14"
+          }
+        },
+        {
+          "run": "bun install -g functionalscript@0.37.0"
+        },
+        {
+          "uses": "actions/checkout@v7"
+        },
+        {
+          "run": "bun install --frozen-lockfile"
+        },
+        {
+          "run": "bunx functionalscript@0.37.0 t"
+        },
+        {
+          "run": "bun test --coverage"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        }
+      ]
+    },
+    "node22": {
+      "runs-on": "ubuntu-26.04-arm",
+      "steps": [
+        {
+          "uses": "actions/setup-node@v7.0.0",
+          "with": {
+            "node-version": "22.23.1"
+          }
+        },
+        {
+          "run": "npm install -g functionalscript@0.37.0"
+        },
+        {
+          "uses": "actions/checkout@v7"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "fjs t"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        }
+      ]
+    },
+    "node24": {
+      "runs-on": "ubuntu-26.04-arm",
+      "steps": [
+        {
+          "uses": "actions/setup-node@v7.0.0",
+          "with": {
+            "node-version": "24.18.0"
+          }
+        },
+        {
+          "uses": "actions/checkout@v7"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "node --test"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        }
+      ]
+    },
+    "node26": {
+      "runs-on": "ubuntu-26.04-arm",
+      "steps": [
+        {
+          "uses": "actions/setup-node@v7.0.0",
+          "with": {
+            "node-version": "26.5.0"
+          }
+        },
+        {
+          "uses": "actions/checkout@v7"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npx tsc"
+        },
+        {
+          "run": "npm run cov"
+        },
+        {
+          "run": "npm pack"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        }
+      ]
+    },
+    "playwright": {
+      "runs-on": "ubuntu-26.04-arm",
+      "steps": [
+        {
+          "uses": "actions/setup-node@v7.0.0",
+          "with": {
+            "node-version": "26.5.0"
+          }
+        },
+        {
+          "uses": "actions/cache@v6.1.0",
+          "with": {
+            "path": "~/.cache/ms-playwright",
+            "key": "ubuntu-26.04-arm-playwright-1.61.1"
+          }
+        },
+        {
+          "run": "npm install -g playwright@1.61.1"
+        },
+        {
+          "run": "playwright install-deps"
+        },
+        {
+          "run": "playwright install"
+        },
+        {
+          "uses": "actions/checkout@v7"
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npx playwright test --browser=chromium"
+        },
+        {
+          "run": "npx playwright test --browser=firefox"
+        },
+        {
+          "run": "npx playwright test --browser=webkit"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "tasks": {
+    "fjs": "deno run --allow-read --allow-write --allow-env --allow-net --allow-sys ./fjs/module.ts",
+    "test": "deno test --allow-read --allow-env --allow-sys",
+    "cov": "deno test --allow-read --allow-env --allow-sys --coverage && deno coverage --include='.*module\\.f\\.ts'"
+  },
+  "fmt": {
+    "indentWidth": 4,
+    "semiColons": false,
+    "singleQuote": true,
+    "lineWidth": 80
+  }
+}

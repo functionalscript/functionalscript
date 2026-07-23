@@ -1,0 +1,83 @@
+/**
+ * Path parsing and normalization helpers for portable module paths.
+ *
+ * @module
+ */
+import type { Fold, Reduce, Unary } from '../types/function/operator/module.f.ts'
+import { type List, fold, last, take, length, concat as listConcat, toArray } from '../types/list/module.f.ts'
+import { join as listJoin, concat as stringConcat } from '../types/string/module.f.ts'
+
+const foldNormalizeOp: Fold<string, List<string>>
+= input => state => {
+    switch(input) {
+        case '': case '.': { return state }
+        case '..': {
+            switch(last(undefined)(state)) {
+                case undefined:
+                case '..': { return listConcat(state)([input]) }
+            }
+            return take(length(state) - 1)(state)
+        }
+        default: { return listConcat(state)([input]) }
+    }
+}
+
+/**
+ * Converts Windows separators (`\`) to POSIX separators (`/`).
+ */
+export const toPosix = (path: string): string => path.replaceAll('\\', '/')
+
+/**
+ * Splits a path into normalized segments.
+ *
+ * Empty (`""`) and current-directory (`"."`) segments are removed, parent-directory
+ * (`".."`) segments collapse the previous segment when possible, and Windows
+ * separators are converted to POSIX separators.
+ */
+export const parse = (path: string): readonly string[] => {
+    const split = toPosix(path).split('/')
+    return toArray(fold(foldNormalizeOp)([])(split))
+}
+
+/**
+ * Normalizes a path string by parsing and rejoining it with POSIX separators.
+ */
+export const normalize: Unary<string, string>
+= path => {
+    const foldResult = parse(path)
+    return listJoin('/')(foldResult)
+}
+
+/**
+ * Concatenates two path fragments and returns a normalized path.
+ */
+export const concat: Reduce<string>
+= a => b => {
+    const s = stringConcat([a, '/', b])
+    return normalize(s)
+}
+
+/**
+ * Joins path segments with single POSIX `/` separators, without
+ * normalization. Unlike {@link concat}, the result is not parsed/collapsed,
+ * so absolute roots and `.`/`..` segments are preserved verbatim. Use this
+ * for building paths from already-clean segments (directory walks, store
+ * layouts); use {@link concat} when normalization is desired.
+ */
+export const join = (...list: readonly string[]): string => list.join('/')
+
+/**
+ * Returns `path` relative to `base` with a `./` prefix, or `path` unchanged
+ * if it does not start with `base` or `base` is empty.
+ * E.g. `relativize('/repo', '/repo/fs/a.ts')` → `'./fs/a.ts'`.
+ */
+export const relativize = (base: string, path: string): string =>
+    base !== '' && path.startsWith(base) ? `.${path.slice(base.length)}` : path
+
+/**
+ * Returns `true` when `prefix` is a strict ancestor of `path` in segment space:
+ * every segment of `prefix` matches the corresponding segment of `path`, and
+ * `path` has at least one additional segment.
+ */
+export const isProperPrefix = (prefix: readonly string[], path: readonly string[]): boolean =>
+    prefix.length < path.length && prefix.every((seg, i) => seg === path[i])

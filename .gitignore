@@ -116,12 +116,22 @@ bin/
 *.exp
 *.lib
 
-# temoprary files
+# temporary files
 _result.*
 
 # Rust
 target/
 
-# No locks
-package-lock.json
-Cargo.lock
+_*
+.vscode
+/docs
+.DS_Store
+**/*.d.mts
+**/*.d.ts
+**/*.js
+
+test-results/
+
+index.html
+
+.cas/
