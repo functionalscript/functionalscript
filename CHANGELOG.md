@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fjs/ci`: generated CI now guards against a stale committed workflow — the
+  Node 26 job runs `npm run ci-update` right after `npm ci` and fails via
+  `git diff --exit-code -- .github/workflows/ci.yml` when the committed file no
+  longer matches the generator's output, so forgetting to regenerate after
+  changing the CI definition breaks the build instead of silently running a
+  stale workflow. The check runs the project's `ci-update` script — in this
+  repository the checked-in generator (`node ./fjs/module.ts ci`), not the
+  pinned published release, so it always reflects the generator under review.
+  `ci-update` joins `cov` in the package-script contract required by generated
+  CI (a typical project defines `"ci-update": "fjs ci"`, resolved from its own
+  `functionalscript` devDependency since `npm ci` runs first). PR
+  [#1346](https://github.com/functionalscript/functionalscript/pull/1346)
+
 ## 0.38.0
 
 - `fs/` → `fjs/`: **BREAKING CHANGE:** rename the top-level source directory
