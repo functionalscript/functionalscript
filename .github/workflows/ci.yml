@@ -505,7 +505,7 @@
           "run": "npm run ci-update"
         },
         {
-          "run": "git diff --exit-code -- .github/workflows/ci.yml"
+          "run": "git add -A && git diff --cached --exit-code"
         },
         {
           "run": "npx tsc"

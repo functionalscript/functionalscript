@@ -75,7 +75,7 @@ export const proof = {
         assert(hasRunInJob('node22', 'fjs t')(gha), 'expected Node 22 FunctionalScript smoke test')
         assert(hasRunInJob('node26', 'npm pack')(gha), 'expected Node 26 package check')
         assert(hasRunInJob('node26', 'npm run ci-update')(gha), 'expected Node 26 workflow regeneration')
-        assert(hasRunInJob('node26', 'git diff --exit-code -- .github/workflows/ci.yml')(gha), 'expected Node 26 workflow drift check')
+        assert(hasRunInJob('node26', 'git add -A && git diff --cached --exit-code')(gha), 'expected Node 26 generated-file drift check')
         assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')
         for (const id of [
             'ubuntu-intel',

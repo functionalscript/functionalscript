@@ -44,7 +44,7 @@ split by Node version:
 - Node 22 runs `npm ci`, installs the pinned FunctionalScript package globally,
   and runs `fjs t`.
 - Node 24 runs `npm ci` and `node --test`.
-- Node 26 runs `npm ci`, `npm run ci-update`, `git diff --exit-code -- .github/workflows/ci.yml`,
+- Node 26 runs `npm ci`, `npm run ci-update`, `git add -A && git diff --cached --exit-code`,
   `npx tsc`, `npm run cov`, and `npm pack`.
 - Playwright is also Node-based, so it runs `npm ci` before browser setup.
 
@@ -61,12 +61,16 @@ and `ci-update`. A typical FunctionalScript project can define them like this:
 }
 ```
 
-`ci-update` must regenerate `.github/workflows/ci.yml`. The Node 26 job runs it
-right after `npm ci` and fails via `git diff --exit-code` when the committed
-workflow no longer matches the generator's output, so forgetting to regenerate
-the file after changing the CI definition breaks the build instead of silently
-running a stale workflow. Because the job runs `npm ci` first, `fjs ci` resolves
-the project's own `functionalscript` devDependency; this repository instead uses
+`ci-update` must regenerate every generated file the project keeps in Git —
+today `.github/workflows/ci.yml`, with more (e.g. generated Rust sources)
+planned. The Node 26 job runs it right after `npm ci` and fails via
+`git add -A && git diff --cached --exit-code` when the committed tree no longer
+matches the generator's output, so forgetting to regenerate after changing a
+generator breaks the build instead of silently using stale files. Staging with
+`git add -A` before diffing makes the check cover newly created and deleted
+generated files, not just modified ones — a plain `git diff` never reports
+untracked files. Because the job runs `npm ci` first, `fjs ci` resolves the
+project's own `functionalscript` devDependency; this repository instead uses
 its checked-in sources (`node ./fjs/module.ts ci`), so the check always reflects
 the generator being reviewed, not the pinned published release.
 
