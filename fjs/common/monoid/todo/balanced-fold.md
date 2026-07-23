@@ -17,9 +17,11 @@ distinct ways:
   sides of every merge comparable in size and brings it down to O(n log n).
 - **Accuracy**, for `number.sum`. IEEE-754 addition is not truly associative;
   a left fold accumulates O(n·ε) rounding error, whereas pairwise summation
-  bounds it at O(log n · ε). Here the win is precision, not speed — a `number`
-  addition is O(1), so the balanced form is if anything slightly slower and
-  costs O(log n) extra memory.
+  bounds it at O(log n · ε). This is not a motivation — the current `sum` is
+  fine and we are not chasing accuracy — but since `number.sum` is associative
+  it goes through the same balanced `fold` as everything else, and the
+  better-on-average accuracy simply comes along for free (a `number` addition
+  is O(1), so there is no speed angle here either way).
 
 This is not speculative: `fjs/types/bit_vec/module.f.ts` already implements
 exactly this algorithm for its own `concat` reduction. `unpackListToVec`
@@ -63,47 +65,41 @@ Re-parenthesising only changes grouping, never order, so this stays correct for
 **non-commutative** monoids (string `concat`, `bit_vec` `concat`) — the same
 ordering discipline `unpackListToVec` already documents.
 
-### Open design questions (settle before implementing)
+### Decisions
 
-1. **`number.sum` changes observable output.** For exact monoids (`bigint`,
-   `string`, `bit_vec`) the result is bit-identical and only cost changes. For
-   `number` the result becomes *more accurate* but *different* — a defensible
-   correctness improvement, but its proofs must be updated consciously rather
-   than as a silent side effect.
-2. **Always balanced, or a `fold` / `foldBalanced` split?** Balancing costs
-   O(log n) accumulators and some bookkeeping; for cheap O(1) operations on
-   short lists the naive fold is simpler and marginally faster. Leaning toward
-   making `fold` always balanced (associativity is already the contract, and
-   one consistent combinator beats two), but the trade-off is real.
-3. **Factoring against `bit_vec`.** `bit_vec.unpackListToVec` threads a running
-   `len` and returns `Nullable` (early-out past `maxLength`); the generic
-   monoid fold has no such guard. The shared core is the binary-counter combine
-   skeleton, with `bit_vec` layering its size guard on top (its `tryListToVec`
-   stays fallible). This is the crux: generalise so `bit_vec` *reuses* the
-   shared core instead of duplicating it, rather than leaving two copies. A
-   fallible/short-circuiting update variant vs. the plain one is the likely
-   shape.
-4. **Not compensated summation.** Kahan/Neumaier summation is the
-   `number`-specific route to accuracy, but it does not generalise to an
-   arbitrary monoid and does nothing for the speed regime, so pairwise is the
-   right fit for a generic `fold`.
+- **Every associative operation uses this balanced `fold`, uniformly** —
+  including `number.sum`. One combinator; no `fold` / `foldBalanced` split. The
+  `Monoid` associativity contract is what makes reassociation always valid, so
+  there is no reason to expose a second, ordered variant of `fold`.
+- **Output changes are acceptable.** Exact monoids (`bigint`, `string`,
+  `bit_vec`) stay bit-identical — only cost changes. `number.sum` changes bits
+  and its accuracy improves on average; that improvement is an incidental free
+  benefit of the uniform treatment, **not** a goal. We are not doing accuracy
+  work — no Kahan/Neumaier compensated summation, which is `number`-specific,
+  does not generalise to a monoid, and is out of scope. Just update any proof
+  that asserts an exact `number.sum` value to the new result.
 
-Motivate the change with a benchmark (product / concat of many large values)
-before committing, per the optimisation-is-a-separate-task rule in AGENTS.md.
+### Open design question
+
+**Factoring against `bit_vec`.** `bit_vec.unpackListToVec` threads a running
+`len` and returns `Nullable` (early-out past `maxLength`); the generic monoid
+fold has no such guard. The shared core is the binary-counter combine skeleton,
+with `bit_vec` layering its size guard on top (its `tryListToVec` stays
+fallible). The crux is to generalise so `bit_vec` *reuses* the shared core
+instead of keeping two copies — a fallible/short-circuiting update variant
+alongside the plain one is the likely shape.
 
 ### Tasks
 
-- [ ] Benchmark `product` / `concat` of many large values to confirm the O(n²)
-      cost in practice.
-- [ ] Decide question 2 (always balanced vs. variant) and question 1 (`number`
-      accuracy policy).
 - [ ] Extract the binary-counter combine skeleton from
       `bit_vec.unpackListToVec` into `fjs/common/monoid` and re-express `fold`
       on top of it; keep left-to-right order.
+- [ ] Route every associative reduction through the balanced `fold`, including
+      `number.sum`.
 - [ ] Re-express `bit_vec`'s `listToVec` on the shared core (its `maxLength` /
       `Nullable` guard layered on top), removing the duplicated accumulator.
-- [ ] Update `number.sum` proofs for the accuracy change; confirm `bigint` /
-      `string` / `bit_vec` results are unchanged.
+- [ ] Update any proof asserting an exact `number.sum` value to the new result;
+      confirm `bigint` / `string` / `bit_vec` results are unchanged.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related
