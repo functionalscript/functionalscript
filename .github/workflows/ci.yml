@@ -502,6 +502,12 @@
           "run": "npm ci"
         },
         {
+          "run": "npm run ci-update"
+        },
+        {
+          "run": "git add -A && git diff --cached --exit-code"
+        },
+        {
           "run": "npx tsc"
         },
         {

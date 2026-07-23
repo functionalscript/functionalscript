@@ -13,15 +13,15 @@ single native executable that parses and runs `.f.js` directly — no
 Node/Deno, no rustc at the user's run time — executing code via the
 interpreter behind the `Function` constructor.
 
-The generated compiler source is **never committed to git**: it is packaged
-into the `.crate` at publish time (an underscore-prefixed directory — the
-repository reserves `_*` for generated files in `.gitignore` — listed in
-`Cargo.toml`'s `include` field), so consumers build pure Rust with no build
-dependencies —
-no Node, no network, no third-party JS engine — while the repository stays
-free of generated code. See the distribution section of
+The generated compiler source is **committed to git** and packaged by cargo
+like any other source file, so consumers build pure Rust with no build
+dependencies — no Node, no network, no third-party JS engine — and
+`cargo publish` needs no `--allow-dirty`. The committed copy is a verified
+cache of the generator's output: the CI drift check regenerates it on every
+PR and fails on any diff. See the distribution section of
 [mvp-roadmap](./mvp-roadmap.md) for the full arrangement, the rejected
-alternatives, and the reproducibility check: both distributions must emit
+alternatives (including the earlier publish-time-generation plan this
+reverses), and the reproducibility check: both distributions must emit
 byte-identical `.rs` output for the same input; once the crate ships, the
 check closes into a fixed point — the crate-shipped compiler regenerates its
 own packaged source, identically.
