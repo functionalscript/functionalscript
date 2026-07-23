@@ -14,7 +14,7 @@ with the latest matrix of jobs and steps.
   per-OS extra steps).
 - `common/module.f.ts` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
-  (`test`, `install`, `uses`, `clean`).
+  (`test`, `install`, `uses`).
 - `config/module.f.ts` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests.
 - `node/module.f.ts` — Node.js job steps: platform smoke tests, canonical
   per-version jobs, coverage, and package checks.

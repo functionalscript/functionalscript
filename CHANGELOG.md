@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fjs/ci`: drop the trailing `git reset --hard HEAD && git clean -fdx` step
+  from the `deno`, `bun`, `node22`, `node24`, `node26`, and `playwright` jobs.
+  It ran as each job's final step on ephemeral GitHub-hosted runners whose
+  workspace is discarded when the job ends, so cleaning the working tree there
+  was a no-op. The `clean` helper in `fjs/ci/common/module.f.ts` that appended
+  it is removed and its call sites unwrapped. PR
+  [#1353](https://github.com/functionalscript/functionalscript/pull/1353)
 - `fjs/ci`: generated CI now guards against stale committed generated files —
   the Node 26 job runs `npm run ci-update` right after `npm ci` and fails via
   `git add -A && git diff --cached --exit-code` when the committed tree no
