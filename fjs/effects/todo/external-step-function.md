@@ -87,14 +87,22 @@ explicit type arguments (`both` does) are unaffected.
 ### Design
 
 - **`Effect<O, T>` = the raw value** (today's `Value`). Returned directly by
-  `pure`, `lazy`, `doFull`, `do_`, and every operation (`mkdir`, `readFile`, …).
+  `pure`, `lazy`, `doFull`, `do_`, and every operation (`mkdir`, `readFile`, …),
+  and it is the return type of every effect-producing function in the library.
   `decode` / `match` / runners consume it. It is plain data with no methods.
+- **External `step(e, f)`** — the data-first primitive: **raw `Effect` in, raw
+  `Effect` out**, a thin wrapper over `decode` (see below). Because it stays in
+  the raw type, it is the drop-in for the existing `.step` at call sites whose
+  surrounding context is a raw `Effect` (a function return, a runner argument,
+  a combinator argument). Chains: `step(step(e, f), g)`.
 - **`Eff<O, T>` = the `fn`-style wrapper**, `{ value: Effect<O, T>, step, … }`,
-  built by `eff(value)`, for optional method-chaining. Mirrors `fn` over
-  `compose`.
-- **External `step(e, f)`** — the data-first primitive, a thin wrapper over
-  `decode` (see below). `Eff.step` and any curried flavor are thin wrappers
-  over it.
+  built by `eff(value)`, for optional method-chaining. It mirrors `fn` over
+  `compose` **exactly, including the boundary**: `Eff.step` returns another
+  `Eff` (so `.step(f).step(g)` chains), and `.value` unwraps back to the raw
+  `Effect` — the analogue of `fn`'s `.result`. So a wrapped chain that has to
+  yield a raw effect ends in `.value`:
+  `eff(mkdir(...)).step(f).step(g).value`. An `Eff` is **not** assignable to
+  `Effect`; you must unwrap at the boundary. Verified type-checking end to end.
 
 ```ts
 export const step = <O extends Operation, T, Q extends Operation, R>(
@@ -108,15 +116,29 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
 }
 ```
 
-At call sites:
+At call sites the old `x.step(f)` returned a (wrapper) `Effect`; in the new
+world the surrounding context is a *raw* `Effect`, so the migration must land
+back in the raw type:
 
 ```ts
 // before
-mkdir(...).step(f)
-// after — raw effect, wrap only when you want the chainer
-eff(mkdir(...)).step(f)   // fn-style
-step(mkdir(...), f)       // external primitive
+readFile(p).step(f)                 // returned Effect
+readFile(p).step(f).step(g)         // returned Effect
+
+// after — default: external step, raw in / raw out, no boundary
+step(readFile(p), f)
+step(step(readFile(p), f), g)
+
+// after — fn-style sugar: chains on Eff, `.value` unwraps at the boundary
+eff(readFile(p)).step(f).value
+eff(readFile(p)).step(f).step(g).value
 ```
+
+Prefer external `step` for the mechanical 161-site migration (it is
+type-equivalent to the old method — raw `Effect` in and out — so no site's
+return type changes). Reach for `eff(...).step(...).value` only where the
+method-chaining genuinely reads better; the `.value` is mandatory wherever the
+result flows into a raw-`Effect` slot.
 
 ### Design decisions
 
@@ -148,8 +170,10 @@ step(mkdir(...), f)       // external primitive
       doc, replacing the "must not be extended with new methods" framing.
 - [ ] Migrate the `.step(` call sites — ~161 across 25 files, including
       `List<O, T>` stream code (`fjs/effects/list`, `fjs/cas`) and the core's
-      own `foldStep` / `forEachStep` — to `eff(x).step(f)` (or external
-      `step(x, f)`).
+      own `foldStep` / `forEachStep` — to the external `step(x, f)` (raw in /
+      raw out, so no site's return type changes). Use `eff(x).step(f)…​.value`
+      only where method-chaining reads better, unwrapping with `.value` at the
+      raw-`Effect` boundary.
 
 ### Related
 
