@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.38.0
+
 - `fs/` → `fjs/`: **BREAKING CHANGE:** rename the top-level source directory
   `fs/` to `fjs/` — every published import path changes, e.g.
   `functionalscript/fs/asserts/module.js` →
