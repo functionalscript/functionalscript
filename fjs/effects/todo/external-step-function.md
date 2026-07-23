@@ -79,8 +79,8 @@ Migration can be incremental:
   adapters, now passed as `step(e, okStep(f))`.
 - **Readability is neutral, not a motivation.** Linear chains become const
   sequencing (more verbose, names the intermediates); deeply nested
-  continuations (e.g. `put` in `fjs/cas/module.f.ts`) are nested because of
-  data dependencies and stay nested either way.
+  continuations (e.g. `fileCas`'s `write` in `fjs/cas/module.f.ts`) are
+  nested because of data dependencies and stay nested either way.
 - **No perf regression.** The external function wraps continuations exactly
   like `doFull.step` does today; the O(depth) cost of left-nested chains is
   unchanged, and dropping the wrapper object saves an allocation per node.
