@@ -45,14 +45,14 @@ stdioTransport(step)             ← local, current
 httpTransport(step, port)        ← remote, future
 ```
 
-Planned refactor: extract `casMcpStep` from `casMcpServer` in `fs/cas/mcp/module.f.ts`. Currently `casMcpServer` wires stdio directly; once extracted, the stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
+Planned refactor: extract `casMcpStep` from `casMcpServer` in `fjs/cas/mcp/module.f.ts`. Currently `casMcpServer` wires stdio directly; once extracted, the stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
 
-The HTTP effect infrastructure (`CreateServer`, `Listen`, `Fetch`) already exists in `fs/effects/node/module.f.ts` — only the transport wrapper is missing.
+The HTTP effect infrastructure (`CreateServer`, `Listen`, `Fetch`) already exists in `fjs/effects/node/module.f.ts` — only the transport wrapper is missing.
 
 ## Content encoding
 
 **Current:** content crosses the MCP wire as **cBase32** (same encoding as hashes).
-**Target (Layer 2):** switch content to **base64** (MCP-idiomatic for binary data); hashes stay as cBase32. The base64 codec (`fs/base64/module.f.ts`) is already implemented — only the MCP wiring remains.
+**Target (Layer 2):** switch content to **base64** (MCP-idiomatic for binary data); hashes stay as cBase32. The base64 codec (`fjs/base64/module.f.ts`) is already implemented — only the MCP wiring remains.
 
 ## Addressing
 
@@ -77,7 +77,7 @@ Every hop is verifiable: each directory is a signed DISOT block, so you know exa
 
 ## SUL — structural deduplication
 
-`fs/sul/` implements **SUL** (Synthetic Universal Language): a scheme that maps any finite bit sequence to a single 256-bit root ID via a balanced binary tree. For small inputs (up to L3 literal size) the ID is fully self-contained and reversible. For larger inputs the root is a SHA2-based hash ID — a content-addressed reference into backing storage where the tree nodes must be persisted; the original sequence can only be recovered or verified if those nodes are available.
+`fjs/sul/` implements **SUL** (Synthetic Universal Language): a scheme that maps any finite bit sequence to a single 256-bit root ID via a balanced binary tree. For small inputs (up to L3 literal size) the ID is fully self-contained and reversible. For larger inputs the root is a SHA2-based hash ID — a content-addressed reference into backing storage where the tree nodes must be persisted; the original sequence can only be recovered or verified if those nodes are available.
 
 SUL is "synthetic" and "universal" because it imposes a tree structure on data where no structure is known — any raw bit sequence, regardless of its actual internal layout. The tree is synthetic: it is not derived from the data's semantics, just from its bytes. This is precisely its strength for unstructured or opaque data: an array of items where nothing tells you how to group the elements into a tree, a binary BLOB of unknown format, a stream of bytes — SUL gives all of these a stable, content-addressed root ID with structural deduplication across shared sub-sequences.
 

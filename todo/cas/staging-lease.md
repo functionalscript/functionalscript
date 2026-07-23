@@ -114,7 +114,7 @@ used — it fails to sort across DST transitions and offset changes.
 
 The design needs **no `FileHandle` type** and no held OS resource — the uploader's state is
 plain data (`path`, `offset`, `hash`). Every effect is stateless and path-based, like the
-existing `readBytes` / `writeFile` / `rename` effects in `fs/effects/node/module.f.ts`.
+existing `readBytes` / `writeFile` / `rename` effects in `fjs/effects/node/module.f.ts`.
 
 | Effect | Signature | Notes |
 |---|---|---|
@@ -519,7 +519,7 @@ a misjudged-slow uploader restarts or hands off, never corrupts.
 
 ## Relationship to the existing `casUpload` path
 
-The same migration note from `staging.md` applies: `casUpload` (`fs/cas/module.f.ts`)
+The same migration note from `staging.md` applies: `casUpload` (`fjs/cas/module.f.ts`)
 currently stages into `.cas/.stage/` and would be unaffected by a lease GC scanning
 `_stage/`. Migrating `casUpload` to write `<deadline>-<random256>` names under
 `_stage/` brings it under one GC scope. Unlike the lock design, the lease has no mtime

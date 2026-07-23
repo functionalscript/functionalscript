@@ -144,7 +144,7 @@ an invalid base-32 prefix anyway.
 
 ## Compatibility with the existing `casUpload` path
 
-The existing `casUpload` implementation (`fs/cas/module.f.ts`) uses a different
+The existing `casUpload` implementation (`fjs/cas/module.f.ts`) uses a different
 staging path: `.cas/.stage/` (dot-prefixed, not underscore-prefixed). This is an
 ad-hoc staging directory that predates the formal Strategy 1 design and does not
 follow the `tryLockExclusive` cleaning protocol — it creates per-upload temp files
@@ -165,7 +165,7 @@ miss any orphans left by `casUpload` in `.stage/`. Two options:
 2. **Scan both** — teach the cleaner to cover `.stage/` as well. However, this
    option is **unsafe** and the mtime grace period provides no protection here:
    `casUpload` **renames** the source from `cas_upload/` into `.stage/<uuid>`
-   (`fs/cas/module.f.ts:152`), which preserves the source file's original mtime
+   (`fjs/cas/module.f.ts:152`), which preserves the source file's original mtime
    rather than setting a fresh one. The staged file can therefore appear arbitrarily
    old immediately after the rename — even older than the grace-period threshold —
    making a mtime-based check classify a just-started active upload as a stale orphan.
