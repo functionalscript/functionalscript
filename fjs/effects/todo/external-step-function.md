@@ -44,45 +44,45 @@ The reason it works **today** is that `{ value, step }` is a recursive generic
 short-circuits the structural check (which here happens to give the *correct*,
 sound answer). A raw union/tuple is compared structurally instead and fails.
 Collapsing to a bare `Value` breaks ~150 widening sites — verified, not a
-hunch. So the wrapper object is doing real type-level work; it is not just
-ergonomic sugar.
+hunch.
 
-### Solution: a covariant object `Do`
+### Solution: annotate the continuation `out O`
 
 Make the raw value itself covariant in `O`, so it can be the primary type
-without any wrapper:
+without any wrapper — **while keeping `Do` a positional tuple**.
+
+TypeScript only accepts variance annotations (`in` / `out`, TS 4.7+) on
+**object, function, constructor, and mapped-type** aliases — never on a tuple
+or union alias (`TS2637`). So you cannot write `type Do<out O, T> = readonly[…]`
+directly. But the contravariance lives entirely in the continuation, which
+*is* a function type — extract it into its own alias and annotate that:
 
 ```ts
-// 1. Do becomes a named-field OBJECT, not a positional tuple —
-//    TypeScript only allows variance annotations on object / function /
-//    mapped-type aliases, never on tuples or unions.
-// 2. Annotate the operation parameter `out O`.
-export type Do<out O extends Operation, T> = {
-    readonly command: O[0]
-    readonly payload: Pr<O, O[0]>[0]
-    readonly continuation: (_: Pr<O, O[0]>[1]) => Effect<O, T>
-}
+export type Cont<out O extends Operation, T> = (_: Pr<O, O[0]>[1]) => Effect<O, T>
+export type Do<O extends Operation, T> = readonly[O[0], Pr<O, O[0]>[0], Cont<O, T>]
 
-// The raw value is now the effect. `Pure` has no `O`; `Do` is declared
-// covariant; so the union is covariant in `O`.
-export type Effect<out O extends Operation, T> = Pure<T> | Do<O, T>
+// The raw value is now the effect. `Pure` has no `O`; `Do` inherits covariance
+// from `Cont`; so the union is covariant in `O`.
+export type Effect<O extends Operation, T> = Pure<T> | Do<O, T>
 export type Pure<T> = () => T
 ```
 
-`out O` asserts the covariance TypeScript cannot derive through the conditional
-`Pr` type. **It is sound:** the `command` tag pins exactly which command's
-output the continuation receives, and every interpreter dispatches on the tag
-first, so a `write` node's continuation is only ever called with `void` — the
-op-set can grow without ever mishanding a continuation. `out` enables only the
-widening direction (`Effect<A>` <: `Effect<A | B>`); it does **not** enable the
-unsound narrowing.
+`Cont<out O, …>` asserts the covariance TypeScript cannot derive through the
+conditional `Pr` type. **It is sound:** the `command` tag pins exactly which
+command's output the continuation receives, and every interpreter dispatches on
+the tag first, so a `write` node's continuation is only ever called with
+`void` — the op-set can grow without ever mishanding a continuation. `out`
+enables only the widening direction (`Effect<A>` <: `Effect<A | B>`); it does
+**not** enable the unsound narrowing.
 
 Verified **cast-free** end-to-end against the real shapes: concrete widening,
 generic widening (`Effect<Q>` → `Effect<O | Q>`, which `step`/`both` need
-internally), `decode`, `doFull`, external `step`, `all`, and `both` all
-type-check. The one caveat is ordinary inference (`all(w, r)` unifies `O` to
-the first argument); call sites that already pass explicit type arguments
-(`both` does) are unaffected.
+internally), `decode` (positional `v[0]/v[1]/v[2]`), `doFull` (returns
+`[cmd, param, cont]`), external `step`, `all`, and `both` all type-check. The
+`Do` tuple keeps its positional shape, so `decode`/`match`/runners are
+unchanged in how they read a node. The one caveat is ordinary inference
+(`all(w, r)` unifies `O` to the first argument); call sites that already pass
+explicit type arguments (`both` does) are unaffected.
 
 ### Design
 
@@ -120,16 +120,16 @@ step(mkdir(...), f)       // external primitive
 
 ### Design decisions
 
-- **`out O` is a documented invariant, not a hack.** JSDoc on `Do`/`Effect`
+- **`Cont<out O, T>` is a documented invariant, not a hack.** JSDoc on `Cont`
   must state the tag-dispatch soundness argument so the annotation is never
   stripped. Anyone changing the continuation representation must re-check it.
+- **`Do` stays a positional tuple.** The `out` annotation goes on `Cont`, so
+  `decode` / `match` / the virtual/mock runners keep reading `[0]` / `[1]` /
+  `[2]` — no switch to named fields, no cast.
 - **Exactly one function inspects the shape: `decode`.** `step` wraps it; no
-  second `typeof value === 'function'` (or `'command' in value`) check may
-  appear anywhere. State this in the module doc, replacing the current "must
-  not be extended with new methods" framing.
-- **`Do` becomes an object.** Interpreters read `.command` / `.payload` /
-  `.continuation` instead of `[0]` / `[1]` / `[2]`. Touches `decode`, `match`,
-  and the virtual/mock runners.
+  second `typeof value === 'function'` check may appear anywhere. State this in
+  the module doc, replacing the current "must not be extended with new methods"
+  framing.
 - **Data-first `step(e, f)`** lets TypeScript contextually type the lambda from
   the effect — the common case. A curried data-last `step(f)(b)` can ship
   alongside only if a point-free site needs it (`foldStep`, `okStep`).
@@ -138,11 +138,10 @@ step(mkdir(...), f)       // external primitive
 
 ### Tasks
 
-- [ ] Change `Do` to the covariant named-field object and annotate
-      `Do<out O, T>` / `Effect<out O, T>`. Rename the raw `Value` → `Effect`;
-      the old `{ value, step }` wrapper type goes away as the flowing type.
-      Update `decode` / `match` to read object fields, and the virtual/mock
-      runners accordingly. Document the `out O` soundness invariant in JSDoc.
+- [ ] Extract the continuation into `Cont<out O, T>` and rebuild `Do` as
+      `readonly[O[0], Pr<O, O[0]>[0], Cont<O, T>]`. Rename the raw `Value` →
+      `Effect`; the old `{ value, step }` wrapper type goes away as the flowing
+      type. Document the `out O` soundness invariant in JSDoc on `Cont`.
 - [ ] Add the `Eff<O, T>` wrapper + `eff()` and the external data-first
       `step(e, f)` (a thin wrapper over `decode`).
 - [ ] State the "exactly one function inspects the shape" rule in the module
@@ -159,6 +158,6 @@ step(mkdir(...), f)       // external primitive
 - `fjs/effects/list/module.f.ts` — `List<O, T>` is `Effect<O, Next<O, T>>`, so
   its call sites migrate the same way.
 - `decode` / `match` — already the interpreter-facing half of this contract.
-- TypeScript variance annotations (`in` / `out`, TS 4.7+) — only legal on
-  object / function / mapped-type aliases (`TS2637`), which is why `Do` must be
-  an object rather than a tuple.
+- TypeScript variance annotations (`in` / `out`, TS 4.7+) — legal only on
+  object / function / mapped-type aliases (`TS2637`), which is why the `out`
+  goes on the `Cont` function alias rather than the `Do` tuple.
