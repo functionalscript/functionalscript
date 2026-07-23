@@ -30,6 +30,15 @@ export const proof = {
             };
             assertEq(fold(add)([1, 2, 3, 4]), 10)
         },
+        order: () => {
+            // a non-commutative monoid: `fold` must preserve left-to-right order
+            // (`((('' + 'a') + 'b') + 'c')`), not reverse it to `'cba'`.
+            const concat: Monoid<string> = {
+                identity: '',
+                operation: a => b => a + b,
+            };
+            assertEq(fold(concat)(['a', 'b', 'c']), 'abc')
+        },
         empty: () => {
             const concat: Monoid<string> = {
                 identity: '',

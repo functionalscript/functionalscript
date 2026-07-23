@@ -18,7 +18,7 @@
 import { type List, reduce as listReduce, repeat as listRepeat } from '../list/module.f.ts'
 import { compose } from '../function/module.f.ts'
 import { type Sign, cmp as uCmp } from '../function/compare/module.f.ts'
-import { join as joinOp, concat as concatOp, type Reduce } from '../function/operator/module.f.ts'
+import { join as joinOp, type Reduce } from '../function/operator/module.f.ts'
 import { fold } from '../../common/monoid/module.f.ts'
 
 // `join`'s per-separator reduction is seeded at `''` but is *not* a monoid fold:
@@ -30,9 +30,12 @@ const reduce: (o: Reduce<string>) => (input: List<string>) => string
 export const join: (_: string) => (input: List<string>) => string
     = compose(joinOp)(reduce)
 
-// `concatOp` with identity `''` is a lawful monoid, so `concat` is a monoid fold.
+// String concatenation with identity `''` is a lawful monoid, so `concat` is a
+// monoid fold. The operation is accumulator-first (`a` on the left), matching
+// `monoid.fold`'s convention — unlike the element-first `concat` in
+// `function/operator`, which is written for `list.reduce`.
 export const concat: (input: List<string>) => string
-    = fold({ identity: '', operation: concatOp })
+    = fold({ identity: '', operation: a => b => a + b })
 
 export const repeat: (n: string) => (v: number) => string
     = v => compose(listRepeat(v))(concat)

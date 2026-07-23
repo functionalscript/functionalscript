@@ -8,6 +8,7 @@
  */
 import type { Fold, Reduce } from '../../types/function/operator/module.f.ts'
 import { reduce, type List } from '../../types/list/module.f.ts'
+import { flip } from '../../types/function/module.f.ts'
 
 /**
  * Represents a monoid, an algebraic structure with a binary operation
@@ -110,6 +111,13 @@ export const repeat = <T>({ identity, operation }: Monoid<T>): Fold<bigint, T> =
  * so the identity paired with each operation is stated once at the call site
  * instead of hand-seeding a raw `reduce`.
  *
+ * Like `repeat`, `fold` applies the operation **accumulator-first**:
+ * `operation(accumulator)(element)`, seeded at `identity`, so
+ * `[a, b, c]` folds to `((identity op a) op b) op c`. Left-to-right order is
+ * therefore preserved and `fold` is correct for non-commutative monoids (e.g.
+ * string concatenation as `a => b => a + b`). `list.reduce` calls its reducer
+ * element-first, so the operation is `flip`ped before it is handed over.
+ *
  * @template T The type of the elements in the monoid.
  * @param monoid The monoid structure, including the identity and binary operation.
  * @returns A function that reduces a `List<T>` to a single `T`.
@@ -124,7 +132,14 @@ export const repeat = <T>({ identity, operation }: Monoid<T>): Fold<bigint, T> =
  *
  * fold(add)([1, 2, 3, 4]) // 10
  * fold(add)([])           // 0
+ *
+ * const concat: Monoid<string> = {
+ *     identity: '',
+ *     operation: a => b => a + b,
+ * };
+ *
+ * fold(concat)(['a', 'b', 'c']) // 'abc' — order preserved
  * ```
  */
 export const fold = <T>({ identity, operation }: Monoid<T>): (list: List<T>) => T =>
-    reduce(operation)(identity)
+    reduce(flip(operation))(identity)
