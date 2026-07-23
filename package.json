@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.7.0",
+  "version": "0.38.0",
   "type": "module",
   "files": [
     "**/*.js",
@@ -9,28 +9,26 @@
   "description": "FunctionalScript is a purely functional subset of JavaScript",
   "scripts": {
     "prepack": "tsc --NoEmit false",
-    "git-clean": "git clean -xf",
-    "test20": "npm run prepack && node --test",
-    "test22": "tsc && node --test --experimental-strip-types",
-    "test": "tsc && node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts",
-    "index": "node ./dev/index/module.ts",
-    "fsc": "node ./fsc/module.ts",
-    "fst": "node ./dev/tf/module.ts",
-    "update": "npm run index && npm install"
+    "test": "tsc && node ./fjs/module.ts t",
+    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts",
+    "start": "node ./fjs/module.ts",
+    "ci-update": "node ./fjs/module.ts ci",
+    "update": "npx npm-check-updates -u && npm install && deno install && bun install && npm run ci-update",
+    "index-html": "node ./fjs/module.ts r ./fjs/website/module.f.ts",
+    "website": "npm run prepack && npm run index-html"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "bin": {
-    "fsc": "fsc/module.js",
-    "fst": "dev/tf/module.js"
+    "fjs": "fjs/module.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/functionalscript/functionalscript.git"
   },
   "author": "Sergey Shandar",
-  "license": "AGPL-3.0-only",
+  "license": "MIT",
   "keywords": [
     "lambda",
     "functional-programming",
@@ -45,8 +43,8 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^24.2.0",
-    "@typescript/native-preview": "^7.0.0-dev.20250805.1",
-    "typescript": "^5.9.2"
+    "@playwright/test": "1.61.1",
+    "@types/node": "26.1.1",
+    "typescript": "7.0.2"
   }
 }

@@ -1,7 +1,6 @@
 # FunctionalScript
 
 [![NPM Version](https://img.shields.io/npm/v/functionalscript)](https://www.npmjs.com/package/functionalscript)
-[![JSR Version](https://img.shields.io/jsr/v/%40functionalscript/functionalscript)](https://jsr.io/@functionalscript/functionalscript)
 
 FunctionalScript is a safe, purely functional programming language and a strict subset of
 [ECMAScript](https://en.wikipedia.org/wiki/ECMAScript)/[JavaScript](https://en.wikipedia.org/wiki/JavaScript). It's inspired by
@@ -12,39 +11,56 @@ FunctionalScript is a safe, purely functional programming language and a strict 
   as a subset of JavaScript.
 - [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
-[A working draft of the FunctionalScript specification](./issues/lang/README.md).
+[A working draft of the FunctionalScript specification](./todo/lang/README.md).
 
 Learn more about
 
 - [Purely Functional Programming in JavaScript](https://blog.bitsrc.io/purely-functional-programming-in-javascript-91114b1b2dff?sk=5f7132e56902f38fcf4c6164bfa681ed),
 - [FunctionalScript and I/O](https://medium.com/@sergeyshandar/functionalscript-5cf817345376?sk=30b32189a81d1a2dad16c2244f32328d).
 
-This repository is a [monorepo](https://en.wikipedia.org/wiki/Monorepo) and distributed under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html#license-text). Let us know if you need another license by sending an [email](mailto:sergey.oss@proton.me).
+This repository is a [monorepo](https://en.wikipedia.org/wiki/Monorepo) and distributed under [MIT](LICENSE).
 
 ## Getting Started
 
 Install FunctionalScript via npm:
 
 ```bash
-npm install functionalscript
+npm install -g functionalscript
 ```
 
-The FunctionalScript compiler (`fsc`) currently supports:
+The `fjs` CLI provides several commands:
 
-* `import` statements
-* `const` declarations
+| Command          | Description                                               |
+|------------------|-----------------------------------------------------------|
+| `fjs test` / `t` | Run the FunctionalScript test suite                       |
+| `fjs compile` / `c` | Compile a `.f.ts` module to JavaScript                 |
+| `fjs run` / `r`  | Run a FunctionalScript module as a Node program           |
+| `fjs cas` / `s`  | Content-addressable storage (`add`, `get`, `list`)        |
+| `fjs mcp` / `m`  | Run an MCP server over stdio exposing the CAS as tools    |
+| `fjs ci` / `i`   | Generate the GitHub Actions CI workflow                   |
 
-It does **not** yet support functions or complex expressions.
+### Content-Addressable Storage (CAS)
 
-Example usage with `fsc`:
+FunctionalScript ships a built-in CAS for storing and retrieving blobs by their cryptographic hash:
 
 ```bash
-npx fsc example.f.js output.json
-# or
-npx fsc example.f.js output.f.js
+fjs cas add myfile.txt   # store a file, print its cBase32 hash
+fjs cas get <hash>       # restore a blob by hash
+fjs cas list             # list all stored hashes
 ```
 
-FunctionalScript code can be compiled directly into either JSON or JavaScript without imports.
+Blobs are stored under `~/.cas/` and addressed by their SHA-256 hash encoded in cBase32.
+
+### MCP Server
+
+The CAS is also exposed as an [MCP](https://modelcontextprotocol.io/) server so LLM agents can read and write blobs without a shell:
+
+```bash
+# register with Claude CLI
+claude mcp add cas -- npx functionalscript m
+```
+
+See [`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md) for details on the `cas_add`, `cas_get`, and `cas_list` tools.
 
 ## Vision
 
@@ -68,11 +84,8 @@ In FunctionalScript:
 - A module can depend only on another FunctionalScript module.
 - It also has no standard library. Only a safe subset of standard JavaScript API can be used without referencing other modules.
 
-## Our Next Step
-
-[Re-architecture of NaNVM](https://medium.com/@sergeyshandar/nanvm-re-architecture-8097f766ec1c?sk=d14ec1daf73ac5442f12ce20b2bc037a).
-
 ## Sponsors
 
 - [KirillOsenkov](https://github.com/KirillOsenkov),
-- [antkmsft](https://github.com/antkmsft).
+- [antkmsft](https://github.com/antkmsft),
+- [Mark Heyman](https://opencollective.com/body-count).

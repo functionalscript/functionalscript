@@ -1,30 +1,38 @@
-pub mod any;
-pub mod array;
-pub mod bigint;
-pub mod function;
-pub mod internal;
-pub mod naive;
-pub mod number;
-pub mod object;
-pub mod string16;
-pub mod string_coercion;
-pub mod to_any;
-pub mod unpacked;
+mod any;
+mod array;
+mod bigint;
+mod container_fmt;
+mod dispatch;
+mod function;
+mod impls;
+mod internal;
+mod join;
+mod nullish;
+mod number_coercion;
+mod numeric;
+mod object;
+mod primitive;
+mod primitive_coercion;
+mod string;
+mod string_coercion;
+mod unpacked;
 
 pub use crate::vm::{
-    any::Any,
-    array::Array,
+    any::{Any, to_any::ToAny},
+    array::{Array, to_array::ToArray},
     bigint::BigInt,
-    function::{Function, FunctionHeader},
+    function::{Function, header::FunctionHeader},
     internal::{IContainer, IVm},
-    object::{Object, Property},
-    string16::String16,
-    to_any::ToAnyEx,
+    nullish::Nullish,
+    object::{Object, property::Property, to_object::ToObject},
+    string::{String, to_string::ToString},
     unpacked::Unpacked,
 };
 
 #[cfg(test)]
 mod test {
+    use crate::vm::ToAny;
+
     use super::*;
 
     fn _eq_test<A: IVm>() {
