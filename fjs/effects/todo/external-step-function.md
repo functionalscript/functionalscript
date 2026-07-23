@@ -53,13 +53,7 @@ const b0 = step(b, f)
 const r = step(b0, g)
 ```
 
-Migration can be incremental:
-
-1. Add the external `step` (delegating to the method at first, or shape-based).
-2. Migrate call sites file by file — ~161 `.step(` sites across 25 files,
-   including `List<O, T>` stream code and the core's own `foldStep`.
-3. Delete the method and collapse `Effect` to `Value` in one final commit —
-   the payoff commit that actually removes the duplicated dispatch.
+Migration can be incremental — see Tasks.
 
 ### Design decisions
 
@@ -84,6 +78,21 @@ Migration can be incremental:
 - **No perf regression.** The external function wraps continuations exactly
   like `doFull.step` does today; the O(depth) cost of left-nested chains is
   unchanged, and dropping the wrapper object saves an allocation per node.
+
+### Tasks
+
+- [ ] Add the external data-first `step(e, f)` to `fjs/effects/module.f.ts`
+      (delegating to the method at first, or shape-based), plus the curried
+      data-last flavor if `foldStep` / point-free sites want it.
+- [ ] State the "exactly one function inspects the shape" rule in the module
+      doc, replacing the "must not be extended with new methods" framing.
+- [ ] Migrate call sites file by file — ~161 `.step(` sites across 25 files,
+      including `List<O, T>` stream code (`fjs/effects/list`, `fjs/cas`) and
+      the core's own `foldStep` / `forEachStep`.
+- [ ] Delete the `step` method and collapse `Effect<O, T>` to `Value<O, T>`
+      in one final commit — the payoff commit that actually removes the
+      duplicated dispatch. Update the `decode` doc comment so its
+      "only function that knows the layout" claim holds.
 
 ### Related
 
