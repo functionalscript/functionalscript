@@ -238,6 +238,23 @@ export const proof = {
         const [, present] = virtual(state1)(access(stalePath))
         assert(present[0] === 'error', 'expected GC to reclaim the expired staging file')
     },
+    casWriteGcSkipsLiveLease: () => {
+        // A staging file whose deadline is still in the future is left alone by the GC
+        // that `write` runs before staging its own file.
+        const livePath = join('.', '.cas', '_stage', '0000000000002000000-live')
+        const state0 = {
+            ...emptyState,
+            epochNs: 1_000_000,
+            root: { '.cas': { '_stage': { '0000000000002000000-live': [vec8(0x99n)] } } },
+        }
+        const content = vec8(0x2An)
+        const c = fileCas(sha256)('.')
+        const x = c.write(nonEmpty(ok(content), empty<never, Ok<Vec>>()))
+        const [state1, w] = virtual(state0)(x)
+        assert(w[0] === 'ok', ['expected write ok', w])
+        const [, present] = virtual(state1)(access(livePath))
+        assert(present[0] === 'ok', 'expected GC to leave the live staging file alone')
+    },
     casUploadSuccess: () => {
         // A successful upload returns the hash and deletes the source file from cas_upload/.
         const content = vec8(0x2An)
