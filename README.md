@@ -1,7 +1,6 @@
 # FunctionalScript
 
 [![NPM Version](https://img.shields.io/npm/v/functionalscript)](https://www.npmjs.com/package/functionalscript)
-[![JSR Version](https://img.shields.io/jsr/v/%40functionalscript/functionalscript)](https://jsr.io/@functionalscript/functionalscript)
 
 FunctionalScript is a safe, purely functional programming language and a strict subset of
 [ECMAScript](https://en.wikipedia.org/wiki/ECMAScript)/[JavaScript](https://en.wikipedia.org/wiki/JavaScript). It's inspired by
@@ -12,7 +11,7 @@ FunctionalScript is a safe, purely functional programming language and a strict 
   as a subset of JavaScript.
 - [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
-[A working draft of the FunctionalScript specification](./issues/lang/README.md).
+[A working draft of the FunctionalScript specification](./todo/lang/README.md).
 
 Learn more about
 
@@ -29,22 +28,39 @@ Install FunctionalScript via npm:
 npm install -g functionalscript
 ```
 
-The FunctionalScript compiler command (`fjs compile`) currently supports:
+The `fjs` CLI provides several commands:
 
-* `import` statements
-* `const` declarations
+| Command          | Description                                               |
+|------------------|-----------------------------------------------------------|
+| `fjs test` / `t` | Run the FunctionalScript test suite                       |
+| `fjs compile` / `c` | Compile a `.f.ts` module to JavaScript                 |
+| `fjs run` / `r`  | Run a FunctionalScript module as a Node program           |
+| `fjs cas` / `s`  | Content-addressable storage (`add`, `get`, `list`)        |
+| `fjs mcp` / `m`  | Run an MCP server over stdio exposing the CAS as tools    |
+| `fjs ci` / `i`   | Generate the GitHub Actions CI workflow                   |
 
-It does **not** yet support functions or complex expressions.
+### Content-Addressable Storage (CAS)
 
-Example usage with `fjs`:
+FunctionalScript ships a built-in CAS for storing and retrieving blobs by their cryptographic hash:
 
 ```bash
-fjs compile example.f.js output.json
-# or
-fjs compile example.f.js output.f.js
+fjs cas add myfile.txt   # store a file, print its cBase32 hash
+fjs cas get <hash>       # restore a blob by hash
+fjs cas list             # list all stored hashes
 ```
 
-FunctionalScript code can be compiled directly into either JSON or JavaScript without imports.
+Blobs are stored under `~/.cas/` and addressed by their SHA-256 hash encoded in cBase32.
+
+### MCP Server
+
+The CAS is also exposed as an [MCP](https://modelcontextprotocol.io/) server so LLM agents can read and write blobs without a shell:
+
+```bash
+# register with Claude CLI
+claude mcp add cas -- npx functionalscript m
+```
+
+See [`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md) for details on the `cas_add`, `cas_get`, and `cas_list` tools.
 
 ## Vision
 
@@ -67,10 +83,6 @@ In FunctionalScript:
 - Code should not have [side-effects](https://en.wikipedia.org/wiki/Side_effect_(computer_science)). Any JavaScript statement, expression, or function that has a side effect is not allowed in FunctionalScript. There are no exceptions to this rule, such as `unsafe` code, which can be found in Rust, C#, and other languages.
 - A module can depend only on another FunctionalScript module.
 - It also has no standard library. Only a safe subset of standard JavaScript API can be used without referencing other modules.
-
-## Our Next Step
-
-[Re-architecture of NaNVM](https://medium.com/@sergeyshandar/nanvm-re-architecture-8097f766ec1c?sk=d14ec1daf73ac5442f12ce20b2bc037a).
 
 ## Sponsors
 

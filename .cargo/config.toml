@@ -1,8 +1,9 @@
 [target.wasm32-wasip1]
 runner = "wasmtime run --dir . --"
 
-[target.wasm32-wasip1-threads]
-runner = "wasmtime run --wasi threads --wasm shared-memory --dir . --"
+# wasm32-wasip1-threads has no Wasmtime runner: Wasmtime 47 removed wasi-threads
+# support. Run threads tests with `--config .cargo/config.wasmer.toml` instead.
+# See todo/blocked/wasmtime-threads.md.
 
 [target.wasm32-wasip2]
 runner = "wasmtime run --dir . --"
