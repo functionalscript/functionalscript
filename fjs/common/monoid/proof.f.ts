@@ -1,4 +1,4 @@
-import { repeat, type Monoid } from "./module.f.ts";
+import { repeat, fold, type Monoid } from "./module.f.ts";
 import { assertEq } from '../../asserts/module.f.ts'
 
 export const proof = {
@@ -21,5 +21,31 @@ export const proof = {
 
         const resultConcat = repeat(concat)(3n)('ha') // 'hahaha'
         assertEq(resultConcat, 'hahaha')
+    },
+    fold: {
+        nonEmpty: () => {
+            const add: Monoid<number> = {
+                identity: 0,
+                operation: a => b => a + b,
+            };
+            assertEq(fold(add)([1, 2, 3, 4]), 10)
+        },
+        order: () => {
+            // a non-commutative monoid: `fold` must preserve left-to-right order
+            // (`((('' + 'a') + 'b') + 'c')`), not reverse it to `'cba'`.
+            const concat: Monoid<string> = {
+                identity: '',
+                operation: a => b => a + b,
+            };
+            assertEq(fold(concat)(['a', 'b', 'c']), 'abc')
+        },
+        empty: () => {
+            const concat: Monoid<string> = {
+                identity: '',
+                operation: a => b => a + b,
+            };
+            // an empty list folds to the identity
+            assertEq(fold(concat)([]), '')
+        },
     }
 }
