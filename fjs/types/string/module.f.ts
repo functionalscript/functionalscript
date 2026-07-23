@@ -19,15 +19,20 @@ import { type List, reduce as listReduce, repeat as listRepeat } from '../list/m
 import { compose } from '../function/module.f.ts'
 import { type Sign, cmp as uCmp } from '../function/compare/module.f.ts'
 import { join as joinOp, concat as concatOp, type Reduce } from '../function/operator/module.f.ts'
+import { fold } from '../../common/monoid/module.f.ts'
 
+// `join`'s per-separator reduction is seeded at `''` but is *not* a monoid fold:
+// `joinOp(sep)` has no identity (`joinOp(sep)('')(x)` prepends a separator), so
+// it stays a hand-seeded `reduce` rather than going through `monoid.fold`.
 const reduce: (o: Reduce<string>) => (input: List<string>) => string
     = o => listReduce(o)('')
 
 export const join: (_: string) => (input: List<string>) => string
     = compose(joinOp)(reduce)
 
+// `concatOp` with identity `''` is a lawful monoid, so `concat` is a monoid fold.
 export const concat: (input: List<string>) => string
-    = reduce(concatOp)
+    = fold({ identity: '', operation: concatOp })
 
 export const repeat: (n: string) => (v: number) => string
     = v => compose(listRepeat(v))(concat)

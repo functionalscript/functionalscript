@@ -19,7 +19,8 @@
 
 import { cmp, type Sign } from '../function/compare/module.f.ts'
 import type { Unary as OpUnary, Reduce as OpReduce } from '../function/operator/module.f.ts'
-import { reduce, type List } from '../list/module.f.ts'
+import { type List } from '../list/module.f.ts'
+import { fold } from '../../common/monoid/module.f.ts'
 
 /**
  * Type representing a unary operation on `bigint`.
@@ -46,7 +47,7 @@ export const addition: Reduce = a => b => a + b
  * @returns The sum of all values in the list.
  */
 export const sum: (input: List<bigint>) => bigint
-    = reduce(addition)(0n)
+    = fold({ identity: 0n, operation: addition })
 
 /**
  * Multiplies two `bigint` values.
@@ -63,7 +64,7 @@ export const multiple: Reduce = a => b => a * b
  * @returns The product of all values in the list.
  */
 export const product: (input: List<bigint>) => bigint
-    = reduce(multiple)(1n)
+    = fold({ identity: 1n, operation: multiple })
 
 /**
  * Calculates the absolute value of a `bigint`.

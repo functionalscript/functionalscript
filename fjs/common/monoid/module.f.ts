@@ -1,11 +1,13 @@
 /**
  * Monoids: the `Monoid<T>` algebraic structure (identity plus associative
- * binary operation) and `repeat`, which applies the operation `n` times using
- * exponentiation by squaring.
+ * binary operation), `repeat`, which applies the operation `n` times using
+ * exponentiation by squaring, and `fold`, which applies it across every element
+ * of a list.
  *
  * @module
  */
 import type { Fold, Reduce } from '../../types/function/operator/module.f.ts'
+import { reduce, type List } from '../../types/list/module.f.ts'
 
 /**
  * Represents a monoid, an algebraic structure with a binary operation
@@ -96,3 +98,33 @@ export const repeat = <T>({ identity, operation }: Monoid<T>): Fold<bigint, T> =
         ai = operation(ai)(ai)
     }
 }
+
+/**
+ * Reduces a `List<T>` with the monoid's associative `operation`, seeded at its
+ * `identity`. An empty list folds to `identity`.
+ *
+ * `fold` is the reduction companion of {@link repeat}: where `repeat` applies
+ * the operation a fixed number of times to a single element, `fold` applies it
+ * across every element of a list. Together they let list reductions such as
+ * `sum`, `product`, and string `concat` be expressed directly as monoid folds,
+ * so the identity paired with each operation is stated once at the call site
+ * instead of hand-seeding a raw `reduce`.
+ *
+ * @template T The type of the elements in the monoid.
+ * @param monoid The monoid structure, including the identity and binary operation.
+ * @returns A function that reduces a `List<T>` to a single `T`.
+ *
+ * @example
+ *
+ * ```ts
+ * const add: Monoid<number> = {
+ *     identity: 0,
+ *     operation: a => b => a + b,
+ * };
+ *
+ * fold(add)([1, 2, 3, 4]) // 10
+ * fold(add)([])           // 0
+ * ```
+ */
+export const fold = <T>({ identity, operation }: Monoid<T>): (list: List<T>) => T =>
+    reduce(operation)(identity)
