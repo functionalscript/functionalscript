@@ -1,7 +1,7 @@
 /**
  * Shared CI types and helpers: GitHub Actions step/job RTTI schemas, the
  * `MetaStep` representation used by tool-specific modules, and assemblers like
- * `install`, `test`, `clean`, `ubuntu`, and `toSteps`.
+ * `install`, `test`, `ubuntu`, and `toSteps`.
  *
  * @module
  */
@@ -71,11 +71,6 @@ export const uses = (name: keyof typeof actions, w?: Record<string, string>): St
 export const install = (step: Step): MetaStep => ({ type: 'install', step })
 
 export const test = (step: Step): MetaStep => ({ type: 'test', step })
-
-export const clean = (steps: readonly MetaStep[]): readonly MetaStep[] => [
-    ...steps,
-    test({ run: 'git reset --hard HEAD && git clean -fdx' })
-]
 
 export const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
