@@ -502,6 +502,12 @@
           "run": "npm ci"
         },
         {
+          "run": "npm run ci-update"
+        },
+        {
+          "run": "git diff --exit-code -- .github/workflows/ci.yml"
+        },
+        {
           "run": "npx tsc"
         },
         {

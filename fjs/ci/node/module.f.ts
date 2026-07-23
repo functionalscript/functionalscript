@@ -44,6 +44,8 @@ const node24Steps: readonly MetaStep[] = clean([
 
 const node26Steps: readonly MetaStep[] = clean([
     ...nodeInstall(node.default),
+    test({ run: 'npm run ci-update' }),
+    test({ run: 'git diff --exit-code -- .github/workflows/ci.yml' }),
     test({ run: 'npx tsc' }),
     test({ run: 'npm run cov' }),
     test({ run: 'npm pack' }),

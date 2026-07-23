@@ -44,20 +44,31 @@ split by Node version:
 - Node 22 runs `npm ci`, installs the pinned FunctionalScript package globally,
   and runs `fjs t`.
 - Node 24 runs `npm ci` and `node --test`.
-- Node 26 runs `npm ci`, `npx tsc`, `npm run cov`, and `npm pack`.
+- Node 26 runs `npm ci`, `npm run ci-update`, `git diff --exit-code -- .github/workflows/ci.yml`,
+  `npx tsc`, `npm run cov`, and `npm pack`.
 - Playwright is also Node-based, so it runs `npm ci` before browser setup.
 
-The command that must be provided by `package.json` for generated CI is `cov`.
-A typical FunctionalScript project can define it like this:
+The commands that must be provided by `package.json` for generated CI are `cov`
+and `ci-update`. A typical FunctionalScript project can define them like this:
 
 ```json
 {
   "scripts": {
     "test": "tsc && fjs t",
-    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts"
+    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts",
+    "ci-update": "fjs ci"
   }
 }
 ```
+
+`ci-update` must regenerate `.github/workflows/ci.yml`. The Node 26 job runs it
+right after `npm ci` and fails via `git diff --exit-code` when the committed
+workflow no longer matches the generator's output, so forgetting to regenerate
+the file after changing the CI definition breaks the build instead of silently
+running a stale workflow. Because the job runs `npm ci` first, `fjs ci` resolves
+the project's own `functionalscript` devDependency; this repository instead uses
+its checked-in sources (`node ./fjs/module.ts ci`), so the check always reflects
+the generator being reviewed, not the pinned published release.
 
 Keep `npx tsc` passing independently because the generated CI runs it as its own
 step before coverage and package creation. Keep `test` as the fast local
