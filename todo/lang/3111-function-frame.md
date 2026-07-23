@@ -1,9 +1,12 @@
 
 # NaNVM function objects
 
-A user function object is represented by serializable bytecode, executed by a bytecode interpreter
-upon a call. FS compiler produces that bytecode - upon successful parsing of FS source code of the
-function - plus metadata that the compiler needs to generate correct call site bytecode.
+A user function object is serialized as an AST — the stable, canonical representation of functions
+(see [§9 of the language README](./README.md#9-serialization-ast-as-data-not-bytecode)). On loading, a VM
+implementation may transform the AST into internal, VM-specific bytecode, executed by a bytecode
+interpreter upon a call. This document describes such an internal bytecode scheme; nothing here is
+part of the stable serializable format. The VM's bytecode generator produces that bytecode plus
+metadata that it needs to generate correct call site bytecode.
 
 That metadata specifies the size of function's frame - a span of NaNVM's 64-bit values that keeps:
 

@@ -39,4 +39,4 @@ the entire class at the language level.
 
 - [undefined](./2310-undefined.md) — the `undefined` value in DJS
 - [built-in](./2360-built-in.md) — `Object.entries` / `Object.values` side-effect table
-- `fs/types/object/module.f.ts` — `definedEntries` and `definedValues` helpers
+- `fjs/types/object/module.f.ts` — `definedEntries` and `definedValues` helpers

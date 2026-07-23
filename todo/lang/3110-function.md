@@ -14,7 +14,7 @@ Full function definition command:
 
 ```js
 const name = "Hello!"
-// translated into one command which accepts `name` and `bytecode`.
+// translated into one command which accepts `name` and the function's AST.
 const f = {[name]:() => 0}[name]
 // alternatives:
 const f1 = { some: () => 0 }.some // f1.name === "some"

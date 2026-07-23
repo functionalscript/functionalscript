@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.37.0",
+  "version": "0.38.0",
   "type": "module",
   "files": [
     "**/*.js",
@@ -9,19 +9,19 @@
   "description": "FunctionalScript is a purely functional subset of JavaScript",
   "scripts": {
     "prepack": "tsc --NoEmit false",
-    "test": "tsc && node ./fs/module.ts t",
+    "test": "tsc && node ./fjs/module.ts t",
     "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts",
-    "start": "node ./fs/module.ts",
-    "ci-update": "node ./fs/module.ts ci",
+    "start": "node ./fjs/module.ts",
+    "ci-update": "node ./fjs/module.ts ci",
     "update": "npx npm-check-updates -u && npm install && deno install && bun install && npm run ci-update",
-    "index-html": "node ./fs/module.ts r ./fs/website/module.f.ts",
+    "index-html": "node ./fjs/module.ts r ./fjs/website/module.f.ts",
     "website": "npm run prepack && npm run index-html"
   },
   "engines": {
     "node": ">=22"
   },
   "bin": {
-    "fjs": "fs/module.js"
+    "fjs": "fjs/module.js"
   },
   "repository": {
     "type": "git",
