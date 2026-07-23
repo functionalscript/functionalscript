@@ -79,15 +79,32 @@ ordering discipline `unpackListToVec` already documents.
   does not generalise to a monoid, and is out of scope. Just update any proof
   that asserts an exact `number.sum` value to the new result.
 
-### Open design question
+### bit_vec integration
 
-**Factoring against `bit_vec`.** `bit_vec.unpackListToVec` threads a running
-`len` and returns `Nullable` (early-out past `maxLength`); the generic monoid
-fold has no such guard. The shared core is the binary-counter combine skeleton,
-with `bit_vec` layering its size guard on top (its `tryListToVec` stays
-fallible). The crux is to generalise so `bit_vec` *reuses* the shared core
-instead of keeping two copies — a fallible/short-circuiting update variant
-alongside the plain one is the likely shape.
+No fallible or short-circuiting variant of `fold` is needed. Fold the
+`maxLength` guard **into the operation** by making `bit_vec`'s concat a monoid
+over `Nullable<Unpacked>`:
+
+- `identity` is the empty unpacked (non-null).
+- `null` is an **absorbing element**:
+  `operation(null)(_) = operation(_)(null) = null`.
+- otherwise `operation(a)(b)` concatenates, but returns `null` when the combined
+  `length` exceeds `maxLength`.
+
+This is a lawful monoid. `length` is additive and non-negative, so any
+intermediate sum is ≤ the total; a partial combine can only exceed `maxLength`
+when the total does, and the top-level combine always sees the full total.
+Hence the result is `null` **iff** the total length exceeds `maxLength`,
+independent of grouping — so the balanced fold's reassociation is safe.
+`bit_vec.tryListToVec` then becomes the generic balanced `fold` over this
+monoid, with `null` meaning "overflowed"; the `len` bookkeeping and the
+`Accumulator` / `ListToVecState` machinery go away.
+
+Accepted trade-off: unlike today's `unpackListToVec`, this does **not** break
+out the moment the cap is crossed — the fold runs to completion and `null`
+simply propagates as the absorbing element, so overflow is reported at the end
+rather than short-circuited. That is fine; reusing one generic `fold` is worth
+finishing a walk over an already-doomed list.
 
 ### Tasks
 
@@ -96,8 +113,9 @@ alongside the plain one is the likely shape.
       on top of it; keep left-to-right order.
 - [ ] Route every associative reduction through the balanced `fold`, including
       `number.sum`.
-- [ ] Re-express `bit_vec`'s `listToVec` on the shared core (its `maxLength` /
-      `Nullable` guard layered on top), removing the duplicated accumulator.
+- [ ] Re-express `bit_vec`'s `tryListToVec` as the balanced `fold` over a
+      `Nullable<Unpacked>` monoid whose operation is null-absorbing and caps at
+      `maxLength`; delete the `Accumulator` / `ListToVecState` bookkeeping.
 - [ ] Update any proof asserting an exact `number.sum` value to the new result;
       confirm `bigint` / `string` / `bit_vec` results are unchanged.
 - [ ] Run `npx tsc` and `fjs t`.
