@@ -5,7 +5,7 @@
  */
 import { sha256 } from '../../crypto/sha2/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
-import { forEachStep, pure } from '../../effects/module.f.ts'
+import { eff, forEachStep, pure } from '../../effects/module.f.ts'
 import {
     errorExit,
     log,
@@ -28,10 +28,9 @@ export const commands: Commands<FileCasOperation | WriteFile | Write | All | Mem
                 return errorExit("'cas add' expects one parameter")
             }
             const c = fileCas(sha256)(home)
-            return casAddFile(c)(path)
-                .step(hashResult => hashResult[0] === 'error'
+            return eff(casAddFile(c)(path)).step(hashResult => hashResult[0] === 'error'
                     ? pure(1)
-                    : log(vecToCBase32(hashResult[1])).step(() => pure(0)))
+                    : eff(log(vecToCBase32(hashResult[1]))).step(() => pure(0)).value).value
         },
     },
     {
@@ -47,8 +46,7 @@ export const commands: Commands<FileCasOperation | WriteFile | Write | All | Mem
             }
             const c = fileCas(sha256)(home)
             const x = c.read(hash)
-            return writeFromStream(path, x)
-                .step(([r, v]) => r === 'error' ? errorExit(`e: ` + String(v)) : pure(0))
+            return eff(writeFromStream(path, x)).step(([r, v]) => r === 'error' ? errorExit(`e: ` + String(v)) : pure(0)).value
         },
     },
     {
@@ -56,9 +54,10 @@ export const commands: Commands<FileCasOperation | WriteFile | Write | All | Mem
         description: 'List all stored content hashes',
         handler: ({ home }) => {
             const c = fileCas(sha256)(home)
-            return c.list()
+            return eff(c.list())
                 .step(forEachStep(j => log(vecToCBase32(j))))
                 .step(() => pure(0))
+                .value
         },
     },
 ]

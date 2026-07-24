@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
 import { run, type MemOperationMap } from '../mock/module.f.ts'
-import { pure } from '../module.f.ts'
+import { eff, pure } from '../module.f.ts'
 import {
     asBase, asNominal,
     create, read, write,
@@ -35,13 +35,10 @@ const mock: MemOperationMap<MemOp, MemoryState> = {
     },
 }
 
-const program = create(1).step(key =>
-    read(key).step(value =>
-        write(key, value + 41).step(() =>
-            read(key)
-        )
-    )
-)
+const program = eff(create(1)).step(key =>
+    eff(read(key)).step(value =>
+        eff(write(key, value + 41)).step(() =>
+            read(key)).value).value).value
 
 export const proof = {
     roundTrip: () => {
@@ -50,14 +47,12 @@ export const proof = {
         assertEq(state.values.k0, 42, state)
     },
     allocatesFreshKeys: () => {
-        const effect = create('a').step(a =>
-            create('b').step(b =>
+        const effect = eff(create('a')).step(a =>
+            eff(create('b')).step(b =>
                 pure([
                     asBase(a),
                     asBase(b),
-                ] as const)
-            )
-        )
+                ] as const)).value).value
         const [state, [a, b]] = run(mock)(initial)(effect)
         assertEq(a, 'k0')
         assertEq(b, 'k1')
@@ -65,8 +60,8 @@ export const proof = {
         assertEq(state.values.k1, 'b', state)
     },
     typeTest: () => {
-        // const e = create(1).step(k => write(k, 'bad').step(() => read(k)))
-        create(1).step(k => write(k, 5).step(() => read(k)))
+        // const e = eff(create(1)).step(k => eff(write(k, 'bad')).step(() => read(k)).value).value
+        eff(create(1)).step(k => eff(write(k, 5)).step(() => read(k)).value).value
     },
     throw: () => {
         const key: Key<number> = asNominal('missing')

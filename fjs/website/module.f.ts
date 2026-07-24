@@ -5,7 +5,7 @@
  */
 import { htmlUtf8 } from '../media/html/module.f.ts'
 import { writeFile, type WriteFile } from '../effects/node/module.f.ts'
-import { pure, type Effect } from '../effects/module.f.ts'
+import { eff, pure, type Effect } from '../effects/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 
 const html: Vec = htmlUtf8()(
@@ -15,7 +15,6 @@ const html: Vec = htmlUtf8()(
     ])
 
 const program: Effect<WriteFile, number> =
-    writeFile('index.html', html)
-    .step(() => pure(0))
+    eff(writeFile('index.html', html)).step(() => pure(0)).value
 
 export const main = () => program

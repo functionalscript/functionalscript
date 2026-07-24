@@ -32,7 +32,7 @@
  *
  * @module
  */
-import { pure, foldStep, type Effect, type Operation } from '../../effects/module.f.ts'
+import { eff, pure, foldStep, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import { collectRead, type Cas } from '../module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
@@ -161,26 +161,26 @@ export const decodeRevisionVec = (value: Vec): Revision | null => {
  * content can be scanned without failing the whole cache build.
  */
 export const decodeRevisionBlob = <O extends Operation>(cas: Cas<O>) => (hash: Vec): Effect<O, Revision | null> =>
-    collectRead(cas.read(hash)).step(([tag, value]) => pure(tag === 'error' ? null : decodeRevisionVec(value)))
+    eff(collectRead(cas.read(hash))).step(([tag, value]) => pure(tag === 'error' ? null : decodeRevisionVec(value))).value
 
 /**
  * Scans every hash in `cas` and builds a fresh {@link Cache} from the
  * `vnd.fjs.revision` blobs found among them. Non-revision blobs are ignored.
  */
 export const buildCache = <O extends Operation>(cas: Cas<O>): Effect<O, Cache> =>
-    cas.list().step(hashes =>
+    eff(cas.list()).step(hashes =>
         foldStep((hash: Vec) => (cache: Cache): Effect<O, Cache> =>
-            decodeRevisionBlob(cas)(hash).step(revision =>
-                pure(revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache))))
-        (emptyCache)(hashes))
+            eff(decodeRevisionBlob(cas)(hash)).step(revision =>
+                pure(revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache))).value)
+        (emptyCache)(hashes)).value
 
 /** Scans `cas` once and allocates a memory slot holding the resulting {@link Cache}. */
 export const initEvo = <O extends Operation>(cas: Cas<O>): Effect<O | MemOp, Key<Cache>> =>
-    buildCache(cas).step(cache => create(cache))
+    eff(buildCache(cas)).step(cache => create(cache)).value
 
 /** Reads, then rewrites, the cache at `cacheKey` with `revision` folded in at `hash`. */
 const foldIntoCache = (cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revision): Effect<MemOp, void> =>
-    read(cacheKey).step(cache => write(cacheKey, addRevisionToCache(hash, revision)(cache)).step(() => pure(undefined)))
+    eff(read(cacheKey)).step(cache => eff(write(cacheKey, addRevisionToCache(hash, revision)(cache))).step(() => pure(undefined)).value).value
 
 /**
  * Folds `value` — bytes already written to a `Cas` at `hash` by some other
@@ -208,8 +208,8 @@ const resolveParent = <O extends Operation>(cas: Cas<O>) => (parentRef: Hash): E
     if (parentHash === null) {
         return pure(error(`invalid parent hash: ${parentRef}`))
     }
-    return decodeRevisionBlob(cas)(parentHash).step(parent =>
-        pure(parent === null ? error(`parent is not a revision blob: ${parentRef}`) : ok(parent)))
+    return eff(decodeRevisionBlob(cas)(parentHash)).step(parent =>
+        pure(parent === null ? error(`parent is not a revision blob: ${parentRef}`) : ok(parent))).value
 }
 
 /** Resolves and validates every entry of `parents`, in order, short-circuiting on the first failure. */
@@ -217,8 +217,8 @@ const resolveParents = <O extends Operation>(cas: Cas<O>) => (parents: readonly 
     const init: Result<readonly Revision[], string> = ok([])
     return foldStep((parentRef: Hash) => (acc: Result<readonly Revision[], string>): Effect<O, Result<readonly Revision[], string>> => {
         if (acc[0] === 'error') { return pure(acc) }
-        return resolveParent(cas)(parentRef).step((parentResult): Effect<never, Result<readonly Revision[], string>> =>
-            pure(parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]])))
+        return eff(resolveParent(cas)(parentRef)).step((parentResult): Effect<never, Result<readonly Revision[], string>> =>
+            pure(parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]]))).value
     })(init)(parents)
 }
 
@@ -313,7 +313,7 @@ export const addRevision =
     <O extends Operation>(cas: Cas<O>) =>
     (cacheKey: Key<Cache>) =>
     (input: AddRevision): Effect<O | MemOp, Result<Hash, string>> =>
-    resolveParents(cas)(input.parents).step((parentsResult): Effect<O | MemOp, Result<Hash, string>> => {
+    eff(resolveParents(cas)(input.parents)).step((parentsResult): Effect<O | MemOp, Result<Hash, string>> => {
         if (parentsResult[0] === 'error') { return pure(parentsResult) }
         const subjectResult = resolveSubject(input)(parentsResult[1])
         if (subjectResult[0] === 'error') { return pure(subjectResult) }
@@ -347,15 +347,14 @@ export const addRevision =
         if (bytes === null) {
             return pure(error('revision too large to encode'))
         }
-        return cas.write(nonEmpty(ok(bytes), elEmpty<never, Ok<Vec>>()))
-        .step((writeResult): Effect<MemOp, Result<Hash, string>> => {
+        return eff(cas.write(nonEmpty(ok(bytes), elEmpty<never, Ok<Vec>>()))).step((writeResult): Effect<MemOp, Result<Hash, string>> => {
             if (writeResult[0] === 'error') {
                 return pure(error('failed to write revision to CAS'))
             }
             const hash = vecToCBase32(writeResult[1])
-            return foldIntoCache(cacheKey)(hash)(canonicalRevision).step(() => pure(ok(hash)))
-        })
-    })
+            return eff(foldIntoCache(cacheKey)(hash)(canonicalRevision)).step(() => pure(ok(hash))).value
+        }).value
+    }).value
 
 /** The Evo API described in `fjs/cas/evo/README.md`, bound to a `Cas<O>` and its cache slot. */
 export type Evo<O extends Operation> = {
@@ -369,10 +368,10 @@ export type Evo<O extends Operation> = {
 
 /** Builds the {@link Evo} API over `cas`, backed by the cache at `cacheKey` (see {@link initEvo}). */
 export const evo = <O extends Operation>(cas: Cas<O>) => (cacheKey: Key<Cache>): Evo<O> => ({
-    list: () => read(cacheKey).step(cache => pure(definedEntries(cache.bySubject).map(([subject]) => subject))),
-    head: subject => read(cacheKey).step(cache => {
+    list: () => eff(read(cacheKey)).step(cache => pure(definedEntries(cache.bySubject).map(([subject]) => subject))).value,
+    head: subject => eff(read(cacheKey)).step(cache => {
         const state = at(subject)(cache.bySubject)
         return pure(state === null ? [] : headsOf(state))
-    }),
+    }).value,
     add: input => addRevision(cas)(cacheKey)(input),
 })

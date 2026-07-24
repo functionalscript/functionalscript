@@ -1,12 +1,26 @@
 /**
  * Core effect type constructors and combinators.
  *
+ * An `Effect<O, T>` **is** the raw value — a `Pure` thunk (`() => T`) or a `Do`
+ * node (`[command, payload, continuation]`). It is plain data with no methods.
+ * Composition is provided externally by {@link step}, mirroring how
+ * `fjs/types/function` makes `compose` the primitive and `fn` optional sugar:
+ * here {@link step} is the primitive and {@link eff} the optional method-chaining
+ * wrapper.
+ *
+ * **Exactly one function inspects the shape: {@link decode}** (the `Pure` thunk
+ * vs. `Do` tuple layout). {@link step} wraps it; interpreters and proofs go
+ * through `decode` (or {@link match}) instead of inspecting a value. No second
+ * `typeof value === 'function'` check may appear anywhere, so the representation
+ * can change without touching them.
+ *
  * Effect helpers are **step adapters**: functions that return a continuation
- * `(t: T) => Effect<Q, R>` meant to be passed into `.step`, never wrappers
- * that take the effect itself as an argument. `Effect` has no pipeline
- * operator to lean on and must not be extended with new methods, so
- * `.step(adapterA).step(adapterB)` is how helpers compose — flat,
- * left-to-right, in evaluation order. See {@link okStep} for an example.
+ * `(t: T) => Effect<Q, R>` meant to be passed into a step, never wrappers that
+ * take the effect itself as an argument, so `eff(e).step(adapterA).step(adapterB).value`
+ * is how helpers compose — flat, left-to-right, in evaluation order. (The
+ * underlying `step(step(e, adapterA), adapterB)` reads inside-out; the codebase
+ * uses the `eff` wrapper for readability and reaches for the raw `step`
+ * primitive only inside this module.) See {@link okStep} for an example.
  *
  * @module
  */
@@ -17,33 +31,63 @@ import type { Result } from '../types/result/module.f.ts'
 export type Operation =
     readonly[string, (..._: readonly never[]) => unknown]
 
-export type Effect<O extends Operation, T> = {
-    value: Value<O, T>
-    step: <Q extends Operation, R>(f: (p: T) => Effect<Q, R>) => Effect<O | Q, R>
-}
-
-export type Value<O extends Operation, T> =
+/**
+ * An `Effect<O, T>` is the raw value: a {@link Pure} thunk that yields `T`, or a
+ * {@link Do} node describing a command to perform. It is plain data — compose
+ * effects with the external {@link step}, or the {@link eff} wrapper.
+ */
+export type Effect<O extends Operation, T> =
     Pure<T> | Do<O, T>
 
 export type Pure<T> =
     () => T
 
-export type DoKPR<O extends Operation, T, K extends string, PR extends readonly[unknown, unknown]> =
-    readonly[K, PR[0], (_: PR[1]) => Effect<O, T>]
-
 export type Pr<O extends Operation, K extends O[0]> =
     O extends readonly[K, (...args: infer P) => infer R] ? readonly[P, R] : never
 
-export type DoK<O extends Operation, T, K extends O[0]> =
-    DoKPR<O, T, K, Pr<O, K>>
+/**
+ * A `Do` node's continuation: given the command's output, produce the rest of
+ * the effect.
+ *
+ * The `out O` annotation asserts a covariance TypeScript cannot derive through
+ * the conditional `Pr` type: the command's output sits in the *contravariant*
+ * parameter position, so a bare function type would be measured contravariant
+ * in `O`, but the effect system only ever *widens* `O` (grows the op-set), never
+ * narrows it.
+ *
+ * **It is sound.** The `command` tag pins exactly which command's output the
+ * continuation receives, and every interpreter dispatches on the tag first
+ * (`decode` → `match` → runner), so a `write` node's continuation is only ever
+ * called with `void`; the op-set can grow without any continuation ever being
+ * handed the wrong output. `out` enables only the widening direction
+ * (`Effect<A>` <: `Effect<A | B>`), never the unsound narrowing. Anyone changing
+ * the continuation representation must re-check this argument before keeping the
+ * annotation.
+ */
+export type Cont<out O extends Operation, T> =
+    (_: Pr<O, O[0]>[1]) => Effect<O, T>
 
-export type Do<O extends Operation, T> =
-    DoK<O, T, O[0]>
+/**
+ * A `Do` node: the `[command, payload, continuation]` triple, read positionally
+ * as `[0]` / `[1]` / `[2]` — its runtime value is exactly that array. It is
+ * declared as an object with numeric keys rather than `readonly[…]` for one
+ * reason: only object / function / mapped-type aliases may carry a variance
+ * annotation (`TS2637` forbids `out` on a tuple), and the raw `Effect` union
+ * must be covariant in `O` end to end. The tag (`0`) and payload (`1`) are
+ * indexed/conditional types over `O` that TypeScript will not widen generically
+ * on their own — annotating only {@link Cont} (element `2`) is not enough — so
+ * the whole node carries `out O`. The same tag-dispatch soundness argument that
+ * justifies `Cont`'s `out O` applies here (see {@link Cont}); widening only ever
+ * grows the op-set. Every reader still goes through {@link decode}, which reads
+ * `e[0]` / `e[1]` / `e[2]`.
+ */
+export type Do<out O extends Operation, T> = {
+    readonly 0: O[0]
+    readonly 1: Pr<O, O[0]>[0]
+    readonly 2: Cont<O, T>
+}
 
-export const pure = <T>(v: T): Effect<never, T> => ({
-    value: () => v,
-    step: f => f(v)
-})
+export const pure = <T>(v: T): Effect<never, T> => () => v
 
 /**
  * A lazy pure effect. Like {@link pure}, but takes a thunk and evaluates it on
@@ -51,19 +95,49 @@ export const pure = <T>(v: T): Effect<never, T> => ({
  * next item of a list without instantiating the rest — the thunk runs only when
  * the effect is decoded (or stepped into).
  */
-export const lazy = <T>(t: () => T): Effect<never, T> => ({
-    value: t,
-    step: f => f(t())
-})
+export const lazy = <T>(t: () => T): Effect<never, T> => t
 
 export const doFull = <O extends Operation, T, K extends O[0]>(
     cmd: K,
     param: Pr<O, K>[0],
     cont: (input: Pr<O, K>[1]) => Effect<O, T>
-): Effect<O, T> => ({
-    value: [cmd, param, cont],
-    step: <Q extends Operation, R>(f: (p: T) => Effect<Q, R>) =>
-        doFull<O | Q, R, K>(cmd, param, x => cont(x).step(f)),
+): Effect<O, T> =>
+    [cmd, param, cont]
+
+/**
+ * Composes effects: run `e`, then continue with `f` applied to its result.
+ * The data-first primitive — raw `Effect` in, raw `Effect` out — and a thin
+ * wrapper over {@link decode}. Chains as `step(step(e, f), g)`.
+ */
+export const step = <O extends Operation, T, Q extends Operation, R>(
+    e: Effect<O, T>,
+    f: (t: T) => Effect<Q, R>
+): Effect<O | Q, R> => {
+    const d = decode(e)
+    return d.done
+        ? f(d.result)
+        : doFull<O | Q, R, O[0]>(d.command, d.payload, x => step(d.continuation(x), f))
+}
+
+/**
+ * The `fn`-style wrapper around a raw {@link Effect}, for optional
+ * method-chaining. Mirrors `fn` over `compose` exactly, including the boundary:
+ * `step` returns another `Eff` (so `.step(f).step(g)` chains) and `.value`
+ * unwraps back to the raw `Effect` (the analogue of `fn`'s `.result`). An `Eff`
+ * is **not** assignable to `Effect`; unwrap at the boundary with `.value`.
+ */
+export type Eff<O extends Operation, T> = {
+    readonly value: Effect<O, T>
+    readonly step: <Q extends Operation, R>(f: (t: T) => Effect<Q, R>) => Eff<O | Q, R>
+}
+
+/**
+ * Wraps a raw {@link Effect} into an {@link Eff} for method-chaining. Unwrap
+ * with `.value`, e.g. `eff(readFile(p)).step(f).value`.
+ */
+export const eff = <O extends Operation, T>(value: Effect<O, T>): Eff<O, T> => ({
+    value,
+    step: f => eff(step(value, f)),
 })
 
 export type Param<O extends Operation> = F<O>[0]
@@ -79,7 +153,7 @@ export const do_ =
  * Sequentially threads a state value through an effect for each item in `items`.
  *
  * Given `f: item => state => Effect<O, state>`, `init: S`, and `items: [x₀, x₁, …]`,
- * builds `f(x₀)(init).step(f(x₁)).step(f(x₂)).…` and yields a single
+ * builds `step(step(f(x₀)(init), f(x₁)), f(x₂))…` and yields a single
  * `Effect<O, S>` that produces the final state.
  *
  * Sequential — each step depends on the previous state. Compare to `all`,
@@ -89,7 +163,7 @@ export const foldStep =
     <O extends Operation, T, S>(f: (item: T) => (state: S) => Effect<O, S>) =>
     (init: S) =>
     (items: List<T>): Effect<O, S> =>
-        fold<T, Effect<O, S>>(item => acc => acc.step(f(item)))(pure(init))(items)
+        fold<T, Effect<O, S>>(item => acc => step(acc, f(item)))(pure(init))(items)
 
 /**
  * Sequentially runs `f(item)` for each item in `items`, discarding intermediate
@@ -128,16 +202,16 @@ export type Decoded<O extends Operation, T> =
 /**
  * Decodes an effect's next step: a pure result, or a command to perform.
  *
- * This is the only function that knows how `Value` is laid out (a thunk
+ * This is the only function that knows how an `Effect` is laid out (a thunk
  * `() => T` for `Pure`, a `[command, payload, continuation]` tuple for `Do`).
  * Interpreters and proofs must go through `decode` (or `match`) instead of
  * inspecting the value, so the representation can change without touching
  * them.
  */
-export const decode = <O extends Operation, T>({ value }: Effect<O, T>): Decoded<O, T> =>
-    typeof value === 'function'
-        ? { done: true, result: value() }
-        : { done: false, command: value[0], payload: value[1], continuation: value[2] }
+export const decode = <O extends Operation, T>(e: Effect<O, T>): Decoded<O, T> =>
+    typeof e === 'function'
+        ? { done: true, result: e() }
+        : { done: false, command: e[0], payload: e[1], continuation: e[2] }
 
 /**
  * An operation map whose entries take a command's payload and return some

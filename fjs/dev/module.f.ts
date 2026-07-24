@@ -16,7 +16,7 @@ import {
 import { cmp as strCmp } from '../types/string/module.f.ts'
 import type { StringMap } from '../types/object/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import { pure, type Effect } from '../effects/module.f.ts'
+import { eff, pure, type Effect } from '../effects/module.f.ts'
 import { join, relativize, toPosix } from '../path/module.f.ts'
 import { assert } from '../asserts/module.f.ts'
 
@@ -51,7 +51,7 @@ const allFiles = (
     predicate: (path: string) => boolean,
 ): Effect<Readdir | All, readonly string[]> => {
     const load = (p: string): Effect<Readdir | All, readonly string[]> =>
-        readdir(p, {})
+        eff(readdir(p, {}))
         .step(d => {
             let result: readonly Effect<Readdir | All, readonly string[]>[] = []
             for (const i of unwrap(d)) {
@@ -70,11 +70,12 @@ const allFiles = (
             return all(...result)
         })
         .step(v => pure(v.flat()))
+        .value
     return load(s)
 }
 
 const loadFile = (f: string): Effect<Access | Import, readonly (readonly[string, Module])[]> =>
-    import_(f).step(r => pure([[f, unwrap(r)] as const]))
+    eff(import_(f)).step(r => pure([[f, unwrap(r)] as const])).value
 
 /** The effect operations required to discover and load a module map. */
 export type LoadModuleOperations = Access | Import | All | Readdir
@@ -103,14 +104,15 @@ export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap>
     //       we should consider optimize them by ALIQ technique or something similar.
     //       For example, we should be able to write it like `allFiles(s).flatMap(loadFile)`,
     //       then an effect runner can batch all file loading operations together.
-    return allFiles(s, shouldLoad)
-    .step(files => all(...files.map(loadFile)))
-    .step(entries => pure(fromEntries(
-        entries
-            .flat()
-            .map(([k, v]) => [relativize(prefix, k), v] as const)
-            .toSorted(([a], [b]) => strCmp(a)(b))
-    )))
+    return eff(allFiles(s, shouldLoad))
+        .step(files => all(...files.map(loadFile)))
+        .step(entries => pure(fromEntries(
+            entries
+                .flat()
+                .map(([k, v]) => [relativize(prefix, k), v] as const)
+                .toSorted(([a], [b]) => strCmp(a)(b))
+        )))
+        .value
 }
 
 export const proof = {

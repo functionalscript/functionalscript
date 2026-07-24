@@ -10,7 +10,7 @@ import { main as ciMain } from './ci/module.f.ts'
 import { import_, type NodeOp, type NodeProgram } from './effects/node/module.f.ts'
 import { dispatch, type Commands } from './cli/module.f.ts'
 import { casMcpServer } from './cas/mcp/module.f.ts'
-import { pure } from './effects/module.f.ts'
+import { eff, pure } from './effects/module.f.ts'
 
 const commands: Commands<NodeOp> = [
     {
@@ -31,7 +31,7 @@ const commands: Commands<NodeOp> = [
     {
         names: ['mcp', 'm'],
         description: 'Run an MCP server over stdio exposing the CAS and Evo (subjects/heads) as tools',
-        handler: ({ home }) => casMcpServer(home).step(() => pure(0)),
+        handler: ({ home }) => eff(casMcpServer(home)).step(() => pure(0)).value,
     },
     {
         names: ['ci', 'i'],
@@ -43,10 +43,10 @@ const commands: Commands<NodeOp> = [
         description: 'Run a FunctionalScript module as a NodeProgram',
         handler: options => {
             const [file, ...args] = options.args
-            return import_(file).step(([s, v]) => {
+            return eff(import_(file)).step(([s, v]) => {
                 if (s === 'error') { throw v }
                 return (v.main as NodeProgram)({ ...options, args })
-            })
+            }).value
         },
     },
 ]

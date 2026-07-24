@@ -35,7 +35,7 @@
 import { msb, fromSentinel, length, u8List, type Vec } from '../../types/bit_vec/module.f.ts'
 import { iterable } from '../../types/list/module.f.ts'
 import type { Nullable } from '../../types/nullable/module.f.ts'
-import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { eff, pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import type { List } from '../../effects/list/module.f.ts'
 import type { IoResult } from '../../effects/node/module.f.ts'
 import { ok, error } from '../../types/result/module.f.ts'
@@ -288,12 +288,12 @@ export const detectVec = (bytes: Vec): DetectMeta => finish(push(detectInit)(byt
 export const detectStream =
     <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<DetectMeta>> => {
         const loop = (s: DetectState) => (l: List<O, IoResult<Vec>>): Effect<O, IoResult<DetectMeta>> =>
-            l.step((node): Effect<O, IoResult<DetectMeta>> => {
+            eff(l).step((node): Effect<O, IoResult<DetectMeta>> => {
                 if (node === undefined) { return pure(ok(finish(s))) }
                 const { first, tail } = node
                 const [t, v] = first
                 if (t === 'error') { return pure(error(v)) }
                 return loop(push(s)(v))(tail)
-            })
+            }).value
         return loop(detectInit)(stream)
     }
