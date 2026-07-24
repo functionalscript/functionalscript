@@ -27,7 +27,6 @@ import {
 import { validate } from '../types/rtti/validate/module.f.ts'
 import { toJsonSchema } from '../media/json/schema/module.f.ts'
 import type { Type } from '../types/rtti/module.f.ts'
-import type { FileCasOperation } from '../cas/module.f.ts'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 
