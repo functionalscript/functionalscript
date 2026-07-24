@@ -1,7 +1,6 @@
 import { empty, isVec, uint, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { decode, pure, step } from "../module.f.ts"
-import { eff } from "../eff/module.f.ts"
 import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, type IoResult } from "./module.f.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.ts"
@@ -10,10 +9,12 @@ import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.ts'
 
 export const proof = {
     map: () => {
-        const e = eff(readFile('hello')).step(([k, v]) => {
-            assert(k !== 'error', v)
-            return pure(uint(v) * 2n)
-        }).value
+        const e = step(
+            readFile('hello'),
+            ([k, v]) => {
+                assert(k !== 'error', v)
+                return pure(uint(v) * 2n)
+            })
         //
         let d = decode(e)
         while (!d.done) {
