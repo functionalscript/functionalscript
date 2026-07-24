@@ -29,7 +29,7 @@
  *
  * @module
  */
-import { pure, step, type Effect, type Operation } from '../../effects/module.f.ts'
+import { eff, pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { readLine, write, type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
@@ -59,7 +59,7 @@ const writeResponse = (resp: Response): Effect<Write, IoResult<void>> => {
     const v = tryUtf8(stringifyJson(resp) + '\n')
     return v === null
         ? pure(error(undefined))
-        : step(write('stdout', v), () => pure(ok(undefined)))
+        : eff(write('stdout', v)).step(() => pure(ok(undefined))).value
 }
 
 /**
@@ -70,22 +70,21 @@ const writeResponse = (resp: Response): Effect<Write, IoResult<void>> => {
  */
 export const stdioTransport =
     <O extends Operation>(handler: Step<O>): Effect<Read | Write | O, void> =>
-    step(readLine('stdin'), line =>
+    eff(readLine('stdin')).step(line =>
         line === null
             ? pure(undefined)
-            : handleLine(handler)(line))
+            : handleLine(handler)(line)).value
 
 const handleLine =
     <O extends Operation>(handler: Step<O>) =>
     (line: string): Effect<Read | Write | O, void> => {
         const [t, value] = parse(tokenize(stringToList(line)))
-        return step(
-            t === 'error'
+        return eff(t === 'error'
                 ? writeResponse(parseErrorResponse)
-                : step(handler(value), resp =>
+                : eff(handler(value)).step(resp =>
                     resp === null
                         ? pure(undefined)
-                        : step(writeResponse(resp), ([t2]) => t2 === 'error'
+                        : eff(writeResponse(resp)).step(([t2]) => t2 === 'error'
                             // The real response didn't fit. Retry with a fixed, small
                             // internal-error body carrying `resp.id` — but a
                             // caller-controlled `id` (e.g. a very large string) can
@@ -93,9 +92,8 @@ const handleLine =
                             // that retry is bounded by one more: an `id: null`
                             // internal-error, whose fully-constant shape is the only
                             // line in this transport guaranteed to always encode.
-                            ? step(writeResponse(internalErrorResponse(resp.id)), ([t3]) => t3 === 'error'
-                                ? step(writeResponse(internalErrorResponse(null)), () => pure(undefined))
-                                : pure(undefined))
-                            : pure(undefined))),
-            () => stdioTransport(handler))
+                            ? eff(writeResponse(internalErrorResponse(resp.id))).step(([t3]) => t3 === 'error'
+                                ? eff(writeResponse(internalErrorResponse(null))).step(() => pure(undefined)).value
+                                : pure(undefined)).value
+                            : pure(undefined)).value).value).step(() => stdioTransport(handler)).value
     }

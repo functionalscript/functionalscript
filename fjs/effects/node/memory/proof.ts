@@ -5,7 +5,7 @@
  */
 
 import { asyncRun } from '../../module.ts'
-import { step } from '../../module.f.ts'
+import { eff } from '../../module.f.ts'
 import {
     asNominal,
     create, read, write,
@@ -16,11 +16,9 @@ import { assert, assertEq } from '../../../asserts/module.f.ts'
 
 export const proof = {
     nodeInterpreter: async () => {
-        const result = await run(step(create(1), key =>
-            step(write(key, 2), () =>
-                read(key)
-            )
-        ))
+        const result = await run(eff(create(1)).step(key =>
+            eff(write(key, 2)).step(() =>
+                read(key)).value).value)
         assertEq(result, 2)
     },
     reusedOperationMapPersists: async () => {

@@ -15,10 +15,12 @@
  * can change without touching them.
  *
  * Effect helpers are **step adapters**: functions that return a continuation
- * `(t: T) => Effect<Q, R>` meant to be passed into `step`, never wrappers that
- * take the effect itself as an argument, so `step(step(e, adapterA), adapterB)`
- * (or `eff(e).step(adapterA).step(adapterB).value`) is how helpers compose —
- * flat, left-to-right, in evaluation order. See {@link okStep} for an example.
+ * `(t: T) => Effect<Q, R>` meant to be passed into a step, never wrappers that
+ * take the effect itself as an argument, so `eff(e).step(adapterA).step(adapterB).value`
+ * is how helpers compose — flat, left-to-right, in evaluation order. (The
+ * underlying `step(step(e, adapterA), adapterB)` reads inside-out; the codebase
+ * uses the `eff` wrapper for readability and reaches for the raw `step`
+ * primitive only inside this module.) See {@link okStep} for an example.
  *
  * @module
  */

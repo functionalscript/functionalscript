@@ -12,7 +12,7 @@ import { stringToList } from '../../text/utf16/module.f.ts'
 import { concat as pathConcat } from '../../path/module.f.ts'
 import { type ParseError, parseFromTokens } from '../parser/module.f.ts'
 import { run, type AstModule } from '../ast/module.f.ts'
-import { step, type Effect, foldStep, pure } from '../../effects/module.f.ts'
+import { eff, type Effect, foldStep, pure } from '../../effects/module.f.ts'
 import { readUtf8File, type ReadFile } from '../../effects/node/module.f.ts'
 
 /**
@@ -46,13 +46,13 @@ const mapDjs
 
 const parseModule
     : (path: string) => Effect<ReadFile, Result<AstModule, ParseError>>
-    = path => step(readUtf8File(path), result => {
+    = path => eff(readUtf8File(path)).step(result => {
         if (result[0] === 'error') {
             return pure(error({ message: 'file not found', metadata: null }))
         }
         const tokens = tokenize(stringToList(result[1]))(path)
         return pure(parseFromTokens(tokens))
-    })
+    }).value
 
 const transpileWithImports
     : (path: string) => (parseModuleResult: Result<AstModule, ParseError>) => (context: ParseContext) => Effect<ReadFile, ParseContext>
@@ -62,8 +62,7 @@ const transpileWithImports
             const pathsCombine = listMap(pathConcat(dir))(parseModuleResult[1][0])
             const pathsArray = toArray(pathsCombine)
             const contextWithStack = { ...context, stack: { first: path, tail: context.stack } }
-            return step(foldStep(foldNextModuleOp)(contextWithStack)(pathsArray),
-            contextWithImports => {
+            return eff(foldStep(foldNextModuleOp)(contextWithStack)(pathsArray)).step(contextWithImports => {
                 if (contextWithImports.error !== null) {
                     return pure(contextWithImports)
                 }
@@ -74,7 +73,7 @@ const transpileWithImports
                     stack: drop(1)(contextWithImports.stack),
                     complete: setReplace(path)(djs)(contextWithImports.complete),
                 })
-            })
+            }).value
         }
         return pure({ ...context, error: parseModuleResult[1] })
     }
@@ -94,9 +93,8 @@ const foldNextModuleOp
             return pure(context)
         }
 
-        return step(parseModule(path), parseModuleResult =>
-            transpileWithImports(path)(parseModuleResult)(context)
-        )
+        return eff(parseModule(path)).step(parseModuleResult =>
+            transpileWithImports(path)(parseModuleResult)(context)).value
     }
 
 /**
@@ -109,15 +107,13 @@ const foldNextModuleOp
 export const transpile
     : (path: string) => Effect<ReadFile, Result<Unknown, ParseError>>
     = path =>
-        step(foldNextModuleOp(path)({ stack: null, complete: null, error: null }), 
-            (context): Effect<ReadFile, Result<Unknown, ParseError>> => {
+        eff(foldNextModuleOp(path)({ stack: null, complete: null, error: null })).step((context): Effect<ReadFile, Result<Unknown, ParseError>> => {
                 if (context.error !== null) {
                     return pure(error(context.error))
                 }
                 const result = at(path)(context.complete)?.djs
                 return pure(ok(result))
-            }
-        )
+            }).value
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 

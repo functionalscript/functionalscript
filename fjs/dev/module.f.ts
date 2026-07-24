@@ -16,7 +16,7 @@ import {
 import { cmp as strCmp } from '../types/string/module.f.ts'
 import type { StringMap } from '../types/object/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import { step, eff, pure, type Effect } from '../effects/module.f.ts'
+import { eff, pure, type Effect } from '../effects/module.f.ts'
 import { join, relativize, toPosix } from '../path/module.f.ts'
 import { assert } from '../asserts/module.f.ts'
 
@@ -75,7 +75,7 @@ const allFiles = (
 }
 
 const loadFile = (f: string): Effect<Access | Import, readonly (readonly[string, Module])[]> =>
-    step(import_(f), r => pure([[f, unwrap(r)] as const]))
+    eff(import_(f)).step(r => pure([[f, unwrap(r)] as const])).value
 
 /** The effect operations required to discover and load a module map. */
 export type LoadModuleOperations = Access | Import | All | Readdir
