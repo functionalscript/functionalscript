@@ -1,6 +1,7 @@
 import { empty, isVec, uint, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { utf8, utf8ToString } from "../../text/module.f.ts"
-import { eff, decode, pure } from "../module.f.ts"
+import { decode, pure } from "../module.f.ts"
+import { eff } from "../eff/module.f.ts"
 import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, type IoResult } from "./module.f.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.ts"
