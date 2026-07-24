@@ -16,6 +16,3 @@ export const eff = <O extends Operation, T>(value: Effect<O, T>): Eff<O, T> => (
     value,
     step: f => eff(step(value, f)),
 })
-
-/** The monad unit: a pure value as an `Eff`. */
-export const pure = <T>(v: T): Eff<never, T> => eff(pureEffect(v))
