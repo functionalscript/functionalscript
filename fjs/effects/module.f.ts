@@ -117,6 +117,12 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
         : doFull<O | Q, R, O[0]>(d.command, d.payload, x => step(d.continuation(x), f))
 }
 
+export const captureStep = <O extends Operation, T, Q extends Operation, R>(
+    e: Effect<O, T>,
+    f: (t: T) => Effect<Q, R>,
+): Effect<O | Q, readonly[T, R]> =>
+    step(e, t => step(f(t), r => pure([t, r])))
+
 export type Param<O extends Operation> = F<O>[0]
 
 export type Return<O extends Operation> = F<O>[1]
