@@ -26,7 +26,14 @@ per-node wrapper object to exist. Two goals:
    sugar.
 2. Drop the per-node `{ value, step }` wrapper as the type that flows around.
 
-### The variance constraint (why the naive collapse fails)
+### Proposal
+
+Make the raw value the primary `Effect` type, provide `step` externally plus an
+optional `fn`-style `eff()` wrapper, and make the raw value covariant in `O` by
+annotating the continuation `out O`. The rest of this section works through why
+the naive version fails and how the covariance annotation fixes it.
+
+#### The variance constraint (why the naive collapse fails)
 
 The obvious move — "delete `step` and let `Effect<O, T>` just be the raw
 `Value<O, T>` union" — does **not** type-check, and this is the crux of the
@@ -46,7 +53,7 @@ sound answer). A raw union/tuple is compared structurally instead and fails.
 Collapsing to a bare `Value` breaks ~150 widening sites — verified, not a
 hunch.
 
-### Solution: annotate the continuation `out O`
+#### Solution: annotate the continuation `out O`
 
 Make the raw value itself covariant in `O`, so it can be the primary type
 without any wrapper — **while keeping `Do` a positional tuple**.
@@ -99,7 +106,7 @@ Removing those two casts is a separate concern (a more precise `do_` / `All`
 signature, and a tuple-aware `all`), out of scope here; this issue does not
 claim to eliminate them.
 
-### Design
+#### Design
 
 - **`Effect<O, T>` = the raw value** (today's `Value`). Returned directly by
   `pure`, `lazy`, `doFull`, `do_`, and every operation (`mkdir`, `readFile`, …),
@@ -155,7 +162,7 @@ return type changes). Reach for `eff(...).step(...).value` only where the
 method-chaining genuinely reads better; the `.value` is mandatory wherever the
 result flows into a raw-`Effect` slot.
 
-### Design decisions
+#### Design decisions
 
 - **`Cont<out O, T>` is a documented invariant, not a hack.** JSDoc on `Cont`
   must state the tag-dispatch soundness argument so the annotation is never
