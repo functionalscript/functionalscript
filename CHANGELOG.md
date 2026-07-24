@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fjs/effects/eff`: `Eff.step(f)` now also passes every prior value in the
+  chain to `f`, most recent first (`f(t, ...history)`), via a new `P` type
+  parameter on `Eff<O, T, P>` that accumulates one element per `.step` call,
+  starting empty at `eff(value)`. Existing single-argument callbacks are
+  unaffected — TypeScript accepts a callback with fewer parameters than the
+  declared function type. PR
+  [#1360](https://github.com/functionalscript/functionalscript/pull/1360)
 - `fjs/effects`: **BREAKING CHANGE:** an `Effect<O, T>` is now the **raw value**
   — a `Pure` thunk (`() => T`) or a `Do` node (`[command, payload, continuation]`)
   — instead of a `{ value, step }` wrapper. Composition moves out of the node
