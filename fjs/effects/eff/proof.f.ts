@@ -17,10 +17,10 @@ export const proof = {
         assertPure(pure(5).value, 5)
     },
     value: () => {
-        assertPure(eff(pure(5).value).value, 5)
+        assertPure(pure(5).value, 5)
     },
     chain: () => {
-        assertPure(eff(pure(5).value).step(v => pure(v + 1)).step(v => pure(v * 2)).value, 12)
+        assertPure(pure(5).step(v => pure(v + 1)).step(v => pure(v * 2)).value, 12)
     },
     over_do: () => {
         const e = eff(do_<AddOp>('add')(2, 3)).step(r => pure(r + 1)).value
