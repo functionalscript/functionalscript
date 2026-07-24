@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
-import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { pure, step, type Effect, type Operation } from '../../effects/module.f.ts'
 import { eff } from '../../effects/eff/module.f.ts'
 import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
@@ -114,7 +114,9 @@ const feed = <O extends Operation>(
     const go = (i: number, acc: readonly unknown[]): Effect<O, readonly unknown[]> =>
         i === msgs.length
             ? pure(acc)
-            : eff(handler(msgs[i] as Unknown)).step(r => go(i + 1, [...acc, r])).value
+            : step(
+                handler(msgs[i] as Unknown),
+                r => go(i + 1, [...acc, r]))
     return go(0, [])
 }
 
@@ -125,11 +127,14 @@ const runSessionVirtual =
     (root: Dir, home = '/home/user') =>
     (msgs: readonly unknown[]): readonly unknown[] => {
         type UploadOp = FileCasOperation | Rename | RandomInt | ReadBytes
-        const effect = eff(initEvo(fileCas(sha256)(home))).step(cacheKey =>
-            eff(create(uninitializedState as McpSessionState)).step(sessionKey => {
-                const step = mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)
-                return feed(step)(msgs)
-            }).value).value
+        const effect = step(
+            initEvo(fileCas(sha256)(home)),
+            cacheKey => step(
+                create(uninitializedState),
+                sessionKey => {
+                    const step = mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)
+                    return feed(step)(msgs)
+                }))
         return virtual({ ...emptyState, root })(effect)[1]
     }
 
