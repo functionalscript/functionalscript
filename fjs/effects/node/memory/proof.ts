@@ -5,7 +5,7 @@
  */
 
 import { asyncRun } from '../../module.ts'
-import { eff } from '../../module.f.ts'
+import { eff } from '../../eff/module.f.ts'
 import {
     asNominal,
     create, read, write,

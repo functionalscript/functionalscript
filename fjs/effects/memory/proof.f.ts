@@ -1,6 +1,7 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
 import { run, type MemOperationMap } from '../mock/module.f.ts'
-import { eff, pure } from '../module.f.ts'
+import { eff } from '../eff/module.f.ts'
+import { pure } from '../module.f.ts'
 import {
     asBase, asNominal,
     create, read, write,

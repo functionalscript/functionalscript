@@ -4,6 +4,7 @@
  * @module
  */
 import { type Unknown } from '../module.f.ts'
+import { pure } from '../../effects/module.f.ts'
 import { type Result, error, ok } from '../../types/result/module.f.ts'
 import { drop, map as listMap, type List, toArray, includes } from '../../types/list/module.f.ts'
 import { tokenize } from '../tokenizer/module.f.ts'
@@ -12,7 +13,8 @@ import { stringToList } from '../../text/utf16/module.f.ts'
 import { concat as pathConcat } from '../../path/module.f.ts'
 import { type ParseError, parseFromTokens } from '../parser/module.f.ts'
 import { run, type AstModule } from '../ast/module.f.ts'
-import { eff, type Effect, foldStep, pure } from '../../effects/module.f.ts'
+import { eff } from '../../effects/eff/module.f.ts'
+import { type Effect, foldStep } from '../../effects/module.f.ts'
 import { readUtf8File, type ReadFile } from '../../effects/node/module.f.ts'
 
 /**

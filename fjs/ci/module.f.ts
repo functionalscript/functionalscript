@@ -3,7 +3,8 @@
  *
  * @module
  */
-import { eff, pure, type Effect } from '../effects/module.f.ts'
+import { eff } from '../effects/eff/module.f.ts'
+import { pure, type Effect } from '../effects/module.f.ts'
 import { access, writeUtf8File, type NodeOp } from '../effects/node/module.f.ts'
 import { functionalscript, images } from './config/module.f.ts'
 import {

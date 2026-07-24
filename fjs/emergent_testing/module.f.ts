@@ -29,11 +29,11 @@ import {
     type Write,
     type WriteConsoles
 } from '../effects/node/module.f.ts'
-import { eff, pure, type Effect, type Operation } from '../effects/module.f.ts'
+import { eff } from '../effects/eff/module.f.ts'
+import { pure, type Effect, type Operation } from '../effects/module.f.ts'
 import { loadModuleMap, shouldLoad, type LoadModuleOperations, type ModuleMap } from '../dev/module.f.ts'
 import { invert } from '../types/result/module.f.ts'
 import { definedEntries } from '../types/object/module.f.ts'
-
 
 type TestState = {
     readonly time: number,

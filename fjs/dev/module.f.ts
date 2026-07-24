@@ -16,7 +16,8 @@ import {
 import { cmp as strCmp } from '../types/string/module.f.ts'
 import type { StringMap } from '../types/object/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import { eff, pure, type Effect } from '../effects/module.f.ts'
+import { eff } from '../effects/eff/module.f.ts'
+import { pure, type Effect } from '../effects/module.f.ts'
 import { join, relativize, toPosix } from '../path/module.f.ts'
 import { assert } from '../asserts/module.f.ts'
 

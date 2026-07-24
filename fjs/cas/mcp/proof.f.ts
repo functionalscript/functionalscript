@@ -1,5 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
-import { eff, pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { eff } from '../../effects/eff/module.f.ts'
+import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../media/json/module.f.ts'
