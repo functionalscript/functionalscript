@@ -1,4 +1,4 @@
-import { step, pure as pureEffect, type Effect, type Operation } from '../module.f.ts'
+import { step, type Effect, type Operation } from '../module.f.ts'
 
 /**
  * A fluent, method-chaining monad over a raw {@link Effect}. `.step(f)` is
