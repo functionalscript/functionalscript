@@ -3,8 +3,7 @@
  *
  * @module
  */
-import { pure, type Effect } from '../effects/module.f.ts'
-import { eff } from '../effects/eff/module.f.ts'
+import { pure, step, type Effect } from '../effects/module.f.ts'
 import { access, writeUtf8File, type NodeOp } from '../effects/node/module.f.ts'
 import { functionalscript, images } from './config/module.f.ts'
 import {
@@ -51,8 +50,9 @@ const canonicalJobs = (rust: boolean): Jobs => ({
     playwright: playwrightJob,
 })
 
-export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> =>
-    eff(access('Cargo.toml')).step(result => {
+export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> => step(
+    access('Cargo.toml'),
+    result => {
         const rust = result[0] === 'ok'
         const jobs: Jobs = {
             ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
@@ -69,7 +69,9 @@ export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> =>
             },
             jobs,
         }
-        return eff(writeUtf8File('.github/workflows/ci.yml', JSON.stringify(gha, null, '  '))).step(() => pure(0)).value
-    }).value
+        return step(
+            writeUtf8File('.github/workflows/ci.yml', JSON.stringify(gha, null, '  ')),
+            () => pure(0))
+    })
 
 export const main = () => ci({ nodeExtra: () => [] })
