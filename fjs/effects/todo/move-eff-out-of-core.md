@@ -1,4 +1,4 @@
-## Move the `eff` fluent wrapper out of `effects/module.f.ts`
+## Extract `Eff` into a self-contained `eff/module.f.ts` monad layer
 
 **Priority:** P3
 **Status:** open
@@ -12,114 +12,155 @@ combinators (`foldStep`, `forEachStep`, `okStep`). Its module doc states the
 contract in one line — *"Exactly one function inspects the shape: `decode`"* —
 and positions `step` as the composition primitive.
 
-`eff` / `Eff` are a different kind of thing. They are **optional ergonomic
-sugar** over `step`: a fluent, method-chaining wrapper (`eff(x).step(f).value`)
-that adds nothing to the effect algebra and is a pure *consumer* of the public
-API (`step`, plus the `Effect` / `Operation` types). The core module never
+`eff` / `Eff` are a different kind of thing. They are the **ergonomic layer**
+over `step`: a fluent, method-chaining wrapper that adds nothing to the effect
+algebra and is a pure *consumer* of the public API. The core module never
 references `eff`; the dependency is entirely one-directional. Yet the wrapper
 currently lives inside the core module, mixing "what the effect model *is*" with
-"one convenient way to *write* it."
+"one convenient way to *write* it," and it is currently only a *thin* wrapper —
+its `.step` takes a continuation returning a **raw** `Effect`, so every wrapped
+site still threads raw effects through and unwraps with `.value` at each turn.
+The codebase composes through `eff` almost everywhere (156 call sites across 23
+files), so both the layering and the wrapper's shape are worth revisiting
+together.
 
-The codebase now composes effects through `eff` almost everywhere (156 call
-sites across 23 files), which makes the layering worth making physical: the
-primitive layer (`step`, the model) and the ergonomic layer (`eff`) deserve
-separate homes, so a reader of the core module sees the algebra without the
-sugar, and a reader of the sugar sees exactly what it is built on.
+### Decision
+
+1. **`Eff.step` accepts a continuation that returns `Eff`** (not a raw
+   `Effect`). This makes `Eff` a proper monad — `pure` is unit, `.step` is bind,
+   `.value` is the exit — where a chain never leaves the wrapped world until the
+   final `.value`.
+2. **The new module exports its own `pure` that returns `Eff`.** It is the
+   monad's unit, so leaf continuations (`t => pure(x)`, the common case) stay in
+   the `Eff` world with no wrapping.
+
+The guiding principle: **a module picks one vocabulary — raw effects *or* the
+`Eff` wrapper — and does not mix them.** A raw-style module uses `pure` / `step`
+from core and composes with `step(step(…))`; an `Eff`-style module uses `pure` /
+`eff` from `eff/module.f.ts` and composes with `.step(…)`, touching a raw
+`Effect` only at the sanctioned boundaries (wrapping an operation with `eff(op)`
+on the way in, `.value` on the way out).
+
+This is why `.step` takes `t => Eff` rather than accepting *either* `Effect` or
+`Eff` (a polymorphic `t => Effect | Eff` was considered): accepting both would
+*encourage* mixing the two vocabularies inside one module, which is exactly what
+this convention discourages. The stricter `t => Eff` signature makes a module's
+choice of style visible and self-consistent.
 
 ### Proposal
 
-Move `eff` and its `Eff` type into a new submodule and update the import sites.
+Create `fjs/effects/eff/module.f.ts` as the self-contained `Eff` layer and
+migrate the wrapper's call sites to the pure-`Eff` style.
 
-**Recommended name: `fjs/effects/eff/module.f.ts`.** It matches the exported
-symbol (`eff` / `Eff`) exactly, the way `fjs/effects/list` exports `List`, and
-it slots cleanly beside the existing `list` / `memory` / `mock` / `node`
-submodules. Import sites read `import { eff, type Eff } from
-'../effects/eff/module.f.ts'`.
-
-Alternatives, if a role-describing name is preferred over an export-matching
-one: `fjs/effects/chain` (names the method-chaining role), `fjs/effects/fluent`,
-or `fjs/effects/builder`. These read fine at the import but no longer match the
-`eff` symbol, so discovery ("where does `eff` live?") is slightly worse.
-Recommendation stands on `eff`.
+**Name: `fjs/effects/eff/module.f.ts`** — matches the exported `eff` / `Eff` /
+`pure`, the way `fjs/effects/list` exports `List`, and slots beside the existing
+`list` / `memory` / `mock` / `node` submodules. (Role-describing alternatives —
+`chain`, `fluent`, `builder` — read fine at the import but no longer match the
+`eff` symbol, so discovery is slightly worse. Recommendation stands on `eff`.)
 
 ### Design
 
-The new module is tiny and has a single upward dependency on the core:
+The module is small and has a single upward dependency on the core:
 
 ```ts
 // fjs/effects/eff/module.f.ts
-import { step, type Effect, type Operation } from '../module.f.ts'
+import { step, pure as pureEffect, type Effect, type Operation } from '../module.f.ts'
 
 /**
- * The `fn`-style wrapper around a raw {@link Effect}, for optional
- * method-chaining. `.step(f)` returns another `Eff` (so `.step(f).step(g)`
- * chains) and `.value` unwraps back to the raw `Effect`. An `Eff` is **not**
- * assignable to `Effect`; unwrap at the boundary with `.value`.
+ * A fluent, method-chaining monad over a raw {@link Effect}. `.step(f)` is
+ * bind — `f` returns another `Eff`, so `.step(f).step(g)` chains and a chain
+ * stays in the `Eff` world throughout — and `.value` is the exit back to a raw
+ * `Effect`. An `Eff` is **not** assignable to `Effect`; unwrap with `.value`.
  */
 export type Eff<O extends Operation, T> = {
     readonly value: Effect<O, T>
-    readonly step: <Q extends Operation, R>(f: (t: T) => Effect<Q, R>) => Eff<O | Q, R>
+    readonly step: <Q extends Operation, R>(f: (t: T) => Eff<Q, R>) => Eff<O | Q, R>
 }
 
+/** Wraps a raw {@link Effect}; the bridge *into* the `Eff` world. */
 export const eff = <O extends Operation, T>(value: Effect<O, T>): Eff<O, T> => ({
     value,
-    step: f => eff(step(value, f)),
+    // `.step` unwraps the continuation's `Eff` internally, so callers never
+    // touch `.value` mid-chain.
+    step: f => eff(step(value, t => f(t).value)),
 })
+
+/** The monad unit: a pure value as an `Eff`. The `Eff`-world `pure`. */
+export const pure = <T>(v: T): Eff<never, T> => eff(pureEffect(v))
 ```
 
 No dependency cycle: `eff/module.f.ts` imports from `../module.f.ts`, and the
-core module imports nothing back. Everything `eff` needs (`step`, `Effect`,
-`Operation`) is already public.
+core imports nothing back. The core `pure` is imported as `pureEffect` because
+the module exports its own `pure`.
 
-- **Delete** the `Eff` type and `eff` const (and their JSDoc) from
-  `fjs/effects/module.f.ts`. The core module doc's mention of `eff` as the
-  optional wrapper stays — it now points at the sibling module.
-- **Migrate the 23 import sites.** Each currently pulls `eff` from an
-  `effects/module.f.ts` path (`../effects/module.f.ts`,
-  `../../effects/module.f.ts`, `../module.f.ts`, …); repoint just the `eff` /
-  `type Eff` names to the new `…/effects/eff/module.f.ts` path, leaving the
-  other names (`pure`, `type Effect`, …) importing from core. This is the same
-  mechanical, import-only migration as the `eff` rollout, verifiable by `tsc`.
-- **Proof.** Add `fjs/effects/eff/proof.f.ts` with the `eff` cases (currently in
-  `fjs/effects/proof.f.ts`): `.value` unwrap, `.step(f).step(g).value`
-  chaining, and equivalence with external `step` over a `Do` node. The `step`
-  cases stay in the core proof.
+### Migration
+
+This is larger than an import repoint, because `.step`'s new signature changes
+what continuations must return. Per file (23 of them):
+
+- **Decide the module's style.** Files that already chain with `eff` throughout
+  are `Eff`-style; keep them wrapped. A file with only one or two incidental
+  `eff` uses may read better rewritten raw-style — convert it the other way and
+  drop the `eff` import entirely.
+- **In `Eff`-style modules, move continuations into the `Eff` world:**
+  - leaf `t => pure(x)` — switch `pure` to the module's `Eff`-`pure` (import
+    from `eff/module.f.ts`); it now returns `Eff`, no wrap.
+  - nested `t => eff(a).step(b).value` — drop the trailing `.value`; the
+    continuation now returns `Eff` directly.
+  - `.value` / `eff(...)` survive **only at the boundaries to the raw world**:
+    the module's outermost result when it is typed `Effect`, a runner argument,
+    and any raw core combinator that still takes a raw `Effect` continuation
+    (`foldStep` / `forEachStep` / `all` / `both`, and `okStep` adapters).
+- **Enforce one vocabulary per module via imports:** an `Eff`-style module
+  imports `pure` / `eff` from `eff/module.f.ts` and must *not* also import raw
+  `pure` / `step` from core (a lint-visible signal that the styles aren't
+  mixed).
+
+`tsc` verifies each file end to end, as with the earlier `eff` rollout.
 
 ### Design decisions
 
+- **Bind over `Eff`, not accept-both.** Chosen to keep each module in one
+  vocabulary (see Decision). The cost is that raw-world boundaries (core
+  combinators, operations, `Effect`-typed returns) still need an explicit
+  `eff(...)` in / `.value` out — accepted, and localized to those boundaries.
+- **Core combinators stay raw.** `foldStep` / `forEachStep` / `all` / `both` /
+  `okStep` remain in the raw layer and are bridged with `eff(...)` / `.value`.
+  Providing `Eff`-flavored siblings so `Eff`-style modules never bridge is a
+  possible follow-up, out of scope here.
 - **Clean move, not a re-export.** The repo convention is explicit per-module
   imports, not barrel re-exports, so do *not* keep a compatibility
-  `export { eff } from './eff/module.f.ts'` in the core module — update the call
-  sites instead. This keeps one home per symbol.
-- **The counter-precedent is acknowledged.** `fjs/types/function/module.f.ts`
-  keeps `compose` (the primitive) and `fn` (the fluent chainer) in the *same*
-  module — the very precedent `eff` was modeled on. This proposal deliberately
-  diverges for effects because the core effects module carries far more than a
-  two-line primitive (the model, `decode`/`match`, constructors, combinators),
-  so the primitive-vs-sugar split earns its own file here where it would be
-  overkill for `function`. If the split proves worthwhile, giving `fn` the same
-  treatment in `fjs/types/function` is a reasonable follow-up — out of scope
-  here.
-- **`step` stays in core.** Only the fluent wrapper moves; the `step` primitive
+  `export { eff, pure } from './eff/module.f.ts'` in the core module — update the
+  call sites instead. One home per symbol.
+- **`step` stays in core.** Only the fluent layer moves; the `step` primitive
   remains the foundation in `fjs/effects/module.f.ts`, used internally there and
   exercised directly by the core proof.
+- **Counter-precedent acknowledged.** `fjs/types/function/module.f.ts` keeps
+  `compose` (primitive) and `fn` (fluent chainer) in the *same* module — the
+  precedent `eff` was modeled on. This diverges for effects because the core
+  effects module carries far more than a two-line primitive, so the split earns
+  its own file here; giving `fn` the same treatment is a reasonable follow-up,
+  out of scope.
 
 ### Tasks
 
-- [ ] Create `fjs/effects/eff/module.f.ts` with `Eff` + `eff`, importing `step`
-      / `Effect` / `Operation` from `../module.f.ts`.
+- [ ] Create `fjs/effects/eff/module.f.ts` exporting `Eff`, `eff`, and the
+      `Eff`-returning `pure` (importing `step` / core `pure` / `Effect` /
+      `Operation` from `../module.f.ts`).
 - [ ] Remove `Eff` / `eff` from `fjs/effects/module.f.ts`; keep the doc pointer
       to the new module.
-- [ ] Repoint the `eff` / `type Eff` imports at the 23 call-site files to
-      `…/effects/eff/module.f.ts` (import-only; `tsc` verifies).
-- [ ] Move the `eff` proof cases into `fjs/effects/eff/proof.f.ts`; leave the
-      `step` cases in `fjs/effects/proof.f.ts`.
+- [ ] Migrate the 23 wrapper call-site files to the pure-`Eff` style:
+      continuations return `Eff`, leaf `pure` comes from the new module, `.value`
+      / `eff(...)` only at raw-world boundaries; repoint imports.
+- [ ] Move the `eff` proof cases into `fjs/effects/eff/proof.f.ts` (including a
+      case for `Eff`-`pure` and a `t => Eff` continuation); leave the `step`
+      cases in `fjs/effects/proof.f.ts`.
 
 ### Related
 
-- `fjs/effects/module.f.ts` — current home of `step` (primitive), `eff`
-  (wrapper to move), `decode` / `match`, and the core combinators.
-- `fjs/types/function/module.f.ts` — `compose` / `fn` precedent that keeps the
-  primitive and its fluent chainer together (the counter-precedent above).
+- `fjs/effects/module.f.ts` — current home of `step` (primitive), `pure`, `eff`
+  (to move), `decode` / `match`, and the core combinators.
+- `fjs/types/function/module.f.ts` — `compose` / `fn` precedent (the
+  counter-precedent above).
 - `fjs/effects/list`, `fjs/effects/memory`, `fjs/effects/mock`,
-  `fjs/effects/node` — existing sibling submodules the new `eff` module joins.
+  `fjs/effects/node` — sibling submodules the new `eff` module joins.
