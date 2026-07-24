@@ -20,8 +20,7 @@
  * @module
  */
 import { string, option, array } from '../../../types/rtti/module.f.ts'
-import { pure, type Effect, type Operation } from '../../../effects/module.f.ts'
-import { eff } from '../../../effects/eff/module.f.ts'
+import { pure, step, type Effect, type Operation } from '../../../effects/module.f.ts'
 import { type MemOp } from '../../../effects/memory/module.f.ts'
 import {
     toolEntry, errorResult, okResult,
@@ -65,21 +64,27 @@ export const evoToolRegistry =
         // constrained to a newline-free alphabet), so a `join('\n')` line
         // format could not represent an empty subject or one containing a
         // newline without ambiguity — JSON encoding can.
-        (): Effect<MemOp, ToolsCallResult> =>
-            eff(e.list()).step(subjects => pure(okResult(toJson(subjects)))).value,
+        (): Effect<MemOp, ToolsCallResult> => step(
+            e.list(),
+            subjects => pure(okResult(toJson(subjects)))
+        ),
     ),
     toolEntry(
         'evo_head',
         'List the current head hashes (cBase32) of a subject, one per line. Empty when the subject is unknown.',
         evoHeadArgs,
-        ({ subject }): Effect<MemOp, ToolsCallResult> =>
-            eff(e.head(subject)).step(heads => pure(okResult(heads.join('\n')))).value,
+        ({ subject }): Effect<MemOp, ToolsCallResult> => step(
+            e.head(subject),
+            heads => pure(okResult(heads.join('\n'))),
+        )
     ),
     toolEntry(
         'evo_add',
         'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot`, when omitted, is resolved from the parents (zero parents → `subject`, one parent → the parent\'s snapshot; a merge requires an explicit `snapshot`) and written explicitly. `generation` is computed by the server.',
         evoAddArgs,
-        (input): Effect<O | MemOp, ToolsCallResult> =>
-            eff(e.add(input)).step(result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(result[1]))).value,
+        (input): Effect<O | MemOp, ToolsCallResult> => step(
+            e.add(input),
+            result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(result[1]))
+        ),
     ),
 ]
