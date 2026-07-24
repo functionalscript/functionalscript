@@ -17,8 +17,8 @@ import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
 import { ok, error as resultError, mapOk, type Result } from '../../types/result/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
-import { type Effect, type Func, type Operation, type ToAsyncOperationMap, do_, okStep, pure } from '../module.f.ts'
-import { eff } from '../eff/module.f.ts'
+import { type Effect, type Func, type Operation, type ToAsyncOperationMap, do_, okStep, pure, step } from '../module.f.ts'
+// import { eff } from '../eff/module.f.ts'
 import type { List } from '../list/module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
@@ -90,7 +90,10 @@ export const readFile: Func<ReadFile> =
  * call site.
  */
 export const readUtf8File = (path: string): Effect<ReadFile, IoResult<string>> =>
-    eff(readFile(path)).step(r => pure(mapOk(utf8ToString)(r))).value
+    step(
+        readFile(path),
+        r => pure(mapOk(utf8ToString)(r))
+    )
 
 // readdir
 
@@ -201,7 +204,7 @@ export const writeBytes: Func<WriteBytes> =
 
 const writeLoop = (path: string) => {
     const f = <O extends Operation>(offset: number, e: List<O, IoResult<Vec>>): Effect<O | WriteBytes, IoResult<void>> =>
-        eff(e).step(r => {
+        step(e, r => {
             if (r === undefined) {
                 return pure(ok(undefined))
             }
@@ -213,14 +216,18 @@ const writeLoop = (path: string) => {
             if ((lenV & 0b111n) !== 0n) {
                 return pure(resultError('invalid buffer size'))
             }
-            return eff(writeBytes(path, offset, v)).step(okStep(() => f(offset + Number(lenV >> 3n), tail))).value
-        }).value
+            return step(
+                writeBytes(path, offset, v),
+                okStep(() => f(offset + Number(lenV >> 3n), tail)))
+        })
     return f
 }
 
 export const writeFromStream =
     <O extends Operation>(path: string, e: List<O, IoResult<Vec>>): Effect<O | WriteBytes | CreateExclusive, IoResult<void>> =>
-    eff(createExclusive(path)).step(okStep(() => writeLoop(path)(0, e))).value
+    step(
+        createExclusive(path),
+        okStep(() => writeLoop(path)(0, e)))
 
 // stat
 
@@ -363,12 +370,14 @@ const lf = 0x0a
  */
 export const readLine = (stream: ReadConsoles): Effect<Read, string | null> => {
     const loop = (acc: EffectList<number>): Effect<Read, string | null> =>
-        eff(read(stream)).step(b =>
-            b === null
+        step(
+            read(stream),
+            b => b === null
                 ? pure(acc === null ? null : utf8ListToString(reverse(acc)))
                 : b === lf
                     ? pure(utf8ListToString(reverse(acc)))
-                    : loop({ first: b, tail: acc })).value
+                    : loop({ first: b, tail: acc })
+        )
     return loop(null)
 }
 
@@ -430,7 +439,10 @@ export type Await = readonly['await', (p: unknown) => readonly[unknown]]
 
 const awaitPromise: Func<Await> = do_('await')
 
-export const awaitIfPromise = (p: unknown) => eff(awaitPromise(p)).step(([x]) => pure(x)).value
+export const awaitIfPromise = (p: unknown) =>
+    step(
+        awaitPromise(p),
+        ([x]) => pure(x))
 
 // Test registration
 
@@ -488,7 +500,9 @@ export type NodeEffect<T> = Effect<NodeOp, T>
  * compose `eff(error(s)).step(() => pure(n)).value` directly.
  */
 export const errorExit = (s: string): Effect<Write, number> =>
-    eff(error(s)).step(() => pure(1)).value
+    step(
+        error(s),
+        () => pure(1))
 
 export type NodeOperationMap = ToAsyncOperationMap<NodeOp>
 
