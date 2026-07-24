@@ -20,10 +20,10 @@ export const proof = {
         assertPure(pure(5).value, 5)
     },
     chain: () => {
-        assertPure(eff(pureEffect(5)).step(v => pure(v + 1)).step(v => pure(v * 2)).value, 12)
+        assertPure(eff(pureEffect(5)).step(v => pure(v + 1).value).step(v => pure(v * 2).value).value, 12)
     },
     over_do: () => {
-        const e = eff(do_<AddOp>('add')(2, 3)).step(r => pure(r + 1)).value
+        const e = eff(do_<AddOp>('add')(2, 3)).step(r => pure(r + 1).value).value
         const r = next(e)
         assert(r[0] === 'cont', r)
         assertEq(r[1], 5)
