@@ -7,7 +7,7 @@ import { sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/modul
 import { join, normalize, parse } from '../path/module.f.ts'
 import { empty, length, maxLength, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
-import { step, foldStep, forEachStep, okStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
+import { step, eff, foldStep, forEachStep, okStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
 import {
     access,
     createExclusive,
@@ -193,11 +193,12 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                 const rel = toPath(hash)
                 const dst = join(path, rel)
                 const dstDir = join(path, ...parse(rel).slice(0, -1))
-                return step(step(step(step(mkdir(dstDir, { recursive: true }),
-                    () => rename(curPath, dst)),
-                    () => rm(curPath)),
-                    () => stat(dst)),
-                    st => pure(st[0] === 'ok' && st[1].size === offset ? ok(hash) : error('publish size mismatch')))
+                return eff(mkdir(dstDir, { recursive: true }))
+                    .step(() => rename(curPath, dst))
+                    .step(() => rm(curPath))
+                    .step(() => stat(dst))
+                    .step(st => pure(st[0] === 'ok' && st[1].size === offset ? ok(hash) : error('publish size mismatch')))
+                    .value
             }
             // Any streaming error fails closed: delete the partial file, return the error.
             const fail = (curPath: string, e: unknown): Effect<FileCasOperation, IoResult<Vec>> =>

@@ -29,7 +29,7 @@ import {
     type Write,
     type WriteConsoles
 } from '../effects/node/module.f.ts'
-import { step, pure, type Effect, type Operation } from '../effects/module.f.ts'
+import { step, eff, pure, type Effect, type Operation } from '../effects/module.f.ts'
 import { loadModuleMap, shouldLoad, type LoadModuleOperations, type ModuleMap } from '../dev/module.f.ts'
 import { invert } from '../types/result/module.f.ts'
 import { definedEntries } from '../types/object/module.f.ts'
@@ -227,10 +227,11 @@ const proofEntries = (moduleMap: ModuleMap): readonly (readonly [string, unknown
 export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | All, number> => {
     const { summary } = reporter
     const modules = proofEntries(moduleMap)
-    return step(step(all(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero))),
-    m => pure(m.reduce(mergeState, zero))),
-    ts => step(summary(ts.pass, ts.fail, ts.time),
-    () => pure(ts.fail !== 0 ? 1 : 0)))
+    return eff(all(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero))))
+        .step(m => pure(m.reduce(mergeState, zero)))
+        .step(ts => step(summary(ts.pass, ts.fail, ts.time),
+            () => pure(ts.fail !== 0 ? 1 : 0)))
+        .value
 }
 
 /**
@@ -384,7 +385,8 @@ export const register: NodeProgram = o => {
         o.engine === 'playwright' ? o.playwrightTestContext :
         o.testContext
     const r = registerModuleMap(ctx, star)
-    return step(step(loadModuleMap(o.env),
-    r),
-    () => pure(0))
+    return eff(loadModuleMap(o.env))
+        .step(r)
+        .step(() => pure(0))
+        .value
 }

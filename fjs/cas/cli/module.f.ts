@@ -5,7 +5,7 @@
  */
 import { sha256 } from '../../crypto/sha2/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
-import { step, forEachStep, pure } from '../../effects/module.f.ts'
+import { step, eff, forEachStep, pure } from '../../effects/module.f.ts'
 import {
     errorExit,
     log,
@@ -56,9 +56,10 @@ export const commands: Commands<FileCasOperation | WriteFile | Write | All | Mem
         description: 'List all stored content hashes',
         handler: ({ home }) => {
             const c = fileCas(sha256)(home)
-            return step(step(c.list(),
-                forEachStep(j => log(vecToCBase32(j)))),
-                () => pure(0))
+            return eff(c.list())
+                .step(forEachStep(j => log(vecToCBase32(j))))
+                .step(() => pure(0))
+                .value
         },
     },
 ]
