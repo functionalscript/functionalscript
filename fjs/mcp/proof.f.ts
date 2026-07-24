@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../asserts/module.f.ts'
-import { pure, type Operation } from '../effects/module.f.ts'
+import { pure, step, type Operation } from '../effects/module.f.ts'
 import { eff } from '../effects/eff/module.f.ts'
 import type { Effect } from '../effects/module.f.ts'
 import { run, type MemOperationMap } from '../effects/mock/module.f.ts'
@@ -67,16 +67,27 @@ const asMemEffect = <T>(e: Effect<Operation, T>): Effect<MemOp, T> =>
 
 // Run one step from uninitializedState, return [response, newState].
 const step1 = (cfg: McpConfig) => (msg: unknown): StepResult =>
-    runMem(asMemEffect(eff(create(uninitializedState as McpSessionState)).step(key =>
-        eff(mcpStep(cfg)(handlers)(key)(msg as Unknown)).step(resp =>
-            eff(read(key)).step(state => pure([resp as unknown, state] as const)).value).value).value))
+    runMem(asMemEffect(step(
+        create(uninitializedState as McpSessionState),
+        key => step(
+            mcpStep(cfg)(handlers)(key)(msg as Unknown),
+            resp => step(
+                read(key),
+                state => pure([resp, state] as const),
+            ),
+        ),
+    )))
 
 // Run initialize then a second step, return [response, newState] of the second.
 const step2 = (cfg: McpConfig) => (msg1: unknown) => (msg2: unknown): StepResult =>
     runMem(asMemEffect(eff(create(uninitializedState as McpSessionState)).step(key =>
         eff(mcpStep(cfg)(handlers)(key)(msg1 as Unknown)).step(() =>
             eff(mcpStep(cfg)(handlers)(key)(msg2 as Unknown)).step(resp =>
-                eff(read(key)).step(state => pure([resp as unknown, state] as const)).value).value).value).value))
+                step(
+                    read(key),
+                    state => pure([resp, state] as const),
+                )
+            ).value).value).value))
 
 // Run initialize, notifications/initialized, then a third step; return [response, newState] of the third.
 const step3 = (cfg: McpConfig) => (msg1: unknown) => (msg2: unknown) => (msg3: unknown): StepResult =>

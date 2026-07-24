@@ -108,8 +108,7 @@
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
 import { stringify } from '../../media/json/module.f.ts'
-import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
-import { eff } from '../../effects/eff/module.f.ts'
+import { pure, step, type Effect } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.ts'
@@ -117,8 +116,8 @@ import { tryUtf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../media/type/module.f.ts'
 import { detect as detectDialect } from '../../media/module.f.ts'
 import { maxLengthBytes, type Vec } from '../../types/bit_vec/module.f.ts'
-import { ok, error, type Ok } from '../../types/result/module.f.ts'
-import { type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
+import { ok, type Ok } from '../../types/result/module.f.ts'
+import { type Read, type Write } from '../../effects/node/module.f.ts'
 import { stdioTransport } from '../../mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
@@ -176,100 +175,117 @@ export const casToolRegistry =
 (home: string) => (cacheKey: Key<Cache>): readonly ToolEntry<FileCasOperation | MemOp>[] => {
     const c = fileCas(sha256)(home)
     return [
-    toolEntry(
-        'cas_add',
-        'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, store the file with the `cas` CLI instead: run `npx functionalscript cas add <path>` yourself if you have shell access, or give the user that exact command to run — it prints the resulting hash on stdout.',
-        casAddArgs,
-        ({ type, content }): Effect<FileCasOperation | MemOp, ToolsCallResult> => {
-            // type:'text' or 'base64' — resolve content to Vec, store via c.write()
-            let x: Vec|null = type === 'base64'
-                ? base64Decode(content)
-                : tryUtf8(content)
-            return x === null
-                ? pure(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
-                // The resolved content fits in one chunk; feed it as a single-item stream.
-                : eff(c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>()))).step((writeResult): Effect<MemOp, ToolsCallResult> => {
-                    if (writeResult[0] === 'error') { return pure(errorResult('write')) }
-                    const hash = writeResult[1]
-                    return eff(syncRevision(cacheKey)(hash)(x)).step(() => pure(okResult(vecToCBase32(hash)))).value
-                }).value
-        },
-    ),
-    toolEntry(
-        'cas_get',
-        'Inspect a blob by hash. Always returns JSON {length,mimeType,type[,uri]} where type is "text" or "base64". Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To download a blob, prefer the uri field returned in the result instead of requesting inline content.',
-        casGetArgs,
-        r => {
-            const key = cBase32ToVec(r.hash)
-            if (key === null) {
-                return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
-            }
-            const uri = c.url(key)
-            return eff(detectStream(c.read(key))).step(([tag, detected]) => {
-                if (tag === 'error') {
-                    return pure(errorResult(`no such hash: ${r.hash}`))
-                }
-                const { length, mime_type: mimeType, type } = detected
-                const meta: Meta = { length: Number(length), mimeType, type, uri }
-                if (r.content !== true) {
-                    // A dialect match can only be decided from the whole parsed blob;
-                    // only attempt the extra bounded read when it stands a chance
-                    // (whole-blob text within the same cap `content: true` allows).
-                    if (type !== 'text' || length > maxLengthBytes) {
-                        return pure(okResult(toJson(meta)))
-                    }
-                    return eff(collectRead(c.read(key))).step(([collectTag, value]) => {
-                        // Already known to fit from the streaming pass above, so an
-                        // error here means the hash vanished between reads; fall back
-                        // to the streaming verdict rather than fail the whole request.
-                        if (collectTag === 'error') { return pure(okResult(toJson(meta))) }
-                        const refined = detectDialect(value)
-                        return pure(okResult(toJson({ ...meta, mimeType: refined.mime_type })))
-                    }).value
-                }
-                // A single `Vec` caps at `maxLength` bits (`maxLengthBytes` bytes), so
-                // a larger blob cannot be buffered for inline transfer. Report the
-                // size and point at the size-independent alternatives instead of
-                // misreporting an existing blob as `no such hash`.
-                if (length > maxLengthBytes) {
-                    return pure(errorResult(
-                        `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the uri field (${uri}) or omit content for metadata`))
-                }
-                return eff(collectRead(c.read(key))).step(([collectTag, value]) => {
-                    if (collectTag === 'error') {
-                        return pure(errorResult(`no such hash: ${r.hash}`))
-                    }
-                    // Re-derive the verdict from the now-materialized blob so a
-                    // dialect match — only decidable with the whole parsed JSON in
-                    // hand — is reflected in the inline result too, not just the
-                    // streaming guess.
-                    const refined = detectDialect(value)
-                    const refinedMeta: Meta = { length: Number(refined.length), mimeType: refined.mime_type, type: refined.type, uri }
-                    if (refined.type === 'text') {
-                        // `type: 'text'` means the detector validated `value` as UTF-8,
-                        // so `fromVec` is non-null here; guard defensively regardless.
-                        const str = fromVec(value)
-                        return pure(str === null
-                            ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                            : okResult(toJson({ ...refinedMeta, text: str }))
-                        )
-                    }
-                    const blob = base64Encode(value)
-                    return pure(blob === null
-                        ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                        : okResult(toJson({ ...refinedMeta, blob }))
+        toolEntry(
+            'cas_add',
+            'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, store the file with the `cas` CLI instead: run `npx functionalscript cas add <path>` yourself if you have shell access, or give the user that exact command to run — it prints the resulting hash on stdout.',
+            casAddArgs,
+            ({ type, content }): Effect<FileCasOperation | MemOp, ToolsCallResult> => {
+                // type:'text' or 'base64' — resolve content to Vec, store via c.write()
+                let x: Vec|null = type === 'base64'
+                    ? base64Decode(content)
+                    : tryUtf8(content)
+                return x === null
+                    ? pure(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
+                    // The resolved content fits in one chunk; feed it as a single-item stream.
+                    : step(
+                        c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())),
+                        (writeResult): Effect<MemOp, ToolsCallResult> => {
+                            if (writeResult[0] === 'error') { return pure(errorResult('write')) }
+                            const hash = writeResult[1]
+                            return step(
+                                syncRevision(cacheKey)(hash)(x),
+                                () => pure(okResult(vecToCBase32(hash)))
+                            )
+                        },
                     )
-                }).value
-            }).value
-        },
-    ),
-    toolEntry(
-        'cas_list',
-        'List all stored content hashes (cBase32), one per line.',
-        casListArgs,
-        () => eff(c.list()).step(hashes =>
-            pure(okResult(hashes.map(vecToCBase32).join('\n')))).value,
-    ),
+            },
+        ),
+        toolEntry(
+            'cas_get',
+            'Inspect a blob by hash. Always returns JSON {length,mimeType,type[,uri]} where type is "text" or "base64". Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To download a blob, prefer the uri field returned in the result instead of requesting inline content.',
+            casGetArgs,
+            r => {
+                const key = cBase32ToVec(r.hash)
+                if (key === null) {
+                    return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
+                }
+                const uri = c.url(key)
+                return step(
+                    detectStream(c.read(key)),
+                    ([tag, detected]) => {
+                        if (tag === 'error') {
+                            return pure(errorResult(`no such hash: ${r.hash}`))
+                        }
+                        const { length, mime_type: mimeType, type } = detected
+                        const meta: Meta = { length: Number(length), mimeType, type, uri }
+                        if (r.content !== true) {
+                            // A dialect match can only be decided from the whole parsed blob;
+                            // only attempt the extra bounded read when it stands a chance
+                            // (whole-blob text within the same cap `content: true` allows).
+                            if (type !== 'text' || length > maxLengthBytes) {
+                                return pure(okResult(toJson(meta)))
+                            }
+                            return step(
+                                collectRead(c.read(key)),
+                                ([collectTag, value]) => {
+                                    // Already known to fit from the streaming pass above, so an
+                                    // error here means the hash vanished between reads; fall back
+                                    // to the streaming verdict rather than fail the whole request.
+                                    if (collectTag === 'error') { return pure(okResult(toJson(meta))) }
+                                    const refined = detectDialect(value)
+                                    return pure(okResult(toJson({ ...meta, mimeType: refined.mime_type })))
+                                }
+                            )
+                        }
+                        // A single `Vec` caps at `maxLength` bits (`maxLengthBytes` bytes), so
+                        // a larger blob cannot be buffered for inline transfer. Report the
+                        // size and point at the size-independent alternatives instead of
+                        // misreporting an existing blob as `no such hash`.
+                        if (length > maxLengthBytes) {
+                            return pure(errorResult(
+                                `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the uri field (${uri}) or omit content for metadata`))
+                        }
+                        return step(
+                            collectRead(c.read(key)),
+                            ([collectTag, value]) => {
+                                if (collectTag === 'error') {
+                                    return pure(errorResult(`no such hash: ${r.hash}`))
+                                }
+                                // Re-derive the verdict from the now-materialized blob so a
+                                // dialect match — only decidable with the whole parsed JSON in
+                                // hand — is reflected in the inline result too, not just the
+                                // streaming guess.
+                                const refined = detectDialect(value)
+                                const refinedMeta: Meta = { length: Number(refined.length), mimeType: refined.mime_type, type: refined.type, uri }
+                                if (refined.type === 'text') {
+                                    // `type: 'text'` means the detector validated `value` as UTF-8,
+                                    // so `fromVec` is non-null here; guard defensively regardless.
+                                    const str = fromVec(value)
+                                    return pure(str === null
+                                        ? errorResult(`content is not byte-aligned: ${r.hash}`)
+                                        : okResult(toJson({ ...refinedMeta, text: str }))
+                                    )
+                                }
+                                const blob = base64Encode(value)
+                                return pure(blob === null
+                                    ? errorResult(`content is not byte-aligned: ${r.hash}`)
+                                    : okResult(toJson({ ...refinedMeta, blob }))
+                                )
+                            },
+                        )
+                    },
+                )
+            },
+        ),
+        toolEntry(
+            'cas_list',
+            'List all stored content hashes (cBase32), one per line.',
+            casListArgs,
+            () => step(
+                c.list(),
+                hashes => pure(okResult(hashes.map(vecToCBase32).join('\n')))
+            ),
+        ),
     ]
 }
 
@@ -304,10 +320,14 @@ export const casConfig: McpConfig = {
  */
 export const casMcpServer = (
     home: string,
-): Effect<Read | Write | MemOp | FileCasOperation, void> =>
-    eff(initEvo(fileCas(sha256)(home))).step(cacheKey =>
-        eff(create(uninitializedState)).step(sessionKey =>
-            stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))).value).value
+): Effect<Read | Write | MemOp | FileCasOperation, void> => step(
+    initEvo(fileCas(sha256)(home)),
+    cacheKey => step(
+        create(uninitializedState),
+        sessionKey =>
+            stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)),
+    ),
+)
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 

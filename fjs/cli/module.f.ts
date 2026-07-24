@@ -1,6 +1,5 @@
 import { errorExit, log, type NodeOp, type NodeProgramOptions, type Write } from '../effects/node/module.f.ts'
-import { pure, type Effect } from '../effects/module.f.ts'
-import { eff } from '../effects/eff/module.f.ts'
+import { pure, step, type Effect } from '../effects/module.f.ts'
 import { at, fromEntries } from '../types/object/module.f.ts'
 
 type Handler<O extends NodeOp> = (options: NodeProgramOptions) => Effect<O, number>
@@ -36,7 +35,9 @@ export const dispatch = <O extends NodeOp>(commands: Commands<O>) => (options: N
                 return dispatch(targetCmd.handler)({ ...options, args: ['help'] })
             }
         }
-        return eff(log(helpText)).step(() => pure(0)).value
+        return step(
+            log(helpText),
+            () => pure(0))
     }
     const found = at(cmd)(map)
     if (found === null) {

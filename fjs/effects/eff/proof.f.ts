@@ -1,6 +1,6 @@
-import { decode, do_, match, pure as pureEffect, type Effect, type Operation } from '../module.f.ts'
+import { decode, do_, match, pure, type Effect, type Operation } from '../module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.ts'
-import { eff, pure } from './module.f.ts'
+import { eff } from './module.f.ts'
 
 const assertPure = <O extends Operation, T>(e: Effect<O, T>, expected: T) => {
     const d = decode(e)
@@ -14,16 +14,22 @@ const next = match<AddOp, number>({ add: (a, b) => a + b })
 
 export const proof = {
     value: () => {
-        assertPure(eff(pureEffect(5)).value, 5)
+        assertPure(eff(pure(5)).value, 5)
     },
     pure: () => {
-        assertPure(pure(5).value, 5)
+        assertPure(pure(5), 5)
     },
     chain: () => {
-        assertPure(eff(pureEffect(5)).step(v => pure(v + 1)).step(v => pure(v * 2)).value, 12)
+        const x = eff(pure(5))
+            .step(v => pure(v + 1))
+            .step(v => pure(v * 2))
+            .value
+        assertPure(x, 12)
     },
     over_do: () => {
-        const e = eff(do_<AddOp>('add')(2, 3)).step(r => pure(r + 1)).value
+        const e = eff(do_<AddOp>('add')(2, 3))
+            .step(r => pure(r + 1))
+            .value
         const r = next(e)
         assert(r[0] === 'cont', r)
         assertEq(r[1], 5)

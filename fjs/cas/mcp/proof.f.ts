@@ -1,6 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
-import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
-import { eff } from '../../effects/eff/module.f.ts'
+import { pure, step, type Effect, type Operation } from '../../effects/module.f.ts'
 import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../media/json/module.f.ts'
@@ -114,7 +113,9 @@ const feed = <O extends Operation>(
     const go = (i: number, acc: readonly unknown[]): Effect<O, readonly unknown[]> =>
         i === msgs.length
             ? pure(acc)
-            : eff(handler(msgs[i] as Unknown)).step(r => go(i + 1, [...acc, r])).value
+            : step(
+                handler(msgs[i] as Unknown),
+                r => go(i + 1, [...acc, r]))
     return go(0, [])
 }
 
@@ -125,11 +126,14 @@ const runSessionVirtual =
     (root: Dir, home = '/home/user') =>
     (msgs: readonly unknown[]): readonly unknown[] => {
         type UploadOp = FileCasOperation | Rename | RandomInt | ReadBytes
-        const effect = eff(initEvo(fileCas(sha256)(home))).step(cacheKey =>
-            eff(create(uninitializedState as McpSessionState)).step(sessionKey => {
-                const step = mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)
-                return feed(step)(msgs)
-            }).value).value
+        const effect = step(
+            initEvo(fileCas(sha256)(home)),
+            cacheKey => step(
+                create(uninitializedState),
+                sessionKey => {
+                    const step = mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)
+                    return feed(step)(msgs)
+                }))
         return virtual({ ...emptyState, root })(effect)[1]
     }
 
@@ -179,9 +183,14 @@ const runStdio =
     (root: Dir, home = '/home/user') =>
     (msgs: readonly unknown[]): readonly unknown[] => {
         const input = [init, initialized, ...msgs].map(m => JSON.stringify(m)).join('\n') + '\n'
-        const effect = eff(initEvo(fileCas(sha256)(home))).step(cacheKey =>
-            eff(create(uninitializedState as McpSessionState)).step(sessionKey =>
-                stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))).value).value
+        const effect = step(
+            initEvo(fileCas(sha256)(home)),
+            cacheKey => step(
+                create(uninitializedState as McpSessionState),
+                sessionKey =>
+                    stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))
+            )
+        )
         const stdout = virtual({ ...emptyState, root, stdin: toBytes(input) })(effect)[0].stdout
         // Only requests get a written line (notifications, like `initialized`,
         // write nothing) — drop the `init` response, keep one line per `msgs` entry.
