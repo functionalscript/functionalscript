@@ -47,6 +47,19 @@ This is why `.step` takes `t => Eff` rather than accepting *either* `Effect` or
 this convention discourages. The stricter `t => Eff` signature makes a module's
 choice of style visible and self-consistent.
 
+3. **`Eff` is optional — users may bring their own chain wrapper.** The effect
+   model's contract is the raw `Effect` type plus `step` (and `decode` /
+   `match`); `Eff` is *one* wrapper over that contract, not part of it. Keeping
+   it in a separate module makes that explicit: a downstream consumer who wants
+   different ergonomics — a different fluent API, a pipe operator, do-notation
+   codegen, or integration with their own effect utilities — writes their own
+   wrapper over the same public `step` / `Effect` and never imports ours (and
+   pays nothing for it). Leaving `eff` inside the core module would implicitly
+   bless one chaining style as privileged; extracting it keeps the core a
+   neutral primitive that any wrapper — ours or theirs — sits on top of. This is
+   the same reason the raw `Effect`, not `Eff`, is the type that flows through
+   interpreters and the public API.
+
 ### Proposal
 
 Create `fjs/effects/eff/module.f.ts` as the self-contained `Eff` layer and
