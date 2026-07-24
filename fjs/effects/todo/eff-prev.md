@@ -65,14 +65,21 @@ export type Eff<
         ? undefined
         : Effect<O, P>
 
-    readonly step: <Q extends Operation, R>(
+    readonly step: <
+        Q extends Operation,
+        R,
+        S = never,
+    >(
         f: (
             value: T,
             prev: P,
-        ) => Effect<Q, R> | Eff<Q, R>,
+        ) => Effect<Q, R> | Eff<Q, R, S>,
     ) => Eff<O | Q, R, T>
 }
 ```
+
+The additional `S` parameter allows a callback to return any `Eff<Q, R, S>`;
+only its `.value` participates in the new chain.
 
 `never` is the type-level marker for an `Eff` that does not yet have a previous
 result. A unary callback remains the normal form for its first step:
@@ -209,7 +216,7 @@ requirement of this proposal.
 
 - [ ] Extend `Eff` with a previous-result type parameter and `.prev`.
 - [ ] Update `.step` to pass `(value, prev)` and return `Eff<O | Q, R, T>`.
-- [ ] Preserve support for callbacks returning either `Effect` or `Eff`.
+- [ ] Preserve support for callbacks returning either `Effect` or any `Eff`.
 - [ ] Implement shared internal state without evaluating a preceding chain twice
       within one fluent step.
 - [ ] Add proof coverage for the initial absent `.prev`, result shifting,
