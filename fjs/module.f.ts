@@ -11,7 +11,6 @@ import { import_, type NodeOp, type NodeProgram } from './effects/node/module.f.
 import { dispatch, type Commands } from './cli/module.f.ts'
 import { casMcpServer } from './cas/mcp/module.f.ts'
 import { pure, step } from './effects/module.f.ts'
-import { eff } from './effects/eff/module.f.ts'
 import { unwrap } from './types/result/module.f.ts'
 
 const commands: Commands<NodeOp> = [
