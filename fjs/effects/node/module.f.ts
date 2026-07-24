@@ -496,7 +496,7 @@ export type NodeEffect<T> = Effect<NodeOp, T>
 /**
  * Writes an error line to `stderr` and yields exit code `1`. The canonical
  * "fail with a message" program for a `NodeProgram`. For non-`1` exit codes,
- * compose `eff(error(s)).step(() => pure(n)).value` directly.
+ * compose `step(error(s), () => pure(n))` directly.
  */
 export const errorExit = (s: string): Effect<Write, number> =>
     step(
