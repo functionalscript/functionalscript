@@ -16,7 +16,7 @@ import {
 import { cmp as strCmp } from '../types/string/module.f.ts'
 import type { StringMap } from '../types/object/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import { pure, type Effect } from '../effects/module.f.ts'
+import { step, pure, type Effect } from '../effects/module.f.ts'
 import { join, relativize, toPosix } from '../path/module.f.ts'
 import { assert } from '../asserts/module.f.ts'
 
@@ -51,8 +51,8 @@ const allFiles = (
     predicate: (path: string) => boolean,
 ): Effect<Readdir | All, readonly string[]> => {
     const load = (p: string): Effect<Readdir | All, readonly string[]> =>
-        readdir(p, {})
-        .step(d => {
+        step(step(readdir(p, {}),
+        d => {
             let result: readonly Effect<Readdir | All, readonly string[]>[] = []
             for (const i of unwrap(d)) {
                 const { name } = i
@@ -68,13 +68,13 @@ const allFiles = (
                 }
             }
             return all(...result)
-        })
-        .step(v => pure(v.flat()))
+        }),
+        v => pure(v.flat()))
     return load(s)
 }
 
 const loadFile = (f: string): Effect<Access | Import, readonly (readonly[string, Module])[]> =>
-    import_(f).step(r => pure([[f, unwrap(r)] as const]))
+    step(import_(f), r => pure([[f, unwrap(r)] as const]))
 
 /** The effect operations required to discover and load a module map. */
 export type LoadModuleOperations = Access | Import | All | Readdir
@@ -103,9 +103,9 @@ export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap>
     //       we should consider optimize them by ALIQ technique or something similar.
     //       For example, we should be able to write it like `allFiles(s).flatMap(loadFile)`,
     //       then an effect runner can batch all file loading operations together.
-    return allFiles(s, shouldLoad)
-    .step(files => all(...files.map(loadFile)))
-    .step(entries => pure(fromEntries(
+    return step(step(allFiles(s, shouldLoad),
+    files => all(...files.map(loadFile))),
+    entries => pure(fromEntries(
         entries
             .flat()
             .map(([k, v]) => [relativize(prefix, k), v] as const)

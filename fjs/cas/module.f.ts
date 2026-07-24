@@ -7,7 +7,7 @@ import { sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/modul
 import { join, normalize, parse } from '../path/module.f.ts'
 import { empty, length, maxLength, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
-import { foldStep, forEachStep, okStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
+import { step, foldStep, forEachStep, okStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
 import {
     access,
     createExclusive,
@@ -90,7 +90,7 @@ export type Cas<O extends Operation> = {
  */
 export const collectRead = <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> => {
     const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
-        s.step((node): Effect<O, IoResult<Vec>> => {
+        step(s, (node): Effect<O, IoResult<Vec>> => {
             if (node === undefined) { return pure(ok(acc)) }
             const { first, tail } = node
             const [t, v] = first
@@ -138,13 +138,13 @@ const deadlineOf = (name: string): number => Number(name.slice(0, name.indexOf('
  * reclaim fail-safe (worst case: that upload restarts).
  */
 const gcStage = <O extends Now | Readdir | Rm>(stageDir: string): Effect<O, void> =>
-    now().step(t =>
-        readdir(stageDir, {}).step(([k, v]) => {
+    step(now(), t =>
+        step(readdir(stageDir, {}), ([k, v]) => {
             if (k === 'error') { return pure(undefined) }
             const expired = v.flatMap(d =>
                 d.isFile && deadlineOf(d.name) < t ? [d.name] : [])
             return forEachStep((name: string) =>
-                rm(join(stageDir, name)).step(() => pure(undefined)))(expired)
+                step(rm(join(stageDir, name)), () => pure(undefined)))(expired)
         }))
 
 export type FileCas = Cas<FileCasOperation> & {
@@ -162,8 +162,8 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
         read: (hash: Vec): List<FileCasOperation, IoResult<Vec>> => {
             const p = join(path, toPath(hash))
             const loop = (offset: number): List<FileCasOperation, IoResult<Vec>> =>
-                readBytes(p, offset, chunkBytes)
-                .step((result): List<FileCasOperation, IoResult<Vec>> => {
+                step(readBytes(p, offset, chunkBytes),
+                (result): List<FileCasOperation, IoResult<Vec>> => {
                     const [t, v] = result
                     // A missing shard or read error is an explicit error item, never EOF.
                     if (t === 'error') { return nonEmpty<FileCasOperation, IoResult<Vec>>(result, elEmpty()) }
@@ -193,49 +193,49 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                 const rel = toPath(hash)
                 const dst = join(path, rel)
                 const dstDir = join(path, ...parse(rel).slice(0, -1))
-                return mkdir(dstDir, { recursive: true })
-                    .step(() => rename(curPath, dst))
-                    .step(() => rm(curPath))
-                    .step(() => stat(dst))
-                    .step(st => pure(st[0] === 'ok' && st[1].size === offset ? ok(hash) : error('publish size mismatch')))
+                return step(step(step(step(mkdir(dstDir, { recursive: true }),
+                    () => rename(curPath, dst)),
+                    () => rm(curPath)),
+                    () => stat(dst)),
+                    st => pure(st[0] === 'ok' && st[1].size === offset ? ok(hash) : error('publish size mismatch')))
             }
             // Any streaming error fails closed: delete the partial file, return the error.
             const fail = (curPath: string, e: unknown): Effect<FileCasOperation, IoResult<Vec>> =>
-                rm(curPath).step(() => pure(error(e)))
-            return gcStage(stageDir).step(() =>
-                random256.step(rnd => {
+                step(rm(curPath), () => pure(error(e)))
+            return step(gcStage(stageDir), () =>
+                step(random256, rnd => {
                     const rndStr = vecToCBase32(rnd)
                     const loop = (state: Sha2State, offset: number, curPath: string) =>
                         (stream: List<O1, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> =>
-                            stream
-                            .step((node): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
+                            step(stream,
+                            (node): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
                                 if (node === undefined) { return publish(state, offset, curPath) }
                                 const { first, tail } = node
                                 if (first[0] === 'error') { return fail(curPath, first[1]) }
                                 const chunk = first[1]
-                                return writeBytes(curPath, offset, chunk)
-                                .step(wb => {
+                                return step(writeBytes(curPath, offset, chunk),
+                                wb => {
                                     if (wb[0] === 'error') { return fail(curPath, wb[1]) }
                                     const newState = sha2.append(chunk)(state)
                                     const newOffset = offset + Number(length(chunk) / 8n)
                                     // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
-                                    return now()
-                                    .step(t => {
+                                    return step(now(),
+                                    t => {
                                         const next = join(stageDir, stageName(t + leaseDelta, rndStr))
-                                        return rename(curPath, next).step(([t, v]) =>
+                                        return step(rename(curPath, next), ([t, v]) =>
                                             t === 'error'
                                                 ? fail(curPath, v)
                                                 : loop(newState, newOffset, next)(tail))
                                     })
                                 })
                             })
-                    return mkdir(stageDir, { recursive: true })
-                    .step(() =>
-                        now()
-                        .step(t0 => {
+                    return step(mkdir(stageDir, { recursive: true }),
+                    () =>
+                        step(now(),
+                        t0 => {
                             const path0 = join(stageDir, stageName(t0 + leaseDelta, rndStr))
-                            return createExclusive(path0)
-                            .step(okStep(() => loop(sha2.init, 0, path0)(payload)))
+                            return step(createExclusive(path0),
+                            okStep(() => loop(sha2.init, 0, path0)(payload)))
                         }))
                 }))
         },
@@ -244,13 +244,13 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
             // empty store, mirroring how `read` maps a missing shard to an error item.
             // A `.cas` that exists but cannot be read (permissions, corruption) is a
             // genuine storage error and is surfaced, not masked as "no hashes".
-            access(storePrefix).step(a => {
+            step(access(storePrefix), a => {
                 if (a[0] === 'error') {
                     if (isNotFound(a[1])) { return pure([] satisfies readonly Vec[]) }
                     throw a[1]
                 }
-                return readdir(storePrefix, { recursive: true })
-                    .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
+                return step(readdir(storePrefix, { recursive: true }),
+                    r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
                         toOption(isFile
                             ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
                             : null))))
@@ -263,13 +263,13 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
 /** 256-bit random `Vec` built from 8 sequential `randomInt` (32-bit) calls. */
 const random256: Effect<RandomInt, Vec> =
     foldStep((_: number) => (acc: Vec): Effect<RandomInt, Vec> =>
-        randomInt().step(r => pure(msb.concat(acc)(vec(32n)(BigInt(r)))))
+        step(randomInt(), r => pure(msb.concat(acc)(vec(32n)(BigInt(r)))))
     )(empty)([0, 1, 2, 3, 4, 5, 6, 7])
 
 /** Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of `ok` items. */
 const streamFile = (filePath: string): List<ReadBytes, IoResult<Vec>> => {
     const loop = (offset: number): List<ReadBytes, IoResult<Vec>> =>
-        readBytes(filePath, offset, chunkBytes).step((result): List<ReadBytes, IoResult<Vec>> => {
+        step(readBytes(filePath, offset, chunkBytes), (result): List<ReadBytes, IoResult<Vec>> => {
             if (result[0] === 'error') { return nonEmpty<ReadBytes, IoResult<Vec>>(result, elEmpty()) }
             const chunk = result[1]
             return length(chunk) === 0n
@@ -298,6 +298,6 @@ export const casAddFile = <O extends Operation>(cas: Cas<O>) => (path: string): 
 export const casUpload = (home: string) => (fileName: string): Effect<FileCasOperation, IoResult<Vec>> => {
     const src = join(home, 'cas_upload', fileName)
     const c = fileCas(sha256)(home)
-    return casAddFile(c)(src).step(okStep<Vec, unknown, Rm, Vec>(v => rm(src).step(() => pure(ok(v)))))
+    return step(casAddFile(c)(src), okStep<Vec, unknown, Rm, Vec>(v => step(rm(src), () => pure(ok(v)))))
 }
 

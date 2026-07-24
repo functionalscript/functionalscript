@@ -2,7 +2,7 @@ import { length, maxLength, msb, vec, vec8, type Vec } from '../types/bit_vec/mo
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
 import { fileCas, casAddFile, collectRead, type FileCasOperation, casUpload } from './module.f.ts'
-import { decode, pure, type Effect } from '../effects/module.f.ts'
+import { step, decode, pure, type Effect } from '../effects/module.f.ts'
 import { mkdir, writeFile, rm, readFile, type ReadFile, type WriteFile, type Rm, type Mkdir, type IoResult, access } from '../effects/node/module.f.ts'
 import { error, ok, type Ok } from '../types/result/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
@@ -24,17 +24,17 @@ const createBigFileContent = (): Vec => {
 
 // Test adding a big file and verifying the hash
 const testAddBigFile = (): Effect<TestOp, void> =>
-    mkdir(testDir, { recursive: true }).step(() => {
+    step(mkdir(testDir, { recursive: true }), () => {
         const bigContent = createBigFileContent()
         const bigFilePath = `${testDir}/big-file.bin`
 
-        return writeFile(bigFilePath, bigContent).step(writeRes => {
+        return step(writeFile(bigFilePath, bigContent), writeRes => {
             if (writeRes[0] === 'error') {
                 throw new Error(`Failed to write test file: ${writeRes[1]}`)
             }
 
             const cas = fileCas(sha256)(testDir)
-            return casAddFile(cas)(bigFilePath).step(addRes => {
+            return step(casAddFile(cas)(bigFilePath), addRes => {
                 if (addRes[0] === 'error') {
                     throw new Error(`Failed to add file to CAS: ${addRes[1]}`)
                 }
@@ -50,27 +50,27 @@ const testAddBigFile = (): Effect<TestOp, void> =>
                 const hashCBase32 = vecToCBase32(hash)
                 assertNotNullish(cBase32ToVec(hashCBase32), new Error('Failed to decode hash from base32'))
 
-                return rm(testDir).step(() => pure(undefined))
+                return step(rm(testDir), () => pure(undefined))
             })
         })
     })
 
 // Test adding and retrieving a big file
 const testAddAndGetBigFile = (): Effect<TestOp, void> =>
-    mkdir(testDir, { recursive: true })
-    .step(() => {
+    step(mkdir(testDir, { recursive: true }),
+    () => {
         const bigContent = createBigFileContent()
         const bigFilePath = `${testDir}/big-file.bin`
 
-        return writeFile(bigFilePath, bigContent)
-        .step(writeRes => {
+        return step(writeFile(bigFilePath, bigContent),
+        writeRes => {
             if (writeRes[0] === 'error') {
                 throw new Error(`Failed to write test file: ${writeRes[1]}`)
             }
 
             const cas = fileCas(sha256)(testDir)
-            return casAddFile(cas)(bigFilePath)
-            .step(addRes => {
+            return step(casAddFile(cas)(bigFilePath),
+            addRes => {
                 if (addRes[0] === 'error') {
                     throw new Error(`Failed to add file to CAS: ${addRes[1]}`)
                 }
@@ -79,7 +79,7 @@ const testAddAndGetBigFile = (): Effect<TestOp, void> =>
                 const storedPath = cas.url(hash)
 
                 // Verify file is stored at the expected location
-                return readFile(storedPath).step(readRes => {
+                return step(readFile(storedPath), readRes => {
                     if (readRes[0] === 'error') {
                         throw new Error(`Failed to read stored file: ${readRes[1]}`)
                     }
@@ -95,7 +95,7 @@ const testAddAndGetBigFile = (): Effect<TestOp, void> =>
                         )
                     }
 
-                    return rm(testDir).step(() => pure(undefined))
+                    return step(rm(testDir), () => pure(undefined))
                 })
             })
         })
@@ -119,7 +119,7 @@ export const proof = {
         assertEq(msb.cmp(hash)(computeSync(sha256)([content])), 0, 'write hash mismatch')
         const drain = (acc: readonly Vec[]) =>
             (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<readonly Vec[]>> =>
-                stream.step((node): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
+                step(stream, (node): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
                     if (node === undefined) { return pure(ok(acc)) }
                     const { first, tail } = node
                     if (first[0] === 'error') { return pure(first) }
@@ -152,7 +152,7 @@ export const proof = {
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'multi-chunk write hash mismatch')
         const drain = (acc: readonly Vec[]) =>
             (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<readonly Vec[]>> =>
-                stream.step((node): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
+                step(stream, (node): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
                     if (node === undefined) { return pure(ok(acc)) }
                     const { first, tail } = node
                     if (first[0] === 'error') { return pure(first) }
@@ -211,7 +211,7 @@ export const proof = {
         // Fold the read stream straight into a fresh SHA-2 state — never one `Vec`.
         const rehash = (state: typeof sha256.init) =>
             (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<Vec>> =>
-                stream.step((node): Effect<FileCasOperation, IoResult<Vec>> => {
+                step(stream, (node): Effect<FileCasOperation, IoResult<Vec>> => {
                     if (node === undefined) { return pure(ok(sha256.end(state))) }
                     const { first, tail } = node
                     if (first[0] === 'error') { return pure(first) }

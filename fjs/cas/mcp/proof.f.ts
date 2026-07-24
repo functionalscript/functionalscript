@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
-import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { step, pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
 import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import type { Unknown } from '../../media/json/module.f.ts'
@@ -106,14 +106,14 @@ type VecMap = { readonly [k: string]: readonly [Vec, Vec] }
 
 // ── Session driver ──────────────────────────────────────────────────────────────
 
-// Feeds each message to `step` in order, collecting every response.
+// Feeds each message to `handler` in order, collecting every response.
 const feed = <O extends Operation>(
-    step: (v: Unknown) => Effect<O, Response | null>,
+    handler: (v: Unknown) => Effect<O, Response | null>,
 ) => (msgs: readonly unknown[]): Effect<O, readonly unknown[]> => {
     const go = (i: number, acc: readonly unknown[]): Effect<O, readonly unknown[]> =>
         i === msgs.length
             ? pure(acc)
-            : step(msgs[i] as Unknown).step(r => go(i + 1, [...acc, r]))
+            : step(handler(msgs[i] as Unknown), r => go(i + 1, [...acc, r]))
     return go(0, [])
 }
 
@@ -124,8 +124,8 @@ const runSessionVirtual =
     (root: Dir, home = '/home/user') =>
     (msgs: readonly unknown[]): readonly unknown[] => {
         type UploadOp = FileCasOperation | Rename | RandomInt | ReadBytes
-        const effect = initEvo(fileCas(sha256)(home)).step(cacheKey =>
-            create(uninitializedState as McpSessionState).step(sessionKey => {
+        const effect = step(initEvo(fileCas(sha256)(home)), cacheKey =>
+            step(create(uninitializedState as McpSessionState), sessionKey => {
                 const step = mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)
                 return feed(step)(msgs)
             }))
@@ -178,8 +178,8 @@ const runStdio =
     (root: Dir, home = '/home/user') =>
     (msgs: readonly unknown[]): readonly unknown[] => {
         const input = [init, initialized, ...msgs].map(m => JSON.stringify(m)).join('\n') + '\n'
-        const effect = initEvo(fileCas(sha256)(home)).step(cacheKey =>
-            create(uninitializedState as McpSessionState).step(sessionKey =>
+        const effect = step(initEvo(fileCas(sha256)(home)), cacheKey =>
+            step(create(uninitializedState as McpSessionState), sessionKey =>
                 stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))))
         const stdout = virtual({ ...emptyState, root, stdin: toBytes(input) })(effect)[0].stdout
         // Only requests get a written line (notifications, like `initialized`,

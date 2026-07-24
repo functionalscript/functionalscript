@@ -16,7 +16,7 @@
 import { boolean, string, option, array, record, or } from '../types/rtti/module.f.ts'
 import { unknown, type Unknown } from '../media/json/module.f.ts'
 import type { Ts } from '../types/rtti/ts/module.f.ts'
-import { pure, type Operation, type Effect } from '../effects/module.f.ts'
+import { step, pure, type Operation, type Effect } from '../effects/module.f.ts'
 import { read, write, type Key, type MemOp } from '../effects/memory/module.f.ts'
 import {
     decodeRequest,
@@ -328,9 +328,9 @@ export const mcpStep =
                     // Malformed handshake — ignore it; the session stays gated.
                     return pure(null)
                 }
-                return read(stateKey).step(([t]) =>
+                return step(read(stateKey), ([t]) =>
                     t === 'initializing'
-                        ? write(stateKey, ['initialized', true as InitializedState]).step(() => pure(null))
+                        ? step(write(stateKey, ['initialized', true as InitializedState]), () => pure(null))
                         : pure(null)
                 )
             }
@@ -348,7 +348,7 @@ export const mcpStep =
 
         // `initialize` transitions uninitialized → initializing; reject if already done.
         if (method === 'initialize') {
-            return read(stateKey).step(([t]) => {
+            return step(read(stateKey), ([t]) => {
                 if (t !== 'uninitialized') {
                     return pure(_errResponse(id)(invalidRequest))
                 }
@@ -361,12 +361,12 @@ export const mcpStep =
                     capabilities,
                     serverInfo,
                 }
-                return write(stateKey, ['initializing']).step(() => pure(_okResponse(id)(result)))
+                return step(write(stateKey, ['initializing']), () => pure(_okResponse(id)(result)))
             })
         }
 
         // All other methods require fully initialized state — read it first.
-        return read(stateKey).step(([t]) => {
+        return step(read(stateKey), ([t]) => {
             if (t !== 'initialized') {
                 return pure(_errResponse(id)(notInitialized))
             }
@@ -379,7 +379,7 @@ export const mcpStep =
                 const [t, pr] = validate(toolsListParams)(params === undefined ? {} : params)
                 return t === 'error'
                     ? pure(_errResponse(id)(invalidParams))
-                    : handlers.toolsList(pr).step(r => pure(_okResponse(id)(r)))
+                    : step(handlers.toolsList(pr), r => pure(_okResponse(id)(r)))
             }
 
             if (method === 'tools/call') {
@@ -389,7 +389,7 @@ export const mcpStep =
                 const [t, pr] = validate(toolsCallParams)(params)
                 return t === 'error'
                     ? pure(_errResponse(id)(invalidParams))
-                    : handlers.toolsCall(pr).step(r => pure(_okResponse(id)(r)))
+                    : step(handlers.toolsCall(pr), r => pure(_okResponse(id)(r)))
             }
 
             return pure(_errResponse(id)(methodNotFound))

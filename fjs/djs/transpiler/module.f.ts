@@ -12,7 +12,7 @@ import { stringToList } from '../../text/utf16/module.f.ts'
 import { concat as pathConcat } from '../../path/module.f.ts'
 import { type ParseError, parseFromTokens } from '../parser/module.f.ts'
 import { run, type AstModule } from '../ast/module.f.ts'
-import { type Effect, foldStep, pure } from '../../effects/module.f.ts'
+import { step, type Effect, foldStep, pure } from '../../effects/module.f.ts'
 import { readUtf8File, type ReadFile } from '../../effects/node/module.f.ts'
 
 /**
@@ -46,7 +46,7 @@ const mapDjs
 
 const parseModule
     : (path: string) => Effect<ReadFile, Result<AstModule, ParseError>>
-    = path => readUtf8File(path).step(result => {
+    = path => step(readUtf8File(path), result => {
         if (result[0] === 'error') {
             return pure(error({ message: 'file not found', metadata: null }))
         }
@@ -62,8 +62,8 @@ const transpileWithImports
             const pathsCombine = listMap(pathConcat(dir))(parseModuleResult[1][0])
             const pathsArray = toArray(pathsCombine)
             const contextWithStack = { ...context, stack: { first: path, tail: context.stack } }
-            return foldStep(foldNextModuleOp)(contextWithStack)(pathsArray)
-            .step(contextWithImports => {
+            return step(foldStep(foldNextModuleOp)(contextWithStack)(pathsArray),
+            contextWithImports => {
                 if (contextWithImports.error !== null) {
                     return pure(contextWithImports)
                 }
@@ -94,7 +94,7 @@ const foldNextModuleOp
             return pure(context)
         }
 
-        return parseModule(path).step(parseModuleResult =>
+        return step(parseModule(path), parseModuleResult =>
             transpileWithImports(path)(parseModuleResult)(context)
         )
     }
@@ -109,7 +109,7 @@ const foldNextModuleOp
 export const transpile
     : (path: string) => Effect<ReadFile, Result<Unknown, ParseError>>
     = path =>
-        foldNextModuleOp(path)({ stack: null, complete: null, error: null }).step(
+        step(foldNextModuleOp(path)({ stack: null, complete: null, error: null }), 
             (context): Effect<ReadFile, Result<Unknown, ParseError>> => {
                 if (context.error !== null) {
                     return pure(error(context.error))

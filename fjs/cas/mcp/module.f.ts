@@ -108,7 +108,7 @@
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
 import { stringify } from '../../media/json/module.f.ts'
-import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { step, pure, type Effect, type Operation } from '../../effects/module.f.ts'
 import { create, type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.ts'
@@ -187,10 +187,10 @@ export const casToolRegistry =
             return x === null
                 ? pure(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
                 // The resolved content fits in one chunk; feed it as a single-item stream.
-                : c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())).step((writeResult): Effect<MemOp, ToolsCallResult> => {
+                : step(c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())), (writeResult): Effect<MemOp, ToolsCallResult> => {
                     if (writeResult[0] === 'error') { return pure(errorResult('write')) }
                     const hash = writeResult[1]
-                    return syncRevision(cacheKey)(hash)(x).step(() => pure(okResult(vecToCBase32(hash))))
+                    return step(syncRevision(cacheKey)(hash)(x), () => pure(okResult(vecToCBase32(hash))))
                 })
         },
     ),
@@ -204,7 +204,7 @@ export const casToolRegistry =
                 return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
             }
             const uri = c.url(key)
-            return detectStream(c.read(key)).step(([tag, detected]) => {
+            return step(detectStream(c.read(key)), ([tag, detected]) => {
                 if (tag === 'error') {
                     return pure(errorResult(`no such hash: ${r.hash}`))
                 }
@@ -217,7 +217,7 @@ export const casToolRegistry =
                     if (type !== 'text' || length > maxLengthBytes) {
                         return pure(okResult(toJson(meta)))
                     }
-                    return collectRead(c.read(key)).step(([collectTag, value]) => {
+                    return step(collectRead(c.read(key)), ([collectTag, value]) => {
                         // Already known to fit from the streaming pass above, so an
                         // error here means the hash vanished between reads; fall back
                         // to the streaming verdict rather than fail the whole request.
@@ -234,7 +234,7 @@ export const casToolRegistry =
                     return pure(errorResult(
                         `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the uri field (${uri}) or omit content for metadata`))
                 }
-                return collectRead(c.read(key)).step(([collectTag, value]) => {
+                return step(collectRead(c.read(key)), ([collectTag, value]) => {
                     if (collectTag === 'error') {
                         return pure(errorResult(`no such hash: ${r.hash}`))
                     }
@@ -266,7 +266,7 @@ export const casToolRegistry =
         'cas_list',
         'List all stored content hashes (cBase32), one per line.',
         casListArgs,
-        () => c.list().step(hashes =>
+        () => step(c.list(), hashes =>
             pure(okResult(hashes.map(vecToCBase32).join('\n')))),
     ),
     ]
@@ -304,8 +304,8 @@ export const casConfig: McpConfig = {
 export const casMcpServer = (
     home: string,
 ): Effect<Read | Write | MemOp | FileCasOperation, void> =>
-    initEvo(fileCas(sha256)(home)).step(cacheKey =>
-        create(uninitializedState).step(sessionKey =>
+    step(initEvo(fileCas(sha256)(home)), cacheKey =>
+        step(create(uninitializedState), sessionKey =>
             stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))))
 
 // ── Tests ────────────────────────────────────────────────────────────────────

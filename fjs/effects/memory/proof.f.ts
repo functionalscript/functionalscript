@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
 import { run, type MemOperationMap } from '../mock/module.f.ts'
-import { pure } from '../module.f.ts'
+import { step, pure } from '../module.f.ts'
 import {
     asBase, asNominal,
     create, read, write,
@@ -35,9 +35,9 @@ const mock: MemOperationMap<MemOp, MemoryState> = {
     },
 }
 
-const program = create(1).step(key =>
-    read(key).step(value =>
-        write(key, value + 41).step(() =>
+const program = step(create(1), key =>
+    step(read(key), value =>
+        step(write(key, value + 41), () =>
             read(key)
         )
     )
@@ -50,8 +50,8 @@ export const proof = {
         assertEq(state.values.k0, 42, state)
     },
     allocatesFreshKeys: () => {
-        const effect = create('a').step(a =>
-            create('b').step(b =>
+        const effect = step(create('a'), a =>
+            step(create('b'), b =>
                 pure([
                     asBase(a),
                     asBase(b),
@@ -65,8 +65,8 @@ export const proof = {
         assertEq(state.values.k1, 'b', state)
     },
     typeTest: () => {
-        // const e = create(1).step(k => write(k, 'bad').step(() => read(k)))
-        create(1).step(k => write(k, 5).step(() => read(k)))
+        // const e = step(create(1), k => step(write(k, 'bad'), () => read(k)))
+        step(create(1), k => step(write(k, 5), () => read(k)))
     },
     throw: () => {
         const key: Key<number> = asNominal('missing')

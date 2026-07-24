@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fjs/effects`: **BREAKING CHANGE:** an `Effect<O, T>` is now the **raw value**
+  — a `Pure` thunk (`() => T`) or a `Do` node (`[command, payload, continuation]`)
+  — instead of a `{ value, step }` wrapper. Composition moves out of the node
+  into the external `step(e, f)` primitive (raw effect in, raw effect out); the
+  `.step(...)` method is gone, so every `x.step(f)` call site becomes
+  `step(x, f)`. An optional `fn`-style wrapper `eff(value)` is added for
+  method-chaining (`eff(x).step(f)….value`, unwrapped at the boundary with
+  `.value`), mirroring `compose`/`fn` in `fjs/types/function`. `decode` is the
+  single shape inspector; the `Do` continuation is extracted into
+  `Cont<out O, T>` and the node itself carries `out O` so the raw `Effect` union
+  stays covariant in `O` (the `Value` type alias is renamed to `Effect`).
 - `fjs/ci`: **BREAKING CHANGE:** drop the trailing
   `git reset --hard HEAD && git clean -fdx` step from the `deno`, `bun`,
   `node22`, `node24`, `node26`, and `playwright` jobs. It ran as each job's

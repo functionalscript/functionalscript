@@ -5,6 +5,7 @@
  */
 
 import { asyncRun } from '../../module.ts'
+import { step } from '../../module.f.ts'
 import {
     asNominal,
     create, read, write,
@@ -15,8 +16,8 @@ import { assert, assertEq } from '../../../asserts/module.f.ts'
 
 export const proof = {
     nodeInterpreter: async () => {
-        const result = await run(create(1).step(key =>
-            write(key, 2).step(() =>
+        const result = await run(step(create(1), key =>
+            step(write(key, 2), () =>
                 read(key)
             )
         ))

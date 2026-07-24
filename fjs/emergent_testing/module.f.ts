@@ -29,7 +29,7 @@ import {
     type Write,
     type WriteConsoles
 } from '../effects/node/module.f.ts'
-import { pure, type Effect, type Operation } from '../effects/module.f.ts'
+import { step, pure, type Effect, type Operation } from '../effects/module.f.ts'
 import { loadModuleMap, shouldLoad, type LoadModuleOperations, type ModuleMap } from '../dev/module.f.ts'
 import { invert } from '../types/result/module.f.ts'
 import { definedEntries } from '../types/object/module.f.ts'
@@ -167,17 +167,17 @@ export const registerModule =
             const base = fmtImport(k, path)
             const name = throws ? base : `${base}${star}`
             return test(ctx, name, throws, (t): Effect<Test | All | Await, void> =>
-                awaitIfPromise(fn())
-                .step(resolved => {
+                step(awaitIfPromise(fn()),
+                resolved => {
                     if (throws) { return pure(undefined) }
                     const sub = collectTests([...path, null], false, resolved)
                     if (sub.length === 0) { return pure(undefined) }
-                    return all(...sub.map(e => registerOne(t, e))).step(() => pure(undefined))
+                    return step(all(...sub.map(e => registerOne(t, e))), () => pure(undefined))
                 }))
         }
         const tests = collectTests([], false, v)
         if (tests.length === 0) { return pure(undefined) }
-        return all(...tests.map(e => registerOne(ctx, e))).step(() => pure(undefined))
+        return step(all(...tests.map(e => registerOne(ctx, e))), () => pure(undefined))
     }
 
 const mergeState = (a: TestState, b: TestState): TestState =>
@@ -191,28 +191,28 @@ const runModule =
     (ts: TestState): Effect<O | All, TestState> =>
 {
     const one = ([testPath, set]: TestAndPath): Effect<O | All, TestState> =>
-        test(k, testPath, set)
-        .step(sr => {
+        step(test(k, testPath, set),
+        sr => {
             const { result: [s, r], duration } = sr
-            return result(k, testPath, sr, set.throws)
-            .step((): Effect<O | All, TestState> => {
+            return step(result(k, testPath, sr, set.throws),
+            (): Effect<O | All, TestState> => {
                 if (s === 'ok') {
                     if (set.throws) { return pure(addPass(duration)(zero)) }
                     // Walk return-value sub-tree; null marks the call boundary so
                     // paths render as e.g. `outer().inner`. throws resets to false.
-                    return walk([...testPath, null], false, r)
-                    .step(sub => pure(mergeState(addPass(duration)(zero), sub)))
+                    return step(walk([...testPath, null], false, r),
+                    sub => pure(mergeState(addPass(duration)(zero), sub)))
                 }
                 return pure(addFail(duration)(zero))
             })
         })
     const walk = (path: Path, throws: boolean, v: unknown): Effect<O | All, TestState> => {
         const effects = collectTests(path, throws, v).map(one)
-        return all(...effects)
-        .step(states => pure(states.reduce(mergeState, zero)))
+        return step(all(...effects),
+        states => pure(states.reduce(mergeState, zero)))
     }
-    return walk([], false, v)
-    .step(delta => pure(mergeState(ts, delta)))
+    return step(walk([], false, v),
+    delta => pure(mergeState(ts, delta)))
 }
 
 const proofEntries = (moduleMap: ModuleMap): readonly (readonly [string, unknown])[] =>
@@ -227,10 +227,10 @@ const proofEntries = (moduleMap: ModuleMap): readonly (readonly [string, unknown
 export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | All, number> => {
     const { summary } = reporter
     const modules = proofEntries(moduleMap)
-    return all(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero)))
-    .step(m => pure(m.reduce(mergeState, zero)))
-    .step(ts => summary(ts.pass, ts.fail, ts.time)
-    .step(() => pure(ts.fail !== 0 ? 1 : 0)))
+    return step(step(all(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero))),
+    m => pure(m.reduce(mergeState, zero))),
+    ts => step(summary(ts.pass, ts.fail, ts.time),
+    () => pure(ts.fail !== 0 ? 1 : 0)))
 }
 
 /**
@@ -239,7 +239,7 @@ export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (mod
  * `fjs t` test runner.
  */
 export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O | All | LoadModuleOperations> => options =>
-    loadModuleMap(options.env).step(runModuleMap(reporter))
+    step(loadModuleMap(options.env), runModuleMap(reporter))
 
 /**
  * Registers all modules in `moduleMap` that export a `proof` property with
@@ -250,7 +250,7 @@ const registerModuleMap =
 {
     const modules = proofEntries(moduleMap)
     if (modules.length === 0) { return pure(undefined) }
-    return all(...modules.map(([k, v]) => registerModule(ctx, k, v, star))).step(() => pure(undefined))
+    return step(all(...modules.map(([k, v]) => registerModule(ctx, k, v, star))), () => pure(undefined))
 }
 
 /**
@@ -327,8 +327,8 @@ export const ghEscape = (s: string): string =>
  * result when `throws` is `true` (caught error → pass, clean return → fail).
  */
 export const defaultTest = (file: string, path: Path, { fn, throws }: TestEntry): Effect<Sandbox, SandboxResult<unknown>> =>
-    sandbox(fn)
-    .step(r => pure(throws ? { ...r, result: invert(r.result) } : r))
+    step(sandbox(fn),
+    r => pure(throws ? { ...r, result: invert(r.result) } : r))
 
 const fmtResultLine = (file: string, path: Path, color: string, label: string, duration: number): string =>
     `${fmtImport(file, path)}: ${color}${label}${reset}, ${timeFormat(duration)}`
@@ -356,12 +356,12 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
                 ? csiLog(fmtResultLine(file, path, fgGreen, 'ok', duration) + (throws ? ' # EXPECTED TO THROW' : ''))
                 : isGitHub
                     ? csiError(`::error file=${file},line=1,title=${ghEscape(fmtImport(file, path))}::${ghEscape(String(v))}`)
-                    : csiError(fmtResultLine(file, path, fgRed, 'error', duration))
-                        .step(() => csiError(`${fgRed}${v}${reset}`)),
+                    : step(csiError(fmtResultLine(file, path, fgRed, 'error', duration)),
+                        () => csiError(`${fgRed}${v}${reset}`)),
         summary: (pass, fail, time) => {
             const fgFail = fail === 0 ? fgGreen : fgRed
-            return csiLog(`${bold}Number of tests: pass: ${fgGreen}${pass}${reset}${bold}, fail: ${fgFail}${fail}${reset}${bold}, total: ${pass + fail}${reset}`)
-                .step(() => csiLog(`${bold}Time: ${timeFormat(time)}${reset}`))
+            return step(csiLog(`${bold}Number of tests: pass: ${fgGreen}${pass}${reset}${bold}, fail: ${fgFail}${fail}${reset}${bold}, total: ${pass + fail}${reset}`),
+                () => csiLog(`${bold}Time: ${timeFormat(time)}${reset}`))
         },
         test: defaultTest,
     }
@@ -384,7 +384,7 @@ export const register: NodeProgram = o => {
         o.engine === 'playwright' ? o.playwrightTestContext :
         o.testContext
     const r = registerModuleMap(ctx, star)
-    return loadModuleMap(o.env)
-    .step(r)
-    .step(() => pure(0))
+    return step(step(loadModuleMap(o.env),
+    r),
+    () => pure(0))
 }

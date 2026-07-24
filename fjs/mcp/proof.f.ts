@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../asserts/module.f.ts'
-import { pure, type Operation } from '../effects/module.f.ts'
+import { step, pure, type Operation } from '../effects/module.f.ts'
 import type { Effect } from '../effects/module.f.ts'
 import { run, type MemOperationMap } from '../effects/mock/module.f.ts'
 import { asBase, asNominal, create, read, type Key, type MemOp } from '../effects/memory/module.f.ts'
@@ -66,29 +66,29 @@ const asMemEffect = <T>(e: Effect<Operation, T>): Effect<MemOp, T> =>
 
 // Run one step from uninitializedState, return [response, newState].
 const step1 = (cfg: McpConfig) => (msg: unknown): StepResult =>
-    runMem(asMemEffect(create(uninitializedState as McpSessionState).step(key =>
-        mcpStep(cfg)(handlers)(key)(msg as Unknown).step(resp =>
-            read(key).step(state => pure([resp as unknown, state] as const))
+    runMem(asMemEffect(step(create(uninitializedState as McpSessionState), key =>
+        step(mcpStep(cfg)(handlers)(key)(msg as Unknown), resp =>
+            step(read(key), state => pure([resp as unknown, state] as const))
         )
     )))
 
 // Run initialize then a second step, return [response, newState] of the second.
 const step2 = (cfg: McpConfig) => (msg1: unknown) => (msg2: unknown): StepResult =>
-    runMem(asMemEffect(create(uninitializedState as McpSessionState).step(key =>
-        mcpStep(cfg)(handlers)(key)(msg1 as Unknown).step(() =>
-            mcpStep(cfg)(handlers)(key)(msg2 as Unknown).step(resp =>
-                read(key).step(state => pure([resp as unknown, state] as const))
+    runMem(asMemEffect(step(create(uninitializedState as McpSessionState), key =>
+        step(mcpStep(cfg)(handlers)(key)(msg1 as Unknown), () =>
+            step(mcpStep(cfg)(handlers)(key)(msg2 as Unknown), resp =>
+                step(read(key), state => pure([resp as unknown, state] as const))
             )
         )
     )))
 
 // Run initialize, notifications/initialized, then a third step; return [response, newState] of the third.
 const step3 = (cfg: McpConfig) => (msg1: unknown) => (msg2: unknown) => (msg3: unknown): StepResult =>
-    runMem(asMemEffect(create(uninitializedState as McpSessionState).step(key =>
-        mcpStep(cfg)(handlers)(key)(msg1 as Unknown).step(() =>
-            mcpStep(cfg)(handlers)(key)(msg2 as Unknown).step(() =>
-                mcpStep(cfg)(handlers)(key)(msg3 as Unknown).step(resp =>
-                    read(key).step(state => pure([resp as unknown, state] as const))
+    runMem(asMemEffect(step(create(uninitializedState as McpSessionState), key =>
+        step(mcpStep(cfg)(handlers)(key)(msg1 as Unknown), () =>
+            step(mcpStep(cfg)(handlers)(key)(msg2 as Unknown), () =>
+                step(mcpStep(cfg)(handlers)(key)(msg3 as Unknown), resp =>
+                    step(read(key), state => pure([resp as unknown, state] as const))
                 )
             )
         )

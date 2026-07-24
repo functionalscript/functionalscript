@@ -1,10 +1,10 @@
-import { decode, do_, foldStep, forEachStep, lazy, match, okStep, pure, type Effect, type Operation } from './module.f.ts'
+import { step, eff, decode, do_, foldStep, forEachStep, lazy, match, okStep, pure, type Effect, type Operation } from './module.f.ts'
 import { error, ok } from '../types/result/module.f.ts'
 import { assert, assertEq } from '../asserts/module.f.ts'
 
 const assertPure = <O extends Operation, T>(e: Effect<O, T>, expected: T) => {
     const d = decode(e)
-    assert(d.done, e.value)
+    assert(d.done, e)
     assertEq(d.result, expected)
 }
 
@@ -26,7 +26,7 @@ export const proof = {
             assert(evaluated, 'decode must force the thunk')
         },
         step: () => {
-            const e = lazy(() => 5).step(v => pure(v * 2))
+            const e = step(lazy(() => 5), v => pure(v * 2))
             assertPure(e, 10)
         },
     },
@@ -65,14 +65,14 @@ export const proof = {
     },
     okStep: {
         ok: () => {
-            const e = pure(ok(5)).step(okStep((v: number) => pure(ok(v * 2))))
+            const e = step(pure(ok(5)), okStep((v: number) => pure(ok(v * 2))))
             const d = decode(e)
-            assert(!(!d.done || d.result[0] !== 'ok' || d.result[1] !== 10), e.value)
+            assert(!(!d.done || d.result[0] !== 'ok' || d.result[1] !== 10), e)
         },
         error: () => {
-            const e = pure(error<string>('oops')).step(okStep<number, string, never, number>(v => pure(ok(v * 2))))
+            const e = step(pure(error<string>('oops')), okStep<number, string, never, number>(v => pure(ok(v * 2))))
             const d = decode(e)
-            assert(!(!d.done || d.result[0] !== 'error' || d.result[1] !== 'oops'), e.value)
+            assert(!(!d.done || d.result[0] !== 'error' || d.result[1] !== 'oops'), e)
         },
     },
     decode: () => {
@@ -95,6 +95,41 @@ export const proof = {
             const r2 = next(r[2](r[1]))
             assert(r2[0] === 'done', r2)
             assertEq(r2[1], 5)
+        },
+    },
+    step: {
+        pure: () => {
+            assertPure(step(pure(3), v => pure(v + 1)), 4)
+        },
+        chain: () => {
+            // Chains as step(step(e, f), g), raw effect in and out.
+            assertPure(step(step(pure(3), v => pure(v + 1)), v => pure(v * 2)), 8)
+        },
+        over_do: () => {
+            // Stepping a Do node preserves the command and threads the result
+            // through the rebuilt continuation.
+            const e = step(do_<AddOp>('add')(2, 3), r => pure(r * 10))
+            const r = next(e)
+            assert(r[0] === 'cont', r)
+            assertEq(r[1], 5)
+            assertPure(r[2](r[1]), 50)
+        },
+    },
+    eff: {
+        value: () => {
+            // `.value` unwraps back to the raw effect.
+            assertPure(eff(pure(5)).value, 5)
+        },
+        chain: () => {
+            assertPure(eff(pure(5)).step(v => pure(v + 1)).step(v => pure(v * 2)).value, 12)
+        },
+        over_do: () => {
+            // The wrapper is equivalent to external `step` over a Do node.
+            const e = eff(do_<AddOp>('add')(2, 3)).step(r => pure(r + 1)).value
+            const r = next(e)
+            assert(r[0] === 'cont', r)
+            assertEq(r[1], 5)
+            assertPure(r[2](r[1]), 6)
         },
     },
 }

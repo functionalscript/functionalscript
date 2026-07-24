@@ -20,7 +20,7 @@
  * @module
  */
 import { string, option, array } from '../../../types/rtti/module.f.ts'
-import { pure, type Effect, type Operation } from '../../../effects/module.f.ts'
+import { step, pure, type Effect, type Operation } from '../../../effects/module.f.ts'
 import { type MemOp } from '../../../effects/memory/module.f.ts'
 import {
     toolEntry, errorResult, okResult,
@@ -65,20 +65,20 @@ export const evoToolRegistry =
         // format could not represent an empty subject or one containing a
         // newline without ambiguity — JSON encoding can.
         (): Effect<MemOp, ToolsCallResult> =>
-            e.list().step(subjects => pure(okResult(toJson(subjects)))),
+            step(e.list(), subjects => pure(okResult(toJson(subjects)))),
     ),
     toolEntry(
         'evo_head',
         'List the current head hashes (cBase32) of a subject, one per line. Empty when the subject is unknown.',
         evoHeadArgs,
         ({ subject }): Effect<MemOp, ToolsCallResult> =>
-            e.head(subject).step(heads => pure(okResult(heads.join('\n')))),
+            step(e.head(subject), heads => pure(okResult(heads.join('\n')))),
     ),
     toolEntry(
         'evo_add',
         'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot`, when omitted, is resolved from the parents (zero parents → `subject`, one parent → the parent\'s snapshot; a merge requires an explicit `snapshot`) and written explicitly. `generation` is computed by the server.',
         evoAddArgs,
         (input): Effect<O | MemOp, ToolsCallResult> =>
-            e.add(input).step(result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(result[1]))),
+            step(e.add(input), result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(result[1]))),
     ),
 ]
