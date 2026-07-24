@@ -16,8 +16,7 @@
 import { boolean, string, option, array, record, or } from '../types/rtti/module.f.ts'
 import { unknown, type Unknown } from '../media/json/module.f.ts'
 import type { Ts } from '../types/rtti/ts/module.f.ts'
-import { pure, type Operation, type Effect } from '../effects/module.f.ts'
-import { eff } from '../effects/eff/module.f.ts'
+import { pure, type Operation, type Effect, step } from '../effects/module.f.ts'
 import { read, write, type Key, type MemOp } from '../effects/memory/module.f.ts'
 import {
     decodeRequest,
@@ -329,10 +328,15 @@ export const mcpStep =
                     // Malformed handshake — ignore it; the session stays gated.
                     return pure(null)
                 }
-                return eff(read(stateKey)).step(([t]) =>
-                    t === 'initializing'
-                        ? eff(write(stateKey, ['initialized', true as InitializedState])).step(() => pure(null)).value
-                        : pure(null)).value
+                return step(
+                    read(stateKey),
+                    ([t]) => t === 'initializing'
+                        ? step(
+                            write(stateKey, ['initialized', true as InitializedState]),
+                            () => pure(null),
+                        )
+                        : pure(null),
+                )
             }
             return pure(null)
         }
@@ -348,50 +352,65 @@ export const mcpStep =
 
         // `initialize` transitions uninitialized → initializing; reject if already done.
         if (method === 'initialize') {
-            return eff(read(stateKey)).step(([t]) => {
-                if (t !== 'uninitialized') {
-                    return pure(_errResponse(id)(invalidRequest))
-                }
-                const [pr] = validate(initializeParams)(params)
-                if (pr === 'error') {
-                    return pure(_errResponse(id)(invalidParams))
-                }
-                const result: InitializeResult = {
-                    protocolVersion,
-                    capabilities,
-                    serverInfo,
-                }
-                return eff(write(stateKey, ['initializing'])).step(() => pure(_okResponse(id)(result))).value
-            }).value
+            return step(
+                read(stateKey),
+                ([t]) => {
+                    if (t !== 'uninitialized') {
+                        return pure(_errResponse(id)(invalidRequest))
+                    }
+                    const [pr] = validate(initializeParams)(params)
+                    if (pr === 'error') {
+                        return pure(_errResponse(id)(invalidParams))
+                    }
+                    const result: InitializeResult = {
+                        protocolVersion,
+                        capabilities,
+                        serverInfo,
+                    }
+                    return step(
+                        write(stateKey, ['initializing']),
+                        () => pure(_okResponse(id)(result))
+                    )
+                },
+            )
         }
 
         // All other methods require fully initialized state — read it first.
-        return eff(read(stateKey)).step(([t]) => {
-            if (t !== 'initialized') {
-                return pure(_errResponse(id)(notInitialized))
-            }
-
-            if (method === 'tools/list') {
-                if (capabilities.tools === undefined) {
-                    return pure(_errResponse(id)(methodNotFound))
+        return step(
+            read(stateKey),
+            ([t]) => {
+                if (t !== 'initialized') {
+                    return pure(_errResponse(id)(notInitialized))
                 }
-                // `params` may be absent — `tools/list` without a cursor.
-                const [t, pr] = validate(toolsListParams)(params === undefined ? {} : params)
-                return t === 'error'
-                    ? pure(_errResponse(id)(invalidParams))
-                    : eff(handlers.toolsList(pr)).step(r => pure(_okResponse(id)(r))).value
-            }
 
-            if (method === 'tools/call') {
-                if (capabilities.tools === undefined) {
-                    return pure(_errResponse(id)(methodNotFound))
+                if (method === 'tools/list') {
+                    if (capabilities.tools === undefined) {
+                        return pure(_errResponse(id)(methodNotFound))
+                    }
+                    // `params` may be absent — `tools/list` without a cursor.
+                    const [t, pr] = validate(toolsListParams)(params === undefined ? {} : params)
+                    return t === 'error'
+                        ? pure(_errResponse(id)(invalidParams))
+                        : step(
+                            handlers.toolsList(pr),
+                            r => pure(_okResponse(id)(r)),
+                        )
                 }
-                const [t, pr] = validate(toolsCallParams)(params)
-                return t === 'error'
-                    ? pure(_errResponse(id)(invalidParams))
-                    : eff(handlers.toolsCall(pr)).step(r => pure(_okResponse(id)(r))).value
-            }
 
-            return pure(_errResponse(id)(methodNotFound))
-        }).value
+                if (method === 'tools/call') {
+                    if (capabilities.tools === undefined) {
+                        return pure(_errResponse(id)(methodNotFound))
+                    }
+                    const [t, pr] = validate(toolsCallParams)(params)
+                    return t === 'error'
+                        ? pure(_errResponse(id)(invalidParams))
+                        : step(
+                            handlers.toolsCall(pr),
+                            r => pure(_okResponse(id)(r)),
+                        )
+                }
+
+                return pure(_errResponse(id)(methodNotFound))
+            },
+        )
     }
