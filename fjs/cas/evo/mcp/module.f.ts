@@ -20,7 +20,8 @@
  * @module
  */
 import { string, option, array } from '../../../types/rtti/module.f.ts'
-import { eff, pure, type Effect, type Operation } from '../../../effects/module.f.ts'
+import { pure, type Effect, type Operation } from '../../../effects/module.f.ts'
+import { eff } from '../../../effects/eff/module.f.ts'
 import { type MemOp } from '../../../effects/memory/module.f.ts'
 import {
     toolEntry, errorResult, okResult,

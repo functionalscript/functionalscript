@@ -3,10 +3,8 @@
  *
  * An `Effect<O, T>` **is** the raw value — a `Pure` thunk (`() => T`) or a `Do`
  * node (`[command, payload, continuation]`). It is plain data with no methods.
- * Composition is provided externally by {@link step}, mirroring how
- * `fjs/types/function` makes `compose` the primitive and `fn` optional sugar:
- * here {@link step} is the primitive and {@link eff} the optional method-chaining
- * wrapper.
+ * Composition is provided externally by {@link step}. The optional
+ * method-chaining wrapper lives in `fjs/effects/eff/module.f.ts`.
  *
  * **Exactly one function inspects the shape: {@link decode}** (the `Pure` thunk
  * vs. `Do` tuple layout). {@link step} wraps it; interpreters and proofs go
@@ -34,7 +32,7 @@ export type Operation =
 /**
  * An `Effect<O, T>` is the raw value: a {@link Pure} thunk that yields `T`, or a
  * {@link Do} node describing a command to perform. It is plain data — compose
- * effects with the external {@link step}, or the {@link eff} wrapper.
+ * effects with the external {@link step}.
  */
 export type Effect<O extends Operation, T> =
     Pure<T> | Do<O, T>
@@ -118,27 +116,6 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
         ? f(d.result)
         : doFull<O | Q, R, O[0]>(d.command, d.payload, x => step(d.continuation(x), f))
 }
-
-/**
- * The `fn`-style wrapper around a raw {@link Effect}, for optional
- * method-chaining. Mirrors `fn` over `compose` exactly, including the boundary:
- * `step` returns another `Eff` (so `.step(f).step(g)` chains) and `.value`
- * unwraps back to the raw `Effect` (the analogue of `fn`'s `.result`). An `Eff`
- * is **not** assignable to `Effect`; unwrap at the boundary with `.value`.
- */
-export type Eff<O extends Operation, T> = {
-    readonly value: Effect<O, T>
-    readonly step: <Q extends Operation, R>(f: (t: T) => Effect<Q, R>) => Eff<O | Q, R>
-}
-
-/**
- * Wraps a raw {@link Effect} into an {@link Eff} for method-chaining. Unwrap
- * with `.value`, e.g. `eff(readFile(p)).step(f).value`.
- */
-export const eff = <O extends Operation, T>(value: Effect<O, T>): Eff<O, T> => ({
-    value,
-    step: f => eff(step(value, f)),
-})
 
 export type Param<O extends Operation> = F<O>[0]
 

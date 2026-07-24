@@ -1,4 +1,4 @@
-import { step, eff, decode, do_, foldStep, forEachStep, lazy, match, okStep, pure, type Effect, type Operation } from './module.f.ts'
+import { step, decode, do_, foldStep, forEachStep, lazy, match, okStep, pure, type Effect, type Operation } from './module.f.ts'
 import { error, ok } from '../types/result/module.f.ts'
 import { assert, assertEq } from '../asserts/module.f.ts'
 
@@ -114,22 +114,5 @@ export const proof = {
             assertEq(r[1], 5)
             assertPure(r[2](r[1]), 50)
         },
-    },
-    eff: {
-        value: () => {
-            // `.value` unwraps back to the raw effect.
-            assertPure(eff(pure(5)).value, 5)
-        },
-        chain: () => {
-            assertPure(eff(pure(5)).step(v => pure(v + 1)).step(v => pure(v * 2)).value, 12)
-        },
-        over_do: () => {
-            // The wrapper is equivalent to external `step` over a Do node.
-            const e = eff(do_<AddOp>('add')(2, 3)).step(r => pure(r + 1)).value
-            const r = next(e)
-            assert(r[0] === 'cont', r)
-            assertEq(r[1], 5)
-            assertPure(r[2](r[1]), 6)
-        },
-    },
+    }
 }

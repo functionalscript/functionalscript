@@ -10,7 +10,8 @@ import { main as ciMain } from './ci/module.f.ts'
 import { import_, type NodeOp, type NodeProgram } from './effects/node/module.f.ts'
 import { dispatch, type Commands } from './cli/module.f.ts'
 import { casMcpServer } from './cas/mcp/module.f.ts'
-import { eff, pure } from './effects/module.f.ts'
+import { pure } from './effects/module.f.ts'
+import { eff } from './effects/eff/module.f.ts'
 
 const commands: Commands<NodeOp> = [
     {

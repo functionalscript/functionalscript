@@ -29,7 +29,8 @@
  *
  * @module
  */
-import { eff, pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { pure, type Effect, type Operation } from '../../effects/module.f.ts'
+import { eff } from '../../effects/eff/module.f.ts'
 import { readLine, write, type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
