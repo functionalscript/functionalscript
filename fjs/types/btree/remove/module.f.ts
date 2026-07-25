@@ -9,6 +9,7 @@ import { type Path, type PathItem, find } from '../find/module.f.ts'
 import { fold, concat, next } from '../../list/module.f.ts'
 import type { Array2 } from '../../array/module.f.ts'
 import { map } from '../../nullable/module.f.ts'
+import { assertEq } from '../../../asserts/module.f.ts'
 
 type Leaf01<T> = null | Leaf1<T>
 
@@ -139,3 +140,20 @@ export const nodeRemove
 
 export const remove: <T>(c: Compare<T>) => (tree: Tree<T>) => Tree<T>
     = c => map(nodeRemove(c))
+
+// `reduceValue0`/`reduceValue2`/`initValue0`/`initValue1` merge a Branch1's lone
+// child into its Branch3 sibling. The sibling is always a Branch (length 3 or 5)
+// in every reachable tree shape, so the `default` arm guarding a mismatched
+// (leaf) sibling length can't be hit through the public `remove` API. Exercise
+// it directly here so the invariant guard itself stays covered.
+export const proof = {
+    reduceValue0DefaultBranch: () => {
+        let threw: unknown
+        try {
+            reduceValue0<string>([['leaf']])([['x'], 's', ['y']])
+        } catch (e) {
+            threw = e
+        }
+        assertEq(threw, 'invalid node')
+    },
+}
