@@ -48,6 +48,12 @@
  * continuation that does not depend on it. Hoist such locals above the chain
  * and the nesting usually dissolves on its own.
  *
+ * That advice is for code *using* this module. The combinators defined here
+ * have no flat form to prefer — a name cannot be bound to an effect that does
+ * not exist yet, and `f(param)` does not exist until `e` resolves — so they
+ * compose `step` directly. Each absorbs that nesting once so its callers never
+ * repeat it.
+ *
  * @module
  */
 
