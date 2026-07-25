@@ -23,7 +23,8 @@ const createBigFileContent = (): Vec => {
 }
 
 // Test adding a big file and verifying the hash
-const testAddBigFile = (): Effect<TestOp, void> => step(
+const testAddBigFile = (): Effect<TestOp, void> => {
+    const x0 = step(
     mkdir(testDir, { recursive: true }),
     () => {
         const bigContent = createBigFileContent()
@@ -65,6 +66,8 @@ const testAddBigFile = (): Effect<TestOp, void> => step(
         )
     }
 )
+    return x0
+}
 
 // Test adding and retrieving a big file
 const testAddAndGetBigFile = (): Effect<TestOp, void> => step(
