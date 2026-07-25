@@ -1,4 +1,4 @@
-import { pure, step, type Effect, type Operation } from '../module.f.ts'
+import { frameStep, pure, step, type Effect, type Operation } from '../module.f.ts'
 
 /**
  * A fluent, method-chaining monad over a raw {@link Effect} that also
@@ -28,13 +28,15 @@ const create = <O extends Operation, T, P extends readonly unknown[]>(
     both: Effect<O, readonly[T, ...P]>): Eff<O, T, P> =>
 ({
     result: () => step(both, ([t]) => pure(t)),
-    step: f => create(step(
-        both,
-        tp => step(
-            f(...tp),
-            r => pure([r, ...tp] as const)
-        ),
-    )),
+    step: f => {
+        const x0 = frameStep(
+            both,
+            tp => f(...tp))
+        const x1 = step(
+            x0,
+            ({ param, result }) => pure([result, ...param] as const))
+        return create(x1)
+    }
 })
 
 /** Wraps a raw {@link Effect}; the bridge into the `Eff` world, with an empty history. */
