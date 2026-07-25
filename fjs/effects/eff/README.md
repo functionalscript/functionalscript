@@ -27,6 +27,33 @@ every `Eff` chain has a mechanical raw-`step` equivalent.
 Using `Eff` is therefore not discouraged. Using it *is* the experiment. Just
 don't build on it expecting the API to hold still.
 
+## Assembly and high-level, with no compiler in between
+
+Raw `step` with named intermediates is close to assembly: one operation per
+line, every temporary explicitly named, nothing implicit. More precisely it is
+SSA — the form compilers lower *to*, where each value is assigned exactly once
+in evaluation order. `frameStep` fits the same register: a `param` walk is a de
+Bruijn index into the values still live at that point.
+
+That is not a complaint about the low level. Assembly persists because it is
+the level at which you can see exactly what happens, which is why the raw
+primitives stay regardless of how this is decided. `Eff` is an attempt at the
+other level — the ergonomics of a high-level language, where a sequence is
+written as a composition instead of transcribed as a list of temporaries.
+
+What is missing is the part that normally resolves the tension. In a language
+with a compiler, a composition layer is a *zero-cost* abstraction: it exists in
+the source and is erased before anything runs. Here nothing erases it. `Eff` is
+not syntax that disappears; it is objects and closures that survive into the
+runtime — allocated per instance, carrying a history tuple, holding an identity
+that content addressing cannot share. The high-level prices are paid at
+runtime, with no optimizer to reclaim them.
+
+This is also why a pipeline operator would change the picture rather than
+merely improve it. `|>` is syntax: parsed, erased, free by construction. A
+pipeline helper is a value, and values cost. They are not the same solution at
+different scales — they differ in kind.
+
 ## What is being balanced
 
 Ergonomics against performance — where performance means more than speed.
@@ -82,8 +109,9 @@ invented, and whether the value history was actually used or merely carried.
 idea for plain functions, with the same unresolved trade-off. Whatever is
 decided here should probably apply there too.
 
-If ECMAScript ever ships a pipeline operator (`|>`), most of this becomes moot
-— the ergonomic gap that motivates a wrapper closes, and the raw primitives
-would be usable directly with no allocation, no history copying, and no
-identity cost. That is a reason to keep the wrapper layer thin and disposable
-rather than to invest in it heavily.
+If ECMAScript ever ships a pipeline operator (`|>`), most of this becomes moot:
+the ergonomic gap that motivates a wrapper closes, and — being syntax rather
+than a value — it closes for free, with no allocation, no history copying, and
+no identity cost. Any wrapper here is therefore a stand-in for missing syntax,
+which is a reason to keep it thin and disposable rather than to invest in it
+heavily.
