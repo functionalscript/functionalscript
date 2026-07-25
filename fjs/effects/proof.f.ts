@@ -1,4 +1,4 @@
-import { step, decode, do_, foldStep, forEachStep, lazy, match, okStep, pure, type Effect, type Operation } from './module.f.ts'
+import { step, decode, do_, foldStep, forEachStep, lazy, match, okStep, frameStep, pure, type Effect, type Operation } from './module.f.ts'
 import { error, ok } from '../types/result/module.f.ts'
 import { assert, assertEq } from '../asserts/module.f.ts'
 
@@ -114,5 +114,42 @@ export const proof = {
             assertEq(r[1], 5)
             assertPure(r[2](r[1]), 50)
         },
-    }
+    },
+    frameStep: {
+        pure: () => {
+            const d = decode(frameStep(pure(3), v => pure(v * 2)))
+            assert(d.done, d)
+            const { result, param } = d.result
+            assertEq(param, 3)
+            assertEq(result, 6)
+        },
+        over_do: () => {
+            // The captured param survives a command boundary: the frame is
+            // rebuilt inside the continuation rather than lost when `e` is a Do.
+            const c = next(frameStep(do_<AddOp>('add')(2, 3), r => pure(r * 10)))
+            assert(c[0] === 'cont', c)
+            assertEq(c[1], 5)
+            const d = decode(c[2](c[1]))
+            assert(d.done, d)
+            const { result, param } = d.result
+            assertEq(param, 5)
+            assertEq(result, 50)
+        },
+        chain: () => {
+            // Frames chain through `param`, so a value bound two links back
+            // reads as `param.param.result`.
+            const a = frameStep(pure(1), x => pure(x + 1))
+            const b = frameStep(a, ({ result, param }) => pure(result + param))
+            assertPure(
+                step(b, ({ result: z, param: { result: y, param: x } }) => pure(`${x}${y}${z}`)),
+                '123')
+        },
+        f_receives_whole_frame: () => {
+            // `f` is handed the preceding frame, not just its result - which is
+            // why frames chain through `param` at all.
+            const a = frameStep(pure(1), x => pure(x + 1))
+            const b = frameStep(a, p => pure(p.param * 100 + p.result))
+            assertPure(step(b, ({ result }) => pure(result)), 102)
+        },
+    },
 }
