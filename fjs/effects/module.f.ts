@@ -15,18 +15,38 @@
  * Effect helpers come in two shapes. **Step adapters** return a continuation
  * `(t: T) => Effect<Q, R>` meant to be passed into a step — see {@link okStep}.
  * **Step variants** take the effect itself first, like {@link step} — see
- * {@link frameStep}. Both serve the same style: a flat chain of named
- * intermediate effects, rather than nested calls.
+ * {@link frameStep}.
+ *
+ * **Do not nest steps.** Bind each intermediate effect to its own name, so a
+ * sequence reads top-to-bottom in evaluation order:
  *
  * ```ts
- * const a = step(e, f)
- * const b = frameStep(a, g)
- * const c = step(b, ({ result, param }) => h(param, result))
+ * // avoid — reads inside-out, and gains a level of indentation per link
+ * step(a, x => step(f(x), y => step(g(y), z => h(z))))
+ *
+ * // prefer — flat, one name per link
+ * const x0 = step(a, f)
+ * const x1 = step(x0, g)
+ * return step(x1, h)
  * ```
  *
- * Naming each intermediate keeps a long chain flat and left-to-right, in
- * evaluation order; the equivalent nested form reads inside-out and grows a
- * pyramid.
+ * When a later link needs a value from an earlier one, that is not a reason to
+ * nest: a nested continuation only reaches back because it closes over the
+ * enclosing scope. {@link frameStep} carries the value forward instead, so the
+ * chain stays flat:
+ *
+ * ```ts
+ * // avoid — nested only so `h` can still see `x`
+ * step(a, x => step(f(x), y => h(x, y)))
+ *
+ * // prefer — the frame carries `x` forward as `param`
+ * const x0 = frameStep(a, f)
+ * return step(x0, ({ param: x, result: y }) => h(x, y))
+ * ```
+ *
+ * Nesting is often forced by nothing more than a local declared inside a
+ * continuation that does not depend on it. Hoist such locals above the chain
+ * and the nesting usually dissolves on its own.
  *
  * @module
  */
