@@ -7,7 +7,7 @@ import { sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/modul
 import { join, normalize, parse } from '../path/module.f.ts'
 import { empty, length, maxLength, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
-import { foldStep, forEachStep, okStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
+import { foldStep, forEachStep, frameStep, okStep, pure, step, type Effect, type Operation } from '../effects/module.f.ts'
 import { eff } from '../effects/eff/module.f.ts'
 import {
     access,
@@ -218,13 +218,14 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                                     const newState = sha2.append(chunk)(state)
                                     const newOffset = offset + Number(length(chunk) / 8n)
                                     // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
-                                    return eff(now()).step(t => {
-                                        const next = join(stageDir, stageName(t + leaseDelta, rndStr))
-                                        return eff(rename(curPath, next)).step(([t, v]) =>
-                                            t === 'error'
-                                                ? fail(curPath, v)
-                                                : loop(newState, newOffset, next)(tail)).value
-                                    }).value
+                                    // The new path is still needed after the rename, to recurse with,
+                                    // so the rename captures it rather than closing over it.
+                                    const nextPath = step(now(), t => pure(join(stageDir, stageName(t + leaseDelta, rndStr))))
+                                    const renamed = frameStep(nextPath, next => rename(curPath, next))
+                                    return step(renamed, ({ result: [rt, v], param: next }) =>
+                                        rt === 'error'
+                                            ? fail(curPath, v)
+                                            : loop(newState, newOffset, next)(tail))
                                 }).value
                             }).value
                     return eff(mkdir(stageDir, { recursive: true })).step(() =>

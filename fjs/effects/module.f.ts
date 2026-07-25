@@ -12,13 +12,52 @@
  * `typeof value === 'function'` check may appear anywhere, so the representation
  * can change without touching them.
  *
- * Effect helpers are **step adapters**: functions that return a continuation
- * `(t: T) => Effect<Q, R>` meant to be passed into a step, never wrappers that
- * take the effect itself as an argument, so `eff(e).step(adapterA).step(adapterB).value`
- * is how helpers compose — flat, left-to-right, in evaluation order. (The
- * underlying `step(step(e, adapterA), adapterB)` reads inside-out; the codebase
- * uses the `eff` wrapper for readability and reaches for the raw `step`
- * primitive only inside this module.) See {@link okStep} for an example.
+ * Effect helpers come in two shapes. **Step adapters** return a continuation
+ * `(t: T) => Effect<Q, R>` meant to be passed into a step — see {@link okStep}.
+ * **Step variants** take the effect itself first, like {@link step} — see
+ * {@link frameStep}.
+ *
+ * **Do not nest steps.** Bind each intermediate effect to its own name, so a
+ * sequence reads top-to-bottom in evaluation order:
+ *
+ * ```ts
+ * // avoid — reads inside-out, and gains a level of indentation per link
+ * step(a, x => step(f(x), y => step(g(y), z => h(z))))
+ *
+ * // prefer — flat, one name per link
+ * const x0 = step(a, f)
+ * const x1 = step(x0, g)
+ * return step(x1, h)
+ * ```
+ *
+ * When a later link needs a value from an earlier one, that is not a reason to
+ * nest: a nested continuation only reaches back because it closes over the
+ * enclosing scope. {@link frameStep} carries the value forward instead, so the
+ * chain stays flat:
+ *
+ * ```ts
+ * // avoid — nested only so `h` can still see `x`
+ * step(a, x => step(f(x), y => h(x, y)))
+ *
+ * // prefer — the frame carries `x` forward as `param`
+ * const x0 = frameStep(a, f)
+ * return step(x0, ({ param: x, result: y }) => h(x, y))
+ * ```
+ *
+ * Nesting is often forced by nothing more than a local declared inside a
+ * continuation that does not depend on it. Hoist such locals above the chain
+ * and the nesting usually dissolves on its own.
+ *
+ * That advice is for code *using* this module, and the combinators defined
+ * here are what make it followable. The nesting has to exist somewhere: a name
+ * cannot be bound to an effect that has not been produced yet, so `f(param)`
+ * cannot become a `const` until `e` resolves. {@link step} recurses into
+ * itself inside the continuation it rebuilds, {@link foldStep} composes one
+ * step per item, and {@link frameStep} runs `f` inside `e`'s continuation.
+ * Each writes that nesting down **once**, in one line, so that no caller ever
+ * writes it again — that is what a combinator here is *for*. Without
+ * {@link frameStep} the flat form would be unavailable the moment a later link
+ * needed an earlier link's value.
  *
  * @module
  */
@@ -116,6 +155,62 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
         ? f(d.result)
         : doFull<O | Q, R, O[0]>(d.command, d.payload, x => step(d.continuation(x), f))
 }
+
+/**
+ * A captured call frame: everything observable about one call to a
+ * continuation `f` — the `param` it was given and the `result` it produced.
+ * `f`'s internals are not captured, and don't need to be.
+ *
+ * It is {@link frameStep}'s continuation reified: for `f: (p: P) => Effect<Q, R>`
+ * the frame is `Frame<R, P>`, so the type reads straight off `f`'s signature.
+ *
+ * Frames chain through `param`, because `f` is handed the whole preceding
+ * frame: `Frame<C, Frame<B, A>>` is three steps, and the `param` walk is how
+ * far back a value lives — `frame.result`, `frame.param.result`,
+ * `frame.param.param.result`. The chain bottoms out at a bare value rather
+ * than an empty frame, so no unit is needed to start one.
+ *
+ * Heterogeneous by design: each link has its own type, so this is not a
+ * `List` and nothing that folds or maps a list applies to it.
+ */
+export type Frame<R, P> = {
+    readonly result: R
+    readonly param: P
+}
+
+/**
+ * Like {@link step}, but captures the call instead of discarding half of it:
+ * runs `e` to get `p`, continues with `f(p)` to get `r`, and yields the
+ * {@link Frame} `{ result: r, param: p }`.
+ *
+ * This is what a chain of named intermediate effects cannot otherwise express.
+ * Each `step`'s continuation sees only the result of the effect it consumes, so
+ * a later link has no way to reach an earlier one. `frameStep` keeps the
+ * parameter, and the next destructuring names the parts:
+ *
+ * ```ts
+ * const b = frameStep(a, decodeRevisionBlob(cas))
+ * const c = step(b, ({ result: revision, param: hash }) => ...)
+ * ```
+ *
+ * Chaining mimics an async function, one `await` per link — `const hash = ...`
+ * then `const revision = ...`, with both still reachable at the end:
+ *
+ * ```ts
+ * const f1 = frameStep(f0, hash => decodeRevisionBlob(cas)(hash))
+ * const f2 = step(f1, ({ result: revision, param: hash }) => ...)
+ * ```
+ *
+ * Reaching further back costs a `param` hop per link, so a value used many
+ * links after it is bound reads as `frame.param.param.result`. When a chain
+ * grows long enough for that to hurt, collapse it into a record of named
+ * fields (`pure({ hash, revision } as const)`) and continue from there.
+ */
+export const frameStep = <O extends Operation, P, Q extends Operation, R>(
+    e: Effect<O, P>,
+    f: (p: P) => Effect<Q, R>
+): Effect<O | Q, Frame<R, P>> =>
+    step(e, param => step(f(param), result => pure({ result, param })))
 
 export type Param<O extends Operation> = F<O>[0]
 
