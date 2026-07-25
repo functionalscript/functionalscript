@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fjs/effects`: add `pairStep` — like `step`, but keeps the input alongside the
+  output (`Effect<O | Q, readonly[T, R]>`), so a later link in a chain of named
+  intermediate effects can reach an earlier result without nesting
+  [1361](https://github.com/functionalscript/functionalscript/pull/1361)
+
 - `fjs/effects`: **BREAKING CHANGE:** an `Effect<O, T>` is now the **raw value**
   — a `Pure` thunk (`() => T`) or a `Do` node (`[command, payload, continuation]`)
   — instead of a `{ value, step }` wrapper. Composition moves out of the node
