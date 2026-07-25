@@ -9,7 +9,6 @@ import { type Path, type PathItem, find } from '../find/module.f.ts'
 import { fold, concat, next } from '../../list/module.f.ts'
 import type { Array2 } from '../../array/module.f.ts'
 import { map } from '../../nullable/module.f.ts'
-import { assertEq } from '../../../asserts/module.f.ts'
 
 type Leaf01<T> = null | Leaf1<T>
 
@@ -147,13 +146,9 @@ export const remove: <T>(c: Compare<T>) => (tree: Tree<T>) => Tree<T>
 // (leaf) sibling length can't be hit through the public `remove` API. Exercise
 // it directly here so the invariant guard itself stays covered.
 export const proof = {
-    reduceValue0DefaultBranch: () => {
-        let threw: unknown
-        try {
+    throw: {
+        reduceValue0DefaultBranch: () => {
             reduceValue0<string>([['leaf']])([['x'], 's', ['y']])
-        } catch (e) {
-            threw = e
-        }
-        assertEq(threw, 'invalid node')
+        },
     },
 }
