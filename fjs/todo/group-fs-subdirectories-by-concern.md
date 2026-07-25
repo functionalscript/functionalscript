@@ -15,7 +15,11 @@ still `fjs/base_n/module.f.ts`, a top-level directory whose name differs from
 the factory and the other its consumers, is a live confusion hazard in imports
 and in `grep`. Finish the group by moving the factory to `fjs/basen/module.f.ts`
 — the parent of the codecs that call it, which is where a shared factory belongs
-— and delete `fjs/base_n/`. Its two open issues move to `fjs/basen/todo/`.
+— and delete `fjs/base_n/`. The whole directory moves, not just the module:
+`fjs/base_n/proof.f.ts` becomes `fjs/basen/proof.f.ts` (it is the factory's only
+proof — it covers `normalize`, invalid input, chunk boundaries and large inputs,
+so leaving it behind would silently drop `baseN`'s coverage), and the two open
+issues move to `fjs/basen/todo/`.
 
 ### 2. `fjs/common/` — common algorithms
 
@@ -151,7 +155,7 @@ API (no `exports` map), so every move is a breaking change. The first wave is
 ### Tasks
 
 - [x] Create `fjs/basen/` and move `base64`, `base128`, `cbase32` into it.
-- [ ] Move the shared codec factory `fjs/base_n/module.f.ts` to `fjs/basen/module.f.ts`, move `fjs/base_n/todo/*` to `fjs/basen/todo/`, and delete `fjs/base_n/`.
+- [ ] Move the shared codec factory `fjs/base_n/module.f.ts` to `fjs/basen/module.f.ts` **together with `fjs/base_n/proof.f.ts`** (→ `fjs/basen/proof.f.ts`), move `fjs/base_n/todo/*` to `fjs/basen/todo/`, and delete `fjs/base_n/`.
 - [x] Create `fjs/common/` and move `monoid` from `fjs/types/` into it.
 - [x] Promote the `fjs` bin to `fjs/` root; update `package.json`/`deno.json` script paths and fix relative imports.
 - [x] Move `fjs/json/` → `fjs/media/json/` (one PR; establishes the `fjs/media/` bucket).

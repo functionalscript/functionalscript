@@ -65,11 +65,16 @@ export const digits0: Rule
 export const digits: Rule
 /** JSON string, parameterized by how the escape branches are tagged. */
 export const string: (escapeTags: EscapeTags) => Rule
-export const number: Rule
-export const ws: Rule
 /** The whole deterministic JSON grammar (today `testlib.deterministic`). */
 export const json: Rule
+
+// private: `number` and `ws` — used only to build `json`
 ```
+
+`number` and `ws` stay **private**. They are needed to build `json`, but DJS
+keeps its own versions of both (see the scope note below), so neither has an
+external consumer — and `AGENTS.md` only admits an `export` once one exists.
+Export them if and when a real importer appears.
 
 Then:
 

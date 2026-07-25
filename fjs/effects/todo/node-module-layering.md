@@ -67,7 +67,7 @@ provides*. Proposed destinations:
 | `fjs/effects/all/module.f.ts` | `All`, `all`, `both`, and `allVoid`/`allReduce` when they land |
 | `fjs/effects/sandbox/module.f.ts` | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise` — the "run foreign code and observe what happened" pair |
 | `fjs/effects/console/module.f.ts` | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit` |
-| `fjs/emergent_testing/` | `Test`, `TestFn`, `TestContext` — its only consumer, and the module that defines what a test *is* |
+| `fjs/effects/test/module.f.ts` | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
 | stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Fetch`, `Import`, `Forever`, `Now`, `RandomInt`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
 
 `NodeOp` stays where it is and keeps unioning every family — it is the
@@ -83,6 +83,20 @@ Judgement calls worth deciding explicitly rather than by accident:
   interpreters. Moving them would be motion without a reader benefit.
 - **`isNotFound` stays.** It encodes Node's `ENOENT` shape specifically; that
   *is* a Node concern, even though `IoResult` is not.
+- **`Test` goes to an effects module, not to `fjs/emergent_testing`.**
+  `emergent_testing` looks like the natural owner — it is the only consumer of
+  `test` and the module that defines what a test *is* — but putting the
+  declarations there is a cycle, not a layering. Two contracts `effects/node`
+  keeps refer to them: `NodeOp` unions `Test`
+  (`fjs/effects/node/module.f.ts:492`) and `NodeProgramOptions` carries three
+  `TestContext` fields (`:536-538`) for the Node/Bun/Playwright engines. Those
+  are runner configuration and stay in `effects/node` — so `effects/node` would
+  have to import `emergent_testing`, while `emergent_testing/module.f.ts:21-24`
+  keeps importing `NodeProgram`, `NodeProgramOptions` and `Program` back from
+  `effects/node`. `fjs/effects/test/module.f.ts` sits below both, so both may
+  import it and the dependency stays a DAG. (The alternative — moving
+  `NodeProgramOptions`' test contexts up as well — would drag the whole program
+  contract along and is not worth it.)
 - **Don't invent a module per operation.** Group by concern; a directory with
   one four-line module per effect is worse than the monolith.
 
@@ -120,7 +134,10 @@ Judgement calls worth deciding explicitly rather than by accident:
 - [ ] Move `All` / `all` / `both` to `fjs/effects/all/module.f.ts`.
 - [ ] Move `Sandbox` / `Await` and helpers to `fjs/effects/sandbox/module.f.ts`.
 - [ ] Move the console family to `fjs/effects/console/module.f.ts`.
-- [ ] Move `Test` / `TestFn` / `TestContext` into `fjs/emergent_testing/`.
+- [ ] Move `Test` / `TestFn` / `TestContext` / `test` to
+      `fjs/effects/test/module.f.ts` — **not** into `fjs/emergent_testing`, which
+      would be a cycle (see the judgement call above). Confirm `effects/node`
+      still compiles with `NodeOp` and `NodeProgramOptions` importing from there.
 - [ ] Register each new `module.f.ts` in `deno.json`'s `exports` map; update the
       `fjs/effects/node` module header to describe only what remains.
 - [ ] `npx tsc` and `fjs t` after each move; one PR per concern.
