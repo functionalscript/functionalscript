@@ -174,14 +174,14 @@ export const registerModule =
                     if (sub.length === 0) { return pure(undefined) }
                     return eff(all(...sub.map(e => registerOne(t, e))))
                         .step(() => pure(undefined))
-                        .result()
-                }).result())
+                        .value
+                }).value)
         }
         const tests = collectTests([], false, v)
         if (tests.length === 0) { return pure(undefined) }
         return eff(all(...tests.map(e => registerOne(ctx, e))))
             .step(() => pure(undefined))
-            .result()
+            .value
     }
 
 const mergeState = (a: TestState, b: TestState): TestState =>
@@ -233,8 +233,9 @@ export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (mod
     return eff(all(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero))))
         .step(m => pure(m.reduce(mergeState, zero)))
         .step(ts => eff(summary(ts.pass, ts.fail, ts.time))
-            .step(() => pure(ts.fail !== 0 ? 1 : 0)).result())
-        .result()
+            .step(() => pure(ts.fail !== 0 ? 1 : 0))
+            .value)
+        .value
 }
 
 /**
@@ -245,7 +246,7 @@ export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (mod
 export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O | All | LoadModuleOperations> => options =>
     eff(loadModuleMap(options.env))
         .step(runModuleMap(reporter))
-        .result()
+        .value
 
 /**
  * Registers all modules in `moduleMap` that export a `proof` property with

@@ -14,7 +14,7 @@ const next = match<AddOp, number>({ add: (a, b) => a + b })
 
 export const proof = {
     value: () => {
-        assertPure(eff(pure(5)).result(), 5)
+        assertPure(eff(pure(5)).value, 5)
     },
     pure: () => {
         assertPure(pure(5), 5)
@@ -23,13 +23,13 @@ export const proof = {
         const x = eff(pure(5))
             .step(v => pure(v + 1))
             .step(v => pure(v * 2))
-            .result()
+            .value
         assertPure(x, 12)
     },
     over_do: () => {
         const e = eff(do_<AddOp>('add')(2, 3))
             .step(r => pure(r + 1))
-            .result()
+            .value
         const r = next(e)
         assert(r[0] === 'cont', r)
         assertEq(r[1], 5)
