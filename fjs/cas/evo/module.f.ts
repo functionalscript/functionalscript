@@ -162,26 +162,39 @@ export const decodeRevisionVec = (value: Vec): Revision | null => {
  * content can be scanned without failing the whole cache build.
  */
 export const decodeRevisionBlob = <O extends Operation>(cas: Cas<O>) => (hash: Vec): Effect<O, Revision | null> =>
-    eff(collectRead(cas.read(hash))).step(([tag, value]) => pure(tag === 'error' ? null : decodeRevisionVec(value))).value
+    eff(collectRead(cas.read(hash)))
+        .step(([tag, value]) => pure(tag === 'error' ? null : decodeRevisionVec(value)))
+        .result()
 
 /**
  * Scans every hash in `cas` and builds a fresh {@link Cache} from the
  * `vnd.fjs.revision` blobs found among them. Non-revision blobs are ignored.
  */
 export const buildCache = <O extends Operation>(cas: Cas<O>): Effect<O, Cache> =>
-    eff(cas.list()).step(hashes =>
-        foldStep((hash: Vec) => (cache: Cache): Effect<O, Cache> =>
-            eff(decodeRevisionBlob(cas)(hash)).step(revision =>
-                pure(revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache))).value)
-        (emptyCache)(hashes)).value
+    eff(cas.list())
+        .step(hashes =>
+            foldStep((hash: Vec) => (cache: Cache): Effect<O, Cache> =>
+                eff(decodeRevisionBlob(cas)(hash))
+                    .step(revision =>
+                        pure(revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache))
+                    )
+                    .result())
+            (emptyCache)(hashes))
+        .result()
 
 /** Scans `cas` once and allocates a memory slot holding the resulting {@link Cache}. */
 export const initEvo = <O extends Operation>(cas: Cas<O>): Effect<O | MemOp, Key<Cache>> =>
-    eff(buildCache(cas)).step(cache => create(cache)).value
+    eff(buildCache(cas))
+        .step(cache => create(cache))
+        .result()
 
 /** Reads, then rewrites, the cache at `cacheKey` with `revision` folded in at `hash`. */
 const foldIntoCache = (cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revision): Effect<MemOp, void> =>
-    eff(read(cacheKey)).step(cache => eff(write(cacheKey, addRevisionToCache(hash, revision)(cache))).step(() => pure(undefined)).value).value
+    eff(read(cacheKey))
+        .step(cache => eff(write(cacheKey, addRevisionToCache(hash, revision)(cache)))
+            .step(() => pure(undefined))
+            .result())
+        .result()
 
 /**
  * Folds `value` — bytes already written to a `Cas` at `hash` by some other
@@ -209,8 +222,11 @@ const resolveParent = <O extends Operation>(cas: Cas<O>) => (parentRef: Hash): E
     if (parentHash === null) {
         return pure(error(`invalid parent hash: ${parentRef}`))
     }
-    return eff(decodeRevisionBlob(cas)(parentHash)).step(parent =>
-        pure(parent === null ? error(`parent is not a revision blob: ${parentRef}`) : ok(parent))).value
+    return eff(decodeRevisionBlob(cas)(parentHash))
+        .step(parent =>
+            pure(parent === null ? error(`parent is not a revision blob: ${parentRef}`) : ok(parent))
+        )
+        .result()
 }
 
 /** Resolves and validates every entry of `parents`, in order, short-circuiting on the first failure. */
@@ -218,8 +234,11 @@ const resolveParents = <O extends Operation>(cas: Cas<O>) => (parents: readonly 
     const init: Result<readonly Revision[], string> = ok([])
     return foldStep((parentRef: Hash) => (acc: Result<readonly Revision[], string>): Effect<O, Result<readonly Revision[], string>> => {
         if (acc[0] === 'error') { return pure(acc) }
-        return eff(resolveParent(cas)(parentRef)).step((parentResult): Effect<never, Result<readonly Revision[], string>> =>
-            pure(parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]]))).value
+        return eff(resolveParent(cas)(parentRef))
+            .step((parentResult): Effect<never, Result<readonly Revision[], string>> =>
+                pure(parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]]))
+            )
+            .result()
     })(init)(parents)
 }
 
@@ -314,48 +333,54 @@ export const addRevision =
     <O extends Operation>(cas: Cas<O>) =>
     (cacheKey: Key<Cache>) =>
     (input: AddRevision): Effect<O | MemOp, Result<Hash, string>> =>
-    eff(resolveParents(cas)(input.parents)).step((parentsResult): Effect<O | MemOp, Result<Hash, string>> => {
-        if (parentsResult[0] === 'error') { return pure(parentsResult) }
-        const subjectResult = resolveSubject(input)(parentsResult[1])
-        if (subjectResult[0] === 'error') { return pure(subjectResult) }
-        const parentSubjectsResult = validateParentSubjects(subjectResult[1])(parentsResult[1])
-        if (parentSubjectsResult[0] === 'error') { return pure(parentSubjectsResult) }
-        const snapshotResult = resolveSnapshot(input)(subjectResult[1])(parentsResult[1])
-        if (snapshotResult[0] === 'error') { return pure(snapshotResult) }
-        const revision: Revision = {
-            dialect,
-            subject: subjectResult[1],
-            parents: input.parents,
-            snapshot: snapshotResult[1],
-            generation: computeGeneration(parentsResult[1]),
-            archived: input.archived,
-        }
-        const referencesResult = checkReferences(revision)
-        if (referencesResult[0] === 'error') { return pure(referencesResult) }
-        // Canonicalize parent/snapshot spellings now that checkReferences has
-        // confirmed they decode (`unwrap` inside `canonicalHash` is safe):
-        // two `add` calls describing the same logical revision but spelled
-        // differently (case, `i`/`l`/`o` aliases) must serialize identically,
-        // or they'd produce two distinct CAS blobs that both remain heads —
-        // the point of `canonicalHash` (see the module doc) is defeated if
-        // this module itself writes non-canonical spellings.
-        const canonicalRevision: Revision = {
-            ...revision,
-            parents: revision.parents.map(canonicalHash),
-            snapshot: canonicalHash(revision.snapshot),
-        }
-        const bytes = tryUtf8(toJson(canonicalRevision))
-        if (bytes === null) {
-            return pure(error('revision too large to encode'))
-        }
-        return eff(cas.write(nonEmpty(ok(bytes), elEmpty<never, Ok<Vec>>()))).step((writeResult): Effect<MemOp, Result<Hash, string>> => {
-            if (writeResult[0] === 'error') {
-                return pure(error('failed to write revision to CAS'))
+    eff(resolveParents(cas)(input.parents))
+        .step((parentsResult): Effect<O | MemOp, Result<Hash, string>> => {
+            if (parentsResult[0] === 'error') { return pure(parentsResult) }
+            const subjectResult = resolveSubject(input)(parentsResult[1])
+            if (subjectResult[0] === 'error') { return pure(subjectResult) }
+            const parentSubjectsResult = validateParentSubjects(subjectResult[1])(parentsResult[1])
+            if (parentSubjectsResult[0] === 'error') { return pure(parentSubjectsResult) }
+            const snapshotResult = resolveSnapshot(input)(subjectResult[1])(parentsResult[1])
+            if (snapshotResult[0] === 'error') { return pure(snapshotResult) }
+            const revision: Revision = {
+                dialect,
+                subject: subjectResult[1],
+                parents: input.parents,
+                snapshot: snapshotResult[1],
+                generation: computeGeneration(parentsResult[1]),
+                archived: input.archived,
             }
-            const hash = vecToCBase32(writeResult[1])
-            return eff(foldIntoCache(cacheKey)(hash)(canonicalRevision)).step(() => pure(ok(hash))).value
-        }).value
-    }).value
+            const referencesResult = checkReferences(revision)
+            if (referencesResult[0] === 'error') { return pure(referencesResult) }
+            // Canonicalize parent/snapshot spellings now that checkReferences has
+            // confirmed they decode (`unwrap` inside `canonicalHash` is safe):
+            // two `add` calls describing the same logical revision but spelled
+            // differently (case, `i`/`l`/`o` aliases) must serialize identically,
+            // or they'd produce two distinct CAS blobs that both remain heads —
+            // the point of `canonicalHash` (see the module doc) is defeated if
+            // this module itself writes non-canonical spellings.
+            const canonicalRevision: Revision = {
+                ...revision,
+                parents: revision.parents.map(canonicalHash),
+                snapshot: canonicalHash(revision.snapshot),
+            }
+            const bytes = tryUtf8(toJson(canonicalRevision))
+            if (bytes === null) {
+                return pure(error('revision too large to encode'))
+            }
+            return eff(cas.write(nonEmpty(ok(bytes), elEmpty<never, Ok<Vec>>())))
+                .step((writeResult): Effect<MemOp, Result<Hash, string>> => {
+                    if (writeResult[0] === 'error') {
+                        return pure(error('failed to write revision to CAS'))
+                    }
+                    const hash = vecToCBase32(writeResult[1])
+                    return eff(foldIntoCache(cacheKey)(hash)(canonicalRevision))
+                        .step(() => pure(ok(hash)))
+                        .result()
+                })
+                .result()
+        })
+        .result()
 
 /** The Evo API described in `fjs/cas/evo/README.md`, bound to a `Cas<O>` and its cache slot. */
 export type Evo<O extends Operation> = {
@@ -369,10 +394,14 @@ export type Evo<O extends Operation> = {
 
 /** Builds the {@link Evo} API over `cas`, backed by the cache at `cacheKey` (see {@link initEvo}). */
 export const evo = <O extends Operation>(cas: Cas<O>) => (cacheKey: Key<Cache>): Evo<O> => ({
-    list: () => eff(read(cacheKey)).step(cache => pure(definedEntries(cache.bySubject).map(([subject]) => subject))).value,
-    head: subject => eff(read(cacheKey)).step(cache => {
-        const state = at(subject)(cache.bySubject)
-        return pure(state === null ? [] : headsOf(state))
-    }).value,
+    list: () => eff(read(cacheKey))
+        .step(cache => pure(definedEntries(cache.bySubject).map(([subject]) => subject)))
+        .result(),
+    head: subject => eff(read(cacheKey))
+        .step(cache => {
+            const state = at(subject)(cache.bySubject)
+            return pure(state === null ? [] : headsOf(state))
+        })
+        .result(),
     add: input => addRevision(cas)(cacheKey)(input),
 })

@@ -13,7 +13,7 @@ import { pure, step, type Effect, type Operation } from '../module.f.ts'
  * assignable to `Effect`; unwrap with `.value`.
  */
 export type Eff<O extends Operation, T, P extends readonly unknown[] = readonly[]> = {
-    readonly value: Effect<O, T>
+    readonly result: () => Effect<O, T>
     readonly step: <Q extends Operation, R>(f: (t: T, ...p: P) => Effect<Q, R>) => Eff<O | Q, R, readonly[T, ...P]>
 }
 
@@ -21,7 +21,7 @@ export type Eff<O extends Operation, T, P extends readonly unknown[] = readonly[
 const create = <O extends Operation, T, P extends readonly unknown[]>(
     both: Effect<O, readonly[T, ...P]>): Eff<O, T, P> =>
 ({
-    value: step(both, ([t]) => pure(t)),
+    result: () => step(both, ([t]) => pure(t)),
     step: f => create(step(
         both,
         tp => step(
