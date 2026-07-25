@@ -12,13 +12,21 @@
  * `typeof value === 'function'` check may appear anywhere, so the representation
  * can change without touching them.
  *
- * Effect helpers are **step adapters**: functions that return a continuation
- * `(t: T) => Effect<Q, R>` meant to be passed into a step, never wrappers that
- * take the effect itself as an argument, so `eff(e).step(adapterA).step(adapterB).value`
- * is how helpers compose — flat, left-to-right, in evaluation order. (The
- * underlying `step(step(e, adapterA), adapterB)` reads inside-out; the codebase
- * uses the `eff` wrapper for readability and reaches for the raw `step`
- * primitive only inside this module.) See {@link okStep} for an example.
+ * Effect helpers come in two shapes. **Step adapters** return a continuation
+ * `(t: T) => Effect<Q, R>` meant to be passed into a step — see {@link okStep}.
+ * **Step variants** take the effect itself first, like {@link step} — see
+ * {@link pairStep}. Both serve the same style: a flat chain of named
+ * intermediate effects, rather than nested calls.
+ *
+ * ```ts
+ * const a = step(e, f)
+ * const b = pairStep(a, g)
+ * const c = step(b, ([x, y]) => h(x, y))
+ * ```
+ *
+ * Naming each intermediate keeps a long chain flat and left-to-right, in
+ * evaluation order; the equivalent nested form reads inside-out and grows a
+ * pyramid.
  *
  * @module
  */
@@ -117,11 +125,30 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
         : doFull<O | Q, R, O[0]>(d.command, d.payload, x => step(d.continuation(x), f))
 }
 
-export const captureStep = <O extends Operation, T, Q extends Operation, R>(
+/**
+ * Like {@link step}, but keeps `e`'s result alongside the new one: runs `e` to
+ * get `t`, continues with `f(t)` to get `r`, and yields the pair `[t, r]`.
+ *
+ * This is what a chain of named intermediate effects cannot otherwise express.
+ * Each `step`'s continuation only sees the result of the effect it consumes, so
+ * a later link has no way to reach an earlier result — `pairStep` carries it
+ * forward one link, and the pair is consumed by the next destructuring:
+ *
+ * ```ts
+ * const b = pairStep(a, decodeRevisionBlob(cas))
+ * const c = step(b, ([hash, revision]) => ...)
+ * ```
+ *
+ * **Carries exactly one value, one link.** Chaining `pairStep` nests the pairs
+ * to the left (`[[A, B], C]`), so every downstream pattern changes depth when a
+ * link is inserted. When a value must survive several links, build a record of
+ * named fields once (`pure({ x, y } as const)`) instead of stacking pairs.
+ */
+export const pairStep = <O extends Operation, T, Q extends Operation, R>(
     e: Effect<O, T>,
-    f: (t: T) => Effect<Q, R>,
+    f: (t: T) => Effect<Q, R>
 ): Effect<O | Q, readonly[T, R]> =>
-    step(e, t => step(f(t), r => pure([t, r])))
+    step(e, t => step(f(t), r => pure([t, r] as const)))
 
 export type Param<O extends Operation> = F<O>[0]
 

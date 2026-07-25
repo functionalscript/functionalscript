@@ -1,4 +1,4 @@
-import { step, decode, do_, foldStep, forEachStep, lazy, match, okStep, pure, type Effect, type Operation } from './module.f.ts'
+import { step, decode, do_, foldStep, forEachStep, lazy, match, okStep, pairStep, pure, type Effect, type Operation } from './module.f.ts'
 import { error, ok } from '../types/result/module.f.ts'
 import { assert, assertEq } from '../asserts/module.f.ts'
 
@@ -114,5 +114,32 @@ export const proof = {
             assertEq(r[1], 5)
             assertPure(r[2](r[1]), 50)
         },
-    }
+    },
+    pairStep: {
+        pure: () => {
+            const d = decode(pairStep(pure(3), v => pure(v * 2)))
+            assert(d.done, d)
+            const [t, r] = d.result
+            assertEq(t, 3)
+            assertEq(r, 6)
+        },
+        over_do: () => {
+            // The captured input survives a command boundary: the pair is
+            // rebuilt inside the continuation rather than lost when `e` is a Do.
+            const c = next(pairStep(do_<AddOp>('add')(2, 3), r => pure(r * 10)))
+            assert(c[0] === 'cont', c)
+            assertEq(c[1], 5)
+            const d = decode(c[2](c[1]))
+            assert(d.done, d)
+            const [t, r] = d.result
+            assertEq(t, 5)
+            assertEq(r, 50)
+        },
+        chain: () => {
+            // Chained pairs nest to the left: [[A, B], C].
+            const a = pairStep(pure(1), x => pure(x + 1))
+            const b = pairStep(a, ([x, y]) => pure(x + y))
+            assertPure(step(b, ([[x, y], z]) => pure(`${x}${y}${z}`)), '123')
+        },
+    },
 }
