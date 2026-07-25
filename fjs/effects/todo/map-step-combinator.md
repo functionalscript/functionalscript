@@ -135,22 +135,41 @@ export type Eff<O extends Operation, T> = {
 }
 ```
 
-**Scope.** `AGENTS.md` asks one improvement per PR; this is naturally two:
-(1) add `mapStep` (+ `Eff.map`) with proof coverage, (2..n) convert call sites,
-grouped by module. The combinator is worth adding on its own — it has 45
-consumers on day one — but the conversion should not land as one 15-module diff.
+**Scope.** `AGENTS.md` asks one improvement per PR, and it also asks that a new
+`export` ship with at least one external consumer *in the same change* — so the
+first PR adds the two APIs **and converts a first caller of each**, rather than
+landing them with proof coverage alone:
+
+1. `mapStep` + `Eff.map`, plus the nearest real consumers — `readUtf8File` and
+   `errorExit` in `fjs/effects/node/module.f.ts` (raw, one projection and one
+   constant projection) and `decodeRevisionBlob` in `fjs/cas/evo/module.f.ts:165`
+   (fluent). Each API is exercised by production code the moment it exists.
+2. …n. The remaining ~42 sites, grouped by module.
+
+Splitting this way keeps the first diff small without leaving a speculative
+export behind it. What must **not** happen is the reverse — landing the
+conversion as one 15-module diff.
 
 ### Tasks
+
+First PR — both APIs, each with a real consumer landing alongside it:
 
 - [ ] Add `mapStep` to `fjs/effects/module.f.ts` with proof coverage in
       `fjs/effects/proof.f.ts`; document it in the module header alongside the
       "step adapters vs. step variants" note.
 - [ ] Add `Eff.map` to `fjs/effects/eff/module.f.ts` with proof coverage.
-- [ ] Convert call sites module by module, starting with `fjs/effects/node`
-      (`readUtf8File`, `awaitIfPromise`, `errorExit`) and the `NodeProgram`
-      exit-code sites (`fjs/module.f.ts`, `fjs/cli`, `fjs/ci`, `fjs/djs`,
-      `fjs/website`, `fjs/cas/cli`).
-- [ ] `npx tsc` clean; `fjs t` passes after each step.
+- [ ] In the same PR, convert `readUtf8File`, `awaitIfPromise` and `errorExit`
+      in `fjs/effects/node/module.f.ts` to `mapStep`, and `decodeRevisionBlob`
+      (`fjs/cas/evo/module.f.ts:165`) to `Eff.map` — so neither export is
+      speculative.
+
+Follow-up PRs — the remaining sites, one module or group per PR:
+
+- [ ] The `NodeProgram` exit-code sites (`fjs/module.f.ts`, `fjs/cli`, `fjs/ci`,
+      `fjs/djs`, `fjs/website`, `fjs/cas/cli`).
+- [ ] `fjs/mcp` + `fjs/mcp/stdio`, `fjs/cas` + `fjs/cas/evo` + `fjs/cas/mcp`,
+      `fjs/emergent_testing`, `fjs/dev`.
+- [ ] `npx tsc` clean; `fjs t` passes after each PR.
 
 ### Related
 
