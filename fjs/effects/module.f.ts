@@ -48,11 +48,16 @@
  * continuation that does not depend on it. Hoist such locals above the chain
  * and the nesting usually dissolves on its own.
  *
- * That advice is for code *using* this module. The combinators defined here
- * have no flat form to prefer — a name cannot be bound to an effect that does
- * not exist yet, and `f(param)` does not exist until `e` resolves — so they
- * compose `step` directly. Each absorbs that nesting once so its callers never
- * repeat it.
+ * That advice is for code *using* this module, and the combinators defined
+ * here are what make it followable. The nesting has to exist somewhere: a name
+ * cannot be bound to an effect that has not been produced yet, so `f(param)`
+ * cannot become a `const` until `e` resolves. {@link step} recurses into
+ * itself inside the continuation it rebuilds, {@link foldStep} composes one
+ * step per item, and {@link frameStep} runs `f` inside `e`'s continuation.
+ * Each writes that nesting down **once**, in one line, so that no caller ever
+ * writes it again — that is what a combinator here is *for*. Without
+ * {@link frameStep} the flat form would be unavailable the moment a later link
+ * needed an earlier link's value.
  *
  * @module
  */
