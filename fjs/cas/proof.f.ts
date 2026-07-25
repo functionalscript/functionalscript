@@ -25,6 +25,7 @@ const createBigFileContent = (): Vec => {
 // Test adding a big file and verifying the hash
 const testAddBigFile = (): Effect<TestOp, void> => {
     const bigFilePath = `${testDir}/big-file.bin`
+    const cas = fileCas(sha256)(testDir)
     const x0 = step(
         mkdir(testDir, { recursive: true }),
         () => writeFile(bigFilePath, createBigFileContent())
@@ -32,31 +33,19 @@ const testAddBigFile = (): Effect<TestOp, void> => {
     const x1 = step(
         x0,
         writeRes => {
-            if (writeRes[0] === 'error') {
-                throw new Error(`Failed to write test file: ${writeRes[1]}`)
-            }
-
-            const cas = fileCas(sha256)(testDir)
+            assert(writeRes[0] === 'ok', ['failed to write test file', writeRes])
             return casAddFile(cas)(bigFilePath)
         }
     )
     const x2 = step(
         x1,
         addRes => {
-            if (addRes[0] === 'error') {
-                throw new Error(`Failed to add file to CAS: ${addRes[1]}`)
-            }
-
+            assert(addRes[0] === 'ok', ['failed to add file to CAS', addRes])
             const hash = addRes[1]
-
             // Verify hash is 256 bits (SHA-256)
-            if (length(hash) !== 256n) {
-                throw new Error(`Expected hash length 256 bits, got ${length(hash)}`)
-            }
-
+            assertEq(length(hash), 256n, ['expected 256-bit hash', length(hash)])
             // Verify hash can be encoded/decoded
-            const hashCBase32 = vecToCBase32(hash)
-            assertNotNullish(cBase32ToVec(hashCBase32), new Error('Failed to decode hash from base32'))
+            assertNotNullish(cBase32ToVec(vecToCBase32(hash)), 'failed to decode hash from cBase32')
             return rm(testDir)
         })
     return step(
@@ -66,65 +55,49 @@ const testAddBigFile = (): Effect<TestOp, void> => {
 }
 
 // Test adding and retrieving a big file
-const testAddAndGetBigFile = (): Effect<TestOp, void> => step(
-    mkdir(testDir, { recursive: true }),
-    () => {
-        const bigContent = createBigFileContent()
-        const bigFilePath = `${testDir}/big-file.bin`
-
-        return step(
-            writeFile(bigFilePath, bigContent),
-            writeRes => {
-                if (writeRes[0] === 'error') {
-                    throw new Error(`Failed to write test file: ${writeRes[1]}`)
-                }
-
-                const cas = fileCas(sha256)(testDir)
-                return step(
-                    casAddFile(cas)(bigFilePath),
-                    addRes => {
-                        if (addRes[0] === 'error') {
-                            throw new Error(`Failed to add file to CAS: ${addRes[1]}`)
-                        }
-
-                        const hash = addRes[1]
-                        const storedPath = cas.url(hash)
-
-                        // Verify file is stored at the expected location
-                        return step(
-                            readFile(storedPath),
-                            readRes => {
-                                if (readRes[0] === 'error') {
-                                    throw new Error(`Failed to read stored file: ${readRes[1]}`)
-                                }
-
-                                const storedContent = readRes[1]
-
-                                // Verify content is the same size as original
-                                const storedLen = length(storedContent)
-                                const originalLen = length(bigContent)
-                                if (storedLen !== originalLen) {
-                                    throw new Error(
-                                        `Content size mismatch: stored ${storedLen} bits, expected ${originalLen} bits`
-                                    )
-                                }
-
-                                return step(
-                                    rm(testDir),
-                                    () => pure(undefined),
-                                )
-                            },
-                        )
-                    },
-                )
-            },
-        )
-    },
-)
+const testAddAndGetBigFile = (): Effect<TestOp, void> => {
+    const bigContent = createBigFileContent()
+    const bigFilePath = `${testDir}/big-file.bin`
+    const cas = fileCas(sha256)(testDir)
+    const x0 = step(
+        mkdir(testDir, { recursive: true }),
+        () => writeFile(bigFilePath, bigContent)
+    )
+    const x1 = step(
+        x0,
+        writeRes => {
+            assert(writeRes[0] === 'ok', ['failed to write test file', writeRes])
+            return casAddFile(cas)(bigFilePath)
+        }
+    )
+    // Verify the file is stored at the expected location
+    const x2 = step(
+        x1,
+        addRes => {
+            assert(addRes[0] === 'ok', ['failed to add file to CAS', addRes])
+            return readFile(cas.url(addRes[1]))
+        }
+    )
+    const x3 = step(
+        x2,
+        readRes => {
+            assert(readRes[0] === 'ok', ['failed to read stored file', readRes])
+            // Verify content is the same size as original
+            assertEq(length(readRes[1]), length(bigContent), 'stored content size mismatch')
+            return rm(testDir)
+        })
+    return step(
+        x3,
+        () => pure(undefined)
+    )
+}
 
 export const proof = {
-    addBigFile: testAddBigFile,
-    addAndGetBigFile: testAddAndGetBigFile,
+    // Both effects must be interpreted, not merely built: an `Effect` is inert
+    // data, so returning one from a proof runs none of its continuations and
+    // asserts nothing.
+    addBigFile: () => { virtual(emptyState)(testAddBigFile()) },
+    addAndGetBigFile: () => { virtual(emptyState)(testAddAndGetBigFile()) },
     //
     casWriteRead: () => {
         // Round-trip a single-chunk payload through the real streaming CAS: `write` returns
