@@ -15,13 +15,13 @@
  * Effect helpers come in two shapes. **Step adapters** return a continuation
  * `(t: T) => Effect<Q, R>` meant to be passed into a step — see {@link okStep}.
  * **Step variants** take the effect itself first, like {@link step} — see
- * {@link pairStep}. Both serve the same style: a flat chain of named
+ * {@link frameStep}. Both serve the same style: a flat chain of named
  * intermediate effects, rather than nested calls.
  *
  * ```ts
  * const a = step(e, f)
- * const b = pairStep(a, g)
- * const c = step(b, ([x, y]) => h(x, y))
+ * const b = frameStep(a, g)
+ * const c = step(b, ({ result, param }) => h(param, result))
  * ```
  *
  * Naming each intermediate keeps a long chain flat and left-to-right, in
@@ -126,29 +126,60 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
 }
 
 /**
- * Like {@link step}, but keeps `e`'s result alongside the new one: runs `e` to
- * get `t`, continues with `f(t)` to get `r`, and yields the pair `[t, r]`.
+ * A captured call frame: everything observable about one call to a
+ * continuation `f` — the `param` it was given and the `result` it produced.
+ * `f`'s internals are not captured, and don't need to be.
+ *
+ * It is {@link frameStep}'s continuation reified: for `f: (p: P) => Effect<Q, R>`
+ * the frame is `Frame<R, P>`, so the type reads straight off `f`'s signature.
+ *
+ * Frames chain through `param`, because `f` is handed the whole preceding
+ * frame: `Frame<C, Frame<B, A>>` is three steps, and the `param` walk is how
+ * far back a value lives — `frame.result`, `frame.param.result`,
+ * `frame.param.param.result`. The chain bottoms out at a bare value rather
+ * than an empty frame, so no unit is needed to start one.
+ *
+ * Heterogeneous by design: each link has its own type, so this is not a
+ * `List` and nothing that folds or maps a list applies to it.
+ */
+export type Frame<R, P> = {
+    readonly result: R
+    readonly param: P
+}
+
+/**
+ * Like {@link step}, but captures the call instead of discarding half of it:
+ * runs `e` to get `p`, continues with `f(p)` to get `r`, and yields the
+ * {@link Frame} `{ result: r, param: p }`.
  *
  * This is what a chain of named intermediate effects cannot otherwise express.
- * Each `step`'s continuation only sees the result of the effect it consumes, so
- * a later link has no way to reach an earlier result — `pairStep` carries it
- * forward one link, and the pair is consumed by the next destructuring:
+ * Each `step`'s continuation sees only the result of the effect it consumes, so
+ * a later link has no way to reach an earlier one. `frameStep` keeps the
+ * parameter, and the next destructuring names the parts:
  *
  * ```ts
- * const b = pairStep(a, decodeRevisionBlob(cas))
- * const c = step(b, ([hash, revision]) => ...)
+ * const b = frameStep(a, decodeRevisionBlob(cas))
+ * const c = step(b, ({ result: revision, param: hash }) => ...)
  * ```
  *
- * **Carries exactly one value, one link.** Chaining `pairStep` nests the pairs
- * to the left (`[[A, B], C]`), so every downstream pattern changes depth when a
- * link is inserted. When a value must survive several links, build a record of
- * named fields once (`pure({ x, y } as const)`) instead of stacking pairs.
+ * Chaining mimics an async function, one `await` per link — `const hash = ...`
+ * then `const revision = ...`, with both still reachable at the end:
+ *
+ * ```ts
+ * const f1 = frameStep(f0, hash => decodeRevisionBlob(cas)(hash))
+ * const f2 = step(f1, ({ result: revision, param: hash }) => ...)
+ * ```
+ *
+ * Reaching further back costs a `param` hop per link, so a value used many
+ * links after it is bound reads as `frame.param.param.result`. When a chain
+ * grows long enough for that to hurt, collapse it into a record of named
+ * fields (`pure({ hash, revision } as const)`) and continue from there.
  */
-export const pairStep = <O extends Operation, T, Q extends Operation, R>(
-    e: Effect<O, T>,
-    f: (t: T) => Effect<Q, R>
-): Effect<O | Q, readonly[T, R]> =>
-    step(e, t => step(f(t), r => pure([t, r] as const)))
+export const frameStep = <O extends Operation, P, Q extends Operation, R>(
+    e: Effect<O, P>,
+    f: (p: P) => Effect<Q, R>
+): Effect<O | Q, Frame<R, P>> =>
+    step(e, param => step(f(param), result => pure({ result, param })))
 
 export type Param<O extends Operation> = F<O>[0]
 

@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- `fjs/effects`: add `pairStep` — like `step`, but keeps the input alongside the
-  output (`Effect<O | Q, readonly[T, R]>`), so a later link in a chain of named
-  intermediate effects can reach an earlier result without nesting
+- `fjs/effects`: add `frameStep` and `Frame` — `frameStep` captures the call it
+  makes as a `Frame<R, P>` (`{ result, param }`) instead of discarding the
+  parameter, so a chain of named intermediate effects can reach values bound by
+  earlier links, one `param` hop per link
   [1361](https://github.com/functionalscript/functionalscript/pull/1361)
 
 - `fjs/effects`: **BREAKING CHANGE:** an `Effect<O, T>` is now the **raw value**
