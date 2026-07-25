@@ -29,7 +29,7 @@ import {
     type Write,
     type WriteConsoles
 } from '../effects/node/module.f.ts'
-import { pure, type Effect, type Operation } from '../effects/module.f.ts'
+import { frameStep, pure, step, type Effect, type Operation } from '../effects/module.f.ts'
 import { eff } from '../effects/eff/module.f.ts'
 import { loadModuleMap, shouldLoad, type LoadModuleOperations, type ModuleMap } from '../dev/module.f.ts'
 import { invert } from '../types/result/module.f.ts'
@@ -190,19 +190,19 @@ const runModule =
     (k: string, v: unknown) =>
     (ts: TestState): Effect<O | All, TestState> =>
 {
-    const one = ([testPath, set]: TestAndPath): Effect<O | All, TestState> =>
-        eff(test(k, testPath, set)).step(sr => {
+    const one = ([testPath, set]: TestAndPath): Effect<O | All, TestState> => {
+        // The sandbox result is still needed after it has been reported, so the
+        // reporting call is captured rather than nested inside its own step.
+        const reported = frameStep(test(k, testPath, set), sr => result(k, testPath, sr, set.throws))
+        return step(reported, ({ param: sr }): Effect<O | All, TestState> => {
             const { result: [s, r], duration } = sr
-            return eff(result(k, testPath, sr, set.throws)).step((): Effect<O | All, TestState> => {
-                if (s === 'ok') {
-                    if (set.throws) { return pure(addPass(duration)(zero)) }
-                    // Walk return-value sub-tree; null marks the call boundary so
-                    // paths render as e.g. `outer().inner`. throws resets to false.
-                    return eff(walk([...testPath, null], false, r)).step(sub => pure(mergeState(addPass(duration)(zero), sub))).value
-                }
-                return pure(addFail(duration)(zero))
-            }).value
-        }).value
+            if (s !== 'ok') { return pure(addFail(duration)(zero)) }
+            if (set.throws) { return pure(addPass(duration)(zero)) }
+            // Walk return-value sub-tree; null marks the call boundary so
+            // paths render as e.g. `outer().inner`. throws resets to false.
+            return step(walk([...testPath, null], false, r), sub => pure(mergeState(addPass(duration)(zero), sub)))
+        })
+    }
     const walk = (path: Path, throws: boolean, v: unknown): Effect<O | All, TestState> => {
         const effects = collectTests(path, throws, v).map(one)
         return eff(all(...effects)).step(states => pure(states.reduce(mergeState, zero))).value
