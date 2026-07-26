@@ -13,7 +13,6 @@ Most are genuinely Node-shaped I/O — `Fs` (`mkdir`, `readFile`, `readdir`,
 
 | Export | What it actually is |
 |---|---|
-| `IoResult<T>` (`:23`), `isNotFound` (`:33`) | `Result<T, unknown>` plus an `ENOENT` predicate — a types-layer alias |
 | `All` / `all` / `both` (`:38-54`) | concurrency; runner infrastructure, no host API |
 | `Await` / `awaitIfPromise` (`:437-444`) | host promise interop — every JS runtime |
 | `Sandbox` / `SandboxResult` / `sandbox` (`:399-428`) | measured, exception-trapping invocation of a plain function |
@@ -23,21 +22,9 @@ Most are genuinely Node-shaped I/O — `Fs` (`mkdir`, `readFile`, `readdir`,
 
 Because they all live behind one Node-flavoured import path, modules that need
 none of Node's I/O still import from it, and the effects package cannot layer
-itself cleanly. Four concrete symptoms, three of them already written down in
-other issues:
+itself cleanly. Two concrete symptoms:
 
-1. **`fjs/media/type/module.f.ts:40`** — a pure media-type detector imports
-   `type IoResult` from `../../effects/node/module.f.ts`. The whole reason is a
-   type alias that expands to `Result<T, unknown>` from `fjs/types/result`.
-
-2. **[fold-stream-combinator](./fold-stream-combinator.md)** cannot put
-   `IoResult` in the signature of a combinator that belongs in
-   `fjs/effects/list`, because `effects/node` already imports `effects/list` —
-   *"importing it back would be a cycle"*. The issue works around it by
-   re-spelling the type as `Result<Vec, unknown>` at the definition site while
-   callers keep passing `IoResult` values.
-
-3. **[allvoid-combinator](./allvoid-combinator.md)** must place `allVoid` in the
+1. **[allvoid-combinator](./allvoid-combinator.md)** must place `allVoid` in the
    node module instead of next to its sequential sibling `forEachStep` in the
    effects core, *"It cannot live next to `forEachStep` … placing `allVoid` in
    core would invert that dependency"* — and explicitly flags the fix as out of
@@ -45,7 +32,7 @@ other issues:
    infrastructure, not node-specific I/O — a separate design question)"*. This
    issue is that design question.
 
-4. **`fjs/text/sgr/module.f.ts:11`** — an ANSI SGR module imports `write`,
+2. **`fjs/text/sgr/module.f.ts:11`** — an ANSI SGR module imports `write`,
    `Write`, `WriteConsoles` and `NodeProgramOptions` from the Node module;
    `fjs/emergent_testing/module.f.ts:14-30` imports 15 names from it, of which
    only `Env`/`NodeProgram`/`NodeProgramOptions` are Node-specific.
@@ -63,12 +50,11 @@ provides*. Proposed destinations:
 
 | Moves to | Contents |
 |---|---|
-| `fjs/effects/module.f.ts` (core) | `IoResult<T>` — core already imports `Result` from `fjs/types/result`, so this costs no new dependency and unblocks symptom 2 |
 | `fjs/effects/all/module.f.ts` | `All`, `all`, `both`, and `allVoid`/`allReduce` when they land |
 | `fjs/effects/sandbox/module.f.ts` | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise` — the "run foreign code and observe what happened" pair |
 | `fjs/effects/console/module.f.ts` | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit` |
 | `fjs/effects/test/module.f.ts` | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
-| stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Fetch`, `Import`, `Forever`, `Now`, `RandomInt`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
+| stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Fetch`, `Import`, `Forever`, `Now`, `RandomInt`, `IoResult`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
 
 `NodeOp` stays where it is and keeps unioning every family — it is the
 *runner's* op-set, which is legitimately "everything this host can do", and both
@@ -82,7 +68,33 @@ Judgement calls worth deciding explicitly rather than by accident:
   cross-runtime abstraction to gain, and no consumer outside `fjs/cas` and the
   interpreters. Moving them would be motion without a reader benefit.
 - **`isNotFound` stays.** It encodes Node's `ENOENT` shape specifically; that
-  *is* a Node concern, even though `IoResult` is not.
+  *is* a Node concern.
+- **`IoResult<T>` stays too — pure consumers should stop importing it instead.**
+  An earlier draft of this issue moved it to the effects core, on the reasoning
+  that core already imports `Result` so the move costs no new dependency. That
+  reasoning picks a destination by convenience rather than by concern, and the
+  destination is wrong on its own terms: `Result<T, unknown>` is not an effect
+  constructor or combinator, so moving it would swap Node coupling for
+  core-effects coupling and leave a non-effect type in the effects core.
+  `fjs/types/result` is not the answer either — the *name* is about the host I/O
+  boundary ("the error is whatever the host threw"), and a generic types module
+  should not mint I/O vocabulary.
+
+  Read the other way, `IoResult` is exactly a Node-layer contract and belongs
+  beside the operations it describes. The fix for a **pure** consumer is to
+  spell the underlying type, not to relocate the alias:
+  `fjs/media/type/module.f.ts:40` imports `type IoResult` from
+  `../../effects/node/module.f.ts` purely to write `IoResult<Vec>` and
+  `IoResult<DetectMeta>`; writing `Result<Vec, unknown>` from
+  `fjs/types/result` says the same thing and drops the `effects/node` import
+  **entirely**, which is a better outcome than moving where it points.
+  [fold-stream-combinator](./fold-stream-combinator.md) reached the same
+  conclusion independently for `fjs/effects/list` — its `Result`-spelled
+  signature is the right design, not the workaround that issue calls it.
+
+  This is an independent, one-site cleanup: it neither depends on nor supports
+  the moves below. Listed here because that is where the wrong answer was
+  written down; it can land on its own.
 - **`Test` goes to an effects module, not to `fjs/emergent_testing`.**
   `emergent_testing` looks like the natural owner — it is the only consumer of
   `test` and the module that defines what a test *is* — but putting the
@@ -107,9 +119,9 @@ Judgement calls worth deciding explicitly rather than by accident:
   is conceptually distinct". Concurrency, sandboxing, console streams, and test
   registration are four distinct concepts currently sharing one file because
   they happen to be implemented by the same runner.
-- **It unblocks work already blocked.** Symptoms 2 and 3 are two open issues
-  that each pay a design tax to route around this layering; a third
-  (`fjs/media/type`) pays it silently.
+- **It unblocks work already blocked.** [allvoid-combinator](./allvoid-combinator.md)
+  is an open issue that pays a design tax to route around this layering, and
+  says so in its own text.
 - **It shrinks the widest import surface in the repo.** 22 modules import from
   `effects/node`; most of them want a slice of it.
 
@@ -128,9 +140,9 @@ Judgement calls worth deciding explicitly rather than by accident:
 
 ### Tasks
 
-- [ ] Move `IoResult<T>` to `fjs/effects/module.f.ts`; update
-      `fjs/media/type`, `fjs/cas`, `fjs/effects/node/virtual` and re-check
-      [fold-stream-combinator](./fold-stream-combinator.md)'s workaround.
+- [ ] Independent of the moves: replace `fjs/media/type`'s `IoResult` import
+      with `Result<T, unknown>` from `fjs/types/result`, dropping its
+      `effects/node` import. `IoResult` itself does **not** move.
 - [ ] Move `All` / `all` / `both` to `fjs/effects/all/module.f.ts`.
 - [ ] Move `Sandbox` / `Await` and helpers to `fjs/effects/sandbox/module.f.ts`.
 - [ ] Move the console family to `fjs/effects/console/module.f.ts`.
@@ -151,8 +163,9 @@ Judgement calls worth deciding explicitly rather than by accident:
 
 - [allvoid-combinator](./allvoid-combinator.md) — names the `All` lowering as a
   separate design question; this is it.
-- [fold-stream-combinator](./fold-stream-combinator.md) — its `Result`-instead-of-`IoResult`
-  workaround disappears once `IoResult` lives in core.
+- [fold-stream-combinator](./fold-stream-combinator.md) — its `Result`-spelled
+  signature is the right design for a generic combinator, not the workaround it
+  calls itself; that issue needs no change from this one.
 - `fjs/media/type/module.f.ts:40`, `fjs/text/sgr/module.f.ts:11`,
   `fjs/emergent_testing/module.f.ts:14-30` — importers that reach into the Node
   module for non-Node things.
