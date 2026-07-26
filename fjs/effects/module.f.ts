@@ -6,14 +6,15 @@
  * Composition is provided externally by {@link step}. The optional
  * method-chaining wrapper lives in `fjs/effects/eff/module.f.ts`.
  *
- * **Shape knowledge stops at two functions: {@link decode} and {@link step}**
- * (the `Pure` thunk vs. `Do` tuple layout). Those two are the only places a
- * `typeof e === 'function'` check may appear. `step` reads the layout inline
- * rather than calling `decode` because the `Decoded` record it would build is
- * destructured and thrown away immediately, one allocation per composed link.
- * Everything else — interpreters, proofs, every other module — goes through
- * `decode` (or {@link match}) instead of inspecting a value, so changing the
- * representation means editing those two functions and nothing else.
+ * **Exactly one function inspects the shape: {@link decode}** (the `Pure` thunk
+ * vs. `Do` tuple layout), and it is the only place a `typeof e === 'function'`
+ * check may appear. {@link step} and {@link match} eliminate an effect through
+ * it, and so do interpreters, proofs, and every other module — no second such
+ * check exists anywhere, so changing the representation means editing `decode`
+ * and nothing else. Each call allocates a `Decoded` record that its caller
+ * unpacks and discards; whether the two hot callers should read the layout
+ * directly instead is a measurement, tracked in
+ * [remove-decode](./todo/remove-decode.md) rather than assumed here.
  *
  * Effect helpers come in two shapes. **Step adapters** return a continuation
  * `(t: T) => Effect<Q, R>` meant to be passed into a step — see {@link okStep}.
@@ -318,13 +319,17 @@ export type Decoded<O extends Operation, T> =
  * Forces the thunk in the `Pure` case, which {@link Pure}'s contract makes free
  * of consequence.
  *
- * It shares layout knowledge (a thunk `() => T` for `Pure`, a
- * `[command, payload, continuation]` tuple for `Do`) with exactly one other
- * function, {@link step}, which reads the same two cases inline to avoid
- * allocating a `Decoded` record per composed link. Those two are the entire
- * set. Interpreters and proofs must go through `decode` (or {@link match})
- * instead of inspecting the value, so the representation can change without
- * touching them.
+ * This is the only function that knows how an `Effect` is laid out (a thunk
+ * `() => T` for `Pure`, a `[command, payload, continuation]` tuple for `Do`).
+ * {@link step}, {@link match}, interpreters, and proofs all eliminate an effect
+ * through it rather than inspecting the value, so the representation can change
+ * without touching them.
+ *
+ * The `Decoded` record is allocated per call and destructured immediately by
+ * every caller, so nothing ever holds one. Removing that allocation from the
+ * two hot callers would mean a second copy of the shape test to keep in sync,
+ * which needs a measured reason first — see
+ * [remove-decode](./todo/remove-decode.md).
  */
 export const decode = <O extends Operation, T>(e: Effect<O, T>): Decoded<O, T> =>
     typeof e === 'function'

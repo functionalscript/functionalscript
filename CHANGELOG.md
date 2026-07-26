@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fjs/effects`: **BREAKING CHANGES:** remove the `lazy` constructor, which was
+  part of the public API in 0.38.0. The thunk in `Pure<T> = () => T` is a
+  discriminator — it is how `decode` tells a `Pure` apart from a `Do` node — not
+  a suspension, so the deferral `lazy` advertised was never one this
+  representation keeps: `step` forces a `Pure` head as soon as it composes, so
+  work hidden behind the thunk ran at composition time rather than when a runner
+  interpreted the effect. Once `Effect` became the raw value earlier in this
+  cycle, `lazy` collapsed to the identity function (`t => t`) and the promise
+  became visibly empty. Callers holding an already-computed value use `pure(v)`;
+  callers that need work deferred until interpretation must put it in a `Do`
+  node, which is the only construct a runner performs. PR
+  [#1360](https://github.com/functionalscript/functionalscript/pull/1360)
 - `fjs/effects/eff`: `Eff.step(f)` now also passes every prior value in the
   chain to `f`, most recent first (`f(t, ...history)`), via a new `P` type
   parameter on `Eff<O, T, P>` that accumulates one element per `.step` call,
