@@ -100,8 +100,8 @@ the expressions they already are today:
 
 | Caller | Argument | Why |
 |---|---|---|
-| `json` (canonical) | `set('"\\/bfnrt')` | tag = the matched character; what `fjs/bnf/testlib.f.ts:141` does today |
-| `fjs/djs/tokenizer` | `{ ...set('"\\bfnrt'), solidus: '/' }` | a `/` tag would collide with the `/` operator tag in `filterFunc`, so that one branch is named (`:74-80` today) |
+| `json` (canonical) | `set('"\\/bfnrt')` | tag = the matched character; what `fjs/bnf/testlib.f.ts:140` does today |
+| `fjs/djs/tokenizer` | `{ ...set('"\\bfnrt'), solidus: '/' }` | a `/` tag would collide with the `/` operator tag in `filterFunc`, so that one branch is named (`:77-78` today) |
 
 Scope of the parameter, so an implementer does not have to guess:
 
