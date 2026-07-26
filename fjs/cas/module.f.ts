@@ -231,34 +231,39 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                                         return fail(curPath, first[1])
                                     }
                                     const chunk = first[1]
-                                    return eff(writeBytes(curPath, offset, chunk)).step(wb => {
-                                        if (wb[0] === 'error') { return fail(curPath, wb[1]) }
-                                        const newState = sha2.append(chunk)(state)
-                                        const newOffset = offset + Number(length(chunk) / 8n)
-                                        // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
-                                        // The new path is still needed after the rename, to recurse with,
-                                        // so the rename captures it rather than closing over it.
-                                        const nextPath = step(
-                                            now(),
-                                            t => pure(join(stageDir, stageName(t + leaseDelta, rndStr))))
-                                        const renamed = frameStep(
-                                            nextPath,
-                                            next => rename(curPath, next))
-                                        return step(
-                                            renamed,
-                                            ({ result: [rt, v], param: next }) =>
-                                                rt === 'error'
-                                                    ? fail(curPath, v)
-                                                    : loop(newState, newOffset, next)(tail))
-                                    }).value
-                                }).value
-                    return eff(mkdir(stageDir, { recursive: true })).step(() =>
-                        eff(now()).step(t0 => {
+                                    return eff(writeBytes(curPath, offset, chunk))
+                                        .step(wb => {
+                                            if (wb[0] === 'error') { return fail(curPath, wb[1]) }
+                                            const newState = sha2.append(chunk)(state)
+                                            const newOffset = offset + Number(length(chunk) / 8n)
+                                            // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
+                                            // The new path is still needed after the rename, to recurse with,
+                                            // so the rename captures it rather than closing over it.
+                                            const nextPath = step(
+                                                now(),
+                                                t => pure(join(stageDir, stageName(t + leaseDelta, rndStr))))
+                                            const renamed = frameStep(
+                                                nextPath,
+                                                next => rename(curPath, next))
+                                            return step(
+                                                renamed,
+                                                ({ result: [rt, v], param: next }) =>
+                                                    rt === 'error'
+                                                        ? fail(curPath, v)
+                                                        : loop(newState, newOffset, next)(tail))
+                                        })
+                                        .value
+                                })
+                                .value
+                    return eff(mkdir(stageDir, { recursive: true }))
+                        .step(() => now())
+                        .step(t0 => {
                             const path0 = join(stageDir, stageName(t0 + leaseDelta, rndStr))
                             return eff(createExclusive(path0))
                                 .step(okStep(() => loop(sha2.init, 0, path0)(payload)))
                                 .value
-                        }).value).value
+                        })
+                        .value
                 }).value).value
         },
         list: (): Effect<FileCasOperation, readonly Vec[]> =>
@@ -298,7 +303,9 @@ const streamFile = (filePath: string): List<ReadBytes, IoResult<Vec>> => {
     const loop = (offset: number): List<ReadBytes, IoResult<Vec>> =>
         eff(readBytes(filePath, offset, chunkBytes))
             .step((result): List<ReadBytes, IoResult<Vec>> => {
-                if (result[0] === 'error') { return nonEmpty<ReadBytes, IoResult<Vec>>(result, elEmpty()) }
+                if (result[0] === 'error') {
+                    return nonEmpty<ReadBytes, IoResult<Vec>>(result, elEmpty())
+                }
                 const chunk = result[1]
                 return length(chunk) === 0n
                     ? elEmpty()
