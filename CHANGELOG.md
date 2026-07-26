@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fjs/effects`: **BREAKING CHANGES:** remove the `decode` function and the
+  `Decoded<O, T>` type, and add `runPure`. `Effect` is a function type unioned
+  with an object type, so `typeof e === 'function'` is already a complete
+  discriminant: `decode` bought no narrowing, it re-encoded that narrowing as a
+  `done` flag to be re-narrowed one indirection later, and `Decoded` was declared
+  in terms of `Do[0]`/`[1]`/`[2]` anyway — so every consumer learned a second
+  vocabulary for a shape it could already read. `step` and `match` now read the
+  layout directly, binding the parts with
+  `const { 0: command, 1: payload, 2: continuation } = e` (array destructuring is
+  unavailable: `Do` is an object with numeric keys so it can carry `out O`, and
+  `const [a, b, c] = e` is `TS2488`). Migration: a caller that only wanted a pure
+  effect's value uses the new
+  `runPure<O, T>(e: Effect<O, T>): Option<T>` — `[t]` for a `Pure`, `[]` for a
+  `Do` — which is what six of the nine former `decode` sites were approximating
+  by hand. The result is an `Option` rather than `T | null` so that a pure `null`
+  stays distinguishable from an effect that stopped at a command, and `O` stays
+  generic because `Effect` is covariant in it, so `Effect<never, T>` would reject
+  every continuation's result. A caller that intends to perform the command keeps
+  using `match`, whose `MatchResult` already hides the layout. This trades one
+  export for two removed and leaves three readers of the representation —
+  `step`, `match`, `runPure` — plus the deliberate layout proof; a fourth is a
+  review flag. PR
+  [#1368](https://github.com/functionalscript/functionalscript/pull/1368)
 - `fjs/effects`: **BREAKING CHANGES:** remove the `Frame<R, P>` type and
   `frameStep`, both part of the public API earlier in this cycle, and replace
   them with `History<O, H>`, `history`, and `historyStep`. `Frame` chained by
