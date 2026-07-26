@@ -59,17 +59,59 @@ the DJS tokenizer can consume the parts it does not extend:
 
 ```ts
 // fjs/media/json/grammar/module.f.ts
+import {
+    range, remove, repeat, repeat0Plus, set, unicodeMax,
+    type Rule, type Variant,
+} from '../../../bnf/module.f.ts'
+
 export const onenine: Rule
 export const digit: Rule
 export const digits0: Rule
 export const digits: Rule
-/** JSON string, parameterized by how the escape branches are tagged. */
-export const string: (escapeTags: EscapeTags) => Rule
+
+/**
+ * A JSON string literal, parameterized by its simple-escape branches.
+ *
+ * `simpleEscapes` is the variant matched after the `\`, minus the `\uXXXX`
+ * branch: branch name → the literal it matches. The descent parser emits the
+ * matched branch's *key* as the AST tag, so this parameter is exactly "how are
+ * the one-character escapes tagged" and nothing else.
+ */
+export const string = (simpleEscapes: Variant): Rule => [
+    '"',
+    repeat0Plus({
+        ...remove(range(` ${unicodeMax}`), set('"\\')),
+        escape: ['\\', { ...simpleEscapes, u: uEscape }],
+    }),
+    '"'
+]
+
 /** The whole deterministic JSON grammar (today `testlib.deterministic`). */
 export const json: Rule
 
-// private: `number` and `ws` — used only to build `json`
+// private: `uEscape`, `number` and `ws` — used only to build the above
 ```
+
+**The escape parameter, concretely.** No new type is needed: the parameter is
+`bnf`'s existing `Variant` (`fjs/bnf/module.f.ts:61`,
+`{ readonly [k in string]?: Rule }`), and `set` (`:137`) already returns
+something assignable to it (`RangeVariant`, `:158`). The two call sites are then
+the expressions they already are today:
+
+| Caller | Argument | Why |
+|---|---|---|
+| `json` (canonical) | `set('"\\/bfnrt')` | tag = the matched character; what `fjs/bnf/testlib.f.ts:141` does today |
+| `fjs/djs/tokenizer` | `{ ...set('"\\bfnrt'), solidus: '/' }` | a `/` tag would collide with the `/` operator tag in `filterFunc`, so that one branch is named (`:74-80` today) |
+
+Scope of the parameter, so an implementer does not have to guess:
+
+- It covers **all** simple escapes, not just the solidus. Both callers pass the
+  complete set; the parameter is not a patch or an override map.
+- It does **not** cover `\uXXXX`. Both callers tag that branch `u` and spell its
+  body identically (`['u', ...repeat(4)({ digit, AF: range('AF'), af: range('af') })]`),
+  so it stays private and fixed inside `string`.
+- It does **not** cover the unescaped-character branch
+  (`remove(range(` ${unicodeMax}`), set('"\\'))`) — identical in both callers.
 
 `number` and `ws` stay **private**. They are needed to build `json`, but DJS
 keeps its own versions of both (see the scope note below), so neither has an
@@ -95,16 +137,22 @@ adds the `bigint` `n` suffix, and consumes a trailing identifier character as an
 error rather than starting a new token — and DJS's whitespace is split into
 `ws`/`newLine` because JS is newline-sensitive. Do **not** contort those into a
 shared factory; sharing the four digit rules and one parameterized string rule
-is the whole win, and it is enough to give the format an owner. If the
-parameterized `string` turns out to need more than a tag record to serve both
-callers, ship the digit layer alone and record why in the module's JSDoc.
+is the whole win, and it is enough to give the format an owner. If `string`
+turns out to need more than the single `Variant` parameter specified above to
+serve both callers, ship the digit layer alone and record why in the module's
+JSDoc.
 
 ### Tasks
 
 - [ ] Create `fjs/media/json/grammar/module.f.ts` with the `@module` header,
       exporting the lexical rules and the whole `json` grammar; add
       `fjs/media/json/grammar/proof.f.ts` with full coverage.
-- [ ] Register it in `deno.json`'s `exports` map.
+- [ ] No `deno.json` registration: `deno.json` has no `exports` map today (only
+      `tasks` and `fmt`), so `AGENTS.md`'s "register it in the `exports` map"
+      rule has nothing to apply to. Do **not** create a map holding only this
+      one path — that would turn an unrestricted package into one exposing a
+      single module. Introducing a complete map is tracked as its own task in
+      [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md).
 - [ ] Point `fjs/bnf/testlib.f.ts`'s `deterministic()` at it (or delete
       `deterministic()` and update the four proof importers); document in
       `fjs/bnf/README.md` why `classic()` stays a bnf-local fixture.

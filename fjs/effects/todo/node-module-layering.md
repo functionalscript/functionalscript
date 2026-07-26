@@ -138,8 +138,13 @@ Judgement calls worth deciding explicitly rather than by accident:
       `fjs/effects/test/module.f.ts` — **not** into `fjs/emergent_testing`, which
       would be a cycle (see the judgement call above). Confirm `effects/node`
       still compiles with `NodeOp` and `NodeProgramOptions` importing from there.
-- [ ] Register each new `module.f.ts` in `deno.json`'s `exports` map; update the
-      `fjs/effects/node` module header to describe only what remains.
+- [ ] Update the `fjs/effects/node` module header to describe only what remains.
+      No `deno.json` registration: it has no `exports` map today (only `tasks`
+      and `fmt`), so `AGENTS.md`'s "register it in the `exports` map" rule has
+      nothing to apply to, and adding a map listing only the new effects modules
+      would restrict a package that is currently unrestricted. Introducing a
+      complete map is tracked in
+      [group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md).
 - [ ] `npx tsc` and `fjs t` after each move; one PR per concern.
 
 ### Related
