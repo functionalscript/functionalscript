@@ -70,6 +70,13 @@ functions are attached to each instance rather than shared on a prototype.
 Every `.step()` builds a new object and its closures. There is no per-type
 place to put them.
 
+`.value` adds a second, smaller cost of the same kind: because it is a plain
+field rather than a method, each `.step` eagerly builds the projection that
+drops the history tuple, whether or not that link is ever unwrapped. An n-link
+chain builds n projections where a deferred method would build one. That is a
+constant factor rather than a change in growth rate — no extra forcing of the
+wrapped effect — and it is the price of `.value` never doing work when read.
+
 **Cost of the history.** `.step` carries every prior value forward, and each
 link copies the accumulated tuple (`pure([r, ...tp])`). An n-link chain is
 therefore O(n²) copies at runtime. Harmless for short chains, and recursive
@@ -82,8 +89,8 @@ closed, module-scope function has a context-free identity, so content-addressed
 FunctionalScript can deduplicate structurally identical functions across
 modules and repositories; a function that captures enclosing locals hashes
 uniquely to its context (see the hoisting rules in
-[`AGENTS.md`](../../../AGENTS.md)). Both of `Eff`'s members capture the effect
-they wrap, so **every instance is inherently un-shareable** — not merely an
+[`AGENTS.md`](../../../AGENTS.md)). `Eff`'s `.step` is a closure over the chain
+it continues, so **every instance is inherently un-shareable** — not merely an
 allocation, but a value the content-addressed store can never dedupe. Any
 wrapper of this shape pays that, so it is a property of the approach rather
 than of this implementation.

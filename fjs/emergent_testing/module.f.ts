@@ -211,11 +211,11 @@ const runModule =
         const effects = collectTests(path, throws, v).map(one)
         return eff(all(...effects))
             .step(states => pure(states.reduce(mergeState, zero)))
-            .result()
+            .value
     }
     return eff(walk([], false, v))
         .step(delta => pure(mergeState(ts, delta)))
-        .result()
+        .value
 }
 
 const proofEntries = (moduleMap: ModuleMap): readonly (readonly [string, unknown])[] =>
@@ -259,7 +259,7 @@ const registerModuleMap =
     if (modules.length === 0) { return pure(undefined) }
     return eff(all(...modules.map(([k, v]) => registerModule(ctx, k, v, star))))
         .step(() => pure(undefined))
-        .result()
+        .value
 }
 
 /**
@@ -338,7 +338,7 @@ export const ghEscape = (s: string): string =>
 export const defaultTest = (file: string, path: Path, { fn, throws }: TestEntry): Effect<Sandbox, SandboxResult<unknown>> =>
     eff(sandbox(fn))
         .step(r => pure(throws ? { ...r, result: invert(r.result) } : r))
-        .result()
+        .value
 
 const fmtResultLine = (file: string, path: Path, color: string, label: string, duration: number): string =>
     `${fmtImport(file, path)}: ${color}${label}${reset}, ${timeFormat(duration)}`
@@ -368,12 +368,12 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
                     ? csiError(`::error file=${file},line=1,title=${ghEscape(fmtImport(file, path))}::${ghEscape(String(v))}`)
                     : eff(csiError(fmtResultLine(file, path, fgRed, 'error', duration)))
                         .step(() => csiError(`${fgRed}${v}${reset}`))
-                        .result(),
+                        .value,
         summary: (pass, fail, time) => {
             const fgFail = fail === 0 ? fgGreen : fgRed
             return eff(csiLog(`${bold}Number of tests: pass: ${fgGreen}${pass}${reset}${bold}, fail: ${fgFail}${fail}${reset}${bold}, total: ${pass + fail}${reset}`))
                 .step(() => csiLog(`${bold}Time: ${timeFormat(time)}${reset}`))
-                .result()
+                .value
         },
         test: defaultTest,
     }
@@ -399,5 +399,5 @@ export const register: NodeProgram = o => {
     return eff(loadModuleMap(o.env))
         .step(r)
         .step(() => pure(0))
-        .result()
+        .value
 }

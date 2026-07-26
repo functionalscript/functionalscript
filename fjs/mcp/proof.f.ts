@@ -87,7 +87,7 @@ const step2 = (cfg: McpConfig) => (msg1: unknown) => (msg2: unknown): StepResult
                     read(key),
                     state => pure([resp, state] as const),
                 )
-            ).result()).result()).result()))
+            ).value).value).value))
 
 // Run initialize, notifications/initialized, then a third step; return [response, newState] of the third.
 const step3 = (cfg: McpConfig) => (msg1: unknown) => (msg2: unknown) => (msg3: unknown): StepResult =>
@@ -95,7 +95,7 @@ const step3 = (cfg: McpConfig) => (msg1: unknown) => (msg2: unknown) => (msg3: u
         eff(mcpStep(cfg)(handlers)(key)(msg1 as Unknown)).step(() =>
             eff(mcpStep(cfg)(handlers)(key)(msg2 as Unknown)).step(() =>
                 eff(mcpStep(cfg)(handlers)(key)(msg3 as Unknown)).step(resp =>
-                    eff(read(key)).step(state => pure([resp as unknown, state] as const)).result()).result()).result()).result()).result()))
+                    eff(read(key)).step(state => pure([resp as unknown, state] as const)).value).value).value).value).value))
 
 // ── Test messages ─────────────────────────────────────────────────────────────
 

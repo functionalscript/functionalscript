@@ -102,7 +102,7 @@ export const collectRead = <O extends Operation>(stream: List<O, IoResult<Vec>>)
                 }
                 return loop(msb.concat(acc)(v))(tail)
             })
-            .result()
+            .value
     return loop(empty)(stream)
 }
 
@@ -150,11 +150,11 @@ const gcStage = <O extends Now | Readdir | Rm>(stageDir: string): Effect<O, void
                 return forEachStep((name: string) =>
                     eff(rm(join(stageDir, name)))
                         .step(() => pure(undefined))
-                        .result()
+                        .value
                     )(expired)
             })
-            .result())
-        .result()
+            .value)
+        .value
 
 export type FileCas = Cas<FileCasOperation> & {
     url: (v: Vec) => string
@@ -182,7 +182,7 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                             ? elEmpty()
                             : nonEmpty(ok(v), loop(offset + chunkBytes))
                     })
-                    .result()
+                    .value
             return loop(0)
         },
         // Lock-free staging upload (issues/cas/staging-lease.md): stream each chunk straight
@@ -208,13 +208,13 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                     .step(() => rm(curPath))
                     .step(() => stat(dst))
                     .step(st => pure(st[0] === 'ok' && st[1].size === offset ? ok(hash) : error('publish size mismatch')))
-                    .result()
+                    .value
             }
             // Any streaming error fails closed: delete the partial file, return the error.
             const fail = (curPath: string, e: unknown): Effect<FileCasOperation, IoResult<Vec>> =>
                 eff(rm(curPath))
                     .step(() => pure(error(e)))
-                    .result()
+                    .value
             return eff(gcStage(stageDir)).step(() =>
                 eff(random256).step(rnd => {
                     const rndStr = vecToCBase32(rnd)
@@ -238,16 +238,16 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                                         rt === 'error'
                                             ? fail(curPath, v)
                                             : loop(newState, newOffset, next)(tail))
-                                }).result()
-                            }).result()
+                                }).value
+                            }).value
                     return eff(mkdir(stageDir, { recursive: true })).step(() =>
                         eff(now()).step(t0 => {
                             const path0 = join(stageDir, stageName(t0 + leaseDelta, rndStr))
                             return eff(createExclusive(path0))
                                 .step(okStep(() => loop(sha2.init, 0, path0)(payload)))
-                                .result()
-                        }).result()).result()
-                }).result()).result()
+                                .value
+                        }).value).value
+                }).value).value
         },
         list: (): Effect<FileCasOperation, readonly Vec[]> =>
             // A fresh store has no `.cas` directory yet. Treat *only* that case as an
@@ -265,9 +265,9 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                             toOption(isFile
                                 ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
                                 : null))))
-                        .result()
+                        .value
                 })
-                .result(),
+                .value,
         url: (hash: Vec) =>
             join(path, toPath(hash))
     }
@@ -278,7 +278,7 @@ const random256: Effect<RandomInt, Vec> =
     foldStep((_: number) => (acc: Vec): Effect<RandomInt, Vec> =>
         eff(randomInt())
             .step(r => pure(msb.concat(acc)(vec(32n)(BigInt(r)))))
-            .result()
+            .value
     )(empty)([0, 1, 2, 3, 4, 5, 6, 7])
 
 /** Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of `ok` items. */
@@ -292,7 +292,7 @@ const streamFile = (filePath: string): List<ReadBytes, IoResult<Vec>> => {
                     ? elEmpty()
                     : nonEmpty(ok(chunk), loop(offset + chunkBytes))
             })
-            .result()
+            .value
     return loop(0)
 }
 
@@ -318,7 +318,7 @@ export const casUpload = (home: string) => (fileName: string): Effect<FileCasOpe
     return eff(casAddFile(c)(src))
         .step(okStep<Vec, unknown, Rm, Vec>(v => eff(rm(src))
             .step(() => pure(ok(v)))
-            .result()))
-        .result()
+            .value))
+        .value
 }
 

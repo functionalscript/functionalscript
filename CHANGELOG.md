@@ -25,9 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   into the external `step(e, f)` primitive (raw effect in, raw effect out); the
   `.step(...)` method is gone, so every `x.step(f)` call site becomes
   `step(x, f)`. An optional `fn`-style wrapper `eff(value)` is added for
-  method-chaining (`eff(x).step(f)….result()`, unwrapped at the boundary with
-  `.result()`), mirroring `compose`/`fn` in `fjs/types/function`. `decode` is the
-  single shape inspector; the `Do` continuation is extracted into
+  method-chaining (`eff(x).step(f)….value`, unwrapped at the boundary with
+  `.value`), mirroring `compose`/`fn` in `fjs/types/function`. `decode` and
+  `step` are the only two functions that inspect an effect's shape — `step`
+  reads it inline rather than through `decode` to avoid building a `Decoded`
+  record per composed link; the `Do` continuation is extracted into
   `Cont<out O, T>` and the node itself carries `out O` so the raw `Effect` union
   stays covariant in `O` (the `Value` type alias is renamed to `Effect`).
 - `fjs/ci`: **BREAKING CHANGE:** drop the trailing
