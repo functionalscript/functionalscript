@@ -32,8 +32,8 @@ don't build on it expecting the API to hold still.
 Raw `step` with named intermediates is close to assembly: one operation per
 line, every temporary explicitly named, nothing implicit. More precisely it is
 SSA — the form compilers lower *to*, where each value is assigned exactly once
-in evaluation order. `frameStep` fits the same register: a `param` walk is a de
-Bruijn index into the values still live at that point.
+in evaluation order. `historyStep` fits the same register: a position in the
+history is literally a de Bruijn index into the values still live at that point.
 
 That is not a complaint about the low level. Assembly persists because it is
 the level at which you can see exactly what happens, which is why the raw

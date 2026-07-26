@@ -16,7 +16,7 @@
  * Effect helpers come in two shapes. **Step adapters** return a continuation
  * `(t: T) => Effect<Q, R>` meant to be passed into a step — see {@link okStep}.
  * **Step variants** take the effect itself first, like {@link step} — see
- * {@link frameStep}.
+ * {@link historyStep}.
  *
  * **Do not nest steps.** Bind each intermediate effect to its own name, so a
  * sequence reads top-to-bottom in evaluation order:
@@ -33,16 +33,16 @@
  *
  * When a later link needs a value from an earlier one, that is not a reason to
  * nest: a nested continuation only reaches back because it closes over the
- * enclosing scope. {@link frameStep} carries the value forward instead, so the
- * chain stays flat:
+ * enclosing scope. {@link historyStep} carries the value forward instead, so
+ * the chain stays flat:
  *
  * ```ts
  * // avoid — nested only so `h` can still see `x`
  * step(a, x => step(f(x), y => h(x, y)))
  *
- * // prefer — the frame carries `x` forward as `param`
- * const x0 = frameStep(a, f)
- * return step(x0, ({ param: x, result: y }) => h(x, y))
+ * // prefer — the history tuple carries `x` forward alongside `y`
+ * const x0 = historyStep(history(a), f)
+ * return step(x0, ([y, x]) => h(x, y))
  * ```
  *
  * Nesting is often forced by nothing more than a local declared inside a
@@ -54,11 +54,11 @@
  * cannot be bound to an effect that has not been produced yet, so `f(param)`
  * cannot become a `const` until `e` resolves. {@link step} recurses into
  * itself inside the continuation it rebuilds, {@link foldStep} composes one
- * step per item, and {@link frameStep} runs `f` inside `e`'s continuation.
+ * step per item, and {@link historyStep} runs `f` inside `e`'s continuation.
  * Each writes that nesting down **once**, in one line, so that no caller ever
  * writes it again — that is what a combinator here is *for*. Without
- * {@link frameStep} the flat form would be unavailable the moment a later link
- * needed an earlier link's value.
+ * {@link historyStep} the flat form would be unavailable the moment a later
+ * link needed an earlier link's value.
  *
  * @module
  */
@@ -182,9 +182,8 @@ export const doFull = <O extends Operation, T, K extends O[0]>(
  * third case meaning "not yet decided". That is inherent to the representation,
  * not a gap in this module's API. A caller that needs to name a composition
  * without performing it yet has to keep the ingredients and defer the `step`
- * itself — `Eff` does exactly this, holding its history tuple as a thunk
- * (`both`) precisely because composing it eagerly is the one thing it cannot
- * take back.
+ * itself — `Eff` does exactly this, holding its history tuple as a thunk (`h`)
+ * precisely because composing it eagerly is the one thing it cannot take back.
  */
 export const step = <O extends Operation, T, Q extends Operation, R>(
     e: Effect<O, T>,
@@ -197,60 +196,81 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
 }
 
 /**
- * A captured call frame: everything observable about one call to a
- * continuation `f` — the `param` it was given and the `result` it produced.
- * `f`'s internals are not captured, and don't need to be.
+ * An effect whose result is a **history tuple**: the values a chain has bound so
+ * far, newest first. `History<O, readonly[C, B, A]>` is three links deep, with
+ * `A` bound earliest.
  *
- * It is {@link frameStep}'s continuation reified: for `f: (p: P) => Effect<Q, R>`
- * the frame is `Frame<R, P>`, so the type reads straight off `f`'s signature.
+ * This is a transparent alias for {@link Effect}. It adds the tuple bound and
+ * nothing else, so any tuple-valued effect satisfies it whether or not
+ * {@link history} produced it — it names the convention at the signatures that
+ * rely on it rather than enforcing it.
  *
- * Frames chain through `param`, because `f` is handed the whole preceding
- * frame: `Frame<C, Frame<B, A>>` is three steps, and the `param` walk is how
- * far back a value lives — `frame.result`, `frame.param.result`,
- * `frame.param.param.result`. The chain bottoms out at a bare value rather
- * than an empty frame, so no unit is needed to start one.
- *
- * Heterogeneous by design: each link has its own type, so this is not a
+ * Heterogeneous by design: each element has its own type, so this is not a
  * `List` and nothing that folds or maps a list applies to it.
  */
-export type Frame<R, P> = {
-    readonly result: R
-    readonly param: P
-}
+export type History<O extends Operation, H extends readonly unknown[]> =
+    Effect<O, H>
 
 /**
- * Like {@link step}, but captures the call instead of discarding half of it:
- * runs `e` to get `p`, continues with `f(p)` to get `r`, and yields the
- * {@link Frame} `{ result: r, param: p }`.
+ * Like {@link step}, but keeps the values instead of discarding them: runs `e`
+ * to get the history `p`, continues with `f(...p)` to get `r`, and yields
+ * `[r, ...p]` — the same history with `r` prepended.
  *
  * This is what a chain of named intermediate effects cannot otherwise express.
  * Each `step`'s continuation sees only the result of the effect it consumes, so
- * a later link has no way to reach an earlier one. `frameStep` keeps the
- * parameter, and the next destructuring names the parts:
+ * a later link has no way to reach an earlier one. `historyStep` carries every
+ * earlier value forward, and the next destructuring names the parts:
  *
  * ```ts
- * const b = frameStep(a, decodeRevisionBlob(cas))
- * const c = step(b, ({ result: revision, param: hash }) => ...)
+ * const b = historyStep(history(a), decodeRevisionBlob(cas))
+ * const c = step(b, ([revision, hash]) => ...)
  * ```
  *
  * Chaining mimics an async function, one `await` per link — `const hash = ...`
- * then `const revision = ...`, with both still reachable at the end:
+ * then `const revision = ...`, with both still reachable at the end. It takes a
+ * history and returns one, so it composes with itself to any depth; only the
+ * entry point needs {@link history}:
  *
  * ```ts
- * const f1 = frameStep(f0, hash => decodeRevisionBlob(cas)(hash))
- * const f2 = step(f1, ({ result: revision, param: hash }) => ...)
+ * const h0 = history(readHash(cas))
+ * const h1 = historyStep(h0, hash => decodeRevisionBlob(cas)(hash))
+ * const h2 = historyStep(h1, (revision, hash) => ...)
  * ```
  *
- * Reaching further back costs a `param` hop per link, so a value used many
- * links after it is bound reads as `frame.param.param.result`. When a chain
- * grows long enough for that to hurt, collapse it into a record of named
- * fields (`pure({ hash, revision } as const)`) and continue from there.
+ * **Newest first.** A position is distance back from the current link, not
+ * evaluation order, so a destructuring reads reverse-chronologically:
+ * `([z, y, x]) => ...` binds `x` earliest. Reaching further back costs an index
+ * rather than a traversal, but a long chain makes the positions hard to count.
+ * When that starts to hurt, collapse it into a record of named fields
+ * (`pure({ hash, revision } as const)`) and start a fresh history from there.
  */
-export const frameStep = <O extends Operation, P, Q extends Operation, R>(
-    e: Effect<O, P>,
-    f: (p: P) => Effect<Q, R>
-): Effect<O | Q, Frame<R, P>> =>
-    step(e, param => step(f(param), result => pure({ result, param })))
+export const historyStep = <
+    O extends Operation,
+    P extends readonly unknown[],
+    Q extends Operation,
+    R
+>(
+    e: History<O, P>,
+    // `Readonly<P>` is load-bearing: inferring `P` from a bare rest parameter
+    // yields a *mutable*, labelled tuple (`[next: string]`), which then rejects
+    // the `readonly` tuples every history is built from.
+    f: (...p: Readonly<P>) => Effect<Q, R>
+): History<O | Q, readonly[R, ...P]> =>
+    step(e, param => step(f(...param), result => pure([result, ...param])))
+
+/**
+ * Starts a history, lifting a plain result into a one-element tuple so that
+ * {@link historyStep} can extend it.
+ *
+ * Creating a history is the *only* thing this does — every later link goes
+ * through `historyStep`, which is what lets one combinator cover chains of any
+ * length. Fusing the two (a step that both starts and extends) is what makes
+ * chains stop composing: such a step nests its predecessor's tuple instead of
+ * flattening it, so link two would have to be spelled differently from link
+ * three.
+ */
+export const history = <O extends Operation, T>(e: Effect<O, T>): History<O, readonly[T]> =>
+    step(e, v => pure([v]))
 
 export type Param<O extends Operation> = F<O>[0]
 

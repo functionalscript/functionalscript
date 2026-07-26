@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fjs/effects`: **BREAKING CHANGES:** remove the `Frame<R, P>` type and
+  `frameStep`, both part of the public API earlier in this cycle, and replace
+  them with `History<O, H>`, `history`, and `historyStep`. `Frame` chained by
+  nesting — `Frame<C, Frame<B, A>>` for three links — so a value bound two links
+  back read as `frame.param.param.result`, one `param` hop per link, with the
+  nesting depth load-bearing. A history is a flat, newest-first tuple instead, so
+  a position is distance back from the current link and costs an index rather
+  than a traversal. Migration: `frameStep(e, f)` becomes
+  `historyStep(history(e), f)`; `f` now receives the history spread as arguments
+  rather than a single record, and the continuation destructures
+  `[result, param]` where it previously took `{ result, param }`. Splitting the
+  lift out of the step is what lets chains compose — `historyStep` takes a
+  history and returns one, so it applies at any depth and only the entry point
+  needs `history`, whereas `frameStep` both started and extended a chain and so
+  nested its predecessor's result instead of flattening it. PR
+  [#1367](https://github.com/functionalscript/functionalscript/pull/1367)
 - `fjs/effects`: **BREAKING CHANGES:** remove the `lazy` constructor, which was
   part of the public API in 0.38.0. The thunk in `Pure<T> = () => T` is a
   discriminator — it is how `decode` tells a `Pure` apart from a `Do` node — not

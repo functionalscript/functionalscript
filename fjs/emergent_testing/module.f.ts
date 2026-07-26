@@ -29,7 +29,7 @@ import {
     type Write,
     type WriteConsoles
 } from '../effects/node/module.f.ts'
-import { frameStep, pure, step, type Effect, type Operation } from '../effects/module.f.ts'
+import { history, historyStep, pure, step, type Effect, type Operation } from '../effects/module.f.ts'
 import { eff } from '../effects/eff/module.f.ts'
 import { loadModuleMap, shouldLoad, type LoadModuleOperations, type ModuleMap } from '../dev/module.f.ts'
 import { invert } from '../types/result/module.f.ts'
@@ -204,12 +204,12 @@ const runModule =
     const one = ([testPath, set]: TestAndPath): Effect<O | All, TestState> => {
         // The sandbox result is still needed after it has been reported, so the
         // reporting call is captured rather than nested inside its own step.
-        const reported = frameStep(
-            test(k, testPath, set),
+        const reported = historyStep(
+            history(test(k, testPath, set)),
             sr => result(k, testPath, sr, set.throws))
         return step(
             reported,
-            ({ param: sr }): Effect<O | All, TestState> => {
+            ([,sr]): Effect<O | All, TestState> => {
                 const { result: [s, r], duration } = sr
                 if (s !== 'ok') {
                     return pure(addFail(duration)(zero))
