@@ -247,7 +247,7 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                                                 next => rename(curPath, next))
                                             return step(
                                                 renamed,
-                                                ({ result: [rt, v], param: next }) =>
+                                                ([[rt, v], next]) =>
                                                     rt === 'error'
                                                         ? fail(curPath, v)
                                                         : loop(newState, newOffset, next)(tail))

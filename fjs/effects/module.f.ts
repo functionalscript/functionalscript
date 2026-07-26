@@ -196,27 +196,16 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
         : doFull<O | Q, R, O[0]>(d.command, d.payload, x => step(d.continuation(x), f))
 }
 
-/**
- * A captured call frame: everything observable about one call to a
- * continuation `f` — the `param` it was given and the `result` it produced.
- * `f`'s internals are not captured, and don't need to be.
- *
- * It is {@link frameStep}'s continuation reified: for `f: (p: P) => Effect<Q, R>`
- * the frame is `Frame<R, P>`, so the type reads straight off `f`'s signature.
- *
- * Frames chain through `param`, because `f` is handed the whole preceding
- * frame: `Frame<C, Frame<B, A>>` is three steps, and the `param` walk is how
- * far back a value lives — `frame.result`, `frame.param.result`,
- * `frame.param.param.result`. The chain bottoms out at a bare value rather
- * than an empty frame, so no unit is needed to start one.
- *
- * Heterogeneous by design: each link has its own type, so this is not a
- * `List` and nothing that folds or maps a list applies to it.
- */
-export type Frame<R, P> = {
-    readonly result: R
-    readonly param: P
-}
+export const frameStepCont = <
+    O extends Operation,
+    P extends readonly unknown[],
+    Q extends Operation,
+    R
+>(
+    e: Effect<O, P>,
+    f: (...p: Readonly<P>) => Effect<Q, R>
+): Effect<O | Q, readonly[R, ...P]> =>
+    step(e, param => step(f(...param), result => pure([result, ...param])))
 
 /**
  * Like {@link step}, but captures the call instead of discarding half of it:
@@ -249,8 +238,8 @@ export type Frame<R, P> = {
 export const frameStep = <O extends Operation, P, Q extends Operation, R>(
     e: Effect<O, P>,
     f: (p: P) => Effect<Q, R>
-): Effect<O | Q, Frame<R, P>> =>
-    step(e, param => step(f(param), result => pure({ result, param })))
+): Effect<O | Q, readonly[R, P]> =>
+    frameStepCont(step(e, p => pure([p])), f)
 
 export type Param<O extends Operation> = F<O>[0]
 

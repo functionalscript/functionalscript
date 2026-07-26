@@ -209,7 +209,7 @@ const runModule =
             sr => result(k, testPath, sr, set.throws))
         return step(
             reported,
-            ({ param: sr }): Effect<O | All, TestState> => {
+            ([,sr]): Effect<O | All, TestState> => {
                 const { result: [s, r], duration } = sr
                 if (s !== 'ok') {
                     return pure(addFail(duration)(zero))
