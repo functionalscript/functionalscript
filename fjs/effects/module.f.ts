@@ -192,11 +192,10 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
     e: Effect<O, T>,
     f: (t: T) => Effect<Q, R>
 ): Effect<O | Q, R> => {
-    if (typeof e === 'function') {
-        return f(e())
-    }
-    const cont = e[2]
-    return [e[0], e[1], x => step(cont(x), f)]
+    const d = decode(e)
+    return d.done
+        ? f(d.result)
+        : doFull<O | Q, R, O[0]>(d.command, d.payload, x => step(d.continuation(x), f))
 }
 
 /**
