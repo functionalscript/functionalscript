@@ -7,10 +7,11 @@
  * method-chaining wrapper lives in `fjs/effects/eff/module.f.ts`.
  *
  * **Exactly one function inspects the shape: {@link decode}** (the `Pure` thunk
- * vs. `Do` tuple layout). {@link step} wraps it; interpreters and proofs go
- * through `decode` (or {@link match}) instead of inspecting a value. No second
- * `typeof value === 'function'` check may appear anywhere, so the representation
- * can change without touching them.
+ * vs. `Do` tuple layout), and it is the only place a `typeof e === 'function'`
+ * check may appear. {@link step} and {@link match} eliminate an effect through
+ * it, and so do interpreters, proofs, and every other module — no second such
+ * check exists anywhere, so changing the representation means editing `decode`
+ * and nothing else.
  *
  * Effect helpers come in two shapes. **Step adapters** return a continuation
  * `(t: T) => Effect<Q, R>` meant to be passed into a step — see {@link okStep}.
@@ -71,11 +72,35 @@ export type Operation =
 /**
  * An `Effect<O, T>` is the raw value: a {@link Pure} thunk that yields `T`, or a
  * {@link Do} node describing a command to perform. It is plain data — compose
- * effects with the external {@link step}.
+ * effects with the external {@link step}, which is eager wherever the head is
+ * `Pure`.
  */
 export type Effect<O extends Operation, T> =
     Pure<T> | Do<O, T>
 
+/**
+ * A pure effect: an *already-computed* `T` behind a thunk.
+ *
+ * The thunk is a **discriminator, not a suspension**. `Effect` is a union with
+ * no tag field, so telling its two cases apart needs a runtime test, and
+ * `typeof e === 'function'` is it — wrapping the value in a function is what
+ * makes that test work. Deferral is not what the thunk is for. A `Pure` never
+ * holds work that has yet to happen; everything that *does* something is a
+ * {@link Do} node, and only a runner performs those.
+ *
+ * Two rules follow, and the rest of the module leans on both:
+ *
+ * - **The thunk must be pure and total.** Work hidden behind it is an effect
+ *   that no runner ever sees and no {@link OperationMap} can interpret or mock.
+ * - **It may be called more than once.** Nothing memoizes it. The same effect
+ *   can be decoded repeatedly — `Eff` re-forces the effect it wraps on each
+ *   `.step` — and under the first rule that costs nothing and changes nothing.
+ *
+ * A `lazy` constructor (`<T>(t: () => T): Effect<never, T> => t`) once existed
+ * to advertise the thunk as a suspension. It was the identity function, and it
+ * promised a deferral this representation does not keep; it has been removed.
+ * Reintroducing it would reintroduce the contradiction, not fix one.
+ */
 export type Pure<T> =
     () => T
 
@@ -126,14 +151,6 @@ export type Do<out O extends Operation, T> = {
 
 export const pure = <T>(v: T): Effect<never, T> => () => v
 
-/**
- * A lazy pure effect. Like {@link pure}, but takes a thunk and evaluates it on
- * demand instead of holding an already-computed value. Use this to produce the
- * next item of a list without instantiating the rest — the thunk runs only when
- * the effect is decoded (or stepped into).
- */
-export const lazy = <T>(t: () => T): Effect<never, T> => t
-
 export const doFull = <O extends Operation, T, K extends O[0]>(
     cmd: K,
     param: Pr<O, K>[0],
@@ -143,8 +160,31 @@ export const doFull = <O extends Operation, T, K extends O[0]>(
 
 /**
  * Composes effects: run `e`, then continue with `f` applied to its result.
- * The data-first primitive — raw `Effect` in, raw `Effect` out — and a thin
- * wrapper over {@link decode}. Chains as `step(step(e, f), g)`.
+ * The data-first primitive — raw `Effect` in, raw `Effect` out. Chains as
+ * `step(step(e, f), g)`.
+ *
+ * **`step` is not lazy.** It reads `e`'s shape immediately, so a `Pure` head is
+ * forced and `f` is called right there: `step(pure(v), f)` *is* `f(v)`,
+ * evaluated where the composition is written rather than where the effect is
+ * run. Only the `Do` case defers — the continuation rebuilt around `f` runs
+ * when a runner reaches that node.
+ *
+ * That is sound rather than an oversight, and it is sound only because of
+ * {@link Pure}'s contract: a `Pure` holds a value that has already been
+ * computed, so forcing it early observes nothing, repeats nothing, and can
+ * throw nothing. `step` never performs a `Do` node, which is where anything
+ * real lives. Break the contract — hide work behind the thunk — and merely
+ * composing a chain starts running the program.
+ *
+ * A composition cannot be suspended, and no combinator can fix that:
+ * `defer: (() => Effect<O, T>) => Effect<O, T>` cannot be written here, because
+ * the `Pure` / `Do` tag must be known before anything runs and the union has no
+ * third case meaning "not yet decided". That is inherent to the representation,
+ * not a gap in this module's API. A caller that needs to name a composition
+ * without performing it yet has to keep the ingredients and defer the `step`
+ * itself — `Eff` does exactly this, holding its history tuple as a thunk
+ * (`both`) precisely because composing it eagerly is the one thing it cannot
+ * take back.
  */
 export const step = <O extends Operation, T, Q extends Operation, R>(
     e: Effect<O, T>,
@@ -273,12 +313,19 @@ export type Decoded<O extends Operation, T> =
 
 /**
  * Decodes an effect's next step: a pure result, or a command to perform.
+ * Forces the thunk in the `Pure` case, which {@link Pure}'s contract makes free
+ * of consequence.
  *
  * This is the only function that knows how an `Effect` is laid out (a thunk
  * `() => T` for `Pure`, a `[command, payload, continuation]` tuple for `Do`).
- * Interpreters and proofs must go through `decode` (or `match`) instead of
- * inspecting the value, so the representation can change without touching
- * them.
+ * {@link step}, {@link match}, interpreters, and proofs all eliminate an effect
+ * through it rather than inspecting the value, so the representation can change
+ * without touching them.
+ *
+ * The `Decoded` record is allocated per call and unpacked immediately by every
+ * caller, so nothing ever holds one. Reading the layout directly in a caller
+ * would remove that allocation at the cost of a second copy of the shape test
+ * to keep in sync — not a trade to make without a measured reason.
  */
 export const decode = <O extends Operation, T>(e: Effect<O, T>): Decoded<O, T> =>
     typeof e === 'function'
