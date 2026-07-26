@@ -142,18 +142,17 @@ const deadlineOf = (name: string): number => Number(name.slice(0, name.indexOf('
  */
 const gcStage = <O extends Now | Readdir | Rm>(stageDir: string): Effect<O, void> =>
     eff(now())
-        .step(t => eff(readdir(stageDir, {}))
-            .step(([k, v]) => {
-                if (k === 'error') { return pure(undefined) }
-                const expired = v.flatMap(d =>
-                    d.isFile && deadlineOf(d.name) < t ? [d.name] : [])
-                return forEachStep((name: string) =>
-                    eff(rm(join(stageDir, name)))
-                        .step(() => pure(undefined))
-                        .value
-                    )(expired)
-            })
-            .value)
+        .step(() => readdir(stageDir, {}))
+        .step(([k, v], t) => {
+            if (k === 'error') { return pure(undefined) }
+            const expired = v.flatMap(d =>
+                d.isFile && deadlineOf(d.name) < t ? [d.name] : [])
+            return forEachStep((name: string) =>
+                eff(rm(join(stageDir, name)))
+                    .step(() => pure(undefined))
+                    .value
+                )(expired)
+        })
         .value
 
 export type FileCas = Cas<FileCasOperation> & {
