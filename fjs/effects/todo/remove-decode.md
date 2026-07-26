@@ -61,10 +61,20 @@ justification above.
 Where this issue disagrees is the framing of the cost. The note weighs the
 trade as *allocation vs. a duplicated shape test*, and on that framing it wins.
 This issue argues the trade is different: **a second vocabulary for every
-consumer vs. a shape test in three places.** After `runPure`, the readers are
-`step`, `match`, and one deliberate layout proof — not the open-ended
-duplication the note guards against — and what is bought is the removal of a
-whole intermediate type from the module's surface.
+consumer vs. a shape test in a bounded number of places.** After `runPure` the
+readers are `step`, `match`, `runPure`, and one deliberate layout proof — four,
+fixed and enumerable, not the open-ended duplication the note guards against —
+and what is bought is the removal of a whole intermediate type from the
+module's surface.
+
+There is precedent for that reading in this very module. `Pure`'s JSDoc
+(lines 99-102) records that the `lazy` constructor was **removed** because it
+"was the identity function, and it promised a deferral this representation does
+not keep". That is the same argument this issue makes about `decode`: an export
+whose body is one expression, kept because it named something the
+representation was thought to hide. Whether the parallel holds is exactly what
+the reviewer is being asked to decide — `lazy` promised something false, while
+`decode` promises something true but small.
 
 If the reviewer holds the note's framing, this issue should be closed as
 won't-fix and the reasoning recorded in the module (per `todo/README.md`, a
@@ -187,9 +197,9 @@ parameter of type 'Effect<never, number>'.
 `Do<never, T>` is also uninhabited, which would make the empty-`Option` branch
 untestable without a cast. The generic form above avoids both problems and
 matches the shape the existing `assertPure` helpers already use. Verified: all
-four migration shapes — `pure`, `lazy`, a continuation `e[2](5)`, and a `match`
-continuation `r[2](r[1])` — typecheck under `--strict`, and the empty-`Option`
-branch is reachable for proof coverage.
+four migration shapes — `pure`, a pure `null`, a continuation `e[2](5)`, and a
+`match` continuation `r[2](r[1])` — typecheck under `--strict`, and the
+empty-`Option` branch is reachable for proof coverage.
 
 The two duplicate `assertPure` definitions collapse into one helper written
 over `runPure`, and `fjs/media/type` and `fjs/cas` stop importing `decode`
@@ -229,16 +239,20 @@ That leaves three sites that genuinely inspect a `Do`, and they should:
 
 #### Wording of the invariant
 
-The replacement invariant must not overstate. "`step` and `match` are the only
-readers of the layout" would be false the moment the layout proof lands, so
-state the exception where it can be checked:
+The replacement invariant must not overstate. Naming only `step` and `match`
+would be false twice over: `runPure` discriminates `Pure` from `Do` itself, and
+the layout proof reads the node directly. Both are required by this design, so
+the invariant has to name them or it would flag its own code:
 
-> `step` and `match` are the only readers of the `Pure`/`Do` layout. Everything
-> else — interpreters, and proofs outside the layout proof in
-> `fjs/effects/proof.f.ts` — goes through `match` or `runPure`.
+> Three functions read the `Pure`/`Do` layout — {@link step}, {@link match},
+> and {@link runPure} — plus the layout proof in `fjs/effects/proof.f.ts` that
+> pins the representation on purpose. Everything else, interpreters included,
+> goes through `match` or `runPure`.
 
-That is both true after the change and a real constraint: a `typeof` check
-appearing in a fourth place is a review flag.
+That is true after the change and still a real constraint: a `typeof e ===
+'function'` appearing in a fifth place is a review flag. The count is the
+point — it is the number this issue trades against `Decoded`'s vocabulary, so
+if it grows, the trade is worth re-examining.
 
 Four JSDoc blocks currently name `decode` and must be restated in those terms,
 not just stripped: the `@module` header (lines 9-14), `Cont`'s variance
