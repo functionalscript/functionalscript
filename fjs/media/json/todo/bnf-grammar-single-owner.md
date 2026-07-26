@@ -60,7 +60,7 @@ the DJS tokenizer can consume the parts it does not extend:
 ```ts
 // fjs/media/json/grammar/module.f.ts
 import {
-    range, remove, repeat, repeat0Plus, set, unicodeMax,
+    commaJoin0Plus, option, range, remove, repeat, repeat0Plus, set, unicodeMax,
     type Rule, type Variant,
 } from '../../../bnf/module.f.ts'
 
@@ -91,6 +91,14 @@ export const json: Rule
 
 // private: `uEscape`, `number` and `ws` — used only to build the above
 ```
+
+The import list is the one `json` actually needs, not just the one the exported
+lexical rules need: `option` carries the four optional branches of `number`
+(sign, fraction, exponent, exponent sign) and `commaJoin0Plus` builds the
+comma-separated array and object bodies via `cj = commaJoin0Plus(ws)`
+(`fjs/bnf/testlib.f.ts:159-183`). Both are private-side dependencies — they
+appear in `number`/`value`, neither of which this module exports — which is
+exactly why they are easy to leave out when reading only the export list.
 
 **The escape parameter, concretely.** No new type is needed: the parameter is
 `bnf`'s existing `Variant` (`fjs/bnf/module.f.ts:61`,
