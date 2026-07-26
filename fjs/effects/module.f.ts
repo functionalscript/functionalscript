@@ -207,7 +207,7 @@ export const historyStep = <
 >(
     e: History<O, P>,
     f: (...p: Readonly<P>) => Effect<Q, R>
-): Effect<O | Q, readonly[R, ...P]> =>
+): History<O | Q, readonly[R, ...P]> =>
     step(e, param => step(f(...param), result => pure([result, ...param])))
 
 export const history = <O extends Operation, T>(e: Effect<O, T>): History<O, readonly[T]> =>
