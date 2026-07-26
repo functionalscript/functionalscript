@@ -211,8 +211,12 @@ const runModule =
             reported,
             ({ param: sr }): Effect<O | All, TestState> => {
                 const { result: [s, r], duration } = sr
-                if (s !== 'ok') { return pure(addFail(duration)(zero)) }
-                if (set.throws) { return pure(addPass(duration)(zero)) }
+                if (s !== 'ok') {
+                    return pure(addFail(duration)(zero))
+                }
+                if (set.throws) {
+                    return pure(addPass(duration)(zero))
+                }
                 // Walk return-value sub-tree; null marks the call boundary so
                 // paths render as e.g. `outer().inner`. throws resets to false.
                 return step(
