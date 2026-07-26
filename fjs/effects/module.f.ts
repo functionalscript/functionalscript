@@ -2,28 +2,29 @@
  * Core effect type constructors and combinators.
  *
  * An `Effect<O, T>` **is** the raw value — a `Pure` thunk (`() => T`) or a `Do`
- * node (`[command, payload, continuation]`). It is plain data with no methods.
+ * node (`{ command, payload, continuation }`). It is plain data with no methods.
  * Composition is provided externally by {@link step}. The optional
  * method-chaining wrapper lives in `fjs/effects/eff/module.f.ts`.
  *
- * **Three functions read the `Pure` thunk vs. `Do` tuple layout** —
- * {@link step}, {@link match}, and {@link runPure} — plus the layout proof in
+ * **Three functions discriminate `Pure` from `Do`** — {@link step},
+ * {@link match}, and {@link runPure} — plus the node proof in
  * `fjs/effects/proof.f.ts` that pins the representation on purpose. Everything
  * else, interpreters included, goes through `match` or `runPure`. The count is
  * the point: a `typeof e === 'function'` check appearing in a fifth place is a
- * review flag, because the layout is only cheap to change while the readers
- * stay enumerable.
+ * review flag, because the representation is only cheap to change while its
+ * readers stay enumerable.
  *
  * A `decode` function (`(e: Effect<O, T>) => Decoded<O, T>`) once funnelled all
  * of that through a single `{ done, result }` / `{ done, command, payload,
  * continuation }` record, so that exactly one function held the shape test. It
  * has been removed. `Effect` is a function type unioned with an object type, so
- * `typeof e === 'function'` is already a complete discriminant — `decode` bought
- * no narrowing, only re-encoded it as a `done` flag to be re-narrowed one
- * indirection later, and `Decoded` was declared in terms of `Do[0]` / `[1]` /
- * `[2]` anyway. The price was a second vocabulary every consumer had to learn
- * for a shape it could already read. Reintroducing it would buy back the same
- * nothing.
+ * `typeof e === 'function'` is already a complete discriminant: `decode` bought
+ * no narrowing, it re-encoded that narrowing as a `done` flag to be re-narrowed
+ * one indirection later, and its `Decoded` record was declared in terms of the
+ * node it claimed to hide. The price was a second vocabulary every consumer had
+ * to learn for a shape it could already read. Reintroducing it would buy back
+ * the same nothing — and with {@link Do} now carrying named fields there is not
+ * even a positional layout left for it to insulate anyone from.
  *
  * Effect helpers come in two shapes. **Step adapters** return a continuation
  * `(t: T) => Effect<Q, R>` meant to be passed into a step — see {@link okStep}.
@@ -143,26 +144,31 @@ export type Cont<out O extends Operation, T> =
     (_: Pr<O, O[0]>[1]) => Effect<O, T>
 
 /**
- * A `Do` node: the `[command, payload, continuation]` triple, read positionally
- * as `[0]` / `[1]` / `[2]` — its runtime value is exactly that array. It is
- * declared as an object with numeric keys rather than `readonly[…]` for one
- * reason: only object / function / mapped-type aliases may carry a variance
- * annotation (`TS2637` forbids `out` on a tuple), and the raw `Effect` union
- * must be covariant in `O` end to end. The tag (`0`) and payload (`1`) are
- * indexed/conditional types over `O` that TypeScript will not widen generically
- * on their own — annotating only {@link Cont} (element `2`) is not enough — so
- * the whole node carries `out O`. The same tag-dispatch soundness argument that
- * justifies `Cont`'s `out O` applies here (see {@link Cont}); widening only ever
- * grows the op-set. The readers of this layout — {@link step} and
- * {@link match}, plus the layout proof — bind the three parts once with
- * `const { 0: command, 1: payload, 2: continuation } = e`. Array destructuring
- * is not available for the same reason the node is an object: without
- * `[Symbol.iterator]` in the declared type, `const [a, b, c] = e` is `TS2488`.
+ * A `Do` node: the command to perform, its payload, and the continuation to
+ * resume with the command's output. Its runtime value is exactly this record,
+ * and every reader destructures it by name —
+ * `const { command, payload, continuation } = e`.
+ *
+ * It must be an object rather than a tuple, and that is not a style choice:
+ * only object / function / mapped-type aliases may carry a variance annotation
+ * (`TS2637` forbids `out` on a tuple), and the raw `Effect` union must be
+ * covariant in `O` end to end. `command` and `payload` are indexed/conditional
+ * types over `O` that TypeScript will not widen generically on their own —
+ * annotating only {@link Cont} is not enough — so the whole node carries
+ * `out O`. The same tag-dispatch soundness argument that justifies `Cont`'s
+ * `out O` applies here (see {@link Cont}); widening only ever grows the op-set.
+ *
+ * The fields were once numeric (`0` / `1` / `2`) over a real `[cmd, param,
+ * cont]` array, which is where the positional reads and the `Decoded` record
+ * that wrapped them came from. Nothing needed the positions: the constraint
+ * above is satisfied by any object type, so the numeric keys were paying a
+ * tuple's price without being a tuple. Named fields make the node
+ * self-describing at every read and leave no layout to memorize.
  */
 export type Do<out O extends Operation, T> = {
-    readonly 0: O[0]
-    readonly 1: Pr<O, O[0]>[0]
-    readonly 2: Cont<O, T>
+    readonly command: O[0]
+    readonly payload: Pr<O, O[0]>[0]
+    readonly continuation: Cont<O, T>
 }
 
 export const pure = <T>(v: T): Effect<never, T> => () => v
@@ -172,7 +178,7 @@ export const doFull = <O extends Operation, T, K extends O[0]>(
     param: Pr<O, K>[0],
     cont: (input: Pr<O, K>[1]) => Effect<O, T>
 ): Effect<O, T> =>
-    [cmd, param, cont]
+    ({ command: cmd, payload: param, continuation: cont })
 
 /**
  * Composes effects: run `e`, then continue with `f` applied to its result.
@@ -206,7 +212,7 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
     f: (t: T) => Effect<Q, R>
 ): Effect<O | Q, R> => {
     if (typeof e === 'function') { return f(e()) }
-    const { 0: command, 1: payload, 2: continuation } = e
+    const { command, payload, continuation } = e
     return doFull<O | Q, R, O[0]>(command, payload, x => step(continuation(x), f))
 }
 
@@ -367,7 +373,7 @@ export type OperationMap<O extends Operation, R> = {
 
 export type MatchResult<O extends Operation, T, R> =
     | readonly['done', T]
-    | readonly['cont', R, Do<O, T>[2]]
+    | readonly['cont', R, Do<O, T>['continuation']]
 
 /**
  * Decodes an effect's next step and dispatches its command to `map`,
@@ -380,7 +386,7 @@ export const match =
     <O extends Operation, R>(map: OperationMap<O, R>) =>
     <O1 extends O, T>(e: Effect<O1, T>): MatchResult<O1, T, R> => {
         if (typeof e === 'function') { return ['done', e()] }
-        const { 0: command, 1: payload, 2: continuation } = e
+        const { command, payload, continuation } = e
         return ['cont', map[command](...payload), continuation]
     }
 

@@ -89,13 +89,14 @@ export const proof = {
             assertEq(runPure(do_<AddOp>('add')(2, 3)).length, 0)
         },
     },
-    // The one place the `Do` layout is pinned on purpose: a node *is* the
-    // `{ 0: command, 1: payload, 2: continuation }` triple. Everything else
-    // goes through `step`, `match`, or `runPure`.
-    doLayout: () => {
+    // The one place a `Do` node is opened on purpose: `do_` builds the command,
+    // the payload it was called with, and a continuation that resumes with the
+    // command's output. Everything else goes through `step`, `match`, or
+    // `runPure`.
+    doNode: () => {
         const e = do_<AddOp>('add')(2, 3)
         assert(typeof e !== 'function', e)
-        const { 0: command, 1: payload, 2: continuation } = e
+        const { command, payload, continuation } = e
         assertEq(command, 'add')
         const [a, b] = payload
         assertEq(a, 2, payload)
