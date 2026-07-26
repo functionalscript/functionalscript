@@ -191,9 +191,7 @@ export const initEvo = <O extends Operation>(cas: Cas<O>): Effect<O | MemOp, Key
 /** Reads, then rewrites, the cache at `cacheKey` with `revision` folded in at `hash`. */
 const foldIntoCache = (cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revision): Effect<MemOp, void> =>
     eff(read(cacheKey))
-        .step(cache => eff(write(cacheKey, addRevisionToCache(hash, revision)(cache)))
-            .step(() => pure(undefined))
-            .value)
+        .step(cache => write(cacheKey, addRevisionToCache(hash, revision)(cache)))
         .value
 
 /**
