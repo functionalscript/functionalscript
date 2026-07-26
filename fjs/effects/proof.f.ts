@@ -1,11 +1,19 @@
-import { step, decode, do_, foldStep, forEachStep, match, okStep, history, pure, type Effect, type Operation, historyStep } from './module.f.ts'
+import { step, do_, foldStep, forEachStep, match, okStep, history, pure, runPure, type Effect, type Operation, historyStep } from './module.f.ts'
 import { error, ok } from '../types/result/module.f.ts'
 import { assert, assertEq } from '../asserts/module.f.ts'
 
-const assertPure = <O extends Operation, T>(e: Effect<O, T>, expected: T) => {
-    const d = decode(e)
-    assert(d.done, e)
-    assertEq(d.result, expected)
+/**
+ * Asserts that `e` yields `expected` without performing a command. Exported so
+ * `eff/proof.f.ts` shares this definition instead of repeating it.
+ *
+ * Not `assertEq(runPure(e), [expected])`: `assertEq` compares with `===`, so a
+ * freshly allocated `[expected]` is never equal to the returned option. Assert
+ * the option's shape first, then compare the value inside it.
+ */
+export const assertPure = <O extends Operation, T>(e: Effect<O, T>, expected: T) => {
+    const o = runPure(e)
+    assert(o.length === 1, e)
+    assertEq(o[0], expected)
 }
 
 type AddOp = readonly['add', (a: number, b: number) => number]
@@ -49,21 +57,51 @@ export const proof = {
     okStep: {
         ok: () => {
             const e = step(pure(ok(5)), okStep((v: number) => pure(ok(v * 2))))
-            const d = decode(e)
-            assert(!(!d.done || d.result[0] !== 'ok' || d.result[1] !== 10), e)
+            const o = runPure(e)
+            assert(o.length === 1, e)
+            const [r] = o
+            assert(r[0] === 'ok', r)
+            assertEq(r[1], 10)
         },
         error: () => {
             const e = step(pure(error<string>('oops')), okStep<number, string, never, number>(v => pure(ok(v * 2))))
-            const d = decode(e)
-            assert(!(!d.done || d.result[0] !== 'error' || d.result[1] !== 'oops'), e)
+            const o = runPure(e)
+            assert(o.length === 1, e)
+            const [r] = o
+            assert(r[0] === 'error', r)
+            assertEq(r[1], 'oops')
         },
     },
-    decode: () => {
-        const d = decode(do_<AddOp>('add')(2, 3))
-        assert(!(d.done), d)
-        assertEq(d.command, 'add')
-        assert(!(d.payload[0] !== 2 || d.payload[1] !== 3), d.payload)
-        assertPure(d.continuation(5), 5)
+    runPure: {
+        pure: () => {
+            const o = runPure(pure(5))
+            assert(o.length === 1, o)
+            assertEq(o[0], 5)
+        },
+        // A pure `null` is `[null]`, never `[]`. Collapsing the two is what a
+        // `T | null` result would do, and why the option is tagged.
+        pureNull: () => {
+            const o = runPure(pure(null))
+            assertEq(o.length, 1, o)
+            assertEq(o[0], null)
+        },
+        do_: () => {
+            assertEq(runPure(do_<AddOp>('add')(2, 3)).length, 0)
+        },
+    },
+    // The one place a `Do` node is opened on purpose: `do_` builds the command,
+    // the payload it was called with, and a continuation that resumes with the
+    // command's output. Everything else goes through `step`, `match`, or
+    // `runPure`.
+    doNode: () => {
+        const e = do_<AddOp>('add')(2, 3)
+        assert(typeof e !== 'function', e)
+        const { command, payload, continuation } = e
+        assertEq(command, 'add')
+        const [a, b] = payload
+        assertEq(a, 2, payload)
+        assertEq(b, 3, payload)
+        assertPure(continuation(5), 5)
     },
     match: {
         done: () => {
@@ -100,9 +138,9 @@ export const proof = {
     },
     historyStep: {
         pure: () => {
-            const d = decode(historyStep(history(pure(3)), v => pure(v * 2)))
-            assert(d.done, d)
-            const [result, param] = d.result
+            const o = runPure(historyStep(history(pure(3)), v => pure(v * 2)))
+            assert(o.length === 1, o)
+            const [[result, param]] = o
             assertEq(param, 3)
             assertEq(result, 6)
         },
@@ -112,9 +150,9 @@ export const proof = {
             const c = next(historyStep(history(do_<AddOp>('add')(2, 3)), r => pure(r * 10)))
             assert(c[0] === 'cont', c)
             assertEq(c[1], 5)
-            const d = decode(c[2](c[1]))
-            assert(d.done, d)
-            const [result, param] = d.result
+            const o = runPure(c[2](c[1]))
+            assert(o.length === 1, o)
+            const [[result, param]] = o
             assertEq(param, 5)
             assertEq(result, 50)
         },

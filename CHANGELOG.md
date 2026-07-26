@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fjs/effects`: **BREAKING CHANGES:** give `Do<O, T>` named fields. The node was
+  a real `[command, payload, continuation]` array typed as an object with numeric
+  keys `0` / `1` / `2`; it is now `{ command, payload, continuation }`, and
+  `doFull` builds that record instead of an array. The numeric keys existed to
+  satisfy one constraint — only object / function / mapped-type aliases may carry
+  a variance annotation (`TS2637` forbids `out` on a tuple) and the raw `Effect`
+  union must be covariant in `O` end to end — which any object type satisfies, so
+  the positions were paying a tuple's price without being a tuple. Migration:
+  `e[0]` / `e[1]` / `e[2]` become `e.command` / `e.payload` / `e.continuation`,
+  and `Do<O, T>[2]` becomes `Do<O, T>['continuation']` (as in `MatchResult`).
+  Readers that go through `match` or `runPure` are unaffected. Named fields also
+  retire the `TS2488` caveat that made `const [a, b, c] = e` illegal: every reader
+  now destructures by name. PR
+  [#1368](https://github.com/functionalscript/functionalscript/pull/1368)
+- `fjs/effects`: **BREAKING CHANGES:** remove the `decode` function and the
+  `Decoded<O, T>` type, and add `runPure`. `Effect` is a function type unioned
+  with an object type, so `typeof e === 'function'` is already a complete
+  discriminant: `decode` bought no narrowing, it re-encoded that narrowing as a
+  `done` flag to be re-narrowed one indirection later, and `Decoded` was declared
+  in terms of the `Do` node it claimed to hide — so every consumer learned a
+  second vocabulary for a shape it could already read. `step` and `match` now
+  read the node directly, binding its parts with
+  `const { command, payload, continuation } = e`. Migration: a caller that only
+  wanted a pure effect's value uses the new
+  `runPure<O, T>(e: Effect<O, T>): Option<T>` — `[t]` for a `Pure`, `[]` for a
+  `Do` — which is what six of the nine former `decode` sites were approximating
+  by hand. The result is an `Option` rather than `T | null` so that a pure `null`
+  stays distinguishable from an effect that stopped at a command, and `O` stays
+  generic because `Effect` is covariant in it, so `Effect<never, T>` would reject
+  every continuation's result. A caller that intends to perform the command keeps
+  using `match`, whose `MatchResult` already hides the layout. This trades one
+  export for two removed and leaves three readers of the representation —
+  `step`, `match`, `runPure` — plus the deliberate node proof; a fifth
+  `typeof e === 'function'` is a review flag. PR
+  [#1368](https://github.com/functionalscript/functionalscript/pull/1368)
 - `fjs/effects`: **BREAKING CHANGES:** remove the `Frame<R, P>` type and
   `frameStep`, both part of the public API earlier in this cycle, and replace
   them with `History<O, H>`, `history`, and `historyStep`. `Frame` chained by

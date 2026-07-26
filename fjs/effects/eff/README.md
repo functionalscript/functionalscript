@@ -14,7 +14,7 @@ needs data from real call sites, gathered over several revisions.
 The two layers have opposite stability guarantees, and it is worth being
 explicit about which is which.
 
-The raw primitives — `Effect`, `step`, `decode`, and the combinators beside
+The raw primitives — `Effect`, `step`, `match`, and the combinators beside
 them — have converged. They will keep gaining combinators, but the core is
 unlikely to change much.
 

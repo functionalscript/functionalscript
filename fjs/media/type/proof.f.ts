@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
 import { msb, u8ListToVec, vec8, repeat, empty, type Vec } from '../../types/bit_vec/module.f.ts'
-import { decode, type Effect } from '../../effects/module.f.ts'
+import { runPure } from '../../effects/module.f.ts'
 import { nonEmpty, empty as emptyList, type List } from '../../effects/list/module.f.ts'
 import { ok, type Result } from '../../types/result/module.f.ts'
 import { detect, detectStream, detectVec, type DetectMeta } from './module.f.ts'
@@ -11,13 +11,6 @@ const bytes = (...b: readonly number[]): Vec => u8ListToVec(msb)(b)
 
 // ── Streaming detector helpers ──────────────────────────────────────────────────
 
-// Evaluates a fully pure effect (no operations) to its result.
-const runPure = <T>(e: Effect<never, T>): T => {
-    const d = decode(e)
-    assert(d.done, 'effect is not pure')
-    return d.result
-}
-
 // Builds a CAS-style read stream from a sequence of ok(chunk) items.
 const stream = (...chunks: readonly Vec[]): List<never, Result<Vec, unknown>> =>
     chunks.reduceRight<List<never, Result<Vec, unknown>>>(
@@ -26,7 +19,9 @@ const stream = (...chunks: readonly Vec[]): List<never, Result<Vec, unknown>> =>
 
 // Runs the streaming detector over the given chunks and unwraps the metadata.
 const detectChunks = (...chunks: readonly Vec[]): DetectMeta => {
-    const r = runPure(detectStream(stream(...chunks)))
+    const o = runPure(detectStream(stream(...chunks)))
+    assert(o.length === 1, 'effect is not pure')
+    const [r] = o
     assert(r[0] !== 'error', r[1])
     return r[1]
 }
@@ -232,8 +227,9 @@ export const proof = {
         readErrorSurfaces: () => {
             const errStream: List<never, Result<Vec, unknown>> =
                 nonEmpty(['error', 'boom'] as const, emptyList<never, Result<Vec, unknown>>())
-            const r = runPure(detectStream(errStream))
-            assert(r[0] === 'error')
+            const o = runPure(detectStream(errStream))
+            assert(o.length === 1, 'effect is not pure')
+            assert(o[0][0] === 'error')
         },
 
         // Empty stream: zero-length text/plain.

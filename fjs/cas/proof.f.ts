@@ -2,7 +2,7 @@ import { length, maxLength, msb, vec, vec8, type Vec } from '../types/bit_vec/mo
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
 import { fileCas, casAddFile, collectRead, type FileCasOperation, casUpload } from './module.f.ts'
-import { decode, pure, step, type Effect } from '../effects/module.f.ts'
+import { match, pure, runPure, step, type Effect } from '../effects/module.f.ts'
 import { mkdir, writeFile, rm, readFile, type ReadFile, type WriteFile, type Rm, type Mkdir, type IoResult, access } from '../effects/node/module.f.ts'
 import { error, ok, type Ok } from '../types/result/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
@@ -13,6 +13,24 @@ import { assert, assertEq, assertNotNullish } from '../asserts/module.f.ts'
 const testDir = './test-cas-cli'
 
 type TestOp = FileCasOperation | WriteFile | ReadFile | Rm | Mkdir
+
+// Names the command a `FileCasOperation` effect stops at, so a proof can assert
+// on it and resume the continuation without reading the `Do` layout. The map
+// has to list every operation the CAS can perform — that is what makes it total,
+// and what makes a new operation a compile error here rather than a silent gap.
+const casCommand = match<FileCasOperation, FileCasOperation[0]>({
+    access: () => 'access',
+    createExclusive: () => 'createExclusive',
+    mkdir: () => 'mkdir',
+    now: () => 'now',
+    randomInt: () => 'randomInt',
+    readBytes: () => 'readBytes',
+    readdir: () => 'readdir',
+    rename: () => 'rename',
+    rm: () => 'rm',
+    stat: () => 'stat',
+    writeBytes: () => 'writeBytes',
+})
 
 // Create a 128 KiB big file content (at the max Vec size limit)
 // This tests the boundary where files are at the chunk size limit
@@ -286,19 +304,20 @@ export const proof = {
         // and returns the whole blob as one `Vec`.
         const stream: List<never, IoResult<Vec>> =
             nonEmpty<never, IoResult<Vec>>(ok(vec8(0x11n)), nonEmpty<never, IoResult<Vec>>(ok(vec8(0x22n)), empty()))
-        const d = decode(collectRead(stream))
-        assert(d.done, 'expected collectRead to finish without issuing a command')
-        assertEq(d.result[0], 'ok')
+        const o = runPure(collectRead(stream))
+        assert(o.length === 1, 'expected collectRead to finish without issuing a command')
+        assertEq(o[0][0], 'ok')
     },
     collectReadPropagatesErrorItem: () => {
         // An error item mid-stream short-circuits collectRead with that same error.
         const boom: IoResult<Vec> = error('boom')
         const stream: List<never, IoResult<Vec>> =
             nonEmpty<never, IoResult<Vec>>(ok(vec8(0x11n)), nonEmpty<never, IoResult<Vec>>(boom, empty()))
-        const d = decode(collectRead(stream))
-        assert(d.done, 'expected collectRead to finish without issuing a command')
-        assertEq(d.result[0], 'error')
-        assertEq(d.result[1], 'boom')
+        const o = runPure(collectRead(stream))
+        assert(o.length === 1, 'expected collectRead to finish without issuing a command')
+        const [r] = o
+        assertEq(r[0], 'error')
+        assertEq(r[1], 'boom')
     },
     // A single `Vec` cannot exceed `maxLength` bits — feed a pure stream whose second
     // chunk pushes the running total just over the limit so the overflow guard fires
@@ -309,22 +328,21 @@ export const proof = {
         const v2 = vec(half + 1n)(0n)
         const stream: List<never, IoResult<Vec>> =
             nonEmpty<never, IoResult<Vec>>(ok(v1), nonEmpty<never, IoResult<Vec>>(ok(v2), empty()))
-        const d = decode(collectRead(stream))
-        assert(d.done, 'expected collectRead to finish without issuing a command')
-        assertEq(d.result[0], 'error')
+        const o = runPure(collectRead(stream))
+        assert(o.length === 1, 'expected collectRead to finish without issuing a command')
+        assertEq(o[0][0], 'error')
     },
     casListPropagatesNonNotFoundAccessError: () => {
         // A non-ENOENT `access` failure (permissions, corruption) is a genuine storage
         // error and must propagate out of `list`, not be swallowed as an empty store.
         const c = fileCas(sha256)('.')
         const boom = { code: 'EACCES' }
-        const d = decode(c.list())
-        assert(!d.done, 'expected list() to issue an access command first')
-        assertEq(d.command, 'access')
-        const continuation = d.continuation as (r: IoResult<void>) => Effect<FileCasOperation, readonly Vec[]>
+        const r = casCommand(c.list())
+        assert(r[0] === 'cont', 'expected list() to issue an access command first')
+        assertEq(r[1], 'access')
         let threw: unknown
         try {
-            continuation(error(boom))
+            r[2](error(boom))
         } catch (e) {
             threw = e
         }
