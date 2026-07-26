@@ -1,12 +1,7 @@
-import { decode, do_, match, pure, type Effect, type Operation } from '../module.f.ts'
+import { do_, match, pure } from '../module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assertPure } from '../proof.f.ts'
 import { eff } from './module.f.ts'
-
-const assertPure = <O extends Operation, T>(e: Effect<O, T>, expected: T) => {
-    const d = decode(e)
-    assert(d.done, e)
-    assertEq(d.result, expected)
-}
 
 type AddOp = readonly['add', (a: number, b: number) => number]
 

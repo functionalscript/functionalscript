@@ -1,11 +1,22 @@
 import { empty, isVec, uint, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { utf8, utf8ToString } from "../../text/module.f.ts"
-import { decode, pure, step } from "../module.f.ts"
-import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, type IoResult } from "./module.f.ts"
+import { match, pure, step } from "../module.f.ts"
+import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, type IoResult, type ReadFile } from "./module.f.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.ts"
 import { emptyState, virtual, type Dir } from "./virtual/module.f.ts"
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.ts'
+import { ok } from '../../types/result/module.f.ts'
+
+// Answers the one command the `map` proof below drives. Routing the loop
+// through `match` keeps the `Pure`/`Do` layout out of this module: the map key
+// is the command assertion, and `MatchResult` types the continuation.
+const readHello = match<ReadFile, IoResult<Vec>>({
+    readFile: path => {
+        assertEq(path, 'hello')
+        return ok(vec8(0x15n))
+    },
+})
 
 export const proof = {
     map: () => {
@@ -16,13 +27,11 @@ export const proof = {
                 return pure(uint(v) * 2n)
             })
         //
-        let d = decode(e)
-        while (!d.done) {
-            assertEq(d.command, 'readFile')
-            assert(d.payload[0] === 'hello', d.payload)
-            d = decode(d.continuation(['ok', vec8(0x15n)]))
+        let r = readHello(e)
+        while (r[0] === 'cont') {
+            r = readHello(r[2](r[1]))
         }
-        assertEq(d.result, 0x2An)
+        assertEq(r[1], 0x2An)
     },
     fetch: () => {
         const [_, [t, result]] = virtual({
