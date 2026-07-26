@@ -52,7 +52,7 @@ provides*. Proposed destinations:
 |---|---|
 | `fjs/effects/all/module.f.ts` | `All`, `all`, `both`, and `allVoid`/`allReduce` when they land |
 | `fjs/effects/sandbox/module.f.ts` | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise` — the "run foreign code and observe what happened" pair |
-| `fjs/effects/console/module.f.ts` | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit` |
+| `fjs/effects/console/module.f.ts` | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
 | `fjs/effects/test/module.f.ts` | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
 | stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Fetch`, `Import`, `Forever`, `Now`, `RandomInt`, `IoResult`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
 
@@ -109,6 +109,37 @@ Judgement calls worth deciding explicitly rather than by accident:
   import it and the dependency stays a DAG. (The alternative — moving
   `NodeProgramOptions`' test contexts up as well — would drag the whole program
   contract along and is not worth it.)
+- **The console move must also narrow `csiWrite`, or symptom 2 survives it.**
+  Moving `write`/`Write`/`WriteConsoles` alone does **not** free
+  `fjs/text/sgr/module.f.ts` from `effects/node`, because `csiWrite` (`:90-98`)
+  takes the whole `NodeProgramOptions` record and destructures a single field
+  out of it:
+
+  ```ts
+  export const csiWrite =
+      ({ std }: NodeProgramOptions) =>
+      (stream: WriteConsoles): (s: string) => Effect<Write, void> => { … }
+  ```
+
+  So sgr would keep importing `NodeProgramOptions` and the coupling this issue
+  cites would be exactly preserved. Name the minimal contract in the console
+  module and have `csiWrite` take *that*:
+
+  ```ts
+  // fjs/effects/console/module.f.ts
+  export type Std = { readonly[k in WriteConsoles]: { readonly isTTY: boolean } }
+
+  // fjs/text/sgr/module.f.ts
+  export const csiWrite = (std: Std) => (stream: WriteConsoles) => …
+  ```
+
+  `NodeProgramOptions.std` (`fjs/effects/node/module.f.ts:535`, inline today)
+  then refers to `Std` instead of respelling it, so the runner contract still
+  carries the TTY flags and the two stay in sync by construction. `csiWrite` has
+  one caller — `fjs/emergent_testing/module.f.ts:338`, `csiWrite(options)` —
+  which becomes `csiWrite(options.std)`. This is the AGENTS.md
+  "fix the design rather than bend the caller" direction: `csiWrite` never
+  wanted a whole program-options record.
 - **Don't invent a module per operation.** Group by concern; a directory with
   one four-line module per effect is worse than the monolith.
 
@@ -145,7 +176,11 @@ Judgement calls worth deciding explicitly rather than by accident:
       `effects/node` import. `IoResult` itself does **not** move.
 - [ ] Move `All` / `all` / `both` to `fjs/effects/all/module.f.ts`.
 - [ ] Move `Sandbox` / `Await` and helpers to `fjs/effects/sandbox/module.f.ts`.
-- [ ] Move the console family to `fjs/effects/console/module.f.ts`.
+- [ ] Move the console family to `fjs/effects/console/module.f.ts`, add the
+      named `Std` type there, point `NodeProgramOptions.std` at it, and narrow
+      `csiWrite` to take `Std` (updating its one caller,
+      `fjs/emergent_testing/module.f.ts:338`). Verify `fjs/text/sgr` no longer
+      imports `effects/node` at all — that is the test for this step.
 - [ ] Move `Test` / `TestFn` / `TestContext` / `test` to
       `fjs/effects/test/module.f.ts` — **not** into `fjs/emergent_testing`, which
       would be a cycle (see the judgement call above). Confirm `effects/node`

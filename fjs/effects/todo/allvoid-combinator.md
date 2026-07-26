@@ -1,7 +1,20 @@
 ## allvoid-combinator. `allVoid` combinator for parallel fan-out that discards results
 
 **Priority:** P4
-**Status:** open
+**Status:** blocked
+**Blocked by:** [node-module-layering](./node-module-layering.md)
+
+> **Destination superseded (2026-07).** The proposal below places `allVoid` in
+> `fjs/effects/node/module.f.ts` because that is where `all`/`All` live today,
+> and notes that if `All` is ever lowered out of the node module `allVoid`
+> "moves down with it". [node-module-layering](./node-module-layering.md) is
+> that lowering: `All`/`all`/`both` go to `fjs/effects/all/module.f.ts`, and
+> `allVoid` belongs there with them.
+>
+> Land the `All` move first, then add `allVoid` to `fjs/effects/all` — writing
+> it into the node module now would only earn it a second, breaking relocation.
+> The proposal's body is otherwise unchanged and still correct; substitute
+> `fjs/effects/all/module.f.ts` wherever it says `fjs/effects/node/module.f.ts`.
 
 ### Problem
 
@@ -48,8 +61,10 @@ duplicating the `all(...map)` core — whichever reads better.
 
 ### Tasks
 
-- [ ] Add `allVoid` to `fjs/effects/node/module.f.ts` (next to `all`/`both`)
-      with proof coverage.
+- [ ] Wait for [node-module-layering](./node-module-layering.md) to move
+      `All`/`all`/`both` to `fjs/effects/all/module.f.ts`.
+- [ ] Add `allVoid` there (next to `all`/`both`) with proof coverage — **not**
+      to `fjs/effects/node/module.f.ts`, per the note at the top of this issue.
 - [ ] Convert the three call sites in `fjs/emergent_testing/module.f.ts`.
 - [ ] Run `npx tsc` and `fjs t`.
 
