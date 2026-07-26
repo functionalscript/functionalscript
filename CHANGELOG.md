@@ -7,12 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fjs/effects`: **BREAKING CHANGES:** remove the `lazy` constructor, which was
+  part of the public API in 0.38.0. The thunk in `Pure<T> = () => T` is a
+  discriminator — it is how `decode` tells a `Pure` apart from a `Do` node — not
+  a suspension, so the deferral `lazy` advertised was never one this
+  representation keeps: `step` forces a `Pure` head as soon as it composes, so
+  work hidden behind the thunk ran at composition time rather than when a runner
+  interpreted the effect. Once `Effect` became the raw value earlier in this
+  cycle, `lazy` collapsed to the identity function (`t => t`) and the promise
+  became visibly empty. Callers holding an already-computed value use `pure(v)`;
+  callers that need work deferred until interpretation must put it in a `Do`
+  node, which is the only construct a runner performs. PR
+  [#1360](https://github.com/functionalscript/functionalscript/pull/1360)
+- `fjs/effects/eff`: `Eff.step(f)` now also passes every prior value in the
+  chain to `f`, most recent first (`f(t, ...history)`), via a new `P` type
+  parameter on `Eff<O, T, P>` that accumulates one element per `.step` call,
+  starting empty at `eff(value)`. `P` has no default, so the history cannot be
+  silently erased by writing `Eff<O, T>`. The extra arguments are positional:
+  a callback declaring exactly one parameter is unaffected, but one declaring a
+  defaulted or rest parameter after the current value (`(v, n = 1) => …`,
+  `(v, ...rest) => …`) now receives history there instead of its default, and
+  TypeScript will not flag it wherever the types happen to line up. No callback
+  in the repository is written that way; `gcStage` in `fjs/cas/module.f.ts` is
+  the first deliberate consumer, replacing a nested chain that existed only to
+  keep an earlier value in scope. PR
+  [#1360](https://github.com/functionalscript/functionalscript/pull/1360)
 - `fjs/effects`: add `frameStep` and `Frame` — `frameStep` captures the call it
   makes as a `Frame<R, P>` (`{ result, param }`) instead of discarding the
   parameter, so a chain of named intermediate effects can reach values bound by
   earlier links, one `param` hop per link
   [1361](https://github.com/functionalscript/functionalscript/pull/1361)
-
 - `fjs/effects`: **BREAKING CHANGE:** an `Effect<O, T>` is now the **raw value**
   — a `Pure` thunk (`() => T`) or a `Do` node (`[command, payload, continuation]`)
   — instead of a `{ value, step }` wrapper. Composition moves out of the node
