@@ -29,8 +29,19 @@ import { frameStep, pure, step, type Effect, type Operation } from '../module.f.
  * history, so wrapping and unwrapping round-trip to identity. `both` is still a
  * thunk, so `eff(e)` composes nothing and never forces `e`: an `Eff` that is
  * built and only read does no work at all.
+ *
+ * **`P` has no default, on purpose.** A default of `readonly[]` would make
+ * `Eff<O, T>` a spelling that silently erases history: an
+ * `Eff<O, T, readonly[A]>` is assignable to it, because `f` sits in a
+ * contravariant position and TypeScript accepts a callback declaring fewer
+ * parameters than the type it is checked against. The next `.step` callback
+ * would then be typed as receiving no prior values while the runtime still
+ * passes them, and any callback destructuring a rest parameter would be handed
+ * entries its type says cannot exist. Requiring the third argument means that
+ * erasure cannot be written at all, rather than merely being discouraged;
+ * {@link eff} spells `readonly[]` itself.
  */
-export type Eff<O extends Operation, T, P extends readonly unknown[] = readonly[]> = {
+export type Eff<O extends Operation, T, P extends readonly unknown[]> = {
     readonly value: Effect<O, T>
     readonly step: <Q extends Operation, R>(f: (t: T, ...p: P) => Effect<Q, R>) => Eff<O | Q, R, readonly[T, ...P]>
 }
@@ -77,6 +88,10 @@ const create = <O extends Operation, T, P extends readonly unknown[]>(
     }
 })
 
-/** Wraps a raw {@link Effect}; the bridge into the `Eff` world, with an empty history. */
-export const eff = <O extends Operation, T>(value: Effect<O, T>): Eff<O, T> =>
+/**
+ * Wraps a raw {@link Effect}; the bridge into the `Eff` world, with an empty
+ * history. The empty tuple is spelled out because {@link Eff} deliberately has
+ * no default for `P` — see its docs.
+ */
+export const eff = <O extends Operation, T>(value: Effect<O, T>): Eff<O, T, readonly[]> =>
     create(value, () => step(value, v => pure([v])))
