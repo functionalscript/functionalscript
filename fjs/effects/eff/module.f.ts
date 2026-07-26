@@ -34,7 +34,7 @@ import { history, historyStep, pure, step, type Effect, type Operation } from '.
  *
  * At the entry it costs nothing at all: `eff(e).value` **is** `e`, because
  * {@link eff} stores what it was handed rather than rebuilding it from the
- * history, so wrapping and unwrapping round-trip to identity. `both` is still a
+ * history, so wrapping and unwrapping round-trip to identity. `h` is still a
  * thunk, so `eff(e)` composes nothing and never forces `e`: an `Eff` that is
  * built and only read does no work at all.
  *
@@ -56,12 +56,11 @@ export type Eff<O extends Operation, T, P extends readonly unknown[]> = {
 
 /**
  * Builds an `Eff` from two views of the same chain: `value`, the effect for the
- * current value alone, and `both`, a thunk for the `[current, ...history]`
- * tuple.
+ * current value alone, and `h`, a thunk for the `[current, ...history]` tuple.
  *
- * **The two must denote the same computation** — `value` has to be what
- * `both()` produces with the history dropped. Nothing enforces it. The
- * redundancy is deliberate: `value` used to be derived from `both` on demand,
+ * **The two must denote the same computation** — `value` has to be what `h()`
+ * produces with the history dropped. Nothing enforces it. The
+ * redundancy is deliberate: `value` used to be derived from `h` on demand,
  * which made disagreement impossible but also forced the entry case to rebuild
  * an effect it was already holding. Passing it in is what lets {@link eff} hand
  * the original back.
@@ -69,12 +68,12 @@ export type Eff<O extends Operation, T, P extends readonly unknown[]> = {
  * The asymmetry between the two — one built, one deferred — is the point.
  * `value` is either already in hand ({@link eff} was given it) or already built
  * (`.step` has just composed the chain it projects from), so storing it costs
- * no more than the projection itself. `both` is different: nothing needs the
+ * no more than the projection itself. `h` is different: nothing needs the
  * history tuple until a later `.step` asks for it, and {@link step} is eager,
  * so holding a thunk is the only way to not compose it yet. That is what keeps
  * `eff(e)` free of work entirely.
  *
- * `.step` calls `both()` once and closes over the effect, so everything built
+ * `.step` calls `h()` once and closes over the effect, so everything built
  * from that link shares it. `eff`'s thunk is not memoized, so calling `.step`
  * twice on the same `eff(e)` rebuilds and re-forces `e` — harmless under
  * `Pure`'s contract, which requires the thunk to be pure and to tolerate

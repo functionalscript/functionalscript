@@ -98,7 +98,7 @@ export const proof = {
             assertPure(r[2](r[1]), 50)
         },
     },
-    frameStep: {
+    historyStep: {
         pure: () => {
             const d = decode(historyStep(history(pure(3)), v => pure(v * 2)))
             assert(d.done, d)
@@ -107,7 +107,7 @@ export const proof = {
             assertEq(result, 6)
         },
         over_do: () => {
-            // The captured param survives a command boundary: the frame is
+            // The captured value survives a command boundary: the history is
             // rebuilt inside the continuation rather than lost when `e` is a Do.
             const c = next(historyStep(history(do_<AddOp>('add')(2, 3)), r => pure(r * 10)))
             assert(c[0] === 'cont', c)
@@ -119,17 +119,18 @@ export const proof = {
             assertEq(result, 50)
         },
         chain: () => {
-            // Frames chain through `param`, so a value bound two links back
-            // reads as `param.param.result`.
+            // `historyStep` takes a history and returns one, so link two is
+            // spelled exactly like link one. The tuple is newest first, so a
+            // destructuring reads reverse-chronologically.
             const a = historyStep(history(pure(1)), x => pure(x + 1))
             const b = historyStep(a, (result, param) => pure(result + param))
             assertPure(
                 step(b, ([z, y, x]) => pure(`${x}${y}${z}`)),
                 '123')
         },
-        f_receives_whole_frame: () => {
-            // `f` is handed the preceding frame, not just its result - which is
-            // why frames chain through `param` at all.
+        f_receives_whole_history: () => {
+            // `f` is handed the whole history spread as arguments, not just the
+            // most recent value - which is what lets a later link reach back.
             const a = historyStep(history(pure(1)), x => pure(x + 1))
             const b = historyStep(a, (...p) => pure(p[1] * 100 + p[0]))
             assertPure(step(b, ([result]) => pure(result)), 102)
