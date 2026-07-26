@@ -174,7 +174,9 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                     .step((result): List<FileCasOperation, IoResult<Vec>> => {
                         const [t, v] = result
                         // A missing shard or read error is an explicit error item, never EOF.
-                        if (t === 'error') { return nonEmpty<FileCasOperation, IoResult<Vec>>(result, elEmpty()) }
+                        if (t === 'error') {
+                            return nonEmpty<FileCasOperation, IoResult<Vec>>(result, elEmpty())
+                        }
                         // End the stream only on an empty read; every non-empty read — including a
                         // final short (`< CHUNK_BYTES`) chunk — is emitted as an `ok` item.
                         return length(v) === 0n
@@ -219,26 +221,37 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                     const rndStr = vecToCBase32(rnd)
                     const loop = (state: Sha2State, offset: number, curPath: string) =>
                         (stream: List<O1, IoResult<Vec>>): Effect<O1 | FileCasOperation, IoResult<Vec>> =>
-                            eff(stream).step((node): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
-                                if (node === undefined) { return publish(state, offset, curPath) }
-                                const { first, tail } = node
-                                if (first[0] === 'error') { return fail(curPath, first[1]) }
-                                const chunk = first[1]
-                                return eff(writeBytes(curPath, offset, chunk)).step(wb => {
-                                    if (wb[0] === 'error') { return fail(curPath, wb[1]) }
-                                    const newState = sha2.append(chunk)(state)
-                                    const newOffset = offset + Number(length(chunk) / 8n)
-                                    // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
-                                    // The new path is still needed after the rename, to recurse with,
-                                    // so the rename captures it rather than closing over it.
-                                    const nextPath = step(now(), t => pure(join(stageDir, stageName(t + leaseDelta, rndStr))))
-                                    const renamed = frameStep(nextPath, next => rename(curPath, next))
-                                    return step(renamed, ({ result: [rt, v], param: next }) =>
-                                        rt === 'error'
-                                            ? fail(curPath, v)
-                                            : loop(newState, newOffset, next)(tail))
+                            eff(stream)
+                                .step((node): Effect<O1 | FileCasOperation, IoResult<Vec>> => {
+                                    if (node === undefined) {
+                                        return publish(state, offset, curPath)
+                                    }
+                                    const { first, tail } = node
+                                    if (first[0] === 'error') {
+                                        return fail(curPath, first[1])
+                                    }
+                                    const chunk = first[1]
+                                    return eff(writeBytes(curPath, offset, chunk)).step(wb => {
+                                        if (wb[0] === 'error') { return fail(curPath, wb[1]) }
+                                        const newState = sha2.append(chunk)(state)
+                                        const newOffset = offset + Number(length(chunk) / 8n)
+                                        // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
+                                        // The new path is still needed after the rename, to recurse with,
+                                        // so the rename captures it rather than closing over it.
+                                        const nextPath = step(
+                                            now(),
+                                            t => pure(join(stageDir, stageName(t + leaseDelta, rndStr))))
+                                        const renamed = frameStep(
+                                            nextPath,
+                                            next => rename(curPath, next))
+                                        return step(
+                                            renamed,
+                                            ({ result: [rt, v], param: next }) =>
+                                                rt === 'error'
+                                                    ? fail(curPath, v)
+                                                    : loop(newState, newOffset, next)(tail))
+                                    }).value
                                 }).value
-                            }).value
                     return eff(mkdir(stageDir, { recursive: true })).step(() =>
                         eff(now()).step(t0 => {
                             const path0 = join(stageDir, stageName(t0 + leaseDelta, rndStr))

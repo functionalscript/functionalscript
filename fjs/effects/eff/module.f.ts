@@ -12,6 +12,14 @@ import { frameStep, pure, step, type Effect, type Operation } from '../module.f.
  * exit back to a raw `Effect`, discarding the history. An `Eff` is not
  * assignable to `Effect`; unwrap through `.value`.
  *
+ * **The history is positional, so every parameter a callback declares is
+ * meaningful.** `f` is applied as `f(...tp)`, so a callback written
+ * `(v, n = 1) => …` or `(v, ...rest) => …` receives prior chain values in `n` /
+ * `rest` rather than the default or an empty rest — and where the types line up,
+ * TypeScript will not object. Declare exactly as many parameters as the callback
+ * intends to read; a defaulted or rest parameter after the current value is a
+ * bug, not a convenience.
+ *
  * **`.value` is always an already-built `Effect`.** Reading it composes
  * nothing: the projection that drops the history tuple to its current value is
  * performed by the `.step` that produced the link, not deferred to the read.

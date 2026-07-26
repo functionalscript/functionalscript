@@ -22,9 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `fjs/effects/eff`: `Eff.step(f)` now also passes every prior value in the
   chain to `f`, most recent first (`f(t, ...history)`), via a new `P` type
   parameter on `Eff<O, T, P>` that accumulates one element per `.step` call,
-  starting empty at `eff(value)`. Existing single-argument callbacks are
-  unaffected — TypeScript accepts a callback with fewer parameters than the
-  declared function type. PR
+  starting empty at `eff(value)`. `P` has no default, so the history cannot be
+  silently erased by writing `Eff<O, T>`. The extra arguments are positional:
+  a callback declaring exactly one parameter is unaffected, but one declaring a
+  defaulted or rest parameter after the current value (`(v, n = 1) => …`,
+  `(v, ...rest) => …`) now receives history there instead of its default, and
+  TypeScript will not flag it wherever the types happen to line up. No callback
+  in the repository is written that way; `gcStage` in `fjs/cas/module.f.ts` is
+  the first deliberate consumer, replacing a nested chain that existed only to
+  keep an earlier value in scope. PR
   [#1360](https://github.com/functionalscript/functionalscript/pull/1360)
 - `fjs/effects`: add `frameStep` and `Frame` — `frameStep` captures the call it
   makes as a `Frame<R, P>` (`{ result, param }`) instead of discarding the
