@@ -182,9 +182,11 @@ export const doFull = <O extends Operation, T, K extends O[0]>(
  * `defer: (() => Effect<O, T>) => Effect<O, T>` cannot be written here, because
  * the `Pure` / `Do` tag must be known before anything runs and the union has no
  * third case meaning "not yet decided". That is inherent to the representation,
- * not a gap in this module's API. A caller that needs to build an `Effect`
- * without composing it yet must hold the thunk itself, the way
- * `Eff` holds `result` and `both`.
+ * not a gap in this module's API. A caller that needs to name a composition
+ * without performing it yet has to keep the ingredients and defer the `step`
+ * itself — `Eff` does exactly this, holding its history tuple as a thunk
+ * (`both`) precisely because composing it eagerly is the one thing it cannot
+ * take back.
  */
 export const step = <O extends Operation, T, Q extends Operation, R>(
     e: Effect<O, T>,
