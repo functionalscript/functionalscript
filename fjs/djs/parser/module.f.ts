@@ -550,4 +550,21 @@ export const proof = {
             assertEq(result.state, 'error')
         },
     },
+    endArray: {
+        // `endArray` is only ever invoked while `state.top` is an array (the
+        // `'['`/`'[v'`/`'[,'` value-states guarantee it), so its non-array
+        // guard is a defensive branch unreachable through `parseFromTokens`.
+        // Call it directly to cover that branch.
+        nonArrayTop: () => {
+            const state: ParseValueState = {
+                state: 'exportValue',
+                module: { refs: null, modules: null, consts: null },
+                valueState: '[,',
+                top: null,
+                stack: null,
+            }
+            const result = endArray(state)
+            assertEq(result.state, 'result')
+        },
+    },
 }
