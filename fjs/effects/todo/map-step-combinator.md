@@ -125,15 +125,40 @@ for brevity.
 
 **`Eff` gets the same method.** Roughly a third of the sites are already in the
 fluent world (`eff(x).step(y => pure(f(y))).value`). Add the matching method to
-`fjs/effects/eff/module.f.ts` so those sites don't have to leave it:
+`fjs/effects/eff/module.f.ts` so those sites don't have to leave it.
+
+Since [#1360](https://github.com/functionalscript/functionalscript/pull/1360)
+an `Eff` is `Eff<O, T, P>`: `P` is the tuple of prior chain values, `.step`'s
+callback is applied as `f(t, ...p)`, and the result grows the history —
+`Eff<O | Q, R, readonly[T, ...P]>`. `.map` must fit that contract, not the
+two-parameter shape:
 
 ```ts
-export type Eff<O extends Operation, T> = {
+export type Eff<O extends Operation, T, P extends readonly unknown[]> = {
     readonly value: Effect<O, T>
-    readonly step: <Q extends Operation, R>(f: (t: T) => Effect<Q, R>) => Eff<O | Q, R>
-    readonly map: <R>(f: (t: T) => R) => Eff<O, R>
+    readonly step: <Q extends Operation, R>(f: (t: T, ...p: P) => Effect<Q, R>) => Eff<O | Q, R, readonly[T, ...P]>
+    readonly map: <R>(f: (t: T, ...p: P) => R) => Eff<O, R, readonly[T, ...P]>
 }
 ```
+
+**History grows, exactly as it does for `.step`.** This is forced, not a
+preference: `.map(f)` has to be observationally identical to
+`.step((t, ...p) => pure(f(t, ...p)))`, because that is the rewrite this issue
+performs at every fluent site. Preserving `P` unchanged instead would mean the
+mechanical conversion silently changes what *later* callbacks in the chain
+receive — a behavioural change disguised as a readability one. `O` does not
+widen (no `Q`), for the same reason it doesn't in `mapStep`: a pure projection
+issues no commands.
+
+**Conversion hazard: callback arity.** `Eff`'s own docs warn that the history is
+positional, so "every parameter a callback declares is meaningful … a defaulted
+or rest parameter after the current value is a bug, not a convenience." A
+conversion from `.step(y => pure(f(y)))` to `.map(f)` is only safe when `f` is
+genuinely unary — the explicit lambda pins arity at one, while passing `f`
+point-free exposes it to the prior values. This is `["1","2","3"].map(parseInt)`
+with a longer history tuple. When converting, either keep the lambda or confirm
+the callee takes exactly one argument; `mapOk(utf8ToString)` and
+`vecToCBase32` qualify, and anything with optional parameters does not.
 
 **Scope.** `AGENTS.md` asks one improvement per PR, and it also asks that a new
 `export` ship with at least one external consumer *in the same change* — so the
@@ -142,7 +167,7 @@ landing them with proof coverage alone:
 
 1. `mapStep` + `Eff.map`, plus the nearest real consumers — `readUtf8File` and
    `errorExit` in `fjs/effects/node/module.f.ts` (raw, one projection and one
-   constant projection) and `decodeRevisionBlob` in `fjs/cas/evo/module.f.ts:165`
+   constant projection) and `decodeRevisionBlob` in `fjs/cas/evo/module.f.ts:164-166`
    (fluent). Each API is exercised by production code the moment it exists.
 2. …n. The remaining ~42 sites, grouped by module.
 
@@ -157,11 +182,16 @@ First PR — both APIs, each with a real consumer landing alongside it:
 - [ ] Add `mapStep` to `fjs/effects/module.f.ts` with proof coverage in
       `fjs/effects/proof.f.ts`; document it in the module header alongside the
       "step adapters vs. step variants" note.
-- [ ] Add `Eff.map` to `fjs/effects/eff/module.f.ts` with proof coverage.
+- [ ] Add `Eff.map` to `fjs/effects/eff/module.f.ts` with the `Eff<O, T, P>`
+      signature above (history grows by `T`, `O` unchanged) and proof coverage
+      that pins the history contract — a `.map(...).step(...)` chain asserting
+      the second callback still sees the pre-`map` value.
 - [ ] In the same PR, convert `readUtf8File`, `awaitIfPromise` and `errorExit`
       in `fjs/effects/node/module.f.ts` to `mapStep`, and `decodeRevisionBlob`
-      (`fjs/cas/evo/module.f.ts:165`) to `Eff.map` — so neither export is
+      (`fjs/cas/evo/module.f.ts:164-166`) to `Eff.map` — so neither export is
       speculative.
+- [ ] When converting fluent sites, check callback arity (see the hazard note
+      above) rather than mechanically dropping the lambda.
 
 Follow-up PRs — the remaining sites, one module or group per PR:
 

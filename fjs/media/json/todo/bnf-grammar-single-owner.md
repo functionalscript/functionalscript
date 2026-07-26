@@ -147,12 +147,16 @@ JSDoc.
 - [ ] Create `fjs/media/json/grammar/module.f.ts` with the `@module` header,
       exporting the lexical rules and the whole `json` grammar; add
       `fjs/media/json/grammar/proof.f.ts` with full coverage.
-- [ ] No `deno.json` registration: `deno.json` has no `exports` map today (only
-      `tasks` and `fmt`), so `AGENTS.md`'s "register it in the `exports` map"
-      rule has nothing to apply to. Do **not** create a map holding only this
-      one path — that would turn an unrestricted package into one exposing a
-      single module. Introducing a complete map is tracked as its own task in
-      [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md).
+- [ ] `deno.json` registration is a **no-op today, and an obligation later**.
+      `deno.json` currently holds only `tasks` and `fmt`, so there is no
+      `exports` map for `AGENTS.md`'s registration rule to add an entry to, and
+      creating one holding this single path would turn an unrestricted package
+      into one exposing a single module — strictly worse than leaving it absent.
+      This issue therefore adds no registration step. The obligation does not
+      disappear: whichever change introduces the complete map
+      ([group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md))
+      must enumerate every `module.f.ts` then present, this one included, and
+      that issue's task now says so.
 - [ ] Point `fjs/bnf/testlib.f.ts`'s `deterministic()` at it (or delete
       `deterministic()` and update the four proof importers); document in
       `fjs/bnf/README.md` why `classic()` stays a bnf-local fixture.

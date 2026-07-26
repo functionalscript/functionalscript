@@ -127,19 +127,28 @@ Judgement calls worth deciding explicitly rather than by accident:
 
   ```ts
   // fjs/effects/console/module.f.ts
-  export type Std = { readonly[k in WriteConsoles]: { readonly isTTY: boolean } }
+  import type { StringMap } from '../../types/object/module.f.ts'
+
+  export type Std = StringMap<WriteConsoles, { readonly isTTY: boolean }>
 
   // fjs/text/sgr/module.f.ts
   export const csiWrite = (std: Std) => (stream: WriteConsoles) => …
   ```
 
-  `NodeProgramOptions.std` (`fjs/effects/node/module.f.ts:535`, inline today)
-  then refers to `Std` instead of respelling it, so the runner contract still
-  carries the TTY flags and the two stay in sync by construction. `csiWrite` has
-  one caller — `fjs/emergent_testing/module.f.ts:338`, `csiWrite(options)` —
-  which becomes `csiWrite(options.std)`. This is the AGENTS.md
-  "fix the design rather than bend the caller" direction: `csiWrite` never
-  wanted a whole program-options record.
+  Note the `StringMap` spelling: `AGENTS.md` requires it for *all* string-keyed
+  record types, and over a finite key union `StringMap<WriteConsoles, T>`
+  resolves to the same required-field record the inline mapped type produces.
+  `NodeProgramOptions.std` (`fjs/effects/node/module.f.ts:535`) writes that
+  inline form by hand today — a pre-existing deviation from the rule, in a
+  module that already imports `StringMap` at `:19` and uses it for `Headers`
+  and `Module`. Pointing `std` at the named `Std` fixes that deviation as a side
+  effect and keeps the runner contract in sync with the console module by
+  construction.
+
+  `csiWrite` has one caller — `fjs/emergent_testing/module.f.ts:370`,
+  `csiWrite(options)` — which becomes `csiWrite(options.std)`. This is the
+  AGENTS.md "fix the design rather than bend the caller" direction: `csiWrite`
+  never wanted a whole program-options record.
 - **Don't invent a module per operation.** Group by concern; a directory with
   one four-line module per effect is worse than the monolith.
 
@@ -177,21 +186,23 @@ Judgement calls worth deciding explicitly rather than by accident:
 - [ ] Move `All` / `all` / `both` to `fjs/effects/all/module.f.ts`.
 - [ ] Move `Sandbox` / `Await` and helpers to `fjs/effects/sandbox/module.f.ts`.
 - [ ] Move the console family to `fjs/effects/console/module.f.ts`, add the
-      named `Std` type there, point `NodeProgramOptions.std` at it, and narrow
-      `csiWrite` to take `Std` (updating its one caller,
-      `fjs/emergent_testing/module.f.ts:338`). Verify `fjs/text/sgr` no longer
-      imports `effects/node` at all — that is the test for this step.
+      named `Std` type there as `StringMap<WriteConsoles, …>`, point
+      `NodeProgramOptions.std` at it, and narrow `csiWrite` to take `Std`
+      (updating its one caller, `fjs/emergent_testing/module.f.ts:370`). Verify
+      `fjs/text/sgr` no longer imports `effects/node` at all — that is the test
+      for this step.
 - [ ] Move `Test` / `TestFn` / `TestContext` / `test` to
       `fjs/effects/test/module.f.ts` — **not** into `fjs/emergent_testing`, which
       would be a cycle (see the judgement call above). Confirm `effects/node`
       still compiles with `NodeOp` and `NodeProgramOptions` importing from there.
 - [ ] Update the `fjs/effects/node` module header to describe only what remains.
-      No `deno.json` registration: it has no `exports` map today (only `tasks`
-      and `fmt`), so `AGENTS.md`'s "register it in the `exports` map" rule has
-      nothing to apply to, and adding a map listing only the new effects modules
-      would restrict a package that is currently unrestricted. Introducing a
-      complete map is tracked in
-      [group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md).
+      `deno.json` registration is a no-op today and an obligation later: it has
+      no `exports` map (only `tasks` and `fmt`), so the registration rule has no
+      entry to add, and a map listing only the new effects modules would
+      restrict a currently unrestricted package. Whichever change introduces the
+      complete map
+      ([group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md))
+      must enumerate these modules along with every other `module.f.ts`.
 - [ ] `npx tsc` and `fjs t` after each move; one PR per concern.
 
 ### Related
