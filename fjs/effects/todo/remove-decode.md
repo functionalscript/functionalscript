@@ -101,20 +101,37 @@ Delete `decode` and `Decoded`, and inline the check at both call sites.
 export const step = <O extends Operation, T, Q extends Operation, R>(
     e: Effect<O, T>,
     f: (t: T) => Effect<Q, R>
-): Effect<O | Q, R> =>
-    typeof e === 'function'
-        ? f(e())
-        : doFull<O | Q, R, O[0]>(e[0], e[1], x => step(e[2](x), f))
+): Effect<O | Q, R> => {
+    if (typeof e === 'function') { return f(e()) }
+    const { 0: command, 1: payload, 2: continuation } = e
+    return doFull<O | Q, R, O[0]>(command, payload, x => step(continuation(x), f))
+}
 
 export const match =
     <O extends Operation, R>(map: OperationMap<O, R>) =>
-    <O1 extends O, T>(e: Effect<O1, T>): MatchResult<O1, T, R> =>
-        typeof e === 'function'
-            ? ['done', e()]
-            : ['cont', map[e[0]](...e[1]), e[2]]
+    <O1 extends O, T>(e: Effect<O1, T>): MatchResult<O1, T, R> => {
+        if (typeof e === 'function') { return ['done', e()] }
+        const { 0: command, 1: payload, 2: continuation } = e
+        return ['cont', map[command](...payload), continuation]
+    }
 ```
 
-Verified: the `step` form above typechecks under `--strict` against the current
+Both bodies name the three parts once rather than repeating `e[0]` / `e[1]` /
+`e[2]`, per AGENTS.md's destructuring rule — which matters more here than
+usual, since these are the two places the layout is now read directly.
+
+**The pattern must be the object form shown above, not `const [command,
+payload, continuation] = e`.** `Do` is declared as an object with numeric keys
+rather than a tuple (see its JSDoc: `TS2637` forbids `out O` on a tuple), so
+array destructuring fails:
+
+```
+error TS2488: Type 'Do<O, T>' must have a '[Symbol.iterator]()' method
+that returns an iterator.
+```
+
+The numeric-key object pattern compiles to the same property reads and works.
+Verified: both functions above typecheck under `--strict` against the current
 types with no casts — the `typeof` guard alone narrows the union.
 
 `match` stays as the single eliminator interpreters go through, and
@@ -133,16 +150,26 @@ in `fjs/effects/proof.f.ts:5`, the byte-identical copy in
 and three inline repeats in `fjs/cas/proof.f.ts`. That helper is already
 triplicated today; `decode` is just how each copy spells it.
 
-So export the eliminator the copies are approximating — this is
-`fjs/media/type/proof.f.ts`'s `runPure` promoted almost verbatim, which already
-has exactly this signature:
+So export the eliminator those copies are approximating. It is
+`fjs/media/type/proof.f.ts`'s `runPure` generalized in two ways — over the
+op-set, and in the result — for the reasons below:
 
 ```ts
 /** Runs an effect that reaches its value without performing a command.
- *  Returns `null` if `e` is a `Do`. */
-export const runPure = <O extends Operation, T>(e: Effect<O, T>): T | null =>
-    typeof e === 'function' ? e() : null
+ *  Empty if `e` is a `Do`. */
+export const runPure = <O extends Operation, T>(e: Effect<O, T>): Option<T> =>
+    typeof e === 'function' ? [e()] : []
 ```
+
+The result must stay tagged. Returning `T | null` collapses two distinct
+outcomes whenever `T` itself admits `null`: `runPure(pure(null))` and
+`runPure(someDo)` would both be `null`, so a proof asserting `null` would pass
+even if the effect unexpectedly stopped at a command — silently, and exactly in
+the case the helper exists to rule out. This is not hypothetical:
+`decodeRevisionBlob` (`fjs/cas/evo/module.f.ts:164`) returns
+`Effect<O, Revision | null>`. `Option<T>` from `fjs/types/option/module.f.ts`
+(`readonly[T] | readonly[]`) keeps the cases apart — `[null]` is a pure `null`,
+`[]` is a `Do` — at no cost to the call sites, which assert on the tag anyway.
 
 The op-set must stay generic. Narrowing the parameter to `Effect<never, T>` —
 "this effect has no operations" — reads well but does not typecheck against the
@@ -157,14 +184,14 @@ parameter of type 'Effect<never, number>'.
   Type 'AddOp' is not assignable to type 'never'.
 ```
 
-`Do<never, T>` is also uninhabited, which would make the `Do` → `null` branch
+`Do<never, T>` is also uninhabited, which would make the empty-`Option` branch
 untestable without a cast. The generic form above avoids both problems and
 matches the shape the existing `assertPure` helpers already use. Verified: all
 four migration shapes — `pure`, `lazy`, a continuation `e[2](5)`, and a `match`
-continuation `r[2](r[1])` — typecheck under `--strict`, and the `Do` → `null`
+continuation `r[2](r[1])` — typecheck under `--strict`, and the empty-`Option`
 branch is reachable for proof coverage.
 
-The six sites become `assertEq(runPure(e), expected)`, the two duplicate
+The six sites become `assertEq(runPure(e), [expected])`, the two duplicate
 `assertPure` definitions collapse into it, and `fjs/media/type` and `fjs/cas`
 stop importing `decode` entirely.
 
@@ -175,8 +202,9 @@ exposed a representation.
 That leaves three sites that genuinely inspect a `Do`, and they should:
 
 - `fjs/effects/proof.f.ts:62` — the `decode` case becomes the layout proof,
-  asserting `e[0] === 'add'`, the payload, and `runPure(e[2](5)) === 5`. This is
-  the one place the representation is pinned on purpose.
+  destructuring the node as above and asserting `command === 'add'`, the
+  payload, and `runPure(continuation(5))` is `[5]`. This is the one place the
+  representation is pinned on purpose.
 - `fjs/effects/node/proof.f.ts:19,23` and `fjs/cas/proof.f.ts:321` — both drive
   a command loop, which is exactly what `match` is for. Route them through
   `match` with the relevant operation map rather than the raw tuple; the cas
@@ -211,8 +239,8 @@ rather than left contradicting the code.
 
 - [ ] Inline the `typeof` check in `step` and `match`; delete `decode` and
       `Decoded` from `fjs/effects/module.f.ts`.
-- [ ] Add `runPure` with JSDoc and proof coverage (including the `Do` → `null`
-      branch).
+- [ ] Add `runPure` returning `Option<T>`, with JSDoc and proof coverage of
+      both branches (a pure `null` value must be distinguishable from a `Do`).
 - [ ] Rewrite the four JSDoc blocks (module header, `Cont`, `Do`, `step`) to
       state the invariant as worded above; keep `Cont`'s `out O` justification
       intact.
