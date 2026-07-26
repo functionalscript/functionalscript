@@ -191,9 +191,25 @@ four migration shapes — `pure`, `lazy`, a continuation `e[2](5)`, and a `match
 continuation `r[2](r[1])` — typecheck under `--strict`, and the empty-`Option`
 branch is reachable for proof coverage.
 
-The six sites become `assertEq(runPure(e), [expected])`, the two duplicate
-`assertPure` definitions collapse into it, and `fjs/media/type` and `fjs/cas`
-stop importing `decode` entirely.
+The two duplicate `assertPure` definitions collapse into one helper written
+over `runPure`, and `fjs/media/type` and `fjs/cas` stop importing `decode`
+entirely:
+
+```ts
+const assertPure = <O extends Operation, T>(e: Effect<O, T>, expected: T) => {
+    const o = runPure(e)
+    assert(o.length === 1, e)
+    assertEq(o[0], expected)
+}
+```
+
+**Do not write `assertEq(runPure(e), [expected])`.** `assertEq` compares with
+`===` (`fjs/asserts/module.f.ts:26-28`), so the returned option and a freshly
+allocated `[expected]` literal are different objects and never equal — every
+site written that way would fail regardless of the value. Assert the option's
+shape first, then compare the value inside it. Verified: `assert(o.length ===
+1, …)` narrows `Option<T>` to `readonly[T]`, so `o[0]` is `T` (not
+`T | undefined`) and the `assertEq` is a value comparison.
 
 This *adds* one export while removing two, and the net API is smaller and more
 honest: `runPure` states an intent (`run this pure effect`) where `decode`
@@ -241,9 +257,10 @@ rather than left contradicting the code.
       `Decoded` from `fjs/effects/module.f.ts`.
 - [ ] Add `runPure` returning `Option<T>`, with JSDoc and proof coverage of
       both branches (a pure `null` value must be distinguishable from a `Do`).
-- [ ] Rewrite the four JSDoc blocks (module header, `Cont`, `Do`, `step`) to
+- [ ] Rewrite the three surviving JSDoc blocks (module header, `Cont`, `Do`) to
       state the invariant as worded above; keep `Cont`'s `out O` justification
-      intact.
+      intact. The fourth block — `decode`'s own — is deleted with the function,
+      and `step`'s needs no change.
 - [ ] Migrate all five proof importers — `fjs/effects/proof.f.ts`,
       `fjs/effects/eff/proof.f.ts`, `fjs/effects/node/proof.f.ts`,
       `fjs/cas/proof.f.ts`, `fjs/media/type/proof.f.ts` — in this PR; no
