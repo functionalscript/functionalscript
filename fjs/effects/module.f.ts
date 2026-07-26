@@ -196,50 +196,22 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
         : doFull<O | Q, R, O[0]>(d.command, d.payload, x => step(d.continuation(x), f))
 }
 
-export const frameStepCont = <
+export type History<O extends Operation, H extends readonly unknown[]> =
+    Effect<O, H>
+
+export const historyStep = <
     O extends Operation,
     P extends readonly unknown[],
     Q extends Operation,
     R
 >(
-    e: Effect<O, P>,
+    e: History<O, P>,
     f: (...p: Readonly<P>) => Effect<Q, R>
 ): Effect<O | Q, readonly[R, ...P]> =>
     step(e, param => step(f(...param), result => pure([result, ...param])))
 
-/**
- * Like {@link step}, but captures the call instead of discarding half of it:
- * runs `e` to get `p`, continues with `f(p)` to get `r`, and yields the
- * {@link Frame} `{ result: r, param: p }`.
- *
- * This is what a chain of named intermediate effects cannot otherwise express.
- * Each `step`'s continuation sees only the result of the effect it consumes, so
- * a later link has no way to reach an earlier one. `frameStep` keeps the
- * parameter, and the next destructuring names the parts:
- *
- * ```ts
- * const b = frameStep(a, decodeRevisionBlob(cas))
- * const c = step(b, ({ result: revision, param: hash }) => ...)
- * ```
- *
- * Chaining mimics an async function, one `await` per link — `const hash = ...`
- * then `const revision = ...`, with both still reachable at the end:
- *
- * ```ts
- * const f1 = frameStep(f0, hash => decodeRevisionBlob(cas)(hash))
- * const f2 = step(f1, ({ result: revision, param: hash }) => ...)
- * ```
- *
- * Reaching further back costs a `param` hop per link, so a value used many
- * links after it is bound reads as `frame.param.param.result`. When a chain
- * grows long enough for that to hurt, collapse it into a record of named
- * fields (`pure({ hash, revision } as const)`) and continue from there.
- */
-export const frameStep = <O extends Operation, P, Q extends Operation, R>(
-    e: Effect<O, P>,
-    f: (p: P) => Effect<Q, R>
-): Effect<O | Q, readonly[R, P]> =>
-    frameStepCont(step(e, p => pure([p])), f)
+export const history = <O extends Operation, T>(e: Effect<O, T>): History<O, readonly[T]> =>
+    step(e, v => pure([v]))
 
 export type Param<O extends Operation> = F<O>[0]
 

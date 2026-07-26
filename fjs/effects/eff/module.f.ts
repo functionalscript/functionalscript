@@ -1,4 +1,4 @@
-import { frameStep, frameStepCont, pure, step, type Effect, type Operation } from '../module.f.ts'
+import { history, historyStep, pure, step, type Effect, type Operation } from '../module.f.ts'
 
 /**
  * A fluent, method-chaining monad over a raw {@link Effect} that also
@@ -82,11 +82,11 @@ export type Eff<O extends Operation, T, P extends readonly unknown[]> = {
  */
 const create = <O extends Operation, T, P extends readonly unknown[]>(
     value: Effect<O, T>,
-    both: () => Effect<O, readonly[T, ...P]>): Eff<O, T, P> =>
+    h: () => Effect<O, readonly[T, ...P]>): Eff<O, T, P> =>
 ({
     value,
     step: f => {
-        const x1 = frameStepCont(both(), f)
+        const x1 = historyStep(h(), f)
         return create(step(x1, ([t]) => pure(t)), () => x1)
     }
 })
@@ -97,4 +97,4 @@ const create = <O extends Operation, T, P extends readonly unknown[]>(
  * no default for `P` — see its docs.
  */
 export const eff = <O extends Operation, T>(value: Effect<O, T>): Eff<O, T, readonly[]> =>
-    create(value, () => step(value, v => pure([v])))
+    create(value, () => history(value))

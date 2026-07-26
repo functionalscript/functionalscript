@@ -1,4 +1,4 @@
-import { step, decode, do_, foldStep, forEachStep, match, okStep, frameStep, pure, type Effect, type Operation, frameStepCont } from './module.f.ts'
+import { step, decode, do_, foldStep, forEachStep, match, okStep, history, pure, type Effect, type Operation, historyStep } from './module.f.ts'
 import { error, ok } from '../types/result/module.f.ts'
 import { assert, assertEq } from '../asserts/module.f.ts'
 
@@ -100,7 +100,7 @@ export const proof = {
     },
     frameStep: {
         pure: () => {
-            const d = decode(frameStep(pure(3), v => pure(v * 2)))
+            const d = decode(historyStep(history(pure(3)), v => pure(v * 2)))
             assert(d.done, d)
             const [result, param] = d.result
             assertEq(param, 3)
@@ -109,7 +109,7 @@ export const proof = {
         over_do: () => {
             // The captured param survives a command boundary: the frame is
             // rebuilt inside the continuation rather than lost when `e` is a Do.
-            const c = next(frameStep(do_<AddOp>('add')(2, 3), r => pure(r * 10)))
+            const c = next(historyStep(history(do_<AddOp>('add')(2, 3)), r => pure(r * 10)))
             assert(c[0] === 'cont', c)
             assertEq(c[1], 5)
             const d = decode(c[2](c[1]))
@@ -121,8 +121,8 @@ export const proof = {
         chain: () => {
             // Frames chain through `param`, so a value bound two links back
             // reads as `param.param.result`.
-            const a = frameStep(pure(1), x => pure(x + 1))
-            const b = frameStepCont(a, (result, param) => pure(result + param))
+            const a = historyStep(history(pure(1)), x => pure(x + 1))
+            const b = historyStep(a, (result, param) => pure(result + param))
             assertPure(
                 step(b, ([z, y, x]) => pure(`${x}${y}${z}`)),
                 '123')
@@ -130,8 +130,8 @@ export const proof = {
         f_receives_whole_frame: () => {
             // `f` is handed the preceding frame, not just its result - which is
             // why frames chain through `param` at all.
-            const a = frameStep(pure(1), x => pure(x + 1))
-            const b = frameStepCont(a, (...p) => pure(p[1] * 100 + p[0]))
+            const a = historyStep(history(pure(1)), x => pure(x + 1))
+            const b = historyStep(a, (...p) => pure(p[1] * 100 + p[0]))
             assertPure(step(b, ([result]) => pure(result)), 102)
         },
     },
