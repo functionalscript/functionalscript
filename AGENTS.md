@@ -59,7 +59,6 @@ where `<...Module documentation...>` should be documentation for the module.
 ## Pull Requests
 
 - The PR should implement only one feature/improvement with minimal code changes.
-- Don't implement a feature, helper, or module that no existing module uses and no near-term work plans to use. Speculative code rots, drags type-checking and test budgets, and pushes future readers to wonder what it's for. If the same algorithm appears in only one place, leave it there until a second call site forces the abstraction.
 - Principles:
   - Reuse code,
   - Don't Repeat Yourself (DRY) — a core principle of FunctionalScript, not just a stylistic preference. When two or more modules share an algorithm and differ only in constants, alphabets, or small helpers, extract a parameterized factory into a shared module rather than copy-pasting. Combined with the previous bullet: only extract once the second real consumer exists.
