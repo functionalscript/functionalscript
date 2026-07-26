@@ -28,9 +28,14 @@ need it:
   `e[0]/e[1]/e[2]` would break `Decoded` too, so the stated benefit ("the
   representation can change without touching interpreters", lines 9-13 and
   274-282) does not hold.
-- **It costs an allocation per step.** `step` and `match` are the inner loop of
-  every interpreter; each iteration allocates a fresh `Decoded` object that is
-  destructured once and discarded.
+
+The case rests on those two points alone — this is an API-simplicity change,
+not an optimization. Dropping the per-step `Decoded` allocation is a
+*consequence* of the simpler API, not a reason to make the change: no
+measurement or observed limit is offered here, so per AGENTS.md ("never
+optimize prematurely… a measured problem, not a hunch") it must not be used as
+justification. If the allocation ever proves to matter, that is a separate
+issue with a benchmark attached.
 
 ### Consumers
 
@@ -100,13 +105,32 @@ So export the eliminator the copies are approximating — this is
 has exactly this signature:
 
 ```ts
-/** Runs a fully pure effect to its value. Returns `null` if `e` is a `Do`. */
-export const runPure = <T>(e: Effect<never, T>): T | null =>
+/** Runs an effect that reaches its value without performing a command.
+ *  Returns `null` if `e` is a `Do`. */
+export const runPure = <O extends Operation, T>(e: Effect<O, T>): T | null =>
     typeof e === 'function' ? e() : null
 ```
 
-`Effect<never, T>` already says "no operations", so a `Do` here is a type error
-at nearly every call site; the `null` covers the residual case without throwing.
+The op-set must stay generic. Narrowing the parameter to `Effect<never, T>` —
+"this effect has no operations" — reads well but does not typecheck against the
+sites being migrated: `Effect` is *covariant* in `O`, so `Effect<never, T>` is
+assignable to `Effect<AddOp, T>` and not the reverse. Continuations produce the
+wider type, so `e[2](5)` in the layout proof and `r[2](r[1])` after a `match`
+are both `Effect<AddOp, …>` and are rejected:
+
+```
+error TS2345: Argument of type 'Effect<AddOp, number>' is not assignable to
+parameter of type 'Effect<never, number>'.
+  Type 'AddOp' is not assignable to type 'never'.
+```
+
+`Do<never, T>` is also uninhabited, which would make the `Do` → `null` branch
+untestable without a cast. The generic form above avoids both problems and
+matches the shape the existing `assertPure` helpers already use. Verified: all
+four migration shapes — `pure`, `lazy`, a continuation `e[2](5)`, and a `match`
+continuation `r[2](r[1])` — typecheck under `--strict`, and the `Do` → `null`
+branch is reachable for proof coverage.
+
 The six sites become `assertEq(runPure(e), expected)`, the two duplicate
 `assertPure` definitions collapse into it, and `fjs/media/type` and `fjs/cas`
 stop importing `decode` entirely.
