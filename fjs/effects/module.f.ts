@@ -11,10 +11,7 @@
  * check may appear. {@link step} and {@link match} eliminate an effect through
  * it, and so do interpreters, proofs, and every other module — no second such
  * check exists anywhere, so changing the representation means editing `decode`
- * and nothing else. Each call allocates a `Decoded` record that its caller
- * unpacks and discards; whether the two hot callers should read the layout
- * directly instead is a measurement, tracked in
- * [remove-decode](./todo/remove-decode.md) rather than assumed here.
+ * and nothing else.
  *
  * Effect helpers come in two shapes. **Step adapters** return a continuation
  * `(t: T) => Effect<Q, R>` meant to be passed into a step — see {@link okStep}.
@@ -325,11 +322,10 @@ export type Decoded<O extends Operation, T> =
  * through it rather than inspecting the value, so the representation can change
  * without touching them.
  *
- * The `Decoded` record is allocated per call and destructured immediately by
- * every caller, so nothing ever holds one. Removing that allocation from the
- * two hot callers would mean a second copy of the shape test to keep in sync,
- * which needs a measured reason first — see
- * [remove-decode](./todo/remove-decode.md).
+ * The `Decoded` record is allocated per call and unpacked immediately by every
+ * caller, so nothing ever holds one. Reading the layout directly in a caller
+ * would remove that allocation at the cost of a second copy of the shape test
+ * to keep in sync — not a trade to make without a measured reason.
  */
 export const decode = <O extends Operation, T>(e: Effect<O, T>): Decoded<O, T> =>
     typeof e === 'function'
