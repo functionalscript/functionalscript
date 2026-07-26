@@ -173,15 +173,6 @@ export type Do<out O extends Operation, T> = {
 
 export const pure = <T>(v: T): Effect<never, T> => () => v
 
-/*
-export const doFull = <O extends Operation, T, K extends O[0]>(
-    cmd: K,
-    param: Pr<O, K>[0],
-    cont: (input: Pr<O, K>[1]) => Effect<O, T>
-): Effect<O, T> =>
-    ({ command: cmd, payload: param, continuation: cont })
-*/
-
 /**
  * Composes effects: run `e`, then continue with `f` applied to its result.
  * The data-first primitive — raw `Effect` in, raw `Effect` out. Chains as
