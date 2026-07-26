@@ -173,12 +173,14 @@ export type Do<out O extends Operation, T> = {
 
 export const pure = <T>(v: T): Effect<never, T> => () => v
 
+/*
 export const doFull = <O extends Operation, T, K extends O[0]>(
     cmd: K,
     param: Pr<O, K>[0],
     cont: (input: Pr<O, K>[1]) => Effect<O, T>
 ): Effect<O, T> =>
     ({ command: cmd, payload: param, continuation: cont })
+*/
 
 /**
  * Composes effects: run `e`, then continue with `f` applied to its result.
@@ -210,11 +212,10 @@ export const doFull = <O extends Operation, T, K extends O[0]>(
 export const step = <O extends Operation, T, Q extends Operation, R>(
     e: Effect<O, T>,
     f: (t: T) => Effect<Q, R>
-): Effect<O | Q, R> => {
-    if (typeof e === 'function') { return f(e()) }
-    const { command, payload, continuation } = e
-    return doFull<O | Q, R, O[0]>(command, payload, x => step(continuation(x), f))
-}
+): Effect<O | Q, R> =>
+    typeof e === 'function'
+        ? f(e())
+        : { ...e, continuation: x => step(e.continuation(x), f) }
 
 /**
  * An effect whose result is a **history tuple**: the values a chain has bound so
@@ -298,9 +299,9 @@ export type Param<O extends Operation> = F<O>[0]
 export type Return<O extends Operation> = F<O>[1]
 
 export const do_ =
-    <O extends Operation>(cmd: O[0]) =>
-    (...param: Param<O>): Effect<O, Return<O>> =>
-    doFull(cmd, param as Param<O>, pure)
+    <O extends Operation>(command: O[0]) =>
+    (...payload: Param<O>): Effect<O, Return<O>> =>
+    ({ command, payload, continuation: pure })
 
 /**
  * Sequentially threads a state value through an effect for each item in `items`.
