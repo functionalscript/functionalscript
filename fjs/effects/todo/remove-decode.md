@@ -32,8 +32,28 @@ need it:
   every interpreter; each iteration allocates a fresh `Decoded` object that is
   destructured once and discarded.
 
-`decode` has exactly two non-proof call sites, both in the same file:
-`step` (line 153) and `match` (line 311).
+### Consumers
+
+`decode` is exported, so `fjs/effects/module.d.ts` ships it — removing it is a
+**breaking change** to the published API, not an internal cleanup. Every
+importer must be migrated in the same PR (AGENTS.md, *Pull Requests*).
+
+Two non-proof call sites, both inside the defining module:
+
+| Site | Use |
+|---|---|
+| `fjs/effects/module.f.ts:153` | `step` |
+| `fjs/effects/module.f.ts:311` | `match` |
+
+Proof importers, repo-wide:
+
+| File | Lines | Use |
+|---|---|---|
+| `fjs/effects/proof.f.ts` | 6, 69, 74, 79, 120, 132 | `assertPure`; `okStep`, `decode`, `frameStep` cases |
+| `fjs/effects/eff/proof.f.ts` | 6 | `assertPure` (duplicate of the above) |
+| `fjs/effects/node/proof.f.ts` | 19, 23 | drive a `Do` loop to completion |
+| `fjs/cas/proof.f.ts` | 289, 298, 312, 321 | three "assert pure, read result"; one `Do` + `continuation` cast |
+| `fjs/media/type/proof.f.ts` | 16 | `runPure` (same helper again) |
 
 ### Proposal
 
@@ -62,57 +82,89 @@ types with no casts — the `typeof` guard alone narrows the union.
 `match` stays as the single eliminator interpreters go through, and
 `MatchResult` remains the abstraction boundary for them: it is a real sum
 (`['done', T] | ['cont', R, Cont]`) that already hides the layout, which is
-what `Decoded` was reaching for. Runners keep using `match`; only the two
-definitions here touch the raw shape.
+what `Decoded` was reaching for. Runners keep using `match`.
 
-Proof sites (`fjs/effects/proof.f.ts:6,69,74,79,120,132`,
-`fjs/effects/eff/proof.f.ts:6`, `fjs/effects/node/proof.f.ts:19,23`) move to the
-same check. The shared helper collapses:
+#### Give the proof sites an eliminator instead of the raw check
 
-```ts
-const assertPure = <O extends Operation, T>(e: Effect<O, T>, expected: T) => {
-    assert(typeof e === 'function', e)
-    assertEq(e(), expected)
-}
-```
+Rewriting all nine proof sites to `typeof e === 'function'` would spread the
+layout across five files — trading one helper for many open-coded checks, which
+is the opposite of the point. It is also unnecessary: **six of the nine sites
+want the same thing**, "this effect is pure, give me its value" — `assertPure`
+in `fjs/effects/proof.f.ts:5`, the byte-identical copy in
+`fjs/effects/eff/proof.f.ts:5`, `runPure` in `fjs/media/type/proof.f.ts:15`,
+and three inline repeats in `fjs/cas/proof.f.ts`. That helper is already
+triplicated today; `decode` is just how each copy spells it.
 
-The `proof.decode` case (line 78) becomes a `Do`-layout proof — it asserts
-`e[0] === 'add'`, the payload, and that the continuation returns a pure effect
-— or is dropped in favour of the existing `match` proofs, whichever leaves the
-layout covered exactly once. The node proof's `while (!d.done)` loop rewrites
-against the raw effect:
+So export the eliminator the copies are approximating — this is
+`fjs/media/type/proof.f.ts`'s `runPure` promoted almost verbatim, which already
+has exactly this signature:
 
 ```ts
-let d: Effect<…> = e
-while (typeof d !== 'function') {
-    assertEq(d[0], 'readFile')
-    assert(d[1][0] === 'hello', d[1])
-    d = d[2](['ok', vec8(0x15n)])
-}
-assertEq(d(), 0x2An)
+/** Runs a fully pure effect to its value. Returns `null` if `e` is a `Do`. */
+export const runPure = <T>(e: Effect<never, T>): T | null =>
+    typeof e === 'function' ? e() : null
 ```
 
-The module doctrine has to be restated, not just deleted. Four JSDoc blocks
-name `decode` as the sole shape-reader: the `@module` header (lines 9-13),
+`Effect<never, T>` already says "no operations", so a `Do` here is a type error
+at nearly every call site; the `null` covers the residual case without throwing.
+The six sites become `assertEq(runPure(e), expected)`, the two duplicate
+`assertPure` definitions collapse into it, and `fjs/media/type` and `fjs/cas`
+stop importing `decode` entirely.
+
+This *adds* one export while removing two, and the net API is smaller and more
+honest: `runPure` states an intent (`run this pure effect`) where `decode`
+exposed a representation.
+
+That leaves three sites that genuinely inspect a `Do`, and they should:
+
+- `fjs/effects/proof.f.ts:78` — the `decode` case becomes the layout proof,
+  asserting `e[0] === 'add'`, the payload, and `runPure(e[2](5)) === 5`. This is
+  the one place the representation is pinned on purpose.
+- `fjs/effects/node/proof.f.ts:19,23` and `fjs/cas/proof.f.ts:321` — both drive
+  a command loop, which is exactly what `match` is for. Route them through
+  `match` with the relevant operation map rather than the raw tuple; the cas
+  site also drops its `d.continuation as (...)` cast, since `MatchResult` types
+  the continuation.
+
+#### Wording of the invariant
+
+The replacement invariant must not overstate. "`step` and `match` are the only
+readers of the layout" would be false the moment the layout proof lands, so
+state the exception where it can be checked:
+
+> `step` and `match` are the only readers of the `Pure`/`Do` layout. Everything
+> else — interpreters, and proofs outside the layout proof in
+> `fjs/effects/proof.f.ts` — goes through `match` or `runPure`.
+
+That is both true after the change and a real constraint: a `typeof` check
+appearing in a fourth place is a review flag.
+
+Four JSDoc blocks currently name `decode` as the sole shape-reader and must be
+restated in those terms, not just stripped: the `@module` header (lines 9-13),
 `Cont`'s variance argument (lines 96-102), `Do`'s layout note (lines 116-119),
-and `step`'s summary (lines 146-147). The invariant they protect survives in a
-narrower form — *`step` and `match` are the only readers of the layout;
-everything else goes through `match`* — and `Cont`'s soundness argument is
-unaffected (tag dispatch still happens first, now in `match` directly), but the
-"exactly one function" and "no second `typeof` check" wording is the thing being
-removed and must be replaced rather than left contradicting the code.
+and `step`'s summary (lines 146-147). `Cont`'s soundness argument survives
+unchanged in substance — tag dispatch still happens first, now in `match`
+directly — but the "exactly one function" and "no second `typeof` check"
+wording is precisely what this change invalidates, so it must be replaced
+rather than left contradicting the code.
 
 ### Tasks
 
 - [ ] Inline the `typeof` check in `step` and `match`; delete `decode` and
       `Decoded` from `fjs/effects/module.f.ts`.
+- [ ] Add `runPure` with JSDoc and proof coverage (including the `Do` → `null`
+      branch).
 - [ ] Rewrite the four JSDoc blocks (module header, `Cont`, `Do`, `step`) to
-      state the narrower invariant; keep `Cont`'s `out O` justification intact.
-- [ ] Update `fjs/effects/proof.f.ts`, `fjs/effects/eff/proof.f.ts`, and
-      `fjs/effects/node/proof.f.ts`; keep coverage of the `Do` layout in exactly
-      one proof.
+      state the invariant as worded above; keep `Cont`'s `out O` justification
+      intact.
+- [ ] Migrate all five proof importers — `fjs/effects/proof.f.ts`,
+      `fjs/effects/eff/proof.f.ts`, `fjs/effects/node/proof.f.ts`,
+      `fjs/cas/proof.f.ts`, `fjs/media/type/proof.f.ts` — in this PR; no
+      importer may be left behind. Collapse the duplicated `assertPure` /
+      `runPure` helpers; keep the `Do` layout pinned in exactly one proof.
 - [ ] `npx tsc` clean; `fjs t` passes.
-- [ ] CHANGELOG entry.
+- [ ] CHANGELOG entry prefixed `**BREAKING CHANGES:**` — `decode` and `Decoded`
+      are removed from the published `.d.ts`, so external importers break.
 
 ### Related
 
