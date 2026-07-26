@@ -9,7 +9,7 @@
 
 When ordering doesn't matter, sequential threading is the wrong default: it blocks the runner from batching independent sub-effects (see computational collections issue above) and forces the threaded state to model "what has been seen so far".
 
-The pattern `all(...xs.map(f)).step(rs => pure(rs.reduce(op, init)))` — fan out with `all`, fold results with a monoid — is the natural parallel sibling of `foldStep` and deserves a named combinator.
+The pattern `step(all(...xs.map(f)), rs => pure(rs.reduce(op, init)))` — fan out with `all`, fold results with a monoid — is the natural parallel sibling of `foldStep` and deserves a named combinator.
 
 ### Proposal
 
@@ -21,9 +21,17 @@ export const allReduce =
     (op: (a: R) => (b: R) => R) =>
     (init: R) =>
     (items: List<T>): Effect<O | All, R> =>
-        all(...toArray(items).map(f))
-        .step(rs => pure(rs.reduce((a, b) => op(b)(a), init)))
+        step(
+            all(...toArray(items).map(f)),
+            rs => pure(rs.reduce((a, b) => op(b)(a), init)))
 ```
+
+Note the standalone `step`: `all(...)` returns a raw `Effect`, which is plain
+data with no methods — `.step` exists only on the `Eff` wrapper
+(`fjs/effects/eff/module.f.ts`). An earlier draft of this issue wrote
+`all(...).step(...)`, which would not compile. If
+[map-step-combinator](./map-step-combinator.md) lands first, the body is
+`mapStep(all(...toArray(items).map(f)), rs => rs.reduce(...))`.
 
 `op` must be **commutative** — results may arrive in any order when the runner schedules sub-effects in parallel.
 

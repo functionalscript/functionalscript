@@ -19,20 +19,32 @@
 ### Problem
 
 The *fan out in parallel, then discard the results* idiom is spelled out
-verbatim three times in `fjs/emergent_testing/module.f.ts` (lines 175, 180,
-253):
+verbatim three times in `fjs/emergent_testing/module.f.ts` (lines 180-182,
+189-191, 276-278):
 
 ```ts
-return all(...sub.map(e => registerOne(t, e))).step(() => pure(undefined))
-return all(...tests.map(e => registerOne(ctx, e))).step(() => pure(undefined))
-return all(...modules.map(([k, v]) => registerModule(ctx, k, v, star))).step(() => pure(undefined))
+return eff(all(...sub.map(e => registerOne(t, e))))
+    .step(() => pure(undefined))
+    .value
+
+return eff(all(...tests.map(e => registerOne(ctx, e))))
+    .step(() => pure(undefined))
+    .value
+
+return eff(all(...modules.map(([k, v]) => registerModule(ctx, k, v, star))))
+    .step(() => pure(undefined))
+    .value
 ```
+
+Note the `eff(...)` / `.value` bracketing: a raw `Effect` is plain data with no
+methods, so `.step` is reachable only through the `Eff` wrapper
+(`fjs/effects/eff/module.f.ts`). An earlier draft of this issue quoted these
+sites as `all(...).step(...)` — that form does not exist and would not compile.
 
 `fjs/effects/module.f.ts` already ships `forEachStep` (the *sequential* void
 combinator, line 90), and [allreduce-combinator](./allreduce-combinator.md)
 covers the parallel *reduce* variant — but the parallel *void* sibling is
-missing, so every call site re-spells `all(...xs.map(f)).step(() =>
-pure(undefined))`.
+missing, so every call site re-spells the whole wrap-step-unwrap dance.
 
 ### Proposal
 
@@ -43,18 +55,27 @@ which already imports the core module — placing `allVoid` in core would
 invert that dependency. (`fjs/emergent_testing` already imports `all` from
 the node module, so the call sites need no new import path.)
 
+Use the standalone `step` combinator — `all(...)` returns a raw `Effect`, which
+has no `.step` method:
+
 ```ts
 export const allVoid =
     <O extends Operation, T>(f: (item: T) => Effect<O, void>) =>
     (items: readonly T[]): Effect<O | All, void> =>
-        all(...items.map(f)).step(() => pure(undefined))
+        step(all(...items.map(f)), () => pure(undefined))
 ```
+
+If [map-step-combinator](./map-step-combinator.md) lands first this is
+`mapStep(all(...items.map(f)), () => undefined)`, which is the same thing said
+once more directly. Either spelling works; neither is a dependency.
 
 If `All` is ever lowered out of the node module (it is runner
 infrastructure, not node-specific I/O — a separate design question),
 `allVoid` moves down with it alongside `all` and `both`.
 
-The three call sites become `allVoid(e => registerOne(t, e))(sub)` etc.
+The three call sites become `allVoid(e => registerOne(t, e))(sub)` etc. —
+dropping the `eff(...)` / `.value` bracketing along with the step, since
+`allVoid` returns a raw `Effect` and all three sites want one.
 If [allreduce-combinator](./allreduce-combinator.md) lands first, consider
 deriving `allVoid` from `allReduce` with a unit monoid instead of
 duplicating the `all(...map)` core — whichever reads better.
@@ -65,7 +86,9 @@ duplicating the `all(...map)` core — whichever reads better.
       `All`/`all`/`both` to `fjs/effects/all/module.f.ts`.
 - [ ] Add `allVoid` there (next to `all`/`both`) with proof coverage — **not**
       to `fjs/effects/node/module.f.ts`, per the note at the top of this issue.
-- [ ] Convert the three call sites in `fjs/emergent_testing/module.f.ts`.
+- [ ] Convert the three call sites in `fjs/emergent_testing/module.f.ts`
+      (lines 180-182, 189-191, 276-278), dropping their `eff(...)` / `.value`
+      bracketing.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related

@@ -63,12 +63,13 @@ Also `fjs/effects/node/module.f.ts:502-504` (`errorExit`),
 `fjs/mcp/stdio/module.f.ts:64,109`,
 `fjs/emergent_testing/module.f.ts:175,180,227,248,381`.
 
-Two existing issues quote the idiom while proposing something else, which is
+Two existing issues build on the idiom while proposing something else, which is
 itself evidence that it wants a name:
-[allreduce-combinator](./allreduce-combinator.md) writes
-`all(...).step(rs => pure(rs.reduce(op, init)))` and
-[allvoid-combinator](./allvoid-combinator.md) writes
-`all(...).step(() => pure(undefined))`.
+[allreduce-combinator](./allreduce-combinator.md) ends in
+`step(all(...), rs => pure(rs.reduce(op, init)))` and
+[allvoid-combinator](./allvoid-combinator.md) in
+`step(all(...), () => pure(undefined))` — a pure projection tacked onto a
+fan-out in both cases.
 
 Beyond the repetition, the current spelling **misreports the shape of the
 chain**. A `step` whose continuation returns `pure` is not a link in a sequence
@@ -204,8 +205,8 @@ Follow-up PRs — the remaining sites, one module or group per PR:
 ### Related
 
 - [allreduce-combinator](./allreduce-combinator.md) — its proposed body
-  (`all(...).step(rs => pure(rs.reduce(...)))`) is `mapStep` over `all`; landing
-  this first simplifies it.
+  (`step(all(...), rs => pure(rs.reduce(...)))`) is `mapStep` over `all`;
+  landing this first simplifies it.
 - [allvoid-combinator](./allvoid-combinator.md) — same, with a constant
   projection (`() => undefined`).
 - [fold-stream-combinator](./fold-stream-combinator.md) — its pure consumers
