@@ -307,8 +307,9 @@ export const do_ =
 export const foldStep =
     <O extends Operation, T, S>(f: (item: T) => (state: S) => Effect<O, S>) =>
     (init: S) =>
-    (items: List<T>): Effect<O, S> =>
-        fold<T, Effect<O, S>>(item => acc => step(acc, f(item)))(pure(init))(items)
+    (items: Effect<O, List<T>>): Effect<O, S> => step(
+        items,
+        fold<T, Effect<O, S>>(item => acc => step(acc, f(item)))(pure(init)))
 
 /**
  * Sequentially runs `f(item)` for each item in `items`, discarding intermediate
@@ -316,8 +317,7 @@ export const foldStep =
  */
 export const forEachStep =
     <O extends Operation, T>(f: (item: T) => Effect<O, void>) =>
-    (items: List<T>): Effect<O, void> =>
-    foldStep((item: T) => () => f(item))(undefined)(items)
+    foldStep((item: T) => () => f(item))(undefined)
 
 /**
  * A step adapter for the `error` short-circuit: `error` → pass it through

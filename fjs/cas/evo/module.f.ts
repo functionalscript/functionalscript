@@ -171,16 +171,13 @@ export const decodeRevisionBlob = <O extends Operation>(cas: Cas<O>) => (hash: V
  * `vnd.fjs.revision` blobs found among them. Non-revision blobs are ignored.
  */
 export const buildCache = <O extends Operation>(cas: Cas<O>): Effect<O, Cache> =>
-    eff(cas.list())
-        .step(hashes =>
-            foldStep((hash: Vec) => (cache: Cache): Effect<O, Cache> =>
-                eff(decodeRevisionBlob(cas)(hash))
-                    .step(revision =>
-                        pure(revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache))
-                    )
-                    .value)
-            (emptyCache)(hashes))
-        .value
+    foldStep((hash: Vec) => (cache: Cache): Effect<O, Cache> =>
+        eff(decodeRevisionBlob(cas)(hash))
+            .step(revision =>
+                pure(revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache))
+            )
+            .value)
+    (emptyCache)(cas.list())
 
 /** Scans `cas` once and allocates a memory slot holding the resulting {@link Cache}. */
 export const initEvo = <O extends Operation>(cas: Cas<O>): Effect<O | MemOp, Key<Cache>> =>
@@ -237,7 +234,7 @@ const resolveParents = <O extends Operation>(cas: Cas<O>) => (parents: readonly 
                 pure(parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]]))
             )
             .value
-    })(init)(parents)
+    })(init)(pure(parents))
 }
 
 /**

@@ -151,7 +151,7 @@ const gcStage = <O extends Now | Readdir | Rm>(stageDir: string): Effect<O, void
                 eff(rm(join(stageDir, name)))
                     .step(() => pure(undefined))
                     .value
-                )(expired)
+                )(pure(expired))
         })
         .value
 
@@ -296,7 +296,7 @@ const random256: Effect<RandomInt, Vec> =
         eff(randomInt())
             .step(r => pure(msb.concat(acc)(vec(32n)(BigInt(r)))))
             .value
-    )(empty)([0, 1, 2, 3, 4, 5, 6, 7])
+    )(empty)(pure([0, 1, 2, 3, 4, 5, 6, 7]))
 
 /** Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of `ok` items. */
 const streamFile = (filePath: string): List<ReadBytes, IoResult<Vec>> => {

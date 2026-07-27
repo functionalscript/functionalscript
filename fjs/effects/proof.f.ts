@@ -26,31 +26,31 @@ export const proof = {
             const e = foldStep
                 ((x: number) => (s: number) => pure(s + x))
                 (10)
-                ([])
+                (pure([]))
             assertPure(e, 10)
         },
         threadsState: () => {
             const e = foldStep
                 ((x: number) => (s: number) => pure(s + x))
                 (0)
-                ([1, 2, 3, 4])
+                (pure([1, 2, 3, 4]))
             assertPure(e, 10)
         },
         order: () => {
             const e = foldStep
                 ((x: string) => (s: string) => pure(s + x))
                 ('')
-                (['a', 'b', 'c'])
+                (pure(['a', 'b', 'c']))
             assertPure(e, 'abc')
         },
     },
     forEachStep: {
         empty: () => {
-            const e = forEachStep<never, number>(() => pure(undefined))([])
+            const e = forEachStep<never, number>(() => pure(undefined))(pure([]))
             assertPure(e, undefined)
         },
         runs: () => {
-            const e = forEachStep<never, number>(() => pure(undefined))([1, 2, 3])
+            const e = forEachStep<never, number>(() => pure(undefined))(pure([1, 2, 3]))
             assertPure(e, undefined)
         },
     },
