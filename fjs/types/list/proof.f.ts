@@ -25,7 +25,8 @@ import {
     first,
     filterMap,
     isEmpty,
-    equal
+    equal,
+    tryFold
 } from './module.f.ts'
 import { stringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
@@ -156,6 +157,30 @@ const entriesTest = [
         assertEq(result, '[[0,"hello"],[1,"world"]]')
     }
 ]
+
+const sumUpTo = (limit: number) => ({
+    init: 0,
+    update: (i: number, state: number) => {
+        const next = state + i
+        return next > limit ? null : next
+    },
+    end: (state: number) => state * 10,
+})
+
+const tryFoldTest = [
+    () => {
+        const result = tryFold(sumUpTo(100))([1, 2, 3])
+        assertEq(result, 60)
+    },
+    () => {
+        const result = tryFold(sumUpTo(4))([1, 2, 3])
+        assertEq(result, null)
+    },
+    () => {
+        const result = tryFold(sumUpTo(100))([])
+        assertEq(result, 0)
+    },
+] as const
 
 const reverseTest = [
     () => {
@@ -319,6 +344,7 @@ export const proof = {
     drop: dropTest,
     additionTests,
     entries: entriesTest,
+    tryFold: tryFoldTest,
     reverse: reverseTest,
     zip: zipTest,
     logic,
