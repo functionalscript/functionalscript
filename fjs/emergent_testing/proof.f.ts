@@ -264,45 +264,64 @@ export const githubReporterOutput = () => {
     )
 }
 
+type RegisterMockState = readonly string[]
+
+type RegisterMockOps = Test | All | Await
+
+type RegisterRunner =
+    (s: RegisterMockState) => <T>(e: Effect<RegisterMockOps, T>) => readonly [RegisterMockState, T]
+
+/** The `test` op body for a `registerModule` mock; `runner` is threaded in explicitly (rather than closed over) so it can recurse into sub-effects returned by `fn`. */
+type RegisterTestOp = (
+    runner: RegisterRunner,
+    ctx: TestContext,
+    name: string,
+    expectFailure: boolean,
+    fn: (t: TestContext) => Effect<RegisterMockOps, void>,
+) => (s: RegisterMockState) => readonly [RegisterMockState, void]
+
+const registerNoopCtx: TestContext = { test: (_n, _o, _f) => Promise.resolve() }
+
+/**
+ * Builds a synchronous mock runner for `registerModule`'s `Test`/`All`/`Await`
+ * effect operations. Only the `test` op varies between call sites (whether it
+ * invokes the registered callback), so `all`/`await` are shared here.
+ */
+const makeRegisterRunner = (testOp: RegisterTestOp): RegisterRunner => {
+    let runner!: RegisterRunner
+    runner = mockRun<RegisterMockOps, RegisterMockState>({
+        test: (ctx, name, xf, fn) => testOp(runner, ctx, name, xf, fn),
+        all: (...effects: readonly Effect<RegisterMockOps, unknown>[]) => (s: RegisterMockState) =>
+            effects.reduce(
+                ([st, rs]: readonly [RegisterMockState, readonly unknown[]], e) => {
+                    const [ns, r] = runner(st)(e)
+                    return [ns, [...rs, r]] as const
+                },
+                [s, []] as readonly [RegisterMockState, readonly unknown[]],
+            ),
+        await: (p: unknown) => (s: RegisterMockState) => [s, [p]] as const,
+    } as Parameters<typeof mockRun<RegisterMockOps, RegisterMockState>>[0])
+    return runner
+}
+
 // registerModule appends ' ...' for inline runners (Bun/Playwright).
-// Uses a minimal synchronous mock for the Test/All/Await effect operations.
+// This mock never invokes the registered callback; it only records names.
 export const registerSuffixes = () => {
-    type S = readonly string[]
-    type Ops = Test | All | Await
-
-    let runner!: (s: S) => <T>(e: Effect<Ops, T>) => readonly [S, T]
-    const noopCtx: TestContext = { test: (_n, _o, _f) => Promise.resolve() }
-
-    const makeRunner = () => mockRun<Ops, S>({
-        test: (_ctx, name, _xf, _fn) => (s: S) => [[...s, name], undefined],
-        all: (...effects: readonly Effect<Ops, unknown>[]) => (s: S) => {
-            let st = s
-            const rs: unknown[] = []
-            for (const e of effects) {
-                const [ns, r] = runner(st)(e)
-                st = ns
-                rs.push(r)
-            }
-            return [st, rs]
-        },
-        await: p => (s: S) => [s, [p]],
-    } as Parameters<typeof mockRun<Ops, S>>[0])
-
-    runner = makeRunner()
+    const runner = makeRegisterRunner((_runner, _ctx, name, _xf, _fn) => (s: RegisterMockState) => [[...s, name], undefined])
 
     const proof = {
         ok: () => {},
         throw: { a: () => { throw 'expected' } },
-    }
+    } as const
 
     // Node (star = ''): no suffixes
-    const [nodeNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ''))
+    const [nodeNames] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ''))
     assertEq(nodeNames.length, 2)
     assert(nodeNames[0] === 'import("./a.f.ts").proof.ok()')
     assertEq(nodeNames[1], 'import("./a.f.ts").proof.throw.a()')
 
     // Bun/Playwright (star = ' ...'): ... on normal tests, path shows throw for throw-tests
-    const [inlineNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ' ...'))
+    const [inlineNames] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ' ...'))
     assertEq(inlineNames.length, 2)
     assert(inlineNames[0] === 'import("./a.f.ts").proof.ok() ...')
     assertEq(inlineNames[1], 'import("./a.f.ts").proof.throw.a()')
@@ -315,38 +334,19 @@ export const registerSuffixes = () => {
 // the callback and returns without recursing, rather than treating the
 // returned object as a sub-tree.
 export const registerThrowsWithoutThrowing = () => {
-    type S = readonly string[]
-    type Ops = Test | All | Await
-
-    let runner!: (s: S) => <T>(e: Effect<Ops, T>) => readonly [S, T]
-    const noopCtx: TestContext = { test: (_n, _o, _f) => Promise.resolve() }
-
-    const makeRunner = () => mockRun<Ops, S>({
-        // Unlike registerSuffixes' mock, this one actually invokes the
-        // registered callback so registerOne's inner `.step` body runs.
-        test: (ctx, name, _xf, fn) => (s: S) => {
-            const [ns] = runner(s)(fn(ctx))
-            return [[...ns, name], undefined]
-        },
-        all: (...effects: readonly Effect<Ops, unknown>[]) => (s: S) => {
-            let st = s
-            const rs: unknown[] = []
-            for (const e of effects) {
-                const [ns, r] = runner(st)(e)
-                st = ns
-                rs.push(r)
-            }
-            return [st, rs]
-        },
-        await: p => (s: S) => [s, [p]],
-    } as Parameters<typeof mockRun<Ops, S>>[0])
-
-    runner = makeRunner()
+    // Unlike registerSuffixes' mock, this one actually invokes the registered
+    // callback so registerOne's inner `.step` body runs, and asserts the
+    // callback is registered with `expectFailure: true`.
+    const runner = makeRegisterRunner((runner, ctx, name, xf, fn) => (s: RegisterMockState) => {
+        assert(xf)
+        const [ns] = runner(s)(fn(ctx))
+        return [[...ns, name], undefined]
+    })
 
     // Returns a sub-tree that would register more tests if it were walked.
-    const proof = { throw: { a: () => ({ sub: () => {} }) } }
+    const proof = { throw: { a: () => ({ sub: () => {} }) } } as const
 
-    const [names] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ''))
+    const [names] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ''))
     // Only the throw-test itself is registered; `sub` is never reached.
     assertEq(names.length, 1)
     assertEq(names[0], 'import("./a.f.ts").proof.throw.a()')
