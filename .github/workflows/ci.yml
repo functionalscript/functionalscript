@@ -302,7 +302,7 @@
         {
           "uses": "wasmerio/setup-wasmer@v3.1",
           "with": {
-            "version": "v7.2.0"
+            "version": "v7.2.1"
           }
         },
         {
@@ -385,7 +385,7 @@
         {
           "uses": "denoland/setup-deno@v2.0.5",
           "with": {
-            "deno-version": "2.9.3"
+            "deno-version": "2.9.4"
           }
         },
         {
@@ -519,11 +519,11 @@
           "uses": "actions/cache@v6.1.0",
           "with": {
             "path": "~/.cache/ms-playwright",
-            "key": "ubuntu-26.04-arm-playwright-1.61.1"
+            "key": "ubuntu-26.04-arm-playwright-1.62.0"
           }
         },
         {
-          "run": "npm install -g playwright@1.61.1"
+          "run": "npm install -g playwright@1.62.0"
         },
         {
           "run": "playwright install-deps"
