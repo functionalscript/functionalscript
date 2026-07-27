@@ -64,8 +64,9 @@ const transpileWithImports
             const pathsCombine = listMap(pathConcat(dir))(parseModuleResult[1][0])
             const pathsArray = toArray(pathsCombine)
             const contextWithStack = { ...context, stack: { first: path, tail: context.stack } }
+            const x0 = foldStep(foldNextModuleOp)(contextWithStack)(pure(pathsArray))
             return step(
-                foldStep(foldNextModuleOp)(contextWithStack)(pure(pathsArray)),
+                x0,
                 contextWithImports => {
                     if (contextWithImports.error !== null) {
                         return pure(contextWithImports)
