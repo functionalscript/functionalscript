@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Each entry is at most a few lines and links only to its pull request.
+New entries are at most a few lines and link only to their pull request. A few
+older entries predate that convention and have no PR link — they are kept as
+history.
 
 ## Unreleased
 
@@ -35,6 +37,7 @@ Each entry is at most a few lines and links only to its pull request.
   `Pure` thunk or a `Do` node — instead of a `{ value, step }` wrapper.
   Composition moves to the external `step(e, f)`; `eff(value)` is added for
   method chaining
+  [#1354](https://github.com/functionalscript/functionalscript/pull/1354)
 - `fjs/ci`: **BREAKING CHANGE:** drop the trailing `git reset --hard && git
   clean -fdx` step from the generated jobs (a no-op on ephemeral runners) and
   remove the `clean` helper from `fjs/ci/common/module.f.ts`
@@ -49,6 +52,7 @@ Each entry is at most a few lines and links only to its pull request.
 - `fs/` → `fjs/`: **BREAKING CHANGE:** rename the top-level source directory, so
   every published import path changes (`functionalscript/fs/…` →
   `functionalscript/fjs/…`). `fs` collided with Node's built-in `fs` module
+  [#1316](https://github.com/functionalscript/functionalscript/pull/1316)
 - `fs/media/revision`, `fs/cas/evo`: **BREAKING CHANGES:** make `snapshot` and
   `generation` required in `revisionSchema`, so a revision blob is interpretable
   in isolation; `addRevision` now resolves and writes both fields explicitly
@@ -64,6 +68,7 @@ Each entry is at most a few lines and links only to its pull request.
 - `types/uint8array`: `listToVec` now throws the descriptive
   `"the array is too big"` on overflow instead of a generic `assert` failure,
   matching its sibling `toVec`
+  [#1286](https://github.com/functionalscript/functionalscript/pull/1286)
 
 ## 0.37.0
 
@@ -125,6 +130,7 @@ Each entry is at most a few lines and links only to its pull request.
 - `base_n`: fix `vecToString`'s O(n²) blowup on large inputs (used by
   `base64.encode` and `cbase32`) — a balanced recursive split replaces the
   per-chunk `popFront`, giving true O(n log n)
+  [#1202](https://github.com/functionalscript/functionalscript/pull/1202)
 
 ## 0.35.0
 
@@ -137,6 +143,7 @@ Each entry is at most a few lines and links only to its pull request.
   [#1198](https://github.com/functionalscript/functionalscript/pull/1198)
 - `README`: update Getting Started for the full `fjs` CLI (`test`, `compile`,
   `run`, `cas`, `mcp`, `ci`); add CAS and MCP Server sections
+  [#1198](https://github.com/functionalscript/functionalscript/pull/1198)
 - `text`: add `tryUtf8`, the `Nullable`-returning sibling of `utf8` — reports
   `null` instead of throwing when a string's UTF-8 encoding would exceed
   `maxLength`; `utf8` is derived from it
@@ -155,6 +162,7 @@ Each entry is at most a few lines and links only to its pull request.
 - `text` / `mime`: separate text-ness from well-formedness in the detector — new
   `isTextCodePoint` excludes control characters, so valid-but-control blobs are
   no longer mislabelled as `text/plain`
+  [#1183](https://github.com/functionalscript/functionalscript/pull/1183)
 - **BREAKING CHANGES:** `text`: move the Unicode code-point predicates into
   `fs/text/code_point/module.f.ts`; `isValidCodePoint` is no longer exported
   from `fs/text/utf8/module.f.ts`
@@ -327,6 +335,7 @@ Each entry is at most a few lines and links only to its pull request.
   [#1014](https://github.com/functionalscript/functionalscript/pull/1014)
 - `types/bigint`: add shift-based `divUpE2(e)` / `roundUpE2(e)`, retype
   `divUp` / `roundUp`, and migrate `asn.1` and `crypto/sign` onto them
+  [#1012](https://github.com/functionalscript/functionalscript/pull/1012)
 - `effects/memory`: add typed `create` / `read` / `write` memory operations, a
   `Map`-backed Node interpreter, and virtual-memory composition
   [#1008](https://github.com/functionalscript/functionalscript/pull/1008)
@@ -339,6 +348,7 @@ Each entry is at most a few lines and links only to its pull request.
 - `ci`: **BREAKING CHANGE:** split generated workflows into lightweight platform
   jobs and canonical Ubuntu ARM jobs, set read-only workflow permissions, and
   expand Rust checks to release tests and release Clippy
+  [#997](https://github.com/functionalscript/functionalscript/pull/997)
 
 ## 0.29.1
 
@@ -560,6 +570,7 @@ Each entry is at most a few lines and links only to its pull request.
   [#834](https://github.com/functionalscript/functionalscript/pull/834)
 - `tf`: extract the `Reporter` interface; `test` takes a `Reporter` and returns a
   `NodeProgram`, moving the `isGitHub` branching out of the walker
+  [#831](https://github.com/functionalscript/functionalscript/pull/831)
 - `fjs`: convert `main` to `NodeProgram`, dispatching sub-commands by returning
   Effects directly and dropping the `Io` dependency
   [#830](https://github.com/functionalscript/functionalscript/pull/830)
@@ -571,7 +582,9 @@ Each entry is at most a few lines and links only to its pull request.
   `AGENTS.md` [#827](https://github.com/functionalscript/functionalscript/pull/827)
 - `uint8array`: mark the module deprecated — use `utf8` / `utf8ToString` from
   `fs/text` and `bit_vec` directly
+  [#823](https://github.com/functionalscript/functionalscript/pull/823)
 - `tf`: remove the unused `anyLog` helper
+  [#823](https://github.com/functionalscript/functionalscript/pull/823)
 - Effects: retire the `Log` / `Error` / `Console` operation types; `log` and
   `error` are now helpers built on `write`
   [#822](https://github.com/functionalscript/functionalscript/pull/822)
