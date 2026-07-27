@@ -18,7 +18,6 @@ import {
 import { dispatch, type Commands } from '../../cli/module.f.ts'
 import { type MemOp } from '../../effects/memory/module.f.ts'
 import { casAddFile, fileCas, type FileCasOperation } from '../module.f.ts'
-import type { Vec } from '../../types/bit_vec/module.f.ts'
 
 export const commands: Commands<FileCasOperation | WriteFile | Write | All | MemOp | Read> = [
     {
@@ -64,7 +63,7 @@ export const commands: Commands<FileCasOperation | WriteFile | Write | All | Mem
         description: 'List all stored content hashes',
         handler: ({ home }) => {
             const c = fileCas(sha256)(home)
-            const x0 = forEachStep<FileCasOperation | Write, Vec>(j => log(vecToCBase32(j)))(c.list())
+            const x0 = forEachStep(c.list(), j => log(vecToCBase32(j)))
             return step(
                 x0,
                 () => pure(0)

@@ -44,6 +44,22 @@
  * return step(x1, h)
  * ```
  *
+ * **A step call that does not fit one line breaks after `(`, one argument per
+ * line.** This holds for every step variant — {@link step}, {@link historyStep},
+ * {@link foldStep}, {@link forEachStep} — and it is the same rule as taking the
+ * effect first, written out at the call site. A step variant is this module's
+ * `do` notation: the arguments are a statement list in execution order, so each
+ * one gets a line and the sequence reads down the page. Packing the leading
+ * effect onto the `(` line and wrapping the rest beneath it hides which of them
+ * runs first. The closing `)` may sit on its own line or trail the last
+ * argument:
+ *
+ * ```ts
+ * return step(
+ *     collectRead(cas.read(hash)),
+ *     ([tag, value]) => pure(tag === 'error' ? null : decodeRevisionVec(value)))
+ * ```
+ *
  * When a later link needs a value from an earlier one, that is not a reason to
  * nest: a nested continuation only reaches back because it closes over the
  * enclosing scope. {@link historyStep} carries the value forward instead, so
@@ -295,29 +311,60 @@ export const do_ =
     ({ command, payload, continuation: pure })
 
 /**
- * Sequentially threads a state value through an effect for each item in `items`.
+ * Sequentially threads a state value through an effect for each item produced by
+ * `items`.
  *
- * Given `f: item => state => Effect<O, state>`, `init: S`, and `items: [x₀, x₁, …]`,
- * builds `step(step(f(x₀)(init), f(x₁)), f(x₂))…` and yields a single
- * `Effect<O, S>` that produces the final state.
+ * Given `f: item => state => Effect<Q, state>`, `init: S`, and an `items` that
+ * yields `[x₀, x₁, …]`, builds `step(step(f(x₀)(init), f(x₁)), f(x₂))…` and
+ * yields a single effect producing the final state.
  *
  * Sequential — each step depends on the previous state. Compare to `all`,
  * which fans out independent effects.
+ *
+ * **A step variant** (see the two shapes described in this module's header): the
+ * effect comes first, as in {@link step} and {@link historyStep}. `items` is an
+ * `Effect<O, List<T>>` rather than a bare `List<T>` because the list a caller
+ * folds over is normally *produced* by an effect — `cas.list()`, a `readdir`.
+ * Taking the plain list would force every such caller to open a continuation
+ * just to name the list (`step(cas.list(), foldStep(…))`), which is the nesting
+ * this module exists to keep out of call sites. A caller that already holds the
+ * list lifts it with `pure`, which costs a wrapper but no indentation.
+ *
+ * `O` and `Q` are separate on purpose: the operations needed to produce the list
+ * are rarely the ones the body performs, and the result unions them.
+ *
+ * **The argument order is deliberately not `fold`'s** from `fjs/types/list`, and
+ * the difference is what the two combinators are *for*. `fold` is a data
+ * pipeline: it is curried `f`-first because the list is the thing being threaded
+ * through, and nothing about it happens in time. A step variant is a sequencing
+ * construct — it is this module's `do` notation, and reading one top-to-bottom
+ * is reading the order the program executes in. The effect therefore has to come
+ * first, because it is what happens first. Currying `f` ahead of `items` would
+ * put the *body* of the loop above the thing it loops over, which is exactly the
+ * inversion `do` exists to remove.
+ *
+ * That is also why the whole family — `step`, `historyStep`, `foldStep`,
+ * `forEachStep` — takes its effect first and breaks one argument per line when
+ * it wraps (see this module's header): every such call is a statement list, and
+ * each line is one statement in execution order.
  */
-export const foldStep =
-    <O extends Operation, T, S>(f: (item: T) => (state: S) => Effect<O, S>) =>
-    (init: S) =>
-    (items: Effect<O, List<T>>): Effect<O, S> => step(
-        items,
-        fold<T, Effect<O, S>>(item => acc => step(acc, f(item)))(pure(init)))
+export const foldStep = <O extends Operation, T, Q extends Operation, S>(
+    items: Effect<O, List<T>>,
+    init: S,
+    f: (item: T) => (state: S) => Effect<Q, S>
+): Effect<O | Q, S> =>
+    step(items, fold<T, Effect<O | Q, S>>(item => acc => step(acc, f(item)))(pure(init)))
 
 /**
- * Sequentially runs `f(item)` for each item in `items`, discarding intermediate
- * results. The `void` accumulator sibling of `foldStep`.
+ * Sequentially runs `f(item)` for each item produced by `items`, discarding
+ * intermediate results. The `void` accumulator sibling of {@link foldStep}, and
+ * a step variant on the same grounds.
  */
-export const forEachStep =
-    <O extends Operation, T>(f: (item: T) => Effect<O, void>) =>
-    foldStep((item: T) => () => f(item))(undefined)
+export const forEachStep = <O extends Operation, T, Q extends Operation>(
+    items: Effect<O, List<T>>,
+    f: (item: T) => Effect<Q, void>
+): Effect<O | Q, void> =>
+    foldStep(items, undefined, (item: T) => () => f(item))
 
 /**
  * A step adapter for the `error` short-circuit: `error` → pass it through

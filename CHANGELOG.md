@@ -11,6 +11,9 @@ history.
 
 ## Unreleased
 
+- `fjs/effects`: **BREAKING CHANGES:** make `foldStep` and `forEachStep` step
+  variants — `foldStep(items, init, f)` / `forEachStep(items, f)`, with `items`
+  an `Effect<O, List<T>>`, so the effect leads as in `step` and `historyStep`
 - `fjs/types/list`: add `tryFold` and the `Accumulator<I, T, R>` type, the
   `try*`/`Nullable` sibling of `fold`; `bit_vec`'s early-exit fold driver moves
   onto it [#1370](https://github.com/functionalscript/functionalscript/pull/1370)

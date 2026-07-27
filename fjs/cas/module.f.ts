@@ -147,11 +147,12 @@ const gcStage = <O extends Now | Readdir | Rm>(stageDir: string): Effect<O, void
             if (k === 'error') { return pure(undefined) }
             const expired = v.flatMap(d =>
                 d.isFile && deadlineOf(d.name) < t ? [d.name] : [])
-            return forEachStep((name: string) =>
-                eff(rm(join(stageDir, name)))
-                    .step(() => pure(undefined))
-                    .value
-                )(pure(expired))
+            return forEachStep(
+                pure(expired),
+                name =>
+                    eff(rm(join(stageDir, name)))
+                        .step(() => pure(undefined))
+                        .value)
         })
         .value
 
@@ -292,11 +293,13 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
 
 /** 256-bit random `Vec` built from 8 sequential `randomInt` (32-bit) calls. */
 const random256: Effect<RandomInt, Vec> =
-    foldStep((_: number) => (acc: Vec): Effect<RandomInt, Vec> =>
-        eff(randomInt())
-            .step(r => pure(msb.concat(acc)(vec(32n)(BigInt(r)))))
-            .value
-    )(empty)(pure([0, 1, 2, 3, 4, 5, 6, 7]))
+    foldStep(
+        pure([0, 1, 2, 3, 4, 5, 6, 7]),
+        empty,
+        () => (acc: Vec) =>
+            eff(randomInt())
+                .step(r => pure(msb.concat(acc)(vec(32n)(BigInt(r)))))
+                .value)
 
 /** Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of `ok` items. */
 const streamFile = (filePath: string): List<ReadBytes, IoResult<Vec>> => {

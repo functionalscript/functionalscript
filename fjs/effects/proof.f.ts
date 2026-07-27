@@ -23,34 +23,25 @@ const next = match<AddOp, number>({ add: (a, b) => a + b })
 export const proof = {
     foldStep: {
         empty: () => {
-            const e = foldStep
-                ((x: number) => (s: number) => pure(s + x))
-                (10)
-                (pure([]))
+            const e = foldStep(pure<readonly number[]>([]), 10, x => s => pure(s + x))
             assertPure(e, 10)
         },
         threadsState: () => {
-            const e = foldStep
-                ((x: number) => (s: number) => pure(s + x))
-                (0)
-                (pure([1, 2, 3, 4]))
+            const e = foldStep(pure([1, 2, 3, 4]), 0, x => s => pure(s + x))
             assertPure(e, 10)
         },
         order: () => {
-            const e = foldStep
-                ((x: string) => (s: string) => pure(s + x))
-                ('')
-                (pure(['a', 'b', 'c']))
+            const e = foldStep(pure(['a', 'b', 'c']), '', x => s => pure(s + x))
             assertPure(e, 'abc')
         },
     },
     forEachStep: {
         empty: () => {
-            const e = forEachStep<never, number>(() => pure(undefined))(pure([]))
+            const e = forEachStep(pure<readonly number[]>([]), () => pure(undefined))
             assertPure(e, undefined)
         },
         runs: () => {
-            const e = forEachStep<never, number>(() => pure(undefined))(pure([1, 2, 3]))
+            const e = forEachStep(pure([1, 2, 3]), () => pure(undefined))
             assertPure(e, undefined)
         },
     },
