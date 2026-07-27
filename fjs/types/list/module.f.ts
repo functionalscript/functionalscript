@@ -4,6 +4,7 @@
  * @module
  */
 import { identity, fn, compose } from '../function/module.f.ts'
+import type { Nullable } from '../nullable/module.f.ts'
 import {
     addition,
     logicalNot,
@@ -243,6 +244,37 @@ export const fold: <I, O>(op: Fold<I, O>) => (init: O) => (input: List<I>) => O
 
 export const reduce: <T>(op: Reduce<T>) => <D>(def: D) => (input: List<T>) => D | T
     = op => def => compose(scan(reduceToScan(op)))(last(def))
+
+/**
+ * A fold that can bail out early, packaged as plain data.
+ *
+ * `init` is the starting state, `update` advances the state by one item and
+ * returns `null` to abort the whole fold, and `end` finalizes the surviving
+ * state into a result. Keeping the three parts together lets `tryFold` drive
+ * any short-circuiting accumulation without knowing its domain.
+ */
+export type Accumulator<I, T, R> = {
+    readonly init: T
+    readonly update: (i: I, state: T) => Nullable<T>
+    readonly end: (state: T) => R
+}
+
+/**
+ * Folds `input` with an {@link Accumulator}, short-circuiting to `null` the
+ * moment `update` rejects an item; otherwise finalizes with `end`. This is the
+ * list-level `try*` sibling of {@link fold} for accumulations that can fail
+ * partway through (see the `try*`/`Nullable` convention in `AGENTS.md`).
+ */
+export const tryFold = <I, T, R>({ init, update, end }: Accumulator<I, T, R>) =>
+    (input: List<I>): Nullable<R> => {
+        let state = init
+        for (const i of iterable(input)) {
+            const candidate = update(i, state)
+            if (candidate === null) { return null }
+            state = candidate
+        }
+        return end(state)
+    }
 
 const lengthList: <T>(list: List<T>) => Thunk<number>
     = list => () => {
