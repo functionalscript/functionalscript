@@ -31,10 +31,10 @@ export const functionalscript = '0.38.0' as const
 export const bun = '1.3.14'
 
 // https://deno.com/
-export const deno = '2.9.3'
+export const deno = '2.9.4'
 
 // https://www.npmjs.com/package/playwright
-export const playwright = '1.61.1'
+export const playwright = '1.62.0'
 
 // https://nodejs.org/en/download
 export const node = {
@@ -47,7 +47,7 @@ export const node = {
 export const wasmtime = '47.0.2'
 
 // https://github.com/wasmerio/wasmer/releases
-export const wasmer = '7.2.0'
+export const wasmer = '7.2.1'
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as
