@@ -310,24 +310,6 @@ type ListToVecState = {
 
 type ListToVecOp = Accumulator<Unpacked, ListToVecState, Vec>
 
-/**
- * Concatenates a list of unpacked vectors using a binary-counter accumulator,
- * giving O(n log n) total `bigint` shifting work instead of the O(n²) of a
- * naive left fold.
- *
- * Slot `i` of `result` holds an already-combined run of the most recent
- * `2 ** i` elements. Each arriving element "carries" upward, merging only with
- * runs of comparable size — exactly like incrementing a binary number — so
- * every merge joins two runs of similar length. Left-to-right element order is
- * preserved: `unpackConcat(old)(cur)` keeps the earlier run on the left, and
- * the final reduce prepends higher (earlier) slots in front of accumulated
- * later runs. An empty list yields `unpackEmpty`. `update` returns `null` once
- * the accumulated length exceeds `maxLength`, aborting the fold.
- *
- * This is the bit-vector analogue of a builder that accumulates appended pieces
- * and materializes the combined result on demand, such as `StringBuilder`
- * (Java, C#) or `strings.Builder` (Go).
- */
 const listToVecOp =
     (unpackConcat: UnpackConcat): ListToVecOp =>
 ({
@@ -355,6 +337,26 @@ const listToVecOp =
     end: ({stack}) => pack(stack.reduce((p, c) => unpackConcat(c)(p), unpackEmpty))
 })
 
+/**
+ * Concatenates a list of unpacked vectors using a binary-counter accumulator,
+ * giving O(n log n) total `bigint` shifting work instead of the O(n²) of a
+ * naive left fold.
+ *
+ * Slot `i` of `result` holds an already-combined run of the most recent
+ * `2 ** i` elements. Each arriving element "carries" upward, merging only with
+ * runs of comparable size — exactly like incrementing a binary number — so
+ * every merge joins two runs of similar length. Left-to-right element order is
+ * preserved: `unpackConcat(old)(cur)` keeps the earlier run on the left, and
+ * the final reduce prepends higher (earlier) slots in front of accumulated
+ * later runs. An empty list yields `unpackEmpty`.
+ *
+ * Returns `null` as soon as the accumulated length exceeds `maxLength`, which
+ * `tryFold` propagates by abandoning the rest of the list.
+ *
+ * This is the bit-vector analogue of a builder that accumulates appended pieces
+ * and materializes the combined result on demand, such as `StringBuilder`
+ * (Java, C#) or `strings.Builder` (Go).
+ */
 const unpackListToVec = (unpackConcat: UnpackConcat) => tryFold(listToVecOp(unpackConcat))
 
 const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }: Base): BitOrder => {

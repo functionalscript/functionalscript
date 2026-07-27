@@ -26,8 +26,7 @@ import {
     filterMap,
     isEmpty,
     equal,
-    tryFold,
-    type Accumulator
+    tryFold
 } from './module.f.ts'
 import { stringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
@@ -159,16 +158,14 @@ const entriesTest = [
     }
 ]
 
-const sumUpTo
-    : (limit: number) => Accumulator<number, number, number>
-    = limit => ({
-        init: 0,
-        update: (i, state) => {
-            const next = state + i
-            return next > limit ? null : next
-        },
-        end: state => state * 10,
-    })
+const sumUpTo = (limit: number) => ({
+    init: 0,
+    update: (i: number, state: number) => {
+        const next = state + i
+        return next > limit ? null : next
+    },
+    end: (state: number) => state * 10,
+})
 
 const tryFoldTest = [
     () => {
@@ -183,7 +180,7 @@ const tryFoldTest = [
         const result = tryFold(sumUpTo(100))([])
         assertEq(result, 0)
     },
-]
+] as const
 
 const reverseTest = [
     () => {
