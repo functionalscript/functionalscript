@@ -171,16 +171,15 @@ export const decodeRevisionBlob = <O extends Operation>(cas: Cas<O>) => (hash: V
  * `vnd.fjs.revision` blobs found among them. Non-revision blobs are ignored.
  */
 export const buildCache = <O extends Operation>(cas: Cas<O>): Effect<O, Cache> =>
-    eff(cas.list())
-        .step(hashes =>
-            foldStep((hash: Vec) => (cache: Cache): Effect<O, Cache> =>
-                eff(decodeRevisionBlob(cas)(hash))
-                    .step(revision =>
-                        pure(revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache))
-                    )
-                    .value)
-            (emptyCache)(hashes))
-        .value
+    foldStep(
+        cas.list(),
+        emptyCache,
+        hash => cache =>
+            eff(decodeRevisionBlob(cas)(hash))
+                .step(revision =>
+                    pure(revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache))
+                )
+                .value)
 
 /** Scans `cas` once and allocates a memory slot holding the resulting {@link Cache}. */
 export const initEvo = <O extends Operation>(cas: Cas<O>): Effect<O | MemOp, Key<Cache>> =>
@@ -230,14 +229,17 @@ const resolveParent = <O extends Operation>(cas: Cas<O>) => (parentRef: Hash): E
 /** Resolves and validates every entry of `parents`, in order, short-circuiting on the first failure. */
 const resolveParents = <O extends Operation>(cas: Cas<O>) => (parents: readonly Hash[]): Effect<O, Result<readonly Revision[], string>> => {
     const init: Result<readonly Revision[], string> = ok([])
-    return foldStep((parentRef: Hash) => (acc: Result<readonly Revision[], string>): Effect<O, Result<readonly Revision[], string>> => {
-        if (acc[0] === 'error') { return pure(acc) }
-        return eff(resolveParent(cas)(parentRef))
-            .step((parentResult): Effect<never, Result<readonly Revision[], string>> =>
-                pure(parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]]))
-            )
-            .value
-    })(init)(parents)
+    return foldStep(
+        pure(parents),
+        init,
+        parentRef => (acc: Result<readonly Revision[], string>) => {
+            if (acc[0] === 'error') { return pure(acc) }
+            return eff(resolveParent(cas)(parentRef))
+                .step((parentResult): Effect<never, Result<readonly Revision[], string>> =>
+                    pure(parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]]))
+                )
+                .value
+        })
 }
 
 /**

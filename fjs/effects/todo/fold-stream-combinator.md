@@ -2,6 +2,10 @@
 
 **Priority:** P3
 **Status:** open
+**May be subsumed by:** [effect-list-fold](./effect-list-fold.md) — if `foldStep`
+moves to `fjs/effects/list` and is retyped over `EffectList<O, T>`, `foldStream`
+becomes `foldStep` plus an `okStep`-shaped short-circuit rather than a separate
+combinator. Settle the scope of this issue after that one is reviewed.
 
 ### Problem
 
@@ -106,6 +110,8 @@ consumers first; the writers follow only if the shape stays clean.
 
 ### Related
 
+- [effect-list-fold](./effect-list-fold.md) — moves `foldStep`/`forEachStep` into
+  `fjs/effects/list` over the streaming list; largely subsumes this issue.
 - [66o-read-streamfile-dedup](../../cas/todo/66o-read-streamfile-dedup.md) —
   producer-side dedup of the same stream protocol.
 - [abstract-write](../../cas/todo/abstract-write.md) — writer-pair

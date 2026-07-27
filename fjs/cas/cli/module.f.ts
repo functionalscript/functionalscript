@@ -63,10 +63,7 @@ export const commands: Commands<FileCasOperation | WriteFile | Write | All | Mem
         description: 'List all stored content hashes',
         handler: ({ home }) => {
             const c = fileCas(sha256)(home)
-            const x0 = step(
-                c.list(),
-                forEachStep(j => log(vecToCBase32(j))),
-            )
+            const x0 = forEachStep(c.list(), j => log(vecToCBase32(j)))
             return step(
                 x0,
                 () => pure(0)
