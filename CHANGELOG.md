@@ -11,6 +11,9 @@ history.
 
 ## Unreleased
 
+- `fjs/types/list`: add `tryFold` and the `Accumulator<I, T, R>` type, the
+  `try*`/`Nullable` sibling of `fold`; `bit_vec`'s early-exit fold driver moves
+  onto it [#1370](https://github.com/functionalscript/functionalscript/pull/1370)
 - `fjs/effects`: **BREAKING CHANGES:** give `Do<O, T>` named fields —
   `{ command, payload, continuation }` replaces the numeric keys `0` / `1` / `2`
   [#1368](https://github.com/functionalscript/functionalscript/pull/1368)
