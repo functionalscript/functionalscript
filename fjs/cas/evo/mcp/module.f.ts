@@ -21,6 +21,20 @@
  * ignores properties the schema does not name, so a whole `evo_revision`
  * result can be passed straight back to `evo_add`.
  *
+ * ## Result size
+ *
+ * `evo_list` and `evo_revision` answer with JSON carried as MCP *text*
+ * content, so the JSON-RPC serializer escapes it a second time on the way
+ * out and a modest result can encode to a much longer line (a subject of
+ * quote characters is the worst case). A response whose encoded line exceeds
+ * the transport cap is not lost: `fjs/mcp/stdio` retries with a small
+ * `-32603` body carrying the request's `id`, so every request still gets a
+ * response and the process never crashes. That is the transport's contract
+ * for every tool — `cas_get` has proofs for the same double-escaping path —
+ * and no tool here can pre-empt it: whether the encoded response fits is
+ * known only by encoding it, which is the transport's job, and guessing from
+ * an unencoded size is exactly the size estimate that must never be made.
+ *
  * These tools are not served by their own process: `fjs/cas/mcp` (the same
  * server as `cas_add`/`cas_get`/`cas_list`) builds one `Evo<O>` from its own
  * `Cas<O>` and cache slot, concatenates `evoToolRegistry` onto its own
@@ -101,6 +115,10 @@ export const evoToolRegistry =
         'evo_revision',
         'Read one revision by hash, as JSON: `{ subject, parents, snapshot, generation, archived? }`. `parents[0]` is the mainline parent and every further entry is a merged-in branch; `parents` and `snapshot` come back in their canonical cBase32 spelling, so they compare directly against `evo_head` output. Errors when the hash is not cBase32, is not present in the store, could not be read, or does not hold a `vnd.fjs.revision` blob — use `cas_get` for raw bytes of non-revision content.',
         evoRevisionArgs,
+        // The revision goes out as JSON in a text content item, like
+        // `evo_list`'s. An encoded response that outgrows the transport cap is
+        // the transport's `-32603`, not a tool-level error — see "Result size"
+        // in the module doc.
         ({ hash }): Effect<O | MemOp, ToolsCallResult> => step(
             e.revision(hash),
             result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(toJson(result[1])))

@@ -67,6 +67,16 @@ Each tool's argument schema is an rtti struct declared once and used twice:
   not cBase32, a hash the store has nothing under, a read that failed for
   another reason (so an unreadable blob is never reported as a missing one),
   and a blob that is not a revision.
+- A response too large to encode → the transport's `-32603`, not a tool-level
+  error. `evo_list` and `evo_revision` carry JSON as MCP text content, so the
+  JSON-RPC serializer escapes it again and an encoded line can outgrow the cap
+  even when the value itself is small (a subject of quote characters is the
+  worst case). [`fjs/mcp/stdio`](../../../mcp/stdio/module.f.ts) then retries
+  with a small internal-error body that keeps the request's `id` — the same
+  envelope every tool has, `cas_get` included. A tool cannot turn this into a
+  descriptive error of its own: whether the encoded response fits is known
+  only by encoding it, and predicting that from an unencoded size is the kind
+  of estimate this codebase does not make.
 
 ## Testing without a live process
 

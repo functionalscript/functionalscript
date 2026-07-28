@@ -94,11 +94,12 @@ export type Subject = string
  * type. It is the type of the API that *reads and constructs* revisions, and
  * its purpose is to make both easy: `add` asks only for what a caller can
  * actually know, resolving or computing the rest at the write boundary, and a
- * read hands back a value that goes straight into `add` again. Typing the
- * output's guarantees instead of documenting them would state one direction
- * more precisely at the cost of splitting the one vocabulary into two — the
- * trade this API declines. `fjs/media/revision`'s `Revision` remains the
- * all-required type of the stored blob for anyone who wants it.
+ * read hands back a value that goes straight into `add` again. A separate
+ * output type with `subject`/`snapshot`/`generation` required would state that
+ * one direction more precisely, at the cost of splitting the one vocabulary
+ * into two — the trade this API declines, deliberately and not by omission.
+ * `fjs/media/revision`'s `Revision` remains the all-required type of the
+ * stored blob for anyone who wants it.
  */
 export type RevisionData = {
     readonly parents: readonly Hash[]
