@@ -30,4 +30,33 @@ export const proof = {
         assertEq(r[1], 5)
         assertPure(r[2](r[1]), 6)
     },
+    map: {
+        chain: () => {
+            const x = eff(pure(5))
+                .map(v => v + 1)
+                .map(v => v * 2)
+                .value
+            assertPure(x, 12)
+        },
+        // `.map` grows the history exactly as `.step` does, so a callback after
+        // it still reaches the pre-`map` value. This is the contract that makes
+        // rewriting `.step(v => pure(f(v)))` into `.map(f)` a pure readability
+        // change rather than one that alters what later callbacks receive.
+        grows_history: () => {
+            const x = eff(pure(5))
+                .map(v => v + 1)
+                .step((v, prev) => pure(`${prev}${v}`))
+                .value
+            assertPure(x, '56')
+        },
+        over_do: () => {
+            const e = eff(do_<AddOp>('add')(2, 3))
+                .map(r => r + 1)
+                .value
+            const r = next(e)
+            assert(r[0] === 'cont', r)
+            assertEq(r[1], 5)
+            assertPure(r[2](r[1]), 6)
+        },
+    },
 }

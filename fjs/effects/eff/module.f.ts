@@ -1,4 +1,4 @@
-import { history, historyStep, pure, step, type Effect, type Operation } from '../module.f.ts'
+import { history, historyStep, mapStep, pure, type Effect, type Operation } from '../module.f.ts'
 
 /**
  * A fluent, method-chaining monad over a raw {@link Effect} that also
@@ -6,11 +6,19 @@ import { history, historyStep, pure, step, type Effect, type Operation } from '.
  * is bind — `f` receives the current value followed by every prior value,
  * most recent first (`f(t, ...p)`), and returns a raw `Effect`; `.step`
  * re-wraps the result together with that history so `.step(f).step(g)`
- * chains and stays in the `Eff` world throughout. `P` is the tuple of prior
- * values available to the *next* `.step` call; it grows by one element (the
- * current `T`) on every step, starting empty at {@link eff}. `.value` is the
- * exit back to a raw `Effect`, discarding the history. An `Eff` is not
- * assignable to `Effect`; unwrap through `.value`.
+ * chains and stays in the `Eff` world throughout. `.map(f)` is the functor
+ * map — the same thing for an `f` that returns a plain value rather than an
+ * effect, so it is exactly `.step((...tp) => pure(f(...tp)))`. `P` is the
+ * tuple of prior values available to the *next* `.step` call; it grows by one
+ * element (the current `T`) on every step, starting empty at {@link eff}.
+ * `.value` is the exit back to a raw `Effect`, discarding the history. An
+ * `Eff` is not assignable to `Effect`; unwrap through `.value`.
+ *
+ * **`.map` grows the history just as `.step` does, and does not widen `O`.**
+ * Both follow from it being that `.step` call and nothing else: a chain
+ * rewritten from `.step(v => pure(f(v)))` to `.map(f)` must hand later
+ * callbacks the same prior values it did before, and a projection performs no
+ * command, so it contributes no operation for a runner to interpret.
  *
  * **The history is positional, so every parameter a callback declares is
  * meaningful.** `f` is applied as `f(...tp)`, so a callback written
@@ -18,7 +26,10 @@ import { history, historyStep, pure, step, type Effect, type Operation } from '.
  * `rest` rather than the default or an empty rest — and where the types line up,
  * TypeScript will not object. Declare exactly as many parameters as the callback
  * intends to read; a defaulted or rest parameter after the current value is a
- * bug, not a convenience.
+ * bug, not a convenience. This is what makes `.map(g)` a *different* call from
+ * `.step(v => pure(g(v)))` whenever `g` is not genuinely unary — the lambda
+ * pins the arity at one, while passing `g` point-free exposes it to the prior
+ * values, the way `['1', '2', '3'].map(parseInt)` does.
  *
  * **`.value` is always an already-built `Effect`.** Reading it composes
  * nothing: the projection that drops the history tuple to its current value is
@@ -52,6 +63,7 @@ import { history, historyStep, pure, step, type Effect, type Operation } from '.
 export type Eff<O extends Operation, T, P extends readonly unknown[]> = {
     readonly value: Effect<O, T>
     readonly step: <Q extends Operation, R>(f: (...tp: readonly[T, ...P]) => Effect<Q, R>) => Eff<O | Q, R, readonly[T, ...P]>
+    readonly map: <R>(f: (...tp: readonly[T, ...P]) => R) => Eff<O, R, readonly[T, ...P]>
 }
 
 /**
@@ -69,8 +81,8 @@ export type Eff<O extends Operation, T, P extends readonly unknown[]> = {
  * `value` is either already in hand ({@link eff} was given it) or already built
  * (`.step` has just composed the chain it projects from), so storing it costs
  * no more than the projection itself. `h` is different: nothing needs the
- * history tuple until a later `.step` asks for it, and {@link step} is eager,
- * so holding a thunk is the only way to not compose it yet. That is what keeps
+ * history tuple until a later `.step` asks for it, and composing effects is
+ * eager, so holding a thunk is the only way to not compose it yet. That keeps
  * `eff(e)` free of work entirely.
  *
  * `.step` calls `h()` once and closes over the effect, so everything built
@@ -81,14 +93,20 @@ export type Eff<O extends Operation, T, P extends readonly unknown[]> = {
  */
 const create = <O extends Operation, T, P extends readonly unknown[]>(
     value: Effect<O, T>,
-    h: () => Effect<O, readonly[T, ...P]>): Eff<O, T, P> =>
-({
-    value,
-    step: f => {
-        const x1 = historyStep(h(), f)
-        return create(step(x1, ([t]) => pure(t)), () => x1)
+    h: () => Effect<O, readonly[T, ...P]>): Eff<O, T, P> => {
+    // `self` is named so `.map` can be *defined* as the `.step` call it is
+    // documented to equal, rather than as a second copy of `.step`'s body that
+    // has to be re-checked against it.
+    const self: Eff<O, T, P> = {
+        value,
+        step: f => {
+            const x1 = historyStep(h(), f)
+            return create(mapStep(x1, ([t]) => t), () => x1)
+        },
+        map: f => self.step((...tp) => pure(f(...tp)))
     }
-})
+    return self
+}
 
 /**
  * Wraps a raw {@link Effect}; the bridge into the `Eff` world, with an empty
