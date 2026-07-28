@@ -31,7 +31,7 @@
           "run": "npm install -g functionalscript@0.38.0"
         },
         {
-          "uses": "actions/checkout@v7"
+          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "cargo test"
@@ -84,7 +84,7 @@
           "run": "npm install -g functionalscript@0.38.0"
         },
         {
-          "uses": "actions/checkout@v7"
+          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "cargo test"
@@ -125,7 +125,7 @@
           "run": "npm install -g functionalscript@0.38.0"
         },
         {
-          "uses": "actions/checkout@v7"
+          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "cargo test"
@@ -166,7 +166,7 @@
           "run": "npm install -g functionalscript@0.38.0"
         },
         {
-          "uses": "actions/checkout@v7"
+          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "cargo test"
@@ -208,7 +208,7 @@
           "run": "npm install -g functionalscript@0.38.0"
         },
         {
-          "uses": "actions/checkout@v7"
+          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "cargo test"
@@ -261,7 +261,7 @@
           "run": "npm install -g functionalscript@0.38.0"
         },
         {
-          "uses": "actions/checkout@v7"
+          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "cargo test"
@@ -306,7 +306,7 @@
           }
         },
         {
-          "uses": "actions/checkout@v7"
+          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "cargo fmt -- --check"
@@ -392,7 +392,7 @@
           "run": "deno install -g -A --minimum-dependency-age=0 npm:functionalscript@0.38.0"
         },
         {
-          "uses": "actions/checkout@v7"
+          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "deno run -A --minimum-dependency-age=0 npm:functionalscript@0.38.0 t"
@@ -418,7 +418,7 @@
           "run": "bun install -g functionalscript@0.38.0"
         },
         {
-          "uses": "actions/checkout@v7"
+          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "bun install --frozen-lockfile"
@@ -444,7 +444,7 @@
           "run": "npm install -g functionalscript@0.38.0"
         },
         {
-          "uses": "actions/checkout@v7"
+          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "npm ci"
@@ -464,7 +464,7 @@
           }
         },
         {
-          "uses": "actions/checkout@v7"
+          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "npm ci"
@@ -484,7 +484,7 @@
           }
         },
         {
-          "uses": "actions/checkout@v7"
+          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "npm ci"
@@ -532,7 +532,7 @@
           "run": "playwright install"
         },
         {
-          "uses": "actions/checkout@v7"
+          "uses": "actions/checkout@v7.0.1"
         },
         {
           "run": "npm ci"
