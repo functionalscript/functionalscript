@@ -458,6 +458,16 @@ const toRevisionData = ({ subject, parents, snapshot, generation, archived }: Re
  * blob that exists: a permission or mid-stream I/O error, or content too
  * large to buffer into one `Vec` (`collectRead`). Calling any of those "not
  * found" would deny a stored revision exists, so they are their own message.
+ *
+ * A blob deleted *during* the read lands here as a miss too, and that is the
+ * honest answer rather than a gap in the split. `fileCas` streams in chunks,
+ * so a delete between two of them fails a later chunk with ENOENT after
+ * earlier ones succeeded — but by the time this result is produced the store
+ * genuinely no longer has the blob, and the very next read says "not found"
+ * with no race left to observe. `collectRead` reports how a read ended, not
+ * how far it got; recovering that difference would mean folding the chunk
+ * stream here instead of reusing `collectRead`, for a distinction no client
+ * can act on differently.
  */
 const decodeReadRevision = (hash: Hash) => ([tag, value]: IoResult<Vec>): Result<RevisionData, string> => {
     if (tag === 'error') {

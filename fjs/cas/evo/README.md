@@ -135,7 +135,9 @@ Only a genuine miss — `isNotFound`, the same ENOENT test `fjs/cas`'s `list`
 uses — is reported as *not found*. A `Cas` read can also fail on a blob that
 is really there (a permission or mid-stream I/O error, or content too large to
 buffer into one `Vec`), and answering "not found" to those would deny that a
-stored revision exists.
+stored revision exists. A blob deleted *during* the read counts as a miss: the
+store no longer has it by the time the answer is given, and the next read says
+the same thing with no race left in it.
 
 Each call is a store round trip. A per-revision memo cache is possible later —
 a revision is immutable, so it can never go stale — which is why the operation
