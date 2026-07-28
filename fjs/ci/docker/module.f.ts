@@ -16,6 +16,7 @@
  */
 import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, images, node, playwright, rustComponents, rustup, sha256, wasmer, wasmtime } from '../config/module.f.ts'
 import { type Image, type Job, type Jobs, test, toSteps } from '../common/module.f.ts'
+import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
 import { browsers } from '../playwright/module.f.ts'
 import { wasmTargets } from '../rust/module.f.ts'
 
@@ -24,8 +25,6 @@ export type ArchNames = {
     readonly amd64: string
     readonly arm64: string
 }
-
-const { entries } = Object
 
 /** A `RUN` instruction whose commands are chained with `&&`, one per line. */
 const run = (commands: readonly string[]): string =>
@@ -36,9 +35,9 @@ const run = (commands: readonly string[]): string =>
  * `vars` to its value for that architecture. An unsupported architecture fails
  * the build instead of downloading from a URL assembled out of a wrong name.
  */
-const arch = (vars: { readonly [name in string]: ArchNames }): readonly string[] => {
+const arch = (vars: StringMap<string, ArchNames>): readonly string[] => {
     const set = (a: keyof ArchNames): string =>
-        entries(vars).map(([name, value]) => `${name}=${value[a]}`).join('; ')
+        definedEntries(vars).map(([name, value]) => `${name}=${value[a]}`).join('; ')
     return [
         'arch="$(dpkg --print-architecture)"',
         `case "$arch" in amd64) ${set('amd64')} ;; arm64) ${set('arm64')} ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac`,

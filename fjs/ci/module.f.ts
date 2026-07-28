@@ -9,7 +9,7 @@
  *
  * @module
  */
-import { mapStep, okStep, step, type Effect } from '../effects/module.f.ts'
+import { history, historyStep, mapStep, okStep, step, type Effect } from '../effects/module.f.ts'
 import { access, mkdir, writeUtf8File, type IoResult, type NodeOp } from '../effects/node/module.f.ts'
 import { join } from '../path/module.f.ts'
 import { functionalscript, images } from './config/module.f.ts'
@@ -71,30 +71,34 @@ const writeGenerated = (dir: string, name: string, content: string): Effect<Node
 /** `1` when a generated file could not be written, `0` otherwise. */
 const exitCode = ([tag]: IoResult<void>): number => tag === 'error' ? 1 : 0
 
-export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> => step(
-    access('Cargo.toml'),
-    result => {
-        const rust = result[0] === 'ok'
-        const jobs: Jobs = {
-            ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
-            ...canonicalJobs(rust),
-        }
-        const gha: GitHubAction = {
-            name: 'CI',
-            on: {
-                pull_request: {},
-                merge_group: {},
-            },
-            permissions: {
-                contents: 'read',
-            },
-            jobs,
-        }
-        const workflow = writeGenerated('.github/workflows', 'ci.yml', JSON.stringify(gha, null, '  '))
-        // The container image installs the same pinned versions the workflow
-        // does, so both generated files are written by the same command.
-        const docker = step(workflow, okStep(() => writeGenerated('docker', 'Dockerfile', dockerfile(rust))))
-        return mapStep(docker, exitCode)
-    })
+/** The workflow a project gets, with Rust jobs only when it has a crate. */
+const workflowOf = (nodeExtra: Setup['nodeExtra'], rust: boolean): GitHubAction => ({
+    name: 'CI',
+    on: {
+        pull_request: {},
+        merge_group: {},
+    },
+    permissions: {
+        contents: 'read',
+    },
+    jobs: {
+        ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
+        ...canonicalJobs(rust),
+    },
+})
+
+export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> => {
+    // Rust support is whether the project has a crate at all.
+    const rust = mapStep(access('Cargo.toml'), ([tag]) => tag === 'ok')
+    const workflow = historyStep(history(rust), r =>
+        writeGenerated('.github/workflows', 'ci.yml', JSON.stringify(workflowOf(nodeExtra, r), null, '  ')))
+    // The container image installs the same pinned versions the workflow does,
+    // so both generated files are written by the same command. `historyStep`
+    // keeps `rust` reachable here without nesting this write inside the one
+    // above.
+    const docker = step(workflow, ([written, r]) =>
+        okStep(() => writeGenerated('docker', 'Dockerfile', dockerfile(r)))(written))
+    return mapStep(docker, exitCode)
+}
 
 export const main = () => ci({ nodeExtra: () => [] })
