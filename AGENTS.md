@@ -29,7 +29,7 @@ work before starting — see [todo/README.md](./todo/README.md).
 
 | Tool     | Version              | Required for                                                       |
 | -------- | -------------------- | ------------------------------------------------------------------ |
-| Node.js  | **latest**           | Everything. See [1.3](#13-the-node-version-caveat) before using 22. |
+| Node.js  | **latest** (22 min.) | Everything. Node 24+ for `node --test` — see [1.3](#13-the-node-version-caveat). |
 | Rust     | **latest**           | NaNVM (`nanvm-lib`) development only.                              |
 | Deno     | latest               | Updating dependencies; an alternative test runtime.                |
 | Bun      | latest               | Updating dependencies; an alternative test runtime.                |
@@ -46,29 +46,35 @@ cargo fetch   # Rust dependencies
 
 ### 1.3 The Node version caveat
 
-**Node's built-in test runner (`node --test`, used by `npm run cov`) does not
-work properly on Node 22 or lower.** Use the latest Node if you can. If you are
-stuck on Node 22, pick one of the workarounds in the table below — the repo's
-own test runner and the Deno/Bun runtimes all work there.
+**Node's built-in test runner (`node --test`, and `npm run cov` which wraps it)
+needs Node 24 or later.** On Node 22 it runs to completion but reports every
+`throw`-tagged test (see [§3.4](#34-never-use-trycatch-test-throwing-with-the-throw-key))
+as a failure — the runner's expected-throw inversion doesn't take effect, so a
+clean tree looks broken.
+
+Use the latest Node if you can. Everything else in the table below works on
+Node 22, including the repo's own runner (`npm start t`) and the Deno and Bun
+runtimes.
 
 ### 1.4 Ways to run the FunctionalScript test suite
 
 Every row below runs the same suite; pick the first one that fits your
 environment.
 
-| Command                                | Runtime | Needs internet | Notes                                            |
-| -------------------------------------- | ------- | -------------- | ------------------------------------------------ |
-| `npm test`                             | Node    | no             | `tsc` + the repo's runner. Needs latest Node.     |
-| `npm start t`                          | Node    | no             | The repo's own runner, no type-check step.        |
-| `npm run cov`                          | Node    | no             | Coverage via `node --test`. **Latest Node only.** |
-| `deno task fjs t`                      | Deno    | no             | The repo's runner under Deno.                     |
-| `deno task test` / `deno task cov`     | Deno    | no             | Deno's native test runner / coverage.             |
-| `bun fjs/module.ts t`                  | Bun     | no             | The repo's runner under Bun.                      |
-| `bun test`                             | Bun     | no             | Bun's native test runner.                         |
-| `fjs t`                                | Node    | to install     | After `npm install -g functionalscript`.          |
-| `npx functionalscript t`               | Node    | yes            | No install step.                                  |
-| `deno run -A npm:functionalscript t`   | Deno    | yes            | No install step.                                  |
-| `bunx functionalscript t`              | Bun     | yes            | No install step.                                  |
+| Command                                | Runtime  | Needs internet | Notes                                      |
+| -------------------------------------- | -------- | -------------- | ------------------------------------------ |
+| `npm test`                             | Node 22+ | no             | `tsc` + the repo's runner.                  |
+| `npm start t`                          | Node 22+ | no             | The repo's runner, no type-check step.      |
+| `node --test`                          | Node 24+ | no             | Node's native test runner.                  |
+| `npm run cov`                          | Node 24+ | no             | `node --test` plus coverage.                |
+| `deno task fjs t`                      | Deno     | no             | The repo's runner under Deno.               |
+| `deno task test` / `deno task cov`     | Deno     | no             | Deno's native test runner / coverage.       |
+| `bun fjs/module.ts t`                  | Bun      | no             | The repo's runner under Bun.                |
+| `bun test`                             | Bun      | no             | Bun's native test runner.                   |
+| `fjs t`                                | Node 22+ | to install     | After `npm install -g functionalscript`.    |
+| `npx functionalscript t`               | Node 22+ | yes            | No install step.                            |
+| `deno run -A npm:functionalscript t`   | Deno     | yes            | No install step.                            |
+| `bunx functionalscript t`              | Bun      | yes            | No install step.                            |
 
 The last four rows run the **latest published** FunctionalScript rather than
 this working tree's version. Deno needs explicit permissions: `-A` is the short
