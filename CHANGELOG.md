@@ -11,6 +11,11 @@ history.
 
 ## Unreleased
 
+- `fjs/cas/evo`: **BREAKING CHANGES:** add `revision(hash)` and the
+  `evo_revision` MCP tool — one revision, decoded, validated, and with hashes
+  canonicalized. `AddRevision` is renamed `RevisionData` and gains an optional
+  `generation` field, so a read value can be added back unchanged
+  [#1379](https://github.com/functionalscript/functionalscript/pull/1379)
 - `fjs/effects`: add `mapStep` and the matching `Eff.map` — the functor map of
   the effect monad, for the `step(e, x => pure(f(x)))` idiom. Neither widens the
   operation set, since a pure projection issues no commands

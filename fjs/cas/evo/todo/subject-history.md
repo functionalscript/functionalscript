@@ -45,9 +45,9 @@ readonly history: (start: Hash) => Effect<O | MemOp, Result<readonly Hash[], str
   structure in the value.
 - **Merges are discovered by the client, not encoded here.** A v1 item is a
   bare hash. A client that wants merge markers (or the merged-in branches)
-  fetches the revision via the typed companion read
-  [todo/evo-revision.md](evo-revision.md) (`evo_revision`, which decodes,
-  validates, and canonicalizes server-side) and reads its full `parents`;
+  fetches the revision via the typed companion read `revision(hash)` /
+  `evo_revision` (which decodes, validates, and canonicalizes server-side —
+  see [../README.md](../README.md)) and reads its full `parents`;
   every parent beyond index 0 is a merged-in branch, and its own history is
   one more `history(parent)` call. The API adds no data a client couldn't
   already reach — it adds the walk.
@@ -142,9 +142,9 @@ the rare consumer, still reachable in O(branches) calls.
 
 ### Related
 
-- [todo/evo-revision.md](evo-revision.md) — the typed single-revision
-  read (`evo_revision`) that serves the node detail this walk deliberately
-  omits, and the required-`generation` format decision.
+- [../README.md](../README.md) — `revision(hash)` / `evo_revision`, the typed
+  single-revision read (already implemented) that serves the node detail this
+  walk deliberately omits.
 - [todo/cache-staleness.md](cache-staleness.md) — history is read from the
   same in-memory cache, so it inherits that staleness question.
 - `fjs/media/revision/README.md` — the `vnd.fjs.revision` DAG shape

@@ -8,8 +8,8 @@ need them.
 
 - [fjs/cas/mcp](mcp/) — an MCP front end for agents, including read-time
   media-type detection: `cas_add` / `cas_get` / `cas_list` plus
-  [fjs/cas/evo](evo/)'s `evo_list` / `evo_head` / `evo_add`, all served from
-  one process.
+  [fjs/cas/evo](evo/)'s `evo_list` / `evo_head` / `evo_revision` / `evo_add`,
+  all served from one process.
 - [`cas` CLI](cli/module.f.ts) — direct filesystem access for content larger
   than the MCP inline-content cap.
 - [fjs/cas/evo](evo/) — the Evo API: subjects and revision heads

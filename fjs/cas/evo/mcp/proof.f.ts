@@ -25,8 +25,13 @@ const textOf = (result: ToolsCallResult): string => {
 
 export const proof = {
     toolNamesMatchTheDesign: () => {
-        const e: Evo<never> = { list: () => { throw 'unused' }, head: () => { throw 'unused' }, add: () => { throw 'unused' } }
-        assertEq(evoToolRegistry(e).map(entry => entry.name).join(','), 'evo_list,evo_head,evo_add')
+        const e: Evo<never> = {
+            list: () => { throw 'unused' },
+            head: () => { throw 'unused' },
+            add: () => { throw 'unused' },
+            revision: () => { throw 'unused' },
+        }
+        assertEq(evoToolRegistry(e).map(entry => entry.name).join(','), 'evo_list,evo_head,evo_revision,evo_add')
     },
     evoListReflectsTheCache: () => {
         const c = fileCas(sha256)(home)
@@ -74,6 +79,32 @@ export const proof = {
         const entry = findEntry(evoToolRegistry(e), 'evo_head')
         const [, result] = virtual(state0)(entry.handle({}))
         assertEq(result.isError, true)
+    },
+    // Covers evo_revision's success branch: the stored revision comes back as
+    // the JSON of `RevisionData` — `dialect` dropped, `generation` and the
+    // resolved `snapshot` included.
+    evoRevisionReturnsRevisionJson: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const subject = vecToCBase32(vec8(0x3n))
+        const [state1, added] = virtual(state0)(e.add({ parents: [], subject }))
+        assert(added[0] === 'ok', ['expected add ok', added])
+        const entry = findEntry(evoToolRegistry(e), 'evo_revision')
+        const [, result] = virtual(state1)(entry.handle({ hash: added[1] }))
+        assert(!result.isError)
+        assertEq(textOf(result), `{"subject":"${subject}","parents":[],"snapshot":"${subject}","generation":0}`)
+    },
+    // Covers evo_revision's error branch: a domain-level failure (a hash the
+    // store has nothing under) is surfaced as isError with the message.
+    evoRevisionDomainErrorIsError: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const entry = findEntry(evoToolRegistry(e), 'evo_revision')
+        const [, result] = virtual(state0)(entry.handle({ hash: vecToCBase32(vec8(0x4n)) }))
+        assertEq(result.isError, true)
+        assert(textOf(result).includes('revision not found'))
     },
     // Covers evo_add's success branch: a valid revision is stored and its
     // hash comes back as plain, non-error text.

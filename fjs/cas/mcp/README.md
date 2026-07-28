@@ -5,7 +5,7 @@ and the Evo API layered on top of it ([`fjs/cas/evo`](../evo/)). It exposes
 `Cas<O>` operations as MCP tools, so an agent that speaks MCP can store a
 blob and get back its hash, fetch a blob by hash, and enumerate what is
 stored — without shelling out to the `cas` CLI — and it exposes Evo's
-subject/head API (`evo_list`/`evo_head`/`evo_add`,
+subject/head API (`evo_list`/`evo_head`/`evo_revision`/`evo_add`,
 [`fjs/cas/evo/mcp`](../evo/mcp/)) from the same process.
 
 The store (`fjs/cas/module.f.ts`) stays transport-agnostic; this adapter is an
@@ -45,20 +45,21 @@ You can now ask questions like:
 - "List the available CAS hashes"
 
 Your client will use the `cas_add`, `cas_get`, and `cas_list` tools to interact
-with your CAS instance, and the `evo_list`, `evo_head`, and `evo_add` tools to
-work with subjects and revision heads on top of it (see
+with your CAS instance, and the `evo_list`, `evo_head`, `evo_revision`, and
+`evo_add` tools to work with subjects and revisions on top of it (see
 [`fjs/cas/evo/mcp/README.md`](../evo/mcp/README.md) for that API).
 
 ## Tools
 
-| Tool       | args                                    | CAS call         | result                                    |
-|------------|-----------------------------------------|------------------|-------------------------------------------|
-| `cas_add`  | `{ content, type? }`                    | `c.write(value)` | hash (cBase32)                            |
-| `cas_get`  | `{ hash, content?: boolean }`           | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
-| `cas_list` | `{}`                                    | `c.list()`       | hashes, one per line                      |
-| `evo_list` | `{}`                                    | `e.list()`       | subjects, as a JSON array of strings      |
-| `evo_head` | `{ subject }`                           | `e.head(...)`    | head hashes, one per line                 |
-| `evo_add`  | `{ parents, snapshot?, subject?, archived? }` | `e.add(...)` | hash (cBase32)                       |
+| Tool           | args                                         | CAS call          | result                                    |
+|----------------|----------------------------------------------|-------------------|-------------------------------------------|
+| `cas_add`      | `{ content, type? }`                         | `c.write(value)`  | hash (cBase32)                            |
+| `cas_get`      | `{ hash, content?: boolean }`                | `c.read(key)`     | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
+| `cas_list`     | `{}`                                         | `c.list()`        | hashes, one per line                      |
+| `evo_list`     | `{}`                                         | `e.list()`        | subjects, as a JSON array of strings      |
+| `evo_head`     | `{ subject }`                                | `e.head(...)`     | head hashes, one per line                 |
+| `evo_revision` | `{ hash }`                                   | `e.revision(...)` | the revision, as JSON                     |
+| `evo_add`      | `{ parents, snapshot?, subject?, archived? }` | `e.add(...)`      | hash (cBase32)                            |
 
 `evo_*` tools are documented in full in
 [`fjs/cas/evo/mcp/README.md`](../evo/mcp/README.md); the rest of this page
