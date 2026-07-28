@@ -163,7 +163,7 @@ export const decodeRevisionVec = (value: Vec): Revision | null => {
  */
 export const decodeRevisionBlob = <O extends Operation>(cas: Cas<O>) => (hash: Vec): Effect<O, Revision | null> =>
     eff(collectRead(cas.read(hash)))
-        .step(([tag, value]) => pure(tag === 'error' ? null : decodeRevisionVec(value)))
+        .map(([tag, value]) => tag === 'error' ? null : decodeRevisionVec(value))
         .value
 
 /**

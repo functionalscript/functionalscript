@@ -17,7 +17,7 @@ import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
 import { ok, error as resultError, mapOk, type Result } from '../../types/result/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
-import { type Effect, type Func, type Operation, type ToAsyncOperationMap, do_, okStep, pure, step } from '../module.f.ts'
+import { type Effect, type Func, type Operation, type ToAsyncOperationMap, do_, mapStep, okStep, pure, step } from '../module.f.ts'
 import type { List } from '../list/module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
@@ -89,10 +89,7 @@ export const readFile: Func<ReadFile> =
  * call site.
  */
 export const readUtf8File = (path: string): Effect<ReadFile, IoResult<string>> =>
-    step(
-        readFile(path),
-        r => pure(mapOk(utf8ToString)(r))
-    )
+    mapStep(readFile(path), mapOk(utf8ToString))
 
 // readdir
 
@@ -439,9 +436,7 @@ export type Await = readonly['await', (p: unknown) => readonly[unknown]]
 const awaitPromise: Func<Await> = do_('await')
 
 export const awaitIfPromise = (p: unknown) =>
-    step(
-        awaitPromise(p),
-        ([x]) => pure(x))
+    mapStep(awaitPromise(p), ([x]) => x)
 
 // Test registration
 
@@ -496,12 +491,10 @@ export type NodeEffect<T> = Effect<NodeOp, T>
 /**
  * Writes an error line to `stderr` and yields exit code `1`. The canonical
  * "fail with a message" program for a `NodeProgram`. For non-`1` exit codes,
- * compose `step(error(s), () => pure(n))` directly.
+ * compose `mapStep(error(s), () => n)` directly.
  */
 export const errorExit = (s: string): Effect<Write, number> =>
-    step(
-        error(s),
-        () => pure(1))
+    mapStep(error(s), () => 1)
 
 export type NodeOperationMap = ToAsyncOperationMap<NodeOp>
 
