@@ -352,6 +352,14 @@ export const registerThrowsWithoutThrowing = () => {
     assertEq(names[0], 'import("./a.f.ts").proof.throw.a()')
 }
 
+// registerModule with an empty proof object registers zero tests and
+// returns without invoking the mock's `test` op at all.
+export const registerEmptyProof = () => {
+    const runner = makeRegisterRunner((_runner, _ctx, name, _xf, _fn) => (s: RegisterMockState) => [[...s, name], undefined])
+    const [names] = runner([])(registerModule(registerNoopCtx, './a.f.ts', {}, ''))
+    assertEq(names.length, 0)
+}
+
 // direct unit tests for the pure path-format helpers
 export const helpers = {
     isInteger: () => {
@@ -463,6 +471,7 @@ export const proof = {
     githubReporterOutput,
     registerSuffixes,
     registerThrowsWithoutThrowing,
+    registerEmptyProof,
     defaultReporterExpectedToThrow,
     helpers
 }
