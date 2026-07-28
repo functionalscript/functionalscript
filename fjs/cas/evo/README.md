@@ -74,6 +74,18 @@ documented rather than typed (no extension or intersection types):
 `generation` is an input field purely so the round trip needs no field
 stripping; `add` always writes the value it computes itself.
 
+**Why relax what the format requires.** The stored `vnd.fjs.revision` blob
+requires `subject`, `snapshot` and `generation`, and `revision(hash)` does
+return all three — but `RevisionData` is not that blob's type. It is the type
+of the API that *reads and constructs* revisions, and its purpose is to make
+both easy: `add` asks only for what a caller can actually know, resolving or
+computing the rest at the write boundary, and a read hands back a value that
+goes straight into `add` again. Typing the output's guarantees instead of
+documenting them would state one direction more precisely at the cost of
+splitting the one vocabulary into two — the trade this API declines.
+[`fjs/media/revision`](../../media/revision/)'s `Revision` remains the
+all-required type of the stored blob for anyone who wants it.
+
 The stored `vnd.fjs.revision` blob requires an explicit `snapshot` and
 `generation` (see [`fjs/media/revision`](../../media/revision/)), so `add`
 resolves both at the write boundary — the inference the format used to carry,

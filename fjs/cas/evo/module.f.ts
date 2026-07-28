@@ -87,6 +87,18 @@ export type Subject = string
  * - `generation` — input: **ignored**, {@link computeGeneration} derives the
  *   authoritative value from the parents; output: always present. It exists as
  *   an input field only so a read value round-trips into `add` as-is.
+ *
+ * Relaxing what the format requires is the point, not an oversight. The stored
+ * `vnd.fjs.revision` blob requires `subject`, `snapshot` and `generation`, and
+ * {@link readRevision} does return all three — but this is not that blob's
+ * type. It is the type of the API that *reads and constructs* revisions, and
+ * its purpose is to make both easy: `add` asks only for what a caller can
+ * actually know, resolving or computing the rest at the write boundary, and a
+ * read hands back a value that goes straight into `add` again. Typing the
+ * output's guarantees instead of documenting them would state one direction
+ * more precisely at the cost of splitting the one vocabulary into two — the
+ * trade this API declines. `fjs/media/revision`'s `Revision` remains the
+ * all-required type of the stored blob for anyone who wants it.
  */
 export type RevisionData = {
     readonly parents: readonly Hash[]
