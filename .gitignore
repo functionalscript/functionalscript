@@ -139,5 +139,6 @@ index.html
 
 
 # Allow committed VS Code MCP config
-!.vscode/
+.vscode/*
 !.vscode/mcp.json
+

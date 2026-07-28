@@ -60,7 +60,11 @@ The CAS is also exposed as an [MCP](https://modelcontextprotocol.io/) server so 
 claude mcp add cas -- npx functionalscript m
 ```
 
-See [`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md) for details on the `cas_add`, `cas_get`, and `cas_list` tools.
+In VS Code, open **Copilot Chat**, switch to **Agent**, and use the MCP tools from the **Configure Tools** picker. A simple prompt like this exercises the server:
+
+> Add a short text blob to CAS with the contents `hello from FunctionalScript` and show me the resulting hash.
+
+See [`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md) for details on the `cas_add`, `cas_get`, and `cas_list` tools, and the [VS Code MCP docs](https://code.visualstudio.com/docs/agent-customization/mcp-servers) for workspace configuration details.
 
 ## Vision
 
@@ -89,3 +93,4 @@ In FunctionalScript:
 - [KirillOsenkov](https://github.com/KirillOsenkov),
 - [antkmsft](https://github.com/antkmsft),
 - [Mark Heyman](https://opencollective.com/body-count).
+
