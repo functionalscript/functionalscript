@@ -132,6 +132,23 @@ blobs fall back to the existing streaming detector, so metadata-only reads
 stay size-independent. That is an implementation limit of today's buffering
 parser, not part of the format.
 
+The embedded tag is a **convention for new JSON media types designed in
+FunctionalScript** — a good default, not a requirement, and not universal:
+[`fjs/media/`](../) also hosts formats from other vendors (`text/html`, plain
+`application/json`), and FS's JavaScript-subset dialects cannot carry an
+embedded JSON tag at all, so they keep the ordinary
+[`fjs/media/type`](../type/) detection path and surface their dialect name out
+of band (see
+[fjs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
+for the dialect naming rule and fall-back chains). The key is spelled
+`dialect` — one vocabulary for both the embedded tag and the out-of-band
+field — and deliberately not `mimeType` (a common response-envelope field
+name: an envelope stored back into CAS would carry a colliding key, and the
+value here is not a MIME type anyway), `contentType` (echoes the HTTP header,
+and `content` already collides in many envelopes), or `mediaType` (a
+near-synonym of `mimeType`; serving both side by side would invite exactly
+the confusion the vocabulary split prevents).
+
 ## Heads, merges, and archiving
 
 `subject` gives every revision of the same mutable object a common anchor:
@@ -164,8 +181,9 @@ as a new subject that still lists its origin as `parents` to show how it was
 formed. Consumers may surface the discontinuity (an epoch-reset indicator);
 they must not reject the blob for it. Ordering by `generation` is therefore
 reliable within an epoch, and the cheap one-level comparison against parents
-is the epoch-boundary detector (see
-[`fjs/cas/evo/todo/evo-revision.md`](../../cas/evo/todo/evo-revision.md)).
+is the epoch-boundary detector. Whether the evo layer should *accept* such a
+revision — its parents belong to another subject — is still open, see
+[`fjs/cas/evo/todo/evo-revision.md`](../../cas/evo/todo/evo-revision.md).
 
 `archived` marks a mutable object as no longer worked on (e.g. a finished
 task); its blobs can be deleted from a local CAS after a backup. It follows
@@ -178,6 +196,16 @@ the existing `option(true)` idiom (a presence-only flag) rather than
   per-object reverse indexes — are a separate, deferred concern. This module
   is the pure format and its schema/detection only.
 - The incremental-change dialect `vnd.fjs.change` (event log, likely
-  CRDT-based) and how it links to revisions — a future, separate dialect.
-- Snapshot-reference forms beyond cbase32 hashes, and digital signatures for
-  filtering changes from unknown users — future, separate specs.
+  CRDT-based) and how it links to revisions — a future, separate dialect
+  ([fjs/media change-content-format](../todo/change-content-format.md)).
+- Snapshot-reference forms beyond cbase32 hashes, and the syntax of a
+  content-addressed revision reference (e.g. `{hash}.{generation}.{hash}` —
+  `hash.generation` alone does not pin a version across branches; undefined
+  for now, only hashes are used). Subject identity strings are already
+  unconstrained, since `subject` is never a snapshot reference.
+- Digital signatures for filtering changes from unknown users — a future,
+  separate spec. Further out, a `{public-key}/{name}.{generation}` reference
+  form, where the key's owner defines what `{name}` means: anchoring the
+  identifier in a signer ties format identity to the web of trust
+  ([`todo/plan/vision.md`](../../../todo/plan/vision.md)'s `~/Alice/...`
+  relative-path model) and says whose evolution of `{name}` a blob follows.

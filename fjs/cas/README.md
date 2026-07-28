@@ -31,5 +31,4 @@ schema.
   materialized content of that step. Served as
   `application/vnd.fjs.revision+json`; see
   [`fjs/media/revision/README.md`](../media/revision/README.md) for the full
-  spec and [the tracking issue](todo/revision-content-format.md) for scope
-  and status.
+  spec.

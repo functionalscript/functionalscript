@@ -131,14 +131,6 @@ the rare consumer, still reachable in O(branches) calls.
 
 ### Tasks
 
-- [x] Pick a history representation and write out its exact shape and
-      reconstruction algorithm (this document).
-- [x] Decide the open questions (archived revisions: included; size: full
-      chain in v1, `limit` deferred to a future release with
-      resume-by-last-hash semantics; staleness: inherited from
-      `cache-staleness.md`; MCP tool: `evo_history`).
-- [x] Document the `parents[0]`-is-mainline commitment in
-      `fjs/media/revision/README.md`.
 - [ ] Extend the Evo cache with the per-revision `hash → ordered parents`
       map (immutable, never stale).
 - [ ] Implement `history(start)` on `Evo<O>` with proof coverage,

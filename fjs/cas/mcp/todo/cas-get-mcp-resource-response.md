@@ -57,7 +57,7 @@ and the (future) resource view of a blob use the same terminology:
 ### Related
 
 - [remote-url.md](remote-url.md) — serving URLs as resources
-- [../../todo/revision-content-format.md](../../todo/revision-content-format.md) —
+- [`fjs/media/revision/README.md`](../../../media/revision/README.md) —
   the `dialect` format tag inside revision blobs whose derived media type
   (`application/{dialect}+json`) the server can surface (after validation) as the
   response `mimeType`
