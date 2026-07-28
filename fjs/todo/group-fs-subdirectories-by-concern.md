@@ -45,7 +45,7 @@ fjs/media/
     json/       application/json (moved from fjs/json)
     revision/   dialect vnd.fjs.revision, served as
                 application/vnd.fjs.revision+json (format only, new code —
-                see fjs/cas/todo/revision-content-format.md)
+                landed; see fjs/media/revision/README.md)
 ```
 
 Later candidates for the same bucket, deliberately deferred to keep each PR
@@ -131,7 +131,8 @@ revision schema, so a revision format inside `fjs/cas` would create a
 `cas` ↔ detector cycle. The revision *format* (schema, tag, encode/decode)
 therefore lives at `fjs/media/revision/`, while the store-touching evolution
 operations (head resolution, materialization) stay under `fjs/cas` and import
-it — see [fjs/cas revision-content-format](../cas/todo/revision-content-format.md).
+it — see [fjs/media/revision/README.md](../media/revision/README.md) and
+[fjs/cas/evo](../cas/evo/).
 
 **Stays out:**
 
@@ -160,7 +161,7 @@ API (no `exports` map), so every move is a breaking change. The first wave is
 - [x] Promote the `fjs` bin to `fjs/` root; update `package.json`/`deno.json` script paths and fix relative imports.
 - [x] Move `fjs/json/` → `fjs/media/json/` (one PR; establishes the `fjs/media/` bucket).
 - [x] Move `fjs/html/` → `fjs/media/html/` (one PR).
-- [ ] `fjs/media/revision/` arrives as new code via [fjs/cas revision-content-format](../cas/todo/revision-content-format.md) — no move needed.
+- [x] `fjs/media/revision/` arrived as new code (the `vnd.fjs.revision` format) — no move needed.
 - [x] Rename `fjs/mime/` → `fjs/media/type/`.
 - [ ] Later: move `fjs/djs/` → `fjs/media/djs/`.
 - [x] Update all relative imports referencing the moved modules.

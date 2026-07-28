@@ -19,7 +19,7 @@ this server's cache entirely. Once that happens, this server's `evo_list`/
 process restarts (which rebuilds the cache from scratch via `buildCache`).
 
 This is a different problem from the one already documented in
-[`fjs/cas/evo/README.md`](../README.md)'s "In-memory cache is per process"
+[fjs/cas/evo/README.md](../README.md)'s "In-memory cache is per process"
 section: that section is about *multiple server processes* each holding
 their own cache. This issue is about a *single* running server's cache going
 stale because of writes it didn't perform itself, even with only one server
@@ -95,7 +95,7 @@ store.
 
 ### Related
 
-- [`fjs/cas/evo/README.md`](../README.md) — "In-memory cache is per process":
+- [fjs/cas/evo/README.md](../README.md) — "In-memory cache is per process":
   the adjacent (but distinct) multi-process cache-sharing problem.
 - `fjs/cas/todo/66j-cas-periodic-stage-recovery.md` — an existing precedent
   for periodic/best-effort background maintenance in this same store.

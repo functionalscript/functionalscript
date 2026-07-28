@@ -120,8 +120,8 @@ identity function, so encoding options would silently fork identities.
 - [detect-cbor.md](detect-cbor.md) — detection; consumes this codec in tiers 2–3
 - [fjs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
   — the dialect naming rule and the `fjs/media/` membership rule placing the codec
-- [fjs/cas revision-content-format](../../cas/todo/revision-content-format.md) —
-  the tagged-format convention whose binary twin this enables
+- [fjs/media/revision/README.md](../revision/README.md) — the tagged-format
+  convention whose binary twin this enables
 - `fjs/media/json/` (`serializer/`, `parser/`, `tokenizer/`) — the sibling module
   whose layout and purity conventions this follows
 - [fjs/media/json streaming-recognizer](../json/todo/streaming-recognizer.md) —
