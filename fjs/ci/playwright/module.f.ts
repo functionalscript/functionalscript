@@ -10,6 +10,9 @@ import { basicNode } from '../node/module.f.ts'
 
 const playwrightImage = images.ubuntu.arm
 
+/** Browsers the suite runs against, also the set installed into the container image. */
+export const browsers: readonly string[] = ['chromium', 'firefox', 'webkit']
+
 export const playwrightJob: Job = {
     'runs-on': playwrightImage,
     steps: toSteps(basicNode(node.default)([
@@ -22,7 +25,7 @@ export const playwrightJob: Job = {
         install({ run: 'playwright install' }),
         // we have to use `npx` to make sure that we respect `@playwright/test` version from
         // the `package.json`.
-        ...['chromium', 'firefox', 'webkit'].map(browser =>
+        ...browsers.map(browser =>
             test({ run: `npx playwright test --browser=${browser}` })),
     ]))
 }

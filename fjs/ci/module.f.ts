@@ -1,6 +1,9 @@
 /**
  * Continuous integration helper commands for repository automation tasks.
  *
+ * `ci` writes both generated files — `.github/workflows/ci.yml` and
+ * `docker/Dockerfile` — from the pins in `./config/module.f.ts`.
+ *
  * @module
  */
 import { pure, step, type Effect } from '../effects/module.f.ts'
@@ -18,6 +21,7 @@ import {
     toSteps,
     ubuntuArm
 } from './common/module.f.ts'
+import { dockerfile } from './docker/module.f.ts'
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.ts'
 import { nodeMainSteps, nodeVersionJobs } from './node/module.f.ts'
 import { playwrightJob } from './playwright/module.f.ts'
@@ -71,7 +75,11 @@ export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> => step(
         }
         return step(
             writeUtf8File('.github/workflows/ci.yml', JSON.stringify(gha, null, '  ')),
-            () => pure(0))
+            // The container image installs the same pinned versions the
+            // workflow does, so both files are regenerated together.
+            () => step(
+                writeUtf8File('docker/Dockerfile', dockerfile),
+                () => pure(0)))
     })
 
 export const main = () => ci({ nodeExtra: () => [] })

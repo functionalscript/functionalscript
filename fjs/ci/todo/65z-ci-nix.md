@@ -10,6 +10,12 @@ reproducible, content-addressed tool environments. It is a candidate for
 replacing inline tool installations (`setup-node`, `setup-bun`, etc.) on
 macOS CI — and potentially Linux — without the overhead of Docker or a VM.
 
+**Scope note.** Linux no longer needs Nix for pinning: the generated
+`docker/Dockerfile` installs every tool from an immutable, version-specific
+release URL, driven by `fjs/ci/config/module.f.ts`. `docker/README.md` records
+why release archives beat nixpkgs revisions there. macOS — where a Linux
+container tests the wrong OS — is what is left of this investigation.
+
 ### What Nix is (and is not)
 
 Nix manages tool binaries via a content-addressed store (`/nix/store`). When

@@ -1,5 +1,6 @@
 import { ci, main } from './module.f.ts'
 import { functionalscript } from './config/module.f.ts'
+import { dockerfile } from './docker/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
@@ -23,26 +24,40 @@ const makeState = (rust: boolean, packageJson?: string) => ({
     ...emptyState,
     root: {
         '.github': { workflows: {} },
+        docker: {},
         ...(packageJson !== undefined ? { 'package.json': [utf8(packageJson)] } : {}),
         ...(rust ? { 'Cargo.toml': [emptyVec] } : {}),
     },
 })
 
-const workflow = (state: State): GitHubAction => {
-    const dotGithub = state.root['.github']
-    assert(typeof dotGithub === 'object' && !Array.isArray(dotGithub), dotGithub)
-    const workflows = (dotGithub as Dir)['workflows']
-    assert(typeof workflows === 'object' && !Array.isArray(workflows), workflows)
-    const file = (workflows as Dir)['ci.yml']
-    assert(!(!Array.isArray(file) || file.length === 0), file)
-    return unwrap(parseGitHubAction(jsonParse(utf8ToString(file[0]))))
+const subDir = (dir: Dir, name: string): Dir => {
+    const entry = dir[name]
+    assert(typeof entry === 'object' && !Array.isArray(entry), entry)
+    // `Array.isArray` does not narrow a `readonly` array away from the union.
+    return entry as Dir
 }
 
-const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): GitHubAction => {
+const utf8File = (dir: Dir, name: string): string => {
+    const entry = dir[name]
+    assert(!(!Array.isArray(entry) || entry.length === 0), entry)
+    return utf8ToString(entry[0])
+}
+
+const workflow = (state: State): GitHubAction =>
+    unwrap(parseGitHubAction(jsonParse(
+        utf8File(subDir(subDir(state.root, '.github'), 'workflows'), 'ci.yml'))))
+
+const generatedDockerfile = (state: State): string =>
+    utf8File(subDir(state.root, 'docker'), 'Dockerfile')
+
+const runState = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[]): State => {
     const [state, result] = virtual(makeState(rust))(ci({ nodeExtra }))
     assertEq(result, 0)
-    return workflow(state)
+    return state
 }
+
+const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): GitHubAction =>
+    workflow(runState(rust, nodeExtra))
 
 const runDefault = (packageJson?: string): GitHubAction => {
     const [state, result] = virtual(makeState(false, packageJson))(main())
@@ -146,6 +161,12 @@ export const proof = {
             const gha = runDefault()
             assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version install')
         },
+    },
+    generatedDockerfile: () => {
+        assertEq(
+            generatedDockerfile(runState(true, () => [])),
+            dockerfile,
+            'expected the generator to write the pinned Dockerfile')
     },
     ubuntu: () => {
         const job = ubuntu([test({ run: 'echo hi' })])

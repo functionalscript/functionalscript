@@ -2,12 +2,13 @@
 
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflow for this repository. Running the generator writes `.github/workflows/ci.yml`
-with the latest matrix of jobs and steps.
+with the latest matrix of jobs and steps, and `docker/Dockerfile` with the same
+pinned tool versions.
 
 ## Files
 
 - `module.f.ts` — the top-level pipeline definition. Exports `ci(setup: Setup)` which
-  returns an `Effect<NodeOp, number>` that writes the workflow file. Rust support is
+  returns an `Effect<NodeOp, number>` that writes both generated files. Rust support is
   detected automatically by checking for `Cargo.toml` at the repository root via the
   `access` effect.
 - `proof.f.ts` — property-based proofs for the CI generator (Rust/no-Rust job presence,
@@ -15,7 +16,11 @@ with the latest matrix of jobs and steps.
 - `common/module.f.ts` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
-- `config/module.f.ts` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests.
+- `config/module.f.ts` — runner image matrix (OS × architecture → GitHub-hosted image name), the container base image, and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests. Every pin is an exact version, and both generated files read from here, so a bump lands in both at once.
+- `docker/module.f.ts` — the text of the generated `docker/Dockerfile`: the same
+  pinned tools, installed from immutable release URLs. See
+  [../../docker/README.md](../../docker/README.md) for what the image contains
+  and how to use it.
 - `node/module.f.ts` — Node.js job steps: platform smoke tests, canonical
   per-version jobs, coverage, and package checks.
 - `rust/module.f.ts` — Rust toolchain setup and `cargo` build/test steps.
@@ -26,14 +31,15 @@ with the latest matrix of jobs and steps.
 ## Usage
 
 1. Ensure dependencies are installed with `npm ci`.
-2. Regenerate the workflow definition:
+2. Regenerate the workflow definition and the Dockerfile:
    ```
    fjs ci
    ```
-3. Commit the updated `.github/workflows/ci.yml` if it has changed.
+3. Commit the updated `.github/workflows/ci.yml` and `docker/Dockerfile` if they
+   have changed.
 
 The generator is idempotent — rerunning it without modifying the source produces the
-same workflow file.
+same files.
 
 ### Expected package scripts
 
@@ -62,8 +68,8 @@ and `ci-update`. A typical FunctionalScript project can define them like this:
 ```
 
 `ci-update` must regenerate every generated file the project keeps in Git —
-today `.github/workflows/ci.yml`, with more (e.g. generated Rust sources)
-planned. The Node 26 job runs it right after `npm ci` and fails via
+today `.github/workflows/ci.yml` and `docker/Dockerfile`, with more (e.g.
+generated Rust sources) planned. The Node 26 job runs it right after `npm ci` and fails via
 `git add -A && git diff --cached --exit-code` when the committed tree no longer
 matches the generator's output, so forgetting to regenerate after changing a
 generator breaks the build instead of silently using stale files. Staging with

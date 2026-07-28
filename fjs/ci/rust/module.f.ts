@@ -81,12 +81,21 @@ export const rustPlatformSteps = (v: Os, a: Architecture): readonly MetaStep[] =
     ...i686(a, v),
 ]
 
+// Every WASM target the crate is checked against, mapped to how it is
+// exercised. Also the target list installed into the container image, so the
+// image and the generated workflow cannot drift apart.
+const wasmTargetSteps = {
+    'wasm32-wasip1': wasmTarget,
+    'wasm32-wasip2': wasmTarget,
+    'wasm32-unknown-unknown': wasmTarget,
+    'wasm32-wasip1-threads': wasmerOnlyTarget,
+} as const
+
+export const wasmTargets: readonly string[] = Object.keys(wasmTargetSteps)
+
 export const rustWasmSteps: readonly MetaStep[] = [
     test({ run: 'cargo fmt -- --check' }),
     install(uses('bytecodealliance/actions/wasmtime/setup', { version: wasmtime })),
     install(uses('wasmerio/setup-wasmer', { version: `v${wasmer}` })),
-    ...wasmTarget('wasm32-wasip1'),
-    ...wasmTarget('wasm32-wasip2'),
-    ...wasmTarget('wasm32-unknown-unknown'),
-    ...wasmerOnlyTarget('wasm32-wasip1-threads'),
+    ...Object.entries(wasmTargetSteps).flatMap(([target, steps]) => steps(target)),
 ]

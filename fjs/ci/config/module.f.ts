@@ -1,7 +1,10 @@
 /**
  * Centralized version pins and OS images used by the CI generator: runner
- * images, tool versions (Bun, Deno, Playwright, Rust, Node, Wasmtime, Wasmer,
- * TSGO).
+ * images, container base image, tool versions (Bun, Deno, Playwright, Rust,
+ * Rustup, Node, Wasmtime, Wasmer, TSGO).
+ *
+ * Every pin here is an exact version: the generated workflow and the generated
+ * `docker/Dockerfile` both read from this module, so a bump lands in both.
  *
  * @module
  */
@@ -20,6 +23,13 @@ export const images = {
         arm: 'windows-11-arm',
     }
 } as const
+
+// Base image of the generated `docker/Dockerfile`. A date-stamped Ubuntu
+// 26.04 snapshot: immutable, unlike the rolling `26.04` tag, and the same
+// distribution release as the `ubuntu-26.04` GitHub-hosted runners, so
+// Playwright's `install --with-deps` resolves the packages it does in CI.
+// https://hub.docker.com/_/ubuntu/tags
+export const dockerBase = 'ubuntu:resolute-20260707'
 
 // Bootstrap package version used by generated smoke tests. Keep this on a
 // published FunctionalScript release; do not tie it to package.json's current
@@ -42,6 +52,11 @@ export const node = {
     node22: '22.23.1',
     node24: '24.18.0',
 } as const
+
+// Installer used by the container image to pin the Rust toolchain; the
+// toolchain version itself is `actions['dtolnay/rust-toolchain']`.
+// https://static.rust-lang.org/rustup/release-stable.toml
+export const rustup = '1.29.0'
 
 // https://github.com/bytecodealliance/wasmtime/releases
 export const wasmtime = '47.0.2'
