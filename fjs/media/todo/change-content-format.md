@@ -1,7 +1,7 @@
 ## Change content format: incremental changes as their own dialect
 
 **Priority:** P4
-**Status:** open — no design yet
+**Status:** open
 
 ### Problem
 

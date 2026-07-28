@@ -1,7 +1,7 @@
 ## Return a subject's revision history
 
 **Priority:** P3
-**Status:** open — design chosen, not yet implemented
+**Status:** open
 
 ### Problem
 

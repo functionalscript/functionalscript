@@ -1,7 +1,7 @@
 ## `evo_revision`: typed read of a single revision
 
 **Priority:** P3
-**Status:** open — design chosen, not yet implemented
+**Status:** open
 
 ### Problem
 
