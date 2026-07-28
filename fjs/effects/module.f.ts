@@ -29,7 +29,9 @@
  * Effect helpers come in two shapes. **Step adapters** return a continuation
  * `(t: T) => Effect<Q, R>` meant to be passed into a step — see {@link okStep}.
  * **Step variants** take the effect itself first, like {@link step} — see
- * {@link historyStep}.
+ * {@link historyStep}. {@link mapStep} is the variant for the end of a chain:
+ * a pure projection over an effect's result, which is a `step` that continues
+ * with no further effect.
  *
  * **Do not nest steps.** Bind each intermediate effect to its own name, so a
  * sequence reads top-to-bottom in evaluation order:
@@ -45,9 +47,10 @@
  * ```
  *
  * **A step call that does not fit one line breaks after `(`, one argument per
- * line.** This holds for every step variant — {@link step}, {@link historyStep},
- * {@link foldStep}, {@link forEachStep} — and it is the same rule as taking the
- * effect first, written out at the call site. A step variant is this module's
+ * line.** This holds for every step variant — {@link step}, {@link mapStep},
+ * {@link historyStep}, {@link foldStep}, {@link forEachStep} — and it is the
+ * same rule as taking the effect first, written out at the call site. A step
+ * variant is this module's
  * `do` notation: the arguments are a statement list in execution order, so each
  * one gets a line and the sequence reads down the page. Packing the leading
  * effect onto the `(` line and wrapping the rest beneath it hides which of them
@@ -223,6 +226,32 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
     typeof e === 'function'
         ? f(e())
         : { ...e, continuation: x => step(e.continuation(x), f) }
+
+/**
+ * Applies a pure function to an effect's result: the functor `map` of the
+ * effect monad, and a {@link step} whose continuation performs nothing further.
+ *
+ * Prefer it over the `step(e, t => pure(f(t)))` it abbreviates. The two are the
+ * same value, but they read as different things: a `step` announces another
+ * link in a sequence of effects, and a trailing pure projection is not one —
+ * it is where the sequence ends. Saying so in the combinator's name keeps the
+ * "one name per link" shape of a chain honest about how many effects it runs.
+ *
+ * **The operation set does not widen.** The result is `Effect<O, R>`, not
+ * `Effect<O | Q, R>`, because a pure projection issues no commands — nothing a
+ * runner has to know how to interpret is added by `f`. That is what separates
+ * this from `step`, beyond the shorter spelling.
+ *
+ * A constant variant (`constStep(e, v)`) is deliberately absent: `mapStep(e,
+ * () => v)` already reads clearly, and it keeps `v`'s evaluation inside the
+ * continuation where `step` puts it, rather than moving it to where the
+ * composition is written.
+ */
+export const mapStep = <O extends Operation, T, R>(
+    e: Effect<O, T>,
+    f: (t: T) => R
+): Effect<O, R> =>
+    step(e, t => pure(f(t)))
 
 /**
  * An effect whose result is a **history tuple**: the values a chain has bound so

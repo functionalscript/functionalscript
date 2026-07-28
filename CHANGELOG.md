@@ -11,6 +11,10 @@ history.
 
 ## Unreleased
 
+- `fjs/effects`: add `mapStep` and the matching `Eff.map` — the functor map of
+  the effect monad, for the `step(e, x => pure(f(x)))` idiom. Neither widens the
+  operation set, since a pure projection issues no commands
+  [#1374](https://github.com/functionalscript/functionalscript/pull/1374)
 - `fjs/effects`: **BREAKING CHANGES:** make `foldStep` and `forEachStep` step
   variants — `foldStep(items, init, f)` / `forEachStep(items, f)`, with `items`
   an `Effect<O, List<T>>`, so the effect leads as in `step` and `historyStep`
