@@ -113,10 +113,17 @@ Two things make it more than a convenience over a raw read:
 - **One validator.** JSON parsing, schema validation, the `dialect` check and
   the hash checks happen once, server-side, instead of in every client.
 
-The three ways it can fail are three distinct messages, not one `null`: the
-hash is not cBase32, the store has nothing under it, or what it holds is not a
-revision. (The internal `decodeRevisionBlob` deliberately collapses the last
-two — it exists to scan stores that contain arbitrary content.)
+Every way it can fail is its own message, not one `null`: the hash is not
+cBase32, the store has nothing under it, the store has it but could not
+deliver it, or what it holds is not a revision. (The internal
+`decodeRevisionBlob` deliberately collapses all but the first — it exists to
+scan stores that contain arbitrary content.)
+
+Only a genuine miss — `isNotFound`, the same ENOENT test `fjs/cas`'s `list`
+uses — is reported as *not found*. A `Cas` read can also fail on a blob that
+is really there (a permission or mid-stream I/O error, or content too large to
+buffer into one `Vec`), and answering "not found" to those would deny that a
+stored revision exists.
 
 Each call is a store round trip. A per-revision memo cache is possible later —
 a revision is immutable, so it can never go stale — which is why the operation
@@ -167,8 +174,9 @@ works. The restriction is on what `add` will construct.
 Every `add` failure — an unresolvable `subject` or `snapshot`, a revision that
 fails the `vnd.fjs.revision` hash / generation semantics, a blob too large to
 encode, or a store write failure — and every `revision` failure — an
-undecodable hash, a hash the store has nothing under, a blob that is not a
-revision — comes back as `error(message)` (`fjs/types/result`), never a
+undecodable hash, a hash the store has nothing under, a read that failed for
+any other reason, a blob that is not a revision — comes back as
+`error(message)` (`fjs/types/result`), never a
 `throw`, so a transport (e.g. the MCP adapter,
 [`fjs/cas/evo/mcp`](mcp/)) can surface it to the caller directly.
 

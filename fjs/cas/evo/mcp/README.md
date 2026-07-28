@@ -63,9 +63,10 @@ Each tool's argument schema is an rtti struct declared once and used twice:
   a blob too large to encode, or a store write failure — → `isError` with the
   message from `Evo.add`'s `Result`.
 - A domain-level `evo_revision` failure → `isError` with the message from
-  `Evo.revision`'s `Result`, which distinguishes all three cases: a `hash`
-  that is not cBase32, a hash the store has nothing under, and a blob that is
-  not a revision.
+  `Evo.revision`'s `Result`, which keeps every case distinct: a `hash` that is
+  not cBase32, a hash the store has nothing under, a read that failed for
+  another reason (so an unreadable blob is never reported as a missing one),
+  and a blob that is not a revision.
 
 ## Testing without a live process
 

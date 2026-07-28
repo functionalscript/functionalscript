@@ -99,7 +99,7 @@ export const evoToolRegistry =
     ),
     toolEntry(
         'evo_revision',
-        'Read one revision by hash, as JSON: `{ subject, parents, snapshot, generation, archived? }`. `parents[0]` is the mainline parent and every further entry is a merged-in branch; `parents` and `snapshot` come back in their canonical cBase32 spelling, so they compare directly against `evo_head` output. Errors when the hash is not cBase32, is not present in the store, or does not hold a `vnd.fjs.revision` blob — use `cas_get` for raw bytes of non-revision content.',
+        'Read one revision by hash, as JSON: `{ subject, parents, snapshot, generation, archived? }`. `parents[0]` is the mainline parent and every further entry is a merged-in branch; `parents` and `snapshot` come back in their canonical cBase32 spelling, so they compare directly against `evo_head` output. Errors when the hash is not cBase32, is not present in the store, could not be read, or does not hold a `vnd.fjs.revision` blob — use `cas_get` for raw bytes of non-revision content.',
         evoRevisionArgs,
         ({ hash }): Effect<O | MemOp, ToolsCallResult> => step(
             e.revision(hash),

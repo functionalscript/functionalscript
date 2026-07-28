@@ -26,6 +26,15 @@ const writeFailingCas: Cas<never> = {
     list: () => pure([]),
 }
 
+// A `Cas<never>` whose `read` yields an error item that is *not* a missing
+// shard — what a permission error, a mid-stream I/O failure, or a blob too
+// large for `collectRead` to buffer looks like to a caller.
+const readFailingCas: Cas<never> = {
+    read: () => nonEmpty<never, IoResult<Vec>>(error('boom'), elEmpty()),
+    write: () => pure(error('write not supported')),
+    list: () => pure([]),
+}
+
 // A `Cas<never>` backed by a fixed set of (hash, content) entries, returned
 // from `list()` in exactly the given order — used to control the order
 // `buildCache` sees hashes in, independent of any real filesystem's
@@ -428,11 +437,11 @@ export const proof = {
         assertEq(result[0], 'error')
         assert(result[0] === 'error' && result[1] === 'failed to write revision to CAS', ['unexpected message', result])
     },
-    // The three ways `revision` can fail are three distinct messages, not one
-    // `null`: an undecodable hash, a hash the store has nothing under, and a
-    // hash whose blob is not a revision. `decodeRevisionBlob` collapses the
-    // last two (it exists to scan stores of arbitrary content); this read
-    // keeps them apart.
+    // Every way `revision` can fail is its own message, not one `null`: an
+    // undecodable hash, a hash the store has nothing under, a read that failed
+    // for any other reason, and a blob that is not a revision.
+    // `decodeRevisionBlob` collapses all but the first (it exists to scan
+    // stores of arbitrary content); this read keeps them apart.
     revisionInvalidHashIsError: () => {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
@@ -448,6 +457,17 @@ export const proof = {
         const [, result] = virtual(state0)(e.revision(vecToCBase32(vec8(0x9an))))
         assertEq(result[0], 'error')
         assert(result[0] === 'error' && result[1].includes('revision not found'), ['unexpected message', result])
+    },
+    // Regression: a read failure that is not a missing shard — a permission or
+    // mid-stream I/O error, or a blob too large to buffer into one `Vec` —
+    // must not be reported as "not found". The blob may well be there; saying
+    // it is absent would be a false answer, not merely a vague one.
+    revisionReadFailureIsNotReportedAsMissing: () => {
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(readFailingCas))
+        const e = evo(readFailingCas)(cacheKey)
+        const [, result] = virtual(state0)(e.revision(vecToCBase32(vec8(0x9bn))))
+        assertEq(result[0], 'error')
+        assert(result[0] === 'error' && result[1].includes('failed to read revision'), ['unexpected message', result])
     },
     revisionNonRevisionBlobIsError: () => {
         const c = fileCas(sha256)(home)

@@ -54,7 +54,7 @@ import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
 import { at, definedEntries, type StringMap } from '../../types/object/module.f.ts'
 import { unwrap } from '../../types/nullable/module.f.ts'
 import type { Vec } from '../../types/bit_vec/module.f.ts'
-import type { IoResult } from '../../effects/node/module.f.ts'
+import { isNotFound, type IoResult } from '../../effects/node/module.f.ts'
 
 /** A cBase32 content hash, as accepted/returned by `Cas<O>`. */
 export type Hash = string
@@ -433,14 +433,25 @@ const toRevisionData = ({ subject, parents, snapshot, generation, archived }: Re
 
 /**
  * Second stage of {@link readRevision}: interprets an already-performed read
- * of `hash`. Kept apart from the read itself so the two failures stay
+ * of `hash`. Kept apart from the read itself so the failures stay
  * distinguishable — "not present in the store" and "present but not a
  * revision" are different answers to a client, and
  * {@link decodeRevisionBlob}, which composes the same two stages internally,
  * deliberately collapses both into `null` for store scanning.
+ *
+ * A failed read is only reported as *not found* when it is a genuine miss —
+ * `isNotFound`, the same ENOENT test `fjs/cas`'s `list` uses to tell an
+ * unwritten store from an unreadable one. A `Cas` read can also fail on a
+ * blob that exists: a permission or mid-stream I/O error, or content too
+ * large to buffer into one `Vec` (`collectRead`). Calling any of those "not
+ * found" would deny a stored revision exists, so they are their own message.
  */
 const decodeReadRevision = (hash: Hash) => ([tag, value]: IoResult<Vec>): Result<RevisionData, string> => {
-    if (tag === 'error') { return error(`revision not found: ${hash}`) }
+    if (tag === 'error') {
+        return error(isNotFound(value)
+            ? `revision not found: ${hash}`
+            : `failed to read revision: ${hash}`)
+    }
     const revision = decodeRevisionVec(value)
     return revision === null
         ? error(`not a revision blob: ${hash}`)
@@ -456,9 +467,9 @@ const decodeReadRevision = (hash: Hash) => ([tag, value]: IoResult<Vec>): Result
  * validates on the way out, so no caller re-implements JSON parsing, schema
  * validation, the `dialect` check, or hash canonicalization.
  *
- * Each of the three ways to fail is a distinct message: `hash` is not cBase32,
- * the store has nothing under it, or what it holds is not a `vnd.fjs.revision`
- * (see {@link decodeReadRevision}).
+ * Every way to fail is its own message: `hash` is not cBase32, the store has
+ * nothing under it, the store has it but could not deliver it, or what it
+ * holds is not a `vnd.fjs.revision` (see {@link decodeReadRevision}).
  */
 export const readRevision = <O extends Operation>(cas: Cas<O>) => (hash: Hash): Effect<O, Result<RevisionData, string>> => {
     const hashVec = cBase32ToVec(hash)
