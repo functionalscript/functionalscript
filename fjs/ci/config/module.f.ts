@@ -55,7 +55,7 @@ export const wasmer = '7.2.1'
 // Note: dtolnay/rust-toolchain value is a Rust version, not an action version.
 export const actions = {
     // https://github.com/marketplace/actions/checkout
-    'actions/checkout': 'v7',
+    'actions/checkout': 'v7.0.1',
     // https://github.com/marketplace/actions/setup-node-js-environment
     'actions/setup-node': 'v7.0.0',
     // https://github.com/marketplace/actions/cache
