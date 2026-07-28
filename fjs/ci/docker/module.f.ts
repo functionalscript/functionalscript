@@ -3,14 +3,15 @@
  * version pins in `../config/module.f.ts` — the same source the GitHub Actions
  * workflow is generated from, so the image and CI never drift apart.
  *
- * Every tool is fetched from an immutable, version-specific release URL. There
- * is no `latest` tag, no rolling base-image tag, and no unpinned installer
- * script: the exact versions are visible in the generated text, and a rebuild
- * of an unchanged Dockerfile installs the same versions it installed before.
+ * Every tool is fetched from an immutable, version-specific release URL, and
+ * `apt` is repointed at a dated archive snapshot. There is no `latest` tag, no
+ * rolling base-image tag, and no unpinned installer script: the exact versions
+ * are visible in the generated text, and a rebuild of an unchanged Dockerfile
+ * installs what it installed before.
  *
  * @module
  */
-import { actions, bun, deno, dockerBase, functionalscript, node, playwright, rustup, wasmer, wasmtime } from '../config/module.f.ts'
+import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, node, playwright, rustup, wasmer, wasmtime } from '../config/module.f.ts'
 import { browsers } from '../playwright/module.f.ts'
 import { wasmTargets } from '../rust/module.f.ts'
 
@@ -76,10 +77,21 @@ const packages: readonly string[] = [
 ]
 
 const apt = block(
-    'Build prerequisites. Their versions come from the pinned base-image snapshot.',
+    'Build prerequisites, resolved against a dated archive snapshot so that a rebuild installs the same packages.',
     [
+        env('UBUNTU_SNAPSHOT', dockerSnapshot),
         env('DEBIAN_FRONTEND', 'noninteractive'),
         run([
+            // The snapshot service redirects to HTTPS, so the trust anchor has
+            // to exist before `apt` can reach it: this first transaction
+            // installs nothing else, and is a no-op when the base image
+            // already ships `ca-certificates`. Everything the image builds
+            // with comes from the snapshot below.
+            'apt-get update',
+            'apt-get install -y --no-install-recommends ca-certificates',
+            // `sed` fails the build if the base image ever stops using deb822
+            // sources, rather than silently leaving `apt` unpinned.
+            'sed -i "s|^URIs: .*|URIs: https://snapshot.ubuntu.com/ubuntu/$UBUNTU_SNAPSHOT|" /etc/apt/sources.list.d/ubuntu.sources',
             'apt-get update',
             `apt-get install -y --no-install-recommends ${packages.join(' ')}`,
             'rm -rf /var/lib/apt/lists/*',

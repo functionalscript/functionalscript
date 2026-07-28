@@ -8,9 +8,13 @@
 FROM ubuntu:resolute-20260707
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
-# Build prerequisites. Their versions come from the pinned base-image snapshot.
+# Build prerequisites, resolved against a dated archive snapshot so that a rebuild installs the same packages.
+ENV UBUNTU_SNAPSHOT=20260707T000000Z
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && sed -i "s|^URIs: .*|URIs: https://snapshot.ubuntu.com/ubuntu/$UBUNTU_SNAPSHOT|" /etc/apt/sources.list.d/ubuntu.sources \
+    && apt-get update \
     && apt-get install -y --no-install-recommends build-essential ca-certificates curl git gnupg libssl-dev pkg-config unzip xz-utils \
     && rm -rf /var/lib/apt/lists/*
 

@@ -1,5 +1,5 @@
 import { dockerfile } from './module.f.ts'
-import { actions, bun, deno, dockerBase, functionalscript, node, playwright, rustup, wasmer, wasmtime } from '../config/module.f.ts'
+import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, node, playwright, rustup, wasmer, wasmtime } from '../config/module.f.ts'
 import { browsers } from '../playwright/module.f.ts'
 import { wasmTargets } from '../rust/module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.ts'
@@ -23,6 +23,7 @@ export const proof = {
     },
     pinnedVersions: () => {
         for (const [name, version] of [
+            ['UBUNTU_SNAPSHOT', dockerSnapshot],
             ['NODE_VERSION', node.default],
             ['DENO_VERSION', deno],
             ['BUN_VERSION', bun],
@@ -36,11 +37,26 @@ export const proof = {
             has(`ENV ${name}=${version}`, `expected ${name} pinned to ${version}`)
         }
     },
+    aptSnapshot: () => {
+        // Without this the base-image tag pins only the initial filesystem:
+        // `apt-get update` would resolve whatever the archive holds that day.
+        has('snapshot.ubuntu.com/ubuntu/$UBUNTU_SNAPSHOT', 'expected apt pinned to the archive snapshot')
+        has('/etc/apt/sources.list.d/ubuntu.sources', 'expected the deb822 sources to be repointed')
+        // The unpinned bootstrap transaction installs the TLS trust anchor the
+        // snapshot service needs, and nothing else — every build prerequisite
+        // is resolved after the pin.
+        has('--no-install-recommends ca-certificates \\', 'expected the bootstrap to install only ca-certificates')
+        assert(
+            dockerfile.indexOf('snapshot.ubuntu.com') < dockerfile.indexOf('build-essential'),
+            'expected the build prerequisites to resolve after the snapshot pin')
+    },
     noFloatingVersions: () => {
         // A tool installed from a `latest` URL, a rolling image tag, or an
         // unpinned installer script would silently change what the image
         // contains between two builds of the same file.
         hasNot('latest', 'unexpected floating version')
+        hasNot('archive.ubuntu.com', 'unexpected unpinned apt archive')
+        hasNot('ports.ubuntu.com', 'unexpected unpinned apt archive')
         hasNot(`FROM ${dockerBase.split(':')[0]}\n`, 'unexpected untagged base image')
         hasNot('rustup.rs', 'unexpected unpinned rustup installer script')
         hasNot('deno.land/x/install', 'unexpected unpinned Deno installer script')

@@ -31,6 +31,14 @@ export const images = {
 // https://hub.docker.com/_/ubuntu/tags
 export const dockerBase = 'ubuntu:resolute-20260707'
 
+// Archive snapshot the image's `apt` sources are repointed at. The base image
+// tag only pins the initial filesystem — `apt-get update` would otherwise
+// resolve whatever the archive holds on the day of the build — so this pins
+// the packages too. Move it with `dockerBase`; the service serves every
+// architecture and its `Release` files carry no `Valid-Until`.
+// https://snapshot.ubuntu.com/
+export const dockerSnapshot = '20260707T000000Z'
+
 // Bootstrap package version used by generated smoke tests. Keep this on a
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.

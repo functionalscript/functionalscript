@@ -20,11 +20,11 @@ const hasRunInJob = (jobId: string, cmd: string) => (gha: GitHubAction): boolean
 const hasExactRunInJob = (jobId: string, cmd: string) => (gha: GitHubAction): boolean =>
     gha.jobs[jobId]?.steps.some(step => step.run === cmd) ?? false
 
+// Neither generated file's directory exists here: the generator creates both,
+// as it must in a project that has never run it.
 const makeState = (rust: boolean, packageJson?: string) => ({
     ...emptyState,
     root: {
-        '.github': { workflows: {} },
-        docker: {},
         ...(packageJson !== undefined ? { 'package.json': [utf8(packageJson)] } : {}),
         ...(rust ? { 'Cargo.toml': [emptyVec] } : {}),
     },
@@ -167,6 +167,25 @@ export const proof = {
             generatedDockerfile(runState(true, () => [])),
             dockerfile,
             'expected the generator to write the pinned Dockerfile')
+    },
+    // A directory in place of a generated file makes the write fail, the way a
+    // read-only or occupied path does outside the virtual filesystem.
+    writeFailure: {
+        workflow: () => {
+            const [state, result] = virtual({
+                ...emptyState,
+                root: { '.github': { workflows: { 'ci.yml': {} } } },
+            })(main())
+            assertEq(result, 1, 'expected a failed workflow write to fail the command')
+            assert(state.root['docker'] === undefined, 'expected no Dockerfile after the first write failed')
+        },
+        dockerfile: () => {
+            const [, result] = virtual({
+                ...emptyState,
+                root: { docker: { Dockerfile: {} } },
+            })(main())
+            assertEq(result, 1, 'expected a failed Dockerfile write to fail the command')
+        },
     },
     ubuntu: () => {
         const job = ubuntu([test({ run: 'echo hi' })])

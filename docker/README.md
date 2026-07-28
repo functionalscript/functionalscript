@@ -42,10 +42,17 @@ version-addressed. Playwright's browsers and their system dependencies are also
 hard to express as Nix derivations. Nix stays under evaluation for macOS CI,
 where a Linux container is not an option.
 
-The `apt` packages are the one exception: their versions come from the pinned
-base-image snapshot rather than from individual `=version` pins, which would
-break as soon as the mirror drops an older build. Bumping `dockerBase` is what
-moves them.
+The `apt` packages are pinned too, but by a different mechanism: a base-image
+tag only pins the initial filesystem, so the image repoints `apt` at
+[snapshot.ubuntu.com](https://snapshot.ubuntu.com/) at the date in
+`dockerSnapshot` before installing anything. Individual `=version` pins would
+break instead, as soon as the mirror drops an older build. Move `dockerSnapshot`
+together with `dockerBase`.
+
+One transaction runs before that pin, and it installs `ca-certificates` and
+nothing else: the snapshot service redirects to HTTPS, so the trust anchor has
+to be in place before `apt` can reach it. It is a no-op when the base image
+already ships the package.
 
 Both `amd64` and `arm64` are supported — matching the `ubuntu-26.04` and
 `ubuntu-26.04-arm` runners — and any other architecture fails the build instead

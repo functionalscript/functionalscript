@@ -2,12 +2,16 @@
  * Continuous integration helper commands for repository automation tasks.
  *
  * `ci` writes both generated files — `.github/workflows/ci.yml` and
- * `docker/Dockerfile` — from the pins in `./config/module.f.ts`.
+ * `docker/Dockerfile` — from the pins in `./config/module.f.ts`. Their
+ * directories are created first, so the command also works in a project that
+ * has neither yet, and a failed write becomes a non-zero exit code instead of
+ * a silently missing file.
  *
  * @module
  */
-import { pure, step, type Effect } from '../effects/module.f.ts'
-import { access, writeUtf8File, type NodeOp } from '../effects/node/module.f.ts'
+import { mapStep, okStep, step, type Effect } from '../effects/module.f.ts'
+import { access, mkdir, writeUtf8File, type IoResult, type NodeOp } from '../effects/node/module.f.ts'
+import { join } from '../path/module.f.ts'
 import { functionalscript, images } from './config/module.f.ts'
 import {
     type Architecture,
@@ -54,6 +58,16 @@ const canonicalJobs = (rust: boolean): Jobs => ({
     playwright: playwrightJob,
 })
 
+/**
+ * Writes one generated file, creating its directory first: `writeFile` fails
+ * with `ENOENT` in a project that does not have `dir` yet.
+ */
+const writeGenerated = (dir: string, name: string, content: string): Effect<NodeOp, IoResult<void>> =>
+    step(mkdir(dir, { recursive: true }), okStep(() => writeUtf8File(join(dir, name), content)))
+
+/** `1` when a generated file could not be written, `0` otherwise. */
+const exitCode = ([tag]: IoResult<void>): number => tag === 'error' ? 1 : 0
+
 export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> => step(
     access('Cargo.toml'),
     result => {
@@ -73,13 +87,11 @@ export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> => step(
             },
             jobs,
         }
-        return step(
-            writeUtf8File('.github/workflows/ci.yml', JSON.stringify(gha, null, '  ')),
-            // The container image installs the same pinned versions the
-            // workflow does, so both files are regenerated together.
-            () => step(
-                writeUtf8File('docker/Dockerfile', dockerfile),
-                () => pure(0)))
+        const workflow = writeGenerated('.github/workflows', 'ci.yml', JSON.stringify(gha, null, '  '))
+        // The container image installs the same pinned versions the workflow
+        // does, so both generated files are written by the same command.
+        const docker = step(workflow, okStep(() => writeGenerated('docker', 'Dockerfile', dockerfile)))
+        return mapStep(docker, exitCode)
     })
 
 export const main = () => ci({ nodeExtra: () => [] })
