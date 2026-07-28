@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "functionalscriptCas": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./fjs/module.ts", "m"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
