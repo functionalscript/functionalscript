@@ -136,3 +136,7 @@ index.html
 
 .cas/
 .claude
+
+# Allow VS Code MCP configuration
+!.vscode/
+!.vscode/mcp.json
