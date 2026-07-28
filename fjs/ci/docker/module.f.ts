@@ -3,39 +3,49 @@
  * version pins in `../config/module.f.ts` — the same source the GitHub Actions
  * workflow is generated from, so the image and CI never drift apart.
  *
- * Every tool is fetched from an immutable, version-specific release URL, and
- * `apt` is repointed at a dated archive snapshot. There is no `latest` tag, no
- * rolling base-image tag, and no unpinned installer script: the exact versions
- * are visible in the generated text, and a rebuild of an unchanged Dockerfile
- * installs what it installed before.
+ * Nothing enters the image unpinned. The base image is referenced by digest,
+ * `apt` resolves against a dated archive snapshot, every tool comes from a
+ * version-specific release URL, and every downloaded archive is checked
+ * against a committed SHA-256 — a release asset can be replaced under its tag,
+ * so the URL alone is not an integrity guarantee. The exceptions are the two
+ * npm-installed CLIs, pinned to exact versions and integrity-checked by npm
+ * against the registry rather than by a committed hash.
  *
  * @module
  */
-import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, node, playwright, rustup, wasmer, wasmtime } from '../config/module.f.ts'
+import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, node, playwright, rustup, sha256, wasmer, wasmtime } from '../config/module.f.ts'
 import { browsers } from '../playwright/module.f.ts'
 import { wasmTargets } from '../rust/module.f.ts'
 
-/** A tool's own spelling of the architectures the image supports. */
+/** One value per architecture the image supports, keyed as `dpkg` names them. */
 export type ArchNames = {
-    /** Name used for `dpkg --print-architecture` = `amd64`. */
     readonly amd64: string
-    /** Name used for `dpkg --print-architecture` = `arm64`. */
     readonly arm64: string
 }
+
+const { entries } = Object
 
 /** A `RUN` instruction whose commands are chained with `&&`, one per line. */
 const run = (commands: readonly string[]): string =>
     `RUN ${commands.join(' \\\n    && ')}`
 
 /**
- * Commands setting `$arch` from `dpkg` and `$<name>` to the tool's spelling of
- * it. An unsupported architecture fails the build instead of downloading from
- * a URL assembled out of a wrong name.
+ * Commands setting `$arch` from `dpkg`, then one shell variable per entry of
+ * `vars` to its value for that architecture. An unsupported architecture fails
+ * the build instead of downloading from a URL assembled out of a wrong name.
  */
-const arch = (name: string, { amd64, arm64 }: ArchNames): readonly string[] => [
-    'arch="$(dpkg --print-architecture)"',
-    `case "$arch" in amd64) ${name}=${amd64} ;; arm64) ${name}=${arm64} ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac`,
-]
+const arch = (vars: { readonly [name in string]: ArchNames }): readonly string[] => {
+    const set = (a: keyof ArchNames): string =>
+        entries(vars).map(([name, value]) => `${name}=${value[a]}`).join('; ')
+    return [
+        'arch="$(dpkg --print-architecture)"',
+        `case "$arch" in amd64) ${set('amd64')} ;; arm64) ${set('arm64')} ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac`,
+    ]
+}
+
+/** Checks a downloaded file against the SHA-256 held in `$<name>`. */
+const verify = (name: string, file: string): string =>
+    `echo "$${name}  ${file}" | sha256sum -c -`
 
 const env = (name: string, value: string): string => `ENV ${name}=${value}`
 
@@ -55,7 +65,7 @@ const header = [
 ].join('\n')
 
 const from = block(
-    'Date-stamped snapshot of the distribution the `ubuntu-26.04` runners use.',
+    'Base image by digest: the distribution the `ubuntu-26.04` runners use.',
     [
         `FROM ${dockerBase}`,
         // `-e` and `pipefail` make a failing stage of the checksum pipeline
@@ -76,38 +86,46 @@ const packages: readonly string[] = [
     'xz-utils',
 ]
 
+// `apt` reaches the snapshot service over HTTPS (it redirects there from
+// HTTP), but the base image ships no CA bundle — `ca-certificates` is one of
+// the packages installed below. Rather than fetch a trust anchor from the
+// unpinned live archive first, peer verification is disabled for that one host
+// until `ca-certificates` lands: integrity of the packages comes from the
+// archive's GPG signature, checked by the `gpgv` and `ubuntu-keyring` the base
+// image does ship, which is the same guarantee a plain-HTTP mirror gives.
+const noTlsVerify = '/etc/apt/apt.conf.d/99snapshot-bootstrap'
+
 const apt = block(
     'Build prerequisites, resolved against a dated archive snapshot so that a rebuild installs the same packages.',
     [
         env('UBUNTU_SNAPSHOT', dockerSnapshot),
         env('DEBIAN_FRONTEND', 'noninteractive'),
         run([
-            // The snapshot service redirects to HTTPS, so the trust anchor has
-            // to exist before `apt` can reach it: this first transaction
-            // installs nothing else, and is a no-op when the base image
-            // already ships `ca-certificates`. Everything the image builds
-            // with comes from the snapshot below.
-            'apt-get update',
-            'apt-get install -y --no-install-recommends ca-certificates',
+            `echo 'Acquire::https::snapshot.ubuntu.com::Verify-Peer "false";' > ${noTlsVerify}`,
             // `sed` fails the build if the base image ever stops using deb822
             // sources, rather than silently leaving `apt` unpinned.
             'sed -i "s|^URIs: .*|URIs: https://snapshot.ubuntu.com/ubuntu/$UBUNTU_SNAPSHOT|" /etc/apt/sources.list.d/ubuntu.sources',
             'apt-get update',
             `apt-get install -y --no-install-recommends ${packages.join(' ')}`,
+            // Every later `apt` call — Playwright's `install --with-deps` among
+            // them — verifies the certificate normally.
+            `rm ${noTlsVerify}`,
             'rm -rf /var/lib/apt/lists/*',
         ]),
     ])
 
 const nodeBlock = block(
-    'Node.js: official build, verified against the release SHASUMS256.txt.',
+    'Node.js: official build.',
     [
         env('NODE_VERSION', node.default),
         run([
-            ...arch('node_arch', { amd64: 'x64', arm64: 'arm64' }),
-            'node_url="https://nodejs.org/dist/v$NODE_VERSION"',
+            ...arch({
+                node_arch: { amd64: 'x64', arm64: 'arm64' },
+                node_sha256: sha256.node,
+            }),
             'node_archive="node-v$NODE_VERSION-linux-$node_arch.tar.xz"',
-            'curl -fsSLo "/tmp/$node_archive" "$node_url/$node_archive"',
-            'curl -fsSL "$node_url/SHASUMS256.txt" | grep " $node_archive$" | (cd /tmp && sha256sum -c -)',
+            'curl -fsSLo "/tmp/$node_archive" "https://nodejs.org/dist/v$NODE_VERSION/$node_archive"',
+            verify('node_sha256', '/tmp/$node_archive'),
             'tar -xJf "/tmp/$node_archive" -C /usr/local --strip-components=1 --no-same-owner',
             'rm "/tmp/$node_archive"',
         ]),
@@ -118,8 +136,12 @@ const denoBlock = block(
     [
         env('DENO_VERSION', deno),
         run([
-            ...arch('deno_arch', { amd64: 'x86_64-unknown-linux-gnu', arm64: 'aarch64-unknown-linux-gnu' }),
+            ...arch({
+                deno_arch: { amd64: 'x86_64-unknown-linux-gnu', arm64: 'aarch64-unknown-linux-gnu' },
+                deno_sha256: sha256.deno,
+            }),
             `curl -fsSLo /tmp/deno.zip "${release('denoland/deno', 'v$DENO_VERSION')}/deno-$deno_arch.zip"`,
+            verify('deno_sha256', '/tmp/deno.zip'),
             'unzip -q -d /usr/local/bin /tmp/deno.zip',
             'chmod +x /usr/local/bin/deno',
             'rm /tmp/deno.zip',
@@ -131,8 +153,12 @@ const bunBlock = block(
     [
         env('BUN_VERSION', bun),
         run([
-            ...arch('bun_arch', { amd64: 'x64', arm64: 'aarch64' }),
+            ...arch({
+                bun_arch: { amd64: 'x64', arm64: 'aarch64' },
+                bun_sha256: sha256.bun,
+            }),
             `curl -fsSLo /tmp/bun.zip "${release('oven-sh/bun', 'bun-v$BUN_VERSION')}/bun-linux-$bun_arch.zip"`,
+            verify('bun_sha256', '/tmp/bun.zip'),
             'unzip -q -d /tmp /tmp/bun.zip',
             'mv "/tmp/bun-linux-$bun_arch/bun" /usr/local/bin/bun',
             'chmod +x /usr/local/bin/bun',
@@ -149,8 +175,12 @@ const rustBlock = block(
         env('CARGO_HOME', '/usr/local/cargo'),
         env('PATH', '/usr/local/cargo/bin:$PATH'),
         run([
-            ...arch('rust_host', { amd64: 'x86_64-unknown-linux-gnu', arm64: 'aarch64-unknown-linux-gnu' }),
+            ...arch({
+                rust_host: { amd64: 'x86_64-unknown-linux-gnu', arm64: 'aarch64-unknown-linux-gnu' },
+                rustup_sha256: sha256.rustup,
+            }),
             'curl -fsSLo /tmp/rustup-init "https://static.rust-lang.org/rustup/archive/$RUSTUP_VERSION/$rust_host/rustup-init"',
+            verify('rustup_sha256', '/tmp/rustup-init'),
             'chmod +x /tmp/rustup-init',
             `/tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION --component rustfmt clippy --target ${wasmTargets.join(' ')}`,
             'rm /tmp/rustup-init',
@@ -165,9 +195,13 @@ const wasmtimeBlock = block(
     [
         env('WASMTIME_VERSION', wasmtime),
         run([
-            ...arch('wasmtime_arch', { amd64: 'x86_64', arm64: 'aarch64' }),
+            ...arch({
+                wasmtime_arch: { amd64: 'x86_64', arm64: 'aarch64' },
+                wasmtime_sha256: sha256.wasmtime,
+            }),
             'wasmtime_dir="wasmtime-v$WASMTIME_VERSION-$wasmtime_arch-linux"',
             `curl -fsSLo /tmp/wasmtime.tar.xz "${release('bytecodealliance/wasmtime', 'v$WASMTIME_VERSION')}/$wasmtime_dir.tar.xz"`,
+            verify('wasmtime_sha256', '/tmp/wasmtime.tar.xz'),
             'tar -xJf /tmp/wasmtime.tar.xz -C /tmp',
             'mv "/tmp/$wasmtime_dir/wasmtime" /usr/local/bin/wasmtime',
             'rm -rf /tmp/wasmtime.tar.xz "/tmp/$wasmtime_dir"',
@@ -180,8 +214,12 @@ const wasmerBlock = block(
         env('WASMER_VERSION', wasmer),
         env('WASMER_DIR', '/usr/local'),
         run([
-            ...arch('wasmer_arch', { amd64: 'amd64', arm64: 'aarch64' }),
+            ...arch({
+                wasmer_arch: { amd64: 'amd64', arm64: 'aarch64' },
+                wasmer_sha256: sha256.wasmer,
+            }),
             `curl -fsSLo /tmp/wasmer.tar.gz "${release('wasmerio/wasmer', 'v$WASMER_VERSION')}/wasmer-linux-$wasmer_arch.tar.gz"`,
+            verify('wasmer_sha256', '/tmp/wasmer.tar.gz'),
             'tar -xzf /tmp/wasmer.tar.gz -C /usr/local',
             'rm /tmp/wasmer.tar.gz',
         ]),

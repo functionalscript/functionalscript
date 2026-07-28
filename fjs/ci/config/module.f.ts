@@ -24,12 +24,14 @@ export const images = {
     }
 } as const
 
-// Base image of the generated `docker/Dockerfile`. A date-stamped Ubuntu
-// 26.04 snapshot: immutable, unlike the rolling `26.04` tag, and the same
-// distribution release as the `ubuntu-26.04` GitHub-hosted runners, so
-// Playwright's `install --with-deps` resolves the packages it does in CI.
+// Base image of the generated `docker/Dockerfile`: a date-stamped Ubuntu
+// 26.04 snapshot, the same distribution release as the `ubuntu-26.04`
+// GitHub-hosted runners, so Playwright's `install --with-deps` resolves the
+// packages it does in CI. The digest is what actually pins the image — a tag,
+// even a date-stamped one, can be repointed; the digest is of the multi-arch
+// index, so it covers both amd64 and arm64.
 // https://hub.docker.com/_/ubuntu/tags
-export const dockerBase = 'ubuntu:resolute-20260707'
+export const dockerBase = 'ubuntu:resolute-20260707@sha256:3131b4cc82a783df6c9df078f86e01819a13594b865c2cad47bd1bca2b7063bb'
 
 // Archive snapshot the image's `apt` sources are repointed at. The base image
 // tag only pins the initial filesystem — `apt-get update` would otherwise
@@ -71,6 +73,40 @@ export const wasmtime = '47.0.2'
 
 // https://github.com/wasmerio/wasmer/releases
 export const wasmer = '7.2.1'
+
+// SHA-256 of every archive the container image downloads, keyed by tool and by
+// `dpkg --print-architecture` name. A version-specific URL is not by itself
+// immutable — a release asset can be replaced or deleted under the same tag —
+// so the image verifies what it downloaded instead of trusting the URL. Move
+// these with the version pin above; recompute with
+// `curl -fsSL <url> | sha256sum`.
+export const sha256 = {
+    // https://nodejs.org/dist/v26.5.0/SHASUMS256.txt
+    node: {
+        amd64: '9f619528f1db5ddc41dccf54211066fb42228d69a156733c69cb9d6cc92e358c',
+        arm64: '036df0b49662ebb350eb56f1cac603699b1e9ed1e2603ee129fefda473479030',
+    },
+    deno: {
+        amd64: 'c24f955d9fbfe0ea5ae2b501c8e71ae76e31e4c9782390a54a284b3364fda725',
+        arm64: '111da5c05c240cfdc4340f234a0e3539d39dbcb6755221f19dcd60bacc8be5aa',
+    },
+    bun: {
+        amd64: '951ee2aee855f08595aeec6225226a298d3fea83a3dcd6465c09cbccdf7e848f',
+        arm64: 'a27ffb63a8310375836e0d6f668ae17fa8d8d18b88c37c821c65331973a19a3b',
+    },
+    rustup: {
+        amd64: '4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10',
+        arm64: '9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792',
+    },
+    wasmtime: {
+        amd64: '9ec85751649139711b6a5061c4f48a41412bf9b1ab98a08b9924ca73f22ca575',
+        arm64: '5bb3fe06876a1c3f4043781590b4c0a69e9237549023ccd441c18083f11decd5',
+    },
+    wasmer: {
+        amd64: 'c46d6ff34a12b40d2e57bfc2ccbb8b9e209b0987ab305233619798b264a6bae5',
+        arm64: '5a434db36f96d483e9967aa1b3ffd129f5b8781ea58faf1b80aeee6f5fb91f63',
+    },
+} as const
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as

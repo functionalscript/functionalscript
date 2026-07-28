@@ -1,8 +1,10 @@
 import { dockerfile } from './module.f.ts'
-import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, node, playwright, rustup, wasmer, wasmtime } from '../config/module.f.ts'
+import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, node, playwright, rustup, sha256, wasmer, wasmtime } from '../config/module.f.ts'
 import { browsers } from '../playwright/module.f.ts'
 import { wasmTargets } from '../rust/module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.ts'
+
+const { entries } = Object
 
 const has = (s: string, msg: string): void => assert(dockerfile.includes(s), msg)
 
@@ -20,6 +22,8 @@ export const proof = {
     },
     base: () => {
         has(`FROM ${dockerBase}`, 'expected the pinned base image')
+        // A tag can be repointed, a digest cannot.
+        has('FROM ubuntu:resolute-20260707@sha256:', 'expected the base image pinned by digest')
     },
     pinnedVersions: () => {
         for (const [name, version] of [
@@ -38,17 +42,22 @@ export const proof = {
         }
     },
     aptSnapshot: () => {
-        // Without this the base-image tag pins only the initial filesystem:
-        // `apt-get update` would resolve whatever the archive holds that day.
+        // Without this the base image's digest pins only the initial
+        // filesystem: `apt-get update` would resolve whatever the archive
+        // holds that day.
         has('snapshot.ubuntu.com/ubuntu/$UBUNTU_SNAPSHOT', 'expected apt pinned to the archive snapshot')
         has('/etc/apt/sources.list.d/ubuntu.sources', 'expected the deb822 sources to be repointed')
-        // The unpinned bootstrap transaction installs the TLS trust anchor the
-        // snapshot service needs, and nothing else — every build prerequisite
-        // is resolved after the pin.
-        has('--no-install-recommends ca-certificates \\', 'expected the bootstrap to install only ca-certificates')
+        // No package may be resolved before the pin — not even the trust
+        // anchor, which is why peer verification is relaxed for that one host
+        // instead, and only until `ca-certificates` is installed.
+        assertEq(dockerfile.split('apt-get update').length - 1, 1, 'expected exactly one apt-get update')
         assert(
-            dockerfile.indexOf('snapshot.ubuntu.com') < dockerfile.indexOf('build-essential'),
-            'expected the build prerequisites to resolve after the snapshot pin')
+            dockerfile.indexOf('snapshot.ubuntu.com/ubuntu/$UBUNTU_SNAPSHOT') < dockerfile.indexOf('apt-get update'),
+            'expected every package to resolve after the snapshot pin')
+        has('Acquire::https::snapshot.ubuntu.com::Verify-Peer "false"', 'expected the relaxation scoped to the snapshot host')
+        assert(
+            dockerfile.indexOf('rm /etc/apt/apt.conf.d/99snapshot-bootstrap') > dockerfile.indexOf('ca-certificates'),
+            'expected the relaxation removed once ca-certificates is installed')
     },
     noFloatingVersions: () => {
         // A tool installed from a `latest` URL, a rolling image tag, or an
@@ -64,9 +73,19 @@ export const proof = {
         hasNot('wasmtime.dev/install.sh', 'unexpected unpinned Wasmtime installer script')
         hasNot('get.wasmer.io', 'unexpected unpinned Wasmer installer script')
     },
+    // A version-specific URL is not immutable — a release asset can be replaced
+    // under its tag — so every archive is checked against a committed hash.
+    checksums: () => {
+        const downloads = dockerfile.split('curl -fsSLo').length - 1
+        assertEq(downloads, 6, 'expected six downloaded archives')
+        assertEq(dockerfile.split('sha256sum -c -').length - 1, downloads, 'expected every download verified')
+        for (const [tool, { amd64, arm64 }] of entries(sha256)) {
+            has(`${tool}_sha256=${amd64}`, `expected the committed amd64 hash of ${tool}`)
+            has(`${tool}_sha256=${arm64}`, `expected the committed arm64 hash of ${tool}`)
+        }
+    },
     everyToolInstalled: () => {
         has('nodejs.org/dist/v$NODE_VERSION', 'expected the pinned Node.js archive')
-        has('SHASUMS256.txt', 'expected the Node.js checksum verification')
         has('denoland/deno/releases/download/v$DENO_VERSION', 'expected the pinned Deno release')
         has('oven-sh/bun/releases/download/bun-v$BUN_VERSION', 'expected the pinned Bun release')
         has('rustup/archive/$RUSTUP_VERSION', 'expected the pinned rustup installer')
