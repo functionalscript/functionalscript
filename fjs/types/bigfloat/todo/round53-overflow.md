@@ -37,12 +37,16 @@ path is reachable from both branches of `decToBin` — the tie-to-even
 branch (above) and the plain `m53 + o54` branch.
 
 This matters because the whole point of `decToBin` is to produce the
-IEEE-754 binary64 significand: a consumer that assumes `m < 2^53` (to emit
-the significand field, to compare two `BigFloat`s by mantissa, or to
-round-trip through a `number`) is wrong on exactly these inputs. There is no
-such consumer in the repository today — `bigfloat` has no importers outside
-its own `proof.f.ts` — so nothing is currently broken, which is why this is
-P3 and not higher.
+IEEE-754 binary64 significand: a consumer that assumes `abs(m) < 2^53` (to
+emit the significand field, to compare two `BigFloat`s by mantissa, or to
+round-trip through a `number`) is wrong on exactly these inputs.
+
+Nothing consumes `decToBin` today. `bigfloat` does have importers — the JSON,
+DJS, and JS tokenizers (`fjs/media/json/tokenizer`, `fjs/djs/tokenizer`,
+`fjs/js/tokenizer`) — but they take only `multiply` and the `BigFloat` type,
+not the decimal→binary conversion, so no current caller can observe the
+oversized mantissa. That is why this is P3 and not higher; it stops being
+true the moment a tokenizer's `BigFloat` is converted for a `number`.
 
 ### Proposal
 
@@ -65,8 +69,10 @@ already normalizes on the way in.
       return paths.
 - [ ] Document the mantissa-width postcondition of `decToBin` in its JSDoc.
 - [ ] Add proofs for the carry cases: `[18014398509481983n, 0]`, its
-      negation, and a non-tie carry input; assert the mantissa is below
-      `2^53` and the value is unchanged.
+      negation, and a non-tie carry input; assert `abs(m) < 2^53` and that
+      the value is unchanged. The check must be on the magnitude — `m < 2^53`
+      is vacuous for a negative mantissa and would pass against the current
+      broken result `-9007199254740992n`.
 - [ ] `npx tsc`, `fjs t`.
 
 ### Related

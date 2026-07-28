@@ -9,28 +9,17 @@
 
 ## AST
 
-A DJS module parses into [ast/module.f.ts](./ast/module.f.ts):
+A DJS module parses into [ast/module.f.ts](./ast/module.f.ts); the types
+there carry the shape and its invariants.
 
-```ts
-type AstModule = [readonly string[], AstBody]
-type AstBody = readonly AstConst[]
-type AstConst = Primitive | AstModuleRef | AstArray | AstObject
-type AstModuleRef = ['aref' | 'cref', number]
-```
-
-`AstModule` pairs the imported module specifiers with a body. The body is a
-list of constants in declaration order, and the **last** entry is the value
-`export default` yields — so the body describes the function
-
-```js
-(...args) => { const c0 = ...; return <last> }
-```
-
-where `['aref', i]` refers to the `i`-th imported module and `['cref', i]` to
-the `i`-th preceding constant. References — not copies — are what let a DJS
-module denote a graph rather than a tree: two properties holding the same
-`cref` deserialize to the same object. See
-[examples/input.f.ts](./examples/input.f.ts).
+Why a flat list of constants with index references, rather than a value tree:
+a DJS module denotes a **graph**, and `import` and `const` are how it names
+the shared parts. Deserializing has to preserve that sharing — two properties
+holding the same reference must yield the same object, not two equal copies —
+so the AST keeps the constants addressable and refers to them by index
+instead of inlining them. That is also what makes serialization a real
+choice: a value referenced more than once is emitted as a `const` and reused.
+See [examples/input.f.ts](./examples/input.f.ts).
 
 ## Next steps
 
