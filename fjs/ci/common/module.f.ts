@@ -5,7 +5,7 @@
  *
  * @module
  */
-import { actions, images } from '../config/module.f.ts'
+import { actions, images, rustComponents } from '../config/module.f.ts'
 import { option, array, record, string } from '../../types/rtti/module.f.ts'
 import { type Ts } from '../../types/rtti/ts/module.f.ts'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.ts'
@@ -81,7 +81,7 @@ export const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     return [
         ...(aptGet !== '' ? [{ run: `sudo apt-get update && sudo apt-get install -y ${aptGet}` }] : []),
         ...(needRust ? [uses('dtolnay/rust-toolchain', {
-            components: 'rustfmt,clippy',
+            components: rustComponents,
             ...(targets === '' ? {} : { targets }),
         })] : []),
         ...filter('install'),

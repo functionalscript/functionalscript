@@ -68,6 +68,11 @@ export const node = {
 // https://static.rust-lang.org/rustup/release-stable.toml
 export const rustup = '1.29.0'
 
+// Toolchain components CI lints with. Comma-separated is the form both
+// `dtolnay/rust-toolchain` and `rustup-init --component` take — the latter
+// rejects space-separated values.
+export const rustComponents = 'rustfmt,clippy'
+
 // https://github.com/bytecodealliance/wasmtime/releases
 export const wasmtime = '47.0.2'
 

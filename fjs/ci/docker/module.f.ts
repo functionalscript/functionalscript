@@ -13,7 +13,7 @@
  *
  * @module
  */
-import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, node, playwright, rustup, sha256, wasmer, wasmtime } from '../config/module.f.ts'
+import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, node, playwright, rustComponents, rustup, sha256, wasmer, wasmtime } from '../config/module.f.ts'
 import { browsers } from '../playwright/module.f.ts'
 import { wasmTargets } from '../rust/module.f.ts'
 
@@ -182,7 +182,9 @@ const rustBlock = block(
             'curl -fsSLo /tmp/rustup-init "https://static.rust-lang.org/rustup/archive/$RUSTUP_VERSION/$rust_host/rustup-init"',
             verify('rustup_sha256', '/tmp/rustup-init'),
             'chmod +x /tmp/rustup-init',
-            `/tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION --component rustfmt clippy --target ${wasmTargets.join(' ')}`,
+            // `--component` and `--target` take one comma-separated list each;
+            // space-separated values are rejected as unexpected arguments.
+            `/tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION --component ${rustComponents} --target ${wasmTargets.join(',')}`,
             'rm /tmp/rustup-init',
             // Non-root users of the image need a writable toolchain directory
             // to add a target or run `cargo` against a fresh registry cache.

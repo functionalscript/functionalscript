@@ -1,5 +1,5 @@
 import { dockerfile } from './module.f.ts'
-import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, node, playwright, rustup, sha256, wasmer, wasmtime } from '../config/module.f.ts'
+import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, node, playwright, rustComponents, rustup, sha256, wasmer, wasmtime } from '../config/module.f.ts'
 import { browsers } from '../playwright/module.f.ts'
 import { wasmTargets } from '../rust/module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.ts'
@@ -102,7 +102,10 @@ export const proof = {
         for (const browser of browsers) {
             has(browser, `expected the browser ${browser}`)
         }
-        has('rustfmt clippy', 'expected the Rust components CI lints with')
+        // `rustup-init` takes one comma-separated list per flag, the same form
+        // the workflow's `dtolnay/rust-toolchain` step uses.
+        has(`--component ${rustComponents} `, 'expected the Rust components CI lints with')
+        has(`--target ${wasmTargets.join(',')}`, 'expected the WASM targets as one comma-separated list')
     },
     everyArchitecture: () => {
         // `arm64` covers the `ubuntu-26.04-arm` runners and Apple Silicon

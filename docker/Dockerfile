@@ -60,7 +60,7 @@ RUN arch="$(dpkg --print-architecture)" \
     && curl -fsSLo /tmp/rustup-init "https://static.rust-lang.org/rustup/archive/$RUSTUP_VERSION/$rust_host/rustup-init" \
     && echo "$rustup_sha256  /tmp/rustup-init" | sha256sum -c - \
     && chmod +x /tmp/rustup-init \
-    && /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION --component rustfmt clippy --target wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads \
+    && /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION --component rustfmt,clippy --target wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads \
     && rm /tmp/rustup-init \
     && chmod -R a+w $RUSTUP_HOME $CARGO_HOME
 
