@@ -67,10 +67,14 @@ environment.
 | `bun test`                             | Bun     | no             | Bun's native test runner.                         |
 | `fjs t`                                | Node    | to install     | After `npm install -g functionalscript`.          |
 | `npx functionalscript t`               | Node    | yes            | No install step.                                  |
+| `deno run -A npm:functionalscript t`   | Deno    | yes            | No install step.                                  |
 | `bunx functionalscript t`              | Bun     | yes            | No install step.                                  |
 
-The globally installed / `npx` options run the **latest published**
-FunctionalScript rather than this working tree's version.
+The last four rows run the **latest published** FunctionalScript rather than
+this working tree's version. Deno needs explicit permissions: `-A` is the short
+form, or pass the same set as the `fjs` task in
+[deno.json](./deno.json) (`--allow-read --allow-write --allow-env --allow-net
+--allow-sys`).
 
 To run only the tests under a subtree, `cd` into that directory and run the
 runner from there (e.g. `cd fjs/base64 && fjs t`). Module discovery starts at
