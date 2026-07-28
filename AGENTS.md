@@ -83,7 +83,13 @@ versions ship — re-run `npm install -g functionalscript` to update it.
 
 Deno needs explicit permissions: `-A` is the short form, or pass the same set as
 the `fjs` task in [deno.json](./deno.json) (`--allow-read --allow-write
---allow-env --allow-net --allow-sys`).
+--allow-env --allow-net --allow-sys`). Deno also holds back very recently
+published versions; add `--minimum-dependency-age=0` to force the newest.
+
+CI exercises these same combinations — see the `node22`, `node24`, `node26`,
+`deno`, `bun`, and `playwright` jobs in
+[.github/workflows/ci.yml](./.github/workflows/ci.yml) for the exact commands
+and pinned runtime versions.
 
 To run only the tests under a subtree, `cd` into that directory and run the
 runner from there (e.g. `cd fjs/base64 && fjs t`). Module discovery starts at
