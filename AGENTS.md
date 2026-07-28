@@ -76,11 +76,14 @@ environment.
 | `deno run -A npm:functionalscript t`   | Deno     | yes            | No install step.                            |
 | `bunx functionalscript t`              | Bun      | yes            | No install step.                            |
 
-The last four rows run the **latest published** FunctionalScript rather than
-this working tree's version. Deno needs explicit permissions: `-A` is the short
-form, or pass the same set as the `fjs` task in
-[deno.json](./deno.json) (`--allow-read --allow-write --allow-env --allow-net
---allow-sys`).
+The last four rows run a **published** FunctionalScript rather than this working
+tree's version. `npx`, `deno run`, and `bunx` resolve the latest release each
+time; `fjs` runs whatever you installed globally, which goes stale as new
+versions ship — re-run `npm install -g functionalscript` to update it.
+
+Deno needs explicit permissions: `-A` is the short form, or pass the same set as
+the `fjs` task in [deno.json](./deno.json) (`--allow-read --allow-write
+--allow-env --allow-net --allow-sys`).
 
 To run only the tests under a subtree, `cd` into that directory and run the
 runner from there (e.g. `cd fjs/base64 && fjs t`). Module discovery starts at
@@ -122,8 +125,9 @@ cargo fmt -- --check     # verify formatting
    cargo fmt -- --check
    ```
 5. Delete the `todo/` issue file in the same PR that fixes it.
-6. Open the PR, then add the CHANGELOG entry using the real PR number
-   ([§8](#8-pull-requests)).
+6. Open the PR. If it changes code, add the CHANGELOG entry using the real PR
+   number ([§8.3](#83-changelog)) — PRs that only touch `todo/`, `AGENTS.md`, or
+   other documentation don't need one.
 
 ---
 
