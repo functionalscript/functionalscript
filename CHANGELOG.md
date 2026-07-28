@@ -11,6 +11,8 @@ history.
 
 ## Unreleased
 
+## 0.39.0
+
 - `fjs/cas/evo`: **BREAKING CHANGES:** add `revision(hash)` and the
   `evo_revision` MCP tool — one revision, decoded, validated, and with hashes
   canonicalized. `AddRevision` is renamed `RevisionData` and gains an optional
