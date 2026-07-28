@@ -685,10 +685,16 @@ Issues are tracked in `todo/` directories, not on GitHub. See
 [todo/README.md](./todo/README.md) for the full format and priority/status
 conventions.
 
+GitHub issues are an **intake** channel, not a tracker: external contributors
+cannot add `todo/` files, so they report there instead (see
+[CONTRIBUTING.md](./CONTRIBUTING.md)). A maintainer turns each such report into a
+`todo/` file — see the table below.
+
 | Situation                  | What to do                                                                                                                                                              |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Where to file**          | Next to the code it describes. A bug scoped to `fjs/foo/bar/` goes in `fjs/foo/bar/todo/{slug-kebab}.md`. Cross-cutting or language-design issues go in the top-level `todo/`. |
 | **How to file**            | Create `todo/{slug-kebab}.md` using a short kebab-case slug. Follow the issue format in `todo/README.md`: title, priority, status, problem, proposal, tasks, related links. |
+| **Reported on GitHub**     | Create the `todo/` file for the report, linking the GitHub issue from its `Related` section. The `todo/` file is the tracked issue from then on; the GitHub issue stays open only as the reporter's thread and is closed when the fix ships. |
 | **After fixing**           | Delete the issue file immediately in the same PR. Before deleting, ensure design decisions are captured in the codebase (see the documentation table in [§4](#4-documentation)). |
 | **Won't fix**              | Document the reason in the relevant `README.md`, in a code comment, or in another issue — then delete the issue file. Do not leave a status-only tombstone.                |
 | **Blocked by a third party** | File under `todo/blocked/{slug-kebab}.md`. Every file there **must** include a **Trigger** section stating the precise condition that unblocks it. Do not put third-party-blocked items in regular `todo/` directories. |
