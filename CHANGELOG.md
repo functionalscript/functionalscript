@@ -11,6 +11,11 @@ history.
 
 ## Unreleased
 
+- `fjs/ci`: generate `docker/Dockerfile` from the version pins in
+  `fjs/ci/config/module.f.ts`, installing every tool from an immutable,
+  version-specific release URL. `npm run ci-update` now writes it alongside the
+  workflow [#1385](https://github.com/functionalscript/functionalscript/pull/1385)
+
 ## 0.39.0
 
 - `fjs/cas/evo`: **BREAKING CHANGES:** add `revision(hash)` and the
