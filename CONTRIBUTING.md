@@ -16,8 +16,14 @@ Issues are tracked in `todo/` directories inside the repository, **not** on
 GitHub. Check [todo/README.md](./todo/README.md) for existing work before you
 start, and for the format to use when filing a new one.
 
-To report a bug or ask a question without opening a pull request, feel free to
-use [GitHub issues](https://github.com/functionalscript/functionalscript/issues).
+If you are already opening a pull request, add the `todo/` file there. To report
+a bug, request a feature, or ask a question without opening a pull request —
+the normal case for an external contributor, who cannot add a `todo/` file
+directly — open a
+[GitHub issue](https://github.com/functionalscript/functionalscript/issues)
+instead. A maintainer will create the corresponding `todo/` file and link it to
+your issue. GitHub issues are the intake channel; `todo/` files are where the
+work is tracked from then on.
 
 ## Requirements
 
