@@ -1,9 +1,32 @@
 {
   "servers": {
-    "functionalscript-cas": {
+    "functionalscriptCas": {
       "type": "stdio",
       "command": "node",
-      "args": ["./fjs/module.ts", "m"]
+      "args": ["./fjs/module.ts", "m"],
+      "cwd": "${workspaceFolder}"
+    },
+    "workspaceFilesystem": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${workspaceFolder}"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    "workspaceGit": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "${workspaceFolder}"],
+      "cwd": "${workspaceFolder}"
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp"
     }
   }
 }
