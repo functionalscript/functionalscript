@@ -1,25 +1,22 @@
 # Issues
 
-## Local todo files (preferred)
+## Local todo directories (preferred)
 
-Issues live **next to the code they describe**, as `todo.md` files co-located
-with the relevant module directory:
+Issues live **next to the code they describe**, as one file per issue in a
+`todo/` directory co-located with the relevant module:
 
-- `fjs/djs/todo.md` — todos specific to the `fjs/djs/` module
-- `fjs/ci/todo.md` — CI tooling todos
-- `nanvm-lib/todo.md` — NaN-VM (Rust) todos
+- `fjs/djs/todo/{slug-kebab}.md` — todos specific to the `fjs/djs/` module
+- `fjs/ci/todo/{slug-kebab}.md` — CI tooling todos
+- `nanvm-lib/todo/{slug-kebab}.md` — NaN-VM (Rust) todos
 - … and so on.
 
-A `todo.md` at a higher level (`fjs/todo.md`) describes bigger-picture
+A `todo/` directory at a higher level (`fjs/todo/`) describes bigger-picture
 concerns: architecture decisions, directory restructuring, design philosophy,
 cross-cutting changes affecting many submodules. It does **not** duplicate
-concrete bugs or tasks that belong in a child `todo.md`.
+concrete bugs or tasks that belong in a child `todo/`.
 
-For a larger standalone topic, use a named file `todo/${name}.md` in the
-relevant directory and link to it from `todo.md`.
-
-**Rule:** a bug or task scoped to `fjs/foo/bar/` goes in `fjs/foo/bar/todo.md`,
-not in a parent directory and not here.
+**Rule:** a bug or task scoped to `fjs/foo/bar/` goes in
+`fjs/foo/bar/todo/{slug-kebab}.md`, not in a parent directory and not here.
 
 ## This directory
 
