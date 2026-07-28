@@ -1,7 +1,8 @@
 /**
  * Dockerfile generator: renders the contents of `docker/Dockerfile` from the
  * version pins in `../config/module.f.ts` — the same source the GitHub Actions
- * workflow is generated from, so the image and CI never drift apart.
+ * workflow is generated from, so the image and CI never drift apart — plus the
+ * jobs that build it, one per architecture.
  *
  * Nothing enters the image unpinned. The base image is referenced by digest,
  * `apt` resolves against a dated archive snapshot, every tool comes from a
@@ -13,7 +14,8 @@
  *
  * @module
  */
-import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, node, playwright, rustComponents, rustup, sha256, wasmer, wasmtime } from '../config/module.f.ts'
+import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, images, node, playwright, rustComponents, rustup, sha256, wasmer, wasmtime } from '../config/module.f.ts'
+import { type Image, type Job, type Jobs, test, toSteps } from '../common/module.f.ts'
 import { browsers } from '../playwright/module.f.ts'
 import { wasmTargets } from '../rust/module.f.ts'
 
@@ -255,18 +257,64 @@ const workspace = block(
         'CMD ["bash"]',
     ])
 
-/** The full text of the generated `docker/Dockerfile`. */
-export const dockerfile: string = [
+/**
+ * The full text of the generated `docker/Dockerfile`. `rust` follows the
+ * workflow: a project with no `Cargo.toml` runs no `cargo` step, so its image
+ * carries no toolchain and neither WASM runner either — they exist only to run
+ * the crate's WASM targets.
+ */
+export const dockerfile = (rust: boolean): string => [
     header,
     from,
     apt,
     nodeBlock,
     denoBlock,
     bunBlock,
-    rustBlock,
-    wasmtimeBlock,
-    wasmerBlock,
+    ...(rust ? [rustBlock, wasmtimeBlock, wasmerBlock] : []),
     playwrightBlock,
     fjsBlock,
     workspace,
 ].join('\n\n') + '\n'
+
+/** Tag the CI jobs build the image under, matching docker/README.md. */
+const tag = 'functionalscript'
+
+// Every tool the image exists to provide, asked for its version. A build that
+// succeeds while leaving a tool off `PATH` — the wrong install prefix, an
+// archive whose layout changed — still fails here.
+const smokeTest = (rust: boolean): string => [
+    ...[
+        'node',
+        'npm',
+        'deno',
+        'bun',
+        ...(rust ? ['rustc', 'cargo', 'wasmtime', 'wasmer'] : []),
+        'playwright',
+    ].map(tool => `${tool} --version`),
+    // The FunctionalScript CLI has no `--version`; `help` is its cheapest
+    // command that exits zero.
+    'fjs help',
+].join(' && ')
+
+const dockerJob = (rust: boolean) => (runsOn: Image): Job => ({
+    'runs-on': runsOn,
+    steps: toSteps([
+        test({ run: `docker build -t ${tag} ./docker` }),
+        test({ run: `docker run --rm ${tag} bash -c "${smokeTest(rust)}"` }),
+    ]),
+})
+
+/**
+ * One build job per architecture. Each GitHub-hosted runner builds natively for
+ * its own — the image picks its architecture up from `dpkg` at build time — so
+ * no cross-architecture emulation is involved. A single multi-platform build
+ * would be correct but would emulate the foreign half, which for a Rust
+ * toolchain install and three browser downloads is the worst case for QEMU.
+ *
+ * The image is not cached or shared with other jobs yet: these jobs only prove
+ * the generated Dockerfile still builds and that every tool in it runs.
+ */
+export const dockerJobs = (rust: boolean): Jobs => ({
+    'docker-intel': dockerJob(rust)(images.ubuntu.intel),
+    'docker-arm': dockerJob(rust)(images.ubuntu.arm),
+})

@@ -547,6 +547,34 @@
           "run": "npx playwright test --browser=webkit"
         }
       ]
+    },
+    "docker-intel": {
+      "runs-on": "ubuntu-26.04",
+      "steps": [
+        {
+          "uses": "actions/checkout@v7.0.1"
+        },
+        {
+          "run": "docker build -t functionalscript ./docker"
+        },
+        {
+          "run": "docker run --rm functionalscript bash -c \"node --version && npm --version && deno --version && bun --version && rustc --version && cargo --version && wasmtime --version && wasmer --version && playwright --version && fjs help\""
+        }
+      ]
+    },
+    "docker-arm": {
+      "runs-on": "ubuntu-26.04-arm",
+      "steps": [
+        {
+          "uses": "actions/checkout@v7.0.1"
+        },
+        {
+          "run": "docker build -t functionalscript ./docker"
+        },
+        {
+          "run": "docker run --rm functionalscript bash -c \"node --version && npm --version && deno --version && bun --version && rustc --version && cargo --version && wasmtime --version && wasmer --version && playwright --version && fjs help\""
+        }
+      ]
     }
   }
 }

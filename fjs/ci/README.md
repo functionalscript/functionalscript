@@ -17,10 +17,13 @@ pinned tool versions.
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
 - `config/module.f.ts` — runner image matrix (OS × architecture → GitHub-hosted image name), the container base image, and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests. Every pin is an exact version, and both generated files read from here, so a bump lands in both at once.
-- `docker/module.f.ts` — the text of the generated `docker/Dockerfile`: the same
-  pinned tools, installed from immutable release URLs. See
-  [../../docker/README.md](../../docker/README.md) for what the image contains
-  and how to use it.
+- `docker/module.f.ts` — the text of the generated `docker/Dockerfile` (the same
+  pinned tools, installed from immutable release URLs) and the `docker-intel` /
+  `docker-arm` jobs that build and smoke test it. One job per architecture:
+  each runner builds natively, because a single multi-platform build would
+  emulate the foreign half of a Rust toolchain install and three browser
+  downloads. See [../../docker/README.md](../../docker/README.md) for what the
+  image contains and how to use it.
 - `node/module.f.ts` — Node.js job steps: platform smoke tests, canonical
   per-version jobs, coverage, and package checks.
 - `rust/module.f.ts` — Rust toolchain setup and `cargo` build/test steps.

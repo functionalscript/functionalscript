@@ -25,7 +25,7 @@ import {
     toSteps,
     ubuntuArm
 } from './common/module.f.ts'
-import { dockerfile } from './docker/module.f.ts'
+import { dockerfile, dockerJobs } from './docker/module.f.ts'
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.ts'
 import { nodeMainSteps, nodeVersionJobs } from './node/module.f.ts'
 import { playwrightJob } from './playwright/module.f.ts'
@@ -56,6 +56,9 @@ const canonicalJobs = (rust: boolean): Jobs => ({
     bun: ubuntuArm(bunSteps(functionalscript)),
     ...nodeVersionJobs(functionalscript),
     playwright: playwrightJob,
+    // Both architectures build the image the same generator writes, so a
+    // change to it fails CI rather than a contributor's machine.
+    ...dockerJobs(rust),
 })
 
 /**
@@ -90,7 +93,7 @@ export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> => step(
         const workflow = writeGenerated('.github/workflows', 'ci.yml', JSON.stringify(gha, null, '  '))
         // The container image installs the same pinned versions the workflow
         // does, so both generated files are written by the same command.
-        const docker = step(workflow, okStep(() => writeGenerated('docker', 'Dockerfile', dockerfile)))
+        const docker = step(workflow, okStep(() => writeGenerated('docker', 'Dockerfile', dockerfile(rust))))
         return mapStep(docker, exitCode)
     })
 

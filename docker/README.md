@@ -8,10 +8,16 @@ version, edit the pin and run `npm run ci-update`; the `node26` CI job
 regenerates both files and fails when the committed ones differ, so the image
 and the workflow always install the same versions.
 
+CI builds it too: the `docker-intel` and `docker-arm` jobs build the image on
+their native runners and run every tool in it, so a broken Dockerfile fails the
+pull request rather than a contributor's machine.
+
 ## What the image contains
 
 The image carries tools only — no copy of the repository — so the same image
-serves a mounted working tree locally and a checkout in a CI job.
+serves a mounted working tree locally and a checkout in a CI job. The Rust
+toolchain, Wasmtime, and Wasmer appear only when the project has a
+`Cargo.toml`, mirroring the workflow, which runs no `cargo` step without one.
 
 | Tool                     | Pinned by                                     |
 | ------------------------ | --------------------------------------------- |

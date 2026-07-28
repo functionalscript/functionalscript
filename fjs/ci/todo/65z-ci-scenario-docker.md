@@ -69,14 +69,18 @@ identifies, and is consumed by the `docker-build` job below.
 
 #### `docker-build` job
 
-1. Computes the cache key from the version pins.
-2. Restores the image from `actions/cache`.
-3. Builds it on a cache miss (`docker build ./docker`).
-4. Uploads it as a workflow artifact so downstream jobs `docker load` it
-   instead of rebuilding.
+The `docker-intel` and `docker-arm` jobs already build the image on native
+runners and smoke test every tool in it — one job per architecture, since the
+image resolves its architecture at build time and a multi-platform build would
+emulate the foreign half. They build from scratch every run and keep the result
+to themselves. What is left is to make that result reusable:
 
-Intel and ARM variants build separately, since the image resolves its
-architecture at build time.
+1. Compute the cache key from the version pins.
+2. Restore the image from `actions/cache`, so an unchanged pin set skips the
+   build entirely.
+3. Build on a cache miss, as the jobs do today.
+4. Upload it as a workflow artifact so downstream jobs `docker load` it
+   instead of rebuilding.
 
 #### Architectures
 
@@ -92,15 +96,14 @@ All tests that currently run on Ubuntu, plus:
 
 ### Tasks
 
+- [x] Build the image on both architectures in CI (`docker-intel`,
+      `docker-arm`), with a smoke test of every tool it installs.
 - [ ] Export the cache key from `fjs/ci/docker/module.f.ts`.
-- [ ] Add the `docker-build` job (Intel + ARM) with cache restore, build on
-      miss, and artifact upload.
-- [ ] Point the Ubuntu jobs at the artifact (`needs: docker-build`, `docker
+- [ ] Add cache restore and artifact upload to the two build jobs.
+- [ ] Point the Ubuntu jobs at the artifact (`needs:` the build job, `docker
       load`, run steps in the container).
 - [ ] Merge the standalone `playwright` job into the Docker Ubuntu job.
 - [ ] Run the scenario tests inside the Docker Ubuntu job.
-- [ ] Verify the image builds on both architectures before CI depends on it —
-      it has only been checked by generation and shell-level review so far.
 
 ### Related
 

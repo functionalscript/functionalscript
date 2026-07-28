@@ -68,7 +68,7 @@ const runDefault = (packageJson?: string): GitHubAction => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 15, 'expected 15 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
@@ -92,6 +92,10 @@ export const proof = {
         assert(hasRunInJob('node26', 'npm run ci-update')(gha), 'expected Node 26 workflow regeneration')
         assert(hasRunInJob('node26', 'git add -A && git diff --cached --exit-code')(gha), 'expected Node 26 generated-file drift check')
         assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')
+        // The generated Dockerfile is built on both architectures, so a change
+        // to it fails CI rather than a contributor's machine.
+        assert(hasRunInJob('docker-intel', 'docker build -t functionalscript ./docker')(gha), 'expected the Intel image build')
+        assert(hasRunInJob('docker-arm', 'docker build -t functionalscript ./docker')(gha), 'expected the ARM image build')
         for (const id of [
             'ubuntu-intel',
             'ubuntu-arm',
@@ -165,8 +169,13 @@ export const proof = {
     generatedDockerfile: () => {
         assertEq(
             generatedDockerfile(runState(true, () => [])),
-            dockerfile,
+            dockerfile(true),
             'expected the generator to write the pinned Dockerfile')
+        // `Cargo.toml` drives both files: no Rust jobs, no Rust in the image.
+        assertEq(
+            generatedDockerfile(runState(false, () => [])),
+            dockerfile(false),
+            'expected a Rust-free project to get a Rust-free image')
     },
     // A directory in place of a generated file makes the write fail, the way a
     // read-only or occupied path does outside the virtual filesystem.
