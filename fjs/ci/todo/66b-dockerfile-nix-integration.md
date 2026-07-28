@@ -96,6 +96,8 @@ can be merged back into the main Ubuntu matrix rather than running separately.
 
 ### Related
 
+- [GitHub issue #1034](https://github.com/functionalscript/functionalscript/issues/1034)
+  — the original report.
 - [i65Z-ci-scenario-docker](todo.md) — Docker plan for
   Ubuntu CI jobs; this issue implements it and adds the Nix layer.
 - [i65Z-ci-nix](todo.md) — Nix as CI package manager; macOS/Windows

@@ -79,6 +79,8 @@ In this example:
 
 ### Related
 
+- [GitHub issue #403](https://github.com/functionalscript/functionalscript/issues/403)
+  — the original report.
 - [i664-file-type-conventions](../../issues/664-file-type-conventions.md) — file naming
   conventions for modules and proof modules.
 - [i668-emergent-testing-proof-type](todo.md) —

@@ -7,6 +7,31 @@
 - can serialize/deserialize without reading source code
   - no function serialization/deserialization
 
+## AST
+
+A DJS module parses into [ast/module.f.ts](./ast/module.f.ts):
+
+```ts
+type AstModule = [readonly string[], AstBody]
+type AstBody = readonly AstConst[]
+type AstConst = Primitive | AstModuleRef | AstArray | AstObject
+type AstModuleRef = ['aref' | 'cref', number]
+```
+
+`AstModule` pairs the imported module specifiers with a body. The body is a
+list of constants in declaration order, and the **last** entry is the value
+`export default` yields — so the body describes the function
+
+```js
+(...args) => { const c0 = ...; return <last> }
+```
+
+where `['aref', i]` refers to the `i`-th imported module and `['cref', i]` to
+the `i`-th preceding constant. References — not copies — are what let a DJS
+module denote a graph rather than a tree: two properties holding the same
+`cref` deserialize to the same object. See
+[examples/input.f.ts](./examples/input.f.ts).
+
 ## Next steps
 
 - [x] use JS tokenizer

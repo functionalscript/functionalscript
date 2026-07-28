@@ -33,3 +33,8 @@ We can use an additional `stop` bit to signal the end of a bit sequence. Paramet
 
   - known/fixed vs unknown/variable size,
   - MSb/LSb.
+
+### Related
+
+- [GitHub issue #405](https://github.com/functionalscript/functionalscript/issues/405)
+  — the original report.

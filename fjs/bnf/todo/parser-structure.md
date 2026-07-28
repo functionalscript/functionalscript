@@ -38,3 +38,9 @@
      const astToFjs: (toFunc: (s: string) => Function) => (ast: Ast) => Fjs = ...
      const fjsToAst: (magicFunction: (f: Function) => string) => (fjs: Fjs) => Ast = ...
      ```
+
+### Related
+
+- [GitHub issue #407](https://github.com/functionalscript/functionalscript/issues/407)
+  — the original report.
+- [46](./46.md) — the LR(1) parser that produces this AST.
