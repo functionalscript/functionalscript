@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "functionalscript-cas": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./fjs/module.ts", "m"]
+    }
+  }
+}
