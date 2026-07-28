@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`vnd.fjs.revision`](../revision/README.md) carries only full materialized
+[vnd.fjs.revision](../revision/README.md) carries only full materialized
 content: every revision states its `snapshot` explicitly, and incremental
 diffs were deliberately left out of that format. The reason is its versioning
 rule — an optional `changes` field would be *schema*-additive but
@@ -55,7 +55,7 @@ Nothing beyond that is decided. Open design points:
 
 ### Related
 
-- [`fjs/media/revision/README.md`](../revision/README.md) — the snapshot half
+- [fjs/media/revision/README.md](../revision/README.md) — the snapshot half
   of the dichotomy, its versioning rule, and the "out of scope" entry this
   issue tracks
 - [fjs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)

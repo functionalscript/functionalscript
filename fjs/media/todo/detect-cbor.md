@@ -25,7 +25,7 @@ The `fjs/media/type` detector knows nothing about CBOR. A CBOR
 blob is binary, so today it falls through to `application/octet-stream`, and a
 dialect-tagged CBOR blob cannot be recognized or served with its derived media
 type the way tagged JSON can (see
-[`fjs/media/revision/README.md`](../revision/README.md), the tagged-JSON
+[fjs/media/revision/README.md](../revision/README.md), the tagged-JSON
 detection convention).
 
 ### Proposal
@@ -142,7 +142,7 @@ the honest answer.
 - [fjs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
   — the dialect naming rule and fall-back chain convention this extends to a
   binary encoding
-- [`fjs/media/revision/README.md`](../revision/README.md) — the tagged-JSON
+- [fjs/media/revision/README.md](../revision/README.md) — the tagged-JSON
   detection convention tier 2 mirrors, and the serving rules (allowlist,
   schema validation, size bound) it reuses
 - [fjs/media/type detect-json](../type/todo/detect-json.md) — the JSON refinement of

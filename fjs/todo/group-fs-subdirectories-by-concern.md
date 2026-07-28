@@ -131,8 +131,8 @@ revision schema, so a revision format inside `fjs/cas` would create a
 `cas` ↔ detector cycle. The revision *format* (schema, tag, encode/decode)
 therefore lives at `fjs/media/revision/`, while the store-touching evolution
 operations (head resolution, materialization) stay under `fjs/cas` and import
-it — see [`fjs/media/revision/README.md`](../media/revision/README.md) and
-[`fjs/cas/evo`](../cas/evo/).
+it — see [fjs/media/revision/README.md](../media/revision/README.md) and
+[fjs/cas/evo](../cas/evo/).
 
 **Stays out:**
 

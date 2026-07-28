@@ -6,7 +6,7 @@
 ### Problem
 
 The mainline history design
-([`todo/subject-history.md`](subject-history.md)) deliberately returns bare
+([todo/subject-history.md](subject-history.md)) deliberately returns bare
 hashes and leaves node detail — merge parents, the snapshot pointer, the
 `archived` flag — to the client. The only path to that detail today is
 `cas_get` + client-side decoding, which has three problems:
@@ -81,7 +81,7 @@ export type RevisionData = {
   content of a revision, the same in both directions.
 - The only field the rename *adds* is `generation`; `add` already computes
   and writes the authoritative value and already resolves an absent
-  `snapshot` (see [`fjs/media/revision/README.md`](../../../media/revision/README.md)
+  `snapshot` (see [fjs/media/revision/README.md](../../../media/revision/README.md)
   and `addRevision`'s JSDoc). What is still missing is the input field
   itself, so a value read back from `evo_revision` can be fed to `evo_add`
   unchanged, without stripping fields — the round trip is the point of the
@@ -102,7 +102,7 @@ export type RevisionData = {
 
 The format's epoch-reset scenario (a new subject formed from an old one,
 still listing its origin as `parents` — see
-[`fjs/media/revision/README.md`](../../../media/revision/README.md)) is
+[fjs/media/revision/README.md](../../../media/revision/README.md)) is
 currently rejected at the *evo* layer: `validateParentSubjects`
 (`fjs/cas/evo/module.f.ts`) requires every parent to share the revision's
 `subject`. The format itself never forbade cross-subject parents, so
@@ -131,7 +131,7 @@ recorded so the decision is made deliberately, not by accident.
   error contract above it is a separate `cas.read` followed by a decode
   step — not a `decodeRevisionBlob` call, which cannot tell "not present"
   from "not a revision". The per-revision cache planned in
-  [`todo/subject-history.md`](subject-history.md) (`hash → ordered
+  [todo/subject-history.md](subject-history.md) (`hash → ordered
   parents`) can memoize `generation` alongside — both are immutable, so
   neither can go stale — but that is an optimization, not a requirement:
   the cache holds only part of what `evo_revision` returns.
@@ -155,8 +155,8 @@ recorded so the decision is made deliberately, not by accident.
 
 ### Related
 
-- [`todo/subject-history.md`](subject-history.md) — the mainline walk this
+- [todo/subject-history.md](subject-history.md) — the mainline walk this
   tool is the node-detail companion to.
-- [`fjs/media/revision/README.md`](../../../media/revision/README.md) — the
+- [fjs/media/revision/README.md](../../../media/revision/README.md) — the
   `vnd.fjs.revision` format whose stored fields this read returns, including
   the required `generation`/`snapshot` and the epoch-reset semantics.

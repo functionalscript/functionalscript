@@ -1,7 +1,7 @@
 # `vnd.fjs.revision`
 
 A `revision` BLOB is one step in the evolution of a mutable object on top of
-an immutable content-addressable store ([`fjs/cas`](../../cas/)). CAS blobs
+an immutable content-addressable store ([fjs/cas](../../cas/)). CAS blobs
 are addressed by content hash, so "the same object, but updated" is
 unavoidably a new hash with no address in common with the old one. A
 `revision` gives a chain — really a DAG, so concurrent edits can merge — of
@@ -34,7 +34,7 @@ export const revisionSchema = {
 | `generation` | `number`                | Generation number — `0` for the first revision, else `1 + max(parent.generation)` for conforming writers. |
 | `archived`   | `true` (optional)       | Marks the mutable object as archived/inactive.                         |
 
-`hash` is a cbase32 native CAS address ([`fjs/basen/cbase32`](../../basen/cbase32/)).
+`hash` is a cbase32 native CAS address ([fjs/basen/cbase32](../../basen/cbase32/)).
 It is the only snapshot-reference type this dialect accepts: `parents` and
 `snapshot` always validate as hashes — never `https://` bridge URLs or any
 other location-addressed reference form. `subject` is a pure identity string,
@@ -67,7 +67,7 @@ from nothing, so the `option(true)` presence-flag idiom is exactly right —
 forcing `archived: false` onto every blob would be pure noise.
 
 Inference has not disappeared; it moved to the write boundary. The `evo_add`
-API ([`fjs/cas/evo`](../../cas/evo/)) keeps its input conveniences — infer
+API ([fjs/cas/evo](../../cas/evo/)) keeps its input conveniences — infer
 `subject` from a single parent, compute `generation`, resolve an absent input
 `snapshot` (zero parents → `subject` as the reference, one parent → the
 parent's snapshot) — and writes every field explicitly. APIs infer; the stored
@@ -117,7 +117,7 @@ moment the first revision is written.)
 
 ## Tagged-JSON detection
 
-Detection is semantic, not syntactic: [`fjs/media`](../../media/) parses the
+Detection is semantic, not syntactic: [fjs/media](../../media/) parses the
 JSON and validates the parsed value against this schema — any JSON that
 satisfies it is a revision, regardless of key order, whitespace, or any other
 serialization detail. There is no byte-level shortcut (no assumption about
@@ -134,10 +134,10 @@ parser, not part of the format.
 
 The embedded tag is a **convention for new JSON media types designed in
 FunctionalScript** — a good default, not a requirement, and not universal:
-[`fjs/media/`](../) also hosts formats from other vendors (`text/html`, plain
+[fjs/media/](../) also hosts formats from other vendors (`text/html`, plain
 `application/json`), and FS's JavaScript-subset dialects cannot carry an
 embedded JSON tag at all, so they keep the ordinary
-[`fjs/media/type`](../type/) detection path and surface their dialect name out
+[fjs/media/type](../type/) detection path and surface their dialect name out
 of band (see
 [fjs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
 for the dialect naming rule and fall-back chains). The key is spelled
@@ -167,7 +167,7 @@ merge tool merging branch B into branch A lists A's head first, then B's.
 Walking only first parents from a head therefore yields that head's mainline
 history, with every later `parents` entry marking a branch that merged in —
 this is the walk the planned history API performs
-([`fjs/cas/evo/todo/subject-history.md`](../../cas/evo/todo/subject-history.md)).
+([fjs/cas/evo/todo/subject-history.md](../../cas/evo/todo/subject-history.md)).
 Reordering `parents` changes the meaning of a revision (which branch the
 merge landed on), not just its serialization.
 
@@ -183,7 +183,7 @@ they must not reject the blob for it. Ordering by `generation` is therefore
 reliable within an epoch, and the cheap one-level comparison against parents
 is the epoch-boundary detector. Whether the evo layer should *accept* such a
 revision — its parents belong to another subject — is still open, see
-[`fjs/cas/evo/todo/evo-revision.md`](../../cas/evo/todo/evo-revision.md).
+[fjs/cas/evo/todo/evo-revision.md](../../cas/evo/todo/evo-revision.md).
 
 `archived` marks a mutable object as no longer worked on (e.g. a finished
 task); its blobs can be deleted from a local CAS after a backup. It follows
@@ -207,5 +207,5 @@ the existing `option(true)` idiom (a presence-only flag) rather than
   separate spec. Further out, a `{public-key}/{name}.{generation}` reference
   form, where the key's owner defines what `{name}` means: anchoring the
   identifier in a signer ties format identity to the web of trust
-  ([`todo/plan/vision.md`](../../../todo/plan/vision.md)'s `~/Alice/...`
+  ([todo/plan/vision.md](../../../todo/plan/vision.md)'s `~/Alice/...`
   relative-path model) and says whose evolution of `{name}` a blob follows.

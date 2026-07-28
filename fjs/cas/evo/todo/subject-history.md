@@ -46,7 +46,7 @@ readonly history: (start: Hash) => Effect<O | MemOp, Result<readonly Hash[], str
 - **Merges are discovered by the client, not encoded here.** A v1 item is a
   bare hash. A client that wants merge markers (or the merged-in branches)
   fetches the revision via the typed companion read
-  [`todo/evo-revision.md`](evo-revision.md) (`evo_revision`, which decodes,
+  [todo/evo-revision.md](evo-revision.md) (`evo_revision`, which decodes,
   validates, and canonicalizes server-side) and reads its full `parents`;
   every parent beyond index 0 is a merged-in branch, and its own history is
   one more `history(parent)` call. The API adds no data a client couldn't
@@ -96,7 +96,7 @@ readonly history: (start: Hash) => Effect<O | MemOp, Result<readonly Hash[], str
   (corrupt or missing parent blob) is also an error, not a silent
   truncation.
 - **Staleness.** Same cache-staleness concern as
-  [`todo/cache-staleness.md`](cache-staleness.md) — history is served from
+  [todo/cache-staleness.md](cache-staleness.md) — history is served from
   the in-memory cache like everything else in `Evo<O>`.
 - **MCP surface.** A new `evo_history` tool (`fjs/cas/evo/mcp/module.f.ts`)
   alongside `evo_list`/`evo_head`/`evo_add`, taking `start` (hash) and
@@ -142,10 +142,10 @@ the rare consumer, still reachable in O(branches) calls.
 
 ### Related
 
-- [`todo/evo-revision.md`](evo-revision.md) — the typed single-revision
+- [todo/evo-revision.md](evo-revision.md) — the typed single-revision
   read (`evo_revision`) that serves the node detail this walk deliberately
   omits, and the required-`generation` format decision.
-- [`todo/cache-staleness.md`](cache-staleness.md) — history is read from the
+- [todo/cache-staleness.md](cache-staleness.md) — history is read from the
   same in-memory cache, so it inherits that staleness question.
 - `fjs/media/revision/README.md` — the `vnd.fjs.revision` DAG shape
   (`parents`, merges, concurrent heads) this history walks, including the
