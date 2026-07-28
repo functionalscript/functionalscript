@@ -7,6 +7,20 @@
 - can serialize/deserialize without reading source code
   - no function serialization/deserialization
 
+## AST
+
+A DJS module parses into [ast/module.f.ts](./ast/module.f.ts); the types
+there carry the shape and its invariants.
+
+Why a flat list of constants with index references, rather than a value tree:
+a DJS module denotes a **graph**, and `import` and `const` are how it names
+the shared parts. Deserializing has to preserve that sharing — two properties
+holding the same reference must yield the same object, not two equal copies —
+so the AST keeps the constants addressable and refers to them by index
+instead of inlining them. That is also what makes serialization a real
+choice: a value referenced more than once is emitted as a `const` and reused.
+See [examples/input.f.ts](./examples/input.f.ts).
+
 ## Next steps
 
 - [x] use JS tokenizer

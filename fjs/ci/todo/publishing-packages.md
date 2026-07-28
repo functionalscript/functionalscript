@@ -105,3 +105,8 @@ Tasks:
 - [ ] Add a package test containing one `.ts` module and one JSDoc `.mjs` module.
 - [ ] Test imports in both directions between `.ts` and `.mjs` modules.
 - [ ] Verify the packed archive contains authored `.mjs`, generated `.js`, `.d.ts`, and `.d.mts` files.
+
+### Related
+
+- [GitHub issue #398](https://github.com/functionalscript/functionalscript/issues/398)
+  — the original report.
