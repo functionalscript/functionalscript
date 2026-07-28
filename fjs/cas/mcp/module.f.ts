@@ -7,20 +7,22 @@
  * what is stored — without shelling out to the `cas` CLI. The store itself
  * (`fjs/cas/module.f.ts`) stays transport-agnostic; this is an additional
  * front end alongside the CLI `main`. The same server also exposes
- * `fjs/cas/evo`'s subject/head API (`evo_list`/`evo_head`/`evo_add`,
- * `fjs/cas/evo/mcp`) — one process, one `~/.cas/` store, one in-memory Evo
- * cache scanned once at startup (`initEvo`).
+ * `fjs/cas/evo`'s subject/head API
+ * (`evo_list`/`evo_head`/`evo_revision`/`evo_add`, `fjs/cas/evo/mcp`) — one
+ * process, one `~/.cas/` store, one in-memory Evo cache scanned once at
+ * startup (`initEvo`).
  *
  * ## Tools
  *
- * | Tool        | args                                           | action        | result                              |
- * |-------------|-------------------------------------------------|---------------|--------------------------------------|
- * | `cas_add`   | `{ content, type? }`                            | `c.write(...)`| hash (cBase32)                      |
- * | `cas_get`   | `{ hash, content?: boolean }`                    | `c.read(key)` | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
- * | `cas_list`  | `{}`                                             | `c.list()`    | hashes, one per line                |
- * | `evo_list`  | `{}`                                             | `e.list()`    | subjects, one per line              |
- * | `evo_head`  | `{ subject }`                                    | `e.head(...)` | head hashes, one per line           |
- * | `evo_add`   | `{ parents, snapshot?, subject?, archived? }`    | `e.add(...)`  | hash (cBase32)                      |
+ * | Tool           | args                                         | action           | result                              |
+ * |----------------|----------------------------------------------|------------------|--------------------------------------|
+ * | `cas_add`      | `{ content, type? }`                         | `c.write(...)`   | hash (cBase32)                      |
+ * | `cas_get`      | `{ hash, content?: boolean }`                | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
+ * | `cas_list`     | `{}`                                         | `c.list()`       | hashes, one per line                |
+ * | `evo_list`     | `{}`                                         | `e.list()`       | subjects, one per line              |
+ * | `evo_head`     | `{ subject }`                                | `e.head(...)`    | head hashes, one per line           |
+ * | `evo_revision` | `{ hash }`                                   | `e.revision(...)`| the revision, as JSON               |
+ * | `evo_add`      | `{ parents, snapshot?, subject?, archived? }` | `e.add(...)`     | hash (cBase32)                      |
  *
  * ## `cas_add` input encoding
  *

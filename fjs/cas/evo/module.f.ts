@@ -30,6 +30,13 @@
  * both fold through the same {@link addRevisionToCache}, the former over the
  * whole store at once, the latter incrementally for one new revision.
  *
+ * Not everything here is cache-backed: {@link readRevision} answers "what is
+ * the revision at this hash" straight from the store, decoded, validated, and
+ * with every hash canonicalized ({@link toRevisionData}). It is the typed
+ * counterpart of a raw blob read — {@link addRevision} validates on the way
+ * in, {@link readRevision} on the way out — and both speak the same
+ * {@link RevisionData} vocabulary.
+ *
  * @module
  */
 import { pure, foldStep, type Effect, type Operation } from '../../effects/module.f.ts'
@@ -47,6 +54,7 @@ import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
 import { at, definedEntries, type StringMap } from '../../types/object/module.f.ts'
 import { unwrap } from '../../types/nullable/module.f.ts'
 import type { Vec } from '../../types/bit_vec/module.f.ts'
+import type { IoResult } from '../../effects/node/module.f.ts'
 
 /** A cBase32 content hash, as accepted/returned by `Cas<O>`. */
 export type Hash = string
@@ -55,21 +63,37 @@ export type Hash = string
 export type Subject = string
 
 /**
- * Input to {@link addRevision}: everything the caller supplies for a new
- * revision. Both `subject` and `snapshot` are input conveniences the write
- * boundary resolves, because the stored `vnd.fjs.revision` blob requires
- * them explicitly (see `fjs/media/revision`): `subject`, when omitted, is
- * inherited from the single parent's own `subject` (see
- * {@link resolveSubject}); `snapshot`, when omitted, is resolved from the
- * parents (see {@link resolveSnapshot}) — the inference the format used to
- * carry, run once here with the parents already in hand. `generation` is
- * never an input: {@link computeGeneration} derives the authoritative value.
+ * The semantic content of a revision: the media-level `Revision`
+ * (`fjs/media/revision`) minus `dialect`, which is a serialization tag
+ * carrying no information once decoding has validated it. One structure is
+ * the vocabulary of both directions — {@link addRevision} takes it,
+ * {@link readRevision} returns it — so what you add is what you get back, and
+ * a value read back can be fed to `add` unchanged, without stripping fields.
+ * Every direction-specific field is therefore optional, with the guarantees
+ * documented per field rather than typed:
+ *
+ * - `parents` — required in both directions; index 0 is the mainline parent.
+ *   On output the entries are canonical cBase32 spellings
+ *   ({@link canonicalHash}), so they compare directly against {@link Evo.head}
+ *   output.
+ * - `subject` — input: absent means "inherit from my single parent" (see
+ *   {@link resolveSubject}); output: always present.
+ * - `snapshot` — input: absent is a write-boundary convenience resolved from
+ *   the parents (see {@link resolveSnapshot}), because the stored blob
+ *   requires it explicitly; output: always present, canonical, and exactly
+ *   what the stored blob names.
+ * - `archived` — genuinely optional in both directions; the only field that
+ *   can be absent from a read.
+ * - `generation` — input: **ignored**, {@link computeGeneration} derives the
+ *   authoritative value from the parents; output: always present. It exists as
+ *   an input field only so a read value round-trips into `add` as-is.
  */
-export type AddRevision = {
+export type RevisionData = {
     readonly parents: readonly Hash[]
     readonly snapshot?: Hash | undefined
     readonly subject?: Subject | undefined
     readonly archived?: true | undefined
+    readonly generation?: number | undefined
 }
 
 /**
@@ -127,7 +151,7 @@ const headsOf = (state: SubjectState): readonly Hash[] =>
  *
  * Looks `revision.subject` up via {@link at} (own-property only), not plain
  * bracket indexing: a subject is an arbitrary caller-supplied string
- * (`AddRevision.subject`, or the MCP `evo_add`/`evo_head` argument), so it
+ * (`RevisionData.subject`, or the MCP `evo_add`/`evo_head` argument), so it
  * can collide with an inherited `Object.prototype` name (`toString`,
  * `constructor`, …) — bracket indexing would then return that inherited
  * value instead of "no entry yet" and crash on the (non-array) `.hashes`
@@ -250,7 +274,7 @@ const resolveParents = <O extends Operation>(cas: Cas<O>) => (parents: readonly 
  * explicitly). More or fewer than one parent without an explicit `subject`
  * cannot be resolved.
  */
-const resolveSubject = (input: AddRevision) => (parents: readonly Revision[]): Result<Subject, string> => {
+const resolveSubject = (input: RevisionData) => (parents: readonly Revision[]): Result<Subject, string> => {
     if (input.subject !== undefined) { return ok(input.subject) }
     if (parents.length !== 1) {
         return error('subject is required unless there is exactly one parent to inherit it from')
@@ -286,7 +310,7 @@ const validateParentSubjects = (subject: Subject) => (parents: readonly Revision
  * single parent snapshot to inherit, and falling back to `subject` would
  * silently lose the merge result.
  */
-const resolveSnapshot = (input: AddRevision) => (subject: Subject) => (parents: readonly Revision[]): Result<Hash, string> => {
+const resolveSnapshot = (input: RevisionData) => (subject: Subject) => (parents: readonly Revision[]): Result<Hash, string> => {
     if (input.snapshot !== undefined) { return ok(input.snapshot) }
     if (parents.length === 0) {
         return isHash(subject)
@@ -302,7 +326,8 @@ const resolveSnapshot = (input: AddRevision) => (subject: Subject) => (parents: 
  * (`parents: []`), else `1 + max(parents' generations)`. Computed here from
  * the already-decoded parents, never taken from input — everything evo writes
  * follows the formula by construction (see the `generation` semantics in
- * [`fjs/cas/evo/todo/evo-revision.md`](todo/evo-revision.md)).
+ * [`fjs/media/revision/README.md`](../../media/revision/README.md), where a
+ * deviation is a readable epoch-reset signal rather than an invalid blob).
  *
  * The max is a `reduce`, not `Math.max(...parents.map(...))`: `parents` is
  * caller-sized (the direct API or the `evo_add` MCP tool), and argument-spread
@@ -328,11 +353,16 @@ const computeGeneration = (parents: readonly Revision[]): number =>
  * revision, a blob too large to encode, or a store write failure — is
  * reported as `error(message)` rather than thrown, so a caller (e.g. an MCP
  * tool handler) can surface it without a `throw`/`catch`.
+ *
+ * `input.generation` is ignored: it exists on {@link RevisionData} only so a
+ * value read back by {@link readRevision} round-trips into `add` unchanged,
+ * and {@link computeGeneration} always derives the stored value from the
+ * resolved parents.
  */
 export const addRevision =
     <O extends Operation>(cas: Cas<O>) =>
     (cacheKey: Key<Cache>) =>
-    (input: AddRevision): Effect<O | MemOp, Result<Hash, string>> =>
+    (input: RevisionData): Effect<O | MemOp, Result<Hash, string>> =>
     eff(resolveParents(cas)(input.parents))
         .step((parentsResult): Effect<O | MemOp, Result<Hash, string>> => {
             if (parentsResult[0] === 'error') { return pure(parentsResult) }
@@ -382,6 +412,63 @@ export const addRevision =
         })
         .value
 
+/**
+ * Projects a decoded `Revision` into the shared {@link RevisionData}
+ * vocabulary: `dialect` is dropped (a serialization tag with no information
+ * left once decoding has validated it), and every hash is re-spelled
+ * canonically ({@link canonicalHash}) so a read compares directly against
+ * {@link Evo.head}'s output instead of against whatever spelling the blob's
+ * writer happened to use. `checkReferences` ran as part of decoding, so every
+ * `parents` entry and the `snapshot` are known to decode and the `unwrap`
+ * inside `canonicalHash` is safe. Field order follows the stored blob's
+ * (minus `dialect`), which is what a JSON encoding of the result shows.
+ */
+const toRevisionData = ({ subject, parents, snapshot, generation, archived }: Revision): RevisionData => ({
+    subject,
+    parents: parents.map(canonicalHash),
+    snapshot: canonicalHash(snapshot),
+    generation,
+    archived,
+})
+
+/**
+ * Second stage of {@link readRevision}: interprets an already-performed read
+ * of `hash`. Kept apart from the read itself so the two failures stay
+ * distinguishable — "not present in the store" and "present but not a
+ * revision" are different answers to a client, and
+ * {@link decodeRevisionBlob}, which composes the same two stages internally,
+ * deliberately collapses both into `null` for store scanning.
+ */
+const decodeReadRevision = (hash: Hash) => ([tag, value]: IoResult<Vec>): Result<RevisionData, string> => {
+    if (tag === 'error') { return error(`revision not found: ${hash}`) }
+    const revision = decodeRevisionVec(value)
+    return revision === null
+        ? error(`not a revision blob: ${hash}`)
+        : ok(toRevisionData(revision))
+}
+
+/**
+ * Reads the revision at `hash`: decoded, validated, and canonicalized
+ * ({@link toRevisionData}). The typed counterpart of a raw `cas.read` — the
+ * store's generic "bytes by hash" read stays available for arbitrary content
+ * (snapshots and everything else that is not a revision), while this is the
+ * view for revisions specifically: `add` validates on the way in, this
+ * validates on the way out, so no caller re-implements JSON parsing, schema
+ * validation, the `dialect` check, or hash canonicalization.
+ *
+ * Each of the three ways to fail is a distinct message: `hash` is not cBase32,
+ * the store has nothing under it, or what it holds is not a `vnd.fjs.revision`
+ * (see {@link decodeReadRevision}).
+ */
+export const readRevision = <O extends Operation>(cas: Cas<O>) => (hash: Hash): Effect<O, Result<RevisionData, string>> => {
+    const hashVec = cBase32ToVec(hash)
+    return hashVec === null
+        ? pure(error(`invalid hash: ${hash}`))
+        : eff(collectRead(cas.read(hashVec)))
+            .map(decodeReadRevision(hash))
+            .value
+}
+
 /** The Evo API described in `fjs/cas/evo/README.md`, bound to a `Cas<O>` and its cache slot. */
 export type Evo<O extends Operation> = {
     /** Returns every subject with at least one stored revision. */
@@ -389,7 +476,16 @@ export type Evo<O extends Operation> = {
     /** Returns the current head hashes of `subject` (empty if unknown). */
     readonly head: (subject: Subject) => Effect<MemOp, readonly Hash[]>
     /** Adds a new head; see {@link addRevision}. */
-    readonly add: (input: AddRevision) => Effect<O | MemOp, Result<Hash, string>>
+    readonly add: (input: RevisionData) => Effect<O | MemOp, Result<Hash, string>>
+    /**
+     * The revision at `hash`, decoded, validated, and canonicalized; see
+     * {@link readRevision}. Served from the store today, so the `MemOp` in the
+     * declared operation set is unused — it is there because a revision is
+     * immutable and therefore memoizable in the same cache slot the other
+     * operations read, which must not become a breaking change to this type
+     * when it happens.
+     */
+    readonly revision: (hash: Hash) => Effect<O | MemOp, Result<RevisionData, string>>
 }
 
 /** Builds the {@link Evo} API over `cas`, backed by the cache at `cacheKey` (see {@link initEvo}). */
@@ -404,4 +500,5 @@ export const evo = <O extends Operation>(cas: Cas<O>) => (cacheKey: Key<Cache>):
         })
         .value,
     add: input => addRevision(cas)(cacheKey)(input),
+    revision: readRevision(cas),
 })

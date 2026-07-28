@@ -1,15 +1,25 @@
 /**
- * MCP tool definitions for the Evo API (`fjs/cas/evo/module.f.ts`): subjects
- * and revision heads over the content-addressable store, backed by the
- * in-memory cache the core module maintains.
+ * MCP tool definitions for the Evo API (`fjs/cas/evo/module.f.ts`): subjects,
+ * revision heads, and the typed read of a single revision over the
+ * content-addressable store, backed by the in-memory cache the core module
+ * maintains.
  *
  * ## Tools
  *
- * | Tool        | args                                     | action        | result                    |
- * |-------------|-------------------------------------------|---------------|---------------------------|
- * | `evo_list`  | `{}`                                       | `e.list()`    | subjects, as a JSON array of strings |
- * | `evo_head`  | `{ subject }`                              | `e.head(...)` | head hashes, one per line |
- * | `evo_add`   | `{ parents, snapshot?, subject?, archived? }` | `e.add(...)`  | hash (cBase32)            |
+ * | Tool           | args                                          | action            | result                               |
+ * |----------------|-----------------------------------------------|-------------------|--------------------------------------|
+ * | `evo_list`     | `{}`                                          | `e.list()`        | subjects, as a JSON array of strings |
+ * | `evo_head`     | `{ subject }`                                 | `e.head(...)`     | head hashes, one per line            |
+ * | `evo_revision` | `{ hash }`                                    | `e.revision(...)` | the revision, as JSON `RevisionData` |
+ * | `evo_add`      | `{ parents, snapshot?, subject?, archived? }`  | `e.add(...)`      | hash (cBase32)                       |
+ *
+ * `evo_add` and `evo_revision` speak the same structure — `fjs/cas/evo`'s
+ * `RevisionData` — in opposite directions, so a revision read back can be
+ * added again as-is. `evo_add`'s advertised arguments stay as they are: the
+ * one field `evo_revision` returns that `evo_add` does not accept is
+ * `generation`, which the server computes, and rtti's struct validation
+ * ignores properties the schema does not name, so a whole `evo_revision`
+ * result can be passed straight back to `evo_add`.
  *
  * These tools are not served by their own process: `fjs/cas/mcp` (the same
  * server as `cas_add`/`cas_get`/`cas_list`) builds one `Evo<O>` from its own
@@ -40,7 +50,16 @@ export const evoHeadArgs = {
     subject: string,
 } as const
 
-/** Arguments for `evo_add`: a new revision, per `fjs/cas/evo`'s `AddRevision`. */
+/** Arguments for `evo_revision`: the hash of the revision to read. */
+export const evoRevisionArgs = {
+    hash: string,
+} as const
+
+/**
+ * Arguments for `evo_add`: a new revision, per `fjs/cas/evo`'s
+ * `RevisionData` — every field of it the caller supplies, i.e. all but
+ * `generation`, which the server computes.
+ */
 export const evoAddArgs = {
     parents: array(string),
     snapshot: option(string),
@@ -50,7 +69,7 @@ export const evoAddArgs = {
 
 // ── Tool registry ────────────────────────────────────────────────────────────────
 
-/** Canonical JSON encoder for `evo_list`'s result. */
+/** Canonical JSON encoder for the `evo_list` and `evo_revision` results. */
 const toJson = stringify(identity)
 
 /** Registry of all Evo tools, bound to an `Evo<O>`. */
@@ -77,6 +96,15 @@ export const evoToolRegistry =
             e.head(subject),
             heads => pure(okResult(heads.join('\n'))),
         )
+    ),
+    toolEntry(
+        'evo_revision',
+        'Read one revision by hash, as JSON: `{ subject, parents, snapshot, generation, archived? }`. `parents[0]` is the mainline parent and every further entry is a merged-in branch; `parents` and `snapshot` come back in their canonical cBase32 spelling, so they compare directly against `evo_head` output. Errors when the hash is not cBase32, is not present in the store, or does not hold a `vnd.fjs.revision` blob — use `cas_get` for raw bytes of non-revision content.',
+        evoRevisionArgs,
+        ({ hash }): Effect<O | MemOp, ToolsCallResult> => step(
+            e.revision(hash),
+            result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(toJson(result[1])))
+        ),
     ),
     toolEntry(
         'evo_add',

@@ -181,9 +181,10 @@ as a new subject that still lists its origin as `parents` to show how it was
 formed. Consumers may surface the discontinuity (an epoch-reset indicator);
 they must not reject the blob for it. Ordering by `generation` is therefore
 reliable within an epoch, and the cheap one-level comparison against parents
-is the epoch-boundary detector. Whether the evo layer should *accept* such a
-revision — its parents belong to another subject — is still open, see
-[fjs/cas/evo/todo/evo-revision.md](../../cas/evo/todo/evo-revision.md).
+is the epoch-boundary detector. The evo layer does not *construct* such a
+revision — `add` requires every parent to share the revision's subject — but
+that is its own decision, not the format's; see the cross-subject-parents
+section of [fjs/cas/evo/README.md](../../cas/evo/README.md).
 
 `archived` marks a mutable object as no longer worked on (e.g. a finished
 task); its blobs can be deleted from a local CAS after a backup. It follows

@@ -376,11 +376,11 @@ export const proof = {
         assertEq(err.id, 2)
     },
 
-    toolsListAdvertisesSixTools: () => {
+    toolsListAdvertisesSevenTools: () => {
         const [resp] = runSessionVirtual({})([init, initialized, list(2)]).slice(2)
         const tools = (resp as { result: { tools: readonly { name: string }[] } }).result.tools
-        assertEq(tools.length, 6)
-        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list,evo_list,evo_head,evo_add')
+        assertEq(tools.length, 7)
+        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list,evo_list,evo_head,evo_revision,evo_add')
         const add = (resp as { result: { tools: readonly { inputSchema: { type?: string } }[] } }).result.tools[0]
         assertEq(add.inputSchema.type, 'object')
     },
