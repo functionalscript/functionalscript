@@ -117,7 +117,7 @@ export const proof = {
             // Chains as step(step(e, f), g), raw effect in and out.
             assertPure(step(step(pure(3), v => pure(v + 1)), v => pure(v * 2)), 8)
         },
-        over_do: () => {
+        overDo: () => {
             // Stepping a Do node preserves the command and threads the result
             // through the rebuilt continuation.
             const e = step(do_<AddOp>('add')(2, 3), r => pure(r * 10))
@@ -135,7 +135,7 @@ export const proof = {
             // The `() => v` shape a `constStep` would have covered.
             assertPure(mapStep(pure('ignored'), () => 1), 1)
         },
-        over_do: () => {
+        overDo: () => {
             // A projection over a `Do` node keeps the command intact and is
             // applied to the command's output when the continuation resumes.
             const r = next(mapStep(do_<AddOp>('add')(2, 3), v => v * 10))
@@ -152,7 +152,7 @@ export const proof = {
             assertEq(param, 3)
             assertEq(result, 6)
         },
-        over_do: () => {
+        overDo: () => {
             // The captured value survives a command boundary: the history is
             // rebuilt inside the continuation rather than lost when `e` is a Do.
             const c = next(historyStep(history(do_<AddOp>('add')(2, 3)), r => pure(r * 10)))
@@ -174,7 +174,7 @@ export const proof = {
                 step(b, ([z, y, x]) => pure(`${x}${y}${z}`)),
                 '123')
         },
-        f_receives_whole_history: () => {
+        fReceivesWholeHistory: () => {
             // `f` is handed the whole history spread as arguments, not just the
             // most recent value - which is what lets a later link reach back.
             const a = historyStep(history(pure(1)), x => pure(x + 1))

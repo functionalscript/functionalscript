@@ -21,7 +21,7 @@ export const proof = {
             .value
         assertPure(x, 12)
     },
-    over_do: () => {
+    overDo: () => {
         const e = eff(do_<AddOp>('add')(2, 3))
             .step(r => pure(r + 1))
             .value
@@ -42,14 +42,14 @@ export const proof = {
         // it still reaches the pre-`map` value. This is the contract that makes
         // rewriting `.step(v => pure(f(v)))` into `.map(f)` a pure readability
         // change rather than one that alters what later callbacks receive.
-        grows_history: () => {
+        growsHistory: () => {
             const x = eff(pure(5))
                 .map(v => v + 1)
                 .step((v, prev) => pure(`${prev}${v}`))
                 .value
             assertPure(x, '56')
         },
-        over_do: () => {
+        overDo: () => {
             const e = eff(do_<AddOp>('add')(2, 3))
                 .map(r => r + 1)
                 .value
