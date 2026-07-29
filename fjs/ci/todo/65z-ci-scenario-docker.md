@@ -4,12 +4,31 @@
 **Status:** blocked
 **Blocked by:** [65Z-ci-nix](65z-ci-nix.md)
 
-### Summary
+### Problem
 
-OCI images are the final stage of the Nix CI migration, not the first stage.
-Before generating or consuming images, FunctionalScript must prove that the
-CI generator can produce correct target-specific Nix flakes and that Linux and
-macOS CI can run directly through those flakes.
+Ubuntu CI currently installs Node, Bun, Deno, Rust, Wasmtime, Wasmer,
+Playwright, and their dependencies repeatedly. The existing hand-written
+`docker/Dockerfile` is not generated from the same exact versions, upstream
+artifacts, URLs, and hashes as the GitHub Actions workflow.
+
+OCI images may eventually reduce repeated setup work and provide a reusable
+Linux CI environment, but creating them before the generated Nix environments
+are proven would combine two independent problems:
+
+1. whether the CI generator produces a complete and correct Nix environment;
+2. whether packaging and distributing that environment as OCI improves CI.
+
+An OCI layer must not hide defects in the generated Nix environment. This TODO
+is therefore blocked until [65Z-ci-nix](65z-ci-nix.md) proves that Linux and
+macOS CI can run directly through the generated flakes.
+
+### Proposal
+
+Make OCI images the final stage of the Nix CI migration. After the direct-Nix
+prerequisite succeeds, extend selected, already validated Linux flakes with OCI
+outputs built from the same derivations. Publish those images through a
+protected GHCR workflow, then optionally migrate only the Linux jobs for which
+OCI measurably improves total CI behavior.
 
 The required order is:
 
@@ -23,8 +42,20 @@ The required order is:
 7. Optionally switch selected Linux jobs to OCI images
 ```
 
-This TODO begins only after the direct Nix CI work in
-[65Z-ci-nix](65z-ci-nix.md) succeeds.
+Direct Nix CI remains the reference behavior and fallback during the OCI
+experiment. Nix builds the image directly; do not generate a Dockerfile as an
+intermediate representation unless a later requirement specifically needs one.
+
+```text
+proven generated Linux flake
+        |
+        +-- direct CI environment
+        +-- OCI image output
+```
+
+The exact versions, upstream artifacts, URLs, hashes, installation logic,
+compilation targets, and Playwright browser revisions remain controlled by the
+same `fjs/ci/` source configuration.
 
 ### Entry criteria
 
@@ -41,34 +72,6 @@ Do not start OCI integration until all of these are true:
 
 Until those conditions are met, Linux CI should use the generated Nix flakes
 directly and should not build, pull, or publish OCI images.
-
-### Why OCI comes later
-
-Direct Nix CI separates two questions:
-
-1. Can the generator produce a complete and correct environment?
-2. Is packaging that environment as an OCI image faster or more convenient?
-
-OCI must not hide defects in the generated Nix environment. The same proven
-Nix derivations used by direct Linux CI should later become the contents of the
-OCI image.
-
-### OCI proposal
-
-After the entry criteria are met, extend selected generated Linux flakes with
-OCI outputs. Nix builds the image directly; do not generate a Dockerfile as an
-intermediate representation unless a later requirement specifically needs one.
-
-```text
-proven generated Linux flake
-        |
-        +-- direct CI environment
-        +-- OCI image output
-```
-
-The exact versions, upstream artifacts, URLs, hashes, installation logic,
-compilation targets, and Playwright browser revisions remain controlled by the
-same `fjs/ci/` source configuration.
 
 ### Image boundary is a measured decision
 
