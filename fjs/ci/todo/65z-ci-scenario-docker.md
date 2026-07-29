@@ -1,77 +1,96 @@
-## 65Z-ci-scenario-docker. Replace Ubuntu setup steps with Nix-built OCI images
+## 65Z-ci-scenario-docker. Add Nix-built OCI images after direct Nix CI is proven
 
 **Priority:** P3
 **Status:** open
 
-### Problem
+### Summary
 
-Ubuntu CI jobs currently install every tool (Node, Bun, Deno, Rust, Wasmtime,
-Wasmer, etc.) from scratch on every run. This is slow and duplicates work
-already performed by earlier runs. Additionally:
+OCI images are the final stage of the Nix CI migration, not the first stage.
+Before generating or consuming images, FunctionalScript must prove that the
+CI generator can produce correct target-specific Nix flakes and that Linux and
+macOS CI can run directly through those flakes.
 
-- Playwright is kept in a separate Ubuntu job because its installation is
-  expensive, fragmenting the matrix.
-- Scenario tests (`./fjs/emergent_testing/scenarios/run.sh`) are not run in CI
-  because no single job currently has all required runners.
-- The current hand-written `docker/Dockerfile` is not generated from the same
-  exact version and artifact information as the GitHub Actions workflow.
+The required order is:
 
-### Proposal
+```text
+1. Generate exact Nix flakes
+2. Build and validate the flakes
+3. Run Linux/macOS CI directly through Nix
+4. Measure flake boundaries and cache behavior
+5. Add Linux OCI outputs
+6. Publish images to GHCR
+7. Optionally switch selected Linux jobs to OCI images
+```
 
-Generate independent Nix flakes from the existing CI source of truth and let
-the Linux flakes expose OCI image outputs. Publish the resulting Linux images
-to GHCR from a protected workflow and use them for Ubuntu CI jobs instead of
-rerunning tool installation steps.
+This TODO begins only after the direct Nix CI work in
+[65Z-ci-nix](65z-ci-nix.md) succeeds.
 
-Nix builds the OCI images directly. Do not generate a Dockerfile as an
+### Entry criteria
+
+Do not start OCI integration until all of these are true:
+
+- generated Linux flakes evaluate and build on Intel and ARM runners;
+- generated macOS flakes evaluate and build on Intel and ARM runners;
+- exact installed-version checks pass;
+- Playwright package and browser validation passes;
+- existing Linux and macOS CI commands run directly through Nix;
+- the generated flake layout has enough performance data to choose useful image
+  boundaries;
+- `npm run ci-update` regenerates the committed Nix files without a diff.
+
+Until those conditions are met, Linux CI should use the generated Nix flakes
+directly and should not build, pull, or publish OCI images.
+
+### Why OCI comes later
+
+Direct Nix CI separates two questions:
+
+1. Can the generator produce a complete and correct environment?
+2. Is packaging that environment as an OCI image faster or more convenient?
+
+OCI must not hide defects in the generated Nix environment. The same proven
+Nix derivations used by direct Linux CI should later become the contents of the
+OCI image.
+
+### OCI proposal
+
+After the entry criteria are met, extend selected generated Linux flakes with
+OCI outputs. Nix builds the image directly; do not generate a Dockerfile as an
 intermediate representation unless a later requirement specifically needs one.
 
 ```text
-CI scripts and config
+proven generated Linux flake
         |
-        v
-npm run ci-update
-        |
-        +-- generated Linux Nix flakes
-        |       +-- CI environment
-        |       +-- OCI image
-        +-- generated macOS Nix flakes
-        +-- generated Windows setup steps
+        +-- direct CI environment
+        +-- OCI image output
 ```
 
-The exact tool versions, platform artifacts, URLs, hashes, installation logic,
-and Playwright browser revisions must come from the same CI configuration used
-to generate the Windows and macOS jobs.
+The exact versions, upstream artifacts, URLs, hashes, installation logic,
+compilation targets, and Playwright browser revisions remain controlled by the
+same `fjs/ci/` source configuration.
 
-### Image boundary is an experiment
+### Image boundary is a measured decision
 
-Do not require one global image before measuring build behavior. Candidate
-boundaries include:
+Candidate image boundaries include:
 
 1. one image per Linux architecture containing all CI tools;
 2. one image per CI job and architecture;
-3. a hybrid split, such as common Node tools, WASM tools, and Playwright.
+3. one image per major tool-version family and architecture;
+4. a hybrid split, such as common Node tools, WASM tools, and Playwright.
 
-The generator may emit different independent flakes while this is evaluated.
-There is no root-level generic `flake.nix`; each GitHub job references the
-specific generated flake or image it needs.
+The direct Nix CI measurements should inform this decision. After OCI outputs
+exist, additionally measure:
 
-Measure cold and warm Nix builds, OCI assembly, image upload and download,
-cache reuse, CI concurrency, image size, and debugging isolation.
-
-### What changes
-
-| | Today | Proposed |
-|---|---|---|
-| Ubuntu Intel + ARM | installs tools inline each run | uses generated Nix environment or Nix-built OCI image |
-| Playwright | separate expensive setup | precise generated Playwright environment/image |
-| Scenario tests | no job has every runner | run in an environment containing all required runners |
-| macOS Intel + ARM | generated setup steps | generated native Nix flakes |
-| Windows | generated setup steps | unchanged native Windows setup steps |
+- OCI assembly time;
+- image size;
+- upload and pull time;
+- duplicated layers and downloads;
+- cross-job reuse;
+- failure and debugging isolation.
 
 ### Image contents
 
-An image contains exactly the tools required by its chosen CI boundary. The
+An image contains exactly the tools required by its selected boundary. A
 complete Linux environment may include:
 
 | Tool | Version source |
@@ -90,32 +109,36 @@ be packaged in the selected `nixpkgs` revision.
 
 ### Playwright
 
-The Playwright OCI environment must keep the package, driver, browser revisions,
-platform-specific browser archives, hashes, native libraries, and environment
-variables synchronized. It should not download browsers implicitly during a
-test job.
+The Playwright image must reuse the already validated direct-Nix environment and
+keep these parts synchronized:
 
-Whether Playwright shares an image with the other Ubuntu jobs or remains a
-separate image is a performance decision, not a requirement of this proposal.
+- package and driver version;
+- Chromium, Firefox, and WebKit revisions;
+- platform-specific browser archives and hashes;
+- native runtime libraries;
+- browser-path environment variables.
+
+Whether Playwright shares an image with other jobs remains a performance
+decision.
 
 ### Architectures
 
-Generate Linux images for the architectures used by GitHub CI:
+Build Linux images for the architectures used by GitHub CI:
 
 - `linux/amd64` from an `x86_64-linux` flake;
 - `linux/arm64` from an `aarch64-linux` flake.
 
-They may be published under separate immutable tags and combined into a
-multi-platform OCI manifest after both architecture-specific images have been
-built and validated.
+They may be published under separate immutable identities and combined into a
+multi-platform manifest only after both architecture-specific outputs build and
+pass the same validation used by direct Nix CI.
 
 Additional compilation targets such as `i686-unknown-linux-gnu` are contents of
 the host image; they are not separate host architectures unless CI runs a true
 32-bit host job.
 
-### Image identity and reuse
+### Image identity
 
-The image identity should depend on all generated inputs that affect its
+The image identity must depend on every generated input that affects its
 contents, including:
 
 - tool versions and major-version selections;
@@ -126,31 +149,24 @@ contents, including:
 - generated Nix files;
 - the locked `nixpkgs` revision.
 
-Prefer immutable tags or digests for CI consumption. A human-readable version
-tag may also be published for inspection.
-
-GHCR is the intended durable distribution point so users and CI can pull the
-same image. GitHub Actions cache or workflow artifacts may additionally be
-benchmarked for short-lived intra-workflow reuse, but they must not become a
-second source of tool-version truth.
+CI must consume immutable tags or digests and must never silently substitute an
+unrelated mutable image such as `latest`.
 
 ### Protected GHCR publication
 
-The normal generated CI workflow runs for untrusted `pull_request` and
-`merge_group` events and must remain read-only. Fork pull requests must never
-receive package-write credentials. Therefore image publication must not happen
-from those jobs.
+OCI publication is a separate final-stage workflow. The normal generated CI
+workflow handles untrusted `pull_request` and `merge_group` events and must
+remain read-only. Fork code must never receive GHCR write credentials.
 
-Generate a separate protected publication workflow with these properties:
+The initial publication workflow must:
 
-- trigger on `push` to the protected default branch after changes are merged;
-- optionally support `workflow_dispatch` for an authorized manual rebuild;
+- run only on `push` to the protected default branch after merge;
+- not expose `workflow_dispatch` in the initial implementation;
 - grant `contents: read` and `packages: write` only to the publication job;
-- authenticate to GHCR with the workflow token;
-- build and validate both architecture-specific image outputs from the committed
-  generated flakes;
+- build from the protected default-branch commit;
+- build and validate both architecture-specific OCI outputs;
 - push immutable architecture-specific identities;
-- create or update the multi-platform manifest only after both variants succeed.
+- create the multi-platform manifest only after both variants succeed.
 
 Conceptually:
 
@@ -158,106 +174,90 @@ Conceptually:
 on:
   push:
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
 ```
 
-The publication workflow is trusted because it runs from committed code on the
-protected branch, not from a fork's workflow definition.
+A manual rebuild may be designed later, but only with an enforced protected
+branch ref and, when appropriate, a protected environment approval. It is not
+part of the initial publication path.
 
-### Public visibility and consumer authentication
+### Public visibility and consumers
 
-The FunctionalScript CI images are intended for both CI and external users, so
-the GHCR container packages must be public. Public GHCR container packages can
-be pulled anonymously; pull-request jobs, fork jobs, and users therefore do not
-need package credentials merely to consume a published image.
+The FunctionalScript CI images are intended for CI and external users, so the
+GHCR container packages must be public. The first publication is not complete
+until unauthenticated pulls of the immutable architecture identities and the
+multi-platform identity succeed.
 
-The first publication is not complete until the package visibility is set to
-public and an unauthenticated pull of each immutable architecture identity and
-the multi-platform identity succeeds. If GitHub requires an administrator to
-set visibility after the first push, document that one-time step and verify it
-in the publication workflow or a publication check.
+If the policy later changes to private packages, generated consumers must use
+`packages: read`, authenticate to GHCR, and distinguish authorization errors
+from a missing image.
 
-If the policy later changes to private packages, the generated consumer jobs
-must instead:
+An authentication, permission, registry, or network failure is not an image
+miss. Only a confirmed missing manifest or tag for the exact immutable identity
+may trigger a fallback.
 
-- request `packages: read`;
-- authenticate to GHCR before pulling;
-- ensure the workflow repository has read access to the package;
-- distinguish authorization failures from an absent immutable image.
+### CI consumption is also a later step
 
-An authentication, permission, registry, or network failure is not a cache
-miss and must fail the pull step. Only a confirmed “manifest/tag not found” for
-the exact immutable identity may trigger the local Nix-build fallback.
+Publishing an image does not automatically require every Linux job to consume
+it. Compare direct Nix CI with OCI-based CI first.
 
-### Consumer ordering and fallback
-
-A pull request that changes tool versions or generated Nix files cannot assume
-that its new GHCR image already exists. CI consumers therefore need an explicit
-ordering and fallback strategy:
+For a job selected to use OCI:
 
 1. compute the immutable image identity from the generated inputs;
-2. attempt an anonymous pull of that exact public image when it already exists;
-3. treat only a confirmed missing manifest/tag as an image miss;
-4. on a miss, build the environment or OCI image locally from the generated
-   flake and optionally reuse GitHub cache or workflow artifacts;
-5. never push from `pull_request` or `merge_group` jobs;
-6. after merge, let the protected publication workflow publish the validated
-   public image for later runs and users.
+2. attempt an anonymous pull of that exact public image;
+3. treat only a confirmed missing manifest or tag as an image miss;
+4. on a miss, run the job directly through the already proven generated Nix
+   flake or build its OCI output locally;
+5. never push from `pull_request` or `merge_group` jobs.
 
-CI must not fall back to a mutable `latest` image with different tool versions.
-A missing immutable image means “build this exact generated environment,” not
-“use some older image.”
-
-### What runs inside the Linux environment
-
-Run all tests that currently run on Ubuntu, plus environments that become
-possible after the toolchain is assembled reproducibly:
-
-- Playwright tests;
-- scenario tests across `fjs`, Node, Bun, Deno, and Playwright;
-- exact installed-version validation before the main tests.
-
-The final job split depends on the image-boundary measurements.
+The direct Nix path remains the reference behavior and fallback during the OCI
+experiment.
 
 ### Tasks
 
-- [ ] Generate Linux Nix flakes from `fjs/ci/` with exact per-architecture
-      versions, URLs, archive formats, and hashes.
-- [ ] Expose OCI image outputs from the generated Linux flakes.
-- [ ] Build and validate both `linux/amd64` and `linux/arm64` image variants.
-- [ ] Generate a protected `push`/`workflow_dispatch` publication workflow with
+#### Prerequisite
+
+- [ ] Complete the generation, validation, and direct Nix CI phases in
+      [65Z-ci-nix](65z-ci-nix.md).
+- [ ] Record the direct Nix build, cache, and job-boundary measurements.
+
+#### OCI generation
+
+- [ ] Expose OCI outputs from selected, already proven Linux flakes.
+- [ ] Build and validate both `linux/amd64` and `linux/arm64` variants.
+- [ ] Verify that OCI contents pass the same version and Playwright checks as the
+      direct Nix environment.
+- [ ] Benchmark one image per architecture, per job, per major version, and useful
+      hybrid boundaries.
+
+#### Protected publication
+
+- [ ] Generate a push-to-protected-default-branch publication workflow with
       `contents: read` and `packages: write`.
-- [ ] Keep `pull_request` and `merge_group` workflows read-only and prevent fork
-      code from receiving GHCR write credentials.
+- [ ] Do not add `workflow_dispatch` to the initial publication workflow.
+- [ ] Keep `pull_request` and `merge_group` workflows read-only.
 - [ ] Publish immutable architecture-specific identities and create the
-      multi-platform manifest only after both builds succeed.
-- [ ] Configure the GHCR container packages as public and verify anonymous pulls
-      of every published immutable identity.
-- [ ] Implement pull-by-immutable-identity with a local Nix build fallback only
-      for a confirmed missing manifest/tag; fail on authentication, permission,
-      registry, or network errors.
-- [ ] Validate every installed tool and Playwright browser bundle against the CI
-      source configuration.
-- [ ] Benchmark one image per architecture, one image per job, and useful hybrid
-      boundaries before selecting the final layout.
-- [ ] Benchmark GHCR pulls against GitHub Actions cache or artifacts for
-      short-lived reuse.
-- [ ] Update Ubuntu jobs to consume the selected generated Nix environment or
-      OCI image instead of installing tools inline.
-- [ ] Run scenario tests in an environment containing all required runners.
-- [ ] Remove or deprecate the hand-written `docker/Dockerfile` once the generated
-      OCI path covers its use cases.
+      multi-platform manifest only after both variants succeed.
+- [ ] Configure the GHCR packages as public and verify anonymous pulls.
+
+#### Optional CI consumption
+
+- [ ] Compare direct Nix CI with OCI pull/startup performance.
+- [ ] Select only the Linux jobs for which OCI improves total CI behavior.
+- [ ] Implement immutable-image pull with direct-Nix fallback only for a
+      confirmed missing manifest or tag.
+- [ ] Fail on authentication, permission, registry, and network errors.
+- [ ] Remove or deprecate `docker/Dockerfile` only after the Nix-built OCI path
+      covers its intended use cases.
 
 ### Related
 
-- [65Z-ci-nix](65z-ci-nix.md) — generated independent Nix flakes for Linux and
-  macOS CI.
-- [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — concrete
-  generator and OCI implementation plan.
+- [65Z-ci-nix](65z-ci-nix.md) — prerequisite generated and direct Nix CI work.
+- [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — staged
+  implementation plan.
 - i095 — original Docker CI idea.
 - i145 — Docker containers for Linux CI jobs.
 - i183 — scenario test infrastructure.
