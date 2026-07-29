@@ -96,12 +96,19 @@ const packages: readonly string[] = [
 // image does ship, which is the same guarantee a plain-HTTP mirror gives.
 const noTlsVerify = '/etc/apt/apt.conf.d/99snapshot-bootstrap' as const
 
+// The snapshot service answers an occasional 503, and a single one empties a
+// component's package list for the rest of the build. This config outlives the
+// bootstrap above so that later `apt` runs — Playwright's `install --with-deps`
+// — retry as well.
+const retries = '/etc/apt/apt.conf.d/99retries' as const
+
 const apt = (rust: boolean): string => block(
     'Build prerequisites, resolved against a dated archive snapshot so that a rebuild installs the same packages.',
     [
         env('UBUNTU_SNAPSHOT', dockerSnapshot),
         env('DEBIAN_FRONTEND', 'noninteractive'),
         run([
+            `echo 'Acquire::Retries "5";' > ${retries}`,
             `echo 'Acquire::https::snapshot.ubuntu.com::Verify-Peer "false";' > ${noTlsVerify}`,
             // `sed` fails the build if the base image ever stops using deb822
             // sources, rather than silently leaving `apt` unpinned.
@@ -110,7 +117,10 @@ const apt = (rust: boolean): string => block(
             // Rust i686 checks need them, so `$extra_packages` is empty
             // everywhere else and expands to nothing.
             ...(rust ? arch({ extra_packages: { amd64: i686Linux.package, arm64: '' } }) : []),
-            'apt-get update',
+            // A plain `apt-get update` exits 0 even when every index failed to
+            // download, so a fetch problem surfaces later as an unrelated
+            // "unable to locate package". `--error-on=any` fails here instead.
+            'apt-get update --error-on=any',
             `apt-get install -y --no-install-recommends ${packages.join(' ')}${rust ? ' $extra_packages' : ''}`,
             // Every later `apt` call — Playwright's `install --with-deps` among
             // them — verifies the certificate normally.

@@ -11,11 +11,12 @@ SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 # Build prerequisites, resolved against a dated archive snapshot so that a rebuild installs the same packages.
 ENV UBUNTU_SNAPSHOT=20260707T000000Z
 ENV DEBIAN_FRONTEND=noninteractive
-RUN echo 'Acquire::https::snapshot.ubuntu.com::Verify-Peer "false";' > /etc/apt/apt.conf.d/99snapshot-bootstrap \
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/99retries \
+    && echo 'Acquire::https::snapshot.ubuntu.com::Verify-Peer "false";' > /etc/apt/apt.conf.d/99snapshot-bootstrap \
     && sed -i "s|^URIs: .*|URIs: https://snapshot.ubuntu.com/ubuntu/$UBUNTU_SNAPSHOT|" /etc/apt/sources.list.d/ubuntu.sources \
     && arch="$(dpkg --print-architecture)" \
     && case "$arch" in amd64) extra_packages=libc6-dev-i386 ;; arm64) extra_packages= ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
-    && apt-get update \
+    && apt-get update --error-on=any \
     && apt-get install -y --no-install-recommends build-essential ca-certificates curl git gnupg libssl-dev pkg-config unzip xz-utils $extra_packages \
     && rm /etc/apt/apt.conf.d/99snapshot-bootstrap \
     && rm -rf /var/lib/apt/lists/*

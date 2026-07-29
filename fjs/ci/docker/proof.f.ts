@@ -61,6 +61,13 @@ export const proof = {
         assert(
             withRust.indexOf('rm /etc/apt/apt.conf.d/99snapshot-bootstrap') > withRust.indexOf('ca-certificates'),
             'expected the relaxation removed once ca-certificates is installed')
+        // A plain `apt-get update` exits 0 with every index unfetched, so the
+        // build would carry on and fail later on an unrelated package name.
+        has('apt-get update --error-on=any', 'expected index fetch failures to fail the build')
+        // The snapshot service 503s occasionally; retries outlive the
+        // bootstrap so Playwright's own `apt` run is covered too.
+        has('Acquire::Retries "5"', 'expected apt to retry a flaky index fetch')
+        hasNot('rm /etc/apt/apt.conf.d/99retries', 'unexpected removal of the retry config')
     },
     noFloatingVersions: () => {
         // A tool installed from a `latest` URL, a rolling image tag, or an
