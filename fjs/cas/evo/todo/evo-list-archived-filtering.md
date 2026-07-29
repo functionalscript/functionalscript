@@ -24,8 +24,14 @@ command. Treat the parameter as a status filter:
 A subject is active when at least one of its current heads is not archived. It
 is archived only when every current head is archived. If heads disagree, the
 subject is active by default and is excluded from the archived-only result.
-The implementation must inspect the archived flag on each current head and
-extend the Evo cache/API state as needed to make this classification explicit.
+
+The cache must continue to store every revision hash and parent as it does
+today. In addition, store each revision's archived flag keyed by its revision
+hash. Derive the current heads from the complete revision/parent graph using
+the existing `headsOf` logic; do not maintain or update a separate running head
+set, because CAS hash order is not ancestry order and folding a child before
+its parent can otherwise resurrect an obsolete parent as a head. Apply the
+archived-state map only to the derived heads when classifying a subject.
 
 There is intentionally no all-subjects mode in this initial API. This changes
 the default result set and is therefore a breaking change.
@@ -33,11 +39,13 @@ the default result set and is therefore a breaking change.
 ### Tasks
 
 - [ ] Add the optional `archived?: true` parameter to the MCP server command.
-- [ ] Preserve all current heads in the Evo cache and evaluate each head's
-      archived flag when classifying a subject.
-- [ ] Return only subjects with at least one unarchived head when `archived`
-      is omitted.
-- [ ] Return only subjects whose current heads are all archived when
+- [ ] Store each revision's archived flag by revision hash while retaining the
+      existing complete revision/parent graph.
+- [ ] Use `headsOf` over that graph when classifying subjects; do not cache a
+      mutable running head set.
+- [ ] Return only subjects with at least one unarchived derived head when
+      `archived` is omitted.
+- [ ] Return only subjects whose derived heads are all archived when
       `archived: true` is provided.
 - [ ] Add coverage for no heads, one active head, one archived head, and
       concurrent heads with both statuses.
