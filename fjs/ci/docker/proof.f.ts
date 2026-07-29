@@ -90,8 +90,8 @@ export const proof = {
         assertEq(downloads, 6, 'expected six downloaded archives')
         assertEq(withRust.split('sha256sum -c -').length - 1, downloads, 'expected every download verified')
         for (const [tool, { amd64, arm64 }] of entries(sha256)) {
-            has(`${tool}_sha256=${amd64}`, `expected the committed amd64 hash of ${tool}`)
-            has(`${tool}_sha256=${arm64}`, `expected the committed arm64 hash of ${tool}`)
+            has(`${tool}_sha256="${amd64}"`, `expected the committed amd64 hash of ${tool}`)
+            has(`${tool}_sha256="${arm64}"`, `expected the committed arm64 hash of ${tool}`)
         }
     },
     everyToolInstalled: () => {
@@ -116,7 +116,7 @@ export const proof = {
         // the workflow's `dtolnay/rust-toolchain` step uses.
         has(`--component ${rustComponents} `, 'expected the Rust components CI lints with')
         has('--target $rust_targets', 'expected the targets chosen per architecture')
-        has(`rust_targets=${wasmTargets.join(',')}`, 'expected the WASM targets as one comma-separated list')
+        has(`rust_targets="${wasmTargets.join(',')}"`, 'expected the WASM targets as one comma-separated list')
     },
     everyArchitecture: () => {
         // `arm64` covers the `ubuntu-26.04-arm` runners and Apple Silicon
@@ -132,8 +132,11 @@ export const proof = {
     // it needs the target and its system headers — on Intel only, where they
     // exist.
     i686: () => {
-        has(`rust_targets=${[...wasmTargets, i686Linux.target].join(',')} ;; arm64)`, 'expected the i686 target on amd64 only')
-        has(`extra_packages=${i686Linux.package} ;; arm64) extra_packages= `, 'expected the 32-bit headers on amd64 only')
+        has(`rust_targets="${[...wasmTargets, i686Linux.target].join(',')}" ;; arm64)`, 'expected the i686 target on amd64 only')
+        has(`extra_packages="${i686Linux.packages.join(' ')}" ;; arm64) extra_packages="" `, 'expected the 32-bit toolchain on amd64 only')
+        // `libc6-dev-i386` only recommends `gcc-multilib`, so `cc -m32` cannot
+        // link without naming it under `--no-install-recommends`.
+        has('gcc-multilib', 'expected the 32-bit GCC support the linker needs')
         has('--no-install-recommends build-essential', 'expected the common packages to stay unconditional')
         has(' $extra_packages', 'expected the architecture-specific packages to be installed')
     },
@@ -146,7 +149,7 @@ export const proof = {
     // toolchain and no WASM runner — they exist only for the crate's targets.
     withoutRust: () => {
         const plain = dockerfile(false)
-        for (const absent of ['rustup', 'RUST_VERSION', 'wasmtime', 'wasmer', 'cargo', i686Linux.package, i686Linux.target]) {
+        for (const absent of ['rustup', 'RUST_VERSION', 'wasmtime', 'wasmer', 'cargo', ...i686Linux.packages, i686Linux.target]) {
             assert(!plain.includes(absent), `unexpected ${absent} in a Rust-free image`)
         }
         // Nothing is architecture-specific outside the downloads once the Rust

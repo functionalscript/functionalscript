@@ -15,7 +15,7 @@ RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/99retries \
     && echo 'Acquire::https::snapshot.ubuntu.com::Verify-Peer "false";' > /etc/apt/apt.conf.d/99snapshot-bootstrap \
     && sed -i "s|^URIs: .*|URIs: https://snapshot.ubuntu.com/ubuntu/$UBUNTU_SNAPSHOT|" /etc/apt/sources.list.d/ubuntu.sources \
     && arch="$(dpkg --print-architecture)" \
-    && case "$arch" in amd64) extra_packages=libc6-dev-i386 ;; arm64) extra_packages= ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
+    && case "$arch" in amd64) extra_packages="libc6-dev-i386 gcc-multilib" ;; arm64) extra_packages="" ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
     && apt-get update --error-on=any \
     && apt-get install -y --no-install-recommends build-essential ca-certificates curl git gnupg libssl-dev pkg-config unzip xz-utils $extra_packages \
     && rm /etc/apt/apt.conf.d/99snapshot-bootstrap \
@@ -24,7 +24,7 @@ RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/99retries \
 # Node.js: official build.
 ENV NODE_VERSION=26.5.0
 RUN arch="$(dpkg --print-architecture)" \
-    && case "$arch" in amd64) node_arch=x64; node_sha256=9f619528f1db5ddc41dccf54211066fb42228d69a156733c69cb9d6cc92e358c ;; arm64) node_arch=arm64; node_sha256=036df0b49662ebb350eb56f1cac603699b1e9ed1e2603ee129fefda473479030 ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
+    && case "$arch" in amd64) node_arch="x64"; node_sha256="9f619528f1db5ddc41dccf54211066fb42228d69a156733c69cb9d6cc92e358c" ;; arm64) node_arch="arm64"; node_sha256="036df0b49662ebb350eb56f1cac603699b1e9ed1e2603ee129fefda473479030" ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
     && node_archive="node-v$NODE_VERSION-linux-$node_arch.tar.xz" \
     && curl -fsSLo "/tmp/$node_archive" "https://nodejs.org/dist/v$NODE_VERSION/$node_archive" \
     && echo "$node_sha256  /tmp/$node_archive" | sha256sum -c - \
@@ -34,7 +34,7 @@ RUN arch="$(dpkg --print-architecture)" \
 # Deno: official release archive.
 ENV DENO_VERSION=2.9.4
 RUN arch="$(dpkg --print-architecture)" \
-    && case "$arch" in amd64) deno_arch=x86_64-unknown-linux-gnu; deno_sha256=c24f955d9fbfe0ea5ae2b501c8e71ae76e31e4c9782390a54a284b3364fda725 ;; arm64) deno_arch=aarch64-unknown-linux-gnu; deno_sha256=111da5c05c240cfdc4340f234a0e3539d39dbcb6755221f19dcd60bacc8be5aa ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
+    && case "$arch" in amd64) deno_arch="x86_64-unknown-linux-gnu"; deno_sha256="c24f955d9fbfe0ea5ae2b501c8e71ae76e31e4c9782390a54a284b3364fda725" ;; arm64) deno_arch="aarch64-unknown-linux-gnu"; deno_sha256="111da5c05c240cfdc4340f234a0e3539d39dbcb6755221f19dcd60bacc8be5aa" ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
     && curl -fsSLo /tmp/deno.zip "https://github.com/denoland/deno/releases/download/v$DENO_VERSION/deno-$deno_arch.zip" \
     && echo "$deno_sha256  /tmp/deno.zip" | sha256sum -c - \
     && unzip -q -d /usr/local/bin /tmp/deno.zip \
@@ -44,7 +44,7 @@ RUN arch="$(dpkg --print-architecture)" \
 # Bun: official release archive.
 ENV BUN_VERSION=1.3.14
 RUN arch="$(dpkg --print-architecture)" \
-    && case "$arch" in amd64) bun_arch=x64; bun_sha256=951ee2aee855f08595aeec6225226a298d3fea83a3dcd6465c09cbccdf7e848f ;; arm64) bun_arch=aarch64; bun_sha256=a27ffb63a8310375836e0d6f668ae17fa8d8d18b88c37c821c65331973a19a3b ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
+    && case "$arch" in amd64) bun_arch="x64"; bun_sha256="951ee2aee855f08595aeec6225226a298d3fea83a3dcd6465c09cbccdf7e848f" ;; arm64) bun_arch="aarch64"; bun_sha256="a27ffb63a8310375836e0d6f668ae17fa8d8d18b88c37c821c65331973a19a3b" ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
     && curl -fsSLo /tmp/bun.zip "https://github.com/oven-sh/bun/releases/download/bun-v$BUN_VERSION/bun-linux-$bun_arch.zip" \
     && echo "$bun_sha256  /tmp/bun.zip" | sha256sum -c - \
     && unzip -q -d /tmp /tmp/bun.zip \
@@ -59,7 +59,7 @@ ENV RUSTUP_HOME=/usr/local/rustup
 ENV CARGO_HOME=/usr/local/cargo
 ENV PATH=/usr/local/cargo/bin:$PATH
 RUN arch="$(dpkg --print-architecture)" \
-    && case "$arch" in amd64) rust_host=x86_64-unknown-linux-gnu; rustup_sha256=4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10; rust_targets=wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads,i686-unknown-linux-gnu ;; arm64) rust_host=aarch64-unknown-linux-gnu; rustup_sha256=9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792; rust_targets=wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
+    && case "$arch" in amd64) rust_host="x86_64-unknown-linux-gnu"; rustup_sha256="4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"; rust_targets="wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads,i686-unknown-linux-gnu" ;; arm64) rust_host="aarch64-unknown-linux-gnu"; rustup_sha256="9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792"; rust_targets="wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads" ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
     && curl -fsSLo /tmp/rustup-init "https://static.rust-lang.org/rustup/archive/$RUSTUP_VERSION/$rust_host/rustup-init" \
     && echo "$rustup_sha256  /tmp/rustup-init" | sha256sum -c - \
     && chmod +x /tmp/rustup-init \
@@ -70,7 +70,7 @@ RUN arch="$(dpkg --print-architecture)" \
 # Wasmtime: runner for the WASM targets.
 ENV WASMTIME_VERSION=47.0.2
 RUN arch="$(dpkg --print-architecture)" \
-    && case "$arch" in amd64) wasmtime_arch=x86_64; wasmtime_sha256=9ec85751649139711b6a5061c4f48a41412bf9b1ab98a08b9924ca73f22ca575 ;; arm64) wasmtime_arch=aarch64; wasmtime_sha256=5bb3fe06876a1c3f4043781590b4c0a69e9237549023ccd441c18083f11decd5 ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
+    && case "$arch" in amd64) wasmtime_arch="x86_64"; wasmtime_sha256="9ec85751649139711b6a5061c4f48a41412bf9b1ab98a08b9924ca73f22ca575" ;; arm64) wasmtime_arch="aarch64"; wasmtime_sha256="5bb3fe06876a1c3f4043781590b4c0a69e9237549023ccd441c18083f11decd5" ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
     && wasmtime_dir="wasmtime-v$WASMTIME_VERSION-$wasmtime_arch-linux" \
     && curl -fsSLo /tmp/wasmtime.tar.xz "https://github.com/bytecodealliance/wasmtime/releases/download/v$WASMTIME_VERSION/$wasmtime_dir.tar.xz" \
     && echo "$wasmtime_sha256  /tmp/wasmtime.tar.xz" | sha256sum -c - \
@@ -82,7 +82,7 @@ RUN arch="$(dpkg --print-architecture)" \
 ENV WASMER_VERSION=7.2.1
 ENV WASMER_DIR=/usr/local
 RUN arch="$(dpkg --print-architecture)" \
-    && case "$arch" in amd64) wasmer_arch=amd64; wasmer_sha256=c46d6ff34a12b40d2e57bfc2ccbb8b9e209b0987ab305233619798b264a6bae5 ;; arm64) wasmer_arch=aarch64; wasmer_sha256=5a434db36f96d483e9967aa1b3ffd129f5b8781ea58faf1b80aeee6f5fb91f63 ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
+    && case "$arch" in amd64) wasmer_arch="amd64"; wasmer_sha256="c46d6ff34a12b40d2e57bfc2ccbb8b9e209b0987ab305233619798b264a6bae5" ;; arm64) wasmer_arch="aarch64"; wasmer_sha256="5a434db36f96d483e9967aa1b3ffd129f5b8781ea58faf1b80aeee6f5fb91f63" ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
     && curl -fsSLo /tmp/wasmer.tar.gz "https://github.com/wasmerio/wasmer/releases/download/v$WASMER_VERSION/wasmer-linux-$wasmer_arch.tar.gz" \
     && echo "$wasmer_sha256  /tmp/wasmer.tar.gz" | sha256sum -c - \
     && tar -xzf /tmp/wasmer.tar.gz -C /usr/local \

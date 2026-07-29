@@ -148,12 +148,12 @@ export const proof = {
             const gha = runDefault('{"name":"functionalscript"}')
             assert(hasRun('fjs t')(gha), 'expected fjs self-test')
             assert(hasRun(`deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} t`)(gha), 'expected deno self-test')
-            assert(hasRun(`bunx functionalscript@${functionalscript} t`)(gha), 'expected bun self-test')
+            assert(hasRun(`bun x functionalscript@${functionalscript} t`)(gha), 'expected bun self-test')
         },
         otherPackage: () => {
             const gha = runDefault('{"name":"other-package"}')
             assert(hasRun(`deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} t`)(gha), 'expected canonical deno self-test')
-            assert(hasRun(`bunx functionalscript@${functionalscript} t`)(gha), 'expected canonical bun self-test')
+            assert(hasRun(`bun x functionalscript@${functionalscript} t`)(gha), 'expected canonical bun self-test')
         },
         configuredPackageVersion: () => {
             const gha = runDefault('{"name":"other-package","version":"1.2.3"}')
@@ -164,7 +164,7 @@ export const proof = {
             assert(hasRun("deno test --allow-read --allow-env --allow-sys --coverage && deno coverage --include='.*module\\.f\\.ts'")(gha), 'expected limited-permission deno coverage')
             assert(hasRun(`bun install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version bun cache')
             assert(hasRun('bun install --frozen-lockfile')(gha), 'expected bun lock install')
-            assert(hasRun(`bunx functionalscript@${functionalscript} t`)(gha), 'expected configured-version bun install')
+            assert(hasRun(`bun x functionalscript@${functionalscript} t`)(gha), 'expected configured-version bun install')
         },
         missingPackageJson: () => {
             const gha = runDefault()

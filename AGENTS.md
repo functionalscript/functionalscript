@@ -74,10 +74,10 @@ environment.
 | `fjs t`                                | Node 22+ | to install     | After `npm install -g functionalscript`.    |
 | `npx functionalscript t`               | Node 22+ | yes            | No install step.                            |
 | `deno run -A npm:functionalscript t`   | Deno     | yes            | No install step.                            |
-| `bunx functionalscript t`              | Bun      | yes            | No install step.                            |
+| `bun x functionalscript t`             | Bun      | yes            | No install step.                            |
 
 The last four rows run a **published** FunctionalScript rather than this working
-tree's version. `npx`, `deno run`, and `bunx` resolve the latest release each
+tree's version. `npx`, `deno run`, and `bun x` resolve the latest release each
 time; `fjs` runs whatever you installed globally, which goes stale as new
 versions ship — re-run `npm install -g functionalscript` to update it.
 

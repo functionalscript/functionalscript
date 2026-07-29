@@ -26,11 +26,11 @@ The built-in emergent testing runner can run without adding FunctionalScript to
 
 - Node: `npx npm:functionalscript t`
 - Deno: `deno run -A npm:functionalscript t`
-- Bun: `bunx functionalscript t`
+- Bun: `bun x functionalscript t`
 
 Pin a specific package version by adding it after the package name, for example
 `npx npm:functionalscript@0.29.0 t`, `deno run -A npm:functionalscript@0.29.0 t`,
-or `bunx functionalscript@0.29.0 t`.
+or `bun x functionalscript@0.29.0 t`.
 
 This only applies to the built-in runner. External runners such as Playwright
 still need FunctionalScript installed so `all.test.ts` can import

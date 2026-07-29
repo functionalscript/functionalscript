@@ -12,7 +12,7 @@
       "runs-on": "ubuntu-26.04",
       "steps": [
         {
-          "run": "sudo apt-get update && sudo apt-get install -y libc6-dev-i386"
+          "run": "sudo apt-get update && sudo apt-get install -y libc6-dev-i386 gcc-multilib"
         },
         {
           "uses": "dtolnay/rust-toolchain@1.97.1",
@@ -424,7 +424,7 @@
           "run": "bun install --frozen-lockfile"
         },
         {
-          "run": "bunx functionalscript@0.38.0 t"
+          "run": "bun x functionalscript@0.38.0 t"
         },
         {
           "run": "bun test --coverage"

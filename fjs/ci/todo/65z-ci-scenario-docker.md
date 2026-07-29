@@ -49,7 +49,7 @@ immutable, version-specific release URLs — the same pins the workflow uses.
 | Bun | `config.bun` |
 | Playwright + browsers | `config.playwright` |
 | Rust toolchain | `config.actions['dtolnay/rust-toolchain']`, `config.rustup` |
-| Rust targets | every WASM target, plus `i686Linux` and its 32-bit headers on Intel |
+| Rust targets | every WASM target, plus `i686Linux` and its 32-bit toolchain on Intel |
 | Wasmtime | `config.wasmtime` |
 | Wasmer | `config.wasmer` |
 | FunctionalScript CLI | `config.functionalscript` |

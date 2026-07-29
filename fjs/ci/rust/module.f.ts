@@ -69,7 +69,11 @@ const wasmerOnlyTarget = (target: string): readonly MetaStep[] => [
  */
 export const i686Linux = {
     target: 'i686-unknown-linux-gnu',
-    package: 'libc6-dev-i386',
+    // `gcc-multilib` supplies the 32-bit `libgcc` and startup files `cc -m32`
+    // links against. `libc6-dev-i386` only *recommends* it, which is enough on
+    // a runner but not in the image, where `--no-install-recommends` would
+    // leave the linker without them.
+    packages: ['libc6-dev-i386', 'gcc-multilib'],
 } as const
 
 const i686 = (a: Architecture, v: Os): readonly MetaStep[] => {
@@ -77,7 +81,7 @@ const i686 = (a: Architecture, v: Os): readonly MetaStep[] => {
         switch (v) {
             case 'windows': return rustTarget('i686-pc-windows-msvc')
             case 'ubuntu': return [
-                { type: 'apt-get', package: i686Linux.package } as const,
+                ...i686Linux.packages.map(p => ({ type: 'apt-get', package: p }) as const),
                 ...rustTarget(i686Linux.target),
             ]
         }

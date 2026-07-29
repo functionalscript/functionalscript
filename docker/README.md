@@ -110,9 +110,11 @@ certificate normally.
 Both `amd64` and `arm64` are supported — matching the `ubuntu-26.04` and
 `ubuntu-26.04-arm` runners — and any other architecture fails the build instead
 of installing something unintended. The `amd64` image additionally carries the
-`i686-unknown-linux-gnu` Rust target and the 32-bit headers its `cargo` checks
-need, because the Ubuntu Intel job cross-compiles to 32-bit and the ARM runners
-have no equivalent.
+`i686-unknown-linux-gnu` Rust target and the 32-bit toolchain its `cargo` checks
+link against — `libc6-dev-i386` for the headers and `gcc-multilib` for the
+`libgcc` and startup files, which `libc6-dev-i386` only recommends and so would
+be dropped by `--no-install-recommends`. The Ubuntu Intel job cross-compiles to
+32-bit; the ARM runners have no equivalent.
 
 ## Build
 

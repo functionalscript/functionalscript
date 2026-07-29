@@ -30,9 +30,13 @@ export type ArchNames = {
 const run = (commands: readonly string[]): string =>
     `RUN ${commands.join(' \\\n    && ')}`
 
-/** The `name=value` shell assignments of `vars` for one architecture. */
+/**
+ * The `name="value"` shell assignments of `vars` for one architecture. Quoted
+ * because a value may be a list — the extra packages are two — and an unquoted
+ * assignment would run the second word as a command.
+ */
 const assignments = (vars: StringMap<string, ArchNames>) => (a: keyof ArchNames): string =>
-    definedEntries(vars).map(([name, value]) => `${name}=${value[a]}`).join('; ')
+    definedEntries(vars).map(([name, value]) => `${name}="${value[a]}"`).join('; ')
 
 /**
  * Commands setting `$arch` from `dpkg`, then one shell variable per entry of
@@ -116,7 +120,7 @@ const apt = (rust: boolean): string => block(
             // The 32-bit development files exist on Intel only, and only the
             // Rust i686 checks need them, so `$extra_packages` is empty
             // everywhere else and expands to nothing.
-            ...(rust ? arch({ extra_packages: { amd64: i686Linux.package, arm64: '' } }) : []),
+            ...(rust ? arch({ extra_packages: { amd64: i686Linux.packages.join(' '), arm64: '' } }) : []),
             // A plain `apt-get update` exits 0 even when every index failed to
             // download, so a fetch problem surfaces later as an unrelated
             // "unable to locate package". `--error-on=any` fails here instead.
