@@ -572,7 +572,7 @@
         },
         {
           "run": "image=\"ghcr.io/${GITHUB_REPOSITORY,,}/ci\"\ntag=\"$(sha256sum docker/Dockerfile | cut -d' ' -f1)-$(dpkg --print-architecture)\"\nref=\"$image:$tag\"\ndocker push \"$ref\"",
-          "if": "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository"
+          "if": "(github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && github.actor != 'dependabot[bot]'"
         }
       ]
     },
@@ -600,7 +600,7 @@
         },
         {
           "run": "image=\"ghcr.io/${GITHUB_REPOSITORY,,}/ci\"\ntag=\"$(sha256sum docker/Dockerfile | cut -d' ' -f1)-$(dpkg --print-architecture)\"\nref=\"$image:$tag\"\ndocker push \"$ref\"",
-          "if": "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository"
+          "if": "(github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && github.actor != 'dependabot[bot]'"
         }
       ]
     }

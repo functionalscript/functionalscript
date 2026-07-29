@@ -203,9 +203,12 @@ export const proof = {
                 const steps = job?.steps ?? []
                 const step = steps.find(s => s.run?.includes('docker push') === true)
                 assert(step !== undefined, `expected ${id} to publish the image`)
-                // A fork's pull request gets a read-only token whatever the job
-                // asks for, so the push is skipped rather than failed there.
+                // Both kinds of pull request GitHub gives a read-only token to
+                // skip the push rather than failing on it. Dependabot needs its
+                // own clause: its branches are in this repository, so the fork
+                // test alone would let it through.
                 assert(step.if?.includes('head.repo.full_name == github.repository') === true, `expected ${id} to skip publishing from a fork`)
+                assert(step.if?.includes("github.actor != 'dependabot[bot]'") === true, `expected ${id} to skip publishing from Dependabot`)
             }
         },
         // Reading a private package needs credentials just as publishing does,

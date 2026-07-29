@@ -375,12 +375,21 @@ const push: string = [
 ].join('\n')
 
 /**
- * A pull request from a fork gets a read-only token whatever the job asks for,
- * so pushing there would fail; such a run builds and verifies without
- * publishing. A fork's own runs are not affected — `$GITHUB_REPOSITORY` is the
- * fork, and its token can write to its own packages.
+ * Whether this run's token can write packages. GitHub hands a read-only one to
+ * two kinds of pull request whatever the job asks for, and pushing from either
+ * would fail at the last step of an otherwise green job:
+ *
+ * - **From a fork.** A fork's own runs are unaffected — `$GITHUB_REPOSITORY` is
+ *   then the fork, and its token writes to the fork's packages.
+ * - **From Dependabot.** Its branches live in this repository, so the fork test
+ *   above passes and this one is needed as well.
+ *
+ * Such a run still resolves, pulls or builds, and smoke tests the image; only
+ * publishing is skipped. Nothing is lost by that: neither kind of pull request
+ * can change the Dockerfile — its versions come from `../config/module.f.ts` —
+ * so the image they would publish is the one already published.
  */
-const canPush = "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository" as const
+const canPush = "(github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && github.actor != 'dependabot[bot]'" as const
 
 const dockerJob = (rust: boolean) => (runsOn: Image): Job => ({
     'runs-on': runsOn,
