@@ -46,6 +46,13 @@ Direct Nix CI remains the reference behavior and fallback during the OCI
 experiment. Nix builds the image directly; do not generate a Dockerfile as an
 intermediate representation unless a later requirement specifically needs one.
 
+That constraint describes the **Nix-built** images this TODO plans. It is not a
+verdict on the generated `docker/Dockerfile` and the `docker-intel` /
+`docker-arm` jobs that exist today: those are a separate, deliberately retained
+experiment, kept until Nix shows it can do the same at comparable or better
+cost. [65Z-ci-nix](65z-ci-nix.md) records the times they set as the baseline
+for that comparison, and they retire when Nix beats it.
+
 ```text
 proven generated Linux flake
         |

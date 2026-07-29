@@ -300,6 +300,26 @@ Measure:
 Use those measurements to choose per-OS/architecture, per-job,
 per-major-version, or hybrid boundaries.
 
+##### Baseline to beat: the Docker experiment
+
+A generated `docker/Dockerfile` and the `docker-intel` / `docker-arm` jobs that
+publish it to GHCR already exist. They are an **experiment, deliberately kept**
+until Nix demonstrates the same capability at comparable or better cost — not
+an alternative design competing with this one, and not something to remove as
+off-plan. Measured on the runners:
+
+| | Docker experiment |
+|---|---|
+| Cold build, per architecture | ~26 min |
+| Warm run (image unchanged) | ~43 s, pull and smoke test |
+| Cache key | SHA-256 of the generated Dockerfile, per architecture |
+
+Phase 4 should produce the same two numbers for the generated flakes. Nix wins
+the comparison by matching the warm number without a registry round trip, or by
+making the cold number small enough that caching matters less. The Docker jobs
+retire when it does; until then they stay, and `docker/README.md` describes
+what they do today.
+
 #### Later phases: OCI images
 
 Only after direct Linux CI works reliably through generated flakes should Linux
