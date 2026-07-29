@@ -64,46 +64,30 @@ See [`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md) for details on the `cas_add
 
 ### Using MCP with VS Code
 
-The repository includes an MCP configuration (`.copilot/mcp.json`) that defines the FunctionalScript CAS server. To use this server in VS Code:
+This repository keeps `.copilot/mcp.json` as the source of truth. VS Code auto-discovers `.vscode/mcp.json`; that file is **not committed** — it is generated locally from the canonical config.
 
-#### Option 1: Workspace Configuration (Recommended for contributors)
+One-time setup in your local clone:
 
-1. In your local clone, create a `.vscode/mcp.json` file with this content:
+1. Enable repository hooks:
 
-```json
-{
-  "servers": {
-    "functionalscriptCas": {
-      "type": "stdio",
-      "command": "node",
-      "args": ["./fjs/module.ts", "m"],
-      "cwd": "${workspaceFolder}"
-    }
-  }
-}
+```bash
+git config core.hooksPath .githooks
 ```
 
-2. VS Code will auto-discover this configuration when you open the workspace.
+2. Generate `.vscode/mcp.json` immediately (optional, the hooks will also create it on the next checkout/commit):
 
-#### Option 2: User Profile Configuration (Applies to all your workspaces)
-
-1. Run **MCP: Open User Configuration** from the Command Palette (`Cmd/Ctrl + Shift + P`).
-2. Add the FunctionalScript CAS server to your user `mcp.json`:
-
-```json
-{
-  "servers": {
-    "functionalscriptCas": {
-      "type": "stdio",
-      "command": "node",
-      "args": ["./fjs/module.ts", "m"],
-      "cwd": "/absolute/path/to/functionalscript/repo"
-    }
-  }
-}
+```bash
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\sync-mcp.ps1 -Mode sync
+# or:
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\sync-mcp.ps1 -Mode sync
 ```
 
-Replace `/absolute/path/to/functionalscript/repo` with your actual clone path.
+After that, the hooks keep `.vscode/mcp.json` up to date automatically:
+- **pre-commit** — re-syncs before every commit, including when `.copilot/mcp.json` is partially staged, and guards against direct edits to `.vscode/mcp.json`;
+- **post-merge / post-checkout** — re-syncs after a merge, pull, checkout, or file restore, and only warns if sync cannot run.
+- **post-rewrite** — re-syncs after amend/rebase operations, and only warns if sync cannot run.
+
+To update MCP config, edit `.copilot/mcp.json` only. The hooks propagate the change to `.vscode/mcp.json`.
 
 #### Using the MCP Tools in Chat
 
@@ -140,4 +124,3 @@ In FunctionalScript:
 - [KirillOsenkov](https://github.com/KirillOsenkov),
 - [antkmsft](https://github.com/antkmsft),
 - [Mark Heyman](https://opencollective.com/body-count).
-
