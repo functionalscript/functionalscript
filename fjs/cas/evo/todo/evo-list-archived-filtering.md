@@ -15,15 +15,24 @@ disagree instead of relying on an arbitrary head.
 
 ### Proposal
 
-Add an optional `archived?: true` parameter to the MCP server's `evo_list`
-command. Treat the parameter as a status filter:
+Add an optional `archived?: true` parameter to the core `Evo.list` API and
+forward it unchanged from the MCP adapter:
+
+```ts
+list(archived?: true): Subject[]
+```
+
+Treat the parameter as a status filter:
 
 - When omitted, return only active subjects.
 - When `archived: true` is provided, return only archived subjects.
 
-A subject is active when at least one of its current heads is not archived. It
-is archived only when every current head is archived. If heads disagree, the
-subject is active by default and is excluded from the archived-only result.
+A subject is active when it has at least one derived current head that is not
+archived. It is archived only when it has at least one derived current head and
+every derived current head is archived. A subject with no derived heads is
+excluded from both results: it is neither active nor archived. If heads
+disagree, the subject is active by default and is excluded from the
+archived-only result.
 
 The cache must continue to store every revision hash and parent as it does
 today. In addition, store each revision's archived flag keyed by its revision
@@ -38,15 +47,17 @@ the default result set and is therefore a breaking change.
 
 ### Tasks
 
-- [ ] Add the optional `archived?: true` parameter to the MCP server command.
+- [ ] Add `archived?: true` to the core `Evo.list` API and forward it from
+      the MCP adapter.
 - [ ] Store each revision's archived flag by revision hash while retaining the
       existing complete revision/parent graph.
 - [ ] Use `headsOf` over that graph when classifying subjects; do not cache a
       mutable running head set.
 - [ ] Return only subjects with at least one unarchived derived head when
       `archived` is omitted.
-- [ ] Return only subjects whose derived heads are all archived when
-      `archived: true` is provided.
+- [ ] Return only subjects with at least one derived head and all derived heads
+      archived when `archived: true` is provided.
+- [ ] Exclude subjects with no derived heads from both filtered results.
 - [ ] Add coverage for no heads, one active head, one archived head, and
       concurrent heads with both statuses.
 - [ ] Document the breaking-change behavior in the MCP/Evo API documentation.
