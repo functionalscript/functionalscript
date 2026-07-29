@@ -12,6 +12,30 @@ CI builds it too: the `docker-intel` and `docker-arm` jobs build the image on
 their native runners and run every tool in it, so a broken Dockerfile fails the
 pull request rather than a contributor's machine.
 
+## Published images
+
+A full build takes around fifteen minutes, so CI only pays that when it has to.
+Each job publishes to GHCR under the hash of the Dockerfile that produced it:
+
+```
+ghcr.io/<owner>/<repo>/ci:<sha256 of docker/Dockerfile>-<amd64|arm64>
+```
+
+and asks the registry before building — a run whose Dockerfile is unchanged
+pulls in seconds, and only a real change to the image pays for a build. The tag
+covers every input, since pins, package list, and install commands all live in
+the hashed file.
+
+The hash is a cache key, not an integrity proof: `docker build` is not
+byte-reproducible and registry tags are mutable, so a pulled image cannot be
+verified to equal a local build of the same file.
+
+To use the published image instead of building:
+
+```sh
+docker pull ghcr.io/functionalscript/functionalscript/ci:$(sha256sum docker/Dockerfile | cut -d' ' -f1)-$(dpkg --print-architecture)
+```
+
 ## What the image contains
 
 The image carries tools only — no copy of the repository — so the same image

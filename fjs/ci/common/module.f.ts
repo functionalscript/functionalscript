@@ -23,11 +23,21 @@ export type Image = typeof images[Os][Architecture]
 export const stepSchema = {
     run: option(string),
     uses: option(string),
-    with: option(record(string))
+    with: option(record(string)),
+    /** GitHub Actions expression; the step is skipped when it is false. */
+    if: option(string),
+    /** Environment for this step, so a secret reaches it without being spliced into the script. */
+    env: option(record(string))
 } as const satisfies unknown
 
 export const jobSchema = {
     'runs-on': string,
+    /**
+     * Token scopes for this job, replacing the workflow's when present. Only
+     * jobs that need more than the workflow-wide default set it, so the extra
+     * scope is not handed to every other job.
+     */
+    permissions: option(record(string)),
     steps: array(stepSchema)
 } as const satisfies unknown
 

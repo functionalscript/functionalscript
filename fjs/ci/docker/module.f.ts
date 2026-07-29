@@ -305,11 +305,74 @@ const smokeTest = (rust: boolean): string => [
     'fjs help',
 ].join(' && ')
 
+/**
+ * Shell resolving `$ref`: the image published for exactly this Dockerfile on
+ * exactly this architecture.
+ *
+ * The tag is the hash of the generated file, so it covers every input that
+ * shapes the image — version pins, package list, install commands alike — and
+ * needs no maintenance when one of them changes shape rather than value. The
+ * registry comes from `$GITHUB_REPOSITORY` (lowercased, as GHCR requires), so
+ * a fork publishes into its own namespace instead of failing against ours.
+ */
+const resolveRef: readonly string[] = [
+    'image="ghcr.io/${GITHUB_REPOSITORY,,}/ci"',
+    'tag="$(sha256sum docker/Dockerfile | cut -d\' \' -f1)-$(dpkg --print-architecture)"',
+    'ref="$image:$tag"',
+]
+
+/**
+ * Builds the image only when the registry has no copy for this Dockerfile.
+ *
+ * Any failure of `manifest inspect` counts as a miss — including the 401 a
+ * fork PR gets while the package is private — so the worst case is a slow
+ * build rather than a broken job.
+ */
+const buildIfMissing: string = [
+    ...resolveRef,
+    'echo "image: $ref"',
+    'if docker manifest inspect "$ref" > /dev/null 2>&1; then',
+    `  docker pull "$ref" && docker tag "$ref" ${tag}`,
+    'else',
+    `  docker build -t ${tag} -t "$ref" ./docker`,
+    'fi',
+].join('\n')
+
+/**
+ * Publishes the image so later runs, and the jobs that will run inside it, can
+ * skip the build. Pushing an image that was pulled rather than built is a
+ * no-op: every layer already exists under that digest.
+ */
+const push: string = [
+    ...resolveRef,
+    'echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin',
+    'docker push "$ref"',
+].join('\n')
+
+/**
+ * A pull request from a fork gets a read-only token whatever the job asks for,
+ * so pushing there would fail; such a run builds and verifies without
+ * publishing. A fork's own runs are not affected — `$GITHUB_REPOSITORY` is the
+ * fork, and its token can write to its own packages.
+ */
+const canPush = "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository" as const
+
 const dockerJob = (rust: boolean) => (runsOn: Image): Job => ({
     'runs-on': runsOn,
+    // `packages: write` is scoped to this job rather than the workflow, so no
+    // other job carries a token that can publish.
+    permissions: {
+        contents: 'read',
+        packages: 'write',
+    },
     steps: toSteps([
-        test({ run: `docker build -t ${tag} ./docker` }),
+        test({ run: buildIfMissing }),
         test({ run: `docker run --rm ${tag} bash -c "${smokeTest(rust)}"` }),
+        test({
+            run: push,
+            if: canPush,
+            env: { GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}' },
+        }),
     ]),
 })
 
@@ -320,8 +383,10 @@ const dockerJob = (rust: boolean) => (runsOn: Image): Job => ({
  * would be correct but would emulate the foreign half, which for a Rust
  * toolchain install and three browser downloads is the worst case for QEMU.
  *
- * The image is not cached or shared with other jobs yet: these jobs only prove
- * the generated Dockerfile still builds and that every tool in it runs.
+ * A full build takes around fifteen minutes, which is why it is conditional:
+ * the image is published to GHCR under the hash of the Dockerfile that
+ * produced it, so a run whose Dockerfile is unchanged pulls in seconds and
+ * only a genuine change to the image pays for a build.
  */
 export const dockerJobs = (rust: boolean): Jobs => ({
     'docker-intel': dockerJob(rust)(images.ubuntu.intel),

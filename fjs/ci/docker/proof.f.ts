@@ -170,10 +170,40 @@ export const proof = {
                 assert(smoke.includes('node --version'), `expected ${id} to still check Node`)
             }
         },
-        buildsAndSmokeTests: () => {
+        // A full build is about fifteen minutes, so it runs only when the
+        // registry has nothing for this Dockerfile.
+        buildsOnlyOnAMiss: () => {
             for (const [id, job] of entries(dockerJobs(true))) {
                 const runs = (job?.steps ?? []).flatMap(step => step.run === undefined ? [] : [step.run])
-                assert(runs.some(r => r === 'docker build -t functionalscript ./docker'), `expected ${id} to build the image`)
+                const resolve = runs.find(r => r.includes('docker manifest inspect'))
+                assert(resolve !== undefined, `expected ${id} to ask the registry first`)
+                // The tag is the hash of the file the build would use, so any
+                // change to the image — a pin, a package, a command — misses.
+                assert(resolve.includes('sha256sum docker/Dockerfile'), `expected ${id} to key the image by the Dockerfile hash`)
+                assert(resolve.includes('dpkg --print-architecture'), `expected ${id} to key the image by architecture`)
+                assert(resolve.includes('ghcr.io/${GITHUB_REPOSITORY,,}'), `expected ${id} to use the repository's own registry`)
+                assert(resolve.includes('docker pull "$ref"'), `expected ${id} to reuse a published image`)
+                assert(resolve.includes('docker build -t functionalscript -t "$ref" ./docker'), `expected ${id} to build on a miss`)
+            }
+        },
+        publishes: () => {
+            for (const [id, job] of entries(dockerJobs(true))) {
+                assertEq(job?.permissions?.['packages'], 'write', `expected ${id} to be able to publish`)
+                assertEq(job?.permissions?.['contents'], 'read', `expected ${id} to keep read access for checkout`)
+                const step = (job?.steps ?? []).find(s => s.run?.includes('docker push') === true)
+                assert(step !== undefined, `expected ${id} to publish the image`)
+                // A fork's pull request gets a read-only token whatever the job
+                // asks for, so the push is skipped rather than failed there.
+                assert(step.if?.includes('head.repo.full_name == github.repository') === true, `expected ${id} to skip publishing from a fork`)
+                // The token reaches the script as an environment variable
+                // instead of being spliced into it.
+                assertEq(step.env?.['GITHUB_TOKEN'], '${{ secrets.GITHUB_TOKEN }}', `expected ${id} to take the token from the environment`)
+                assert(!step.run?.includes('secrets.'), `unexpected secret interpolated into ${id}'s script`)
+            }
+        },
+        smokeTests: () => {
+            for (const [id, job] of entries(dockerJobs(true))) {
+                const runs = (job?.steps ?? []).flatMap(step => step.run === undefined ? [] : [step.run])
                 // Checking out is what gives `docker build` its context.
                 assert((job?.steps ?? []).some(step => step.uses?.startsWith('actions/checkout') === true), `expected ${id} to check out the repository`)
                 const smoke = runs.find(r => r.startsWith('docker run'))

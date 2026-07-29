@@ -58,30 +58,60 @@ The image carries tools only — the repository is mounted or checked out at
 `/workspace` — so one image serves both a developer's working tree and a CI
 checkout.
 
-#### Cache key
+#### Image identity: the Dockerfile's hash
+
+Done. The image is published to GHCR as
 
 ```
-linux-<arch>-node<NODE>-deno<DENO>-bun<BUN>-playwright<PW>-rust<RUST>-wasmtime<WT>-wasmer<WM>
+ghcr.io/<owner>/<repo>/ci:<sha256 of docker/Dockerfile>-<amd64|arm64>
 ```
 
-Derived entirely from the version constants so it self-updates on any version
-bump. The key belongs in `fjs/ci/docker/module.f.ts` next to the Dockerfile it
-identifies, and is consumed by the `docker-build` job below.
+An earlier plan keyed the cache on the version constants
+(`linux-<arch>-node<NODE>-deno<DENO>-…`). Hashing the generated file is
+strictly better: it covers every input that shapes the image — pins, package
+list, install commands alike — so it cannot go stale when one of them changes
+shape rather than value, and it needs no maintenance. The hash is computed in
+the job from the checked-out file, so it can never disagree with what is built.
 
-#### `docker-build` job
+The hash is a **cache key, not an integrity proof**: `docker build` is not
+byte-reproducible and GHCR tags are mutable, so a pulled image cannot be
+verified to equal a local build of that Dockerfile. It carries the same trust
+as any CI cache.
 
-The `docker-intel` and `docker-arm` jobs already build the image on native
-runners and smoke test every tool in it — one job per architecture, since the
-image resolves its architecture at build time and a multi-platform build would
-emulate the foreign half. They build from scratch every run and keep the result
-to themselves. What is left is to make that result reusable:
+#### `docker-intel` / `docker-arm` jobs
 
-1. Compute the cache key from the version pins.
-2. Restore the image from `actions/cache`, so an unchanged pin set skips the
-   build entirely.
-3. Build on a cache miss, as the jobs do today.
-4. Upload it as a workflow artifact so downstream jobs `docker load` it
-   instead of rebuilding.
+Done. Each resolves the ref, asks the registry, and builds only on a miss:
+
+```sh
+if docker manifest inspect "$ref" > /dev/null 2>&1; then
+  docker pull "$ref" && docker tag "$ref" functionalscript
+else
+  docker build -t functionalscript -t "$ref" ./docker
+fi
+```
+
+Then it smoke tests every tool in the image and pushes. Pushing a pulled image
+is a no-op — the layers already exist under that digest — so the push needs no
+"did we actually build?" flag.
+
+`packages: write` is scoped to these two jobs rather than the workflow, so
+every other job keeps the workflow-wide `contents: read`.
+
+#### Forks and package visibility
+
+The registry comes from `$GITHUB_REPOSITORY`, so a fork's own runs publish into
+the fork's own namespace. A pull request *from* a fork is different: GitHub
+hands it a read-only token whatever the job requests, so the push step is
+skipped there rather than failing
+(`github.event.pull_request.head.repo.full_name == github.repository`).
+
+**Manual step, once:** the package is private on first publish. Until someone
+makes it public in GHCR, `docker manifest inspect` fails for fork pull requests
+and they rebuild from scratch — correct, just slow. Making it public also lets
+contributors pull the exact CI image without a token.
+
+Unmerged pull requests leave images behind, so this wants a pruning routine or
+a GHCR retention rule before the tag list grows unmanageable.
 
 #### Architectures
 
@@ -99,10 +129,14 @@ All tests that currently run on Ubuntu, plus:
 
 - [x] Build the image on both architectures in CI (`docker-intel`,
       `docker-arm`), with a smoke test of every tool it installs.
-- [ ] Export the cache key from `fjs/ci/docker/module.f.ts`.
-- [ ] Add cache restore and artifact upload to the two build jobs.
-- [ ] Point the Ubuntu jobs at the artifact (`needs:` the build job, `docker
-      load`, run steps in the container).
+- [x] Key the image by the Dockerfile's hash, build only on a registry miss,
+      and publish to GHCR.
+- [ ] Make the GHCR package public, so fork pull requests and contributors can
+      pull it (manual, once — see above).
+- [ ] Prune images from pull requests that never merged.
+- [ ] Point the Ubuntu jobs at the published image (`docker run` the resolved
+      ref; no artifact upload or `docker load` needed now that it is in a
+      registry).
 - [ ] Merge the standalone `playwright` job into the Docker Ubuntu job.
 - [ ] Run the scenario tests inside the Docker Ubuntu job.
 

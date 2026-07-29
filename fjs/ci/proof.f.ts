@@ -92,9 +92,15 @@ export const proof = {
         assert(hasRunInJob('node26', 'git add -A && git diff --cached --exit-code')(gha), 'expected Node 26 generated-file drift check')
         assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')
         // The generated Dockerfile is built on both architectures, so a change
-        // to it fails CI rather than a contributor's machine.
-        assert(hasRunInJob('docker-intel', 'docker build -t functionalscript ./docker')(gha), 'expected the Intel image build')
-        assert(hasRunInJob('docker-arm', 'docker build -t functionalscript ./docker')(gha), 'expected the ARM image build')
+        // to it fails CI rather than a contributor's machine — but only when
+        // the registry has no image for that exact file.
+        for (const id of ['docker-intel', 'docker-arm'] as const) {
+            assert(hasRunInJob(id, 'docker manifest inspect "$ref"')(gha), `expected ${id} to check the registry`)
+            assert(hasRunInJob(id, 'docker build -t functionalscript -t "$ref" ./docker')(gha), `expected ${id} to build on a miss`)
+            assert(hasRunInJob(id, 'docker push "$ref"')(gha), `expected ${id} to publish the image`)
+            assertEq(gha.jobs[id]?.permissions?.['packages'], 'write', `expected ${id} to be able to publish`)
+        }
+        assert(gha.jobs['node26']?.permissions === undefined, 'expected other jobs to keep the workflow permissions')
         for (const id of [
             'ubuntu-intel',
             'ubuntu-arm',
