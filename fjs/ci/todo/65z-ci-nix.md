@@ -32,10 +32,8 @@ npm run ci-update
         +-- native Windows installation steps
 ```
 
-The generated `.nix` files are build artifacts. They are committed so that CI
-can use them directly, changes are reviewable, and a failed environment can be
-reproduced without rerunning the generator. They are not intended to be
-maintained manually or optimized for reuse by developers.
+The generated `.nix` files are committed build artifacts. They are not intended
+to be maintained manually or optimized for reuse by developers.
 
 ### Independent generated flakes
 
@@ -67,8 +65,7 @@ nix/generated/
 ```
 
 Do not decide the final boundary before measuring build, evaluation, cache, and
-CI concurrency behavior. A hybrid layout is also valid. For example, Node,
-WASM, and Playwright may use different boundaries.
+CI concurrency behavior. A hybrid layout is also valid.
 
 A developer-oriented root flake may later compose the generated environments,
 but that is explicitly out of scope for this task.
@@ -88,32 +85,28 @@ unnecessary cross-platform dispatch logic. It may include:
 - validation commands that compare installed versions with the CI config;
 - an optional Linux OCI image output.
 
-This makes a single generated flake an independently buildable and debuggable
-specification. A failure such as `playwright-linux-x86_64` can be reproduced
-without evaluating unrelated macOS, ARM, Node, or WASM environments.
-
-Generated duplication is acceptable. The reusable abstractions belong in the
-TypeScript/FunctionalScript generator; the generated Nix should favor explicit,
-resolved build plans over manually maintained generic abstractions.
+Generated duplication is acceptable. Reusable abstractions belong in the
+TypeScript/FunctionalScript generator; generated Nix should favor explicit,
+resolved build plans that are easy to reproduce and debug independently.
 
 ### Host systems and compilation targets
 
 Keep host systems separate from additional compilation targets.
 
-Examples of hosts:
+Host examples:
 
-- `x86_64-linux`
-- `aarch64-linux`
-- `x86_64-darwin`
-- `aarch64-darwin`
+- `x86_64-linux`;
+- `aarch64-linux`;
+- `x86_64-darwin`;
+- `aarch64-darwin`.
 
-Examples of targets installed into a host environment:
+Targets installed into a host environment may include:
 
-- `wasm32-wasip1`
-- `wasm32-wasip1-threads`
-- `wasm32-wasip2`
-- `wasm32-unknown-unknown`
-- `i686-unknown-linux-gnu`
+- `wasm32-wasip1`;
+- `wasm32-wasip1-threads`;
+- `wasm32-wasip2`;
+- `wasm32-unknown-unknown`;
+- `i686-unknown-linux-gnu`.
 
 An x86-64 Linux environment that tests `i686-unknown-linux-gnu` may require a
 32-bit linker and libraries, but it is still an `x86_64-linux` host flake.
@@ -126,26 +119,24 @@ macOS, and Linux CI, even when those releases are not yet packaged by
 `nixpkgs`.
 
 For each supported host, the generated derivation should fetch the exact
-upstream artifact using its expected hash. `nixpkgs` remains useful for Nix
-helpers, unpacking tools, patching tools, runtime libraries, and image creation,
-but it must not silently choose different Node, Deno, Bun, Rust, Wasmtime,
-Wasmer, or Playwright versions.
+upstream artifact using its expected hash. `nixpkgs` may provide helpers,
+unpacking and patching tools, runtime libraries, and image builders, but it must
+not silently choose different Node, Deno, Bun, Rust, Wasmtime, Wasmer, or
+Playwright versions.
 
 ### Playwright
 
 Treat Playwright as a coordinated, precisely versioned environment rather than
-as a single executable. The generated configuration should keep these parts in
-sync:
+as a single executable. Keep these parts synchronized:
 
 - the Playwright package and driver version;
 - Chromium, Firefox, and WebKit revisions;
-- the platform-specific browser artifacts and hashes;
+- platform-specific browser artifacts and hashes;
 - required native runtime libraries;
 - `PLAYWRIGHT_BROWSERS_PATH` and related environment variables.
 
-The generator should derive this information from the same Playwright version
-used by the generated GitHub workflow. CI should validate that the package and
-browser bundle belong to the expected version.
+CI should validate that the package and browser bundle belong to the expected
+Playwright version and must not download an unpinned replacement during tests.
 
 ### Platform split
 
@@ -158,6 +149,37 @@ browser bundle belong to the expected version.
 Nix under WSL is not a replacement for native Windows CI because it tests Linux
 behavior rather than Windows paths, shells, binaries, and filesystem semantics.
 
+### Nix bootstrap on GitHub-hosted runners
+
+The generated flakes cannot run until Nix itself is installed. Stock Linux and
+macOS GitHub-hosted runners must therefore receive an explicit bootstrap before
+any `nix build` or `nix develop` command.
+
+For every generated Linux or macOS job, the generated workflow should perform
+this sequence:
+
+1. check out the repository;
+2. install Nix using a pinned, trusted GitHub Action;
+3. configure the selected Nix-store cache action or cache strategy;
+4. run the job command through the generated flake.
+
+Conceptually:
+
+```yaml
+steps:
+  - uses: actions/checkout@<pinned-version>
+  - uses: <nix-installer-action>@<pinned-version>
+  - uses: <nix-cache-action>@<pinned-version>
+  - run: >
+      nix develop ./nix/generated/playwright-linux-x86_64
+      --command npm run test-playwright
+```
+
+The exact installer and cache actions remain generator configuration, just like
+other GitHub Actions dependencies. The bootstrap must be emitted before the
+first Nix command and must work on both Linux and macOS. Windows jobs do not use
+this bootstrap.
+
 ### Lock files
 
 Each independent flake may have its own generated `flake.lock`. The lock file
@@ -165,25 +187,26 @@ pins `nixpkgs` and other flake inputs; exact upstream tools are pinned in the
 generated derivations by version, URL, and hash.
 
 The generator should normally keep all flakes on the same intended `nixpkgs`
-revision, but independent locks also allow a specific environment to use a
-different revision when required.
+revision, while allowing an exceptional environment to use another revision
+when required.
 
 ### CI usage
 
-A GitHub job should reference the generated directory directly, for example:
+After the Nix bootstrap, a GitHub job references the generated directory
+directly:
 
 ```sh
 nix develop ./nix/generated/playwright-linux-x86_64 --command npm run test-playwright
 ```
 
-or build a declared package or image output:
+or builds a declared package or image output:
 
 ```sh
 nix build ./nix/generated/linux-x86_64#node-24
 nix build ./nix/generated/linux-x86_64#oci-image
 ```
 
-The exact output names depend on whether the experiment chooses per-system,
+The exact output names depend on whether measurements select per-system,
 per-job, or hybrid flakes.
 
 ### Tasks
@@ -192,6 +215,10 @@ per-job, or hybrid flakes.
       versions, upstream URLs, archive formats, and hashes.
 - [ ] Generate independent flakes for native Linux and macOS CI; do not add a
       root-level generic flake.
+- [ ] Generate the Linux/macOS workflow bootstrap: checkout, pinned Nix installer,
+      selected Nix cache configuration, then the first Nix command.
+- [ ] Verify the Nix bootstrap on every supported Linux and macOS runner and
+      architecture before converting jobs.
 - [ ] Keep native Windows jobs on the existing generated installation steps.
 - [ ] Add installation-version checks for every generated environment.
 - [ ] Model host systems separately from Rust/WASM/32-bit compilation targets.
