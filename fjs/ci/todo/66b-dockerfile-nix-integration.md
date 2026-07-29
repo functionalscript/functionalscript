@@ -21,7 +21,8 @@ Nix environment or from its OCI packaging and distribution.
 
 ### Proposal
 
-Implement the migration in six strictly ordered phases:
+Implement the migration in these six strictly ordered phases. Each phase number
+has exactly the same meaning in the overview, detailed sections, and task lists:
 
 ```text
 Phase 1: generate exact target-specific Nix flakes
@@ -54,12 +55,18 @@ The generator owns:
 - upstream URLs and archive formats;
 - hashes;
 - platform-specific installation details;
-- Playwright package and browser coordination.
+- Playwright package and browser coordination;
+- the exact full `nixpkgs` commit used by every generated flake.
 
 Adding or deleting a tool, version line, host, architecture, target, or CI job
 in the source configuration must add or delete the corresponding generated Nix
 files. The `.nix` files are committed generated artifacts and are never
 maintained manually.
+
+The maintained configuration must include one authoritative exact `nixpkgs`
+revision, for example `config.nix.nixpkgsRevision`. The generator must not infer
+this value from an existing generated lock or resolve a moving branch when a
+flake or lock is created.
 
 ### 2. Generate independent resolved flakes
 
@@ -92,7 +99,7 @@ Do not choose the permanent boundary before benchmarking. Each target-specific
 flake should be explicit, independently buildable, and independently
 debuggable.
 
-### 3. Pin exact upstream artifacts
+### 3. Pin exact upstream artifacts and `nixpkgs`
 
 Do not install Node, Deno, Bun, Rust, Wasmtime, Wasmer, or Playwright by asking
 `nixpkgs` for its currently packaged version.
@@ -108,8 +115,20 @@ cross-platform CI updater. Each generated target records its own:
 - runtime dependencies.
 
 `nixpkgs` may provide helpers, patching hooks, system libraries, shell tools,
-and later OCI builders. Its revision is pinned by each generated `flake.lock`,
-but it does not independently select project tool versions.
+and later OCI builders. It does not independently select project tool versions.
+
+Every generated flake must construct its `nixpkgs` input from the maintained
+full commit, for example:
+
+```nix
+inputs.nixpkgs.url = "github:NixOS/nixpkgs/<configured-full-commit>";
+```
+
+`npm run ci-update` must generate or refresh every `flake.lock` from that exact
+revision and verify that each lock's `locked.rev` equals the configured value.
+The lock records resolved metadata such as `narHash`, but it is not the
+maintained source of the revision. A target-specific revision exception must be
+explicit in maintained configuration rather than appearing as lock-file drift.
 
 ### 4. Model hosts and targets separately
 
@@ -167,12 +186,14 @@ existing CI jobs and without adding OCI outputs.
 `npm run ci-update` should:
 
 1. resolve versions and upstream artifacts for every supported target;
-2. compute or import expected hashes;
-3. generate all required target-specific `flake.nix` files;
-4. generate or refresh their `flake.lock` files;
-5. delete stale generated directories;
-6. fail when a required platform artifact is unavailable;
-7. support a regeneration check that produces no diff.
+2. read the exact maintained `nixpkgs` revision;
+3. compute or import expected hashes;
+4. generate all required target-specific `flake.nix` files;
+5. generate or refresh their `flake.lock` files from the configured revision;
+6. verify every lock's `locked.rev` matches the configured revision;
+7. delete stale generated directories;
+8. fail when a required platform artifact is unavailable;
+9. support a regeneration check that produces no diff.
 
 The generated files should already contain their exact version checks and the
 commands needed by Phase 2, but Phase 1 is complete when generation itself is
@@ -293,11 +314,38 @@ The initial publication workflow must:
 
 - run only on `push` to the protected default branch after merge;
 - not include `workflow_dispatch`;
-- grant `contents: read` and `packages: write` only to the publication job;
-- build from the protected default-branch commit;
-- build and validate both architecture-specific OCI outputs;
-- push immutable architecture-specific identities;
+- keep workflow-level permissions at `contents: read`;
+- build and validate architecture-specific OCI outputs in read-only jobs;
+- transfer validated image archives or equivalent immutable outputs to a final
+  publication job;
+- grant `packages: write` only to that final publication job;
+- push immutable architecture-specific identities from the publication job;
 - publish the multi-platform manifest only after both variants succeed.
+
+Conceptually:
+
+```yaml
+permissions:
+  contents: read
+
+jobs:
+  build-amd64:
+    # Build, validate, and upload the OCI archive.
+
+  build-arm64:
+    # Build, validate, and upload the OCI archive.
+
+  publish:
+    needs: [build-amd64, build-arm64]
+    permissions:
+      contents: read
+      packages: write
+    # Push validated images and publish the manifest.
+```
+
+The build and validation jobs must never inherit package-write permission. If a
+later implementation combines build and push in one job, that job is the
+publication job and is the only job allowed to receive `packages: write`.
 
 A manual rebuild may be designed later only with an enforced protected-branch
 ref and, when appropriate, a protected environment approval. It is not part of
@@ -330,6 +378,9 @@ it. Direct Nix CI remains the reference behavior. For a selected OCI-backed job:
       generator used by `npm run ci-update`.
 - [ ] Generate exact per-host tool artifacts, URLs, formats, and hashes from the
       existing CI source configuration.
+- [ ] Add the exact full `nixpkgs` commit to maintained CI configuration.
+- [ ] Generate every flake and lock from that configured revision and reject any
+      lock whose `locked.rev` differs.
 - [ ] Generate independent Linux and macOS flake directories without a root
       aggregate flake.
 - [ ] Generate and refresh a `flake.lock` for each independent flake.
@@ -373,8 +424,11 @@ it. Direct Nix CI remains the reference behavior. For a selected OCI-backed job:
 
 #### Phase 6: publication and optional consumption
 
-- [ ] Generate a push-to-protected-default-branch GHCR publication workflow with
-      `packages: write` and no initial `workflow_dispatch` trigger.
+- [ ] Generate a push-to-protected-default-branch GHCR workflow with
+      workflow-level `contents: read` only and no initial `workflow_dispatch`.
+- [ ] Keep architecture build and validation jobs free of `packages: write`.
+- [ ] Grant `contents: read` and `packages: write` only to the final publication
+      job that pushes the validated images and manifest.
 - [ ] Keep PR and merge-group workflows read-only.
 - [ ] Configure public GHCR visibility and verify anonymous pulls.
 - [ ] Publish architecture-specific images and the multi-platform manifest only
@@ -392,8 +446,8 @@ it. Direct Nix CI remains the reference behavior. For a selected OCI-backed job:
 ### Related
 
 - [65Z-ci-nix](65z-ci-nix.md) — generation, validation, and direct Nix CI.
-- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — later OCI generation,
-  publication, and optional consumption.
+- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — blocked later OCI
+  generation, publication, and optional consumption.
 - [GitHub issue #1034](https://github.com/functionalscript/functionalscript/issues/1034)
   — original Dockerfile/Nix proposal.
 - i145 — Docker containers for Linux CI jobs.
