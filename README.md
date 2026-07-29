@@ -60,11 +60,58 @@ The CAS is also exposed as an [MCP](https://modelcontextprotocol.io/) server so 
 claude mcp add cas -- npx functionalscript m
 ```
 
-In VS Code, open **Copilot Chat**, switch to **Agent**, and use the MCP tools from the **Configure Tools** picker. A simple prompt like this exercises the server:
+See [`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md) for details on the `cas_add`, `cas_get`, and `cas_list` tools.
 
-> Add a short text blob to CAS with the contents `hello from FunctionalScript` and show me the resulting hash.
+### Using MCP with VS Code
 
-See [`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md) for details on the `cas_add`, `cas_get`, and `cas_list` tools, and the [VS Code MCP docs](https://code.visualstudio.com/docs/agent-customization/mcp-servers) for workspace configuration details.
+The repository includes an MCP configuration (`.copilot/mcp.json`) that defines the FunctionalScript CAS server. To use this server in VS Code:
+
+#### Option 1: Workspace Configuration (Recommended for contributors)
+
+1. In your local clone, create a `.vscode/mcp.json` file with this content:
+
+```json
+{
+  "servers": {
+    "functionalscriptCas": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./fjs/module.ts", "m"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
+```
+
+2. VS Code will auto-discover this configuration when you open the workspace.
+
+#### Option 2: User Profile Configuration (Applies to all your workspaces)
+
+1. Run **MCP: Open User Configuration** from the Command Palette (`Cmd/Ctrl + Shift + P`).
+2. Add the FunctionalScript CAS server to your user `mcp.json`:
+
+```json
+{
+  "servers": {
+    "functionalscriptCas": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./fjs/module.ts", "m"],
+      "cwd": "/absolute/path/to/functionalscript/repo"
+    }
+  }
+}
+```
+
+Replace `/absolute/path/to/functionalscript/repo` with your actual clone path.
+
+#### Using the MCP Tools in Chat
+
+Once configured, open Copilot Chat (`Ctrl+Alt+I` on Windows/Linux, `Cmd+Option+I` on macOS), select **Agent**, then use **Configure Tools** to enable the MCP tools. Try a prompt like:
+
+> "Add a short text blob to CAS: 'Hello from FunctionalScript'"
+
+The MCP tools (`cas_add`, `cas_get`, `cas_list`) will be available in the agent's tool panel. For more details on the tools and examples, see [`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md).
 
 ## Vision
 
