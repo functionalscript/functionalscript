@@ -76,16 +76,20 @@ The two npm-installed CLIs (`playwright`, `functionalscript`) are the
 exception: they are pinned to exact versions and integrity-checked by npm
 against the registry, not by a hash committed here.
 
-### Why release archives and not Nix
+### Why this image fetches release archives
 
-Installing the tools with Nix was considered for reproducibility. Nixpkgs pins
-versions by channel revision rather than per package, so holding Node, Deno,
-Bun, Rust, Wasmtime, and Wasmer at exactly the versions CI uses would mean
-pinning a separate nixpkgs revision per tool — more moving parts than fetching
-each tool's own release archive, which is already immutable and
-version-addressed. Playwright's browsers and their system dependencies are also
-hard to express as Nix derivations. Nix stays under evaluation for macOS CI,
-where a Linux container is not an option.
+Each tool comes from its own upstream release rather than a package manager's
+index, because that is what makes an exact version addressable: a distribution
+channel pins versions by revision, not per package, so matching the CI pins
+through one would mean tracking a separate revision per tool.
+
+This is not a rejection of Nix. `fjs/ci/todo/65z-ci-nix.md` and
+`66b-dockerfile-nix-integration.md` plan to generate Nix flakes from the same
+`fjs/ci/` configuration and to run Linux and macOS CI through them, fetching the
+same exact upstream artifacts by hash — with OCI images built from those
+derivations later, and explicitly not via a generated Dockerfile. This file
+documents the image that exists today; those documents describe where the CI
+environment is going.
 
 ### How `apt` is pinned
 
