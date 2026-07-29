@@ -94,7 +94,7 @@ const packages: readonly string[] = [
 // until `ca-certificates` lands: integrity of the packages comes from the
 // archive's GPG signature, checked by the `gpgv` and `ubuntu-keyring` the base
 // image does ship, which is the same guarantee a plain-HTTP mirror gives.
-const noTlsVerify = '/etc/apt/apt.conf.d/99snapshot-bootstrap'
+const noTlsVerify = '/etc/apt/apt.conf.d/99snapshot-bootstrap' as const
 
 const apt = block(
     'Build prerequisites, resolved against a dated archive snapshot so that a rebuild installs the same packages.',
@@ -276,7 +276,7 @@ export const dockerfile = (rust: boolean): string => [
 ].join('\n\n') + '\n'
 
 /** Tag the CI jobs build the image under, matching docker/README.md. */
-const tag = 'functionalscript'
+const tag = 'functionalscript' as const
 
 // Every tool the image exists to provide, asked for its version. A build that
 // succeeds while leaving a tool off `PATH` — the wrong install prefix, an
