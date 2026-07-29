@@ -1,5 +1,6 @@
 import { ci, main } from './module.f.ts'
-import { functionalscript } from './config/module.f.ts'
+import { functionalscript, nixpkgsLock, playwright } from './config/module.f.ts'
+import { playwrightFlakeDir } from './nix/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
@@ -42,6 +43,18 @@ const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []
     const [state, result] = virtual(makeState(rust))(ci({ nodeExtra }))
     assertEq(result, 0)
     return workflow(state)
+}
+
+const generatedTextFile = (state: State, path: readonly string[]): string => {
+    let dir: Dir = state.root
+    for (const part of path.slice(0, -1)) {
+        const next: unknown = dir[part]
+        assert(typeof next === 'object' && next !== null && !Array.isArray(next), next)
+        dir = next as Dir
+    }
+    const file = dir[path[path.length - 1]]
+    assert(!(!Array.isArray(file) || file.length === 0), file)
+    return utf8ToString(file[0])
 }
 
 const runDefault = (packageJson?: string): GitHubAction => {
@@ -151,5 +164,30 @@ export const proof = {
         const job = ubuntu([test({ run: 'echo hi' })])
         assert(job['runs-on'] !== undefined, 'expected runs-on')
         assert(job.steps.length > 0, 'expected steps')
+    },
+    nix: {
+        playwrightFlake: () => {
+            const [state, result] = virtual(makeState(false))(ci({ nodeExtra: () => [] }))
+            assertEq(result, 0)
+            const path = playwrightFlakeDir.split('/')
+            const flakeNix = generatedTextFile(state, [...path, 'flake.nix'])
+            assert(
+                flakeNix.includes(`github:${nixpkgsLock.owner}/${nixpkgsLock.repo}/${nixpkgsLock.rev}`),
+                'expected pinned nixpkgs input')
+            assert(flakeNix.includes(playwright), 'expected pinned Playwright version')
+            const flakeLock = JSON.parse(generatedTextFile(state, [...path, 'flake.lock']))
+            assertEq(flakeLock.version, 7, 'expected flake.lock format version 7')
+            assertEq(flakeLock.nodes.nixpkgs.locked.rev, nixpkgsLock.rev, 'expected locked nixpkgs rev')
+            assertEq(flakeLock.nodes.nixpkgs.locked.narHash, nixpkgsLock.narHash, 'expected locked nixpkgs narHash')
+        },
+        deterministic: () => {
+            const [state0] = virtual(makeState(false))(ci({ nodeExtra: () => [] }))
+            const [state1] = virtual(makeState(false))(ci({ nodeExtra: () => [] }))
+            const path = [...playwrightFlakeDir.split('/'), 'flake.lock']
+            assertEq(
+                generatedTextFile(state0, path),
+                generatedTextFile(state1, path),
+                'expected byte-identical regeneration')
+        },
     },
 }

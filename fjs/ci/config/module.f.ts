@@ -36,6 +36,20 @@ export const deno = '2.9.4'
 // https://www.npmjs.com/package/playwright
 export const playwright = '1.62.0'
 
+// Pinned `nixpkgs` input for generated Nix flakes
+// (fjs/ci/todo/65z-ci-nix.md, Phase 1 experiment). Generation reads this
+// value only; it is never resolved or refreshed by `npm run ci-update`.
+// Changing it is a deliberate, separate operation (the not-yet-implemented
+// `npm run ci-nix-input-update`), not part of ordinary regeneration.
+// https://github.com/NixOS/nixpkgs/commit/a62e6edd6d5e1fa0329b8653c801147986f8d446
+export const nixpkgsLock = {
+    owner: 'NixOS',
+    repo: 'nixpkgs',
+    rev: 'a62e6edd6d5e1fa0329b8653c801147986f8d446',
+    narHash: 'sha256-oamiKNfr2MS6yH64rUn99mIZjc45nGJlj9eGth/3Xuw=',
+    lastModified: 1717159533,
+} as const
+
 // https://nodejs.org/en/download
 export const node = {
     default: '26.5.0',

@@ -4,8 +4,9 @@
  * @module
  */
 import { pure, step, type Effect } from '../effects/module.f.ts'
-import { access, writeUtf8File, type NodeOp } from '../effects/node/module.f.ts'
+import { access, mkdir, writeUtf8File, type NodeOp } from '../effects/node/module.f.ts'
 import { functionalscript, images } from './config/module.f.ts'
+import { playwrightFlakeDir, playwrightFlakeLock, playwrightFlakeNix } from './nix/module.f.ts'
 import {
     type Architecture,
     type GitHubAction,
@@ -71,7 +72,13 @@ export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> => step(
         }
         return step(
             writeUtf8File('.github/workflows/ci.yml', JSON.stringify(gha, null, '  ')),
-            () => pure(0))
+            () => step(
+                mkdir(playwrightFlakeDir, { recursive: true }),
+                () => step(
+                    writeUtf8File(`${playwrightFlakeDir}/flake.nix`, playwrightFlakeNix),
+                    () => step(
+                        writeUtf8File(`${playwrightFlakeDir}/flake.lock`, playwrightFlakeLock),
+                        () => pure(0)))))
     })
 
 export const main = () => ci({ nodeExtra: () => [] })
