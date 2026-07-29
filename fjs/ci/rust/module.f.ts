@@ -62,13 +62,23 @@ const wasmerOnlyTarget = (target: string): readonly MetaStep[] => [
     ...cargoTestPair(target, '.cargo/config.wasmer.toml')
 ]
 
+/**
+ * 32-bit Intel Linux: the Rust target and the package its `cargo` checks need.
+ * The container image installs both on `amd64`, so it can host the Ubuntu Intel
+ * job rather than only the checks that happen to need no cross-compilation.
+ */
+export const i686Linux = {
+    target: 'i686-unknown-linux-gnu',
+    package: 'libc6-dev-i386',
+} as const
+
 const i686 = (a: Architecture, v: Os): readonly MetaStep[] => {
     if (a === 'intel') {
         switch (v) {
             case 'windows': return rustTarget('i686-pc-windows-msvc')
             case 'ubuntu': return [
-                { type: 'apt-get', package: 'libc6-dev-i386' } as const,
-                ...rustTarget('i686-unknown-linux-gnu'),
+                { type: 'apt-get', package: i686Linux.package } as const,
+                ...rustTarget(i686Linux.target),
             ]
         }
     }

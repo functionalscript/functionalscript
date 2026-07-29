@@ -18,7 +18,7 @@ import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, image
 import { type Image, type Job, type Jobs, test, toSteps } from '../common/module.f.ts'
 import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
 import { browsers } from '../playwright/module.f.ts'
-import { wasmTargets } from '../rust/module.f.ts'
+import { i686Linux, wasmTargets } from '../rust/module.f.ts'
 
 /** One value per architecture the image supports, keyed as `dpkg` names them. */
 export type ArchNames = {
@@ -96,7 +96,7 @@ const packages: readonly string[] = [
 // image does ship, which is the same guarantee a plain-HTTP mirror gives.
 const noTlsVerify = '/etc/apt/apt.conf.d/99snapshot-bootstrap' as const
 
-const apt = block(
+const apt = (rust: boolean): string => block(
     'Build prerequisites, resolved against a dated archive snapshot so that a rebuild installs the same packages.',
     [
         env('UBUNTU_SNAPSHOT', dockerSnapshot),
@@ -106,8 +106,12 @@ const apt = block(
             // `sed` fails the build if the base image ever stops using deb822
             // sources, rather than silently leaving `apt` unpinned.
             'sed -i "s|^URIs: .*|URIs: https://snapshot.ubuntu.com/ubuntu/$UBUNTU_SNAPSHOT|" /etc/apt/sources.list.d/ubuntu.sources',
+            // The 32-bit development files exist on Intel only, and only the
+            // Rust i686 checks need them, so `$extra_packages` is empty
+            // everywhere else and expands to nothing.
+            ...(rust ? arch({ extra_packages: { amd64: i686Linux.package, arm64: '' } }) : []),
             'apt-get update',
-            `apt-get install -y --no-install-recommends ${packages.join(' ')}`,
+            `apt-get install -y --no-install-recommends ${packages.join(' ')}${rust ? ' $extra_packages' : ''}`,
             // Every later `apt` call — Playwright's `install --with-deps` among
             // them — verifies the certificate normally.
             `rm ${noTlsVerify}`,
@@ -179,13 +183,19 @@ const rustBlock = block(
             ...arch({
                 rust_host: { amd64: 'x86_64-unknown-linux-gnu', arm64: 'aarch64-unknown-linux-gnu' },
                 rustup_sha256: sha256.rustup,
+                // Intel additionally cross-compiles to 32-bit, as the Ubuntu
+                // Intel job does; the ARM runners have no such target.
+                rust_targets: {
+                    amd64: [...wasmTargets, i686Linux.target].join(','),
+                    arm64: wasmTargets.join(','),
+                },
             }),
             'curl -fsSLo /tmp/rustup-init "https://static.rust-lang.org/rustup/archive/$RUSTUP_VERSION/$rust_host/rustup-init"',
             verify('rustup_sha256', '/tmp/rustup-init'),
             'chmod +x /tmp/rustup-init',
             // `--component` and `--target` take one comma-separated list each;
             // space-separated values are rejected as unexpected arguments.
-            `/tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION --component ${rustComponents} --target ${wasmTargets.join(',')}`,
+            `/tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION --component ${rustComponents} --target $rust_targets`,
             'rm /tmp/rustup-init',
             // Non-root users of the image need a writable toolchain directory
             // to add a target or run `cargo` against a fresh registry cache.
@@ -265,7 +275,7 @@ const workspace = block(
 export const dockerfile = (rust: boolean): string => [
     header,
     from,
-    apt,
+    apt(rust),
     nodeBlock,
     denoBlock,
     bunBlock,

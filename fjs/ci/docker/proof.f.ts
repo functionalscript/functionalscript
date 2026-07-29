@@ -1,7 +1,7 @@
 import { dockerfile, dockerJobs } from './module.f.ts'
 import { actions, bun, deno, dockerBase, dockerSnapshot, functionalscript, images, node, playwright, rustComponents, rustup, sha256, wasmer, wasmtime } from '../config/module.f.ts'
 import { browsers } from '../playwright/module.f.ts'
-import { wasmTargets } from '../rust/module.f.ts'
+import { i686Linux, wasmTargets } from '../rust/module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.ts'
 
 const { entries } = Object
@@ -108,15 +108,27 @@ export const proof = {
         // `rustup-init` takes one comma-separated list per flag, the same form
         // the workflow's `dtolnay/rust-toolchain` step uses.
         has(`--component ${rustComponents} `, 'expected the Rust components CI lints with')
-        has(`--target ${wasmTargets.join(',')}`, 'expected the WASM targets as one comma-separated list')
+        has('--target $rust_targets', 'expected the targets chosen per architecture')
+        has(`rust_targets=${wasmTargets.join(',')}`, 'expected the WASM targets as one comma-separated list')
     },
     everyArchitecture: () => {
         // `arm64` covers the `ubuntu-26.04-arm` runners and Apple Silicon
-        // workstations, `amd64` the Intel ones.
-        assertEq(withRust.split('case "$arch" in').length - 1, 6, 'expected one architecture switch per downloaded tool')
-        assertEq(withRust.split('amd64)').length - 1, 6, 'expected amd64 support for every downloaded tool')
-        assertEq(withRust.split('arm64)').length - 1, 6, 'expected arm64 support for every downloaded tool')
+        // workstations, `amd64` the Intel ones: one switch per downloaded
+        // tool, plus the one selecting Intel-only packages.
+        const switches = withRust.split('case "$arch" in').length - 1
+        assertEq(switches, 7, 'expected an architecture switch per download, plus the package selection')
+        assertEq(withRust.split('amd64)').length - 1, switches, 'expected every switch to handle amd64')
+        assertEq(withRust.split('arm64)').length - 1, switches, 'expected every switch to handle arm64')
         has('unsupported architecture: $arch', 'expected unsupported architectures to fail the build')
+    },
+    // The Ubuntu Intel job cross-compiles to 32-bit, so an image meant to host
+    // it needs the target and its system headers — on Intel only, where they
+    // exist.
+    i686: () => {
+        has(`rust_targets=${[...wasmTargets, i686Linux.target].join(',')} ;; arm64)`, 'expected the i686 target on amd64 only')
+        has(`extra_packages=${i686Linux.package} ;; arm64) extra_packages= `, 'expected the 32-bit headers on amd64 only')
+        has('--no-install-recommends build-essential', 'expected the common packages to stay unconditional')
+        has(' $extra_packages', 'expected the architecture-specific packages to be installed')
     },
     shell: () => {
         // `pipefail` keeps the checksum pipeline from passing on a failed
@@ -127,9 +139,12 @@ export const proof = {
     // toolchain and no WASM runner — they exist only for the crate's targets.
     withoutRust: () => {
         const plain = dockerfile(false)
-        for (const absent of ['rustup', 'RUST_VERSION', 'wasmtime', 'wasmer', 'cargo']) {
+        for (const absent of ['rustup', 'RUST_VERSION', 'wasmtime', 'wasmer', 'cargo', i686Linux.package, i686Linux.target]) {
             assert(!plain.includes(absent), `unexpected ${absent} in a Rust-free image`)
         }
+        // Nothing is architecture-specific outside the downloads once the Rust
+        // layers are gone, so the package list needs no switch of its own.
+        assertEq(plain.split('case "$arch" in').length - 1, 3, 'expected a switch per download and no more')
         for (const present of ['NODE_VERSION', 'DENO_VERSION', 'BUN_VERSION', 'PLAYWRIGHT_VERSION', 'UBUNTU_SNAPSHOT']) {
             assert(plain.includes(present), `expected ${present} in a Rust-free image`)
         }

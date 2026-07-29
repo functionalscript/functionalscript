@@ -83,7 +83,10 @@ certificate normally.
 
 Both `amd64` and `arm64` are supported — matching the `ubuntu-26.04` and
 `ubuntu-26.04-arm` runners — and any other architecture fails the build instead
-of installing something unintended.
+of installing something unintended. The `amd64` image additionally carries the
+`i686-unknown-linux-gnu` Rust target and the 32-bit headers its `cargo` checks
+need, because the Ubuntu Intel job cross-compiles to 32-bit and the ARM runners
+have no equivalent.
 
 ## Build
 

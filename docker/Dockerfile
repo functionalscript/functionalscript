@@ -13,8 +13,10 @@ ENV UBUNTU_SNAPSHOT=20260707T000000Z
 ENV DEBIAN_FRONTEND=noninteractive
 RUN echo 'Acquire::https::snapshot.ubuntu.com::Verify-Peer "false";' > /etc/apt/apt.conf.d/99snapshot-bootstrap \
     && sed -i "s|^URIs: .*|URIs: https://snapshot.ubuntu.com/ubuntu/$UBUNTU_SNAPSHOT|" /etc/apt/sources.list.d/ubuntu.sources \
+    && arch="$(dpkg --print-architecture)" \
+    && case "$arch" in amd64) extra_packages=libc6-dev-i386 ;; arm64) extra_packages= ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
     && apt-get update \
-    && apt-get install -y --no-install-recommends build-essential ca-certificates curl git gnupg libssl-dev pkg-config unzip xz-utils \
+    && apt-get install -y --no-install-recommends build-essential ca-certificates curl git gnupg libssl-dev pkg-config unzip xz-utils $extra_packages \
     && rm /etc/apt/apt.conf.d/99snapshot-bootstrap \
     && rm -rf /var/lib/apt/lists/*
 
@@ -56,11 +58,11 @@ ENV RUSTUP_HOME=/usr/local/rustup
 ENV CARGO_HOME=/usr/local/cargo
 ENV PATH=/usr/local/cargo/bin:$PATH
 RUN arch="$(dpkg --print-architecture)" \
-    && case "$arch" in amd64) rust_host=x86_64-unknown-linux-gnu; rustup_sha256=4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10 ;; arm64) rust_host=aarch64-unknown-linux-gnu; rustup_sha256=9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792 ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
+    && case "$arch" in amd64) rust_host=x86_64-unknown-linux-gnu; rustup_sha256=4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10; rust_targets=wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads,i686-unknown-linux-gnu ;; arm64) rust_host=aarch64-unknown-linux-gnu; rustup_sha256=9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792; rust_targets=wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac \
     && curl -fsSLo /tmp/rustup-init "https://static.rust-lang.org/rustup/archive/$RUSTUP_VERSION/$rust_host/rustup-init" \
     && echo "$rustup_sha256  /tmp/rustup-init" | sha256sum -c - \
     && chmod +x /tmp/rustup-init \
-    && /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION --component rustfmt,clippy --target wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads \
+    && /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION --component rustfmt,clippy --target $rust_targets \
     && rm /tmp/rustup-init \
     && chmod -R a+w $RUSTUP_HOME $CARGO_HOME
 
