@@ -559,17 +559,20 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
+          "run": "echo \"$GITHUB_TOKEN\" | docker login ghcr.io -u \"$GITHUB_ACTOR\" --password-stdin",
+          "env": {
+            "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+          }
+        },
+        {
           "run": "image=\"ghcr.io/${GITHUB_REPOSITORY,,}/ci\"\ntag=\"$(sha256sum docker/Dockerfile | cut -d' ' -f1)-$(dpkg --print-architecture)\"\nref=\"$image:$tag\"\necho \"image: $ref\"\nif docker manifest inspect \"$ref\" > /dev/null 2>&1; then\n  docker pull \"$ref\" && docker tag \"$ref\" functionalscript\nelse\n  docker build -t functionalscript -t \"$ref\" ./docker\nfi"
         },
         {
           "run": "docker run --rm functionalscript bash -c \"node --version && npm --version && deno --version && bun --version && rustc --version && cargo --version && wasmtime --version && wasmer --version && playwright --version && fjs help\""
         },
         {
-          "run": "image=\"ghcr.io/${GITHUB_REPOSITORY,,}/ci\"\ntag=\"$(sha256sum docker/Dockerfile | cut -d' ' -f1)-$(dpkg --print-architecture)\"\nref=\"$image:$tag\"\necho \"$GITHUB_TOKEN\" | docker login ghcr.io -u \"$GITHUB_ACTOR\" --password-stdin\ndocker push \"$ref\"",
-          "if": "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository",
-          "env": {
-            "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
-          }
+          "run": "image=\"ghcr.io/${GITHUB_REPOSITORY,,}/ci\"\ntag=\"$(sha256sum docker/Dockerfile | cut -d' ' -f1)-$(dpkg --print-architecture)\"\nref=\"$image:$tag\"\ndocker push \"$ref\"",
+          "if": "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository"
         }
       ]
     },
@@ -584,17 +587,20 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
+          "run": "echo \"$GITHUB_TOKEN\" | docker login ghcr.io -u \"$GITHUB_ACTOR\" --password-stdin",
+          "env": {
+            "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+          }
+        },
+        {
           "run": "image=\"ghcr.io/${GITHUB_REPOSITORY,,}/ci\"\ntag=\"$(sha256sum docker/Dockerfile | cut -d' ' -f1)-$(dpkg --print-architecture)\"\nref=\"$image:$tag\"\necho \"image: $ref\"\nif docker manifest inspect \"$ref\" > /dev/null 2>&1; then\n  docker pull \"$ref\" && docker tag \"$ref\" functionalscript\nelse\n  docker build -t functionalscript -t \"$ref\" ./docker\nfi"
         },
         {
           "run": "docker run --rm functionalscript bash -c \"node --version && npm --version && deno --version && bun --version && rustc --version && cargo --version && wasmtime --version && wasmer --version && playwright --version && fjs help\""
         },
         {
-          "run": "image=\"ghcr.io/${GITHUB_REPOSITORY,,}/ci\"\ntag=\"$(sha256sum docker/Dockerfile | cut -d' ' -f1)-$(dpkg --print-architecture)\"\nref=\"$image:$tag\"\necho \"$GITHUB_TOKEN\" | docker login ghcr.io -u \"$GITHUB_ACTOR\" --password-stdin\ndocker push \"$ref\"",
-          "if": "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository",
-          "env": {
-            "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
-          }
+          "run": "image=\"ghcr.io/${GITHUB_REPOSITORY,,}/ci\"\ntag=\"$(sha256sum docker/Dockerfile | cut -d' ' -f1)-$(dpkg --print-architecture)\"\nref=\"$image:$tag\"\ndocker push \"$ref\"",
+          "if": "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository"
         }
       ]
     }

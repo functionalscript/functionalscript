@@ -332,10 +332,22 @@ const resolveRef: readonly string[] = [
 ]
 
 /**
+ * Signs in to the registry before anything reads from it. A GHCR package is
+ * private until someone publishes it, and an anonymous `manifest inspect`
+ * of a private package is a 403 — which would look like a cache miss and
+ * rebuild an image that already exists. Reading needs credentials just as
+ * publishing does, so this runs ahead of both.
+ */
+const login: string = 'echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin'
+
+/** Supplies the token without splicing a secret into a script. */
+const token = { GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}' } as const
+
+/**
  * Builds the image only when the registry has no copy for this Dockerfile.
  *
- * Any failure of `manifest inspect` counts as a miss — including the 401 a
- * fork PR gets while the package is private — so the worst case is a slow
+ * Any failure of `manifest inspect` still counts as a miss, so a token that
+ * cannot read the package — a fork's, while it is private — costs a slow
  * build rather than a broken job.
  */
 const buildIfMissing: string = [
@@ -355,7 +367,6 @@ const buildIfMissing: string = [
  */
 const push: string = [
     ...resolveRef,
-    'echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin',
     'docker push "$ref"',
 ].join('\n')
 
@@ -376,13 +387,10 @@ const dockerJob = (rust: boolean) => (runsOn: Image): Job => ({
         packages: 'write',
     },
     steps: toSteps([
+        test({ run: login, env: token }),
         test({ run: buildIfMissing }),
         test({ run: `docker run --rm ${tag} bash -c "${smokeTest(rust)}"` }),
-        test({
-            run: push,
-            if: canPush,
-            env: { GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}' },
-        }),
+        test({ run: push, if: canPush }),
     ]),
 })
 

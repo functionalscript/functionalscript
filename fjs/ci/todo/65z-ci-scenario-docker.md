@@ -105,14 +105,18 @@ hands it a read-only token whatever the job requests, so the push step is
 skipped there rather than failing
 (`github.event.pull_request.head.repo.full_name == github.repository`).
 
-**Manual step, once:** the package is private on first publish — GHCR creates
-container packages private whatever the repository's visibility, since an image
-can carry credentials or licensed content. Until someone makes it public,
-`docker manifest inspect` gets a 401 for fork pull requests and they rebuild
-from scratch — correct, just slow. Public also lets contributors pull the exact
-CI image without a token, and costs nothing: public packages are free, while
-private ones bill against the account's Packages storage, which one image
-already exceeds.
+A GHCR package is private on first publish — GHCR creates container packages
+private whatever the repository's visibility, since an image can carry
+credentials or licensed content. Reading one therefore needs credentials just
+as publishing does, which is why the job signs in **before** `manifest
+inspect`: anonymously that call answers 403, which reads as a cache miss and
+rebuilds an image that already exists.
+
+**Manual step, once:** making the package public is still worth doing. It lets
+fork pull requests read the cache with their read-only token, lets contributors
+pull the exact CI image without one, and costs nothing — public packages are
+free, while private ones bill against the account's Packages storage, which a
+single image already exceeds.
 
 #### Cleaning up
 

@@ -24,7 +24,9 @@ ghcr.io/<owner>/<repo>/ci:<sha256 of docker/Dockerfile>-<amd64|arm64>
 and asks the registry before building — a run whose Dockerfile is unchanged
 pulls in seconds, and only a real change to the image pays for a build. The tag
 covers every input, since pins, package list, and install commands all live in
-the hashed file.
+the hashed file. The job signs in to GHCR before that first read: a package is
+private until published as public, and an anonymous read of a private package
+is a 403, which would look like a miss and rebuild what already exists.
 
 The hash is a cache key, not an integrity proof: `docker build` is not
 byte-reproducible and registry tags are mutable, so a pulled image cannot be

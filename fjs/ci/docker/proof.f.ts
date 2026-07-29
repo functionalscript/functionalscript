@@ -197,15 +197,32 @@ export const proof = {
             for (const [id, job] of entries(dockerJobs(true))) {
                 assertEq(job?.permissions?.['packages'], 'write', `expected ${id} to be able to publish`)
                 assertEq(job?.permissions?.['contents'], 'read', `expected ${id} to keep read access for checkout`)
-                const step = (job?.steps ?? []).find(s => s.run?.includes('docker push') === true)
+                const steps = job?.steps ?? []
+                const step = steps.find(s => s.run?.includes('docker push') === true)
                 assert(step !== undefined, `expected ${id} to publish the image`)
                 // A fork's pull request gets a read-only token whatever the job
                 // asks for, so the push is skipped rather than failed there.
                 assert(step.if?.includes('head.repo.full_name == github.repository') === true, `expected ${id} to skip publishing from a fork`)
+            }
+        },
+        // Reading a private package needs credentials just as publishing does,
+        // and every GHCR package starts private: an anonymous `manifest
+        // inspect` answers 403, which reads as a miss and rebuilds an image
+        // that already exists.
+        signsInBeforeReadingTheRegistry: () => {
+            for (const [id, job] of entries(dockerJobs(true))) {
+                const steps = job?.steps ?? []
+                const index = (s: string) => steps.findIndex(step => step.run?.includes(s) === true)
+                const signIn = index('docker login ghcr.io')
+                assert(signIn !== -1, `expected ${id} to sign in to the registry`)
+                assert(signIn < index('docker manifest inspect'), `expected ${id} to sign in before reading the registry`)
+                assert(signIn < index('docker push'), `expected ${id} to sign in before publishing`)
                 // The token reaches the script as an environment variable
                 // instead of being spliced into it.
-                assertEq(step.env?.['GITHUB_TOKEN'], '${{ secrets.GITHUB_TOKEN }}', `expected ${id} to take the token from the environment`)
-                assert(!step.run?.includes('secrets.'), `unexpected secret interpolated into ${id}'s script`)
+                assertEq(steps[signIn]?.env?.['GITHUB_TOKEN'], '${{ secrets.GITHUB_TOKEN }}', `expected ${id} to take the token from the environment`)
+                for (const s of steps) {
+                    assert(!s.run?.includes('secrets.'), `unexpected secret interpolated into ${id}'s script`)
+                }
             }
         },
         smokeTests: () => {
