@@ -28,6 +28,18 @@ export type Dir = {
     readonly[name in string]?: Entity
 }
 
+/**
+ * True when `e` is a directory rather than a file, a JS module, or absent.
+ *
+ * The body is the whole of what distinguishes a `Dir` inside `Entity`: files
+ * are arrays, modules are functions, and a missing entry is `undefined`. A
+ * predicate rather than a structural check because `instanceof Array` does not
+ * narrow a `readonly` array out of the union on its negative branch, leaving an
+ * `as Dir` cast — strictly worse — as the only alternative.
+ */
+export const isDir = (e: Entity | undefined): e is Dir =>
+    typeof e === 'object' && !(e instanceof Array)
+
 export type State = {
     stdout: string
     stderr: string
@@ -66,10 +78,10 @@ const operation =
         }
         const [first, ...rest] = path
         const subDir = dir[first]
-        if (typeof subDir !== 'object' || Array.isArray(subDir)) {
+        if (!isDir(subDir)) {
             return op(dir, path)
         }
-        const [newSubDir, r] = f(subDir as Dir, rest)
+        const [newSubDir, r] = f(subDir, rest)
         return [{ ...dir, [first]: newSubDir }, r]
     }
     return (path: string) => (state: State) => {

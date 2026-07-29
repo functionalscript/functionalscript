@@ -6,7 +6,7 @@ import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
 import { assert, assertEq } from '../asserts/module.f.ts'
 import type { State } from '../effects/node/virtual/module.f.ts'
-import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
+import { emptyState, isDir, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 import { parse as jsonParse } from '../media/json/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { definedValues } from '../types/object/module.f.ts'
@@ -32,9 +32,8 @@ const makeState = (rust: boolean, packageJson?: string) => ({
 
 const subDir = (dir: Dir, name: string): Dir => {
     const entry = dir[name]
-    assert(typeof entry === 'object' && !Array.isArray(entry), entry)
-    // `Array.isArray` does not narrow a `readonly` array away from the union.
-    return entry as Dir
+    assert(isDir(entry), entry)
+    return entry
 }
 
 const utf8File = (dir: Dir, name: string): string => {

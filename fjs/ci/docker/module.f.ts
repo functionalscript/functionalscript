@@ -30,19 +30,19 @@ export type ArchNames = {
 const run = (commands: readonly string[]): string =>
     `RUN ${commands.join(' \\\n    && ')}`
 
+/** The `name=value` shell assignments of `vars` for one architecture. */
+const assignments = (vars: StringMap<string, ArchNames>) => (a: keyof ArchNames): string =>
+    definedEntries(vars).map(([name, value]) => `${name}=${value[a]}`).join('; ')
+
 /**
  * Commands setting `$arch` from `dpkg`, then one shell variable per entry of
  * `vars` to its value for that architecture. An unsupported architecture fails
  * the build instead of downloading from a URL assembled out of a wrong name.
  */
-const arch = (vars: StringMap<string, ArchNames>): readonly string[] => {
-    const set = (a: keyof ArchNames): string =>
-        definedEntries(vars).map(([name, value]) => `${name}=${value[a]}`).join('; ')
-    return [
-        'arch="$(dpkg --print-architecture)"',
-        `case "$arch" in amd64) ${set('amd64')} ;; arm64) ${set('arm64')} ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac`,
-    ]
-}
+const arch = (vars: StringMap<string, ArchNames>): readonly string[] => [
+    'arch="$(dpkg --print-architecture)"',
+    `case "$arch" in amd64) ${assignments(vars)('amd64')} ;; arm64) ${assignments(vars)('arm64')} ;; *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac`,
+]
 
 /** Checks a downloaded file against the SHA-256 held in `$<name>`. */
 const verify = (name: string, file: string): string =>
