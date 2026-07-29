@@ -23,9 +23,9 @@ Windows, macOS, and Linux as soon as `npm run ci-update` selects it.
 
 ### Proposal
 
-Generate independent target-specific Nix flakes directly from `fjs/ci/`.
-Use them natively on Linux and macOS, and let Linux flakes optionally produce
-OCI images for GHCR and container-based CI.
+Generate independent target-specific Nix flakes directly from `fjs/ci/`. Use
+them natively on Linux and macOS, and let Linux flakes optionally produce OCI
+images for GHCR and container-based CI.
 
 ```text
 fjs/ci scripts and config
@@ -92,12 +92,8 @@ nix/generated/playwright-linux-x86_64/flake.nix
 nix/generated/node-24-darwin-aarch64/flake.nix
 ```
 
-Do not choose the final boundary before benchmarking. The generator should make
-it inexpensive to change the layout.
-
-Each target-specific flake should be explicit and independently debuggable. It
-should avoid branches for unrelated systems and expose only the outputs useful
-for that environment.
+Do not choose the final boundary before benchmarking. Each target-specific flake
+should be explicit, independently buildable, and independently debuggable.
 
 ### 3. Pin exact upstream artifacts
 
@@ -105,14 +101,9 @@ Do not install Node, Deno, Bun, Rust, Wasmtime, Wasmer, or Playwright by asking
 `nixpkgs` for its currently packaged version.
 
 Generate fixed-output fetches from the same release artifacts selected by the
-cross-platform CI updater. Each generated target records its own:
-
-- exact version;
-- upstream URL;
-- archive format;
-- expected hash;
-- unpacking and installation steps;
-- runtime dependency and wrapper requirements.
+cross-platform CI updater. Each generated target records its own exact version,
+URL, archive format, expected hash, installation steps, runtime dependencies,
+and wrappers.
 
 `nixpkgs` may provide Nix helpers, patching hooks, system libraries, shell tools,
 and OCI builders. Its revision is pinned by each generated `flake.lock`, but it
@@ -120,24 +111,12 @@ does not independently select project tool versions.
 
 ### 4. Model hosts and targets separately
 
-A generated host flake is one of:
+Generated hosts include `x86_64-linux`, `aarch64-linux`, `x86_64-darwin`, and
+`aarch64-darwin`. A host may additionally install Rust/WASM/32-bit targets such
+as `wasm32-wasip1`, `wasm32-wasip2`, or `i686-unknown-linux-gnu`.
 
-- `x86_64-linux`;
-- `aarch64-linux`;
-- `x86_64-darwin`;
-- `aarch64-darwin`.
-
-It may additionally install targets such as:
-
-- `wasm32-wasip1`;
-- `wasm32-wasip1-threads`;
-- `wasm32-wasip2`;
-- `wasm32-unknown-unknown`;
-- `i686-unknown-linux-gnu`.
-
-For example, 32-bit Linux support may require a linker and 32-bit libraries in
-an x86-64 host environment. It does not automatically imply a separate 32-bit
-host flake.
+A 32-bit compilation target does not automatically imply a separate 32-bit host
+flake.
 
 ### 5. Generate Playwright as a precise bundle
 
@@ -154,21 +133,38 @@ The test job must not silently download a different browser bundle at runtime.
 A Playwright-specific flake or image may remain separate when that improves
 build time, cache reuse, image size, or failure isolation.
 
-### 6. Use Nix natively on macOS
+### 6. Bootstrap Nix before using generated flakes
+
+GitHub-hosted Linux and macOS runners do not provide the generated Nix
+environment by themselves. Before any `nix build` or `nix develop` invocation,
+the generated workflow must:
+
+1. check out the repository;
+2. install Nix through a pinned, trusted GitHub Action;
+3. configure the selected Nix-store cache action or cache strategy;
+4. invoke the target-specific generated flake.
+
+Conceptually:
+
+```yaml
+steps:
+  - uses: actions/checkout@<pinned-version>
+  - uses: <nix-installer-action>@<pinned-version>
+  - uses: <nix-cache-action>@<pinned-version>
+  - run: nix develop ./nix/generated/node-24-darwin-aarch64 --command npm test
+```
+
+The installer and cache actions are part of generated workflow configuration.
+The generator must emit them before the first Nix command for every converted
+Linux and macOS job. Windows keeps its existing native setup path.
+
+### 7. Use Nix natively on macOS
 
 Generated macOS flakes run directly on GitHub's Intel and ARM macOS runners.
 They must preserve native macOS testing rather than placing macOS jobs inside a
 Linux VM or container.
 
-A job may run a command such as:
-
-```sh
-nix develop ./nix/generated/node-24-darwin-aarch64 --command npm test
-```
-
-The exact directory and output depend on the selected generation boundary.
-
-### 7. Produce Linux OCI images directly
+### 8. Produce Linux OCI images directly
 
 A generated Linux flake may expose an OCI output built from the same derivations
 used by its native Nix environment:
@@ -183,36 +179,45 @@ or:
 nix build ./nix/generated/playwright-linux-x86_64#oci-image
 ```
 
-Build `linux/amd64` and `linux/arm64` variants independently. Publish them to
-GHCR using immutable identities, and optionally combine them into a
-multi-platform manifest.
+Build `linux/amd64` and `linux/arm64` variants independently. The final image
+boundary remains undecided until one complete image per architecture, per-job
+images, and useful hybrid groupings are benchmarked.
 
-The final image boundary is intentionally undecided. Benchmark one complete
-image per architecture, per-job images, and useful hybrid groupings.
+### 9. Publish OCI images only from a protected workflow
 
-### 8. Keep Windows unchanged
+The regular generated CI workflow handles `pull_request` and `merge_group`
+events with read-only permissions. It must not publish packages, and fork code
+must never receive GHCR write credentials.
+
+Generate a separate publication workflow that:
+
+- runs on `push` to the protected default branch after merge;
+- optionally supports authorized `workflow_dispatch`;
+- grants `contents: read` and `packages: write` only to the publication job;
+- builds and validates both architecture-specific OCI outputs;
+- pushes immutable architecture-specific identities;
+- publishes the multi-platform manifest only after both variants succeed.
+
+Pull-request and merge-queue jobs should compute the immutable image identity,
+try to pull it, and build the exact generated flake locally on a miss. They may
+use GitHub cache or workflow artifacts for temporary reuse, but they must never
+push and must never substitute an unrelated mutable image such as `latest`.
+
+After merge, the protected publication workflow makes the validated image
+available for subsequent CI runs and external users.
+
+### 10. Keep Windows unchanged
 
 Windows continues to use the existing generated GitHub Actions installation
 steps and native Windows upstream artifacts. Nix through WSL would test Linux,
 not native Windows behavior.
 
 The Windows installer and generated Nix flakes must consume the same source
-versions so all three operating systems test the intended release set.
+versions so all operating systems test the intended release set.
 
-### 9. Validation and debugging
+### 11. Validation and debugging
 
-Every generated environment should include checks for the exact installed
-versions. At minimum, validate the tools used by that environment, such as:
-
-```text
-node --version
-bun --version
-deno --version
-rustc --version
-wasmtime --version
-wasmer --version
-```
-
+Every generated environment should validate the exact installed versions.
 Playwright validation should also cover the expected package and browser bundle.
 
 A CI failure should identify the exact generated flake, for example:
@@ -224,33 +229,28 @@ nix/generated/playwright-linux-x86_64/flake.nix
 That flake must be independently buildable so it can serve as a minimal
 reproduction without evaluating unrelated jobs or systems.
 
-### 10. Generation consistency
+### 12. Generation consistency
 
 `npm run ci-update` should:
 
 1. resolve versions and upstream artifacts for every supported target;
-2. compute or import the expected hashes;
+2. compute or import expected hashes;
 3. generate all target-specific `flake.nix` files;
 4. generate or refresh their `flake.lock` files;
 5. delete stale generated directories;
 6. regenerate the GitHub workflow using the resulting flake paths;
-7. fail if a required platform artifact is unavailable;
-8. support a CI check that regeneration produces no diff.
+7. emit Nix installer/cache bootstrap steps for Linux and macOS jobs;
+8. emit the protected GHCR publication workflow;
+9. fail if a required platform artifact is unavailable;
+10. support a CI check that regeneration produces no diff.
 
-### 11. Performance experiment
+### 13. Performance experiment
 
-Before selecting the permanent file/image layout, measure:
+Before selecting the permanent file/image layout, measure Nix evaluation, cold
+and warm derivation builds, cache hit rates, parallel CI behavior, duplicated
+downloads, OCI assembly/upload/pull time, image size, and debugging isolation.
 
-- Nix evaluation time;
-- cold and warm derivation build time;
-- cache hit rates;
-- parallel CI behavior;
-- duplicated downloads across jobs;
-- OCI assembly, upload, and pull time;
-- image size;
-- debugging and failure isolation.
-
-File layout is a generated implementation choice. It should be optimized for CI
+File layout is a generated implementation choice. Optimize it for CI
 performance and clarity, not for manual Nix-code maintainability.
 
 ### Tasks
@@ -264,11 +264,18 @@ performance and clarity, not for manual Nix-code maintainability.
 - [ ] Generate and refresh a `flake.lock` for each independent flake.
 - [ ] Delete stale generated Nix files when source tools, versions, targets, or
       jobs are removed.
+- [ ] Generate pinned Nix installer and cache bootstrap steps before the first
+      Nix command in every Linux and macOS job.
+- [ ] Verify the bootstrap on every supported GitHub-hosted runner architecture.
 - [ ] Add exact installed-version validation to each generated environment.
 - [ ] Implement precise Playwright package/browser generation.
 - [ ] Keep Windows on the existing native generated installation path.
-- [ ] Expose Linux OCI image outputs and build both AMD64 and ARM64 variants.
-- [ ] Publish OCI images to GHCR with immutable tags or digests.
+- [ ] Expose Linux OCI outputs and build both AMD64 and ARM64 variants.
+- [ ] Generate a protected `push`/`workflow_dispatch` GHCR publication workflow
+      with `packages: write`; keep PR and merge-group workflows read-only.
+- [ ] Implement immutable-image pull with local Nix-build fallback on a miss.
+- [ ] Publish architecture-specific images and the multi-platform manifest only
+      after validation succeeds.
 - [ ] Benchmark per-system, per-job, per-major-version, and hybrid boundaries.
 - [ ] Update Linux and macOS GitHub jobs to reference generated flake directories
       directly.
