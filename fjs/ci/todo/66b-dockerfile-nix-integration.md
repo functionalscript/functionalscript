@@ -199,18 +199,39 @@ The generated files should already contain their exact version checks and the
 commands needed by Phase 2, but Phase 1 is complete when generation itself is
 deterministic and structurally valid.
 
-### 7. Bootstrap Nix on GitHub-hosted runners
+Because lock generation and refresh invoke Nix, the existing `node26` job that
+runs `npm run ci-update` and checks for generated-file drift must install Nix
+before that command. Phase 1 cannot rely on bootstrap that appears only in later
+validation or direct-CI jobs.
 
-Nix bootstrap is shared infrastructure for Phases 2 and 3. Before any
-`nix build`, `nix flake check`, or `nix develop` invocation, the generated Linux
-and macOS workflow must:
+### 7. Bootstrap Nix before generation, validation, and direct CI
+
+Nix bootstrap is shared infrastructure for Phases 1, 2, and 3. It is required
+before a job runs `npm run ci-update` when that command creates or refreshes
+`flake.lock`, and before any `nix build`, `nix flake check`, or `nix develop`
+invocation.
+
+The generated workflow should perform this sequence where applicable:
 
 1. check out the repository;
 2. install Nix through a pinned, trusted GitHub Action;
 3. configure the selected Nix-store cache action or cache strategy;
-4. invoke the target-specific generated flake.
+4. run `npm run ci-update` and the drift check in the generation job, or invoke
+   the target-specific generated flake in validation and direct-CI jobs.
 
-Conceptually:
+Conceptually, the existing `node26` regeneration check becomes:
+
+```yaml
+steps:
+  - uses: actions/checkout@<pinned-version>
+  - uses: <nix-installer-action>@<pinned-version>
+  - uses: <nix-cache-action>@<pinned-version>
+  - run: npm run ci-update
+  - run: git diff --exit-code
+```
+
+Validation and direct-CI jobs reuse the same pinned installer and cache setup
+before their first Nix command:
 
 ```yaml
 steps:
@@ -384,14 +405,16 @@ it. Direct Nix CI remains the reference behavior. For a selected OCI-backed job:
 - [ ] Generate independent Linux and macOS flake directories without a root
       aggregate flake.
 - [ ] Generate and refresh a `flake.lock` for each independent flake.
+- [ ] Update the existing `node26` generation/drift-check job to install pinned
+      Nix and configure the selected cache before `npm run ci-update`.
 - [ ] Delete stale generated Nix files when source tools, versions, targets, or
       jobs are removed.
 - [ ] Add the regeneration check proving `npm run ci-update` leaves no diff.
 
 #### Phase 2: build and validation
 
-- [ ] Generate pinned Nix installer and cache bootstrap steps before the first
-      Nix command in every Linux and macOS validation job.
+- [ ] Reuse the pinned Nix installer and cache bootstrap before the first Nix
+      command in every Linux and macOS validation job.
 - [ ] Add exact installed-version and representative execution checks.
 - [ ] Implement precise Playwright package/browser generation and validation.
 - [ ] Validate required Rust, WASM, and 32-bit targets.
