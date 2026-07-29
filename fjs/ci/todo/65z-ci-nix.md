@@ -11,8 +11,8 @@ macOS GitHub runners.
 
 The first goal is not OCI. The first goal is to generate correct Nix files,
 build them, validate every installed tool, and run the existing CI commands
-through them directly. Linux OCI images and GHCR publication are a later stage
-that must reuse an already proven Nix environment.
+through them directly. Linux OCI images and GHCR publication are later stages
+that must reuse already proven Nix environments.
 
 Windows remains on the existing generated GitHub Actions installation steps so
 that it continues to test native Windows behavior.
@@ -186,7 +186,14 @@ both Linux and macOS. Windows jobs do not use this bootstrap.
 
 ### Staged rollout
 
-#### Phase 1: generate and prove the Nix files
+#### Phase 1: generate the Nix files
+
+Generate deterministic target-specific flakes, their lock files, exact artifact
+fetches, validation definitions, and the GitHub workflow paths that reference
+them. Generation must delete stale outputs and fail when a required platform
+artifact is unavailable.
+
+#### Phase 2: build and validate the Nix files
 
 Before changing existing CI jobs, prove that each generated flake is correct:
 
@@ -195,14 +202,15 @@ Before changing existing CI jobs, prove that each generated flake is correct:
 3. run its exact installed-version checks;
 4. run representative commands for every packaged tool;
 5. verify Playwright package/browser compatibility;
-6. verify `npm run ci-update` regenerates the same files without a diff.
+6. verify required Rust, WASM, and 32-bit targets;
+7. verify `npm run ci-update` regenerates the same files without a diff.
 
 A failure must identify the exact generated flake so that it can be reproduced
 and debugged independently.
 
-#### Phase 2: run CI directly through Nix
+#### Phase 3: run CI directly through Nix
 
-After Phase 1 succeeds, convert Linux and macOS jobs to execute their existing CI
+After Phase 2 succeeds, convert Linux and macOS jobs to execute their existing CI
 commands through the generated flakes using `nix develop --command` or an
 equivalent direct Nix invocation.
 
@@ -213,7 +221,7 @@ supported native host and architecture.
 Compare the Nix-backed jobs with the existing setup-action jobs until equivalent
 test coverage and results are established.
 
-#### Phase 3: measure and choose environment boundaries
+#### Phase 4: measure and choose environment boundaries
 
 Measure:
 
@@ -227,13 +235,13 @@ Measure:
 Use those measurements to decide whether generated flakes should be per
 OS/architecture, per job, per major tool version, or a hybrid.
 
-#### Later: OCI images
+#### Later phases: OCI images
 
 Only after the generated Nix files work reliably in direct Linux CI should Linux
 flakes be extended with OCI outputs. OCI construction, GHCR publication, and CI
-image consumption are covered by
-[65Z-ci-scenario-docker](65z-ci-scenario-docker.md) and are not prerequisites for
-this task.
+image consumption are Phases 5 and 6 in
+[66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) and are
+covered in detail by [65Z-ci-scenario-docker](65z-ci-scenario-docker.md).
 
 ### Lock files
 
@@ -247,7 +255,7 @@ when required.
 
 ### Tasks
 
-#### Phase 1: generation and validation
+#### Phase 1: generation
 
 - [ ] Extend `npm run ci-update` to generate target-specific Nix files with exact
       versions, upstream URLs, archive formats, and hashes.
@@ -256,19 +264,24 @@ when required.
 - [ ] Generate and refresh a `flake.lock` for each independent flake.
 - [ ] Delete stale generated Nix files when a tool, major version, system,
       architecture, target, or job is added or removed.
-- [ ] Add exact installed-version checks for every generated environment.
+- [ ] Generate exact installed-version and representative execution checks.
 - [ ] Model host systems separately from Rust/WASM/32-bit compilation targets.
-- [ ] Implement Playwright as a coordinated package, driver, browser, and native
+- [ ] Generate Playwright as a coordinated package, driver, browser, and native
       dependency bundle.
-- [ ] Prove that every generated flake evaluates, builds, and passes its checks.
 - [ ] Add a regeneration check proving that `npm run ci-update` leaves no diff.
 
-#### Phase 2: direct Nix CI
+#### Phase 2: build and validation
 
-- [ ] Generate the Linux/macOS workflow bootstrap: checkout, pinned Nix installer,
+- [ ] Generate the validation workflow bootstrap: checkout, pinned Nix installer,
       selected Nix cache configuration, then the first Nix command.
 - [ ] Verify the bootstrap on every supported Linux and macOS runner and
       architecture.
+- [ ] Prove that every generated flake evaluates, builds, and passes its checks.
+- [ ] Validate Playwright with the existing browser-specific CI commands.
+- [ ] Validate required Rust, WASM, and 32-bit targets.
+
+#### Phase 3: direct Nix CI
+
 - [ ] Run existing Linux and macOS CI commands directly through the generated
       flakes without OCI images.
 - [ ] Preserve the existing Playwright commands generated by
@@ -276,7 +289,7 @@ when required.
 - [ ] Compare results with the existing setup-action jobs before removing them.
 - [ ] Keep native Windows jobs on the existing generated installation steps.
 
-#### Phase 3: measurements
+#### Phase 4: measurements
 
 - [ ] Benchmark per-OS/architecture, per-job, per-major-version, and useful hybrid
       flake boundaries.
