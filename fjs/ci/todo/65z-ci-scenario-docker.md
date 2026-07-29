@@ -105,13 +105,38 @@ hands it a read-only token whatever the job requests, so the push step is
 skipped there rather than failing
 (`github.event.pull_request.head.repo.full_name == github.repository`).
 
-**Manual step, once:** the package is private on first publish. Until someone
-makes it public in GHCR, `docker manifest inspect` fails for fork pull requests
-and they rebuild from scratch — correct, just slow. Making it public also lets
-contributors pull the exact CI image without a token.
+**Manual step, once:** the package is private on first publish — GHCR creates
+container packages private whatever the repository's visibility, since an image
+can carry credentials or licensed content. Until someone makes it public,
+`docker manifest inspect` gets a 401 for fork pull requests and they rebuild
+from scratch — correct, just slow. Public also lets contributors pull the exact
+CI image without a token, and costs nothing: public packages are free, while
+private ones bill against the account's Packages storage, which one image
+already exceeds.
 
-Unmerged pull requests leave images behind, so this wants a pruning routine or
-a GHCR retention rule before the tag list grows unmanageable.
+#### Cleaning up
+
+Not urgent, and nothing breaks without it. Two things accumulate:
+
+- **One tagged pair per distinct Dockerfile** — a few a month at the rate pins
+  move, roughly 2 GB compressed per architecture. These stay useful: an old
+  image is the environment an old commit's CI actually ran in.
+- **Untagged versions, the real garbage.** `docker build` is not reproducible,
+  so re-running a job on an unchanged Dockerfile publishes a different digest
+  under the same tag and orphans the previous one. Job re-runs and merge-queue
+  re-runs generate these, as do the provenance attestations buildx attaches.
+
+Pruning is safe by construction: deleting an image that is still current only
+costs the next run a rebuild, since the tag is derived from the file rather than
+recorded anywhere. There is no state to lose.
+
+So: no automation until the list is actually noisy. When it is, a monthly
+`schedule:` workflow with `actions/delete-package-versions` (needs
+`packages: write`) that drops every untagged version and keeps the ten newest
+tagged — five Dockerfile revisions across two architectures. The generator emits
+only `pull_request` and `merge_group` triggers, so that lands either as a schema
+extension or as a second hand-written workflow, the way `npm-publish.yml`
+already is.
 
 #### Architectures
 
