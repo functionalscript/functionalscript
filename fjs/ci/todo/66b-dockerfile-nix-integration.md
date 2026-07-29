@@ -198,13 +198,28 @@ Generate a separate publication workflow that:
 - pushes immutable architecture-specific identities;
 - publishes the multi-platform manifest only after both variants succeed.
 
-Pull-request and merge-queue jobs should compute the immutable image identity,
-try to pull it, and build the exact generated flake locally on a miss. They may
-use GitHub cache or workflow artifacts for temporary reuse, but they must never
-push and must never substitute an unrelated mutable image such as `latest`.
+The FunctionalScript CI images are intended for external users as well as CI,
+so their GHCR container packages must be public. The first publication is not
+complete until package visibility is public and an unauthenticated pull of each
+immutable architecture identity and the multi-platform identity succeeds.
+Public GHCR container packages support anonymous pulls, so pull-request and fork
+jobs do not need package credentials to consume an existing image.
 
-After merge, the protected publication workflow makes the validated image
-available for subsequent CI runs and external users.
+If the images are ever kept private instead, generated consumers must request
+`packages: read`, authenticate to GHCR, and have explicit package access before
+they pull. Authentication or permission failures must not be interpreted as an
+absent image.
+
+Pull-request and merge-queue jobs should compute the immutable image identity,
+try an anonymous pull of the public image, and build the exact generated flake
+locally only when the registry confirms that the exact manifest or tag does not
+exist. Network, registry, authentication, and permission errors must fail the
+step rather than trigger a cache-miss fallback. Consumers may use GitHub cache
+or workflow artifacts for temporary reuse, but they must never push and must
+never substitute an unrelated mutable image such as `latest`.
+
+After merge, the protected publication workflow makes the validated public
+image available for subsequent CI runs and external users.
 
 ### 10. Keep Windows unchanged
 
@@ -273,7 +288,11 @@ performance and clarity, not for manual Nix-code maintainability.
 - [ ] Expose Linux OCI outputs and build both AMD64 and ARM64 variants.
 - [ ] Generate a protected `push`/`workflow_dispatch` GHCR publication workflow
       with `packages: write`; keep PR and merge-group workflows read-only.
-- [ ] Implement immutable-image pull with local Nix-build fallback on a miss.
+- [ ] Configure the GHCR packages as public and verify anonymous pulls of every
+      published immutable identity.
+- [ ] Implement immutable-image pull with local Nix-build fallback only for a
+      confirmed missing manifest/tag; fail on authentication, permission,
+      registry, or network errors.
 - [ ] Publish architecture-specific images and the multi-platform manifest only
       after validation succeeds.
 - [ ] Benchmark per-system, per-job, per-major-version, and hybrid boundaries.
@@ -295,4 +314,4 @@ performance and clarity, not for manual Nix-code maintainability.
   — original Dockerfile/Nix proposal.
 - i145 — Docker containers for Linux CI jobs.
 - i095 — original Docker CI idea.
-- i096 — CI caching.
+- [i096](96.md) — CI caching.
