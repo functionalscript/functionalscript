@@ -243,15 +243,38 @@ image consumption are Phases 5 and 6 in
 [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) and are
 covered in detail by [65Z-ci-scenario-docker](65z-ci-scenario-docker.md).
 
+### Maintained `nixpkgs` revision
+
+The `nixpkgs` revision must have one deterministic maintained source. Add an
+exact full Git commit SHA to the maintained `fjs/ci/` configuration, for example
+`config.nix.nixpkgsRevision`. Do not infer it from whichever generated lock file
+happens to exist and do not resolve an unpinned branch during generation.
+
+Every generated flake must derive its input from that configured revision, for
+example:
+
+```nix
+inputs.nixpkgs.url = "github:NixOS/nixpkgs/<configured-full-commit>";
+```
+
+`npm run ci-update` should generate or refresh each `flake.lock` from this exact
+revision and then verify that every `locked.rev` equals the maintained value.
+Creating a new flake and recreating a deleted lock must therefore produce the
+same `nixpkgs` revision as all other generated flakes.
+
+A target that temporarily requires another `nixpkgs` revision must declare that
+exception explicitly in the maintained CI configuration. Generated lock-file
+drift is never an implicit exception.
+
 ### Lock files
 
 Each independent flake may have its own generated `flake.lock`. The lock file
-pins `nixpkgs` and other flake inputs; exact upstream tools are pinned in the
-generated derivations by version, URL, and hash.
+records the resolved input metadata, including the `narHash`; exact upstream
+tools remain pinned in the generated derivations by version, URL, and hash.
 
-The generator should normally keep all flakes on the same intended `nixpkgs`
-revision, while allowing an exceptional environment to use another revision
-when required.
+The configured `nixpkgs` commit is authoritative. The generator must reject a
+lock whose `locked.rev` differs from the configured revision, and regeneration
+must update all affected locks together when the maintained revision changes.
 
 ### Tasks
 
@@ -259,6 +282,9 @@ when required.
 
 - [ ] Extend `npm run ci-update` to generate target-specific Nix files with exact
       versions, upstream URLs, archive formats, and hashes.
+- [ ] Add the exact full `nixpkgs` commit to maintained `fjs/ci/` configuration.
+- [ ] Generate every flake input and lock from that configured revision and verify
+      each lock's `locked.rev` matches it.
 - [ ] Generate independent flakes for native Linux and macOS CI; do not add a
       root-level generic flake.
 - [ ] Generate and refresh a `flake.lock` for each independent flake.
