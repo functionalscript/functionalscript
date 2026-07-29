@@ -16,10 +16,11 @@ disagree instead of relying on an arbitrary head.
 ### Proposal
 
 Add an optional `archived?: true` parameter to the core `Evo.list` API and
-forward it unchanged from the MCP adapter:
+forward it unchanged from the MCP adapter. Preserve the existing effectful,
+readonly return contract:
 
 ```ts
-list(archived?: true): Subject[]
+list(archived?: true): Effect<MemOp, readonly Subject[]>
 ```
 
 Treat the parameter as a status filter:
