@@ -168,6 +168,31 @@ permissions:
 The publication workflow is trusted because it runs from committed code on the
 protected branch, not from a fork's workflow definition.
 
+### Public visibility and consumer authentication
+
+The FunctionalScript CI images are intended for both CI and external users, so
+the GHCR container packages must be public. Public GHCR container packages can
+be pulled anonymously; pull-request jobs, fork jobs, and users therefore do not
+need package credentials merely to consume a published image.
+
+The first publication is not complete until the package visibility is set to
+public and an unauthenticated pull of each immutable architecture identity and
+the multi-platform identity succeeds. If GitHub requires an administrator to
+set visibility after the first push, document that one-time step and verify it
+in the publication workflow or a publication check.
+
+If the policy later changes to private packages, the generated consumer jobs
+must instead:
+
+- request `packages: read`;
+- authenticate to GHCR before pulling;
+- ensure the workflow repository has read access to the package;
+- distinguish authorization failures from an absent immutable image.
+
+An authentication, permission, registry, or network failure is not a cache
+miss and must fail the pull step. Only a confirmed “manifest/tag not found” for
+the exact immutable identity may trigger the local Nix-build fallback.
+
 ### Consumer ordering and fallback
 
 A pull request that changes tool versions or generated Nix files cannot assume
@@ -175,12 +200,13 @@ that its new GHCR image already exists. CI consumers therefore need an explicit
 ordering and fallback strategy:
 
 1. compute the immutable image identity from the generated inputs;
-2. attempt to pull that exact image when it already exists;
-3. on a miss, build the environment or OCI image locally from the generated
+2. attempt an anonymous pull of that exact public image when it already exists;
+3. treat only a confirmed missing manifest/tag as an image miss;
+4. on a miss, build the environment or OCI image locally from the generated
    flake and optionally reuse GitHub cache or workflow artifacts;
-4. never push from `pull_request` or `merge_group` jobs;
-5. after merge, let the protected publication workflow publish the validated
-   image for later runs and users.
+5. never push from `pull_request` or `merge_group` jobs;
+6. after merge, let the protected publication workflow publish the validated
+   public image for later runs and users.
 
 CI must not fall back to a mutable `latest` image with different tool versions.
 A missing immutable image means “build this exact generated environment,” not
@@ -209,8 +235,11 @@ The final job split depends on the image-boundary measurements.
       code from receiving GHCR write credentials.
 - [ ] Publish immutable architecture-specific identities and create the
       multi-platform manifest only after both builds succeed.
-- [ ] Implement pull-by-immutable-identity with a local Nix build fallback when
-      the image has not been published yet.
+- [ ] Configure the GHCR container packages as public and verify anonymous pulls
+      of every published immutable identity.
+- [ ] Implement pull-by-immutable-identity with a local Nix build fallback only
+      for a confirmed missing manifest/tag; fail on authentication, permission,
+      registry, or network errors.
 - [ ] Validate every installed tool and Playwright browser bundle against the CI
       source configuration.
 - [ ] Benchmark one image per architecture, one image per job, and useful hybrid
