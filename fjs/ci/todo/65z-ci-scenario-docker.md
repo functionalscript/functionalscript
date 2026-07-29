@@ -1,7 +1,8 @@
 ## 65Z-ci-scenario-docker. Add Nix-built OCI images after direct Nix CI is proven
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
+**Blocked by:** [65Z-ci-nix](65z-ci-nix.md)
 
 ### Summary
 
@@ -162,10 +163,13 @@ The initial publication workflow must:
 
 - run only on `push` to the protected default branch after merge;
 - not expose `workflow_dispatch` in the initial implementation;
-- grant `contents: read` and `packages: write` only to the publication job;
-- build from the protected default-branch commit;
-- build and validate both architecture-specific OCI outputs;
-- push immutable architecture-specific identities;
+- keep workflow-level permissions at `contents: read`;
+- build and validate architecture-specific OCI outputs in jobs without
+  `packages: write`;
+- transfer the validated image archives or equivalent immutable outputs to a
+  final publication job;
+- grant `packages: write` only to that final publication job;
+- push immutable architecture-specific identities from the publication job;
 - create the multi-platform manifest only after both variants succeed.
 
 Conceptually:
@@ -177,8 +181,27 @@ on:
 
 permissions:
   contents: read
-  packages: write
+
+jobs:
+  build-amd64:
+    # Build, validate, and upload the OCI archive as a workflow artifact.
+
+  build-arm64:
+    # Build, validate, and upload the OCI archive as a workflow artifact.
+
+  publish:
+    needs: [build-amd64, build-arm64]
+    permissions:
+      contents: read
+      packages: write
+    # Download the validated archives, push both identities, then publish the
+    # multi-platform manifest.
 ```
+
+The architecture build and validation jobs must not inherit package-write
+permission. If the final design combines build and push in one job instead,
+that single job is the publication job and is the only job allowed to receive
+`packages: write`.
 
 A manual rebuild may be designed later, but only with an enforced protected
 branch ref and, when appropriate, a protected environment approval. It is not
@@ -223,6 +246,8 @@ experiment.
 - [ ] Complete the generation, validation, and direct Nix CI phases in
       [65Z-ci-nix](65z-ci-nix.md).
 - [ ] Record the direct Nix build, cache, and job-boundary measurements.
+- [ ] Change this TODO from `blocked` to `open` only after the prerequisite is
+      complete.
 
 #### OCI generation
 
@@ -236,7 +261,10 @@ experiment.
 #### Protected publication
 
 - [ ] Generate a push-to-protected-default-branch publication workflow with
-      `contents: read` and `packages: write`.
+      workflow-level `contents: read` only.
+- [ ] Keep architecture build and validation jobs free of `packages: write`.
+- [ ] Grant `contents: read` and `packages: write` only to the final job that
+      pushes the validated architecture images and manifest.
 - [ ] Do not add `workflow_dispatch` to the initial publication workflow.
 - [ ] Keep `pull_request` and `merge_group` workflows read-only.
 - [ ] Publish immutable architecture-specific identities and create the
