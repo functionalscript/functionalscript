@@ -163,6 +163,18 @@ as well, which is wrong.
      cov` rows' `Runtime` column from `Node 24+` to `Node 22+`.
    - Section numbering/title in §1.3 may need adjusting once the caveat is
      gone (e.g. rename to describe the fallback rather than a limitation).
+8. Make CI actually exercise the claim before any of the above documentation
+   changes ship. Checked the generated `.github/workflows/ci.yml`: the `node22`
+   job (`fjs/ci/node/module.f.ts:34-38`, `node22Steps`) installs the
+   *published* `functionalscript@<version>` package and runs `fjs t` — it
+   never checks out this working tree's `register`/`node --test` path at all.
+   Only the `node24` job (`fjs/ci/node/module.f.ts:40-43`) currently runs
+   `node --test`, and only against Node 24. So nothing in CI today would catch
+   a broken or missing Node 22 fallback; the AGENTS.md promise in step 7 would
+   be undefended. Add a `node --test` (or `npm run cov`) step against the
+   working tree to `node22Steps` in `fjs/ci/node/module.f.ts`, regenerate
+   `.github/workflows/ci.yml` via `npm run ci-update`, and commit both —
+   before, not after, the AGENTS.md wording changes land.
 
 ### Tasks
 
@@ -200,6 +212,12 @@ as well, which is wrong.
 - [ ] Document the supported-Node-version policy and the inline-context
       fallback (README or JSDoc near `register`/`NodeProgramOptions`),
       including that Deno is exempt from the Node-version comparison.
+- [ ] Add a working-tree `node --test` (or `npm run cov`) step to
+      `node22Steps` in `fjs/ci/node/module.f.ts:34-38` (which currently only
+      installs the published package and runs `fjs t`), regenerate
+      `.github/workflows/ci.yml` via `npm run ci-update`, and commit both —
+      **before** the `AGENTS.md` task below, so the Node 22 promise is
+      actually defended by CI when it ships.
 - [ ] Update `AGENTS.md`: drop the "Node 24+ for `node --test`" caveat from
       the §1.1 table (`AGENTS.md:32`), rewrite §1.3 "The Node version caveat"
       (`AGENTS.md:47-57`) to describe the automatic inline-context fallback
@@ -218,3 +236,7 @@ as well, which is wrong.
   matching the runtime fallback threshold as a typings floor, not a live
   tracking of "latest").
 - `AGENTS.md:30-77` — §1.1/§1.3/§1.4 Node-version documentation to update.
+- `fjs/ci/node/module.f.ts:34-38` — `node22Steps`, which needs a working-tree
+  `node --test`/`npm run cov` step before the Node 22 promise is documented.
+- `.github/workflows/ci.yml` — generated from `fjs/ci/node/module.f.ts`;
+  regenerate via `npm run ci-update` after changing `node22Steps`.
