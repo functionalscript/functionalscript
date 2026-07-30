@@ -14,13 +14,18 @@ way to know which Node.js version it is running under — `NodeProgramOptions`
 `package.json`'s `engines.node` field says `">=22"`, but the codebase only
 partly supports Node 22 in practice — CI/Codex containers are pinned to
 Node 22 because they cannot be upgraded, while the fully-supported baseline
-is Node 24. `@types/node` in `package.json` is currently `26.1.2`, which is
-ahead of the real baseline and should be pinned down to an exact `24.X.Y`.
-Node 22 does **not** get `@types/node` pinned to match it: Node 22's
-`node:test` `TestContext` typings differ from Node 24's, and the
-test-framework code this task touches is written against Node 24's shape.
-The test framework is not being downgraded to satisfy an environment
-(Codex's Docker containers) that simply cannot upgrade its Node binary.
+is Node 24.
+
+`@types/node` should stay at its current/latest version (`26.1.2` today), not
+be pinned down to `24.x`. Confirmed empirically: pinning `@types/node` to
+`24` still fails `tsc`, because `expectFailure` is not in `@types/node@24`'s
+`TestOptions` type — even though `node --test` itself accepts and honors
+`expectFailure` correctly at runtime on Node 24 (it's undocumented/untyped
+there, not unsupported). `@types/node@26` does carry the up-to-date typing.
+So the `@types/node` version is decoupled from the runtime Node-version
+fallback below: keep `@types/node` on latest for correct typechecking, and
+gate the `register` fallback purely on the detected runtime `nodeVersion`, not
+on which `@types/node` is installed.
 
 **The exact feature gap: Node's `expectFailure` test option.** `node:test`'s
 `test()` gained a real `expectFailure` option — inverting pass/fail for a
@@ -88,21 +93,15 @@ as well, which is wrong.
    makes that selected context be the compatible one under the hood. No
    version check or failure path is needed inside `register` — the fallback
    happens once, at context-construction time.
-5. Pin `@types/node` in `package.json` (`package.json:47`) to an exact
-   `24.X.Y` (not a `22.x` floor, and not left at `26.1.2`). Node 22's
-   `node:test` `TestContext`/`TestFn` typings differ from Node 24's — the
-   `register` test-framework plumbing (`fjs/effects/node/module.ts:297-314`,
-   `fjs/effects/node/module.f.ts:448-468`) is written and typechecked against
-   the Node 24 shape, so compiling against `@types/node@22` would fight the
-   very code this task adds. We are **not** downgrading the test framework to
-   accommodate Node 22 — Node 22 stays only as a partially-supported floor for
-   environments (Codex's Docker containers) that cannot upgrade their Node
-   binary; it does not get to hold back `@types/node` or the test-framework
-   typings package-wide. `package-lock.json`, `deno.lock`, and `bun.lock` all
-   currently also pin `@types/node` `26.1.2` and must be regenerated together
-   with `package.json`, not edited by hand — run `npm run update`
-   (`package.json:16`, which chains `ci-update`, `npm install`, `deno
-   install`, and `bun install`) and commit the resulting lockfile diffs.
+5. Keep `@types/node` in `package.json` (`package.json:47`) on its
+   current/latest version (`26.1.2`) rather than pinning it down to `24.x` or
+   `22.x`. `@types/node@24` was tried and still fails `tsc`, because
+   `expectFailure` is absent from its `TestOptions` type even though
+   `node --test` supports it correctly at runtime on Node 24 — the type
+   package lags the runtime here. Since the typings version doesn't need to
+   track the runtime-version fallback (step 3), there is no downgrade to make;
+   the earlier "pin to 24.X.Y" plan is dropped. No lockfile regeneration is
+   needed for this item, since `@types/node` is not changing.
 6. Cover every new branch with co-located proofs, per the repository's
    mandatory 100% line/branch coverage: `nodeVersion` at/above `24.14.0` keeps
    the native `testContext`, `nodeVersion` below `24.14.0` swaps in the inline
@@ -140,11 +139,9 @@ as well, which is wrong.
 - [ ] Add proofs covering: Node `>= 24.14.0` uses the native context, Node
       `< 24.14.0` uses the inline context, and Bun/Deno/Playwright are
       unaffected — 100% line/branch coverage of the new code.
-- [ ] Pin `@types/node` in `package.json:47` to an exact `24.X.Y` (down from
-      `26.1.2`, not to `22.x` — Node 22's `node:test` `TestContext` typings
-      differ and would break the register's test-framework plumbing).
-- [ ] Run `npm run update` and commit the regenerated `package-lock.json`,
-      `deno.lock`, and `bun.lock`.
+- [ ] Leave `@types/node` in `package.json:47` at its current/latest version
+      (`26.1.2`) — do not pin it to `24.x` or `22.x`; confirmed `24` fails
+      `tsc` on the missing `expectFailure` type despite working at runtime.
 - [ ] Document the supported-Node-version policy and the inline-context
       fallback (README or JSDoc near `register`/`NodeProgramOptions`),
       including that Deno is exempt from the Node-version comparison.
@@ -162,5 +159,6 @@ as well, which is wrong.
   `bunTestContext`.
 - `fjs/emergent_testing/module.f.ts:409` — `register`.
 - `package.json:20` — `engines.node: ">=22"`.
-- `package.json:47` — `@types/node` version.
+- `package.json:47` — `@types/node` version (staying on latest; not tied to
+  the runtime fallback threshold).
 - `AGENTS.md:30-77` — §1.1/§1.3/§1.4 Node-version documentation to update.
