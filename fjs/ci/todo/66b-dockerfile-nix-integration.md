@@ -24,8 +24,9 @@ work.
 - keep commands in GitHub Actions;
 - preserve each job's current commands and coverage;
 - keep `npm run ci-update` Nix-independent and runnable on Windows;
-- defer generalized shell, lock-file, cache, and package-provider abstractions until a
-  real requirement appears.
+- ignore per-job lock files created beside generated flakes;
+- defer generalized shell, cache, and package-provider abstractions until a real
+  requirement appears.
 
 ### Phase 1: pin Nixpkgs
 
@@ -67,6 +68,16 @@ Each file contains only:
 
 The generator owns the generated directory and removes stale job outputs.
 
+Nix may create `flake.lock` beside a generated flake. Keep these files untracked with
+this root `.gitignore` rule:
+
+```gitignore
+/nix/generated/**/flake.lock
+```
+
+The rule is limited to generated CI flakes. A future intentional root or hand-written
+lock file remains visible to Git.
+
 For Node 22, preserve the existing global FunctionalScript installation. Find the
 simplest writable npm location and effective `PATH` during implementation. Do not
 introduce a general shell-setup schema unless another job demonstrates a need for it.
@@ -80,15 +91,12 @@ For each Node job:
 3. enter that job's generated environment;
 4. verify the selected Node version;
 5. run the existing job command sequence unchanged;
-6. verify the checkout remains unchanged;
+6. verify there are no tracked or stageable checkout changes;
 7. switch only that job after equivalent behavior is demonstrated.
 
 Node 22, Node 24, and Node 26 can be generated, validated, and adopted independently.
 A problem in one job does not block progress on the others unless it affects the shared
 Nixpkgs commit itself.
-
-Choose the simplest lock-file/checkout-cleanliness mechanism after testing the first
-flake. The required outcome is a clean checkout, not a predetermined implementation.
 
 ### Out of scope
 
@@ -111,12 +119,13 @@ milestone.
 - [ ] Update Node versions from the accepted Nixpkgs snapshot.
 - [ ] Generate separate Node 22, Node 24, and Node 26 flakes.
 - [ ] Remove stale generated job directories.
+- [ ] Add `/nix/generated/**/flake.lock` to `.gitignore`.
 - [ ] Keep ordinary generation Nix-independent and Windows-compatible.
 - [ ] Commit the generated flakes.
 - [ ] Add pinned Nix bootstrap to each migrated job.
 - [ ] Validate the three Node jobs independently.
 - [ ] Preserve each job's existing commands and coverage.
-- [ ] Keep the checkout unchanged.
+- [ ] Keep tracked checkout state unchanged.
 - [ ] Migrate jobs one at a time.
 
 ### Related
