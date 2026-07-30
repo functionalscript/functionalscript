@@ -96,6 +96,20 @@ Do not require the generic dependency updater to run this flow. Package-manager
 manifests and lockfiles are changed only when a separately scoped task explicitly
 requires them.
 
+### Generated flake locks
+
+Nix may create a `flake.lock` beside a generated `flake.nix` during evaluation. Do not
+commit these per-job lock files in the first milestone. Ignore them with the scoped
+root `.gitignore` rule:
+
+```gitignore
+/nix/generated/**/flake.lock
+```
+
+This keeps the Node 26 generated-file drift check clean without adding special Nix
+flags to every invocation. The rule is deliberately limited to generated CI flakes,
+so a future intentional root or hand-maintained `flake.lock` is unaffected.
+
 ### Validation and adoption
 
 Adopt jobs independently:
@@ -104,12 +118,8 @@ Adopt jobs independently:
 2. install pinned Nix in CI;
 3. enter the generated environment;
 4. run that job's existing commands unchanged;
-5. verify Nix does not modify the checkout;
+5. verify there are no tracked or stageable checkout changes;
 6. remove the old setup only after equivalent behavior is demonstrated.
-
-The exact lock-file and shell details should be selected by the first working
-implementation. Preserve the invariants—readable generated Nix, correct tools, and a
-clean checkout—without standardizing a broad framework prematurely.
 
 The Node 22 experiment must preserve its existing global FunctionalScript install.
 Choose the simplest working writable npm location and `PATH` setup locally for that
@@ -134,11 +144,12 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [ ] Add the explicit Nixpkgs update command.
 - [ ] Generate one readable self-contained flake per Node job.
 - [ ] Remove stale generated job directories.
+- [ ] Ignore `/nix/generated/**/flake.lock`.
 - [ ] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [ ] Commit the generated flakes.
 - [ ] Bootstrap Nix through a pinned CI action.
 - [ ] Validate each Node job independently with its existing commands.
-- [ ] Keep Nix invocations from modifying the checkout.
+- [ ] Keep tracked checkout state unchanged.
 - [ ] Migrate jobs one at a time.
 - [ ] Create independent follow-up TODOs only when experiments expose concrete needs.
 
