@@ -61,6 +61,11 @@ the optional message, following the existing `assertEq` shape.
    - require the same set of own enumerable string properties, ignoring order;
    - recursively compare the value of every property with `structurallySame`.
 
+The generic `unknown` signature does not imply special semantics for every host
+object. Under this algorithm, an unsupported host object is compared only by its
+own enumerable string properties. Callers that require date, map, set, typed-array,
+prototype, or descriptor semantics must use a more specific comparison.
+
 For example:
 
 ```ts
