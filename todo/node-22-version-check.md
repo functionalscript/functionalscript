@@ -1,4 +1,4 @@
-## Node version check. `register` should fall back to the inline test context below the minimum supported Node version
+## Support Node 22 external tests
 
 **Priority:** P3
 **Status:** open
