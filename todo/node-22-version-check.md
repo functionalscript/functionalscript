@@ -22,21 +22,30 @@ test-framework code this task touches is written against Node 24's shape.
 The test framework is not being downgraded to satisfy an environment
 (Codex's Docker containers) that simply cannot upgrade its Node binary.
 
-**Minimum fully-supported version: Node `24.0.0`.** This is the floor stated
-by the maintainer; Node 22 is kept *working* only because Codex's Docker
-containers cannot be upgraded off it, not because it is a target.
+**The exact feature gap: Node's `expectFailure` test option.** `node:test`'s
+`test()` gained a real `expectFailure` option — inverting pass/fail for a
+flagged test/suite — backported to Node `24.14.0` (and `25.5.0`); it does not
+exist on Node 22. `fjs/effects/node/module.ts:297-298` already calls
+`ctx.test(name, { expectFailure }, ...)`, i.e. the native `node:test` path
+this codebase relies on. This matches the existing caveat documented in
+`AGENTS.md:47-57` ("Node's built-in test runner... needs Node 24 or later. On
+Node 22 it runs to completion but reports every `throw`-tagged test... as a
+failure"). (Correction to an earlier note on this PR: `expectFailure` **is** a
+real, versioned `node:test` option — not an ignored key — which is exactly why
+this gap is version-dependent rather than always broken.)
 
-Rather than throwing/failing the whole test register on an unsupported Node
-version — which would make `register` unusable in the very environment (Codex
-containers) it needs to keep working in — `register` should **fall back** to
-the same inline, flattened test-registration strategy the runner already uses
-for Bun and Playwright (`inlineTest`/`wrapInlineTest`,
-`fjs/effects/node/module.ts:307-325`) whenever it detects a Node version below
-the floor. That strategy does not rely on nested `TestContext.test()` calls or
-Node-24-shaped `TestContext` typings the way the native `ctx.test(name, {
-expectFailure }, ...)` path does (`fjs/effects/node/module.ts:297-298`), so it
-sidesteps whatever gap exists in Node 22's `node:test` API/typings without
-needing register itself to fail.
+**Minimum version with native `expectFailure`: Node `24.14.0`.** Below that
+floor, `register` should **fall back** to the same inline, flattened
+test-registration strategy the runner already uses for Bun and Playwright
+(`inlineTest`/`wrapInlineTest`, `fjs/effects/node/module.ts:307-325`) instead
+of the native `ctx.test(name, { expectFailure }, ...)` path — `inlineTest`
+implements the pass/fail inversion itself in plain code
+(`fjs/effects/node/module.ts:307-314`), so it does not depend on `node:test`'s
+native `expectFailure` support at all. This makes `node --test` (and `npm run
+cov`, which wraps it) work correctly on Node 22, satisfying the constraint
+that Codex's Docker containers cannot be upgraded off Node 22 — rather than
+throwing/failing the whole test register, which would make `register`
+unusable there.
 
 This issue spans `fjs/emergent_testing`, `fjs/effects/node`, and the root
 `package.json`, so it is filed at the top level rather than under a single
@@ -65,10 +74,10 @@ as well, which is wrong.
    populated from `process.version` only when `engine === 'node'`, and left
    `undefined` on Bun/Deno/Playwright/virtual runners.
 3. In `fjs/effects/node/module.ts:327-336`, where `NodeProgramOptions` is
-   constructed, compare `nodeVersion` against the fixed floor `24.0.0` using a
+   constructed, compare `nodeVersion` against the fixed floor `24.14.0` using a
    proper semver-order comparison (major, then minor, then patch) — not a
    hardcoded major-`22` (or major-`23`) special case. When `engine === 'node'`
-   and `nodeVersion < 24.0.0`, build `testContext` from the same
+   and `nodeVersion < 24.14.0`, build `testContext` from the same
    `wrapInlineTest(testContext.test)` helper already used for
    `bunTestContext` (`fjs/effects/node/module.ts:324`) instead of the raw
    `node:test` module export, so `register` (`fjs/emergent_testing/module.f.ts:409`)
@@ -95,9 +104,25 @@ as well, which is wrong.
    (`package.json:16`, which chains `ci-update`, `npm install`, `deno
    install`, and `bun install`) and commit the resulting lockfile diffs.
 6. Cover every new branch with co-located proofs, per the repository's
-   mandatory 100% line/branch coverage: `nodeVersion` at/above `24.0.0` keeps
-   the native `testContext`, `nodeVersion` below `24.0.0` swaps in the inline
+   mandatory 100% line/branch coverage: `nodeVersion` at/above `24.14.0` keeps
+   the native `testContext`, `nodeVersion` below `24.14.0` swaps in the inline
    context, and Bun/Deno/Playwright are unaffected by the comparison entirely.
+7. Update `AGENTS.md` to reflect that `node --test` (and `npm run cov`, which
+   wraps it) now work correctly on Node 22, since the fallback removes the
+   inversion bug the current text warns about:
+   - `AGENTS.md:32` (§1.1 table) — drop the "Node 24+ for `node --test`"
+     caveat from the Node.js row; `node --test` now works from the stated
+     22-minimum.
+   - `AGENTS.md:47-57` (§1.3 "The Node version caveat") — replace the
+     "needs Node 24 or later" warning with a short note that `register`
+     automatically falls back to an inline test-registration strategy below
+     Node `24.14.0`, so `node --test`/`npm run cov` report correctly on Node
+     22 too; keep noting that Node `24.14.0`+ is still the fully-supported,
+     native-`expectFailure` baseline.
+   - `AGENTS.md:68-69` (§1.4 table) — change the `node --test` and `npm run
+     cov` rows' `Runtime` column from `Node 24+` to `Node 22+`.
+   - Section numbering/title in §1.3 may need adjusting once the caveat is
+     gone (e.g. rename to describe the fallback rather than a limitation).
 
 ### Tasks
 
@@ -108,12 +133,12 @@ as well, which is wrong.
 - [ ] Populate it from `process.version` in the Node runner, only when
       `engine === 'node'`.
 - [ ] In `fjs/effects/node/module.ts`, when `engine === 'node'` and
-      `nodeVersion < 24.0.0` (semver order), construct `testContext` via
+      `nodeVersion < 24.14.0` (semver order), construct `testContext` via
       `wrapInlineTest(testContext.test)` instead of the raw `node:test`
       export, reusing the existing Bun/Playwright fallback path rather than
       adding a new failure path.
-- [ ] Add proofs covering: Node `>= 24.0.0` uses the native context, Node
-      `< 24.0.0` uses the inline context, and Bun/Deno/Playwright are
+- [ ] Add proofs covering: Node `>= 24.14.0` uses the native context, Node
+      `< 24.14.0` uses the inline context, and Bun/Deno/Playwright are
       unaffected — 100% line/branch coverage of the new code.
 - [ ] Pin `@types/node` in `package.json:47` to an exact `24.X.Y` (down from
       `26.1.2`, not to `22.x` — Node 22's `node:test` `TestContext` typings
@@ -123,6 +148,12 @@ as well, which is wrong.
 - [ ] Document the supported-Node-version policy and the inline-context
       fallback (README or JSDoc near `register`/`NodeProgramOptions`),
       including that Deno is exempt from the Node-version comparison.
+- [ ] Update `AGENTS.md`: drop the "Node 24+ for `node --test`" caveat from
+      the §1.1 table (`AGENTS.md:32`), rewrite §1.3 "The Node version caveat"
+      (`AGENTS.md:47-57`) to describe the automatic inline-context fallback
+      instead of a limitation, and change the `node --test` / `npm run cov`
+      rows in the §1.4 table (`AGENTS.md:68-69`) from `Node 24+` to
+      `Node 22+`.
 
 ### Related
 
@@ -132,3 +163,4 @@ as well, which is wrong.
 - `fjs/emergent_testing/module.f.ts:409` — `register`.
 - `package.json:20` — `engines.node: ">=22"`.
 - `package.json:47` — `@types/node` version.
+- `AGENTS.md:30-77` — §1.1/§1.3/§1.4 Node-version documentation to update.
