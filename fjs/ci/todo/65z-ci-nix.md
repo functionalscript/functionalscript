@@ -51,7 +51,15 @@ Add only the data needed now:
 - stable Nixpkgs update reference;
 - exact accepted Nixpkgs commit;
 - exact package versions copied from that snapshot where native CI needs them;
-- simple per-job package declarations.
+- simple per-job system and package declarations.
+
+For the current jobs, the declarations are:
+
+```text
+node22: aarch64-linux, nodejs_22
+node24: aarch64-linux, nodejs_24
+node26: aarch64-linux, nodejs_26
+```
 
 ### Generated environments
 
@@ -66,16 +74,39 @@ nix/generated/node26/flake.nix
 Each generated file should:
 
 - pin the exact Nixpkgs commit;
-- expose only the packages needed by that job;
+- expose `devShells.aarch64-linux.default` for the current ARM Linux job;
+- use `pkgs.mkShell` with exactly that job's Node package;
 - be readable without inspecting the generator;
 - contain no job-selection logic;
 - contain no unrelated platform branches;
-- avoid shared generated Nix modules.
+- avoid helper libraries and shared generated Nix modules.
+
+The minimal public contract is:
+
+```nix
+{
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/<commit>";
+
+  outputs = { nixpkgs, ... }: {
+    devShells.aarch64-linux.default =
+      let
+        pkgs = import nixpkgs { system = "aarch64-linux"; };
+      in
+      pkgs.mkShell {
+        packages = [ pkgs.nodejs_22 ];
+      };
+  };
+}
+```
+
+The generator substitutes the job's package. If another system is later required, emit
+another explicit `devShells.<system>.default` attribute rather than adding a loop or
+system-selection framework.
 
 Node 22, Node 24, and Node 26 remain separate because they use different runtimes and
 run different command sequences.
 
-The Node 22 flake has one explicit job-local exception for its existing global install:
+The Node 22 flake adds one explicit job-local field for its existing global install:
 
 ```nix
 shellHook = ''
@@ -99,11 +130,12 @@ npm run ci-nix-update
 At a high level it:
 
 1. reads the latest commit from the configured official stable Nixpkgs reference;
-2. reads the package versions needed by the currently declared Nix jobs;
-3. updates the Nixpkgs commit and relevant exact versions in
+2. verifies that `nodejs_22`, `nodejs_24`, and `nodejs_26` exist;
+3. reads the package versions needed by the currently declared Nix jobs;
+4. updates the Nixpkgs commit and relevant exact versions in
    `fjs/ci/config/module.f.ts`;
-4. runs ordinary CI generation to regenerate the declared flakes;
-5. leaves all generated changes for review and commit.
+5. runs ordinary CI generation to regenerate the declared flakes;
+6. leaves all generated changes for review and commit.
 
 Do not require the generic dependency updater to run this flow. Package-manager
 manifests and lockfiles are changed only when a separately scoped task explicitly
@@ -156,7 +188,8 @@ Add other jobs only when useful:
 - Deno and Bun can be separate straightforward follow-ups;
 - Rust should have its own experiment and TODO for concrete toolchain/target packages;
 - Playwright should have its own experiment when its Nix environment is attempted;
-- OCI remains a later optimization after one direct-Nix Linux job completes validation.
+- OCI remains a later design and optimization task after one direct-Nix Linux job
+  completes validation.
 
 A failure or unresolved design in one follow-up must not block unrelated flakes.
 
@@ -164,9 +197,11 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 
 - [ ] Add the stable Nixpkgs reference and exact accepted commit to the current CI
       configuration.
-- [ ] Add minimal Node 22, Node 24, and Node 26 package declarations.
+- [ ] Add the Node job system and package declarations above.
 - [ ] Add the explicit Nixpkgs update command.
-- [ ] Generate one readable self-contained flake per Node job.
+- [ ] Verify all required Node package attributes exist in the candidate snapshot.
+- [ ] Generate one readable self-contained flake per Node job with
+      `devShells.aarch64-linux.default`.
 - [ ] Add the Node 22 `$HOME/.npm-global` shell hook.
 - [ ] Remove stale generated job directories.
 - [ ] Ignore `/nix/generated/**/flake.lock`.
@@ -184,5 +219,5 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 
 - [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — first Node
   implementation.
-- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — optional OCI experiment after
+- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — optional OCI design work after
   one direct-Nix job completes validation.
