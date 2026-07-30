@@ -103,6 +103,8 @@ For example:
 ```ts
 structurallySame(NaN, NaN) // true
 structurallySame(0, -0) // false
+structurallySame({}, null) // false
+structurallySame([], {}) // false
 
 structurallySame(
     { a: 1, b: { c: 2 } },
@@ -148,8 +150,8 @@ These cases can be added later when a concrete consumer requires them.
 - [ ] Compare arrays by length and recursively by index.
 - [ ] Compare object property sets without depending on property order.
 - [ ] Add proof cases for primitives, `NaN`, signed zero, arrays, nested values,
-      reordered object properties, and missing properties whose value would read
-      as `undefined`.
+      reordered object properties, missing properties whose value would read as
+      `undefined`, an object versus a primitive, and an array versus a non-array.
 - [ ] Add assertion proof cases for success, failure, and the optional message.
 - [ ] Run `npx tsc` and `fjs t`.
 
