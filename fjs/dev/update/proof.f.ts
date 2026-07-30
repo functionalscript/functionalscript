@@ -34,6 +34,7 @@ export const proof = {
     syncMcp: () => {
         const [state, result] = virtual(initial)(syncMcp())
         assertEq(result, undefined)
+        // TODO: replace it with `assert(deepEq())`. We don't have the `deepEq`.
         assertEq(str(state.root as any), str(expectedRoot as any))
     },
     main: () => {
