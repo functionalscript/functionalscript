@@ -137,3 +137,5 @@ index.html
 .cas/
 .claude
 
+# Generated Nix flake locks
+/nix/generated/**/flake.lock

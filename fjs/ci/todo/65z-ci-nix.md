@@ -1,375 +1,228 @@
-## 65Z-ci-nix. Generate Nix environments for Linux and macOS CI
+## 65Z-ci-nix. Generate simple CI flakes from official Nixpkgs
 
-**Priority:** P4
+**Priority:** P3
 **Status:** open
 
 ### Problem
 
-Linux and macOS CI currently install tools through generated GitHub Actions
-steps. This duplicates installation logic and does not provide one reproducible
-environment definition that can be built and debugged independently.
+The CI environments are currently assembled by workflow-specific setup steps rather than
+small, readable, declarative Nix environments. A broad design also risks coupling the
+first useful Node migration to unrelated dependency-updater, Playwright, Rust, OCI, and
+configuration-migration work.
 
-The Nix work must also preserve the existing cross-platform generator workflow.
-`npm run update` invokes `npm run ci-update` and must remain runnable on native
-Windows. Ordinary generation therefore cannot require a local Nix installation.
+We need to prove the smallest independent path:
 
-OCI images are a separate concern. Creating them before the generated Nix
-environments are proven would make it difficult to distinguish Nix-generation
-failures from OCI packaging and distribution failures.
+```text
+current CI config -> generated per-job flake.nix -> direct CI execution
+```
 
 ### Proposal
 
-Generate explicit target-specific Nix flakes from the existing `fjs/ci/` source
-of truth, commit those generated files, validate them on native Linux and macOS,
-and then run existing CI commands directly through Nix.
+Use one official Nixpkgs snapshot to generate a separate self-contained flake for each
+selected CI job. Start only with Node 22, Node 24, and Node 26, and adopt each job
+independently after its existing commands pass through direct Nix.
 
-Use this order:
+#### Scope
+
+This task owns only:
+
+- selecting and pinning an exact Nixpkgs commit;
+- recording package versions provided by that snapshot;
+- declaring simple Nix environments for selected CI jobs;
+- generating and committing one `flake.nix` per job;
+- validating and adopting those flakes in CI.
+
+This task does not own:
+
+- replacing `npm-check-updates`;
+- designing a repository-wide CI lock format;
+- synchronizing Playwright packages and browsers;
+- solving Rust target/toolchain composition;
+- building OCI images.
+
+Those concerns may evolve independently and must not block the first Node flakes.
+
+#### Configuration
+
+For this milestone, extend the existing `fjs/ci/config/module.f.ts` configuration.
+It is already consumed by CI generation and works on native Windows.
+
+A future task may migrate CI configuration to another format. That migration is not a
+prerequisite for Nix generation; it only needs to update the Nix generator to read the
+new source when it happens.
+
+Add only the data needed now:
+
+- stable Nixpkgs update reference;
+- exact accepted Nixpkgs commit;
+- exact package versions copied from that snapshot where native CI needs them;
+- simple per-job system and package declarations.
+
+For the current jobs, the declarations are:
 
 ```text
-Phase 1: generate exact target-specific Nix flakes and lock files
-Phase 2: build and validate every generated flake
-Phase 3: run Linux/macOS CI directly through Nix
-Phase 4: measure and select useful flake boundaries
-Later: add OCI outputs, publication, and optional consumption
+node22: aarch64-linux, nodejs_22
+node24: aarch64-linux, nodejs_24
+node26: aarch64-linux, nodejs_26
 ```
 
-The first four phases do not create, publish, pull, or run OCI images. Windows
-keeps its existing native generated installation path.
+#### Generated environments
 
-A developer-oriented aggregate `flake.nix` may be added later, but it is
-explicitly out of scope and must not constrain the initial CI layout.
-
-### Source of truth
-
-The maintained source remains the CI scripts and configuration, including
-`fjs/ci/config/module.f.ts`.
+Generate one self-contained file for each job:
 
 ```text
-CI scripts and config
-        |
-        v
-npm run ci-update
-        |
-        +-- generated GitHub Actions workflow
-        +-- generated Linux/macOS Nix flakes and lock files
-        +-- native Windows installation steps
+nix/generated/node22/flake.nix
+nix/generated/node24/flake.nix
+nix/generated/node26/flake.nix
 ```
 
-Generated `.nix` and `flake.lock` files are committed build artifacts. They are
-not maintained manually. Reusable abstractions belong in the
-TypeScript/FunctionalScript generator.
+Each generated file should:
 
-### Cross-platform generation
+- pin the exact Nixpkgs commit;
+- expose `devShells.aarch64-linux.default` for the current ARM Linux job;
+- use `pkgs.mkShell` with exactly that job's Node package;
+- be readable without inspecting the generator;
+- contain no job-selection logic;
+- contain no unrelated platform branches;
+- avoid helper libraries and shared generated Nix modules.
 
-`npm run ci-update` must be Nix-independent. It must run with the repository's
-supported Node environment on Linux, macOS, and native Windows.
-
-The maintained CI configuration must contain all normalized input metadata
-needed to generate deterministic lock files, not only a moving input name. For
-`nixpkgs`, this should include at least:
-
-- the exact full Git commit;
-- the locked content hash such as `narHash`;
-- any other stable lock fields required by the generated `flake.lock` format.
-
-For example, the maintained configuration may expose a value such as
-`config.nix.nixpkgsLock`. The generator uses that data to emit both:
+The minimal public contract is:
 
 ```nix
-inputs.nixpkgs.url = "github:NixOS/nixpkgs/<configured-full-commit>";
+{
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/<commit>";
+
+  outputs = { nixpkgs, ... }: {
+    devShells.aarch64-linux.default =
+      let
+        pkgs = import nixpkgs { system = "aarch64-linux"; };
+      in
+      pkgs.mkShell {
+        packages = [ pkgs.nodejs_22 ];
+      };
+  };
+}
 ```
 
-and the corresponding deterministic `flake.lock` node without invoking Nix.
+The generator substitutes the job's package. If another system is later required, emit
+another explicit `devShells.<system>.default` attribute rather than adding a loop or
+system-selection framework.
 
-A normal `npm run update` or `npm run ci-update` must never resolve a moving
-branch, contact Nix to refresh a lock, or require Nix to be installed.
+Node 22, Node 24, and Node 26 remain separate because they use different runtimes and
+run different command sequences.
 
-### Deliberate input updates
+The Node 22 flake adds one explicit job-local field for its existing global install:
 
-Changing the maintained `nixpkgs` input is a separate operation from ordinary
-generation. Add an explicit command, for example:
+```nix
+shellHook = ''
+  export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+  export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+  mkdir -p "$NPM_CONFIG_PREFIX"
+'';
+```
+
+Do not generalize this into a shell-configuration framework unless another job proves
+that abstraction useful.
+
+#### Nixpkgs update
+
+Add an explicit Nix-capable command, for example:
 
 ```sh
-npm run ci-nix-input-update
+npm run ci-nix-update
 ```
 
-This command may require Nix and is supported on a documented Nix-capable host,
-such as Linux, macOS, or Windows through WSL. It should:
+At a high level it:
 
-1. resolve the intentionally selected `nixpkgs` revision;
-2. write the full normalized locked-input metadata into maintained `fjs/ci/`
-   configuration;
-3. run the ordinary Nix-independent `npm run ci-update`;
-4. stage all generated changes and expose any diff for review.
+1. reads the latest commit from the configured official stable Nixpkgs reference;
+2. verifies that `nodejs_22`, `nodejs_24`, and `nodejs_26` exist;
+3. reads the package versions needed by the currently declared Nix jobs;
+4. updates the Nixpkgs commit and relevant exact versions in
+   `fjs/ci/config/module.f.ts`;
+5. runs ordinary CI generation to regenerate the declared flakes;
+6. leaves all generated changes for review and commit.
 
-The command is used only when intentionally changing a Nix input. It is not
-called by `npm run update`, ordinary development on native Windows, or the
-normal regeneration check.
+Do not require the generic dependency updater to run this flow. Package-manager
+manifests and lockfiles are changed only when a separately scoped task explicitly
+requires them.
 
-A target-specific input exception must be explicit in maintained configuration.
-Generated lock-file drift is never an implicit exception.
+#### Generated flake locks
 
-### Independent generated flakes
+Nix may create a `flake.lock` beside a generated `flake.nix` during evaluation. Do not
+commit these per-job lock files in the first milestone. Ignore them with the scoped
+root `.gitignore` rule:
 
-Start without a root-level generic `flake.nix`. Generate one or more independent
-flake directories and let GitHub CI reference them directly.
-
-Possible layouts include one flake per OS/architecture:
-
-```text
-nix/generated/
-  linux-x86_64/flake.nix
-  linux-x86_64/flake.lock
-  linux-aarch64/flake.nix
-  linux-aarch64/flake.lock
-  darwin-x86_64/flake.nix
-  darwin-x86_64/flake.lock
-  darwin-aarch64/flake.nix
-  darwin-aarch64/flake.lock
+```gitignore
+/nix/generated/**/flake.lock
 ```
 
-or one flake per CI environment:
+This keeps the Node 26 generated-file drift check clean without adding special Nix
+flags to every invocation. The rule is deliberately limited to generated CI flakes,
+so a future intentional root or hand-maintained `flake.lock` is unaffected.
 
-```text
-nix/generated/
-  node-24-linux-x86_64/flake.nix
-  wasm-linux-x86_64/flake.nix
-  playwright-linux-x86_64/flake.nix
-  node-24-darwin-aarch64/flake.nix
-```
+#### Validation and adoption
 
-Do not decide the permanent boundary before measuring build, evaluation, cache,
-and CI concurrency behavior. A hybrid layout is valid.
+Adopt jobs independently. Each migrated workflow uses:
 
-### Fully resolved target files
+1. checkout;
+2. a pinned Nix installer action;
+3. one `nix develop --command` invocation containing that job's complete existing
+   command sequence.
 
-Each generated flake should describe one known target or CI environment without
-unnecessary cross-platform dispatch logic. It should include:
-
-- the exact host OS and architecture;
-- the exact required tools and versions;
-- platform-specific upstream URLs and archive formats;
-- hashes for every downloaded artifact;
-- installation and wrapping steps;
-- runtime libraries and environment variables;
-- validation commands derived from the CI configuration.
-
-Generated duplication is acceptable because each file is a compiled CI artifact
-and a minimal reproduction for its environment.
-
-### Host systems and compilation targets
-
-Keep host systems separate from additional compilation targets.
-
-Host examples:
-
-- `x86_64-linux`;
-- `aarch64-linux`;
-- `x86_64-darwin`;
-- `aarch64-darwin`.
-
-Targets installed into a host environment may include:
-
-- `wasm32-wasip1`;
-- `wasm32-wasip1-threads`;
-- `wasm32-wasip2`;
-- `wasm32-unknown-unknown`;
-- `i686-unknown-linux-gnu`.
-
-An x86-64 Linux environment that tests `i686-unknown-linux-gnu` may require a
-32-bit linker and libraries, but it remains an `x86_64-linux` host flake.
-
-### Exact upstream versions
-
-Nix is the reproducible installer and build graph, not the version authority.
-The generator should use the same upstream releases selected for Windows,
-macOS, and Linux CI, even when those releases are not yet packaged by
-`nixpkgs`.
-
-Generated derivations should fetch exact upstream artifacts using expected
-hashes. `nixpkgs` may provide helpers, patching tools, runtime libraries, and
-later OCI builders, but it must not silently select different Node, Deno, Bun,
-Rust, Wasmtime, Wasmer, or Playwright versions.
-
-### Playwright
-
-Treat Playwright as a coordinated bundle rather than a single executable. Keep
-these parts synchronized:
-
-- package and driver version;
-- Chromium, Firefox, and WebKit revisions;
-- platform-specific browser artifacts and hashes;
-- required native runtime libraries;
-- browser-path environment variables.
-
-Preserve the commands already generated by `fjs/ci/playwright/module.f.ts`:
+The invocation has this shape:
 
 ```sh
-nix develop ./nix/generated/playwright-linux-x86_64 \
-  --command npx playwright test --browser=chromium
-nix develop ./nix/generated/playwright-linux-x86_64 \
-  --command npx playwright test --browser=firefox
-nix develop ./nix/generated/playwright-linux-x86_64 \
-  --command npx playwright test --browser=webkit
+nix develop ./nix/generated/<job> --command bash -euo pipefail -c '<commands>'
 ```
 
-Do not invent a new package script merely for the Nix wrapper.
+Using one Nix process keeps the selected Node executable and any job-local `shellHook`
+available to every command. It avoids profiles, cross-step PATH exports, and accidental
+fallback to the runner's preinstalled Node.
 
-### Regeneration drift check
+For each job:
 
-The existing generation job does not need Nix because ordinary generation is
-Nix-independent. It must preserve the repository's staged-diff pattern:
+1. verify the selected Node version inside the Nix invocation;
+2. run the existing commands in their current order;
+3. verify there are no tracked or stageable checkout changes;
+4. remove the old setup only after equivalent behavior is demonstrated.
 
-```yaml
-steps:
-  - uses: actions/checkout@<pinned-version>
-  - run: npm run ci-update
-  - run: git add -A && git diff --cached --exit-code
-```
+#### Independent follow-ups
 
-`git add -A` is required before comparison. A plain `git diff --exit-code`
-does not detect newly generated untracked files. The staged comparison must
-detect additions, deletions, and modifications.
+Add other jobs only when useful:
 
-### Nix bootstrap for validation and direct CI
+- Deno and Bun can be separate straightforward follow-ups;
+- Rust should have its own experiment and TODO for concrete toolchain/target packages;
+- Playwright should have its own experiment when its Nix environment is attempted;
+- OCI remains a later design and optimization task after one direct-Nix Linux job
+  completes validation.
 
-Nix is required only when evaluating, building, validating, or entering the
-generated flakes. Linux and macOS jobs must therefore:
-
-1. check out the repository;
-2. install Nix using a pinned, trusted GitHub Action;
-3. configure the selected Nix-store cache strategy;
-4. invoke the target-specific generated flake.
-
-Validation must treat committed lock files as immutable input. It must fail
-rather than silently update a lock. It must also verify that the generated
-locked revision and hash match maintained configuration.
-
-Windows jobs do not use this bootstrap.
-
-### Staged rollout
-
-#### Phase 1: generation
-
-Generate deterministic target-specific `flake.nix` and `flake.lock` files,
-exact artifact fetches, validation definitions, and workflow paths.
-
-Phase 1 succeeds when:
-
-- `npm run ci-update` runs on Linux, macOS, and native Windows without Nix;
-- generation deletes stale outputs;
-- required platform artifacts are resolved or generation fails;
-- `git add -A && git diff --cached --exit-code` reports no change.
-
-#### Phase 2: build and validation
-
-After installing Nix on Linux and macOS, prove that every generated flake:
-
-1. evaluates without changing its committed lock;
-2. builds its declared environment;
-3. reports every expected exact tool version;
-4. runs representative commands for every packaged tool;
-5. uses the expected Playwright package and browser bundle;
-6. supports the required Rust, WASM, and 32-bit targets;
-7. uses the maintained locked Nix inputs.
-
-A failure must identify the exact generated flake so it can be reproduced and
-debugged independently.
-
-#### Phase 3: direct Nix CI
-
-After Phase 2 succeeds, convert Linux and macOS jobs to execute their existing
-commands through generated flakes using `nix develop --command` or an equivalent
-direct Nix invocation.
-
-This phase intentionally does not create or consume OCI images. Compare the
-Nix-backed jobs with existing setup-action jobs until equivalent coverage and
-results are established.
-
-#### Phase 4: measurements
-
-Measure:
-
-- cold and warm build times;
-- evaluation time;
-- cache reuse;
-- duplicated downloads;
-- CI concurrency behavior;
-- failure and debugging isolation.
-
-Use those measurements to choose per-OS/architecture, per-job,
-per-major-version, or hybrid boundaries.
-
-#### Later phases: OCI images
-
-Only after direct Linux CI works reliably through generated flakes should Linux
-flakes gain OCI outputs. OCI generation, GHCR publication, and optional CI
-consumption are covered by
-[65Z-ci-scenario-docker](65z-ci-scenario-docker.md) and Phases 5 and 6 in
-[66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
+A failure or unresolved design in one follow-up must not block unrelated flakes.
 
 ### Tasks
 
-#### Phase 1: generation
-
-- [ ] Extend `npm run ci-update` to generate exact target-specific `flake.nix`
-      and `flake.lock` files without invoking Nix.
-- [ ] Add complete normalized `nixpkgs` locked-input metadata to maintained
-      `fjs/ci/` configuration.
-- [ ] Generate every flake input and lock from that maintained metadata.
-- [ ] Keep `npm run update` and `npm run ci-update` runnable on native Windows.
-- [ ] Add a separate documented Nix-capable-host command for intentional input
-      updates; do not call it from ordinary generation.
-- [ ] Generate independent Linux and macOS flake directories without a root
-      aggregate flake.
-- [ ] Preserve `git add -A && git diff --cached --exit-code` so additions,
-      deletions, and modifications all fail the drift check.
-- [ ] Delete stale generated files when tools, versions, systems,
-      architectures, targets, or jobs are removed.
-- [ ] Generate exact installed-version and representative execution checks.
-- [ ] Model hosts separately from Rust/WASM/32-bit compilation targets.
-- [ ] Generate Playwright as a coordinated package, driver, browser, and native
-      dependency bundle.
-
-#### Phase 2: build and validation
-
-- [ ] Install pinned Nix and configure the selected cache before the first Nix
-      command in every Linux and macOS validation job.
-- [ ] Verify generated locks without allowing validation to rewrite them.
-- [ ] Verify generated locked revisions and hashes match maintained input
-      metadata.
-- [ ] Prove every generated flake evaluates, builds, and passes its checks.
-- [ ] Validate Playwright with the existing browser-specific CI commands.
-- [ ] Validate required Rust, WASM, and 32-bit targets.
-
-#### Phase 3: direct Nix CI
-
-- [ ] Run existing Linux and macOS CI commands directly through generated flakes
-      without OCI images.
-- [ ] Preserve existing Playwright commands generated by
-      `fjs/ci/playwright/module.f.ts`.
-- [ ] Compare results with existing setup-action jobs before removing them.
-- [ ] Keep native Windows jobs on existing generated installation steps.
-
-#### Phase 4: measurements
-
-- [ ] Benchmark per-OS/architecture, per-job, per-major-version, and hybrid
-      flake boundaries.
-- [ ] Measure cold and warm builds, evaluation, cache reuse, duplicated
-      downloads, CI concurrency, and debugging isolation.
-- [ ] Select the generated boundary only after direct Nix CI results are
-      available.
-
-### Out of scope
-
-- OCI image generation and GHCR publication until direct Nix CI is proven;
-- a developer-oriented aggregate `flake.nix`.
+- [ ] Add the stable Nixpkgs reference and exact accepted commit to the current CI
+      configuration.
+- [ ] Add the Node job system and package declarations above.
+- [ ] Add the explicit Nixpkgs update command.
+- [ ] Verify all required Node package attributes exist in the candidate snapshot.
+- [ ] Generate one readable self-contained flake per Node job with
+      `devShells.aarch64-linux.default`.
+- [ ] Add the Node 22 `$HOME/.npm-global` shell hook.
+- [ ] Remove stale generated job directories.
+- [ ] Ignore `/nix/generated/**/flake.lock`.
+- [ ] Keep `npm run ci-update` Nix-independent and Windows-compatible.
+- [ ] Commit the generated flakes.
+- [ ] Bootstrap Nix through a pinned CI action.
+- [ ] Run each migrated job's complete command sequence inside one
+      `nix develop --command` invocation.
+- [ ] Validate each Node job independently with its existing commands and order.
+- [ ] Keep tracked checkout state unchanged.
+- [ ] Migrate jobs one at a time.
+- [ ] Create independent follow-up TODOs only when experiments expose concrete needs.
 
 ### Related
 
-- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — blocked OCI stage after
-  direct Nix CI succeeds.
-- [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — staged
-  implementation plan.
-- i145 — Docker containers for Linux CI jobs.
-- i095 — original Docker CI idea.
+- [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — first Node
+  implementation.
+- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — optional OCI design work after
+  one direct-Nix job completes validation.
