@@ -40,9 +40,12 @@ order:
    Nix host;
 3. update the exact Nixpkgs commit and top-level package versions in
    `fjs/ci/config/module.f.ts`;
-4. run the ordinary CI generator, which emits standalone generated flake
+4. synchronize Playwright's existing package dependency and every tracked lockfile,
+   or reject the snapshot when synchronization is not possible;
+5. run the ordinary CI generator, which emits standalone generated flake
    directories;
-5. leave the config and generated flake changes ready to commit and review.
+6. leave the config, dependency metadata, and generated flake changes ready to
+   commit and review.
 
 Each generated directory contains a complete `flake.nix` with no imports or
 references to other generated Nix files. Generated duplication is intentional: a
@@ -147,6 +150,12 @@ nix develop ./nix/generated/node26 --command npm test
 This preserves the existing Node matrix because every shell exposes exactly one
 `node` and `npm` implementation.
 
+The generator owns the complete `nix/generated/` tree. Before writing current
+outputs, it must delete that tree recursively and recreate it from the current CI
+configuration. This deterministic cleanup removes flakes for renamed or deleted CI
+environments instead of leaving stale committed directories that may still be
+validated or consumed.
+
 Do not generate `flake.lock` in this first milestone. The exact Git commit in each
 input URL pins the package source. Initial validation and CI commands must prevent
 Nix from writing an uncommitted lock file, for example with the appropriate
@@ -175,9 +184,15 @@ case exists.
 
 Playwright has an additional project dependency synchronization requirement. That
 existing bug is tracked separately in
-[playwright-package-version-sync](playwright-package-version-sync.md). The Nixpkgs
-update must not silently combine a different `playwright-driver` version with the
-repository's installed `@playwright/test` version.
+[playwright-package-version-sync](playwright-package-version-sync.md). When the
+root `package.json` already contains `@playwright/test`, the exact dependency and
+all tracked dependency lockfiles, including `package-lock.json`, `deno.lock`, and
+`bun.lock`, must match the selected CI and Nixpkgs Playwright version.
+
+The Nixpkgs update must either complete that synchronization atomically or reject
+the snapshot. The Playwright flake must not be generated, committed, validated, or
+adopted by CI until the synchronization TODO is complete. Other independent flakes
+may proceed without waiting for it.
 
 ### CI adoption
 
@@ -206,13 +221,20 @@ files.
       together.
 - [ ] Fail the update when a package is missing, broken, unsupported, or reports
       different versions across required systems.
+- [ ] Require Playwright dependency and `package-lock.json`, `deno.lock`, and
+      `bun.lock` synchronization before accepting a changed Playwright version.
 - [ ] Extend `npm run ci-update` to generate standalone flake directories without
       invoking Nix or accessing the network.
+- [ ] Delete and recreate the complete generated flake tree before emitting current
+      outputs so renamed or removed environments leave no stale directories.
 - [ ] Generate separate Node 22, Node 24, and Node 26 flakes so each shell contains
       exactly one Node package.
 - [ ] Keep every generated `flake.nix` self-contained with no generated-file
       imports.
 - [ ] Generate metadata and executable version checks from the config.
+- [ ] Block Playwright flake generation, validation, and adoption until
+      [playwright-package-version-sync](playwright-package-version-sync.md) is
+      complete.
 - [ ] Commit all generated `flake.nix` files and preserve
       `git add -A && git diff --cached --exit-code` in the regeneration check.
 - [ ] Validate every committed flake on its supported Linux and macOS runners
@@ -226,7 +248,7 @@ files.
   implementation sequence.
 - [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — later OCI stage.
 - [playwright-package-version-sync](playwright-package-version-sync.md) — keep the
-  repository Playwright dependency synchronized with CI.
+  repository Playwright dependency and all tracked lockfiles synchronized with CI.
 - [i096](96.md) — CI caching.
 - [Official NixOS 26.05 channel](https://channels.nixos.org/nixos-26.05) — example
   stable source whose release points to an immutable GitHub Nixpkgs commit.
