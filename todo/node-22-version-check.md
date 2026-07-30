@@ -163,6 +163,19 @@ as well, which is wrong.
      cov` rows' `Runtime` column from `Node 24+` to `Node 22+`.
    - Section numbering/title in §1.3 may need adjusting once the caveat is
      gone (e.g. rename to describe the fallback rather than a limitation).
+   `CONTRIBUTING.md` repeats the same caveat for contributors and must be
+   updated alongside `AGENTS.md`, not left stale:
+   - `CONTRIBUTING.md:35` — drop "Node 24+ for `node --test` and `npm run
+     cov`" from the Node.js requirements row.
+   - `CONTRIBUTING.md:43-46` — replace "Node 22 is enough for `npm test`...
+     but on Node 22 `node --test` reports every `throw`-tagged test as a
+     failure" (and its link to the AGENTS.md caveat) with a note that Node 22
+     now works correctly via the automatic fallback.
+   - `CONTRIBUTING.md:96` — the OpenAI Codex environment section says "Use
+     `npm test` rather than `npm run cov` there, per the Node version caveat
+     above"; once `npm run cov` (which wraps `node --test`) works on Node 22
+     too, this restriction no longer applies and should be removed or
+     updated.
 8. Make CI actually exercise the claim before any of the above documentation
    changes ship. Checked the generated `.github/workflows/ci.yml`: the `node22`
    job (`fjs/ci/node/module.f.ts:34-38`, `node22Steps`) installs the
@@ -224,6 +237,14 @@ as well, which is wrong.
       instead of a limitation, and change the `node --test` / `npm run cov`
       rows in the §1.4 table (`AGENTS.md:68-69`) from `Node 24+` to
       `Node 22+`.
+- [ ] Update `CONTRIBUTING.md` to match: drop "Node 24+ for `node --test` and
+      `npm run cov`" from the requirements table (`CONTRIBUTING.md:35`),
+      replace the "Node 22 `node --test` reports every `throw`-tagged test as
+      a failure" note and its `AGENTS.md` link (`CONTRIBUTING.md:43-46`) with
+      a note that Node 22 now works via the fallback, and remove or update the
+      "use `npm test` rather than `npm run cov`" guidance in the OpenAI Codex
+      environment section (`CONTRIBUTING.md:96`), since that restriction no
+      longer applies.
 
 ### Related
 
@@ -240,3 +261,5 @@ as well, which is wrong.
   `node --test`/`npm run cov` step before the Node 22 promise is documented.
 - `.github/workflows/ci.yml` — generated from `fjs/ci/node/module.f.ts`;
   regenerate via `npm run ci-update` after changing `node22Steps`.
+- `CONTRIBUTING.md:35,43-46,96` — contributor-facing Node-version caveat to
+  update alongside `AGENTS.md`.
