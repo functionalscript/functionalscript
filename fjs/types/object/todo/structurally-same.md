@@ -112,8 +112,10 @@ structurallySame(
 ) // true
 
 structurallySame({ a: undefined }, {}) // false
+structurallySame({ a: 1 }, { b: 1 }) // false
 structurallySame([1, { a: 2 }], [1, { a: 2 }]) // true
 structurallySame([1, 2], [2, 1]) // false
+structurallySame([1], [1, 2]) // false
 
 assertStructurallySame(
     { a: 1 },
@@ -152,6 +154,8 @@ These cases can be added later when a concrete consumer requires them.
 - [ ] Add proof cases for primitives, `NaN`, signed zero, arrays, nested values,
       reordered object properties, missing properties whose value would read as
       `undefined`, an object versus a primitive, and an array versus a non-array.
+- [ ] Add proof cases for arrays with different lengths and objects with the same
+      number of properties but different property names.
 - [ ] Add assertion proof cases for success, failure, and the optional message.
 - [ ] Run `npx tsc` and `fjs t`.
 
