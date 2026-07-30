@@ -17,12 +17,14 @@ working experiment requires it.
 ### Design rules
 
 - use one pinned official stable Nixpkgs commit;
-- define each CI job's systems, packages, and static shell environment
-  declaratively;
+- define each CI job's systems, packages, literal environment values, and small
+  structured shell setup declaratively;
 - generate one self-contained `flake.nix` per job;
-- generate static package/environment data with no job-selection conditions;
+- generate static package and shell setup with no job-selection conditions;
 - represent materially different package or platform requirements as separate
   jobs/flakes;
+- expand runtime-dependent values in readable shell startup code rather than plain
+  environment attributes;
 - keep workflow commands in GitHub Actions;
 - preserve current commands and coverage during migration;
 - check out the repository and install Nix through a pinned action before any Nix
@@ -46,9 +48,8 @@ export const nix = {
         node22: {
             systems: ['x86_64-linux', 'aarch64-linux'],
             packages: ['nodejs_22'],
-            environment: {
-                NPM_CONFIG_PREFIX: '$TMPDIR/npm-global',
-                PATH: '$NPM_CONFIG_PREFIX/bin:$PATH',
+            shell: {
+                npmGlobalPrefix: 'npm-global',
             },
         },
         node24: {
@@ -72,11 +73,21 @@ nix/generated/node26/flake.nix
 ```
 
 Each file contains the exact Nixpkgs commit, supported systems, explicit packages,
-and static environment settings. It does not inspect the job name or choose between
+and straightforward shell setup. It does not inspect the job name or choose between
 package variants.
 
-The Node 22 shell declares a writable npm global prefix because its existing job
-runs `npm install -g` before invoking `fjs`.
+The Node 22 shell needs a writable npm global prefix because its existing job runs
+`npm install -g` before invoking `fjs`. The generated flake should expand the
+structured `npmGlobalPrefix` setting at shell startup with readable code equivalent
+to:
+
+```sh
+export NPM_CONFIG_PREFIX="$TMPDIR/npm-global"
+export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+```
+
+Do not render these expressions as ordinary environment attributes: nested shell
+references in those values would remain literal instead of expanding recursively.
 
 The generator owns `nix/generated/` and removes outputs that are no longer declared.
 
@@ -99,8 +110,10 @@ For each Node flake:
 1. build it on every declared system;
 2. verify the selected Node version;
 3. run the corresponding job's existing commands;
-4. compare with the current setup path;
-5. switch the job only after equivalent behavior is demonstrated.
+4. for Node 22, verify the global install makes `fjs` resolvable on the effective
+   `PATH`;
+5. compare with the current setup path;
+6. switch the job only after equivalent behavior is demonstrated.
 
 Node 22, 24, and 26 remain separate because they select different Node versions and
 run different command sequences.
@@ -154,9 +167,12 @@ Playwright, do not drift independently.
 #### Initial implementation
 
 - [ ] Add the stable Nixpkgs ref and exact accepted commit.
-- [ ] Add a declarative map from job to systems, packages, and static environment.
+- [ ] Add a declarative map from job to systems, packages, literal environment, and
+      structured shell setup.
 - [ ] Generate separate readable flakes for Node 22, 24, and 26.
-- [ ] Configure a writable npm global prefix and PATH for Node 22.
+- [ ] Configure a writable npm global prefix for Node 22.
+- [ ] Expand the Node 22 prefix and PATH in generated shell startup code rather than
+      plain environment attributes.
 - [ ] Remove stale generated job directories.
 - [ ] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [ ] Add `npm run ci-nix-update` for deliberate snapshot changes.
@@ -167,6 +183,7 @@ Playwright, do not drift independently.
 - [ ] Add checkout and a pinned Nix installation before every Nix invocation.
 - [ ] Build each generated Node flake on its declared systems.
 - [ ] Run each Node job's unchanged commands in its matching flake.
+- [ ] Verify the Node 22 global `fjs` executable is on the effective PATH.
 - [ ] Keep the Node 26 checkout clean for its drift check.
 - [ ] Move jobs to Nix one at a time after equivalent behavior is proven.
 - [ ] Add simple Deno/Bun jobs using the same pattern.
