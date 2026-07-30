@@ -75,6 +75,19 @@ Each generated file should:
 Node 22, Node 24, and Node 26 remain separate because they use different runtimes and
 run different command sequences.
 
+The Node 22 flake has one explicit job-local exception for its existing global install:
+
+```nix
+shellHook = ''
+  export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+  export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+  mkdir -p "$NPM_CONFIG_PREFIX"
+'';
+```
+
+Do not generalize this into a shell-configuration framework unless another job proves
+that abstraction useful.
+
 ### Nixpkgs update
 
 Add an explicit Nix-capable command, for example:
@@ -112,18 +125,29 @@ so a future intentional root or hand-maintained `flake.lock` is unaffected.
 
 ### Validation and adoption
 
-Adopt jobs independently:
+Adopt jobs independently. Each migrated workflow uses:
 
-1. generate and commit the job's flake;
-2. install pinned Nix in CI;
-3. enter the generated environment;
-4. run that job's existing commands unchanged;
-5. verify there are no tracked or stageable checkout changes;
-6. remove the old setup only after equivalent behavior is demonstrated.
+1. checkout;
+2. a pinned Nix installer action;
+3. one `nix develop --command` invocation containing that job's complete existing
+   command sequence.
 
-The Node 22 experiment must preserve its existing global FunctionalScript install.
-Choose the simplest working writable npm location and `PATH` setup locally for that
-flake.
+The invocation has this shape:
+
+```sh
+nix develop ./nix/generated/<job> --command bash -euo pipefail -c '<commands>'
+```
+
+Using one Nix process keeps the selected Node executable and any job-local `shellHook`
+available to every command. It avoids profiles, cross-step PATH exports, and accidental
+fallback to the runner's preinstalled Node.
+
+For each job:
+
+1. verify the selected Node version inside the Nix invocation;
+2. run the existing commands in their current order;
+3. verify there are no tracked or stageable checkout changes;
+4. remove the old setup only after equivalent behavior is demonstrated.
 
 ### Independent follow-ups
 
@@ -132,7 +156,7 @@ Add other jobs only when useful:
 - Deno and Bun can be separate straightforward follow-ups;
 - Rust should have its own experiment and TODO for concrete toolchain/target packages;
 - Playwright should have its own experiment when its Nix environment is attempted;
-- OCI remains a later optimization after one direct-Nix Linux job works.
+- OCI remains a later optimization after one direct-Nix Linux job completes validation.
 
 A failure or unresolved design in one follow-up must not block unrelated flakes.
 
@@ -143,12 +167,15 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [ ] Add minimal Node 22, Node 24, and Node 26 package declarations.
 - [ ] Add the explicit Nixpkgs update command.
 - [ ] Generate one readable self-contained flake per Node job.
+- [ ] Add the Node 22 `$HOME/.npm-global` shell hook.
 - [ ] Remove stale generated job directories.
 - [ ] Ignore `/nix/generated/**/flake.lock`.
 - [ ] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [ ] Commit the generated flakes.
 - [ ] Bootstrap Nix through a pinned CI action.
-- [ ] Validate each Node job independently with its existing commands.
+- [ ] Run each migrated job's complete command sequence inside one
+      `nix develop --command` invocation.
+- [ ] Validate each Node job independently with its existing commands and order.
 - [ ] Keep tracked checkout state unchanged.
 - [ ] Migrate jobs one at a time.
 - [ ] Create independent follow-up TODOs only when experiments expose concrete needs.
@@ -158,4 +185,4 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — first Node
   implementation.
 - [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — optional OCI experiment after
-  one direct-Nix job works.
+  one direct-Nix job completes validation.
