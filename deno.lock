@@ -14,6 +14,7 @@
       "bin": true
     },
     "@types/node@26.0.0": {
+      "integrity": "sha512-vf2YFi1iY9lHGwNJMs01biZFbKJkrZR1T6/MlzjhJLPdntOHLhTrDSnSVcdtvjihi4VQNlrFRIxLsDBlQpAipA==",
       "dependencies": [
         "undici-types"
       ]
