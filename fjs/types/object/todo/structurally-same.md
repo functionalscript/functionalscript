@@ -155,6 +155,8 @@ These cases can be added later when a concrete consumer requires them.
 
 - [ ] Add the dependency-free implementation to
       `fjs/types/object/structurally_same/module.f.ts`.
+- [ ] Add the co-located `fjs/types/object/structurally_same/proof.f.ts` module,
+      export `proof`, and exercise every branch of `structurallySame` there.
 - [ ] Re-export `structurallySame` from `fjs/types/object/module.f.ts`.
 - [ ] Add `assertStructurallySame` to `fjs/asserts/module.f.ts`, importing
       `structurallySame` directly from the leaf module.
@@ -173,12 +175,12 @@ These cases can be added later when a concrete consumer requires them.
       if either is not a non-null object.
 - [ ] Compare arrays by length and recursively by index.
 - [ ] Compare object property sets without depending on property order.
-- [ ] Add proof cases for identical and distinct primitives, `NaN`, signed zero,
-      arrays, nested values, reordered object properties, missing properties whose
-      value would read as `undefined`, an object versus a primitive, and an array
-      versus a non-array.
-- [ ] Add proof cases for arrays with different lengths and objects with the same
-      number of properties but different property names.
+- [ ] In the co-located proof module, cover identical and distinct primitives,
+      `NaN`, signed zero, arrays, nested values, reordered object properties,
+      missing properties whose value would read as `undefined`, an object versus
+      a primitive, and an array versus a non-array.
+- [ ] In the co-located proof module, cover arrays with different lengths and
+      objects with the same number of properties but different property names.
 - [ ] Add assertion proof cases for success, failure, and the optional message.
 - [ ] Run `npx tsc` and `fjs t`.
 
