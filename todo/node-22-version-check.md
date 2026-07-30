@@ -1,4 +1,4 @@
-## Node version check. `register` should fail below the minimum supported Node version
+## Node version check. `register` should fall back to the inline test context below the minimum supported Node version
 
 **Priority:** P3
 **Status:** open
@@ -22,25 +22,21 @@ test-framework code this task touches is written against Node 24's shape.
 The test framework is not being downgraded to satisfy an environment
 (Codex's Docker containers) that simply cannot upgrade its Node binary.
 
-A check that only special-cases major `22` is insufficient: `engines.node`
-also accepts Node 23, and any other version below the real minimum (including
-a minor/patch floor within the minimum major) would be silently accepted too.
-Without a precise runtime check, an unsupported Node version silently
-misbehaves — or throws a confusing low-level error — instead of failing the
-test register with a clear message.
+**Minimum fully-supported version: Node `24.0.0`.** This is the floor stated
+by the maintainer; Node 22 is kept *working* only because Codex's Docker
+containers cannot be upgraded off it, not because it is a target.
 
-**Minimum supported version: Node `24.0.0`.** This is the floor stated by the
-maintainer as the fully-supported baseline; Node 22 is kept working only
-because Codex's Docker containers cannot be upgraded off it, not because it is
-a target. Before implementation, audit `register` and the `Test`/`TestFn`
-plumbing (`fjs/effects/node/module.ts:297-314`) for any concrete Node 24-only
-API dependency (none is currently confirmed — the earlier reference to an
-`expectFailure` *native* `node:test` option was incorrect: `node:test`'s
-`test()` has no `expectFailure` option, so `{ expectFailure }`
-(`fjs/effects/node/module.ts:298`) is currently just an ignored extra key, not
-a version-gated feature). If no concrete Node 24-only dependency is found, the
-guard still enforces `24.0.0` as the declared support floor, independent of
-any single API trigger.
+Rather than throwing/failing the whole test register on an unsupported Node
+version — which would make `register` unusable in the very environment (Codex
+containers) it needs to keep working in — `register` should **fall back** to
+the same inline, flattened test-registration strategy the runner already uses
+for Bun and Playwright (`inlineTest`/`wrapInlineTest`,
+`fjs/effects/node/module.ts:307-325`) whenever it detects a Node version below
+the floor. That strategy does not rely on nested `TestContext.test()` calls or
+Node-24-shaped `TestContext` typings the way the native `ctx.test(name, {
+expectFailure }, ...)` path does (`fjs/effects/node/module.ts:297-298`), so it
+sidesteps whatever gap exists in Node 22's `node:test` API/typings without
+needing register itself to fail.
 
 This issue spans `fjs/emergent_testing`, `fjs/effects/node`, and the root
 `package.json`, so it is filed at the top level rather than under a single
@@ -51,8 +47,8 @@ documents Deno as a supported external runner (`deno test`), but
 `fjs/effects/node/module.ts:335` currently classifies every runtime that is
 neither Bun nor Playwright as `engine: 'node'` — Deno included, since it also
 shims `node:process`. Populating `nodeVersion` from that shim and gating on
-`engine === 'node'` alone would apply the Node-only minimum-version floor to
-Deno as well, which is wrong.
+`engine === 'node'` alone would apply the Node-only version fallback to Deno
+as well, which is wrong.
 
 ### Proposal
 
@@ -68,16 +64,21 @@ Deno as well, which is wrong.
    minor: number, patch: number }`) in `fjs/effects/node/module.f.ts:524`,
    populated from `process.version` only when `engine === 'node'`, and left
    `undefined` on Bun/Deno/Playwright/virtual runners.
-3. Compare `nodeVersion` against the fixed floor `24.0.0` using a proper
-   semver-order comparison (major, then minor, then patch) — not a hardcoded
-   major-`22` (or major-`23`) special case, so every version below `24.0.0`
-   is rejected uniformly.
-4. In `register` (`fjs/emergent_testing/module.f.ts:409`), check
-   `nodeVersion` only when `engine === 'node'` and fail fast (throw or
-   register a single failing test) when running under an unsupported Node
-   version. Bun, Deno, and Playwright must be unaffected by this guard. The
-   check should be explicit about *why* it fails, so CI logs make the version
-   gap obvious rather than surfacing a downstream failure.
+3. In `fjs/effects/node/module.ts:327-336`, where `NodeProgramOptions` is
+   constructed, compare `nodeVersion` against the fixed floor `24.0.0` using a
+   proper semver-order comparison (major, then minor, then patch) — not a
+   hardcoded major-`22` (or major-`23`) special case. When `engine === 'node'`
+   and `nodeVersion < 24.0.0`, build `testContext` from the same
+   `wrapInlineTest(testContext.test)` helper already used for
+   `bunTestContext` (`fjs/effects/node/module.ts:324`) instead of the raw
+   `node:test` module export, so `register` (`fjs/emergent_testing/module.f.ts:409`)
+   picks the inline/flattened strategy for old Node the same way it already
+   does for Bun/Playwright.
+4. `register` itself needs no new branching: it already selects `testContext`
+   for `engine === 'node'` (`fjs/emergent_testing/module.f.ts:411-413`); step 3
+   makes that selected context be the compatible one under the hood. No
+   version check or failure path is needed inside `register` — the fallback
+   happens once, at context-construction time.
 5. Pin `@types/node` in `package.json` (`package.json:47`) to an exact
    `24.X.Y` (not a `22.x` floor, and not left at `26.1.2`). Node 22's
    `node:test` `TestContext`/`TestFn` typings differ from Node 24's — the
@@ -94,11 +95,9 @@ Deno as well, which is wrong.
    (`package.json:16`, which chains `ci-update`, `npm install`, `deno
    install`, and `bun install`) and commit the resulting lockfile diffs.
 6. Cover every new branch with co-located proofs, per the repository's
-   mandatory 100% line/branch coverage: a passing case at/above `24.0.0`, a
-   failing case below `24.0.0` (asserted via a `throw`-key test, matching the
-   convention in `fjs/emergent_testing/proof.f.ts:279,332-339`), and an
-   unaffected case for each of Bun/Deno/Playwright showing the guard does not
-   run when `engine !== 'node'`.
+   mandatory 100% line/branch coverage: `nodeVersion` at/above `24.0.0` keeps
+   the native `testContext`, `nodeVersion` below `24.0.0` swaps in the inline
+   context, and Bun/Deno/Playwright are unaffected by the comparison entirely.
 
 ### Tasks
 
@@ -108,29 +107,28 @@ Deno as well, which is wrong.
       `fjs/effects/node/module.f.ts`.
 - [ ] Populate it from `process.version` in the Node runner, only when
       `engine === 'node'`.
-- [ ] Audit `register`/`Test`/`TestFn` for any concrete Node `24.0.0`-only API
-      dependency; record the finding (confirms or drops the rationale, the
-      `24.0.0` floor itself stays either way).
-- [ ] Add a version check in `register`
-      (`fjs/emergent_testing/module.f.ts:409`) that only applies when
-      `engine === 'node'`, comparing `nodeVersion` against the fixed `24.0.0`
-      floor via semver order (not a hardcoded major-22 or major-23 special
-      case), and leaves Bun/Deno/Playwright unaffected.
-- [ ] Add proofs covering: Node `>= 24.0.0` passes, Node `< 24.0.0` fails
-      (`throw`-key test), and Bun/Deno/Playwright are unaffected — 100%
-      line/branch coverage of the new code.
+- [ ] In `fjs/effects/node/module.ts`, when `engine === 'node'` and
+      `nodeVersion < 24.0.0` (semver order), construct `testContext` via
+      `wrapInlineTest(testContext.test)` instead of the raw `node:test`
+      export, reusing the existing Bun/Playwright fallback path rather than
+      adding a new failure path.
+- [ ] Add proofs covering: Node `>= 24.0.0` uses the native context, Node
+      `< 24.0.0` uses the inline context, and Bun/Deno/Playwright are
+      unaffected — 100% line/branch coverage of the new code.
 - [ ] Pin `@types/node` in `package.json:47` to an exact `24.X.Y` (down from
       `26.1.2`, not to `22.x` — Node 22's `node:test` `TestContext` typings
       differ and would break the register's test-framework plumbing).
 - [ ] Run `npm run update` and commit the regenerated `package-lock.json`,
       `deno.lock`, and `bun.lock`.
-- [ ] Document the supported-Node-version policy (README or JSDoc near
-      `register`/`NodeProgramOptions`), including that Deno is exempt from the
-      Node-version guard.
+- [ ] Document the supported-Node-version policy and the inline-context
+      fallback (README or JSDoc near `register`/`NodeProgramOptions`),
+      including that Deno is exempt from the Node-version comparison.
 
 ### Related
 
 - `fjs/effects/node/module.f.ts:524` — `NodeProgramOptions`.
+- `fjs/effects/node/module.ts:307-325` — `inlineTest` / `wrapInlineTest` /
+  `bunTestContext`.
 - `fjs/emergent_testing/module.f.ts:409` — `register`.
 - `package.json:20` — `engines.node: ">=22"`.
 - `package.json:47` — `@types/node` version.
