@@ -7,6 +7,12 @@ import { assertEq } from '../../asserts/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
 import { main, syncMcp } from './module.f.ts'
+import { stringify, type Unknown } from '../../media/json/module.f.ts'
+import { sort } from '../../types/object/module.f.ts'
+
+const str
+    : (a: readonly Unknown[]) => string
+    = stringify(sort)
 
 const mcp = '{"servers":{}}' as const
 const initial = {
@@ -28,7 +34,7 @@ export const proof = {
     syncMcp: () => {
         const [state, result] = virtual(initial)(syncMcp())
         assertEq(result, undefined)
-        assertEq(state.root, expectedRoot)
+        assertEq(str(state.root as any), str(expectedRoot as any))
     },
     main: () => {
         const [, result] = virtual(initial)(main())
