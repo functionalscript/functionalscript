@@ -5,97 +5,62 @@
 
 ### Problem
 
-The Playwright version in `fjs/ci/config/module.f.ts` and the repository's
-`@playwright/test` development dependency can change independently.
+The Playwright version in `fjs/ci/config/module.f.ts`, the repository-local
+`@playwright/test` dependency, its lockfiles, and a future Nix browser bundle can
+drift independently.
 
-The CI job runs `npm ci` and then invokes the repository-local Playwright package,
-while a Nix environment may provide the driver and browser bundle selected from
-Nixpkgs. Different Playwright releases expect different browser revisions, so a
-version mismatch can make tests fail or download an unintended browser bundle.
+A mismatched Playwright package and browser bundle may require different browser
+revisions and break CI.
 
-The current generic dependency update path also creates a conflict. Running
-`npm-check-updates -u` may replace `@playwright/test` with the newest registry
-release before the CI updater applies its exact configured version. Subsequent npm,
-Deno, and Bun lockfile generation can then record the wrong Playwright release, and
-the network-free `npm run ci-update` step cannot repair those lockfiles.
+### Requirement
 
-### Proposal
+Treat the configured CI Playwright version as one coordinated version.
 
-Treat the Playwright version in `fjs/ci/config/module.f.ts` as the source of truth
-for every CI-managed Playwright dependency.
+When the root `package.json` already contains `@playwright/test`:
 
-Remove `npm-check-updates` from the root dependency-update workflow. Version
-selection for dependencies managed by CI configuration must be performed by the
-maintained CI update scripts, not by a generic registry-wide updater.
+- use the same exact `=X.Y.Z` version as CI;
+- regenerate `package-lock.json`, `deno.lock`, and `bun.lock`;
+- require the future Nix Playwright package/browser bundle to match.
 
-The update order is:
+When `package.json` does not contain `@playwright/test`, do not add it.
 
-1. select or update the exact CI Playwright version;
-2. read the root `package.json`;
-3. when `devDependencies` contains `@playwright/test`, write the exact
-   `=X.Y.Z` version before running any install or lockfile command;
-4. when `@playwright/test` is absent, leave the manifest unchanged;
-5. regenerate every affected tracked dependency lockfile, including
-   `package-lock.json`, `deno.lock`, and `bun.lock`;
-6. fail when the manifest, any tracked lockfile, CI configuration, or selected
-   Nixpkgs driver/browser bundle does not agree.
+The exact update algorithm should be implemented as part of the maintained
+internal dependency updater. It should not be independently re-designed in the
+Nix generator.
 
-The update workflow may access registries while regenerating dependency locks, but
-it must not independently choose a different version for a CI-managed dependency.
-`npm run ci-update` remains a network-free rendering and drift-check command; it is
-not responsible for repairing manifest or lockfile versions after installation.
+The general replacement for `npm-check-updates` must continue updating ordinary
+dependencies as described in
+[replace-npm-check-updates-with-an-internal-script](replace-npm-check-updates-with-an-internal-script.md).
+Playwright is a special coordinated dependency within that broader updater.
 
-The synchronization must not add Playwright to a package manifest that does not
-already depend on it.
+### Nix boundary
 
-For example:
+Do not generate or adopt a Playwright flake until a small working experiment
+confirms the exact official-Nixpkgs package/browser composition and the existing
+CI commands pass with the synchronized local package.
 
-```json
-{
-  "devDependencies": {
-    "@playwright/test": "=1.62.0"
-  }
-}
-```
-
-The same exact version must be represented by:
-
-- `fjs/ci/config/module.f.ts`;
-- the existing root `@playwright/test` dependency;
-- `package-lock.json`;
-- `deno.lock`;
-- `bun.lock`;
-- the selected Nixpkgs Playwright driver/browser bundle, when Nix is used.
-
-A Nixpkgs update that would select a different Playwright version must either
-update all of these atomically or reject the candidate snapshot. The generated
-Playwright flake must not be committed, validated, or adopted by CI while this
-synchronization is incomplete.
+Any further issues discovered during that experiment should become focused TODOs
+instead of adding speculative mechanics here.
 
 ### Tasks
 
-- [ ] Remove `npm-check-updates` from the root dependency-update workflow.
-- [ ] Make maintained CI update scripts own version selection for CI-managed
-      dependencies.
-- [ ] Add a helper that reads the configured Playwright version.
-- [ ] When root `package.json` contains `devDependencies['@playwright/test']`, write
-      the exact `=X.Y.Z` version before npm, Deno, or Bun lockfile generation.
-- [ ] Leave `package.json` unchanged when `@playwright/test` is absent.
-- [ ] Regenerate `package-lock.json`, `deno.lock`, and `bun.lock` when affected.
-- [ ] Add a drift check that fails when the package manifest, any tracked lockfile,
-      and CI configuration disagree.
-- [ ] Make `ci-nix-update` reject a Nixpkgs Playwright version that cannot be
-      synchronized with the repository dependency, all tracked lockfiles, and the
-      browser bundle.
-- [ ] Block generation, validation, and CI adoption of the Playwright flake until
-      synchronization succeeds.
-- [ ] Test a normal update when the registry contains a newer Playwright release
-      than the configured CI version.
-- [ ] Add tests for matching, mismatching, and absent `@playwright/test`
-      dependencies.
+- [ ] Make the maintained internal updater recognize Playwright as a CI-managed
+      dependency.
+- [ ] Keep an existing root `@playwright/test` dependency equal to the configured
+      exact `=X.Y.Z` version.
+- [ ] Do not add the dependency when it is absent.
+- [ ] Regenerate `package-lock.json`, `deno.lock`, and `bun.lock` after a version
+      change.
+- [ ] Detect drift between CI config, the package manifest, and tracked lockfiles.
+- [ ] Experiment with a simple Playwright flake and identify its concrete Nixpkgs
+      package/browser composition.
+- [ ] Add the Playwright job to declarative Nix configuration only after the
+      experiment passes.
 
 ### Related
 
-- [65Z-ci-nix](65z-ci-nix.md) — official-Nixpkgs CI environment generation.
-- [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — concrete
-  Nix migration sequence.
+- [65Z-ci-nix](65z-ci-nix.md) — declarative per-job Nix environments.
+- [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — incremental
+  implementation sequence.
+- [replace-npm-check-updates-with-an-internal-script](replace-npm-check-updates-with-an-internal-script.md)
+  — maintained updater for ordinary and CI-managed dependencies.
