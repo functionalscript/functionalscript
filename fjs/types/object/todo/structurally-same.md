@@ -67,6 +67,18 @@ for comparing independently constructed values. Keep serialized-string
 comparisons when serialization itself is the behavior under test, or when the
 API intentionally returns serialized text.
 
+For example:
+
+```ts
+assertStructurallySame(cache, emptyCache)
+```
+
+is preferable to:
+
+```ts
+assertEq(JSON.stringify(cache), JSON.stringify(emptyCache))
+```
+
 ### Semantics
 
 1. Call `Object.is(a, b)` first. If it returns `true`, return `true`.
