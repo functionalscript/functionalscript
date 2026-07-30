@@ -62,26 +62,6 @@ claude mcp add cas -- npx functionalscript m
 
 See [`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md) for details on the `cas_add`, `cas_get`, and `cas_list` tools.
 
-### Using MCP with VS Code
-
-This repository keeps `.copilot/mcp.json` as the source of truth. VS Code auto-discovers `.vscode/mcp.json`; that file is **not committed** — it is generated locally from the canonical config.
-
-Generate `.vscode/mcp.json` in your local clone:
-
-```bash
-npm run dev-update
-```
-
-To update MCP config, edit `.copilot/mcp.json` only, then run `npm run dev-update`. The command is a cross-platform FunctionalScript development updater; it will also synchronize any future local development configuration generators.
-
-#### Using the MCP Tools in Chat
-
-Once configured, open Copilot Chat (`Ctrl+Alt+I` on Windows/Linux, `Cmd+Option+I` on macOS), select **Agent**, then use **Configure Tools** to enable the MCP tools. Try a prompt like:
-
-> "Add a short text blob to CAS: 'Hello from FunctionalScript'"
-
-The MCP tools (`cas_add`, `cas_get`, `cas_list`) will be available in the agent's tool panel. For more details on the tools and examples, see [`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md).
-
 ## Vision
 
 We aim to create a safe, cross-platform programming language that can work in any JS platform without any build step. There are thousands of programming languages, and we don't want to create another one that others must learn. Instead, we take the opposite approach: we remove everything that makes the most popular and cross-platform language unsafe, insecure, or less portable.
