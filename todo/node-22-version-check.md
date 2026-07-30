@@ -15,8 +15,12 @@ way to know which Node.js version it is running under — `NodeProgramOptions`
 partly supports Node 22 in practice — CI/Codex containers are pinned to
 Node 22 because they cannot be upgraded, while the fully-supported baseline
 is Node 24. `@types/node` in `package.json` is currently `26.1.2`, which is
-ahead of both: it should track whichever Node version FunctionalScript
-actually commits to supporting, not an arbitrary newer major.
+ahead of the real baseline and should be pinned down to an exact `24.X.Y`.
+Node 22 does **not** get `@types/node` pinned to match it: Node 22's
+`node:test` `TestContext` typings differ from Node 24's, and the
+test-framework code this task touches is written against Node 24's shape.
+The test framework is not being downgraded to satisfy an environment
+(Codex's Docker containers) that simply cannot upgrade its Node binary.
 
 A check that only special-cases major `22` is insufficient: `engines.node`
 also accepts Node 23, and any other version below the real minimum (including
@@ -74,20 +78,21 @@ Deno as well, which is wrong.
    version. Bun, Deno, and Playwright must be unaffected by this guard. The
    check should be explicit about *why* it fails, so CI logs make the version
    gap obvious rather than surfacing a downstream failure.
-5. Keep `@types/node` in `package.json` (`package.json:47`) at a `22.x`
-   typings baseline rather than bumping it to `24.x`. `package.json:20`
-   (`engines.node: ">=22"`) commits the ordinary CLI and repo runner (`fjs t`,
-   `fjs/module.ts`) to Node 22 support package-wide; compiling everything
-   against `24.x` typings would let Node 23/24-only APIs compile in code paths
-   outside `register`, breaking supported Node 22 consumers at runtime. Only
-   revisit this if the task also drops package-wide Node 22 support and
-   updates the `engines` policy accordingly. `26.1.2` is in any case ahead of
-   what's needed and should come down to `22.x`. `package-lock.json`,
-   `deno.lock`, and `bun.lock` all currently also pin `@types/node` `26.1.2`
-   and must be regenerated together with `package.json`, not edited by hand —
-   run `npm run update` (`package.json:16`, which chains `ci-update`, `npm
-   install`, `deno install`, and `bun install`) and commit the resulting
-   lockfile diffs.
+5. Pin `@types/node` in `package.json` (`package.json:47`) to an exact
+   `24.X.Y` (not a `22.x` floor, and not left at `26.1.2`). Node 22's
+   `node:test` `TestContext`/`TestFn` typings differ from Node 24's — the
+   `register` test-framework plumbing (`fjs/effects/node/module.ts:297-314`,
+   `fjs/effects/node/module.f.ts:448-468`) is written and typechecked against
+   the Node 24 shape, so compiling against `@types/node@22` would fight the
+   very code this task adds. We are **not** downgrading the test framework to
+   accommodate Node 22 — Node 22 stays only as a partially-supported floor for
+   environments (Codex's Docker containers) that cannot upgrade their Node
+   binary; it does not get to hold back `@types/node` or the test-framework
+   typings package-wide. `package-lock.json`, `deno.lock`, and `bun.lock` all
+   currently also pin `@types/node` `26.1.2` and must be regenerated together
+   with `package.json`, not edited by hand — run `npm run update`
+   (`package.json:16`, which chains `ci-update`, `npm install`, `deno
+   install`, and `bun install`) and commit the resulting lockfile diffs.
 6. Cover every new branch with co-located proofs, per the repository's
    mandatory 100% line/branch coverage: a passing case at/above `24.0.0`, a
    failing case below `24.0.0` (asserted via a `throw`-key test, matching the
@@ -114,8 +119,9 @@ Deno as well, which is wrong.
 - [ ] Add proofs covering: Node `>= 24.0.0` passes, Node `< 24.0.0` fails
       (`throw`-key test), and Bun/Deno/Playwright are unaffected — 100%
       line/branch coverage of the new code.
-- [ ] Update `@types/node` in `package.json:47` from `26.1.2` down to `22.x`
-      (package-wide baseline unchanged).
+- [ ] Pin `@types/node` in `package.json:47` to an exact `24.X.Y` (down from
+      `26.1.2`, not to `22.x` — Node 22's `node:test` `TestContext` typings
+      differ and would break the register's test-framework plumbing).
 - [ ] Run `npm run update` and commit the regenerated `package-lock.json`,
       `deno.lock`, and `bun.lock`.
 - [ ] Document the supported-Node-version policy (README or JSDoc near
