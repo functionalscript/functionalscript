@@ -506,7 +506,31 @@ export type Env = {
 }
 
 /** Identifies the JavaScript runtime detected at startup. */
-export type Engine = 'node' | 'bun' | 'playwright'
+export type Engine = 'node' | 'bun' | 'playwright' | 'deno'
+
+const versionParts = (version: string): readonly number[] =>
+    version.replace(/^v/, '').split('.').map(Number)
+
+/** Compares semantic versions numerically by major, minor, then patch. */
+export const versionLessThan = (version: string, minimum: string): boolean => {
+    const [major = 0, minor = 0, patch = 0] = versionParts(version)
+    const [minMajor = 0, minMinor = 0, minPatch = 0] = versionParts(minimum)
+    return major < minMajor || major === minMajor && (
+        minor < minMinor || minor === minMinor && patch < minPatch
+    )
+}
+
+/**
+ * Reports whether an external runner needs FunctionalScript's flattened test
+ * registration strategy. Node uses the native `expectFailure` option only
+ * from the Node 26 baseline; Deno is deliberately exempt from this Node-only
+ * version check.
+ */
+export const usesInlineTestContext = (engine: Engine, nodeVersion?: string): boolean => {
+    if (engine === 'bun' || engine === 'playwright') { return true }
+    if (engine !== 'node' || nodeVersion === undefined) { return false }
+    return versionLessThan(nodeVersion, '26.0.0')
+}
 
 /**
  * Runtime options passed to every `NodeProgram`.
@@ -520,6 +544,8 @@ export type Engine = 'node' | 'bun' | 'playwright'
  *   working around Bun's lack of nested `test()` support.
  * - `playwrightTestContext`: Playwright context using the same inline strategy.
  * - `engine`: runtime detected at startup; controls which context `register` selects.
+ * - `nodeVersion`: detected Node version; absent for other and virtual runtimes.
+ * - `inlineTestContext`: whether the selected context flattens nested tests.
  */
 export type NodeProgramOptions = {
     readonly args: readonly string[]
@@ -530,6 +556,8 @@ export type NodeProgramOptions = {
     readonly bunTestContext: TestContext
     readonly playwrightTestContext: TestContext
     readonly engine: Engine
+    readonly nodeVersion?: string
+    readonly inlineTestContext: boolean
 }
 
 export type Program<O extends Operation> = (options: NodeProgramOptions) => Effect<O, number>

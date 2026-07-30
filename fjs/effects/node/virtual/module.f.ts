@@ -412,4 +412,5 @@ export const defaultNodeProgramOptions: NodeProgramOptions = {
     bunTestContext: testContext,
     playwrightTestContext: testContext,
     engine: 'node',
+    inlineTestContext: false,
 }

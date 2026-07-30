@@ -35,6 +35,7 @@ const node22Steps = (version: string): readonly MetaStep[] => [
     ...nodeInstall(node.node22),
     fjsGlobalInstall(version),
     test({ run: 'fjs t' }),
+    test({ run: 'node --test' }),
 ]
 
 const node24Steps: readonly MetaStep[] = [
