@@ -188,11 +188,24 @@ as well, which is wrong.
    working tree to `node22Steps` in `fjs/ci/node/module.f.ts`, regenerate
    `.github/workflows/ci.yml` via `npm run ci-update`, and commit both —
    before, not after, the AGENTS.md wording changes land.
+9. Treat adding `'deno'` to the exported `Engine` union as a source-incompatible
+   API change. Before widening the union, audit every in-repo `Engine` import
+   and usage, including exhaustive switches, `Record<Engine, ...>` mappings,
+   and narrowing assumptions that only Node/Bun/Playwright exist. Update all
+   affected consumers and add an `## Unreleased` `CHANGELOG.md` entry using
+   the repository's required `**BREAKING CHANGES:**` wording, so package
+   consumers know that exhaustive handling must add Deno.
 
 ### Tasks
 
 - [ ] Add `'deno'` to `Engine` and detect it explicitly in
       `fjs/effects/node/module.ts:335` (before falling through to `'node'`).
+- [ ] Audit and update every in-repo consumer of the exported `Engine` union,
+      including exhaustive switches, `Record<Engine, ...>` mappings, and code
+      that assumes the only values are Node/Bun/Playwright; add an
+      `## Unreleased` `CHANGELOG.md` entry with `**BREAKING CHANGES:**`
+      explaining the new `'deno'` variant and the required exhaustive-handling
+      migration.
 - [ ] Add an optional Node-version field to `NodeProgramOptions` in
       `fjs/effects/node/module.f.ts`.
 - [ ] Populate it from `process.version` in the Node runner, only when
@@ -263,3 +276,5 @@ as well, which is wrong.
   regenerate via `npm run ci-update` after changing `node22Steps`.
 - `CONTRIBUTING.md:35,43-46,96` — contributor-facing Node-version caveat to
   update alongside `AGENTS.md`.
+- `CHANGELOG.md` — add an `## Unreleased` `**BREAKING CHANGES:**` entry when
+  the exported `Engine` union gains `'deno'`.
