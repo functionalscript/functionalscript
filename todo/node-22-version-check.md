@@ -125,9 +125,14 @@ as well, which is wrong.
    with a name that looks like native nested registration, hiding that a
    parent's child tests were folded into it. Expose which strategy was
    selected explicitly (e.g. an `inlineTestContext: boolean` alongside
-   `testContext` in `NodeProgramOptions`, set to `true` for
-   Bun/Playwright/old-Node and `false` only for native Node), and derive
-   `star` from that flag instead of re-deriving it from `engine` alone.
+   `testContext` in `NodeProgramOptions`), and derive `star` from that flag
+   instead of re-deriving it from `engine` alone. A concrete value per
+   engine, so no engine is left ambiguous: `true` for Bun and Playwright
+   (unchanged from today); for `engine === 'node'`, `true` when
+   `nodeVersion < 26.0.0` and `false` when `nodeVersion >= 26.0.0`; `false`
+   for Deno — Deno keeps using the raw `testContext` (`register` has no
+   Deno-specific branch, see step 1), not `wrapInlineTest`, so it must not
+   get the `' ...'` marker either.
 5. Pin `@types/node` in `package.json` (`package.json:47`) to the exact
    `26.0.0` — not `24.x`/`22.x` (see the `expectFailure` typing gap above),
    and not left floating at the current `26.1.2` or "latest". `@types/node`
@@ -173,12 +178,14 @@ as well, which is wrong.
       export, reusing the existing Bun/Playwright fallback path rather than
       adding a new failure path.
 - [ ] Add an `inlineTestContext: boolean` (or equivalent) field to
-      `NodeProgramOptions`, `true` for Bun/Playwright and for Node below
-      `26.0.0`, `false` only for native Node `>= 26.0.0`; update
-      `register`'s `star` derivation (`fjs/emergent_testing/module.f.ts:410`)
-      to read it instead of re-deriving inline-ness from `engine` alone, so
-      Node's fallback-registered subtests get the same `' ...'` marker Bun
-      and Playwright already get.
+      `NodeProgramOptions`, with a concrete value per engine: `true` for
+      Bun/Playwright, `true` for Node when `nodeVersion < 26.0.0` and `false`
+      when `nodeVersion >= 26.0.0`, and `false` for Deno (which keeps the raw
+      `testContext`, not `wrapInlineTest`). Update `register`'s `star`
+      derivation (`fjs/emergent_testing/module.f.ts:410`) to read it instead
+      of re-deriving inline-ness from `engine` alone, so Node's
+      fallback-registered subtests get the same `' ...'` marker Bun and
+      Playwright already get, and Deno never does.
 - [ ] Add proofs covering: Node `>= 26.0.0` uses the native context (and
       empty `star`), Node `< 26.0.0` uses the inline context (and `' ...'`
       `star`), and Bun/Deno/Playwright are unaffected — 100% line/branch
