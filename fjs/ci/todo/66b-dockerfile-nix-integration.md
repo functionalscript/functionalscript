@@ -22,7 +22,9 @@ work.
 - keep generated files static and readable;
 - do not add job-selection conditions or shared generated Nix modules;
 - keep commands in GitHub Actions;
-- preserve each job's current commands and coverage;
+- run each migrated job's complete command sequence inside one `nix develop --command`
+  invocation;
+- preserve each job's current commands, order, and coverage;
 - keep `npm run ci-update` Nix-independent and runnable on Windows;
 - ignore per-job lock files created beside generated flakes;
 - defer generalized shell, cache, and package-provider abstractions until a real
@@ -64,7 +66,7 @@ Each file contains only:
 - the exact Nixpkgs source;
 - the systems supported by that job;
 - the selected Node package;
-- any small job-local shell setup proven necessary by the real job.
+- any small job-local shell setup required by that job.
 
 The generator owns the generated directory and removes stale job outputs.
 
@@ -78,21 +80,68 @@ this root `.gitignore` rule:
 The rule is limited to generated CI flakes. A future intentional root or hand-written
 lock file remains visible to Git.
 
-For Node 22, preserve the existing global FunctionalScript installation. Find the
-simplest writable npm location and effective `PATH` during implementation. Do not
-introduce a general shell-setup schema unless another job demonstrates a need for it.
+#### Node 22 global installation
+
+The Node 22 flake must provide this concrete job-local `shellHook`:
+
+```nix
+shellHook = ''
+  export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+  export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+  mkdir -p "$NPM_CONFIG_PREFIX"
+'';
+```
+
+This keeps `npm install -g functionalscript` writable and makes `fjs` available to the
+remaining commands in the same Nix process. Do not introduce a generalized shell-setup
+schema for this one requirement.
 
 ### Phase 3: validate independently
 
-For each Node job:
+Each migrated Node job has three workflow steps:
 
 1. check out the repository;
 2. install Nix through a pinned action;
-3. enter that job's generated environment;
-4. verify the selected Node version;
-5. run the existing job command sequence unchanged;
-6. verify there are no tracked or stageable checkout changes;
-7. switch only that job after equivalent behavior is demonstrated.
+3. run the job's complete existing command sequence in one invocation:
+
+```sh
+nix develop ./nix/generated/<job> --command bash -euo pipefail -c '<commands>'
+```
+
+Using one invocation makes the selected Node executable and the job-local `shellHook`
+available to every command without exporting a profile or PATH across GitHub Actions
+steps.
+
+Preserve the current command sequences and order:
+
+```text
+node22:
+  npm install -g functionalscript@0.38.0
+  npm ci
+  fjs t
+
+node24:
+  npm ci
+  node --test
+
+node26:
+  npm ci
+  npm run ci-update
+  git add -A && git diff --cached --exit-code
+  npx tsc
+  npm run cov
+  npm pack
+```
+
+The workflow generator should continue supplying current configured versions; the list
+above records the existing command families and their order.
+
+For each Node job:
+
+1. verify the selected Node version inside the Nix invocation;
+2. run the complete command sequence above;
+3. verify there are no tracked or stageable checkout changes;
+4. switch only that job after equivalent behavior is demonstrated.
 
 Node 22, Node 24, and Node 26 can be generated, validated, and adopted independently.
 A problem in one job does not block progress on the others unless it affects the shared
@@ -118,13 +167,16 @@ milestone.
 - [ ] Add `npm run ci-nix-update`.
 - [ ] Update Node versions from the accepted Nixpkgs snapshot.
 - [ ] Generate separate Node 22, Node 24, and Node 26 flakes.
+- [ ] Add the Node 22 `$HOME/.npm-global` shell hook.
 - [ ] Remove stale generated job directories.
 - [ ] Add `/nix/generated/**/flake.lock` to `.gitignore`.
 - [ ] Keep ordinary generation Nix-independent and Windows-compatible.
 - [ ] Commit the generated flakes.
 - [ ] Add pinned Nix bootstrap to each migrated job.
+- [ ] Run each job's complete command sequence through one `nix develop --command`
+      invocation.
 - [ ] Validate the three Node jobs independently.
-- [ ] Preserve each job's existing commands and coverage.
+- [ ] Preserve each job's existing commands, order, and coverage.
 - [ ] Keep tracked checkout state unchanged.
 - [ ] Migrate jobs one at a time.
 
