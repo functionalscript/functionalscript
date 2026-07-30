@@ -6,7 +6,7 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { readUtf8File } from '../../effects/node/module.f.ts'
-import { emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
+import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
 import { main, syncMcp } from './module.f.ts'
 import { step } from '../../effects/module.f.ts'
 
@@ -27,7 +27,7 @@ export const proof = {
         assertEq(result, mcp)
     },
     main: () => {
-        const [, result] = virtual(initial)(main())
+        const [, result] = virtual(initial)(main(defaultNodeProgramOptions))
         assertEq(result, 0)
     },
     throw: {
