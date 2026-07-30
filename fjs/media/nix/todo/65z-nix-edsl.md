@@ -33,6 +33,8 @@ Use normal JavaScript strings as escaped double-quoted Nix string literals. Repr
 remaining syntax with a small tagged-tuple tree:
 
 ```ts
+import { type List as ChunkList } from '../../types/list/module.f.ts'
+
 type Name = string
 
 type AttributePath = readonly [Name, ...Name[]]
@@ -43,7 +45,7 @@ type Reference = readonly ['ref', Name, ...Name[]]
 
 type AttributeSet = readonly ['set', ...Binding[]]
 
-type List = readonly ['list', ...Expression[]]
+type NixList = readonly ['list', ...Expression[]]
 
 type Application = readonly ['apply', Expression, ...Expression[]]
 
@@ -60,7 +62,7 @@ export type Expression =
     | string
     | Reference
     | AttributeSet
-    | List
+    | NixList
     | Application
     | Lambda
     | Let
@@ -129,7 +131,7 @@ The same tree shape must support Node 22, Node 24, and Node 26 by changing data 
 Export a chunk serializer and a final string helper, analogous to the HTML module:
 
 ```ts
-export const nix: (_: Expression) => List<string>
+export const nix: (_: Expression) => ChunkList<string>
 export const nixToString: (_: Expression) => string
 ```
 
@@ -170,7 +172,7 @@ Nix construction. It should not bypass the eDSL with generated raw Nix text.
 ### Tasks
 
 - [ ] Add `fjs/media/nix/module.f.ts` with the minimal expression types above.
-- [ ] Implement `nix` as a deterministic `List<string>` serializer.
+- [ ] Implement `nix` as a deterministic `ChunkList<string>` serializer.
 - [ ] Implement `nixToString` with one final newline.
 - [ ] Escape quoted strings in the serializer.
 - [ ] Escape indented strings in the serializer.
