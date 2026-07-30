@@ -66,28 +66,13 @@ See [`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md) for details on the `cas_add
 
 This repository keeps `.copilot/mcp.json` as the source of truth. VS Code auto-discovers `.vscode/mcp.json`; that file is **not committed** — it is generated locally from the canonical config.
 
-One-time setup in your local clone:
-
-1. Enable repository hooks:
+Generate `.vscode/mcp.json` in your local clone:
 
 ```bash
-git config core.hooksPath .githooks
+npm run dev-update
 ```
 
-2. Generate `.vscode/mcp.json` immediately (optional, the hooks will also create it on the next checkout/commit):
-
-```bash
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\sync-mcp.ps1 -Mode sync
-# or:
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\sync-mcp.ps1 -Mode sync
-```
-
-After that, the hooks keep `.vscode/mcp.json` up to date automatically:
-- **pre-commit** — re-syncs before every commit, including when `.copilot/mcp.json` is partially staged, and guards against direct edits to `.vscode/mcp.json`;
-- **post-merge / post-checkout** — re-syncs after a merge, pull, checkout, or file restore, and only warns if sync cannot run.
-- **post-rewrite** — re-syncs after amend/rebase operations, and only warns if sync cannot run.
-
-To update MCP config, edit `.copilot/mcp.json` only. The hooks propagate the change to `.vscode/mcp.json`.
+To update MCP config, edit `.copilot/mcp.json` only, then run `npm run dev-update`. The command is a cross-platform FunctionalScript development updater; it will also synchronize any future local development configuration generators.
 
 #### Using the MCP Tools in Chat
 
