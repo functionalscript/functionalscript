@@ -3,7 +3,7 @@
 **Priority:** P3
 **Status:** blocked
 **Blocked by:** [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md),
-Phase 1 and Phase 2 for one selected Linux job
+Phase 1 through Phase 3 for one selected Linux job
 
 ### Goal
 
@@ -34,7 +34,8 @@ Rust, Playwright, and other unfinished complex jobs do not block this experiment
 
 ### Entry criteria
 
-Begin OCI work after one selected Linux job has:
+Begin OCI work after one selected Linux job has completed Phase 1 through Phase 3 and
+has:
 
 - a simple committed self-contained flake;
 - a pinned Nix bootstrap in CI;
@@ -69,7 +70,7 @@ When publication is eventually added:
 
 ### Tasks
 
-- [ ] Complete Phase 1 and Phase 2 of
+- [ ] Complete Phase 1 through Phase 3 of
       [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) for one
       selected Linux job.
 - [ ] Record direct-Nix build and cache measurements for that job.
