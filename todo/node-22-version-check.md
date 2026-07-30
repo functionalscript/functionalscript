@@ -102,11 +102,24 @@ as well, which is wrong.
    `node:test` module export, so `register` (`fjs/emergent_testing/module.f.ts:409`)
    picks the inline/flattened strategy for old Node the same way it already
    does for Bun/Playwright.
-4. `register` itself needs no new branching: it already selects `testContext`
-   for `engine === 'node'` (`fjs/emergent_testing/module.f.ts:411-413`); step 3
-   makes that selected context be the compatible one under the hood. No
-   version check or failure path is needed inside `register` — the fallback
-   happens once, at context-construction time.
+4. `register` itself needs no new version-comparison logic: it already selects
+   `testContext` for `engine === 'node'`
+   (`fjs/emergent_testing/module.f.ts:411-413`); step 3 makes that selected
+   context be the compatible one under the hood, and no failure path is
+   needed — the fallback happens once, at context-construction time.
+   `register` *does* need one adjustment, though: its `star` marker
+   (`fjs/emergent_testing/module.f.ts:410`, `o.engine === 'bun' ||
+   o.engine === 'playwright' ? ' ...' : ''`) currently assumes only Bun and
+   Playwright use the inline/flattened strategy. Once Node 22–25 also uses
+   `wrapInlineTest` under the hood, `engine === 'node'` on those versions
+   needs the same `' ...'` marker — otherwise `registerModule`
+   (`fjs/emergent_testing/module.f.ts:161-189`) reports flattened subtests
+   with a name that looks like native nested registration, hiding that a
+   parent's child tests were folded into it. Expose which strategy was
+   selected explicitly (e.g. an `inlineTestContext: boolean` alongside
+   `testContext` in `NodeProgramOptions`, set to `true` for
+   Bun/Playwright/old-Node and `false` only for native Node), and derive
+   `star` from that flag instead of re-deriving it from `engine` alone.
 5. Keep `@types/node` in `package.json` (`package.json:47`) on its
    current/latest version (`26.1.2`) rather than pinning it down to `24.x` or
    `22.x`. `@types/node@24` was tried and still fails `tsc`, because
@@ -150,9 +163,17 @@ as well, which is wrong.
       `wrapInlineTest(testContext.test)` instead of the raw `node:test`
       export, reusing the existing Bun/Playwright fallback path rather than
       adding a new failure path.
-- [ ] Add proofs covering: Node `>= 26.0.0` uses the native context, Node
-      `< 26.0.0` uses the inline context, and Bun/Deno/Playwright are
-      unaffected — 100% line/branch coverage of the new code.
+- [ ] Add an `inlineTestContext: boolean` (or equivalent) field to
+      `NodeProgramOptions`, `true` for Bun/Playwright and for Node below
+      `26.0.0`, `false` only for native Node `>= 26.0.0`; update
+      `register`'s `star` derivation (`fjs/emergent_testing/module.f.ts:410`)
+      to read it instead of re-deriving inline-ness from `engine` alone, so
+      Node's fallback-registered subtests get the same `' ...'` marker Bun
+      and Playwright already get.
+- [ ] Add proofs covering: Node `>= 26.0.0` uses the native context (and
+      empty `star`), Node `< 26.0.0` uses the inline context (and `' ...'`
+      `star`), and Bun/Deno/Playwright are unaffected — 100% line/branch
+      coverage of the new code.
 - [ ] Leave `@types/node` in `package.json:47` at its current/latest version
       (`26.1.2`) — do not pin it to `24.x` or `22.x`; confirmed `24` fails
       `tsc` on the missing `expectFailure` type despite working at runtime.
