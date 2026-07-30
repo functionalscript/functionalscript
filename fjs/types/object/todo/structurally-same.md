@@ -56,8 +56,9 @@ export const assertStructurallySame =
 The assertion name uses the comparison name as its suffix, consistently with the
 `assert*` naming convention.
 
-`structurallySame` uses `Object.is` for values that do not require structural
-comparison, while recursively comparing arrays and non-null objects.
+`structurallySame` uses `Object.is` as the fast path, rejects distinct values
+when either is not a non-null object, and recursively compares arrays and
+non-null objects.
 `assertStructurallySame(a, b, msg?)` returns normally when
 `structurallySame(a, b)` is `true` and otherwise throws the compared values plus
 the optional message, following the existing `assertEq` shape.
@@ -84,7 +85,7 @@ assertEq(JSON.stringify(cache), JSON.stringify(emptyCache))
 1. Call `Object.is(a, b)` first. If it returns `true`, return `true`.
    This preserves `Object.is` behavior for primitives, `NaN`, signed zero, and
    identical object references.
-2. If only one value is a non-null object, return `false`.
+2. If either value is not a non-null object, return `false`.
 3. If only one value is an array, return `false`.
 4. If both values are arrays:
    - require the same `length`;
@@ -103,6 +104,7 @@ For example:
 ```ts
 structurallySame(NaN, NaN) // true
 structurallySame(0, -0) // false
+structurallySame(1, 2) // false
 structurallySame({}, null) // false
 structurallySame([], {}) // false
 
@@ -148,12 +150,14 @@ These cases can be added later when a concrete consumer requires them.
       direct expected values and `assertStructurallySame`.
 - [ ] Keep serializer proofs and APIs that intentionally return serialized text
       as string comparisons.
-- [ ] Use `Object.is` as the fast path and primitive comparison rule.
+- [ ] Use `Object.is` as the fast path; when it returns `false`, reject the values
+      if either is not a non-null object.
 - [ ] Compare arrays by length and recursively by index.
 - [ ] Compare object property sets without depending on property order.
-- [ ] Add proof cases for primitives, `NaN`, signed zero, arrays, nested values,
-      reordered object properties, missing properties whose value would read as
-      `undefined`, an object versus a primitive, and an array versus a non-array.
+- [ ] Add proof cases for identical and distinct primitives, `NaN`, signed zero,
+      arrays, nested values, reordered object properties, missing properties whose
+      value would read as `undefined`, an object versus a primitive, and an array
+      versus a non-array.
 - [ ] Add proof cases for arrays with different lengths and objects with the same
       number of properties but different property names.
 - [ ] Add assertion proof cases for success, failure, and the optional message.
