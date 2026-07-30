@@ -13,8 +13,11 @@ way to know which Node.js version it is running under — `NodeProgramOptions`
 
 `package.json`'s `engines.node` field says `">=22"`, but the codebase only
 partly supports Node 22 in practice — CI/Codex containers are pinned to
-Node 22 because they cannot be upgraded, while the fully-supported baseline
-is Node 24.
+Node 22 because they cannot be upgraded, while the fully-supported general
+baseline is Node 24. That general baseline is distinct from the narrower
+threshold below at which `register` uses `node:test`'s *native*
+`expectFailure` path rather than the fallback — see "Fallback threshold"
+below.
 
 `@types/node` should stay at its current/latest version (`26.1.2` today), not
 be pinned down to `24.x`. Confirmed empirically: pinning `@types/node` to
@@ -29,28 +32,39 @@ on which `@types/node` is installed.
 
 **The exact feature gap: Node's `expectFailure` test option.** `node:test`'s
 `test()` gained a real `expectFailure` option — inverting pass/fail for a
-flagged test/suite — backported to Node `24.14.0` (and `25.5.0`); it does not
-exist on Node 22. `fjs/effects/node/module.ts:297-298` already calls
-`ctx.test(name, { expectFailure }, ...)`, i.e. the native `node:test` path
-this codebase relies on. This matches the existing caveat documented in
-`AGENTS.md:47-57` ("Node's built-in test runner... needs Node 24 or later. On
-Node 22 it runs to completion but reports every `throw`-tagged test... as a
-failure"). (Correction to an earlier note on this PR: `expectFailure` **is** a
-real, versioned `node:test` option — not an ignored key — which is exactly why
-this gap is version-dependent rather than always broken.)
+flagged test/suite — added in Node `24.14.0` (and `25.5.0`); it does not exist
+on Node 22 or on Node `24.x` below `24.14.0`. `fjs/effects/node/module.ts:297-298`
+already calls `ctx.test(name, { expectFailure }, ...)`, i.e. the native
+`node:test` path this codebase relies on. This matches the existing caveat
+documented in `AGENTS.md:47-57` ("Node's built-in test runner... needs Node 24
+or later. On Node 22 it runs to completion but reports every `throw`-tagged
+test... as a failure"). (Correction to an earlier note on this PR:
+`expectFailure` **is** a real, versioned `node:test` option — not an ignored
+key — which is exactly why this gap is version-dependent rather than always
+broken.)
 
-**Minimum version with native `expectFailure`: Node `24.14.0`.** Below that
-floor, `register` should **fall back** to the same inline, flattened
-test-registration strategy the runner already uses for Bun and Playwright
-(`inlineTest`/`wrapInlineTest`, `fjs/effects/node/module.ts:307-325`) instead
-of the native `ctx.test(name, { expectFailure }, ...)` path — `inlineTest`
-implements the pass/fail inversion itself in plain code
-(`fjs/effects/node/module.ts:307-314`), so it does not depend on `node:test`'s
-native `expectFailure` support at all. This makes `node --test` (and `npm run
-cov`, which wraps it) work correctly on Node 22, satisfying the constraint
-that Codex's Docker containers cannot be upgraded off Node 22 — rather than
-throwing/failing the whole test register, which would make `register`
-unusable there.
+That technical floor (`24.14.0`) is *not* what the fallback threshold below
+uses, though. `@types/node` only publishes major versions that track Node's
+majors — currently `25.x` and `26.x`, with no `@types/node@24.14`-shaped
+release to typecheck against — and there is no intention of running CI
+against the narrow `24.14`–`25.x` range just to exercise the native path
+there. Gating on major `26` instead means the native
+`ctx.test(name, { expectFailure }, ...)` path is only ever exercised on a Node
+major we actually typecheck and run in CI; every other supported runtime (22
+through 25) uses the fallback uniformly, which is one well-tested code path
+instead of a version matrix nobody is going to test.
+
+**Fallback threshold: Node `26.0.0`.** Below that, `register` should **fall
+back** to the same inline, flattened test-registration strategy the runner
+already uses for Bun and Playwright (`inlineTest`/`wrapInlineTest`,
+`fjs/effects/node/module.ts:307-325`) instead of the native
+`ctx.test(name, { expectFailure }, ...)` path — `inlineTest` implements the
+pass/fail inversion itself in plain code (`fjs/effects/node/module.ts:307-314`),
+so it does not depend on `node:test`'s native `expectFailure` support at all.
+This makes `node --test` (and `npm run cov`, which wraps it) work correctly on
+Node 22, satisfying the constraint that Codex's Docker containers cannot be
+upgraded off Node 22 — rather than throwing/failing the whole test register,
+which would make `register` unusable there.
 
 This issue spans `fjs/emergent_testing`, `fjs/effects/node`, and the root
 `package.json`, so it is filed at the top level rather than under a single
@@ -79,10 +93,10 @@ as well, which is wrong.
    populated from `process.version` only when `engine === 'node'`, and left
    `undefined` on Bun/Deno/Playwright/virtual runners.
 3. In `fjs/effects/node/module.ts:327-336`, where `NodeProgramOptions` is
-   constructed, compare `nodeVersion` against the fixed floor `24.14.0` using a
+   constructed, compare `nodeVersion` against the fixed floor `26.0.0` using a
    proper semver-order comparison (major, then minor, then patch) — not a
    hardcoded major-`22` (or major-`23`) special case. When `engine === 'node'`
-   and `nodeVersion < 24.14.0`, build `testContext` from the same
+   and `nodeVersion < 26.0.0`, build `testContext` from the same
    `wrapInlineTest(testContext.test)` helper already used for
    `bunTestContext` (`fjs/effects/node/module.ts:324`) instead of the raw
    `node:test` module export, so `register` (`fjs/emergent_testing/module.f.ts:409`)
@@ -103,8 +117,8 @@ as well, which is wrong.
    the earlier "pin to 24.X.Y" plan is dropped. No lockfile regeneration is
    needed for this item, since `@types/node` is not changing.
 6. Cover every new branch with co-located proofs, per the repository's
-   mandatory 100% line/branch coverage: `nodeVersion` at/above `24.14.0` keeps
-   the native `testContext`, `nodeVersion` below `24.14.0` swaps in the inline
+   mandatory 100% line/branch coverage: `nodeVersion` at/above `26.0.0` keeps
+   the native `testContext`, `nodeVersion` below `26.0.0` swaps in the inline
    context, and Bun/Deno/Playwright are unaffected by the comparison entirely.
 7. Update `AGENTS.md` to reflect that `node --test` (and `npm run cov`, which
    wraps it) now work correctly on Node 22, since the fallback removes the
@@ -115,8 +129,8 @@ as well, which is wrong.
    - `AGENTS.md:47-57` (§1.3 "The Node version caveat") — replace the
      "needs Node 24 or later" warning with a short note that `register`
      automatically falls back to an inline test-registration strategy below
-     Node `24.14.0`, so `node --test`/`npm run cov` report correctly on Node
-     22 too; keep noting that Node `24.14.0`+ is still the fully-supported,
+     Node `26.0.0`, so `node --test`/`npm run cov` report correctly on Node
+     22 too; keep noting that Node `26.0.0`+ is still the fully-supported,
      native-`expectFailure` baseline.
    - `AGENTS.md:68-69` (§1.4 table) — change the `node --test` and `npm run
      cov` rows' `Runtime` column from `Node 24+` to `Node 22+`.
@@ -132,12 +146,12 @@ as well, which is wrong.
 - [ ] Populate it from `process.version` in the Node runner, only when
       `engine === 'node'`.
 - [ ] In `fjs/effects/node/module.ts`, when `engine === 'node'` and
-      `nodeVersion < 24.14.0` (semver order), construct `testContext` via
+      `nodeVersion < 26.0.0` (semver order), construct `testContext` via
       `wrapInlineTest(testContext.test)` instead of the raw `node:test`
       export, reusing the existing Bun/Playwright fallback path rather than
       adding a new failure path.
-- [ ] Add proofs covering: Node `>= 24.14.0` uses the native context, Node
-      `< 24.14.0` uses the inline context, and Bun/Deno/Playwright are
+- [ ] Add proofs covering: Node `>= 26.0.0` uses the native context, Node
+      `< 26.0.0` uses the inline context, and Bun/Deno/Playwright are
       unaffected — 100% line/branch coverage of the new code.
 - [ ] Leave `@types/node` in `package.json:47` at its current/latest version
       (`26.1.2`) — do not pin it to `24.x` or `22.x`; confirmed `24` fails
