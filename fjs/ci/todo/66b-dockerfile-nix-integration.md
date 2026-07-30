@@ -97,8 +97,11 @@ The command must:
 3. reject any missing, broken, unsupported, or version-divergent package;
 4. update `nix.nixpkgs.rev`;
 5. copy the accepted top-level versions into the existing exact version exports;
-6. run the ordinary Nix-independent CI generator;
-7. expose all config and generated-file changes for review.
+6. when Playwright changes and root `package.json` already contains
+   `@playwright/test`, synchronize its exact dependency plus `package-lock.json`,
+   `deno.lock`, and `bun.lock`, or reject the snapshot;
+7. run the ordinary Nix-independent CI generator;
+8. expose all config, dependency metadata, and generated-file changes for review.
 
 For example, if the selected snapshot reports `nodejs_26.version = "26.5.0"`
 on every system used by the Node 26 job, the command writes:
@@ -164,6 +167,11 @@ nix develop ./nix/generated/node24 --command npm test
 nix develop ./nix/generated/node26 --command npm test
 ```
 
+The generator owns the complete `nix/generated/` tree. Every ordinary generation
+run must delete that tree recursively, recreate it, and then emit only directories
+represented by the current CI configuration. Do not reconcile only known output
+files: a renamed or removed environment must delete its old directory.
+
 Do not generate `flake.lock` in this phase. Each input URL contains the exact
 immutable Git commit. Validation and CI invocations must prevent Nix from writing
 a lock file. Committed locks can be evaluated later as a separate improvement.
@@ -179,9 +187,10 @@ git add -A
 git diff --cached --exit-code
 ```
 
-The staged comparison catches newly generated files, deletions, and modifications.
-The generator must produce byte-identical output on Linux, macOS, and native
-Windows.
+The generator's delete-and-recreate step ensures removed or renamed environments
+appear as deletions. The staged comparison then catches all generated additions,
+deletions, and modifications. The generator must produce byte-identical output on
+Linux, macOS, and native Windows.
 
 The explicit `ci-nix-update` command changes the pinned commit and package
 versions. Ordinary regeneration only renders the already committed configuration.
@@ -200,6 +209,12 @@ Add Linux and macOS validation jobs that, for every applicable generated flake:
 The first implementation is complete when every committed flake validates on all
 systems on which its corresponding CI environment runs.
 
+The Playwright flake is an explicit exception to independent progress. It must not
+be generated, committed, validated, or adopted until
+[playwright-package-version-sync](playwright-package-version-sync.md) is complete
+and its package manifest plus every tracked lockfile agree with the CI and Nixpkgs
+version. Other independent flakes may proceed while that TODO remains open.
+
 ### 6. Use the matching flake in CI
 
 After validation succeeds, convert Linux and macOS jobs incrementally:
@@ -217,10 +232,10 @@ Run Nix-backed and setup-action jobs in parallel until their coverage and result
 match. Windows remains on the existing native path with synchronized exact
 versions.
 
-Playwright package and browser synchronization is tracked separately in
-[playwright-package-version-sync](playwright-package-version-sync.md). A Nixpkgs
-update must not silently combine a different driver/browser bundle with the local
-`@playwright/test` dependency.
+Playwright CI adoption remains blocked until its separate synchronization TODO is
+complete. A Nixpkgs update must never combine a different driver/browser bundle
+with the local `@playwright/test` dependency or stale `package-lock.json`,
+`deno.lock`, or `bun.lock` entries.
 
 ### 7. Later extensions
 
@@ -256,16 +271,22 @@ remain the last stage and must reuse the already proven standalone flakes.
       in one operation.
 - [ ] Keep existing Windows setup generators reading the synchronized version
       exports.
-- [ ] Show version changes clearly in the generated diff.
+- [ ] When Playwright changes, synchronize the exact existing `@playwright/test`
+      dependency plus `package-lock.json`, `deno.lock`, and `bun.lock`, or reject
+      the snapshot.
+- [ ] Show version and dependency changes clearly in the generated diff.
 
 #### Phase 3: standalone generated flakes
 
+- [ ] Delete and recreate the complete `nix/generated/` tree on every generation.
 - [ ] Generate independent flake directories from `npm run ci-update`.
 - [ ] Generate separate Node 22, Node 24, and Node 26 flakes.
 - [ ] Pin every input URL to the exact configured GitHub commit.
 - [ ] Keep each generated `flake.nix` self-contained and free of generated imports.
 - [ ] Generate package metadata assertions and executable version checks.
 - [ ] Do not generate `flake.lock` or custom package derivations.
+- [ ] Block the Playwright flake until its package and all tracked lockfiles are
+      synchronized.
 - [ ] Commit all generated files and preserve the staged regeneration drift check.
 
 #### Phase 4: validation
@@ -279,6 +300,7 @@ remain the last stage and must reuse the already proven standalone flakes.
 
 - [ ] Map every Linux and macOS CI job to its matching generated flake.
 - [ ] Preserve separate Node 22, 24, and 26 execution paths.
+- [ ] Keep Playwright adoption blocked until its synchronization TODO is complete.
 - [ ] Compare Nix-backed jobs with the existing setup-action jobs.
 - [ ] Remove old Linux/macOS setup steps only after equivalent results are proven.
 - [ ] Keep Windows on its native path using the synchronized versions.
@@ -288,7 +310,8 @@ remain the last stage and must reuse the already proven standalone flakes.
 - [65Z-ci-nix](65z-ci-nix.md) — architecture and scope.
 - [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — later OCI stage.
 - [playwright-package-version-sync](playwright-package-version-sync.md) — synchronize
-  the repository dependency with the selected CI Playwright release.
+  the repository dependency and all tracked lockfiles with the selected CI
+  Playwright release.
 - [i096](96.md) — CI caching.
 - [Official NixOS 26.05 channel](https://channels.nixos.org/nixos-26.05) — example
   stable source resolving to an immutable GitHub Nixpkgs commit.
