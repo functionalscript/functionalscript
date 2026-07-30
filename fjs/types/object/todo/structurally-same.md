@@ -17,11 +17,26 @@ records, but it is ad hoc and cannot be reused by other proofs:
   same operation is useful whenever tests compare independently constructed
   FunctionalScript data.
 
-The immediate consumer is the RTTI parse proof. The helper is intended for
-FunctionalScript-style data—primitives, arrays, and record-like objects—not as
-semantic comparison for dates, maps, sets, typed arrays, or arbitrary host
-objects. Accepting `unknown` is useful at assertion and parsing boundaries, but
-the result only describes the structural rules below.
+Proofs also commonly serialize values only to compare their structure. For
+example, `fjs/cas/evo/proof.f.ts` compares a computed cache with `emptyCache` by
+calling `JSON.stringify` on both values. The BNF proofs contain many similar
+candidates where parser or dispatch results are converted to JSON strings and
+compared with serialized expected values.
+
+Using serialization as an equality helper has unrelated semantics:
+
+- object property order becomes observable even when order is irrelevant;
+- properties containing `undefined` can disappear;
+- `NaN`, infinities, and signed zero do not preserve `Object.is` semantics;
+- proofs allocate and compare intermediate strings instead of directly stating
+  the expected value.
+
+The immediate consumers are the RTTI parse proof and proofs that use a JSON
+serializer only as an incidental structural-comparison mechanism. The helper is
+intended for FunctionalScript-style data—primitives, arrays, and record-like
+objects—not as semantic comparison for dates, maps, sets, typed arrays, or
+arbitrary host objects. Accepting `unknown` is useful at assertion and parsing
+boundaries, but the result only describes the structural rules below.
 
 ## Proposal
 
@@ -46,6 +61,11 @@ comparison, while recursively comparing arrays and non-null objects.
 `assertStructurallySame(a, b, msg?)` returns normally when
 `structurallySame(a, b)` is `true` and otherwise throws the compared values plus
 the optional message, following the existing `assertEq` shape.
+
+Use `assertStructurallySame` in proofs when serialization is only a workaround
+for comparing independently constructed values. Keep serialized-string
+comparisons when serialization itself is the behavior under test, or when the
+API intentionally returns serialized text.
 
 ### Semantics
 
@@ -105,6 +125,13 @@ These cases can be added later when a concrete consumer requires them.
 - [ ] Add `assertStructurallySame` to `fjs/asserts/module.f.ts`.
 - [ ] Replace the private `assertDeepEqual` in
       `fjs/types/rtti/parse/proof.f.ts` with `assertStructurallySame`.
+- [ ] Replace proof comparisons that serialize both actual and expected values
+      only to compare structure, starting with `fjs/cas/evo/proof.f.ts`.
+- [ ] Audit proof files that compare a computed value with a JSON string, including
+      the BNF proofs; replace cases where serialized text is not the contract with
+      direct expected values and `assertStructurallySame`.
+- [ ] Keep serializer proofs and APIs that intentionally return serialized text
+      as string comparisons.
 - [ ] Use `Object.is` as the fast path and primitive comparison rule.
 - [ ] Compare arrays by length and recursively by index.
 - [ ] Compare object property sets without depending on property order.
@@ -117,7 +144,12 @@ These cases can be added later when a concrete consumer requires them.
 ## Related
 
 - [`fjs/types/rtti/parse/proof.f.ts`](../../rtti/parse/proof.f.ts) — contains the
-  private `assertDeepEqual` that is the initial consumer.
+  private `assertDeepEqual` that is the first direct consumer.
+- [`fjs/cas/evo/proof.f.ts`](../../cas/evo/proof.f.ts) — compares independently
+  constructed cache values through `JSON.stringify`.
+- [`fjs/bnf/ll1/proof.f.ts`](../../bnf/ll1/proof.f.ts) and
+  [`fjs/bnf/descent/proof.f.ts`](../../bnf/descent/proof.f.ts) — contain serialized
+  expected-value comparisons to audit and replace where serialization is incidental.
 - [`proof-shared-asserts.md`](../../rtti/todo/proof-shared-asserts.md) — also
   tracks replacing the RTTI proof's local deep-comparison helper with a shared
   assertion.
