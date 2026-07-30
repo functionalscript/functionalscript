@@ -6,8 +6,8 @@
 ### Problem
 
 Linux and macOS CI install the same top-level tools as Windows, but through
-separate generated setup steps. The previous Nix proposal also recreated package
-recipes, upstream URLs, hashes, installation logic, and lock metadata in the
+separate generated setup steps. The earlier Nix proposal also recreated package
+recipes, upstream URLs, hashes, installation logic, and lock metadata inside the
 FunctionalScript generator.
 
 That is too much machinery for the first Nix milestone. Official Nixpkgs already
@@ -15,29 +15,30 @@ contains package definitions, dependency graphs, platform fixes, and binary-cach
 artifacts. FunctionalScript should initially use only versions already available
 from one official stable Nixpkgs snapshot.
 
-Windows still requires exact version strings for its native installers. Therefore,
-the selected Nixpkgs snapshot and the cross-platform version constants in
-`fjs/ci/config/module.f.ts` must be updated together.
+Windows still requires exact version strings for native installers. The selected
+Nixpkgs snapshot and the cross-platform version constants in
+`fjs/ci/config/module.f.ts` must therefore be updated together.
 
-A single shell cannot represent the existing Node 22, 24, and 26 CI matrix. Those
-packages expose the same executable names, so placing them in one shell would let
-`PATH` silently choose only one Node version.
+A single shell cannot represent the existing Node 22, 24, and 26 matrix. All three
+packages expose `node` and `npm`, and the jobs also run different command
+sequences. Replacing them with one shell or one generic `npm test` command would
+silently change CI coverage.
 
-Rust also cannot be represented by only `rustc` and `cargo`. Existing CI uses
-`rustfmt`, Clippy, the `i686-unknown-linux-gnu` standard library and linker support,
-and these WASM target standard libraries:
+Rust also requires more than `rustc` and Cargo. Existing CI uses rustfmt, Clippy,
+the `i686-unknown-linux-gnu` standard library and linker support, and these WASM
+target standard libraries:
 
 - `wasm32-wasip1`;
 - `wasm32-wasip2`;
 - `wasm32-unknown-unknown`;
 - `wasm32-wasip1-threads`.
 
-A Rust or WASM flake is not equivalent to the existing setup until every required
-component and target is supplied and the existing commands pass.
+A Rust or WASM flake is not equivalent to the current setup until every component,
+target provider, linker/runtime dependency, and existing command passes.
 
 ### Proposal
 
-Use one configured official stable Nixpkgs ref, for example `nixos-26.05`, and one
+Use one configured official stable Nixpkgs ref, initially `nixos-26.05`, and one
 explicit update command:
 
 ```sh
@@ -45,51 +46,38 @@ npm run ci-nix-update
 ```
 
 The command treats the complete configured Nix environment set as one atomic
-snapshot. It runs on a documented Nix-capable host and performs these steps in
-order:
+snapshot:
 
-1. resolve a candidate latest GitHub commit of the configured official stable
-   Nixpkgs ref;
-2. read every configured Nix package version on every supported Nix host without
-   changing maintained files;
-3. verify every configured Rust component, target provider, linker, and runtime
-   package on each system that uses it;
-4. verify that all other configured environments, including Playwright dependency
-   and lockfile synchronization when Playwright is enabled, can be generated from
-   the same candidate revision;
-5. reject the entire candidate without changing config, dependency metadata, or
-   generated files when any configured environment fails;
-6. atomically update the exact Nixpkgs commit, all top-level package versions, and
-   any synchronized dependency metadata in `fjs/ci/config/module.f.ts` and the root
-   package files;
-7. run the ordinary CI generator, which emits the complete standalone generated
-   flake tree;
-8. leave the config, dependency metadata, and generated flake changes ready to
-   commit and review.
+1. resolve a candidate latest GitHub commit of the configured stable Nixpkgs ref;
+2. evaluate every configured package and provider on every system that uses it,
+   without changing maintained files;
+3. verify every configured Rust component, target standard library, linker, and
+   runtime package;
+4. verify all other configured environments, including Playwright package and
+   lockfile synchronization after Playwright is added to the configured set;
+5. reject the complete candidate when any configured requirement fails;
+6. after every check succeeds, atomically update the shared Nixpkgs revision,
+   top-level versions, and synchronized dependency metadata;
+7. generate the complete standalone flake tree from the accepted configuration;
+8. leave all changes ready to commit and review.
 
-Each generated directory contains a complete `flake.nix` with no imports or
-references to other generated Nix files. Generated duplication is intentional: a
-failed CI environment can be copied, inspected, evaluated, and built independently.
+A rejected candidate must preserve the previous revision, version constants,
+package metadata, lockfiles, and generated flake tree.
 
-The first implementation does not add OCI outputs, overlays, a private package
-source, shared Nix modules, or hand-maintained upstream package recipes.
+Snapshot acceptance and generation are atomic. CI adoption is incremental: after
+the complete generated set is committed and validated, individual jobs may switch
+to their matching flakes at different times. Existing setup actions remain until
+their replacements prove equivalent.
 
-After a generated flake builds and reports the expected versions on Linux and
-macOS, existing CI jobs can start invoking it directly. Windows continues using
-its native setup path with the exact versions copied from the selected Nixpkgs
-snapshot.
-
-Snapshot selection and generation are atomic, while CI adoption remains
-incremental. A future environment may remain outside the configured Nix set until
-its package and target requirements are understood. Once an environment is added
-to that set, every future candidate revision must satisfy it. Individual jobs may
-switch to their validated flakes at different times without changing this atomic
-source-selection rule.
+A future environment may remain explicitly outside the configured Nix set while
+its requirements are being investigated. Once an environment is added to that
+set, every later candidate revision must satisfy it. Silently dropping a configured
+environment or omitting its generated flake is not a fallback.
 
 ### Configuration
 
 Keep the existing exact version constants because they are the cross-platform CI
-contract. Add the Nixpkgs source, package-attribute mapping, and complete Rust
+contract. Add the Nixpkgs source, package attributes, and complete Rust
 requirements:
 
 ```ts
@@ -115,7 +103,6 @@ export const nix = {
     packages: {
         bun: 'bun',
         deno: 'deno',
-        playwright: 'playwright-driver',
         node: {
             default: 'nodejs_26',
             node22: 'nodejs_22',
@@ -142,43 +129,53 @@ export const nix = {
 } as const
 ```
 
-The exact attribute names are validated against the selected snapshot. A package
-attribute is accepted only when it exists on every required Nix system for the CI
-environment that uses it and reports the expected version.
+Playwright should remain outside `nix.packages` until
+[playwright-package-version-sync](playwright-package-version-sync.md) is complete.
+When Playwright is later added, the same exact version must be represented by:
 
-The target list is also executable configuration, not documentation. For each
-target, `ci-nix-update` must evaluate the corresponding official-Nixpkgs target
-standard-library/toolchain expression and any required native support packages.
-For `i686-unknown-linux-gnu`, this includes the 32-bit linker and libc development
-support currently installed by CI. A generated Rust environment must combine the
-host `rustc`, `cargo`, `rustfmt`, and Clippy commands with all target standard
-libraries required by that environment.
+- the Nixpkgs driver/browser bundle;
+- `config.playwright`;
+- the existing root `@playwright/test` dependency;
+- `package-lock.json`;
+- `deno.lock`;
+- `bun.lock`.
+
+The exact package and provider attribute names are validated against the candidate
+snapshot. A package is accepted only when it exists on every system required by
+its configured environment and reports the expected version.
+
+The Rust target list is executable configuration, not documentation. For each
+target, `ci-nix-update` must evaluate an official-Nixpkgs standard-library or
+complete-toolchain provider and all required native support packages. For
+`i686-unknown-linux-gnu`, this includes 32-bit linker and libc development/runtime
+support on x86-64 Linux.
 
 Because `nix.nixpkgs.rev` is shared, there is no per-environment revision fallback.
-If the candidate snapshot cannot provide any package, platform, Rust component,
-target standard library, linker, runtime, or other requirement in the configured
-Nix environment set, `ci-nix-update` rejects the candidate entirely and preserves
-the previously committed revision, versions, dependency metadata, and generated
-flake tree.
+If a candidate cannot provide any configured package, component, target standard
+library, linker, runtime, or synchronization requirement, the candidate is rejected
+entirely before maintained files are changed.
 
-An unsupported future environment may remain explicitly outside the configured
-Nix set and continue using its existing setup action. Adding it later is a reviewed
-configuration change; silently dropping a previously configured environment is not
-an update fallback.
+### Update and generation commands
 
-The update command owns changes to `nix.nixpkgs.rev` and the existing top-level
-version constants. Ordinary `npm run ci-update` never resolves a moving Nixpkgs
-ref, invokes Nix, or accesses the network and remains runnable on native Windows.
+`npm run ci-nix-update` is the deliberate networked, Nix-capable operation that
+selects a new snapshot and synchronizes versions.
 
-`npm run update` is not required to be offline: it deliberately updates project
-dependencies and may access package registries. When it invokes `npm run ci-update`,
-that CI-generation subcommand must still consume only committed configuration and
-perform no Nix or network resolution.
+Ordinary `npm run ci-update` only renders committed configuration. It must:
+
+- remain runnable on native Windows;
+- not invoke Nix;
+- not resolve a moving Nixpkgs ref;
+- not access the network;
+- produce byte-identical generated files on Linux, macOS, and Windows.
+
+The broader `npm run update` workflow is not required to be offline. It deliberately
+updates project dependencies and lockfiles from registries. When it invokes
+`npm run ci-update`, that nested CI-generation step remains network-free.
 
 ### Generated standalone flakes
 
-Generate one independent flake directory per CI environment or version family.
-The initial layout may include:
+Generate one self-contained flake directory per CI environment or incompatible
+version family. The initial configured set may include:
 
 ```text
 nix/generated/
@@ -189,172 +186,132 @@ nix/generated/
   bun/flake.nix
   rust-platform/flake.nix
   rust-wasm/flake.nix
-  playwright/flake.nix
 ```
 
-A generated flake must not import another generated `.nix` file. Each file embeds:
-
-- the exact Nixpkgs Git commit;
-- the supported systems for that environment;
-- only the package attributes required by that environment;
-- exact metadata assertions;
-- executable version checks;
-- required environment variables, components, and compilation targets;
-- a generated-file warning.
-
-For example, `nix/generated/node22/flake.nix` contains `pkgs.nodejs_22`, while
-`node24` and `node26` contain only their corresponding package. CI selects the
-required environment by directory:
-
-```sh
-nix develop ./nix/generated/node22 --command npm test
-nix develop ./nix/generated/node24 --command npm test
-nix develop ./nix/generated/node26 --command npm test
-```
-
-This preserves the existing Node matrix because every shell exposes exactly one
-`node` and `npm` implementation.
-
-A Rust platform flake must expose `rustc`, `cargo`, `rustfmt`, and
-`cargo clippy`, plus the host standard library. On x86-64 Linux it must also
-supply the `i686-unknown-linux-gnu` standard library and 32-bit linker/runtime
-support. A Rust WASM flake must additionally supply all four configured WASM
-standard libraries together with the selected Wasmtime and Wasmer packages.
-
-Before either Rust flake is committed, its validation must run the same command
-families as the existing jobs: formatting, debug/release tests, debug/release
-Clippy, i686 tests where applicable, and the Wasmtime/Wasmer WASM tests. Listing a
-target name without proving a successful compilation is insufficient.
-
-The generator owns the complete `nix/generated/` tree. Before writing current
-outputs, it must delete that tree recursively and recreate it from the current CI
-configuration. This deterministic cleanup removes flakes for renamed or deleted CI
-environments instead of leaving stale committed directories that may still be
-validated or consumed.
-
-Atomic snapshot rejection occurs before this destructive regeneration step. A
-failed candidate therefore cannot erase or partially replace the generated tree
-for the previously accepted revision.
-
-Do not generate `flake.lock` in this first milestone. The exact Git commit in each
-input URL pins the package source. Initial validation and CI commands must prevent
-Nix from writing an uncommitted lock file, for example with the appropriate
-`--no-write-lock-file` option. Adding committed lock files can be evaluated later
-as a separate improvement.
-
-### Version synchronization
-
-The update command queries every configured attribute for every supported system.
-For example, Node 26 is accepted only when all systems used by that environment
-expose:
+After Playwright synchronization is complete, the configured set may also include:
 
 ```text
-nodejs_26.version = 26.5.0
+nix/generated/playwright/flake.nix
 ```
 
-After the complete candidate snapshot passes, the command writes `26.5.0` to
-`node.default`. Linux and macOS obtain `pkgs.nodejs_26`; Windows installs
-`node.default` through the existing native setup action. Both paths run an
-executable version check.
+Every generated `flake.nix` must:
 
-Rust is accepted only when `rustc`, Cargo, rustfmt, and Clippy correspond to the
-candidate Rust release and every required target compilation succeeds. A matching
-`rustc --version` alone does not satisfy the Rust environment contract.
+- embed the exact accepted Nixpkgs Git commit;
+- support only the systems used by its CI environment;
+- use only configured official-Nixpkgs packages and providers;
+- expose one unambiguous default shell;
+- assert package metadata versions;
+- provide executable version checks;
+- include every required component, target, linker/runtime package, and environment
+  variable;
+- contain a generated-file warning;
+- import no other generated Nix file.
 
-If the latest stable Nixpkgs candidate does not contain any required package,
-platform, matching version, Rust component, or target provider, the complete
-snapshot update fails before maintained files are written. We do not create a
-custom upstream package recipe in this phase. A FunctionalScript package source or
-overlay may be proposed later after a concrete missing-package case exists.
+The Node flakes each contain exactly one Node package:
 
-Playwright has an additional project dependency synchronization requirement. That
-existing bug is tracked separately in
-[playwright-package-version-sync](playwright-package-version-sync.md). When the
-root `package.json` already contains `@playwright/test`, the exact dependency and
-all tracked dependency lockfiles, including `package-lock.json`, `deno.lock`, and
-`bun.lock`, must match the selected CI and Nixpkgs Playwright version.
+```text
+node22 -> pkgs.nodejs_22
+node24 -> pkgs.nodejs_24
+node26 -> pkgs.nodejs_26
+```
 
-Playwright should remain outside the configured Nix environment set until that
-synchronization TODO is complete. Once Playwright is configured, inability to
-synchronize its package or any tracked lockfile rejects the complete candidate
-snapshot; it does not permit a partial revision update.
+CI must preserve each job's current ordered command sequence inside its matching
+shell. The required sequences are:
+
+```sh
+# Node 22
+npm install -g functionalscript@<configured-version>
+npm ci
+fjs t
+
+# Node 24
+npm ci
+node --test
+
+# Node 26
+npm ci
+npm run ci-update
+git add -A && git diff --cached --exit-code
+npx tsc
+npm run cov
+npm pack
+```
+
+These are not interchangeable and must not be replaced by a common `npm test`.
+Checkout and Nix bootstrap remain workflow steps around these commands.
+
+A Rust platform flake must provide `rustc`, Cargo, rustfmt, Clippy, and the host
+standard library. On x86-64 Linux it must also provide the
+`i686-unknown-linux-gnu` standard library, 32-bit linker, and libc support.
+
+A Rust WASM flake must provide all four configured WASM target standard libraries,
+Wasmtime, and Wasmer. Validation must compile and execute the same debug/release
+and runner combinations as current CI. Listing a target name without successfully
+compiling it is insufficient.
+
+The generator owns the complete `nix/generated/` tree. Before writing accepted
+outputs, it must recursively delete and recreate that directory from the current
+configuration. Candidate validation happens before this destructive step, so a
+rejected candidate cannot erase or partially replace the previous generated tree.
+
+Do not generate `flake.lock` in this first milestone. Each flake input URL embeds
+the exact immutable commit, and validation/CI must use the appropriate
+`--no-write-lock-file` behavior. A committed lock file can be considered later.
 
 ### CI adoption
 
-CI adoption is a separate follow-up after the generated files are committed and
-validated:
+After the complete generated set is committed and validated:
 
-1. install Nix on Linux and macOS runners using a pinned action;
-2. run `nix flake check` for each generated directory without rewriting inputs;
-3. run each existing CI command inside its corresponding generated shell;
-4. compare the Nix-backed jobs with the existing setup-action jobs;
-5. remove old Linux/macOS setup steps only after equivalent coverage is proven.
+1. install Nix through a pinned action on Linux and macOS;
+2. evaluate and build each applicable flake without writing a lock;
+3. run the exact existing job commands inside the matching shell;
+4. compare Nix-backed and setup-action jobs in parallel;
+5. remove an old setup path only after equivalent coverage is proven.
 
-Rust and WASM adoption has an additional gate: every existing format, Clippy,
-native, i686, and WASM command must pass through the generated flakes before the
-current Rust setup action is removed.
+Rust/WASM adoption additionally requires equivalent rustfmt, Clippy, host, i686,
+and WASM coverage. Playwright adoption remains blocked until its synchronization
+TODO is complete and Playwright has been added to an atomically accepted snapshot.
 
-OCI images remain later work. They may eventually be built from the same proven
-standalone flakes, but they are not part of generating or validating the first
-files.
+OCI images remain later work and must reuse already validated flakes.
 
 ### Tasks
 
-- [ ] Add a configured official stable Nixpkgs ref and exact revision to
+- [ ] Add the stable Nixpkgs ref and exact shared revision to
       `fjs/ci/config/module.f.ts`.
-- [ ] Define the explicit set of environments governed by the shared Nixpkgs
-      revision.
-- [ ] Add Nix package-attribute mappings for the top-level CI tools.
-- [ ] Extract Rust into a normal exact version constant shared by Windows and Nix.
-- [ ] Map `rustc`, Cargo, rustfmt, and Clippy as required Rust components.
-- [ ] Record the i686 and four WASM target requirements in maintained CI config.
-- [ ] Define and validate an official-Nixpkgs target standard-library/toolchain
-      provider plus required linker/runtime packages for every Rust target.
-- [ ] Add `npm run ci-nix-update` for resolving the latest stable commit and
-      querying package versions on supported Nix systems.
-- [ ] Evaluate the complete candidate revision without modifying maintained files.
-- [ ] Reject the complete candidate when any configured package, platform, Rust
-      component, target standard library, linker, runtime, or synchronization
-      requirement fails.
-- [ ] Atomically update the shared revision, all accepted version constants,
-      dependency metadata, and generated tree only after every configured
-      environment passes.
-- [ ] Preserve the previous revision, versions, dependency files, and generated
-      tree after every rejected candidate.
-- [ ] Require Playwright dependency and `package-lock.json`, `deno.lock`, and
-      `bun.lock` synchronization before adding Playwright to the configured Nix set.
-- [ ] Extend `npm run ci-update` to generate standalone flake directories without
-      invoking Nix or accessing the network.
-- [ ] Keep the network-free requirement scoped to `npm run ci-update`; allow the
-      broader dependency-updating `npm run update` workflow to access registries.
-- [ ] Delete and recreate the complete generated flake tree before emitting current
-      outputs so renamed or removed environments leave no stale directories.
-- [ ] Generate separate Node 22, Node 24, and Node 26 flakes so each shell contains
-      exactly one Node package.
-- [ ] Keep every generated `flake.nix` self-contained with no generated-file
-      imports.
-- [ ] Generate metadata and executable version checks from the config.
-- [ ] Validate Rust flakes with rustfmt, Clippy, native, i686, and all configured
-      WASM target commands before adoption.
-- [ ] Keep Rust/WASM jobs on the existing setup action until that complete
-      validation succeeds.
-- [ ] Block Playwright flake generation, validation, and adoption until
-      [playwright-package-version-sync](playwright-package-version-sync.md) is
-      complete.
-- [ ] Commit all generated `flake.nix` files and preserve
-      `git add -A && git diff --cached --exit-code` in the regeneration check.
-- [ ] Validate every committed flake on its supported Linux and macOS runners
-      without writing a lock file.
-- [ ] Add a follow-up CI phase that runs existing Linux/macOS commands through the
-      matching validated flakes.
+- [ ] Define the explicit environment set governed by that shared revision.
+- [ ] Add package mappings for every configured top-level tool.
+- [ ] Extract Rust into a shared exact version constant.
+- [ ] Map `rustc`, Cargo, rustfmt, and Clippy.
+- [ ] Record i686 and all four WASM targets in maintained configuration.
+- [ ] Define and validate official-Nixpkgs target providers plus required
+      linker/runtime packages.
+- [ ] Add `npm run ci-nix-update`.
+- [ ] Evaluate the complete candidate snapshot without modifying maintained files.
+- [ ] Reject the complete candidate when any configured requirement fails.
+- [ ] Atomically update the revision, versions, synchronized dependency metadata,
+      and generated tree only after all configured environments pass.
+- [ ] Preserve all previously accepted files after a rejected candidate.
+- [ ] Keep Playwright outside the configured set until its package and all three
+      tracked lockfiles can be synchronized.
+- [ ] Keep the network-free requirement scoped to `npm run ci-update`.
+- [ ] Delete and recreate the complete generated tree after candidate acceptance.
+- [ ] Generate separate Node 22, 24, and 26 flakes.
+- [ ] Preserve the exact Node 22, 24, and 26 command sequences.
+- [ ] Keep every generated flake self-contained.
+- [ ] Generate metadata and executable version checks.
+- [ ] Validate Rust with rustfmt, Clippy, host, i686, and all WASM commands.
+- [ ] Commit generated flakes and preserve
+      `git add -A && git diff --cached --exit-code`.
+- [ ] Validate every generated environment/system pair without writing a lock.
+- [ ] Adopt matching flakes incrementally only after equivalent coverage is proven.
 
 ### Related
 
 - [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — concrete
   implementation sequence.
 - [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — later OCI stage.
-- [playwright-package-version-sync](playwright-package-version-sync.md) — keep the
-  repository Playwright dependency and all tracked lockfiles synchronized with CI.
+- [playwright-package-version-sync](playwright-package-version-sync.md) — synchronize
+  Playwright package metadata and all tracked lockfiles.
 - [i096](96.md) — CI caching.
 - [Official NixOS 26.05 channel](https://channels.nixos.org/nixos-26.05) — example
-  stable source whose release points to an immutable GitHub Nixpkgs commit.
+  stable source resolving to an immutable GitHub Nixpkgs commit.
