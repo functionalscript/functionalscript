@@ -5,170 +5,90 @@
 
 ### Goal
 
-Use one pinned official stable Nixpkgs snapshot to generate readable Nix
-environments for CI.
+Use one pinned official Nixpkgs snapshot to generate small, readable CI
+environments.
 
-The first implementation should prove the basic path rather than design every
-package and platform detail in advance. We expect to discover additional
-requirements while converting real jobs.
+The first implementation should prove the path with simple jobs. Details that are
+not yet proven should be discovered by running the real job, then recorded in a
+focused follow-up task.
 
-### Principles
+### Architectural contract
 
-- use only packages already provided by the selected official Nixpkgs snapshot;
-- pin the snapshot to an exact Git commit;
-- describe CI environments declaratively;
-- generate one small, self-contained `flake.nix` per CI job;
-- keep generated flakes free of job-selection logic, conditions, and shared
-  generated imports;
-- represent meaningful platform differences as separate job/flake definitions
-  instead of conditional Nix code;
-- allow each job definition to declare literal environment variables and small
-  structured shell setup such as writable prefixes and PATH additions;
-- expand runtime-dependent values in the generated shell startup code rather than
-  storing strings such as `$TMPDIR/...` inside ordinary environment attributes;
-- keep the generated files readable enough to review directly;
-- add jobs incrementally, beginning with the simplest environments;
-- keep Windows on native installers using synchronized exact version strings;
-- defer overlays, custom derivations, OCI images, and other optimizations until a
-  concrete need appears.
+- use packages provided by an official Nixpkgs snapshot;
+- keep a stable update reference and pin each accepted snapshot to an exact Git
+  commit;
+- keep one authoritative committed CI configuration source;
+- make Windows/native setup, workflow generation, dependency updating, and Nix
+  generation read that same source;
+- do not maintain duplicate writable version or job-configuration sources;
+- generate one self-contained `flake.nix` per CI job;
+- keep each generated flake static, readable, and free of job-selection logic,
+  unrelated platform conditions, and shared generated imports;
+- represent meaningful package or platform differences as separate job/flake
+  definitions;
+- keep the job commands in GitHub Actions and preserve them during migration;
+- remove stale generated outputs when a job is renamed or removed;
+- keep `npm run ci-update` independent of Nix and runnable on native Windows;
+- install Nix through a pinned CI action before invoking a generated flake;
+- ensure Nix invocation does not modify the repository checkout;
+- defer overlays, custom derivations, caches, OCI images, and other extensions until
+  a concrete requirement appears.
 
-### Nixpkgs source
+### Shared configuration source
 
-Maintain:
+The exact representation and path of the authoritative CI configuration are not
+part of this proposal. It may be a TypeScript module, a JSON lock file, or another
+simple committed format.
 
-- a stable update ref, initially `nixos-26.05`;
-- the exact accepted Nixpkgs Git commit.
+[replace-npm-check-updates-with-an-internal-script](replace-npm-check-updates-with-an-internal-script.md)
+must settle that choice before this task is implemented. The chosen source must
+hold the accepted Nixpkgs reference and commit, exact cross-platform versions, and
+the declarative per-job environment definitions needed by the generators.
 
-The stable ref is only an update policy. Generated files and CI must use the exact
-commit.
-
-```ts
-export const nix = {
-    nixpkgs: {
-        ref: 'nixos-26.05',
-        rev: '<exact-github-commit>',
-    },
-} as const
-```
-
-### Declarative job environments
-
-The maintained configuration should say which packages, systems, and shell setup
-belong to each CI job. The generator should not hardcode relationships between
-package names, workflow jobs, and generated directories.
-
-Start with simple jobs whose package composition is already clear:
-
-```ts
-export const nix = {
-    nixpkgs: {
-        ref: 'nixos-26.05',
-        rev: '<exact-github-commit>',
-    },
-    jobs: {
-        node22: {
-            systems: ['x86_64-linux', 'aarch64-linux'],
-            packages: ['nodejs_22'],
-            shell: {
-                npmGlobalPrefix: 'npm-global',
-            },
-        },
-        node24: {
-            systems: ['x86_64-linux', 'aarch64-linux'],
-            packages: ['nodejs_24'],
-        },
-        node26: {
-            systems: ['x86_64-linux', 'aarch64-linux'],
-            packages: ['nodejs_26'],
-        },
-    },
-} as const
-```
-
-The exact schema may evolve during implementation. The important contract is:
+The important rule is:
 
 ```text
-job name -> supported systems + explicit packages/shell setup -> one flake
+one committed CI source -> native/workflow/Nix generators
 ```
 
-A generated flake should contain a static package list and straightforward shell
-setup. It should not inspect the job name, choose between Node versions, or contain
-branches for unrelated platforms.
+### Generated job environments
 
-For example:
+A job definition describes the systems and packages needed by one existing CI job.
+The generator emits one corresponding flake:
 
 ```text
-nix/generated/node22/flake.nix
-nix/generated/node24/flake.nix
-nix/generated/node26/flake.nix
+CI job -> systems + explicit packages -> one flake.nix
 ```
 
-Each Node flake exposes only its selected Node version. The existing workflow
-commands remain in the workflow; the flake only defines the environment.
+Start with separate Node 22, Node 24, and Node 26 environments. They must remain
+separate because they select different Node versions and run different command
+sequences.
 
-The Node 22 environment must provide a writable npm global prefix because its
-existing job runs `npm install -g` before invoking `fjs`. The generated flake may
-implement the declarative `npmGlobalPrefix` value with a small readable startup
-hook such as:
+The Node 22 environment must preserve its existing global FunctionalScript install.
+It therefore needs a writable npm global location and an effective `PATH` containing
+the installed executable. The exact Nix/shell representation should be chosen by a
+small working experiment rather than standardized in advance.
 
-```sh
-export NPM_CONFIG_PREFIX="$TMPDIR/npm-global"
-export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
-```
+### Nixpkgs updates
 
-This expansion happens when the shell starts. Do not emit these expressions as
-plain environment attribute values, where the nested variable references would
-remain literal text.
-
-### Complex jobs
-
-Do not guess detailed schemas for Rust targets, linkers, Playwright browsers, or
-other complicated environments before trying them.
-
-Instead:
-
-1. build a small hand-verified flake for the real CI job;
-2. identify the exact official-Nixpkgs packages/providers needed by that job;
-3. record that concrete package composition declaratively;
-4. generate the same simple flake;
-5. migrate the job only after its existing commands pass.
-
-Rust is added only after an experiment identifies a direct, readable package set
-that supports its current rustfmt, Clippy, native, i686, and WASM commands. A list
-of Rust target triples without concrete Nixpkgs providers is not sufficient
-configuration.
-
-Playwright is added only after
-[playwright-package-version-sync](playwright-package-version-sync.md) is complete
-and the local package and browser bundle are known to be compatible.
-
-### Versions
-
-Keep exact version exports in `fjs/ci/config/module.f.ts` because Windows still
-uses them. Scalar exports should preserve literal types with `as const`.
-
-The Nixpkgs snapshot is the source of the versions available to Nix. The explicit
-update command may copy accepted package versions into the cross-platform version
-exports so Windows and Nix stay aligned.
-
-### Commands
-
-Add a deliberate Nix-capable update command:
+Add an explicit Nix-capable command, for example:
 
 ```sh
 npm run ci-nix-update
 ```
 
-Its high-level responsibility is simple:
+At a high level it:
 
-1. resolve the configured stable ref to an exact candidate commit;
-2. check the currently declared jobs against that snapshot;
-3. update the accepted commit and synchronized versions;
-4. regenerate the declared flakes;
-5. leave the changes for normal review.
+1. resolves the configured stable reference to an exact candidate commit;
+2. checks all currently declared job environments against that snapshot;
+3. records the accepted commit and synchronized cross-platform versions in the
+   shared CI source;
+4. regenerates the declared flakes;
+5. leaves the changes for normal review.
 
-Implementation details such as temporary files, rollback strategy, and provider
-discovery should be decided while implementing the command.
+Because the declared jobs share one accepted Nixpkgs revision, a candidate is
+accepted only when all currently declared environments validate. Detailed rollback,
+temporary-file, and evaluation mechanics are implementation choices.
 
 Ordinary generation remains:
 
@@ -176,69 +96,69 @@ Ordinary generation remains:
 npm run ci-update
 ```
 
-It renders committed configuration without requiring Nix or resolving a moving
-ref, and must remain runnable on native Windows.
+It only renders committed configuration and does not resolve a moving Nixpkgs
+reference.
 
-### Dependency updates
+### Validation and adoption
 
-Removing `npm-check-updates` and updating dependencies outside CI configuration
-belongs to
-[replace-npm-check-updates-with-an-internal-script](replace-npm-check-updates-with-an-internal-script.md).
-That replacement must continue updating ordinary dependencies such as TypeScript
-and `@types/node`.
+Migrate one job at a time:
 
-This Nix task only requires that dependencies coupled to CI environments, such as
-Playwright, are synchronized by the maintained updater rather than changed
-independently.
-
-### Generation and adoption
-
-The generator owns `nix/generated/` and removes stale outputs that are no longer
-declared.
-
-Do not generate `flake.lock` in the first implementation. Each generated input can
-reference the exact Nixpkgs commit directly. Every validation and CI invocation of
-a generated flake must pass `--no-write-lock-file`, so evaluation cannot create an
-untracked lock file or interfere with the repository drift check.
-
-Convert jobs one at a time:
-
-1. generate and commit the job's flake;
-2. build it on the job's systems using `--no-write-lock-file`;
-3. run the job's existing commands in that environment;
-4. for Node 22, verify `npm install -g` places `fjs` on the effective `PATH`;
-5. compare with the existing setup path;
+1. generate and commit its flake;
+2. check out the repository and install pinned Nix in CI;
+3. run the job through the flake without creating or changing repository files;
+4. run the job's existing command sequence unchanged;
+5. compare with the current setup path;
 6. remove the old setup only after equivalent behavior is demonstrated.
+
+Whether checkout cleanliness is achieved with committed lock files,
+`--no-write-lock-file`, or another simple mechanism should be decided by the first
+working implementation.
+
+### Complex jobs
+
+Do not guess detailed schemas for Rust targets, linkers, Playwright browsers, or
+other complicated environments.
+
+For each complex job:
+
+1. create a small experimental flake for the real job;
+2. identify the concrete official-Nixpkgs packages and environment requirements;
+3. record only the proven declarative data;
+4. generate the final readable flake;
+5. migrate only after the existing commands pass.
+
+Rust remains outside the initial declared set until its native, i686, rustfmt,
+Clippy, and WASM commands work. Playwright remains outside until
+[playwright-package-version-sync](playwright-package-version-sync.md) establishes a
+compatible local package and browser bundle.
 
 ### Tasks
 
-- [ ] Add the stable Nixpkgs ref and exact accepted commit.
-- [ ] Define a small declarative job-environment schema.
-- [ ] Keep ordinary environment attributes literal; use structured shell setup for
-      runtime-dependent values and PATH additions.
-- [ ] Generate one self-contained, static `flake.nix` per declared job.
-- [ ] Start with separate Node 22, 24, and 26 jobs.
-- [ ] Give Node 22 a writable npm global prefix expanded by its startup shell hook.
-- [ ] Verify the installed global `fjs` executable is on the effective Node 22 PATH.
-- [ ] Keep generated Nix readable and free of job/platform selection branches.
-- [ ] Keep `npm run ci-update` Nix-independent and runnable on native Windows.
-- [ ] Add `npm run ci-nix-update` for deliberate snapshot updates.
-- [ ] Remove stale generated job directories during regeneration.
-- [ ] Invoke every lockless generated flake with `--no-write-lock-file`.
-- [ ] Commit and validate generated flakes.
-- [ ] Add complex jobs only after a working experiment identifies their concrete
-      package/provider composition.
-- [ ] Keep ordinary dependency updating covered by the separate internal-updater
-      TODO.
-- [ ] Migrate CI jobs incrementally without changing their existing commands.
+- [ ] Resolve one authoritative CI configuration source with the internal-updater
+      task.
+- [ ] Add the stable Nixpkgs reference and exact accepted commit to that source.
+- [ ] Define a minimal declarative job-to-systems-and-packages model.
+- [ ] Generate separate readable flakes for Node 22, Node 24, and Node 26.
+- [ ] Prove a writable Node 22 global install and effective `PATH` without designing a
+      general shell-setup framework prematurely.
+- [ ] Remove stale generated job directories.
+- [ ] Keep `npm run ci-update` Nix-independent and Windows-compatible.
+- [ ] Add the explicit Nix snapshot-update command.
+- [ ] Bootstrap Nix through a pinned CI action.
+- [ ] Keep Nix invocations from modifying the checkout.
+- [ ] Preserve every migrated job's existing commands and coverage.
+- [ ] Add simple jobs incrementally.
+- [ ] Add complex jobs only after focused experiments identify their concrete
+      package composition.
 
 ### Related
 
 - [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — first
   implementation sequence.
-- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — optional OCI work after
-  direct Nix CI works.
-- [playwright-package-version-sync](playwright-package-version-sync.md) — keep
-  Playwright package and browser versions aligned.
+- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — optional OCI work after a
+  direct-Nix job works.
+- [playwright-package-version-sync](playwright-package-version-sync.md) — Playwright
+  version coordination.
 - [replace-npm-check-updates-with-an-internal-script](replace-npm-check-updates-with-an-internal-script.md)
-  — update ordinary and CI-managed dependencies without `npm-check-updates`.
+  — choose the shared CI source and update dependencies without
+  `npm-check-updates`.
