@@ -18,7 +18,8 @@ working experiment requires it.
 ### Design rules
 
 - use one pinned official stable Nixpkgs commit;
-- define each CI job's systems and packages declaratively;
+- define each CI job's systems, packages, and static shell environment
+  declaratively;
 - generate one self-contained `flake.nix` per job;
 - generate a static package list with no job-selection conditions;
 - split materially different systems or package sets into separate jobs/flakes;
@@ -45,6 +46,10 @@ export const nix = {
         node22: {
             systems: ['x86_64-linux', 'aarch64-linux'],
             packages: ['nodejs_22'],
+            environment: {
+                NPM_CONFIG_PREFIX: '$TMPDIR/npm-global',
+                PATH: '$NPM_CONFIG_PREFIX/bin:$PATH',
+            },
         },
         node24: {
             systems: ['x86_64-linux', 'aarch64-linux'],
@@ -67,20 +72,27 @@ nix/generated/node26/flake.nix
 ```
 
 Each generated file should be understandable without reading the generator. It
-contains the exact Nixpkgs commit, the supported systems, and the job's explicit
-package list. It does not choose among Node versions or inspect a job name.
+contains the exact Nixpkgs commit, the supported systems, the job's explicit
+package list, and any static environment settings. It does not choose among Node
+versions or inspect a job name.
+
+The Node 22 job runs `npm install -g functionalscript@<version>`. Its generated
+shell must therefore expose a writable npm global prefix and prepend that prefix's
+`bin` directory to `PATH`. This is ordinary declarative job data, not custom Nix
+logic.
 
 The generator owns `nix/generated/` and removes directories that are no longer
 declared.
 
 Do not generate `flake.lock` initially; reference the immutable Nixpkgs commit
-directly.
+directly. Every `nix develop`, `nix build`, or other CI/validation invocation of a
+generated flake must use `--no-write-lock-file`.
 
 ### Phase 2: validate and use the Node flakes
 
 For each generated flake:
 
-1. build it on every declared system;
+1. build it on every declared system with `--no-write-lock-file`;
 2. verify the selected executable version;
 3. run the corresponding job's existing commands;
 4. compare the result with the current setup action;
@@ -89,6 +101,10 @@ For each generated flake:
 The Node 22, 24, and 26 jobs remain separate because they select different Node
 versions and run different command sequences.
 
+The Node 26 drift check must run with a clean checkout. The Nix invocation must not
+create `flake.lock` or any other repository file before
+`git add -A && git diff --cached --exit-code` executes.
+
 ### Phase 3: add jobs incrementally
 
 Add Deno, Bun, and other straightforward environments using the same declarative
@@ -96,7 +112,7 @@ shape.
 
 For a complex job such as Rust or Playwright, first write a small experimental
 flake for that exact job. Use the experiment to discover the concrete
-Official-Nixpkgs package/provider list and any required environment variables.
+official-Nixpkgs package/provider list and any required environment variables.
 Only then add the job record and generate its final simple flake.
 
 Do not add a Rust job using only target triples. It joins the generated set after
@@ -157,17 +173,22 @@ These extensions must not complicate the first per-job flakes.
 #### Initial implementation
 
 - [ ] Add the stable Nixpkgs ref and exact accepted commit.
-- [ ] Add a declarative map from CI job to systems and explicit packages.
+- [ ] Add a declarative map from CI job to systems, explicit packages, and static
+      environment settings.
 - [ ] Generate separate static flakes for Node 22, 24, and 26.
+- [ ] Configure a writable npm global prefix and PATH for Node 22.
 - [ ] Keep each generated flake self-contained and readable.
 - [ ] Remove stale generated job directories.
 - [ ] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [ ] Add `npm run ci-nix-update` for deliberate snapshot changes.
+- [ ] Require `--no-write-lock-file` for every generated-flake invocation.
 
 #### Validation and adoption
 
-- [ ] Build every generated Node flake on its declared systems.
+- [ ] Build every generated Node flake on its declared systems without writing a
+      lock file.
 - [ ] Run each Node job's unchanged commands in its matching flake.
+- [ ] Verify the Node 26 drift check runs before Nix creates any checkout files.
 - [ ] Move jobs to Nix one at a time after equivalent behavior is proven.
 - [ ] Add simple Deno/Bun jobs using the same pattern.
 
