@@ -97,13 +97,17 @@ the current working directory, and results are reported per test.
 
 ### 1.5 Updating dependencies
 
+To bump an npm devDependency version, edit `package.json` by hand first (there
+is no `npm-check-updates` step anymore). Then run:
+
 ```bash
 npm run update
 ```
 
 This requires **Node, Deno, and Bun to all be installed**: `package-lock.json`,
 `deno.lock`, and `bun.lock` are all under Git control, and the update refreshes
-each of them (plus the generated CI workflow).
+each of them (plus the generated CI workflow) to match whatever versions are
+currently declared in `package.json`.
 
 ### 1.6 Rust commands
 
