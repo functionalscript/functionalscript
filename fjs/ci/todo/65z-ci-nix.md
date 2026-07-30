@@ -3,21 +3,26 @@
 **Priority:** P3
 **Status:** open
 
-### Goal
+### Problem
 
-Use an official Nixpkgs snapshot to generate small, readable Nix environments for
-individual CI jobs.
+The CI environments are currently assembled by workflow-specific setup steps rather than
+small, readable, declarative Nix environments. A broad design also risks coupling the
+first useful Node migration to unrelated dependency-updater, Playwright, Rust, OCI, and
+configuration-migration work.
 
-The first milestone should prove this path:
+We need to prove the smallest independent path:
 
 ```text
 current CI config -> generated per-job flake.nix -> direct CI execution
 ```
 
-Keep unrelated dependency-updater, Playwright, Rust, OCI, and configuration-migration
-work independent.
+### Proposal
 
-### Scope
+Use one official Nixpkgs snapshot to generate a separate self-contained flake for each
+selected CI job. Start only with Node 22, Node 24, and Node 26, and adopt each job
+independently after its existing commands pass through direct Nix.
+
+#### Scope
 
 This task owns only:
 
@@ -37,7 +42,7 @@ This task does not own:
 
 Those concerns may evolve independently and must not block the first Node flakes.
 
-### Configuration
+#### Configuration
 
 For this milestone, extend the existing `fjs/ci/config/module.f.ts` configuration.
 It is already consumed by CI generation and works on native Windows.
@@ -61,7 +66,7 @@ node24: aarch64-linux, nodejs_24
 node26: aarch64-linux, nodejs_26
 ```
 
-### Generated environments
+#### Generated environments
 
 Generate one self-contained file for each job:
 
@@ -119,7 +124,7 @@ shellHook = ''
 Do not generalize this into a shell-configuration framework unless another job proves
 that abstraction useful.
 
-### Nixpkgs update
+#### Nixpkgs update
 
 Add an explicit Nix-capable command, for example:
 
@@ -141,7 +146,7 @@ Do not require the generic dependency updater to run this flow. Package-manager
 manifests and lockfiles are changed only when a separately scoped task explicitly
 requires them.
 
-### Generated flake locks
+#### Generated flake locks
 
 Nix may create a `flake.lock` beside a generated `flake.nix` during evaluation. Do not
 commit these per-job lock files in the first milestone. Ignore them with the scoped
@@ -155,7 +160,7 @@ This keeps the Node 26 generated-file drift check clean without adding special N
 flags to every invocation. The rule is deliberately limited to generated CI flakes,
 so a future intentional root or hand-maintained `flake.lock` is unaffected.
 
-### Validation and adoption
+#### Validation and adoption
 
 Adopt jobs independently. Each migrated workflow uses:
 
@@ -181,7 +186,7 @@ For each job:
 3. verify there are no tracked or stageable checkout changes;
 4. remove the old setup only after equivalent behavior is demonstrated.
 
-### Independent follow-ups
+#### Independent follow-ups
 
 Add other jobs only when useful:
 
