@@ -3,18 +3,25 @@
 **Priority:** P3
 **Status:** open
 
-### Goal
+### Problem
 
-Implement the smallest useful direct-Nix CI path:
+The Node 22, Node 24, and Node 26 CI jobs currently depend on workflow-specific runtime
+setup. We need the smallest useful direct-Nix implementation without coupling it to the
+generic dependency updater, Playwright, Rust, Deno, Bun, OCI, or a future CI
+configuration migration.
+
+The implementation must preserve each job's existing runtime and command sequence while
+keeping generated Nix files static and readable.
+
+### Proposal
+
+Implement this path for the three Node jobs:
 
 ```text
 existing CI config -> generated Node flake.nix -> existing Node job commands
 ```
 
-This task is independent of the generic dependency updater, Playwright, Rust, and OCI
-work.
-
-### Design rules
+#### Design rules
 
 - use one exact official Nixpkgs commit;
 - keep the configuration in `fjs/ci/config/module.f.ts` for this milestone;
@@ -31,7 +38,7 @@ work.
 - defer generalized shell, cache, and package-provider abstractions until a real
   requirement appears.
 
-### Phase 1: pin Nixpkgs
+#### Phase 1: pin Nixpkgs
 
 Add the stable Nixpkgs reference and exact accepted commit to the current CI
 configuration.
@@ -53,7 +60,7 @@ It should:
 
 It does not update npm dependencies or package-manager lockfiles.
 
-### Phase 2: generate Node flakes
+#### Phase 2: generate Node flakes
 
 Generate:
 
@@ -112,7 +119,7 @@ this root `.gitignore` rule:
 The rule is limited to generated CI flakes. A future intentional root or hand-written
 lock file remains visible to Git.
 
-#### Node 22 global installation
+##### Node 22 global installation
 
 The Node 22 flake adds this job-local field to its `pkgs.mkShell` expression:
 
@@ -128,7 +135,7 @@ This keeps `npm install -g functionalscript` writable and makes `fjs` available 
 remaining commands in the same Nix process. Do not introduce a generalized shell-setup
 schema for this one requirement.
 
-### Phase 3: validate independently
+#### Phase 3: validate independently
 
 Each migrated Node job has three workflow steps:
 
@@ -179,7 +186,7 @@ Node 22, Node 24, and Node 26 can be generated, validated, and adopted independe
 A problem in one job does not block progress on the others unless it affects the shared
 Nixpkgs commit itself.
 
-### Out of scope
+#### Out of scope
 
 Do not solve these in this task:
 
