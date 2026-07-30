@@ -22,8 +22,10 @@ requirements while converting real jobs.
   generated imports;
 - represent meaningful platform differences as separate job/flake definitions
   instead of conditional Nix code;
-- allow each job definition to declare static environment variables and PATH
-  additions required by its existing commands;
+- allow each job definition to declare literal environment variables and small
+  structured shell setup such as writable prefixes and PATH additions;
+- expand runtime-dependent values in the generated shell startup code rather than
+  storing strings such as `$TMPDIR/...` inside ordinary environment attributes;
 - keep the generated files readable enough to review directly;
 - add jobs incrementally, beginning with the simplest environments;
 - keep Windows on native installers using synchronized exact version strings;
@@ -51,9 +53,9 @@ export const nix = {
 
 ### Declarative job environments
 
-The maintained configuration should say which packages, systems, and static shell
-environment belong to each CI job. The generator should not hardcode relationships
-between package names, workflow jobs, and generated directories.
+The maintained configuration should say which packages, systems, and shell setup
+belong to each CI job. The generator should not hardcode relationships between
+package names, workflow jobs, and generated directories.
 
 Start with simple jobs whose package composition is already clear:
 
@@ -67,9 +69,8 @@ export const nix = {
         node22: {
             systems: ['x86_64-linux', 'aarch64-linux'],
             packages: ['nodejs_22'],
-            environment: {
-                NPM_CONFIG_PREFIX: '$TMPDIR/npm-global',
-                PATH: '$NPM_CONFIG_PREFIX/bin:$PATH',
+            shell: {
+                npmGlobalPrefix: 'npm-global',
             },
         },
         node24: {
@@ -87,12 +88,12 @@ export const nix = {
 The exact schema may evolve during implementation. The important contract is:
 
 ```text
-job name -> supported systems + explicit packages/environment -> one flake
+job name -> supported systems + explicit packages/shell setup -> one flake
 ```
 
-A generated flake should contain a static package list and static environment
-settings. It should not inspect the job name, choose between Node versions, or
-contain branches for unrelated platforms.
+A generated flake should contain a static package list and straightforward shell
+setup. It should not inspect the job name, choose between Node versions, or contain
+branches for unrelated platforms.
 
 For example:
 
@@ -106,9 +107,18 @@ Each Node flake exposes only its selected Node version. The existing workflow
 commands remain in the workflow; the flake only defines the environment.
 
 The Node 22 environment must provide a writable npm global prefix because its
-existing job runs `npm install -g` before invoking `fjs`. The prefix and its `bin`
-directory are declared as ordinary static environment data, not as special-case
-logic in the generated Nix.
+existing job runs `npm install -g` before invoking `fjs`. The generated flake may
+implement the declarative `npmGlobalPrefix` value with a small readable startup
+hook such as:
+
+```sh
+export NPM_CONFIG_PREFIX="$TMPDIR/npm-global"
+export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+```
+
+This expansion happens when the shell starts. Do not emit these expressions as
+plain environment attribute values, where the nested variable references would
+remain literal text.
 
 ### Complex jobs
 
@@ -196,17 +206,20 @@ Convert jobs one at a time:
 1. generate and commit the job's flake;
 2. build it on the job's systems using `--no-write-lock-file`;
 3. run the job's existing commands in that environment;
-4. compare with the existing setup path;
-5. remove the old setup only after equivalent behavior is demonstrated.
+4. for Node 22, verify `npm install -g` places `fjs` on the effective `PATH`;
+5. compare with the existing setup path;
+6. remove the old setup only after equivalent behavior is demonstrated.
 
 ### Tasks
 
 - [ ] Add the stable Nixpkgs ref and exact accepted commit.
 - [ ] Define a small declarative job-environment schema.
-- [ ] Allow static environment variables and PATH additions in job definitions.
+- [ ] Keep ordinary environment attributes literal; use structured shell setup for
+      runtime-dependent values and PATH additions.
 - [ ] Generate one self-contained, static `flake.nix` per declared job.
 - [ ] Start with separate Node 22, 24, and 26 jobs.
-- [ ] Give Node 22 a writable npm global prefix and PATH entry.
+- [ ] Give Node 22 a writable npm global prefix expanded by its startup shell hook.
+- [ ] Verify the installed global `fjs` executable is on the effective Node 22 PATH.
 - [ ] Keep generated Nix readable and free of job/platform selection branches.
 - [ ] Keep `npm run ci-update` Nix-independent and runnable on native Windows.
 - [ ] Add `npm run ci-nix-update` for deliberate snapshot updates.
