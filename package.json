@@ -13,7 +13,7 @@
     "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts",
     "start": "node ./fjs/module.ts",
     "ci-update": "node ./fjs/module.ts ci",
-    "update": "npx npm-check-updates -u && npm install && deno install && bun install && npm run ci-update",
+    "update": "npm run ci-update && npm install && deno install && bun install",
     "index-html": "node ./fjs/module.ts r ./fjs/website/module.f.ts",
     "website": "npm run prepack && npm run index-html"
   },
@@ -43,7 +43,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@playwright/test": "1.62.0",
+    "@playwright/test": "=1.62.0",
     "@types/node": "26.1.2",
     "typescript": "7.0.2"
   }

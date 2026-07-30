@@ -34,6 +34,7 @@ export const bun = '1.3.14'
 export const deno = '2.9.4'
 
 // https://www.npmjs.com/package/playwright
+// Make sure that `package.json` has the same version of `@playwright/test`
 export const playwright = '1.62.0'
 
 // Pinned `nixpkgs` input for generated Nix flakes

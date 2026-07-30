@@ -3,7 +3,7 @@
 **Priority:** P3
 **Status:** open
 
-The `update` script currently uses `npx npm-check-updates -u` to bump dependency versions. Replace it with an internal FunctionalScript script so there is no runtime dependency on an external tool.
+The `update` script used to call `npx npm-check-updates -u` to bump dependency versions; that third-party dependency was dropped, so `package.json` devDependency bumps are manual for now. Replace the manual step with an internal FunctionalScript script so version bumps are automated again without a runtime dependency on an external tool.
 
 ### Idea: `ci-lock.json`
 
@@ -20,4 +20,4 @@ The internal update script would:
 - [ ] Implement `fjs update` (or `fjs u`) subcommand that updates `package.json` deps and `ci-lock.json` tool versions.
 - [ ] Update `fjs/ci/module.f.ts` to read `ci-lock.json` instead of importing `fjs/ci/config/module.f.ts`.
 - [ ] Bootstrap: generate a default `ci-lock.json` from the current `fjs/ci/config/module.f.ts` values.
-- [ ] Replace `npx npm-check-updates -u` in the `update` script with `fjs u` (or equivalent).
+- [ ] Wire `fjs u` (or equivalent) into the `update` script so dependency bumps are automated again.
