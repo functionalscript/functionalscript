@@ -19,16 +19,24 @@ threshold below at which `register` uses `node:test`'s *native*
 `expectFailure` path rather than the fallback — see "Fallback threshold"
 below.
 
-`@types/node` should stay at its current/latest version (`26.1.2` today), not
-be pinned down to `24.x`. Confirmed empirically: pinning `@types/node` to
-`24` still fails `tsc`, because `expectFailure` is not in `@types/node@24`'s
-`TestOptions` type — even though `node --test` itself accepts and honors
-`expectFailure` correctly at runtime on Node 24 (it's undocumented/untyped
-there, not unsupported). `@types/node@26` does carry the up-to-date typing.
-So the `@types/node` version is decoupled from the runtime Node-version
-fallback below: keep `@types/node` on latest for correct typechecking, and
-gate the `register` fallback purely on the detected runtime `nodeVersion`, not
-on which `@types/node` is installed.
+`@types/node` should be pinned to the exact `26.0.0` (not left floating at
+`26.1.2`, and not pinned down to `24.x`). Pinning `@types/node` to `24` still
+fails `tsc` — confirmed empirically — because `expectFailure` is not in
+`@types/node@24`'s `TestOptions` type, even though `node --test` itself
+accepts and honors `expectFailure` correctly at runtime on Node 24 (it's
+undocumented/untyped there, not unsupported); `@types/node@26` does carry the
+up-to-date typing, satisfying that. But floating on `26.1.2` (or "latest 26")
+is also wrong the other way: users of this package may run *any* Node 26.x,
+including the lowest `26.0.0` itself, and typechecking against `26.1.2`'s
+typings would silently allow code to depend on an API added in `26.1.0` or
+later — something that doesn't exist on a reader's actual `26.0.0`. Pinning
+the exact `26.0.0` floor keeps `tsc` honest about what the declared minimum
+(`26.0.0`, see "Fallback threshold" below) actually provides. So the
+`@types/node` version is decoupled from the runtime Node-version fallback
+below in direction (it's a typings floor, not a runtime check), but is now
+numerically the *same* `26.0.0` value by design: gate the `register` fallback
+on the detected runtime `nodeVersion`, and gate `tsc` on the exact
+`@types/node@26.0.0` typings for that same floor.
 
 **The exact feature gap: Node's `expectFailure` test option.** `node:test`'s
 `test()` gained a real `expectFailure` option — inverting pass/fail for a
@@ -120,15 +128,16 @@ as well, which is wrong.
    `testContext` in `NodeProgramOptions`, set to `true` for
    Bun/Playwright/old-Node and `false` only for native Node), and derive
    `star` from that flag instead of re-deriving it from `engine` alone.
-5. Keep `@types/node` in `package.json` (`package.json:47`) on its
-   current/latest version (`26.1.2`) rather than pinning it down to `24.x` or
-   `22.x`. `@types/node@24` was tried and still fails `tsc`, because
-   `expectFailure` is absent from its `TestOptions` type even though
-   `node --test` supports it correctly at runtime on Node 24 — the type
-   package lags the runtime here. Since the typings version doesn't need to
-   track the runtime-version fallback (step 3), there is no downgrade to make;
-   the earlier "pin to 24.X.Y" plan is dropped. No lockfile regeneration is
-   needed for this item, since `@types/node` is not changing.
+5. Pin `@types/node` in `package.json` (`package.json:47`) to the exact
+   `26.0.0` — not `24.x`/`22.x` (see the `expectFailure` typing gap above),
+   and not left floating at the current `26.1.2` or "latest". `@types/node`
+   at any `26.x` above `26.0.0` would let `tsc` typecheck against APIs added
+   in a later `26.x` patch/minor, which a consumer running Node's actual
+   `26.0.0` release would not have — pinning the exact floor keeps the
+   typings honest about the declared minimum. This does require regenerating
+   `package-lock.json`, `deno.lock`, and `bun.lock` (currently on `26.1.2`)
+   via `npm run update` (`package.json:16`), and committing the resulting
+   diffs.
 6. Cover every new branch with co-located proofs, per the repository's
    mandatory 100% line/branch coverage: `nodeVersion` at/above `26.0.0` keeps
    the native `testContext`, `nodeVersion` below `26.0.0` swaps in the inline
@@ -174,9 +183,13 @@ as well, which is wrong.
       empty `star`), Node `< 26.0.0` uses the inline context (and `' ...'`
       `star`), and Bun/Deno/Playwright are unaffected — 100% line/branch
       coverage of the new code.
-- [ ] Leave `@types/node` in `package.json:47` at its current/latest version
-      (`26.1.2`) — do not pin it to `24.x` or `22.x`; confirmed `24` fails
-      `tsc` on the missing `expectFailure` type despite working at runtime.
+- [ ] Pin `@types/node` in `package.json:47` to the exact `26.0.0` (down from
+      `26.1.2`, not to `24.x`/`22.x`) so `tsc` typechecks against exactly the
+      declared minimum, not a later `26.x` patch/minor a `26.0.0` consumer
+      wouldn't have; confirmed `24` fails `tsc` on the missing `expectFailure`
+      type despite working at runtime.
+- [ ] Run `npm run update` and commit the regenerated `package-lock.json`,
+      `deno.lock`, and `bun.lock`.
 - [ ] Document the supported-Node-version policy and the inline-context
       fallback (README or JSDoc near `register`/`NodeProgramOptions`),
       including that Deno is exempt from the Node-version comparison.
@@ -194,6 +207,7 @@ as well, which is wrong.
   `bunTestContext`.
 - `fjs/emergent_testing/module.f.ts:409` — `register`.
 - `package.json:20` — `engines.node: ">=22"`.
-- `package.json:47` — `@types/node` version (staying on latest; not tied to
-  the runtime fallback threshold).
+- `package.json:47` — `@types/node` version (pinned to the exact `26.0.0`,
+  matching the runtime fallback threshold as a typings floor, not a live
+  tracking of "latest").
 - `AGENTS.md:30-77` — §1.1/§1.3/§1.4 Node-version documentation to update.
