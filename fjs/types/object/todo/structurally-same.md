@@ -3,7 +3,27 @@
 **Priority:** P3
 **Status:** open
 
-## Goal
+## Problem
+
+`fjs/types/rtti/parse/proof.f.ts` contains a private `assertDeepEqual` helper for
+checking parsed FunctionalScript data. It recursively compares arrays and plain
+records, but it is ad hoc and cannot be reused by other proofs:
+
+- primitive comparison uses `===`, so it does not preserve `Object.is` behavior
+  for `NaN` and signed zero;
+- failures are reported through bespoke `if`/`throw` branches instead of the
+  shared assertion module;
+- the recursive comparison logic is embedded in one proof file even though the
+  same operation is useful whenever tests compare independently constructed
+  FunctionalScript data.
+
+The immediate consumer is the RTTI parse proof. The helper is intended for
+FunctionalScript-style data—primitives, arrays, and record-like objects—not as
+semantic comparison for dates, maps, sets, typed arrays, or arbitrary host
+objects. Accepting `unknown` is useful at assertion and parsing boundaries, but
+the result only describes the structural rules below.
+
+## Proposal
 
 Add a small recursive comparison helper to `fjs/types/object/module.f.ts`:
 
@@ -21,13 +41,13 @@ export const assertStructurallySame =
 The assertion name uses the comparison name as its suffix, consistently with the
 `assert*` naming convention.
 
-`structurallySame` should use `Object.is` for values that do not require
-structural comparison, while recursively comparing arrays and non-null objects.
-`assertStructurallySame(a, b, msg?)` should return normally when
-`structurallySame(a, b)` is `true` and otherwise throw the compared values plus
+`structurallySame` uses `Object.is` for values that do not require structural
+comparison, while recursively comparing arrays and non-null objects.
+`assertStructurallySame(a, b, msg?)` returns normally when
+`structurallySame(a, b)` is `true` and otherwise throws the compared values plus
 the optional message, following the existing `assertEq` shape.
 
-## Semantics
+### Semantics
 
 1. Call `Object.is(a, b)` first. If it returns `true`, return `true`.
    This preserves `Object.is` behavior for primitives, `NaN`, signed zero, and
@@ -62,7 +82,7 @@ assertStructurallySame(
 )
 ```
 
-## Initial scope
+### Initial scope
 
 Keep the first implementation small and suitable for FunctionalScript data:
 
@@ -72,12 +92,14 @@ Keep the first implementation small and suitable for FunctionalScript data:
 - do not add cycle detection;
 - array comparison is based on length and indexed values, not custom properties.
 
-These cases can be added later when a concrete use requires them.
+These cases can be added later when a concrete consumer requires them.
 
 ## Tasks
 
 - [ ] Add `structurallySame` to `fjs/types/object/module.f.ts`.
 - [ ] Add `assertStructurallySame` to `fjs/asserts/module.f.ts`.
+- [ ] Replace the private `assertDeepEqual` in
+      `fjs/types/rtti/parse/proof.f.ts` with `assertStructurallySame`.
 - [ ] Use `Object.is` as the fast path and primitive comparison rule.
 - [ ] Compare arrays by length and recursively by index.
 - [ ] Compare object property sets without depending on property order.
@@ -86,3 +108,13 @@ These cases can be added later when a concrete use requires them.
       as `undefined`.
 - [ ] Add assertion proof cases for success, failure, and the optional message.
 - [ ] Run `npx tsc` and `fjs t`.
+
+## Related
+
+- [`fjs/types/rtti/parse/proof.f.ts`](../../rtti/parse/proof.f.ts) — contains the
+  private `assertDeepEqual` that is the initial consumer.
+- [`proof-shared-asserts.md`](../../rtti/todo/proof-shared-asserts.md) — also
+  tracks replacing the RTTI proof's local deep-comparison helper with a shared
+  assertion.
+- [`fjs/asserts/module.f.ts`](../../../asserts/module.f.ts) — existing assertion
+  naming and failure-shape conventions.
