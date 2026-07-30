@@ -11,6 +11,11 @@ history.
 
 ## Unreleased
 
+- `package.json`: drop `npm-check-updates` from `npm run update` entirely — it
+  now only reinstalls/relocks; `package.json` devDependency bumps are manual
+  until the internal replacement in
+  `fjs/ci/todo/replace-npm-check-updates-with-an-internal-script.md` lands
+  [#1392](https://github.com/functionalscript/functionalscript/pull/1392)
 - `package.json`: pin `@playwright/test` exactly (`=1.62.0`) and exclude it from
   `npm run update`'s `npm-check-updates` pass, so the pinned test runner version
   survives routine dependency updates
