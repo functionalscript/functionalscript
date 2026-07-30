@@ -1,3 +1,8 @@
+/**
+ * Proofs for local development configuration generation.
+ *
+ * @module
+ */
 import { assertEq } from '../../asserts/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
@@ -28,5 +33,8 @@ export const proof = {
     main: () => {
         const [, result] = virtual(initial)(main())
         assertEq(result, 0)
+    },
+    throw: {
+        missingSource: () => virtual(emptyState)(syncMcp()),
     },
 }
