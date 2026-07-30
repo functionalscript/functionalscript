@@ -11,6 +11,15 @@ history.
 
 ## Unreleased
 
+- `package.json`: drop `npm-check-updates` from `npm run update` entirely — it
+  now only reinstalls/relocks; `package.json` devDependency bumps are manual
+  for now
+  [#1392](https://github.com/functionalscript/functionalscript/pull/1392)
+- `package.json`: pin `@playwright/test` exactly (`=1.62.0`) and exclude it from
+  `npm run update`'s `npm-check-updates` pass, so the pinned test runner version
+  survives routine dependency updates
+  [#1391](https://github.com/functionalscript/functionalscript/pull/1391)
+
 ## 0.39.0
 
 - `fjs/cas/evo`: **BREAKING CHANGES:** add `revision(hash)` and the

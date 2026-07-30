@@ -1,107 +1,228 @@
-## 66B-dockerfile-nix-integration. Generate Dockerfile with Nix toolchain from fjs/ci/module.f.ts
+## 66B-dockerfile-nix-integration. Generate simple Node CI flakes
 
 **Priority:** P3
 **Status:** open
 
 ### Problem
 
-`docker/Dockerfile` is hand-written, installs tools via ad-hoc `curl` scripts
-with no explicit version pinning, and uses `sccache` for Rust build caching.
-This makes the image hard to reproduce and disconnected from the version pins
-already maintained in `fjs/ci/config/module.f.ts`.
+The Node 22, Node 24, and Node 26 CI jobs currently depend on workflow-specific runtime
+setup. We need the smallest useful direct-Nix implementation without coupling it to the
+generic dependency updater, Playwright, Rust, Deno, Bun, OCI, or a future CI
+configuration migration.
 
-The image is also not used in CI today — each Ubuntu job re-installs tools from
-scratch on every run.
+The implementation must preserve each job's existing runtime and command sequence while
+keeping generated Nix files static and readable.
 
 ### Proposal
 
-#### 1. Remove `sccache`
+Implement this path for the three Node jobs:
 
-Drop the `cargo install sccache` step and the `RUSTC_WRAPPER=sccache` env var.
-`sccache` adds an extra build layer that doesn't integrate well with our setup
-and is unnecessary overhead for the current codebase size. This can be
-reconsidered if the Rust compilation time grows significantly.
+```text
+existing CI config -> generated Node flake.nix -> existing Node job commands
+```
 
-#### 2. Replace curl-based installs with Nix
+#### Design rules
 
-Use [Nix](https://nixos.org/) (single-user install) as the package manager
-inside the image. Nix provides reproducible, content-addressed tool environments
-and works on any Linux base image.
+- use one exact official Nixpkgs commit;
+- keep the configuration in `fjs/ci/config/module.f.ts` for this milestone;
+- generate one self-contained `flake.nix` per Node job;
+- expose one static default development shell for each configured system;
+- keep generated files static and readable;
+- do not add job-selection conditions, helper libraries, or shared generated Nix modules;
+- keep commands in GitHub Actions;
+- run each migrated job's complete command sequence inside one `nix develop --command`
+  invocation;
+- preserve each job's current commands, order, and coverage;
+- keep `npm run ci-update` Nix-independent and runnable on Windows;
+- ignore per-job lock files created beside generated flakes;
+- defer generalized shell, cache, and package-provider abstractions until a real
+  requirement appears.
 
-#### 3. Version-pin all tools via Nix, sourced from `fjs/ci/config/module.f.ts`
+#### Phase 1: pin Nixpkgs
 
-| Tool | Version source |
-|------|----------------|
-| Node (default) | `config.node.default` |
-| Deno | `config.deno` |
-| Bun | `config.bun` |
-| Rust toolchain | `config.actions['dtolnay/rust-toolchain']` |
-| Wasmtime | `config.wasmtime` |
-| Wasmer | `config.wasmer` |
-| Playwright + browsers | `config.playwright` |
+Add the stable Nixpkgs reference and exact accepted commit to the current CI
+configuration.
 
-`fjs/ci/config/module.f.ts` remains the single source of truth for all version
-pins across both the generated workflow YAML and the Dockerfile.
+Add an explicit Nix-capable update command, for example:
 
-#### 4. Generate `docker/Dockerfile` from `fjs/ci/module.f.ts`
+```sh
+npm run ci-nix-update
+```
 
-Mirror the pattern used for `.github/workflows/ci.yml`: add a
-`writeDockerfile` export (or equivalent) to `fjs/ci/module.f.ts` that renders
-and writes `docker/Dockerfile` from the same config. Version bumps in
-`config/module.f.ts` then propagate to both the CI workflow and the Dockerfile
-in a single place.
+It should:
 
-#### 5. Dedicated `docker-build` CI job with GitHub Actions cache
+1. resolve the latest commit of the configured official stable Nixpkgs reference;
+2. read the Node 22, Node 24, and Node 26 package versions from that commit;
+3. verify that the snapshot exposes `nodejs_22`, `nodejs_24`, and `nodejs_26`;
+4. update the commit and relevant exact versions in
+   `fjs/ci/config/module.f.ts`;
+5. invoke `npm run ci-update` to regenerate files.
 
-Add a GitHub Actions job that:
+It does not update npm dependencies or package-manager lockfiles.
 
-1. Computes the cache key from the version pins (same scheme as
-   [i65Z-ci-scenario-docker](todo.md)):
-   `linux-<arch>-node<NODE>-deno<DENO>-bun<BUN>-playwright<PW>-rust<RUST>-wasmtime<WT>-wasmer<WM>`
-2. Attempts to restore the image from `actions/cache`.
-3. Builds the image on a cache miss.
-4. Saves the image as a GitHub Actions **artifact** so downstream jobs can
-   pull it without rebuilding.
+#### Phase 2: generate Node flakes
 
-#### 6. Downstream jobs consume the single cached image
+Generate:
 
-All Ubuntu CI jobs (`needs: docker-build`) restore the artifact, `docker load`
-the image, and run their steps inside the container. One image is built once
-per workflow run and shared by all jobs — including the Playwright job, which
-can be merged back into the main Ubuntu matrix rather than running separately.
+```text
+nix/generated/node22/flake.nix
+nix/generated/node24/flake.nix
+nix/generated/node26/flake.nix
+```
 
-### Benefits
+The current Node jobs run on the ARM Linux runner, so each generated file exposes this
+public output:
 
-- **Reproducibility** — Nix gives content-addressed installs; curl scripts can
-  silently pull different versions on different days.
-- **Developer / CI parity** — developers build or pull the same image used in CI.
-- **Single source of truth** — all version pins live in `config/module.f.ts`.
-- **Efficiency** — one Docker build per version-pin change; all parallel jobs
-  reuse the cached image.
+```text
+devShells.aarch64-linux.default
+```
+
+The package mapping is explicit:
+
+```text
+node22 -> pkgs.nodejs_22
+node24 -> pkgs.nodejs_24
+node26 -> pkgs.nodejs_26
+```
+
+Each generated file follows this static shape, with the job's package substituted:
+
+```nix
+{
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/<commit>";
+
+  outputs = { nixpkgs, ... }: {
+    devShells.aarch64-linux.default =
+      let
+        pkgs = import nixpkgs { system = "aarch64-linux"; };
+      in
+      pkgs.mkShell {
+        packages = [ pkgs.nodejs_22 ];
+      };
+  };
+}
+```
+
+Do not add loops, system-selection conditions, `flake-utils`, or shared imports. If a job
+later supports another system, generate another explicit `devShells.<system>.default`
+attribute in that job's file.
+
+The generator owns the generated directory and removes stale job outputs.
+
+Nix may create `flake.lock` beside a generated flake. Keep these files untracked with
+this root `.gitignore` rule:
+
+```gitignore
+/nix/generated/**/flake.lock
+```
+
+The rule is limited to generated CI flakes. A future intentional root or hand-written
+lock file remains visible to Git.
+
+##### Node 22 global installation
+
+The Node 22 flake adds this job-local field to its `pkgs.mkShell` expression:
+
+```nix
+shellHook = ''
+  export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+  export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+  mkdir -p "$NPM_CONFIG_PREFIX"
+'';
+```
+
+This keeps `npm install -g functionalscript` writable and makes `fjs` available to the
+remaining commands in the same Nix process. Do not introduce a generalized shell-setup
+schema for this one requirement.
+
+#### Phase 3: validate independently
+
+Each migrated Node job has three workflow steps:
+
+1. check out the repository;
+2. install Nix through a pinned action;
+3. run the job's complete existing command sequence in one invocation:
+
+```sh
+nix develop ./nix/generated/<job> --command bash -euo pipefail -c '<commands>'
+```
+
+Using one invocation makes the selected Node executable and the job-local `shellHook`
+available to every command without exporting a profile or PATH across GitHub Actions
+steps.
+
+Preserve the current command sequences and order:
+
+```text
+node22:
+  npm install -g functionalscript@0.38.0
+  npm ci
+  fjs t
+
+node24:
+  npm ci
+  node --test
+
+node26:
+  npm ci
+  npm run ci-update
+  git add -A && git diff --cached --exit-code
+  npx tsc
+  npm run cov
+  npm pack
+```
+
+The workflow generator should continue supplying current configured versions; the list
+above records the existing command families and their order.
+
+For each Node job:
+
+1. verify the selected Node version inside the Nix invocation;
+2. run the complete command sequence above;
+3. verify there are no tracked or stageable checkout changes;
+4. switch only that job after equivalent behavior is demonstrated.
+
+Node 22, Node 24, and Node 26 can be generated, validated, and adopted independently.
+A problem in one job does not block progress on the others unless it affects the shared
+Nixpkgs commit itself.
+
+#### Out of scope
+
+Do not solve these in this task:
+
+- replacing `npm-check-updates`;
+- moving CI configuration to `ci-lock.json` or another format;
+- Playwright package/browser synchronization;
+- Rust components, targets, or linkers;
+- Deno or Bun flakes;
+- OCI output or caching.
+
+Create separate TODOs for those jobs when work begins. They do not block this Node
+milestone.
 
 ### Tasks
 
-- [ ] Add `writeDockerfile` to `fjs/ci/module.f.ts` (and wire it into the
-      existing `main`/`ci` entry-point).
-- [ ] Write the Dockerfile template: Debian base → install Nix → `nix-env -i`
-      each tool at the pinned version.
-- [ ] Remove `sccache` install and `RUSTC_WRAPPER` env from the generated file.
-- [ ] Add the `docker-build` GitHub Actions job (Intel + ARM variants) with
-      cache-key computation and artifact upload.
-- [ ] Update downstream Ubuntu jobs to `docker load` the artifact and run
-      inside the container.
-- [ ] Merge the standalone `playwright` job into the Docker Ubuntu job.
-- [ ] Confirm the generated CI YAML and Dockerfile are regenerated consistently
-      by `npm run ci-update` (or equivalent).
+- [ ] Add the stable Nixpkgs reference and exact commit.
+- [ ] Add `npm run ci-nix-update`.
+- [ ] Update Node versions from the accepted Nixpkgs snapshot.
+- [ ] Verify the three required Node package attributes exist.
+- [ ] Generate separate Node 22, Node 24, and Node 26 flakes with
+      `devShells.aarch64-linux.default`.
+- [ ] Add the Node 22 `$HOME/.npm-global` shell hook.
+- [ ] Remove stale generated job directories.
+- [ ] Add `/nix/generated/**/flake.lock` to `.gitignore`.
+- [ ] Keep ordinary generation Nix-independent and Windows-compatible.
+- [ ] Commit the generated flakes.
+- [ ] Add pinned Nix bootstrap to each migrated job.
+- [ ] Run each job's complete command sequence through one `nix develop --command`
+      invocation.
+- [ ] Validate the three Node jobs independently.
+- [ ] Preserve each job's existing commands, order, and coverage.
+- [ ] Keep tracked checkout state unchanged.
+- [ ] Migrate jobs one at a time.
 
 ### Related
 
-- [GitHub issue #1034](https://github.com/functionalscript/functionalscript/issues/1034)
-  — the original report.
-- [i65Z-ci-scenario-docker](todo.md) — Docker plan for
-  Ubuntu CI jobs; this issue implements it and adds the Nix layer.
-- [i65Z-ci-nix](todo.md) — Nix as CI package manager; macOS/Windows
-  stay with inline `setup-*` actions; Linux uses Nix-inside-Docker.
-- i145 — Docker containers for Linux CI jobs.
-- i095 — original Docker CI idea.
-- [i096](todo.md) — CI caching.
+- [65Z-ci-nix](65z-ci-nix.md) — architecture and task boundaries.
+- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — later OCI design work after one
+  direct-Nix Linux job works.
