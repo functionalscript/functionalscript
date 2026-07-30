@@ -1,4 +1,4 @@
-## 66B-dockerfile-nix-integration. Generate one official-Nixpkgs CI flake
+## 66B-dockerfile-nix-integration. Generate standalone official-Nixpkgs CI flakes
 
 **Priority:** P3
 **Status:** open
@@ -8,13 +8,16 @@
 The current Linux and macOS CI jobs install tools through generated GitHub
 Actions steps, while Windows uses exact version strings from
 `fjs/ci/config/module.f.ts`. The previous Nix implementation plan reproduced
-package recipes, upstream URLs, hashes, lock metadata, and multiple target flakes
-inside the FunctionalScript generator.
+package recipes, upstream URLs, hashes, and lock metadata inside the
+FunctionalScript generator.
 
 That complexity is unnecessary for the first milestone. We first need to prove
 that one pinned official stable Nixpkgs snapshot can supply the required tools and
-that one committed generated `flake.nix` can run the existing Linux and macOS CI
-commands.
+that committed generated flakes can run the existing Linux and macOS CI commands.
+
+A single shell cannot preserve the Node 22, 24, and 26 matrix because all three
+packages expose the same `node` and `npm` executable names. Each Node job therefore
+needs its own standalone generated flake.
 
 ### Proposal
 
@@ -23,15 +26,19 @@ Implement the simpler path in these ordered phases:
 ```text
 Phase 1: resolve the latest official stable Nixpkgs commit
 Phase 2: synchronize its top-level package versions into CI config
-Phase 3: generate and commit one root flake.nix
-Phase 4: build and validate the committed flake
-Phase 5: run Linux/macOS CI through the flake
+Phase 3: generate and commit standalone self-contained flakes
+Phase 4: build and validate every committed flake
+Phase 5: run Linux/macOS CI through the matching flakes
 Later: consider custom packages, caches, and OCI images
 ```
 
 Only versions already packaged by the selected official Nixpkgs snapshot are in
 scope. Do not create custom derivations, overlays, or a FunctionalScript package
 source until a concrete missing-package requirement exists.
+
+Each generated flake must be independently debuggable. It embeds the pinned
+Nixpkgs commit and all environment-specific logic directly in its own `flake.nix`.
+It must not import shared generated Nix modules.
 
 ### 1. Configure the official package source
 
@@ -86,11 +93,7 @@ or Windows through WSL.
 The command must:
 
 1. resolve the latest commit of the configured official stable Nixpkgs ref;
-2. evaluate every configured package attribute on:
-   - `x86_64-linux`;
-   - `aarch64-linux`;
-   - `x86_64-darwin`;
-   - `aarch64-darwin`;
+2. evaluate every configured package attribute on each required Nix system;
 3. reject any missing, broken, unsupported, or version-divergent package;
 4. update `nix.nixpkgs.rev`;
 5. copy the accepted top-level versions into the existing exact version exports;
@@ -98,7 +101,7 @@ The command must:
 7. expose all config and generated-file changes for review.
 
 For example, if the selected snapshot reports `nodejs_26.version = "26.5.0"`
-on every supported system, the command writes:
+on every system used by the Node 26 job, the command writes:
 
 ```ts
 export const node = {
@@ -113,57 +116,62 @@ Windows then installs `26.5.0` natively, while Linux and macOS use
 Ordinary `npm run update` and `npm run ci-update` must not resolve a moving ref,
 invoke Nix, or access the network. They remain runnable on native Windows.
 
-### 3. Generate one root `flake.nix`
+### 3. Generate standalone flake directories
 
-Extend the existing CI generator to emit one root `flake.nix` from the committed
-configuration.
+Extend the existing CI generator to emit independent directories such as:
 
-The generated file must:
-
-- embed the exact Nixpkgs commit in the input URL;
-- support the four required Linux and macOS systems;
-- use only configured official Nixpkgs attributes;
-- expose one default CI/development shell per supported system;
-- assert package metadata versions against the exact config versions;
-- generate executable version checks;
-- include required Rust targets and environment variables;
-- contain a generated-file warning;
-- remain readable and independently debuggable.
-
-Conceptually:
-
-```nix
-{
-  inputs.nixpkgs.url =
-    "github:NixOS/nixpkgs/<configured-exact-commit>";
-
-  outputs = { nixpkgs, ... }:
-    let
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-        "x86_64-darwin"
-        "aarch64-darwin"
-      ];
-    in
-    # Generated devShells and checks.
-    { };
-}
+```text
+nix/generated/
+  node22/flake.nix
+  node24/flake.nix
+  node26/flake.nix
+  deno/flake.nix
+  bun/flake.nix
+  wasm/flake.nix
+  playwright/flake.nix
 ```
 
-Do not generate `flake.lock` in this phase. The input URL already contains the
-exact immutable Git commit. Validation and CI invocations must prevent Nix from
-writing a lock file. A committed lock can be evaluated later as a separate
-improvement.
+The permanent boundaries should follow real CI environments rather than create
+one universal shell. At minimum, every incompatible version family gets a
+separate flake.
 
-Do not generate multiple target-specific flakes in this first implementation.
-Split the flake only after real evaluation, build, cache, or isolation measurements
-show a need.
+Every generated `flake.nix` must:
 
-### 4. Commit and check the generated file
+- embed the exact Nixpkgs commit in its input URL;
+- support only the systems on which that environment runs;
+- use only the configured official Nixpkgs attributes required by that job;
+- expose one default CI/development shell;
+- assert package metadata versions against the exact config versions;
+- generate executable version checks;
+- include required Rust targets and environment variables when applicable;
+- contain a generated-file warning;
+- remain readable and independently debuggable;
+- contain no imports or references to another generated Nix file.
 
-`flake.nix` is a committed generated artifact. The existing regeneration check
-must remain:
+The Node flakes each contain exactly one Node package:
+
+```text
+node22 -> pkgs.nodejs_22
+node24 -> pkgs.nodejs_24
+node26 -> pkgs.nodejs_26
+```
+
+CI runs the existing command through the selected directory:
+
+```sh
+nix develop ./nix/generated/node22 --command npm test
+nix develop ./nix/generated/node24 --command npm test
+nix develop ./nix/generated/node26 --command npm test
+```
+
+Do not generate `flake.lock` in this phase. Each input URL contains the exact
+immutable Git commit. Validation and CI invocations must prevent Nix from writing
+a lock file. Committed locks can be evaluated later as a separate improvement.
+
+### 4. Commit and check generated files
+
+Every generated `flake.nix` is a committed artifact. The existing regeneration
+check remains:
 
 ```sh
 npm run ci-update
@@ -171,7 +179,7 @@ git add -A
 git diff --cached --exit-code
 ```
 
-The staged comparison catches a newly generated file, deletion, or modification.
+The staged comparison catches newly generated files, deletions, and modifications.
 The generator must produce byte-identical output on Linux, macOS, and native
 Windows.
 
@@ -180,51 +188,55 @@ versions. Ordinary regeneration only renders the already committed configuration
 
 ### 5. Validate before changing CI
 
-Add Linux and macOS validation jobs that:
+Add Linux and macOS validation jobs that, for every applicable generated flake:
 
 1. install Nix through a pinned trusted action;
-2. evaluate the generated flake without writing a lock;
+2. evaluate the flake without writing a lock;
 3. build the default shell for the runner system;
 4. run metadata and executable version checks;
-5. verify Node, Deno, Bun, Rust, Wasmtime, Wasmer, and Playwright behavior;
-6. verify required Rust, WASM, and 32-bit compilation targets;
-7. fail without changing the committed config or generated file.
+5. verify the environment's representative commands and compilation targets;
+6. fail without changing the committed config or generated files.
 
-The first implementation is complete when the one committed flake validates on
-all four supported Nix systems.
+The first implementation is complete when every committed flake validates on all
+systems on which its corresponding CI environment runs.
 
-### 6. Use the flake in CI
+### 6. Use the matching flake in CI
 
 After validation succeeds, convert Linux and macOS jobs incrementally:
 
 ```text
 checkout
 install Nix
-enter the generated default shell
+select the generated flake for this CI job
 run the existing CI command
 ```
 
+The Node 22, 24, and 26 jobs must select their respective standalone directories.
 Preserve existing commands, including the Playwright browser-specific commands.
 Run Nix-backed and setup-action jobs in parallel until their coverage and results
-match. Windows remains on the existing native path with the synchronized exact
+match. Windows remains on the existing native path with synchronized exact
 versions.
+
+Playwright package and browser synchronization is tracked separately in
+[playwright-package-version-sync](playwright-package-version-sync.md). A Nixpkgs
+update must not silently combine a different driver/browser bundle with the local
+`@playwright/test` dependency.
 
 ### 7. Later extensions
 
-The following are explicitly out of scope for the first PR implementing this
-plan:
+The following are explicitly out of scope for the first implementation:
 
 - custom package derivations;
 - a FunctionalScript Nix package source or overlay;
-- multiple generated flakes;
+- shared generated Nix modules;
 - generated `flake.lock` metadata;
 - a private binary cache;
 - OCI image generation or publication;
-- replacing CI jobs before the generated flake validates.
+- replacing CI jobs before the generated flakes validate.
 
 A custom package source should be introduced only when an official stable
 Nixpkgs snapshot cannot provide a concrete required tool or platform. OCI images
-remain the last stage and must reuse the already proven flake.
+remain the last stage and must reuse the already proven standalone flakes.
 
 ### Tasks
 
@@ -235,7 +247,7 @@ remain the last stage and must reuse the already proven flake.
 - [ ] Extract Rust into a normal exact version export shared by Windows and Nix.
 - [ ] Add `npm run ci-nix-update`.
 - [ ] Resolve the latest commit of the configured stable ref.
-- [ ] Evaluate all package attributes on all four supported systems.
+- [ ] Evaluate package attributes on every system required by their environments.
 - [ ] Fail on missing, broken, unsupported, or version-divergent packages.
 
 #### Phase 2: cross-platform version synchronization
@@ -244,27 +256,29 @@ remain the last stage and must reuse the already proven flake.
       in one operation.
 - [ ] Keep existing Windows setup generators reading the synchronized version
       exports.
-- [ ] Show the version changes clearly in the generated diff.
+- [ ] Show version changes clearly in the generated diff.
 
-#### Phase 3: generated flake
+#### Phase 3: standalone generated flakes
 
-- [ ] Generate one root `flake.nix` from `npm run ci-update`.
-- [ ] Pin the input URL to the exact configured GitHub commit.
-- [ ] Generate shells and checks for all supported Linux and macOS systems.
+- [ ] Generate independent flake directories from `npm run ci-update`.
+- [ ] Generate separate Node 22, Node 24, and Node 26 flakes.
+- [ ] Pin every input URL to the exact configured GitHub commit.
+- [ ] Keep each generated `flake.nix` self-contained and free of generated imports.
 - [ ] Generate package metadata assertions and executable version checks.
 - [ ] Do not generate `flake.lock` or custom package derivations.
-- [ ] Commit `flake.nix` and preserve the staged regeneration drift check.
+- [ ] Commit all generated files and preserve the staged regeneration drift check.
 
 #### Phase 4: validation
 
 - [ ] Install Nix through a pinned action on Linux and macOS runners.
-- [ ] Validate the flake without writing a lock file.
-- [ ] Build every supported system shell.
-- [ ] Verify exact tool versions, Playwright, and compilation targets.
+- [ ] Validate every applicable flake without writing a lock file.
+- [ ] Build every supported environment/system pair.
+- [ ] Verify exact tool versions, Playwright coordination, and compilation targets.
 
 #### Phase 5: CI adoption
 
-- [ ] Run existing Linux and macOS CI commands inside the generated shell.
+- [ ] Map every Linux and macOS CI job to its matching generated flake.
+- [ ] Preserve separate Node 22, 24, and 26 execution paths.
 - [ ] Compare Nix-backed jobs with the existing setup-action jobs.
 - [ ] Remove old Linux/macOS setup steps only after equivalent results are proven.
 - [ ] Keep Windows on its native path using the synchronized versions.
@@ -273,6 +287,8 @@ remain the last stage and must reuse the already proven flake.
 
 - [65Z-ci-nix](65z-ci-nix.md) — architecture and scope.
 - [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — later OCI stage.
+- [playwright-package-version-sync](playwright-package-version-sync.md) — synchronize
+  the repository dependency with the selected CI Playwright release.
 - [i096](96.md) — CI caching.
 - [Official NixOS 26.05 channel](https://channels.nixos.org/nixos-26.05) — example
   stable source resolving to an immutable GitHub Nixpkgs commit.
