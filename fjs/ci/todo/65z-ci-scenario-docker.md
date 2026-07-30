@@ -5,9 +5,16 @@
 **Blocked by:** [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md),
 Phase 1 through Phase 3 for one selected Linux job
 
-### Goal
+### Problem
 
-Keep OCI images out of the first direct-Nix implementation.
+We do not yet know whether packaging a Nix CI environment as an OCI image improves total
+CI behavior. Selecting a builder, image layout, runtime model, identity, caching, or
+publication workflow before a direct-Nix job works would turn an optimization experiment
+into speculative implementation.
+
+The first direct-Nix milestone should therefore remain independent of OCI work.
+
+### Proposal
 
 First prove this path for at least one Linux job:
 
@@ -16,11 +23,10 @@ declarative CI job -> generated flake.nix -> direct CI execution
 ```
 
 Then use the working job and measurements to write and review a concrete OCI design.
-Do not implement an OCI output in this task.
+Do not implement an OCI output in this task. Rust, Playwright, and other unfinished
+complex jobs do not block this design work.
 
-Rust, Playwright, and other unfinished complex jobs do not block this design work.
-
-### Principles
+#### Principles
 
 - direct Nix CI is the reference behavior and fallback;
 - OCI is an optional optimization;
@@ -31,7 +37,7 @@ Rust, Playwright, and other unfinished complex jobs do not block this design wor
 - keep OCI-specific details out of the first generated flakes;
 - create a separate implementation TODO after the design is reviewed.
 
-### Entry criteria
+#### Entry criteria
 
 Begin this design task after one selected Linux job has completed Phase 1 through Phase
 3 and has:
@@ -44,7 +50,7 @@ Begin this design task after one selected Linux job has completed Phase 1 throug
 
 Completion of the full [65Z-ci-nix](65z-ci-nix.md) task is not required.
 
-### Design deliverable
+#### Design deliverable
 
 For the selected proven job, the proposal must decide and explain:
 
@@ -63,7 +69,7 @@ Keep this design specific to one job. Do not generalize to combined images, addi
 architectures, or repository-wide publication until the first implementation produces
 real results.
 
-### Handoff
+#### Handoff
 
 After the design is reviewed:
 
@@ -73,7 +79,7 @@ After the design is reviewed:
 4. compare image size, build time, pull time, and cache reuse;
 5. adopt OCI only if it improves total CI behavior.
 
-### Publication constraints
+#### Publication constraints
 
 Any later implementation must:
 
