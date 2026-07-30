@@ -129,6 +129,7 @@ structurallySame(
 
 structurallySame({ a: undefined }, {}) // false
 structurallySame({ a: 1 }, { b: 1 }) // false
+structurallySame({ a: 1 }, { a: 2 }) // false
 structurallySame([1, { a: 2 }], [1, { a: 2 }]) // true
 structurallySame([1, 2], [2, 1]) // false
 structurallySame([1], [1, 2]) // false
@@ -164,6 +165,9 @@ These cases can be added later when a concrete consumer requires them.
       `asserts -> object -> nullable -> asserts` import cycle.
 - [ ] Replace the private `assertDeepEqual` in
       `fjs/types/rtti/parse/proof.f.ts` with `assertStructurallySame`.
+- [ ] Update `fjs/types/rtti/todo/proof-shared-asserts.md` when removing
+      `assertDeepEqual`: remove or mark that subtask complete while preserving
+      its remaining result-helper and shared-suite work.
 - [ ] Replace proof comparisons that serialize both actual and expected values
       only to compare structure, starting with `fjs/cas/evo/proof.f.ts`.
 - [ ] Audit proof files that compare a computed value with a JSON string, including
@@ -179,8 +183,9 @@ These cases can be added later when a concrete consumer requires them.
       `NaN`, signed zero, arrays, nested values, reordered object properties,
       missing properties whose value would read as `undefined`, an object versus
       a primitive, and an array versus a non-array.
-- [ ] In the co-located proof module, cover arrays with different lengths and
-      objects with the same number of properties but different property names.
+- [ ] In the co-located proof module, cover arrays with different lengths, objects
+      with the same number of properties but different property names, and objects
+      with the same property names but recursively different values.
 - [ ] Add assertion proof cases for success, failure, and the optional message.
 - [ ] Run `npx tsc` and `fjs t`.
 
@@ -199,7 +204,7 @@ These cases can be added later when a concrete consumer requires them.
   [`fjs/bnf/descent/proof.f.ts`](../../../bnf/descent/proof.f.ts) — contain serialized
   expected-value comparisons to audit and replace where serialization is incidental.
 - [`proof-shared-asserts.md`](../../rtti/todo/proof-shared-asserts.md) — also
-  tracks replacing the RTTI proof's local deep-comparison helper with a shared
-  assertion.
+  tracks replacing the RTTI proof's local deep-comparison helper; update that
+  tracker when this TODO removes `assertDeepEqual`.
 - [`fjs/asserts/module.f.ts`](../../../asserts/module.f.ts) — existing assertion
   naming and failure-shape conventions.
