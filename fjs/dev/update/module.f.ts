@@ -4,7 +4,7 @@
  * @module
  */
 import { history, historyStep, mapStep, step, type Effect } from '../../effects/module.f.ts'
-import { mkdir, type Mkdir, readUtf8File, type ReadFile, type WriteFile, writeUtf8File } from '../../effects/node/module.f.ts'
+import { mkdir, type Mkdir, type NodeProgram, readUtf8File, type ReadFile, type WriteFile, writeUtf8File } from '../../effects/node/module.f.ts'
 import { unwrap } from '../../types/result/module.f.ts'
 
 const source = '.copilot/mcp.json' as const
@@ -22,4 +22,4 @@ export const syncMcp = (): Effect<Mkdir | ReadFile | WriteFile, void> => {
 }
 
 /** Runs all local development configuration generators. */
-export const main = () => mapStep(syncMcp(), () => 0)
+export const main: NodeProgram = () => mapStep(syncMcp(), () => 0)
