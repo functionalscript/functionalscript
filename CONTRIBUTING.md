@@ -83,6 +83,30 @@ installed: `package-lock.json`, `deno.lock`, and `bun.lock` are all under Git
 control, and the update refreshes each of them (plus the generated CI workflow)
 to match whatever versions are currently declared in `package.json`.
 
+## Using MCP with VS Code
+
+This repository keeps `.copilot/mcp.json` as the source of truth. VS Code
+auto-discovers `.vscode/mcp.json`; that file is **not committed** — generate it
+in your local clone with:
+
+```bash
+npm run dev-update
+```
+
+After editing `.copilot/mcp.json`, run `npm run dev-update` again. The
+cross-platform FunctionalScript updater also accommodates future local
+development configuration generators.
+
+To use the MCP tools in Copilot Chat, open it (`Ctrl+Alt+I` on Windows/Linux,
+`Cmd+Option+I` on macOS), select **Agent**, then use **Configure Tools** to
+enable them. For example:
+
+> "Add a short text blob to CAS: 'Hello from FunctionalScript'"
+
+The `cas_add`, `cas_get`, and `cas_list` tools appear in the agent's tool panel.
+For tool details and package-consumer setup for Claude and Codex, see
+[`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md).
+
 ## Opening a pull request
 
 The full workflow is in [AGENTS.md §2](./AGENTS.md#2-everyday-workflow) and
