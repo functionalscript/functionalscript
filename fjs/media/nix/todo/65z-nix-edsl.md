@@ -29,28 +29,35 @@ packages. Those remain ordinary values assembled by the CI generator.
 
 #### Minimal representation
 
-Use normal JavaScript strings as escaped double-quoted Nix string literals. Represent the
-remaining syntax with a small tagged-tuple tree:
+Use normal JavaScript strings as escaped double-quoted Nix string literals. Attribute names
+are also strings, but their position distinguishes them from string expressions. Represent
+the remaining syntax with a small tagged-tuple tree:
 
 ```ts
 import { type List as ChunkList } from '../../types/list/module.f.ts'
 
-type Name = string
+type Identifier = string
 
-type AttributePath = readonly [Name, ...Name[]]
+type AttributeName = string
+
+type AttributePath = readonly [AttributeName, ...AttributeName[]]
 
 type Binding = readonly ['=', AttributePath, Expression]
 
-type Reference = readonly ['ref', Name, ...Name[]]
+type Reference = readonly ['ref', Identifier, ...AttributeName[]]
 
 type AttributeSet = readonly ['set', ...Binding[]]
 
-type NixList = readonly ['list', ...Expression[]]
+// The first consumer only needs lists of package references.
+type NixList = readonly ['list', ...Reference[]]
 
-type Application = readonly ['apply', Expression, ...Expression[]]
+type ApplicationArgument = Reference | AttributeSet
+
+// The first consumer only calls a reference with reference or attribute-set arguments.
+type Application = readonly ['apply', Reference, ...ApplicationArgument[]]
 
 // The first consumer only needs an attribute-set argument pattern with `...`.
-type OpenSetPattern = readonly ['open-set-pattern', ...Name[]]
+type OpenSetPattern = readonly ['open-set-pattern', ...Identifier[]]
 
 type Lambda = readonly ['lambda', OpenSetPattern, Expression]
 
@@ -78,6 +85,22 @@ This is a syntax tree, not a semantic Nix object model:
 - `['open-set-pattern', 'nixpkgs']` renders as `{ nixpkgs, ... }`;
 - `['let', bindings, body]` owns the `let ... in` structure;
 - `['indented-string', text]` owns Nix indented-string delimiters and escaping.
+
+`Identifier` and `AttributeName` have different serialization rules:
+
+- the first item in a reference and every open-set pattern item must be a valid unquoted
+  Nix identifier and must not be a reserved word;
+- the serializer returns `undefined` when an identifier-only position is invalid;
+- attribute-path items and reference selections may contain any string;
+- an attribute name that is valid in bare form is emitted unchanged;
+- every other attribute name is emitted as an escaped quoted attribute name;
+- one `AttributeName` always remains one path segment, so `a.b` is serialized as `"a.b"`
+  rather than being reinterpreted as two segments.
+
+The restricted `NixList` and `Application` operands are deliberate. Every currently allowed
+child is unambiguous without parentheses. Nested applications, applications as list items,
+and other grouped operands remain unrepresentable until a generator needs an explicit
+parenthesized-expression construction.
 
 Do not add a raw-Nix node. Unsupported syntax should remain unsupported until a concrete
 consumer requires a typed construction for it.
@@ -128,11 +151,11 @@ The same tree shape must support Node 22, Node 24, and Node 26 by changing data 
 
 #### Serialization
 
-Export a chunk serializer and a final string helper, analogous to the HTML module:
+Export a checked chunk serializer and a final string helper, analogous to the HTML module:
 
 ```ts
-export const nix: (_: Expression) => ChunkList<string>
-export const nixToString: (_: Expression) => string
+export const nix: (_: Expression) => ChunkList<string> | undefined
+export const nixToString: (_: Expression) => string | undefined
 ```
 
 Use one deterministic readable format:
@@ -141,9 +164,10 @@ Use one deterministic readable format:
 - one attribute-set or `let` binding per line;
 - a semicolon after every binding;
 - compact lists for the currently required package references;
-- left-associative whitespace-separated function application;
-- one trailing newline in `nixToString`;
-- correct escaping for quoted and indented strings;
+- whitespace-separated application of a reference to its declared arguments;
+- no implicit flattening or context-dependent regrouping;
+- one trailing newline in a successful `nixToString` result;
+- correct escaping for quoted strings, quoted attribute names, and indented strings;
 - no formatting options in the first implementation.
 
 The formatter does not need to preserve input formatting because the eDSL contains syntax,
@@ -159,9 +183,10 @@ add:
 - numbers, booleans, or `null`;
 - filesystem paths or URI literals;
 - operators, conditionals, assertions, `with`, or `inherit`;
-- recursive sets or dynamic attribute names;
+- recursive sets or dynamic attribute expressions;
 - string interpolation nodes;
 - identifier, default-value, or `@` function patterns;
+- parenthesized or other grouped expressions;
 - arbitrary expression selection such as `(f x).a`;
 - configurable pretty-printing;
 - flake, package, system, or shell helpers.
@@ -172,14 +197,17 @@ Nix construction. It should not bypass the eDSL with generated raw Nix text.
 ### Tasks
 
 - [ ] Add `fjs/media/nix/module.f.ts` with the minimal expression types above.
-- [ ] Implement `nix` as a deterministic `ChunkList<string>` serializer.
-- [ ] Implement `nixToString` with one final newline.
-- [ ] Escape quoted strings in the serializer.
+- [ ] Implement `nix` as a deterministic checked `ChunkList<string>` serializer.
+- [ ] Implement `nixToString` with one final newline on success.
+- [ ] Validate identifier-only positions and return `undefined` for invalid identifiers.
+- [ ] Emit safe attribute names bare and escape all other attribute names as quoted names.
+- [ ] Escape quoted string expressions in the serializer.
 - [ ] Escape indented strings in the serializer.
 - [ ] Add `proof.f.ts` cases for every supported node.
+- [ ] Add proofs for invalid identifiers and quoted attribute names such as `a.b`.
 - [ ] Add exact-output proofs for the Node 24 flake and the Node 22 `shellHook` variant.
 - [ ] Update the CI Nix generator to build the generated flakes through this eDSL.
-- [ ] Add new syntax nodes only when a concrete generator requires them.
+- [ ] Add grouped operands or other syntax nodes only when a concrete generator requires them.
 
 ### Related
 
