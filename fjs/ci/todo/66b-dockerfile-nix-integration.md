@@ -19,8 +19,9 @@ work.
 - use one exact official Nixpkgs commit;
 - keep the configuration in `fjs/ci/config/module.f.ts` for this milestone;
 - generate one self-contained `flake.nix` per Node job;
+- expose one static default development shell for each configured system;
 - keep generated files static and readable;
-- do not add job-selection conditions or shared generated Nix modules;
+- do not add job-selection conditions, helper libraries, or shared generated Nix modules;
 - keep commands in GitHub Actions;
 - run each migrated job's complete command sequence inside one `nix develop --command`
   invocation;
@@ -45,9 +46,10 @@ It should:
 
 1. resolve the latest commit of the configured official stable Nixpkgs reference;
 2. read the Node 22, Node 24, and Node 26 package versions from that commit;
-3. update the commit and relevant exact versions in
+3. verify that the snapshot exposes `nodejs_22`, `nodejs_24`, and `nodejs_26`;
+4. update the commit and relevant exact versions in
    `fjs/ci/config/module.f.ts`;
-4. invoke `npm run ci-update` to regenerate files.
+5. invoke `npm run ci-update` to regenerate files.
 
 It does not update npm dependencies or package-manager lockfiles.
 
@@ -61,12 +63,42 @@ nix/generated/node24/flake.nix
 nix/generated/node26/flake.nix
 ```
 
-Each file contains only:
+The current Node jobs run on the ARM Linux runner, so each generated file exposes this
+public output:
 
-- the exact Nixpkgs source;
-- the systems supported by that job;
-- the selected Node package;
-- any small job-local shell setup required by that job.
+```text
+devShells.aarch64-linux.default
+```
+
+The package mapping is explicit:
+
+```text
+node22 -> pkgs.nodejs_22
+node24 -> pkgs.nodejs_24
+node26 -> pkgs.nodejs_26
+```
+
+Each generated file follows this static shape, with the job's package substituted:
+
+```nix
+{
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/<commit>";
+
+  outputs = { nixpkgs, ... }: {
+    devShells.aarch64-linux.default =
+      let
+        pkgs = import nixpkgs { system = "aarch64-linux"; };
+      in
+      pkgs.mkShell {
+        packages = [ pkgs.nodejs_22 ];
+      };
+  };
+}
+```
+
+Do not add loops, system-selection conditions, `flake-utils`, or shared imports. If a job
+later supports another system, generate another explicit `devShells.<system>.default`
+attribute in that job's file.
 
 The generator owns the generated directory and removes stale job outputs.
 
@@ -82,7 +114,7 @@ lock file remains visible to Git.
 
 #### Node 22 global installation
 
-The Node 22 flake must provide this concrete job-local `shellHook`:
+The Node 22 flake adds this job-local field to its `pkgs.mkShell` expression:
 
 ```nix
 shellHook = ''
@@ -166,7 +198,9 @@ milestone.
 - [ ] Add the stable Nixpkgs reference and exact commit.
 - [ ] Add `npm run ci-nix-update`.
 - [ ] Update Node versions from the accepted Nixpkgs snapshot.
-- [ ] Generate separate Node 22, Node 24, and Node 26 flakes.
+- [ ] Verify the three required Node package attributes exist.
+- [ ] Generate separate Node 22, Node 24, and Node 26 flakes with
+      `devShells.aarch64-linux.default`.
 - [ ] Add the Node 22 `$HOME/.npm-global` shell hook.
 - [ ] Remove stale generated job directories.
 - [ ] Add `/nix/generated/**/flake.lock` to `.gitignore`.
@@ -183,5 +217,5 @@ milestone.
 ### Related
 
 - [65Z-ci-nix](65z-ci-nix.md) — architecture and task boundaries.
-- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — later OCI experiment after one
+- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — later OCI design work after one
   direct-Nix Linux job works.
