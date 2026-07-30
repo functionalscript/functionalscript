@@ -3,63 +3,21 @@
 **Priority:** P3
 **Status:** open
 
-### Goal
+The `update` script currently uses `npx npm-check-updates -u` to bump dependency versions. Replace it with an internal FunctionalScript script so there is no runtime dependency on an external tool.
 
-Replace `npm-check-updates` with maintained FunctionalScript code and establish one
-authoritative committed source for CI configuration.
+### Idea: `ci-lock.json`
 
-### Required outcome
+Introduce a `ci-lock.json` file in each repo root that pins all CI tool versions (Node, Deno, Bun, TSGO, Wasmtime, Wasmer, runner images, GitHub Action versions). This replaces the hardcoded `fjs/ci/config/module.f.ts` inside the FunctionalScript package, giving every repo that uses `fjs ci` its own updatable lock file for CI tooling — analogous to `package-lock.json` for npm deps.
 
-The chosen source must be shared by:
+The internal update script would:
+1. Fetch latest versions of npm devDependencies from the registry → write `package.json` + `package-lock.json`.
+2. Fetch latest versions of CI tools (Deno, Bun, Node LTS, TSGO, etc.) from their respective registries/APIs → write `ci-lock.json`.
+3. Run `deno install`, `bun install`, `npm run ci-update` to propagate everything.
 
-- dependency updating;
-- native Windows setup;
-- workflow generation;
-- Nix snapshot updating;
-- generated Nix environments.
+### Plan
 
-Do not keep the same writable versions or job definitions in multiple files.
-
-### Storage decision
-
-The exact representation and location are intentionally undecided. A TypeScript
-module, `ci-lock.json`, or another simple committed format may be used.
-
-Choose the representation during implementation based on the smallest design that:
-
-- is easy to review and update;
-- works on native Windows without Nix;
-- can be consumed deterministically by all generators;
-- stores exact versions and the accepted Nixpkgs reference/commit;
-- supports repository-specific CI configuration where needed.
-
-After choosing it, migrate existing hardcoded CI values to that single source.
-
-### Updater responsibilities
-
-At a high level, the maintained updater should:
-
-1. update ordinary dependencies such as TypeScript and `@types/node`;
-2. update CI-managed versions through their appropriate authoritative sources;
-3. coordinate coupled versions such as Playwright and its browser bundle;
-4. regenerate every affected tracked dependency lockfile;
-5. invoke ordinary CI generation from the committed shared source.
-
-The Nix-specific update command may resolve a moving Nixpkgs reference, validate the
-currently declared Nix jobs, and write the accepted commit and synchronized versions
-to the same source.
-
-Detailed registry clients, schema fields, rollback behavior, and command names should
-be decided while implementing the smallest working version.
-
-### Tasks
-
-- [ ] Choose one authoritative CI configuration representation and location.
-- [ ] Document its minimal schema.
-- [ ] Migrate existing CI versions and job configuration to it.
-- [ ] Make native, workflow, and Nix generators consume it.
-- [ ] Implement maintained dependency updating without `npm-check-updates`.
-- [ ] Preserve updates for ordinary dependencies outside CI configuration.
-- [ ] Coordinate dependencies that must match CI tool versions.
-- [ ] Regenerate all affected tracked lockfiles.
-- [ ] Remove obsolete duplicate configuration after migration.
+- [ ] Define the `ci-lock.json` schema (tool versions + runner images + action versions).
+- [ ] Implement `fjs update` (or `fjs u`) subcommand that updates `package.json` deps and `ci-lock.json` tool versions.
+- [ ] Update `fjs/ci/module.f.ts` to read `ci-lock.json` instead of importing `fjs/ci/config/module.f.ts`.
+- [ ] Bootstrap: generate a default `ci-lock.json` from the current `fjs/ci/config/module.f.ts` values.
+- [ ] Replace `npx npm-check-updates -u` in the `update` script with `fjs u` (or equivalent).
