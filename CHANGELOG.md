@@ -11,6 +11,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** decouple the FJS MCP server from CAS: generic MCP
+  moves `fjs/mcp/` → `fjs/protocol/mcp/`, JSON-RPC moves
+  `fjs/media/json/rpc/` → `fjs/protocol/json_rpc/`, and the CAS tool registry
+  moves `fjs/cas/mcp/` → `fjs/mcp/cas/` (with `fjs/cas/evo/mcp/` →
+  `fjs/mcp/evo/`); the server's new composition root lives at `fjs/mcp/`
+  [#1401](https://github.com/functionalscript/functionalscript/pull/1401)
 - `fjs/media/nix`: add a minimal checked Nix eDSL and deterministic chunk serializer
   [#1397](https://github.com/functionalscript/functionalscript/pull/1397)
 - `fjs/effects/node`: **BREAKING CHANGES:** detect Deno as the new `'deno'`

@@ -127,7 +127,7 @@ the honest answer.
 - [ ] Surface the derived type in `cas_get` / resource read alongside the JSON
       path (same rules, different suffix); extend the optional `dialect`
       field/header to CBOR blobs — see
-      [fjs/cas/mcp cas-get-mcp-resource-response](../../cas/mcp/todo/cas-get-mcp-resource-response.md)
+      [fjs/mcp cas-get-mcp-resource-response](../../mcp/todo/cas-get-mcp-resource-response.md)
 - [ ] Decide per dialect what CBOR-only values (bigint, byte strings, non-string
       keys) are admitted beyond the JSON data model — each dialect's README owns
       this; the JSON-compatible subset is the default
