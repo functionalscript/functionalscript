@@ -104,88 +104,110 @@ const escapeIndented = (value: string): string => value
     .replaceAll("''", "'''")
     .replaceAll('${', "''${")
 
+type Chunks = readonly string[]
+
 const serializeReference = ([, name, ...selection]: Reference): string | undefined =>
     isIdentifier(name)
         ? [name, ...selection.map(attributeName)].join('.')
         : undefined
 
+const serializeReferenceChunks = (reference: Reference): Chunks | undefined => {
+    const serialized = serializeReference(reference)
+    return serialized === undefined ? undefined : [serialized]
+}
+
 const serializePattern = ([, ...names]: OpenSetPattern): string | undefined =>
     names.every(isIdentifier) ? `{ ${[...names, '...'].join(', ')} }` : undefined
 
-const serializeBindings = (bindings: readonly Binding[], level: number): string | undefined => {
+const joinChunks = (chunks: readonly Chunks[], separator: string): Chunks =>
+    chunks.flatMap((chunk, index) => index === 0 ? chunk : [separator, ...chunk])
+
+const serializeBindings = (bindings: readonly Binding[], level: number): Chunks | undefined => {
     const serialized = bindings.map(([, path, value]) => {
         const expression = serialize(value, level)
         return expression === undefined
             ? undefined
-            : `${indent(level)}${attributePath(path)} = ${expression};`
+            : [indent(level), attributePath(path), ' = ', ...expression, ';']
     })
-    return serialized.includes(undefined) ? undefined : serialized.join('\n')
+    return serialized.includes(undefined)
+        ? undefined
+        : joinChunks(serialized.flatMap(value => value === undefined ? [] : [value]), '\n')
 }
 
-const serializeSet = ([, ...bindings]: AttributeSet, level: number): string | undefined => {
+const serializeSet = ([, ...bindings]: AttributeSet, level: number): Chunks | undefined => {
     if (bindings.length === 0) {
-        return '{}'
+        return ['{}']
     }
     const body = serializeBindings(bindings, level + 1)
-    return body === undefined ? undefined : `{\n${body}\n${indent(level)}}`
+    return body === undefined ? undefined : ['{\n', ...body, '\n', indent(level), '}']
 }
 
-const serializeList = ([, ...references]: NixList): string | undefined => {
+const serializeList = ([, ...references]: NixList): Chunks | undefined => {
     const items = references.map(serializeReference)
-    return items.includes(undefined) ? undefined : items.length === 0 ? '[ ]' : `[ ${items.join(' ')} ]`
+    const definedItems = items.flatMap(item => item === undefined ? [] : [item])
+    return items.includes(undefined)
+        ? undefined
+        : items.length === 0
+            ? ['[ ]']
+            : ['[ ', ...definedItems.flatMap((item, index) => index === 0 ? [item] : [' ', item]), ' ]']
 }
 
-const serializeApplication = ([, fn, ...args]: Application, level: number): string | undefined => {
+const serializeApplication = ([, fn, ...args]: Application, level: number): Chunks | undefined => {
     const serializedFn = serializeReference(fn)
     const serializedArgs = args.map(argument =>
-        argument[0] === 'ref' ? serializeReference(argument) : serializeSet(argument, level))
+        argument[0] === 'ref'
+            ? serializeReferenceChunks(argument)
+            : serializeSet(argument, level))
     return serializedFn === undefined || serializedArgs.includes(undefined)
         ? undefined
-        : [serializedFn, ...serializedArgs].join(' ')
+        : [serializedFn, ...serializedArgs.flatMap(argument =>
+            argument === undefined ? [] : [' ', ...argument])]
 }
 
-const serializeLambda = ([, pattern, body]: Lambda, level: number): string | undefined => {
+const serializeLambda = ([, pattern, body]: Lambda, level: number): Chunks | undefined => {
     const serializedPattern = serializePattern(pattern)
     const serializedBody = serialize(body, level)
     return serializedPattern === undefined || serializedBody === undefined
         ? undefined
-        : `${serializedPattern}: ${serializedBody}`
+        : [serializedPattern, ': ', ...serializedBody]
 }
 
-const serializeLet = ([, bindings, body]: Let, level: number): string | undefined => {
+const serializeLet = ([, bindings, body]: Let, level: number): Chunks | undefined => {
     const serializedBindings = serializeBindings(bindings, level + 1)
     const serializedBody = serialize(body, level)
     return serializedBindings === undefined || serializedBody === undefined
         ? undefined
-        : `let\n${serializedBindings}\n${indent(level)}in\n${indent(level)}${serializedBody}`
+        : ['let\n', ...serializedBindings, '\n', indent(level), 'in\n', indent(level), ...serializedBody]
 }
 
-const serialize = (expression: Expression, level: number): string | undefined => {
+const serialize = (expression: Expression, level: number): Chunks | undefined => {
     if (typeof expression === 'string') {
-        return quoted(expression)
+        return [quoted(expression)]
     }
     switch (expression[0]) {
-        case 'ref': return serializeReference(expression)
+        case 'ref': {
+            return serializeReferenceChunks(expression)
+        }
         case 'set': return serializeSet(expression, level)
         case 'list': return serializeList(expression)
         case 'apply': return serializeApplication(expression, level)
         case 'lambda': return serializeLambda(expression, level)
         case 'let': return serializeLet(expression, level)
         case 'indented-string': {
+            const [, value] = expression
             const contentIndent = indent(level + 1)
-            const content = escapeIndented(expression[1])
+            const content = escapeIndented(value)
                 .split('\n')
                 .map(line => `${contentIndent}${line}`)
                 .join('\n')
-            return `''\n${content}\n${indent(level)}''`
+            return ["''\n", content, '\n', indent(level), "''"]
         }
     }
 }
 
 /** Serializes an expression into composable chunks, or rejects an invalid identifier. */
 export const nix = (expression: Expression): ChunkList<string> | undefined => {
-    const value = serialize(expression, 0)
-    return value === undefined ? undefined : [value]
+    return serialize(expression, 0)
 }
 
 /** Serializes an expression with exactly one trailing newline on success. */

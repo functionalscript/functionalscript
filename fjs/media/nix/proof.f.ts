@@ -1,5 +1,5 @@
-import { assertEq } from '../../asserts/module.f.ts'
-import { concat } from '../../types/string/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.ts'
+import { toArray } from '../../types/list/module.f.ts'
 import { nix, nixToString, type Expression } from './module.f.ts'
 
 const nodeFlake = (nodePackage: string, shellHook: boolean): Expression => ['set',
@@ -82,7 +82,12 @@ export const proof = {
     },
     chunks: () => {
         const chunks = nix(['list', ['ref', 'pkgs', 'nodejs_24']])
-        assertEq(chunks === undefined ? undefined : concat(chunks), '[ pkgs.nodejs_24 ]')
+        assert(chunks !== undefined)
+        const [open, reference, close, extra] = toArray(chunks)
+        assertEq(open, '[ ')
+        assertEq(reference, 'pkgs.nodejs_24')
+        assertEq(close, ' ]')
+        assertEq(extra, undefined)
     },
     indentedStringEscaping: () => {
         assertEq(nixToString(['indented-string', "a '' ${b}"]), "''\n    a ''' ''${b}\n''\n")
