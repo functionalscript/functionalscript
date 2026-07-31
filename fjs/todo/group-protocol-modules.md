@@ -40,3 +40,7 @@ references as required.
 - [ ] Update documentation and TODO links that reference the old locations.
 - [ ] Regenerate repository-generated files as required.
 - [ ] Run the full TypeScript and FunctionalScript test suites.
+
+### Related
+
+- [Group FunctionalScript subdirectories by concern](./group-fs-subdirectories-by-concern.md) — broader directory-restructuring proposal that this protocol-specific task should remain consistent with.
