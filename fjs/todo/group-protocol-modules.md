@@ -11,6 +11,11 @@ Protocol-related modules currently live in unrelated top-level locations under
 the directory structure harder to scan and does not clearly distinguish
 protocol implementations from other modules.
 
+Directory paths are currently part of the published package API because the
+package does not define an exports map. Moving `fjs/mcp/...` therefore breaks
+existing consumer imports and must be treated as a breaking change rather than
+only as an internal path update.
+
 ### Proposal
 
 Create `fjs/protocol/` as the common directory for modules that implement or
@@ -30,6 +35,10 @@ The move should preserve module boundaries and behavior. Update imports,
 documentation, TODO links, package metadata, generated files, and other path
 references as required.
 
+Because published import paths change, the implementation PR must add a
+`CHANGELOG.md` entry beginning with the required `BREAKING CHANGES:` prefix and
+state the old and new import paths so consumers can migrate.
+
 ### Tasks
 
 - [ ] Identify existing modules under `fjs/` whose primary responsibility is a protocol.
@@ -38,6 +47,7 @@ references as required.
 - [ ] Move any other identified protocol modules to corresponding subdirectories under `fjs/protocol/`.
 - [ ] Update all imports and path references.
 - [ ] Update documentation and TODO links that reference the old locations.
+- [ ] Add a `CHANGELOG.md` entry beginning with `BREAKING CHANGES:` that announces each published import-path migration, including `fjs/mcp/...` to `fjs/protocol/mcp/...`.
 - [ ] Regenerate repository-generated files as required.
 - [ ] Run the full TypeScript and FunctionalScript test suites.
 
