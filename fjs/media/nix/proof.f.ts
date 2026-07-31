@@ -74,6 +74,7 @@ export const proof = {
     reference: () => {
         assertEq(nixToString(['ref', 'pkgs', 'a.b', 'or']), 'pkgs."a.b"."or"\n')
         assertEq(nixToString(['ref', "a-b'9"]), "a-b'9\n")
+        assertEq(nixToString(['ref', '_AZ']), '_AZ\n')
     },
     emptySetAndList: () => {
         assertEq(nixToString(['set']), '{}\n')

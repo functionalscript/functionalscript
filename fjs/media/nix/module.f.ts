@@ -9,6 +9,7 @@
  */
 import { type List as ChunkList } from '../../types/list/module.f.ts'
 import { concat } from '../../types/string/module.f.ts'
+import { includes } from '../../types/array/module.f.ts'
 
 type Identifier = string
 
@@ -47,7 +48,7 @@ export type Expression =
     | Let
     | IndentedString
 
-const reservedWords: ReadonlySet<string> = new Set([
+const reservedWords = [
     'assert',
     'else',
     'if',
@@ -58,18 +59,27 @@ const reservedWords: ReadonlySet<string> = new Set([
     'rec',
     'then',
     'with',
-] as const)
+] as const
 
-const identifierInitialCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_' as const
+const isReservedWord = includes<unknown, typeof reservedWords>(reservedWords)
 
-const identifierTrailingCharacters = `${identifierInitialCharacters}0123456789'-`
+const isAsciiLetter = (character: string): boolean =>
+    (character >= 'A' && character <= 'Z') || (character >= 'a' && character <= 'z')
+
+const isDigit = (character: string): boolean => character >= '0' && character <= '9'
+
+const isIdentifierInitial = (character: string): boolean =>
+    isAsciiLetter(character) || character === '_'
+
+const isIdentifierTrailing = (character: string): boolean =>
+    isIdentifierInitial(character) || isDigit(character) || character === "'" || character === '-'
 
 const isIdentifier = (value: string): boolean => {
     const [initial, ...trailing] = value
     return initial !== undefined
-        && identifierInitialCharacters.includes(initial)
-        && trailing.every(character => identifierTrailingCharacters.includes(character))
-        && !reservedWords.has(value)
+        && isIdentifierInitial(initial)
+        && trailing.every(isIdentifierTrailing)
+        && !isReservedWord(value)
 }
 
 const indent = (level: number): string => '    '.repeat(level)
