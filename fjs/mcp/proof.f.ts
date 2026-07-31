@@ -1,7 +1,6 @@
 import { assert, assertEq } from '../asserts/module.f.ts'
 import { pure, step, type Effect, type Operation } from '../effects/module.f.ts'
-import { run, type MemOperationMap } from '../effects/mock/module.f.ts'
-import { asBase, asNominal, create, type Key, type MemOp } from '../effects/memory/module.f.ts'
+import { create } from '../effects/memory/module.f.ts'
 import type { Unknown } from '../media/json/module.f.ts'
 import type { Response } from '../protocol/json_rpc/module.f.ts'
 import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../types/bit_vec/module.f.ts'
@@ -16,20 +15,12 @@ import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
 } from '../protocol/mcp/module.f.ts'
 import type {
-    MakeDirectoryOptions,
-    ReaddirOptions,
-    Access,
-    CreateExclusive,
     IoResult,
     Mkdir,
     Now,
     RandomInt,
     ReadBytes,
-    Readdir,
     Rename,
-    Rm,
-    Stat,
-    WriteBytes
 } from '../effects/node/module.f.ts'
 import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
@@ -46,63 +37,6 @@ type CasGetResult = {
     readonly text?: string
     readonly blob?: string
 }
-
-// ── Memory mock (mirrors fjs/protocol/mcp/proof.f.ts) ─────────────────────────────────────
-
-type MemoryState = {
-    readonly next: number
-    readonly values: { readonly [key: string]: unknown }
-}
-
-type TestState = {
-    readonly memory: MemoryState
-}
-
-const initialTestState: TestState = { memory: { next: 0, values: {} } }
-
-// The in-memory session helpers only exercise text/base64 paths (MemOp, no file
-// I/O). The filesystem ops from FileCasOperation are only reached via
-// runSessionVirtual/seedBlob; the stubs below exist to satisfy the
-// type-checker and will throw if unexpectedly called.
-type MockOp = MemOp | Mkdir | Rename | RandomInt | ReadBytes | Now
-    | Access | CreateExclusive | Readdir | Rm | Stat | WriteBytes
-
-const mock: MemOperationMap<MockOp, TestState> = {
-    memCreate: value => state => {
-        const id = `k${state.memory.next}`
-        const key: Key<unknown> = asNominal(id)
-        return [
-            { ...state, memory: { next: state.memory.next + 1, values: { ...state.memory.values, [id]: value } } },
-            key,
-        ]
-    },
-    memRead: key => state => [state, state.memory.values[asBase(key)]],
-    memWrite: (key, value) => state => {
-        const id = asBase(key)
-        return [{ ...state, memory: { ...state.memory, values: { ...state.memory.values, [id]: value } } }, undefined]
-    },
-    mkdir: (_path: string, _opts?: MakeDirectoryOptions) => state => [state, resultOk(undefined)],
-    rename: (_src: string, _dst: string) => _ => { throw new Error('rename not supported in memory mock') },
-    readBytes: (_path: string, _offset: number, _size: number) => _ => { throw new Error('readBytes not supported in memory mock') },
-    randomInt: () => _ => { throw new Error('randomInt not supported in memory mock') },
-    now: () => state => [state, 0],
-    access: (_path: string) => _ => { throw new Error('access not supported in memory mock') },
-    createExclusive: (_path: string) => _ => { throw new Error('createExclusive not supported in memory mock') },
-    readdir: (_path: string, _opts: ReaddirOptions) => _ => { throw new Error('readdir not supported in memory mock') },
-    rm: (_path: string) => _ => { throw new Error('rm not supported in memory mock') },
-    stat: (_path: string) => _ => { throw new Error('stat not supported in memory mock') },
-    writeBytes: (_path: string, _offset: number, _data: Vec) => _ => { throw new Error('writeBytes not supported in memory mock') },
-}
-
-const runMem = <T>(effect: Effect<MockOp, T>): T =>
-    run(mock)(initialTestState)(effect)[1]
-
-// ── In-memory KvStore backed by a single memory slot ────────────────────────────
-// Persists writes across steps so add → get round-trips, keyed by cBase32 hash.
-
-// Maps cBase32(key) → [key, value]; storing the key Vec lets `list` return keys
-// (hashes), matching the `KvStore` contract that the filesystem backing fulfils.
-type VecMap = { readonly [k: string]: readonly [Vec, Vec] }
 
 // ── Session driver ──────────────────────────────────────────────────────────────
 

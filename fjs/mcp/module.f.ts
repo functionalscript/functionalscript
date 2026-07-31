@@ -26,7 +26,7 @@
  *
  * @module
  */
-import { pure, step, type Effect } from '../effects/module.f.ts'
+import { step, type Effect } from '../effects/module.f.ts'
 import { create, type MemOp } from '../effects/memory/module.f.ts'
 import { type Read, type Write } from '../effects/node/module.f.ts'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.ts'
