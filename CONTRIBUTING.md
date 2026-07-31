@@ -32,7 +32,7 @@ work is tracked from then on.
 
 | Tool    | Version              | Required for                                                     |
 | ------- | -------------------- | ---------------------------------------------------------------- |
-| [Node.js](https://nodejs.org/en/download) | **latest** (22 min.) | Everything. Node 24+ for `node --test` and `npm run cov`.        |
+| [Node.js](https://nodejs.org/en/download) | **latest** (22 min.) | Everything.                                                     |
 | [Rust](https://www.rust-lang.org/tools/install)    | **latest**           | NaNVM (`nanvm-lib`) development only.                            |
 | Deno    | latest               | Updating dependencies; an alternative test runtime.               |
 | Bun     | latest               | Updating dependencies; an alternative test runtime.               |
@@ -40,10 +40,9 @@ work is tracked from then on.
 You may also use the [Dockerfile](./docker/Dockerfile), which sets all of this up
 and is the easiest way to get a known-good environment.
 
-Node 22 is enough for `npm test` and the repository's own test runner, but on
-Node 22 `node --test` reports every `throw`-tagged test as a failure, so a clean
-tree looks broken — see
-[AGENTS.md §1.3](./AGENTS.md#13-the-node-version-caveat).
+Node 22 also supports `node --test` and `npm run cov`: external test
+registration automatically uses an inline compatibility strategy below Node
+`26.0.0`.
 
 ### Installing dependencies
 
@@ -117,8 +116,8 @@ entry added with the real pull request number once the pull request exists.
 
 ## OpenAI Codex environment
 
-Set Node.js to 22. Use `npm test` rather than `npm run cov` there, per the Node
-version caveat above.
+Set Node.js to 22. Both `npm test` and `npm run cov` work in this environment;
+the latter uses the automatic inline test-registration fallback.
 
 Setup script:
 

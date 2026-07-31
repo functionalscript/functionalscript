@@ -36,6 +36,7 @@ import {
     type WriteConsoles,
     type TestContext,
     type TestFn,
+    usesInlineTestContext,
 } from './module.f.ts'
 import { asBase, asNominal } from '../../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../../types/result/module.f.ts'
@@ -324,15 +325,22 @@ const wrapInlineTest = (register: FrameworkRegister): TestContext => ({
 const bunTestContext = wrapInlineTest(testContext.test)
 const playwrightTestContext = wrapInlineTest(pwTest!)
 
+const engine = isPlaywright ? 'playwright' : 'Bun' in globalThis ? 'bun' :
+    'Deno' in globalThis ? 'deno' : 'node'
+const nodeVersion = engine === 'node' ? process.version : undefined
+const inlineTestContext = usesInlineTestContext(engine, nodeVersion)
+
 const options: NodeProgramOptions = {
     args: process.argv.slice(2),
     env: process.env,
     home: toPosix(os.homedir()),
     std: { stdout: process.stdout, stderr: process.stderr },
-    testContext,
+    testContext: inlineTestContext ? wrapInlineTest(testContext.test) : testContext,
     bunTestContext,
     playwrightTestContext,
-    engine: isPlaywright ? 'playwright' : 'Bun' in globalThis ? 'bun' : 'node',
+    engine,
+    ...(nodeVersion === undefined ? {} : { nodeVersion }),
+    inlineTestContext,
 }
 
 /**

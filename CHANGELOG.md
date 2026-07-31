@@ -11,6 +11,10 @@ history.
 
 ## Unreleased
 
+- `fjs/effects/node`: **BREAKING CHANGES:** detect Deno as the new `'deno'`
+  `Engine` variant and make external tests on Node 22–25 use the inline
+  `expectFailure` compatibility strategy
+  [#1393](https://github.com/functionalscript/functionalscript/pull/1393)
 - `package.json`: drop `npm-check-updates` from `npm run update` entirely — it
   now only reinstalls/relocks; `package.json` devDependency bumps are manual
   for now

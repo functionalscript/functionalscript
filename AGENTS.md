@@ -29,7 +29,7 @@ work before starting — see [todo/README.md](./todo/README.md).
 
 | Tool     | Version              | Required for                                                       |
 | -------- | -------------------- | ------------------------------------------------------------------ |
-| Node.js  | **latest** (22 min.) | Everything. Node 24+ for `node --test` — see [1.3](#13-the-node-version-caveat). |
+| Node.js  | **latest** (22 min.) | Everything.                                                         |
 | Rust     | **latest**           | NaNVM (`nanvm-lib`) development only.                              |
 | Deno     | latest               | Updating dependencies; an alternative test runtime.                |
 | Bun      | latest               | Updating dependencies; an alternative test runtime.                |
@@ -44,17 +44,12 @@ npm ci        # Node dependencies
 cargo fetch   # Rust dependencies
 ```
 
-### 1.3 The Node version caveat
+### 1.3 Node test-runner compatibility
 
-**Node's built-in test runner (`node --test`, and `npm run cov` which wraps it)
-needs Node 24 or later.** On Node 22 it runs to completion but reports every
-`throw`-tagged test (see [§3.4](#34-never-use-trycatch-test-throwing-with-the-throw-key))
-as a failure — the runner's expected-throw inversion doesn't take effect, so a
-clean tree looks broken.
-
-Use the latest Node if you can. Everything else in the table below works on
-Node 22, including the repo's own runner (`npm start t`) and the Deno and Bun
-runtimes.
+External test registration automatically uses an inline compatibility strategy
+below Node `26.0.0`, so `node --test` and `npm run cov` correctly handle
+`throw`-tagged tests on Node 22. Node `26.0.0` and later use the native
+`expectFailure` strategy and remain the fully supported native baseline.
 
 ### 1.4 Ways to run the FunctionalScript test suite
 
@@ -65,8 +60,8 @@ environment.
 | -------------------------------------- | -------- | -------------- | ------------------------------------------ |
 | `npm test`                             | Node 22+ | no             | `tsc` + the repo's runner.                  |
 | `npm start t`                          | Node 22+ | no             | The repo's runner, no type-check step.      |
-| `node --test`                          | Node 24+ | no             | Node's native test runner.                  |
-| `npm run cov`                          | Node 24+ | no             | `node --test` plus coverage.                |
+| `node --test`                          | Node 22+ | no             | Node's native test runner.                  |
+| `npm run cov`                          | Node 22+ | no             | `node --test` plus coverage.                |
 | `deno task fjs t`                      | Deno     | no             | The repo's runner under Deno.               |
 | `deno task test` / `deno task cov`     | Deno     | no             | Deno's native test runner / coverage.       |
 | `bun fjs/module.ts t`                  | Bun      | no             | The repo's runner under Bun.                |
