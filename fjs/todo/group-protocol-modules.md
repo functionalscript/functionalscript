@@ -13,6 +13,11 @@ tool registry nested further, in `fjs/cas/evo/mcp/`). Keeping the generic
 protocol machinery and its one concrete FunctionalScript server in unrelated
 trees makes the structure harder to discover and obscures their relationship.
 
+Beyond the directory split, the FJS MCP server is also coupled to CAS more
+tightly than it needs to be: today it implements *only* CAS/Evo functions, but
+it is expected to grow more tool sets over time, and nothing about "the FJS
+MCP server" should be inherently CAS-specific.
+
 Directory paths are currently part of the published package API because the
 package does not define an exports map. Moving these modules therefore breaks
 existing consumer imports and must be treated as a breaking change rather than
@@ -27,26 +32,39 @@ Move the general MCP protocol implementation — message schemas, the
 lifecycle/capability state machine, the tool-registry builders, and the stdio
 transport (today's `fjs/mcp/`) — to `fjs/protocol/mcp/`. This is the
 transport-independent, server-agnostic layer: nothing in it is specific to
-CAS.
+CAS, and it is what any future MCP server (not just this one) builds on.
 
-Then consolidate the CAS-specific MCP server — today's `fjs/cas/mcp/`,
-together with the Evo-specific tool registry nested inside it at
-`fjs/cas/evo/mcp/` — into the directory `fjs/mcp/` vacates. `fjs/mcp/` becomes
-*the* FunctionalScript MCP server: the concrete implementation the `fjs mcp` /
-`m` CLI command runs, exposing CAS and Evo as tools. The name now matches the
-command 1:1, the same way `fjs/cli/` matches `fjs`'s command dispatch. It
-imports the generic pieces from `fjs/protocol/mcp/` the same way any other
-future MCP server would:
+`fjs/cas/` stays exactly what it is: communication with CAS storage (today,
+filesystem-backed).
+
+The directory `fjs/mcp/` vacates becomes *the* FunctionalScript MCP server —
+`fjs/cas/mcp/` moves there. The name now matches the `fjs mcp` / `m` CLI
+command 1:1, the same way `fjs/cli/` matches `fjs`'s command dispatch:
 
 ```text
 fjs/mcp/         (general, transport-agnostic)   -> fjs/protocol/mcp/
-fjs/cas/mcp/     (the CAS/Evo server) ----\
-fjs/cas/evo/mcp/ (its Evo tool registry) --+->     fjs/mcp/ (fjs/mcp/evo/)
+fjs/cas/mcp/     (the FJS MCP server)             -> fjs/mcp/
 ```
 
-The final `fjs/mcp/` tree keeps the Evo-specific tool registry nested (as
-`fjs/mcp/evo/`, mirroring the CAS/Evo layering, `fjs/cas/evo/`) while every
-tool it registers is served together from one process, one `fjs mcp` command.
+Decouple the FJS MCP server's composition root from the tool sets it happens
+to serve today, so a future non-CAS tool set can land as a new sibling without
+touching the existing ones:
+
+- `fjs/mcp/module.f.ts` — the server itself: session config
+  (`McpConfig`), the top-level entry point the CLI runs (wiring `mcpStep` +
+  `stdioTransport` from `fjs/protocol/mcp/`), and composing the tool
+  registries below into one `McpHandlers`. Nothing CAS- or Evo-specific lives
+  here — it only knows about tool *registries*, not what is in them.
+- `fjs/mcp/cas/` — the `cas_add` / `cas_get` / `cas_list` tool registry
+  (today's tool-specific portion of `fjs/cas/mcp/module.f.ts`), importing
+  `fjs/cas/` for the actual store operations.
+- `fjs/mcp/evo/` — the `evo_*` tool registry (today's `fjs/cas/evo/mcp/`),
+  already generic in an abstract `Evo<O>` rather than depending on `fjs/cas/`
+  directly.
+
+```text
+fjs/cas/evo/mcp/ (Evo tool registry) -> fjs/mcp/evo/
+```
 
 Keep data formats and media types under `fjs/media/`; move only modules whose
 primary responsibility is protocol behavior, messages, operations, or
@@ -70,9 +88,12 @@ consumers can migrate.
 
 - [ ] Create `fjs/protocol/`.
 - [ ] Move the general MCP protocol implementation from `fjs/mcp/` to `fjs/protocol/mcp/`.
-- [ ] Consolidate the CAS-specific MCP server `fjs/cas/mcp/` (with its Evo tool
-      registry `fjs/cas/evo/mcp/` nested inside, e.g. as `fjs/mcp/evo/`) into
-      the now-vacated `fjs/mcp/`, so `fjs/mcp/` matches the `fjs mcp` CLI command.
+- [ ] Move the FJS MCP server `fjs/cas/mcp/` into the now-vacated `fjs/mcp/`,
+      splitting it into `fjs/mcp/module.f.ts` (server composition root: config
+      + CLI entry point + registry wiring) and `fjs/mcp/cas/` (the `cas_*`
+      tool registry), so `fjs/mcp/` matches the `fjs mcp` CLI command and is
+      not inherently CAS-specific.
+- [ ] Move the Evo tool registry `fjs/cas/evo/mcp/` to `fjs/mcp/evo/`.
 - [ ] Identify any other existing modules under `fjs/` whose primary responsibility is a protocol.
 - [ ] Move any other identified protocol modules to corresponding subdirectories under `fjs/protocol/`.
 - [ ] Update all imports and path references, including references to `fjs/mcp/...`
