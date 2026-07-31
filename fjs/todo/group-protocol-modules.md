@@ -6,10 +6,10 @@
 ### Problem
 
 Protocol-related modules currently live in unrelated top-level locations under
-`fjs/`. For example, the Model Context Protocol implementation lives in
-`fjs/mcp/`. As more protocols are added, placing each one at the top level makes
-the directory structure harder to scan and does not clearly distinguish
-protocol implementations from other modules.
+`fjs/`. The general Model Context Protocol implementation lives in `fjs/mcp/`,
+while the CAS-specific MCP server lives separately in `fjs/cas/mcp/`. Keeping
+parts of the same protocol in different directory trees makes the structure
+harder to discover and obscures their relationship.
 
 Directory paths are currently part of the published package API because the
 package does not define an exports map. Moving `fjs/mcp/...` therefore breaks
@@ -21,11 +21,19 @@ only as an internal path update.
 Create `fjs/protocol/` as the common directory for modules that implement or
 describe communication protocols.
 
-Move existing protocol modules into this directory. For example:
+First consolidate the CAS-specific MCP implementation from `fjs/cas/mcp/` into
+the general `fjs/mcp/` module tree. Then move the combined MCP implementation to
+`fjs/protocol/mcp/`:
 
 ```text
-fjs/mcp/ -> fjs/protocol/mcp/
+fjs/cas/mcp/ --\
+                 -> fjs/mcp/ -> fjs/protocol/mcp/
+fjs/mcp/ -----/
 ```
+
+The final `fjs/protocol/mcp/` tree should preserve clear internal separation for
+CAS-specific behavior while sharing the common MCP protocol definitions and
+infrastructure.
 
 Keep data formats and media types under `fjs/media/`; move only modules whose
 primary responsibility is protocol behavior, messages, operations, or
@@ -36,18 +44,20 @@ documentation, TODO links, package metadata, generated files, and other path
 references as required.
 
 Because published import paths change, the implementation PR must add a
-`CHANGELOG.md` entry beginning with the required `BREAKING CHANGES:` prefix and
-state the old and new import paths so consumers can migrate.
+`CHANGELOG.md` entry beginning with the exact required
+`**BREAKING CHANGES:**` prefix and state the old and new import paths so
+consumers can migrate.
 
 ### Tasks
 
-- [ ] Identify existing modules under `fjs/` whose primary responsibility is a protocol.
 - [ ] Create `fjs/protocol/`.
-- [ ] Move `fjs/mcp/` to `fjs/protocol/mcp/`.
+- [ ] Consolidate `fjs/cas/mcp/` into the general `fjs/mcp/` module tree.
+- [ ] Move the combined `fjs/mcp/` implementation to `fjs/protocol/mcp/`.
+- [ ] Identify any other existing modules under `fjs/` whose primary responsibility is a protocol.
 - [ ] Move any other identified protocol modules to corresponding subdirectories under `fjs/protocol/`.
-- [ ] Update all imports and path references.
+- [ ] Update all imports and path references, including references to both `fjs/mcp/...` and `fjs/cas/mcp/...`.
 - [ ] Update documentation and TODO links that reference the old locations.
-- [ ] Add a `CHANGELOG.md` entry beginning with `BREAKING CHANGES:` that announces each published import-path migration, including `fjs/mcp/...` to `fjs/protocol/mcp/...`.
+- [ ] Add a `CHANGELOG.md` entry beginning with `**BREAKING CHANGES:**` that announces every published import-path migration and lists the corresponding old and new paths.
 - [ ] Regenerate repository-generated files as required.
 - [ ] Run the full TypeScript and FunctionalScript test suites.
 
