@@ -60,10 +60,17 @@ const reservedWords: ReadonlySet<string> = new Set([
     'with',
 ] as const)
 
-const identifierPattern = /^[A-Za-z_][A-Za-z0-9_'-]*$/
+const identifierInitialCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_' as const
 
-const isIdentifier = (value: string): boolean =>
-    identifierPattern.test(value) && !reservedWords.has(value)
+const identifierTrailingCharacters = `${identifierInitialCharacters}0123456789'-`
+
+const isIdentifier = (value: string): boolean => {
+    const [initial, ...trailing] = value
+    return initial !== undefined
+        && identifierInitialCharacters.includes(initial)
+        && trailing.every(character => identifierTrailingCharacters.includes(character))
+        && !reservedWords.has(value)
+}
 
 const indent = (level: number): string => '    '.repeat(level)
 

@@ -73,6 +73,7 @@ export const proof = {
     },
     reference: () => {
         assertEq(nixToString(['ref', 'pkgs', 'a.b', 'or']), 'pkgs."a.b"."or"\n')
+        assertEq(nixToString(['ref', "a-b'9"]), "a-b'9\n")
     },
     emptySetAndList: () => {
         assertEq(nixToString(['set']), '{}\n')
@@ -97,6 +98,9 @@ export const proof = {
     invalid: {
         reference: () => assertEq(nixToString(['ref', 'not valid']), undefined),
         reservedReference: () => assertEq(nixToString(['ref', 'let']), undefined),
+        emptyReference: () => assertEq(nixToString(['ref', '']), undefined),
+        digitReference: () => assertEq(nixToString(['ref', '1abc']), undefined),
+        nonAsciiReference: () => assertEq(nixToString(['ref', 'é']), undefined),
         pattern: () => assertEq(
             nixToString(['lambda', ['open-set-pattern', 'if'], ['set']]),
             undefined
