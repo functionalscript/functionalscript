@@ -11,6 +11,8 @@ history.
 
 ## Unreleased
 
+- `fjs/media/nix`: add a minimal checked Nix eDSL and deterministic chunk serializer
+  [#1397](https://github.com/functionalscript/functionalscript/pull/1397)
 - `fjs/effects/node`: **BREAKING CHANGES:** detect Deno as the new `'deno'`
   `Engine` variant and make external tests on Node 22–25 use the inline
   `expectFailure` compatibility strategy

@@ -10,6 +10,12 @@
 import { type List as ChunkList } from '../../types/list/module.f.ts'
 import { concat } from '../../types/string/module.f.ts'
 import { includes } from '../../types/array/module.f.ts'
+import { contains } from '../../types/range/module.f.ts'
+import {
+    digitRange,
+    latinCapitalLetterRange,
+    latinSmallLetterRange,
+} from '../../text/ascii/module.f.ts'
 
 type Identifier = string
 
@@ -61,12 +67,21 @@ const reservedWords = [
     'with',
 ] as const
 
-const isReservedWord = includes<unknown, typeof reservedWords>(reservedWords)
+const isReservedWord = includes(reservedWords)
 
-const isAsciiLetter = (character: string): boolean =>
-    (character >= 'A' && character <= 'Z') || (character >= 'a' && character <= 'z')
+const isUpperLetter = contains(...latinCapitalLetterRange)
 
-const isDigit = (character: string): boolean => character >= '0' && character <= '9'
+const isLowerLetter = contains(...latinSmallLetterRange)
+
+const isAsciiLetter = (character: string): boolean => {
+    const c = character.charCodeAt(0)
+    return isUpperLetter(c) || isLowerLetter(c)
+}
+
+const isDigitN = contains(...digitRange)
+
+const isDigit = (character: string): boolean =>
+    isDigitN(character.charCodeAt(0))
 
 const isIdentifierInitial = (character: string): boolean =>
     isAsciiLetter(character) || character === '_'
