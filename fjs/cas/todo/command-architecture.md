@@ -6,7 +6,7 @@
 ### Problem
 
 CAS functionality is exposed through two transports — the CLI
-(`fjs/cas/cli/module.f.ts`) and the MCP server (`fjs/cas/mcp/module.f.ts`) —
+(`fjs/cas/cli/module.f.ts`) and the MCP server (`fjs/protocol/mcp/cas/module.f.ts`) —
 and each wires its own logic directly onto the store primitives in
 `fjs/cas/module.f.ts`. There is no defined notion of a *CAS command*: no
 shared command set, no typed input/output contracts, no common error
@@ -48,7 +48,7 @@ The design should answer:
    [Web API](./web-api-server.md)) expose which commands, with what
    restrictions. Known constraint to encode: file-path `add` is CLI-only —
    the MCP server never opens a client-named path (see the invariant in
-   `fjs/cas/mcp/README.md`); the same rule presumably binds a Web API.
+   `fjs/protocol/mcp/cas/README.md`); the same rule presumably binds a Web API.
 4. **How one declaration drives every adapter.** An idea to evaluate, not
    prescribe: rtti structs are already the MCP argument schema (deriving
    both `inputSchema` and `validate`); the same struct could drive CLI

@@ -27,7 +27,7 @@
  * content, so the JSON-RPC serializer escapes it a second time on the way
  * out and a modest result can encode to a much longer line (a subject of
  * quote characters is the worst case). A response whose encoded line exceeds
- * the transport cap is not lost: `fjs/mcp/stdio` retries with a small
+ * the transport cap is not lost: `fjs/protocol/mcp/stdio` retries with a small
  * `-32603` body carrying the request's `id`, so every request still gets a
  * response and the process never crashes. That is the transport's contract
  * for every tool — `cas_get` has proofs for the same double-escaping path —
@@ -35,7 +35,7 @@
  * known only by encoding it, which is the transport's job, and guessing from
  * an unencoded size is exactly the size estimate that must never be made.
  *
- * These tools are not served by their own process: `fjs/cas/mcp` (the same
+ * These tools are not served by their own process: `fjs/protocol/mcp/cas` (the same
  * server as `cas_add`/`cas_get`/`cas_list`) builds one `Evo<O>` from its own
  * `Cas<O>` and cache slot, concatenates `evoToolRegistry` onto its own
  * registry, and serves everything from that single process — one `~/.cas/`
@@ -43,16 +43,16 @@
  *
  * @module
  */
-import { string, option, array } from '../../../types/rtti/module.f.ts'
-import { pure, step, type Effect, type Operation } from '../../../effects/module.f.ts'
-import { type MemOp } from '../../../effects/memory/module.f.ts'
+import { string, option, array } from '../../../../types/rtti/module.f.ts'
+import { pure, step, type Effect, type Operation } from '../../../../effects/module.f.ts'
+import { type MemOp } from '../../../../effects/memory/module.f.ts'
 import {
     toolEntry, errorResult, okResult,
     type ToolEntry, type ToolsCallResult,
-} from '../../../mcp/module.f.ts'
-import { stringify } from '../../../media/json/module.f.ts'
-import { identity } from '../../../types/function/module.f.ts'
-import { type Evo } from '../module.f.ts'
+} from '../../module.f.ts'
+import { stringify } from '../../../../media/json/module.f.ts'
+import { identity } from '../../../../types/function/module.f.ts'
+import { type Evo } from '../../../../cas/evo/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 

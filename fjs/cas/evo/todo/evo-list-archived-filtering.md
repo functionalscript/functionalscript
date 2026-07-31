@@ -67,4 +67,4 @@ the default result set and is therefore a breaking change.
 
 - [PR #1386](https://github.com/functionalscript/functionalscript/pull/1386)
 - [fjs/cas/evo/README.md](../README.md) — Evo cache and current-head behavior.
-- [fjs/cas/evo/mcp/](../mcp/) — MCP adapter for Evo commands.
+- [fjs/protocol/mcp/cas/evo/](../../../protocol/mcp/cas/evo/) — MCP adapter for Evo commands.

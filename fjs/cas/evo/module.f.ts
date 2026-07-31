@@ -234,7 +234,7 @@ const foldIntoCache = (cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revis
  * Folds `value` — bytes already written to a `Cas` at `hash` by some other
  * caller — into the cache at `cacheKey` if it decodes as a `vnd.fjs.revision`
  * ({@link decodeRevisionVec}); a no-op otherwise. `cas_add`/`evo_add`
- * (`fjs/cas/mcp`) are two ways to reach the same store — a plain `cas_add`
+ * (`fjs/protocol/mcp/cas`) are two ways to reach the same store — a plain `cas_add`
  * call can store a revision blob without going through {@link addRevision},
  * and this is what keeps the cache honest about it without rescanning the
  * whole store.

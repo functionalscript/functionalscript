@@ -5,11 +5,11 @@
 
 ### Problem
 
-Two factories in `fjs/mcp/module.f.ts` re-derive call-invariant values inside
+Two factories in `fjs/protocol/mcp/module.f.ts` re-derive call-invariant values inside
 per-call closures, against the AGENTS.md rule *"Hoist call-invariant
 computations out of function bodies"*:
 
-1. `toolEntry` (`fjs/mcp/module.f.ts:179-194`) rebuilds the validator on
+1. `toolEntry` (`fjs/protocol/mcp/module.f.ts:179-194`) rebuilds the validator on
    **every tool invocation** — `validate(inputRtti as any)` depends only on
    `inputRtti`, which is fixed when the entry is constructed, yet it runs
    inside `handle`:
@@ -24,7 +24,7 @@ computations out of function bodies"*:
    validator function; doing that per `tools/call` repeats structural work
    whose result never changes.
 
-2. `fromRegistry` (`fjs/mcp/module.f.ts:216-233`) rebuilds the full `tools`
+2. `fromRegistry` (`fjs/protocol/mcp/module.f.ts:216-233`) rebuilds the full `tools`
    descriptor array — including a `toJsonSchema(entry.inputRtti)` conversion
    per entry — on **every `tools/list` request**:
 
@@ -98,11 +98,11 @@ TS2589), but they move to construction scope where they run once.
       `fromRegistry`'s construction scope.
 - [ ] Add a comment on the remaining casts citing TS2589, mirroring
       `fjs/types/rtti/parse/module.f.ts:164`.
-- [ ] `npx tsc` clean; `fjs t` passes (`fjs/mcp/proof.f.ts`, `fjs/cas/mcp/proof.f.ts`).
+- [ ] `npx tsc` clean; `fjs t` passes (`fjs/protocol/mcp/proof.f.ts`, `fjs/protocol/mcp/cas/proof.f.ts`).
 
 ### Related
 
-- `fjs/mcp/module.f.ts:179-194`, `:216-233` — the two factories.
+- `fjs/protocol/mcp/module.f.ts:179-194`, `:216-233` — the two factories.
 - AGENTS.md — "Hoist call-invariant computations out of function bodies";
   curried-application placement rule.
 - `fjs/types/rtti/parse/module.f.ts:164` — precedent for the TS2589 cast

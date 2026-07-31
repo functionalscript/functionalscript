@@ -192,19 +192,19 @@ undecodable hash, a hash the store has nothing under, a read that failed for
 any other reason, a blob that is not a revision — comes back as
 `error(message)` (`fjs/types/result`), never a
 `throw`, so a transport (e.g. the MCP adapter,
-[`fjs/cas/evo/mcp`](mcp/)) can surface it to the caller directly.
+[`fjs/protocol/mcp/cas/evo`](../../protocol/mcp/cas/evo/)) can surface it to the caller directly.
 
 ## Front ends
 
-- [`fjs/cas/evo/mcp`](mcp/) — MCP tool definitions (`evo_list` / `evo_head` /
+- [`fjs/protocol/mcp/cas/evo`](../../protocol/mcp/cas/evo/) — MCP tool definitions (`evo_list` / `evo_head` /
   `evo_revision` / `evo_add`) for agents, served by the same process as
-  [`fjs/cas/mcp`](../mcp/)'s `cas_add`/`cas_get`/`cas_list` — one
+  [`fjs/protocol/mcp/cas`](../../protocol/mcp/cas/)'s `cas_add`/`cas_get`/`cas_list` — one
   `~/.cas/` store, one Evo cache, one server (`npx functionalscript m`).
 
 ## In-memory cache is per process
 
 The cache lives in one process's memory, so every `cas`/`evo` MCP server
-instance ([`fjs/cas/mcp`](../mcp/)) builds and holds its own — there is no
+instance ([`fjs/protocol/mcp/cas`](../../protocol/mcp/cas/)) builds and holds its own — there is no
 sharing across concurrently running instances. An HTTP(S) MCP server would
 let many clients share one cache and one process; two possible shapes for
 that, neither implemented yet:

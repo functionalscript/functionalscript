@@ -8,7 +8,7 @@
  * (`fjs/cas/module.f.ts`) stays transport-agnostic; this is an additional
  * front end alongside the CLI `main`. The same server also exposes
  * `fjs/cas/evo`'s subject/head API
- * (`evo_list`/`evo_head`/`evo_revision`/`evo_add`, `fjs/cas/evo/mcp`) — one
+ * (`evo_list`/`evo_head`/`evo_revision`/`evo_add`, `fjs/protocol/mcp/cas/evo`) — one
  * process, one `~/.cas/` store, one in-memory Evo cache scanned once at
  * startup (`initEvo`).
  *
@@ -35,7 +35,7 @@
  *
  * Inline content (either encoding) is capped at 128 KiB (`maxLength`). There is
  * no MCP route for larger content — the server never opens a local path named by
- * the client (see the invariant in `fjs/cas/mcp/README.md`); large files go
+ * the client (see the invariant in `fjs/protocol/mcp/cas/README.md`); large files go
  * through the `cas` CLI (`cas add <path>`) instead, run directly by the user.
  *
  * ## `cas_get` output
@@ -108,33 +108,33 @@
  *
  * @module
  */
-import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
-import { stringify } from '../../media/json/module.f.ts'
-import { pure, step, type Effect } from '../../effects/module.f.ts'
-import { create, type MemOp } from '../../effects/memory/module.f.ts'
-import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
-import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.ts'
-import { tryUtf8 } from '../../text/module.f.ts'
-import { detectStream } from '../../media/type/module.f.ts'
-import { detect as detectDialect } from '../../media/module.f.ts'
-import { maxLengthBytes, type Vec } from '../../types/bit_vec/module.f.ts'
-import { ok, type Ok } from '../../types/result/module.f.ts'
-import { type Read, type Write } from '../../effects/node/module.f.ts'
-import { stdioTransport } from '../../mcp/stdio/module.f.ts'
+import { string, option, or, boolean } from '../../../types/rtti/module.f.ts'
+import { stringify } from '../../../media/json/module.f.ts'
+import { pure, step, type Effect } from '../../../effects/module.f.ts'
+import { create, type MemOp } from '../../../effects/memory/module.f.ts'
+import { cBase32ToVec, vecToCBase32 } from '../../../basen/cbase32/module.f.ts'
+import { decode as base64Decode, encode as base64Encode } from '../../../basen/base64/module.f.ts'
+import { tryUtf8 } from '../../../text/module.f.ts'
+import { detectStream } from '../../../media/type/module.f.ts'
+import { detect as detectDialect } from '../../../media/module.f.ts'
+import { maxLengthBytes, type Vec } from '../../../types/bit_vec/module.f.ts'
+import { ok, type Ok } from '../../../types/result/module.f.ts'
+import { type Read, type Write } from '../../../effects/node/module.f.ts'
+import { stdioTransport } from '../stdio/module.f.ts'
 import {
     mcpStep, uninitializedState,
     toolEntry, fromRegistry, errorResult, okResult,
     type McpConfig, type McpHandlers, type ToolEntry,
     type ToolsCallResult,
-} from '../../mcp/module.f.ts'
-import { collectRead, fileCas, type FileCasOperation } from '../module.f.ts'
-import { fromVec } from '../../text/utf8/module.f.ts'
-import { identity } from '../../types/function/module.f.ts'
-import { sha256 } from '../../crypto/sha2/module.f.ts'
-import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
-import { initEvo, evo, syncRevision, type Cache } from '../evo/module.f.ts'
-import { evoToolRegistry } from '../evo/mcp/module.f.ts'
-import type { Key } from '../../effects/memory/module.f.ts'
+} from '../module.f.ts'
+import { collectRead, fileCas, type FileCasOperation } from '../../../cas/module.f.ts'
+import { fromVec } from '../../../text/utf8/module.f.ts'
+import { identity } from '../../../types/function/module.f.ts'
+import { sha256 } from '../../../crypto/sha2/module.f.ts'
+import { nonEmpty, empty as elEmpty } from '../../../effects/list/module.f.ts'
+import { initEvo, evo, syncRevision, type Cache } from '../../../cas/evo/module.f.ts'
+import { evoToolRegistry } from './evo/module.f.ts'
+import type { Key } from '../../../effects/memory/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 

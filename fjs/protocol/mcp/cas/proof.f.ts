@@ -1,20 +1,20 @@
-import { assert, assertEq } from '../../asserts/module.f.ts'
-import { pure, step, type Effect, type Operation } from '../../effects/module.f.ts'
-import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
-import { asBase, asNominal, create, type Key, type MemOp } from '../../effects/memory/module.f.ts'
-import type { Unknown } from '../../media/json/module.f.ts'
-import type { Response } from '../../media/json/rpc/module.f.ts'
-import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../../types/bit_vec/module.f.ts'
-import { vecToCBase32 } from '../../basen/cbase32/module.f.ts'
-import { encode as base64Encode } from '../../basen/base64/module.f.ts'
-import { utf8 } from '../../text/module.f.ts'
-import { fileCas, type FileCasOperation } from '../module.f.ts'
-import { dialect as revisionDialect, mediaType as revisionMediaType } from '../../media/revision/module.f.ts'
-import { sha256 } from '../../crypto/sha2/module.f.ts'
-import { nonEmpty, empty as elEmpty, type List } from '../../effects/list/module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.ts'
+import { pure, step, type Effect, type Operation } from '../../../effects/module.f.ts'
+import { run, type MemOperationMap } from '../../../effects/mock/module.f.ts'
+import { asBase, asNominal, create, type Key, type MemOp } from '../../../effects/memory/module.f.ts'
+import type { Unknown } from '../../../media/json/module.f.ts'
+import type { Response } from '../../json_rpc/module.f.ts'
+import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../../../types/bit_vec/module.f.ts'
+import { vecToCBase32 } from '../../../basen/cbase32/module.f.ts'
+import { encode as base64Encode } from '../../../basen/base64/module.f.ts'
+import { utf8 } from '../../../text/module.f.ts'
+import { fileCas, type FileCasOperation } from '../../../cas/module.f.ts'
+import { dialect as revisionDialect, mediaType as revisionMediaType } from '../../../media/revision/module.f.ts'
+import { sha256 } from '../../../crypto/sha2/module.f.ts'
+import { nonEmpty, empty as elEmpty, type List } from '../../../effects/list/module.f.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
-} from '../../mcp/module.f.ts'
+} from '../module.f.ts'
 import type {
     MakeDirectoryOptions,
     ReaddirOptions,
@@ -30,13 +30,13 @@ import type {
     Rm,
     Stat,
     WriteBytes
-} from '../../effects/node/module.f.ts'
-import { emptyState, virtual, type Dir } from '../../effects/node/virtual/module.f.ts'
+} from '../../../effects/node/module.f.ts'
+import { emptyState, virtual, type Dir } from '../../../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
-import { ok as resultOk } from '../../types/result/module.f.ts'
-import { stdioTransport } from '../../mcp/stdio/module.f.ts'
-import { fromVec } from '../../types/uint8array/module.f.ts'
-import { initEvo } from '../evo/module.f.ts'
+import { ok as resultOk } from '../../../types/result/module.f.ts'
+import { stdioTransport } from '../stdio/module.f.ts'
+import { fromVec } from '../../../types/uint8array/module.f.ts'
+import { initEvo } from '../../../cas/evo/module.f.ts'
 
 type CasGetResult = {
     readonly length: number
@@ -47,7 +47,7 @@ type CasGetResult = {
     readonly blob?: string
 }
 
-// ── Memory mock (mirrors fjs/mcp/proof.f.ts) ─────────────────────────────────────
+// ── Memory mock (mirrors fjs/protocol/mcp/proof.f.ts) ─────────────────────────────────────
 
 type MemoryState = {
     readonly next: number
@@ -178,7 +178,7 @@ const toBytes = (s: string): readonly number[] => [...fromVec(utf8(s))]
 // `session`/`runSessionVirtual`, which collect `mcpStep`'s `Response` values
 // as plain JS objects and never serialize/encode them, this is the only
 // helper that can observe the transport's oversized-response fallback (see
-// `fjs/mcp/stdio/module.f.ts` `writeResponse`).
+// `fjs/protocol/mcp/stdio/module.f.ts` `writeResponse`).
 const runStdio =
     (root: Dir, home = '/home/user') =>
     (msgs: readonly unknown[]): readonly unknown[] => {
@@ -324,7 +324,7 @@ export const proof = {
     // the JSON-RPC envelope is even added. The transport's `writeResponse`
     // (`tryUtf8`) must catch this and write a JSON-RPC internal-error response —
     // carrying the *original request's* `id` — instead of crashing the process.
-    // See `fjs/mcp/stdio/module.f.ts` `writeResponse`.
+    // See `fjs/protocol/mcp/stdio/module.f.ts` `writeResponse`.
     //
     // This test originally timed out under `bun test`'s native 5s per-test
     // limit (12-14s observed in CI on PR #1201) — the cost was in

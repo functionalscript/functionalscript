@@ -126,7 +126,7 @@ per-format branches.
 **Cycle rule** (the reason `revision` is in the list): whatever the detector
 must import to recognize a format — its schema, its `dialect` constant — must
 be a `media/` sibling, never live inside a store or adapter. Concretely:
-`fjs/cas/mcp` depends on the detector, and detecting revision blobs requires the
+`fjs/protocol/mcp/cas` depends on the detector, and detecting revision blobs requires the
 revision schema, so a revision format inside `fjs/cas` would create a
 `cas` ↔ detector cycle. The revision *format* (schema, tag, encode/decode)
 therefore lives at `fjs/media/revision/`, while the store-touching evolution

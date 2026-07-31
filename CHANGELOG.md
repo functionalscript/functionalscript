@@ -11,6 +11,17 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/protocol`: group protocol modules under the new
+  `fjs/protocol/`. Consolidated the CAS-specific MCP adapter from
+  `fjs/cas/mcp/` into the general `fjs/mcp/` tree, then moved the combined
+  implementation to `fjs/protocol/mcp/`; also moved the JSON-RPC 2.0
+  envelope/dispatcher that MCP layers on top of from `fjs/media/json/rpc/` to
+  `fjs/protocol/json_rpc/`. Old → new import paths:
+  `fjs/mcp/module.f.ts` → `fjs/protocol/mcp/module.f.ts`,
+  `fjs/mcp/stdio/module.f.ts` → `fjs/protocol/mcp/stdio/module.f.ts`,
+  `fjs/cas/mcp/module.f.ts` → `fjs/protocol/mcp/cas/module.f.ts`,
+  `fjs/cas/evo/mcp/module.f.ts` → `fjs/protocol/mcp/cas/evo/module.f.ts`,
+  `fjs/media/json/rpc/module.f.ts` → `fjs/protocol/json_rpc/module.f.ts`
 - `fjs/media/nix`: add a minimal checked Nix eDSL and deterministic chunk serializer
   [#1397](https://github.com/functionalscript/functionalscript/pull/1397)
 - `fjs/effects/node`: **BREAKING CHANGES:** detect Deno as the new `'deno'`
