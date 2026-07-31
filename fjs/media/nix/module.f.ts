@@ -7,7 +7,7 @@
  *
  * @module
  */
-import { type List as ChunkList } from '../../types/list/module.f.ts'
+import { toArray, type List as ChunkList } from '../../types/list/module.f.ts'
 import { concat } from '../../types/string/module.f.ts'
 import { includes } from '../../types/array/module.f.ts'
 import { contains } from '../../types/range/module.f.ts'
@@ -15,7 +15,9 @@ import {
     digitRange,
     latinCapitalLetterRange,
     latinSmallLetterRange,
+    range,
 } from '../../text/ascii/module.f.ts'
+import { fromRange, get, merge } from '../../types/range_set/module.f.ts'
 
 type Identifier = string
 
@@ -69,25 +71,27 @@ const reservedWords = [
 
 const isReservedWord = includes(reservedWords)
 
-const isUpperLetter = contains(...latinCapitalLetterRange)
+const letters = merge
+    (fromRange(latinCapitalLetterRange))
+    (fromRange(latinSmallLetterRange))
 
-const isLowerLetter = contains(...latinSmallLetterRange)
-
-const isAsciiLetter = (character: string): boolean => {
-    const c = character.charCodeAt(0)
-    return isUpperLetter(c) || isLowerLetter(c)
-}
-
-const isDigitN = contains(...digitRange)
-
-const isDigit = (character: string): boolean =>
-    isDigitN(character.charCodeAt(0))
+const identifierInitial = toArray(merge
+    (letters)
+    (fromRange(range('_'))))
 
 const isIdentifierInitial = (character: string): boolean =>
-    isAsciiLetter(character) || character === '_'
+    get(identifierInitial)(character.charCodeAt(0))
+
+const identifierTrailing = toArray(merge
+    (merge
+        (identifierInitial)
+        (fromRange(digitRange)))
+    (merge
+        (fromRange(range("'")))
+        (fromRange(range('-')))))
 
 const isIdentifierTrailing = (character: string): boolean =>
-    isIdentifierInitial(character) || isDigit(character) || character === "'" || character === '-'
+    get(identifierTrailing)(character.charCodeAt(0))
 
 const isIdentifier = (value: string): boolean => {
     const [initial, ...trailing] = value
