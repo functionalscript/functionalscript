@@ -6,8 +6,8 @@
 ### Problem
 
 When a response does not fit one encoded line, `handleLine`
-(`fjs/mcp/stdio/module.f.ts`) falls back to `internalErrorResponse(resp.id)` —
-the standard `-32603` *"Internal error"* from `fjs/media/json/rpc`. The
+(`fjs/protocol/mcp/stdio/module.f.ts`) falls back to `internalErrorResponse(resp.id)` —
+the standard `-32603` *"Internal error"* from `fjs/protocol/json_rpc`. The
 transport handles the overflow correctly: nothing throws, the process survives,
 and the request still gets a response carrying its `id`. What the client
 receives, though, is indistinguishable from a genuine server fault. There is no
@@ -22,7 +22,7 @@ quote characters roughly doubles). Every JSON-returning tool is exposed —
 `cas_get` with `content: true` has proofs pinning exactly this double-escaping
 path (`getContentBase64InflationOverflowWritesInternalError`,
 `getContentDoubleEscapedOverflowWritesInternalError`), and `evo_list` /
-`evo_revision` (`fjs/cas/evo/mcp`) inherit the same envelope.
+`evo_revision` (`fjs/mcp/evo`) inherit the same envelope.
 
 No tool can improve on this from its own side. Whether an encoded response fits
 is knowable only by encoding it, which happens in the transport; a tool that
@@ -65,16 +65,16 @@ one-element change; doing this one first is fine too.
       fallback in `handleLine`, leaving the `id: null` terminal as-is.
 - [ ] Update the `@module` doc's edge-case list, which currently describes the
       first retry as a `-32603` internal-error body.
-- [ ] Extend `fjs/mcp/stdio/proof.f.ts` to assert the message on the
+- [ ] Extend `fjs/protocol/mcp/stdio/proof.f.ts` to assert the message on the
       oversized-response path, keeping the existing oversized-`id` coverage.
-- [ ] Check the `cas_get` overflow proofs in `fjs/cas/mcp/proof.f.ts`, which
+- [ ] Check the `cas_get` overflow proofs in `fjs/mcp/proof.f.ts`, which
       assert `code` (not `message`), still pass unchanged.
 
 ### Related
 
 - [stdio-write-fallback-list](stdio-write-fallback-list.md) — restructures the
   same cascade into a candidate list; the two are best implemented together.
-- `fjs/mcp/stdio/module.f.ts` — `writeResponse` (the `maxLength`-bounded
+- `fjs/protocol/mcp/stdio/module.f.ts` — `writeResponse` (the `maxLength`-bounded
   encoder whose `error` result drives the fallback) and `handleLine`.
-- `fjs/cas/evo/mcp/README.md` — the "Result size" note describing this
+- `fjs/mcp/evo/README.md` — the "Result size" note describing this
   behaviour from a tool's side, and why a tool cannot report it itself.

@@ -7,7 +7,7 @@
 
 ### Problem
 
-`fjs/mcp/module.f.ts`'s `mcpStep` request handler repeats the same
+`fjs/protocol/mcp/module.f.ts`'s `mcpStep` request handler repeats the same
 "validate the params, branch to an error or success response" envelope in
 every method arm. The shape is always:
 
@@ -18,7 +18,7 @@ return t === 'error'
     : <success using pr>
 ```
 
-It appears four times in `mcpStep` (in `fjs/mcp/module.f.ts`):
+It appears four times in `mcpStep` (in `fjs/protocol/mcp/module.f.ts`):
 
 - `ping` — `validate(_noParams)(params)`, success is `pure(_okResponse(id)({}))`.
 - `initialize` — `validate(initializeParams)(params)`, success builds an
@@ -115,7 +115,7 @@ handler from accreting a dozen copies of the same ternary.
 - [ ] Add a module-scope (or `mcpStep`-local) `validated` helper threading `id`;
       rewrite `ping`, `initialize`, `tools/list`, `tools/call` to use it.
 - [ ] Add `toolMethod` for the capability-gated `tools/*` pair.
-- [ ] Confirm `fjs/mcp/proof.f.ts` still passes (`fjs t`) with full branch
+- [ ] Confirm `fjs/protocol/mcp/proof.f.ts` still passes (`fjs t`) with full branch
       coverage (both `error` and `ok` sides of each method) and `npx tsc` is clean.
 
 ### Related
@@ -145,7 +145,7 @@ on top."
 
 ### Building blocks
 
-#### 1. JSON-RPC 2.0 layer — landed in `fjs/media/json/rpc/module.f.ts`
+#### 1. JSON-RPC 2.0 layer — landed in `fjs/protocol/json_rpc/module.f.ts`
 
 The envelope: request / notification / response / error schemas, decoders, and the
 pure dispatcher. MCP rides directly on this.
@@ -231,7 +231,7 @@ server-answers-request.
 
 ### Related
 
-- `fjs/media/json/rpc/module.f.ts` — the JSON-RPC 2.0 envelope
+- `fjs/protocol/json_rpc/module.f.ts` — the JSON-RPC 2.0 envelope
 - `fjs/media/json/schema/module.f.ts` — rtti → JSON Schema printer
 - `fjs/types/rtti/module.f.ts` — schema combinators; `fjs/types/rtti/ts/` is the precedent for a printer
 - `fjs/effects/node/module.f.ts` — stdio (`write` / stdin) and HTTP (`createServer` / `listen`) for transports
