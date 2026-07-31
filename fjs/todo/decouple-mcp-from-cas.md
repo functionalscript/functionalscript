@@ -1,4 +1,4 @@
-# Group protocol modules
+# Decouple the FJS MCP server from CAS
 
 **Priority:** P3
 **Status:** open
