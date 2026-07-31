@@ -1,7 +1,20 @@
 ## 66B-dockerfile-nix-integration. Generate simple Node CI flakes
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
+
+### Progress
+
+Phase 2 is done: `fjs/ci/nix/module.f.ts` generates
+`nix/generated/node{22,24,26}/flake.nix` from the pinned Nixpkgs commit in
+`fjs/ci/config/module.f.ts`, and `npm run ci-update` regenerates them without
+running Nix. `nodejs_22`, `nodejs_24`, and `nodejs_26` were verified to exist in
+the accepted snapshot.
+
+Still open: the `npm run ci-nix-update` command (phase 1's automation), removal
+of stale generated job directories, and the whole of phase 3 (bootstrapping Nix
+in CI and migrating the jobs). Stale-directory removal needs a recursive `rm`
+effect — today's `rm` operation only deletes files.
 
 ### Problem
 
@@ -202,17 +215,17 @@ milestone.
 
 ### Tasks
 
-- [ ] Add the stable Nixpkgs reference and exact commit.
+- [x] Add the stable Nixpkgs reference and exact commit.
 - [ ] Add `npm run ci-nix-update`.
 - [ ] Update Node versions from the accepted Nixpkgs snapshot.
-- [ ] Verify the three required Node package attributes exist.
-- [ ] Generate separate Node 22, Node 24, and Node 26 flakes with
+- [x] Verify the three required Node package attributes exist.
+- [x] Generate separate Node 22, Node 24, and Node 26 flakes with
       `devShells.aarch64-linux.default`.
-- [ ] Add the Node 22 `$HOME/.npm-global` shell hook.
+- [x] Add the Node 22 `$HOME/.npm-global` shell hook.
 - [ ] Remove stale generated job directories.
-- [ ] Add `/nix/generated/**/flake.lock` to `.gitignore`.
-- [ ] Keep ordinary generation Nix-independent and Windows-compatible.
-- [ ] Commit the generated flakes.
+- [x] Add `/nix/generated/**/flake.lock` to `.gitignore`.
+- [x] Keep ordinary generation Nix-independent and Windows-compatible.
+- [x] Commit the generated flakes.
 - [ ] Add pinned Nix bootstrap to each migrated job.
 - [ ] Run each job's complete command sequence through one `nix develop --command`
       invocation.

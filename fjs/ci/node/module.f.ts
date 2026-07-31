@@ -6,8 +6,11 @@
  */
 import { node } from '../config/module.f.ts'
 import { type Job, type Jobs, type MetaStep, install, test, ubuntuArm, uses } from '../common/module.f.ts'
+import type { NixJob } from '../nix/module.f.ts'
 
 export const major = (v: string): string => v.split('.')[0]
+
+const jobId = (version: string): string => `node${major(version)}`
 
 const installNode = (version: string) =>
     uses('actions/setup-node', { 'node-version': version })
@@ -55,9 +58,31 @@ const node26Steps: readonly MetaStep[] = [
 const nodeJob = (steps: readonly MetaStep[]): Job => ubuntuArm(steps)
 
 export const nodeVersionJobs = (version: string): Jobs => ({
-    [`node${major(node.node22)}`]: nodeJob(node22Steps(version)),
-    [`node${major(node.node24)}`]: nodeJob(node24Steps),
-    [`node${major(node.default)}`]: nodeJob(node26Steps),
+    [jobId(node.node22)]: nodeJob(node22Steps(version)),
+    [jobId(node.node24)]: nodeJob(node24Steps),
+    [jobId(node.default)]: nodeJob(node26Steps),
 })
+
+// The canonical Node jobs run on the Ubuntu ARM runner.
+const nixSystem = 'aarch64-linux' as const
+
+// Keeps `npm install -g functionalscript` writable and puts the installed `fjs`
+// on `PATH` for the rest of the same `nix develop` invocation.
+const npmGlobalShellHook = `export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+mkdir -p "$NPM_CONFIG_PREFIX"` as const
+
+const nixJob = (version: string): NixJob => ({
+    id: jobId(version),
+    system: nixSystem,
+    packages: [`nodejs_${major(version)}`],
+})
+
+/** Generated development environments for the canonical Node jobs. */
+export const nodeNixJobs: readonly NixJob[] = [
+    { ...nixJob(node.node22), shellHook: npmGlobalShellHook },
+    nixJob(node.node24),
+    nixJob(node.default),
+]
 
 export const nodeMainSteps = platformNodeSteps

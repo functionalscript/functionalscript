@@ -1,5 +1,6 @@
 import { ci, main } from './module.f.ts'
 import { functionalscript } from './config/module.f.ts'
+import { nodeNixJobs } from './node/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
@@ -28,15 +29,27 @@ const makeState = (rust: boolean, packageJson?: string) => ({
     },
 })
 
-const workflow = (state: State): GitHubAction => {
-    const dotGithub = state.root['.github']
-    assert(typeof dotGithub === 'object' && !Array.isArray(dotGithub), dotGithub)
-    const workflows = (dotGithub as Dir)['workflows']
-    assert(typeof workflows === 'object' && !Array.isArray(workflows), workflows)
-    const file = (workflows as Dir)['ci.yml']
-    assert(!(!Array.isArray(file) || file.length === 0), file)
-    return unwrap(parseGitHubAction(jsonParse(utf8ToString(file[0]))))
+const subDir = (dir: Dir, name: string): Dir => {
+    const entity = dir[name]
+    assert(typeof entity === 'object' && !Array.isArray(entity), entity)
+    return entity as Dir
 }
+
+const text = (dir: Dir, name: string): string => {
+    const file = dir[name]
+    assert(!(!Array.isArray(file) || file.length === 0), file)
+    return utf8ToString(file[0])
+}
+
+const path = (dir: Dir, names: readonly string[]): Dir => names.reduce(subDir, dir)
+
+const workflow = (state: State): GitHubAction => {
+    const workflows = path(state.root, ['.github', 'workflows'])
+    return unwrap(parseGitHubAction(jsonParse(text(workflows, 'ci.yml'))))
+}
+
+const flake = (state: State, id: string): string =>
+    text(path(state.root, ['nix', 'generated', id]), 'flake.nix')
 
 const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): GitHubAction => {
     const [state, result] = virtual(makeState(rust))(ci({ nodeExtra }))
@@ -146,6 +159,16 @@ export const proof = {
             const gha = runDefault()
             assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version install')
         },
+    },
+    nixFlakes: () => {
+        const [state, result] = virtual(makeState(false))(main())
+        assertEq(result, 0)
+        for (const { id, packages } of nodeNixJobs) {
+            const [nodePackage] = packages
+            assert(
+                flake(state, id).includes(`pkgs.${nodePackage}`),
+                `expected ${nodePackage} in the ${id} flake`)
+        }
     },
     ubuntu: () => {
         const job = ubuntu([test({ run: 'echo hi' })])

@@ -44,6 +44,15 @@ export const node = {
     node24: '24.18.0',
 } as const
 
+// Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
+// stable channel the commit is accepted from; `commit` is the exact revision
+// every generated `flake.nix` pins.
+// https://channels.nixos.org/nixos-26.05/git-revision
+export const nixpkgs = {
+    ref: 'nixos-26.05',
+    commit: '21ea275a7c46aef9d4d6ddc962e6d562e9d94183',
+} as const
+
 // https://github.com/bytecodealliance/wasmtime/releases
 export const wasmtime = '47.0.2'
 

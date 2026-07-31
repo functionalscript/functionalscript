@@ -1,7 +1,13 @@
 ## 65Z-ci-nix. Generate simple CI flakes from official Nixpkgs
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
+
+### Progress
+
+Flake generation is implemented — see the progress note in
+[66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md). What remains
+here is the Nixpkgs update command and CI adoption.
 
 ### Problem
 
@@ -200,18 +206,18 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 
 ### Tasks
 
-- [ ] Add the stable Nixpkgs reference and exact accepted commit to the current CI
+- [x] Add the stable Nixpkgs reference and exact accepted commit to the current CI
       configuration.
-- [ ] Add the Node job system and package declarations above.
+- [x] Add the Node job system and package declarations above.
 - [ ] Add the explicit Nixpkgs update command.
-- [ ] Verify all required Node package attributes exist in the candidate snapshot.
-- [ ] Generate one readable self-contained flake per Node job with
+- [x] Verify all required Node package attributes exist in the candidate snapshot.
+- [x] Generate one readable self-contained flake per Node job with
       `devShells.aarch64-linux.default`.
-- [ ] Add the Node 22 `$HOME/.npm-global` shell hook.
+- [x] Add the Node 22 `$HOME/.npm-global` shell hook.
 - [ ] Remove stale generated job directories.
-- [ ] Ignore `/nix/generated/**/flake.lock`.
-- [ ] Keep `npm run ci-update` Nix-independent and Windows-compatible.
-- [ ] Commit the generated flakes.
+- [x] Ignore `/nix/generated/**/flake.lock`.
+- [x] Keep `npm run ci-update` Nix-independent and Windows-compatible.
+- [x] Commit the generated flakes.
 - [ ] Bootstrap Nix through a pinned CI action.
 - [ ] Run each migrated job's complete command sequence inside one
       `nix develop --command` invocation.
