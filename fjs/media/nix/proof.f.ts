@@ -80,6 +80,12 @@ export const proof = {
         assertEq(nixToString(['set']), '{}\n')
         assertEq(nixToString(['list']), '[ ]\n')
     },
+    multiReferenceList: () => {
+        assertEq(
+            nixToString(['list', ['ref', 'pkgs', 'nodejs_22'], ['ref', 'pkgs', 'nodejs_24']]),
+            '[ pkgs.nodejs_22 pkgs.nodejs_24 ]\n'
+        )
+    },
     chunks: () => {
         const chunks = nix(['list', ['ref', 'pkgs', 'nodejs_24']])
         assert(chunks !== undefined)

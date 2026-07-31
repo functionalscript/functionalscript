@@ -144,9 +144,10 @@ const serializeBindings = (bindings: readonly Binding[], level: number): Chunks 
             ? undefined
             : [indent(level), attributePath(path), ' = ', ...expression, ';']
     })
-    return serialized.includes(undefined)
+    const defined = serialized.flatMap(value => value === undefined ? [] : [value])
+    return defined.length !== serialized.length
         ? undefined
-        : joinChunks(serialized.flatMap(value => value === undefined ? [] : [value]), '\n')
+        : joinChunks(defined, '\n')
 }
 
 const serializeSet = ([, ...bindings]: AttributeSet, level: number): Chunks | undefined => {
@@ -173,10 +174,10 @@ const serializeApplication = ([, fn, ...args]: Application, level: number): Chun
         argument[0] === 'ref'
             ? serializeReferenceChunks(argument)
             : serializeSet(argument, level))
-    return serializedFn === undefined || serializedArgs.includes(undefined)
+    const definedArgs = serializedArgs.flatMap(argument => argument === undefined ? [] : [argument])
+    return serializedFn === undefined || definedArgs.length !== serializedArgs.length
         ? undefined
-        : [serializedFn, ...serializedArgs.flatMap(argument =>
-            argument === undefined ? [] : [' ', ...argument])]
+        : [serializedFn, ...definedArgs.flatMap(argument => [' ', ...argument])]
 }
 
 const serializeLambda = ([, pattern, body]: Lambda, level: number): Chunks | undefined => {
