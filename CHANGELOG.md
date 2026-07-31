@@ -11,6 +11,10 @@ history.
 
 ## Unreleased
 
+- `fjs/ci`: generate one self-contained `nix/generated/<job>/flake.nix` per
+  canonical Node job, pinning an exact Nixpkgs commit; `npm run ci-update`
+  writes them without running Nix
+  [#1398](https://github.com/functionalscript/functionalscript/pull/1398)
 - `fjs/media/nix`: add a minimal checked Nix eDSL and deterministic chunk serializer
   [#1397](https://github.com/functionalscript/functionalscript/pull/1397)
 - `fjs/effects/node`: **BREAKING CHANGES:** detect Deno as the new `'deno'`
