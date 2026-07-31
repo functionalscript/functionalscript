@@ -26,7 +26,7 @@ const loop = (s: DetectState) => (l: List<O, IoResult<Vec>>): Effect<O, IoResult
     })
 ```
 
-`collectRead` (`fjs/protocol/mcp/cas/module.f.ts:132-147`) — pure fold with an
+`collectRead` (`fjs/cas/mcp/module.f.ts:132-147`) — pure fold with an
 overflow guard in the per-chunk step:
 
 ```ts
@@ -102,7 +102,7 @@ consumers first; the writers follow only if the shape stays clean.
 ### Tasks
 
 - [ ] Add `foldStream` to `fjs/effects/list/module.f.ts` with proof coverage.
-- [ ] Convert `detectStream` (`fjs/media/type`) and `collectRead` (`fjs/protocol/mcp/cas`).
+- [ ] Convert `detectStream` (`fjs/media/type`) and `collectRead` (`fjs/cas/mcp`).
 - [ ] Convert `writeLoop` (`fjs/effects/node`) if the effectful step fits
       without contortion; otherwise document why in this issue and keep it.
 - [ ] Evaluate `fileCas.write`'s loop; convert or document why not.

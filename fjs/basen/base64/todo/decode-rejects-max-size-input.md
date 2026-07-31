@@ -33,7 +33,7 @@ in a way that makes this **worse**, not just "the same bug elsewhere":
       "decode the last character separately" approach not directly
       applicable, so this needs its own design pass before implementing.
 - [ ] In practice cbase32 only decodes short, fixed-length CAS hashes
-      (`fjs/protocol/mcp/cas/module.f.ts`), never `maxLength`-scale payloads, so this
+      (`fjs/cas/mcp/module.f.ts`), never `maxLength`-scale payloads, so this
       is lower priority than the base64 case was — downgrade further or
       close as irrelevant if no real call site can hit the boundary.
 
@@ -48,4 +48,4 @@ trimming. No intermediate `Vec` built while decoding is ever wider than the
 final, post-trim result, so an exactly-`maxLength`-sized payload now decodes
 instead of being rejected. See `decodeAtMaxLengthSucceeds` in
 `fjs/basen/base64/proof.f.ts` and `addBase64AtLimitSucceeds` in
-`fjs/protocol/mcp/cas/proof.f.ts` (flipped from `addBase64AtLimitIsError`).
+`fjs/cas/mcp/proof.f.ts` (flipped from `addBase64AtLimitIsError`).

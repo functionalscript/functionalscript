@@ -9,7 +9,7 @@ The JSON-RPC request preamble — decode the envelope, answer a malformed one
 with `Invalid Request` (`id: null`), and split notifications
 (`id === undefined`) from requests — is spelled out twice.
 
-Pure `dispatch` (`fjs/protocol/json_rpc/module.f.ts:98-113`):
+Pure `dispatch` (`fjs/media/json/rpc/module.f.ts:98-113`):
 
 ```ts
 const [t, message] = decodeRequest(value)
@@ -20,7 +20,7 @@ const handler: Handler | undefined = handlers[method]
 if (handler === undefined) { return errorResponseOf(id)(methodNotFound) }
 ```
 
-Effectful `mcpStep` (`fjs/protocol/mcp/module.f.ts:315-338`):
+Effectful `mcpStep` (`fjs/mcp/module.f.ts:315-338`):
 
 ```ts
 const [t, message] = decodeRequest(value)
@@ -70,7 +70,7 @@ fold into the 66D envelope work if it touches the same lines anyway.
 ## Tasks
 
 - [ ] Evaluate the `routeRequest` shape against the 66D
-      `validated`/`toolMethod` restructuring in `fjs/protocol/mcp/todo/README.md`
+      `validated`/`toolMethod` restructuring in `fjs/mcp/todo/README.md`
       (different layer: 66D is per-method arms, this is the top preamble).
 - [ ] If adopted: add `routeRequest` with proof coverage, rebuild `dispatch`
       on it, migrate `mcpStep`.
@@ -78,6 +78,6 @@ fold into the 66D envelope work if it touches the same lines anyway.
 
 ## Related
 
-- `fjs/protocol/json_rpc/todo/response-constructors.md` — the envelope
+- `fjs/media/json/rpc/todo/response-constructors.md` — the envelope
   *constructors*; this issue is the envelope *routing*. Complementary.
-- `fjs/protocol/mcp/todo/README.md` (66D) — per-method validate/response arms.
+- `fjs/mcp/todo/README.md` (66D) — per-method validate/response arms.

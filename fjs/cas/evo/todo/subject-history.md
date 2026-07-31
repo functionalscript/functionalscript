@@ -98,7 +98,7 @@ readonly history: (start: Hash) => Effect<O | MemOp, Result<readonly Hash[], str
 - **Staleness.** Same cache-staleness concern as
   [todo/cache-staleness.md](cache-staleness.md) — history is served from
   the in-memory cache like everything else in `Evo<O>`.
-- **MCP surface.** A new `evo_history` tool (`fjs/protocol/mcp/cas/evo/module.f.ts`)
+- **MCP surface.** A new `evo_history` tool (`fjs/cas/evo/mcp/module.f.ts`)
   alongside `evo_list`/`evo_head`/`evo_add`, taking `start` (hash) and
   returning the hash array. Evo-specific, so a dedicated tool name is fine
   (unlike the generic refresh tool in `cache-staleness.md`).
@@ -137,8 +137,8 @@ the rare consumer, still reachable in O(branches) calls.
       including a subject with a merge (multiple parents), a subject with
       multiple concurrent heads, an unknown or non-revision `start`, and a
       `start` given in an alias spelling (element 0 comes back canonical).
-- [ ] Expose it through MCP (`fjs/protocol/mcp/cas/evo`) and document it in
-      `fjs/cas/evo/README.md` / `fjs/protocol/mcp/cas/evo/README.md`.
+- [ ] Expose it through MCP (`fjs/cas/evo/mcp`) and document it in
+      `fjs/cas/evo/README.md` / `fjs/cas/evo/mcp/README.md`.
 
 ### Related
 

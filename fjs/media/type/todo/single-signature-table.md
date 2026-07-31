@@ -22,7 +22,7 @@ or correcting a signature means editing both lists, and WebP is
 special-cased in both (a bespoke `isWebp` here, a wildcard run there).
 
 Note the consumer situation: `detectStream` is the only export with a real
-consumer (`fjs/protocol/mcp/cas/module.f.ts:88`); `detect` and `detectVec` are
+consumer (`fjs/cas/mcp/module.f.ts:88`); `detect` and `detectVec` are
 exercised only by `fjs/media/type/proof.f.ts`.
 
 ### Proposal
@@ -65,5 +65,5 @@ overview; it is documentation, not a third implementation.
 ### Related
 
 - `fjs/media/type/module.f.ts:116` — the comment acknowledging the duplication.
-- `fjs/protocol/mcp/cas/module.f.ts:88` — the sole external consumer
+- `fjs/cas/mcp/module.f.ts:88` — the sole external consumer
   (`detectStream`).

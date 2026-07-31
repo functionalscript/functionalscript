@@ -1,7 +1,7 @@
 # Group protocol modules
 
 **Priority:** P3
-**Status:** done
+**Status:** open
 
 ### Problem
 
@@ -50,24 +50,16 @@ consumers can migrate.
 
 ### Tasks
 
-- [x] Create `fjs/protocol/`.
-- [x] Consolidate `fjs/cas/mcp/` into the general `fjs/mcp/` module tree.
-- [x] Move the combined `fjs/mcp/` implementation to `fjs/protocol/mcp/` — the
-      CAS-specific adapter landed at `fjs/protocol/mcp/cas/` (with the Evo
-      adapter, formerly `fjs/cas/evo/mcp/`, nested at
-      `fjs/protocol/mcp/cas/evo/`), keeping clear internal separation from the
-      shared MCP protocol definitions and infrastructure at
-      `fjs/protocol/mcp/module.f.ts` / `fjs/protocol/mcp/stdio/`.
-- [x] Identify any other existing modules under `fjs/` whose primary responsibility is a protocol.
-      — `fjs/media/json/rpc/`, the JSON-RPC 2.0 envelope/dispatcher MCP layers
-      on top of, is a protocol module, not a media format.
-- [x] Move any other identified protocol modules to corresponding subdirectories
-      under `fjs/protocol/` — `fjs/media/json/rpc/` → `fjs/protocol/json_rpc/`.
-- [x] Update all imports and path references, including references to both `fjs/mcp/...` and `fjs/cas/mcp/...`.
-- [x] Update documentation and TODO links that reference the old locations.
-- [x] Add a `CHANGELOG.md` entry beginning with `**BREAKING CHANGES:**` that announces every published import-path migration and lists the corresponding old and new paths.
-- [x] Regenerate repository-generated files as required.
-- [x] Run the full TypeScript and FunctionalScript test suites.
+- [ ] Create `fjs/protocol/`.
+- [ ] Consolidate `fjs/cas/mcp/` into the general `fjs/mcp/` module tree.
+- [ ] Move the combined `fjs/mcp/` implementation to `fjs/protocol/mcp/`.
+- [ ] Identify any other existing modules under `fjs/` whose primary responsibility is a protocol.
+- [ ] Move any other identified protocol modules to corresponding subdirectories under `fjs/protocol/`.
+- [ ] Update all imports and path references, including references to both `fjs/mcp/...` and `fjs/cas/mcp/...`.
+- [ ] Update documentation and TODO links that reference the old locations.
+- [ ] Add a `CHANGELOG.md` entry beginning with `**BREAKING CHANGES:**` that announces every published import-path migration and lists the corresponding old and new paths.
+- [ ] Regenerate repository-generated files as required.
+- [ ] Run the full TypeScript and FunctionalScript test suites.
 
 ### Related
 

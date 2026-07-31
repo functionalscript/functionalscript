@@ -41,7 +41,7 @@ places. That is `foldStep` over a stream, plus a short-circuit.
 **1. Rename `List<O, T>` → `EffectList<O, T>`** in
 `fjs/effects/list/module.f.ts`. It collides with `fjs/types/list`'s `List<T>`,
 and the eight importers currently alias around the clash — `elEmpty` in
-`fjs/cas`, `fjs/cas/evo`, `fjs/protocol/mcp/cas`; `emptyList` in `fjs/media/type/proof`.
+`fjs/cas`, `fjs/cas/evo`, `fjs/cas/mcp`; `emptyList` in `fjs/media/type/proof`.
 The rename has value independent of the rest of this issue.
 
 **2. Move `foldStep` / `forEachStep`** out of `fjs/effects/module.f.ts` and into

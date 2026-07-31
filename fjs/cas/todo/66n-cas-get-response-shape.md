@@ -12,7 +12,7 @@
 
 ### Problem
 
-The `cas_get` handler in `fjs/protocol/mcp/cas/module.f.ts` builds a `Meta` record from
+The `cas_get` handler in `fjs/cas/mcp/module.f.ts` builds a `Meta` record from
 a `fjs/media/type` detector verdict (`{ length, mime_type, type }`) plus `uri`
 in two places:
 
@@ -60,11 +60,11 @@ only the two genuinely different tail actions remain at the call sites.
       `cas_get` handler and route both `Meta` constructions through it.
 - [ ] Evaluate folding the two `collectRead` + `detectDialect` arms into a
       shared refine step; apply if it stays readable.
-- [ ] `npx tsc`, `fjs t`; `fjs/protocol/mcp/cas/proof.f.ts` passes with full coverage
+- [ ] `npx tsc`, `fjs t`; `fjs/cas/mcp/proof.f.ts` passes with full coverage
       and byte-identical responses.
 
 ### Related
 
-- [../../protocol/mcp/cas/todo/cas-get-mcp-resource-response.md](../../protocol/mcp/cas/todo/cas-get-mcp-resource-response.md)
+- [../mcp/todo/cas-get-mcp-resource-response.md](../mcp/todo/cas-get-mcp-resource-response.md)
   — the wire-field naming this handler now implements; this issue is the
   internal-dedup follow-up, no wire change.

@@ -9,24 +9,24 @@
  *
  * Each schema is both a runtime decoder (`validate(schema)`) and a static
  * TypeScript type (`Ts<typeof schema>`). Transport framing (stdio) and the
- * JSON-RPC dispatcher are in `fjs/protocol/json_rpc/module.f.ts`.
+ * JSON-RPC dispatcher are in `fjs/media/json/rpc/module.f.ts`.
  *
  * @module
  */
-import { boolean, string, option, array, record, or } from '../../types/rtti/module.f.ts'
-import { unknown, type Unknown } from '../../media/json/module.f.ts'
-import type { Ts } from '../../types/rtti/ts/module.f.ts'
-import { pure, type Operation, type Effect, step } from '../../effects/module.f.ts'
-import { read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
+import { boolean, string, option, array, record, or } from '../types/rtti/module.f.ts'
+import { unknown, type Unknown } from '../media/json/module.f.ts'
+import type { Ts } from '../types/rtti/ts/module.f.ts'
+import { pure, type Operation, type Effect, step } from '../effects/module.f.ts'
+import { read, write, type Key, type MemOp } from '../effects/memory/module.f.ts'
 import {
     decodeRequest,
     rpcError, invalidRequest, invalidParams, methodNotFound,
     type Response, type Id, type RpcError,
     jsonrpc,
-} from '../json_rpc/module.f.ts'
-import { validate } from '../../types/rtti/validate/module.f.ts'
-import { toJsonSchema } from '../../media/json/schema/module.f.ts'
-import type { Type } from '../../types/rtti/module.f.ts'
+} from '../media/json/rpc/module.f.ts'
+import { validate } from '../types/rtti/validate/module.f.ts'
+import { toJsonSchema } from '../media/json/schema/module.f.ts'
+import type { Type } from '../types/rtti/module.f.ts'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 

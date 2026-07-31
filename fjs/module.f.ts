@@ -9,7 +9,7 @@ import { commands as casCommands } from './cas/cli/module.f.ts'
 import { main as ciMain } from './ci/module.f.ts'
 import { import_, type NodeOp, type NodeProgram } from './effects/node/module.f.ts'
 import { dispatch, type Commands } from './cli/module.f.ts'
-import { casMcpServer } from './protocol/mcp/cas/module.f.ts'
+import { casMcpServer } from './cas/mcp/module.f.ts'
 import { pure, step } from './effects/module.f.ts'
 import { unwrap } from './types/result/module.f.ts'
 

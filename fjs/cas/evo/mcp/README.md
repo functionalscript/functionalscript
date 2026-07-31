@@ -1,16 +1,16 @@
 # Evo MCP tools
 
-MCP tool definitions for the Evo API ([`fjs/cas/evo`](../../../../cas/evo/)): subjects,
+MCP tool definitions for the Evo API ([`fjs/cas/evo`](../)): subjects,
 revision heads, and the typed read of a single revision over the
-content-addressable store ([`fjs/cas`](../../../../cas/)), backed by the in-memory cache
+content-addressable store ([`fjs/cas`](../../)), backed by the in-memory cache
 the core module maintains.
 
 These tools are not their own server. They are served by the same process as
-`cas_add`/`cas_get`/`cas_list`: [`fjs/protocol/mcp/cas`](../) builds one
+`cas_add`/`cas_get`/`cas_list`: [`fjs/cas/mcp`](../../mcp/) builds one
 `Evo<O>` from its own `Cas<O>` and cache slot (`initEvo`, scanned once at
 startup), concatenates `evoToolRegistry` onto its own tool registry, and
 serves everything — one `~/.cas/` store, one Evo cache, one server, one
-`npx functionalscript m`. See [`fjs/protocol/mcp/cas/README.md`](../README.md)
+`npx functionalscript m`. See [`fjs/cas/mcp/README.md`](../../mcp/README.md)
 for how to run it and register it with an MCP client.
 
 ## Tools
@@ -28,12 +28,12 @@ for how to run it and register it with an MCP client.
 
 `evo_revision` is the typed read of a single revision: `{ subject, parents,
 snapshot, generation, archived? }` — the JSON of `fjs/cas/evo`'s
-`RevisionData` (see [`fjs/cas/evo/README.md`](../../../../cas/evo/README.md)), with `dialect`
+`RevisionData` (see [`fjs/cas/evo/README.md`](../README.md)), with `dialect`
 dropped and every hash in its canonical cBase32 spelling, so `parents` and
 `snapshot` compare directly against `evo_head` output. `parents[0]` is the
 mainline parent; every further entry is a merged-in branch.
 
-`cas_get` ([`fjs/protocol/mcp/cas`](../)) stays the generic raw-bytes tool for
+`cas_get` ([`fjs/cas/mcp`](../../mcp/)) stays the generic raw-bytes tool for
 arbitrary blobs — snapshots and any other non-revision content. `get` means
 "raw bytes by hash" throughout these tools, which is why this one is not
 called `evo_get`: leaving agents to decode, validate and canonicalize a raw
@@ -47,11 +47,11 @@ schema does not name, so a whole `evo_revision` result can be passed straight
 back to `evo_add`.
 
 Each tool's argument schema is an rtti struct declared once and used twice:
-[`toJsonSchema`](../../../../media/json/schema/module.f.ts) derives the
+[`toJsonSchema`](../../../media/json/schema/module.f.ts) derives the
 `inputSchema` advertised in `tools/list`, and
-[`validate`](../../../../types/rtti/validate/module.f.ts) decodes the
+[`validate`](../../../types/rtti/validate/module.f.ts) decodes the
 `arguments` object in `tools/call` — the same pattern as
-[`fjs/protocol/mcp/cas`](../).
+[`fjs/cas/mcp`](../../mcp/).
 
 ## Errors
 
@@ -59,7 +59,7 @@ Each tool's argument schema is an rtti struct declared once and used twice:
   `parents`) → `isError`, reported by the shared `toolEntry` machinery before
   the domain logic runs.
 - A domain-level `evo_add` failure — an unresolvable `subject`, an invalid
-  `vnd.fjs.revision` (see [`fjs/media/revision`](../../../../media/revision/)),
+  `vnd.fjs.revision` (see [`fjs/media/revision`](../../../media/revision/)),
   a blob too large to encode, or a store write failure — → `isError` with the
   message from `Evo.add`'s `Result`.
 - A domain-level `evo_revision` failure → `isError` with the message from
@@ -71,7 +71,7 @@ Each tool's argument schema is an rtti struct declared once and used twice:
   error. `evo_list` and `evo_revision` carry JSON as MCP text content, so the
   JSON-RPC serializer escapes it again and an encoded line can outgrow the cap
   even when the value itself is small (a subject of quote characters is the
-  worst case). [`fjs/protocol/mcp/stdio`](../../stdio/module.f.ts) then retries
+  worst case). [`fjs/mcp/stdio`](../../../mcp/stdio/module.f.ts) then retries
   with a small internal-error body that keeps the request's `id` — the same
   envelope every tool has, `cas_get` included. A tool cannot turn this into a
   descriptive error of its own: whether the encoded response fits is known

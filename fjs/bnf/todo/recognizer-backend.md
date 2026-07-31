@@ -15,7 +15,7 @@ hand-written representations.
 Separately, several callers need to **recognize** input without building an
 AST — they only want "did it match, and what is the final state":
 
-- `fjs/protocol/mcp/cas` `cas_get` metadata detection (magic-byte MIME + UTF-8 validity)
+- `fjs/cas/mcp` `cas_get` metadata detection (magic-byte MIME + UTF-8 validity)
   over a streaming blob — shipped in `fjs/media/type` `detectStream` with the
   `A_magic`/`A_utf8` factors hand-rolled, ready to lower onto this backend;
 - "is this valid JSON / valid identifier" checks that should not allocate a tree;

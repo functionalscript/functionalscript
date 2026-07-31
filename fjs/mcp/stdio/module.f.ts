@@ -2,7 +2,7 @@
  * stdio transport for JSON-RPC / MCP servers.
  *
  * `stdioTransport` wraps a step function — the `mcpStep`-shaped
- * `(value) => Effect<O, Response | null>` from `fjs/protocol/mcp/module.f.ts` — in the
+ * `(value) => Effect<O, Response | null>` from `fjs/mcp/module.f.ts` — in the
  * canonical read → parse → dispatch → write loop, expressed as a recursive
  * effect so it stays in the pure effect model and is fully testable against a
  * mock stdin / stdout (see `fjs/effects/node/virtual`) with no real process.
@@ -29,16 +29,16 @@
  *
  * @module
  */
-import { pure, step, type Effect, type Operation } from '../../../effects/module.f.ts'
-import { readLine, write, type IoResult, type Read, type Write } from '../../../effects/node/module.f.ts'
-import { tryUtf8 } from '../../../text/module.f.ts'
-import { stringToList } from '../../../text/utf16/module.f.ts'
-import { stringify, type Unknown } from '../../../media/json/module.f.ts'
-import { tokenize } from '../../../media/json/tokenizer/module.f.ts'
-import { parse } from '../../../media/json/parser/module.f.ts'
-import { sort } from '../../../types/object/module.f.ts'
-import { internalError, jsonrpc, parseError, type Response } from '../../json_rpc/module.f.ts'
-import { error, ok } from '../../../types/result/module.f.ts'
+import { pure, step, type Effect, type Operation } from '../../effects/module.f.ts'
+import { readLine, write, type IoResult, type Read, type Write } from '../../effects/node/module.f.ts'
+import { tryUtf8 } from '../../text/module.f.ts'
+import { stringToList } from '../../text/utf16/module.f.ts'
+import { stringify, type Unknown } from '../../media/json/module.f.ts'
+import { tokenize } from '../../media/json/tokenizer/module.f.ts'
+import { parse } from '../../media/json/parser/module.f.ts'
+import { sort } from '../../types/object/module.f.ts'
+import { internalError, jsonrpc, parseError, type Response } from '../../media/json/rpc/module.f.ts'
+import { error, ok } from '../../types/result/module.f.ts'
 
 /**
  * A transport step: maps one parsed JSON-RPC message to a response, or `null`
