@@ -23,8 +23,8 @@
 ## Now — Layers 1 + 2 + 3
 
 **Layer 1 — Base (done)**
-- `cas_add`, `cas_get`, `cas_list` implemented in `fjs/cas/mcp/module.f.ts` ✓
-- stdio transport implemented in `fjs/mcp/stdio/module.f.ts` ✓
+- `cas_add`, `cas_get`, `cas_list` implemented in `fjs/mcp/cas/module.f.ts` ✓
+- stdio transport implemented in `fjs/protocol/mcp/stdio/module.f.ts` ✓
 - `fjs cas mcp` CLI subcommand registered in `fjs/cas/module.f.ts` ✓
 - Remaining: refactor to extract `casMcpStep` for transport-agnostic shape
 
@@ -38,7 +38,7 @@
 - Detection via magic bytes: PNG, JPEG, GIF, WebP, PDF, ZIP → `null` for unrecognized bytes ✓
 - Pure logic in `fjs/media/type/module.f.ts` ✓
 - `cas_get`: when type is detected → returns `EmbeddedResource` with `mimeType`; when `null` → falls back to existing `textContent` response for backward compatibility ✓
-- `fjs/mcp/module.f.ts` gained `blobResource` / `embeddedResource` schemas and a `contentItem` union ✓
+- `fjs/protocol/mcp/module.f.ts` gained `blobResource` / `embeddedResource` schemas and a `contentItem` union ✓
 - A separate on-demand `cas_type` tool is a possible extension; needs its own design issue before implementation
 
 ---
@@ -134,7 +134,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 
 | Layer | What exists | What's missing |
 |---|---|---|
-| 1. Base MCP (add/get/list) | `fjs/cas/mcp/`, `fjs/mcp/stdio/`, CLI ✓ | `casMcpStep` extraction |
+| 1. Base MCP (add/get/list) | `fjs/mcp/cas/`, `fjs/protocol/mcp/stdio/`, CLI ✓ | `casMcpStep` extraction |
 | 2. Content encoding (base64) | `fjs/base64/` ✓ | MCP wiring only |
 | 3. Type detection | `fjs/media/type/` magic-byte detection (PNG/JPEG/GIF/WebP/PDF/ZIP), `cas_get` wiring, `embeddedResource` schema ✓ | — |
 | 4. Signatures | `fjs/crypto/sign/` (sign only), `fjs/crypto/secp/` ✓ | ECDSA verify + MCP wiring |

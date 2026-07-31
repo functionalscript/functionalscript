@@ -41,7 +41,7 @@ and the (future) resource view of a blob use the same terminology:
   `dialect: "vnd.fjs.djs+vnd.fjs.fjs"`. The wire type stays interoperable while the precise
   format is still reported; HTTP responses can carry the same value as a `Dialect`
   header. See the dialect naming rule in
-  [../../../todo/group-fs-subdirectories-by-concern.md](../../../todo/group-fs-subdirectories-by-concern.md).
+  [../../todo/group-fs-subdirectories-by-concern.md](../../todo/group-fs-subdirectories-by-concern.md).
 
 ### Tasks
 
@@ -57,7 +57,7 @@ and the (future) resource view of a blob use the same terminology:
 ### Related
 
 - [remote-url.md](remote-url.md) — serving URLs as resources
-- [fjs/media/revision/README.md](../../../media/revision/README.md) —
+- [fjs/media/revision/README.md](../../media/revision/README.md) —
   the `dialect` format tag inside revision blobs whose derived media type
   (`application/{dialect}+json`) the server can surface (after validation) as the
   response `mimeType`

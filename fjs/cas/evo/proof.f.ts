@@ -535,7 +535,7 @@ export const proof = {
     // A raw CAS write (e.g. `cas_add`) of valid revision content is folded
     // into the cache exactly as `addRevision` would, without going through
     // `evo.add` — this is what keeps `cas_add` and `evo_add` writes to the
-    // same store consistent (see `fjs/cas/mcp`).
+    // same store consistent (see `fjs/mcp`).
     syncRevisionFoldsValidRevisionIntoCache: () => {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))

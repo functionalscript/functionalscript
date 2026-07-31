@@ -367,6 +367,12 @@ features.
   `new Map([...prev, [k, v]])`, and `Object.fromEntries(entries.map(...))`.
 - Use `let` variables only within the function body where they are declared.
 
+#### No regular expressions
+
+Do not use regular expressions. Express lexical checks and transformations with
+ordinary typed functions so their structure, supported characters, and edge
+cases remain explicit and independently testable.
+
 ### 6.2 Types
 
 #### Prefer inference

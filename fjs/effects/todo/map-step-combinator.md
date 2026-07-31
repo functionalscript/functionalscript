@@ -24,7 +24,7 @@ Two shapes, both the same thing:
 *Projection* (`x => pure(f(x))`):
 
 ```ts
-// fjs/mcp/module.f.ts:394-396
+// fjs/protocol/mcp/module.f.ts:394-396
 : step(
     handlers.toolsList(pr),
     r => pure(_okResponse(id)(r)),
@@ -32,8 +32,8 @@ Two shapes, both the same thing:
 ```
 
 Also `fjs/dev/module.f.ts`, `fjs/cas/evo/module.f.ts`,
-`fjs/cas/evo/mcp/module.f.ts`, `fjs/cas/module.f.ts`, `fjs/cas/mcp/module.f.ts`,
-`fjs/mcp/module.f.ts`, `fjs/emergent_testing/module.f.ts`.
+`fjs/mcp/evo/module.f.ts`, `fjs/cas/module.f.ts`, `fjs/mcp/cas/module.f.ts`,
+`fjs/protocol/mcp/module.f.ts`, `fjs/emergent_testing/module.f.ts`.
 
 *Constant projection* (`() => pure(v)`), overwhelmingly the "do the work, then
 yield an exit code" shape of a `NodeProgram`:
@@ -52,7 +52,7 @@ const program: Effect<WriteFile, number> = step(
 
 Also `fjs/djs/module.f.ts`, `fjs/module.f.ts`, `fjs/ci/module.f.ts`,
 `fjs/cas/evo/module.f.ts`, `fjs/cas/module.f.ts`, `fjs/cas/cli/module.f.ts`,
-`fjs/cas/mcp/module.f.ts`, `fjs/mcp/module.f.ts`, `fjs/mcp/stdio/module.f.ts`,
+`fjs/mcp/cas/module.f.ts`, `fjs/protocol/mcp/module.f.ts`, `fjs/protocol/mcp/stdio/module.f.ts`,
 `fjs/emergent_testing/module.f.ts`.
 
 Beyond the repetition, the old spelling **misreports the shape of the chain**.
@@ -108,8 +108,8 @@ conversion as one 14-module diff.
 
 - [ ] The `NodeProgram` exit-code sites (`fjs/module.f.ts`, `fjs/cli`, `fjs/ci`,
       `fjs/djs`, `fjs/website`, `fjs/cas/cli`).
-- [ ] `fjs/mcp` + `fjs/mcp/stdio`.
-- [ ] `fjs/cas` + `fjs/cas/evo` + `fjs/cas/evo/mcp` + `fjs/cas/mcp`.
+- [ ] `fjs/protocol/mcp` + `fjs/protocol/mcp/stdio`.
+- [ ] `fjs/cas` + `fjs/cas/evo` + `fjs/mcp/evo` + `fjs/mcp`.
 - [ ] `fjs/emergent_testing`, `fjs/dev`.
 - [ ] When converting fluent sites, check callback arity (see the hazard note
       above) rather than mechanically dropping the lambda.
