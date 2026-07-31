@@ -97,6 +97,10 @@ export const proof = {
     },
     indentedStringEscaping: () => {
         assertEq(nixToString(['indented-string', "a '' ${b}"]), "''\n    a ''' ''${b}\n''\n")
+        assertEq(
+            nixToString(['indented-string', '  a\n\t b\n  ']),
+            "''\n    ''\\ ''\\ a\n    ''\\t''\\ b\n    ''\\ ''\\ \n''\n"
+        )
     },
     emptyPattern: () => {
         assertEq(nixToString(['lambda', ['open-set-pattern'], ['set']]), '{ ... }: {}\n')
@@ -115,6 +119,10 @@ export const proof = {
         nonAsciiReference: () => assertEq(nixToString(['ref', 'é']), undefined),
         pattern: () => assertEq(
             nixToString(['lambda', ['open-set-pattern', 'if'], ['set']]),
+            undefined
+        ),
+        duplicatePattern: () => assertEq(
+            nixToString(['lambda', ['open-set-pattern', 'x', 'x'], ['set']]),
             undefined
         ),
         bindingValue: () => assertEq(

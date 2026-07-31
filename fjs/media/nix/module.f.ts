@@ -119,6 +119,14 @@ const escapeIndented = (value: string): string => value
     .replaceAll("''", "'''")
     .replaceAll('${', "''${")
 
+const protectLeadingWhitespace = (line: string): string => {
+    const contentStart = [...line, 'x'].findIndex(character => character !== ' ' && character !== '\t')
+    const leading = line.slice(0, contentStart)
+        .replaceAll(' ', "''\\ ")
+        .replaceAll('\t', "''\\t")
+    return `${leading}${line.slice(contentStart)}`
+}
+
 type Chunks = readonly string[]
 
 const serializeReference = ([, name, ...selection]: Reference): string | undefined =>
@@ -132,7 +140,9 @@ const serializeReferenceChunks = (reference: Reference): Chunks | undefined => {
 }
 
 const serializePattern = ([, ...names]: OpenSetPattern): string | undefined =>
-    names.every(isIdentifier) ? `{ ${[...names, '...'].join(', ')} }` : undefined
+    names.every((name, index) => isIdentifier(name) && names.indexOf(name) === index)
+        ? `{ ${[...names, '...'].join(', ')} }`
+        : undefined
 
 const joinChunks = (chunks: readonly Chunks[], separator: string): Chunks =>
     chunks.flatMap((chunk, index) => index === 0 ? chunk : [separator, ...chunk])
@@ -214,6 +224,7 @@ const serialize = (expression: Expression, level: number): Chunks | undefined =>
             const contentIndent = indent(level + 1)
             const content = escapeIndented(value)
                 .split('\n')
+                .map(protectLeadingWhitespace)
                 .map(line => `${contentIndent}${line}`)
                 .join('\n')
             return ["''\n", content, '\n', indent(level), "''"]
