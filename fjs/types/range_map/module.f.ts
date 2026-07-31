@@ -13,25 +13,26 @@
  * })
  *
  * // Create range maps
- * const range1 = rmOps.fromRange([0, 10])(2)
- * const range2 = rmOps.fromRange([5, 15])(5)
+ * const range1 = rmOps.fromRange(2)([0, 10])
+ * const range2 = rmOps.fromRange(5)([5, 15])
  *
  * // Merge range maps
  * const merged = toArray(rmOps.merge(range1)(range2))
  *
  * // Retrieve values from the merged range map
+ * const get = rmOps.get(merged)
  * //
- * if (rmOps.get(-1)(merged) !== 0) { throw 'error' }
+ * if (get(-1) !== 0) { throw 'error' }
  * //
- * if (rmOps.get(0)(merged) !== 2) { throw 'error' }
- * if (rmOps.get(2)(merged) !== 2) { throw 'error' }
+ * if (get(0) !== 2) { throw 'error' }
+ * if (get(2) !== 2) { throw 'error' }
  * // overlapped: 2 | 5 = 7
- * if (rmOps.get(7)(merged) !== 7) { throw 'error' }
+ * if (get(7) !== 7) { throw 'error' }
  * //
- * if (rmOps.get(12)(merged) !== 5) { throw 'error' }
- * if (rmOps.get(15)(merged) !== 5) { throw 'error' }
+ * if (get(12) !== 5) { throw 'error' }
+ * if (get(15) !== 5) { throw 'error' }
  * //
- * if (rmOps.get(16)(merged) !== 0) { throw 'error' }
+ * if (get(16) !== 0) { throw 'error' }
  * ```
  */
 
