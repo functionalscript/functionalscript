@@ -138,9 +138,3 @@ export const rangeMap = <T>(op: Properties<T>): RangeMapOp<T> => ({
     get: get(op.def),
     fromRange: fromRange(op.def),
 })
-
-export const rangeSet = rangeMap({
-    union: a => b => a || b,
-    equal: a => b => a === b,
-    def: false
-})

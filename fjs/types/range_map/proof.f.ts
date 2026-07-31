@@ -1,4 +1,4 @@
-import { get, merge, type RangeMapArray, type Properties, type RangeMap, fromRange, rangeMap, rangeSet } from './module.f.ts'
+import { get, merge, type RangeMapArray, type Properties, type RangeMap, fromRange, rangeMap } from './module.f.ts'
 import { stringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { union, type SortedSet } from '../sorted_set/module.f.ts'
@@ -180,15 +180,4 @@ export const proof = {
             () => assertEq(g(9), -1),
         ]
     },
-    set: () => {
-        const digit = rangeSet.fromRange(true)(digitRange)
-        const initial = toArray(rangeSet.merge
-            (rangeSet.fromRange(true)(latinCapitalLetterRange))
-            (rangeSet.fromRange(true)(latinSmallLetterRange)))
-        const isInitial = rangeSet.get(initial)
-        assert(!isInitial(0))
-        assert(isInitial('a'.charCodeAt(0)))
-        assert(!isInitial('1'.charCodeAt(0)))
-        assert(isInitial('Z'.charCodeAt(0)))
-    }
 }
