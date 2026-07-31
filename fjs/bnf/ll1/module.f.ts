@@ -116,7 +116,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
         const rule = ruleSet[name]
         if (typeof rule === 'number') {
             const range = rangeDecode(rule)
-            const dispatch = dispatchOp.fromRange(range)({tag: undefined, rules: []})
+            const dispatch = dispatchOp.fromRange({tag: undefined, rules: []})(range)
             const dr: DispatchRule = {emptyTag: undefined, rangeMap: dispatch}
             return { ...dm, [name]: dr }
         } else if (rule instanceof Array) {
@@ -191,7 +191,7 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
             return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
         }
         const [cp0] = cp
-        const dr = dispatchOp.get(cp0)(rangeMap)
+        const dr = dispatchOp.get(rangeMap)(cp0)
         if (dr === null) {
             return emptyTag === undefined
                 ? mrFail(emptyTag, [], cp)

@@ -96,14 +96,18 @@ const tailReduce: <T>(equal: Equal<T>) => TailReduce<Entry<T>, RangeState<T>>
 export const merge: <T>(op: Properties<T>) => RangeMerge<T>
     = op => genericMerge({ reduceOp: reduceOp(op), tailReduce: tailReduce(op.equal) })(null)
 
-export const get: <T>(def: T) => (value: number) => (rm: RangeMapArray<T>) => T
-    = def => value => rm => {
-        const pos = bsearch(rm.length)(mid => value <= rm[mid][1] ? -1 : 1)
-        return pos < rm.length ? rm[pos][0] : def
+export const get: <T>(def: T) => (rm: RangeMapArray<T>) => (value: number) =>  T
+    = def => rm => {
+        const length = rm.length
+        const search = bsearch(length)
+        return value => {
+            const pos = search(mid => value <= rm[mid][1] ? -1 : 1)
+            return pos < length ? rm[pos][0] : def
+        }
     }
 
-export const fromRange: <T>(def: T) => (r: Range) => (value: T) => RangeMapArray<T>
-    = def => ([a, b]) => v => [[def, a - 1], [v, b]]
+export const fromRange: <T>(def: T) => (value: T) => (r: Range) => RangeMapArray<T>
+    = def => v => ([a, b]) => [[def, a - 1], [v, b]]
 
 /**
  * Represents a set of operations for managing range maps.
@@ -116,11 +120,11 @@ export type RangeMapOp<T> = {
     /**
      * Retrieves the value associated with a given numeric range.
      */
-    readonly get: (value: number) => (rm: RangeMapArray<T>) => T
+    readonly get: (rm: RangeMapArray<T>) => (value: number) => T
     /**
      * Constructs a range map for a single numeric range and value.
      */
-    readonly fromRange: (r: Range) => (value: T) => RangeMapArray<T>
+    readonly fromRange: (value: T) => (r: Range) => RangeMapArray<T>
 }
 
 /**
@@ -133,4 +137,10 @@ export const rangeMap = <T>(op: Properties<T>): RangeMapOp<T> => ({
     merge: merge(op),
     get: get(op.def),
     fromRange: fromRange(op.def),
+})
+
+export const rangeSet = rangeMap({
+    union: a => b => a || b,
+    equal: a => b => a === b,
+    def: false
 })
