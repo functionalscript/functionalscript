@@ -222,7 +222,7 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 
 ### Related
 
-- [65Z-nix-edsl](../../media/nix/todo/65z-nix-edsl.md) — generic Nix eDSL used by the
+- [`fjs/media/nix`](../../media/nix/module.f.ts) — generic Nix eDSL used by the
   generated-flake code generator.
 - [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — first Node
   implementation.
