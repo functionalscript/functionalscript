@@ -78,8 +78,10 @@ const identifierInitial = toArray(merge
     (letters)
     (fromRange(range('_'))))
 
+const getIdentifierInitial = get(identifierInitial)
+
 const isIdentifierInitial = (character: string): boolean =>
-    get(identifierInitial)(character.charCodeAt(0))
+    getIdentifierInitial(character.charCodeAt(0))
 
 const identifierTrailing = toArray(merge
     (merge
@@ -89,8 +91,10 @@ const identifierTrailing = toArray(merge
         (fromRange(range("'")))
         (fromRange(range('-')))))
 
+const getIdentifierTrailing = get(identifierTrailing)
+
 const isIdentifierTrailing = (character: string): boolean =>
-    get(identifierTrailing)(character.charCodeAt(0))
+    getIdentifierTrailing(character.charCodeAt(0))
 
 const isIdentifier = (value: string): boolean => {
     const [initial, ...trailing] = value

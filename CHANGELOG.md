@@ -11,12 +11,12 @@ history.
 
 ## Unreleased
 
-- `fjs/types/range_set`: add a boolean-valued `range_map` wrapper (`merge`,
-  `fromRange`, `get`), and use it in `fjs/media/nix` for identifier
-  character checks. **BREAKING CHANGES:** `range_map`'s exported `get` and
-  `fromRange` now take the map/default-value first and the queried
-  number/range last, so partial application yields a reusable lookup
-  function — e.g. `get(def)(rm)(value)` and `fromRange(def)(value)(range)`
+- **BREAKING CHANGES:** `range_map`'s exported `get` and `fromRange` now take
+  the map/default-value first and the queried number/range last, so partial
+  application yields a reusable lookup function — e.g. `get(def)(rm)(value)`
+  and `fromRange(def)(value)(range)`. Add `fjs/types/range_set`, a
+  boolean-valued `range_map` wrapper (`merge`, `fromRange`, `get`), and use it
+  in `fjs/media/nix` for identifier character checks
   [#1402](https://github.com/functionalscript/functionalscript/pull/1402)
 - **BREAKING CHANGES:** decouple the FJS MCP server from CAS: generic MCP
   moves `fjs/mcp/` → `fjs/protocol/mcp/`, JSON-RPC moves
