@@ -147,7 +147,21 @@ const serializePattern = ([, ...names]: OpenSetPattern): string | undefined =>
 const joinChunks = (chunks: readonly Chunks[], separator: string): Chunks =>
     chunks.flatMap((chunk, index) => index === 0 ? chunk : [separator, ...chunk])
 
+const isPathPrefix = (prefix: AttributePath, path: AttributePath): boolean =>
+    prefix.length <= path.length
+    && prefix.every((name, index) => name === path[index])
+
+const pathsConflict = (a: AttributePath, b: AttributePath): boolean =>
+    isPathPrefix(a, b) || isPathPrefix(b, a)
+
+const bindingsCompatible = (bindings: readonly Binding[]): boolean =>
+    bindings.every(([, path], index) =>
+        bindings.slice(0, index).every(([, previous]) => !pathsConflict(path, previous)))
+
 const serializeBindings = (bindings: readonly Binding[], level: number): Chunks | undefined => {
+    if (!bindingsCompatible(bindings)) {
+        return undefined
+    }
     const serialized = bindings.map(([, path, value]) => {
         const expression = serialize(value, level)
         return expression === undefined

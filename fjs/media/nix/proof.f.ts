@@ -86,6 +86,12 @@ export const proof = {
             '[ pkgs.nodejs_22 pkgs.nodejs_24 ]\n'
         )
     },
+    compatiblePaths: () => {
+        assertEq(
+            nixToString(['set', ['=', ['x', 'y'], 'a'], ['=', ['x', 'z'], 'b']]),
+            '{\n    x.y = "a";\n    x.z = "b";\n}\n'
+        )
+    },
     chunks: () => {
         const chunks = nix(['list', ['ref', 'pkgs', 'nodejs_24']])
         assert(chunks !== undefined)
@@ -123,6 +129,22 @@ export const proof = {
         ),
         duplicatePattern: () => assertEq(
             nixToString(['lambda', ['open-set-pattern', 'x', 'x'], ['set']]),
+            undefined
+        ),
+        duplicateBinding: () => assertEq(
+            nixToString(['set', ['=', ['x'], 'a'], ['=', ['x'], 'b']]),
+            undefined
+        ),
+        parentThenChildBinding: () => assertEq(
+            nixToString(['set', ['=', ['x'], 'a'], ['=', ['x', 'y'], 'b']]),
+            undefined
+        ),
+        childThenParentBinding: () => assertEq(
+            nixToString(['set', ['=', ['x', 'y'], 'a'], ['=', ['x'], 'b']]),
+            undefined
+        ),
+        duplicateLetBinding: () => assertEq(
+            nixToString(['let', [['=', ['x'], 'a'], ['=', ['x'], 'b']], ['ref', 'x']]),
             undefined
         ),
         bindingValue: () => assertEq(
