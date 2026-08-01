@@ -14,6 +14,7 @@ import { mkdir, writeUtf8File, type Mkdir, type WriteFile } from '../../effects/
 import { nixToString, type Expression } from '../../media/nix/module.f.ts'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.ts'
 import { unwrap } from '../../types/result/module.f.ts'
+import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
 import { install, test, uses, type MetaStep } from '../common/module.f.ts'
 import { nixpkgs } from '../config/module.f.ts'
 
@@ -39,7 +40,7 @@ export type NixJob = {
      * does not recognize into one, so a Nixpkgs attribute path becomes that
      * package's store path without any string interpolation.
      */
-    readonly env?: Readonly<Record<string, EnvValue>>
+    readonly env?: StringMap<string, EnvValue>
     /** Job-local shell initialization, when the job needs one. */
     readonly shellHook?: string
 }
@@ -69,7 +70,7 @@ const flake = ({ system, packages, env, shellHook }: NixJob): Expression => ['se
                     ['ref', 'pkgs', 'mkShell'],
                     ['set',
                         ['=', ['packages'], ['list', ...packages.map(p => ['ref', 'pkgs', p] as const)]],
-                        ...Object.entries(env ?? {}).map(
+                        ...definedEntries<EnvValue>(env ?? {}).map(
                             ([name, value]) => ['=', [name], envExpression(value)] as const),
                         ...(shellHook === undefined
                             ? []
