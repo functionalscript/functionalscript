@@ -27,7 +27,7 @@ import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/modu
 import { map, tryFold, type Accumulator, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../../common/monoid/module.f.ts'
-import { cmp, max, min, type Sign } from '../function/compare/module.f.ts'
+import { cmp, max, min, type Sign } from '../function/compare/module.f.mjs'
 import { mapUnwrap, type Nullable } from '../nullable/module.f.mjs'
 
 /**
