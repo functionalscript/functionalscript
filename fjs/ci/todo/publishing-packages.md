@@ -78,26 +78,33 @@ Enabling `checkJs` includes `fjs/types/bigint/benchmark.mjs`. Before enabling it
 
 NPM must include both runtime extensions and both declaration extensions. Non-package `.mjs` files must remain excluded from the packed archive.
 
-Publishing requires two TypeScript emission passes:
+Publishing requires generated-output cleanup followed by two TypeScript emission passes:
 
 ```json
 {
   "scripts": {
+    "clean:generated": "node <repository-owned-cleanup-script>",
     "emit:declarations": "tsc --noEmit false --emitDeclarationOnly",
     "emit:typescript": "tsc --noEmit false --allowJs false --checkJs false --declaration false",
-    "prepack": "npm run emit:declarations && npm run emit:typescript"
+    "prepack": "npm run clean:generated && npm run emit:declarations && npm run emit:typescript"
   }
 }
 ```
 
-The first pass emits declarations for both authored source extensions:
+The repository-owned cleanup derives output paths from authored `.ts` and
+`.mjs` inputs and removes only their generated `.js`, `.d.ts`, and `.d.mts`
+artifacts. It must preserve authored `.mjs` and unrelated files and must not use
+a broad working-tree cleanup. This makes repeated local `prepack` and `npm pack`
+runs independent of ignored outputs left by an earlier run.
+
+The first emission pass emits declarations for both authored source extensions:
 
 ```text
 source.ts  -> source.d.ts
 source.mjs -> source.d.mts
 ```
 
-The second pass excludes JavaScript inputs and emits JavaScript only from TypeScript:
+The second emission pass excludes JavaScript inputs and emits JavaScript only from TypeScript:
 
 ```text
 source.ts -> source.js
@@ -122,7 +129,8 @@ declaration-specifier rewrite is planned.
 ### Tasks
 
 - [ ] Complete the blocking P1 authored-`.f.mjs` package work in
-      [`f-mjs-package-support.md`](./f-mjs-package-support.md).
+      [`f-mjs-package-support.md`](./f-mjs-package-support.md), including the
+      repeatable cleanup-and-emission sequence and consecutive-pack regression.
 
 ### Related
 
