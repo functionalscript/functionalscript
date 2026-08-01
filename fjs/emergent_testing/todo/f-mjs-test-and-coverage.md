@@ -27,12 +27,14 @@ Current behavior is incomplete:
   implementation from Deno coverage;
 - `AGENTS.md` defines mandatory proof coverage only for `.f.ts`, so the
   repository's authoritative development rules do not yet govern `.f.mjs`
-  modules or describe mixed `module.f.mjs` / `proof.f.ts` pairs.
+  modules or describe mixed `module.f.mjs` / `proof.f.ts` pairs;
+- `CONTRIBUTING.md` repeats the `.f.ts`-only proof summary, so updating
+  `AGENTS.md` alone would leave contributor-facing guidance inconsistent.
 
 Without this task, renaming a covered module from `.f.ts` to `.f.mjs` could
 silently reduce proof execution and coverage even though the implementation is
-otherwise unchanged, and later contributors would not have an explicit
-`.f.mjs` proof policy to follow.
+otherwise unchanged, and later contributors would not have an explicit and
+consistent `.f.mjs` proof policy to follow.
 
 ### Proposal
 
@@ -57,6 +59,13 @@ The dependency-closed `.f.mjs` migration rule applies to files that are actually
 authored as `.f.mjs`; it does not prohibit a `.f.ts` proof from importing a
 `.f.mjs` implementation. This lets implementation coverage grow without forcing
 test infrastructure and its dependency graph to migrate first.
+
+Update `AGENTS.md` and the matching summary in `CONTRIBUTING.md` together. Both
+must state that new `.f.ts` and `.f.mjs` modules require mandatory proof
+coverage, and that `module.f.mjs` may use a co-located `proof.f.ts` during
+incremental migration or `proof.f.mjs` once the proof itself is compiler-ready.
+Until coverage commands enforce a failure threshold, this explicit contributor
+policy remains necessary and must not drift between the two documents.
 
 Keep the extension rules explicit: ordinary `.mjs` files remain opt-in through
 the existing `proof.mjs` convention unless
@@ -85,6 +94,9 @@ does not replace or expand the ordinary `module.mjs` proposal.
 - [ ] Update `AGENTS.md` so `.f.mjs` modules and functions have the same
       mandatory 100% proof-coverage policy and proof-writing rules as `.f.ts`,
       including the mixed `module.f.mjs` / `proof.f.ts` convention.
+- [ ] Update the proof summary in `CONTRIBUTING.md` in the same change so it
+      covers new `.f.ts` and `.f.mjs` modules and documents the allowed
+      `proof.f.ts` / `proof.f.mjs` layouts for `module.f.mjs`.
 
 ### Acceptance criteria
 
@@ -103,6 +115,8 @@ does not replace or expand the ordinary `module.mjs` proposal.
 - `AGENTS.md` explicitly applies mandatory proof coverage to both `.f.ts` and
   `.f.mjs` FunctionalScript source and documents that a migrated
   `module.f.mjs` may keep a `proof.f.ts`.
+- `CONTRIBUTING.md` gives the same proof requirement and mixed-layout guidance
+  without contradicting or narrowing `AGENTS.md`.
 - A `proof.f.mjs` is required to satisfy the same dependency-closed migration
   rule as any other authored `.f.mjs` file.
 - Existing `.f.ts`, generated `.f.js`, `proof.f.ts`, and standalone `proof.mjs`
@@ -111,12 +125,12 @@ does not replace or expand the ordinary `module.mjs` proposal.
 ### Ordering
 
 Complete this task before converting the first repository module from `.f.ts`
-to `.f.mjs`. The discovery, Node coverage, Deno coverage, generated CI, and
-`AGENTS.md` policy changes land together so the first migrated module is covered
-consistently across supported runners and governed by the same proof
-requirements. The proof itself may remain `.f.ts` and migrate separately. This
-is infrastructure for the migration strategy, not part of each individual
-module conversion.
+to `.f.mjs`. The discovery, Node coverage, Deno coverage, generated CI,
+`AGENTS.md`, and `CONTRIBUTING.md` policy changes land together so the first
+migrated module is covered consistently across supported runners and governed by
+one contributor-facing proof requirement. The proof itself may remain `.f.ts`
+and migrate separately. This is infrastructure for the migration strategy, not
+part of each individual module conversion.
 
 ### Related
 
