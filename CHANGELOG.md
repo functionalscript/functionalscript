@@ -11,6 +11,10 @@ history.
 
 ## Unreleased
 
+- `fjs/ci`: generate one self-contained `nix/generated/<job>/flake.nix` per
+  canonical Node job, pinning an exact Nixpkgs commit; `npm run ci-update`
+  writes them without running Nix
+  [#1398](https://github.com/functionalscript/functionalscript/pull/1398)
 - **BREAKING CHANGES:** `range_map`'s exported `get` and `fromRange` take the
   map/default-value first and the queried number/range last. Add
   `fjs/types/range_set`, a boolean-valued `range_map` wrapper

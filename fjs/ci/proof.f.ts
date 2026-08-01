@@ -1,5 +1,6 @@
 import { ci, main } from './module.f.ts'
-import { functionalscript } from './config/module.f.ts'
+import { functionalscript, node } from './config/module.f.ts'
+import { nodeNixJobs } from './node/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
@@ -28,15 +29,27 @@ const makeState = (rust: boolean, packageJson?: string) => ({
     },
 })
 
-const workflow = (state: State): GitHubAction => {
-    const dotGithub = state.root['.github']
-    assert(typeof dotGithub === 'object' && !Array.isArray(dotGithub), dotGithub)
-    const workflows = (dotGithub as Dir)['workflows']
-    assert(typeof workflows === 'object' && !Array.isArray(workflows), workflows)
-    const file = (workflows as Dir)['ci.yml']
-    assert(!(!Array.isArray(file) || file.length === 0), file)
-    return unwrap(parseGitHubAction(jsonParse(utf8ToString(file[0]))))
+const subDir = (dir: Dir, name: string): Dir => {
+    const entity = dir[name]
+    assert(typeof entity === 'object' && !Array.isArray(entity), entity)
+    return entity as Dir
 }
+
+const text = (dir: Dir, name: string): string => {
+    const file = dir[name]
+    assert(!(!Array.isArray(file) || file.length === 0), file)
+    return utf8ToString(file[0])
+}
+
+const path = (dir: Dir, names: readonly string[]): Dir => names.reduce(subDir, dir)
+
+const workflow = (state: State): GitHubAction => {
+    const workflows = path(state.root, ['.github', 'workflows'])
+    return unwrap(parseGitHubAction(jsonParse(text(workflows, 'ci.yml'))))
+}
+
+const flake = (state: State, id: string): string =>
+    text(path(state.root, ['nix', 'generated', id]), 'flake.nix')
 
 const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): GitHubAction => {
     const [state, result] = virtual(makeState(rust))(ci({ nodeExtra }))
@@ -53,7 +66,7 @@ const runDefault = (packageJson?: string): GitHubAction => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 14, 'expected 14 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
@@ -146,6 +159,44 @@ export const proof = {
             const gha = runDefault()
             assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version install')
         },
+    },
+    nixFlakes: () => {
+        const [state, result] = virtual(makeState(false))(main())
+        assertEq(result, 0)
+        for (const { id, packages } of nodeNixJobs) {
+            const [nodePackage] = packages
+            assert(
+                flake(state, id).includes(`pkgs.${nodePackage}`),
+                `expected ${nodePackage} in the ${id} flake`)
+        }
+    },
+    nixFlakeJob: () => {
+        const gha = run(false)
+        const job = gha.jobs['nix-flakes']
+        assert(job !== undefined, 'expected the temporary flake job')
+        assert(
+            job.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true),
+            'expected a pinned Nix installer')
+        // Exactly one check per generated flake: no flake goes unchecked, and no
+        // check outlives the flake it was written for.
+        assertEq(job.steps.filter(step => step.run !== undefined).length, nodeNixJobs.length)
+        for (const { id } of nodeNixJobs) {
+            assert(
+                hasRunInJob('nix-flakes', `nix develop ./nix/generated/${id} --command node --version`)(gha),
+                `expected the ${id} flake to be instantiated`)
+        }
+        // Since the flakes no longer assert their own version, this job is the
+        // only place the Nix runtime is tied to the version `setup-node` installs.
+        for (const version of [node.node22, node.node24, node.default]) {
+            assert(
+                hasRunInJob('nix-flakes', `= v${version}`)(gha),
+                `expected the flake job to check Node ${version}`)
+        }
+        // The canonical Node jobs keep their current runtime setup until they
+        // are migrated one at a time.
+        for (const { id } of nodeNixJobs) {
+            assert(!hasRunInJob(id, 'nix develop')(gha), `unexpected nix develop in ${id}`)
+        }
     },
     ubuntu: () => {
         const job = ubuntu([test({ run: 'echo hi' })])

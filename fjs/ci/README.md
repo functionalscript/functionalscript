@@ -2,7 +2,8 @@
 
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflow for this repository. Running the generator writes `.github/workflows/ci.yml`
-with the latest matrix of jobs and steps.
+with the latest matrix of jobs and steps, plus one Nix development environment per
+canonical Node job under `nix/generated/`.
 
 ## Files
 
@@ -15,9 +16,11 @@ with the latest matrix of jobs and steps.
 - `common/module.f.ts` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
-- `config/module.f.ts` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests.
+- `config/module.f.ts` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin.
+- `nix/module.f.ts` — writes one self-contained `nix/generated/<job>/flake.nix`
+  per declared job, using the Nix eDSL in `fjs/media/nix`.
 - `node/module.f.ts` — Node.js job steps: platform smoke tests, canonical
-  per-version jobs, coverage, and package checks.
+  per-version jobs, coverage, package checks, and the Node flake declarations.
 - `rust/module.f.ts` — Rust toolchain setup and `cargo` build/test steps.
 - `deno/module.f.ts` — Deno runtime steps.
 - `bun/module.f.ts` — Bun runtime steps.
@@ -26,14 +29,46 @@ with the latest matrix of jobs and steps.
 ## Usage
 
 1. Ensure dependencies are installed with `npm ci`.
-2. Regenerate the workflow definition:
+2. Regenerate the workflow definition and the Nix environments:
    ```
    fjs ci
    ```
-3. Commit the updated `.github/workflows/ci.yml` if it has changed.
+3. Commit the updated `.github/workflows/ci.yml` and `nix/generated/**/flake.nix`
+   files if they have changed.
 
 The generator is idempotent — rerunning it without modifying the source produces the
-same workflow file.
+same files. It never runs Nix itself, so it stays Windows-compatible: the flakes are
+plain text built from the pinned commit in `config/module.f.ts`.
+
+### Generated Nix environments
+
+Each canonical Node job declares a system and its Nixpkgs package attribute in
+`node/module.f.ts` (`nodeNixJobs`), and `nix/module.f.ts` writes it out as one
+static `flake.nix` exposing `devShells.<system>.default`. Node 22 also declares a
+job-local `shellHook` that points `npm install -g` at `$HOME/.npm-global`, so the
+installed `fjs` stays on `PATH` for the rest of the same `nix develop` invocation.
+See [nix/README.md](../../nix/README.md) for how the generated files are meant to be
+consumed.
+
+Every runtime uses the same Node versions. `config/module.f.ts` records the versions
+the pinned Nixpkgs snapshot provides — not the latest nodejs.org release, which the
+snapshot usually trails — and those feed both `setup-node` on the GitHub-hosted
+runners and the flakes' package attributes. Bumping a Node version therefore means
+moving the Nixpkgs commit first and copying the versions it offers.
+
+The temporary `nix-flakes` job installs Nix through a pinned action and checks each
+generated flake with
+`test "$(nix develop <flake> --command node --version)" = v<version>`, so both a
+flake that stops evaluating and a shell that provides a different Node fail CI. That
+check is the *only* place the expectation is written: the generated flakes stay
+purely declarative, since a flake pinning an exact Nixpkgs commit already determines
+its package versions and an `assert` inside it would only restate that pin.
+
+The job is deliberately separate from `node22`/`node24`/`node26`, which keep their
+`setup-node` runtime until they are migrated one at a time. Delete it once they all
+run through `nix develop` — and give each migrated job its own version check inside
+the `nix develop` invocation, or nothing ties the Nix runtime to the version the
+Windows and macOS jobs install.
 
 ### Expected package scripts
 

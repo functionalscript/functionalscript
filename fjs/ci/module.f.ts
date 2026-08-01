@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { pure, step, type Effect } from '../effects/module.f.ts'
+import { mapStep, step, type Effect } from '../effects/module.f.ts'
 import { access, writeUtf8File, type NodeOp } from '../effects/node/module.f.ts'
 import { functionalscript, images } from './config/module.f.ts'
 import {
@@ -19,7 +19,8 @@ import {
     ubuntuArm
 } from './common/module.f.ts'
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.ts'
-import { nodeMainSteps, nodeVersionJobs } from './node/module.f.ts'
+import { nodeMainSteps, nodeNixFlakeJob, nodeNixJobs, nodeVersionJobs } from './node/module.f.ts'
+import { nixFlakes } from './nix/module.f.ts'
 import { playwrightJob } from './playwright/module.f.ts'
 import { bunSteps } from './bun/module.f.ts'
 import { denoSteps } from './deno/module.f.ts'
@@ -47,6 +48,9 @@ const canonicalJobs = (rust: boolean): Jobs => ({
     deno: ubuntuArm(denoSteps(functionalscript)),
     bun: ubuntuArm(bunSteps(functionalscript)),
     ...nodeVersionJobs(functionalscript),
+    // Temporary: proves the generated flakes still evaluate. Removed once the
+    // canonical Node jobs themselves run through `nix develop`.
+    'nix-flakes': nodeNixFlakeJob,
     playwright: playwrightJob,
 })
 
@@ -69,9 +73,11 @@ export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> => step(
             },
             jobs,
         }
-        return step(
-            writeUtf8File('.github/workflows/ci.yml', JSON.stringify(gha, null, '  ')),
-            () => pure(0))
+        const workflowWritten = writeUtf8File(
+            '.github/workflows/ci.yml',
+            JSON.stringify(gha, null, '  '))
+        const flakesWritten = step(workflowWritten, () => nixFlakes(nodeNixJobs))
+        return mapStep(flakesWritten, () => 0)
     })
 
 export const main = () => ci({ nodeExtra: () => [] })
