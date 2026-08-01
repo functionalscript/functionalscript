@@ -526,6 +526,9 @@
         },
         {
           "run": "test \"$(nix develop ./nix/generated/node26 --command node --version)\" = v26.5.1"
+        },
+        {
+          "run": "test \"$(nix develop ./nix/generated/playwright --command node --version)\" = v26.5.1"
         }
       ]
     },

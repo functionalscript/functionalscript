@@ -14,7 +14,7 @@ import { mkdir, writeUtf8File, type Mkdir, type WriteFile } from '../../effects/
 import { nixToString, type Expression } from '../../media/nix/module.f.ts'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.ts'
 import { unwrap } from '../../types/result/module.f.ts'
-import { install, uses, type MetaStep } from '../common/module.f.ts'
+import { install, test, uses, type MetaStep } from '../common/module.f.ts'
 import { nixpkgs } from '../config/module.f.ts'
 
 /** A CI job's development environment, one generated flake each. */
@@ -94,3 +94,13 @@ export const nixInstall: MetaStep = install(uses('cachix/install-nix-action'))
 /** Runs one command inside a job's generated development shell. */
 export const nixDevelop = (id: string, command: string): string =>
     `nix develop ${flakePath(id)} --command ${command}`
+
+/**
+ * Checks a job's generated flake end to end: the shell builds, and the Node it
+ * puts on `PATH` is exactly the pinned version. The pinned Nixpkgs commit
+ * already determines the version, so this is the only place the expectation
+ * is stated — the generated flakes stay declarative instead of carrying an
+ * `assert` that restates the commit they pin.
+ */
+export const nixVersionCheckStep = (id: string, version: string): MetaStep =>
+    test({ run: `test "$(${nixDevelop(id, 'node --version')})" = v${version}` })

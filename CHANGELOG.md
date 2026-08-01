@@ -11,6 +11,11 @@ history.
 
 ## Unreleased
 
+- `fjs/ci`: generate `nix/generated/playwright/flake.nix`, pinning the
+  Playwright job's Node version through the same generated-flake mechanism as
+  the canonical Node jobs; the job's browser install steps are unchanged — see
+  the `65Z-ci-nix-playwright` TODO for why the browsers themselves stay out of
+  Nix for now
 - `fjs/ci`: generate one self-contained `nix/generated/<job>/flake.nix` per
   canonical Node job, pinning an exact Nixpkgs commit; `npm run ci-update`
   writes them without running Nix

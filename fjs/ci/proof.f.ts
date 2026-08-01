@@ -1,6 +1,7 @@
 import { ci, main } from './module.f.ts'
 import { functionalscript, node } from './config/module.f.ts'
 import { nodeNixJobs } from './node/module.f.ts'
+import { playwrightNixJob } from './playwright/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
@@ -163,7 +164,7 @@ export const proof = {
     nixFlakes: () => {
         const [state, result] = virtual(makeState(false))(main())
         assertEq(result, 0)
-        for (const { id, packages } of nodeNixJobs) {
+        for (const { id, packages } of [...nodeNixJobs, playwrightNixJob]) {
             const [nodePackage] = packages
             assert(
                 flake(state, id).includes(`pkgs.${nodePackage}`),
@@ -177,10 +178,11 @@ export const proof = {
         assert(
             job.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true),
             'expected a pinned Nix installer')
+        const allNixJobs = [...nodeNixJobs, playwrightNixJob]
         // Exactly one check per generated flake: no flake goes unchecked, and no
         // check outlives the flake it was written for.
-        assertEq(job.steps.filter(step => step.run !== undefined).length, nodeNixJobs.length)
-        for (const { id } of nodeNixJobs) {
+        assertEq(job.steps.filter(step => step.run !== undefined).length, allNixJobs.length)
+        for (const { id } of allNixJobs) {
             assert(
                 hasRunInJob('nix-flakes', `nix develop ./nix/generated/${id} --command node --version`)(gha),
                 `expected the ${id} flake to be instantiated`)
@@ -194,7 +196,7 @@ export const proof = {
         }
         // The canonical Node jobs keep their current runtime setup until they
         // are migrated one at a time.
-        for (const { id } of nodeNixJobs) {
+        for (const { id } of allNixJobs) {
             assert(!hasRunInJob(id, 'nix develop')(gha), `unexpected nix develop in ${id}`)
         }
     },
