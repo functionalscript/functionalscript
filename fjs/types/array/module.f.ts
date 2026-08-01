@@ -4,7 +4,7 @@
  * @module
  */
 
-import { fromUndefined, map } from '../nullable/module.f.ts'
+import { fromUndefined, map } from '../nullable/module.f.mjs'
 
 export const isArray = (value: unknown): value is readonly unknown[] =>
     value instanceof Array

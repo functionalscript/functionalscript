@@ -52,7 +52,7 @@ import { identity } from '../../types/function/module.f.mjs'
 import { ok, error, type Ok, type Result } from '../../types/result/module.f.ts'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
 import { at, definedEntries, type StringMap } from '../../types/object/module.f.ts'
-import { unwrap } from '../../types/nullable/module.f.ts'
+import { unwrap } from '../../types/nullable/module.f.mjs'
 import type { Vec } from '../../types/bit_vec/module.f.ts'
 import { isNotFound, type IoResult } from '../../effects/node/module.f.ts'
 
