@@ -22,6 +22,25 @@ prove much. The entry point is the module's `export default`: the harness
 evaluates it, runs it if it is a function, and prints the result to stdout
 as JSON.
 
+### Repository source selection
+
+The first integration does not imply that every existing `.f.ts` module is
+accepted by the new parser. `.f.ts` is the broader authored
+FunctionalScript-intent source set and may contain TypeScript syntax or
+FunctionalScript features that are not implemented yet.
+
+Use `.f.mjs` for authored modules whose complete syntax is accepted by the
+current parser and compiler. Types in these modules are expressed with JSDoc,
+not TypeScript syntax. The initial walking skeleton may start with a minimal
+`.f.mjs` fixture; as soon as an existing repository module fits the supported
+subset, rename that module from `.f.ts` to `.f.mjs`, update its imports, and use
+it as an end-to-end compiler input.
+
+Repository migration then continues independently, one file or coherent group
+at a time, as parser features land. It is neither part of one large PR nor a
+gate on this integration task. See [`fjs/fsc/README.md`](../fjs/fsc/README.md)
+for the extension contract and migration strategy.
+
 ### CLI: an output target, not a command group (decided)
 
 `fjs compile <input> <output>` already dispatches on the output extension
@@ -52,9 +71,11 @@ via the `Function` constructor — no rustc at the user's run time.
 - [ ] Define the convention for generated module imports (`use` paths,
       file/directory layout — see the open question in
       [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md#open-questions)).
-- [ ] Prove the pipeline with a minimal subset: a constant default export,
-      compiled by `fjs` to `.rs`, built and run by cargo, result printed to
-      stdout as JSON.
+- [ ] Prove the pipeline with a minimal `.f.mjs` subset: a constant default
+      export compiled by `fjs` to `.rs`, built and run by cargo, with the
+      result printed to stdout as JSON.
+- [ ] Convert the first eligible repository module from `.f.ts` to `.f.mjs`
+      and keep it in the end-to-end compiler test set.
 
 ### Related
 
