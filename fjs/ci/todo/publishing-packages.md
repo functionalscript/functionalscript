@@ -39,6 +39,15 @@ The extension invariant is:
 - `.js` is generated JavaScript and is never authored;
 - `.d.ts` and `.d.mts` are generated declarations.
 
+For FunctionalScript modules, [`fjs/fsc/README.md`](../../fsc/README.md) adds a
+stronger capability convention: `.f.mjs` is authored JavaScript that the
+current FunctionalScript parser and compiler must accept, while `.f.ts` may
+still use unsupported parser features or TypeScript syntax. The blocking P1
+implementation work required before the first real `.f.mjs` migration is
+tracked in [`f-mjs-package-support.md`](./f-mjs-package-support.md). This P3
+document remains the broader package-publishing roadmap and records the shared
+package-emission convention.
+
 The main `tsconfig.json` should validate authored TypeScript and JavaScript while excluding generated declarations:
 
 ```jsonc
@@ -69,26 +78,33 @@ Enabling `checkJs` includes `fjs/types/bigint/benchmark.mjs`. Before enabling it
 
 NPM must include both runtime extensions and both declaration extensions. Non-package `.mjs` files must remain excluded from the packed archive.
 
-Publishing requires two TypeScript emission passes:
+Publishing requires a repository-owned `clean:generated` script followed by two TypeScript emission passes:
 
 ```json
 {
   "scripts": {
     "emit:declarations": "tsc --noEmit false --emitDeclarationOnly",
     "emit:typescript": "tsc --noEmit false --allowJs false --checkJs false --declaration false",
-    "prepack": "npm run emit:declarations && npm run emit:typescript"
+    "prepack": "npm run clean:generated && npm run emit:declarations && npm run emit:typescript"
   }
 }
 ```
 
-The first pass emits declarations for both authored source extensions:
+The repository-owned cleanup derives output paths from authored `.ts` and
+`.mjs` inputs and removes only their generated `.js`, `.d.ts`, and `.d.mts`
+artifacts. It must preserve authored `.mjs` and unrelated files and must not use
+a broad working-tree cleanup. This makes repeated local `prepack` and `npm pack`
+runs independent of ignored outputs left by an earlier run. The exact script
+location and implementation are left to the focused P1 task.
+
+The first emission pass emits declarations for both authored source extensions:
 
 ```text
 source.ts  -> source.d.ts
 source.mjs -> source.d.mts
 ```
 
-The second pass excludes JavaScript inputs and emits JavaScript only from TypeScript:
+The second emission pass excludes JavaScript inputs and emits JavaScript only from TypeScript:
 
 ```text
 source.ts -> source.js
@@ -96,17 +112,31 @@ source.ts -> source.js
 
 Changing a module from `.ts` to `.mjs` also changes its import extension. Importers must be updated from the TypeScript or generated `.js` path to the authored `.mjs` path.
 
-Tasks:
+Authored `.mjs` is copied to the package without rewriting runtime import
+specifiers, and this plan does not rewrite module specifiers retained in emitted
+`.d.mts` declarations. Therefore migration must be dependency-closed in both
+graphs: an authored `.mjs` module must not reference an unmigrated relative
+`.ts` source or generated `.js` sibling through executable imports, JSDoc type
+imports, or any other declaration-retained reference. Its relative runtime and
+type dependencies must already be authored `.mjs` or be converted in the same
+coherent group.
 
-- [ ] Make `fjs/types/bigint/benchmark.mjs` pass TypeScript validation or delete it.
-- [ ] Enable `allowJs` and `checkJs` and add the authored-source `include` and generated-declaration `exclude` patterns to `tsconfig.json`.
-- [ ] Update the NPM package rules to include `.mjs` and `.d.mts` while excluding non-package `.mjs` files.
-- [ ] Replace the current one-pass `prepack` script with the two emission passes.
-- [ ] Add a package test containing one `.ts` module and one JSDoc `.mjs` module.
-- [ ] Test imports in both directions between `.ts` and `.mjs` modules.
-- [ ] Verify the packed archive contains authored `.mjs`, generated `.js`, `.d.ts`, and `.d.mts` files.
+An authored `.ts` module may import `.mjs`; its generated `.js` and `.d.ts`
+outputs preserve that `.mjs` specifier, which works both in a checkout and in
+the packed artifact. No staging tree, package-time runtime-import rewrite, or
+declaration-specifier rewrite is planned.
+
+### Tasks
+
+- [ ] Complete the blocking P1 authored-`.f.mjs` package work in
+      [`f-mjs-package-support.md`](./f-mjs-package-support.md), including the
+      repeatable cleanup-and-emission sequence and consecutive-pack regression.
 
 ### Related
 
+- [`f-mjs-package-support.md`](./f-mjs-package-support.md) — focused P1 package
+  prerequisite for the first real `.f.mjs` migration.
+- [`fjs/fsc/README.md`](../../fsc/README.md) — FunctionalScript source
+  extensions and incremental repository migration.
 - [GitHub issue #398](https://github.com/functionalscript/functionalscript/issues/398)
   — the original report.
