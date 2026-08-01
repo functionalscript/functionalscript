@@ -131,25 +131,53 @@ importers yet (only its own `proof.f.ts`), so this is the cheapest moment to
 fix the contract:
 
 ```ts
-export const nix = (expression: Expression): Result<List<string>, string> =>
-    match(error<string>)(() => ok(serialize(0)(expression)))(check(expression))
+export const nix = (expression: Expression): Result<List<string>, string> => {
+    const reason = check(expression)
+    return reason === null ? ok(serialize(0)(expression)) : error(reason)
+}
 
+/** Serializes an expression with exactly one trailing newline on success. */
 export const nixToString = (expression: Expression): Result<string, string> =>
-    mapOk(concat)(nix(expression))
+    mapOk((chunks: List<string>) => `${concat(chunks)}\n`)(nix(expression))
 ```
 
-using `fjs/types/result`. If preserving today's shape matters more than the
-diagnostic, `Nullable<List<string>>` is an acceptable fallback — but then
-export `check` too, so the reason is reachable at all.
+using `fjs/types/result`. Two details the shape has to respect:
+
+- **The trailing newline is part of the contract**, not incidental
+  formatting: `nixToString` guarantees "exactly one trailing newline on
+  success" (`:261`) and ten proof cases assert it (`proof.f.ts:72-105`). A bare
+  `mapOk(concat)` would silently turn `'{}\n'` into `'{}'`. The `ok` branch
+  must append it, exactly as today.
+- **Do not route the branch through `nullable`'s `match`.** Its signature is
+  `<T, R>(f: (_: T) => R) => (none: () => R) => (_: Nullable<T>) => Nullable<R>`
+  — both branches must produce the *same* `R`, so `error(reason)` and
+  `ok(chunks)` cannot be the two arms without widening `R` to the union by
+  hand, and the result is `Nullable<R>` rather than `R`. The explicit
+  `reason === null` branch above is the honest spelling; changing `match` to
+  serve this is out of scope.
+
+If preserving today's shape matters more than the diagnostic,
+`Nullable<List<string>>` is an acceptable fallback — but then export `check`
+too, so the reason is reachable at all.
 
 **4. Reuse the sibling chunk vocabulary.** Drop `Chunks` and `joinChunks`;
 build `List<string>` with `fjs/types/list`'s `flat`/`flatMap`/`map` as
-`fjs/media/html` does. If `join`/`wrap` from
-`fjs/media/json/serializer/module.f.ts` fit as-is, import them instead of
-re-deriving; they are already exported and this would be their second
-consumer. Where they do not fit (Nix's separator is `'\n'` plus an indent, not
-`','`), leave json's alone and keep the Nix-specific joining local — do not
-widen the json atoms to cover both.
+`fjs/media/html` does.
+
+Do **not** plan on importing `join`/`wrap` from
+`fjs/media/json/serializer/module.f.ts`. They are private constants (`:39-53`)
+— only `objectWrap`/`arrayWrap` are exported — and, more decisively, `join`
+hardcodes its separator to `comma` (`:38`, `:40-42`), while Nix separates
+bindings with `'\n'` plus an indent. Sharing them would mean parameterizing
+json's `join` by separator and exporting both, i.e. changing a module this
+issue otherwise does not touch, to serve one caller.
+
+So: keep the joining local to `fjs/media/nix`, written with `fjs/types/list`
+rather than arrays. What is being reused is the *chunk-list vocabulary*
+(`List<string>`, `flat`, `flatMap`), which is the part both siblings actually
+share; the separator logic is genuinely per-format. If a third format later
+wants a separator-parameterized `join`, that is its own issue and json is
+where it lands.
 
 **5. Curry on `level` first**, so `indent(level)` and any other
 `level`-dependent partial are bound once per level.
@@ -183,9 +211,12 @@ content, so the bucket is right; only the declaration is missing.
       all-or-nothing traverse copies together with the `| undefined` returns.
 - [ ] Switch the public entry points to `Result<…, string>` (or `Nullable` plus
       an exported `check`) and update `fjs/media/nix/proof.f.ts`.
-- [ ] Replace `Chunks` / `joinChunks` with `fjs/types/list` chunk building;
-      import `join`/`wrap` from `fjs/media/json/serializer` only where they fit
-      unchanged.
+- [ ] Keep `nixToString`'s single trailing newline: the ten
+      `proof.f.ts:72-105` assertions must pass with only their `Result`
+      wrapping changed, not their expected text.
+- [ ] Replace `Chunks` / `joinChunks` with `fjs/types/list` chunk building,
+      keeping the separator logic local — do not export or reshape
+      `fjs/media/json/serializer`'s private `join`/`wrap` for this.
 - [ ] Add proof cases for each rejection reason — today's proof can only
       observe "rejected", so the reasons need coverage as they become
       observable.
