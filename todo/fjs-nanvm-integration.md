@@ -42,15 +42,17 @@ Before converting the first existing repository module, complete both:
 - the authored-`.mjs` work in
   [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md), including
   TypeScript checking, package inclusion for `.mjs` and `.d.mts`, declaration
-  emission, and package import tests.
+  emission, runtime import tests, and packed-package type-resolution tests.
 
-After those prerequisites, select a dependency-closed module or coherent group:
-every relative FunctionalScript runtime dependency imported by the group must
-already be `.f.mjs` or be converted in the same change. Authored `.f.mjs` must
-not import unmigrated `.f.ts` or generated `.f.js`; package emission does not
-rewrite authored `.mjs` imports. Rename the group, update its importers, and use
-it as an end-to-end compiler input. If the required dependency closure is not
-yet supported, postpone that group and choose a smaller eligible leaf.
+After those prerequisites, select a dependency-closed module or coherent group.
+Every relative FunctionalScript dependency used by executable code or retained
+in emitted `.d.mts` declarations must already be `.f.mjs` or be converted in the
+same change. Authored `.f.mjs` runtime imports and JSDoc type references must not
+point to unmigrated `.f.ts` or generated `.f.js`; package emission does not
+rewrite authored `.mjs` imports or declaration specifiers. Rename the group,
+update its runtime and type references plus all importers, and use it as an
+end-to-end compiler input. If either required dependency closure is not yet
+supported, postpone that group and choose a smaller eligible leaf.
 
 Repository migration then continues independently, one dependency-closed group
 at a time, as parser features land. It is neither part of one large PR nor a
@@ -94,11 +96,13 @@ via the `Function` constructor — no rustc at the user's run time.
 - [ ] Complete
       [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md).
 - [ ] Complete the authored-`.mjs` TypeScript-checking, package-inclusion,
-      declaration-emission, mixed-source validation, and package-test tasks in
+      declaration-emission, mixed-source validation, runtime package-test, and
+      packed-package type-resolution tasks in
       [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md).
-- [ ] Convert the first eligible dependency-closed repository module or group
-      from `.f.ts` to `.f.mjs` and keep it in the end-to-end compiler, proof,
-      coverage, type-checking, and package test sets.
+- [ ] Convert the first eligible repository module or group that is closed over
+      both runtime and declaration-retained type dependencies from `.f.ts` to
+      `.f.mjs`, and keep it in the end-to-end compiler, proof, coverage,
+      type-checking, package-runtime, and package-type-resolution test sets.
 
 ### Related
 
@@ -110,7 +114,7 @@ via the `Function` constructor — no rustc at the user's run time.
   — proof-discovery and coverage prerequisite for the first repository
   conversion.
 - [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md) — authored
-  `.mjs` validation, declaration emission, package inclusion, mixed-source
-  import rules, and package tests.
+  `.mjs` validation, declaration emission, package inclusion, runtime/type
+  dependency rules, and package tests.
 - [ast-spec](./ast-spec.md) — the schema of the code-describing `Any`; the
   `Function` constructor contract.
