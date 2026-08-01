@@ -383,7 +383,7 @@ type AsyncMap<K, V> = {
 
 const fs = (state: AsyncMap<string, string>) => ({
    readFile: async(name: string): Promise<string> => { /* ? */ }
-   writeFile: async(k: string, v: string) => Promise<void> => { /* ? */ }
+   writeFile: async(k: string, v: string) => { /* ? */ }
 })
 
 // Another option is to allow access to `let` in `async` functions.
