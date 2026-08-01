@@ -16,6 +16,11 @@ allows imports only from `.f.ts`. Incremental migration requires unmigrated
 `.f.ts` importers to target modules after those dependencies move to `.f.mjs`,
 while migrated `.f.mjs` modules must remain closed over migrated dependencies.
 
+Emission must also be repeatable in an ordinary working tree. A declaration
+produced by an earlier pack can be resolved as an input by a later declaration
+pass, even when generated declarations are excluded from root discovery. The
+second pass can then fail with TS5055 while trying to overwrite that input.
+
 This work blocks the P1 incremental compiler migration and fjs–nanvm integration.
 Keeping it only inside the broader P3 package-publishing roadmap makes the
 ordering unclear and allows a prerequisite to be deferred behind the work it
@@ -23,10 +28,11 @@ blocks.
 
 ### Proposal
 
-Implement the minimum validation, emission, package-content, repository-policy,
-and consumer tests needed before the first real `.f.mjs` module enters the
-repository's published runtime graph. The broader package strategy and other
-package targets remain in [`publishing-packages.md`](./publishing-packages.md).
+Implement the minimum validation, repeatable emission, package-content,
+repository-policy, and consumer tests needed before the first real `.f.mjs`
+module enters the repository's published runtime graph. The broader package
+strategy and other package targets remain in
+[`publishing-packages.md`](./publishing-packages.md).
 
 Use the authored/generated extension invariant:
 
@@ -38,6 +44,13 @@ source.mjs -> source.mjs + source.d.mts
 TypeScript validates both authored extensions. Declaration emission covers both
 `.ts` and `.mjs`, while JavaScript emission runs only for `.ts`; authored `.mjs`
 is copied unchanged into the package.
+
+Run a repository-owned generated-output cleanup before declaration emission.
+The cleanup derives output paths from authored `.ts` and `.mjs` inputs and
+removes only their generated `.js`, `.d.ts`, and `.d.mts` artifacts. It must not
+remove authored `.mjs`, unrelated files, or use a broad working-tree cleanup such
+as `git clean`. Starting every `prepack` from this known emission state prevents
+an earlier `.d.mts` from becoming an input to the next declaration pass.
 
 Do not introduce a staging tree or rewrite module specifiers during packaging.
 A migrated `.f.mjs` group must therefore be dependency-closed across both
@@ -66,12 +79,17 @@ the dependency-closure invariant for compiler-ready `.f.mjs` source.
       `.d.ts` and `.d.mts` declarations from source validation.
 - [ ] Update NPM package rules to include package-owned `.mjs` and `.d.mts`
       files while excluding unrelated `.mjs` files.
-- [ ] Replace the current one-pass `prepack` script with declaration emission
-      for `.ts` and `.mjs`, followed by JavaScript emission from `.ts` only.
+- [ ] Add a cross-platform repository script that derives and removes only the
+      generated `.js`, `.d.ts`, and `.d.mts` outputs for authored source.
+- [ ] Replace the current one-pass `prepack` script with generated-output
+      cleanup, declaration emission for `.ts` and `.mjs`, and JavaScript
+      emission from `.ts` only, in that order.
 - [ ] Add a package fixture containing an authored `.ts` module and an authored
       JSDoc `.mjs` module.
 - [ ] Test the supported mixed-source direction, authored `.ts` importing
       authored `.mjs`, in a clean checkout and from the packed archive.
+- [ ] Run `npm pack` twice consecutively without manual cleanup and verify that
+      both runs succeed and contain the same package file set.
 - [ ] Reject authored `.mjs` runtime imports that reference relative `.ts` or
       generated `.js` files.
 - [ ] Reject JSDoc or declaration-retained references from authored `.mjs` to
@@ -93,8 +111,12 @@ the dependency-closure invariant for compiler-ready `.f.mjs` source.
 
 - The main TypeScript check validates authored `.ts` and `.mjs` source without
   treating generated declarations as source inputs.
+- Every pack begins by removing only known generated outputs derived from
+  authored source.
 - Packing emits `.d.ts` for `.ts`, emits `.d.mts` for `.mjs`, emits `.js` only
   for `.ts`, and preserves authored `.mjs` unchanged.
+- Two consecutive `npm pack` runs succeed without manual cleanup, do not produce
+  TS5055, and contain the same package file set.
 - The package contains every runtime and declaration file needed by migrated
   `.f.mjs` modules and excludes unrelated `.mjs` files.
 - Authored `.ts` importing authored `.mjs` works before and after packing.
@@ -104,12 +126,13 @@ the dependency-closure invariant for compiler-ready `.f.mjs` source.
   its emitted `.d.mts` declarations without access to repository source files.
 - `AGENTS.md` explicitly permits `.f.ts` modules to import `.f.mjs` and preserves
   the dependency-closed import and type-reference rule for authored `.f.mjs`.
-- No package-time runtime-import or declaration-specifier rewriting is needed.
+- No staging tree or package-time runtime-import or declaration-specifier
+  rewriting is needed.
 
 ### Ordering
 
-Complete this task, including the `AGENTS.md` module-import policy update,
-together with
+Complete this task, including repeatable emission and the `AGENTS.md`
+module-import policy update, together with
 [`.f.mjs` test and coverage support](../../emergent_testing/todo/f-mjs-test-and-coverage.md),
 before converting the first existing repository module from `.f.ts` to
 `.f.mjs`. A synthetic compiler fixture that does not enter the published runtime
