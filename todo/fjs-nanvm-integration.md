@@ -36,10 +36,14 @@ not TypeScript syntax. The initial walking skeleton may start with a minimal
 subset, rename that module from `.f.ts` to `.f.mjs`, update its imports, and use
 it as an end-to-end compiler input.
 
-Repository migration then continues independently, one file or coherent group
-at a time, as parser features land. It is neither part of one large PR nor a
-gate on this integration task. See [`fjs/fsc/README.md`](../fjs/fsc/README.md)
-for the extension contract and migration strategy.
+Before converting the first existing module, complete
+[`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
+so the rename cannot silently remove internal proofs or coverage. Repository
+migration then continues independently, one file or coherent group at a time,
+as parser features land. It is neither part of one large PR nor a gate on the
+initial synthetic walking skeleton. See
+[`fjs/fsc/README.md`](../fjs/fsc/README.md) for the extension contract and
+migration strategy.
 
 ### CLI: an output target, not a command group (decided)
 
@@ -74,8 +78,10 @@ via the `Function` constructor — no rustc at the user's run time.
 - [ ] Prove the pipeline with a minimal `.f.mjs` subset: a constant default
       export compiled by `fjs` to `.rs`, built and run by cargo, with the
       result printed to stdout as JSON.
+- [ ] Complete
+      [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md).
 - [ ] Convert the first eligible repository module from `.f.ts` to `.f.mjs`
-      and keep it in the end-to-end compiler test set.
+      and keep it in the end-to-end compiler, proof, and coverage test sets.
 
 ### Related
 
@@ -83,5 +89,8 @@ via the `Function` constructor — no rustc at the user's run time.
   definition and task list.
 - [nanvm-lib/todo/console-program.md](../nanvm-lib/todo/console-program.md) —
   the self-hosted `nanvm` crate (post-MVP).
+- [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
+  — proof-discovery and coverage prerequisite for the first repository
+  conversion.
 - [ast-spec](./ast-spec.md) — the schema of the code-describing `Any`; the
   `Function` constructor contract.
