@@ -26,11 +26,14 @@ Because the job runs through its own flake, it no longer appears in the temporar
 version check (the one the shared job used to make) and a
 `npx playwright --version` check tying the Nixpkgs browsers to the `package.json` pin.
 
-**Unverified at the time of writing:** there is no Nix in the authoring environment, so
-the flake was written from the pinned Nixpkgs sources and has not been evaluated
-locally. CI is the first real run — in particular `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE`
-(Nixpkgs' `driver.nix` flags WebKit as possibly needing it) is a best guess and may need
-adjusting or removing.
+**Verified in CI.** All three browsers pass against the Nix-provided bundle. The whole
+job takes roughly three minutes, nearly all of it the browser runs themselves (~42s per
+browser); realizing the shell — including the browsers — is a small fraction, so the
+store paths come from the binary cache rather than being built.
+
+`PLAYWRIGHT_HOST_PLATFORM_OVERRIDE` is still unvalidated in the other direction: it was
+set preemptively from `driver.nix`'s note about WebKit, and no run has tried removing
+it. Whether it is load-bearing on `ubuntu-26.04-arm` is unknown.
 
 ### Problem
 
@@ -78,16 +81,20 @@ Node — and the job's `npx playwright --version` check is what makes a drift fa
 
 ### Remaining work
 
-- **Confirm the first green run.** Nothing here has been evaluated by Nix yet.
-  `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE` in particular is a guess taken from `driver.nix`'s
-  own comment on WebKit; drop it if WebKit passes without it, and revisit if CI shows
-  Playwright looking for a revision that the link farm does not carry.
-- **Compare wall-clock time** against the pre-migration job. If `nix develop` build time
-  dominates (no binary cache hit for the browser derivations), consider a Nix store
-  cache action or Cachix before concluding the migration was worthwhile.
+- **Try dropping `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE`.** It was set preemptively, and the
+  job passes with it; nothing shows whether it is actually needed on
+  `ubuntu-26.04-arm`. Remove it in its own commit so a failure names the cause.
+- **Compare wall-clock time** against the pre-migration job, using a run from before the
+  migration. The migrated job is ~3 minutes and is dominated by the browser runs
+  themselves, so there is little shell overhead left to remove — but the pre-migration
+  number was never recorded, so the actual saving is still unquantified.
 - **Automate the paired bump.** Bumping the pinned Nixpkgs commit must re-read the
-  Playwright driver version and update `fjs/ci/config/module.f.ts` and `package.json`
-  together. Still manual — see the open `npm run ci-nix-update` command in `65Z-ci-nix`.
+  Playwright driver version and update `fjs/ci/config/module.f.ts`, `package.json`,
+  `package-lock.json`, `deno.lock`, and `bun.lock` together. A Playwright bump that
+  stops at `package.json` reds the `deno` and `bun` jobs on
+  `deno install --frozen` / `bun install --frozen-lockfile`, which is exactly what
+  happened while this task was in progress. Still manual — see the open
+  `npm run ci-nix-update` command in `65Z-ci-nix`.
 
 ### Tasks
 
@@ -99,11 +106,11 @@ Node — and the job's `npx playwright --version` check is what makes a drift fa
       `playwright install-deps`, and `playwright install` from the job.
 - [x] Run the job's whole sequence in one `nix develop --command` invocation, checking
       its own Node and Playwright versions inside it.
-- [ ] Confirm all three browsers actually pass in CI; adjust or remove
-      `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE` based on what the run shows.
-- [ ] Compare the migrated job's wall-clock time against the previous setup.
-- [ ] Fold the Playwright driver-version check into the Nixpkgs bump process so the two
-      pins can't silently drift apart again.
+- [x] Confirm all three browsers pass in CI against the Nix-provided bundle.
+- [ ] Check whether `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE` is load-bearing.
+- [ ] Compare the migrated job's wall-clock time against a pre-migration run.
+- [ ] Fold the driver-version check, and the `deno.lock`/`bun.lock` updates a Playwright
+      bump requires, into the Nixpkgs bump process.
 
 ### Related
 
