@@ -84,24 +84,43 @@ export const set = (node: TNode<string>) => (value: string): TNode<string> =>
 /** `['1']` with the squares of `2..n` inserted, the shared corpus. */
 export const squares = (n: number): TNode<string> => …
 
-/** `firstN` is the `n` of `expectedSquares[0]`. */
-export const firstN = 10
-
-/** `jsonStr(squares(n))` for n = 10 … 38 — how the tree reshapes as it grows. */
-export const expectedSquares: readonly string[] = [
-    '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]',
-    '[[["1"],"100",["121"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]',
+/** `jsonStr(squares(38))` — the tree `remove/proof.f.ts` starts its removals from. */
+export const expectedSquares38: string =
+    '[[[["1"],"100",["1024"]],"1089",[["1156"],"121",["1225"]]],' +
     …
-]
 
-/** The expected canonical JSON for `squares(n)`. */
-export const expectedFor = (n: number): string => expectedSquares[n - firstN]
+/** `jsonStr(squares(n))` per row, as `[n, expected]` — how the tree reshapes as it grows. */
+export const expectedSquares: readonly (readonly [number, string])[] = [
+    [10, '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]'],
+    [11, '[[["1"],"100",["121"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]'],
+    …
+    [38, expectedSquares38],
+]
 ```
 
 The expectation table belongs in the testlib, **not** in `set/proof.f.ts`:
 `remove/proof.f.ts` asserts the same `n = 38` string (`:23-30`), and a table
 private to one proof would leave that copy in place — the deduplication in
 item 3 below would not actually be reachable.
+
+Two shape decisions worth stating, because the obvious alternatives are worse:
+
+- **Rows carry their own `n`; there is no `firstN` offset.** An
+  `expectedSquares[n - firstN]` lookup would export a base index nobody should
+  have to know, and index arithmetic that silently reads the wrong row if a row
+  is ever inserted. `[n, expected]` puts the bound next to the value it
+  belongs to.
+- **No `expectedFor(n)` lookup function.** Its `string` return type would be a
+  lie — `n` outside `10 … 38` yields `undefined`, and a proof would then fail
+  against an `undefined` expected value, which reads as a tree-shape bug rather
+  than a bad argument. Making it total means either a range check or an
+  `undefined` return that every caller unwraps, and neither is worth it for the
+  **one** value read across files: `n = 38`. That one gets its own named export
+  (defined once, referenced from the table's last row), and the only other
+  consumer iterates the whole table anyway.
+
+Per `AGENTS.md` ("Pin literal `const`s"), both exports carry explicit
+annotations rather than relying on widening.
 
 About `jsonStr`: it is `stringify(sort)`, which
 [stringifySorted](../../../media/json/todo/stringify-sorted-canonical.md)
@@ -116,7 +135,7 @@ shared table:
 
 ```ts
 const growth = expectedSquares.map(
-    (e, i) => () => assertEq(jsonStr(squares(i + firstN)), e))
+    ([n, e]) => () => assertEq(jsonStr(squares(n)), e))
 ```
 
 **Keep one test entry per `n`** — `.map` over the table rather than one
@@ -132,7 +151,7 @@ arms they reach — but they get their trees from `squares(10)` / `squares(13)`
 instead of rebuilding.
 
 **3. Point `remove/proof.f.ts` at the same fixture.** Its starting tree becomes
-`squares(38)` and its opening assertion `expectedFor(38)`, so both files read
+`squares(38)` and its opening assertion `expectedSquares38`, so both files read
 the *same values* rather than holding two copies of a seven-line literal.
 
 (An alternative is to drop that opening assertion from `remove/proof.f.ts`
@@ -148,7 +167,7 @@ are.
 ### Tasks
 
 - [ ] Add `fjs/types/btree/testlib.f.ts` with `set`, `squares`,
-      `expectedSquares`/`expectedFor`, and — until `stringifySorted` exists —
+      `expectedSquares`/`expectedSquares38`, and — until `stringifySorted` exists —
       the single `jsonStr` alias.
 - [ ] Convert `fjs/types/btree/set/proof.f.ts` to `expectedSquares.map`; keep
       the two `replace` cases hand-written, sourced from `squares`.
