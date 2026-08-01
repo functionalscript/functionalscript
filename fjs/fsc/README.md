@@ -19,14 +19,17 @@ The `.f.mjs` extension adds a stronger FunctionalScript-specific promise: it
 marks a module that is ready for translation by the compiler available in the
 same revision of the repository.
 
-Repository migration is incremental, not a single task or pull request:
+Repository migration is incremental, not a single task or pull request. Before
+the first conversion, complete
+[`.f.mjs` test and coverage support](../emergent_testing/todo/f-mjs-test-and-coverage.md)
+so migrated modules remain in proof discovery and coverage reporting.
 
 1. As soon as the parser supports the first useful function modules, select an
    existing `.f.ts` file whose complete syntax is supported.
 2. Rename it to `.f.mjs` and replace TypeScript-only syntax with JSDoc types.
 3. Update imports to the authored `.f.mjs` path.
-4. Add the module to parser/compiler validation so later changes cannot silently
-   move it outside the supported subset.
+4. Add the module to parser/compiler validation and preserve its existing proof
+   and coverage expectations.
 5. Repeat as each new parser feature makes more modules eligible.
 
 A file stays `.f.ts` until all syntax it uses is supported. Migration must not
