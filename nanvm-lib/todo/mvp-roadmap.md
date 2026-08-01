@@ -102,11 +102,15 @@ testing, self-hosting, and AOT embedding.
 The compiler CLI is pure FJS that *returns* effect descriptions
 (`Effect<NodeOp, T>`); all actual impurity lives in thin `.ts` runner
 modules (e.g. [`fjs/effects/node/module.ts`](../../fjs/effects/node/module.ts)),
-which are not FJS and never pass through the code generator. The
-`.f.ts`/`.ts` split is exactly the compiled/hand-written boundary: every
-`.f.ts` module compiles to Rust; every impure `.ts` runner needs a
-hand-written Rust twin interpreting the same operation vocabulary against
-the OS (`std::fs`, `std::process`, stdio) instead of Node built-ins.
+which are not FJS and never pass through the code generator. During compiler
+bootstrap, `.f.mjs` is the compiled source marker: every `.f.mjs` module must
+compile to Rust, while every impure `.ts` runner needs a hand-written Rust twin
+interpreting the same operation vocabulary against the OS (`std::fs`,
+`std::process`, stdio) instead of Node built-ins. Existing `.f.ts` modules are
+the broader FunctionalScript-intent source set; they move to `.f.mjs`
+incrementally when the parser supports their complete syntax and their
+TypeScript types have been moved to JSDoc. The extension contract and migration
+strategy are documented in [`fjs/fsc/README.md`](../../fjs/fsc/README.md).
 
 The Rust twin of `fjs/effects/node` is the **`nanvm-effects-node`** library
 crate — named to mirror the effect directory structure: this specific
@@ -149,10 +153,11 @@ Scoping notes:
   not a syscall port.
 - **Testing comes cheap.** The pure in-memory interpreters
   ([`fjs/effects/mock`](../../fjs/effects/mock),
-  [`fjs/effects/node/virtual`](../../fjs/effects/node/virtual)) are `.f.ts`
-  code, so they compile through the code generator unchanged: the compiled
-  CLI can run against in-memory effects with no Rust twins, and the
-  `nanvm-effects-node` runner can be cross-checked against the pure
+  [`fjs/effects/node/virtual`](../../fjs/effects/node/virtual)) are currently
+  `.f.ts` code. As the parser reaches the syntax each module uses, migrate it
+  to `.f.mjs`; from that point it compiles through the code generator unchanged,
+  so the compiled CLI can run against in-memory effects with no Rust twins.
+  The `nanvm-effects-node` runner can then be cross-checked against the pure
   interpreter operation by operation. The exception is
   [`fjs/effects/node/memory`](../../fjs/effects/node/memory) — the runner for
   the mutable memory effects (`MemOp`) — which is an impure `.ts` module
@@ -269,7 +274,7 @@ as a generic `Any` facility, post-MVP.
 - [ ] **Harness + walking skeleton** — a harness crate (or generated tests
       in `nanvm-lib`) whose `main` evaluates a generated module's
       `export default` and prints the result as JSON; wire the pipeline
-      end-to-end early with a minimal subset (e.g. a constant default
+      end-to-end early with a minimal `.f.mjs` subset (e.g. a constant default
       export), driven by `cargo test` in CI, so every later feature lands
       into a working pipeline. See
       [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
@@ -285,6 +290,11 @@ as a generic `Any` facility, post-MVP.
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../todo/lang/2340-operators.md).
 - [ ] **Parser**, using [`fjs/bnf/`](../../fjs/bnf/README.md) (FJS).
+- [ ] **Incremental repository coverage** — after the parser supports the first
+      useful function modules, convert the first eligible `.f.ts` module to
+      `.f.mjs`, move its types to JSDoc, and keep it in the end-to-end compiler
+      test set. Continue in separate changes as language coverage grows; do not
+      make whole-repository migration an MVP gate.
 
 #### P2
 
@@ -326,14 +336,16 @@ as a generic `Any` facility, post-MVP.
 Compile the compiler itself (written in FJS) to Rust with the code generator
 and ship it as the `nanvm` crate
 ([console-program](./console-program.md)): a single native executable that
-parses and runs `.f.js` directly — no Node/Deno, no rustc at the user's run
+parses and runs `.f.mjs` directly — no Node/Deno, no rustc at the user's run
 time — executing code via the interpreter behind the `Function` constructor,
 with its I/O interpreted by the `nanvm-effects-node` runner (see the effects
 section above).
 
 Reached incrementally: the code generator's language coverage grows with the
 operator/function/control tasks above until it covers everything the
-compiler's own code uses.
+compiler's own code uses. The corresponding compiler modules move from
+`.f.ts` to `.f.mjs` as they become supported, so self-hosting is the completion
+of the same repository-migration strategy rather than a separate rewrite.
 
 ### Open questions
 
@@ -360,6 +372,8 @@ compiler's own code uses.
 - [`todo/lang/README.md`](../../todo/lang/README.md) — the language spec and
   tag tables; §9 records the AST-as-data decision and the two execution
   paths.
+- [`fjs/fsc/README.md`](../../fjs/fsc/README.md) — source extension contract
+  and incremental repository migration.
 - [ast-spec](../../todo/ast-spec.md) — the schema (RTTI) of the
   code-describing `Any`; the `Function` constructor contract.
 - [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) — the
