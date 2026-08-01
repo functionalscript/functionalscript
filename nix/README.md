@@ -13,16 +13,12 @@ development shell for the job's runner:
 nix develop ./nix/generated/node24 --command node --version
 ```
 
-Each flake asserts the version of every package it declares:
-
-```nix
-assert pkgs.nodejs_24.version == "24.18.0";
-```
-
-The expected versions live in `fjs/ci/config` and are the same ones the
-GitHub-hosted jobs install with `setup-node`, so every runtime in CI runs the
-identical Node. A snapshot that ships a different version fails evaluation
-rather than silently diverging.
+The pinned commit determines the package versions: `pkgs.nodejs_24` at that
+revision is one exact Node release, recorded in `fjs/ci/config` and installed by
+the GitHub-hosted jobs with `setup-node`, so every runtime in CI runs the
+identical Node. The flakes do not restate that version — CI's `nix-flakes` job
+checks it instead (below), which also catches a shell that builds but provides
+the wrong binary.
 
 The files stay static and readable on purpose — no job selection, no
 `flake-utils`, no shared Nix modules. A job that later needs a second system

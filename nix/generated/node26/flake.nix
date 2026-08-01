@@ -6,7 +6,6 @@
                 system = "aarch64-linux";
             };
         in
-        assert pkgs.nodejs_26.version == "26.5.1";
         pkgs.mkShell {
             packages = [ pkgs.nodejs_26 ];
         };

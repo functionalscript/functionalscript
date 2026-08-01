@@ -1,5 +1,5 @@
 import { ci, main } from './module.f.ts'
-import { functionalscript } from './config/module.f.ts'
+import { functionalscript, node } from './config/module.f.ts'
 import { nodeNixJobs } from './node/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
@@ -164,12 +164,10 @@ export const proof = {
         const [state, result] = virtual(makeState(false))(main())
         assertEq(result, 0)
         for (const { id, packages } of nodeNixJobs) {
-            const [{ attribute, version }] = packages
-            const text = flake(state, id)
-            assert(text.includes(`pkgs.${attribute}`), `expected ${attribute} in the ${id} flake`)
+            const [nodePackage] = packages
             assert(
-                text.includes(`assert pkgs.${attribute}.version == "${version}";`),
-                `expected the ${id} flake to assert version ${version}`)
+                flake(state, id).includes(`pkgs.${nodePackage}`),
+                `expected ${nodePackage} in the ${id} flake`)
         }
     },
     nixFlakeJob: () => {
@@ -179,10 +177,20 @@ export const proof = {
         assert(
             job.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true),
             'expected a pinned Nix installer')
+        // Exactly one check per generated flake: no flake goes unchecked, and no
+        // check outlives the flake it was written for.
+        assertEq(job.steps.filter(step => step.run !== undefined).length, nodeNixJobs.length)
         for (const { id } of nodeNixJobs) {
             assert(
-                hasRunInJob('nix-flakes', `nix develop ./nix/generated/${id} --command`)(gha),
+                hasRunInJob('nix-flakes', `nix develop ./nix/generated/${id} --command node --version`)(gha),
                 `expected the ${id} flake to be instantiated`)
+        }
+        // Since the flakes no longer assert their own version, this job is the
+        // only place the Nix runtime is tied to the version `setup-node` installs.
+        for (const version of [node.node22, node.node24, node.default]) {
+            assert(
+                hasRunInJob('nix-flakes', `= v${version}`)(gha),
+                `expected the flake job to check Node ${version}`)
         }
         // The canonical Node jobs keep their current runtime setup until they
         // are migrated one at a time.

@@ -18,9 +18,15 @@ keep their `setup-node` runtime, and the temporary job is deleted once they all
 run through `nix develop`.
 
 The Node versions in `fjs/ci/config/module.f.ts` are now the ones the pinned
-snapshot provides, shared by `setup-node` and the flakes, and each flake asserts
-`pkgs.<attribute>.version`. `fjs/media/nix` gained the `assert` and `==` forms
-for this.
+snapshot provides, shared by `setup-node` and the flakes' package attributes.
+The expectation is stated once, in the `nix-flakes` job — the flakes themselves
+carry no `assert`, because a flake pinning an exact commit already determines its
+package versions, so an in-flake assertion would restate the pin while making a
+generated, immutable file harder to read.
+
+**When the temporary job is deleted, each migrated job must check its own Node
+version inside the `nix develop` invocation** (already listed under phase 3), or
+nothing ties the Nix runtime to the version the Windows and macOS jobs install.
 
 Still open: the `npm run ci-nix-update` command (phase 1's automation — the
 versions were read from the snapshot by hand), removal of stale generated job
@@ -121,7 +127,6 @@ Each generated file follows this static shape, with the job's package substitute
       let
         pkgs = import nixpkgs { system = "aarch64-linux"; };
       in
-      assert pkgs.nodejs_22.version == "22.23.1";
       pkgs.mkShell {
         packages = [ pkgs.nodejs_22 ];
       };

@@ -6,7 +6,6 @@
                 system = "aarch64-linux";
             };
         in
-        assert pkgs.nodejs_24.version == "24.18.0";
         pkgs.mkShell {
             packages = [ pkgs.nodejs_24 ];
         };

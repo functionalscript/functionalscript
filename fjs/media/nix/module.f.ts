@@ -44,18 +44,6 @@ type Let = readonly ['let', readonly Binding[], Expression]
 
 type IndentedString = readonly ['indented-string', string]
 
-type Comparand = Reference | string
-
-/**
- * `a == b`. Nix's comparison operators are non-associative, so both operands
- * are leaves: an equality can never contain another one, and the serializer
- * never needs parentheses.
- */
-type Equality = readonly ['==', Comparand, Comparand]
-
-/** `assert <condition>; <body>` — evaluating the body fails unless it holds. */
-type Assert = readonly ['assert', Equality, Expression]
-
 /** The Nix syntax supported by the serializer. */
 export type Expression =
     | string
@@ -66,7 +54,6 @@ export type Expression =
     | Lambda
     | Let
     | IndentedString
-    | Assert
 
 const reservedWords = [
     'assert',
@@ -240,25 +227,6 @@ const serializeLet = ([, bindings, body]: Let, level: number): Chunks | undefine
         : ['let\n', ...serializedBindings, '\n', indent(level), 'in\n', indent(level), ...serializedBody]
 }
 
-const serializeComparand = (comparand: Comparand): string | undefined =>
-    typeof comparand === 'string' ? quoted(comparand) : serializeReference(comparand)
-
-const serializeEquality = ([, left, right]: Equality): string | undefined => {
-    const serializedLeft = serializeComparand(left)
-    const serializedRight = serializeComparand(right)
-    return serializedLeft === undefined || serializedRight === undefined
-        ? undefined
-        : `${serializedLeft} == ${serializedRight}`
-}
-
-const serializeAssert = ([, condition, body]: Assert, level: number): Chunks | undefined => {
-    const serializedCondition = serializeEquality(condition)
-    const serializedBody = serialize(body, level)
-    return serializedCondition === undefined || serializedBody === undefined
-        ? undefined
-        : ['assert ', serializedCondition, ';\n', indent(level), ...serializedBody]
-}
-
 const serialize = (expression: Expression, level: number): Chunks | undefined => {
     if (typeof expression === 'string') {
         return [quoted(expression)]
@@ -272,7 +240,6 @@ const serialize = (expression: Expression, level: number): Chunks | undefined =>
         case 'apply': return serializeApplication(expression, level)
         case 'lambda': return serializeLambda(expression, level)
         case 'let': return serializeLet(expression, level)
-        case 'assert': return serializeAssert(expression, level)
         case 'indented-string': {
             const [, value] = expression
             const contentIndent = indent(level + 1)

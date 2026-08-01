@@ -53,24 +53,22 @@ consumed.
 Every runtime uses the same Node versions. `config/module.f.ts` records the versions
 the pinned Nixpkgs snapshot provides — not the latest nodejs.org release, which the
 snapshot usually trails — and those feed both `setup-node` on the GitHub-hosted
-runners and the flakes' package attributes. Each generated flake then asserts the
-version it actually gets:
-
-```nix
-assert pkgs.nodejs_24.version == "24.18.0";
-```
-
-so a snapshot whose Node moved fails evaluation instead of quietly giving a Nix job a
-different runtime from the Windows and macOS jobs. Bumping a Node version therefore
-means moving the Nixpkgs commit first and copying the versions it offers.
+runners and the flakes' package attributes. Bumping a Node version therefore means
+moving the Nixpkgs commit first and copying the versions it offers.
 
 The temporary `nix-flakes` job installs Nix through a pinned action and checks each
 generated flake with
 `test "$(nix develop <flake> --command node --version)" = v<version>`, so both a
-flake that stops evaluating and a shell that provides the wrong Node fail CI. It is
-deliberately separate from `node22`/`node24`/`node26`, which keep their `setup-node`
-runtime until they are migrated one at a time; delete the job once they all run
-through `nix develop`.
+flake that stops evaluating and a shell that provides a different Node fail CI. That
+check is the *only* place the expectation is written: the generated flakes stay
+purely declarative, since a flake pinning an exact Nixpkgs commit already determines
+its package versions and an `assert` inside it would only restate that pin.
+
+The job is deliberately separate from `node22`/`node24`/`node26`, which keep their
+`setup-node` runtime until they are migrated one at a time. Delete it once they all
+run through `nix develop` — and give each migrated job its own version check inside
+the `nix develop` invocation, or nothing ties the Nix runtime to the version the
+Windows and macOS jobs install.
 
 ### Expected package scripts
 

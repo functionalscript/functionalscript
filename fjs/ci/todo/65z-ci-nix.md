@@ -104,7 +104,6 @@ The minimal public contract is:
       let
         pkgs = import nixpkgs { system = "aarch64-linux"; };
       in
-      assert pkgs.nodejs_22.version == "22.23.1";
       pkgs.mkShell {
         packages = [ pkgs.nodejs_22 ];
       };

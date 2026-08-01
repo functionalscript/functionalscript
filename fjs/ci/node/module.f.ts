@@ -72,10 +72,13 @@ const npmGlobalShellHook = `export NPM_CONFIG_PREFIX="$HOME/.npm-global"
 export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
 mkdir -p "$NPM_CONFIG_PREFIX"` as const
 
+// Versions of the canonical Node jobs, in job order.
+const nixVersions = [node.node22, node.node24, node.default] as const
+
 const nixJob = (version: string): NixJob => ({
     id: jobId(version),
     system: nixSystem,
-    packages: [{ attribute: `nodejs_${major(version)}`, version }],
+    packages: [`nodejs_${major(version)}`],
 })
 
 /** Generated development environments for the canonical Node jobs. */
@@ -85,28 +88,31 @@ export const nodeNixJobs: readonly NixJob[] = [
     nixJob(node.default),
 ]
 
-// The flake's own assertion covers the package's declared version; this checks
-// the shell actually puts that Node on `PATH`, which a wrong `packages` entry
-// would break without failing the assertion.
-const nodeVersionStep = (job: NixJob): MetaStep => {
-    const [{ version }] = job.packages
-    return test({ run: `test "$(${nixDevelop(job, 'node --version')})" = v${version}` })
-}
+/**
+ * Checks a generated flake end to end: the shell builds, and the Node it puts on
+ * `PATH` is exactly the version every other runtime installs.
+ *
+ * The pinned Nixpkgs commit already determines the version, so this is the only
+ * place the expectation is stated — the generated flakes stay declarative
+ * instead of carrying an `assert` that restates the commit they pin.
+ */
+const nodeVersionStep = (version: string): MetaStep =>
+    test({ run: `test "$(${nixDevelop(jobId(version), 'node --version')})" = v${version}` })
 
 /**
  * Temporary job that instantiates every generated flake.
  *
- * Nothing else in CI evaluates the generated files, so a broken flake would
- * only surface once a real job started using one. This job installs Nix and
- * builds each development shell, checking that it provides exactly the Node
- * version `config` pins. It deliberately stays separate from the canonical Node
- * jobs: those keep their current `setup-node` runtime until they are migrated
- * one at a time, and this job is deleted once they all run through
- * `nix develop`.
+ * Nothing else in CI evaluates the generated files, so a broken flake — or one
+ * whose snapshot moved to a different Node — would only surface once a real job
+ * started using it. It deliberately stays separate from the canonical Node jobs:
+ * those keep their current `setup-node` runtime until they are migrated one at a
+ * time. When the last one migrates and this job goes away, each migrated job
+ * must check its own Node version inside the `nix develop` invocation, or the
+ * guarantee is lost.
  */
 export const nodeNixFlakeJob: Job = ubuntuArm([
     nixInstall,
-    ...nodeNixJobs.map(nodeVersionStep),
+    ...nixVersions.map(nodeVersionStep),
 ])
 
 export const nodeMainSteps = platformNodeSteps

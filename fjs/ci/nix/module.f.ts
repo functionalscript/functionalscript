@@ -17,22 +17,14 @@ import { unwrap } from '../../types/result/module.f.ts'
 import { install, uses, type MetaStep } from '../common/module.f.ts'
 import { nixpkgs } from '../config/module.f.ts'
 
-/** A package the shell provides, pinned to the version the snapshot must give. */
-export type NixPackage = {
-    /** Nixpkgs attribute name, e.g. `nodejs_24`. */
-    readonly attribute: string
-    /** Version the snapshot is expected to provide, asserted by the flake. */
-    readonly version: string
-}
-
 /** A CI job's development environment, one generated flake each. */
 export type NixJob = {
     /** Generated directory name under `nix/generated`, matching the CI job id. */
     readonly id: string
     /** Nix system of the job's runner, e.g. `aarch64-linux`. */
     readonly system: string
-    /** Packages made available in the job's shell. */
-    readonly packages: readonly NixPackage[]
+    /** Nixpkgs attribute names made available in the job's shell. */
+    readonly packages: readonly string[]
     /** Job-local shell initialization, when the job needs one. */
     readonly shellHook?: string
 }
@@ -44,41 +36,26 @@ const { commit } = nixpkgs
 
 const url = `github:NixOS/nixpkgs/${commit}`
 
-const shell = ({ packages, shellHook }: NixJob): Expression => ['apply',
-    ['ref', 'pkgs', 'mkShell'],
-    ['set',
-        ['=', ['packages'], ['list',
-            ...packages.map(({ attribute }) => ['ref', 'pkgs', attribute] as const)
-        ]],
-        ...(shellHook === undefined
-            ? []
-            : [['=', ['shellHook'], ['indented-string', shellHook]] as const])
-    ]
-]
-
-/**
- * Guards the shell with one assertion per package, so a snapshot that moved on
- * fails evaluation instead of silently handing the job a different toolchain.
- * Nix asserts one condition each, and the last package ends up innermost.
- */
-const asserted = (packages: readonly NixPackage[], body: Expression): Expression =>
-    packages.reduceRight<Expression>(
-        (inner, { attribute, version }) =>
-            ['assert', ['==', ['ref', 'pkgs', attribute, 'version'], version], inner],
-        body)
-
-const flake = (job: NixJob): Expression => ['set',
+const flake = ({ system, packages, shellHook }: NixJob): Expression => ['set',
     ['=', ['inputs', 'nixpkgs', 'url'], url],
     ['=', ['outputs'], ['lambda',
         ['open-set-pattern', 'nixpkgs'],
         ['set',
-            ['=', ['devShells', job.system, 'default'], ['let',
+            ['=', ['devShells', system, 'default'], ['let',
                 [['=', ['pkgs'], ['apply',
                     ['ref', 'import'],
                     ['ref', 'nixpkgs'],
-                    ['set', ['=', ['system'], job.system]]
+                    ['set', ['=', ['system'], system]]
                 ]]],
-                asserted(job.packages, shell(job))
+                ['apply',
+                    ['ref', 'pkgs', 'mkShell'],
+                    ['set',
+                        ['=', ['packages'], ['list', ...packages.map(p => ['ref', 'pkgs', p] as const)]],
+                        ...(shellHook === undefined
+                            ? []
+                            : [['=', ['shellHook'], ['indented-string', shellHook]] as const])
+                    ]
+                ]
             ]]
         ]
     ]]
@@ -108,12 +85,12 @@ const writeFlake = (job: NixJob): Effect<Mkdir | WriteFile, void> => {
 export const nixFlakes = (jobs: readonly NixJob[]): Effect<Mkdir | WriteFile, void> =>
     forEachStep(pure(jobs), writeFlake)
 
-/** Path a workflow passes to `nix develop`. */
-export const flakePath = ({ id }: NixJob): string => `./${generatedDirectory}/${id}`
+/** Path a workflow passes to `nix develop`, for the job of the given id. */
+export const flakePath = (id: string): string => `./${generatedDirectory}/${id}`
 
 /** Installs Nix, with `nix-command` and `flakes` enabled by the action's defaults. */
 export const nixInstall: MetaStep = install(uses('cachix/install-nix-action'))
 
 /** Runs one command inside a job's generated development shell. */
-export const nixDevelop = (job: NixJob, command: string): string =>
-    `nix develop ${flakePath(job)} --command ${command}`
+export const nixDevelop = (id: string, command: string): string =>
+    `nix develop ${flakePath(id)} --command ${command}`
