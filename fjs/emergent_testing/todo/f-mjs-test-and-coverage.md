@@ -18,7 +18,13 @@ Current behavior is incomplete:
   export in `module.f.mjs` would be skipped because the module itself is not
   loaded;
 - `npm run cov` includes only `**/module.f.ts`, so a migrated implementation
-  would disappear from coverage reporting;
+  would disappear from Node coverage reporting;
+- `deno task cov` in `deno.json` filters coverage with
+  `.*module\.f\.ts`, so the same implementation would disappear from local
+  Deno coverage reporting;
+- the generated Deno CI step in `fjs/ci/deno/module.f.ts` uses the same
+  `.f.ts`-only filter, so CI could pass while omitting every migrated
+  implementation from Deno coverage;
 - `AGENTS.md` defines mandatory proof coverage only for `.f.ts`, so the
   repository's authoritative development rules do not yet govern `.f.mjs`
   modules or describe mixed `module.f.mjs` / `proof.f.ts` pairs.
@@ -37,13 +43,24 @@ modules in proof discovery, coverage, and repository policy:
 2. Update the `shouldLoad` documentation and proofs to cover `.f.mjs`.
 3. Extend `npm run cov` so both `module.f.ts` and `module.f.mjs`
    implementations are included.
-4. Add regression fixtures proving both supported proof layouts:
+4. Extend the Deno coverage filter in `deno.json` so `deno task cov` includes
+   both implementation extensions.
+5. Update the canonical Deno CI generator in `fjs/ci/deno/module.f.ts` with the
+   same coverage rule, add a regression proof for the generated command, and
+   regenerate the checked-in CI workflow.
+6. Add regression fixtures proving both supported proof layouts:
    - an internal `proof` export from a `.f.mjs` module is executed;
    - a co-located `proof.f.ts` can import and test `module.f.mjs`.
-5. Verify that the `.f.mjs` implementation remains represented in coverage for
-   both proof layouts.
-6. Update `AGENTS.md` so `.f.mjs` modules and functions have the same mandatory
+7. Verify that the `.f.mjs` implementation remains represented in both Node and
+   Deno coverage for the supported proof layouts.
+8. Update `AGENTS.md` so `.f.mjs` modules and functions have the same mandatory
    100% proof-coverage policy and proof-writing rules as `.f.ts`.
+
+Keep the Node and Deno inclusion rules semantically identical: both must select
+FunctionalScript implementation modules ending in `module.f.ts` or
+`module.f.mjs`. The CI generator is the source of truth for the generated
+workflow, while `deno.json` defines the equivalent local command. Cover both
+with proofs or validation so a later edit cannot restore extension drift.
 
 The implementation and proof extensions are independent during incremental
 migration. Renaming `module.f.ts` to `module.f.mjs` does not require renaming its
@@ -71,9 +88,13 @@ does not replace or expand the ordinary `module.mjs` proposal.
   test command.
 - A `proof.f.ts` importing `module.f.mjs` is executed by the normal test command.
 - `npm run cov` includes both `.f.ts` and `.f.mjs` implementation modules.
+- `deno task cov` includes both `.f.ts` and `.f.mjs` implementation modules.
+- The Deno CI generator emits a coverage command with the same two-extension
+  inclusion rule, and its proof fails if `.f.mjs` support is removed.
+- The checked-in CI workflow is regenerated from the updated generator.
 - Renaming an otherwise equivalent module from `.f.ts` to `.f.mjs` does not
-  remove its proofs or its implementation from coverage, even when the proof
-  remains `proof.f.ts`.
+  remove its proofs or its implementation from Node or Deno coverage, even when
+  the proof remains `proof.f.ts`.
 - `AGENTS.md` explicitly applies mandatory proof coverage to both `.f.ts` and
   `.f.mjs` FunctionalScript source and documents that a migrated
   `module.f.mjs` may keep a `proof.f.ts`.
@@ -85,10 +106,11 @@ does not replace or expand the ordinary `module.mjs` proposal.
 ### Ordering
 
 Complete this task before converting the first repository module from `.f.ts`
-to `.f.mjs`. The tooling and `AGENTS.md` policy changes land together so the
-first migrated module is both discovered correctly and governed by the same
-proof requirements. The proof itself may remain `.f.ts` and migrate separately.
-This is infrastructure for the migration strategy, not part of each individual
+to `.f.mjs`. The discovery, Node coverage, Deno coverage, generated CI, and
+`AGENTS.md` policy changes land together so the first migrated module is covered
+consistently across supported runners and governed by the same proof
+requirements. The proof itself may remain `.f.ts` and migrate separately. This
+is infrastructure for the migration strategy, not part of each individual
 module conversion.
 
 ### Related
