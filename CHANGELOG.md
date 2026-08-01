@@ -11,6 +11,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `range_map`'s exported `get` and `fromRange` take the
+  map/default-value first and the queried number/range last. Add
+  `fjs/types/range_set`, a boolean-valued `range_map` wrapper
+  [#1402](https://github.com/functionalscript/functionalscript/pull/1402)
 - **BREAKING CHANGES:** decouple the FJS MCP server from CAS: generic MCP
   moves `fjs/mcp/` → `fjs/protocol/mcp/`, JSON-RPC moves
   `fjs/media/json/rpc/` → `fjs/protocol/json_rpc/`, and the CAS tool registry

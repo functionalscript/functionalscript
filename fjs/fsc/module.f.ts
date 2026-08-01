@@ -13,7 +13,7 @@ import {
 } from '../types/range_map/module.f.ts'
 import { reduce as listReduce, toArray, map, type List } from '../types/list/module.f.ts'
 import { range as asciiRange } from '../text/ascii/module.f.ts'
-import { fn } from '../types/function/module.f.ts'
+import { flip, fn } from '../types/function/module.f.ts'
 import { one, type Range } from '../types/range/module.f.ts'
 import { assertEq } from '../asserts/module.f.ts'
 
@@ -51,14 +51,14 @@ const reduce = <T>(a: List<State<T>>): State<T> => {
     return toArray(listReduce(merge)(empty)(a))
 }
 
-const codePointRange = fromRange(def)
+const codePointRange = flip(fromRange(def))
 
 const range = fn(asciiRange).map(codePointRange).result
 
 const rangeSet = (l: readonly string[]) => <T>(f: CreateToResult<T>): State<T> => {
 
     const codePointRange: (a: Range) => (f: CreateToResult<T>) => State<T>
-        = fromRange(def)
+        = flip(fromRange(def))
 
     const g: (r: string) => State<T>
         = r => codePointRange(asciiRange(r))(f)
@@ -68,9 +68,9 @@ const rangeSet = (l: readonly string[]) => <T>(f: CreateToResult<T>): State<T> =
 
 const create = <T>(a: List<State<T>>): CreateToResult<T> => {
     const i = reduce(a)
-    const x: (v: number) => (i: State<T>) => (v: T) => ToResult
+    const x: (i: State<T>) => (v: number) => (v: T) => ToResult
         = get(def)
-    return v => c => x(c)(i)(v)(c)
+    return v => c => x(i)(c)(v)(c)
 }
 
 export const terminal = -1
