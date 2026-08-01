@@ -108,6 +108,25 @@ See [architecture.md §Human-readable paths](./architecture.md).
    bytecode is an optional, VM-internal, performance-oriented representation
 5. Generic `Any` serialization (CBOR) in `nanvm-lib` — covers code as data; needed for CAS/CAVM
 
+**Incremental repository migration:**
+
+The compiler will begin compiling the FunctionalScript repository as soon as it
+can parse the first useful function modules; it will not wait for the complete
+language feature set. Repository coverage grows together with parser and code
+generator coverage:
+
+1. Select an existing `.f.ts` module whose complete syntax is supported.
+2. Rename it to `.f.mjs`, move TypeScript types to JSDoc, and update imports.
+3. Make that module a permanent parser/compiler regression input.
+4. Repeat in separate, reviewable changes as more syntax becomes supported.
+
+`.f.mjs` is the marker for authored FunctionalScript that the compiler in the
+same repository revision must accept. Unsupported modules remain `.f.ts`; no
+migration should pull unrelated language features into scope merely to convert
+a file. This is a continuing strategy rather than a one-time migration task or
+a prerequisite for the compiler MVP. The extension contract and detailed
+workflow are documented in [`fjs/fsc/README.md`](../../fjs/fsc/README.md).
+
 This is the longest dependency chain. Everything after it depends on it.
 
 ---
@@ -145,6 +164,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | SUL deduplication | `fjs/sul/` L1–L4 ✓ | CAS integration layer |
 | Compiler (parsing) | `fjs/djs/` data pipeline ✓, `fjs/bnf/` framework ✓ | Function support, FS grammar |
 | Compiler (codegen) | — | Rust code generator (FJS), `Function` constructor + interpreter in `nanvm-lib` |
+| Compiler (repository coverage) | Extension and migration strategy defined | First eligible `.f.ts` → `.f.mjs` conversion, then incremental expansion |
 | CA FunctionalScript | — | Depends on VM + AST canonicalization |
 | Sandboxed execution | — | Depends on CA FS |
 | Hybrid intelligence | — | Depends on all above |
