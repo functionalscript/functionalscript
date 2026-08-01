@@ -17,6 +17,15 @@ import { unwrap } from '../../types/result/module.f.ts'
 import { install, test, uses, type MetaStep } from '../common/module.f.ts'
 import { nixpkgs } from '../config/module.f.ts'
 
+/**
+ * A value exported into the shell's environment: either a literal string, or a
+ * Nixpkgs attribute path whose store path the shell exports (e.g.
+ * `playwright-driver.browsers`).
+ */
+export type EnvValue =
+    | readonly ['string', string]
+    | readonly ['pkgs', string, ...string[]]
+
 /** A CI job's development environment, one generated flake each. */
 export type NixJob = {
     /** Generated directory name under `nix/generated`, matching the CI job id. */
@@ -25,6 +34,12 @@ export type NixJob = {
     readonly system: string
     /** Nixpkgs attribute names made available in the job's shell. */
     readonly packages: readonly string[]
+    /**
+     * Environment variables the shell exports. `mkShell` turns any attribute it
+     * does not recognize into one, so a Nixpkgs attribute path becomes that
+     * package's store path without any string interpolation.
+     */
+    readonly env?: Readonly<Record<string, EnvValue>>
     /** Job-local shell initialization, when the job needs one. */
     readonly shellHook?: string
 }
@@ -36,7 +51,10 @@ const { commit } = nixpkgs
 
 const url = `github:NixOS/nixpkgs/${commit}`
 
-const flake = ({ system, packages, shellHook }: NixJob): Expression => ['set',
+const envExpression = (value: EnvValue): Expression =>
+    value[0] === 'string' ? value[1] : ['ref', 'pkgs', ...value.slice(1)]
+
+const flake = ({ system, packages, env, shellHook }: NixJob): Expression => ['set',
     ['=', ['inputs', 'nixpkgs', 'url'], url],
     ['=', ['outputs'], ['lambda',
         ['open-set-pattern', 'nixpkgs'],
@@ -51,6 +69,8 @@ const flake = ({ system, packages, shellHook }: NixJob): Expression => ['set',
                     ['ref', 'pkgs', 'mkShell'],
                     ['set',
                         ['=', ['packages'], ['list', ...packages.map(p => ['ref', 'pkgs', p] as const)]],
+                        ...Object.entries(env ?? {}).map(
+                            ([name, value]) => ['=', [name], envExpression(value)] as const),
                         ...(shellHook === undefined
                             ? []
                             : [['=', ['shellHook'], ['indented-string', shellHook]] as const])
@@ -94,6 +114,18 @@ export const nixInstall: MetaStep = install(uses('cachix/install-nix-action'))
 /** Runs one command inside a job's generated development shell. */
 export const nixDevelop = (id: string, command: string): string =>
     `nix develop ${flakePath(id)} --command ${command}`
+
+/**
+ * Runs a migrated job's whole command sequence in one development shell, so the
+ * shell's packages and environment reach every command without exporting a
+ * profile across GitHub Actions steps.
+ */
+export const nixDevelopAll = (id: string, commands: readonly string[]): string =>
+    nixDevelop(id, `bash -euo pipefail -c '${commands.join(' && ')}'`)
+
+/** Asserts the Node a development shell puts on `PATH`, from inside that shell. */
+export const nodeVersionCommand = (version: string): string =>
+    `test "$(node --version)" = v${version}`
 
 /**
  * Checks a job's generated flake end to end: the shell builds, and the Node it

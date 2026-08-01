@@ -1,5 +1,5 @@
 import { ci, main } from './module.f.ts'
-import { functionalscript, node } from './config/module.f.ts'
+import { functionalscript, node, playwright } from './config/module.f.ts'
 import { nodeNixJobs } from './node/module.f.ts'
 import { playwrightNixJob } from './playwright/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
@@ -178,11 +178,11 @@ export const proof = {
         assert(
             job.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true),
             'expected a pinned Nix installer')
-        const allNixJobs = [...nodeNixJobs, playwrightNixJob]
-        // Exactly one check per generated flake: no flake goes unchecked, and no
-        // check outlives the flake it was written for.
-        assertEq(job.steps.filter(step => step.run !== undefined).length, allNixJobs.length)
-        for (const { id } of allNixJobs) {
+        // Exactly one check per unmigrated flake: none goes unchecked, and no
+        // check outlives the flake it was written for. A migrated job checks its
+        // own flake by running through it, so it is not covered here.
+        assertEq(job.steps.filter(step => step.run !== undefined).length, nodeNixJobs.length)
+        for (const { id } of nodeNixJobs) {
             assert(
                 hasRunInJob('nix-flakes', `nix develop ./nix/generated/${id} --command node --version`)(gha),
                 `expected the ${id} flake to be instantiated`)
@@ -196,9 +196,44 @@ export const proof = {
         }
         // The canonical Node jobs keep their current runtime setup until they
         // are migrated one at a time.
-        for (const { id } of allNixJobs) {
+        for (const { id } of nodeNixJobs) {
             assert(!hasRunInJob(id, 'nix develop')(gha), `unexpected nix develop in ${id}`)
         }
+    },
+    playwrightNixJob: () => {
+        const [state, result] = virtual(makeState(false))(main())
+        assertEq(result, 0)
+        const generated = flake(state, playwrightNixJob.id)
+        // Browsers come from the store path, so neither download step is needed.
+        assert(
+            generated.includes('pkgs.playwright-driver.browsers'),
+            'expected Nix-provided Playwright browsers')
+        const gha = workflow(state)
+        assert(
+            hasRunInJob('playwright', 'nix develop ./nix/generated/playwright')(gha),
+            'expected the Playwright job to run through its flake')
+        // The whole sequence shares one shell: a per-step `nix develop` would
+        // drop the browser environment between steps.
+        assertEq(gha.jobs['playwright']?.steps.filter(step => step.run !== undefined).length, 1)
+        assert(
+            hasRunInJob('playwright', `= v${node.default}`)(gha),
+            'expected the migrated job to check its own Node version')
+        // Ties the Nixpkgs-provided browsers to the `@playwright/test` version
+        // `package.json` pins; nothing else checks the two still agree.
+        assert(
+            hasRunInJob('playwright', `npx playwright --version)" = "Version ${playwright}"`)(gha),
+            'expected the Playwright version check')
+        for (const browser of ['chromium', 'firefox', 'webkit']) {
+            assert(
+                hasRunInJob('playwright', `npx playwright test --browser=${browser}`)(gha),
+                `expected the ${browser} run`)
+        }
+        for (const removed of ['playwright install', 'playwright install-deps', 'setup-node']) {
+            assert(!hasRunInJob('playwright', removed)(gha), `unexpected ${removed}`)
+        }
+        assert(
+            !gha.jobs['playwright']?.steps.some(step => step.uses?.startsWith('actions/cache@') === true),
+            'unexpected browser cache: the Nix store already provides them')
     },
     ubuntu: () => {
         const job = ubuntu([test({ run: 'echo hi' })])
