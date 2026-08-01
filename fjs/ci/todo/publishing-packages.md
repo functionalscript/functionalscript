@@ -103,6 +103,15 @@ source.ts -> source.js
 
 Changing a module from `.ts` to `.mjs` also changes its import extension. Importers must be updated from the TypeScript or generated `.js` path to the authored `.mjs` path.
 
+Authored `.mjs` is copied to the package without rewriting import specifiers.
+Therefore migration must be dependency-closed: an authored `.mjs` module must
+not import an unmigrated relative `.ts` source or generated `.js` sibling. Its
+relative runtime dependencies must already be authored `.mjs` or be converted
+in the same coherent group. An authored `.ts` module may import `.mjs`; its
+generated `.js` preserves that `.mjs` specifier, which works both in a checkout
+and in the packed artifact. No staging tree or package-time import-rewrite step
+is planned.
+
 Tasks:
 
 - [ ] Make `fjs/types/bigint/benchmark.mjs` pass TypeScript validation or delete it.
@@ -110,7 +119,11 @@ Tasks:
 - [ ] Update the NPM package rules to include `.mjs` and `.d.mts` while excluding non-package `.mjs` files.
 - [ ] Replace the current one-pass `prepack` script with the two emission passes.
 - [ ] Add a package test containing one `.ts` module and one JSDoc `.mjs` module.
-- [ ] Test imports in both directions between `.ts` and `.mjs` modules.
+- [ ] Test the supported mixed-source direction: authored `.ts` importing
+      authored `.mjs`, both before and after packing.
+- [ ] Add validation or a package test that rejects relative authored
+      `.mjs` imports of `.ts` or generated `.js`, enforcing dependency-closed
+      migration groups.
 - [ ] Verify the packed archive contains authored `.mjs`, generated `.js`, `.d.ts`, and `.d.mts` files.
 
 ### Related
