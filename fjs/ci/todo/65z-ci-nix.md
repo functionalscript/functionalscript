@@ -104,6 +104,7 @@ The minimal public contract is:
       let
         pkgs = import nixpkgs { system = "aarch64-linux"; };
       in
+      assert pkgs.nodejs_22.version == "22.23.1";
       pkgs.mkShell {
         packages = [ pkgs.nodejs_22 ];
       };
@@ -208,7 +209,7 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 ### Tasks
 
 - [x] Add the stable Nixpkgs reference and exact accepted commit to the current CI
-      configuration.
+      configuration, plus the exact Node versions that snapshot provides.
 - [x] Add the Node job system and package declarations above.
 - [ ] Add the explicit Nixpkgs update command.
 - [x] Verify all required Node package attributes exist in the candidate snapshot.

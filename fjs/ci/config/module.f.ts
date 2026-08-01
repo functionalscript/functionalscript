@@ -37,16 +37,23 @@ export const deno = '2.9.4'
 // Make sure that `package.json` has the same version of `@playwright/test`
 export const playwright = '1.62.0'
 
+// The Node versions the pinned Nixpkgs snapshot below provides — read from
+// `pkgs/development/web/nodejs/v{22,24,26}.nix` at that commit. Every runtime
+// uses these: `setup-node` on the GitHub-hosted runners and the generated
+// flakes on the Nix jobs, which assert the version they actually get. Nixpkgs
+// usually trails nodejs.org, so bump the snapshot first and copy the versions
+// it offers rather than the latest release.
 // https://nodejs.org/en/download
 export const node = {
-    default: '26.5.0',
+    default: '26.5.1',
     node22: '22.23.1',
     node24: '24.18.0',
 } as const
 
 // Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
 // stable channel the commit is accepted from; `commit` is the exact revision
-// every generated `flake.nix` pins.
+// every generated `flake.nix` pins. The Node versions above come from this
+// snapshot, so the two move together.
 // https://channels.nixos.org/nixos-26.05/git-revision
 export const nixpkgs = {
     ref: 'nixos-26.05',

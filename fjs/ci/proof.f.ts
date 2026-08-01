@@ -164,10 +164,12 @@ export const proof = {
         const [state, result] = virtual(makeState(false))(main())
         assertEq(result, 0)
         for (const { id, packages } of nodeNixJobs) {
-            const [nodePackage] = packages
+            const [{ attribute, version }] = packages
+            const text = flake(state, id)
+            assert(text.includes(`pkgs.${attribute}`), `expected ${attribute} in the ${id} flake`)
             assert(
-                flake(state, id).includes(`pkgs.${nodePackage}`),
-                `expected ${nodePackage} in the ${id} flake`)
+                text.includes(`assert pkgs.${attribute}.version == "${version}";`),
+                `expected the ${id} flake to assert version ${version}`)
         }
     },
     nixFlakeJob: () => {

@@ -11,18 +11,22 @@ Phase 2 is done: `fjs/ci/nix/module.f.ts` generates
 running Nix. `nodejs_22`, `nodejs_24`, and `nodejs_26` were verified to exist in
 the accepted snapshot.
 
-A temporary `nix-flakes` job instantiates every generated flake
-(`nix develop <flake> --command node --version`) so the generated files are
-checked on every pull request. It is not part of the migration: the canonical
-Node jobs keep their `setup-node` runtime, and the temporary job is deleted once
-they all run through `nix develop`.
+A temporary `nix-flakes` job instantiates every generated flake and compares the
+Node it provides to the expected version, so the generated files are checked on
+every pull request. It is not part of the migration: the canonical Node jobs
+keep their `setup-node` runtime, and the temporary job is deleted once they all
+run through `nix develop`.
 
-Still open: the `npm run ci-nix-update` command (phase 1's automation), removal
-of stale generated job directories, and the rest of phase 3 (migrating the jobs
-themselves). Stale-directory removal needs a recursive `rm` effect — today's
-`rm` operation only deletes files. Asserting the Node version inside the shell
-waits on the update command, which is what records the versions the pinned
-snapshot provides.
+The Node versions in `fjs/ci/config/module.f.ts` are now the ones the pinned
+snapshot provides, shared by `setup-node` and the flakes, and each flake asserts
+`pkgs.<attribute>.version`. `fjs/media/nix` gained the `assert` and `==` forms
+for this.
+
+Still open: the `npm run ci-nix-update` command (phase 1's automation — the
+versions were read from the snapshot by hand), removal of stale generated job
+directories, and the rest of phase 3 (migrating the jobs themselves).
+Stale-directory removal needs a recursive `rm` effect — today's `rm` operation
+only deletes files.
 
 ### Problem
 
@@ -117,6 +121,7 @@ Each generated file follows this static shape, with the job's package substitute
       let
         pkgs = import nixpkgs { system = "aarch64-linux"; };
       in
+      assert pkgs.nodejs_22.version == "22.23.1";
       pkgs.mkShell {
         packages = [ pkgs.nodejs_22 ];
       };
@@ -225,7 +230,8 @@ milestone.
 
 - [x] Add the stable Nixpkgs reference and exact commit.
 - [ ] Add `npm run ci-nix-update`.
-- [ ] Update Node versions from the accepted Nixpkgs snapshot.
+- [x] Update Node versions from the accepted Nixpkgs snapshot (by hand for now;
+      `ci-nix-update` automates it).
 - [x] Verify the three required Node package attributes exist.
 - [x] Generate separate Node 22, Node 24, and Node 26 flakes with
       `devShells.aarch64-linux.default`.

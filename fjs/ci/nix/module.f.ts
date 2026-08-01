@@ -17,14 +17,22 @@ import { unwrap } from '../../types/result/module.f.ts'
 import { install, uses, type MetaStep } from '../common/module.f.ts'
 import { nixpkgs } from '../config/module.f.ts'
 
+/** A package the shell provides, pinned to the version the snapshot must give. */
+export type NixPackage = {
+    /** Nixpkgs attribute name, e.g. `nodejs_24`. */
+    readonly attribute: string
+    /** Version the snapshot is expected to provide, asserted by the flake. */
+    readonly version: string
+}
+
 /** A CI job's development environment, one generated flake each. */
 export type NixJob = {
     /** Generated directory name under `nix/generated`, matching the CI job id. */
     readonly id: string
     /** Nix system of the job's runner, e.g. `aarch64-linux`. */
     readonly system: string
-    /** Nixpkgs attribute names made available in the job's shell. */
-    readonly packages: readonly string[]
+    /** Packages made available in the job's shell. */
+    readonly packages: readonly NixPackage[]
     /** Job-local shell initialization, when the job needs one. */
     readonly shellHook?: string
 }
@@ -36,26 +44,41 @@ const { commit } = nixpkgs
 
 const url = `github:NixOS/nixpkgs/${commit}`
 
-const flake = ({ system, packages, shellHook }: NixJob): Expression => ['set',
+const shell = ({ packages, shellHook }: NixJob): Expression => ['apply',
+    ['ref', 'pkgs', 'mkShell'],
+    ['set',
+        ['=', ['packages'], ['list',
+            ...packages.map(({ attribute }) => ['ref', 'pkgs', attribute] as const)
+        ]],
+        ...(shellHook === undefined
+            ? []
+            : [['=', ['shellHook'], ['indented-string', shellHook]] as const])
+    ]
+]
+
+/**
+ * Guards the shell with one assertion per package, so a snapshot that moved on
+ * fails evaluation instead of silently handing the job a different toolchain.
+ * Nix asserts one condition each, and the last package ends up innermost.
+ */
+const asserted = (packages: readonly NixPackage[], body: Expression): Expression =>
+    packages.reduceRight<Expression>(
+        (inner, { attribute, version }) =>
+            ['assert', ['==', ['ref', 'pkgs', attribute, 'version'], version], inner],
+        body)
+
+const flake = (job: NixJob): Expression => ['set',
     ['=', ['inputs', 'nixpkgs', 'url'], url],
     ['=', ['outputs'], ['lambda',
         ['open-set-pattern', 'nixpkgs'],
         ['set',
-            ['=', ['devShells', system, 'default'], ['let',
+            ['=', ['devShells', job.system, 'default'], ['let',
                 [['=', ['pkgs'], ['apply',
                     ['ref', 'import'],
                     ['ref', 'nixpkgs'],
-                    ['set', ['=', ['system'], system]]
+                    ['set', ['=', ['system'], job.system]]
                 ]]],
-                ['apply',
-                    ['ref', 'pkgs', 'mkShell'],
-                    ['set',
-                        ['=', ['packages'], ['list', ...packages.map(p => ['ref', 'pkgs', p] as const)]],
-                        ...(shellHook === undefined
-                            ? []
-                            : [['=', ['shellHook'], ['indented-string', shellHook]] as const])
-                    ]
-                ]
+                asserted(job.packages, shell(job))
             ]]
         ]
     ]]

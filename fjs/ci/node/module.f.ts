@@ -75,7 +75,7 @@ mkdir -p "$NPM_CONFIG_PREFIX"` as const
 const nixJob = (version: string): NixJob => ({
     id: jobId(version),
     system: nixSystem,
-    packages: [`nodejs_${major(version)}`],
+    packages: [{ attribute: `nodejs_${major(version)}`, version }],
 })
 
 /** Generated development environments for the canonical Node jobs. */
@@ -85,23 +85,28 @@ export const nodeNixJobs: readonly NixJob[] = [
     nixJob(node.default),
 ]
 
+// The flake's own assertion covers the package's declared version; this checks
+// the shell actually puts that Node on `PATH`, which a wrong `packages` entry
+// would break without failing the assertion.
+const nodeVersionStep = (job: NixJob): MetaStep => {
+    const [{ version }] = job.packages
+    return test({ run: `test "$(${nixDevelop(job, 'node --version')})" = v${version}` })
+}
+
 /**
  * Temporary job that instantiates every generated flake.
  *
  * Nothing else in CI evaluates the generated files, so a broken flake would
  * only surface once a real job started using one. This job installs Nix and
- * builds each development shell, printing the Node version it provides. It
- * deliberately stays separate from the canonical Node jobs: those keep their
- * current `setup-node` runtime until they are migrated one at a time, and this
- * job is deleted once they all run through `nix develop`.
- *
- * The version is printed rather than asserted — the repository does not yet
- * record the Node versions the pinned snapshot provides, which arrives with the
- * Nixpkgs update command.
+ * builds each development shell, checking that it provides exactly the Node
+ * version `config` pins. It deliberately stays separate from the canonical Node
+ * jobs: those keep their current `setup-node` runtime until they are migrated
+ * one at a time, and this job is deleted once they all run through
+ * `nix develop`.
  */
 export const nodeNixFlakeJob: Job = ubuntuArm([
     nixInstall,
-    ...nodeNixJobs.map(job => test({ run: nixDevelop(job, 'node --version') })),
+    ...nodeNixJobs.map(nodeVersionStep),
 ])
 
 export const nodeMainSteps = platformNodeSteps

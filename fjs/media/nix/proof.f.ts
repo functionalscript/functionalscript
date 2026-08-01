@@ -14,17 +14,20 @@ const nodeFlake = (nodePackage: string, shellHook: boolean): Expression => ['set
                         ['ref', 'nixpkgs'],
                         ['set', ['=', ['system'], 'aarch64-linux']]
                     ]]
-                ], ['apply',
-                    ['ref', 'pkgs', 'mkShell'],
-                    ['set',
-                        ['=', ['packages'], ['list', ['ref', 'pkgs', nodePackage]]],
-                        ...(shellHook ? [[
-                            '=',
-                            ['shellHook'],
-                            ['indented-string', `export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+                ], ['assert',
+                    ['==', ['ref', 'pkgs', nodePackage, 'version'], '1.2.3'],
+                    ['apply',
+                        ['ref', 'pkgs', 'mkShell'],
+                        ['set',
+                            ['=', ['packages'], ['list', ['ref', 'pkgs', nodePackage]]],
+                            ...(shellHook ? [[
+                                '=',
+                                ['shellHook'],
+                                ['indented-string', `export NPM_CONFIG_PREFIX="$HOME/.npm-global"
 export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
 mkdir -p "$NPM_CONFIG_PREFIX"`]
-                        ] as const] : [])
+                            ] as const] : [])
+                        ]
                     ]
                 ]]
             ]
@@ -40,6 +43,7 @@ const node24 = `{
                 system = "aarch64-linux";
             };
         in
+        assert pkgs.nodejs_24.version == "1.2.3";
         pkgs.mkShell {
             packages = [ pkgs.nodejs_24 ];
         };
@@ -55,6 +59,7 @@ const node22 = `{
                 system = "aarch64-linux";
             };
         in
+        assert pkgs.nodejs_22.version == "1.2.3";
         pkgs.mkShell {
             packages = [ pkgs.nodejs_22 ];
             shellHook = ''
@@ -117,8 +122,39 @@ export const proof = {
     node22: () => {
         assertEq(nixToString(nodeFlake('nodejs_22', true)), node22)
     },
+    assert: {
+        references: () => assertEq(
+            nixToString(['assert', ['==', ['ref', 'a'], ['ref', 'b']], ['ref', 'c']]),
+            'assert a == b;\nc\n'
+        ),
+        strings: () => assertEq(
+            nixToString(['assert', ['==', 'x', 'y'], ['set']]),
+            'assert "x" == "y";\n{}\n'
+        ),
+        // The body is serialized at the assert's own level, so an assertion in
+        // front of a set keeps the set's bindings aligned.
+        indented: () => assertEq(
+            nixToString(['set', ['=', ['x'], ['assert',
+                ['==', ['ref', 'v', 'version'], '1.2.3'],
+                ['set', ['=', ['y'], 'z']]
+            ]]]),
+            '{\n    x = assert v.version == "1.2.3";\n    {\n        y = "z";\n    };\n}\n'
+        ),
+    },
     invalid: {
         reference: () => assertEq(nixToString(['ref', 'not valid']), undefined),
+        assertLeft: () => assertEq(
+            nixToString(['assert', ['==', ['ref', 'bad name'], 'x'], ['set']]),
+            undefined
+        ),
+        assertRight: () => assertEq(
+            nixToString(['assert', ['==', 'x', ['ref', 'bad name']], ['set']]),
+            undefined
+        ),
+        assertBody: () => assertEq(
+            nixToString(['assert', ['==', 'x', 'x'], ['ref', 'bad name']]),
+            undefined
+        ),
         reservedReference: () => assertEq(nixToString(['ref', 'let']), undefined),
         emptyReference: () => assertEq(nixToString(['ref', '']), undefined),
         digitReference: () => assertEq(nixToString(['ref', '1abc']), undefined),
