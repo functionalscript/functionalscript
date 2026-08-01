@@ -1,6 +1,6 @@
 import { setProperty, stringify } from './module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { identity } from '../../types/function/module.f.ts'
+import { identity } from '../../types/function/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {

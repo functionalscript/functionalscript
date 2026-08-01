@@ -11,7 +11,7 @@
 import { next, flat, map, type List } from '../../types/list/module.f.ts'
 import { concat } from '../../types/string/module.f.ts'
 import { at, definedEntries, type Entry as ObjectEntry } from '../../types/object/module.f.ts'
-import { compose, fn } from '../../types/function/module.f.ts'
+import { compose, fn } from '../../types/function/module.f.mjs'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.ts'
 import { boolean as rttiBoolean, number as rttiNumber, string as rttiString, or, record, array as rttiArray } from '../../types/rtti/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'

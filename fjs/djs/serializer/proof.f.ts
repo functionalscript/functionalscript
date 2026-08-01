@@ -1,6 +1,6 @@
 import { countRefs, stringify, stringifyAsTree } from './module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { identity } from '../../types/function/module.f.ts'
+import { identity } from '../../types/function/module.f.mjs'
 import { setProperty } from '../../media/json/module.f.ts'
 import { assertEq } from '../../asserts/module.f.mjs'
 
