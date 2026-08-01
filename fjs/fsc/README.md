@@ -25,11 +25,10 @@ it. Before converting the first existing repository module, complete both:
 
 - [`.f.mjs` test and coverage support](../emergent_testing/todo/f-mjs-test-and-coverage.md),
   so migrated modules remain in proof discovery and coverage reporting;
-- the authored-`.mjs` tasks in
-  [`publishing-packages.md`](../ci/todo/publishing-packages.md), including
-  TypeScript checking, `.mjs`/`.d.mts` package inclusion, declaration emission,
-  runtime import tests, and packed-package type-resolution tests, so published
-  runtime and declaration imports cannot reference omitted files.
+- [authored `.f.mjs` package support](../ci/todo/f-mjs-package-support.md),
+  including TypeScript checking, `.mjs`/`.d.mts` package inclusion, declaration
+  emission, runtime import tests, and packed-package type-resolution tests, so
+  published runtime and declaration imports cannot reference omitted files.
 
 Migration uses a dependency-closed order. An existing module is eligible only
 when every relative FunctionalScript dependency referenced by its runtime code
