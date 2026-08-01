@@ -27,8 +27,16 @@ it. Before converting the first existing repository module, complete both:
   so migrated modules remain in proof discovery and coverage reporting;
 - [authored `.f.mjs` package support](../ci/todo/f-mjs-package-support.md),
   including TypeScript checking, `.mjs`/`.d.mts` package inclusion, declaration
-  emission, runtime import tests, and packed-package type-resolution tests, so
-  published runtime and declaration imports cannot reference omitted files.
+  emission, runtime import tests, packed-package type-resolution tests, and the
+  repository module-import policy update, so published runtime and declaration
+  imports cannot reference omitted files and unmigrated callers may follow
+  renamed dependencies.
+
+The repository import policy is asymmetric during migration: authored `.f.ts`
+may import relative `.f.ts` or `.f.mjs` modules, while authored `.f.mjs` runtime
+imports and type references may target relative `.f.mjs` modules only. Update
+`AGENTS.md` with this rule as part of the package-support prerequisite before the
+first real rename.
 
 Migration uses a dependency-closed order. An existing module is eligible only
 when every relative FunctionalScript dependency referenced by its runtime code
@@ -48,7 +56,7 @@ staging, package-time import-rewrite, or declaration-rewrite mechanism.
 2. Rename the selected files to `.f.mjs` and replace TypeScript-only syntax with
    JSDoc types.
 3. Update runtime imports and JSDoc type references within the group, plus all
-   importers of renamed modules, to the authored `.f.mjs` paths.
+   `.f.ts` importers of renamed modules, to the authored `.f.mjs` paths.
 4. Add the group to parser/compiler validation and preserve its existing proof,
    coverage, type-checking, package-runtime, and package-type-resolution
    expectations.
@@ -95,7 +103,7 @@ the [project roadmap](../../todo/plan/roadmap.md) and the
 - `,` - comma
 - `-` - subtraction
   - `--` - decrement
-  - `-=` - subtractionAssignment
+  - `-=` - multiplicationAssignment
 - `.` - dot
   - `...` - spread
 - `/` - division
