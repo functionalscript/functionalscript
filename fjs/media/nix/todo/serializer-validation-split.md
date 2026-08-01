@@ -126,9 +126,9 @@ collect. Do *not* add an `allOrNothing` / `traverse` helper to
 `fjs/types/array` for them — the duplication is a symptom of the missing split,
 and abstracting it would preserve the plumbing this issue removes.
 
-**3. One public entry point that carries the reason.** The module has no
-importers yet (only its own `proof.f.ts`), so this is the cheapest moment to
-fix the contract:
+**3. One public entry point that carries the reason.** There is exactly one
+production importer — `fjs/ci/nix/module.f.ts` — so the contract is still cheap
+to fix, but the change is no longer confined to this module's own proof:
 
 ```ts
 export const nix = (expression: Expression): Result<List<string>, string> => {
@@ -159,6 +159,36 @@ using `fjs/types/result`. Two details the shape has to respect:
 If preserving today's shape matters more than the diagnostic,
 `Nullable<List<string>>` is an acceptable fallback — but then export `check`
 too, so the reason is reachable at all.
+
+#### Migrating `fjs/ci/nix`
+
+The one production caller gets *simpler*, not harder. Today it launders
+`undefined` through the nullable convention to reach an assertion
+(`fjs/ci/nix/module.f.ts:72-73`):
+
+```ts
+export const flakeText = (job: NixJob): string =>
+    unwrapNullable(fromUndefined(nixToString(flake(job))))
+```
+
+With a `Result` that is one call, using the `unwrap` the same module *already
+imports* from `fjs/types/result` (`:16`):
+
+```ts
+export const flakeText = (job: NixJob): string =>
+    unwrap(nixToString(flake(job)))
+```
+
+`fromUndefined` and `unwrapNullable` drop out of its imports (`:15`). The
+change also pays off exactly where that function's doc comment (`:65-71`)
+says it matters: it calls the unwrap "a totality assertion, not an input
+check", and `Result`'s `unwrap` throws the *reason* rather than a bare
+assertion failure — so if the totality claim is ever wrong, the failure says
+which identifier broke it.
+
+No expected values move in `fjs/ci/nix/proof.f.ts`: it has no
+rejection case (its `quotedPackage` case at `:106-109` documents the opposite —
+job data only reaches quotable positions, so `flakeText` never fails today).
 
 **4. Reuse the sibling chunk vocabulary.** Drop `Chunks` and `joinChunks`;
 build `List<string>` with `fjs/types/list`'s `flat`/`flatMap`/`map` as
@@ -214,6 +244,17 @@ content, so the bucket is right; only the declaration is missing.
 - [ ] Keep `nixToString`'s single trailing newline: the ten
       `proof.f.ts:72-105` assertions must pass with only their `Result`
       wrapping changed, not their expected text.
+- [ ] Migrate the one production caller, `flakeText`
+      (`fjs/ci/nix/module.f.ts:72-73`): replace
+      `unwrapNullable(fromUndefined(…))` with the `unwrap` from
+      `fjs/types/result` that module already imports, and drop
+      `fromUndefined`/`unwrapNullable` from its imports (`:15`). Land it in the
+      same PR as the signature change — it is the only thing that breaks.
+- [ ] Confirm the generated-flake proofs pass unchanged — `fjs/ci/nix/proof.f.ts`
+      (`:85-95`, round-tripping `flakeText` through the writer) and
+      `fjs/ci/proof.f.ts` (`:51-52`, reading `nix/generated/<id>/flake.nix`).
+      The three committed flake files must come out byte-identical: this
+      changes how a failure is reported, never the text produced on success.
 - [ ] Replace `Chunks` / `joinChunks` with `fjs/types/list` chunk building,
       keeping the separator logic local — do not export or reshape
       `fjs/media/json/serializer`'s private `join`/`wrap` for this.

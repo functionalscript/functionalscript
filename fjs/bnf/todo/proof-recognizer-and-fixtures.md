@@ -47,7 +47,7 @@ empty* — differing only in how each backend reports the remainder (an index
 into the code points vs. a leftover list). That difference belongs in one
 adapter, not in eight test bodies.
 
-#### 2. The `numberRule` mini-grammar — 9 copies
+#### 2. The `numberRule` mini-grammar — 8 copies plus 1 variant
 
 The smallest interesting grammar in the tree, "an optional minus followed by
 one digit", is rebuilt from scratch in every case that needs it —
@@ -156,8 +156,12 @@ the adapters in `fjs/bnf/descent/testlib.f.ts` and `fjs/bnf/ll1/testlib.f.ts`
 and keep only `Case` / `assertRecognizes` / the corpus in the shared file.
 
 **2. `export const number: Rule`** — the optional-minus-then-digit grammar,
-exported by name. The nine sites import it; `ll1:70-74`'s space-prefixed
-variant stays local and is thereby visibly *not* the shared one.
+exported by name. **Eight** of the nine blocks import it — every one but
+`ll1:70-74`, whose space-prefixed variant is the deliberately different case
+and stays local. Converting that ninth site too would delete the only
+optional-space grammar the proofs exercise, i.e. lose a case rather than move
+one. Leaving it local, next to eight sites that now read as one import, is
+also what makes it visibly *not* the shared grammar.
 
 **3. `export const jsonCases: readonly Case[]`** — the 20-row corpus with the
 JSON verdicts. `descent` and `ll1` consume it unchanged. `fjs/djs/tokenizer`
@@ -190,7 +194,9 @@ answering "what does this grammar accept?" independently.
       `fjs/djs/tokenizer`'s export (`:238-243`) still needs to be public.
 - [ ] Add `number` (the optional-minus-then-digit grammar) and `jsonCases`.
 - [ ] Convert `fjs/bnf/descent/proof.f.ts` and `fjs/bnf/ll1/proof.f.ts`; keep
-      `ll1:70-74`'s space-prefixed variant local and comment why.
+      `ll1:70-74`'s space-prefixed variant local and comment why — eight
+      import sites, not nine; converting the ninth would delete the only
+      optional-space grammar case.
 - [ ] Convert `fjs/djs/tokenizer/proof.f.ts` to `jsonCases` plus a named
       override list for the six flipped verdicts and its 7 extra inputs.
 - [ ] Confirm coverage of `fjs/bnf/descent`, `fjs/bnf/ll1` and
