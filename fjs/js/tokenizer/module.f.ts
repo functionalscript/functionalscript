@@ -69,7 +69,7 @@ import {
     rightCurlyBracket,
     dollarSign
 }  from '../../text/ascii/module.f.ts'
-import { todo } from '../../asserts/module.f.ts'
+import { todo, assertEq } from '../../asserts/module.f.ts'
 
 const { fromCharCode } = String
 
@@ -923,6 +923,14 @@ export const tokenize
     }
 
 export const proof = {
+    // `getOperatorToken` is only ever called with a value already confirmed to be
+    // a known operator (`hasOperatorToken`, or a single char from `rangeOpStart`),
+    // so its `??` fallback is unreachable through `tokenize`. Call it directly
+    // with a non-operator string to cover that branch.
+    getOperatorTokenInvalid: () => {
+        const result = getOperatorToken('@')
+        assertEq(result.kind, 'error')
+    },
     throw: {
         // union throws when two distinct non-default handlers are merged for the same range;
         // this path is unreachable through the public API (no overlapping ranges in practice).
