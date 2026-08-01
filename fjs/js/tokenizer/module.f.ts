@@ -347,7 +347,7 @@ const rangeMapMerge
 
 const rangeFunc
     : <T>(r: NumberRange) => (f: CreateToToken<T>) => RangeFunc<T>
-    = r => f => def => fromRange(def)(r)(f)
+    = r => f => def => fromRange(def)(f)(r)
 
 const scanRangeOp
     : <T>(def:  CreateToToken<T>) => (Scan<RangeFunc<T>, RangeMapToToken<T>>)
@@ -362,7 +362,7 @@ const reduceRangeMap
 
 const scanRangeSetOp
     : <T>(def:  CreateToToken<T>) => (f:  CreateToToken<T>) => (Scan<NumberRange, RangeMapToToken<T>>)
-    = def => f => r => [fromRange(def)(r)(f), scanRangeSetOp(def)(f)]
+    = def => f => r => [fromRange(def)(f)(r), scanRangeSetOp(def)(f)]
 
 const rangeSetFunc
     : <T>(rs: List<NumberRange>) => (f: CreateToToken<T>) => RangeFunc<T>
@@ -372,11 +372,8 @@ const rangeSetFunc
     }
 
 const create = <T>(def: CreateToToken<T>) => (a: List<RangeFunc<T>>): CreateToToken<T> => {
-    const i = reduceRangeMap(def)(a)
-    const x
-        : (v: number) => (i: RangeMapToToken<T>) => (v: T) => ToToken
-        = get(def)
-    return v => c => x(c)(i)(v)(c)
+    const x = get(def)(reduceRangeMap(def)(a))
+    return v => c => x(c)(v)(c)
 }
 
 const digitToBigInt

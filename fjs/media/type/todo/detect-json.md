@@ -23,7 +23,7 @@ well-formed JSON and report `application/json` (RFC 8259 / RFC 6838; UTF-8 is
 the assumed charset, so no `charset` parameter is emitted).
 
 Because the classifier is shared, fixing it in `fjs/media/type` fixes it everywhere:
-`cas_get` (`fjs/cas/mcp/module.f.ts:204`) picks up `application/json`
+`cas_get` (`fjs/mcp/cas/module.f.ts:204`) picks up `application/json`
 automatically for both the metadata-only and `content: true` paths, and any
 future `fjs/media/type` consumer inherits it.
 
@@ -126,7 +126,7 @@ type). The object/array gate matches how JSON is used as a data format and is
 what §1's `top` tag enforces (`jsonValid` requires `top ∈ { '{', '[' }`). The
 externally visible contract, then: `cas_get` returns `application/json` only for
 object/array documents; scalar-only blobs report `text/plain`. Document this
-next to the signature table (`:18-31`) and in `fjs/cas/mcp/module.f.ts`'s
+next to the signature table (`:18-31`) and in `fjs/mcp/cas/module.f.ts`'s
 `cas_get` output section. NDJSON / JSON Lines / JSON5 are out of scope.
 
 #### 5. `isSettled` / performance
@@ -164,7 +164,7 @@ exactly the path `cas_get` uses.
       `application/json`; bare scalars (`42`, `null`, `"hi"`, `true`) →
       `text/plain` (top-level object/array rule).
 - [ ] Update `fjs/media/type/module.f.ts` module doc (recognised-types table) and the
-      `cas_get` output section in `fjs/cas/mcp/module.f.ts` to list
+      `cas_get` output section in `fjs/mcp/cas/module.f.ts` to list
       `application/json`.
 - [ ] `npx tsc` clean; `fjs t` green with both branches of the JSON verdict
       covered.
@@ -176,5 +176,5 @@ exactly the path `cas_get` uses.
 - `fjs/media/json/todo/streaming-recognizer.md` — **blocks this**; the payload-free, O(depth) validity recognizer `A_json` wraps.
 - `fjs/js/tokenizer/module.f.ts` — `parseStringStateOp`; already rejects raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
 - `fjs/media/json/parser/module.f.ts:205-238` — `foldOp` / `parse`, the grammar the recognizer reuses value-free.
-- `fjs/cas/mcp/module.f.ts:196-204` — `cas_get`, the consumer that gains `application/json` for free.
+- `fjs/mcp/cas/module.f.ts:196-204` — `cas_get`, the consumer that gains `application/json` for free.
 - `fjs/media/type/todo/single-signature-table.md` — the sibling "one source of truth" cleanup; same single-classifier principle.

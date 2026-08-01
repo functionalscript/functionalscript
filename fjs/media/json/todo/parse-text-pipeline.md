@@ -21,7 +21,7 @@ const parseJson = (text: string): Result<Unknown, string> =>
 const parseJsonText = (text: string): Result<Unknown, string> =>
     jsonParse(jsonTokenize(stringToList(text)))
 
-// fjs/mcp/stdio/module.f.ts:81 — the same composition inlined
+// fjs/protocol/mcp/stdio/module.f.ts:81 — the same composition inlined
 const [t, value] = parse(tokenize(stringToList(line)))
 ```
 

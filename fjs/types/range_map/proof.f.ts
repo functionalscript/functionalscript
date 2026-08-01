@@ -27,25 +27,26 @@ export const proof = {
         })
 
         // Create range maps
-        const range1 = rmOps.fromRange([0, 10])(2)
-        const range2 = rmOps.fromRange([5, 15])(5)
+        const range1 = rmOps.fromRange(2)([0, 10])
+        const range2 = rmOps.fromRange(5)([5, 15])
 
         // Merge range maps
         const merged = toArray(rmOps.merge(range1)(range2))
 
         // Retrieve values from the merged range map
         //
-        assertEq(rmOps.get(-1)(merged), 0, 'error')
+        const get = rmOps.get(merged)
+        assertEq(get(-1), 0, 'error')
         //
-        assertEq(rmOps.get(0)(merged), 2, 'error')
-        assertEq(rmOps.get(2)(merged), 2, 'error')
+        assertEq(get(0), 2, 'error')
+        assertEq(get(2), 2, 'error')
         // 2 | 5 = 7
-        assertEq(rmOps.get(7)(merged), 7, 'error')
+        assertEq(get(7), 7, 'error')
         //
-        assertEq(rmOps.get(12)(merged), 5, 'error')
-        assertEq(rmOps.get(15)(merged), 5, 'error')
+        assertEq(get(12), 5, 'error')
+        assertEq(get(15), 5, 'error')
         //
-        assertEq(rmOps.get(16)(merged), 0, 'error')
+        assertEq(get(16), 0, 'error')
     },
     merge: [
         () => {
@@ -119,77 +120,63 @@ export const proof = {
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = str(at(5)(rm))
+                const result = str(at(rm)(5))
                 assertEq(result, '["a"]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = str(at(10)(rm))
+                const result = str(at(rm)(10))
                 assertEq(result, '["a"]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = str(at(15)(rm))
+                const result = str(at(rm)(15))
                 assertEq(result, '["b"]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = str(at(20)(rm))
+                const result = str(at(rm)(20))
                 assertEq(result, '["b"]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = str(at(25)(rm))
+                const result = str(at(rm)(25))
                 assertEq(result, '["c"]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = str(at(30)(rm))
+                const result = str(at(rm)(30))
                 assertEq(result, '["c"]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = str(at(35)(rm))
+                const result = str(at(rm)(35))
                 assertEq(result, '[]')
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = []
-                const result = str(at(10)(rm))
+                const result = str(at(rm)(10))
                 assertEq(result, '[]')
             }
         ]
     },
     fromRange: () => {
         const def = -1
-        const rm = fromRange(def)([1, 7])(42)
+        const rm = fromRange(def)(42)([1, 7])
+        const g = get(def)(rm)
         return [
-            () => {
-                const result = get(def)(0)(rm)
-                assertEq(result, -1)
-            },
-            () => {
-                const result = get(def)(1)(rm)
-                assertEq(result, 42)
-            },
-            () => {
-                const result = get(def)(3)(rm)
-                assertEq(result, 42)
-            },
-            () => {
-                const result = get(def)(7)(rm)
-                assertEq(result, 42)
-            },
-            () => {
-                const result = get(def)(9)(rm)
-                assertEq(result, -1)
-            },
+            () => assertEq(g(0), -1),
+            () =>assertEq(g(1), 42),
+            () => assertEq(g(3), 42),
+            () =>assertEq(g(7), 42),
+            () => assertEq(g(9), -1),
         ]
-    }
+    },
 }

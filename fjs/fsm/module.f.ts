@@ -91,7 +91,7 @@ export const dfa: (grammar: Grammar) => Dfa
 const get = rangeMapGet(emptyStateStringify)
 
 const runOp: (dfa: Dfa) => Fold<number, string>
-    = dfa => input => s => get(input)(dfa[s] ?? [])
+    = dfa => input => s => get(dfa[s] ?? [])(input)
 
 export const run = (dfa: Dfa) => (input: List<number>): List<string> =>
     foldScan(runOp(dfa))(initialStateStringify)(input)
