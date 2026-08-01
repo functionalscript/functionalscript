@@ -11,6 +11,11 @@ extension. The current package configuration validates and publishes generated
 `.js` and `.d.ts`, but does not yet provide the corresponding authored `.mjs`
 and generated `.d.mts` path.
 
+The repository's authoritative FunctionalScript module rule also currently
+allows imports only from `.f.ts`. Incremental migration requires unmigrated
+`.f.ts` importers to target modules after those dependencies move to `.f.mjs`,
+while migrated `.f.mjs` modules must remain closed over migrated dependencies.
+
 This work blocks the P1 incremental compiler migration and fjs–nanvm integration.
 Keeping it only inside the broader P3 package-publishing roadmap makes the
 ordering unclear and allows a prerequisite to be deferred behind the work it
@@ -18,10 +23,10 @@ blocks.
 
 ### Proposal
 
-Implement the minimum validation, emission, package-content, and consumer tests
-needed before the first real `.f.mjs` module enters the repository's published
-runtime graph. The broader package strategy and other package targets remain in
-[`publishing-packages.md`](./publishing-packages.md).
+Implement the minimum validation, emission, package-content, repository-policy,
+and consumer tests needed before the first real `.f.mjs` module enters the
+repository's published runtime graph. The broader package strategy and other
+package targets remain in [`publishing-packages.md`](./publishing-packages.md).
 
 Use the authored/generated extension invariant:
 
@@ -41,6 +46,16 @@ Relative runtime or type references from authored `.f.mjs` must resolve to
 `.f.mjs` modules already migrated or converted in the same group. Authored
 `.ts` may import `.mjs`, and its generated outputs preserve the `.mjs`
 specifier.
+
+Update the FunctionalScript module rules in `AGENTS.md` with the same asymmetric
+policy:
+
+- authored `.f.ts` may import relative `.f.ts` or `.f.mjs` modules;
+- authored `.f.mjs` may import or reference relative `.f.mjs` modules only;
+- neither extension may use built-in or external Node modules.
+
+This permits unmigrated callers to follow a renamed dependency without weakening
+the dependency-closure invariant for compiler-ready `.f.mjs` source.
 
 ### Tasks
 
@@ -68,6 +83,11 @@ specifier.
       declaration dependencies.
 - [ ] Verify the packed archive contains authored `.mjs`, generated `.js`,
       `.d.ts`, and `.d.mts` files in the expected package paths.
+- [ ] Update `AGENTS.md` so `.f.ts` FunctionalScript modules may import relative
+      `.f.ts` or `.f.mjs`, while authored `.f.mjs` runtime and type dependencies
+      remain restricted to relative `.f.mjs`.
+- [ ] Add validation or proofs for the allowed `.f.ts` → `.f.mjs` direction and
+      the rejected `.f.mjs` → `.f.ts` / generated `.f.js` directions.
 
 ### Acceptance criteria
 
@@ -82,11 +102,14 @@ specifier.
   to unmigrated `.ts` or generated `.js` files.
 - A clean consumer can import the packed `.mjs` runtime and type-check against
   its emitted `.d.mts` declarations without access to repository source files.
+- `AGENTS.md` explicitly permits `.f.ts` modules to import `.f.mjs` and preserves
+  the dependency-closed import and type-reference rule for authored `.f.mjs`.
 - No package-time runtime-import or declaration-specifier rewriting is needed.
 
 ### Ordering
 
-Complete this task, together with
+Complete this task, including the `AGENTS.md` module-import policy update,
+together with
 [`.f.mjs` test and coverage support](../../emergent_testing/todo/f-mjs-test-and-coverage.md),
 before converting the first existing repository module from `.f.ts` to
 `.f.mjs`. A synthetic compiler fixture that does not enter the published runtime
