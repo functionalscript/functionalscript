@@ -38,11 +38,12 @@ complete, because that fixture does not enter the published runtime graph.
 Before converting the first existing repository module, complete both:
 
 - [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md),
-  so the rename cannot silently remove internal proofs or coverage;
+  so the rename cannot silently remove internal proofs or coverage and the
+  proof guidance in `AGENTS.md` and `CONTRIBUTING.md` remains consistent;
 - [authored `.f.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md),
   including TypeScript checking, package inclusion for `.mjs` and `.d.mts`,
-  declaration emission, runtime import tests, and packed-package
-  type-resolution tests.
+  repeatable generated-output cleanup and declaration emission, consecutive-pack
+  validation, runtime import tests, and packed-package type-resolution tests.
 
 After those prerequisites, select a dependency-closed module or coherent group.
 Every relative FunctionalScript dependency used by executable code or retained
@@ -96,11 +97,13 @@ via the `Function` constructor — no rustc at the user's run time.
 - [ ] Complete
       [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md).
 - [ ] Complete
-      [authored `.f.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md).
+      [authored `.f.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md),
+      including the consecutive-pack repeatability regression.
 - [ ] Convert the first eligible repository module or group that is closed over
       both runtime and declaration-retained type dependencies from `.f.ts` to
       `.f.mjs`, and keep it in the end-to-end compiler, proof, coverage,
-      type-checking, package-runtime, and package-type-resolution test sets.
+      type-checking, repeatable package-runtime, and package-type-resolution test
+      sets.
 
 ### Related
 
@@ -109,11 +112,11 @@ via the `Function` constructor — no rustc at the user's run time.
 - [nanvm-lib/todo/console-program.md](../nanvm-lib/todo/console-program.md) —
   the self-hosted `nanvm` crate (post-MVP).
 - [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
-  — proof-discovery and coverage prerequisite for the first repository
-  conversion.
+  — proof-discovery, cross-runner coverage, and contributor-policy prerequisite
+  for the first repository conversion.
 - [authored `.f.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md) —
-  focused P1 validation, emission, package-content, dependency, and consumer
-  type-resolution prerequisite.
+  focused P1 validation, repeatable emission, package-content, dependency, and
+  consumer type-resolution prerequisite.
 - [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md) — broader P3
   package-publishing roadmap and shared authored/generated extension convention.
 - [ast-spec](./ast-spec.md) — the schema of the code-describing `Any`; the
