@@ -103,14 +103,19 @@ source.ts -> source.js
 
 Changing a module from `.ts` to `.mjs` also changes its import extension. Importers must be updated from the TypeScript or generated `.js` path to the authored `.mjs` path.
 
-Authored `.mjs` is copied to the package without rewriting import specifiers.
-Therefore migration must be dependency-closed: an authored `.mjs` module must
-not import an unmigrated relative `.ts` source or generated `.js` sibling. Its
-relative runtime dependencies must already be authored `.mjs` or be converted
-in the same coherent group. An authored `.ts` module may import `.mjs`; its
-generated `.js` preserves that `.mjs` specifier, which works both in a checkout
-and in the packed artifact. No staging tree or package-time import-rewrite step
-is planned.
+Authored `.mjs` is copied to the package without rewriting runtime import
+specifiers, and this plan does not rewrite module specifiers retained in emitted
+`.d.mts` declarations. Therefore migration must be dependency-closed in both
+graphs: an authored `.mjs` module must not reference an unmigrated relative
+`.ts` source or generated `.js` sibling through executable imports, JSDoc type
+imports, or any other declaration-retained reference. Its relative runtime and
+type dependencies must already be authored `.mjs` or be converted in the same
+coherent group.
+
+An authored `.ts` module may import `.mjs`; its generated `.js` and `.d.ts`
+outputs preserve that `.mjs` specifier, which works both in a checkout and in
+the packed artifact. No staging tree, package-time runtime-import rewrite, or
+declaration-specifier rewrite is planned.
 
 Tasks:
 
@@ -121,9 +126,15 @@ Tasks:
 - [ ] Add a package test containing one `.ts` module and one JSDoc `.mjs` module.
 - [ ] Test the supported mixed-source direction: authored `.ts` importing
       authored `.mjs`, both before and after packing.
-- [ ] Add validation or a package test that rejects relative authored
-      `.mjs` imports of `.ts` or generated `.js`, enforcing dependency-closed
-      migration groups.
+- [ ] Add validation or a package test that rejects relative authored `.mjs`
+      runtime imports or JSDoc/declaration type references to `.ts` or generated
+      `.js`, enforcing dependency-closed runtime and declaration graphs.
+- [ ] Type-check a clean consumer against the packed archive and import an
+      exported type from the authored `.mjs` fixture, proving its `.d.mts` and
+      every transitive declaration reference resolve without repository source
+      files.
+- [ ] Verify emitted `.d.mts` files do not reference package-omitted `.ts` or
+      generated `.js` paths.
 - [ ] Verify the packed archive contains authored `.mjs`, generated `.js`, `.d.ts`, and `.d.mts` files.
 
 ### Related
