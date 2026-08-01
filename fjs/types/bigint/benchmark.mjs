@@ -1,3 +1,4 @@
+/** @type {(v: bigint) => bigint} */
 const log2 = v => {
     if (v <= 0n) { return -1n }
     let result = 31n
@@ -25,6 +26,7 @@ const log2 = v => {
     return result - BigInt(Math.clz32(Number(v)))
 }
 
+/** @type {(v: bigint) => bigint} */
 const oldLog2 = v => {
     if (v <= 0n) { return -1n }
     let result = 0n
@@ -52,19 +54,22 @@ const oldLog2 = v => {
     return result
 }
 
+/** @type {(v: bigint) => bigint} */
 const stringLog2 = v => BigInt(v.toString(2).length) - 1n
 
+/** @type {(v: bigint) => bigint} */
 const stringHexLog2 = v => {
     const len = (BigInt(v.toString(16).length) - 1n) << 2n
     const x = v >> len
     return len + 31n - BigInt(Math.clz32(Number(x)))
 }
-
+/** @type {(v: bigint) => bigint} */
 const string32Log2 = n => {
     const i = (BigInt(n.toString(32).length) - 1n) * 5n
     return i + 31n - BigInt(Math.clz32(Number(n >> i)))
 }
 
+/** @type {(v: bigint) => bigint} */
 const mathLog2 = v => {
     if (v <= 0n) { return -1n }
     let result = -1n
@@ -95,6 +100,7 @@ const mathLog2 = v => {
 
 const mLog2 = Math.log2
 
+/** @type {(v: bigint) => bigint} */
 const ylog2 = n => {
     let i = -1n
     let j = 0x400n
@@ -127,8 +133,11 @@ const ylog2 = n => {
     return i
 }
 
+/** @type {HTMLElement} */
+// @ts-ignore
 const log = document.getElementById('log')
 
+/** @type {(v: (_: bigint) => bigint) => void} */
 const big = f => {
     let e = 1_048_575n
     let c = 1n << e
@@ -148,8 +157,10 @@ const big = f => {
     }
 }
 
+/** @type {(a: bigint) => (b: bigint) => bigint} */
 const min = a => b => a < b ? a : b
 
+/** @type {(f: (_: bigint) => bigint) => void} */
 const small = f => {
     let e = 2_000n
     let c = 1n << e
@@ -167,6 +178,7 @@ const small = f => {
     } while (c !== 0n)
 }
 
+/** @type {(t: (_: (_: bigint) => bigint) => void) => (s: string, f: (_: bigint) => bigint) => void} */
 const benchmark = t => (s, f) => {
     const start = performance.now()
     t(f)
@@ -176,6 +188,7 @@ const benchmark = t => (s, f) => {
     log.innerText += `${s}: ${dif}\n`
 }
 
+/** @type {(t: (_: (_: bigint) => bigint) => void) => void} */
 const run = t => {
     log.innerText += `${t.name}\n`
     const b = benchmark(t)
