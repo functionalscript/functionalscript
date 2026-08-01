@@ -117,12 +117,23 @@ export const nixDevelop = (id: string, command: string): string =>
     `nix develop ${flakePath(id)} --command ${command}`
 
 /**
+ * Wraps a string so a POSIX shell reproduces it exactly. Single quotes protect
+ * every other character, so only the quote itself needs handling: leave the
+ * literal, reopen it, and escape the quote outside (`'` becomes `'\''`).
+ */
+const singleQuoted = (value: string): string =>
+    `'${value.replaceAll("'", "'\\''")}'`
+
+/**
  * Runs a migrated job's whole command sequence in one development shell, so the
  * shell's packages and environment reach every command without exporting a
  * profile across GitHub Actions steps.
+ *
+ * The commands are a shell script, joined so a failure stops the rest, and are
+ * quoted as one argument — a command may contain quotes of its own.
  */
 export const nixDevelopAll = (id: string, commands: readonly string[]): string =>
-    nixDevelop(id, `bash -euo pipefail -c '${commands.join(' && ')}'`)
+    nixDevelop(id, `bash -euo pipefail -c ${singleQuoted(commands.join(' && '))}`)
 
 /** Asserts the Node a development shell puts on `PATH`, from inside that shell. */
 export const nodeVersionCommand = (version: string): string =>
