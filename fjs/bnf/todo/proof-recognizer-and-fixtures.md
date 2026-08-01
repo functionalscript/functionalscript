@@ -103,24 +103,57 @@ Move all three into `fjs/bnf/testlib.f.ts`, next to `classic()` and
 **1. One recognizer adapter per backend, one assertion helper over both.**
 
 ```ts
-/** Accepts and consumes the whole input. */
-export type Recognizer = (input: readonly number[]) => boolean
+/** Accepts, and consumes the whole input. */
+export type Recognizer = (input: string) => boolean
 
-export const descentRecognizer = (rule: Rule, start: string = ''): Recognizer => …
-export const ll1Recognizer = (rule: Rule, start: string = ''): Recognizer => …
+export const descentRecognizer = (rule: FRule): Recognizer => …
+export const ll1Recognizer = (rule: FRule): Recognizer => …
 
 /** Asserts a recognizer's verdict on each `[input, accepted]` row. */
 export const assertRecognizes = (r: Recognizer) => (cases: readonly Case[]): void => …
 export type Case = readonly [string, boolean]
 ```
 
-`stringToCodePointList`/`toArray` move inside the adapter, so no proof site
-repeats the decode. Watch the import direction: `testlib.f.ts` currently
-imports only `./module.f.ts`, and the adapters need `./descent` and `./ll1`.
-Both are leaves under `fjs/bnf` and neither imports `testlib.f.ts`, so this adds
-no cycle — but if it turns out inconvenient, put the adapters in
-`fjs/bnf/descent/testlib.f.ts` and `fjs/bnf/ll1/testlib.f.ts` and keep only
-`Case` / `assertRecognizes` / the corpus in the shared file.
+**Take no start-rule parameter; derive the root from the grammar.** The root
+name is not a caller's choice — it is whatever `toData` generated for the rule
+(`fjs/bnf/data/module.f.ts:199`, which returns `readonly [RuleSet, string]`).
+Both `descentParser` (`fjs/bnf/descent/module.f.ts:59`) and `parser`
+(`fjs/bnf/ll1/module.f.ts:173`) call `toData` and then *discard* that name,
+which is exactly why every call site has to supply it again by hand — and why
+seven sites guess `''` while the one lazy-rule site
+(`fjs/bnf/descent/proof.f.ts:211`, grammar `value`) must pass `'value'`. A
+`start = ''` default would bake that near-miss into the shared helper.
+
+The tree already contains the correct spelling: the `longInput` block does
+`const name = toData(rule)[1]` (`fjs/bnf/descent/proof.f.ts:264`) rather than
+guessing. The adapters do the same, so the root is right for lazy and non-lazy
+rules alike and no call site names it:
+
+- `ll1Recognizer` destructures once — `const [ruleSet, root] = toData(rule)` —
+  and builds the matcher with `parserRuleSet(ruleSet)`
+  (`fjs/bnf/ll1/module.f.ts:186`), so `toData` runs exactly once.
+- `descentRecognizer` has no ruleSet-level entry point to use (`descentParser`
+  is the only export), so it calls `toData(rule)[1]` for the name alongside
+  `descentParser(rule)`. That is one extra `toData` per adapter construction,
+  not per input — acceptable. Exporting a `descentParserRuleSet` to avoid it
+  would be a change to production code and belongs in its own issue.
+
+**The adapter also absorbs `descentParserCpOnly`**, which is duplicated today:
+`fjs/djs/tokenizer/module.f.ts:238-243` exports it (together with its
+`mapCodePoint` helper) and `fjs/bnf/descent/proof.f.ts:9-14` re-declares it
+byte-identically. Nothing in DJS *production* calls it — it is exported only so
+that module's own proof can reach it. Once both proofs go through
+`descentRecognizer`, the copy in the bnf proof disappears and the DJS export
+should be reviewed for removal (check for out-of-tree importers first, since
+it is public API today).
+
+`stringToCodePointList`/`toArray`/`mapCodePoint` all move inside the adapters,
+so no proof site repeats the decode. Watch the import direction: `testlib.f.ts`
+currently imports only `./module.f.ts`, and the adapters need `./data`,
+`./descent`, and `./ll1`. All are leaves under `fjs/bnf` and none imports
+`testlib.f.ts`, so this adds no cycle — but if it turns out inconvenient, put
+the adapters in `fjs/bnf/descent/testlib.f.ts` and `fjs/bnf/ll1/testlib.f.ts`
+and keep only `Case` / `assertRecognizes` / the corpus in the shared file.
 
 **2. `export const number: Rule`** — the optional-minus-then-digit grammar,
 exported by name. The nine sites import it; `ll1:70-74`'s space-prefixed
@@ -148,6 +181,13 @@ answering "what does this grammar accept?" independently.
 - [ ] Add `Case`, `assertRecognizes`, and the two recognizer adapters to
       `fjs/bnf/testlib.f.ts` (or per-backend testlibs if the import direction
       argues for it); confirm no import cycle.
+- [ ] Derive the root name inside each adapter from `toData(rule)[1]` — no
+      `start` parameter, no `''` default. Verify against the one lazy-rule site
+      (`descent/proof.f.ts:211`, grammar `value`), which is the case a default
+      would break.
+- [ ] Fold `descentParserCpOnly` + `mapCodePoint` into `descentRecognizer`;
+      delete the copy at `fjs/bnf/descent/proof.f.ts:9-14` and check whether
+      `fjs/djs/tokenizer`'s export (`:238-243`) still needs to be public.
 - [ ] Add `number` (the optional-minus-then-digit grammar) and `jsonCases`.
 - [ ] Convert `fjs/bnf/descent/proof.f.ts` and `fjs/bnf/ll1/proof.f.ts`; keep
       `ll1:70-74`'s space-prefixed variant local and comment why.

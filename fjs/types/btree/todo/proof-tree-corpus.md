@@ -83,25 +83,40 @@ export const set = (node: TNode<string>) => (value: string): TNode<string> =>
 
 /** `['1']` with the squares of `2..n` inserted, the shared corpus. */
 export const squares = (n: number): TNode<string> => …
-```
 
-`jsonStr` is not part of it: it is `stringify(sort)`, which
-[stringifySorted](../../../media/json/todo/stringify-sorted-canonical.md)
-already proposes exporting once from `fjs/media/json`. Import that; do not add
-a fifth local alias here.
+/** `firstN` is the `n` of `expectedSquares[0]`. */
+export const firstN = 10
 
-**2. Table-drive `set/proof.f.ts`.** The 29 cases become one array of expected
-values plus one generator:
-
-```ts
 /** `jsonStr(squares(n))` for n = 10 … 38 — how the tree reshapes as it grows. */
-const expected: readonly string[] = [
+export const expectedSquares: readonly string[] = [
     '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]',
     '[[["1"],"100",["121"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]',
     …
 ]
 
-const growth = expected.map((e, i) => () => assertEq(jsonStr(squares(i + 10)), e))
+/** The expected canonical JSON for `squares(n)`. */
+export const expectedFor = (n: number): string => expectedSquares[n - firstN]
+```
+
+The expectation table belongs in the testlib, **not** in `set/proof.f.ts`:
+`remove/proof.f.ts` asserts the same `n = 38` string (`:23-30`), and a table
+private to one proof would leave that copy in place — the deduplication in
+item 3 below would not actually be reachable.
+
+About `jsonStr`: it is `stringify(sort)`, which
+[stringifySorted](../../../media/json/todo/stringify-sorted-canonical.md)
+proposes exporting once from `fjs/media/json`. That export does **not** exist
+yet, so do not treat it as a prerequisite and do not block on it. Bind the
+alias once *in the testlib* — that already replaces four scattered aliases with
+one — and swap the body for the import when `stringifySorted` lands. Either
+ordering works and neither issue has to wait for the other.
+
+**2. Table-drive `set/proof.f.ts`.** The 29 cases become one generator over the
+shared table:
+
+```ts
+const growth = expectedSquares.map(
+    (e, i) => () => assertEq(jsonStr(squares(i + firstN)), e))
 ```
 
 **Keep one test entry per `n`** — `.map` over the table rather than one
@@ -116,9 +131,15 @@ they assert two things each and carry comments explaining which `x.length`
 arms they reach — but they get their trees from `squares(10)` / `squares(13)`
 instead of rebuilding.
 
-**3. Point `remove/proof.f.ts` at the same fixture**, so its `n = 38` starting
-tree and expected string are the *same values* `set/proof.f.ts` asserts, not a
-second copy of them.
+**3. Point `remove/proof.f.ts` at the same fixture.** Its starting tree becomes
+`squares(38)` and its opening assertion `expectedFor(38)`, so both files read
+the *same values* rather than holding two copies of a seven-line literal.
+
+(An alternative is to drop that opening assertion from `remove/proof.f.ts`
+altogether — the shape of `squares(38)` is `set`'s contract and `set/proof.f.ts`
+already pins it. Keeping it as a sanity anchor for the 39-step removal chain is
+defensible; what is not defensible is keeping it as a second literal. Either
+resolution closes this point.)
 
 Roughly 300 lines of scaffolding across the four files collapse into a table
 and three imports, and the expected values become readable as the sequence they
@@ -126,11 +147,14 @@ are.
 
 ### Tasks
 
-- [ ] Add `fjs/types/btree/testlib.f.ts` with `set` and `squares`.
-- [ ] Convert `fjs/types/btree/set/proof.f.ts` to the expected-value table plus
-      `.map`; keep the two `replace` cases hand-written, sourced from `squares`.
+- [ ] Add `fjs/types/btree/testlib.f.ts` with `set`, `squares`,
+      `expectedSquares`/`expectedFor`, and — until `stringifySorted` exists —
+      the single `jsonStr` alias.
+- [ ] Convert `fjs/types/btree/set/proof.f.ts` to `expectedSquares.map`; keep
+      the two `replace` cases hand-written, sourced from `squares`.
 - [ ] Convert `fjs/types/btree/remove/proof.f.ts`, `find/proof.f.ts`, and
-      `proof.f.ts` to import the fixture; delete the four local `set` helpers.
+      `proof.f.ts` to import the fixture; delete the four local `set` helpers
+      and `remove/proof.f.ts`'s duplicate `n = 38` literal (`:23-30`).
 - [ ] Confirm coverage of `fjs/types/btree/{set,remove,find}` is unchanged —
       this must move test text, not test cases.
 - [ ] Run `npx tsc` and `fjs t`.
