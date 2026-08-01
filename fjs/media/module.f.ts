@@ -31,7 +31,7 @@ import type { Vec } from '../types/bit_vec/module.f.ts'
 import { fromVec } from '../text/utf8/module.f.ts'
 import { detectVec, type DetectMeta } from './type/module.f.ts'
 import { decodeText as decodeRevisionText, mediaType as revisionMediaType } from './revision/module.f.ts'
-import { assertNotNullish } from '../asserts/module.f.ts'
+import { assertNotNullish } from '../asserts/module.f.mjs'
 
 /**
  * Classifies a whole buffered `Vec`, the same three-way `{ length, mime_type,

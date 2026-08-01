@@ -2,7 +2,7 @@ import { has, empty, set, setRange, unset, universe, complement, toRangeMap } fr
 import { every, countdown, map, toArray } from '../list/module.f.ts'
 import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const stringify: (a: readonly Unknown[]) => string
     = jsonStringify(sort)

@@ -1,4 +1,4 @@
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.ts'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { prime_field } from '../../types/prime_field/module.f.ts'
 import { curve, secp256k1, secp192r1, secp256r1, eq, type Point, secp384r1, secp521r1, type Curve, type Init } from './module.f.ts'
 

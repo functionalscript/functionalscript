@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { ok, error } from '../../types/result/module.f.ts'
 import { validate } from '../../types/rtti/validate/module.f.ts'
 import {

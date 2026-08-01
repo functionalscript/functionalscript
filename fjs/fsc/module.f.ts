@@ -15,7 +15,7 @@ import { reduce as listReduce, toArray, map, type List } from '../types/list/mod
 import { range as asciiRange } from '../text/ascii/module.f.ts'
 import { flip, fn } from '../types/function/module.f.ts'
 import { one, type Range } from '../types/range/module.f.ts'
-import { assertEq } from '../asserts/module.f.ts'
+import { assertEq } from '../asserts/module.f.mjs'
 
 const fromCharCode = String.fromCharCode
 

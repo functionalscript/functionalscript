@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { assertNotNullish } from '../../asserts/module.f.ts'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 import type { Array2 } from '../../types/array/module.f.ts'
 import { bitLength, divUp8, roundUp8 } from '../../types/bigint/module.f.ts'
 import { empty, length, msb, repeat, unpack, vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'

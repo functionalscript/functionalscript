@@ -69,7 +69,7 @@ import {
     rightCurlyBracket,
     dollarSign
 }  from '../../text/ascii/module.f.ts'
-import { todo } from '../../asserts/module.f.ts'
+import { todo } from '../../asserts/module.f.mjs'
 
 const { fromCharCode } = String
 

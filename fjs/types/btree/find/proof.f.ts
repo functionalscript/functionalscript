@@ -5,7 +5,7 @@ import { sort } from '../../object/module.f.ts'
 import { type TNode } from '../types/module.f.ts'
 import { cmp } from '../../string/module.f.ts'
 import { set as setSet } from '../set/module.f.ts'
-import { assertEq } from '../../../asserts/module.f.ts'
+import { assertEq } from '../../../asserts/module.f.mjs'
 
 const jsonStr = stringify(sort)
 

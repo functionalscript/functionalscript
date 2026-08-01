@@ -4,7 +4,7 @@ import { sort } from '../../types/object/module.f.ts'
 import { oneEncode, option, range, rangeDecode, repeat0Plus, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
 import { emptyTagMap, type RuleSet, toData } from './module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
     rangeDecode: () => {

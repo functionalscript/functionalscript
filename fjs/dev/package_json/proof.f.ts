@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.ts'
 import {
     validatePackageJson,

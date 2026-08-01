@@ -1,7 +1,7 @@
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../../../types/rtti/module.f.ts'
 import { stringify, type Unknown as JsonValue } from '../module.f.ts'
 import { toJsonSchema, type Unknown, unknown as schemaUnknown } from './module.f.ts'
-import { assert, assertEq } from '../../../asserts/module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
 const serialize = (v: Unknown) => stringify(e => e)(v as unknown as JsonValue)
 

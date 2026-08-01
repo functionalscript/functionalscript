@@ -1,4 +1,4 @@
-import { assert } from "../../asserts/module.f.ts"
+import { assert } from "../../asserts/module.f.mjs"
 import { toArray } from "../list/module.f.ts"
 import { fromRange, merge, get } from "./module.f.ts"
 import { type Range } from '../range/module.f.ts'

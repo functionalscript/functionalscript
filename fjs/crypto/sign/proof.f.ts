@@ -5,7 +5,7 @@ import { hmac } from "../hmac/module.f.ts"
 import { secp192r1, secp256r1, secp384r1, secp521r1, type Curve } from "../secp/module.f.ts"
 import { computeSync, sha224, sha256, sha384, sha512, type Sha2 } from "../sha2/module.f.ts"
 import { all, concat, computeK, fromCurve, sign } from "./module.f.ts"
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 
 const sample = utf8("sample")
 const test = utf8("test")

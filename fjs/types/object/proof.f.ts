@@ -1,6 +1,6 @@
 import { at } from './module.f.ts'
 import type { StringMap } from './module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 
 type E<A, B> = A extends B ? B extends A ? true : false : false
 

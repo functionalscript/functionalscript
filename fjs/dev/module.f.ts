@@ -18,7 +18,7 @@ import type { StringMap } from '../types/object/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { pure, step, type Effect } from '../effects/module.f.ts'
 import { join, relativize, toPosix } from '../path/module.f.ts'
-import { assert } from '../asserts/module.f.ts'
+import { assert } from '../asserts/module.f.mjs'
 
 export type Module = {
     readonly proof?: unknown

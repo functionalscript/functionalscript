@@ -10,7 +10,7 @@ import { type JsonToken } from '../tokenizer/module.f.ts'
 import { setReplace, type OrderedMap } from '../../../types/ordered_map/module.f.ts'
 import { type Unknown } from '../module.f.ts'
 import { fromMap } from '../../../types/object/module.f.ts'
-import { assertEq } from '../../../asserts/module.f.ts'
+import { assertEq } from '../../../asserts/module.f.mjs'
 
 type JsonObject = {
     readonly kind: 'object'
