@@ -39,6 +39,13 @@ The extension invariant is:
 - `.js` is generated JavaScript and is never authored;
 - `.d.ts` and `.d.mts` are generated declarations.
 
+For FunctionalScript modules, [`fjs/fsc/README.md`](../../fsc/README.md) adds a
+stronger capability convention: `.f.mjs` is authored JavaScript that the
+current FunctionalScript parser and compiler must accept, while `.f.ts` may
+still use unsupported parser features or TypeScript syntax. This document owns
+the package-emission mechanics; the compiler README owns the FunctionalScript
+migration strategy.
+
 The main `tsconfig.json` should validate authored TypeScript and JavaScript while excluding generated declarations:
 
 ```jsonc
@@ -108,5 +115,7 @@ Tasks:
 
 ### Related
 
+- [`fjs/fsc/README.md`](../../fsc/README.md) — FunctionalScript source
+  extensions and incremental repository migration.
 - [GitHub issue #398](https://github.com/functionalscript/functionalscript/issues/398)
   — the original report.
