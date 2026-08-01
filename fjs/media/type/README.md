@@ -104,7 +104,7 @@ clause, touching no existing transition.
 
 ## Consumers
 
-- [`fjs/cas/mcp`](../../cas/mcp/) — `cas_get` classifies with the state machine on
+- [`fjs/mcp/cas`](../../mcp/cas/) — `cas_get` classifies with the state machine on
   both paths: `detectStream` folds the read stream for the default metadata-only
   call (size-independent), and `detectVec` classifies the collected blob when
   `content: true` is requested, so the three-way verdict has a single

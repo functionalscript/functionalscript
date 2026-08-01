@@ -15,7 +15,7 @@ no error, just a wrong value.
 
 `fjs/media/json` itself should **not** change to fix this: it exists to mirror
 native `JSON.parse`/`JSON.stringify` exactly, and its `Unknown`/`Primitive`
-types are depended on by `fjs/mcp`, `fjs/cas/mcp`, `fjs/mcp/stdio`, `fjs/fsm`,
+types are depended on by `fjs/protocol/mcp`, `fjs/mcp`, `fjs/protocol/mcp/stdio`, `fjs/fsm`,
 `fjs/dev/package_json`, and others via plain `typeof` switches — widening
 `Primitive` with `bigint` there would be a breaking change to all of them for
 no benefit to callers who just want standard JSON semantics.
@@ -60,7 +60,7 @@ output is valid, standard-JSON-parseable text:
   state machine to get this: add a new exported `parseWith` (name TBD) that
   takes the `tokenToValue` mapping as a parameter, with the existing `parse`
   becoming `parseWith(defaultTokenToValue)` — purely additive, the three
-  existing callers (`fjs/dev/package_json`, `fjs/mcp/stdio`,
+  existing callers (`fjs/dev/package_json`, `fjs/protocol/mcp/stdio`,
   `fjs/media/revision`) are untouched.
 - **Serialize.** Reuse `fjs/media/json/serializer`'s leaf-agnostic atoms
   (`objectWrap`, `arrayWrap`, `stringSerialize`, `boolSerialize`,

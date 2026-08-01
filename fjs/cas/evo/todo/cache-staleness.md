@@ -9,7 +9,7 @@ The Evo cache (`fjs/cas/evo/module.f.ts`) is built once at server startup
 (`initEvo` → `buildCache`) and afterwards is only ever updated by writes that
 go *through this same running process*: `evo_add` (`addRevision`) and a
 `cas_add` that happens to store a `vnd.fjs.revision` blob (`syncRevision`,
-see `fjs/cas/mcp`). Nothing else refreshes it.
+see `fjs/mcp`). Nothing else refreshes it.
 
 But `~/.cas/` is an ordinary directory on disk, and the CAS store itself has
 no notion of "the" server — the `cas` CLI, a completely different MCP server
@@ -90,7 +90,7 @@ store.
       (`fjs/effects`) — is there already a precedent for scheduled/background
       work, or does this need new effect primitives?
 - [ ] Implement the chosen option(s) with proof coverage.
-- [ ] Update `fjs/cas/evo/README.md` and `fjs/cas/evo/mcp/README.md` to
+- [ ] Update `fjs/cas/evo/README.md` and `fjs/mcp/evo/README.md` to
       describe the staleness/consistency guarantees once decided.
 
 ### Related
