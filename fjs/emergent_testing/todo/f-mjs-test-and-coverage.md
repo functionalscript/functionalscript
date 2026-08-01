@@ -37,24 +37,7 @@ otherwise unchanged, and later contributors would not have an explicit
 ### Proposal
 
 Treat authored `.f.mjs` FunctionalScript modules consistently with `.f.ts`
-modules in proof discovery, coverage, and repository policy:
-
-1. Extend `shouldLoad` to recognize `.f.mjs` as a FunctionalScript module.
-2. Update the `shouldLoad` documentation and proofs to cover `.f.mjs`.
-3. Extend `npm run cov` so both `module.f.ts` and `module.f.mjs`
-   implementations are included.
-4. Extend the Deno coverage filter in `deno.json` so `deno task cov` includes
-   both implementation extensions.
-5. Update the canonical Deno CI generator in `fjs/ci/deno/module.f.ts` with the
-   same coverage rule, add a regression proof for the generated command, and
-   regenerate the checked-in CI workflow.
-6. Add regression fixtures proving both supported proof layouts:
-   - an internal `proof` export from a `.f.mjs` module is executed;
-   - a co-located `proof.f.ts` can import and test `module.f.mjs`.
-7. Verify that the `.f.mjs` implementation remains represented in both Node and
-   Deno coverage for the supported proof layouts.
-8. Update `AGENTS.md` so `.f.mjs` modules and functions have the same mandatory
-   100% proof-coverage policy and proof-writing rules as `.f.ts`.
+modules in proof discovery, coverage, and repository policy.
 
 Keep the Node and Deno inclusion rules semantically identical: both must select
 FunctionalScript implementation modules ending in `module.f.ts` or
@@ -80,6 +63,28 @@ the existing `proof.mjs` convention unless
 [`664-emergent-testing-module-files.md`](./664-emergent-testing-module-files.md)
 is implemented. This task adds the FunctionalScript-specific `.f.mjs` rule; it
 does not replace or expand the ordinary `module.mjs` proposal.
+
+### Tasks
+
+- [ ] Extend `shouldLoad` to recognize `.f.mjs` as a FunctionalScript module.
+- [ ] Update the `shouldLoad` documentation and proofs to cover `.f.mjs`.
+- [ ] Extend `npm run cov` so both `module.f.ts` and `module.f.mjs`
+      implementations are included.
+- [ ] Extend the Deno coverage filter in `deno.json` so `deno task cov`
+      includes both implementation extensions.
+- [ ] Update the canonical Deno CI generator in `fjs/ci/deno/module.f.ts` with
+      the same coverage rule and add a regression proof for the generated
+      command.
+- [ ] Regenerate the checked-in CI workflow from the updated generator.
+- [ ] Add a fixture proving that an internal `proof` export from a `.f.mjs`
+      module is executed.
+- [ ] Add a fixture proving that a co-located `proof.f.ts` can import and test
+      `module.f.mjs`.
+- [ ] Verify that `.f.mjs` implementations remain represented in both Node and
+      Deno coverage for the supported proof layouts.
+- [ ] Update `AGENTS.md` so `.f.mjs` modules and functions have the same
+      mandatory 100% proof-coverage policy and proof-writing rules as `.f.ts`,
+      including the mixed `module.f.mjs` / `proof.f.ts` convention.
 
 ### Acceptance criteria
 
