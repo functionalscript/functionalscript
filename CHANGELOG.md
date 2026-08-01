@@ -13,9 +13,12 @@ history.
 
 - `fjs/ci`: generate `nix/generated/playwright/flake.nix`, pinning the
   Playwright job's Node version through the same generated-flake mechanism as
-  the canonical Node jobs; the job's browser install steps are unchanged — see
-  the `65Z-ci-nix-playwright` TODO for why the browsers themselves stay out of
-  Nix for now
+  the canonical Node jobs; **BREAKING CHANGES:** pin `@playwright/test`
+  (`package.json`) and `fjs/ci/config/module.f.ts`'s `playwright` down to
+  `1.59.1` — the exact version the pinned Nixpkgs snapshot's
+  `pkgs.playwright-driver` provides — so the flake can eventually use
+  Nix-provided browsers; wiring `pkgs.playwright-driver.browsers` into the job
+  itself is tracked in the `65Z-ci-nix-playwright` TODO and not done yet
 - `fjs/ci`: generate one self-contained `nix/generated/<job>/flake.nix` per
   canonical Node job, pinning an exact Nixpkgs commit; `npm run ci-update`
   writes them without running Nix

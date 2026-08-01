@@ -545,11 +545,11 @@
           "uses": "actions/cache@v6.1.0",
           "with": {
             "path": "~/.cache/ms-playwright",
-            "key": "ubuntu-26.04-arm-playwright-1.62.0"
+            "key": "ubuntu-26.04-arm-playwright-1.59.1"
           }
         },
         {
-          "run": "npm install -g playwright@1.62.0"
+          "run": "npm install -g playwright@1.59.1"
         },
         {
           "run": "playwright install-deps"

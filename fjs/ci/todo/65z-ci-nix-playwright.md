@@ -11,11 +11,19 @@
 `nix-flakes` job alongside the Node flakes (`playwrightNixVersionStep`, combined with
 `nodeNixVersionSteps` in `fjs/ci/module.f.ts`).
 
+`fjs/ci/config/module.f.ts`'s `playwright` (and `package.json`'s `@playwright/test`)
+are now pinned to `1.59.1` — the exact version `pkgs.playwright-driver` provides at the
+Nixpkgs commit already pinned for the Node flakes. Versions are aligned on purpose: the
+generated flakes are meant to use the same package versions Nixpkgs provides everywhere,
+not just for Node, and matching the driver version is the precondition for
+`pkgs.playwright-driver.browsers` to be usable at all (see "Browsers" below).
+
 The Playwright job itself (`fjs/ci/playwright/module.f.ts`'s `playwrightJob`) still
 installs Node through `actions/setup-node`, still installs Playwright through
 `npm install -g playwright@…`, and still fetches browsers through
-`playwright install-deps` / `playwright install`. None of that is adopted yet — see
-"Why browsers stay out of Nix" below.
+`playwright install-deps` / `playwright install`. Now that the version matches, the flake
+could add `pkgs.playwright-driver.browsers` and drop those steps entirely — that part is
+not implemented yet.
 
 ### Problem
 
@@ -33,59 +41,66 @@ Playwright version, so most of the remaining cost on a cache hit is `install-dep
 replaces with a pinned, content-addressed store path instead of a fresh package-manager
 run.
 
-### Why browsers stay out of Nix (for now)
+### Browsers: version now matches, wiring is not done
 
 Nixpkgs ships its own `playwright-driver` package (`pkgs.playwright-driver.browsers`),
 pinned to a specific Playwright release baked into that Nixpkgs commit. For the
 Nixpkgs commit already pinned in `fjs/ci/config/module.f.ts`
 (`21ea275a7c46aef9d4d6ddc962e6d562e9d94183`, `nixos-26.05`),
-`pkgs/development/web/playwright/driver.nix` pins Playwright `1.59.1`. The repo's
-configured Playwright version (`fjs/ci/config/module.f.ts`'s `playwright`,
-mirrored by `@playwright/test` in `package.json`) is `1.62.0`. Checked at the time of
-this note, no branch of `NixOS/nixpkgs` (`master`, `nixos-unstable`, `nixos-25.11`,
-`nixos-25.05`) carries `1.62.0` either — the newest available is `1.61.1` on
-`master`/`nixos-unstable`.
+`pkgs/development/web/playwright/driver.nix` pins Playwright `1.59.1` — checked
+directly against that commit's source. `fjs/ci/config/module.f.ts`'s `playwright` and
+`package.json`'s `@playwright/test` are now pinned to that same `1.59.1`, so
+`@playwright/test` (which refuses to drive browsers whose driver version doesn't match
+its own) is no longer blocked from using `pkgs.playwright-driver.browsers`.
 
-`@playwright/test` refuses to drive browsers whose driver version does not match its
-own, so a Nixpkgs-provided `playwright-driver.browsers` cannot be substituted for
-`playwright install` without also pinning `@playwright/test` itself to whatever
-Playwright version the chosen Nixpkgs commit happens to carry — coupling this repo's
-Playwright version to Nixpkgs's release cadence. `65Z-ci-nix`'s scope explicitly
-excludes "synchronizing Playwright packages and browsers"; this task inherits that
-boundary and does not resolve it.
+This does couple the repo's Playwright version to whatever Nixpkgs happens to pin at
+the chosen commit — bumping Playwright now means bumping the Nixpkgs snapshot (or vice
+versa), the same trade-off `65Z-ci-nix-playwright` originally flagged as out of scope
+for the first milestone. It is now the accepted direction: generated flakes should use
+Nixpkgs-sourced package versions throughout, not just for Node.
+
+What is not done yet: the generated flake does not add
+`pkgs.playwright-driver.browsers`, and the job does not point
+`PLAYWRIGHT_BROWSERS_PATH` at it or drop `playwright install-deps` / `playwright
+install`. The version match is the precondition; the wiring is separate follow-up work.
 
 ### Proposal
 
-Keep splitting the job's dependencies into what Nix can pin exactly and what must stay
-tied to the exact `@playwright/test` version:
-
 - **Node**: pinned via the generated flake, exactly like `node22`/`node24`/`node26`.
   Done.
-- **OS-level shared libraries** `playwright install-deps` installs via `apt-get`:
-  investigate replacing that step with an explicit `packages` list in the generated
-  flake (fonts, `nss`, `at-spi2-core`, `libgbm`, etc., matching what
-  `playwright install-deps --dry-run` reports) so the slow `apt-get update` no longer
-  runs on every job. This is the likely source of most of the remaining wall-clock
-  savings and is unstarted.
-- **Browsers**: keep using `npx playwright install` (unaffected by this task), until a
-  separate, explicitly scoped task decides whether and how to pin `@playwright/test`
-  to a Nixpkgs-provided driver version instead.
+- **Playwright version**: pinned to the exact version Nixpkgs provides at the pinned
+  commit. Done.
+- **Browsers**: add `pkgs.playwright-driver.browsers` to the generated flake, set
+  `PLAYWRIGHT_BROWSERS_PATH` (and `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`) via the flake's
+  `shellHook`, and drop `playwright install` once a run demonstrates the browsers launch
+  correctly. Not started.
+- **OS-level shared libraries** `playwright install-deps` installs via `apt-get`: once
+  browsers come from the Nix store, check whether `pkgs.playwright-driver.browsers`
+  already carries their runtime library closure (it usually does, via
+  `makeWrapper`/`patchelf`) before separately trying to enumerate packages for
+  `apt-get`'s replacement. Not started.
+- **Nixpkgs bump cadence**: bumping the pinned Nixpkgs commit must now also re-check the
+  Playwright driver version it carries and update `fjs/ci/config/module.f.ts` and
+  `package.json` together, or the two pins drift apart again. Not automated yet — see
+  the still-open `npm run ci-nix-update` command in `65Z-ci-nix`.
 
 ### Tasks
 
 - [x] Generate `nix/generated/playwright/flake.nix` pinning the job's Node version.
 - [x] Instantiate and version-check the Playwright flake in the shared temporary
       `nix-flakes` job.
-- [ ] Enumerate the OS-level packages `playwright install-deps` installs and check
-      whether the pinned Nixpkgs snapshot carries equivalents.
-- [ ] Experiment with listing those packages in the Playwright flake and dropping
-      `playwright install-deps` once the browsers still launch.
-- [ ] Adopt the Playwright job onto `nix develop` for Node once Node-only adoption
-      lands for the canonical Node jobs (see `65Z-ci-nix` phase 3 /
-      `66B-dockerfile-nix-integration`).
-- [ ] Decide, in a separately scoped task, whether to pin `@playwright/test` to a
-      Nixpkgs-tracked version so `pkgs.playwright-driver.browsers` can replace
-      `playwright install` entirely.
+- [x] Pin `fjs/ci/config/module.f.ts`'s `playwright` and `package.json`'s
+      `@playwright/test` to the exact version the pinned Nixpkgs commit provides.
+- [ ] Add `pkgs.playwright-driver.browsers` to the generated Playwright flake.
+- [ ] Point `PLAYWRIGHT_BROWSERS_PATH` at the Nix-provided browsers via the flake's
+      `shellHook` and skip `playwright install`.
+- [ ] Verify `playwright install-deps` becomes unnecessary once browsers come from the
+      Nix store; if not, enumerate the remaining OS-level packages it installs.
+- [ ] Adopt the Playwright job onto `nix develop` once the above is verified end to end
+      (see `65Z-ci-nix` phase 3 / `66B-dockerfile-nix-integration` for the adoption
+      shape).
+- [ ] Fold the Playwright driver-version check into the Nixpkgs bump process so the two
+      pins can't silently drift apart again.
 
 ### Related
 
