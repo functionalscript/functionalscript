@@ -3,7 +3,7 @@
  *
  * @module
  */
-import type { Array16, Array3, Array4, Array8 } from '../../types/array/module.f.ts'
+import type { Array16, Array3, Array4, Array8 } from '../../types/array/module.f.mjs'
 import { mask, type Reduce } from "../../types/bigint/module.f.ts"
 import {
     vec,

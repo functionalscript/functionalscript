@@ -8,7 +8,7 @@
  */
 import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.ts'
 import { definedValues, type StringMap } from '../types/object/module.f.ts'
-import { type Array2, isArray2 } from '../types/array/module.f.ts'
+import { type Array2, isArray2 } from '../types/array/module.f.mjs'
 import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
 import { contains } from '../types/range/module.f.ts'
 import { assert } from '../asserts/module.f.mjs'

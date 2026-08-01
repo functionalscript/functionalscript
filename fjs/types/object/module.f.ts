@@ -5,7 +5,7 @@
  *
  * @module
  */
-import { isArray } from '../array/module.f.ts'
+import { isArray } from '../array/module.f.mjs'
 import { iterable, type List } from '../list/module.f.ts'
 import { fromUndefined, type Nullable } from '../nullable/module.f.mjs'
 import { entries as mapEntries, fromEntries as mapFromEntries, type OrderedMap } from '../ordered_map/module.f.ts'
