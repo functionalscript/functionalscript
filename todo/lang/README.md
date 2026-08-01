@@ -11,10 +11,19 @@ When we implement features of FunctionalScript, the first priority is a simplifi
 
 File Types:
 
-|File Type|Extension       |Notes                |
-|---------|----------------|---------------------|
-|JSON     |`.json`         |Tree.                |
-|FJS      |`.f.js`, `.f.ts`|Graph with functions.|
+|File Type|Extension|Notes|
+|---------|---------|-----|
+|JSON|`.json`|Tree.|
+|FJS source|`.f.ts`, `.f.mjs`|Graph with functions.|
+|Generated FJS|`.f.js`|Generated from `.f.ts`; never authored directly.|
+
+`.f.ts` is authored FunctionalScript-intent TypeScript and may contain syntax
+that the current FunctionalScript parser does not support yet. `.f.mjs` is
+authored ESM JavaScript with JSDoc types whose complete syntax must be accepted
+by the current parser and compiler. Repository modules move from `.f.ts` to
+`.f.mjs` incrementally as language support grows; this is not a single migration
+step. See [`fjs/fsc/README.md`](../../fjs/fsc/README.md) for the extension
+contract and migration strategy.
 
 **Note**: An FJS value can't be serialized without additional run-time infrastructure.
 
@@ -374,7 +383,7 @@ type AsyncMap<K, V> = {
 
 const fs = (state: AsyncMap<string, string>) => ({
    readFile: async(name: string): Promise<string> => { /* ? */ }
-   writeFile: async(name: string, text: string): Promise<void> => { /* ? */ }
+   writeFile: async(k: string, v: string) => Promise<void> => { /* ? */ }
 })
 
 // Another option is to allow access to `let` in `async` functions.
