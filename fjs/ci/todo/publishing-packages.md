@@ -78,12 +78,11 @@ Enabling `checkJs` includes `fjs/types/bigint/benchmark.mjs`. Before enabling it
 
 NPM must include both runtime extensions and both declaration extensions. Non-package `.mjs` files must remain excluded from the packed archive.
 
-Publishing requires generated-output cleanup followed by two TypeScript emission passes:
+Publishing requires a repository-owned `clean:generated` script followed by two TypeScript emission passes:
 
 ```json
 {
   "scripts": {
-    "clean:generated": "node <repository-owned-cleanup-script>",
     "emit:declarations": "tsc --noEmit false --emitDeclarationOnly",
     "emit:typescript": "tsc --noEmit false --allowJs false --checkJs false --declaration false",
     "prepack": "npm run clean:generated && npm run emit:declarations && npm run emit:typescript"
@@ -95,7 +94,8 @@ The repository-owned cleanup derives output paths from authored `.ts` and
 `.mjs` inputs and removes only their generated `.js`, `.d.ts`, and `.d.mts`
 artifacts. It must preserve authored `.mjs` and unrelated files and must not use
 a broad working-tree cleanup. This makes repeated local `prepack` and `npm pack`
-runs independent of ignored outputs left by an earlier run.
+runs independent of ignored outputs left by an earlier run. The exact script
+location and implementation are left to the focused P1 task.
 
 The first emission pass emits declarations for both authored source extensions:
 
