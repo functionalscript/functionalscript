@@ -19,7 +19,7 @@ import {
     ubuntuArm
 } from './common/module.f.ts'
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.ts'
-import { nodeMainSteps, nodeNixJobs, nodeVersionJobs } from './node/module.f.ts'
+import { nodeMainSteps, nodeNixFlakeJob, nodeNixJobs, nodeVersionJobs } from './node/module.f.ts'
 import { nixFlakes } from './nix/module.f.ts'
 import { playwrightJob } from './playwright/module.f.ts'
 import { bunSteps } from './bun/module.f.ts'
@@ -48,6 +48,9 @@ const canonicalJobs = (rust: boolean): Jobs => ({
     deno: ubuntuArm(denoSteps(functionalscript)),
     bun: ubuntuArm(bunSteps(functionalscript)),
     ...nodeVersionJobs(functionalscript),
+    // Temporary: proves the generated flakes still evaluate. Removed once the
+    // canonical Node jobs themselves run through `nix develop`.
+    'nix-flakes': nodeNixFlakeJob,
     playwright: playwrightJob,
 })
 

@@ -14,6 +14,7 @@ import { mkdir, writeUtf8File, type Mkdir, type WriteFile } from '../../effects/
 import { nixToString, type Expression } from '../../media/nix/module.f.ts'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.ts'
 import { unwrap } from '../../types/result/module.f.ts'
+import { install, uses, type MetaStep } from '../common/module.f.ts'
 import { nixpkgs } from '../config/module.f.ts'
 
 /** A CI job's development environment, one generated flake each. */
@@ -83,3 +84,13 @@ const writeFlake = (job: NixJob): Effect<Mkdir | WriteFile, void> => {
 /** Writes one generated flake per job. */
 export const nixFlakes = (jobs: readonly NixJob[]): Effect<Mkdir | WriteFile, void> =>
     forEachStep(pure(jobs), writeFlake)
+
+/** Path a workflow passes to `nix develop`. */
+export const flakePath = ({ id }: NixJob): string => `./${generatedDirectory}/${id}`
+
+/** Installs Nix, with `nix-command` and `flakes` enabled by the action's defaults. */
+export const nixInstall: MetaStep = install(uses('cachix/install-nix-action'))
+
+/** Runs one command inside a job's generated development shell. */
+export const nixDevelop = (job: NixJob, command: string): string =>
+    `nix develop ${flakePath(job)} --command ${command}`

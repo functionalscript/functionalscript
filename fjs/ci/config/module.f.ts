@@ -78,6 +78,9 @@ export const actions = {
     'bytecodealliance/actions/wasmtime/setup': 'v1.1.3',
     // https://github.com/wasmerio/setup-wasmer
     'wasmerio/setup-wasmer': 'v3.1',
+    // https://github.com/marketplace/actions/install-nix
+    // Enables the `nix-command` and `flakes` experimental features by default.
+    'cachix/install-nix-action': 'v31.11.0',
     // https://rust-lang.org/ - value is Rust version, not action version
     'dtolnay/rust-toolchain': '1.97.1',
 } as const

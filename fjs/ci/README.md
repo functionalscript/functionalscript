@@ -50,6 +50,12 @@ installed `fjs` stays on `PATH` for the rest of the same `nix develop` invocatio
 See [nix/README.md](../../nix/README.md) for how the generated files are meant to be
 consumed.
 
+The temporary `nix-flakes` job installs Nix through a pinned action and runs
+`nix develop <flake> --command node --version` for each generated flake, so a flake
+that stops evaluating fails CI. It is deliberately separate from `node22`/`node24`/
+`node26`, which keep their `setup-node` runtime until they are migrated one at a
+time; delete the job once they all run through `nix develop`.
+
 ### Expected package scripts
 
 The generated platform jobs run `npm ci`, install the pinned FunctionalScript

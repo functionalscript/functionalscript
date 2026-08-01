@@ -20,3 +20,7 @@ loop.
 
 `flake.lock` files that Nix writes next to a generated flake are ignored (see
 the root `.gitignore`); the pinned commit in `flake.nix` is the lock.
+
+CI's temporary `nix-flakes` job runs exactly that command for every generated
+flake, so these files are checked on every pull request even though no real job
+uses them yet.

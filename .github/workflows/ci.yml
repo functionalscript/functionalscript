@@ -509,6 +509,26 @@
         }
       ]
     },
+    "nix-flakes": {
+      "runs-on": "ubuntu-26.04-arm",
+      "steps": [
+        {
+          "uses": "cachix/install-nix-action@v31.11.0"
+        },
+        {
+          "uses": "actions/checkout@v7.0.1"
+        },
+        {
+          "run": "nix develop ./nix/generated/node22 --command node --version"
+        },
+        {
+          "run": "nix develop ./nix/generated/node24 --command node --version"
+        },
+        {
+          "run": "nix develop ./nix/generated/node26 --command node --version"
+        }
+      ]
+    },
     "playwright": {
       "runs-on": "ubuntu-26.04-arm",
       "steps": [

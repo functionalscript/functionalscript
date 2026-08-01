@@ -66,7 +66,7 @@ const runDefault = (packageJson?: string): GitHubAction => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 14, 'expected 14 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
@@ -168,6 +168,24 @@ export const proof = {
             assert(
                 flake(state, id).includes(`pkgs.${nodePackage}`),
                 `expected ${nodePackage} in the ${id} flake`)
+        }
+    },
+    nixFlakeJob: () => {
+        const gha = run(false)
+        const job = gha.jobs['nix-flakes']
+        assert(job !== undefined, 'expected the temporary flake job')
+        assert(
+            job.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true),
+            'expected a pinned Nix installer')
+        for (const { id } of nodeNixJobs) {
+            assert(
+                hasRunInJob('nix-flakes', `nix develop ./nix/generated/${id} --command`)(gha),
+                `expected the ${id} flake to be instantiated`)
+        }
+        // The canonical Node jobs keep their current runtime setup until they
+        // are migrated one at a time.
+        for (const { id } of nodeNixJobs) {
+            assert(!hasRunInJob(id, 'nix develop')(gha), `unexpected nix develop in ${id}`)
         }
     },
     ubuntu: () => {

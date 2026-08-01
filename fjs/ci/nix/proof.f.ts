@@ -9,7 +9,15 @@ import { readUtf8File } from '../../effects/node/module.f.ts'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
 import { nixpkgs } from '../config/module.f.ts'
 import { nodeNixJobs } from '../node/module.f.ts'
-import { flakeText, generatedDirectory, nixFlakes, type NixJob } from './module.f.ts'
+import {
+    flakePath,
+    flakeText,
+    generatedDirectory,
+    nixDevelop,
+    nixFlakes,
+    nixInstall,
+    type NixJob,
+} from './module.f.ts'
 
 const { commit } = nixpkgs
 
@@ -99,5 +107,20 @@ export const proof = {
             flakeText({ ...plain, packages: ['not an identifier'] })
                 .includes('pkgs."not an identifier"'),
             'expected a quoted attribute name'),
+    },
+    workflow: {
+        // The path a workflow passes to `nix develop` must be the directory the
+        // generator wrote the flake into.
+        flakePath: () => assertEq(flakePath(plain), `./${generatedDirectory}/node24`),
+        nixDevelop: () => assertEq(
+            nixDevelop(plain, 'node --version'),
+            'nix develop ./nix/generated/node24 --command node --version'),
+        nixInstall: () => {
+            assertEq(nixInstall.type, 'install')
+            assert(
+                nixInstall.type === 'install'
+                && nixInstall.step.uses?.startsWith('cachix/install-nix-action@') === true,
+                'expected the pinned Nix installer action')
+        },
     },
 }

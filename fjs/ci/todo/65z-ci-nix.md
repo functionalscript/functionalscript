@@ -5,9 +5,10 @@
 
 ### Progress
 
-Flake generation is implemented — see the progress note in
+Flake generation is implemented, and a temporary `nix-flakes` CI job instantiates
+the generated flakes — see the progress note in
 [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md). What remains
-here is the Nixpkgs update command and CI adoption.
+here is the Nixpkgs update command and adopting the flakes in the real jobs.
 
 ### Problem
 
@@ -218,7 +219,8 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [x] Ignore `/nix/generated/**/flake.lock`.
 - [x] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
-- [ ] Bootstrap Nix through a pinned CI action.
+- [ ] Bootstrap Nix through a pinned CI action in each migrated job (the pinned
+      action is already used by the temporary `nix-flakes` job).
 - [ ] Run each migrated job's complete command sequence inside one
       `nix develop --command` invocation.
 - [ ] Validate each Node job independently with its existing commands and order.

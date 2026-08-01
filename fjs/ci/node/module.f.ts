@@ -6,7 +6,7 @@
  */
 import { node } from '../config/module.f.ts'
 import { type Job, type Jobs, type MetaStep, install, test, ubuntuArm, uses } from '../common/module.f.ts'
-import type { NixJob } from '../nix/module.f.ts'
+import { nixDevelop, nixInstall, type NixJob } from '../nix/module.f.ts'
 
 export const major = (v: string): string => v.split('.')[0]
 
@@ -84,5 +84,24 @@ export const nodeNixJobs: readonly NixJob[] = [
     nixJob(node.node24),
     nixJob(node.default),
 ]
+
+/**
+ * Temporary job that instantiates every generated flake.
+ *
+ * Nothing else in CI evaluates the generated files, so a broken flake would
+ * only surface once a real job started using one. This job installs Nix and
+ * builds each development shell, printing the Node version it provides. It
+ * deliberately stays separate from the canonical Node jobs: those keep their
+ * current `setup-node` runtime until they are migrated one at a time, and this
+ * job is deleted once they all run through `nix develop`.
+ *
+ * The version is printed rather than asserted — the repository does not yet
+ * record the Node versions the pinned snapshot provides, which arrives with the
+ * Nixpkgs update command.
+ */
+export const nodeNixFlakeJob: Job = ubuntuArm([
+    nixInstall,
+    ...nodeNixJobs.map(job => test({ run: nixDevelop(job, 'node --version') })),
+])
 
 export const nodeMainSteps = platformNodeSteps

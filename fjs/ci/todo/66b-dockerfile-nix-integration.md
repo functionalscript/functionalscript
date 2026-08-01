@@ -11,10 +11,18 @@ Phase 2 is done: `fjs/ci/nix/module.f.ts` generates
 running Nix. `nodejs_22`, `nodejs_24`, and `nodejs_26` were verified to exist in
 the accepted snapshot.
 
+A temporary `nix-flakes` job instantiates every generated flake
+(`nix develop <flake> --command node --version`) so the generated files are
+checked on every pull request. It is not part of the migration: the canonical
+Node jobs keep their `setup-node` runtime, and the temporary job is deleted once
+they all run through `nix develop`.
+
 Still open: the `npm run ci-nix-update` command (phase 1's automation), removal
-of stale generated job directories, and the whole of phase 3 (bootstrapping Nix
-in CI and migrating the jobs). Stale-directory removal needs a recursive `rm`
-effect — today's `rm` operation only deletes files.
+of stale generated job directories, and the rest of phase 3 (migrating the jobs
+themselves). Stale-directory removal needs a recursive `rm` effect — today's
+`rm` operation only deletes files. Asserting the Node version inside the shell
+waits on the update command, which is what records the versions the pinned
+snapshot provides.
 
 ### Problem
 
@@ -226,7 +234,8 @@ milestone.
 - [x] Add `/nix/generated/**/flake.lock` to `.gitignore`.
 - [x] Keep ordinary generation Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
-- [ ] Add pinned Nix bootstrap to each migrated job.
+- [ ] Add pinned Nix bootstrap to each migrated job (the pinned action is already
+      used by the temporary `nix-flakes` job).
 - [ ] Run each job's complete command sequence through one `nix develop --command`
       invocation.
 - [ ] Validate the three Node jobs independently.
