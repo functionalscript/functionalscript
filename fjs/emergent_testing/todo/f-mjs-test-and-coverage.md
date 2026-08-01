@@ -19,9 +19,9 @@ Current behavior is incomplete:
   loaded;
 - `npm run cov` includes only `**/module.f.ts`, so a migrated implementation
   would disappear from coverage reporting;
-- `AGENTS.md` defines mandatory proof coverage and the
-  `module.f.ts`/`proof.f.ts` convention only for `.f.ts`, so the repository's
-  authoritative development rules do not yet govern `.f.mjs` modules.
+- `AGENTS.md` defines mandatory proof coverage only for `.f.ts`, so the
+  repository's authoritative development rules do not yet govern `.f.mjs`
+  modules or describe mixed `module.f.mjs` / `proof.f.ts` pairs.
 
 Without this task, renaming a covered module from `.f.ts` to `.f.mjs` could
 silently reduce proof execution and coverage even though the implementation is
@@ -37,12 +37,26 @@ modules in proof discovery, coverage, and repository policy:
 2. Update the `shouldLoad` documentation and proofs to cover `.f.mjs`.
 3. Extend `npm run cov` so both `module.f.ts` and `module.f.mjs`
    implementations are included.
-4. Add a regression fixture proving that an internal `proof` export from a
-   `.f.mjs` module is executed.
-5. Verify that the `.f.mjs` fixture remains represented in coverage output.
+4. Add regression fixtures proving both supported proof layouts:
+   - an internal `proof` export from a `.f.mjs` module is executed;
+   - a co-located `proof.f.ts` can import and test `module.f.mjs`.
+5. Verify that the `.f.mjs` implementation remains represented in coverage for
+   both proof layouts.
 6. Update `AGENTS.md` so `.f.mjs` modules and functions have the same mandatory
-   100% proof-coverage policy as `.f.ts`, including the
-   `module.f.mjs`/`proof.f.mjs` convention and the existing proof-writing rules.
+   100% proof-coverage policy and proof-writing rules as `.f.ts`.
+
+The implementation and proof extensions are independent during incremental
+migration. Renaming `module.f.ts` to `module.f.mjs` does not require renaming its
+co-located `proof.f.ts`. The TypeScript proof may continue importing existing
+`.f.ts` test helpers, including `fjs/asserts/module.f.ts`, while importing the
+migrated implementation through its new `.f.mjs` path. Rename a proof to
+`proof.f.mjs` only when that proof's own syntax and relative FunctionalScript
+dependency closure are compiler-ready.
+
+The dependency-closed `.f.mjs` migration rule applies to files that are actually
+authored as `.f.mjs`; it does not prohibit a `.f.ts` proof from importing a
+`.f.mjs` implementation. This lets implementation coverage grow without forcing
+test infrastructure and its dependency graph to migrate first.
 
 Keep the extension rules explicit: ordinary `.mjs` files remain opt-in through
 the existing `proof.mjs` convention unless
@@ -53,23 +67,29 @@ does not replace or expand the ordinary `module.mjs` proposal.
 ### Acceptance criteria
 
 - `shouldLoad('module.f.mjs')` returns `true`.
-- An exported `proof` from a `.f.mjs` module is executed by the normal test
-  command.
+- An internal exported `proof` from a `.f.mjs` module is executed by the normal
+  test command.
+- A `proof.f.ts` importing `module.f.mjs` is executed by the normal test command.
 - `npm run cov` includes both `.f.ts` and `.f.mjs` implementation modules.
 - Renaming an otherwise equivalent module from `.f.ts` to `.f.mjs` does not
-  remove its proofs or its implementation from coverage.
-- `AGENTS.md` explicitly applies mandatory proof coverage and proof-file naming
-  rules to both `.f.ts` and `.f.mjs` FunctionalScript source.
-- Existing `.f.ts`, generated `.f.js`, and standalone `proof.mjs` behavior is
-  unchanged.
+  remove its proofs or its implementation from coverage, even when the proof
+  remains `proof.f.ts`.
+- `AGENTS.md` explicitly applies mandatory proof coverage to both `.f.ts` and
+  `.f.mjs` FunctionalScript source and documents that a migrated
+  `module.f.mjs` may keep a `proof.f.ts`.
+- A `proof.f.mjs` is required to satisfy the same dependency-closed migration
+  rule as any other authored `.f.mjs` file.
+- Existing `.f.ts`, generated `.f.js`, `proof.f.ts`, and standalone `proof.mjs`
+  behavior is unchanged.
 
 ### Ordering
 
 Complete this task before converting the first repository module from `.f.ts`
 to `.f.mjs`. The tooling and `AGENTS.md` policy changes land together so the
 first migrated module is both discovered correctly and governed by the same
-proof requirements. This is infrastructure for the migration strategy, not part
-of each individual module conversion.
+proof requirements. The proof itself may remain `.f.ts` and migrate separately.
+This is infrastructure for the migration strategy, not part of each individual
+module conversion.
 
 ### Related
 
