@@ -32,13 +32,20 @@ FunctionalScript features that are not implemented yet.
 Use `.f.mjs` for authored modules whose complete syntax is accepted by the
 current parser and compiler. Types in these modules are expressed with JSDoc,
 not TypeScript syntax. The initial walking skeleton may start with a minimal
-`.f.mjs` fixture; as soon as an existing repository module fits the supported
-subset, rename that module from `.f.ts` to `.f.mjs`, update its imports, and use
-it as an end-to-end compiler input.
+synthetic `.f.mjs` fixture before repository-wide `.mjs` infrastructure is
+complete, because that fixture does not enter the published runtime graph.
 
-Before converting the first existing module, complete
-[`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
-so the rename cannot silently remove internal proofs or coverage. Repository
+Before converting the first existing repository module, complete both:
+
+- [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md),
+  so the rename cannot silently remove internal proofs or coverage;
+- the authored-`.mjs` work in
+  [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md), including
+  TypeScript checking, package inclusion for `.mjs` and `.d.mts`, declaration
+  emission, and cross-extension package import tests.
+
+After those prerequisites, rename an eligible module from `.f.ts` to `.f.mjs`,
+update its imports, and use it as an end-to-end compiler input. Repository
 migration then continues independently, one file or coherent group at a time,
 as parser features land. It is neither part of one large PR nor a gate on the
 initial synthetic walking skeleton. See
@@ -75,13 +82,17 @@ via the `Function` constructor — no rustc at the user's run time.
 - [ ] Define the convention for generated module imports (`use` paths,
       file/directory layout — see the open question in
       [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md#open-questions)).
-- [ ] Prove the pipeline with a minimal `.f.mjs` subset: a constant default
-      export compiled by `fjs` to `.rs`, built and run by cargo, with the
-      result printed to stdout as JSON.
+- [ ] Prove the pipeline with a minimal synthetic `.f.mjs` subset: a constant
+      default export compiled by `fjs` to `.rs`, built and run by cargo, with
+      the result printed to stdout as JSON.
 - [ ] Complete
       [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md).
+- [ ] Complete the authored-`.mjs` TypeScript-checking, package-inclusion,
+      declaration-emission, and package-test tasks in
+      [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md).
 - [ ] Convert the first eligible repository module from `.f.ts` to `.f.mjs`
-      and keep it in the end-to-end compiler, proof, and coverage test sets.
+      and keep it in the end-to-end compiler, proof, coverage, type-checking,
+      and package test sets.
 
 ### Related
 
@@ -92,5 +103,7 @@ via the `Function` constructor — no rustc at the user's run time.
 - [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
   — proof-discovery and coverage prerequisite for the first repository
   conversion.
+- [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md) — authored
+  `.mjs` validation, declaration emission, package inclusion, and package tests.
 - [ast-spec](./ast-spec.md) — the schema of the code-describing `Any`; the
   `Function` constructor contract.
