@@ -30,18 +30,32 @@ it. Before converting the first existing repository module, complete both:
   TypeScript checking, `.mjs`/`.d.mts` package inclusion, declaration emission,
   and package import tests, so published imports cannot reference omitted files.
 
-1. As soon as the parser supports the first useful function modules, select an
-   existing `.f.ts` file whose complete syntax is supported.
-2. Rename it to `.f.mjs` and replace TypeScript-only syntax with JSDoc types.
-3. Update imports to the authored `.f.mjs` path.
-4. Add the module to parser/compiler validation and preserve its existing proof,
-   coverage, type-checking, and package-publication expectations.
-5. Repeat as each new parser feature makes more modules eligible.
+Migration uses a dependency-closed order. An existing module is eligible only
+when every relative FunctionalScript runtime dependency it imports is already
+`.f.mjs` or is converted in the same coherent group. Authored `.f.mjs` must not
+import an unmigrated `.f.ts` module or generated `.f.js` output. Packaging copies
+`.mjs` source without rewriting its import specifiers, so this rule keeps the
+same source graph valid in a clean checkout and in the packed NPM artifact. If a
+module's dependency closure is not yet eligible, leave it as `.f.ts`; this plan
+does not introduce a staging or package-time import-rewrite mechanism.
 
-A file stays `.f.ts` until all syntax it uses is supported. Migration must not
-require implementing unrelated language features merely to convert a file.
-Likewise, `.f.mjs` must not be used as an aspirational label: once a module has
-that extension, accepting and compiling it is a compatibility requirement.
+1. As soon as the parser supports the first useful function modules, select an
+   existing dependency-closed `.f.ts` module or coherent group whose complete
+   syntax is supported.
+2. Rename the selected files to `.f.mjs` and replace TypeScript-only syntax with
+   JSDoc types.
+3. Update imports within the group and all importers of renamed modules to the
+   authored `.f.mjs` paths.
+4. Add the group to parser/compiler validation and preserve its existing proof,
+   coverage, type-checking, and package-publication expectations.
+5. Repeat as each new parser feature makes more dependency-closed groups
+   eligible.
+
+A file stays `.f.ts` until all syntax it uses and the required dependency closure
+are supported. Migration must not require implementing unrelated language
+features merely to convert a file. Likewise, `.f.mjs` must not be used as an
+aspirational label: once a module has that extension, accepting and compiling it
+is a compatibility requirement.
 
 The migration grows real-repository compiler coverage alongside the parser and
 code generator. It does not wait for the complete FunctionalScript feature set,
