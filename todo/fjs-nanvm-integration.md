@@ -39,10 +39,10 @@ Before converting the first existing repository module, complete both:
 
 - [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md),
   so the rename cannot silently remove internal proofs or coverage;
-- the authored-`.mjs` work in
-  [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md), including
-  TypeScript checking, package inclusion for `.mjs` and `.d.mts`, declaration
-  emission, runtime import tests, and packed-package type-resolution tests.
+- [authored `.f.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md),
+  including TypeScript checking, package inclusion for `.mjs` and `.d.mts`,
+  declaration emission, runtime import tests, and packed-package
+  type-resolution tests.
 
 After those prerequisites, select a dependency-closed module or coherent group.
 Every relative FunctionalScript dependency used by executable code or retained
@@ -95,10 +95,8 @@ via the `Function` constructor — no rustc at the user's run time.
       the result printed to stdout as JSON.
 - [ ] Complete
       [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md).
-- [ ] Complete the authored-`.mjs` TypeScript-checking, package-inclusion,
-      declaration-emission, mixed-source validation, runtime package-test, and
-      packed-package type-resolution tasks in
-      [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md).
+- [ ] Complete
+      [authored `.f.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md).
 - [ ] Convert the first eligible repository module or group that is closed over
       both runtime and declaration-retained type dependencies from `.f.ts` to
       `.f.mjs`, and keep it in the end-to-end compiler, proof, coverage,
@@ -113,8 +111,10 @@ via the `Function` constructor — no rustc at the user's run time.
 - [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
   — proof-discovery and coverage prerequisite for the first repository
   conversion.
-- [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md) — authored
-  `.mjs` validation, declaration emission, package inclusion, runtime/type
-  dependency rules, and package tests.
+- [authored `.f.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md) —
+  focused P1 validation, emission, package-content, dependency, and consumer
+  type-resolution prerequisite.
+- [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md) — broader P3
+  package-publishing roadmap and shared authored/generated extension convention.
 - [ast-spec](./ast-spec.md) — the schema of the code-describing `Any`; the
   `Function` constructor contract.
