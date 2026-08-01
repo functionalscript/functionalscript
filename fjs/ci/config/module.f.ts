@@ -37,11 +37,27 @@ export const deno = '2.9.4'
 // Make sure that `package.json` has the same version of `@playwright/test`
 export const playwright = '1.62.0'
 
+// The Node versions the pinned Nixpkgs snapshot below provides — read from
+// `pkgs/development/web/nodejs/v{22,24,26}.nix` at that commit. Every runtime
+// uses these: `setup-node` on the GitHub-hosted runners and the generated
+// flakes on the Nix jobs, which assert the version they actually get. Nixpkgs
+// usually trails nodejs.org, so bump the snapshot first and copy the versions
+// it offers rather than the latest release.
 // https://nodejs.org/en/download
 export const node = {
-    default: '26.5.0',
+    default: '26.5.1',
     node22: '22.23.1',
     node24: '24.18.0',
+} as const
+
+// Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
+// stable channel the commit is accepted from; `commit` is the exact revision
+// every generated `flake.nix` pins. The Node versions above come from this
+// snapshot, so the two move together.
+// https://channels.nixos.org/nixos-26.05/git-revision
+export const nixpkgs = {
+    ref: 'nixos-26.05',
+    commit: '21ea275a7c46aef9d4d6ddc962e6d562e9d94183',
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases
@@ -69,6 +85,9 @@ export const actions = {
     'bytecodealliance/actions/wasmtime/setup': 'v1.1.3',
     // https://github.com/wasmerio/setup-wasmer
     'wasmerio/setup-wasmer': 'v3.1',
+    // https://github.com/marketplace/actions/install-nix
+    // Enables the `nix-command` and `flakes` experimental features by default.
+    'cachix/install-nix-action': 'v31.11.0',
     // https://rust-lang.org/ - value is Rust version, not action version
     'dtolnay/rust-toolchain': '1.97.1',
 } as const

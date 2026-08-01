@@ -1,7 +1,38 @@
 ## 66B-dockerfile-nix-integration. Generate simple Node CI flakes
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
+
+### Progress
+
+Phase 2 is done: `fjs/ci/nix/module.f.ts` generates
+`nix/generated/node{22,24,26}/flake.nix` from the pinned Nixpkgs commit in
+`fjs/ci/config/module.f.ts`, and `npm run ci-update` regenerates them without
+running Nix. `nodejs_22`, `nodejs_24`, and `nodejs_26` were verified to exist in
+the accepted snapshot.
+
+A temporary `nix-flakes` job instantiates every generated flake and compares the
+Node it provides to the expected version, so the generated files are checked on
+every pull request. It is not part of the migration: the canonical Node jobs
+keep their `setup-node` runtime, and the temporary job is deleted once they all
+run through `nix develop`.
+
+The Node versions in `fjs/ci/config/module.f.ts` are now the ones the pinned
+snapshot provides, shared by `setup-node` and the flakes' package attributes.
+The expectation is stated once, in the `nix-flakes` job — the flakes themselves
+carry no `assert`, because a flake pinning an exact commit already determines its
+package versions, so an in-flake assertion would restate the pin while making a
+generated, immutable file harder to read.
+
+**When the temporary job is deleted, each migrated job must check its own Node
+version inside the `nix develop` invocation** (already listed under phase 3), or
+nothing ties the Nix runtime to the version the Windows and macOS jobs install.
+
+Still open: the `npm run ci-nix-update` command (phase 1's automation — the
+versions were read from the snapshot by hand), removal of stale generated job
+directories, and the rest of phase 3 (migrating the jobs themselves).
+Stale-directory removal needs a recursive `rm` effect — today's `rm` operation
+only deletes files.
 
 ### Problem
 
@@ -202,18 +233,20 @@ milestone.
 
 ### Tasks
 
-- [ ] Add the stable Nixpkgs reference and exact commit.
+- [x] Add the stable Nixpkgs reference and exact commit.
 - [ ] Add `npm run ci-nix-update`.
-- [ ] Update Node versions from the accepted Nixpkgs snapshot.
-- [ ] Verify the three required Node package attributes exist.
-- [ ] Generate separate Node 22, Node 24, and Node 26 flakes with
+- [x] Update Node versions from the accepted Nixpkgs snapshot (by hand for now;
+      `ci-nix-update` automates it).
+- [x] Verify the three required Node package attributes exist.
+- [x] Generate separate Node 22, Node 24, and Node 26 flakes with
       `devShells.aarch64-linux.default`.
-- [ ] Add the Node 22 `$HOME/.npm-global` shell hook.
+- [x] Add the Node 22 `$HOME/.npm-global` shell hook.
 - [ ] Remove stale generated job directories.
-- [ ] Add `/nix/generated/**/flake.lock` to `.gitignore`.
-- [ ] Keep ordinary generation Nix-independent and Windows-compatible.
-- [ ] Commit the generated flakes.
-- [ ] Add pinned Nix bootstrap to each migrated job.
+- [x] Add `/nix/generated/**/flake.lock` to `.gitignore`.
+- [x] Keep ordinary generation Nix-independent and Windows-compatible.
+- [x] Commit the generated flakes.
+- [ ] Add pinned Nix bootstrap to each migrated job (the pinned action is already
+      used by the temporary `nix-flakes` job).
 - [ ] Run each job's complete command sequence through one `nix develop --command`
       invocation.
 - [ ] Validate the three Node jobs independently.
