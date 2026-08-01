@@ -96,7 +96,7 @@
  */
 
 import { fold, type List } from '../types/list/module.f.ts'
-import type { Option } from '../types/option/module.f.ts'
+import type { Option } from '../types/option/module.f.mjs'
 import type { Result } from '../types/result/module.f.ts'
 
 export type Operation =
