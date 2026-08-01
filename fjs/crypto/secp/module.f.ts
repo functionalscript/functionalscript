@@ -5,7 +5,7 @@
  *
  * @module
  */
-import type { Equal, Fold, Reduce } from '../../types/function/operator/module.f.ts'
+import type { Equal, Fold, Reduce } from '../../types/function/operator/module.f.mjs'
 import { prime_field, sqrt, type PrimeField } from '../../types/prime_field/module.f.ts'
 import { repeat } from '../../common/monoid/module.f.ts'
 

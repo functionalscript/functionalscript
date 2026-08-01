@@ -5,7 +5,7 @@
  *
  * @module
  */
-import { strictEqual, type Scan, type StateScan } from '../../types/function/operator/module.f.ts'
+import { strictEqual, type Scan, type StateScan } from '../../types/function/operator/module.f.mjs'
 import { merge, fromRange, get, type RangeMapArray, type RangeMerge } from '../../types/range_map/module.f.ts'
 import { empty, stateScan, flat, toArray, reduce as listReduce, scan, map as listMap, type List } from '../../types/list/module.f.ts'
 import { at, fromEntries, type Entry } from '../../types/ordered_map/module.f.ts'

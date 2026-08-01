@@ -8,7 +8,7 @@
 import { log2 } from '../../../types/bigint/module.f.ts'
 import { msb, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
 import type { Func } from '../../../types/function/module.f.mjs'
-import { strictEqual, type Equal, type StateScan } from '../../../types/function/operator/module.f.ts'
+import { strictEqual, type Equal, type StateScan } from '../../../types/function/operator/module.f.mjs'
 import { equal, map, type List } from '../../../types/list/module.f.ts'
 import { join } from '../../../types/string/module.f.ts'
 

@@ -4,7 +4,7 @@
  * @module
  */
 import { flat, reduce, empty, type List } from '../../../types/list/module.f.ts'
-import { type Reduce } from '../../../types/function/operator/module.f.ts'
+import { type Reduce } from '../../../types/function/operator/module.f.mjs'
 
 const jsonStringify = JSON.stringify
 

@@ -4,7 +4,7 @@
  * @module
  */
 import type { Unknown, Object } from '../module.f.ts'
-import type { Fold } from '../../types/function/operator/module.f.ts'
+import type { Fold } from '../../types/function/operator/module.f.mjs'
 import type { Entry as ObjectEntry } from '../../types/object/module.f.ts'
 import { fold } from '../../types/list/module.f.ts'
 import { concat } from '../../types/string/module.f.ts'
