@@ -2,6 +2,7 @@
 
 **Priority:** P3
 **Status:** open
+**Blocked by:** [descent/failure-tracking](../descent/todo/failure-tracking.md)
 
 ### Problem
 
@@ -58,15 +59,12 @@ span has a first and a last token, and each token's `TokenMetadata`
 position. `ParseError` (`{ message, metadata: TokenMetadata | null }`,
 `fjs/djs/parser/module.f.ts:16`) widens from a single point to that range.
 
-`idx` is not a usable fallback even for picking which token to blame. On a failed
-sequence item the backend rewinds to the enclosing sequence's start —
-`result = mrFail(frame.tag, [], frame.startIdx)`
-(`fjs/bnf/descent/module.f.ts:161-162`) — so a failed match reports the start of
-the enclosing rule rather than where matching stopped, often index 0. Making the
-backend able to say where a parse stopped means tracking the furthest failure
-position, and the terminals expected there, inside `fjs/bnf/descent`. That is a
-separate change to the backend, worth doing for message quality but not required
-by the metadata-range scheme above.
+**This depends on the backend keeping failure information, which it does not
+today.** A failed match returns an empty sequence and a rewound index, so it
+carries no metadata to build a range from and no reliable token to blame. That is
+tracked separately as
+[descent/failure-tracking](../descent/todo/failure-tracking.md) and blocks this
+issue.
 
 ### Open questions
 
@@ -77,10 +75,6 @@ Deliberately unresolved — this issue exists to hold the task, not to settle th
   and `fjs/djs/parser`. If a grammar replaces the machine on the DJS side, §1
   loses one of its two consumers and the extraction stops paying for itself.
   Whichever lands first should say what happens to the other.
-- **Furthest-failure tracking in `fjs/bnf/descent`.** Whether to add it as part
-  of this work or as its own issue — see proposal item 4. Without it the parser
-  can report *that* input was rejected, with the offending rule's position range,
-  but not the precise token where matching stopped.
 - **Scope of the grammar.** Whether it covers module framing (`import`, `const`,
   `export default`) or only values, with the framing left to a wrapper.
 - **Where the module lives** — a `fjs/djs/new_parser/` sibling, or inside
@@ -93,7 +87,8 @@ Deliberately unresolved — this issue exists to hold the task, not to settle th
 - [ ] Write the DJS grammar in `fjs/bnf` combinators
 - [ ] Fold `AstRuleMeta` into `AstModule`
 - [ ] Report errors as metadata position ranges; widen `ParseError.metadata`
-      from a single `TokenMetadata` to a range
+      from a single `TokenMetadata` to a range (needs
+      [descent/failure-tracking](../descent/todo/failure-tracking.md))
 - [ ] `proof.f.ts` with full coverage; `npx tsc`, `fjs t`
 - [ ] Decide the fate of `parseFromTokens` and of [157](../../djs/todo/157.md) §1
 
@@ -106,4 +101,6 @@ Deliberately unresolved — this issue exists to hold the task, not to settle th
 - [../token_symbol/README.md](../token_symbol/README.md) — symbols for
   multi-character tokens
 - [../descent/README.md](../descent/README.md) — the backend being generalized
+- [descent/failure-tracking](../descent/todo/failure-tracking.md) — the blocker:
+  failure information the backend must keep before errors can be reported
 - [157](../../djs/todo/157.md) — the competing direction for the same code
