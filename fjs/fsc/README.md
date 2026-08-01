@@ -1,5 +1,45 @@
 # FunctionalScript Compiler
 
+## Source files and incremental repository migration
+
+The FunctionalScript repository uses file extensions to distinguish authored
+source, generated output, and the subset accepted by the current
+FunctionalScript compiler.
+
+| Extension | Meaning |
+|---|---|
+| `.f.ts` | Authored FunctionalScript-intent TypeScript. It may use TypeScript syntax or FunctionalScript features that the current parser does not support yet. |
+| `.f.mjs` | Authored FunctionalScript ESM JavaScript with JSDoc types. The complete module must be accepted by the current FunctionalScript parser and compiler. |
+| `.f.js` | Generated JavaScript emitted from `.f.ts`; never authored directly. |
+| `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
+
+The general authored/generated JavaScript convention is described in
+[`fjs/ci/todo/publishing-packages.md`](../ci/todo/publishing-packages.md).
+The `.f.mjs` extension adds a stronger FunctionalScript-specific promise: it
+marks a module that is ready for translation by the compiler available in the
+same revision of the repository.
+
+Repository migration is incremental, not a single task or pull request:
+
+1. As soon as the parser supports the first useful function modules, select an
+   existing `.f.ts` file whose complete syntax is supported.
+2. Rename it to `.f.mjs` and replace TypeScript-only syntax with JSDoc types.
+3. Update imports to the authored `.f.mjs` path.
+4. Add the module to parser/compiler validation so later changes cannot silently
+   move it outside the supported subset.
+5. Repeat as each new parser feature makes more modules eligible.
+
+A file stays `.f.ts` until all syntax it uses is supported. Migration must not
+require implementing unrelated language features merely to convert a file.
+Likewise, `.f.mjs` must not be used as an aspirational label: once a module has
+that extension, accepting and compiling it is a compatibility requirement.
+
+The migration grows real-repository compiler coverage alongside the parser and
+code generator. It does not wait for the complete FunctionalScript feature set,
+and compiler progress does not wait for the entire repository to migrate. See
+the [project roadmap](../../todo/plan/roadmap.md) and the
+[fjs–nanvm integration plan](../../todo/fjs-nanvm-integration.md).
+
 ## Tokenizer
 
 - `!` - logicalNot
