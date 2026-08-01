@@ -52,7 +52,7 @@ adapter, not in eight test bodies.
 The smallest interesting grammar in the tree, "an optional minus followed by
 one digit", is rebuilt from scratch in every case that needs it —
 `fjs/bnf/descent/proof.f.ts:150`, `:161`, `:172`, `:285` and
-`fjs/bnf/ll1/proof.f.ts:57`, `:70`, `:162`, `:173`, `:184`:
+`fjs/bnf/ll1/proof.f.ts:57`, `:68`, `:162`, `:173`, `:184`:
 
 ```ts
 const emptyRule = ''
@@ -65,7 +65,7 @@ const numberRule = [optionalMinusRule, digitRule]
 Four of the nine carry a copy-paste typo, `minursRule`
 (`descent:151`, `:173`; `ll1:58`, `:163`) — harmless because the binding is
 local, but a direct measurement of how these blocks were produced. One site
-(`ll1:70-74`) is a deliberate variant that prefixes an `optionalSpaceRule`; it
+(`ll1:68-74`) is a deliberate variant that prefixes an `optionalSpaceRule`; it
 is the one that should stay distinct, and today it is indistinguishable at a
 glance from the eight that should not.
 
@@ -157,7 +157,7 @@ and keep only `Case` / `assertRecognizes` / the corpus in the shared file.
 
 **2. `export const number: Rule`** — the optional-minus-then-digit grammar,
 exported by name. **Eight** of the nine blocks import it — every one but
-`ll1:70-74`, whose space-prefixed variant is the deliberately different case
+`ll1:68-74`, whose space-prefixed variant is the deliberately different case
 and stays local. Converting that ninth site too would delete the only
 optional-space grammar the proofs exercise, i.e. lose a case rather than move
 one. Leaving it local, next to eight sites that now read as one import, is
@@ -194,7 +194,7 @@ answering "what does this grammar accept?" independently.
       `fjs/djs/tokenizer`'s export (`:238-243`) still needs to be public.
 - [ ] Add `number` (the optional-minus-then-digit grammar) and `jsonCases`.
 - [ ] Convert `fjs/bnf/descent/proof.f.ts` and `fjs/bnf/ll1/proof.f.ts`; keep
-      `ll1:70-74`'s space-prefixed variant local and comment why — eight
+      `ll1:68-74`'s space-prefixed variant local and comment why — eight
       import sites, not nine; converting the ninth would delete the only
       optional-space grammar case.
 - [ ] Convert `fjs/djs/tokenizer/proof.f.ts` to `jsonCases` plus a named

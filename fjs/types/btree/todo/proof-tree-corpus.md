@@ -11,7 +11,7 @@ it from scratch.
 
 #### 1. 29 copies of one test case
 
-`fjs/types/btree/set/proof.f.ts` is 395 lines, of which 57 carry expected
+`fjs/types/btree/set/proof.f.ts` is 394 lines, of which 57 carry expected
 values and almost all the rest is the same six lines repeated for
 `n = 10 … 38` (`:17-352`):
 
@@ -49,14 +49,22 @@ sequence because it is interleaved with 174 lines of boilerplate.
 
 ```ts
 // fjs/types/btree/proof.f.ts:17-19, find/proof.f.ts:12-14,
-// set/proof.f.ts:8-9, remove/proof.f.ts:8-9 — four copies
+// set/proof.f.ts:8-9, remove/proof.f.ts:9-10 — four copies
 const set = (node: TNode<string>) => (value: string) =>
     setSet(cmp(value))(() => value)(node)
 ```
 
 Each also binds its own `jsonStr = stringify(sort)`, and three of them open-code
-the squares loop (`set/proof.f.ts` 31 times, `remove/proof.f.ts:20`, `:376`,
-`:446` for `n = 38`, `10`, `50`, `find/proof.f.ts:26` for `n = 10`).
+the squares loop `_map = set(_map)((i * i).toString())` — `set/proof.f.ts` 31
+times, `remove/proof.f.ts:20` (`n = 38`) and `:376` (`n = 10`), and
+`find/proof.f.ts:26` (`n = 10`).
+
+**`remove/proof.f.ts:444-461` (`test3`) is not one of them.** Its loop inserts
+`i.toString()` — the *sequential* integers `2 … 50`, not their squares — and it
+then removes `'40'` and `'10'`, neither of which exists in the squares corpus.
+It is a separate fixture built for a separate purpose, stated in its own
+comment: reaching the branch-merge-into-`Branch5`-sibling path in
+`reduceValue0`. It must not be folded into `squares`; see the proposal.
 
 So "a string B-tree keyed by `cmp`", "serialize canonically", and "the squares
 corpus" — one fixture, shared by every proof in the directory — is stated four
@@ -160,6 +168,22 @@ already pins it. Keeping it as a sanity anchor for the 39-step removal chain is
 defensible; what is not defensible is keeping it as a second literal. Either
 resolution closes this point.)
 
+`test3` (`:444-461`) is **out of scope and stays as it is.** Only its `set` and
+`jsonStr` bindings come from the testlib; its loop does not. Rewriting it as
+`squares(50)` would be a silent coverage loss, not a cleanup: it inserts the
+sequential integers `2 … 50` and removes `'40'` and `'10'`, and neither key
+exists among the squares — the removals would become no-ops against a
+differently-shaped tree and the branch-merge-into-`Branch5`-sibling path in
+`reduceValue0` would stop being exercised at all, while the proof still passed.
+
+Do **not** add a `sequential(n)` helper to the testlib for it. One consumer does
+not need an export, and a second corpus builder sitting next to `squares` with
+the same shape is precisely the confusion that produced this hazard. Give the
+loop a local name in `remove/proof.f.ts` and a comment saying it is deliberately
+*not* the shared corpus — the same treatment `ll1:68-74`'s grammar variant gets
+in [proof-recognizer-and-fixtures](../../../bnf/todo/proof-recognizer-and-fixtures.md).
+Move it to the testlib only if a second consumer ever appears.
+
 Roughly 300 lines of scaffolding across the four files collapse into a table
 and three imports, and the expected values become readable as the sequence they
 are.
@@ -174,8 +198,15 @@ are.
 - [ ] Convert `fjs/types/btree/remove/proof.f.ts`, `find/proof.f.ts`, and
       `proof.f.ts` to import the fixture; delete the four local `set` helpers
       and `remove/proof.f.ts`'s duplicate `n = 38` literal (`:23-30`).
+- [ ] Leave `remove/proof.f.ts`'s `test3` loop (`:444-461`) alone — it builds
+      the sequential-integer corpus, not the squares one. Name it locally and
+      comment why; do not call `squares(50)` and do not add a `sequential`
+      helper to the testlib.
 - [ ] Confirm coverage of `fjs/types/btree/{set,remove,find}` is unchanged —
-      this must move test text, not test cases.
+      this must move test text, not test cases. Check the
+      `reduceValue0` branch-merge path specifically: `test3` is its only
+      exercise, and a corpus swap there would keep the proof green while
+      silently dropping it.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related
