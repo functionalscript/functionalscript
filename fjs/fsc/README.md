@@ -24,13 +24,14 @@ synthetic `.f.mjs` compiler fixture may be added as soon as the parser supports
 it. Before converting the first existing repository module, complete both:
 
 - [`.f.mjs` test and coverage support](../emergent_testing/todo/f-mjs-test-and-coverage.md),
-  so migrated modules remain in proof discovery and coverage reporting;
+  so migrated modules remain in proof discovery and coverage reporting and the
+  proof guidance in `AGENTS.md` and `CONTRIBUTING.md` stays aligned;
 - [authored `.f.mjs` package support](../ci/todo/f-mjs-package-support.md),
-  including TypeScript checking, `.mjs`/`.d.mts` package inclusion, declaration
-  emission, runtime import tests, packed-package type-resolution tests, and the
-  repository module-import policy update, so published runtime and declaration
-  imports cannot reference omitted files and unmigrated callers may follow
-  renamed dependencies.
+  including TypeScript checking, `.mjs`/`.d.mts` package inclusion, repeatable
+  cleanup and declaration emission, consecutive-pack validation, runtime import
+  tests, packed-package type-resolution tests, and the repository module-import
+  policy update, so published runtime and declaration imports cannot reference
+  omitted files and unmigrated callers may follow renamed dependencies.
 
 The repository import policy is asymmetric during migration: authored `.f.ts`
 may import relative `.f.ts` or `.f.mjs` modules, while authored `.f.mjs` runtime
@@ -58,7 +59,7 @@ staging, package-time import-rewrite, or declaration-rewrite mechanism.
 3. Update runtime imports and JSDoc type references within the group, plus all
    `.f.ts` importers of renamed modules, to the authored `.f.mjs` paths.
 4. Add the group to parser/compiler validation and preserve its existing proof,
-   coverage, type-checking, package-runtime, and package-type-resolution
+   coverage, type-checking, repeatable package-runtime, and package-type-resolution
    expectations.
 5. Repeat as each new parser feature makes more dependency-closed groups
    eligible.
