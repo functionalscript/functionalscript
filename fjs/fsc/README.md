@@ -103,7 +103,7 @@ the [project roadmap](../../todo/plan/roadmap.md) and the
 - `,` - comma
 - `-` - subtraction
   - `--` - decrement
-  - `-=` - subtraction assignment
+  - `-=` - subtractionAssignment
 - `.` - dot
   - `...` - spread
 - `/` - division
