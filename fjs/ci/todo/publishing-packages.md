@@ -42,9 +42,11 @@ The extension invariant is:
 For FunctionalScript modules, [`fjs/fsc/README.md`](../../fsc/README.md) adds a
 stronger capability convention: `.f.mjs` is authored JavaScript that the
 current FunctionalScript parser and compiler must accept, while `.f.ts` may
-still use unsupported parser features or TypeScript syntax. This document owns
-the package-emission mechanics; the compiler README owns the FunctionalScript
-migration strategy.
+still use unsupported parser features or TypeScript syntax. The blocking P1
+implementation work required before the first real `.f.mjs` migration is
+tracked in [`f-mjs-package-support.md`](./f-mjs-package-support.md). This P3
+document remains the broader package-publishing roadmap and records the shared
+package-emission convention.
 
 The main `tsconfig.json` should validate authored TypeScript and JavaScript while excluding generated declarations:
 
@@ -117,28 +119,15 @@ outputs preserve that `.mjs` specifier, which works both in a checkout and in
 the packed artifact. No staging tree, package-time runtime-import rewrite, or
 declaration-specifier rewrite is planned.
 
-Tasks:
+### Tasks
 
-- [ ] Make `fjs/types/bigint/benchmark.mjs` pass TypeScript validation or delete it.
-- [ ] Enable `allowJs` and `checkJs` and add the authored-source `include` and generated-declaration `exclude` patterns to `tsconfig.json`.
-- [ ] Update the NPM package rules to include `.mjs` and `.d.mts` while excluding non-package `.mjs` files.
-- [ ] Replace the current one-pass `prepack` script with the two emission passes.
-- [ ] Add a package test containing one `.ts` module and one JSDoc `.mjs` module.
-- [ ] Test the supported mixed-source direction: authored `.ts` importing
-      authored `.mjs`, both before and after packing.
-- [ ] Add validation or a package test that rejects relative authored `.mjs`
-      runtime imports or JSDoc/declaration type references to `.ts` or generated
-      `.js`, enforcing dependency-closed runtime and declaration graphs.
-- [ ] Type-check a clean consumer against the packed archive and import an
-      exported type from the authored `.mjs` fixture, proving its `.d.mts` and
-      every transitive declaration reference resolve without repository source
-      files.
-- [ ] Verify emitted `.d.mts` files do not reference package-omitted `.ts` or
-      generated `.js` paths.
-- [ ] Verify the packed archive contains authored `.mjs`, generated `.js`, `.d.ts`, and `.d.mts` files.
+- [ ] Complete the blocking P1 authored-`.f.mjs` package work in
+      [`f-mjs-package-support.md`](./f-mjs-package-support.md).
 
 ### Related
 
+- [`f-mjs-package-support.md`](./f-mjs-package-support.md) — focused P1 package
+  prerequisite for the first real `.f.mjs` migration.
 - [`fjs/fsc/README.md`](../../fsc/README.md) — FunctionalScript source
   extensions and incremental repository migration.
 - [GitHub issue #398](https://github.com/functionalscript/functionalscript/issues/398)
