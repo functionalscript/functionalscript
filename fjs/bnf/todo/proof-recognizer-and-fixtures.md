@@ -212,3 +212,13 @@ answering "what does this grammar accept?" independently.
 - [stack-recursive-matching](../ll1/todo/stack-recursive-matching.md) and the
   `longInput` regression block (`fjs/bnf/descent/proof.f.ts:260+`) — a second,
   differently-shaped corpus; leave it alone until this one is done.
+- [new-parser](./new-parser.md) — runs `descentParser` over a *token-symbol*
+  alphabet rather than code points. `Recognizer`'s `(input: string) => boolean`
+  shape assumes the code-point alphabet, so that parser's proofs need their own
+  adapter rather than reusing `descentRecognizer`. Not a conflict, but the two
+  should agree on the `Case` / `assertRecognizes` half, which is
+  alphabet-independent.
+- [descent/failure-tracking](../descent/todo/failure-tracking.md) — makes a
+  failed match report *where* it failed. If it lands first, `assertRecognizes`
+  can report that position on a mismatch instead of dumping the whole
+  `MatchResult`; nothing here depends on it.
