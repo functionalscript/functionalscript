@@ -167,10 +167,26 @@ rules alike and no call site names it:
 `fjs/djs/tokenizer/module.f.ts:238-243` exports it (together with its
 `mapCodePoint` helper) and `fjs/bnf/descent/proof.f.ts:9-14` re-declares it
 byte-identically. Nothing in DJS *production* calls it — it is exported only so
-that module's own proof can reach it. Once both proofs go through
-`descentRecognizer`, the copy in the bnf proof disappears and the DJS export
-should be reviewed for removal (check for out-of-tree importers first, since
-it is public API today).
+that module's own proof can reach it.
+
+Once both proofs go through `descentRecognizer`, the copy in the bnf proof is
+dead and gets deleted here: it is a file-local `const`, so removing it changes
+nothing outside that file.
+
+**Deleting the DJS `export` is a separate, breaking PR — not part of this
+issue.** `fjs/djs/tokenizer/module.f.ts` ships in a package with no `exports`
+map in `deno.json`, so `descentParserCpOnly` is public API and an out-of-tree
+importer breaks when it goes. Searching the repository cannot establish
+otherwise; it bounds the migration, not the blast radius (the same mistake this
+issue's sibling made about `nixToString` — see
+[serializer-validation-split](../../media/nix/todo/serializer-validation-split.md)).
+
+The removal is still the right design — after this issue lands the export has
+zero in-repo callers, and `AGENTS.md` §8.4 says not to preserve a stale export
+just to avoid churn — but it must be its own PR carrying its own
+`**BREAKING CHANGES:**` CHANGELOG entry. Sequencing it separately also keeps
+this issue's promise intact: everything *here* is a test-only change with no
+CHANGELOG entry at all.
 
 `stringToCodePointList`/`toArray`/`mapCodePoint` all move inside the adapters,
 so no proof site repeats the decode. Watch the import direction: `testlib.f.ts`
@@ -219,9 +235,15 @@ answering "what does this grammar accept?" independently.
       `start` parameter, no `''` default. Verify against the one lazy-rule site
       (`descent/proof.f.ts:211`, grammar `value`), which is the case a default
       would break.
-- [ ] Fold `descentParserCpOnly` + `mapCodePoint` into `descentRecognizer`;
-      delete the copy at `fjs/bnf/descent/proof.f.ts:9-14` and check whether
-      `fjs/djs/tokenizer`'s export (`:238-243`) still needs to be public.
+- [ ] Fold `descentParserCpOnly` + `mapCodePoint` into `descentRecognizer` and
+      delete the file-local copy at `fjs/bnf/descent/proof.f.ts:9-14`. Leave
+      `fjs/djs/tokenizer`'s export (`:238-243`) in place — see below.
+- [ ] **Follow-up, separate PR:** once this lands, `fjs/djs/tokenizer`'s
+      `descentParserCpOnly` export has no in-repo caller. Removing it is a
+      public API change (no `exports` map), so it needs its own PR with a
+      `**BREAKING CHANGES:**` CHANGELOG entry per `AGENTS.md` §8.4. Do not fold
+      it into this work, which is otherwise test-only and needs no CHANGELOG
+      entry.
 - [ ] Add `number` (the optional-minus-then-digit grammar) and `jsonCases`.
 - [ ] Convert `fjs/bnf/descent/proof.f.ts` and `fjs/bnf/ll1/proof.f.ts`; keep
       `ll1:68-74`'s space-prefixed variant local and comment why — eight
