@@ -27,7 +27,7 @@ export const proof = {
             const expect = (s: string, expected: boolean) => {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, '', cp)
-                const success = mr[1] && mr[2] === cp.length
+                const success = mr.success && mr.idx === cp.length
                 assertEq(success, expected, JSON.stringify([s, mr]))
             }
 
@@ -65,7 +65,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('tr'))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, 'id', JSON.stringify(mr))
         },
@@ -73,7 +73,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('"tr"'))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, 'string', JSON.stringify(mr))
         },
@@ -81,7 +81,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('56.7e+5'))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, 'number', JSON.stringify(mr))
         },
@@ -89,7 +89,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('56n'))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, 'number', JSON.stringify(mr))
         },
@@ -97,7 +97,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('*'))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, '*', JSON.stringify(mr))
         },
@@ -105,7 +105,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('**'))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, '**', JSON.stringify(mr))
         },
@@ -113,7 +113,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('=>'))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, '=>', JSON.stringify(mr))
         },
@@ -121,7 +121,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('=='))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assert(!(seq.tag !== '=='), JSON.stringify(mr))
         },
@@ -129,7 +129,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('==='))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assert(!(seq.tag !== '==='), JSON.stringify(mr))
         },
@@ -137,7 +137,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('='))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, '=', JSON.stringify(mr))
         },
@@ -145,7 +145,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList(' '))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, ' ', JSON.stringify(mr))
         },
@@ -153,7 +153,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('\n'))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, '\n', JSON.stringify(mr))
         },
@@ -161,7 +161,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('/\n'))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, '/', JSON.stringify(mr))
         },
@@ -169,7 +169,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('//\n'))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, 'comment', JSON.stringify(mr))
         },
@@ -177,7 +177,7 @@ export const proof = {
             const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('/*1*/'))
             const mr = descentParserCpOnly(m, '', cp)
-            const seq = mr[0].sequence[0]
+            const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, 'comment', JSON.stringify(mr))
         }

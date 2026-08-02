@@ -49,16 +49,25 @@ export type DescentFailure = {
 }
 
 /**
- * Result tuple of a descent match operation: AST node, success flag, next index,
- * and the furthest failure seen ({@link DescentFailure}).
+ * Result of a descent match operation.
+ *
+ * `idx` is where matching stopped *on success* — the position just past what was
+ * consumed. On failure it has rewound to the start of the enclosing sequence and
+ * cannot locate anything; read {@link DescentFailure} instead.
  */
-export type DescentMatchResult<T> = readonly[AstRuleMeta<T>, boolean, number, DescentFailure]
+export type DescentMatchResult<T> = MatchState<T> & {
+    readonly failure: DescentFailure
+}
 
 /**
- * A result before the furthest-failure record is attached, which happens once at
- * the end of a match rather than on every intermediate step.
+ * A result before the furthest failure is attached, which happens once at the
+ * end of a match rather than on every intermediate step.
  */
-type MatchState<T> = readonly[AstRuleMeta<T>, boolean, number]
+type MatchState<T> = {
+    readonly ast: AstRuleMeta<T>
+    readonly success: boolean
+    readonly idx: number
+}
 
 /**
  * Folds one rejected terminal into the furthest-failure record: further along
@@ -147,8 +156,8 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
     // grammar recursion depth — right-recursive rules (e.g. repeat0Plus chains) no longer
     // overflow on long input (see the longInput proof group).
     const f: DescentMatchRule<T> = (name, tag, cp, idx): DescentMatchResult<T> => {
-        const mrSuccess = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): MatchState<T> => [{tag, sequence}, true, idx]
-        const mrFail = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): MatchState<T> => [{tag, sequence}, false, idx]
+        const mrSuccess = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): MatchState<T> => ({ ast: {tag, sequence}, success: true, idx })
+        const mrFail = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): MatchState<T> => ({ ast: {tag, sequence}, success: false, idx })
 
         let stack: Stack = null
         let task: Task | null = { name, tag, idx }
@@ -200,13 +209,13 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
             }
 
             if (stack === null) {
-                return [...result, furthest]
+                return { ...result, failure: furthest }
             }
             const frame = stack.top
             stack = stack.rest
 
             if (frame.kind === 'seq') {
-                const [astRule, success, nidx] = result
+                const { ast: astRule, success, idx: nidx } = result
                 if (success === false) {
                     result = mrFail(frame.tag, [], frame.startIdx)
                 } else {
@@ -222,8 +231,8 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
             } else {
                 // success that consumed input wins immediately: the frame stays popped and
                 // `result` propagates to the frame below, matching the recursive `return m`.
-                if (!(result[1] && frame.idx !== result[2])) {
-                    const emptyResult = result[1] ? result : frame.emptyResult
+                if (!(result.success && frame.idx !== result.idx)) {
+                    const emptyResult = result.success ? result : frame.emptyResult
                     const entryIndex = frame.entryIndex + 1
                     if (entryIndex < frame.entries.length) {
                         stack = { top: { ...frame, entryIndex, emptyResult }, rest: stack }

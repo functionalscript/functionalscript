@@ -21,12 +21,13 @@ It is meaningful on a *successful* match too: a variant branch that failed
 further along than the branch that eventually matched is still recorded, which
 is what a caller needs when a parse succeeds but stops before the end of input.
 
-**Why a fourth tuple element rather than a result record.** A record
-(`{ ast, success, idx, failure }`) reads better at a call site than a 4-tuple,
-but every consumer here indexes positionally (`mr[0]`, `mr[1]`, `mr[2]`), so
-appending an element changed no existing code while a record would have churned
-~74 call sites across two proof files for one added field. If the result grows
-again, revisit — the tuple is at the width where a record starts winning.
+**Why a record rather than a tuple.** The result used to be
+`[ast, success, idx]`, read positionally (`mr[0]`, `mr[1]`, `mr[2]`). Adding a
+fourth field would have made every diagnostic consumer remember that `failure`
+is element 3, so the result became `{ ast, success, idx, failure }` and the call
+sites were migrated with it. A tuple is fine at two or three elements where the
+order is obvious; a fourth field carrying a nested record is where naming stops
+being optional.
 
 Terminals have no empty-match case: `emptyTagOf` in [`../data`](../data) returns
 `undefined` for every terminal, so a terminal either consumes one symbol or
