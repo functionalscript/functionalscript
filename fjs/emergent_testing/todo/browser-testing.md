@@ -35,8 +35,8 @@ Create one browser-native FunctionalScript test application that:
 - reports a structured final result to a local server for CI exit-status handling.
 
 The HTML page and in-browser runner are the shared test system. `fjs browser-test`,
-Playwright, and direct browser processes are alternative controllers for preparing or
-opening the same application and collecting the same report. Playwright must remain a
+Playwright, and direct browser processes are peer controller alternatives for preparing
+or opening the same application and collecting the same report. Playwright must remain a
 valid user-facing alternative to an `fjs browser-test` command; it is not required to be
 hidden behind the FunctionalScript CLI.
 
