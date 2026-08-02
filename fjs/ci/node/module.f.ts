@@ -6,7 +6,7 @@
  */
 import { node } from '../config/module.f.ts'
 import { type Job, type Jobs, type MetaStep, install, test, ubuntuArm, uses } from '../common/module.f.ts'
-import { nixDevelop, nixInstall, type NixJob } from '../nix/module.f.ts'
+import { nixInstall, nixVersionCheckStep, type NixJob } from '../nix/module.f.ts'
 
 export const major = (v: string): string => v.split('.')[0]
 
@@ -64,7 +64,7 @@ export const nodeVersionJobs = (version: string): Jobs => ({
 })
 
 // The canonical Node jobs run on the Ubuntu ARM runner.
-const nixSystem = 'aarch64-linux' as const
+export const nixSystem = 'aarch64-linux' as const
 
 // Keeps `npm install -g functionalscript` writable and puts the installed `fjs`
 // on `PATH` for the rest of the same `nix develop` invocation.
@@ -89,15 +89,12 @@ export const nodeNixJobs: readonly NixJob[] = [
 ]
 
 /**
- * Checks a generated flake end to end: the shell builds, and the Node it puts on
- * `PATH` is exactly the version every other runtime installs.
- *
- * The pinned Nixpkgs commit already determines the version, so this is the only
- * place the expectation is stated — the generated flakes stay declarative
- * instead of carrying an `assert` that restates the commit they pin.
+ * Version-check steps for the canonical Node jobs' generated flakes, one per
+ * job. Combined with other jobs' checks (e.g. Playwright's) into the shared
+ * temporary `nix-flakes` job in `fjs/ci/module.f.ts`.
  */
-const nodeVersionStep = (version: string): MetaStep =>
-    test({ run: `test "$(${nixDevelop(jobId(version), 'node --version')})" = v${version}` })
+export const nodeNixVersionSteps: readonly MetaStep[] =
+    nixVersions.map(version => nixVersionCheckStep(jobId(version), version))
 
 /**
  * Temporary job that instantiates every generated flake.
@@ -112,7 +109,7 @@ const nodeVersionStep = (version: string): MetaStep =>
  */
 export const nodeNixFlakeJob: Job = ubuntuArm([
     nixInstall,
-    ...nixVersions.map(nodeVersionStep),
+    ...nodeNixVersionSteps,
 ])
 
 export const nodeMainSteps = platformNodeSteps

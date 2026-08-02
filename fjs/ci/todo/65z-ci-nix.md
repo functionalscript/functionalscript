@@ -199,7 +199,9 @@ Add other jobs only when useful:
 
 - Deno and Bun can be separate straightforward follow-ups;
 - Rust should have its own experiment and TODO for concrete toolchain/target packages;
-- Playwright should have its own experiment when its Nix environment is attempted;
+- Playwright has its own TODO — see
+  [65Z-ci-nix-playwright](65z-ci-nix-playwright.md) — and is in fact the first job
+  migrated to `nix develop`, since Nixpkgs-provided browsers remove its slowest steps;
 - OCI remains a later design and optimization task after one direct-Nix Linux job
   completes validation.
 
@@ -234,5 +236,7 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
   generated-flake code generator.
 - [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — first Node
   implementation.
+- [65Z-ci-nix-playwright](65z-ci-nix-playwright.md) — the first job actually migrated
+  to `nix develop`, and the adoption shape the Node jobs should follow.
 - [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — optional OCI design work after
   one direct-Nix job completes validation.
