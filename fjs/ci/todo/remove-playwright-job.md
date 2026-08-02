@@ -21,8 +21,9 @@ Keeping this integration has ongoing costs:
 - the general Node effect runner contains Playwright-specific registration logic;
 - the emergent-testing scenario script advertises a `playwright` runner that invokes
   `npx playwright test` but still depends on the same Node-only adapter;
-- open emergent-testing TODOs still describe property tests, skips, and runner behavior
-  through the obsolete Node-side Playwright wrapper;
+- open effects and emergent-testing TODOs still describe contexts, reporters, property
+  tests, skips, throw-payload checks, and runner behavior through the obsolete Node-side
+  Playwright wrapper;
 - CI pins and validates a Playwright version and browser bundle;
 - generated workflow and Nix artifacts imply browser coverage that is not present.
 
@@ -118,23 +119,35 @@ The future Playwright runner described by the browser-testing task is a differen
 entrypoint: it opens the shared HTML application and executes proof bodies inside the
 browser. It must not restore this scenario branch unchanged.
 
-### Emergent-testing design cleanup
+### Effects and emergent-testing design cleanup
 
-Update open emergent-testing TODOs that currently treat the Node-side Playwright wrapper
-as a supported adapter:
+Update open design TODOs that currently treat the Node-side Playwright wrapper as a
+supported adapter or context:
 
-- `665-proof-property-tests.md` must define seed, filter, and generated-input behavior for
-  `fjs t` and the surviving Node, Deno, and Bun adapters; browser execution receives the
-  same configuration through the shared HTML application and report protocol;
-- `skip-property.md` must map process-runner skips only through surviving Node, Deno, and
-  Bun integrations; the browser-side runner records skips directly in its shared report;
-- `661-test-runner-behavior.md` must document the surviving process runners separately
-  from the browser-native architecture.
+- `fjs/emergent_testing/todo/665-proof-property-tests.md` must define seed, filter, and
+  generated-input behavior for `fjs t` and the surviving Node, Deno, and Bun adapters;
+  browser execution receives the same configuration through the shared HTML application
+  and report protocol;
+- `fjs/emergent_testing/todo/skip-property.md` must map process-runner skips only through
+  surviving Node, Deno, and Bun integrations; the browser-side runner records skips
+  directly in its shared report;
+- `fjs/emergent_testing/todo/661-test-runner-behavior.md` must document the surviving
+  process runners separately from the browser-native architecture;
+- `fjs/effects/todo/node-module-layering.md` must move only the surviving process-runner
+  `TestContext` contract and must not retain or relocate a Playwright context in
+  `NodeProgramOptions`;
+- `fjs/emergent_testing/todo/211.md` must limit its bridge reporter to surviving
+  process-side frameworks; Playwright reporting wraps the shared browser application and
+  consumes its final report;
+- `fjs/emergent_testing/todo/throw-payload-assertions.md` must extend the shared proof
+  semantics, surviving process registration paths, and browser-side runner separately;
+  it must not extend `registerModule` for Playwright.
 
 Do not preserve synthetic Playwright tests, `FJS_TEST_ARGS` handling, inline skip wrappers,
-or per-proof Playwright registration merely because another feature proposal referenced
-them. The optional future Playwright Test adapter opens the shared browser application and
-consumes its report; it does not implement these semantics in the Node worker.
+bridge reporters, Playwright fields in `NodeProgramOptions`, or per-proof Playwright
+registration merely because another feature proposal referenced them. The optional future
+Playwright Test adapter opens the shared browser application and consumes its report; it
+does not implement these semantics in the Node worker.
 
 ### CI cleanup
 
@@ -181,8 +194,9 @@ After regeneration:
 - repository scenarios and documentation contain no invocation of
   `run.sh playwright ...`;
 - no remaining scenario path executes `npx playwright test`;
-- open property-test, skip, and runner-behavior TODOs do not require the removed
-  Playwright engine, context, wrapper, synthetic tests, or environment path;
+- the reconciled effects and emergent-testing TODOs do not require the removed Playwright
+  engine, context, wrapper, bridge reporter, synthetic tests, environment path, or
+  per-proof registration;
 - `package.json` and lockfiles have no repository Playwright dependency;
 - the generated workflow has no current Playwright job;
 - no generated Playwright Nix artifact remains without a consumer;
@@ -222,6 +236,9 @@ The replacement task may add one isolated optional adapter, provided:
 - [ ] Reconcile `665-proof-property-tests.md`, `skip-property.md`, and
       `661-test-runner-behavior.md` so their Playwright behavior belongs to the shared
       browser application rather than the removed Node adapter.
+- [ ] Reconcile `node-module-layering.md`, `211.md`, and
+      `throw-payload-assertions.md` so they preserve only surviving process adapters and
+      route browser semantics through the shared browser application.
 - [ ] Remove or update affected Node-effect and emergent-testing proofs.
 - [ ] Delete the current Playwright CI module and job registration.
 - [ ] Remove generated workflow, Nix, environment, and proof artifacts used only by the
