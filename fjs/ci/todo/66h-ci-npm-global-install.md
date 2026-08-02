@@ -5,38 +5,29 @@
 
 ### Problem
 
-Three CI step sites build the identical `run`-based step "globally install a
-pinned npm package", differing only in the package name and version value:
+Two surviving CI step sites build the same `run`-based step for globally installing a
+pinned npm package:
 
 ```ts
-// fjs/ci/node/module.f.ts:25-26
+// fjs/ci/node/module.f.ts
 const fjsGlobalInstall = (version: string): MetaStep =>
     install({ run: `npm install -g functionalscript@${version}` })
 
-// fjs/ci/node/module.f.ts:47
-install({ run: `npm install -g @typescript/native-preview@${tsgo}` }),
-
-// fjs/ci/playwright/module.f.ts:20
-install({ run: `npm install -g playwright@${playwright}` }),
+install({ run: `npm install -g @typescript/native-preview@${tsgo}` })
 ```
 
-The shape `install({ run: \`npm install -g ${pkg}@${version}\` })` is repeated
-verbatim. The deltas are exactly the package name and the pinned version:
+The shape `install({ run: `npm install -g ${pkg}@${version}` })` is duplicated; only the
+package name and version differ.
 
-| | package | version |
-|---|---|---|
-| node (fjs)  | `functionalscript`              | `version` (param) |
-| node (tsgo) | `@typescript/native-preview`    | `tsgo` (from config) |
-| playwright  | `playwright`                    | `playwright` (from config) |
-
-A reader has to parse three template strings to notice they are the same
-recipe, and a fourth global-install tool would fork a fourth copy.
+The former `fjs/ci/playwright/module.f.ts` call site is intentionally not a consumer of
+this proposal. The current Playwright job and its global install are being removed by
+[remove-playwright-job](remove-playwright-job.md). This task must not preserve or refactor
+that obsolete path.
 
 ### Proposed abstraction
 
-A small factory in `fjs/ci/common/module.f.ts` — the module that already
-centralizes `install`/`test`/`clean`/`uses`/`toSteps` — capturing "globally
-install one pinned npm package":
+Add a small factory to `fjs/ci/common/module.f.ts`, which already centralizes
+`install`/`test`/`clean`/`uses`/`toSteps`:
 
 ```ts
 export const npmGlobalInstall =
@@ -45,65 +36,48 @@ export const npmGlobalInstall =
         install({ run: `npm install -g ${pkg}@${version}` })
 ```
 
-The call sites collapse to point-free or one-argument calls:
+The surviving call sites become:
 
 ```ts
-// fjs/ci/node/module.f.ts
 const fjsGlobalInstall = npmGlobalInstall('functionalscript')
-// ...
-npmGlobalInstall('@typescript/native-preview')(tsgo),
 
-// fjs/ci/playwright/module.f.ts
-npmGlobalInstall('playwright')(playwright),
+npmGlobalInstall('@typescript/native-preview')(tsgo)
 ```
 
-`fjsGlobalInstall` reduces to a point-free binding — the same style as
-`installNode = setupTool('actions/setup-node@v6', 'node-version')` proposed in
-[i175](todo.md).
+Currying as `(pkg) => (version) =>` supports the point-free `fjsGlobalInstall` binding
+and matches the shape proposed for other setup factories. A two-argument form remains an
+acceptable implementation choice if those related APIs settle on that style.
 
-### Why this qualifies
+### Why this still qualifies
 
-- Three real call sites today, all shipping — past the second-consumer bar.
-- Identical shape, only data (package name, version) varies — the textbook
-  `AGENTS.md` data-parameterized-factory case.
-- It is **complementary to, not a duplicate of,
-  [i170](todo.md) and [i175](todo.md)**, which
-  cover two different axes of CI step construction:
-  - i170 `toolSteps(setup, cmds)` — the *install-then-test step sequence*.
-  - i175 `setupTool(uses, versionKey)` — `uses`-based GitHub Actions *setup*
-    steps (`install({ uses, with: { '<x>-version': v } })`).
-  - This issue — `run`-based *shell* steps (`install({ run: 'npm install -g …' })`).
+- There are two real surviving consumers, meeting the second-consumer threshold.
+- The construction is identical and varies only by data.
+- The abstraction names one repository policy: install a pinned npm tool globally.
+- A future third consumer can reuse the factory without restoring the deleted Playwright
+  job.
 
-  These are three distinct step kinds. `setupTool` builds `uses` steps;
-  `npmGlobalInstall` builds `run` steps; neither subsumes the other.
+This remains distinct from:
 
-### Caveats / why this is an idea, not a mechanical edit
+- [i170](todo.md), which builds install-and-test step sequences;
+- [i175](todo.md), which builds `uses`-based GitHub Actions setup steps.
 
-- **Currying direction.** Currying as `(pkg) => (version) =>` lets
-  `fjsGlobalInstall = npmGlobalInstall('functionalscript')` read point-free,
-  matching i175's `installNode` binding. A two-argument
-  `(pkg, version)` form is equally valid if the point-free binding is not
-  wanted — decide alongside i175's shape so the two factories stay consistent.
-- **Mechanical savings are small** (one line per site); the value is making
-  "globally install a pinned npm tool" one named recipe so a fourth tool reuses
-  it instead of hand-spelling a fourth `npm install -g` template.
-- **Proof coverage.** `fjs/ci/proof.f.ts` already exercises the generated
-  workflow; confirm the three steps it produces are byte-identical before and
-  after, and that every branch of the new factory is covered (all three
-  consumers call it, so 100% coverage falls out).
+`npmGlobalInstall` builds a `run`-based shell-install step.
 
 ### Tasks
 
 - [ ] Add `npmGlobalInstall` to `fjs/ci/common/module.f.ts`.
-- [ ] Rebind `fjsGlobalInstall` and the two inline `npm install -g` steps in
-      `fjs/ci/node/module.f.ts` and `fjs/ci/playwright/module.f.ts` to it.
-- [ ] Confirm `npx tsc` is clean and `fjs t` passes; verify the generated
-      workflow YAML is unchanged.
+- [ ] Rebind `fjsGlobalInstall` in `fjs/ci/node/module.f.ts`.
+- [ ] Replace the inline `@typescript/native-preview` global-install step.
+- [ ] Do not migrate or retain the Playwright global-install call site; its deletion is
+      owned by `remove-playwright-job.md`.
+- [ ] Confirm proof coverage for both surviving consumers and the generated step shape.
+- [ ] Verify generated workflow output is unchanged apart from separately planned
+      Playwright removal.
+- [ ] Run `npx tsc` and `fjs t`.
 
 ### Related
 
-- [i170](todo.md) — `toolSteps` step-sequence builder (different
-  axis: the install+test sequence).
-- [i175](todo.md) — `setupTool` for `uses`-based setup steps
-  (different axis: GitHub Actions setup actions). This issue is the `run`-based
-  sibling.
+- [i170](todo.md) — `toolSteps` step-sequence builder.
+- [i175](todo.md) — `setupTool` for `uses`-based setup steps.
+- [remove-playwright-job](remove-playwright-job.md) — removes the obsolete Playwright
+  global-install consumer.
