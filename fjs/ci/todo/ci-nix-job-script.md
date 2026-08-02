@@ -14,30 +14,28 @@ generated workflow line:
 nix develop ./nix/generated/playwright --command bash -euo pipefail -c 'command-1 && command-2 && ...'
 ```
 
-`nixDevelopAll` joins the commands with `&&` and embeds the result inside nested YAML
-and shell quoting. The generated `.github/workflows/ci.yml` line is difficult to read,
-review, copy, and debug, and it will become worse as the job grows.
+`nixDevelopAll` joins commands with `&&` and embeds the result inside nested YAML and
+shell quoting. The generated workflow is difficult to read, review, copy, and debug.
 
 The sequence also mixes two responsibilities:
 
 - validating packages, paths, executables, and values supplied by the generated Nix
   environment;
-- installing repository dependencies and running the reusable repository workload.
+- preparing repository code and running the browser-hosted FunctionalScript workload.
 
-The prerequisite task removes the repository `@playwright/test` dependency and defines
-the stable Playwright workload:
+The prerequisite task removes the repository Playwright dependency and defines the
+stable command surface:
 
-- FunctionalScript proofs run through the self-hosted runner used by `fjs t`;
-- Nix owns the Playwright launcher and matching Chromium, Firefox, and WebKit bundle;
-- browser validation launches each Nix-provided browser without `npx` or a repository
-  Playwright package.
+```sh
+playwright fjs t --browser=chromium
+playwright fjs t --browser=firefox
+playwright fjs t --browser=webkit
+```
 
-This task must serialize that established workload. Do not reintroduce a local
-Playwright version assertion or package-resolution workaround here.
-
-Keeping environment validation separate from the repository workload also allows a
-future image or cache workflow to build or validate the environment without installing
-repository dependencies or running tests.
+Each command runs FunctionalScript's own emergent test runner with proof functions
+executing inside the selected browser. This task must serialize that workload without
+reintroducing `npx`, repository-local Playwright packages, version comparisons, or
+launch-only smoke tests.
 
 ### Goal
 
@@ -50,14 +48,13 @@ nix/generated/playwright/
 └── ci.sh
 ```
 
-- `check.sh` validates every package, path, executable, and environment value required
-  from the generated Playwright Nix environment, without reading or installing
-  repository dependencies.
-- `ci.sh` installs repository dependencies and runs the stable workload established by
-  the prerequisite task.
+- `check.sh` validates every package, executable, path, and environment value supplied by
+  the generated Playwright Nix environment without reading repository dependencies.
+- `ci.sh` installs repository dependencies, produces browser-loadable JavaScript when
+  required, and runs the browser-hosted FunctionalScript suites established by the
+  prerequisite task.
 
-The direct-Nix workflow should explicitly run both scripts inside the Playwright
-development shell:
+The direct-Nix workflow explicitly invokes both scripts:
 
 ```sh
 nix develop ./nix/generated/playwright \
@@ -67,108 +64,91 @@ nix develop ./nix/generated/playwright \
   --command bash ./nix/generated/playwright/ci.sh
 ```
 
-A developer with a compatible environment should also be able to run the reusable
-script directly:
+A developer with the compatible global Playwright environment should also be able to run:
 
 ```sh
 bash ./nix/generated/playwright/ci.sh
 ```
 
-Keep all generated files under `nix/generated/` for this task. A later task may rename
-or parameterize the output root, for example from `./nix/generated/` to `./ci/`, because
-`fjs ci` can generate CI files for repositories other than FunctionalScript. Do not mix
-that output-root migration into this task.
-
-This task covers direct `nix develop` execution only. Do not add Docker, OCI-image,
-cache, or publication support here.
+Keep generated files under `nix/generated/` for this task. Output-root renaming or
+parameterization remains separate work.
 
 ### Reusable CI script
 
-Generate `nix/generated/playwright/ci.sh` from the final reusable command list produced
-by the prerequisite task. Its logical sequence is:
+Generate `nix/generated/playwright/ci.sh` from the final command list produced by the
+prerequisite task. Its logical sequence is:
 
-1. `npm ci`;
-2. run FunctionalScript proofs with the self-hosted runner used by `fjs t`;
-3. launch and close Chromium through the Nix-owned Playwright environment;
-4. launch and close Firefox through the Nix-owned Playwright environment;
-5. launch and close WebKit through the Nix-owned Playwright environment.
+1. install repository dependencies with `npm ci`;
+2. run the deterministic repository build or preparation step required to expose
+   browser-loadable JavaScript;
+3. run the FunctionalScript suite inside Chromium;
+4. run the FunctionalScript suite inside Firefox;
+5. run the FunctionalScript suite inside WebKit.
 
-The exact Nix-owned browser command or wrapper name is established by the prerequisite
-task. This task serializes that command list without duplicating or reconstructing it.
+The expected browser commands are:
+
+```sh
+playwright fjs t --browser=chromium
+playwright fjs t --browser=firefox
+playwright fjs t --browser=webkit
+```
+
+The exact build or preparation command is established by the prerequisite task and must
+come from the repository's normal build configuration. Do not duplicate the browser
+runner implementation in the script generator.
 
 The generated script must:
 
 - start with `#!/usr/bin/env bash` and `set -euo pipefail`;
-- preserve each command as readable script text instead of joining commands with `&&`;
-- install dependencies before running repository tests;
-- use the self-hosted FunctionalScript runner rather than Playwright Test registration;
-- use only the Nix-owned browser launcher for Chromium, Firefox, and WebKit validation;
-- contain no `npx playwright`, `@playwright/test` import, repository-local Playwright
-  command, or hard-coded Playwright version assertion;
+- preserve one readable command per line rather than joining commands with `&&`;
+- install dependencies before invoking repository build tools;
+- prepare browser-loadable JavaScript before browser execution when required;
+- run all three `playwright fjs t` commands in a stable order;
+- contain no `npx playwright`, repository-local Playwright binary, Playwright package
+  import, hard-coded Playwright version assertion, or launch-only smoke command;
+- fail when any browser-hosted proof fails;
 - end with a newline;
-- remain a committed generated artifact so generator drift is caught by
-  `npm run ci-update` and the existing generated-file check.
+- remain a committed generated artifact checked by `npm run ci-update`.
 
-Changing only the pinned Node, Nixpkgs, Playwright package, or browser-bundle version
-must not change `ci.sh` unless the stable command shape itself changes.
+Changing only Node, Nixpkgs, Playwright, or browser-bundle versions must not change
+`ci.sh` unless the command shape itself changes.
 
 ### Nix validation script
 
-Generate `nix/generated/playwright/check.sh` for checks that depend only on the
-generated Playwright Nix environment.
+Generate `nix/generated/playwright/check.sh` for validation that depends only on the
+Nix environment.
 
-It must validate every requirement established by the prerequisite task, including:
+It must validate:
 
 - the exact Node version supplied on `PATH`;
-- the presence of the Nix-owned Playwright browser-launch executable or wrapper;
-- the existence of the Nix-provided browser bundle path;
-- every environment value still required by the Nix-owned launcher, such as the
-  host-platform override when retained;
+- the presence of the global `playwright` wrapper;
+- support for the FunctionalScript `fjs` subcommand;
+- the presence of the Playwright API and matching Chromium, Firefox, and WebKit bundle;
+- the existence of every required browser or store path;
+- every environment value still required by the global launcher;
 - the absence of assumptions about repository `node_modules`.
 
-Do not retain checks for environment values removed by the prerequisite task. For
-example, browser-download suppression should disappear when no npm Playwright package
-is installed and no postinstall download can occur.
+`check.sh` must not run `npm`, repository build commands, `playwright fjs t`, or any
+repository-local tool. It validates the environment but does not execute the test suite.
 
-`check.sh` must not invoke `npm`, `npx`, `fjs t`, or any package installed from the
-repository. It verifies only the generated environment. Browser launch-and-close checks
-belong to `ci.sh`, because they are part of the reusable workload rather than static
-environment inspection.
+Do not keep checks for values removed by the prerequisite task. Browser-download
+suppression should disappear when no repository Playwright postinstall can run.
 
 Every expected package, executable, path, and environment value must be derived from the
-same structured Nix job configuration that generates
-`nix/generated/playwright/flake.nix`. Do not restate those values in an independent
-source of truth. Removing or changing a required Nix-provided value must update the
-flake and `check.sh` together.
-
-The separation makes these operations independently selectable:
-
-```text
-build or realize the Playwright Nix environment
-validate it with nix/generated/playwright/check.sh
-install dependencies and run the workload with nix/generated/playwright/ci.sh
-```
-
-Building or realizing the flake must not implicitly run either script. The Playwright CI
-job explicitly invokes both. A future image or cache workflow can build or validate the
-same environment without installing dependencies or running tests.
+same structured Nix job configuration used to generate
+`nix/generated/playwright/flake.nix`.
 
 ### Generator design
 
-Treat `nix/generated/<id>/` as the generated bundle for one CI environment. For the
-Playwright job, the bundle contains its flake, environment-validation script, and
-reusable workload script.
-
-Keep the command sources separate:
+Treat `nix/generated/<id>/` as the generated bundle for one CI environment. Keep command
+sources separate:
 
 - the reusable CI command list belongs to the Playwright job behavior established by
   the prerequisite task;
-- the validation command list is derived only from the Playwright Nix environment
-  configuration, including every required package, executable, path, and environment
-  value;
-- neither script is embedded into `flake.nix` or executed while building it.
+- the validation command list derives only from the Nix environment declaration;
+- neither script is embedded into or executed while building `flake.nix`.
 
-The smallest reusable-script declaration may look like:
+A minimal reusable-script declaration may remain:
 
 ```ts
 type CiScript = {
@@ -178,113 +158,96 @@ type CiScript = {
 
 The generator should:
 
-- serialize the reusable script into `nix/generated/<id>/ci.sh`;
-- serialize complete Nix-only validation into `nix/generated/<id>/check.sh`;
+- serialize the reusable workload into `nix/generated/<id>/ci.sh`;
+- serialize Nix-only validation into `nix/generated/<id>/check.sh`;
 - continue serializing the environment into `nix/generated/<id>/flake.nix`;
 - derive `check.sh` assertions from the same package and environment declarations used
   by the flake;
-- provide helpers that invoke either generated script through that job's
+- provide helpers that invoke either generated script through the job's
   `nix develop` environment;
-- let non-Nix execution reference the same `ci.sh` path;
+- let compatible non-Nix environments reference the same `ci.sh` path;
 - avoid separately constructing script contents and workflow command sequences.
 
-Name and exact helper signatures may change during implementation, but preserve these
-boundaries:
+Preserve these ownership boundaries:
 
-- the Playwright job owns dependency installation and its reusable proof and browser
-  validation sequence;
-- the Nix job owns the execution environment and expectations for Nix-provided
-  packages, executables, paths, and values;
-- the generator owns the committed bundle under `nix/generated/<id>/`;
-- the workflow chooses when to validate the environment and when to run the repository
-  workload;
-- normal script serialization replaces whole-sequence shell quoting.
-
-Do not hard-code FunctionalScript source paths into the public `fjs ci` model. Generated
-paths are relative to the target repository's output root. Supporting a configurable or
-renamed output root is follow-up work, but this design must not prevent it.
+- the Playwright job owns repository preparation and the three browser-hosted test
+  commands;
+- the Nix job owns the global Playwright wrapper, API, browsers, paths, and environment;
+- the generator owns the committed bundle;
+- the workflow chooses when to validate the environment and when to run the workload.
 
 ### Validation
 
 Add proofs for:
 
 - serialization of the Bash header and command sequence for both scripts;
-- the generated `nix/generated/playwright/ci.sh` and
-  `nix/generated/playwright/check.sh` paths;
+- the generated `nix/generated/playwright/ci.sh` and `check.sh` paths;
 - commands containing ordinary single and double quotes remaining unchanged;
-- `ci.sh` running `npm ci` before the self-hosted FunctionalScript tests;
-- `ci.sh` preserving the Chromium, Firefox, and WebKit launch-and-close commands from
-  the prerequisite task;
+- `ci.sh` running `npm ci` before any repository build or preparation command;
+- the preparation command running before browser-hosted tests when required;
+- `ci.sh` preserving the Chromium, Firefox, and WebKit commands exactly;
 - `ci.sh` containing no `npx playwright`, repository-local Playwright invocation,
-  Playwright package import, or hard-coded Playwright version assertion;
-- `check.sh` containing the exact Node assertion and validations for every Nix-owned
-  executable, browser path, and required environment value;
-- `check.sh` not invoking `npm`, `npx`, `fjs t`, or repository-local tools;
-- deleting or changing any required Playwright environment declaration causing the
-  generated `check.sh` proof or runtime validation to fail;
-- the `nix develop` workflow commands referencing the generated scripts without inline
-  multi-command `bash -c` sequences;
-- a Node or environment-value change updating `flake.nix` and, when relevant,
-  `check.sh` without changing `ci.sh`;
-- a Playwright or browser-bundle version-only change updating the Nix environment
-  without changing either stable script;
+  package import, version assertion, Node-only `fjs t`, or smoke-only browser launch;
+- `check.sh` validating the exact Node version, global wrapper, `fjs` subcommand,
+  Playwright API, browser paths, and required environment values;
+- `check.sh` not invoking `npm`, repository tools, or browser-hosted test execution;
+- deleting or changing a required Nix declaration causing generated validation to fail;
+- workflow commands referencing the generated scripts without inline multi-command
+  `bash -c` sequences;
+- version-only environment changes updating the flake and relevant checks without
+  changing the stable workload script;
 - building or realizing the flake not executing either script.
 
-Regenerate the committed files and verify:
+Regenerate committed files and verify:
 
-- `npm run ci-update` produces no uncommitted generated changes;
+- `npm run ci-update` produces no uncommitted changes;
 - TypeScript checks pass;
-- `check.sh` passes in a clean checkout before `npm ci` and fails when any required
-  Nix-provided package, executable, path, or environment value is absent or incorrect;
-- `ci.sh` installs dependencies, runs the self-hosted FunctionalScript suite, and
-  successfully validates all three Nix-provided browsers through direct
-  `nix develop`;
-- `ci.sh` can be invoked directly in a compatible developer environment.
+- `check.sh` passes in a clean checkout before `npm ci`;
+- `ci.sh` prepares browser-loadable code and runs the FunctionalScript suite inside all
+  three browsers through direct `nix develop`;
+- a deliberately failing browser proof makes the corresponding command and script fail;
+- `ci.sh` can run directly in a compatible developer environment with globally provided
+  Playwright support.
 
 ### Out of scope
 
-- removing `@playwright/test` or redesigning Playwright execution; those belong to the
-  prerequisite task;
-- executing FunctionalScript proofs inside browser pages;
+- implementing the browser-hosted runner or global Playwright wrapper; those belong to
+  the prerequisite task;
+- changing the browser runner's test semantics;
 - Docker or OCI execution of the generated scripts;
-- publishing or caching scripts, Nix closures, or images;
-- deciding how future image or cache workflows distribute the environment;
-- renaming `nix/generated/` to `ci/` or making the output root configurable;
-- migrating additional jobs to direct Nix;
-- designing a general-purpose shell-language AST or escaping arbitrary untrusted shell
-  fragments.
+- publication or cache design;
+- output-root migration;
+- migrating additional jobs;
+- designing a general-purpose shell-language AST.
 
 ### Tasks
 
 - [ ] Complete
       [ci-playwright-without-test-package](ci-playwright-without-test-package.md)
-      and use the stable commands it defines.
+      and use the stable build and browser-test commands it defines.
 - [ ] Add an environment-independent reusable CI-script declaration.
 - [ ] Generate `nix/generated/playwright/ci.sh` from the reusable command sequence.
 - [ ] Generate `nix/generated/playwright/check.sh` from complete Nix-only validation
       commands.
-- [ ] Add the Bash header, strict-mode line, readable commands, and final newline to both
+- [ ] Add the Bash header, strict mode, readable commands, and final newline to both
       scripts.
-- [ ] Put `npm ci`, the self-hosted FunctionalScript test command, and the three
-      Nix-owned browser checks into `ci.sh`, preserving that order.
-- [ ] Validate the exact Node version and every required Nix-owned Playwright executable,
-      browser path, and environment value in `check.sh`.
-- [ ] Derive every `check.sh` assertion from the same Nix job configuration used to
+- [ ] Put `npm ci`, browser-build preparation, and the three
+      `playwright fjs t --browser=...` commands into `ci.sh` in that order.
+- [ ] Validate the exact Node version and every required global Playwright executable,
+      capability, browser path, and environment value in `check.sh`.
+- [ ] Derive all `check.sh` assertions from the same Nix job configuration used to
       generate the flake.
-- [ ] Make the Playwright direct-Nix workflow explicitly invoke `check.sh` and then
-      `ci.sh`.
-- [ ] Remove the no-longer-needed whole-sequence `&&` joining and single-argument shell
-      quoting helpers.
-- [ ] Add generator, validation, and workflow proofs for the separated behavior.
-- [ ] Regenerate committed CI files and confirm update checks, TypeScript checks,
+- [ ] Make the direct-Nix workflow explicitly invoke `check.sh` and then `ci.sh`.
+- [ ] Remove whole-sequence `&&` joining and single-argument shell quoting helpers.
+- [ ] Add generator, validation, workflow, and browser-command proofs.
+- [ ] Regenerate committed files and confirm update checks, TypeScript checks,
       clean-checkout Nix validation, direct script execution, and the Playwright CI job
       pass.
 
 ### Related
 
-- [ci-playwright-without-test-package](ci-playwright-without-test-package.md) —
-  prerequisite that removes the repository Playwright Test dependency and defines the
-  stable proof and browser-validation workload.
+- [ci-playwright-without-test-package](ci-playwright-without-test-package.md) — prerequisite
+  that defines the global CLI and browser-hosted FunctionalScript runner.
 - [65Z-ci-nix](65z-ci-nix.md) — generated per-job Nix architecture and update flow.
-- [65Z-ci-nix-playwright](65z-ci-nix-playwright.md) — the first direct-Nix job and the
-  current inline command sequence this task replaces.
+- [65Z-ci-nix-playwright](65z-ci-nix-playwright.md) — the first direct-Nix job and current
+  inline command sequence.
