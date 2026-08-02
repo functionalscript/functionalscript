@@ -336,7 +336,7 @@ points may include:
 ```sh
 fjs browser-test run --browser=firefox
 playwright test --project=firefox
-firefox --headless http://127.0.0.1:<port>/index.html?... 
+firefox --headless http://127.0.0.1:<port>/index.html?...
 ```
 
 These commands are alternatives over the same generated application, not three different
