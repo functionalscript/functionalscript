@@ -208,13 +208,24 @@ export const proof = {
         assert(
             generated.includes('pkgs.playwright-driver.browsers'),
             'expected Nix-provided Playwright browsers')
+        // The image carries the same browsers as the shell, through its
+        // configuration rather than its contents.
+        assert(
+            generated.includes('pkgs.dockerTools.streamLayeredImage'),
+            'expected the job image')
         const gha = workflow(state)
         assert(
-            hasRunInJob('playwright', 'nix develop ./nix/generated/playwright')(gha),
-            'expected the Playwright job to run through its flake')
-        // The whole sequence shares one shell: a per-step `nix develop` would
-        // drop the browser environment between steps.
-        assertEq(gha.jobs['playwright']?.steps.filter(step => step.run !== undefined).length, 1)
+            hasRunInJob('playwright', 'nix build ./nix/generated/playwright#oci')(gha),
+            'expected the Playwright job to build its image from its flake')
+        assert(
+            hasRunInJob('playwright', 'docker run')(gha),
+            'expected the Playwright job to run in its image')
+        assert(
+            !hasRunInJob('playwright', 'nix develop')(gha),
+            'unexpected development shell in the containerized job')
+        // Build the image, then run everything in one container: a container
+        // per command would drop the browser environment between them.
+        assertEq(gha.jobs['playwright']?.steps.filter(step => step.run !== undefined).length, 2)
         assert(
             hasRunInJob('playwright', `= v${node.default}`)(gha),
             'expected the migrated job to check its own Node version')

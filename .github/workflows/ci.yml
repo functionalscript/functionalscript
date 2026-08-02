@@ -539,7 +539,10 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "nix develop ./nix/generated/playwright --command bash -euo pipefail -c 'test \"$(node --version)\" = v26.5.1 && npm ci && test \"$(npx playwright --version)\" = \"Version 1.59.1\" && npx playwright test --browser=chromium && npx playwright test --browser=firefox && npx playwright test --browser=webkit'"
+          "run": "\"$(nix build ./nix/generated/playwright#oci --no-link --print-out-paths)\" | docker load"
+        },
+        {
+          "run": "docker run --rm --ipc=host --volume \"$PWD:/workspace\" functionalscript-playwright:21ea275a7c46aef9d4d6ddc962e6d562e9d94183 bash -euo pipefail -c 'test \"$(node --version)\" = v26.5.1 && npm ci && test \"$(npx playwright --version)\" = \"Version 1.59.1\" && npx playwright test --browser=chromium && npx playwright test --browser=firefox && npx playwright test --browser=webkit'"
         }
       ]
     }

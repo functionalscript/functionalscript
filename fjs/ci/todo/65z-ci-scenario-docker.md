@@ -1,107 +1,103 @@
-## 65Z-ci-scenario-docker. Design OCI after one direct Nix job works
+## 65Z-ci-scenario-docker. Package a Nix CI environment as an OCI image
 
 **Priority:** P3
-**Status:** blocked
-**Blocked by:** [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md),
-Phase 1 through Phase 3 for one selected Linux job
+**Status:** wip
+
+### Progress
+
+The design below was written against one proven direct-Nix job — `playwright`,
+migrated in [65Z-ci-nix-playwright](65z-ci-nix-playwright.md) — and is now
+**implemented for that job**. `fjs/ci/nix/module.f.ts` generates
+`packages.<system>.oci` next to the job's development shell, and the job builds
+that image, loads it into the runner's Docker daemon, and runs its whole command
+sequence in a container instead of `nix develop`.
+
+What is not done is the part that would make the image pay for itself: it is
+built by the job that uses it, so every run still pays for building and loading
+it. Publishing the image, and measuring both paths, are the open tasks below.
 
 ### Problem
 
-We do not yet know whether packaging a Nix CI environment as an OCI image improves total
-CI behavior. Selecting a builder, image layout, runtime model, identity, caching, or
-publication workflow before a direct-Nix job works would turn an optimization experiment
-into speculative implementation.
+We did not know whether packaging a Nix CI environment as an OCI image improves
+total CI behavior. Selecting a builder, image layout, runtime model, identity,
+caching, or publication workflow before a direct-Nix job worked would have turned
+an optimization experiment into speculative implementation — so the first
+direct-Nix milestone stayed independent of OCI work.
 
-The first direct-Nix milestone should therefore remain independent of OCI work.
+Direct Nix remains the reference behavior and the fallback: the flake keeps its
+development shell, and moving a job back to `nix develop` is a one-line change in
+its CI module.
 
-### Proposal
+### Design
 
-First prove this path for at least one Linux job:
+Decided for the `playwright` job, and generated from its existing declaration.
 
-```text
-declarative CI job -> generated flake.nix -> direct CI execution
-```
+**Builder.** `pkgs.dockerTools.streamLayeredImage` from the pinned Nixpkgs
+snapshot. No Dockerfile and no external builder: the image is another output of
+the flake the job already has, so it cannot drift from the shell. `stream…`
+rather than `build…` writes the archive to standard output instead of storing a
+second copy of every layer.
 
-Then use the working job and measurements to write and review a concrete OCI design.
-Do not implement an OCI output in this task. Rust, Playwright, and other unfinished
-complex jobs do not block this design work.
+**Contents.** The job's `packages` and environment variables, unchanged, plus
+what a shell inherits from the runner and a container has to carry itself: an
+interactive shell, the core utilities, `/bin/sh` and `/usr/bin/env`, the
+certificate bundle, `/etc/passwd` and `/etc/group`, a writable `/tmp`, and `PATH`
+and `HOME`. Everything else follows from the closure — the browsers reach the
+image because `Env` interpolates `pkgs.playwright-driver.browsers` and
+`streamLayeredImage` treats the image configuration as a closure root.
 
-#### Principles
+**Execution model.** No entry point of its own. The image's `Cmd` is a shell for
+someone opening it by hand; CI passes the job's command sequence as one
+`bash -euo pipefail -c '…'` argument, exactly as the `nix develop` invocation
+did, with the checkout bind-mounted at the image's `WorkingDir`.
 
-- direct Nix CI is the reference behavior and fallback;
-- OCI is an optional optimization;
-- design from a validated job and measured bottlenecks;
-- do not select a builder, image layout, or publication workflow before that evidence;
-- do not introduce a Dockerfile unless the reviewed design requires one;
-- preserve immutable identities and safe publication boundaries;
-- keep OCI-specific details out of the first generated flakes;
-- create a separate implementation TODO after the design is reviewed.
+**Identity.** `name:<nixpkgs-commit>`. The pinned snapshot and this repository's
+generated flake together determine the image, and the job builds it rather than
+resolving a tag, so a mutable-tag race cannot happen. A published image needs a
+stronger identity — see the open tasks.
 
-#### Entry criteria
+**Architecture.** `aarch64-linux`, the job's runner. One system per job, like the
+flake's development shell.
 
-Begin this design task after one selected Linux job has completed Phase 1 through Phase
-3 and has:
+**Credentials.** None. Nothing is pushed, so no package-write credential is ever
+exposed to pull-request code.
 
-- a simple committed self-contained flake;
-- a pinned Nix bootstrap in CI;
-- successful direct-Nix execution of its existing commands;
-- a reliable direct path that can serve as the fallback and comparison;
-- basic cold/warm build and cache measurements.
+### Remaining work
 
-Completion of the full [65Z-ci-nix](65z-ci-nix.md) task is not required.
-
-#### Design deliverable
-
-For the selected proven job, the proposal must decide and explain:
-
-- the OCI builder/provider;
-- which files, packages, and runtime dependencies enter the image;
-- the image entry point or command-execution model;
-- how the existing CI command sequence runs inside the image;
-- the immutable output identity and tag policy;
-- the required Linux architecture;
-- expected build, pull, and cache behavior compared with direct Nix;
-- credential and publication boundaries;
-- the direct-Nix fallback;
-- validation and acceptance criteria.
-
-Keep this design specific to one job. Do not generalize to combined images, additional
-architectures, or repository-wide publication until the first implementation produces
-real results.
-
-#### Handoff
-
-After the design is reviewed:
-
-1. create a separate implementation TODO containing the selected concrete design;
-2. implement the first OCI output there;
-3. run the same CI commands through direct Nix and OCI;
-4. compare image size, build time, pull time, and cache reuse;
-5. adopt OCI only if it improves total CI behavior.
-
-#### Publication constraints
-
-Any later implementation must:
-
-- publish only immutable identities;
-- avoid exposing package-write credentials to pull-request code;
-- validate before publishing;
-- keep direct Nix as the fallback/reference path.
+- **Measure both paths.** The job's `nix develop` runs took roughly three
+  minutes, nearly all of it the browser runs themselves. Record the image build,
+  `docker load`, and total time now, and compare: building an image in the job
+  that consumes it is strictly more work than entering a shell, and it is only
+  worth keeping if the difference is small enough to be paid back by publishing.
+- **Decide on publication.** Pushing to a registry is what turns the build into a
+  pull, but it needs an immutable identity (content-addressed tag or digest), a
+  workflow with package-write permission that pull-request code cannot reach, and
+  a rule for how a job pins the image it uses. A first pull request cannot
+  validate an image that only exists after it merges, so the pinning rule has to
+  answer that too. Design it only if the measurements say a pull would win.
+- **Decide whether other jobs get images.** The Node jobs have no browser bundle
+  and little to gain; do not generalize until one of them asks for it.
 
 ### Tasks
 
-- [ ] Complete Phase 1 through Phase 3 of
+- [x] Complete Phase 1 through Phase 3 of
       [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) for one
       selected Linux job.
-- [ ] Record direct-Nix build and cache measurements for that job.
-- [ ] Change this TODO from `blocked` to `open` when those criteria pass.
-- [ ] Write the job-specific OCI design covering every item in the design deliverable.
-- [ ] Review and accept or reject the OCI design.
-- [ ] Create a separate implementation TODO only after the design is accepted.
+- [x] Write the job-specific OCI design covering every item in the design
+      deliverable.
+- [x] Generate the image from the job's existing Nix declaration.
+- [x] Run the job's complete command sequence in a container of that image.
+- [ ] Record build, load, and total wall-clock time, and compare with the
+      `nix develop` runs of the same job.
+- [ ] Decide whether to publish the image, and design the identity, permission
+      boundary, and pinning rule if so.
+- [ ] Keep direct Nix as the documented fallback when a job moves to an image.
 
 ### Related
 
 - [65Z-ci-nix](65z-ci-nix.md) — declarative per-job Nix architecture.
-- [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — direct Nix
-  implementation and prerequisite.
+- [65Z-ci-nix-playwright](65z-ci-nix-playwright.md) — the job this image was
+  designed for and is used by.
+- [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — direct
+  Nix implementation and prerequisite.
 - [i096](96.md) — CI caching.

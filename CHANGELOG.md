@@ -11,6 +11,9 @@ history.
 
 ## Unreleased
 
+- `fjs/ci`: generate an OCI image from a job's Nix flake
+  (`packages.<system>.oci`) and run the `playwright` job's commands in a
+  container of it instead of a development shell
 - **BREAKING CHANGES:** `@playwright/test` moves to `1.59.1` to match the pinned
   Nixpkgs snapshot, which now provides the `playwright` CI job's browsers — the
   job runs in a generated Nix flake instead of installing them

@@ -18,7 +18,9 @@ canonical Node job under `nix/generated/`.
   (`test`, `install`, `uses`).
 - `config/module.f.ts` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin.
 - `nix/module.f.ts` — writes one self-contained `nix/generated/<job>/flake.nix`
-  per declared job, using the Nix eDSL in `fjs/media/nix`.
+  per declared job, using the Nix eDSL in `fjs/media/nix`, and builds the
+  workflow commands that enter a flake (`nix develop`, or `docker` on the image
+  a job declares).
 - `node/module.f.ts` — Node.js job steps: platform smoke tests, canonical
   per-version jobs, coverage, package checks, and the Node flake declarations.
 - `rust/module.f.ts` — Rust toolchain setup and `cargo` build/test steps.
@@ -69,6 +71,23 @@ The job is deliberately separate from `node22`/`node24`/`node26`, which keep the
 run through `nix develop` — and give each migrated job its own version check inside
 the `nix develop` invocation, or nothing ties the Nix runtime to the version the
 Windows and macOS jobs install.
+
+### Generated job images
+
+A job may declare an `oci` image next to its packages and environment
+(`playwright/module.f.ts`). The generator then adds `packages.<system>.oci` to
+that job's flake — a `dockerTools.streamLayeredImage` built from the same
+declaration as the shell — and the job runs its commands with
+
+```sh
+"$(nix build ./nix/generated/<job>#oci --no-link --print-out-paths)" | docker load
+docker run --rm --ipc=host --volume "$PWD:/<workDirectory>" <name>:<nixpkgs-commit> bash -euo pipefail -c '<commands>'
+```
+
+instead of `nix develop`. The image is built by the job that uses it, from the
+pinned snapshot; no registry, no credentials, and no cache beyond the Nix binary
+cache the shell already uses. See [nix/README.md](../../nix/README.md) for what
+the image contains and why.
 
 ### Expected package scripts
 

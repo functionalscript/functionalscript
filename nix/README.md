@@ -31,3 +31,30 @@ the root `.gitignore`); the pinned commit in `flake.nix` is the lock.
 CI's temporary `nix-flakes` job runs exactly that command for every generated
 flake and compares the output to the expected version, so these files are
 checked on every pull request even though no real job uses them yet.
+
+## Job images
+
+A job that runs in a container gets a second output in the same flake:
+
+```sh
+"$(nix build ./nix/generated/playwright#oci --no-link --print-out-paths)" | docker load
+docker run --rm --ipc=host --volume "$PWD:/workspace" functionalscript-playwright:<nixpkgs-commit> node --version
+```
+
+`packages.<system>.oci` is a `dockerTools.streamLayeredImage` derivation — a
+script that writes the image archive to standard output, so the archive is never
+stored alongside the layers it is made of. `--no-link` keeps a `result` symlink
+out of the checkout.
+
+The image and the development shell come from **one** declaration: the job's
+`packages` and environment variables reach both. Only what a shell inherits from
+the runner and a container has to provide itself is added — `PATH` and `HOME`,
+`/bin/sh` and the core utilities, the certificate bundle, `/etc/passwd`, and a
+writable `/tmp`.
+
+Store paths reach the image through the environment: `Env` interpolates them,
+and `streamLayeredImage` treats the image configuration as a closure root, so
+naming `pkgs.playwright-driver.browsers` there is what puts the browsers in the
+image. The image is tagged with the pinned Nixpkgs commit, which — together with
+the generated flake in this repository — is its whole identity. It is built by
+the job that uses it; nothing is pushed to a registry.

@@ -6,41 +6,39 @@ const nodeFlake = (nodePackage: string, shellHook: boolean): Expression => ['set
     ['=', ['inputs', 'nixpkgs', 'url'], 'github:NixOS/nixpkgs/<commit>'],
     ['=', ['outputs'], ['lambda',
         ['open-set-pattern', 'nixpkgs'],
-        ['set',
-            ['=', ['devShells', 'aarch64-linux', 'default'],
-                ['let', [
-                    ['=', ['pkgs'], ['apply',
-                        ['ref', 'import'],
-                        ['ref', 'nixpkgs'],
-                        ['set', ['=', ['system'], 'aarch64-linux']]
-                    ]]
-                ], ['apply',
-                    ['ref', 'pkgs', 'mkShell'],
-                    ['set',
-                        ['=', ['packages'], ['list', ['ref', 'pkgs', nodePackage]]],
-                        ...(shellHook ? [[
-                            '=',
-                            ['shellHook'],
-                            ['indented-string', `export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+        ['let', [
+            ['=', ['pkgs'], ['apply',
+                ['ref', 'import'],
+                ['ref', 'nixpkgs'],
+                ['set', ['=', ['system'], 'aarch64-linux']]
+            ]]
+        ], ['set',
+            ['=', ['devShells', 'aarch64-linux', 'default'], ['apply',
+                ['ref', 'pkgs', 'mkShell'],
+                ['set',
+                    ['=', ['packages'], ['list', ['ref', 'pkgs', nodePackage]]],
+                    ...(shellHook ? [[
+                        '=',
+                        ['shellHook'],
+                        ['indented-string', `export NPM_CONFIG_PREFIX="$HOME/.npm-global"
 export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
 mkdir -p "$NPM_CONFIG_PREFIX"`]
-                        ] as const] : [])
-                    ]
-                ]]
-            ]
-        ]
+                    ] as const] : [])
+                ]
+            ]]
+        ]]
     ]]
 ]
 
 const node24 = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/<commit>";
-    outputs = { nixpkgs, ... }: {
-        devShells.aarch64-linux.default = let
-            pkgs = import nixpkgs {
-                system = "aarch64-linux";
-            };
-        in
-        pkgs.mkShell {
+    outputs = { nixpkgs, ... }: let
+        pkgs = import nixpkgs {
+            system = "aarch64-linux";
+        };
+    in
+    {
+        devShells.aarch64-linux.default = pkgs.mkShell {
             packages = [ pkgs.nodejs_24 ];
         };
     };
@@ -49,13 +47,13 @@ const node24 = `{
 
 const node22 = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/<commit>";
-    outputs = { nixpkgs, ... }: {
-        devShells.aarch64-linux.default = let
-            pkgs = import nixpkgs {
-                system = "aarch64-linux";
-            };
-        in
-        pkgs.mkShell {
+    outputs = { nixpkgs, ... }: let
+        pkgs = import nixpkgs {
+            system = "aarch64-linux";
+        };
+    in
+    {
+        devShells.aarch64-linux.default = pkgs.mkShell {
             packages = [ pkgs.nodejs_22 ];
             shellHook = ''
                 export NPM_CONFIG_PREFIX="$HOME/.npm-global"
@@ -85,6 +83,29 @@ export const proof = {
             nixToString(['list', ['ref', 'pkgs', 'nodejs_22'], ['ref', 'pkgs', 'nodejs_24']]),
             '[ pkgs.nodejs_22 pkgs.nodejs_24 ]\n'
         )
+    },
+    // A list holds any expression Nix parses without parentheses, so an image's
+    // `Env` — plain strings next to interpolated store paths — is one list.
+    mixedList: () => {
+        assertEq(
+            nixToString(['list',
+                'HOME=/tmp',
+                ['interpolated-string', 'BROWSERS=', ['ref', 'pkgs', 'playwright-driver', 'browsers']],
+                ['set', ['=', ['x'], 'y']],
+                ['list', 'nested'],
+            ]),
+            '[ "HOME=/tmp" "BROWSERS=${pkgs.playwright-driver.browsers}" {\n    x = "y";\n} [ "nested" ] ]\n'
+        )
+    },
+    interpolatedString: () => {
+        assertEq(
+            nixToString(['interpolated-string', 'a=', ['ref', 'pkgs', 'b'], '/c']),
+            '"a=${pkgs.b}/c"\n'
+        )
+        // Literal parts are escaped as in any quoted string, so a `${` a job
+        // supplies stays text instead of starting an interpolation.
+        assertEq(nixToString(['interpolated-string', '${x}"']), '"\\${x}\\""\n')
+        assertEq(nixToString(['interpolated-string']), '""\n')
     },
     compatiblePaths: () => {
         assertEq(
@@ -153,6 +174,10 @@ export const proof = {
         ),
         listItem: () => assertEq(
             nixToString(['list', ['ref', 'valid'], ['ref', 'bad name']]),
+            undefined
+        ),
+        interpolatedReference: () => assertEq(
+            nixToString(['interpolated-string', 'a=', ['ref', 'bad name']]),
             undefined
         ),
         applicationFunction: () => assertEq(

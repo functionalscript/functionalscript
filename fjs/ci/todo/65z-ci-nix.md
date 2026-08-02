@@ -201,9 +201,13 @@ Add other jobs only when useful:
 - Rust should have its own experiment and TODO for concrete toolchain/target packages;
 - Playwright has its own TODO — see
   [65Z-ci-nix-playwright](65z-ci-nix-playwright.md) — and is in fact the first job
-  migrated to `nix develop`, since Nixpkgs-provided browsers remove its slowest steps;
-- OCI remains a later design and optimization task after one direct-Nix Linux job
-  completes validation.
+  migrated off the runner's setup, since Nixpkgs-provided browsers remove its slowest
+  steps;
+- OCI was the follow-up that validation unblocked: the Playwright job now runs in an
+  image generated from its own flake — see
+  [65Z-ci-scenario-docker](65z-ci-scenario-docker.md). A generated flake still describes
+  one environment; the image is an extra output of it, and the development shell remains
+  the fallback.
 
 A failure or unresolved design in one follow-up must not block unrelated flakes.
 
@@ -238,5 +242,5 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
   implementation.
 - [65Z-ci-nix-playwright](65z-ci-nix-playwright.md) — the first job actually migrated
   to `nix develop`, and the adoption shape the Node jobs should follow.
-- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — optional OCI design work after
-  one direct-Nix job completes validation.
+- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — the OCI image generated from a
+  job's flake, designed and implemented once direct Nix was validated.

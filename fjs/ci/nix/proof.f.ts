@@ -17,6 +17,8 @@ import {
     nixDevelopAll,
     nixFlakes,
     nixInstall,
+    ociLoad,
+    ociRunAll,
     type NixJob,
 } from './module.f.ts'
 
@@ -35,15 +37,26 @@ const withShellHook: NixJob = {
     shellHook: `export NPM_CONFIG_PREFIX="$HOME/.npm-global"`,
 }
 
+const withOci: NixJob = {
+    ...plain,
+    id: 'browsers',
+    env: { BROWSERS: ['pkgs', 'playwright-driver', 'browsers'] },
+    oci: {
+        name: 'functionalscript-browsers',
+        contents: [['bashInteractive'], ['dockerTools', 'binSh']],
+        workDirectory: 'workspace',
+    },
+}
+
 const plainFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
-    outputs = { nixpkgs, ... }: {
-        devShells.aarch64-linux.default = let
-            pkgs = import nixpkgs {
-                system = "aarch64-linux";
-            };
-        in
-        pkgs.mkShell {
+    outputs = { nixpkgs, ... }: let
+        pkgs = import nixpkgs {
+            system = "aarch64-linux";
+        };
+    in
+    {
+        devShells.aarch64-linux.default = pkgs.mkShell {
             packages = [ pkgs.nodejs_24 ];
         };
     };
@@ -52,16 +65,46 @@ const plainFlake = `{
 
 const shellHookFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
-    outputs = { nixpkgs, ... }: {
-        devShells.aarch64-linux.default = let
-            pkgs = import nixpkgs {
-                system = "aarch64-linux";
-            };
-        in
-        pkgs.mkShell {
+    outputs = { nixpkgs, ... }: let
+        pkgs = import nixpkgs {
+            system = "aarch64-linux";
+        };
+    in
+    {
+        devShells.aarch64-linux.default = pkgs.mkShell {
             packages = [ pkgs.nodejs_22 ];
             shellHook = ''
                 export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+            '';
+        };
+    };
+}
+`
+
+const ociFlake = `{
+    inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
+    outputs = { nixpkgs, ... }: let
+        pkgs = import nixpkgs {
+            system = "aarch64-linux";
+        };
+    in
+    {
+        devShells.aarch64-linux.default = pkgs.mkShell {
+            packages = [ pkgs.nodejs_24 ];
+            BROWSERS = pkgs.playwright-driver.browsers;
+        };
+        packages.aarch64-linux.oci = pkgs.dockerTools.streamLayeredImage {
+            name = "functionalscript-browsers";
+            tag = "${commit}";
+            contents = [ pkgs.nodejs_24 pkgs.bashInteractive pkgs.dockerTools.binSh ];
+            config = {
+                Env = [ "BROWSERS=\${pkgs.playwright-driver.browsers}" "PATH=/bin:/usr/bin" "HOME=/tmp" ];
+                WorkingDir = "/workspace";
+                Cmd = [ "/bin/sh" ];
+            };
+            extraCommands = ''
+                mkdir -p tmp workspace
+                chmod 1777 tmp
             '';
         };
     };
@@ -81,6 +124,15 @@ export const proof = {
     flakeText: {
         plain: () => assertEq(flakeText(plain), plainFlake),
         shellHook: () => assertEq(flakeText(withShellHook), shellHookFlake),
+        // The image and the shell come from one declaration: the job's packages
+        // and environment reach both, and only the container-specific parts —
+        // its own `PATH` and `HOME`, and the directories it writes to — are
+        // added by the generator.
+        oci: () => assertEq(flakeText(withOci), ociFlake),
+        // A job without an image has no `packages` output at all.
+        noOci: () => assert(
+            !flakeText(plain).includes('packages.aarch64-linux'),
+            'expected no image output'),
     },
     nixFlakes: {
         write: () => assertEq(generated([plain], plain.id), plainFlake),
@@ -129,6 +181,16 @@ export const proof = {
             quote: () => assertEq(
                 nixDevelopAll(plain.id, [`printf '%s' 'a b'`]),
                 `nix develop ./nix/generated/node24 --command bash -euo pipefail -c 'printf '\\''%s'\\'' '\\''a b'\\'''`),
+        },
+        ociLoad: () => assertEq(
+            ociLoad(withOci.id),
+            '"$(nix build ./nix/generated/browsers#oci --no-link --print-out-paths)" | docker load'),
+        ociRunAll: () => {
+            const { oci } = withOci
+            assert(oci !== undefined, 'expected an image')
+            assertEq(
+                ociRunAll(oci, ['npm ci', 'npx playwright test']),
+                `docker run --rm --ipc=host --volume "$PWD:/workspace" functionalscript-browsers:${commit} bash -euo pipefail -c 'npm ci && npx playwright test'`)
         },
         nixInstall: () => {
             assertEq(nixInstall.type, 'install')

@@ -30,7 +30,21 @@ type Reference = readonly ['ref', Identifier, ...AttributeName[]]
 
 type AttributeSet = readonly ['set', ...Binding[]]
 
-type NixList = readonly ['list', ...Reference[]]
+/**
+ * A double-quoted string with references interpolated into it, e.g.
+ * `"PLAYWRIGHT_BROWSERS_PATH=${pkgs.playwright-driver.browsers}"`. A store path
+ * only becomes a string this way, so the interpolated parts stay Nix values
+ * instead of text the generator has to know the shape of.
+ */
+type InterpolatedString = readonly ['interpolated-string', ...(string | Reference)[]]
+
+/**
+ * List items are limited to the forms Nix parses without parentheses, so the
+ * serializer never has to decide where to add them.
+ */
+type ListItem = string | Reference | InterpolatedString | AttributeSet | NixList
+
+type NixList = readonly ['list', ...ListItem[]]
 
 type ApplicationArgument = Reference | AttributeSet
 
@@ -54,6 +68,7 @@ export type Expression =
     | Lambda
     | Let
     | IndentedString
+    | InterpolatedString
 
 const reservedWords = [
     'assert',
@@ -141,6 +156,15 @@ const serializeReference = ([, name, ...selection]: Reference): string | undefin
         ? [name, ...selection.map(attributeName)].join('.')
         : undefined
 
+const serializeInterpolatedString = ([, ...parts]: InterpolatedString): string | undefined => {
+    const serialized = parts.map(part => {
+        if (typeof part === 'string') { return escapeQuoted(part) }
+        const reference = serializeReference(part)
+        return reference === undefined ? undefined : `\${${reference}}`
+    })
+    return serialized.includes(undefined) ? undefined : `"${serialized.join('')}"`
+}
+
 const serializeReferenceChunks = (reference: Reference): Chunks | undefined => {
     const serialized = serializeReference(reference)
     return serialized === undefined ? undefined : [serialized]
@@ -189,14 +213,14 @@ const serializeSet = ([, ...bindings]: AttributeSet, level: number): Chunks | un
     return body === undefined ? undefined : ['{\n', ...body, '\n', indent(level), '}']
 }
 
-const serializeList = ([, ...references]: NixList): Chunks | undefined => {
-    const items = references.map(serializeReference)
+const serializeList = ([, ...list]: NixList, level: number): Chunks | undefined => {
+    const items = list.map(item => serialize(item, level))
     const definedItems = items.flatMap(item => item === undefined ? [] : [item])
-    return items.includes(undefined)
+    return definedItems.length !== items.length
         ? undefined
         : items.length === 0
             ? ['[ ]']
-            : ['[ ', ...definedItems.flatMap((item, index) => index === 0 ? [item] : [' ', item]), ' ]']
+            : ['[ ', ...definedItems.flatMap((item, index) => index === 0 ? item : [' ', ...item]), ' ]']
 }
 
 const serializeApplication = ([, fn, ...args]: Application, level: number): Chunks | undefined => {
@@ -236,7 +260,11 @@ const serialize = (expression: Expression, level: number): Chunks | undefined =>
             return serializeReferenceChunks(expression)
         }
         case 'set': return serializeSet(expression, level)
-        case 'list': return serializeList(expression)
+        case 'list': return serializeList(expression, level)
+        case 'interpolated-string': {
+            const serialized = serializeInterpolatedString(expression)
+            return serialized === undefined ? undefined : [serialized]
+        }
         case 'apply': return serializeApplication(expression, level)
         case 'lambda': return serializeLambda(expression, level)
         case 'let': return serializeLet(expression, level)

@@ -257,5 +257,8 @@ milestone.
 ### Related
 
 - [65Z-ci-nix](65z-ci-nix.md) — architecture and task boundaries.
-- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — later OCI design work after one
-  direct-Nix Linux job works.
+- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — the OCI image the generator now
+  adds to a job's flake, once the Playwright job proved the direct-Nix path. It changed
+  the shape of every generated flake: `pkgs` moved into the `outputs` function's `let`,
+  so the shell and the image share it. The Node flakes are otherwise unchanged, and
+  nothing about this milestone depends on the image.
