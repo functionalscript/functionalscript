@@ -516,8 +516,8 @@ if (r !== `[{"expected":[${range('AF')}]}]`) { throw r }
 
 Tests are the exception where the encoding itself is what's under test. A test
 that builds both its input and its expectation from the same encoder cannot
-detect a change to it — both sides move together. Keep some tests with
-hand-written values to cover that, and comment why they are literal.
+detect a change to it — both sides move together. Some tests may keep
+hand-written values to cover that; comment why they are literal.
 
 ### 6.3 Structure and scoping
 
