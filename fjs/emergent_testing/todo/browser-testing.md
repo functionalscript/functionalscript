@@ -53,8 +53,8 @@ browser-test output
 ```
 
 `index.html` starts the browser-compatible runner. The entry module explicitly imports
-every selected proof module. Native browser ES-module loading then resolves and evaluates
-the full transitive dependency graph.
+every selected module that exports `proof`. Native browser ES-module loading then resolves
+and evaluates the full transitive dependency graph.
 
 The browser runner must not import:
 
@@ -142,25 +142,39 @@ support](f-mjs-test-and-coverage.md).
 ### Initial browser-suite selection
 
 The first implementation does not need a new Node-only marker. It uses the file-extension
-boundary already provided by FunctionalScript.
+boundary already provided by FunctionalScript, while preserving the existing rule that a
+`proof` export may live in any FunctionalScript module rather than only in a file named
+`proof`.
 
 Select browser proofs deterministically as follows:
 
-1. Discover only FunctionalScript proof roots:
-   - `proof.f.ts`;
-   - `proof.f.mjs`.
-2. Map `proof.f.ts` to generated `proof.f.js`; keep `proof.f.mjs` as authored JavaScript.
-3. Walk each proof's complete relative runtime dependency graph.
-4. Accept the proof only when every runtime module in that graph becomes either:
+1. Discover every authored FunctionalScript module candidate:
+   - any `.f.ts` file;
+   - any `.f.mjs` file.
+2. Select each candidate that has a named `proof` export. This includes conventional
+   `proof.f.ts` / `proof.f.mjs` files and ordinary files such as `module.f.ts` /
+   `module.f.mjs` that export their proofs directly.
+3. Identify the export without executing the candidate in the Node preparation process.
+   Use the TypeScript/FunctionalScript parser, emitted-module metadata, or another static
+   mechanism consistent with the existing `proofEntries` semantics.
+4. Map a selected `.f.ts` source to its generated `.f.js` path; keep a selected `.f.mjs`
+   source as authored JavaScript.
+5. Walk each selected module's complete relative runtime dependency graph.
+6. Accept the module only when every runtime dependency in that graph becomes either:
    - generated `.f.js` from `.f.ts`; or
    - authored/copied `.f.mjs`.
-5. Reject the proof with a clear unsupported-dependency report when the graph reaches:
+7. Reject the selected module with a clear unsupported-dependency report when the graph
+   reaches:
    - a `node:` import;
    - a generic `.ts`, `.js`, or `.mjs` runtime module;
    - an unresolved or external package import not explicitly supported by the browser
      application.
-6. Never silently omit an accepted root's dependency and never fall back to running the
-   proof in Node.
+8. Never silently omit an accepted module or dependency, and never fall back to running
+   its proof in Node.
+
+The named-export rule is the source of truth; filenames are only conventions. A
+browser-compatible `module.f.ts` with `export const proof = ...` must be included, while a
+`proof.f.ts` with an unsupported dependency graph must be rejected clearly.
 
 This deliberately limits the first browser suite to FunctionalScript files. Extending
 browser testing later to generic `proof.ts`, `module.ts`, `.js`, or `.mjs` modules is
@@ -174,19 +188,22 @@ Filesystem discovery may run outside the browser. Generate an entry module such 
 
 ```js
 import * as proof0 from './fjs/foo/proof.f.js'
-import * as proof1 from './fjs/bar/proof.f.js'
-import * as proof2 from './fjs/migrated/proof.f.mjs'
+import * as proof1 from './fjs/bar/module.f.js'
+import * as proof2 from './fjs/migrated/module.f.mjs'
 import { runModuleMap } from './browser-test-runner.js'
 
 export const run = () => runModuleMap({
     'fjs/foo/proof.f.js': proof0,
-    'fjs/bar/proof.f.js': proof1,
-    'fjs/migrated/proof.f.mjs': proof2,
+    'fjs/bar/module.f.js': proof1,
+    'fjs/migrated/module.f.mjs': proof2,
 })
 ```
 
-The entry must retain the `.f` segment in emitted names: `proof.f.ts` becomes
-`proof.f.js`, not `proof.js`.
+`runModuleMap` applies the same module-level `proof` export handling to every entry. It
+must not assume that only `proof.f.*` files contain tests.
+
+Emitted names retain the `.f` segment: `proof.f.ts` becomes `proof.f.js`, and
+`module.f.ts` becomes `module.f.js`.
 
 Each browser independently loads and evaluates the complete graph. Never serialize proof
 functions with `String(function)`.
@@ -195,7 +212,8 @@ functions with `String(function)`.
 
 Preserve existing emergent-testing conventions where practical:
 
-- proof modules export zero-argument functions and recursively testable values;
+- each selected module contributes its named `proof` export;
+- proof exports contain zero-argument functions and recursively testable values;
 - thrown exceptions are failures unless an expected throw is declared;
 - arrays and objects use the existing recursive test semantics;
 - asynchronous browser-compatible results are awaited;
@@ -262,7 +280,8 @@ This runner must not depend on Playwright or `playwright/test`.
 
 It may:
 
-- discover browser-compatible proofs using the initial selection algorithm;
+- discover browser-compatible FunctionalScript modules with `proof` exports using the
+  initial selection algorithm;
 - prepare the JavaScript-only application;
 - start a loopback HTTP server;
 - open the URL in an installed browser or instruct the user to open it;
@@ -331,7 +350,8 @@ Separate common controller logic from runner-specific integration.
 
 Common code should own:
 
-- the initial FunctionalScript-only proof selection algorithm;
+- discovery of FunctionalScript modules with named `proof` exports;
+- dependency-graph acceptance and rejection;
 - JavaScript application preparation;
 - loopback static serving;
 - URL and run-identifier construction;
@@ -348,12 +368,14 @@ The HTML runner uses only the generated page and browser-side code.
 
 ### Validation
 
-Add an end-to-end fixture proving:
+Add end-to-end fixtures proving:
 
-- a `proof.f.ts` root is emitted and imported as `proof.f.js`;
-- an authored `proof.f.mjs` root loads without transpilation;
+- a `proof.f.ts` module is emitted and imported as `proof.f.js`;
+- a `module.f.ts` with a named `proof` export is emitted and included as `module.f.js`;
+- an authored `.f.mjs` module with a named `proof` export loads without transpilation;
+- an eligible FunctionalScript module without a `proof` export is not added as a root;
 - a mixed `.f.js`/`.f.mjs` dependency graph loads correctly;
-- a proof whose graph reaches generic `module.ts` or `node:` is rejected clearly;
+- a selected module whose graph reaches generic `module.ts` or `node:` is rejected clearly;
 - no TypeScript request occurs in the browser;
 - a proof reads `window`, `document`, or another browser-only global;
 - transitive FunctionalScript helper modules load through native ES-module imports;
@@ -387,13 +409,16 @@ Add an end-to-end fixture proving:
 
 ### Tasks
 
-- [ ] Implement initial discovery of `proof.f.ts` and `proof.f.mjs` roots.
+- [ ] Discover all `.f.ts` and `.f.mjs` module candidates and statically select every
+      module with a named `proof` export, regardless of filename.
+- [ ] Map selected `.f.ts` modules to `.f.js` while preserving selected `.f.mjs` modules.
 - [ ] Accept only dependency graphs that map completely to `.f.js` and `.f.mjs` modules.
 - [ ] Report unsupported generic, Node, external, and unresolved dependencies clearly.
 - [ ] Create a JavaScript-only browser-test output root.
 - [ ] Add `.f.ts` to `.f.js` emission and rewrite relative FunctionalScript imports.
 - [ ] Copy selected authored `.f.mjs` modules without type erasure.
-- [ ] Generate a JavaScript proof entry module using `proof.f.js` and `proof.f.mjs` paths.
+- [ ] Generate a JavaScript entry module containing every accepted module with a `proof`
+      export, including `module.f.*` files.
 - [ ] Implement the browser-compatible emergent-test runner and report API.
 - [ ] Implement the HTML UI and integrate it into the FunctionalScript website.
 - [ ] Add shared controller code for preparation, serving, report validation, and timeout
@@ -404,7 +429,7 @@ Add an end-to-end fixture proving:
 - [ ] Ensure the Playwright adapter and `fjs browser-test` reuse shared controller code.
 - [ ] Run the same application in Chromium, Firefox, and WebKit.
 - [ ] Add website, no-Playwright CLI, external-Playwright, browser-realm, selection,
-      failure, and timeout tests.
+      module-level-proof, failure, and timeout tests.
 - [ ] Add CI only after proof bodies demonstrably execute inside browsers.
 
 ### Related
