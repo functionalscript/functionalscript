@@ -100,15 +100,22 @@ Judgement calls worth deciding explicitly rather than by accident:
   `test` and the module that defines what a test *is* — but putting the
   declarations there is a cycle, not a layering. Two contracts `effects/node`
   keeps refer to them: `NodeOp` unions `Test`
-  (`fjs/effects/node/module.f.ts:492`) and `NodeProgramOptions` carries three
-  `TestContext` fields (`:536-538`) for the Node/Bun/Playwright engines. Those
+  (`fjs/effects/node/module.f.ts:492`) and `NodeProgramOptions` carries the
+  `TestContext` fields used by the surviving process-side test adapters. Those
   are runner configuration and stay in `effects/node` — so `effects/node` would
   have to import `emergent_testing`, while `emergent_testing/module.f.ts:21-24`
   keeps importing `NodeProgram`, `NodeProgramOptions` and `Program` back from
   `effects/node`. `fjs/effects/test/module.f.ts` sits below both, so both may
   import it and the dependency stays a DAG. (The alternative — moving
-  `NodeProgramOptions`' test contexts up as well — would drag the whole program
-  contract along and is not worth it.)
+  `NodeProgramOptions`' surviving test contexts up as well — would drag the
+  whole program contract along and is not worth it.)
+
+  The current Playwright context is not part of that surviving contract. It is
+  removed by [remove-playwright-job](../../ci/todo/remove-playwright-job.md),
+  and this layering task must operate on that post-cleanup shape. Do not retain,
+  relocate, or recreate a Playwright field in `NodeProgramOptions`; the future
+  Playwright adapter belongs to the browser-testing controller and consumes the
+  shared browser report rather than the Node `Test` effect.
 - **The console move must also narrow `csiWrite`, or symptom 2 survives it.**
   Moving `write`/`Write`/`WriteConsoles` alone does **not** free
   `fjs/text/sgr/module.f.ts` from `effects/node`, because `csiWrite` (`:90-98`)
@@ -170,6 +177,10 @@ Judgement calls worth deciding explicitly rather than by accident:
 - **Every move is a breaking change** to an import path. Per `AGENTS.md`, do one
   concern per PR, update every importer in the same PR, and prefix the CHANGELOG
   entry with `**BREAKING CHANGES:**`. Do not leave re-export shims behind.
+- **Remove the obsolete Playwright adapter first or in the same change.** This
+  task must preserve only the process-side `TestContext` fields that still have
+  consumers. It must not use relocation as a reason to keep the Playwright
+  engine, context, dynamic import, or Node-side proof-registration path alive.
 - **Verify no new cycles** before each move. In particular `fjs/effects/console`
   needs `Vec` (`fjs/types/bit_vec`) and the `fjs/text` encoders — check that
   none of those import back into `fjs/effects`.
@@ -194,7 +205,9 @@ Judgement calls worth deciding explicitly rather than by accident:
 - [ ] Move `Test` / `TestFn` / `TestContext` / `test` to
       `fjs/effects/test/module.f.ts` — **not** into `fjs/emergent_testing`, which
       would be a cycle (see the judgement call above). Confirm `effects/node`
-      still compiles with `NodeOp` and `NodeProgramOptions` importing from there.
+      still compiles with `NodeOp` and `NodeProgramOptions` importing only the
+      surviving process-runner test contexts from there; no Playwright context
+      or engine remains.
 - [ ] Update the `fjs/effects/node` module header to describe only what remains.
       `deno.json` registration is a no-op today and an obligation later: it has
       no `exports` map (only `tasks` and `fmt`), so the registration rule has no
@@ -212,6 +225,11 @@ Judgement calls worth deciding explicitly rather than by accident:
 - [fold-stream-combinator](./fold-stream-combinator.md) — its `Result`-spelled
   signature is the right design for a generic combinator, not the workaround it
   calls itself; that issue needs no change from this one.
+- [remove-playwright-job](../../ci/todo/remove-playwright-job.md) — removes the
+  obsolete Playwright engine and `NodeProgramOptions` context before this task
+  relocates the surviving test effect declarations.
+- [browser-testing](../../emergent_testing/todo/browser-testing.md) — owns the
+  future Playwright adapter and browser-side test report.
 - `fjs/media/type/module.f.ts:40`, `fjs/text/sgr/module.f.ts:11`,
   `fjs/emergent_testing/module.f.ts:14-30` — importers that reach into the Node
   module for non-Node things.
