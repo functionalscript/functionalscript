@@ -19,11 +19,11 @@ and consume all of the input?* It is spelled out inline eight times, in two
 backend-specific shapes:
 
 ```ts
-// descent shape — fjs/bnf/descent/proof.f.ts:185, :211, :227
+// descent shape — fjs/bnf/descent/proof.f.ts:202, :228, :244
 const expect = (s: string, expected: boolean) => {
     const cp = toArray(stringToCodePointList(s))
     const mr = descentParserCpOnly(m, '', cp)
-    const success = mr[1] && mr[2] === cp.length
+    const success = mr.success && mr.idx === cp.length
     assertEq(success, expected, mr)
 }
 
@@ -34,13 +34,18 @@ const expect = (s: string, success: boolean) => {
 }
 ```
 
-`fjs/djs/tokenizer/proof.f.ts:18` is an eighth site in the descent shape, with
+The two backends read their results differently because their result *types*
+differ: descent returns the record `DescentMatchResult`
+(`fjs/bnf/descent/module.f.ts:65-70` — `{ ast, success, idx, failure? }`),
+while ll1's `MatchResult` is still a tuple. Any adapter has to speak both.
+
+`fjs/djs/tokenizer/proof.f.ts:27` is an eighth site in the descent shape, with
 `JSON.stringify([s, mr])` as its message instead of `mr`.
 
 The copies have drifted in exactly the ways copies do: the start-rule name is
-`''` in seven sites and `'value'` in one; `isSuccess` is a named local in one ll1
-site (`:197`) and inline in the other three; the failure message differs. None
-of these differences is intentional.
+`''` in seven sites and `'value'` in one; `isSuccess` is a named local in three
+ll1 sites (`:197`, `:222`, `:237`) and inline in the fourth (`:322`); the
+failure message differs. None of these differences is intentional.
 
 The two shapes are the same predicate — *accepted, and the remainder is
 empty* — differing only in how each backend reports the remainder (an index
@@ -51,7 +56,7 @@ adapter, not in eight test bodies.
 
 The smallest interesting grammar in the tree, "an optional minus followed by
 one digit", is rebuilt from scratch in every case that needs it —
-`fjs/bnf/descent/proof.f.ts:150`, `:161`, `:172`, `:285` and
+`fjs/bnf/descent/proof.f.ts:166`, `:177`, `:188`, `:302` and
 `fjs/bnf/ll1/proof.f.ts:57`, `:68`, `:162`, `:173`, `:184`:
 
 ```ts
@@ -63,7 +68,7 @@ const numberRule = [optionalMinusRule, digitRule]
 ```
 
 Four of the nine carry a copy-paste typo, `minursRule`
-(`descent:151`, `:173`; `ll1:58`, `:163`) — harmless because the binding is
+(`descent:167`, `:189`; `ll1:58`, `:163`) — harmless because the binding is
 local, but a direct measurement of how these blocks were produced. One site
 (`ll1:68-74`) is a deliberate variant that prefixes an `optionalSpaceRule`; it
 is the one that should stay distinct, and today it is indistinguishable at a
@@ -71,10 +76,10 @@ glance from the eight that should not.
 
 #### 3. The JSON acceptance corpus — 20 cases, 3 copies
 
-`fjs/bnf/descent/proof.f.ts:234-253` and `fjs/bnf/ll1/proof.f.ts:243-262` list
+`fjs/bnf/descent/proof.f.ts:251-270` and `fjs/bnf/ll1/proof.f.ts:243-262` list
 the **same 20 inputs with the same 20 verdicts**, verbatim — the corpus that
 exercises `deterministic()` through each of the two backends.
-`fjs/djs/tokenizer/proof.f.ts:25-51` lists all 20 again plus 7 of its own.
+`fjs/djs/tokenizer/proof.f.ts:34-60` lists all 20 again plus 7 of its own.
 
 The DJS copy is the interesting one. It shares every input, and **six verdicts
 flip from `false` to `true`**:
@@ -135,22 +140,22 @@ has now. Carrying the match result alongside the verdict keeps it.
 `assertRecognizes` can then do better than the status quo rather than merely
 matching it: it knows the input string too, so it reports `[input, diagnostic]`
 on failure. Seven of the eight sites pass only `mr` today and would have to
-grep the corpus to find which row failed; `fjs/djs/tokenizer/proof.f.ts:18` is
+grep the corpus to find which row failed; `fjs/djs/tokenizer/proof.f.ts:27` is
 the one that already includes the input (`JSON.stringify([s, mr])`) and is the
 model here.
 
 **Take no start-rule parameter; derive the root from the grammar.** The root
 name is not a caller's choice — it is whatever `toData` generated for the rule
 (`fjs/bnf/data/module.f.ts:199`, which returns `readonly [RuleSet, string]`).
-Both `descentParser` (`fjs/bnf/descent/module.f.ts:59`) and `parser`
+Both `descentParser` (`fjs/bnf/descent/module.f.ts:110`) and `parser`
 (`fjs/bnf/ll1/module.f.ts:173`) call `toData` and then *discard* that name,
 which is exactly why every call site has to supply it again by hand — and why
 seven sites guess `''` while the one lazy-rule site
-(`fjs/bnf/descent/proof.f.ts:211`, grammar `value`) must pass `'value'`. A
+(`fjs/bnf/descent/proof.f.ts:228`, grammar `value`) must pass `'value'`. A
 `start = ''` default would bake that near-miss into the shared helper.
 
 The tree already contains the correct spelling: the `longInput` block does
-`const name = toData(rule)[1]` (`fjs/bnf/descent/proof.f.ts:264`) rather than
+`const name = toData(rule)[1]` (`fjs/bnf/descent/proof.f.ts:281`) rather than
 guessing. The adapters do the same, so the root is right for lazy and non-lazy
 rules alike and no call site names it:
 
@@ -165,8 +170,8 @@ rules alike and no call site names it:
 
 **The adapter also absorbs `descentParserCpOnly`**, which is duplicated today:
 `fjs/djs/tokenizer/module.f.ts:238-243` exports it (together with its
-`mapCodePoint` helper) and `fjs/bnf/descent/proof.f.ts:9-14` re-declares it
-byte-identically. Nothing in DJS *production* calls it — it is exported only so
+`mapCodePoint` helper) and `fjs/bnf/descent/proof.f.ts:9`, `:16-19` re-declares
+it byte-identically. Nothing in DJS *production* calls it — it is exported only so
 that module's own proof can reach it.
 
 Once both proofs go through `descentRecognizer`, the copy in the bnf proof is
@@ -175,12 +180,12 @@ nothing outside that file.
 
 **The DJS `export` stays.** It does *not* become dead when this issue lands:
 `fjs/djs/tokenizer/proof.f.ts` calls `descentParserCpOnly` sixteen times, and
-only one of those (`:20`, the `isValid` corpus) is migrated here. The other
-fifteen (`:58`–`:170`) read the **typed** result — each is
+only one of those (`:29`, the `isValid` corpus) is migrated here. The other
+fifteen (`:67`–`:180`) read the **typed** result — each is
 
 ```ts
 const mr = descentParserCpOnly(m, '', cp)
-const seq = mr[0].sequence[0]
+const seq = mr.ast.sequence[0]
 assert(!(seq instanceof Array), JSON.stringify(mr))
 assertEq(seq.tag, 'id', JSON.stringify(mr))
 ```
@@ -255,12 +260,12 @@ answering "what does this grammar accept?" independently.
       expected, mr)` at all eight sites.
 - [ ] Derive the root name inside each adapter from `toData(rule)[1]` — no
       `start` parameter, no `''` default. Verify against the one lazy-rule site
-      (`descent/proof.f.ts:211`, grammar `value`), which is the case a default
+      (`descent/proof.f.ts:228`, grammar `value`), which is the case a default
       would break.
 - [ ] Fold `descentParserCpOnly` + `mapCodePoint` into `descentRecognizer` and
-      delete the file-local copy at `fjs/bnf/descent/proof.f.ts:9-14`. Leave
-      `fjs/djs/tokenizer`'s export (`:238-243`) alone — fifteen callers at
-      `fjs/djs/tokenizer/proof.f.ts:58-170` still need the typed result, so it
+      delete the file-local copy at `fjs/bnf/descent/proof.f.ts:9`, `:16-19`.
+      Leave `fjs/djs/tokenizer`'s export (`:238-243`) alone — fifteen callers at
+      `fjs/djs/tokenizer/proof.f.ts:67-180` still need the typed result, so it
       is not dead and this issue does not touch it.
 - [ ] Add `number` (the optional-minus-then-digit grammar) and `jsonCases`.
 - [ ] Convert `fjs/bnf/descent/proof.f.ts` and `fjs/bnf/ll1/proof.f.ts`; keep
@@ -297,9 +302,15 @@ answering "what does this grammar accept?" independently.
   adapter rather than reusing `descentRecognizer`. Not a conflict, but the two
   should agree on the `Case` / `assertRecognizes` half, which is
   alphabet-independent.
-- [descent/failure-tracking](../descent/todo/failure-tracking.md) — makes a
-  failed match report *where* it failed. It composes for free once the verdict
-  carries its `diagnostic`: a richer `MatchResult` becomes a richer
-  `assertRecognizes` message with no change here. That composition is the
-  second reason the adapter must not collapse to a bare `boolean`; nothing
-  here depends on it landing.
+- `fjs/bnf/descent/module.f.ts` `DescentFailure` (`:45-48`) — failure
+  tracking has **landed**: a failed descent match now carries
+  `failure: { idx, expected }`, reached through `DescentMatchResult.failure`
+  (`:65-70`). It composes for free because the verdict carries its
+  `diagnostic`: `assertRecognizes` reports the whole record, so the furthest
+  failure position and the expected terminals appear in the message with no
+  extra work here. That is the second reason the adapter must not collapse to
+  a bare `boolean` — doing so would throw away a diagnostic the parser now
+  goes to real trouble to produce.
+
+  ll1 has no equivalent, so its side of the corpus reports less. Worth a
+  future issue, not this one.
