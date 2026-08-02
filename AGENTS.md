@@ -527,6 +527,15 @@ if (r !== '[{"expected":[1090519110]}]') { throw r }
 if (r !== `[{"expected":[${range('AF')}]}]`) { throw r }
 ```
 
+**Keep exactly one literal anchor per encoder.** Once a test builds its input
+*and* its expectation from the same encoder, both sides move together — a change
+to the encoding is invisible, because the assertion re-derives whatever the new
+answer is. So one test per encoder should keep the hand-written value, with a
+comment saying that is why it is there. Every other test interpolates: repeating
+the anchor buys nothing and costs the readability the rule exists for. Example:
+`fjs/bnf/descent/proof.f.ts` pins `A` to `65` in a single terminal-match
+expectation and interpolates `cp1('A')` everywhere else.
+
 ### 6.3 Structure and scoping
 
 #### Import instead of duplicating

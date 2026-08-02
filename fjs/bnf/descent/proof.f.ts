@@ -8,6 +8,11 @@ import { assertEq } from '../../asserts/module.f.ts'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
 
+// The code point of a one-character string, for expectations that would
+// otherwise spell it as a bare number. Goes through the module's own
+// conversion, the same one that builds the parser's input.
+const cp1 = (s: string): CodePoint => toArray(stringToCodePointList(s))[0]
+
 const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: readonly CodePoint[]): DescentMatchResult<unknown> => {
     const cpm = toArray(map(mapCodePoint)(cp))
     return m(name, cpm)
@@ -82,6 +87,15 @@ export const proof = {
             if (result !== '[{"sequence":[]},true,0,{"idx":0,"expected":[]}]') { throw result }
         },
         () => {
+            // The one expectation left with a literal code point, on purpose.
+            // Everywhere else both sides of the assertion now come from
+            // `stringToCodePointList`: the input is built with it and the
+            // expectation interpolates `cp1`, which calls it too. That reads
+            // better, but it also means a change to the conversion would move
+            // both sides together and the test would still pass. Pinning `A` to
+            // 65 once keeps one assertion that fails if the encoding itself
+            // ever changes. Only one is needed — the rest gain nothing from
+            // repeating it and lose the readability.
             const terminalRangeRule = range('AF')
             const m = descentParser(terminalRangeRule)
             const mr = descentParserCpOnly(m, "", toArray(stringToCodePointList('A')))
@@ -100,7 +114,7 @@ export const proof = {
             const m = descentParser(variantRule)
             const mr = descentParserCpOnly(m, "", toArray(stringToCodePointList('A')))
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":"a","sequence":[[65,null]]},true,1,{"idx":0,"expected":[]}]') { throw result }
+            if (result !== `[{"tag":"a","sequence":[[${cp1('A')},null]]},true,1,{"idx":0,"expected":[]}]`) { throw result }
         },
         () => {
             const variantRule = { 'a': range('AA'), 'b': range('BB')}
@@ -140,7 +154,7 @@ export const proof = {
             const m = descentParser(stringRule)
             const mr = descentParserCpOnly(m, "", toArray(stringToCodePointList('AB')))
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[{"sequence":[[65,null]]},{"sequence":[[66,null]]}]},true,2,{"idx":0,"expected":[]}]') { throw result }
+            if (result !== `[{"sequence":[{"sequence":[[${cp1('A')},null]]},{"sequence":[[${cp1('B')},null]]}]},true,2,{"idx":0,"expected":[]}]`) { throw result }
         },
         () => {
             const stringRule = 'AB'
@@ -160,7 +174,7 @@ export const proof = {
             const m = descentParser(numberRule)
             const mr = descentParserCpOnly(m, "", toArray(stringToCodePointList('2')))
             const result = JSON.stringify(mr)
-            if (result !== `[{"sequence":[{"tag":"none","sequence":[]},{"sequence":[[50,null]]}]},true,1,{"idx":0,"expected":[${range('--')}]}]`) { throw result }
+            if (result !== `[{"sequence":[{"tag":"none","sequence":[]},{"sequence":[[${cp1('2')},null]]}]},true,1,{"idx":0,"expected":[${range('--')}]}]`) { throw result }
         },
         () => {
             const emptyRule = ''
@@ -171,7 +185,7 @@ export const proof = {
             const m = descentParser(numberRule)
             const mr = descentParserCpOnly(m, "", toArray(stringToCodePointList('-2')))
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[{"tag":"minus","sequence":[[45,null]]},{"sequence":[[50,null]]}]},true,2,{"idx":0,"expected":[]}]') { throw result }
+            if (result !== `[{"sequence":[{"tag":"minus","sequence":[[${cp1('-')},null]]},{"sequence":[[${cp1('2')},null]]}]},true,2,{"idx":0,"expected":[]}]`) { throw result }
         },
         () => {
             const emptyRule = ''
@@ -294,9 +308,9 @@ export const proof = {
             const digitRule = range('09')
             const numberRule = [optionalMinusRule, digitRule]
             const m = descentParser(numberRule)
-            const mr = m("", [[45, 'minus'], [50, 'two']])
+            const mr = m("", [[cp1('-'), 'minus'], [cp1('2'), 'two']])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[{"tag":"minus","sequence":[[45,"minus"]]},{"sequence":[[50,"two"]]}]},true,2,{"idx":0,"expected":[]}]') { throw result }
+            if (result !== `[{"sequence":[{"tag":"minus","sequence":[[${cp1('-')},"minus"]]},{"sequence":[[${cp1('2')},"two"]]}]},true,2,{"idx":0,"expected":[]}]`) { throw result }
         },
     ],
     furthestFailure: [
