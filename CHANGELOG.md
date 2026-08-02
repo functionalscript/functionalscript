@@ -11,13 +11,10 @@ history.
 
 ## Unreleased
 
-- `fjs/ci`: run the `playwright` CI job inside a generated Nix flake — browsers
-  now come from `pkgs.playwright-driver.browsers`, dropping `actions/cache`,
-  `playwright install`, and the `apt-get`-based `playwright install-deps` that
-  made it the slowest job. **BREAKING CHANGES:** `@playwright/test`
-  (`package.json`) and `fjs/ci/config/module.f.ts`'s `playwright` move to
-  `1.59.1`, the version the pinned Nixpkgs snapshot provides, since Playwright
-  requires a matching browser revision
+- **BREAKING CHANGES:** `@playwright/test` moves to `1.59.1` to match the pinned
+  Nixpkgs snapshot, which now provides the `playwright` CI job's browsers — the
+  job runs in a generated Nix flake instead of installing them
+  [#1409](https://github.com/functionalscript/functionalscript/pull/1409)
 - `fjs/ci`: generate one self-contained `nix/generated/<job>/flake.nix` per
   canonical Node job, pinning an exact Nixpkgs commit; `npm run ci-update`
   writes them without running Nix
