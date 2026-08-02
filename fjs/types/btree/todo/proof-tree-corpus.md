@@ -207,6 +207,10 @@ are.
       `reduceValue0` branch-merge path specifically: `test3` is its only
       exercise, and a corpus swap there would keep the proof green while
       silently dropping it.
+- [ ] Add a CHANGELOG entry (`AGENTS.md` §8.3). The documentation-only
+      exemption does not apply: this adds `testlib.f.ts` and rewrites four
+      `proof.f.ts` files, which are code changes even though nothing in
+      production moves.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related

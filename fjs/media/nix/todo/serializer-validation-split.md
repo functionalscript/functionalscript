@@ -156,9 +156,14 @@ using `fjs/types/result`. Two details the shape has to respect:
   `reason === null` branch above is the honest spelling; changing `match` to
   serve this is out of scope.
 
-If preserving today's shape matters more than the diagnostic,
-`Nullable<List<string>>` is an acceptable fallback — but then export `check`
-too, so the reason is reachable at all.
+**`Result`, not `Nullable`.** An earlier draft offered
+`Nullable<List<string>>` as a lighter-touch fallback. It is not lighter: it is
+*also* a breaking change (`undefined` → `null` is observable to the same
+callers), and it throws away the diagnostic that item 3 exists to deliver — so
+it costs the same and buys less. Worse, it does not compose with the caller
+migration below, which uses `fjs/types/result`'s `unwrap`; a `Nullable` return
+would need its own separate migration and its own separate `check` export to
+make the reason reachable at all. One shape, decided here.
 
 #### Migrating `fjs/ci/nix`
 
@@ -209,10 +214,10 @@ and one that tested `=== undefined` now tests `[0] === 'error'` and gets a
 reason with it. Update every in-repo importer in that same PR rather than
 keeping a compatibility shim, per the same section.
 
-If that cost is judged too high for the diagnostic it buys, the
-`Nullable<List<string>>` fallback above is *also* breaking (`undefined` → `null`
-is still an observable change), just smaller. There is no non-breaking version
-of this fix; the choice is which break to take.
+There is no non-breaking version of this fix — see "`Result`, not `Nullable`"
+above, where the alternative shape turns out to break the same callers for less
+benefit. The only question is whether the diagnostic is worth one break, and
+this issue's answer is yes.
 
 **4. Reuse the sibling chunk vocabulary.** Drop `Chunks` and `joinChunks`;
 build `List<string>` with `fjs/types/list`'s `flat`/`flatMap`/`map` as
@@ -236,35 +241,16 @@ where it lands.
 **5. Curry on `level` first**, so `indent(level)` and any other
 `level`-dependent partial are bound once per level.
 
-### Rider: declare the module's media identity
-
-The membership rule agreed in
-[group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md)
-is "a module goes under `fjs/media/` iff it implements content whose identity
-is a media type — or a named dialect of one". Every sibling makes that identity
-findable: `json` and `html` are named after registered types, so
-`application/json` and `text/html` need no restating; `revision` exports
-`mediaType` (`fjs/media/revision/module.f.ts:34`) because its dialect is
-FS-specific; `type` is the detector itself.
-
-`nix` is the exception in both directions — it is named after a format with
-*no* registered media type, and it states nothing. A reader cannot answer "what
-does this module produce, in media-type terms?" from the module at all. The
-honest declaration is the conventional unregistered `text/x-nix`: state it in
-the module header, and if the detector direction in
-[detect-json](../../type/todo/detect-json.md) lands a sibling-declared
-`{ mime, … }` record, export it the way `fjs/media/revision` does. This is a
-documentation-and-one-constant change, not a move: Nix expressions *are*
-content, so the bucket is right; only the declaration is missing.
-
 ### Tasks
 
 - [ ] Add `check(expression): Nullable<string>` covering identifier form,
       reserved words, attribute-path conflicts, and lambda-pattern names.
 - [ ] Make `serialize` total and curry it on `level` first; delete the three
       all-or-nothing traverse copies together with the `| undefined` returns.
-- [ ] Switch the public entry points to `Result<…, string>` (or `Nullable` plus
-      an exported `check`) and update `fjs/media/nix/proof.f.ts`.
+- [ ] Switch the public entry points to `Result<…, string>` and update
+      `fjs/media/nix/proof.f.ts`. Not `Nullable` — see "`Result`, not
+      `Nullable`" above; the caller migration below assumes `Result`'s
+      `unwrap`.
 - [ ] Keep `nixToString`'s single trailing newline: the ten
       `proof.f.ts:72-105` assertions must pass with only their `Result`
       wrapping changed, not their expected text.
@@ -285,7 +271,6 @@ content, so the bucket is right; only the declaration is missing.
 - [ ] Add proof cases for each rejection reason — today's proof can only
       observe "rejected", so the reasons need coverage as they become
       observable.
-- [ ] Declare the `text/x-nix` media type in the module header.
 - [ ] Prefix the implementing PR's CHANGELOG entry with `**BREAKING CHANGES:**`
       (`AGENTS.md` §8.4) — see "This is a breaking change" above.
 - [ ] Run `npx tsc` and `fjs t`.
@@ -294,9 +279,10 @@ content, so the bucket is right; only the declaration is missing.
 
 - [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md)
   — the `fjs/media/` membership rule the rider applies.
-- [detect-json](../../type/todo/detect-json.md) — the direction in which
-  siblings declare `{ mime, parse, serialize }` for the detector to dispatch
-  over.
+- [media-type-declaration](./media-type-declaration.md) — `fjs/media/nix`
+  declares no media type. Split out of this issue: it is a separate
+  improvement, and `AGENTS.md` §8.1 asks a PR to implement one. Neither blocks
+  the other.
 - [serializer-shared-atoms](../../json/todo/serializer-shared-atoms.md) —
   shares `colon` / `MapEntries` between the json and djs serializers; the same
   "one owner for a serializer atom" question, disjoint atoms.

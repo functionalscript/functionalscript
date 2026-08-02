@@ -184,9 +184,13 @@ issue's sibling made about `nixToString` — see
 The removal is still the right design — after this issue lands the export has
 zero in-repo callers, and `AGENTS.md` §8.4 says not to preserve a stale export
 just to avoid churn — but it must be its own PR carrying its own
-`**BREAKING CHANGES:**` CHANGELOG entry. Sequencing it separately also keeps
-this issue's promise intact: everything *here* is a test-only change with no
-CHANGELOG entry at all.
+`**BREAKING CHANGES:**` CHANGELOG entry.
+
+Both PRs need a CHANGELOG entry, just different ones. `AGENTS.md` §8.3 exempts
+only PRs that touch nothing but `todo/`, `AGENTS.md`, or other documentation —
+this issue adds `testlib.f.ts` and rewrites three `proof.f.ts` files, which are
+code changes even though no production behavior moves. So: a normal entry here,
+a `**BREAKING CHANGES:**` entry there.
 
 `stringToCodePointList`/`toArray`/`mapCodePoint` all move inside the adapters,
 so no proof site repeats the decode. Watch the import direction: `testlib.f.ts`
@@ -242,8 +246,7 @@ answering "what does this grammar accept?" independently.
       `descentParserCpOnly` export has no in-repo caller. Removing it is a
       public API change (no `exports` map), so it needs its own PR with a
       `**BREAKING CHANGES:**` CHANGELOG entry per `AGENTS.md` §8.4. Do not fold
-      it into this work, which is otherwise test-only and needs no CHANGELOG
-      entry.
+      it into this work.
 - [ ] Add `number` (the optional-minus-then-digit grammar) and `jsonCases`.
 - [ ] Convert `fjs/bnf/descent/proof.f.ts` and `fjs/bnf/ll1/proof.f.ts`; keep
       `ll1:68-74`'s space-prefixed variant local and comment why — eight
@@ -254,6 +257,9 @@ answering "what does this grammar accept?" independently.
 - [ ] Confirm coverage of `fjs/bnf/descent`, `fjs/bnf/ll1` and
       `fjs/djs/tokenizer` is unchanged — this must move test text, not test
       cases.
+- [ ] Add a normal CHANGELOG entry for this PR (`AGENTS.md` §8.3). The
+      documentation-only exemption does not apply: `.f.ts` files change here,
+      test-only or not.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related
