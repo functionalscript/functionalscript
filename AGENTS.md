@@ -493,6 +493,32 @@ languages require. TypeScript narrows string literals precisely, so the string
 Existing examples: `os` / `Os` and `architecture` / `Architecture` in
 `fjs/ci/common/module.f.ts`, and `actions` in `fjs/ci/config/module.f.ts`.
 
+#### Write the call, not the value it computes
+
+A value an encoder would produce should be written as that call, not as the
+computed result — in source and in proof expectations alike. `range('AF')`, not
+`1090519110`.
+
+The number is derived from an input, and writing it down discards the input that
+explains it: nothing recovers `A`–`F` from the digits, and a reader cannot tell a
+correct constant from a typo'd one. A named constant does not help — the value is
+still hand-computed. This does not apply to numbers that mean themselves: an
+index, a count, `0`, `1`.
+
+When the value sits inside a larger literal, interpolate rather than inline:
+
+```ts
+// avoid
+if (r !== '[{"expected":[1090519110]}]') { throw r }
+// prefer
+if (r !== `[{"expected":[${range('AF')}]}]`) { throw r }
+```
+
+Tests are the exception where the encoding itself is what's under test. A test
+that builds both its input and its expectation from the same encoder cannot
+detect a change to it — both sides move together. Some tests may keep
+hand-written values to cover that; comment why they are literal.
+
 ### 6.3 Structure and scoping
 
 #### Import instead of duplicating

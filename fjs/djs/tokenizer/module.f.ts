@@ -490,7 +490,7 @@ export const tokenizeString
         }
         const m = descentParser<TokenMetadata>(jsGrammar())
         const cpm = codePointsWithMetadata('')(cp)
-        const [ast, ok, len] = m('', cpm)
+        const { ast, success: ok, idx: len } = m('', cpm)
         if (!ok || len !== cp.length)
             return 'error'
 
@@ -526,7 +526,7 @@ export const tokenizeJs
 
         const m = descentParser<TokenMetadata>(jsGrammar())
         const cpm = codePointsWithMetadata(path)(cp)
-        const [ast, ok, len] = m('', cpm)
+        const { ast, success: ok, idx: len } = m('', cpm)
         const finalMetadata = fold(advanceMetadata)(initial)(cp)
 
         if (!ok || len !== cp.length) {
