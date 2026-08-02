@@ -34,8 +34,11 @@ export const bun = '1.3.14'
 export const deno = '2.9.4'
 
 // https://www.npmjs.com/package/playwright
-// Make sure that `package.json` has the same version of `@playwright/test`
-export const playwright = '1.62.0'
+// Pinned to the exact version `pkgs.playwright-driver` provides in the pinned
+// Nixpkgs snapshot below, so the generated Playwright flake's browsers match
+// what `@playwright/test` expects — see `fjs/ci/playwright/module.f.ts`.
+// Make sure that `package.json` has the same version of `@playwright/test`.
+export const playwright = '1.59.1'
 
 // The Node versions the pinned Nixpkgs snapshot below provides — read from
 // `pkgs/development/web/nodejs/v{22,24,26}.nix` at that commit. Every runtime

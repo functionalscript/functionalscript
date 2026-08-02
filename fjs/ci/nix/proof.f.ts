@@ -14,6 +14,7 @@ import {
     flakeText,
     generatedDirectory,
     nixDevelop,
+    nixDevelopAll,
     nixFlakes,
     nixInstall,
     type NixJob,
@@ -119,6 +120,16 @@ export const proof = {
         nixDevelop: () => assertEq(
             nixDevelop(plain.id, 'node --version'),
             'nix develop ./nix/generated/node24 --command node --version'),
+        nixDevelopAll: {
+            sequence: () => assertEq(
+                nixDevelopAll(plain.id, ['npm ci', 'node --test']),
+                `nix develop ./nix/generated/node24 --command bash -euo pipefail -c 'npm ci && node --test'`),
+            // A command carrying its own quote must not end the outer one: the
+            // shell has to see the script back exactly as it was written.
+            quote: () => assertEq(
+                nixDevelopAll(plain.id, [`printf '%s' 'a b'`]),
+                `nix develop ./nix/generated/node24 --command bash -euo pipefail -c 'printf '\\''%s'\\'' '\\''a b'\\'''`),
+        },
         nixInstall: () => {
             assertEq(nixInstall.type, 'install')
             assert(

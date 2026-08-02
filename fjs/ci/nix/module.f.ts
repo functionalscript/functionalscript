@@ -14,8 +14,18 @@ import { mkdir, writeUtf8File, type Mkdir, type WriteFile } from '../../effects/
 import { nixToString, type Expression } from '../../media/nix/module.f.ts'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.ts'
 import { unwrap } from '../../types/result/module.f.ts'
-import { install, uses, type MetaStep } from '../common/module.f.ts'
+import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
+import { install, test, uses, type MetaStep } from '../common/module.f.ts'
 import { nixpkgs } from '../config/module.f.ts'
+
+/**
+ * A value exported into the shell's environment: either a literal string, or a
+ * Nixpkgs attribute path whose store path the shell exports (e.g.
+ * `playwright-driver.browsers`).
+ */
+export type EnvValue =
+    | readonly ['string', string]
+    | readonly ['pkgs', string, ...string[]]
 
 /** A CI job's development environment, one generated flake each. */
 export type NixJob = {
@@ -25,6 +35,12 @@ export type NixJob = {
     readonly system: string
     /** Nixpkgs attribute names made available in the job's shell. */
     readonly packages: readonly string[]
+    /**
+     * Environment variables the shell exports. `mkShell` turns any attribute it
+     * does not recognize into one, so a Nixpkgs attribute path becomes that
+     * package's store path without any string interpolation.
+     */
+    readonly env?: StringMap<string, EnvValue>
     /** Job-local shell initialization, when the job needs one. */
     readonly shellHook?: string
 }
@@ -36,7 +52,10 @@ const { commit } = nixpkgs
 
 const url = `github:NixOS/nixpkgs/${commit}`
 
-const flake = ({ system, packages, shellHook }: NixJob): Expression => ['set',
+const envExpression = (value: EnvValue): Expression =>
+    value[0] === 'string' ? value[1] : ['ref', 'pkgs', ...value.slice(1)]
+
+const flake = ({ system, packages, env, shellHook }: NixJob): Expression => ['set',
     ['=', ['inputs', 'nixpkgs', 'url'], url],
     ['=', ['outputs'], ['lambda',
         ['open-set-pattern', 'nixpkgs'],
@@ -51,6 +70,8 @@ const flake = ({ system, packages, shellHook }: NixJob): Expression => ['set',
                     ['ref', 'pkgs', 'mkShell'],
                     ['set',
                         ['=', ['packages'], ['list', ...packages.map(p => ['ref', 'pkgs', p] as const)]],
+                        ...definedEntries<EnvValue>(env ?? {}).map(
+                            ([name, value]) => ['=', [name], envExpression(value)] as const),
                         ...(shellHook === undefined
                             ? []
                             : [['=', ['shellHook'], ['indented-string', shellHook]] as const])
@@ -94,3 +115,36 @@ export const nixInstall: MetaStep = install(uses('cachix/install-nix-action'))
 /** Runs one command inside a job's generated development shell. */
 export const nixDevelop = (id: string, command: string): string =>
     `nix develop ${flakePath(id)} --command ${command}`
+
+/**
+ * Wraps a string so a POSIX shell reproduces it exactly. Single quotes protect
+ * every other character, so only the quote itself needs handling: leave the
+ * literal, reopen it, and escape the quote outside (`'` becomes `'\''`).
+ */
+const singleQuoted = (value: string): string =>
+    `'${value.replaceAll("'", "'\\''")}'`
+
+/**
+ * Runs a migrated job's whole command sequence in one development shell, so the
+ * shell's packages and environment reach every command without exporting a
+ * profile across GitHub Actions steps.
+ *
+ * The commands are a shell script, joined so a failure stops the rest, and are
+ * quoted as one argument — a command may contain quotes of its own.
+ */
+export const nixDevelopAll = (id: string, commands: readonly string[]): string =>
+    nixDevelop(id, `bash -euo pipefail -c ${singleQuoted(commands.join(' && '))}`)
+
+/** Asserts the Node a development shell puts on `PATH`, from inside that shell. */
+export const nodeVersionCommand = (version: string): string =>
+    `test "$(node --version)" = v${version}`
+
+/**
+ * Checks a job's generated flake end to end: the shell builds, and the Node it
+ * puts on `PATH` is exactly the pinned version. The pinned Nixpkgs commit
+ * already determines the version, so this is the only place the expectation
+ * is stated — the generated flakes stay declarative instead of carrying an
+ * `assert` that restates the commit they pin.
+ */
+export const nixVersionCheckStep = (id: string, version: string): MetaStep =>
+    test({ run: `test "$(${nixDevelop(id, 'node --version')})" = v${version}` })

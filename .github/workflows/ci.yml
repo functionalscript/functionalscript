@@ -533,41 +533,13 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "actions/setup-node@v7.0.0",
-          "with": {
-            "node-version": "26.5.1"
-          }
-        },
-        {
-          "uses": "actions/cache@v6.1.0",
-          "with": {
-            "path": "~/.cache/ms-playwright",
-            "key": "ubuntu-26.04-arm-playwright-1.62.0"
-          }
-        },
-        {
-          "run": "npm install -g playwright@1.62.0"
-        },
-        {
-          "run": "playwright install-deps"
-        },
-        {
-          "run": "playwright install"
+          "uses": "cachix/install-nix-action@v31.11.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "npm ci"
-        },
-        {
-          "run": "npx playwright test --browser=chromium"
-        },
-        {
-          "run": "npx playwright test --browser=firefox"
-        },
-        {
-          "run": "npx playwright test --browser=webkit"
+          "run": "nix develop ./nix/generated/playwright --command bash -euo pipefail -c 'test \"$(node --version)\" = v26.5.1 && npm ci && test \"$(npx playwright --version)\" = \"Version 1.59.1\" && npx playwright test --browser=chromium && npx playwright test --browser=firefox && npx playwright test --browser=webkit'"
         }
       ]
     }

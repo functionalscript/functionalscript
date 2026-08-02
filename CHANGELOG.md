@@ -11,6 +11,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `@playwright/test` moves to `1.59.1` to match the pinned
+  Nixpkgs snapshot, which now provides the `playwright` CI job's browsers — the
+  job runs in a generated Nix flake instead of installing them
+  [#1409](https://github.com/functionalscript/functionalscript/pull/1409)
 - `fjs/ci`: generate one self-contained `nix/generated/<job>/flake.nix` per
   canonical Node job, pinning an exact Nixpkgs commit; `npm run ci-update`
   writes them without running Nix
