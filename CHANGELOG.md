@@ -11,6 +11,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/bnf/descent`: match results carry a fourth element,
+  `DescentFailure`, holding the furthest position a terminal was rejected at and
+  the terminals expected there — a result's own index rewinds and cannot locate
+  an error [#1412](https://github.com/functionalscript/functionalscript/pull/1412)
 - **BREAKING CHANGES:** `@playwright/test` moves to `1.59.1` to match the pinned
   Nixpkgs snapshot, which now provides the `playwright` CI job's browsers — the
   job runs in a generated Nix flake instead of installing them
