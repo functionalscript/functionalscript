@@ -2,7 +2,6 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** [descent/failure-tracking](../descent/todo/failure-tracking.md)
 
 ### Problem
 
@@ -59,12 +58,12 @@ span has a first and a last token, and each token's `TokenMetadata`
 position. `ParseError` (`{ message, metadata: TokenMetadata | null }`,
 `fjs/djs/parser/module.f.ts:16`) widens from a single point to that range.
 
-**This depends on the backend keeping failure information, which it does not
-today.** A failed match returns an empty sequence and a rewound index, so it
-carries no metadata to build a range from and no reliable token to blame. That is
-tracked separately as
-[descent/failure-tracking](../descent/todo/failure-tracking.md) and blocks this
-issue.
+**The backend side of this is done.** A failed match still returns an empty
+sequence and a rewound index, so neither can be used to locate an error, but the
+result now also carries a `DescentFailure` — the furthest position a terminal was
+rejected at, plus the terminals expected there (see
+[../descent/README.md](../descent/README.md#failure-reporting)). Pair that index
+with the metadata of the symbol at it to get the position range.
 
 ### Open questions
 
@@ -87,8 +86,8 @@ Deliberately unresolved — this issue exists to hold the task, not to settle th
 - [ ] Write the DJS grammar in `fjs/bnf` combinators
 - [ ] Fold `AstRuleMeta` into `AstModule`
 - [ ] Report errors as metadata position ranges; widen `ParseError.metadata`
-      from a single `TokenMetadata` to a range (needs
-      [descent/failure-tracking](../descent/todo/failure-tracking.md))
+      from a single `TokenMetadata` to a range, using the `DescentFailure` the
+      backend now returns
 - [ ] `proof.f.ts` with full coverage; `npx tsc`, `fjs t`
 - [ ] Decide the fate of `parseFromTokens` and of [157](../../djs/todo/157.md) §1
 
@@ -101,6 +100,6 @@ Deliberately unresolved — this issue exists to hold the task, not to settle th
 - [../token_symbol/README.md](../token_symbol/README.md) — symbols for
   multi-character tokens
 - [../descent/README.md](../descent/README.md) — the backend being generalized
-- [descent/failure-tracking](../descent/todo/failure-tracking.md) — the blocker:
-  failure information the backend must keep before errors can be reported
+- [../descent/README.md](../descent/README.md#failure-reporting) — the
+  `DescentFailure` record errors are located from
 - [157](../../djs/todo/157.md) — the competing direction for the same code
