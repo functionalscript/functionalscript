@@ -45,7 +45,7 @@ stdioTransport(step)             ← local, current
 httpTransport(step, port)        ← remote, future
 ```
 
-Planned refactor: extract `casMcpStep` from `casMcpServer` in `fjs/cas/mcp/module.f.ts`. Currently `casMcpServer` wires stdio directly; once extracted, the stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
+Planned refactor: extract `casMcpStep` from `casMcpServer` in `fjs/mcp/module.f.ts`. Currently `casMcpServer` wires stdio directly; once extracted, the stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
 
 The HTTP effect infrastructure (`CreateServer`, `Listen`, `Fetch`) already exists in `fjs/effects/node/module.f.ts` — only the transport wrapper is missing.
 

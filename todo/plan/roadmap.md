@@ -23,8 +23,8 @@
 ## Now — Layers 1 + 2 + 3
 
 **Layer 1 — Base (done)**
-- `cas_add`, `cas_get`, `cas_list` implemented in `fjs/cas/mcp/module.f.ts` ✓
-- stdio transport implemented in `fjs/mcp/stdio/module.f.ts` ✓
+- `cas_add`, `cas_get`, `cas_list` implemented in `fjs/mcp/cas/module.f.ts` ✓
+- stdio transport implemented in `fjs/protocol/mcp/stdio/module.f.ts` ✓
 - `fjs cas mcp` CLI subcommand registered in `fjs/cas/module.f.ts` ✓
 - Remaining: refactor to extract `casMcpStep` for transport-agnostic shape
 
@@ -38,7 +38,7 @@
 - Detection via magic bytes: PNG, JPEG, GIF, WebP, PDF, ZIP → `null` for unrecognized bytes ✓
 - Pure logic in `fjs/media/type/module.f.ts` ✓
 - `cas_get`: when type is detected → returns `EmbeddedResource` with `mimeType`; when `null` → falls back to existing `textContent` response for backward compatibility ✓
-- `fjs/mcp/module.f.ts` gained `blobResource` / `embeddedResource` schemas and a `contentItem` union ✓
+- `fjs/protocol/mcp/module.f.ts` gained `blobResource` / `embeddedResource` schemas and a `contentItem` union ✓
 - A separate on-demand `cas_type` tool is a possible extension; needs its own design issue before implementation
 
 ---
@@ -108,6 +108,25 @@ See [architecture.md §Human-readable paths](./architecture.md).
    bytecode is an optional, VM-internal, performance-oriented representation
 5. Generic `Any` serialization (CBOR) in `nanvm-lib` — covers code as data; needed for CAS/CAVM
 
+**Incremental repository migration:**
+
+The compiler will begin compiling the FunctionalScript repository as soon as it
+can parse the first useful function modules; it will not wait for the complete
+language feature set. Repository coverage grows together with parser and code
+generator coverage:
+
+1. Select an existing `.f.ts` module whose complete syntax is supported.
+2. Rename it to `.f.mjs`, move TypeScript types to JSDoc, and update imports.
+3. Make that module a permanent parser/compiler regression input.
+4. Repeat in separate, reviewable changes as more syntax becomes supported.
+
+`.f.mjs` is the marker for authored FunctionalScript that the compiler in the
+same repository revision must accept. Unsupported modules remain `.f.ts`; no
+migration should pull unrelated language features into scope merely to convert
+a file. This is a continuing strategy rather than a one-time migration task or
+a prerequisite for the compiler MVP. The extension contract and detailed
+workflow are documented in [`fjs/fsc/README.md`](../../fjs/fsc/README.md).
+
 This is the longest dependency chain. Everything after it depends on it.
 
 ---
@@ -134,7 +153,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 
 | Layer | What exists | What's missing |
 |---|---|---|
-| 1. Base MCP (add/get/list) | `fjs/cas/mcp/`, `fjs/mcp/stdio/`, CLI ✓ | `casMcpStep` extraction |
+| 1. Base MCP (add/get/list) | `fjs/mcp/cas/`, `fjs/protocol/mcp/stdio/`, CLI ✓ | `casMcpStep` extraction |
 | 2. Content encoding (base64) | `fjs/base64/` ✓ | MCP wiring only |
 | 3. Type detection | `fjs/media/type/` magic-byte detection (PNG/JPEG/GIF/WebP/PDF/ZIP), `cas_get` wiring, `embeddedResource` schema ✓ | — |
 | 4. Signatures | `fjs/crypto/sign/` (sign only), `fjs/crypto/secp/` ✓ | ECDSA verify + MCP wiring |
@@ -145,6 +164,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | SUL deduplication | `fjs/sul/` L1–L4 ✓ | CAS integration layer |
 | Compiler (parsing) | `fjs/djs/` data pipeline ✓, `fjs/bnf/` framework ✓ | Function support, FS grammar |
 | Compiler (codegen) | — | Rust code generator (FJS), `Function` constructor + interpreter in `nanvm-lib` |
+| Compiler (repository coverage) | Extension and migration strategy defined | First eligible `.f.ts` → `.f.mjs` conversion, then incremental expansion |
 | CA FunctionalScript | — | Depends on VM + AST canonicalization |
 | Sandboxed execution | — | Depends on CA FS |
 | Hybrid intelligence | — | Depends on all above |

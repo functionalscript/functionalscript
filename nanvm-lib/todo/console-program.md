@@ -9,9 +9,14 @@ The `nanvm` **crate** — the self-hosting milestone of the
 of `fjs/effects/node` — see the effects section of the roadmap), the
 generated Rust of the FJS compiler (the same single source that ships on
 npm as FJS code), and a thin hand-written `main`, built by cargo into a
-single native executable that parses and runs `.f.js` directly — no
+single native executable that parses and runs authored `.f.mjs` directly — no
 Node/Deno, no rustc at the user's run time — executing code via the
 interpreter behind the `Function` constructor.
+
+`.f.mjs` is the native CLI source contract because it marks authored
+FunctionalScript accepted by the compiler in the same repository revision.
+`.f.js` remains generated JavaScript for JavaScript runtimes and is not the
+source extension accepted by this self-hosted command.
 
 The generated compiler source is **committed to git** and packaged by cargo
 like any other source file, so consumers build pure Rust with no build

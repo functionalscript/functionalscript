@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { pure, step, type Effect } from '../effects/module.f.ts'
+import { mapStep, step, type Effect } from '../effects/module.f.ts'
 import { access, writeUtf8File, type NodeOp } from '../effects/node/module.f.ts'
 import { functionalscript, images } from './config/module.f.ts'
 import {
@@ -19,8 +19,9 @@ import {
     ubuntuArm
 } from './common/module.f.ts'
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.ts'
-import { nodeMainSteps, nodeVersionJobs } from './node/module.f.ts'
-import { playwrightJob } from './playwright/module.f.ts'
+import { nodeMainSteps, nodeNixJobs, nodeNixVersionSteps, nodeVersionJobs } from './node/module.f.ts'
+import { nixFlakes, nixInstall, type NixJob } from './nix/module.f.ts'
+import { playwrightJob, playwrightNixJob } from './playwright/module.f.ts'
 import { bunSteps } from './bun/module.f.ts'
 import { denoSteps } from './deno/module.f.ts'
 
@@ -42,11 +43,20 @@ export type Setup = {
     readonly nodeExtra: (os: Os) => readonly MetaStep[],
 }
 
+// Every generated flake, across all job families that own one.
+const nixJobs: readonly NixJob[] = [...nodeNixJobs, playwrightNixJob]
+
+// Temporary: proves the not-yet-migrated flakes still evaluate. The Playwright
+// job checks its own flake by running through it. Removed once the canonical
+// Node jobs do the same.
+const nixFlakeJob: Job = ubuntuArm([nixInstall, ...nodeNixVersionSteps])
+
 const canonicalJobs = (rust: boolean): Jobs => ({
     ...(rust ? { wasm: ubuntuArm(rustWasmSteps) } : {}),
     deno: ubuntuArm(denoSteps(functionalscript)),
     bun: ubuntuArm(bunSteps(functionalscript)),
     ...nodeVersionJobs(functionalscript),
+    'nix-flakes': nixFlakeJob,
     playwright: playwrightJob,
 })
 
@@ -69,9 +79,11 @@ export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> => step(
             },
             jobs,
         }
-        return step(
-            writeUtf8File('.github/workflows/ci.yml', JSON.stringify(gha, null, '  ')),
-            () => pure(0))
+        const workflowWritten = writeUtf8File(
+            '.github/workflows/ci.yml',
+            JSON.stringify(gha, null, '  '))
+        const flakesWritten = step(workflowWritten, () => nixFlakes(nixJobs))
+        return mapStep(flakesWritten, () => 0)
     })
 
 export const main = () => ci({ nodeExtra: () => [] })

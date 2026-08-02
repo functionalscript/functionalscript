@@ -104,7 +104,7 @@ enable them. For example:
 
 The `cas_add`, `cas_get`, and `cas_list` tools appear in the agent's tool panel.
 For tool details and package-consumer setup for Claude and Codex, see
-[`fjs/cas/mcp/README.md`](fjs/cas/mcp/README.md).
+[`fjs/mcp/README.md`](fjs/mcp/README.md).
 
 ## Opening a pull request
 

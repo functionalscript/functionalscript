@@ -11,6 +11,24 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `@playwright/test` moves to `1.59.1` to match the pinned
+  Nixpkgs snapshot, which now provides the `playwright` CI job's browsers — the
+  job runs in a generated Nix flake instead of installing them
+  [#1409](https://github.com/functionalscript/functionalscript/pull/1409)
+- `fjs/ci`: generate one self-contained `nix/generated/<job>/flake.nix` per
+  canonical Node job, pinning an exact Nixpkgs commit; `npm run ci-update`
+  writes them without running Nix
+  [#1398](https://github.com/functionalscript/functionalscript/pull/1398)
+- **BREAKING CHANGES:** `range_map`'s exported `get` and `fromRange` take the
+  map/default-value first and the queried number/range last. Add
+  `fjs/types/range_set`, a boolean-valued `range_map` wrapper
+  [#1402](https://github.com/functionalscript/functionalscript/pull/1402)
+- **BREAKING CHANGES:** decouple the FJS MCP server from CAS: generic MCP
+  moves `fjs/mcp/` → `fjs/protocol/mcp/`, JSON-RPC moves
+  `fjs/media/json/rpc/` → `fjs/protocol/json_rpc/`, and the CAS tool registry
+  moves `fjs/cas/mcp/` → `fjs/mcp/cas/` (with `fjs/cas/evo/mcp/` →
+  `fjs/mcp/evo/`); the server's new composition root lives at `fjs/mcp/`
+  [#1401](https://github.com/functionalscript/functionalscript/pull/1401)
 - `fjs/media/nix`: add a minimal checked Nix eDSL and deterministic chunk serializer
   [#1397](https://github.com/functionalscript/functionalscript/pull/1397)
 - `fjs/effects/node`: **BREAKING CHANGES:** detect Deno as the new `'deno'`
