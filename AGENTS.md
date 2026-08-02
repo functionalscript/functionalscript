@@ -495,30 +495,17 @@ Existing examples: `os` / `Os` and `architecture` / `Architecture` in
 
 #### Write the call, not the value it computes
 
-A literal that is the **output of an encoding function** must be written as the
-call that produces it, never as the computed value — in source and in proof
-expectations alike. `range('AF')`, not `1090519110`.
+A value an encoder would produce should be written as that call, not as the
+computed result — in source and in proof expectations alike. `range('AF')`, not
+`1090519110`.
 
-This is the counterpart to the previous rule, not an exception to it. A string
-literal *is* its own meaning, so wrapping `'foo'` in a named alias hides nothing
-and the previous rule rightly forbids it. An encoded number is different: it is a
-value *derived from* an input, and writing the result discards the input that
-explains it. `1090519110` is `range('AF')` packed as `(first << 24) | last`
-(`fjs/bnf`'s `TerminalRange`) — nothing at the call site recovers `A`–`F` from
-the digits, and a reader cannot tell a correct constant from a typo'd one. The
-call also survives a change to the encoding, while the literal silently becomes
-wrong.
+The number is derived from an input, and writing it down discards the input that
+explains it: nothing recovers `A`–`F` from the digits, and a reader cannot tell a
+correct constant from a typo'd one. A named constant does not help — the value is
+still hand-computed. This does not apply to numbers that mean themselves: an
+index, a count, `0`, `1`.
 
-Note this is a different failure from a named constant: `const AF_RANGE =
-1090519110` is no better, because the number is still hand-computed. Call the
-encoder.
-
-The same applies to code points (`'A'.codePointAt(0)` or a named code-point
-constant over a bare `65`) and to any packed, hashed, or offset value a module
-already has a constructor for. It does not apply to a number that means itself —
-an index, a count, a bit width, `0`, `1`.
-
-When the value must sit inside a larger literal, interpolate rather than inline:
+When the value sits inside a larger literal, interpolate rather than inline:
 
 ```ts
 // avoid
@@ -527,14 +514,10 @@ if (r !== '[{"expected":[1090519110]}]') { throw r }
 if (r !== `[{"expected":[${range('AF')}]}]`) { throw r }
 ```
 
-**Keep exactly one literal anchor per encoder.** Once a test builds its input
-*and* its expectation from the same encoder, both sides move together — a change
-to the encoding is invisible, because the assertion re-derives whatever the new
-answer is. So one test per encoder should keep the hand-written value, with a
-comment saying that is why it is there. Every other test interpolates: repeating
-the anchor buys nothing and costs the readability the rule exists for. Example:
-`fjs/bnf/descent/proof.f.ts` pins `A` to `65` in a single terminal-match
-expectation and interpolates `cp1('A')` everywhere else.
+Tests are the exception where the encoding itself is what's under test. A test
+that builds both its input and its expectation from the same encoder cannot
+detect a change to it — both sides move together. Keep some tests with
+hand-written values to cover that, and comment why they are literal.
 
 ### 6.3 Structure and scoping
 

@@ -87,15 +87,12 @@ export const proof = {
             if (result !== '[{"sequence":[]},true,0,{"idx":0,"expected":[]}]') { throw result }
         },
         () => {
-            // The one expectation left with a literal code point, on purpose.
-            // Everywhere else both sides of the assertion now come from
-            // `stringToCodePointList`: the input is built with it and the
-            // expectation interpolates `cp1`, which calls it too. That reads
-            // better, but it also means a change to the conversion would move
-            // both sides together and the test would still pass. Pinning `A` to
-            // 65 once keeps one assertion that fails if the encoding itself
-            // ever changes. Only one is needed — the rest gain nothing from
-            // repeating it and lose the readability.
+            // Literal code point on purpose. Elsewhere both sides of the
+            // assertion come from `stringToCodePointList` — the input is built
+            // with it and the expectation interpolates `cp1`, which calls it
+            // too — so a change to the conversion would move both sides
+            // together and the test would still pass. Pinning `A` to 65 here
+            // covers the conversion itself.
             const terminalRangeRule = range('AF')
             const m = descentParser(terminalRangeRule)
             const mr = descentParserCpOnly(m, "", toArray(stringToCodePointList('A')))
