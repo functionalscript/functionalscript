@@ -9,8 +9,8 @@ FunctionalScript currently has no test path that executes proof functions and th
 module dependencies inside browser JavaScript realms.
 
 The current Playwright integration registers proofs in a Node worker and executes them
-through the Node effect runner. Selecting Chromium, Firefox, or WebKit does not move the
-proof code into those browsers.
+through the Node effect runner. Selecting Chromium, Firefox, or WebKit therefore does not
+move the proof code into those browsers.
 
 Passing an individual function to `page.evaluate()` is not a general replacement. The
 function is reconstructed from source text and loses imported bindings, closures, module
@@ -48,8 +48,8 @@ browser-test output
 ├── index.html
 ├── browser-test-entry.js
 ├── browser-test-runner.js
-├── generated .js modules
-└── authored or copied .mjs modules
+├── generated .f.js modules
+└── authored or copied .f.mjs modules
 ```
 
 `index.html` starts the browser-compatible runner. The entry module explicitly imports
@@ -84,27 +84,27 @@ TypeScript.
 
 ### Two paths to browser-ready JavaScript
 
-#### Transpile remaining TypeScript source
+#### Transpile remaining FunctionalScript TypeScript
 
-For selected modules still authored as `.ts` or `.f.ts`:
+For selected modules still authored as `.f.ts`:
 
 - erase TypeScript-only syntax;
-- emit browser-compatible ES modules as `.js` or `.f.js`;
+- emit browser-compatible ES modules as `.f.js`;
 - preserve the needed directory structure;
-- rewrite relative TypeScript import extensions to emitted JavaScript paths;
+- rewrite relative `.f.ts` imports to emitted `.f.js` paths;
 - emit no declarations into the browser-test application;
-- reject unresolved and Node-only dependencies.
+- reject unresolved and unsupported dependencies.
 
 A dedicated `tsc` configuration is acceptable initially. A narrower type stripper or the
 FunctionalScript compiler may replace it later.
 
-#### Use authored JavaScript source
+#### Use authored FunctionalScript JavaScript
 
-Modules already authored as `.mjs` or `.f.mjs` are JavaScript and do not require type
-erasure. Copy them into the application, or expose them through an explicitly constructed
+Modules already authored as `.f.mjs` are JavaScript and do not require type erasure. Copy
+them into the application, or expose them through an explicitly constructed
 JavaScript-only output tree.
 
-Do not rewrite authored `.mjs` to generated `.js` merely for browser testing.
+Do not rewrite authored `.f.mjs` to generated `.f.js` merely for browser testing.
 
 A mixed migration graph is expected:
 
@@ -139,22 +139,54 @@ Browser testing follows this migration rather than creating another convention:
 Reuse the proof-extension policy owned by [`.f.mjs` test and coverage
 support](f-mjs-test-and-coverage.md).
 
+### Initial browser-suite selection
+
+The first implementation does not need a new Node-only marker. It uses the file-extension
+boundary already provided by FunctionalScript.
+
+Select browser proofs deterministically as follows:
+
+1. Discover only FunctionalScript proof roots:
+   - `proof.f.ts`;
+   - `proof.f.mjs`.
+2. Map `proof.f.ts` to generated `proof.f.js`; keep `proof.f.mjs` as authored JavaScript.
+3. Walk each proof's complete relative runtime dependency graph.
+4. Accept the proof only when every runtime module in that graph becomes either:
+   - generated `.f.js` from `.f.ts`; or
+   - authored/copied `.f.mjs`.
+5. Reject the proof with a clear unsupported-dependency report when the graph reaches:
+   - a `node:` import;
+   - a generic `.ts`, `.js`, or `.mjs` runtime module;
+   - an unresolved or external package import not explicitly supported by the browser
+     application.
+6. Never silently omit an accepted root's dependency and never fall back to running the
+   proof in Node.
+
+This deliberately limits the first browser suite to FunctionalScript files. Extending
+browser testing later to generic `proof.ts`, `module.ts`, `.js`, or `.mjs` modules is
+optional and lower priority. That extension may introduce a naming convention or explicit
+environment metadata for Node-dependent generic modules, but it does not block the first
+working browser suite.
+
 ### Proof discovery and entry generation
 
 Filesystem discovery may run outside the browser. Generate an entry module such as:
 
 ```js
-import * as proof0 from './fjs/foo/proof.js'
-import * as proof1 from './fjs/bar/proof.js'
+import * as proof0 from './fjs/foo/proof.f.js'
+import * as proof1 from './fjs/bar/proof.f.js'
 import * as proof2 from './fjs/migrated/proof.f.mjs'
 import { runModuleMap } from './browser-test-runner.js'
 
 export const run = () => runModuleMap({
-    'fjs/foo/proof.js': proof0,
-    'fjs/bar/proof.js': proof1,
+    'fjs/foo/proof.f.js': proof0,
+    'fjs/bar/proof.f.js': proof1,
     'fjs/migrated/proof.f.mjs': proof2,
 })
 ```
+
+The entry must retain the `.f` segment in emitted names: `proof.f.ts` becomes
+`proof.f.js`, not `proof.js`.
 
 Each browser independently loads and evaluates the complete graph. Never serialize proof
 functions with `String(function)`.
@@ -230,7 +262,7 @@ This runner must not depend on Playwright or `playwright/test`.
 
 It may:
 
-- discover browser-compatible proofs;
+- discover browser-compatible proofs using the initial selection algorithm;
 - prepare the JavaScript-only application;
 - start a loopback HTTP server;
 - open the URL in an installed browser or instruct the user to open it;
@@ -253,9 +285,9 @@ A possible interface is:
 playwright test --project=firefox
 ```
 
-The Playwright adapter should share the preparation, static server, browser page, report
-protocol, and result interpretation code used by `fjs browser-test`. It additionally uses
-Playwright Test for:
+The Playwright adapter should share the proof selection, preparation, static server,
+browser page, report protocol, and result interpretation code used by
+`fjs browser-test`. It additionally uses Playwright Test for:
 
 - browser and project selection;
 - `page` and browser lifecycle fixtures;
@@ -299,7 +331,7 @@ Separate common controller logic from runner-specific integration.
 
 Common code should own:
 
-- proof discovery and selection;
+- the initial FunctionalScript-only proof selection algorithm;
 - JavaScript application preparation;
 - loopback static serving;
 - URL and run-identifier construction;
@@ -314,28 +346,17 @@ Playwright reporting.
 
 The HTML runner uses only the generated page and browser-side code.
 
-### Browser-compatible suite
-
-Not every proof is browser-compatible. Define an explicit policy:
-
-- include proofs for pure FunctionalScript and browser-specific modules;
-- include both generated `.js` and authored `.mjs` proofs;
-- exclude explicitly marked Node-only modules;
-- fail preparation when a selected proof reaches a `node:` import;
-- never silently execute an incompatible proof in Node.
-
-The long-term goal is to run every environment-independent proof in all supported
-browsers while retaining separate integration tests for platform-specific effects.
-
 ### Validation
 
 Add an end-to-end fixture proving:
 
-- a `.ts` proof is emitted as `.js` and no TypeScript request occurs;
-- an authored `.mjs` proof loads without transpilation;
-- a mixed `.js`/`.mjs` dependency graph loads correctly;
+- a `proof.f.ts` root is emitted and imported as `proof.f.js`;
+- an authored `proof.f.mjs` root loads without transpilation;
+- a mixed `.f.js`/`.f.mjs` dependency graph loads correctly;
+- a proof whose graph reaches generic `module.ts` or `node:` is rejected clearly;
+- no TypeScript request occurs in the browser;
 - a proof reads `window`, `document`, or another browser-only global;
-- transitive helper modules load through native ES-module imports;
+- transitive FunctionalScript helper modules load through native ES-module imports;
 - the static server rejects TypeScript and paths outside its application root;
 - passing and failing reports appear correctly in the HTML UI;
 - a failed proof produces nonzero status from both automated runners;
@@ -351,6 +372,8 @@ Add an end-to-end fixture proving:
 
 ### Out of scope
 
+- generic `proof.ts` and `module.ts` browser coverage in the first implementation;
+- defining a Node-only marker for generic modules before generic modules are selected;
 - running Node-only effect integration tests in browsers;
 - serializing arbitrary JavaScript closures with `String(function)`;
 - duplicating Playwright Test fixtures or assertions inside the browser runner;
@@ -364,13 +387,13 @@ Add an end-to-end fixture proving:
 
 ### Tasks
 
-- [ ] Define the browser-compatible proof selection policy shared with `.f.mjs` proof
-      discovery.
+- [ ] Implement initial discovery of `proof.f.ts` and `proof.f.mjs` roots.
+- [ ] Accept only dependency graphs that map completely to `.f.js` and `.f.mjs` modules.
+- [ ] Report unsupported generic, Node, external, and unresolved dependencies clearly.
 - [ ] Create a JavaScript-only browser-test output root.
-- [ ] Add TypeScript-to-JavaScript emission for selected `.ts` and `.f.ts` files.
-- [ ] Rewrite emitted relative TypeScript import extensions.
-- [ ] Copy selected authored `.mjs` and `.f.mjs` modules without type erasure.
-- [ ] Generate a JavaScript proof entry module.
+- [ ] Add `.f.ts` to `.f.js` emission and rewrite relative FunctionalScript imports.
+- [ ] Copy selected authored `.f.mjs` modules without type erasure.
+- [ ] Generate a JavaScript proof entry module using `proof.f.js` and `proof.f.mjs` paths.
 - [ ] Implement the browser-compatible emergent-test runner and report API.
 - [ ] Implement the HTML UI and integrate it into the FunctionalScript website.
 - [ ] Add shared controller code for preparation, serving, report validation, and timeout
@@ -380,7 +403,7 @@ Add an end-to-end fixture proving:
       `playwright/test`.
 - [ ] Ensure the Playwright adapter and `fjs browser-test` reuse shared controller code.
 - [ ] Run the same application in Chromium, Firefox, and WebKit.
-- [ ] Add website, no-Playwright CLI, external-Playwright, browser-realm, mixed-source,
+- [ ] Add website, no-Playwright CLI, external-Playwright, browser-realm, selection,
       failure, and timeout tests.
 - [ ] Add CI only after proof bodies demonstrably execute inside browsers.
 
