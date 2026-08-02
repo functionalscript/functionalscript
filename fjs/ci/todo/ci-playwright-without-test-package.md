@@ -1,4 +1,4 @@
-## ci-playwright-without-test-package. Run FunctionalScript tests in browsers through global Playwright
+## ci-playwright-without-test-package. Run FunctionalScript tests in browsers without a local Playwright dependency
 
 **Priority:** P3
 **Status:** open
@@ -9,148 +9,179 @@ The repository currently pins `@playwright/test` so FunctionalScript proofs can 
 with Playwright Test. `fjs/effects/node/module.ts` detects `PLAYWRIGHT_TEST`, dynamically
 imports `@playwright/test`, and constructs a Playwright-specific `TestContext`.
 
-That does not satisfy the real browser-testing requirement. Playwright Test executes test
-registration and callbacks in Node workers; code runs inside Chromium, Firefox, or WebKit
-only when it is explicitly evaluated or loaded in a browser page. The current adapter
-therefore runs FunctionalScript proofs under Node while merely selecting a Playwright
-browser project.
+This creates avoidable coupling between the repository and the Playwright installation:
 
-The repository-local dependency also creates avoidable coupling:
-
-- `npm ci` installs a Playwright package only for this adapter;
+- `npm ci` installs Playwright only for the test adapter;
 - its version must be synchronized manually with the Nix-provided browser bundle;
-- a globally or Nix-installed Playwright executable does not make a bare
+- a global or Nix-installed Playwright executable does not make
   `import('@playwright/test')` resolvable from repository modules;
-- the general Node effect runner contains Playwright-specific registration logic;
-- browser execution depends on a repository dev dependency instead of the globally
-  installed execution environment.
+- the general Node effect runner contains Playwright-specific registration logic.
+
+More importantly, selecting a Playwright browser does not by itself prove that
+FunctionalScript proof functions execute inside that browser. The requirement is to run
+the tests themselves in Chromium, Firefox, and WebKit, not merely to run the test
+infrastructure in Node while a browser is available.
 
 ### Goal
 
-Remove the repository `@playwright/test` dependency and provide a globally installable
-Playwright environment that can run either ordinary Playwright Test or FunctionalScript's
-own test runner.
+Remove the repository `@playwright/test` dependency while preserving real cross-browser
+execution of FunctionalScript tests.
 
-The intended command model is:
+The implementation may use either:
+
+1. the ordinary Playwright Test runner, for example:
+
+   ```sh
+   playwright test --browser=firefox
+   ```
+
+2. FunctionalScript's own test runner through a Playwright-hosted adapter, for example:
+
+   ```sh
+   playwright fjs t --browser=firefox
+   ```
+
+These command shapes are alternatives, not simultaneous requirements. Choose the
+simplest implementation that satisfies the browser-execution invariant.
+
+In either design:
+
+- Playwright may use Node for discovery, orchestration, reporting, and browser lifecycle;
+- the actual FunctionalScript proof functions selected for the browser suite must execute
+  inside the selected browser's JavaScript realm;
+- a failing proof must make the command fail;
+- the repository must not contain `@playwright/test`, `playwright`, or another Playwright
+  package in its own dependencies.
+
+### Browser-execution invariant
+
+The implementation is correct only when representative proof code can demonstrate that
+it executes inside Chromium, Firefox, or WebKit.
+
+Acceptable evidence includes browser-only globals or behavior observed from the proof
+body itself. Merely launching a browser, creating a page, or evaluating a trivial smoke
+expression before running the proof suite in Node is not sufficient.
+
+The controller may perform these operations outside the browser:
+
+- discover proof modules;
+- prepare or compile browser-loadable JavaScript;
+- start a loopback-only HTTP server;
+- launch the selected browser;
+- collect structured test events;
+- print results and choose the process exit status.
+
+The test functions and recursive return-value test trees must be evaluated inside the
+browser.
+
+### Runner alternatives
+
+#### Playwright Test adapter
+
+A globally installed Playwright Test environment may provide an adapter test that:
+
+- discovers or receives the FunctionalScript browser suite;
+- opens a page using the selected Playwright browser;
+- loads the browser-compatible FunctionalScript runner and proof modules;
+- executes the proofs inside the page;
+- forwards results to the Playwright Test assertion/reporting lifecycle.
+
+The adapter belongs to the global or Nix Playwright environment. Repository modules must
+not import `@playwright/test`.
+
+#### FunctionalScript runner adapter
+
+A global or Nix-provided Playwright wrapper may expose a command such as:
 
 ```sh
-playwright test --browser=firefox
 playwright fjs t --browser=firefox
 ```
 
-The first command delegates to the ordinary Playwright Test runner. The second command
-runs FunctionalScript's emergent test runner with the proof functions themselves
-executing inside the selected browser.
+The wrapper may reuse FunctionalScript's own discovery, emergent-test semantics, and
+reporting while using Playwright only to host execution inside the selected browser.
 
-The same `playwright` installation must own:
+Do not require this custom command when the ordinary Playwright Test runner provides a
+simpler correct implementation.
 
-- the CLI entry point;
-- the Playwright JavaScript API;
-- the FunctionalScript browser-runner bridge;
-- the matching Chromium, Firefox, and WebKit bundle.
+### Browser-hosted test execution
 
-The FunctionalScript repository must not need `@playwright/test`, `playwright`, or another
-Playwright package in its own `node_modules`.
+The likely shared architecture is:
 
-### Global CLI integration
-
-Upstream Playwright does not provide an `fjs` subcommand. Add a thin globally installed
-wrapper or equivalent packaged entry point named `playwright` that:
-
-- recognizes `playwright fjs ...`;
-- delegates existing commands such as `playwright test`, `install`, and `codegen` to the
-  underlying Playwright CLI without changing their behavior;
-- resolves the Playwright API relative to its own global or Nix package, not relative to
-  the repository under test;
-- selects the browser from `--browser=chromium`, `--browser=firefox`, or
-  `--browser=webkit`;
-- returns the FunctionalScript test runner's exit status.
-
-The exact npm package name or Nix wrapper construction may be decided during
-implementation. A developer must be able to install one compatible global environment
-and run the commands above from a repository that has no Playwright dependency.
-
-Do not replace the removed repository import with another project file that imports
-`playwright/test`; that preserves the same module-resolution problem under a different
-name.
-
-### Browser-hosted FunctionalScript runner
-
-`playwright fjs t --browser=<browser>` must execute the actual proof functions inside a
-page owned by the selected browser. Merely launching the browser and then running
-`node ./fjs/module.ts t` is not sufficient.
-
-The simplest architecture is:
-
-1. The Node-side global wrapper discovers the proof modules using the repository's test
-   discovery rules.
-2. It ensures browser-loadable JavaScript exists for the runner and selected proof
-   modules. Browsers must not be asked to parse TypeScript source directly.
-3. It starts a loopback-only HTTP server for the generated modules and runner page.
-4. It launches the selected Playwright browser and opens the runner page.
-5. The page imports a browser-specific FunctionalScript test entry point and the proof
-   modules.
-6. The emergent test runner executes the proof functions inside the page's JavaScript
-   realm.
-7. Structured test events and the final pass/fail status are returned to the Node-side
-   wrapper for terminal reporting and process exit.
-8. The browser, page, and local server are closed on success or failure.
+1. Discover browser-compatible proof modules.
+2. Produce browser-loadable JavaScript for the runner and proof modules.
+3. Serve those modules over a loopback-only HTTP server or another browser-supported
+   loading mechanism.
+4. Launch the selected browser and open the runner page.
+5. Import the browser test entry point and proof modules in the page.
+6. Execute the proof functions and recursive test trees in the page realm.
+7. Return structured results to the Node-side controller.
+8. Close the browser and temporary resources on success or failure.
 
 The browser entry point must not import `fjs/effects/node/module.ts` or depend on Node
-built-ins. Reuse the pure emergent-testing logic where possible and add only the
-browser-specific loading, timing, reporting, and environment adapter required by the
-page.
+built-ins. Reuse pure emergent-testing logic where practical and add only the
+browser-specific loading, timing, reporting, and environment adapter.
 
-The first implementation may run the suite in one browser context and page. Per-test
-browser isolation, parallelism, retries, traces, screenshots, and Playwright-style
-fixtures are later improvements unless required for correctness.
+The first implementation may use one browser context and page for the suite. Per-test
+contexts, retries, traces, screenshots, fixtures, and parallel workers are later
+improvements unless needed for correctness.
 
-### Test discovery and browser compatibility
+### Test discovery and compatibility
 
 Preserve the same proof-module and zero-argument-function conventions used by `fjs t`.
-The Node-side launcher may perform filesystem discovery, but proof evaluation must occur
-inside the browser.
+Filesystem discovery may occur in Node, but proof evaluation must occur in the browser.
 
-Define how browser-incompatible modules are handled. Do not silently execute them in
-Node while reporting them as browser tests. Prefer one of:
+Define explicit handling for browser-incompatible proof modules. Do not silently run
+those modules in Node while reporting them as browser tests. Either:
 
-- exclude explicitly marked Node-only proof modules from the browser suite; or
-- fail with a clear unsupported-environment error when a selected module imports Node-only
-  functionality.
-
-The browser job must demonstrate that representative proof code can observe browser
-globals and that Firefox, Chromium, and WebKit execute the proof rather than merely
-being launched.
+- exclude explicitly marked Node-only proof modules; or
+- fail with a clear unsupported-environment error.
 
 ### Repository cleanup
 
-After the browser runner is available:
+After browser-hosted execution is available:
 
 - remove `@playwright/test` from `package.json` and every lockfile;
 - remove `PLAYWRIGHT_TEST` detection and the dynamic Playwright Test import from
   `fjs/effects/node/module.ts`;
 - remove the Playwright-specific `TestContext`, engine branch, types, comments, and
   proofs from the Node effect runner;
-- keep ordinary Node, Bun, and Deno test integrations unchanged;
-- remove repository-local and `npx` Playwright invocations from the Playwright CI job.
+- keep ordinary Node, Bun, and Deno integrations unchanged;
+- remove repository-local and `npx` Playwright invocations from CI.
 
-### Nix environment
+Do not replace the removed import with another repository file that imports
+`playwright/test`; that preserves the same module-resolution dependency.
 
-The generated Playwright Nix environment must provide the global `playwright` command,
-its FunctionalScript bridge, the matching Playwright API, and matching browsers from one
-pinned package set.
+### Global or Nix Playwright environment
 
-Compatibility should be structural: the command and browser bundle come from the same
-Nix declaration. Do not compare a repository package version with a Nix package version,
-because the repository no longer contains a Playwright package.
+The global or Nix environment must provide:
 
-Keep and validate only environment variables needed by the global launcher. Remove
-browser-download suppression when no repository Playwright postinstall can run.
+- the selected runner or adapter;
+- the Playwright API it uses;
+- matching Chromium, Firefox, and WebKit binaries;
+- every required path and environment value.
+
+Compatibility should be structural: the runner, API, and browser bundle come from the
+same pinned declaration. Do not compare a repository Playwright version with a Nix
+version because the repository no longer contains Playwright.
+
+Ordinary upstream Playwright commands should remain usable when a wrapper is introduced.
+A wrapper is unnecessary when the global Playwright Test command can host the adapter
+directly.
 
 ### CI behavior
 
-The Playwright CI workload should run the FunctionalScript browser suite independently
-in all three engines:
+Run the FunctionalScript browser suite independently in Chromium, Firefox, and WebKit
+using the stable command selected by this task.
+
+For example, the final workload may be either:
+
+```sh
+playwright test --browser=chromium
+playwright test --browser=firefox
+playwright test --browser=webkit
+```
+
+or:
 
 ```sh
 playwright fjs t --browser=chromium
@@ -158,12 +189,11 @@ playwright fjs t --browser=firefox
 playwright fjs t --browser=webkit
 ```
 
-A build or preparation command may precede these commands when required to produce
-browser-loadable JavaScript. That command must be deterministic and owned by the
-repository's normal build configuration.
+A deterministic preparation command may precede these commands when browser-loadable
+JavaScript must be generated.
 
-Do not substitute launch-and-close smoke checks. Each command must load and execute the
-FunctionalScript proof suite inside the selected browser and fail when a proof fails.
+Do not run both forms unless they validate distinct behavior. Do not substitute
+launch-and-close smoke tests or Node-only `fjs t` execution.
 
 The exact reusable Bash serialization is handled by
 [ci-nix-job-script](ci-nix-job-script.md), which depends on this task.
@@ -177,56 +207,50 @@ Add proofs and CI checks that verify:
 - repository source contains no runtime import of `@playwright/test` or
   `playwright/test`;
 - `PLAYWRIGHT_TEST` detection and the Playwright-specific Node test context are removed;
-- a globally installed `playwright test` command still delegates to ordinary Playwright
-  Test behavior;
-- `playwright fjs t --browser=firefox` discovers the FunctionalScript suite and executes
-  representative proof code inside Firefox;
-- equivalent commands execute inside Chromium and WebKit;
-- browser-side proof code can observe the expected browser realm and cannot accidentally
-  pass by executing only in the Node launcher;
-- a proof failure produces a nonzero process exit code and readable test output;
-- browser-load or module-resolution failures are reported clearly;
+- the chosen global command works without repository Playwright packages;
+- representative proof bodies execute inside Firefox, Chromium, and WebKit;
+- browser-side proof code cannot accidentally pass by executing only in Node;
+- proof failures produce a nonzero process exit code and readable output;
+- browser loading and module-resolution failures are reported clearly;
 - Node-only proof modules are excluded or rejected according to the documented rule;
-- no repository-local Playwright package is required after `npm ci`;
-- the Nix environment provides the wrapper, API, browsers, and required paths from the
-  same pinned declaration;
+- the Nix environment provides the runner, API, browsers, and paths from the same pinned
+  declaration;
 - `npm run ci-update` leaves no generated changes.
 
 ### Out of scope
 
+- requiring both Playwright Test and a custom FunctionalScript runner;
 - duplicating the complete Playwright Test fixture API inside FunctionalScript;
 - per-test browser contexts, retries, tracing, screenshots, or parallel workers unless
-  needed for the first correct browser runner;
-- running TypeScript source directly in browsers without a compilation step;
+  required for correctness;
+- running TypeScript source directly in browsers without preparation;
 - Docker, OCI publication, or cache design;
 - migrating unrelated CI jobs.
 
 ### Tasks
 
-- [ ] Define the global `playwright fjs t --browser=<browser>` command and delegation of
-      ordinary Playwright CLI commands.
-- [ ] Package the wrapper, Playwright API, and matching browsers as one globally
-      installable or Nix-provided environment.
-- [ ] Add deterministic generation of browser-loadable JavaScript for the runner and
-      proof modules.
-- [ ] Add loopback serving and proof-module discovery in the Node-side wrapper.
-- [ ] Add a browser-specific FunctionalScript test entry point that executes proofs in
-      the page realm and returns structured results.
+- [ ] Choose the simplest browser-hosted runner: a global Playwright Test adapter or a
+      FunctionalScript runner adapter.
+- [ ] Define the stable global command for selecting Chromium, Firefox, and WebKit.
+- [ ] Package the runner or adapter, Playwright API, and matching browsers in one global
+      or Nix-provided environment.
+- [ ] Add deterministic preparation of browser-loadable JavaScript.
+- [ ] Add browser-side proof execution and structured result transport.
+- [ ] Preserve FunctionalScript proof discovery and recursive test semantics.
 - [ ] Define and enforce handling of Node-only proof modules.
-- [ ] Run the full browser-compatible suite through Chromium, Firefox, and WebKit.
+- [ ] Run the browser-compatible suite inside Chromium, Firefox, and WebKit.
 - [ ] Remove `@playwright/test` from repository dependencies and lockfiles.
-- [ ] Remove Playwright Test detection, imports, context, and engine handling from the
-      Node effect runner.
+- [ ] Remove Playwright-specific detection, imports, context, and engine handling from
+      the Node effect runner.
 - [ ] Remove repository-local and `npx` Playwright commands from generated CI.
-- [ ] Add delegation, browser-realm, reporting, failure, compatibility, and generated-file
-      proofs.
+- [ ] Add browser-realm, failure, reporting, compatibility, and generated-file proofs.
 - [ ] Regenerate committed files and confirm all three browser suites pass without a
       repository Playwright dependency.
 
 ### Related
 
 - [ci-nix-job-script](ci-nix-job-script.md) — depends on this task and serializes the
-  stable browser-hosted workload established here.
+  selected browser-hosted workload.
 - [65Z-ci-nix-playwright](65z-ci-nix-playwright.md) — owns the direct-Nix Playwright
   environment being extended.
 - [65Z-ci-nix](65z-ci-nix.md) — generated per-job Nix architecture and update flow.
