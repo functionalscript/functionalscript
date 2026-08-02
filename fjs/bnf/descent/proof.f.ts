@@ -4,7 +4,7 @@ import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.ts'
 import { deterministic } from '../testlib.f.ts'
 import { emptyTagMap, toData } from '../data/module.f.ts'
 import { descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult } from './module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq, assertNotNullish } from '../../asserts/module.f.ts'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
 
@@ -77,14 +77,14 @@ export const proof = {
             const m = descentParser(emptyRule)
             const mr = m("", [])
             const result = JSON.stringify(mr)
-            if (result !== '{"ast":{"sequence":[]},"success":true,"idx":0,"failure":{"idx":0,"expected":[]}}') { throw result }
+            if (result !== '{"ast":{"sequence":[]},"success":true,"idx":0}') { throw result }
         },
         () => {
             const emptyRule = ''
             const m = descentParser(emptyRule)
             const mr = descentParserCpOnly(m, "", toArray(stringToCodePointList('AF')))
             const result = JSON.stringify(mr)
-            if (result !== '{"ast":{"sequence":[]},"success":true,"idx":0,"failure":{"idx":0,"expected":[]}}') { throw result }
+            if (result !== '{"ast":{"sequence":[]},"success":true,"idx":0}') { throw result }
         },
         () => {
             // Literal code point on purpose. Elsewhere both sides of the
@@ -97,7 +97,7 @@ export const proof = {
             const m = descentParser(terminalRangeRule)
             const mr = descentParserCpOnly(m, "", toArray(stringToCodePointList('A')))
             const result = JSON.stringify(mr)
-            if (result !== '{"ast":{"sequence":[[65,null]]},"success":true,"idx":1,"failure":{"idx":0,"expected":[]}}') { throw result }
+            if (result !== '{"ast":{"sequence":[[65,null]]},"success":true,"idx":1}') { throw result }
         },
         () => {
             const terminalRangeRule = range('AF')
@@ -111,7 +111,7 @@ export const proof = {
             const m = descentParser(variantRule)
             const mr = descentParserCpOnly(m, "", toArray(stringToCodePointList('A')))
             const result = JSON.stringify(mr)
-            if (result !== `{"ast":{"tag":"a","sequence":[[${cp1('A')},null]]},"success":true,"idx":1,"failure":{"idx":0,"expected":[]}}`) { throw result }
+            if (result !== `{"ast":{"tag":"a","sequence":[[${cp1('A')},null]]},"success":true,"idx":1}`) { throw result }
         },
         () => {
             const variantRule = { 'a': range('AA'), 'b': range('BB')}
@@ -127,7 +127,7 @@ export const proof = {
              const m = descentParser(variantRule)
             const mr = m("", [])
             const result = JSON.stringify(mr)
-            if (result !== `{"ast":{"tag":"e","sequence":[]},"success":true,"idx":0,"failure":{"idx":0,"expected":[${range('AA')}]}}`) { throw result }
+            if (result !== '{"ast":{"tag":"e","sequence":[]},"success":true,"idx":0}') { throw result }
         },
         () => {
             const emptyRule = ''
@@ -135,7 +135,7 @@ export const proof = {
             const m = descentParser(variantRule)
             const mr = descentParserCpOnly(m, "", toArray(stringToCodePointList('@')))
             const result = JSON.stringify(mr)
-            if (result !== `{"ast":{"tag":"e","sequence":[]},"success":true,"idx":0,"failure":{"idx":0,"expected":[${range('AA')}]}}`) { throw result }
+            if (result !== '{"ast":{"tag":"e","sequence":[]},"success":true,"idx":0}') { throw result }
         },
         () => {
             const emptyVariantRule = {}
@@ -151,7 +151,7 @@ export const proof = {
             const m = descentParser(stringRule)
             const mr = descentParserCpOnly(m, "", toArray(stringToCodePointList('AB')))
             const result = JSON.stringify(mr)
-            if (result !== `{"ast":{"sequence":[{"sequence":[[${cp1('A')},null]]},{"sequence":[[${cp1('B')},null]]}]},"success":true,"idx":2,"failure":{"idx":0,"expected":[]}}`) { throw result }
+            if (result !== `{"ast":{"sequence":[{"sequence":[[${cp1('A')},null]]},{"sequence":[[${cp1('B')},null]]}]},"success":true,"idx":2}`) { throw result }
         },
         () => {
             const stringRule = 'AB'
@@ -171,7 +171,7 @@ export const proof = {
             const m = descentParser(numberRule)
             const mr = descentParserCpOnly(m, "", toArray(stringToCodePointList('2')))
             const result = JSON.stringify(mr)
-            if (result !== `{"ast":{"sequence":[{"tag":"none","sequence":[]},{"sequence":[[${cp1('2')},null]]}]},"success":true,"idx":1,"failure":{"idx":0,"expected":[${range('--')}]}}`) { throw result }
+            if (result !== `{"ast":{"sequence":[{"tag":"none","sequence":[]},{"sequence":[[${cp1('2')},null]]}]},"success":true,"idx":1}`) { throw result }
         },
         () => {
             const emptyRule = ''
@@ -182,7 +182,7 @@ export const proof = {
             const m = descentParser(numberRule)
             const mr = descentParserCpOnly(m, "", toArray(stringToCodePointList('-2')))
             const result = JSON.stringify(mr)
-            if (result !== `{"ast":{"sequence":[{"tag":"minus","sequence":[[${cp1('-')},null]]},{"sequence":[[${cp1('2')},null]]}]},"success":true,"idx":2,"failure":{"idx":0,"expected":[]}}`) { throw result }
+            if (result !== `{"ast":{"sequence":[{"tag":"minus","sequence":[[${cp1('-')},null]]},{"sequence":[[${cp1('2')},null]]}]},"success":true,"idx":2}`) { throw result }
         },
         () => {
             const emptyRule = ''
@@ -307,7 +307,7 @@ export const proof = {
             const m = descentParser(numberRule)
             const mr = m("", [[cp1('-'), 'minus'], [cp1('2'), 'two']])
             const result = JSON.stringify(mr)
-            if (result !== `{"ast":{"sequence":[{"tag":"minus","sequence":[[${cp1('-')},"minus"]]},{"sequence":[[${cp1('2')},"two"]]}]},"success":true,"idx":2,"failure":{"idx":0,"expected":[]}}`) { throw result }
+            if (result !== `{"ast":{"sequence":[{"tag":"minus","sequence":[[${cp1('-')},"minus"]]},{"sequence":[[${cp1('2')},"two"]]}]},"success":true,"idx":2}`) { throw result }
         },
     ],
     furthestFailure: [
@@ -318,18 +318,21 @@ export const proof = {
             const { success: ok, idx, failure } = descentParserCpOnly(m, '', toArray(stringToCodePointList('AC')))
             assertEq(ok, false)
             assertEq(idx, 0)
-            assertEq(failure.idx, 1)
-            assertEq(failure.expected.length, 1)
-            assertEq(failure.expected[0], range('BB'))
+            // A failed match always carries a failure; that is the contract.
+            const f = assertNotNullish(failure)
+            assertEq(f.idx, 1)
+            assertEq(f.expected.length, 1)
+            assertEq(f.expected[0], range('BB'))
         },
         () => {
             // The same terminal rejected at the same index by two branches is
             // expected once, not twice.
             const m = descentParser({ x: ['A', 'B'], y: ['A', 'B', 'C'] })
             const { failure } = descentParserCpOnly(m, '', toArray(stringToCodePointList('AC')))
-            assertEq(failure.idx, 1)
-            assertEq(failure.expected.length, 1)
-            assertEq(failure.expected[0], range('BB'))
+            const f = assertNotNullish(failure)
+            assertEq(f.idx, 1)
+            assertEq(f.expected.length, 1)
+            assertEq(f.expected[0], range('BB'))
         },
     ],
 }

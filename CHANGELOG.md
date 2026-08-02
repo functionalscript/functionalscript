@@ -12,9 +12,10 @@ history.
 ## Unreleased
 
 - **BREAKING CHANGES:** `fjs/bnf/descent`: match results are now the record
-  `{ ast, success, idx, failure }` instead of a tuple, where `failure` holds the
-  furthest position a terminal was rejected at and the terminals expected there —
-  a result's own index rewinds and cannot locate an error
+  `{ ast, success, idx, failure? }` instead of a tuple. `failure` is present only
+  on a failed match and holds the furthest position a terminal was rejected at
+  plus the terminals expected there — a failed result's own index rewinds and
+  cannot locate an error
   [#1412](https://github.com/functionalscript/functionalscript/pull/1412)
 - **BREAKING CHANGES:** `@playwright/test` moves to `1.59.1` to match the pinned
   Nixpkgs snapshot, which now provides the `playwright` CI job's browsers — the

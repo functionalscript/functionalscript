@@ -7,7 +7,7 @@
  * AST ({@link AstRuleMeta}). Nullability (which rule can match empty input) is
  * computed once by {@link emptyTagMap} in `fjs/bnf/data`.
  *
- * A result also carries a {@link DescentFailure}: the furthest position a
+ * A failed result also carries a {@link DescentFailure}: the furthest position a
  * terminal was rejected at, which — unlike the result's own index — never
  * rewinds and is what diagnostics should be built from.
  *
@@ -34,14 +34,13 @@ export type DescentMatchRule<T> = (name: string, tag: AstTag, s: readonly CodePo
  * `expected` holds the terminals that would have allowed progress there, in the
  * order the grammar tried them and without repeats.
  *
- * Unlike a result's own index, this never rewinds: a failing sequence item
- * rewinds the result to the sequence's start, but the furthest failure is a
- * high-water mark over the whole match. It is therefore also meaningful on a
- * *successful* match — a variant branch that failed at a later position than the
- * branch that eventually matched still shows up here, which is what makes
- * "expected X or Y" messages possible for input that merely stopped early.
+ * Unlike a failed result's own index, this never rewinds: a failing sequence
+ * item rewinds the result to the sequence's start, while the furthest failure is
+ * a high-water mark over the whole match — including branches the grammar
+ * backtracked out of. That is what makes "expected X or Y at N" possible.
  *
- * `idx` is `0` with an empty `expected` when no terminal was ever rejected.
+ * `idx` is `0` with an empty `expected` when the match failed without ever
+ * rejecting a terminal, as an empty variant does.
  */
 export type DescentFailure = {
     readonly idx: number
@@ -51,22 +50,23 @@ export type DescentFailure = {
 /**
  * Result of a descent match operation.
  *
- * `idx` is where matching stopped *on success* — the position just past what was
- * consumed. On failure it has rewound to the start of the enclosing sequence and
- * cannot locate anything; read {@link DescentFailure} instead.
+ * `failure` is present exactly when `success` is `false`: a successful match has
+ * nothing to diagnose, and its `idx` already says where matching stopped. Note
+ * the consequence for a match that succeeds *without consuming all input* —
+ * `idx` still locates the position it stopped at, but the terminals that would
+ * have let it continue are not reported.
+ *
+ * On failure `idx` has rewound to the start of the enclosing sequence and
+ * locates nothing; read `failure.idx` instead.
+ *
+ * The same type describes a match in progress, where `failure` is likewise
+ * absent until the match ends.
  */
-export type DescentMatchResult<T> = MatchState<T> & {
-    readonly failure: DescentFailure
-}
-
-/**
- * A result before the furthest failure is attached, which happens once at the
- * end of a match rather than on every intermediate step.
- */
-type MatchState<T> = {
+export type DescentMatchResult<T> = {
     readonly ast: AstRuleMeta<T>
     readonly success: boolean
     readonly idx: number
+    readonly failure?: DescentFailure
 }
 
 /**
@@ -130,7 +130,7 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
         readonly entries: readonly (readonly [string, string])[]
         readonly entryIndex: number
         readonly idx: number
-        readonly emptyResult: MatchState<T>
+        readonly emptyResult: DescentMatchResult<T>
     }
 
     type Frame = SeqFrame | VariantFrame
@@ -156,12 +156,12 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
     // grammar recursion depth — right-recursive rules (e.g. repeat0Plus chains) no longer
     // overflow on long input (see the longInput proof group).
     const f: DescentMatchRule<T> = (name, tag, cp, idx): DescentMatchResult<T> => {
-        const mrSuccess = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): MatchState<T> => ({ ast: {tag, sequence}, success: true, idx })
-        const mrFail = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): MatchState<T> => ({ ast: {tag, sequence}, success: false, idx })
+        const mrSuccess = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): DescentMatchResult<T> => ({ ast: {tag, sequence}, success: true, idx })
+        const mrFail = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): DescentMatchResult<T> => ({ ast: {tag, sequence}, success: false, idx })
 
         let stack: Stack = null
         let task: Task | null = { name, tag, idx }
-        let result: MatchState<T> = mrFail(undefined, [], idx)
+        let result: DescentMatchResult<T> = mrFail(undefined, [], idx)
         // High-water mark across the whole match, so it survives the rewinds a
         // failing sequence item does to `result`.
         let furthest: DescentFailure = { idx: 0, expected: [] }
@@ -209,7 +209,8 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
             }
 
             if (stack === null) {
-                return { ...result, failure: furthest }
+                // A success has nothing to diagnose; only a failure carries it.
+                return result.success ? result : { ...result, failure: furthest }
             }
             const frame = stack.top
             stack = stack.rest
