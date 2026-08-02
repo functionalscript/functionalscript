@@ -119,6 +119,18 @@ inline in the same `proof.f.ts` and same structural-marker style as `throw`/`tod
 gives every proof author a supported way to check a thrown payload without reaching for a
 second file — the outcome A only approximates.
 
+#### Runner integration
+
+The structural marker and its evaluation semantics belong to the shared emergent-testing
+core. Surviving process adapters register the resulting tests through their existing Node,
+Deno, or Bun integration as applicable.
+
+The browser-side runner must implement the same `{ try, catch }` semantics directly inside
+the page and include the checked result in `BrowserTestReport`. A Playwright Test adapter
+only opens that shared application and interprets the report; it must not extend
+`registerModule`, create one Playwright test per proof, or restore the removed Node-side
+Playwright bridge.
+
 ### Open questions
 
 - Exact discriminator in `parseTestSet` for B: matching on `{ try, catch }` two-key objects
@@ -143,8 +155,9 @@ second file — the outcome A only approximates.
 
 - [ ] Add the `{ try, catch }` leaf shape to `parseTestSet`/`collectTests`/`TestEntry` in
       `fjs/emergent_testing/module.f.ts`, wire `defaultTest` to sandbox `catch` on a caught
-      throw, and extend `registerModule` for the external-framework path (Node `--test`,
-      Bun, Playwright).
+      throw, and extend only the surviving process-framework registration paths.
+- [ ] Implement identical `{ try, catch }` behavior in the shared browser-side runner and
+      include its result in the serializable browser report.
 - [ ] Document the `{ try, catch }` marker in `fjs/emergent_testing/README.md` next to
       [Throw tests](../README.md#throw-tests).
 - [ ] Migrate the `proof.ts` siblings from A back into `proof.f.ts` using the new marker, and
@@ -158,4 +171,7 @@ second file — the outcome A only approximates.
   proposes to restore.
 - [todo-property](./todo-property.md), [skip-property](./skip-property.md) — the same
   structural-marker mechanism this proposal extends.
+- [browser-testing](./browser-testing.md) — shared browser-side execution and reporting.
+- [remove-playwright-job](../../ci/todo/remove-playwright-job.md) — removes the obsolete
+  Node-side Playwright registration path.
 - `fjs/asserts/proof.f.ts`, `fjs/types/result/proof.f.ts` — the sites that lost payload checks.
