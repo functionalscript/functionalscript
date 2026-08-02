@@ -164,7 +164,7 @@ too, so the reason is reachable at all.
 
 The one production caller gets *simpler*, not harder. Today it launders
 `undefined` through the nullable convention to reach an assertion
-(`fjs/ci/nix/module.f.ts:72-73`):
+(`fjs/ci/nix/module.f.ts:93-94`):
 
 ```ts
 export const flakeText = (job: NixJob): string =>
@@ -187,8 +187,32 @@ assertion failure — so if the totality claim is ever wrong, the failure says
 which identifier broke it.
 
 No expected values move in `fjs/ci/nix/proof.f.ts`: it has no
-rejection case (its `quotedPackage` case at `:106-109` documents the opposite —
+rejection case (its `quotedPackage` case at `:107-110` documents the opposite —
 job data only reaches quotable positions, so `flakeText` never fails today).
+
+#### This is a breaking change
+
+`flakeText` is the only importer *in this repository*, which is not the same as
+the only consumer. `nix` and `nixToString` are exported from a published
+package with no `exports` map in `deno.json` (see
+[group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md),
+which notes that nothing restricts module reachability today), so every module
+path is public API and any downstream caller gets a tagged `Result` tuple where
+it used to get a chunk list, a string, or `undefined`. A repository search
+bounds the migration work, not the blast radius.
+
+So `AGENTS.md` §8.4 applies to the implementing PR: prefix its CHANGELOG entry
+with `**BREAKING CHANGES:**`, state the old and new shapes, and show the
+one-line migration — a caller that did
+`unwrapNullable(fromUndefined(nixToString(e)))` writes `unwrap(nixToString(e))`,
+and one that tested `=== undefined` now tests `[0] === 'error'` and gets a
+reason with it. Update every in-repo importer in that same PR rather than
+keeping a compatibility shim, per the same section.
+
+If that cost is judged too high for the diagnostic it buys, the
+`Nullable<List<string>>` fallback above is *also* breaking (`undefined` → `null`
+is still an observable change), just smaller. There is no non-breaking version
+of this fix; the choice is which break to take.
 
 **4. Reuse the sibling chunk vocabulary.** Drop `Chunks` and `joinChunks`;
 build `List<string>` with `fjs/types/list`'s `flat`/`flatMap`/`map` as
@@ -245,16 +269,16 @@ content, so the bucket is right; only the declaration is missing.
       `proof.f.ts:72-105` assertions must pass with only their `Result`
       wrapping changed, not their expected text.
 - [ ] Migrate the one production caller, `flakeText`
-      (`fjs/ci/nix/module.f.ts:72-73`): replace
+      (`fjs/ci/nix/module.f.ts:93-94`): replace
       `unwrapNullable(fromUndefined(…))` with the `unwrap` from
       `fjs/types/result` that module already imports, and drop
       `fromUndefined`/`unwrapNullable` from its imports (`:15`). Land it in the
       same PR as the signature change — it is the only thing that breaks.
 - [ ] Confirm the generated-flake proofs pass unchanged — `fjs/ci/nix/proof.f.ts`
-      (`:85-95`, round-tripping `flakeText` through the writer) and
-      `fjs/ci/proof.f.ts` (`:51-52`, reading `nix/generated/<id>/flake.nix`).
-      The three committed flake files must come out byte-identical: this
-      changes how a failure is reported, never the text produced on success.
+      (`:86-96`, round-tripping `flakeText` through the writer) and
+      `fjs/ci/proof.f.ts` (`:52-53`, reading `nix/generated/<id>/flake.nix`).
+      Every committed flake file must come out byte-identical: this changes how
+      a failure is reported, never the text produced on success.
 - [ ] Replace `Chunks` / `joinChunks` with `fjs/types/list` chunk building,
       keeping the separator logic local — do not export or reshape
       `fjs/media/json/serializer`'s private `join`/`wrap` for this.
@@ -262,6 +286,8 @@ content, so the bucket is right; only the declaration is missing.
       observe "rejected", so the reasons need coverage as they become
       observable.
 - [ ] Declare the `text/x-nix` media type in the module header.
+- [ ] Prefix the implementing PR's CHANGELOG entry with `**BREAKING CHANGES:**`
+      (`AGENTS.md` §8.4) — see "This is a breaking change" above.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related

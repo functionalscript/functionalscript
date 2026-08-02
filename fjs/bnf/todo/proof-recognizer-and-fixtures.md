@@ -103,8 +103,18 @@ Move all three into `fjs/bnf/testlib.f.ts`, next to `classic()` and
 **1. One recognizer adapter per backend, one assertion helper over both.**
 
 ```ts
+/**
+ * The verdict on one input, plus the backend's own match result kept for the
+ * failure message. `diagnostic` is opaque payload — the two backends produce
+ * differently-shaped `MatchResult`s and neither is inspected, only reported.
+ */
+export type Recognition = {
+    readonly accepted: boolean
+    readonly diagnostic: unknown
+}
+
 /** Accepts, and consumes the whole input. */
-export type Recognizer = (input: string) => boolean
+export type Recognizer = (input: string) => Recognition
 
 export const descentRecognizer = (rule: FRule): Recognizer => …
 export const ll1Recognizer = (rule: FRule): Recognizer => …
@@ -113,6 +123,21 @@ export const ll1Recognizer = (rule: FRule): Recognizer => …
 export const assertRecognizes = (r: Recognizer) => (cases: readonly Case[]): void => …
 export type Case = readonly [string, boolean]
 ```
+
+**The recognizer must not collapse to a bare `boolean`.** Every site today
+passes its `MatchResult` as `assertEq`'s third argument — `assertEq(success,
+expected, mr)` — so a failing case reports the AST and the remainder, which is
+what makes a parser regression locatable at all. A `(input: string) => boolean`
+adapter would discard that inside the adapter, before the assertion ever sees
+it, and every one of the eight sites would get *worse* failure output than it
+has now. Carrying the match result alongside the verdict keeps it.
+
+`assertRecognizes` can then do better than the status quo rather than merely
+matching it: it knows the input string too, so it reports `[input, diagnostic]`
+on failure. Seven of the eight sites pass only `mr` today and would have to
+grep the corpus to find which row failed; `fjs/djs/tokenizer/proof.f.ts:18` is
+the one that already includes the input (`JSON.stringify([s, mr])`) and is the
+model here.
 
 **Take no start-rule parameter; derive the root from the grammar.** The root
 name is not a caller's choice — it is whatever `toData` generated for the rule
@@ -182,9 +207,14 @@ answering "what does this grammar accept?" independently.
 
 ### Tasks
 
-- [ ] Add `Case`, `assertRecognizes`, and the two recognizer adapters to
-      `fjs/bnf/testlib.f.ts` (or per-backend testlibs if the import direction
-      argues for it); confirm no import cycle.
+- [ ] Add `Case`, `Recognition`, `assertRecognizes`, and the two recognizer
+      adapters to `fjs/bnf/testlib.f.ts` (or per-backend testlibs if the import
+      direction argues for it); confirm no import cycle.
+- [ ] Carry each backend's `MatchResult` through as `Recognition.diagnostic`
+      and report `[input, diagnostic]` from `assertRecognizes`. Verify by
+      breaking one corpus row on purpose: the message must name the input and
+      show the match result, i.e. be no worse than today's `assertEq(success,
+      expected, mr)` at all eight sites.
 - [ ] Derive the root name inside each adapter from `toData(rule)[1]` — no
       `start` parameter, no `''` default. Verify against the one lazy-rule site
       (`descent/proof.f.ts:211`, grammar `value`), which is the case a default
@@ -225,6 +255,8 @@ answering "what does this grammar accept?" independently.
   should agree on the `Case` / `assertRecognizes` half, which is
   alphabet-independent.
 - [descent/failure-tracking](../descent/todo/failure-tracking.md) — makes a
-  failed match report *where* it failed. If it lands first, `assertRecognizes`
-  can report that position on a mismatch instead of dumping the whole
-  `MatchResult`; nothing here depends on it.
+  failed match report *where* it failed. It composes for free once the verdict
+  carries its `diagnostic`: a richer `MatchResult` becomes a richer
+  `assertRecognizes` message with no change here. That composition is the
+  second reason the adapter must not collapse to a bare `boolean`; nothing
+  here depends on it landing.
