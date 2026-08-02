@@ -19,13 +19,15 @@ Keeping this integration has ongoing costs:
 - `@playwright/test` is installed as a repository dependency;
 - Playwright entries remain in npm, Bun, and Deno lockfiles;
 - the general Node effect runner contains Playwright-specific registration logic;
+- the emergent-testing scenario script advertises a `playwright` runner that invokes
+  `npx playwright test` but still depends on the same Node-only adapter;
 - CI pins and validates a Playwright version and browser bundle;
 - generated workflow and Nix artifacts imply browser coverage that is not present.
 
 ### Goal
 
 Remove the current ineffective Playwright job, local package dependency, Node test
-adapter, and generated artifacts.
+adapter, scenario-runner mode, and generated artifacts.
 
 This task does not prohibit a future correct Playwright runner. The replacement browser
 architecture may later support:
@@ -41,6 +43,8 @@ The distinction is:
 
 - remove Playwright-specific behavior from the general Node effect runner;
 - remove Playwright packages from repository dependencies;
+- remove the current scenario mode that invokes Playwright without browser-side proof
+  execution;
 - permit an optional, isolated future adapter that resolves external Playwright at
   runtime and actually runs proofs inside the browser.
 
@@ -86,6 +90,31 @@ must share the browser application/controller code described there.
 If removing the exported `'playwright'` engine variant or another public type changes the
 published API, add a CHANGELOG entry with the required `**BREAKING CHANGES:**` prefix.
 
+### Emergent-testing scenario cleanup
+
+Remove the current Playwright mode from
+`fjs/emergent_testing/scenarios/run.sh`:
+
+- remove `playwright` from the documented runner list;
+- remove the `playwright)` case that executes `npx playwright test`;
+- remove or update scenario comments, documentation, proofs, and invocations that
+  advertise `run.sh playwright ...`;
+- remove any scenario entrypoint or temporary-file convention that exists only for the
+  removed Playwright mode.
+
+Preserve entrypoints and temporary files that are still shared by the Node, Bun, Deno, or
+`fjs` scenario runners. Do not delete a shared `_all.test.ts`-style file solely because
+Playwright also consumed it; first verify that no remaining runner needs it.
+
+After this cleanup, a clean checkout must not expose a scenario option that executes
+`npx playwright test`. Otherwise the command could fetch an unpinned package when no local
+Playwright dependency exists, and it could not register the removed Node-only adapter in
+any case.
+
+The future Playwright runner described by the browser-testing task is a different
+entrypoint: it opens the shared HTML application and executes proof bodies inside the
+browser. It must not restore this scenario branch unchanged.
+
 ### CI cleanup
 
 Remove the current Playwright job and artifacts generated exclusively for it:
@@ -126,10 +155,15 @@ After regeneration:
 
 - the general Node effect runner has no Playwright detection, import, context, or engine
   branch;
+- `fjs/emergent_testing/scenarios/run.sh` no longer documents or accepts the
+  `playwright` runner;
+- repository scenarios and documentation contain no invocation of
+  `run.sh playwright ...`;
+- no remaining scenario path executes `npx playwright test`;
 - `package.json` and lockfiles have no repository Playwright dependency;
 - the generated workflow has no current Playwright job;
 - no generated Playwright Nix artifact remains without a consumer;
-- Node, Bun, and Deno test registration still works;
+- Node, Bun, and Deno test registration and scenario execution still work;
 - documentation no longer claims that the removed job provides browser-runtime coverage;
 - `npx tsc`, the repository tests, and `npm run ci-update` pass.
 
@@ -159,13 +193,17 @@ The replacement task may add one isolated optional adapter, provided:
       consumers.
 - [ ] Remove `PLAYWRIGHT_TEST`, the dynamic import, Playwright context, and Playwright
       engine handling from the Node effect runner.
+- [ ] Remove the `playwright` branch, runner-list entry, and Playwright-only scenario
+      entrypoints/comments from `fjs/emergent_testing/scenarios/run.sh` and related files.
+- [ ] Preserve and verify the remaining `fjs`, Node, Bun, and Deno scenario modes.
 - [ ] Remove or update affected Node-effect and emergent-testing proofs.
 - [ ] Delete the current Playwright CI module and job registration.
 - [ ] Remove generated workflow, Nix, environment, and proof artifacts used only by the
       current job.
 - [ ] Update stale documentation and TODO links.
 - [ ] Add a breaking CHANGELOG entry when exported test-engine APIs change.
-- [ ] Regenerate committed files and verify TypeScript, tests, and update checks.
+- [ ] Regenerate committed files and verify TypeScript, tests, scenarios, and update
+      checks.
 
 ### Related
 
