@@ -28,49 +28,49 @@ future image or cache job to build the environment without running tests.
 
 ### Goal
 
-Generate two readable Bash scripts next to each generated job flake:
+Generate two readable Bash scripts in the generated Nix output directory:
 
 ```text
-nix/generated/playwright/
-├── flake.nix
+nix/generated/
+├── playwright/
+│   └── flake.nix
 ├── check.sh
 └── ci.sh
 ```
 
-- `check.sh` validates the generated Nix environment, including exact tool versions.
+- `check.sh` validates the selected generated Nix environment, including exact tool
+  versions.
 - `ci.sh` installs repository dependencies and runs the reusable CI workload.
 
-The direct-Nix workflow should explicitly run both scripts inside the generated
+The direct-Nix workflow should explicitly run both scripts inside the Playwright
 development shell:
 
 ```sh
 nix develop ./nix/generated/playwright \
-  --command bash ./nix/generated/playwright/check.sh
+  --command bash ./nix/generated/check.sh
 
 nix develop ./nix/generated/playwright \
-  --command bash ./nix/generated/playwright/ci.sh
+  --command bash ./nix/generated/ci.sh
 ```
 
 A developer with a compatible environment should also be able to run the reusable CI
 script directly:
 
 ```sh
-bash ./nix/generated/playwright/ci.sh
+bash ./nix/generated/ci.sh
 ```
 
-Keep the files under `nix/generated/<job>/` for this task so every generated environment
-and its entry scripts are colocated. A later task may rename or parameterize the output
-root, for example from `./nix/generated/` to `./ci/`, because `fjs ci` can generate CI
-files for repositories other than FunctionalScript. Do not mix that directory-layout
-migration into this task.
+Keep all generated files under `nix/generated/` for this task. A later task may rename
+or parameterize the output root, for example from `./nix/generated/` to `./ci/`, because
+`fjs ci` can generate CI files for repositories other than FunctionalScript. Do not mix
+that directory-layout migration into this task.
 
 This task covers direct `nix develop` execution only. Do not add Docker, OCI-image,
 cache, or publication support here.
 
 ### Reusable CI script
 
-For the current Playwright job, generate `nix/generated/playwright/ci.sh` with this
-shape:
+For the current Playwright job, generate `nix/generated/ci.sh` with this shape:
 
 ```bash
 #!/usr/bin/env bash
@@ -99,7 +99,7 @@ The reusable script must:
 
 ### Nix validation script
 
-Generate `nix/generated/playwright/check.sh` for checks specific to the generated Nix
+Generate `nix/generated/check.sh` for checks specific to the selected generated Nix
 environment:
 
 ```bash
@@ -111,8 +111,8 @@ test "$(npx playwright --version)" = "Version 1.59.1"
 ```
 
 The exact expected versions remain generated from the same configuration that generates
-the flake. The validation script should change when those versions change; the reusable
-CI script should not.
+the Playwright flake. The validation script should change when those versions change;
+the reusable CI script should not.
 
 The separation makes these operations independently selectable:
 
@@ -128,28 +128,29 @@ environment without running validation or tests.
 
 ### Generator design
 
-Keep the scripts colocated with the generated flake, but keep their command sources
+Keep the scripts in the generated Nix output directory, but keep their command sources
 separate:
 
 - the reusable CI command list belongs to the CI job behavior;
-- the validation command list is derived from the Nix environment configuration;
+- the validation command list is derived from the selected Nix environment
+  configuration;
 - neither script is embedded into `flake.nix` or executed while building it.
 
 The smallest reusable-script declaration may look like:
 
 ```ts
 type CiScript = {
-    readonly id: string
     readonly commands: readonly string[]
 }
 ```
 
 The generator should:
 
-- serialize the reusable script into `nix/generated/<id>/ci.sh`;
-- serialize Nix-specific validation into `nix/generated/<id>/check.sh`;
-- continue serializing the environment into `nix/generated/<id>/flake.nix`;
-- provide helpers that invoke either generated script through `nix develop`;
+- serialize the reusable script into `nix/generated/ci.sh`;
+- serialize Nix-specific validation into `nix/generated/check.sh`;
+- continue serializing each environment into `nix/generated/<id>/flake.nix`;
+- provide helpers that invoke either generated script through the selected
+  `nix develop` environment;
 - let non-Nix execution reference the same `ci.sh` path;
 - avoid separately constructing script contents and workflow command sequences.
 
@@ -158,8 +159,9 @@ boundaries:
 
 - the CI job owns its reusable command sequence;
 - the Nix job owns the execution environment and exact-version expectations;
-- the generator owns the three committed files in each job directory;
-- the workflow chooses when to build, validate, and run tests;
+- the generator owns the committed files under the target repository's output root;
+- the workflow chooses which environment enters, when to validate it, and when to run
+  tests;
 - normal script serialization replaces whole-sequence shell quoting.
 
 Do not hard-code FunctionalScript source paths into the public `fjs ci` model. Generated
@@ -171,14 +173,14 @@ renamed output root is follow-up work, but this design must not prevent it.
 Add proofs for:
 
 - serialization of the Bash header and command sequence for both scripts;
-- the generated `ci.sh` and `check.sh` paths beside `flake.nix`;
+- the generated `ci.sh` and `check.sh` paths under `nix/generated/`;
 - commands containing ordinary single and double quotes remaining unchanged;
 - `ci.sh` excluding Node and Playwright version assertions;
 - `check.sh` containing both exact version assertions;
 - the `nix develop` workflow commands referencing the generated scripts without inline
   multi-command `bash -c` sequences;
-- a version-only configuration change updating `flake.nix` and `check.sh` without
-  changing `ci.sh`;
+- a version-only configuration change updating the selected `flake.nix` and `check.sh`
+  without changing `ci.sh`;
 - building or realizing the flake not executing either script.
 
 Regenerate the committed files and verify:
@@ -195,6 +197,7 @@ Regenerate the committed files and verify:
 - publishing or caching scripts, Nix closures, or images;
 - deciding how future image or cache workflows distribute the environment;
 - renaming `nix/generated/` to `ci/` or making the output root configurable;
+- generating different `ci.sh` or `check.sh` files for multiple Nix jobs;
 - migrating additional Node jobs to direct Nix;
 - designing a general-purpose shell-language AST or escaping arbitrary untrusted shell
   fragments;
@@ -203,8 +206,8 @@ Regenerate the committed files and verify:
 ### Tasks
 
 - [ ] Add an environment-independent reusable CI-script declaration.
-- [ ] Generate `nix/generated/<id>/ci.sh` from each declared reusable command sequence.
-- [ ] Generate `nix/generated/<id>/check.sh` from Nix-specific validation commands.
+- [ ] Generate `nix/generated/ci.sh` from the reusable command sequence.
+- [ ] Generate `nix/generated/check.sh` from Playwright Nix validation commands.
 - [ ] Add the Bash header, strict-mode line, readable commands, and final newline to both
       scripts.
 - [ ] Move the Playwright install-and-test sequence into `ci.sh`.
