@@ -10,133 +10,157 @@ Firefox, or WebKit. Playwright loads the proof modules in a Node worker, and
 `fjs/effects/node/module.ts` registers each proof with `@playwright/test` but executes the
 proof through the Node effect runner.
 
-Running the same Node callbacks under three Playwright browser configurations does not
-provide browser-runtime coverage. The callbacks do not request a `page`, load a browser
-module graph, or evaluate proof code in a browser realm. The browsers therefore do not
-test the FunctionalScript implementation.
+Running the same Node callbacks under three browser configurations does not provide
+browser-runtime coverage. The callbacks do not request a page, load a browser module
+graph, or evaluate proof code in a browser realm.
 
 Keeping this integration has ongoing costs:
 
 - `@playwright/test` is installed as a repository dependency;
-- Playwright entries are retained in npm, Bun, and Deno lockfiles;
-- the Node effect runner contains Playwright-specific detection and registration logic;
-- CI configuration pins and validates a Playwright version and browser bundle;
-- generated workflow and Nix artifacts imply cross-browser coverage that is not present;
-- changes to Node test registration must account for a framework adapter that does not
-  serve its intended purpose.
+- Playwright entries remain in npm, Bun, and Deno lockfiles;
+- the general Node effect runner contains Playwright-specific registration logic;
+- CI pins and validates a Playwright version and browser bundle;
+- generated workflow and Nix artifacts imply browser coverage that is not present.
 
 ### Goal
 
-Remove the current Playwright job, package dependency, Node adapter, and generated
-artifacts completely. Browser testing will be reintroduced separately through a test
-application that actually loads and runs FunctionalScript modules inside browser realms.
+Remove the current ineffective Playwright job, local package dependency, Node test
+adapter, and generated artifacts.
 
-This task is cleanup, not a migration to another browser runner. It may be completed
-before the replacement browser-testing task.
+This task does not prohibit a future correct Playwright runner. The replacement browser
+architecture may later support:
+
+```sh
+playwright test --project=firefox
+```
+
+through a dedicated adapter that dynamically loads `playwright/test` from the external
+Playwright installation and opens the shared browser test application.
+
+The distinction is:
+
+- remove Playwright-specific behavior from the general Node effect runner;
+- remove Playwright packages from repository dependencies;
+- permit an optional, isolated future adapter that resolves external Playwright at
+  runtime and actually runs proofs inside the browser.
+
+This cleanup may be completed before the replacement browser-testing task.
 
 ### Repository dependency cleanup
 
-Remove `@playwright/test` from `package.json` and regenerate every lockfile so no direct or
-transitive entry remains solely because of the removed dependency:
+Remove `@playwright/test` from `package.json` and regenerate:
 
 - `package-lock.json`;
 - `bun.lock`;
 - `deno.lock`.
 
 Do not replace it with `playwright`, `playwright-core`, or another repository-local
-browser automation dependency in this task.
+browser automation dependency.
 
-Remove the configured Playwright version from `fjs/ci/config/module.f.ts` when it has no
-remaining consumer. Remove related update logic and proofs that exist only to keep the
-repository package version synchronized with a Nix browser bundle.
+Remove the configured repository Playwright version from `fjs/ci/config/module.f.ts` when
+it has no remaining consumer. Remove update logic and proofs used only to synchronize the
+local package with a Nix browser bundle.
+
+A future Playwright runner should obtain its runner, API, and matching browsers from one
+external or Nix-provided installation rather than synchronizing that installation with a
+repository `devDependency`.
 
 ### Node effect-runner cleanup
 
-Remove Playwright-specific external-test registration from the Node effect runner,
-including:
+Remove the current Playwright-specific external-test registration from the Node effect
+runner, including:
 
 - `PLAYWRIGHT_TEST` detection;
-- the dynamic import of `@playwright/test`;
+- the dynamic import of `@playwright/test` from `fjs/effects/node/module.ts`;
 - `pwTest` and `playwrightTestContext`;
 - the Playwright engine branch;
 - Playwright-specific `TestContext`, `NodeProgramOptions`, and helper fields;
-- proofs and comments that exist only for the Playwright registration path.
+- proofs and comments that exist only for that registration path.
 
-Keep Node, Bun, and Deno test behavior unchanged.
+Keep Node, Bun, and Deno behavior unchanged.
 
-If removing the `'playwright'` `Engine` variant or another exported type changes the
+Do not move the same dynamic import into another general runtime module. A future
+Playwright Test adapter must be isolated under the browser-testing implementation and
+must share the browser application/controller code described there.
+
+If removing the exported `'playwright'` engine variant or another public type changes the
 published API, add a CHANGELOG entry with the required `**BREAKING CHANGES:**` prefix.
-Do not retain a dead compatibility variant solely to avoid documenting the removal.
 
 ### CI cleanup
 
-Remove the current Playwright job and everything generated exclusively for it:
+Remove the current Playwright job and artifacts generated exclusively for it:
 
 - delete `fjs/ci/playwright/module.f.ts`;
 - remove its imports and job registration from `fjs/ci/module.f.ts`;
 - remove Playwright-specific generator proofs from `fjs/ci/proof.f.ts`;
-- regenerate `.github/workflows/ci.yml` without the Playwright job;
-- remove the generated Playwright Nix flake and its registration when no other job uses
-  it;
-- remove Playwright-only environment variables, browser paths, version checks, and Nix
+- regenerate `.github/workflows/ci.yml` without the current job;
+- remove the generated Playwright Nix flake and registration when no other task consumes
+  them;
+- remove Playwright-only environment variables, browser paths, local version checks, and
   declarations;
-- remove or update documentation and TODO references that describe the current job as
-  real browser coverage.
+- update documentation that describes the job as browser coverage.
 
-Do not replace the job with browser launch-and-close smoke tests. A smoke test would still
-not execute FunctionalScript modules inside the browser and would recreate the same
-misleading signal under a different command.
+Do not replace it with browser launch-and-close smoke tests.
 
-### Separation from future browser testing
+A later browser CI job may use either `fjs browser-test` or `playwright test ...`, but it
+must load the generated HTML/JavaScript application and execute proof bodies inside the
+selected browser.
 
-The replacement design is tracked by
+### Separation from replacement browser testing
+
+The replacement is tracked by
 [../../emergent_testing/todo/browser-testing.md](../../emergent_testing/todo/browser-testing.md).
-That task may eventually choose Playwright as an external browser controller, but this
-task must not preserve the current `@playwright/test` adapter in anticipation of that
-choice.
+It defines three runners over the same browser-side test system:
 
-The future browser test application owns:
+1. an HTML page opened directly and integrated into the FunctionalScript website;
+2. `fjs browser-test`, implemented without Playwright;
+3. `playwright test ...`, using a dedicated adapter that dynamically resolves external
+   `playwright/test`.
 
-- type-erased browser-loadable JavaScript;
-- generated HTML and proof-module references;
-- the in-browser test runner and UI;
-- manual browser execution;
-- headless execution and result reporting.
+This cleanup removes only the current misleading integration. It must not constrain the
+replacement task to one runner.
 
 ### Validation
 
 After regeneration:
 
-- repository source has no runtime import of `@playwright/test` or `playwright/test`;
-- repository source has no `PLAYWRIGHT_TEST` detection;
-- `package.json` and all lockfiles contain no removed Playwright dependency;
-- the generated workflow has no Playwright job;
+- the general Node effect runner has no Playwright detection, import, context, or engine
+  branch;
+- `package.json` and lockfiles have no repository Playwright dependency;
+- the generated workflow has no current Playwright job;
 - no generated Playwright Nix artifact remains without a consumer;
 - Node, Bun, and Deno test registration still works;
-- `npx tsc` passes;
-- the repository test suite passes;
-- `npm run ci-update` produces no uncommitted changes;
-- documentation no longer claims that the removed job provided browser-runtime test
-  coverage.
+- documentation no longer claims that the removed job provides browser-runtime coverage;
+- `npx tsc`, the repository tests, and `npm run ci-update` pass.
+
+Validation should not ban all future mentions or dynamic loading of `playwright/test`.
+The replacement task may add one isolated optional adapter, provided:
+
+- Playwright remains absent from repository dependencies;
+- the adapter resolves it from the external installation;
+- no Playwright code enters the browser-side runner;
+- proofs execute inside the browser page;
+- the adapter shares the browser application and common controller code with
+  `fjs browser-test`.
 
 ### Out of scope
 
-- implementing the replacement browser test page;
-- selecting Playwright versus direct headless-browser control;
+- implementing the replacement browser application;
+- implementing any of the three future runners;
+- choosing the future CI runner;
 - building browser-ready JavaScript;
-- introducing new browser CI jobs;
 - Docker, OCI, cache, or publication design.
 
 ### Tasks
 
 - [ ] Remove `@playwright/test` from `package.json`.
-- [ ] Regenerate npm, Bun, and Deno lockfiles without Playwright test packages.
+- [ ] Regenerate npm, Bun, and Deno lockfiles without local Playwright packages.
 - [ ] Remove Playwright version configuration and update logic with no remaining
       consumers.
 - [ ] Remove `PLAYWRIGHT_TEST`, the dynamic import, Playwright context, and Playwright
       engine handling from the Node effect runner.
-- [ ] Remove or update all affected Node-effect and emergent-testing proofs.
-- [ ] Delete the current Playwright CI module and remove its job registration.
+- [ ] Remove or update affected Node-effect and emergent-testing proofs.
+- [ ] Delete the current Playwright CI module and job registration.
 - [ ] Remove generated workflow, Nix, environment, and proof artifacts used only by the
       current job.
 - [ ] Update stale documentation and TODO links.
@@ -146,4 +170,5 @@ After regeneration:
 ### Related
 
 - [../../emergent_testing/todo/browser-testing.md](../../emergent_testing/todo/browser-testing.md)
-  — replacement design that executes proofs inside real browser realms.
+  — replacement design with direct HTML, no-Playwright FunctionalScript, and external
+  Playwright Test runners.
