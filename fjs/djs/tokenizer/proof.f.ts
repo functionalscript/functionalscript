@@ -835,6 +835,12 @@ export const proof = {
     // position is pinned too.
     errorPosition: [
         () => {
+            // input that tokenizes cleanly produces no error token at all —
+            // without this the helper's own no-error branch never runs
+            assertEq(errorAt('x'), 'no error')
+            assertEq(errorAt('{ "a": 1 }'), 'no error')
+        },
+        () => {
             // a character no rule accepts: reported where it stands
             assertEq(errorAt('ᄑ'), '1:1')
         },
