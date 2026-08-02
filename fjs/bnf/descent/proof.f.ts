@@ -72,42 +72,43 @@ export const proof = {
             const m = descentParser(emptyRule)
             const mr = m("", [])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[]},true,0]') { throw result }
+            if (result !== '[{"sequence":[]},true,0,{"idx":0,"expected":[]}]') { throw result }
         },
         () => {
             const emptyRule = ''
             const m = descentParser(emptyRule)
             const mr = descentParserCpOnly(m, "", [65, 70])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[]},true,0]') { throw result }
+            if (result !== '[{"sequence":[]},true,0,{"idx":0,"expected":[]}]') { throw result }
         },
         () => {
             const terminalRangeRule = range('AF')
             const m = descentParser(terminalRangeRule)
             const mr = descentParserCpOnly(m, "", [65])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[[65,null]]},true,1]') { throw result }
+            if (result !== '[{"sequence":[[65,null]]},true,1,{"idx":0,"expected":[]}]') { throw result }
         },
         () => {
             const terminalRangeRule = range('AF')
             const m = descentParser(terminalRangeRule)
             const mr =descentParserCpOnly(m, "", [64])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[]},false,0]') { throw result }
+            if (result !== '[{"sequence":[]},false,0,{"idx":0,"expected":[1090519110]}]') { throw result }
         },
         () => {
             const variantRule = { 'a': range('AA'), 'b': range('BB')}
             const m = descentParser(variantRule)
             const mr = descentParserCpOnly(m, "", [65])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":"a","sequence":[[65,null]]},true,1]') { throw result }
+            if (result !== '[{"tag":"a","sequence":[[65,null]]},true,1,{"idx":0,"expected":[]}]') { throw result }
         },
         () => {
             const variantRule = { 'a': range('AA'), 'b': range('BB')}
             const m = descentParser(variantRule)
             const mr = descentParserCpOnly(m, "", [64])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[]},false,0]') { throw result }
+            // Both branches were rejected at 0, so both terminals are expected there.
+            if (result !== '[{"sequence":[]},false,0,{"idx":0,"expected":[1090519105,1107296322]}]') { throw result }
         },
         () => {
             const emptyRule = ''
@@ -115,7 +116,7 @@ export const proof = {
              const m = descentParser(variantRule)
             const mr = m("", [])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":"e","sequence":[]},true,0]') { throw result }
+            if (result !== '[{"tag":"e","sequence":[]},true,0,{"idx":0,"expected":[1090519105]}]') { throw result }
         },
         () => {
             const emptyRule = ''
@@ -123,28 +124,32 @@ export const proof = {
             const m = descentParser(variantRule)
             const mr = descentParserCpOnly(m, "", [64])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":"e","sequence":[]},true,0]') { throw result }
+            if (result !== '[{"tag":"e","sequence":[]},true,0,{"idx":0,"expected":[1090519105]}]') { throw result }
         },
         () => {
             const emptyVariantRule = {}
             const m = descentParser(emptyVariantRule)
             const mr = m("", [])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[]},false,0]') { throw result }
+            // A variant with no branches fails without ever trying a terminal,
+            // so there is nothing to expect.
+            if (result !== '[{"sequence":[]},false,0,{"idx":0,"expected":[]}]') { throw result }
         },
         () => {
             const stringRule = 'AB'
             const m = descentParser(stringRule)
             const mr = descentParserCpOnly(m, "", [65,66])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[{"sequence":[[65,null]]},{"sequence":[[66,null]]}]},true,2]') { throw result }
+            if (result !== '[{"sequence":[{"sequence":[[65,null]]},{"sequence":[[66,null]]}]},true,2,{"idx":0,"expected":[]}]') { throw result }
         },
         () => {
             const stringRule = 'AB'
             const m = descentParser(stringRule)
             const mr = descentParserCpOnly(m, "", [65,67])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[]},false,0]') { throw result }
+            // The result index rewound to the sequence's start, but the furthest
+            // failure kept the position where 'B' was actually rejected.
+            if (result !== '[{"sequence":[]},false,0,{"idx":1,"expected":[1107296322]}]') { throw result }
         },
         () => {
             const emptyRule = ''
@@ -155,7 +160,7 @@ export const proof = {
             const m = descentParser(numberRule)
             const mr = descentParserCpOnly(m, "", [50])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[{"tag":"none","sequence":[]},{"sequence":[[50,null]]}]},true,1]') { throw result }
+            if (result !== '[{"sequence":[{"tag":"none","sequence":[]},{"sequence":[[50,null]]}]},true,1,{"idx":0,"expected":[754974765]}]') { throw result }
         },
         () => {
             const emptyRule = ''
@@ -166,7 +171,7 @@ export const proof = {
             const m = descentParser(numberRule)
             const mr = descentParserCpOnly(m, "", [45,50])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[{"tag":"minus","sequence":[[45,null]]},{"sequence":[[50,null]]}]},true,2]') { throw result }
+            if (result !== '[{"sequence":[{"tag":"minus","sequence":[[45,null]]},{"sequence":[[50,null]]}]},true,2,{"idx":0,"expected":[]}]') { throw result }
         },
         () => {
             const emptyRule = ''
@@ -177,7 +182,8 @@ export const proof = {
             const m = descentParser(numberRule)
             const mr = m("", [])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[]},false,0]') { throw result }
+            // Past the end: '-' and then the digit range were both rejected at 0.
+            if (result !== '[{"sequence":[]},false,0,{"idx":0,"expected":[754974765,805306425]}]') { throw result }
         },
         () => {
             const m = descentParser(option('a'))
@@ -290,7 +296,27 @@ export const proof = {
             const m = descentParser(numberRule)
             const mr = m("", [[45, 'minus'], [50, 'two']])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[{"tag":"minus","sequence":[[45,"minus"]]},{"sequence":[[50,"two"]]}]},true,2]') { throw result }
+            if (result !== '[{"sequence":[{"tag":"minus","sequence":[[45,"minus"]]},{"sequence":[[50,"two"]]}]},true,2,{"idx":0,"expected":[]}]') { throw result }
+        },
+    ],
+    furthestFailure: [
+        () => {
+            // A branch rejected *before* the high-water mark must not pull it back:
+            // `x` gets to index 1 before failing, then `y` fails at 0.
+            const m = descentParser({ x: ['A', 'B'], y: 'B' })
+            const [, ok, idx, failure] = descentParserCpOnly(m, '', [65, 67])
+            assertEq(ok, false)
+            assertEq(idx, 0)
+            assertEq(failure.idx, 1)
+            assertEq(JSON.stringify(failure.expected), '[1107296322]')
+        },
+        () => {
+            // The same terminal rejected at the same index by two branches is
+            // expected once, not twice.
+            const m = descentParser({ x: ['A', 'B'], y: ['A', 'B', 'C'] })
+            const [, , , failure] = descentParserCpOnly(m, '', [65, 67])
+            assertEq(failure.idx, 1)
+            assertEq(JSON.stringify(failure.expected), '[1107296322]')
         },
     ],
 }
