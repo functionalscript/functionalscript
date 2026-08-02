@@ -30,11 +30,15 @@ Create one browser-native FunctionalScript test application that:
 - starts a browser-compatible emergent-test runner from the HTML page;
 - presents progress and results through an ordinary browser UI;
 - supports manual execution in installed browsers;
-- supports automated execution through Playwright or direct headless browsers;
+- supports automated execution through either FunctionalScript tooling, Playwright, or
+  direct headless browsers;
 - reports a structured final result to a local server for CI exit-status handling.
 
-The HTML page and in-browser runner are the test system. Playwright or a direct browser
-process is only a launcher and result collector.
+The HTML page and in-browser runner are the shared test system. `fjs browser-test`,
+Playwright, and direct browser processes are alternative controllers for preparing or
+opening the same application and collecting the same report. Playwright must remain a
+valid user-facing alternative to an `fjs browser-test` command; it is not required to be
+hidden behind the FunctionalScript CLI.
 
 ### JavaScript-only serving invariant
 
@@ -142,8 +146,10 @@ A developer starts a loopback server and opens `index.html` in a normal browser.
 starts the same server, opens the same URL in a headless browser, waits for completion,
 and receives the same structured report.
 
-Do not create separate test semantics for manual and headless modes. Differences should
-be limited to auto-start configuration, presentation, and result transport.
+Do not create separate test semantics for manual, FunctionalScript-controlled,
+Playwright-controlled, and direct-headless modes. Differences should be limited to
+preparation, server lifecycle, auto-start configuration, presentation, and result
+transport.
 
 ### Proof discovery and generated entry module
 
@@ -228,8 +234,8 @@ because browser module loading and origin behavior differ across browsers.
 
 For manual use, the page may display results without reporting them anywhere.
 
-For headless use, assign a run identifier and pass a report endpoint through the page URL
-or generated configuration. When the suite finishes, the page posts its
+For automated use, assign a run identifier and pass a report endpoint through the page
+URL or generated configuration. When the suite finishes, the page posts its
 `BrowserTestReport` to the local server. The server:
 
 1. serves only `index.html` and the JavaScript-only browser-test application;
@@ -240,16 +246,55 @@ or generated configuration. When the suite finishes, the page posts its
 6. shuts down cleanly after the browser run.
 
 Streaming progress events may be added later; one final POST is sufficient initially.
+The report protocol must be usable by an `fjs browser-test` process, a Playwright test or
+library adapter, and a direct-browser controller without changing the page's test
+semantics.
 
-### Browser launch alternatives
+### Controller and command alternatives
 
-Keep browser execution independent from the HTML test application.
+Keep preparation, browser execution, and result collection independent from the HTML test
+application. The implementation may expose more than one controller over the same test
+artifact.
 
-#### Playwright library
+#### FunctionalScript browser-test command
 
-A globally or Nix-provided Playwright library may launch Chromium, Firefox, and WebKit,
-open the generated page, and wait for the server report. Playwright must not own proof
-discovery or test semantics, and the repository does not need `@playwright/test`.
+FunctionalScript may provide its own controller, for example:
+
+```sh
+fjs browser-test build
+fjs browser-test serve
+fjs browser-test run --browser=firefox
+```
+
+It may own proof discovery, JavaScript preparation, loopback serving, browser process
+lifecycle, report validation, and exit status.
+
+This command is useful but not mandatory for every execution environment. Do not design
+the generated page so only the FunctionalScript controller can run it.
+
+#### Playwright
+
+Playwright may be used directly as an alternative to `fjs browser-test`, not merely as an
+internal implementation detail of that command.
+
+A globally or Nix-provided Playwright Test adapter or Playwright-library controller may:
+
+- prepare or reuse the same JavaScript-only browser-test output;
+- start or connect to the same loopback server;
+- open the same `index.html` in Chromium, Firefox, or WebKit;
+- wait for the same structured browser report;
+- translate that report into Playwright success or failure.
+
+A possible direct interface is:
+
+```sh
+playwright test --project=firefox
+```
+
+The Playwright adapter may live in the globally or Nix-provided environment so the
+repository does not need `@playwright/test`. Playwright must not redefine proof discovery,
+recursive proof semantics, or the report format; those remain owned by the generated
+browser application.
 
 #### Direct headless browsers
 
@@ -258,11 +303,13 @@ in headless mode. The controller must provide reliable completion, timeout, cras
 detection, and exit status rather than merely opening the URL.
 
 Investigate whether the available WebKit environment provides a practical standalone
-headless path on every CI platform. Using Playwright as the launcher remains acceptable
-when it is the simplest portable way to control WebKit.
+headless path on every CI platform. Using Playwright remains acceptable when it is the
+simplest portable way to control WebKit.
 
-Choose the launcher after a small prototype. The generated HTML application, JavaScript
-module graph, test runner, and report protocol must not depend on that choice.
+The project may choose one controller for CI without removing the other supported entry
+points. The generated HTML application, JavaScript module graph, test runner, and report
+protocol must not depend on whether the caller is `fjs browser-test`, Playwright, or a
+direct browser process.
 
 ### Browser-compatible suite
 
@@ -281,18 +328,19 @@ The long-term objective is to run every environment-independent FunctionalScript
 inside all supported browsers while retaining separate integration tests for
 platform-specific effects.
 
-### Commands
+### Command selection
 
-Exact command names may be selected during implementation. A possible interface is:
+Do not require one universal command before the browser application exists. Valid entry
+points may include:
 
 ```sh
-fjs browser-test build
-fjs browser-test serve
 fjs browser-test run --browser=firefox
+playwright test --project=firefox
+firefox --headless http://127.0.0.1:<port>/index.html?... 
 ```
 
-The manual workflow may combine build and serve, while CI may combine all three steps.
-Do not make command naming block the first working browser page.
+These commands are alternatives over the same generated application, not three different
+test systems. CI may select the simplest reliable controller for each environment.
 
 ### Validation
 
@@ -308,21 +356,27 @@ Add a small end-to-end fixture proving the architecture before enabling the full
 - browser network logs contain no `.ts`, declaration, JSON-manifest, or source-map
   requests;
 - a passing run produces a successful structured report;
-- a deliberate proof failure appears in the HTML UI and produces a nonzero headless exit;
+- a deliberate proof failure appears in the HTML UI and produces a nonzero automated
+  exit status;
 - a syntax error, missing module, browser crash, and report timeout are infrastructure
   failures rather than passing tests;
 - Chromium, Firefox, and WebKit each execute the proof inside their own realm;
-- manual and headless execution use the same generated HTML and in-browser runner;
+- manual, `fjs browser-test`, Playwright, and direct-headless execution use the same
+  generated HTML and in-browser runner;
+- at least one end-to-end test exercises the Playwright entry point independently of
+  `fjs browser-test`;
 - `npm run ci-update` remains clean when generated CI commands are introduced.
 
 ### Out of scope
 
 - running Node-only effect integration tests in browsers;
 - serializing arbitrary JavaScript closures with `String(function)`;
-- duplicating Playwright Test fixtures, retries, or assertion APIs;
+- duplicating Playwright Test fixtures, retries, or assertion APIs inside the browser
+  runner;
 - bundling or minifying the suite before the native ES-module design works;
 - migrating all `.f.ts` files to `.f.mjs` as part of browser-test implementation;
 - changing the existing `.f.mjs` migration or authored/generated extension contract;
+- requiring every environment to support every controller interface;
 - per-test browser contexts and parallel browser workers;
 - visual regression testing;
 - Docker, OCI publication, or cache design.
@@ -341,12 +395,15 @@ Add a small end-to-end fixture proving the architecture before enabling the full
 - [ ] Generate the HTML test UI with inline styling and Run/Re-run behavior.
 - [ ] Add loopback serving restricted to HTML and JavaScript application files.
 - [ ] Define the serializable browser-test report and final-report HTTP endpoint.
-- [ ] Add automatic start and report configuration for headless runs.
-- [ ] Prototype Playwright-library and direct-browser launch paths, then choose the
-      simplest reliable CI controller.
+- [ ] Keep the report protocol independent of `fjs browser-test`, Playwright, and direct
+      browser controllers.
+- [ ] Add automatic start and report configuration for automated runs.
+- [ ] Prototype an `fjs browser-test` controller, a direct Playwright entry point, and
+      direct-browser launching; select the simplest reliable controller for CI without
+      making the others incompatible.
 - [ ] Run the same application inside Chromium, Firefox, and WebKit.
-- [ ] Add JavaScript-only serving, browser-realm, mixed-source dependency, failure,
-      timeout, and reporting tests.
+- [ ] Add JavaScript-only serving, browser-realm, mixed-source dependency, controller
+      independence, failure, timeout, and reporting tests.
 - [ ] Add CI only after proof bodies demonstrably execute inside the browsers.
 
 ### Related
