@@ -5,112 +5,182 @@
 
 ### Problem
 
-FunctionalScript currently has no test path that executes its proof functions and module
-dependencies inside browser JavaScript realms.
+FunctionalScript currently has no test path that executes proof functions and their
+module dependencies inside browser JavaScript realms.
 
-Playwright Test normally loads test files and runs test callbacks in Node workers. Passing
-an individual proof function to `page.evaluate()` is not a general solution because the
+The existing Playwright integration registers tests in a Node worker and then executes
+them through the Node effect runner. Selecting Chromium, Firefox, or WebKit does not move
+those proof functions into the browser.
+
+Passing a proof function to `page.evaluate()` is not a general solution either. The
 function is reconstructed from source text and loses imported bindings, closures, module
 initialization, and the rest of its dependency graph.
 
-Browsers also cannot load the repository's `.ts` and `.f.ts` files directly. Before a
-browser can run the suite, TypeScript syntax must be erased and relative import
-specifiers must point to emitted JavaScript files.
+Browsers must instead load the proof modules and their transitive dependencies as normal
+ES modules. They cannot load the repository's `.ts` or `.f.ts` source directly.
 
 ### Goal
 
 Create one browser-native FunctionalScript test application that:
 
-- generates browser-loadable JavaScript from the selected TypeScript proof modules and
-  all transitive dependencies;
-- generates an HTML page that starts a special in-browser emergent-test runner;
-- presents test progress and results through an ordinary browser UI;
-- can be opened manually in Chrome, Firefox, Safari/WebKit-compatible environments, and
-  other browsers;
-- can be opened by a headless browser controller for CI;
-- reports a structured final result to a local server so a headless run can choose its
-  process exit status.
+- serves an HTML page and browser-executable JavaScript modules only;
+- never serves or requests `.ts` or `.f.ts` source;
+- loads every selected proof module and its transitive JavaScript dependencies inside the
+  browser;
+- starts a browser-compatible emergent-test runner from the HTML page;
+- presents progress and results through an ordinary browser UI;
+- supports manual execution in installed browsers;
+- supports automated execution through Playwright or direct headless browsers;
+- reports a structured final result to a local server for CI exit-status handling.
 
-The browser page and in-browser runner are the test system. Playwright or another
-headless-browser tool is only an optional launcher and result collector.
+The HTML page and in-browser runner are the test system. Playwright or a direct browser
+process is only a launcher and result collector.
 
-### Shared manual and headless test application
+### JavaScript-only serving invariant
 
-Use the same generated application for interactive and automated execution:
+The browser-test server must expose a dedicated application root rather than the
+repository working tree.
+
+The application may contain:
 
 ```text
 browser-test output
 ├── index.html
 ├── browser-test-entry.js
 ├── browser-test-runner.js
-├── proof modules
-└── their transitive JavaScript dependencies
+├── generated .js modules
+└── authored or copied .mjs modules
 ```
 
-A developer starts a local server and opens `index.html` in a normal browser. CI starts
-the same server, opens the same URL in a headless browser, waits for completion, and
-receives the same structured report.
+Only browser-executable JavaScript module files (`.js` or `.mjs`) may be served as module
+resources. The initial implementation should keep styling inline and generate a
+JavaScript entry module rather than a separate JSON manifest, so the static surface is
+limited to HTML and JavaScript.
+
+The server must reject requests for at least:
+
+- `.ts`, `.f.ts`, `.tsx`, `.mts`, and `.cts` source;
+- declaration files;
+- files outside the browser-test application root;
+- unexpected Node or package-manager files.
+
+Do not expose the repository root and rely on the browser to ignore TypeScript files.
+The output directory is an explicit browser-ready artifact.
+
+### Two paths to browser-ready JavaScript
+
+There are two valid ways for a repository module to become loadable by the browser.
+
+#### 1. Transpile remaining TypeScript source
+
+For modules still authored as `.ts` or `.f.ts`:
+
+- erase TypeScript-only syntax;
+- emit browser-compatible ES modules as `.js` files;
+- preserve the relevant source directory structure;
+- rewrite relative TypeScript import extensions to emitted JavaScript paths;
+- emit no declarations into the browser-test directory;
+- fail when the selected graph depends on Node-only modules or unresolved imports.
+
+Using `tsc` with a dedicated browser-test configuration is acceptable for the first
+implementation. A narrower type stripper or the FunctionalScript compiler may replace it
+later.
+
+#### 2. Use authored JavaScript source
+
+Modules already authored as `.mjs` or `.f.mjs` contain browser-parseable JavaScript and
+do not require type erasure. They may be copied into the browser-test application or
+served from an explicitly constructed JavaScript-only output tree.
+
+Do not rewrite authored `.mjs` into generated `.js` merely to make the browser runner
+work. Preserve the authored module and its import graph when it is already
+browser-compatible.
+
+A selected browser suite may therefore contain a mixed graph during migration:
+
+```text
+proof.f.ts       -> emitted proof.f.js
+module.f.ts      -> emitted module.f.js
+migrated.f.mjs   -> authored/copied migrated.f.mjs
+```
+
+The generated entry module must import the browser-output paths, not the original
+TypeScript paths.
+
+### Relationship to the `.f.mjs` migration
+
+The repository already documents an incremental migration from `.f.ts` to `.f.mjs`:
+
+- `.f.ts` is authored FunctionalScript-intent TypeScript;
+- `.f.mjs` is authored FunctionalScript ESM JavaScript with JSDoc types and must be
+  accepted by the current FunctionalScript parser/compiler;
+- `.f.js` is generated JavaScript emitted from `.f.ts` and is never authored directly.
+
+See the [FunctionalScript compiler source-file and migration
+contract](../../fsc/README.md#source-files-and-incremental-repository-migration) and the
+[project roadmap](../../../todo/plan/roadmap.md#future--functionalscript-compiler-via-fjsbnf).
+
+Browser testing must support that migration instead of creating a competing convention:
+
+1. Today, transpile selected `.f.ts` files to generated `.f.js` for browser execution.
+2. Load eligible authored `.f.mjs` files directly as JavaScript modules.
+3. As dependency-closed module groups migrate to `.f.mjs`, reduce the portion of the
+   browser suite that needs transpilation.
+4. Do not block browser testing on whole-repository migration, and do not migrate files
+   merely to satisfy this task.
+
+The existing [`.f.mjs` test and coverage task](f-mjs-test-and-coverage.md) remains the
+owner of proof discovery and coverage support for authored `.f.mjs`. The browser runner
+must consume the same extension policy and must not create a second incompatible proof
+selection rule.
+
+### Shared manual and headless test application
+
+Use the same generated application for interactive and automated execution.
+
+A developer starts a loopback server and opens `index.html` in a normal browser. CI
+starts the same server, opens the same URL in a headless browser, waits for completion,
+and receives the same structured report.
 
 Do not create separate test semantics for manual and headless modes. Differences should
-be limited to presentation and result transport.
-
-### Type erasure and JavaScript output
-
-Add a deterministic preparation step that emits browser-ready JavaScript into a temporary
-or generated test directory.
-
-The initial implementation should prefer an unbundled ES-module tree:
-
-- preserve the source directory structure;
-- erase TypeScript-only syntax;
-- rewrite relative `.ts` and `.f.ts` imports to their emitted `.js` names;
-- preserve source maps when practical;
-- emit no declarations into the browser-test output;
-- avoid committing the emitted JavaScript unless a separate generated-artifact policy
-  requires it.
-
-Using `tsc` with a dedicated browser-test configuration is acceptable. A narrower type
-stripper or the FunctionalScript compiler may replace it later, but the first correct
-browser suite should not wait for the self-hosted compiler.
-
-The browser must never be asked to parse TypeScript source. Add validation that the test
-page makes no `.ts` requests.
+be limited to auto-start configuration, presentation, and result transport.
 
 ### Proof discovery and generated entry module
 
 A build-side tool may use filesystem access to discover proof modules. Browsers cannot
 discover repository files themselves.
 
-Generate a browser entry module or manifest containing explicit imports of every selected
-proof module, for example:
+Generate a JavaScript entry module containing explicit imports of every selected proof
+module, for example:
 
 ```js
 import * as proof0 from './fjs/foo/proof.js'
 import * as proof1 from './fjs/bar/proof.js'
+import * as proof2 from './fjs/migrated/proof.f.mjs'
 import { runModuleMap } from './browser-test-runner.js'
 
 export const run = () => runModuleMap({
     'fjs/foo/proof.js': proof0,
     'fjs/bar/proof.js': proof1,
+    'fjs/migrated/proof.f.mjs': proof2,
 })
 ```
 
-`index.html` may reference this one generated entry module rather than listing every
-transitive dependency. Standard browser ES-module loading will fetch and evaluate the
-full dependency graph recursively. Generating one `<script type="module">` element per
-proof module is also acceptable when it simplifies incremental loading or UI reporting.
+`index.html` references this entry module. Standard browser ES-module loading then fetches
+and evaluates the complete transitive dependency graph.
 
 Each browser must independently load and evaluate the complete graph required by the
-selected browser-compatible proofs.
+selected browser-compatible proofs. Do not serialize proof functions with
+`String(function)`.
 
 ### In-browser test runner
 
-Create a browser-compatible emergent-test runner that preserves the existing proof
-conventions where possible:
+Create a browser-compatible emergent-test runner that preserves existing proof
+conventions where practical:
 
 - proof modules export zero-argument functions and recursively testable values;
 - thrown exceptions represent failures unless the proof declares an expected throw;
-- arrays and objects are traversed using the existing emergent-testing semantics;
+- arrays and objects use the existing emergent-testing traversal semantics;
 - asynchronous browser-compatible results are awaited;
 - failures retain module path, test path, message, and stack when available;
 - the final report is serializable data.
@@ -132,90 +202,88 @@ type BrowserTestReport = {
 }
 ```
 
-Keep the report format independent of the browser-launch mechanism.
+This TypeScript shape documents the protocol; browser-delivered implementation files must
+be JavaScript.
 
 ### HTML user interface
 
-Generate or maintain an HTML UI that can be used directly by a developer. It should:
+Generate or maintain a simple dependency-free HTML UI that:
 
-- identify the current browser and test build;
-- provide a clear Run or Re-run control;
-- optionally auto-start through a query parameter for CI;
-- display loading, running, passed, failed, and infrastructure-error states;
-- show progress and final totals;
-- list failed test paths with messages and stacks;
-- make module-load failures distinct from proof failures;
-- retain the final structured report on a documented global value or expose it through a
-  documented browser event.
+- identifies the current browser and test build;
+- provides a Run or Re-run control;
+- optionally auto-starts through a query parameter for CI;
+- displays loading, running, passed, failed, and infrastructure-error states;
+- shows progress and final totals;
+- lists failed test paths with messages and stacks;
+- distinguishes module-load failures from proof failures;
+- retains the final structured report on a documented global value or emits a documented
+  browser event.
 
-The UI should remain simple and dependency-free initially. Styling, filtering, and rich
-inspection can be extended later.
+Keep CSS inline initially so no additional static resource type is required.
 
 ### Local server and result reporting
 
 Serve the generated application over loopback HTTP. Do not depend on `file:` URLs,
-because browser module loading and origin rules differ across browsers.
+because browser module loading and origin behavior differ across browsers.
 
 For manual use, the page may display results without reporting them anywhere.
 
-For headless use, assign a run identifier and pass a report endpoint in the page URL or
-configuration. When the suite finishes, the page posts its `BrowserTestReport` to the
-local server. The server:
+For headless use, assign a run identifier and pass a report endpoint through the page URL
+or generated configuration. When the suite finishes, the page posts its
+`BrowserTestReport` to the local server. The server:
 
-1. serves the HTML and emitted modules;
+1. serves only `index.html` and the JavaScript-only browser-test application;
 2. receives exactly one final report for the run identifier;
 3. rejects malformed, duplicate, or mismatched reports;
 4. handles browser crashes and timeouts as infrastructure failures;
 5. returns a nonzero process exit status when tests fail or no valid report arrives;
 6. shuts down cleanly after the browser run.
 
-Streaming progress events may be added later; a single final POST is sufficient for the
-first implementation.
+Streaming progress events may be added later; one final POST is sufficient initially.
 
 ### Browser launch alternatives
 
-Keep browser execution independent from the HTML test application so multiple launchers
-remain possible.
+Keep browser execution independent from the HTML test application.
 
 #### Playwright library
 
 A globally or Nix-provided Playwright library may launch Chromium, Firefox, and WebKit,
-open the generated page, and wait for the server report. Playwright must not own test
-discovery or proof semantics, and the FunctionalScript repository does not need
-`@playwright/test`.
+open the generated page, and wait for the server report. Playwright must not own proof
+discovery or test semantics, and the repository does not need `@playwright/test`.
 
 #### Direct headless browsers
 
-Chrome/Chromium, Firefox, and available WebKit-based browser executables may be launched
-directly in headless mode. The implementation must still provide reliable completion,
-timeout, crash detection, and exit status rather than merely opening the URL.
+Chrome/Chromium, Firefox, and available WebKit-based executables may be launched directly
+in headless mode. The controller must provide reliable completion, timeout, crash
+detection, and exit status rather than merely opening the URL.
 
 Investigate whether the available WebKit environment provides a practical standalone
-headless control path on every CI platform. Using Playwright as the launcher remains
-acceptable when it is the simplest portable way to control WebKit.
+headless path on every CI platform. Using Playwright as the launcher remains acceptable
+when it is the simplest portable way to control WebKit.
 
-Choose the launcher after a small prototype. The generated page, test runner, and report
-protocol must not depend on that choice.
+Choose the launcher after a small prototype. The generated HTML application, JavaScript
+module graph, test runner, and report protocol must not depend on that choice.
 
 ### Browser-compatible suite
 
-Not every repository proof is necessarily browser-compatible. Node-specific modules may
-import `node:fs`, `node:process`, child processes, or the Node effect interpreter.
+Not every repository proof is browser-compatible. Node-specific modules may import
+`node:fs`, `node:process`, child processes, or the Node effect interpreter.
 
-Define an explicit browser-suite policy. Possible starting rules include:
+Define an explicit browser-suite policy:
 
 - include proofs for pure FunctionalScript modules and browser-specific modules;
+- include both emitted `.js` proofs and authored `.mjs` proofs;
 - exclude modules explicitly marked as Node-only;
 - fail preparation when a selected browser proof reaches a `node:` import;
-- never silently fall back to executing an incompatible proof in Node.
+- never silently execute an incompatible proof in Node.
 
 The long-term objective is to run every environment-independent FunctionalScript proof
-inside all supported browsers, while retaining separate integration tests for
+inside all supported browsers while retaining separate integration tests for
 platform-specific effects.
 
 ### Commands
 
-The exact command names may be selected during implementation. A possible interface is:
+Exact command names may be selected during implementation. A possible interface is:
 
 ```sh
 fjs browser-test build
@@ -230,15 +298,20 @@ Do not make command naming block the first working browser page.
 
 Add a small end-to-end fixture proving the architecture before enabling the full suite:
 
-- a `.ts` proof is emitted as `.js` and loaded without any `.ts` request;
+- a `.ts` proof is emitted as `.js` and loaded without any TypeScript request;
+- an authored `.mjs` proof is loaded without transpilation;
+- a mixed `.js`/`.mjs` dependency graph loads correctly;
 - the proof reads `window`, `document`, or another browser-only global;
 - the proof imports a helper module, proving that transitive dependencies load normally;
 - the browser entry loads multiple proof modules;
+- the static server rejects `.ts` requests and paths outside its output root;
+- browser network logs contain no `.ts`, declaration, JSON-manifest, or source-map
+  requests;
 - a passing run produces a successful structured report;
 - a deliberate proof failure appears in the HTML UI and produces a nonzero headless exit;
 - a syntax error, missing module, browser crash, and report timeout are infrastructure
   failures rather than passing tests;
-- Chrome/Chromium, Firefox, and WebKit each execute the proof inside their own realm;
+- Chromium, Firefox, and WebKit each execute the proof inside their own realm;
 - manual and headless execution use the same generated HTML and in-browser runner;
 - `npm run ci-update` remains clean when generated CI commands are introduced.
 
@@ -248,29 +321,40 @@ Add a small end-to-end fixture proving the architecture before enabling the full
 - serializing arbitrary JavaScript closures with `String(function)`;
 - duplicating Playwright Test fixtures, retries, or assertion APIs;
 - bundling or minifying the suite before the native ES-module design works;
+- migrating all `.f.ts` files to `.f.mjs` as part of browser-test implementation;
+- changing the existing `.f.mjs` migration or authored/generated extension contract;
 - per-test browser contexts and parallel browser workers;
 - visual regression testing;
 - Docker, OCI publication, or cache design.
 
 ### Tasks
 
-- [ ] Define the browser-compatible proof selection policy.
-- [ ] Add a dedicated TypeScript-to-browser-JavaScript preparation configuration.
+- [ ] Define the browser-compatible proof selection policy shared with existing `.f.mjs`
+      proof discovery.
+- [ ] Create a dedicated browser-test output root that cannot serve repository TypeScript
+      files.
+- [ ] Add TypeScript-to-browser-JavaScript emission for selected `.ts` and `.f.ts` files.
 - [ ] Rewrite emitted relative TypeScript import extensions to JavaScript extensions.
-- [ ] Generate a proof manifest or entry module with explicit proof-module imports.
-- [ ] Implement the browser-compatible emergent-test runner.
-- [ ] Generate the HTML test UI and support manual Run/Re-run behavior.
-- [ ] Add loopback static serving for the generated application.
+- [ ] Copy or expose selected authored `.mjs` and `.f.mjs` modules without type erasure.
+- [ ] Generate a JavaScript entry module with explicit proof-module imports.
+- [ ] Implement the browser-compatible emergent-test runner in JavaScript.
+- [ ] Generate the HTML test UI with inline styling and Run/Re-run behavior.
+- [ ] Add loopback serving restricted to HTML and JavaScript application files.
 - [ ] Define the serializable browser-test report and final-report HTTP endpoint.
 - [ ] Add automatic start and report configuration for headless runs.
 - [ ] Prototype Playwright-library and direct-browser launch paths, then choose the
       simplest reliable CI controller.
 - [ ] Run the same application inside Chromium, Firefox, and WebKit.
-- [ ] Add browser-realm, dependency-graph, type-erasure, failure, timeout, and reporting
-      tests.
-- [ ] Add CI only after the proof bodies demonstrably execute inside the browsers.
+- [ ] Add JavaScript-only serving, browser-realm, mixed-source dependency, failure,
+      timeout, and reporting tests.
+- [ ] Add CI only after proof bodies demonstrably execute inside the browsers.
 
 ### Related
 
-- [../../ci/todo/remove-playwright-job.md](../../ci/todo/remove-playwright-job.md) — removes
-  the current Node-only Playwright integration before this replacement is implemented.
+- [FunctionalScript compiler source-file and migration
+  contract](../../fsc/README.md#source-files-and-incremental-repository-migration)
+- [project compiler and incremental-migration
+  roadmap](../../../todo/plan/roadmap.md#future--functionalscript-compiler-via-fjsbnf)
+- [`.f.mjs` proof discovery and coverage](f-mjs-test-and-coverage.md)
+- [authored `.f.mjs` package support](../../ci/todo/f-mjs-package-support.md)
+- [remove the current Playwright job](../../ci/todo/remove-playwright-job.md)
