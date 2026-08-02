@@ -11,6 +11,15 @@ import type { Unknown } from '../module.f.ts'
 // serialize — reuse the same djs stringifyAsTree serializer tokenizeString uses internally.
 const stringify = stringifyAsTree(sort)
 
+// 'line:column' of the error token `s` tokenizes to, or 'no error'. Collapsing the
+// position to one string keeps an expectation readable as the caret a reader would
+// draw, instead of two separate assertions per case.
+const errorAt = (s: string): string => {
+    const found = toArray(tokenizeJs(stringToList(s))('a.js'))
+        .find(t => t.token.kind === 'error')
+    return found === undefined ? 'no error' : `${found.metadata.line}:${found.metadata.column}`
+}
+
 export const proof = {
     isValid: [() => {
             const m = descentParser(jsGrammar())
@@ -818,6 +827,46 @@ export const proof = {
             // position points at the poisoning trailing char ('0'), not the start of input
             const result = toArray(tokenizeJs(stringToList('00'))('a.js'))
             assertEq(JSON.stringify(result), '[{"token":{"kind":"error","message":"invalid token"},"metadata":{"path":"a.js","line":1,"column":2}}]')
+        },
+    ],
+    // Where an error token is reported. The `tokenizer` group above checks that
+    // these inputs are rejected at all, through the metadata-free
+    // `tokenizeString`; here the same shapes go through `tokenizeJs` so the
+    // position is pinned too.
+    errorPosition: [
+        () => {
+            // a character no rule accepts: reported where it stands
+            assertEq(errorAt('ᄑ'), '1:1')
+        },
+        () => {
+            // after a good prefix, the position advances past it
+            assertEq(errorAt('x @'), '1:3')
+        },
+        () => {
+            // line as well as column, once newlines have been consumed
+            assertEq(errorAt('a\nb\n@'), '3:1')
+            assertEq(errorAt('x\n\n  @y'), '3:3')
+        },
+        () => {
+            // a number poisoned by a trailing character points at that character
+            assertEq(errorAt('00'), '1:2')
+        },
+        () => {
+            // a number cut short points just past the input
+            assertEq(errorAt('1.'), '1:3')
+        },
+        () => {
+            // Unterminated tokens anchor at the token's *start*, not where the
+            // input ran out: the grammar matches them and tags them
+            // 'unterminated', so this is the structural-error path, not a failed
+            // match. See ./todo/error-position-range.md.
+            assertEq(errorAt('"value'), '1:1')
+            assertEq(errorAt('"a\nb"'), '1:1')
+        },
+        () => {
+            // an unterminated block comment is the exception: its content is
+            // consumed, so the report lands at the end of input
+            assertEq(errorAt('/* c'), '1:5')
         },
     ],
     // DJS-level: keyword remapping and '-'-folding on top of tokenizeJs. Doesn't re-test
