@@ -54,10 +54,11 @@ const set = (node: TNode<string>) => (value: string) =>
     setSet(cmp(value))(() => value)(node)
 ```
 
-Each also binds its own `jsonStr = stringify(sort)`, and three of them open-code
+Each also binds its own `jsonStr = stringify(sort)`, and **all four** open-code
 the squares loop `_map = set(_map)((i * i).toString())` — `set/proof.f.ts` 31
-times, `remove/proof.f.ts:20` (`n = 38`) and `:376` (`n = 10`), and
-`find/proof.f.ts:26` (`n = 10`).
+times, `remove/proof.f.ts:20` (`n = 38`) and `:376` (`n = 10`),
+`find/proof.f.ts:26` (`n = 10`), and `proof.f.ts:33-35` (`valuesTest2`,
+`n = 10`).
 
 **`remove/proof.f.ts:444-461` (`test3`) is not one of them.** Its loop inserts
 `i.toString()` — the *sequential* integers `2 … 50`, not their squares — and it
@@ -198,6 +199,11 @@ are.
 - [ ] Convert `fjs/types/btree/remove/proof.f.ts`, `find/proof.f.ts`, and
       `proof.f.ts` to import the fixture; delete the four local `set` helpers
       and `remove/proof.f.ts`'s duplicate `n = 38` literal (`:23-30`).
+- [ ] Replace every squares loop with `squares(n)`, not just the local `set`
+      helpers — `remove/proof.f.ts:20` and `:376`, `find/proof.f.ts:26`, and
+      `proof.f.ts:33-35` (`valuesTest2`). Importing `set` while leaving the
+      loop in place would satisfy the previous task and still leave the corpus
+      with four owners.
 - [ ] Leave `remove/proof.f.ts`'s `test3` loop (`:444-461`) alone — it builds
       the sequential-integer corpus, not the squares one. Name it locally and
       comment why; do not call `squares(50)` and do not add a `sequential`

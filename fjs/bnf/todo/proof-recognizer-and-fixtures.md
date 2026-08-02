@@ -173,18 +173,36 @@ Once both proofs go through `descentRecognizer`, the copy in the bnf proof is
 dead and gets deleted here: it is a file-local `const`, so removing it changes
 nothing outside that file.
 
-**Deleting the DJS `export` is a separate, breaking PR — not part of this
-issue.** `fjs/djs/tokenizer/module.f.ts` ships in a package with no `exports`
-map in `deno.json`, so `descentParserCpOnly` is public API and an out-of-tree
-importer breaks when it goes. Searching the repository cannot establish
-otherwise; it bounds the migration, not the blast radius (the same mistake this
-issue's sibling made about `nixToString` — see
-[serializer-validation-split](../../media/nix/todo/serializer-validation-split.md)).
+**The DJS `export` stays.** It does *not* become dead when this issue lands:
+`fjs/djs/tokenizer/proof.f.ts` calls `descentParserCpOnly` sixteen times, and
+only one of those (`:20`, the `isValid` corpus) is migrated here. The other
+fifteen (`:58`–`:170`) read the **typed** result — each is
 
-The removal is still the right design — after this issue lands the export has
-zero in-repo callers, and `AGENTS.md` §8.4 says not to preserve a stale export
-just to avoid churn — but it must be its own PR carrying its own
-`**BREAKING CHANGES:**` CHANGELOG entry.
+```ts
+const mr = descentParserCpOnly(m, '', cp)
+const seq = mr[0].sequence[0]
+assert(!(seq instanceof Array), JSON.stringify(mr))
+assertEq(seq.tag, 'id', JSON.stringify(mr))
+```
+
+differing only in the input string and the expected tag. `Recognition`'s
+`diagnostic` is deliberately `unknown`, so it cannot serve them; they need
+`DescentMatchResult` itself. Making the shared adapter typed enough for them
+would give it a second, much larger job than "did this input match".
+
+Two consequences, both out of scope here:
+
+1. Those fifteen blocks are their own DRY case — one local
+   `assertFirstTokenTag(input, tag)` helper in `fjs/djs/tokenizer/proof.f.ts`
+   collapses them. That is a `fjs/djs` issue, not a `fjs/bnf` one, and it does
+   **not** remove the need for the function: a local helper still calls it.
+2. Only if `descentParserCpOnly` moved out of `module.f.ts` into the proof
+   entirely would the export go — and that would be a public API removal
+   (no `exports` map in `deno.json`, so every module path is reachable),
+   needing its own PR and its own `**BREAKING CHANGES:**` entry, per the same
+   reasoning as
+   [serializer-validation-split](../../media/nix/todo/serializer-validation-split.md).
+   Do not treat a repository search as proof that nothing imports it.
 
 Both PRs need a CHANGELOG entry, just different ones. `AGENTS.md` §8.3 exempts
 only PRs that touch nothing but `todo/`, `AGENTS.md`, or other documentation —
@@ -241,12 +259,9 @@ answering "what does this grammar accept?" independently.
       would break.
 - [ ] Fold `descentParserCpOnly` + `mapCodePoint` into `descentRecognizer` and
       delete the file-local copy at `fjs/bnf/descent/proof.f.ts:9-14`. Leave
-      `fjs/djs/tokenizer`'s export (`:238-243`) in place — see below.
-- [ ] **Follow-up, separate PR:** once this lands, `fjs/djs/tokenizer`'s
-      `descentParserCpOnly` export has no in-repo caller. Removing it is a
-      public API change (no `exports` map), so it needs its own PR with a
-      `**BREAKING CHANGES:**` CHANGELOG entry per `AGENTS.md` §8.4. Do not fold
-      it into this work.
+      `fjs/djs/tokenizer`'s export (`:238-243`) alone — fifteen callers at
+      `fjs/djs/tokenizer/proof.f.ts:58-170` still need the typed result, so it
+      is not dead and this issue does not touch it.
 - [ ] Add `number` (the optional-minus-then-digit grammar) and `jsonCases`.
 - [ ] Convert `fjs/bnf/descent/proof.f.ts` and `fjs/bnf/ll1/proof.f.ts`; keep
       `ll1:68-74`'s space-prefixed variant local and comment why — eight
