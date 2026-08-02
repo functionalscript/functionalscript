@@ -93,7 +93,7 @@ export const proof = {
             const m = descentParser(terminalRangeRule)
             const mr =descentParserCpOnly(m, "", [64])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[]},false,0,{"idx":0,"expected":[1090519110]}]') { throw result }
+            if (result !== `[{"sequence":[]},false,0,{"idx":0,"expected":[${range('AF')}]}]`) { throw result }
         },
         () => {
             const variantRule = { 'a': range('AA'), 'b': range('BB')}
@@ -108,7 +108,7 @@ export const proof = {
             const mr = descentParserCpOnly(m, "", [64])
             const result = JSON.stringify(mr)
             // Both branches were rejected at 0, so both terminals are expected there.
-            if (result !== '[{"sequence":[]},false,0,{"idx":0,"expected":[1090519105,1107296322]}]') { throw result }
+            if (result !== `[{"sequence":[]},false,0,{"idx":0,"expected":[${range('AA')},${range('BB')}]}]`) { throw result }
         },
         () => {
             const emptyRule = ''
@@ -116,7 +116,7 @@ export const proof = {
              const m = descentParser(variantRule)
             const mr = m("", [])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":"e","sequence":[]},true,0,{"idx":0,"expected":[1090519105]}]') { throw result }
+            if (result !== `[{"tag":"e","sequence":[]},true,0,{"idx":0,"expected":[${range('AA')}]}]`) { throw result }
         },
         () => {
             const emptyRule = ''
@@ -124,7 +124,7 @@ export const proof = {
             const m = descentParser(variantRule)
             const mr = descentParserCpOnly(m, "", [64])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":"e","sequence":[]},true,0,{"idx":0,"expected":[1090519105]}]') { throw result }
+            if (result !== `[{"tag":"e","sequence":[]},true,0,{"idx":0,"expected":[${range('AA')}]}]`) { throw result }
         },
         () => {
             const emptyVariantRule = {}
@@ -149,7 +149,7 @@ export const proof = {
             const result = JSON.stringify(mr)
             // The result index rewound to the sequence's start, but the furthest
             // failure kept the position where 'B' was actually rejected.
-            if (result !== '[{"sequence":[]},false,0,{"idx":1,"expected":[1107296322]}]') { throw result }
+            if (result !== `[{"sequence":[]},false,0,{"idx":1,"expected":[${range('BB')}]}]`) { throw result }
         },
         () => {
             const emptyRule = ''
@@ -160,7 +160,7 @@ export const proof = {
             const m = descentParser(numberRule)
             const mr = descentParserCpOnly(m, "", [50])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[{"tag":"none","sequence":[]},{"sequence":[[50,null]]}]},true,1,{"idx":0,"expected":[754974765]}]') { throw result }
+            if (result !== `[{"sequence":[{"tag":"none","sequence":[]},{"sequence":[[50,null]]}]},true,1,{"idx":0,"expected":[${range('--')}]}]`) { throw result }
         },
         () => {
             const emptyRule = ''
@@ -183,7 +183,7 @@ export const proof = {
             const mr = m("", [])
             const result = JSON.stringify(mr)
             // Past the end: '-' and then the digit range were both rejected at 0.
-            if (result !== '[{"sequence":[]},false,0,{"idx":0,"expected":[754974765,805306425]}]') { throw result }
+            if (result !== `[{"sequence":[]},false,0,{"idx":0,"expected":[${range('--')},${range('09')}]}]`) { throw result }
         },
         () => {
             const m = descentParser(option('a'))
@@ -308,7 +308,8 @@ export const proof = {
             assertEq(ok, false)
             assertEq(idx, 0)
             assertEq(failure.idx, 1)
-            assertEq(JSON.stringify(failure.expected), '[1107296322]')
+            assertEq(failure.expected.length, 1)
+            assertEq(failure.expected[0], range('BB'))
         },
         () => {
             // The same terminal rejected at the same index by two branches is
@@ -316,7 +317,8 @@ export const proof = {
             const m = descentParser({ x: ['A', 'B'], y: ['A', 'B', 'C'] })
             const [, , , failure] = descentParserCpOnly(m, '', [65, 67])
             assertEq(failure.idx, 1)
-            assertEq(JSON.stringify(failure.expected), '[1107296322]')
+            assertEq(failure.expected.length, 1)
+            assertEq(failure.expected[0], range('BB'))
         },
     ],
 }
