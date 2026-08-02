@@ -18,7 +18,8 @@ import type { StringMap } from '../types/object/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { pure, step, type Effect } from '../effects/module.f.ts'
 import { join, relativize, toPosix } from '../path/module.f.ts'
-import { assert } from '../asserts/module.f.ts'
+import { assert, assertEq } from '../asserts/module.f.ts'
+import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 
 export type Module = {
     readonly proof?: unknown
@@ -130,5 +131,15 @@ export const proof = {
         assert(isSourceFile('module.mjs'))
         assert(!isSourceFile('readme.md'))
         assert(!isSourceFile('module.json'))
+    },
+    allFilesSkipsNodeModules: () => {
+        // `node_modules` is skipped without descending into it, even though
+        // it contains a file that would otherwise match the predicate.
+        const root: Dir = {
+            'node_modules': { 'pkg.f.ts': [] },
+            'a.f.ts': [],
+        }
+        const [, result] = virtual({ ...emptyState, root })(allFiles('.', shouldLoad))
+        assertEq(result.join(','), './a.f.ts')
     },
 }
