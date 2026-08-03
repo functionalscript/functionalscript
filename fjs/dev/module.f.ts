@@ -107,7 +107,7 @@ export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap>
     const s = initCwd === undefined ? '.' : toPosix(initCwd)
     const prefix = s === '.' ? '' : s
     // TODO: there are multiple `all` effects here,
-    //       we should consider optimize them by ALIQ technique or something similar.
+    //       we should consider optimizing them by ALIQ technique or something similar.
     //       For example, we should be able to write it like `allFiles(s).flatMap(loadFile)`,
     //       then an effect runner can batch all file loading operations together.
     const x0 = step(
