@@ -8,7 +8,7 @@
  *
  * | Tool           | args                                          | action            | result                               |
  * |----------------|-----------------------------------------------|-------------------|--------------------------------------|
- * | `evo_list`     | `{}`                                          | `e.list()`        | subjects, as a JSON array of strings |
+ * | `evo_list`     | `{ archived? }`                               | `e.list(...)`     | subjects, as a JSON array of strings |
  * | `evo_head`     | `{ subject }`                                 | `e.head(...)`     | head hashes, one per line            |
  * | `evo_revision` | `{ hash }`                                    | `e.revision(...)` | the revision, as JSON `RevisionData` |
  * | `evo_add`      | `{ parents, snapshot?, subject?, archived? }`  | `e.add(...)`      | hash (cBase32)                       |
@@ -56,8 +56,13 @@ import { type Evo } from '../../cas/evo/module.f.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
-/** Arguments for `evo_list`: none. */
-export const evoListArgs = {} as const
+/**
+ * Arguments for `evo_list`: an optional status filter, forwarded unchanged to
+ * `Evo.list` — omitted lists the active subjects, `true` the archived ones.
+ */
+export const evoListArgs = {
+    archived: option(true),
+} as const
 
 /** Arguments for `evo_head`: the subject whose current heads are requested. */
 export const evoHeadArgs = {
@@ -91,14 +96,14 @@ export const evoToolRegistry =
     <O extends Operation>(e: Evo<O>): readonly ToolEntry<O | MemOp>[] => [
     toolEntry(
         'evo_list',
-        'List all subjects with at least one stored revision, as a JSON array of strings.',
+        'List subjects, as a JSON array of strings. By default only the active ones: a subject is active while at least one of its current heads is not archived. Pass `archived: true` to list the archived subjects instead — those with at least one current head, all of them archived. A subject with no current heads is in neither list.',
         evoListArgs,
         // Subjects are arbitrary caller-supplied strings (unlike hashes, not
         // constrained to a newline-free alphabet), so a `join('\n')` line
         // format could not represent an empty subject or one containing a
         // newline without ambiguity — JSON encoding can.
-        (): Effect<MemOp, ToolsCallResult> => step(
-            e.list(),
+        ({ archived }): Effect<MemOp, ToolsCallResult> => step(
+            e.list(archived),
             subjects => pure(okResult(toJson(subjects)))
         ),
     ),

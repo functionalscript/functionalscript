@@ -17,7 +17,10 @@
  * subject (see [`fjs/media/revision/README.md`](../../media/revision/README.md)).
  * `Cache` therefore tracks, per subject, every revision hash seen and every
  * hash referenced as somebody's parent; heads are the set difference between
- * the two, computed at read time ({@link headsOf}). Storing both sets rather
+ * the two, computed at read time ({@link headsOf}). Alongside them it records
+ * which of the seen revisions are `archived`, so {@link Evo.list} can classify
+ * a subject as active or archived from its heads' flags
+ * ({@link subjectListed}) without touching the store. Storing both sets rather
  * than a running head list is what makes folding revisions truly order
  * independent: `cas.list()` (used by {@link buildCache} to scan an existing
  * store) returns hashes in hash order, not revision ancestry, so a child can
@@ -110,14 +113,22 @@ export type RevisionData = {
 }
 
 /**
- * Per-subject bookkeeping: every revision hash seen for the subject, and
- * every hash any of those revisions names as a parent. See the module doc
- * for why both sets are kept (rather than a running head list) and
- * {@link headsOf} for how heads are derived from them.
+ * Per-subject bookkeeping: every revision hash seen for the subject, every
+ * hash any of those revisions names as a parent, and which of the seen
+ * revisions are `archived`. See the module doc for why the first two sets are
+ * kept (rather than a running head list), {@link headsOf} for how heads are
+ * derived from them, and {@link subjectListed} for how `archived` classifies a
+ * subject once its heads are known.
+ *
+ * `archived` is keyed by revision hash, not by subject, for the same reason
+ * heads are computed at read time: which revisions are heads is only known
+ * once the whole store has been folded in, so a per-subject archived flag
+ * would have to be revised every time a later fold changes the head set.
  */
 export type SubjectState = {
     readonly hashes: readonly Hash[]
     readonly parents: readonly Hash[]
+    readonly archived: readonly Hash[]
 }
 
 /** In-memory index: subject → its {@link SubjectState}. */
@@ -131,7 +142,7 @@ export const emptyCache: Cache = { bySubject: {} }
 /** Canonical JSON encoder for a `Revision` — key order carries no meaning for detection. */
 const toJson = stringify(identity)
 
-const emptySubjectState: SubjectState = { hashes: [], parents: [] }
+const emptySubjectState: SubjectState = { hashes: [], parents: [], archived: [] }
 
 /** Adds every item of `items` to `set` that isn't already there, preserving `set`'s existing order. */
 const union = (set: readonly Hash[]) => (items: readonly Hash[]): readonly Hash[] =>
@@ -156,11 +167,37 @@ const headsOf = (state: SubjectState): readonly Hash[] =>
     state.hashes.filter(h => !state.parents.includes(h))
 
 /**
+ * Whether a subject in `state` belongs in {@link Evo.list}'s result for the
+ * given `archived` filter — the subject-level status derived from its
+ * revision-level `archived` flags:
+ *
+ * - **active** — at least one current head is not archived. This is the
+ *   default result set (`archived` omitted).
+ * - **archived** — the subject has at least one current head and every one of
+ *   them is archived (`archived: true`).
+ *
+ * Concurrent heads can disagree, and the two rules resolve that the same way:
+ * one unarchived head keeps the whole subject active, because a subject is
+ * only done evolving when nothing left to build on remains. A subject with no
+ * current heads is neither active nor archived and appears in no result — the
+ * status is a statement about heads, and there is nothing to state. That case
+ * needs the explicit `heads.length` test only in the archived branch, since
+ * "every head is archived" is vacuously true of no heads at all.
+ */
+const subjectListed = (archived: true | undefined) => (state: SubjectState): boolean => {
+    const heads = headsOf(state)
+    const unarchived = heads.filter(h => !state.archived.includes(h))
+    return archived === undefined
+        ? unarchived.length !== 0
+        : heads.length !== 0 && unarchived.length === 0
+}
+
+/**
  * Folds one more stored revision into `cache`: `hash` joins its subject's
- * `hashes` set, and `revision.parents` (canonicalized, see
- * {@link canonicalHash}) join its `parents` set. Order independent (see the
- * module doc) — used both for a full-store scan and for a single
- * incremental `add`.
+ * `hashes` set, `revision.parents` (canonicalized, see {@link canonicalHash})
+ * join its `parents` set, and `hash` also joins the `archived` set when the
+ * revision carries `archived: true`. Order independent (see the module doc) —
+ * used both for a full-store scan and for a single incremental `add`.
  *
  * Looks `revision.subject` up via {@link at} (own-property only), not plain
  * bracket indexing: a subject is an arbitrary caller-supplied string
@@ -175,6 +212,7 @@ const addRevisionToCache = (hash: Hash, revision: Revision) => (cache: Cache): C
     const state: SubjectState = {
         hashes: union(existing.hashes)([hash]),
         parents: union(existing.parents)(revision.parents.map(canonicalHash)),
+        archived: union(existing.archived)(revision.archived === undefined ? [] : [hash]),
     }
     return { bySubject: { ...cache.bySubject, [revision.subject]: state } }
 }
@@ -505,8 +543,17 @@ export const readRevision = <O extends Operation>(cas: Cas<O>) => (hash: Hash): 
 
 /** The Evo API described in `fjs/cas/evo/README.md`, bound to a `Cas<O>` and its cache slot. */
 export type Evo<O extends Operation> = {
-    /** Returns every subject with at least one stored revision. */
-    readonly list: () => Effect<MemOp, readonly Subject[]>
+    /**
+     * Returns the subjects matching a status filter: the active ones by
+     * default, the archived ones when `archived` is `true`. A subject's status
+     * is derived from its current heads — see {@link subjectListed}, which
+     * also explains why a subject with no current heads is in neither result.
+     *
+     * There is deliberately no all-subjects mode: nothing needs one yet, and
+     * adding it later is a compatible extension of this parameter, while
+     * removing it would not be.
+     */
+    readonly list: (archived?: true) => Effect<MemOp, readonly Subject[]>
     /** Returns the current head hashes of `subject` (empty if unknown). */
     readonly head: (subject: Subject) => Effect<MemOp, readonly Hash[]>
     /** Adds a new head; see {@link addRevision}. */
@@ -524,9 +571,13 @@ export type Evo<O extends Operation> = {
 
 /** Builds the {@link Evo} API over `cas`, backed by the cache at `cacheKey` (see {@link initEvo}). */
 export const evo = <O extends Operation>(cas: Cas<O>) => (cacheKey: Key<Cache>): Evo<O> => ({
-    list: () => eff(read(cacheKey))
-        .step(cache => pure(definedEntries(cache.bySubject).map(([subject]) => subject)))
-        .value,
+    list: archived => {
+        const listed = subjectListed(archived)
+        return eff(read(cacheKey))
+            .step(cache => pure(definedEntries(cache.bySubject)
+                .flatMap(([subject, state]) => listed(state) ? [subject] : [])))
+            .value
+    },
     head: subject => eff(read(cacheKey))
         .step(cache => {
             const state = at(subject)(cache.bySubject)

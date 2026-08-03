@@ -21,15 +21,17 @@ so no client has to interpret raw revision bytes itself.
 
 ```ts
 type Evo<O> = {
-    list: () => Effect<MemOp, readonly Subject[]>
+    list: (archived?: true) => Effect<MemOp, readonly Subject[]>
     head: (subject: Subject) => Effect<MemOp, readonly Hash[]>
     add: (rev: RevisionData) => Effect<O | MemOp, Result<Hash, string>>
     revision: (hash: Hash) => Effect<O | MemOp, Result<RevisionData, string>>
 }
 ```
 
-- `list()` and `head(subject)` read only the in-memory cache — no store
-  access, no rescanning.
+- `list(archived?)` and `head(subject)` read only the in-memory cache — no
+  store access, no rescanning. `list` filters by subject status: the active
+  subjects by default, the archived ones with `archived: true` — see
+  [Subject status](#subject-status).
 - `add(rev)` resolves `rev`'s `subject` (explicit, or inherited from a single
   parent — see below), assembles and checks a `vnd.fjs.revision` blob, writes
   it to the store, and folds it into the cache in one step.
@@ -153,6 +155,42 @@ from that subject's head set" over every stored revision, in any order,
 converges to the same result. `buildCache` does this once for the whole
 store at startup; `addRevision` repeats the same fold for a single new
 revision, incrementally.
+
+## Subject status
+
+`archived` is a flag on a *revision*, but "is this thing still being worked
+on" is a question about a *subject*. `list` bridges the two through the
+subject's current heads, since the heads are exactly the revisions anything
+new would be built on:
+
+- **active** — at least one current head is not archived. `list()`.
+- **archived** — the subject has at least one current head, and every one of
+  them is archived. `list(true)`.
+
+Concurrent heads can disagree, and both rules resolve that the same way: a
+single unarchived head keeps the whole subject active. Archiving is a
+statement that a subject is done evolving, and while a head remains that
+something can still be built on, it isn't. This also makes archiving
+reversible in the ordinary way — a new unarchived revision on top of an
+archived head demotes it out of the head set, and the subject is active again,
+with no separate "unarchive" operation and no rewriting of stored revisions.
+
+A subject with no current heads is in neither result: the status is a
+statement about heads, and there are none to make it about. A hash-consistent
+store cannot produce one (that would need a cycle among content hashes), but
+nothing here verifies that a blob hashes to the key it sits under, so this is
+what a corrupt or hand-crafted store gets rather than an arbitrary status.
+
+There is deliberately no all-subjects mode. Nothing needs one yet, and only
+this direction is reversible: adding a third value to the filter later is a
+compatible extension, while removing one would break callers.
+
+The cache stores each revision's `archived` flag keyed by its own revision
+hash, next to the `hashes` and `parents` sets, and applies it to the heads
+derived at read time. A per-subject flag maintained during the fold would be
+wrong for the same reason a running head list is (see
+[Head resolution](#head-resolution)): which revisions are heads is not known
+until the whole store has been folded in.
 
 ## Cross-subject parents
 

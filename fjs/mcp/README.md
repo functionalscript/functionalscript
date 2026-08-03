@@ -56,7 +56,7 @@ with your CAS instance, and the `evo_list`, `evo_head`, `evo_revision`, and
 | `cas_add`      | `{ content, type? }`                         | `c.write(value)`  | hash (cBase32)                            |
 | `cas_get`      | `{ hash, content?: boolean }`                | `c.read(key)`     | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
 | `cas_list`     | `{}`                                         | `c.list()`        | hashes, one per line                      |
-| `evo_list`     | `{}`                                         | `e.list()`        | subjects, as a JSON array of strings      |
+| `evo_list`     | `{ archived? }`                              | `e.list(...)`     | subjects, as a JSON array of strings      |
 | `evo_head`     | `{ subject }`                                | `e.head(...)`     | head hashes, one per line                 |
 | `evo_revision` | `{ hash }`                                   | `e.revision(...)` | the revision, as JSON                     |
 | `evo_add`      | `{ parents, snapshot?, subject?, archived? }` | `e.add(...)`      | hash (cBase32)                            |

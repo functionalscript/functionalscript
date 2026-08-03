@@ -197,6 +197,87 @@ export const proof = {
         assertEq(subjects.length, 1)
         assertEq(subjects[0], 'doc')
     },
+    // `list()` and `list(true)` partition subjects by the archived flags of
+    // their current heads: a lone root revision carrying `archived: true`
+    // makes its subject archived, one without it leaves the subject active,
+    // and neither subject appears in the other's result.
+    listPartitionsSubjectsByHeadArchivedFlag: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const [state1, live] = virtual(state0)(e.add({ parents: [], subject: 'live', snapshot: vecToCBase32(vec8(0x40n)) }))
+        assert(live[0] === 'ok', ['expected the active add to succeed', live])
+        const [state2, gone] = virtual(state1)(e.add({ parents: [], subject: 'gone', snapshot: vecToCBase32(vec8(0x41n)), archived: true }))
+        assert(gone[0] === 'ok', ['expected the archived add to succeed', gone])
+        const [state3, active] = virtual(state2)(e.list())
+        assertEq(active.length, 1)
+        assertEq(active[0], 'live')
+        const [, archived] = virtual(state3)(e.list(true))
+        assertEq(archived.length, 1)
+        assertEq(archived[0], 'gone')
+    },
+    // Concurrent heads can disagree about `archived`. One unarchived head
+    // keeps the whole subject active — there is still a head left to build on
+    // — so the subject stays out of the archived-only result.
+    listTreatsDisagreeingHeadsAsActive: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const [state1, root] = virtual(state0)(e.add({ parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x42n)) }))
+        assert(root[0] === 'ok', ['expected root ok', root])
+        // The two children differ only in `archived`, which is enough to make
+        // them distinct blobs, hence two concurrent heads of one root.
+        const [state2, kept] = virtual(state1)(e.add({ parents: [root[1]], subject: 'doc' }))
+        assert(kept[0] === 'ok', ['expected the unarchived child ok', kept])
+        const [state3, dropped] = virtual(state2)(e.add({ parents: [root[1]], subject: 'doc', archived: true }))
+        assert(dropped[0] === 'ok', ['expected the archived child ok', dropped])
+        const [state4, heads] = virtual(state3)(e.head('doc'))
+        assertEq(heads.length, 2)
+        const [state5, active] = virtual(state4)(e.list())
+        assertEq(active.length, 1)
+        assertEq(active[0], 'doc')
+        const [, archived] = virtual(state5)(e.list(true))
+        assertEq(archived.length, 0)
+    },
+    // `archived` is a property of a revision, not of a subject: a subject
+    // archived at one revision is active again as soon as an unarchived child
+    // demotes that revision out of the head set.
+    listIgnoresArchivedRevisionsThatAreNoLongerHeads: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const [state1, root] = virtual(state0)(e.add({ parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x45n)), archived: true }))
+        assert(root[0] === 'ok', ['expected the archived root ok', root])
+        const [state2, revived] = virtual(state1)(e.add({ parents: [root[1]], subject: 'doc' }))
+        assert(revived[0] === 'ok', ['expected the unarchived child ok', revived])
+        const [state3, active] = virtual(state2)(e.list())
+        assertEq(active.length, 1)
+        assertEq(active[0], 'doc')
+        const [, archived] = virtual(state3)(e.list(true))
+        assertEq(archived.length, 0)
+    },
+    // A subject can end up with no current head at all, and a status is a
+    // statement about heads — so such a subject is neither active nor
+    // archived and belongs to neither result. Nothing verifies that a stored
+    // blob actually hashes to the key it sits under, so a hand-crafted or
+    // corrupt store can present a revision naming its own hash as its parent;
+    // `fixedCas` reproduces exactly that, which a real `fileCas` cannot.
+    listExcludesSubjectWithNoCurrentHeads: () => {
+        const selfHash = vec8(0x43n)
+        const snapshotHash = vecToCBase32(vec8(0x44n))
+        const text = `{"dialect":"${revisionDialect}","subject":"doc","parents":["${vecToCBase32(selfHash)}"],"snapshot":"${snapshotHash}","generation":1}`
+        const bytes = tryUtf8(text)
+        assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
+        const cas = fixedCas([[selfHash, bytes]])
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(cas))
+        const e = evo(cas)(cacheKey)
+        const [state1, heads] = virtual(state0)(e.head('doc'))
+        assertEq(heads.length, 0)
+        const [state2, active] = virtual(state1)(e.list())
+        assertEq(active.length, 0)
+        const [, archived] = virtual(state2)(e.list(true))
+        assertEq(archived.length, 0)
+    },
     // Adding the exact same revision twice yields the same (deduplicated)
     // content hash and must not duplicate the head entry.
     addRevisionIdempotentOnDuplicateContent: () => {
