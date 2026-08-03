@@ -11,6 +11,8 @@ history.
 
 ## Unreleased
 
+### 0.40.0
+
 - **BREAKING CHANGES:** remove the Playwright integration, which ran proofs in a
   Node worker rather than in a browser: no `@playwright/test` dependency, no
   `playwright` CI job, engine, test context, or scenario runner
