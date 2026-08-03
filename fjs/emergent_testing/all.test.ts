@@ -1,5 +1,6 @@
 import { runEffect } from '../effects/node/module.ts'
 import { register } from './module.f.ts'
 
-// we need `await` for Playwright.
+// Top-level `await`: every proof must be registered before the runner starts
+// collecting tests.
 await runEffect(register)

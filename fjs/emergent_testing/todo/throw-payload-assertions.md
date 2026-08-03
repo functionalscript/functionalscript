@@ -172,6 +172,4 @@ Playwright bridge.
 - [todo-property](./todo-property.md), [skip-property](./skip-property.md) — the same
   structural-marker mechanism this proposal extends.
 - [browser-testing](./browser-testing.md) — shared browser-side execution and reporting.
-- [remove-playwright-job](../../ci/todo/remove-playwright-job.md) — removes the obsolete
-  Node-side Playwright registration path.
 - `fjs/asserts/proof.f.ts`, `fjs/types/result/proof.f.ts` — the sites that lost payload checks.

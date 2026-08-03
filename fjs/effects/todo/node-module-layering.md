@@ -110,10 +110,9 @@ Judgement calls worth deciding explicitly rather than by accident:
   `NodeProgramOptions`' surviving test contexts up as well — would drag the
   whole program contract along and is not worth it.)
 
-  The current Playwright context is not part of that surviving contract. It is
-  removed by [remove-playwright-job](../../ci/todo/remove-playwright-job.md),
-  and this layering task must operate on that post-cleanup shape. Do not retain,
-  relocate, or recreate a Playwright field in `NodeProgramOptions`; the future
+  The Playwright context is not part of that surviving contract: it has already
+  been removed, and this layering task operates on that post-cleanup shape. Do
+  not reintroduce a Playwright field in `NodeProgramOptions`; the future
   Playwright adapter belongs to the browser-testing controller and consumes the
   shared browser report rather than the Node `Test` effect.
 - **The console move must also narrow `csiWrite`, or symptom 2 survives it.**
@@ -177,10 +176,10 @@ Judgement calls worth deciding explicitly rather than by accident:
 - **Every move is a breaking change** to an import path. Per `AGENTS.md`, do one
   concern per PR, update every importer in the same PR, and prefix the CHANGELOG
   entry with `**BREAKING CHANGES:**`. Do not leave re-export shims behind.
-- **Remove the obsolete Playwright adapter first or in the same change.** This
-  task must preserve only the process-side `TestContext` fields that still have
-  consumers. It must not use relocation as a reason to keep the Playwright
-  engine, context, dynamic import, or Node-side proof-registration path alive.
+- **The obsolete Playwright adapter is already gone.** This task must preserve
+  only the process-side `TestContext` fields that still have consumers. It must
+  not use relocation as a reason to revive the Playwright engine, context,
+  dynamic import, or Node-side proof-registration path.
 - **Verify no new cycles** before each move. In particular `fjs/effects/console`
   needs `Vec` (`fjs/types/bit_vec`) and the `fjs/text` encoders — check that
   none of those import back into `fjs/effects`.
@@ -225,9 +224,6 @@ Judgement calls worth deciding explicitly rather than by accident:
 - [fold-stream-combinator](./fold-stream-combinator.md) — its `Result`-spelled
   signature is the right design for a generic combinator, not the workaround it
   calls itself; that issue needs no change from this one.
-- [remove-playwright-job](../../ci/todo/remove-playwright-job.md) — removes the
-  obsolete Playwright engine and `NodeProgramOptions` context before this task
-  relocates the surviving test effect declarations.
 - [browser-testing](../../emergent_testing/todo/browser-testing.md) — owns the
   future Playwright adapter and browser-side test report.
 - `fjs/media/type/module.f.ts:40`, `fjs/text/sgr/module.f.ts:11`,

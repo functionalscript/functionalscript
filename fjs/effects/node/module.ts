@@ -299,12 +299,6 @@ const runNodeEffect: EffectToPromise = asyncRun({
         ctx.test(name, { expectFailure }, async t => runNodeEffect(test(t))),
 })
 
-const isPlaywright = 'PLAYWRIGHT_TEST' in (process?.env ?? {})
-
-const pwTest = isPlaywright
-    ? (await import('@playwright/test') as any).test
-    : undefined
-
 const inlineTest: TestFn = async (name, { expectFailure }, fn) => {
     if (expectFailure) {
         try { await fn(inlineContext) } catch { return }
@@ -323,9 +317,8 @@ const wrapInlineTest = (register: FrameworkRegister): TestContext => ({
 })
 
 const bunTestContext = wrapInlineTest(testContext.test)
-const playwrightTestContext = wrapInlineTest(pwTest!)
 
-const engine = isPlaywright ? 'playwright' : 'Bun' in globalThis ? 'bun' :
+const engine = 'Bun' in globalThis ? 'bun' :
     'Deno' in globalThis ? 'deno' : 'node'
 const nodeVersion = engine === 'node' ? process.version : undefined
 const inlineTestContext = usesInlineTestContext(engine, nodeVersion)
@@ -337,7 +330,6 @@ const options: NodeProgramOptions = {
     std: { stdout: process.stdout, stderr: process.stderr },
     testContext: inlineTestContext ? wrapInlineTest(testContext.test) : testContext,
     bunTestContext,
-    playwrightTestContext,
     engine,
     ...(nodeVersion === undefined ? {} : { nodeVersion }),
     inlineTestContext,
@@ -348,9 +340,9 @@ const options: NodeProgramOptions = {
  * resolving to its exit code **without** terminating the process.
  *
  * Use this when the caller must stay alive afterwards — e.g. when proofs are
- * registered under an external test runner (Node `--test`, Bun, Playwright)
- * that owns the process lifecycle. For a standalone CLI entry point that should
- * exit with the program's code, use {@link run} instead.
+ * registered under an external test runner (Node `--test`, Bun, Deno) that owns
+ * the process lifecycle. For a standalone CLI entry point that should exit with
+ * the program's code, use {@link run} instead.
  */
 export const runEffect: (p: NodeProgram) => Promise<number> = program =>
     runNodeEffect(program(options))

@@ -1,7 +1,6 @@
 /**
  * Centralized version pins and OS images used by the CI generator: runner
- * images, tool versions (Bun, Deno, Playwright, Rust, Node, Wasmtime, Wasmer,
- * TSGO).
+ * images, tool versions (Bun, Deno, Rust, Node, Wasmtime, Wasmer, TSGO).
  *
  * @module
  */
@@ -32,13 +31,6 @@ export const bun = '1.3.14'
 
 // https://deno.com/
 export const deno = '2.9.4'
-
-// https://www.npmjs.com/package/playwright
-// Pinned to the exact version `pkgs.playwright-driver` provides in the pinned
-// Nixpkgs snapshot below, so the generated Playwright flake's browsers match
-// what `@playwright/test` expects — see `fjs/ci/playwright/module.f.ts`.
-// Make sure that `package.json` has the same version of `@playwright/test`.
-export const playwright = '1.59.1'
 
 // The Node versions the pinned Nixpkgs snapshot below provides — read from
 // `pkgs/development/web/nodejs/v{22,24,26}.nix` at that commit. Every runtime

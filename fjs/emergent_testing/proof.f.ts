@@ -304,7 +304,7 @@ const makeRegisterRunner = (testOp: RegisterTestOp): RegisterRunner => {
     return runner
 }
 
-// registerModule appends ' ...' for inline runners (Bun/Playwright).
+// registerModule appends ' ...' for inline runners (Bun).
 // This mock never invokes the registered callback; it only records names.
 export const registerSuffixes = () => {
     const runner = makeRegisterRunner((_runner, _ctx, name, _xf, _fn) => (s: RegisterMockState) => [[...s, name], undefined])
@@ -320,7 +320,7 @@ export const registerSuffixes = () => {
     assert(nodeNames[0] === 'import("./a.f.ts").proof.ok()')
     assertEq(nodeNames[1], 'import("./a.f.ts").proof.throw.a()')
 
-    // Bun/Playwright (star = ' ...'): ... on normal tests, path shows throw for throw-tests
+    // Bun (star = ' ...'): ... on normal tests, path shows throw for throw-tests
     const [inlineNames] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ' ...'))
     assertEq(inlineNames.length, 2)
     assert(inlineNames[0] === 'import("./a.f.ts").proof.ok() ...')

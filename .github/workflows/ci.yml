@@ -528,20 +528,6 @@
           "run": "test \"$(nix develop ./nix/generated/node26 --command node --version)\" = v26.5.1"
         }
       ]
-    },
-    "playwright": {
-      "runs-on": "ubuntu-26.04-arm",
-      "steps": [
-        {
-          "uses": "cachix/install-nix-action@v31.11.0"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "nix develop ./nix/generated/playwright --command bash -euo pipefail -c 'test \"$(node --version)\" = v26.5.1 && npm ci && test \"$(npx playwright --version)\" = \"Version 1.59.1\" && npx playwright test --browser=chromium && npx playwright test --browser=firefox && npx playwright test --browser=webkit'"
-        }
-      ]
     }
   }
 }

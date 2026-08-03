@@ -1,6 +1,6 @@
 #!/bin/sh
 # Usage: run.sh <runner> <scenario>
-# runner: fjs | bun | node | deno | playwright
+# runner: fjs | bun | node | deno
 # scenario: path to a *.pass.f.ts, *.fail.f.ts, *.pass.ts or *.fail.ts file
 set -e
 
@@ -27,7 +27,6 @@ case "$runner" in
     bun)        cmd="bun test" ;;
     node)       cmd="node --test" ;;
     deno)       cmd="deno test --allow-read --allow-env --allow-sys" ;;
-    playwright) cmd="npx playwright test" ;;
     *) echo "unknown runner: $runner" >&2; exit 2 ;;
 esac
 

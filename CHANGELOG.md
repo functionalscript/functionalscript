@@ -11,6 +11,13 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** remove the Playwright integration, which ran proofs in a
+  Node worker rather than in a browser: `Engine` loses `'playwright'`,
+  `NodeProgramOptions` loses `playwrightTestContext`, `fjs/ci/config` loses
+  `playwright`, and `@playwright/test` is no longer a devDependency. The `ci`
+  generator no longer emits the `playwright` job or its Nix flake, and
+  `scenarios/run.sh` no longer accepts `playwright`
+  [#1414](https://github.com/functionalscript/functionalscript/pull/1414)
 - **BREAKING CHANGES:** `fjs/bnf/descent`: match results are now the record
   `{ ast, success, idx, failure? }` instead of a tuple. `failure` is present only
   on a failed match and holds the furthest position a terminal was rejected at

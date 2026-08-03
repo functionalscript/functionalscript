@@ -9,9 +9,9 @@ Each supported test runner handles generated tests and expected failures differe
 This is not documented anywhere, leaving contributors uncertain about why the framework
 behaves differently across `fjs t`, Node, Deno, and Bun.
 
-The current Node-side Playwright wrapper is being removed because it does not execute
-proofs inside browsers. Do not document that wrapper as supported behavior or preserve it
-for consistency with the surviving external runners.
+The Node-side Playwright wrapper has been removed because it did not execute proofs
+inside browsers. Do not document that wrapper as supported behavior or restore it for
+consistency with the surviving external runners.
 
 Browser execution is a separate architecture: the shared HTML/JavaScript application runs
 proofs inside the browser realm, while `fjs browser-test` or an optional Playwright Test
@@ -62,5 +62,3 @@ reporting, but it must not recreate the removed per-proof Node registration path
 - [i211](todo.md) — reporter modes for the CLI and surviving external-runner bridges.
 - [browser-testing](browser-testing.md) — browser-native execution shared by the HTML UI,
   `fjs browser-test`, and an optional external Playwright Test adapter.
-- [remove-playwright-job](../../ci/todo/remove-playwright-job.md) — removal of the obsolete
-  Node-side Playwright bridge.

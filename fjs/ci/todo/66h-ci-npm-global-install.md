@@ -20,9 +20,8 @@ The shape `install({ run: `npm install -g ${pkg}@${version}` })` is duplicated; 
 package name and version differ.
 
 The former `fjs/ci/playwright/module.f.ts` call site is intentionally not a consumer of
-this proposal. The current Playwright job and its global install are being removed by
-[remove-playwright-job](remove-playwright-job.md). This task must not preserve or refactor
-that obsolete path.
+this proposal. That job and its global install have already been deleted, and this task
+must not resurrect that obsolete path.
 
 ### Proposed abstraction
 
@@ -68,16 +67,11 @@ This remains distinct from:
 - [ ] Add `npmGlobalInstall` to `fjs/ci/common/module.f.ts`.
 - [ ] Rebind `fjsGlobalInstall` in `fjs/ci/node/module.f.ts`.
 - [ ] Replace the inline `@typescript/native-preview` global-install step.
-- [ ] Do not migrate or retain the Playwright global-install call site; its deletion is
-      owned by `remove-playwright-job.md`.
 - [ ] Confirm proof coverage for both surviving consumers and the generated step shape.
-- [ ] Verify generated workflow output is unchanged apart from separately planned
-      Playwright removal.
+- [ ] Verify generated workflow output is unchanged.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related
 
 - [i170](todo.md) — `toolSteps` step-sequence builder.
 - [i175](todo.md) — `setupTool` for `uses`-based setup steps.
-- [remove-playwright-job](remove-playwright-job.md) — removes the obsolete Playwright
-  global-install consumer.

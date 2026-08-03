@@ -24,7 +24,6 @@ canonical Node job under `nix/generated/`.
 - `rust/module.f.ts` — Rust toolchain setup and `cargo` build/test steps.
 - `deno/module.f.ts` — Deno runtime steps.
 - `bun/module.f.ts` — Bun runtime steps.
-- `playwright/module.f.ts` — Playwright browser-test job.
 
 ## Usage
 
@@ -81,7 +80,6 @@ split by Node version:
 - Node 24 runs `npm ci` and `node --test`.
 - Node 26 runs `npm ci`, `npm run ci-update`, `git add -A && git diff --cached --exit-code`,
   `npx tsc`, `npm run cov`, and `npm pack`.
-- Playwright is also Node-based, so it runs `npm ci` before browser setup.
 
 The commands that must be provided by `package.json` for generated CI are `cov`
 and `ci-update`. A typical FunctionalScript project can define them like this:

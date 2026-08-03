@@ -246,5 +246,3 @@ or each property proof through the removed Node-side Playwright bridge.
 - `fjs/emergent_testing/module.f.ts` — `runModule`, `registerModule` — the entry points to extend.
 - [browser-testing](browser-testing.md) — browser-native execution shared by the HTML
   UI, `fjs browser-test`, and optional external Playwright Test adapter.
-- [remove-playwright-job](../../ci/todo/remove-playwright-job.md) — removes the obsolete
-  Node-side Playwright bridge.

@@ -200,9 +200,8 @@ Add other jobs only when useful:
 - Deno and Bun can be separate straightforward follow-ups;
 - Rust should have its own experiment and TODO for concrete toolchain/target packages;
 - real browser execution is tracked by
-  [browser-testing](../../emergent_testing/todo/browser-testing.md), while removal of the
-  current Node-only Playwright integration is tracked by
-  [remove-playwright-job](remove-playwright-job.md);
+  [browser-testing](../../emergent_testing/todo/browser-testing.md); the Node-only
+  Playwright integration has already been removed;
 - a future browser runner may use Nix-provided browsers, but that should be designed after
   the shared HTML/JavaScript browser application exists and must not restore the deleted
   Node-only Playwright job;
@@ -241,7 +240,5 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
   implementation.
 - [browser-testing](../../emergent_testing/todo/browser-testing.md) — replacement design
   for real browser execution and the optional external Playwright runner.
-- [remove-playwright-job](remove-playwright-job.md) — retirement of the current
-  ineffective Playwright job and package coupling.
 - [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — optional OCI design work after
   one direct-Nix job completes validation.

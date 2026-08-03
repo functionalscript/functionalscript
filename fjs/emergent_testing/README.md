@@ -32,8 +32,8 @@ Pin a specific package version by adding it after the package name, for example
 `npx npm:functionalscript@0.29.0 t`, `deno run -A npm:functionalscript@0.29.0 t`,
 or `bunx functionalscript@0.29.0 t`.
 
-This only applies to the built-in runner. External runners such as Playwright
-still need FunctionalScript installed so `all.test.ts` can import
+This only applies to the built-in runner. External runners still need
+FunctionalScript installed so `all.test.ts` can import
 `functionalscript/fjs/emergent_testing/all.test.js`.
 
 ## Installation
@@ -62,7 +62,7 @@ entry file required:
 fjs t
 ```
 
-### External runners (Node, Bun, Deno, Playwright)
+### External runners (Node, Bun, Deno)
 
 External runners need an entry file that, when loaded, discovers every proof
 module and registers each test case with the active runner. The package ships a
@@ -81,7 +81,6 @@ Then invoke the runner:
 - `node --test`
 - `bun test`
 - `deno test --allow-read --allow-env --allow-sys`
-- `npx playwright test`
 
 You can also implement your own runner, as long as it follows the proof-tree
 conventions described below.
