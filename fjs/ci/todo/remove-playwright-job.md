@@ -22,8 +22,8 @@ Keeping this integration has ongoing costs:
 - the emergent-testing scenario script advertises a `playwright` runner that invokes
   `npx playwright test` but still depends on the same Node-only adapter;
 - open effects and emergent-testing TODOs still describe contexts, reporters, property
-  tests, skips, throw-payload checks, and runner behavior through the obsolete Node-side
-  Playwright wrapper;
+  tests, skips, throw-payload checks, filtering, subtests, test-tree walking, and runner
+  behavior through the obsolete Node-side Playwright wrapper;
 - CI pins and validates a Playwright version and browser bundle;
 - generated workflow and Nix artifacts imply browser coverage that is not present.
 
@@ -141,13 +141,23 @@ supported adapter or context:
   consumes its final report;
 - `fjs/emergent_testing/todo/throw-payload-assertions.md` must extend the shared proof
   semantics, surviving process registration paths, and browser-side runner separately;
-  it must not extend `registerModule` for Playwright.
+  it must not extend `registerModule` for Playwright;
+- `fjs/emergent_testing/todo/194.md` must define test and subtest effects only for the
+  surviving process adapters; browser subtests are walked inside the page and Playwright
+  has no `RunSubTest` context;
+- `fjs/emergent_testing/todo/run-subset-of-tests.md` must define runner-independent
+  selectors, apply them inside the shared browser application, and let Playwright only
+  forward selector configuration;
+- `fjs/emergent_testing/todo/65z-tf-test-tree-walker.md` must share process-side traversal
+  without treating Playwright as a `registerModule` consumer; browser execution preserves
+  the same tree semantics through browser-compatible code and cross-runner fixtures.
 
 Do not preserve synthetic Playwright tests, `FJS_TEST_ARGS` handling, inline skip wrappers,
-bridge reporters, Playwright fields in `NodeProgramOptions`, or per-proof Playwright
-registration merely because another feature proposal referenced them. The optional future
-Playwright Test adapter opens the shared browser application and consumes its report; it
-does not implement these semantics in the Node worker.
+bridge reporters, Playwright fields in `NodeProgramOptions`, Playwright subtest contexts,
+filtering through Playwright registration, or per-proof Playwright registration merely
+because another feature proposal referenced them. The optional future Playwright Test
+adapter opens the shared browser application, forwards configuration, and consumes its
+report; it does not implement these semantics in the Node worker.
 
 ### CI cleanup
 
@@ -195,8 +205,8 @@ After regeneration:
   `run.sh playwright ...`;
 - no remaining scenario path executes `npx playwright test`;
 - the reconciled effects and emergent-testing TODOs do not require the removed Playwright
-  engine, context, wrapper, bridge reporter, synthetic tests, environment path, or
-  per-proof registration;
+  engine, context, wrapper, bridge reporter, synthetic tests, environment path,
+  subtest context, filtering path, tree-walker consumer, or per-proof registration;
 - `package.json` and lockfiles have no repository Playwright dependency;
 - the generated workflow has no current Playwright job;
 - no generated Playwright Nix artifact remains without a consumer;
@@ -239,6 +249,9 @@ The replacement task may add one isolated optional adapter, provided:
 - [ ] Reconcile `node-module-layering.md`, `211.md`, and
       `throw-payload-assertions.md` so they preserve only surviving process adapters and
       route browser semantics through the shared browser application.
+- [ ] Reconcile `194.md`, `run-subset-of-tests.md`, and
+      `65z-tf-test-tree-walker.md` so process-side test effects, filtering, and traversal
+      do not treat Playwright as a proof-registration consumer.
 - [ ] Remove or update affected Node-effect and emergent-testing proofs.
 - [ ] Delete the current Playwright CI module and job registration.
 - [ ] Remove generated workflow, Nix, environment, and proof artifacts used only by the
