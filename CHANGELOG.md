@@ -11,6 +11,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `Evo.list` and the `evo_list` MCP tool take an optional
+  `archived?: true` filter and list active subjects by default — those with at
+  least one current head that is not archived — instead of every subject
+  [#1415](https://github.com/functionalscript/functionalscript/pull/1415)
+
 ### 0.40.0
 
 - **BREAKING CHANGES:** remove the Playwright integration, which ran proofs in a

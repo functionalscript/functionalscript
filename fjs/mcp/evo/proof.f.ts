@@ -63,6 +63,22 @@ export const proof = {
         assert(subjects.includes('line one\nline two'), ['unexpected subjects', subjects])
         assert(subjects.includes(''), ['unexpected subjects', subjects])
     },
+    // The `archived` argument is a pass-through to `Evo.list`'s status filter:
+    // omitted lists the active subjects, `true` the archived ones.
+    evoListForwardsTheArchivedFilter: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const [state1, add] = virtual(state0)(e.add({ parents: [], subject: 'gone', snapshot: vecToCBase32(vec8(0x2cn)), archived: true }))
+        assert(add[0] === 'ok', ['expected add ok', add])
+        const entry = findEntry(evoToolRegistry(e), 'evo_list')
+        const [state2, active] = virtual(state1)(entry.handle({}))
+        assert(!active.isError)
+        assertEq(textOf(active), '[]')
+        const [, archived] = virtual(state2)(entry.handle({ archived: true }))
+        assert(!archived.isError)
+        assertEq(textOf(archived), '["gone"]')
+    },
     evoHeadReflectsTheCache: () => {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
