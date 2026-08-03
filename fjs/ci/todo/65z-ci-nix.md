@@ -5,17 +5,17 @@
 
 ### Progress
 
-Flake generation is implemented, and a temporary `nix-flakes` CI job instantiates
-the generated flakes — see the progress note in
-[66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md). What remains
-here is the Nixpkgs update command and adopting the flakes in the real jobs.
+Flake generation is implemented, and a temporary `nix-flakes` CI job instantiates the
+generated flakes — see the progress note in
+[66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md). What remains here is
+the Nixpkgs update command and adopting the flakes in the real Node jobs.
 
 ### Problem
 
 The CI environments are currently assembled by workflow-specific setup steps rather than
 small, readable, declarative Nix environments. A broad design also risks coupling the
-first useful Node migration to unrelated dependency-updater, Playwright, Rust, OCI, and
-configuration-migration work.
+first useful Node migration to unrelated dependency-updater, browser-testing, Rust, OCI,
+and configuration-migration work.
 
 We need to prove the smallest independent path:
 
@@ -35,7 +35,7 @@ This task owns only:
 
 - selecting and pinning an exact Nixpkgs commit;
 - recording package versions provided by that snapshot;
-- declaring simple Nix environments for selected CI jobs;
+- declaring simple Nix environments for selected Node CI jobs;
 - generating and committing one `flake.nix` per job;
 - validating and adopting those flakes in CI.
 
@@ -43,16 +43,16 @@ This task does not own:
 
 - replacing `npm-check-updates`;
 - designing a repository-wide CI lock format;
-- synchronizing Playwright packages and browsers;
+- browser-test application or Playwright adapter design;
 - solving Rust target/toolchain composition;
 - building OCI images.
 
-Those concerns may evolve independently and must not block the first Node flakes.
+Those concerns evolve independently and must not block the first Node flakes.
 
 #### Configuration
 
-For this milestone, extend the existing `fjs/ci/config/module.f.ts` configuration.
-It is already consumed by CI generation and works on native Windows.
+For this milestone, extend the existing `fjs/ci/config/module.f.ts` configuration. It is
+already consumed by CI generation and works on native Windows.
 
 A future task may migrate CI configuration to another format. That migration is not a
 prerequisite for Nix generation; it only needs to update the Nix generator to read the
@@ -115,8 +115,8 @@ The generator substitutes the job's package. If another system is later required
 another explicit `devShells.<system>.default` attribute rather than adding a loop or
 system-selection framework.
 
-Node 22, Node 24, and Node 26 remain separate because they use different runtimes and
-run different command sequences.
+Node 22, Node 24, and Node 26 remain separate because they use different runtimes and run
+different command sequences.
 
 The Node 22 flake adds one explicit job-local field for its existing global install:
 
@@ -128,8 +128,8 @@ shellHook = ''
 '';
 ```
 
-Do not generalize this into a shell-configuration framework unless another job proves
-that abstraction useful.
+Do not generalize this into a shell-configuration framework unless another surviving job
+proves that abstraction useful.
 
 #### Nixpkgs update
 
@@ -149,23 +149,23 @@ At a high level it:
 5. runs ordinary CI generation to regenerate the declared flakes;
 6. leaves all generated changes for review and commit.
 
-Do not require the generic dependency updater to run this flow. Package-manager
-manifests and lockfiles are changed only when a separately scoped task explicitly
-requires them.
+Do not require the generic dependency updater to run this flow. Package-manager manifests
+and lockfiles are changed only when a separately scoped task explicitly requires them.
+Browser-runner and browser-package synchronization is outside this Node-only update flow.
 
 #### Generated flake locks
 
 Nix may create a `flake.lock` beside a generated `flake.nix` during evaluation. Do not
-commit these per-job lock files in the first milestone. Ignore them with the scoped
-root `.gitignore` rule:
+commit these per-job lock files in the first milestone. Ignore them with the scoped root
+`.gitignore` rule:
 
 ```gitignore
 /nix/generated/**/flake.lock
 ```
 
-This keeps the Node 26 generated-file drift check clean without adding special Nix
-flags to every invocation. The rule is deliberately limited to generated CI flakes,
-so a future intentional root or hand-maintained `flake.lock` is unaffected.
+This keeps the Node 26 generated-file drift check clean without adding special Nix flags
+to every invocation. The rule is deliberately limited to generated CI flakes, so a future
+intentional root or hand-maintained `flake.lock` is unaffected.
 
 #### Validation and adoption
 
@@ -199,9 +199,13 @@ Add other jobs only when useful:
 
 - Deno and Bun can be separate straightforward follow-ups;
 - Rust should have its own experiment and TODO for concrete toolchain/target packages;
-- Playwright has its own TODO — see
-  [65Z-ci-nix-playwright](65z-ci-nix-playwright.md) — and is in fact the first job
-  migrated to `nix develop`, since Nixpkgs-provided browsers remove its slowest steps;
+- real browser execution is tracked by
+  [browser-testing](../../emergent_testing/todo/browser-testing.md), while removal of the
+  current Node-only Playwright integration is tracked by
+  [remove-playwright-job](remove-playwright-job.md);
+- a future browser runner may use Nix-provided browsers, but that should be designed after
+  the shared HTML/JavaScript browser application exists and must not restore the deleted
+  Node-only Playwright job;
 - OCI remains a later design and optimization task after one direct-Nix Linux job
   completes validation.
 
@@ -221,8 +225,7 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [x] Ignore `/nix/generated/**/flake.lock`.
 - [x] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
-- [ ] Bootstrap Nix through a pinned CI action in each migrated job (the pinned
-      action is already used by the temporary `nix-flakes` job).
+- [ ] Bootstrap Nix through a pinned CI action in each migrated job.
 - [ ] Run each migrated job's complete command sequence inside one
       `nix develop --command` invocation.
 - [ ] Validate each Node job independently with its existing commands and order.
@@ -236,7 +239,9 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
   generated-flake code generator.
 - [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — first Node
   implementation.
-- [65Z-ci-nix-playwright](65z-ci-nix-playwright.md) — the first job actually migrated
-  to `nix develop`, and the adoption shape the Node jobs should follow.
+- [browser-testing](../../emergent_testing/todo/browser-testing.md) — replacement design
+  for real browser execution and the optional external Playwright runner.
+- [remove-playwright-job](remove-playwright-job.md) — retirement of the current
+  ineffective Playwright job and package coupling.
 - [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — optional OCI design work after
   one direct-Nix job completes validation.

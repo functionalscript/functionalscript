@@ -34,6 +34,19 @@ test case, e.g. `fjs/types/list/proof.f.ts` → `proof.map.empty`):
 - **test-case selection** — restrict which entries of a loaded proof tree
   run, by filtering the `[path, TestEntry]` pairs `collectTests` returns.
 
+Define the selector syntax and matching semantics independently from a particular runner.
+The same contract should be usable by:
+
+- `fjs t`;
+- the surviving Node, Deno, and Bun process adapters;
+- the shared browser application described by
+  [browser-testing](./browser-testing.md).
+
+For browser runs, the selector is passed through the generated page configuration, URL, or
+controller protocol and applied by browser-side discovery/walking. The optional Playwright
+Test adapter forwards the selector to that page and consumes the resulting report. It must
+not route filtering through the removed per-proof Playwright `registerModule` path.
+
 Open design questions to settle before implementing:
 
 - the argument syntax: a path prefix (`fjs t fjs/types`), a substring
@@ -42,18 +55,22 @@ Open design questions to settle before implementing:
   matched") or a silent empty run — an error is safer against typos;
 - how the summary reports a filtered run so a green partial run is not
   mistaken for a green full run;
-- whether the same selector should apply to `register` (Node `--test`,
-  Bun, Playwright), or whether those runners' own filtering is enough.
+- how process adapters expose the selector without conflicting with their
+  own native filtering options;
+- how the browser page serializes the same selector and reports matched/total counts.
 
 ### Tasks
 
-- [ ] Settle the selector syntax and record it in
+- [ ] Settle the runner-independent selector syntax and record it in
       [../README.md](../README.md).
 - [ ] Thread a module predicate from `options.args` through
       `loadModuleMap` into `allFiles`.
 - [ ] Filter `collectTests` output by the test-case selector.
-- [ ] Report the active selector and the matched/total counts in the
-      summary; fail on a selector that matches nothing.
+- [ ] Apply the same matching contract to the surviving Node, Deno, and Bun adapters.
+- [ ] Pass browser selectors through the shared page/controller configuration and apply
+      them inside the browser runner; Playwright only forwards that configuration.
+- [ ] Report the active selector and the matched/total counts in every supported report;
+      fail on a selector that matches nothing.
 - [ ] Proof coverage via the virtual runner; `npx tsc`, `fjs t`.
 
 ### Related
@@ -65,3 +82,4 @@ Open design questions to settle before implementing:
   this needs.
 - [211](./211.md) — reporter modes; a filtered run's summary is a reporter
   concern.
+- [browser-testing](./browser-testing.md) — shared browser application and outer runners.

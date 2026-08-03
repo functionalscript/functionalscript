@@ -5,43 +5,36 @@
 
 ### Problem
 
-`fjs/ci/common/module.f.ts:98-106` defines two exported Job builders that differ
-only in a single image constant:
+`fjs/ci/common/module.f.ts` defines two exported Job builders that differ only in one
+image constant:
 
 ```ts
 export const ubuntu = (ms: readonly MetaStep[]): Job => ({
     'runs-on': images.ubuntu.intel,
-    steps: toSteps(ms)
+    steps: toSteps(ms),
 })
 
 export const ubuntuArm = (ms: readonly MetaStep[]): Job => ({
     'runs-on': images.ubuntu.arm,
-    steps: toSteps(ms)
+    steps: toSteps(ms),
 })
 ```
 
-The entire body — the `Job` shape, the `steps: toSteps(ms)` call — is repeated
-verbatim. The only thing that varies is `'runs-on'` (`images.ubuntu.intel` vs
-`images.ubuntu.arm`). This is the textbook DRY case `AGENTS.md` calls out: "two
-nearly-identical functions differ only in a constant". Today there are two
-runners; a third image (e.g. a future macOS or Windows runner, or a pinned
-container) would mean a third copy of the same three lines.
+The entire body is duplicated. The only variation is `'runs-on'`.
 
-The same `{ 'runs-on': X, steps: toSteps(Y) }` shape is also hand-built at
-two more sites outside `common`:
+The same `{ 'runs-on': image, steps: toSteps(result) }` shape is also constructed in
+`fjs/ci/module.f.ts`, so there are currently three surviving copies of the same Job
+construction pattern.
 
-- `fjs/ci/module.f.ts:38` —
-  `return [id, { 'runs-on': image, steps: toSteps(result) }]`
-- `fjs/ci/playwright/module.f.ts:13-14` —
-  `{ 'runs-on': playwrightImage, steps: toSteps(basicNode(...)([...])) }`
-
-so the factory removes four copies, not two.
+The former `fjs/ci/playwright/module.f.ts` consumer is intentionally excluded: the
+current Playwright job is being removed by
+[remove-playwright-job](remove-playwright-job.md), and this refactoring must not preserve
+or migrate that obsolete module.
 
 ### Proposal
 
-Introduce a factory parameterized by the image, then derive the two public
-exports from it. This keeps the public API (`ubuntu`, `ubuntuArm`)
-unchanged while removing the duplicated body:
+Introduce a factory parameterized by the image, then derive the existing public builders
+from it:
 
 ```ts
 export const job = (runsOn: string) => (ms: readonly MetaStep[]): Job => ({
@@ -53,26 +46,32 @@ export const ubuntu = job(images.ubuntu.intel)
 export const ubuntuArm = job(images.ubuntu.arm)
 ```
 
-The factory makes adding a new runner a one-liner (`export const macos =
-job(images.macos.arm)`), and it documents that "a Job is just a runner image
-plus the standard step pipeline" in one place instead of implying it twice.
+Keep `job` exported because the surviving external construction in `fjs/ci/module.f.ts`
+can become:
 
-`job` is exported (not private) because two consumers outside `common`
-hand-build the same shape today: `fjs/ci/module.f.ts:38` becomes
-`[id, job(image)(result)]` and `fjs/ci/playwright/module.f.ts:13-14` becomes
-`job(playwrightImage)(basicNode(...)([...]))`.
+```ts
+[id, job(image)(result)]
+```
+
+This preserves the public `ubuntu` and `ubuntuArm` APIs while centralizing the common Job
+shape. A future runner may reuse the factory when it has a real implementation, but this
+task must not add compatibility code for the deleted Playwright job.
 
 ### Tasks
 
 - [ ] Add the exported `job` factory in `fjs/ci/common/module.f.ts`.
 - [ ] Re-express `ubuntu` and `ubuntuArm` in terms of `job`.
-- [ ] Migrate the two external sites (`fjs/ci/module.f.ts:38`,
-      `fjs/ci/playwright/module.f.ts:13-14`).
-- [ ] Confirm `proof.f.ts` coverage still exercises both exports (they remain
-      distinct exported values, so existing proofs should pass unchanged).
+- [ ] Migrate the surviving external construction in `fjs/ci/module.f.ts`.
+- [ ] Do not migrate or retain `fjs/ci/playwright/module.f.ts`; its removal is owned by
+      `remove-playwright-job.md`.
+- [ ] Confirm `proof.f.ts` still covers `job`, `ubuntu`, and `ubuntuArm`.
+- [ ] Verify generated workflow output is unchanged apart from separately planned
+      Playwright removal.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related
 
-- [i170-ci-tool-steps](todo.md) — the `MetaStep` → `Step`
-  pipeline (`toSteps`) these builders wrap.
+- [i170-ci-tool-steps](todo.md) — the `MetaStep` to `Step` pipeline (`toSteps`) these
+  builders wrap.
+- [remove-playwright-job](remove-playwright-job.md) — removes the obsolete Playwright Job
+  consumer rather than migrating it to this factory.
