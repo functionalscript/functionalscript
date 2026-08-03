@@ -11,6 +11,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** remove the Playwright integration, which ran proofs in a
+  Node worker rather than in a browser: no `@playwright/test` dependency, no
+  `playwright` CI job, engine, test context, or scenario runner
+  [#1414](https://github.com/functionalscript/functionalscript/pull/1414)
 - **BREAKING CHANGES:** `fjs/bnf/descent`: match results are now the record
   `{ ast, success, idx, failure? }` instead of a tuple. `failure` is present only
   on a failed match and holds the furthest position a terminal was rejected at

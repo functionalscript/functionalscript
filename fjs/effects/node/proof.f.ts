@@ -26,7 +26,6 @@ export const proof = {
         assert(!usesInlineTestContext('node', '26.1.0'))
         assert(!usesInlineTestContext('node'))
         assert(usesInlineTestContext('bun'))
-        assert(usesInlineTestContext('playwright'))
         assert(!usesInlineTestContext('deno', '22.0.0'))
         assert(versionLessThan('25.99.99', '26.0.0'))
         assert(versionLessThan('26.0.0', '26.1.0'))

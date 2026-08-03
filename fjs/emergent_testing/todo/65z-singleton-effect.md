@@ -13,7 +13,7 @@ time and can produce confusing duplicate output.
 #### Concrete example: scenario runner
 
 `run.sh` hard-links `all.ts` → `_all.test.ts` and a scenario file →
-`_scenario.proof.ts`, then runs a test framework (node, bun, deno, playwright)
+`_scenario.proof.ts`, then runs a test framework (node, bun, deno)
 in the `scenarios/` directory. If the framework scans the directory it may
 discover **both** `all.ts` and `_all.test.ts` (both end in `.ts` and both
 export a `run()` call). Each discovered file loads and executes the module

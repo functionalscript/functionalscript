@@ -8,9 +8,9 @@
 FunctionalScript currently has no test path that executes proof functions and their
 module dependencies inside browser JavaScript realms.
 
-The current Playwright integration registers proofs in a Node worker and executes them
-through the Node effect runner. Selecting Chromium, Firefox, or WebKit therefore does not
-move the proof code into those browsers.
+The previous Playwright integration registered proofs in a Node worker and executed them
+through the Node effect runner, so selecting Chromium, Firefox, or WebKit did not move the
+proof code into those browsers. That integration has been removed.
 
 Passing an individual function to `page.evaluate()` is not a general replacement. The
 function is reconstructed from source text and loses imported bindings, closures, module
@@ -440,4 +440,3 @@ Add end-to-end fixtures proving:
   roadmap](../../../todo/plan/roadmap.md#future--functionalscript-compiler-via-fjsbnf)
 - [`.f.mjs` proof discovery and coverage](f-mjs-test-and-coverage.md)
 - [authored `.f.mjs` package support](../../ci/todo/f-mjs-package-support.md)
-- [remove the current Playwright job](../../ci/todo/remove-playwright-job.md)

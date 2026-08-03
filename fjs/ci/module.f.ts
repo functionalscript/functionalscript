@@ -21,7 +21,6 @@ import {
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.ts'
 import { nodeMainSteps, nodeNixJobs, nodeNixVersionSteps, nodeVersionJobs } from './node/module.f.ts'
 import { nixFlakes, nixInstall, type NixJob } from './nix/module.f.ts'
-import { playwrightJob, playwrightNixJob } from './playwright/module.f.ts'
 import { bunSteps } from './bun/module.f.ts'
 import { denoSteps } from './deno/module.f.ts'
 
@@ -44,11 +43,10 @@ export type Setup = {
 }
 
 // Every generated flake, across all job families that own one.
-const nixJobs: readonly NixJob[] = [...nodeNixJobs, playwrightNixJob]
+const nixJobs: readonly NixJob[] = nodeNixJobs
 
-// Temporary: proves the not-yet-migrated flakes still evaluate. The Playwright
-// job checks its own flake by running through it. Removed once the canonical
-// Node jobs do the same.
+// Temporary: proves the not-yet-migrated flakes still evaluate. Removed once
+// the canonical Node jobs check their own flake by running through it.
 const nixFlakeJob: Job = ubuntuArm([nixInstall, ...nodeNixVersionSteps])
 
 const canonicalJobs = (rust: boolean): Jobs => ({
@@ -57,7 +55,6 @@ const canonicalJobs = (rust: boolean): Jobs => ({
     bun: ubuntuArm(bunSteps(functionalscript)),
     ...nodeVersionJobs(functionalscript),
     'nix-flakes': nixFlakeJob,
-    playwright: playwrightJob,
 })
 
 export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> => step(

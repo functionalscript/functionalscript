@@ -90,8 +90,8 @@ export const nodeNixJobs: readonly NixJob[] = [
 
 /**
  * Version-check steps for the canonical Node jobs' generated flakes, one per
- * job. Combined with other jobs' checks (e.g. Playwright's) into the shared
- * temporary `nix-flakes` job in `fjs/ci/module.f.ts`.
+ * job. Collected into the shared temporary `nix-flakes` job in
+ * `fjs/ci/module.f.ts`.
  */
 export const nodeNixVersionSteps: readonly MetaStep[] =
     nixVersions.map(version => nixVersionCheckStep(jobId(version), version))

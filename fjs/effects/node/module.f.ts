@@ -442,8 +442,7 @@ export const awaitIfPromise = (p: unknown) =>
 
 /**
  * Signature of a framework test-registration function (e.g. `nodeTest.test`,
- * `bunTest.test`, `pwTest`). Returns `Promise<void>` so async sub-tests can
- * be awaited.
+ * `bunTest.test`). Returns `Promise<void>` so async sub-tests can be awaited.
  */
 export type TestFn = (
     name: string,
@@ -454,8 +453,8 @@ export type TestFn = (
 /**
  * A thin wrapper around a framework's `test` function. Passed through
  * `registerModule` so nested test registration uses the appropriate context
- * (e.g. `inlineContext` on Bun and Playwright, which do not support nested
- * `test()` calls inside a callback).
+ * (e.g. `inlineContext` on Bun, which does not support nested `test()` calls
+ * inside a callback).
  */
 export type TestContext = {
     readonly test: TestFn
@@ -506,7 +505,7 @@ export type Env = {
 }
 
 /** Identifies the JavaScript runtime detected at startup. */
-export type Engine = 'node' | 'bun' | 'playwright' | 'deno'
+export type Engine = 'node' | 'bun' | 'deno'
 
 const versionParts = (version: string): readonly number[] =>
     version.replace(/^v/, '').split('.').map(Number)
@@ -527,7 +526,7 @@ export const versionLessThan = (version: string, minimum: string): boolean => {
  * version check.
  */
 export const usesInlineTestContext = (engine: Engine, nodeVersion?: string): boolean => {
-    if (engine === 'bun' || engine === 'playwright') { return true }
+    if (engine === 'bun') { return true }
     if (engine !== 'node' || nodeVersion === undefined) { return false }
     return versionLessThan(nodeVersion, '26.0.0')
 }
@@ -542,7 +541,6 @@ export const usesInlineTestContext = (engine: Engine, nodeVersion?: string): boo
  * - `testContext`: Node `--test` context; used by `register` on Node.
  * - `bunTestContext`: Bun-compatible context that flattens nested tests inline,
  *   working around Bun's lack of nested `test()` support.
- * - `playwrightTestContext`: Playwright context using the same inline strategy.
  * - `engine`: runtime detected at startup; controls which context `register` selects.
  * - `nodeVersion`: detected Node version; absent for other and virtual runtimes.
  * - `inlineTestContext`: whether the selected context flattens nested tests.
@@ -554,7 +552,6 @@ export type NodeProgramOptions = {
     readonly std: { readonly [k in WriteConsoles]: { readonly isTTY: boolean } }
     readonly testContext: TestContext
     readonly bunTestContext: TestContext
-    readonly playwrightTestContext: TestContext
     readonly engine: Engine
     readonly nodeVersion?: string
     readonly inlineTestContext: boolean

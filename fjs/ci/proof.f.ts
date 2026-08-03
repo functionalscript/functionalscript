@@ -1,7 +1,6 @@
 import { ci, main } from './module.f.ts'
-import { functionalscript, node, playwright } from './config/module.f.ts'
+import { functionalscript, node } from './config/module.f.ts'
 import { nodeNixJobs } from './node/module.f.ts'
-import { playwrightNixJob } from './playwright/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
@@ -67,7 +66,7 @@ const runDefault = (packageJson?: string): GitHubAction => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 14, 'expected 14 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
@@ -101,7 +100,6 @@ export const proof = {
             'node22',
             'node24',
             'node26',
-            'playwright',
         ] as const) {
             assert(hasRunInJob(id, 'npm ci')(gha), `expected npm ci in ${id}`)
         }
@@ -164,7 +162,7 @@ export const proof = {
     nixFlakes: () => {
         const [state, result] = virtual(makeState(false))(main())
         assertEq(result, 0)
-        for (const { id, packages } of [...nodeNixJobs, playwrightNixJob]) {
+        for (const { id, packages } of nodeNixJobs) {
             const [nodePackage] = packages
             assert(
                 flake(state, id).includes(`pkgs.${nodePackage}`),
@@ -199,41 +197,6 @@ export const proof = {
         for (const { id } of nodeNixJobs) {
             assert(!hasRunInJob(id, 'nix develop')(gha), `unexpected nix develop in ${id}`)
         }
-    },
-    playwrightNixJob: () => {
-        const [state, result] = virtual(makeState(false))(main())
-        assertEq(result, 0)
-        const generated = flake(state, playwrightNixJob.id)
-        // Browsers come from the store path, so neither download step is needed.
-        assert(
-            generated.includes('pkgs.playwright-driver.browsers'),
-            'expected Nix-provided Playwright browsers')
-        const gha = workflow(state)
-        assert(
-            hasRunInJob('playwright', 'nix develop ./nix/generated/playwright')(gha),
-            'expected the Playwright job to run through its flake')
-        // The whole sequence shares one shell: a per-step `nix develop` would
-        // drop the browser environment between steps.
-        assertEq(gha.jobs['playwright']?.steps.filter(step => step.run !== undefined).length, 1)
-        assert(
-            hasRunInJob('playwright', `= v${node.default}`)(gha),
-            'expected the migrated job to check its own Node version')
-        // Ties the Nixpkgs-provided browsers to the `@playwright/test` version
-        // `package.json` pins; nothing else checks the two still agree.
-        assert(
-            hasRunInJob('playwright', `npx playwright --version)" = "Version ${playwright}"`)(gha),
-            'expected the Playwright version check')
-        for (const browser of ['chromium', 'firefox', 'webkit']) {
-            assert(
-                hasRunInJob('playwright', `npx playwright test --browser=${browser}`)(gha),
-                `expected the ${browser} run`)
-        }
-        for (const removed of ['playwright install', 'playwright install-deps', 'setup-node']) {
-            assert(!hasRunInJob('playwright', removed)(gha), `unexpected ${removed}`)
-        }
-        assert(
-            !gha.jobs['playwright']?.steps.some(step => step.uses?.startsWith('actions/cache@') === true),
-            'unexpected browser cache: the Nix store already provides them')
     },
     ubuntu: () => {
         const job = ubuntu([test({ run: 'echo hi' })])

@@ -5,8 +5,8 @@
  * - `runModule` / `Reporter<O>` — self-hosted Effects runner used by `fjs t`;
  *   sandboxes each leaf call individually and accumulates `TestState`.
  * - `registerModule` / `TestContext` — registers tests with an external
- *   framework (Node `--test`, Bun, Playwright) at import time; the framework
- *   owns scheduling and pass/fail counting.
+ *   framework (Node `--test`, Bun, Deno) at import time; the framework owns
+ *   scheduling and pass/fail counting.
  *
  * @module
  */
@@ -155,13 +155,13 @@ export type Reporter<O extends Operation> = {
  * Unlike `runModule`, which sandboxes only the leaf function, `registerModule`
  * lets the external framework own scheduling: each registered test callback
  * calls `fn`, then recursively registers any sub-trees returned by the function.
- * This is the correct model for Node `--test`, Bun, and Playwright, where tests
- * must be declared upfront and the framework drives execution.
+ * This is the correct model for Node `--test`, Bun, and Deno, where tests must
+ * be declared upfront and the framework drives execution.
  */
 export const registerModule =
     (ctx: TestContext, k: string, v: unknown, star: string): Effect<Test | All | Await, void> => {
         const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) => {
-            // ' *' (non-empty only for Bun/Playwright) signals that all sub-tests run
+            // ' *' (non-empty only for Bun) signals that all sub-tests run
             // inline inside this single registration. Not appended to throw-tests since
             // those never produce sub-tests. The path already contains '.throw' when a
             // test is expected to throw, so no extra suffix is needed.
@@ -400,7 +400,7 @@ export const main: NodeProgram =
     options => testAll(defaultReporter(options))(options)
 
 /**
- * Entry point for external test frameworks (Node `--test`, Bun, Playwright).
+ * Entry point for external test frameworks (Node `--test`, Bun, Deno).
  *
  * Discovers test modules via `loadModuleMap`, then registers each with the
  * framework-appropriate `TestContext` selected from `NodeProgramOptions`
@@ -408,9 +408,7 @@ export const main: NodeProgram =
  */
 export const register: NodeProgram = o => {
     const star = o.inlineTestContext ? ' ...' : ''
-    const ctx = o.engine === 'bun' ? o.bunTestContext :
-        o.engine === 'playwright' ? o.playwrightTestContext :
-        o.testContext
+    const ctx = o.engine === 'bun' ? o.bunTestContext : o.testContext
     return eff(loadModuleMap(o.env))
         .step(registerModuleMap(ctx, star))
         .step(() => pure(0))

@@ -82,7 +82,7 @@ the `fjs` task in [deno.json](./deno.json) (`--allow-read --allow-write
 published versions; add `--minimum-dependency-age=0` to force the newest.
 
 CI exercises these same combinations — see the `node22`, `node24`, `node26`,
-`deno`, `bun`, and `playwright` jobs in
+`deno`, and `bun` jobs in
 [.github/workflows/ci.yml](./.github/workflows/ci.yml) for the exact commands
 and pinned runtime versions.
 

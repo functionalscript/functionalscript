@@ -177,8 +177,6 @@ Playwright execution obtains skip results from the shared browser application.
 - [browser-testing](browser-testing.md) — browser-native execution and the
   shared report consumed by the HTML UI, `fjs browser-test`, and optional
   Playwright Test integration.
-- [remove-playwright-job](../../ci/todo/remove-playwright-job.md) — removes the
-  obsolete Node-side Playwright bridge.
 - `todo/README.md` "Blocked by third parties" — the unskip-trigger convention
   mirrors the **Trigger** requirement of `todo/blocked/` issues.
 - `fjs/effects/node/module.f.ts` `TestFn` — the options record extended with

@@ -410,7 +410,6 @@ export const defaultNodeProgramOptions: NodeProgramOptions = {
     std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
     testContext,
     bunTestContext: testContext,
-    playwrightTestContext: testContext,
     engine: 'node',
     inlineTestContext: false,
 }

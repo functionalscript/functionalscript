@@ -26,10 +26,8 @@ The same `{ 'runs-on': image, steps: toSteps(result) }` shape is also constructe
 `fjs/ci/module.f.ts`, so there are currently three surviving copies of the same Job
 construction pattern.
 
-The former `fjs/ci/playwright/module.f.ts` consumer is intentionally excluded: the
-current Playwright job is being removed by
-[remove-playwright-job](remove-playwright-job.md), and this refactoring must not preserve
-or migrate that obsolete module.
+The former `fjs/ci/playwright/module.f.ts` consumer is intentionally excluded: that
+module has already been deleted, and this refactoring must not resurrect it.
 
 ### Proposal
 
@@ -62,16 +60,11 @@ task must not add compatibility code for the deleted Playwright job.
 - [ ] Add the exported `job` factory in `fjs/ci/common/module.f.ts`.
 - [ ] Re-express `ubuntu` and `ubuntuArm` in terms of `job`.
 - [ ] Migrate the surviving external construction in `fjs/ci/module.f.ts`.
-- [ ] Do not migrate or retain `fjs/ci/playwright/module.f.ts`; its removal is owned by
-      `remove-playwright-job.md`.
 - [ ] Confirm `proof.f.ts` still covers `job`, `ubuntu`, and `ubuntuArm`.
-- [ ] Verify generated workflow output is unchanged apart from separately planned
-      Playwright removal.
+- [ ] Verify generated workflow output is unchanged.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related
 
 - [i170-ci-tool-steps](todo.md) — the `MetaStep` to `Step` pipeline (`toSteps`) these
   builders wrap.
-- [remove-playwright-job](remove-playwright-job.md) — removes the obsolete Playwright Job
-  consumer rather than migrating it to this factory.
