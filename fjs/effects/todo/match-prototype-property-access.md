@@ -76,11 +76,18 @@ export const match =
     <O1 extends O, T>(e: Effect<O1, T>): MatchResult<O1, T, R> => {
         if (typeof e === 'function') { return ['done', e()] }
         const { command, payload, continuation } = e
-        const handler = at(command)(map)
+        const handler = at(command)<OperationMap<O, R>[O[0]]>(map)
         if (handler === null) { /* unknown command — see below */ }
         return ['cont', handler(...payload), continuation]
     }
 ```
+
+`at`'s `T` does not infer from `OperationMap<O, R>` — it's a mapped type
+over the literal keys of `O[0]`, not the `StringMap<string, T>` shape `at`
+expects — so under this repo's strict config `handler` would come back as
+an uncallable `{}` without the explicit type argument shown above
+(`at(command)<OperationMap<O, R>[O[0]]>(map)`). Confirm that spelling
+type-checks (or find a cleaner one) before landing the fix.
 
 Open design question: how the `null` case surfaces in `MatchResult`. It is
 not a value `OperationMap<O, R>` promises to have for every `O1 extends O`
@@ -101,7 +108,9 @@ and asserts `match` does not dispatch to the inherited function.
       `MatchResult` — throw vs. a new result variant — matching
       `fjs/effects`'s existing conventions for statically-impossible cases.
 - [ ] Fix `match` in `fjs/effects/module.f.ts` to look up the handler via
-      `at` from `fjs/types/object/module.f.ts` instead of `map[command]`.
+      `at` from `fjs/types/object/module.f.ts` instead of `map[command]`,
+      confirming the explicit type argument (or an alternative) lets
+      `handler(...payload)` type-check under `npx tsc`.
 - [ ] Add regression coverage in `fjs/effects/proof.f.ts` for a `command`
       that names an `Object.prototype` member.
 - [ ] Re-check `fjs/effects/module.ts` (`asyncRun`) and
