@@ -45,20 +45,32 @@ Make the set of dialects a parameter rather than an import, and **limit what an
 entry can say to a dialect name plus an rtti schema** — nothing else:
 
 ```ts
-export type Dialect = {
-    readonly dialect: string
-    readonly schema: Type // `fjs/types/rtti` `Type`
-}
+// `Struct` from `fjs/types/rtti`: a struct schema whose `dialect` member is a
+// string const — the subset of `Type` that names its own dialect.
+export type Dialect = Struct & { readonly dialect: string }
 ```
 
-An entry is data, not code. That single restriction settles most of the open
-design questions:
+A dialect schema is already a struct whose `dialect` member is a string const —
+that is how `revisionSchema` is written, and it is what makes the schema
+self-discriminating. So the dialect name is *in* the schema, and a separate
+`dialect` field alongside it would be a second copy that can disagree with the
+first. An entry is one rtti schema and nothing else: the subset of `Type` that
+carries a string `dialect` member. `detect` reads `schema.dialect` and derives
+the media type from it.
+
+That an entry is data, not code, settles most of the open design questions:
 
 - **The media type is derived, not supplied.** `application/${dialect}+json`,
-  the same mechanical derivation `fjs/media/revision` already documents. An
-  entry cannot name an arbitrary `mime_type`, so a registered dialect can only
-  ever claim its own `vnd.fjs.<name>` type — no `mediaType` field to get wrong,
-  and nothing to allowlist after the fact.
+  the same mechanical derivation `fjs/media/revision` already documents, read
+  off the schema's own literal. An entry cannot name an arbitrary `mime_type`,
+  so a registered dialect can only ever claim its own `vnd.fjs.<name>` type —
+  no `mediaType` field to get wrong, and nothing to allowlist after the fact.
+  Under a generic `<S extends Dialect>` the literal survives into the type, so
+  the derived media type can stay a template-literal type the way `revision`'s
+  `mediaType` is today.
+- **The tag and the schema cannot disagree.** With one field there is no entry
+  that claims `vnd.fjs.foo` while validating `vnd.fjs.bar` blobs — no
+  consistency rule for `detect` to enforce, and none for a proof to cover.
 - **Parsing happens once.** Detection JSON-parses the text a single time and
   runs `rtti/validate`'s `validate(schema)` over the parsed value for each
   entry, so N dialects cost N structural validations, not N parses. The
@@ -68,13 +80,18 @@ design questions:
   pathological time — on bytes of unknown provenance, which is exactly the
   input `detect` exists to classify. Validating data against a schema cannot.
 
-Dialect schemas are self-discriminating, so this does not need a separate tag
-check: `revisionSchema` matches `dialect` as an exact string literal, so
-structural validation alone rejects every other dialect's blob. Require the
-same of any registered entry — a schema whose `dialect` field is the literal
-`dialect` of the entry — and disjointness is a property of the entries, not a
-rule `detect` has to enforce. First match still wins for entries that overlap
+Detection needs no separate tag check on top of validation: matching `dialect`
+as an exact string literal is what makes structural validation alone reject
+every other dialect's blob, so disjointness is a property of the entries rather
+than a rule `detect` enforces. First match still wins for entries that overlap
 anyway.
+
+One wrinkle to pin down: rtti admits both the direct const form
+(`dialect: 'vnd.fjs.revision'`) and the thunk form
+(`() => ['const', 'vnd.fjs.revision']`). The type above accepts only the direct
+form — what `revisionSchema` uses, and what keeps `schema.dialect` readable
+without evaluating anything. Either require it or unwrap the thunk when reading
+the name.
 
 Keep the current zero-argument `detect` as a binding over `[revision]`.
 Whether the list is a parameter (`detect(dialects)(bytes)`) or a module-level
@@ -121,13 +138,14 @@ while adding a registry:
 
 - [ ] Decide the structural-only widening (option 1 vs. 2 above) and whether
       dialects are a parameter or a registry. The entry shape itself is settled:
-      `{ dialect, schema }`, no functions, media type derived.
+      an rtti schema, nothing beside it — no functions, dialect and media type
+      both read off the schema.
 - [ ] Implement in `fjs/media/module.f.ts`: parse once, then `validate(schema)`
-      per entry; keep a default wired to `[revision]` so current callers are
-      unaffected.
-- [ ] Require each entry's schema to pin its own `dialect` literal (how
-      `revisionSchema` already does it) — document it, and decide whether
-      `detect` checks it or the convention is enough.
+      per entry, deriving the media type from `schema.dialect`; keep a default
+      wired to `[revisionSchema]` so current callers are unaffected.
+- [ ] Type `Dialect` so a schema without a string `dialect` member is rejected
+      at compile time, and decide the thunk-form question (require the direct
+      const, or unwrap when reading the name).
 - [ ] Proof coverage in `fjs/media/proof.f.ts`: a second dialect is recognized;
       first-match-wins ordering; no match falls through to the `fjs/media/type`
       verdict unchanged; a `revision` blob still reports
@@ -145,13 +163,14 @@ while adding a registry:
   import.
 - [`fjs/media/type/module.f.ts`](../type/module.f.ts) — `detectVec` /
   `detectStream`, the layer below.
-- [`fjs/media/revision/module.f.ts`](../revision/module.f.ts) — `decodeText`,
-  `mediaType`, `dialect`; the reference implementation of the pattern and the de
-  facto entry shape.
+- [`fjs/media/revision/module.f.ts`](../revision/module.f.ts) — `revisionSchema`
+  (the entry itself, `dialect` literal included), plus `decodeText`, `mediaType`
+  and the `checkReferences` semantics that stay outside detection.
 - [`fjs/media/revision/README.md`](../revision/README.md) — the `vnd.fjs.<name>`
   convention this gap makes only partially usable, and the mechanical media-type
   derivation an entry relies on instead of naming its own.
-- [`fjs/types/rtti/module.f.ts`](../../types/rtti/module.f.ts) — `Type`, the
-  entry's schema half.
+- [`fjs/types/rtti/module.f.ts`](../../types/rtti/module.f.ts) — `Struct` /
+  `Type` / `Const`; an entry is the subset of `Type` with a string `dialect`
+  member.
 - [`fjs/types/rtti/validate/module.f.ts`](../../types/rtti/validate/module.f.ts)
   — `validate`, what detection runs per entry over the once-parsed value.
