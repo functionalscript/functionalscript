@@ -11,6 +11,8 @@ history.
 
 ## Unreleased
 
+### 0.41.0
+
 - `fjs/effects`: `match` resolves a command's handler with an own-property
   lookup, so a `command` naming an `Object.prototype` member (`constructor`,
   `toString`, …) throws instead of dispatching to the inherited function
