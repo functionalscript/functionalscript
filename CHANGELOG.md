@@ -11,6 +11,10 @@ history.
 
 ## Unreleased
 
+- `fjs/effects`: `match` resolves a command's handler with an own-property
+  lookup, so a `command` naming an `Object.prototype` member (`constructor`,
+  `toString`, …) throws instead of dispatching to the inherited function
+  [#1421](https://github.com/functionalscript/functionalscript/pull/1421)
 - **BREAKING CHANGES:** `Evo.list` and the `evo_list` MCP tool take an optional
   `archived?: true` filter and list active subjects by default — those with at
   least one current head that is not archived — instead of every subject
