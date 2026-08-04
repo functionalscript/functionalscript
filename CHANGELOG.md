@@ -11,6 +11,11 @@ history.
 
 ## Unreleased
 
+- Test and coverage tooling recognizes authored `.f.mjs` FunctionalScript
+  modules: proof discovery loads them, and `npm run cov`, `deno task cov`, and
+  the generated Deno CI step include `module.f.mjs` alongside `module.f.ts`
+  [#1422](https://github.com/functionalscript/functionalscript/pull/1422)
+
 ### 0.41.0
 
 - `fjs/effects`: `match` resolves a command's handler with an own-property
