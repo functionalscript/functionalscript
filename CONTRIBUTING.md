@@ -65,8 +65,10 @@ cargo fmt -- --check
 Bun, and published-CLI equivalents are listed in
 [AGENTS.md §1.4](./AGENTS.md#14-ways-to-run-the-functionalscript-test-suite).
 
-New `.f.ts` modules need a co-located `proof.f.ts` with 100% proof coverage —
-see [AGENTS.md §3](./AGENTS.md#3-testing-and-proof-coverage).
+New `.f.ts` and `.f.mjs` modules need a co-located proof with 100% proof
+coverage — see [AGENTS.md §3](./AGENTS.md#3-testing-and-proof-coverage). A
+`module.f.mjs` may keep a `proof.f.ts` during the incremental `.f.mjs`
+migration, or use a `proof.f.mjs` once that proof is itself compiler-ready.
 
 ### Updating dependencies
 
