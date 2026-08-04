@@ -255,6 +255,11 @@ export const proof = {
             if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"]"},{"kind":"eof"}]') { throw result }
         },
         () => {
+            // a second "." after the fraction has started (covers fullStopToToken's default branch)
+            const result = stringify(tokenizeString('1..'))
+            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
             const result = stringify(tokenizeString('0e1'))
             if (result !== '[{"bf":[0n,1],"kind":"number","value":"0e1"},{"kind":"eof"}]') { throw result }
         },
