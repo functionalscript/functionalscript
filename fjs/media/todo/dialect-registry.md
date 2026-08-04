@@ -46,6 +46,9 @@ entry can say to an rtti schema plus a typed refinement predicate** — no
 decoder, no media type, no separate dialect name:
 
 ```ts
+// `Struct`, `Ts` and `Unknown` are rtti's (`fjs/types/rtti`, `…/rtti/ts`),
+// `validate` is `…/rtti/validate`, `assert` is `fjs/asserts`.
+
 /** The registry entry: a dialect name and a predicate over a parsed value. */
 export type DialectEntry = {
     readonly dialect: string
@@ -195,7 +198,13 @@ of the open design questions settle:
   survive to.
 - **The entry names a dialect, not an encoding.** Erase to
   `{ dialect, match }`, not `{ mediaType, match }`: the `+json` suffix is the
-  JSON detector's to append. Nothing else is needed today — there is no CBOR
+  JSON detector's to append. `match`'s parameter is rtti's `Unknown`, not
+  `fjs/media/json`'s — the two are different types, and the JSON one excludes
+  `bigint` and `undefined`. Inside `fjs/media` the JSON one is the nearer
+  import, so this is easy to get wrong, and getting it wrong would make the
+  entries JSON-only: [detect-cbor](detect-cbor.md) leaves each dialect free to
+  admit CBOR-only values such as `bigint`, and those values have to reach the
+  same `match`. Nothing else is needed today — there is no CBOR
   codec yet, so `fjs/media/type` has no CBOR path to detect through — but the
   same entries are what [detect-cbor](detect-cbor.md) would validate against
   when there is one, deriving `application/{dialect}+cbor` from the same name.
@@ -369,5 +378,9 @@ while adding a registry:
   — `validate`, which each entry's `match` closes over; it throws rather than
   erroring on a schema member that is not a `Type`, which is why the constraint
   has to be `Struct`.
+- [`fjs/types/rtti/ts/module.f.ts`](../../types/rtti/ts/module.f.ts) — `Ts` and
+  the `Unknown` that `match` takes: the encoding-neutral one, admitting
+  `bigint` and `undefined`, unlike
+  [`fjs/media/json`](../json/module.f.ts)'s JSON-only `Unknown`.
 - [`fjs/asserts/module.f.ts`](../../asserts/module.f.ts) — `assert`, used once
   per registration to check the `dialect` member.
