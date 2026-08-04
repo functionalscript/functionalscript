@@ -46,15 +46,25 @@ entry can say to an rtti schema plus a typed refinement predicate** — no
 decoder, no media type, no separate dialect name:
 
 ```ts
-// `Struct` from `fjs/types/rtti`: a struct schema whose `dialect` member is a
-// string const — the subset of `Type` that names its own dialect.
-export type DialectType = Struct & { readonly dialect: string }
+// An rtti struct schema whose `dialect` member is a string const — the subset
+// of `Type` that names its own dialect. Written as one record rather than
+// `Struct & { dialect: string }`: see the note below.
+export type DialectType = {
+    readonly [k: string]: Type | undefined
+    readonly dialect: string
+}
+
+/** The registry entry: a dialect name and a predicate over a parsed value. */
+export type DialectEntry<S extends string> = {
+    readonly dialect: S
+    readonly match: (_: Unknown) => boolean
+}
 
 /** Registers a dialect for detection: its schema, plus whatever rtti can't say. */
-export const dialect = <T extends DialectType>(
+export const dialectEntry = <T extends DialectType>(
     type: T,
     extraValidate: (_: Ts<T>) => boolean = () => true,
-): Dialect => /* … */
+): DialectEntry<T['dialect']> => /* … */
 ```
 
 A dialect schema is already a struct whose `dialect` member is a string const —
@@ -62,6 +72,16 @@ that is how `revisionSchema` is written, and it is what makes the schema
 self-discriminating. So the dialect name is *in* the schema, and a separate
 `dialect` field alongside it would be a second copy that can disagree with the
 first. `detect` reads `type.dialect` and derives the media type from it.
+
+`DialectType` spells out the index signature instead of intersecting `Struct`
+with `{ dialect: string }`, per AGENTS.md's composition-over-intersection rule.
+The rule's usual remedy — embed the record as a named field — cannot apply
+here: an entry's schema *is* an rtti `Type`, and nesting it
+(`{ struct: Struct, dialect: string }`) would produce a value `validate` cannot
+consume. What the rule is actually against — an `&` that blurs where fields
+came from and tempts widening the part — is avoided by writing one record type
+whose index signature says the same thing `Struct` does
+(`StringMap<string, Type>`, i.e. `{ readonly [k in string]?: Type }`).
 
 `extraValidate` closes the gap rtti leaves. Structural validation cannot say
 "this string is cbase32-decodable" or "this number is a non-negative safe
@@ -74,11 +94,32 @@ the blob.
 
 Registration is a function rather than a struct literal for one concrete
 reason: `Ts<T>` has to be inferred from the schema. In
-`dialect(revisionSchema, r => …)` the parameter `r` types as `Revision` at the
-call site; a bare `{ type, extraValidate }` object makes every author write
-`(_: Ts<typeof revisionSchema>)` by hand. What it *returns* can be a struct —
-an erased entry the detector consumes, e.g.
-`{ dialect: string, match: (u: Unknown) => boolean }`, with the generic gone.
+`dialectEntry(revisionSchema, r => …)` the parameter `r` types as `Revision` at
+the call site; a bare `{ type, extraValidate }` object makes every author write
+`(_: Ts<typeof revisionSchema>)` by hand. What it *returns* is a struct — the
+entry the detector consumes, with the schema and the predicate collapsed into
+one `match`.
+
+**Names, since `fjs/media/revision` already has a `dialect` export** (the
+string const `'vnd.fjs.revision'`, `module.f.ts:31`). The registration function
+is therefore `dialectEntry`, not `dialect`, so no importer has to alias it, and
+`revision` exports its entry as `revisionDialect` — matching the
+`revisionSchema` naming already in that module:
+
+```ts
+// fjs/media/revision/module.f.ts
+export const revisionDialect: DialectEntry<typeof dialect> =
+    dialectEntry(revisionSchema, r => checkReferences(r)[0] === 'ok')
+
+// fjs/mcp/cas/module.f.ts
+import { detect } from '../../media/module.f.ts'
+import { revisionDialect } from '../../media/revision/module.f.ts'
+const detectDialect = detect([revisionDialect])
+```
+
+`fjs/mcp/cas` keeps its existing local name `detectDialect` for the bound
+classifier, so its two call sites change only in where the function comes
+from.
 
 **No grammar check or allowlist on the dialect name.** A schema could say
 `dialect: 'foo'`, and `detect` would report `application/foo+json`. That is
@@ -87,7 +128,8 @@ constraint on what a caller may detect — another vendor's `vnd.rogaikopyta.*`
 blob, or a widely used name that is not under `vnd.` at all, is a legitimate
 thing to register, and an allowlist here would only stop callers from
 describing the formats they actually handle. The name is also not attacker-
-controlled: it comes from a schema a programmer wrote and passed to `dialect`,
+controlled: it comes from a schema a programmer wrote and passed to
+`dialectEntry`,
 never from the blob being classified, so no untrusted string reaches
 `mime_type` along this path. That is what distinguishes it from
 [detect-cbor](detect-cbor.md)'s tier 2, which reads the dialect name *out of
@@ -106,10 +148,10 @@ of the open design questions settle:
   one: `DetectMeta.mime_type` is `string`, so no template-literal type survives
   into a detection verdict no matter how the entry is typed, and `revision`
   keeps its own `mediaType` const for callers that want the precise type.
-  Making the entry generic in the name — `Dialect<S extends string>` with
-  `dialect: S`, erased to `Dialect<string>` only where `detect` consumes the
-  heterogeneous list — is still worth doing so a caller reading a single entry
-  keeps the literal; that is the only place it can survive.
+  `DialectEntry<S>` is generic in the name anyway — erased to
+  `DialectEntry<string>` only where `detect` consumes the heterogeneous list —
+  so a caller reading a single entry keeps the literal; that is the only place
+  it can survive.
 - **The entry names a dialect, not an encoding.** Erase to
   `{ dialect, match }`, not `{ mediaType, match }`: the `+json` suffix is the
   JSON detector's to append. Nothing else is needed today — there is no CBOR
@@ -153,7 +195,8 @@ narrow and always satisfiable — it constrains one member of the top-level
 struct, so a schema that needs thunks anywhere else, recursion included, is
 unaffected, and an author holding a thunk-form schema writes the string
 directly instead. A thunk-form `dialect` is still a perfectly valid rtti
-schema; it just is not registerable, and `dialect()` will not compile with one.
+schema; it just is not registerable, and `dialectEntry()` will not compile with
+one.
 
 **The dialect list is a parameter, and `detect` breaks.** `detect(dialects)`
 returns the classifier, so today's `detect(bytes)` becomes
@@ -166,11 +209,10 @@ importer is updated in the same PR — `fjs/mcp/cas/module.f.ts` (two call sites
 and `fjs/media/proof.f.ts` — and the CHANGELOG entry is prefixed
 `**BREAKING CHANGES:**`.
 
-The `revision` entry itself belongs in `fjs/media/revision`, which owns both
-halves of it: `dialect(revisionSchema, r => checkReferences(r)[0] === 'ok')`.
-`fjs/media` then imports no dialect at all — the hardcoded import from the
-Problem section disappears instead of being re-exported under another name —
-and `fjs/mcp/cas` passes the list it wants.
+The `revisionDialect` entry itself belongs in `fjs/media/revision`, which owns
+both halves of it. `fjs/media` then imports no dialect at all — the hardcoded
+import from the Problem section disappears instead of being re-exported under
+another name — and `fjs/mcp/cas` passes the list it wants.
 
 **How strict detection is, is the dialect's call.** With `extraValidate`
 defaulting to `() => true`, a dialect that registers a bare schema gets
@@ -213,8 +255,8 @@ while adding a registry:
 
 ### Tasks
 
-- [ ] Implement `dialect(type, extraValidate?)` and the `{ dialect, match }`
-      entry it returns, generic in the name (`Dialect<T['dialect']>`) so the
+- [ ] Implement `dialectEntry(type, extraValidate?)` and the
+      `DialectEntry<T['dialect']>` it returns — generic in the name, so the
       literal is not widened at the return boundary; confirm `Ts<T>` is
       inferred at the call site so `extraValidate`'s parameter needs no
       annotation (this is the reason registration is a function).
@@ -222,8 +264,9 @@ while adding a registry:
       once, `validate(type)` per entry, then `extraValidate` on success,
       appending `+json` to the matched entry's `dialect`. No dialect import
       remains in this module.
-- [ ] Move the `revision` entry to `fjs/media/revision`:
-      `dialect(revisionSchema, r => checkReferences(r)[0] === 'ok')`.
+- [ ] Add `revisionDialect` to `fjs/media/revision` —
+      `dialectEntry(revisionSchema, r => checkReferences(r)[0] === 'ok')` —
+      keeping the existing `dialect` string const untouched.
 - [ ] Update every importer in the same PR — `fjs/mcp/cas/module.f.ts` (two
       `detectDialect` call sites) and `fjs/media/proof.f.ts` — and add a
       `**BREAKING CHANGES:**` CHANGELOG entry per AGENTS.md §8.4. No
@@ -265,7 +308,7 @@ while adding a registry:
   `application/{dialect}+cbor`; its tier-2 names come from the blob, hence its
   allowlist and this module's lack of one.
 - [`fjs/types/rtti/module.f.ts`](../../types/rtti/module.f.ts) — `Struct` /
-  `Type` / `Const`; an entry is the subset of `Type` with a string `dialect`
-  member.
+  `Type` / `Const`; `DialectType` is the subset of `Type` with a string
+  `dialect` member, spelled without intersecting `Struct`.
 - [`fjs/types/rtti/validate/module.f.ts`](../../types/rtti/validate/module.f.ts)
   — `validate`, what detection runs per entry over the once-parsed value.
