@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+While the package is pre-1.0, the minor position carries the meaning the major
+one will carry after 1.0: `0.Y` is bumped **only** by a release containing
+`**BREAKING CHANGES:**`, and every other release — new features included — is a
+patch bump. So `0.Y` is the API-compatibility boundary, which is also the
+boundary `^0.Y.Z` and `~0.Y.Z` ranges already enforce: a patch upgrade is always
+safe, and crossing `0.Y` always means reading the entries below. Releases through
+`0.41.0` predate this convention and used a minor bump for feature-only releases
+as well.
+
 New entries are at most a few lines and link only to their pull request. A few
 older entries predate that convention and have no PR link — they are kept as
 history.
@@ -16,7 +25,7 @@ history.
   the generated Deno CI step include `module.f.mjs` alongside `module.f.ts`
   [#1422](https://github.com/functionalscript/functionalscript/pull/1422)
 
-### 0.41.0
+## 0.41.0
 
 - `fjs/effects`: `match` resolves a command's handler with an own-property
   lookup, so a `command` naming an `Object.prototype` member (`constructor`,
@@ -27,7 +36,7 @@ history.
   least one current head that is not archived — instead of every subject
   [#1415](https://github.com/functionalscript/functionalscript/pull/1415)
 
-### 0.40.0
+## 0.40.0
 
 - **BREAKING CHANGES:** remove the Playwright integration, which ran proofs in a
   Node worker rather than in a browser: no `@playwright/test` dependency, no

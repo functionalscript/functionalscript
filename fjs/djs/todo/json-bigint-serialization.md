@@ -170,7 +170,8 @@ logic; JS's single `number` type is what makes it necessary here.
   is naturally a third instantiation of that generic if the narrower-type
   option is chosen.
 - [parse-text-pipeline.md](../../media/json/todo/parse-text-pipeline.md) —
-  adds a `parseText` (string → `Result`) entry point to `fjs/media/json`; the
+  adds a `parse` (string → `Result`) entry point to `fjs/media/json`, moving
+  native `JSON.parse` aside as `parseNative`; the
   `parseWith` generalization here is the same shape of change (a new
   parameterized entry point, existing behavior preserved as the default),
   just on the token-list parser rather than the string-to-tokens pipeline.
