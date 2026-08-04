@@ -1,4 +1,4 @@
-import { setProperty, stringify } from './module.f.ts'
+import { parse, parseNative, setProperty, stringify } from './module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { assertEq } from '../../asserts/module.f.ts'
@@ -63,5 +63,20 @@ export const proof = {
     ],
     undefined: () => {
         assertEq(stringify(sort)({ x: undefined }), '{}')
-    }
+    },
+    parse: {
+        ok: () => {
+            const [t, v] = parse('{"a":[1,true,null],"b":"x"}')
+            assertEq(t, 'ok')
+            assertEq(stringify(sort)(v), '{"a":[1,true,null],"b":"x"}')
+        },
+        // Malformed input is an error value, not a throw.
+        error: () => {
+            const [t] = parse('{')
+            assertEq(t, 'error')
+        },
+    },
+    parseNative: () => {
+        assertEq(stringify(sort)(parseNative('{"a":1}')), '{"a":1}')
+    },
 }

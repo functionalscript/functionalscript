@@ -32,10 +32,7 @@
 import { pure, step, type Effect, type Operation } from '../../../effects/module.f.ts'
 import { readLine, write, type IoResult, type Read, type Write } from '../../../effects/node/module.f.ts'
 import { tryUtf8 } from '../../../text/module.f.ts'
-import { stringToList } from '../../../text/utf16/module.f.ts'
-import { stringify, type Unknown } from '../../../media/json/module.f.ts'
-import { tokenize } from '../../../media/json/tokenizer/module.f.ts'
-import { parse } from '../../../media/json/parser/module.f.ts'
+import { parse, stringify, type Unknown } from '../../../media/json/module.f.ts'
 import { sort } from '../../../types/object/module.f.ts'
 import { internalError, jsonrpc, parseError, type Response } from '../../json_rpc/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.ts'
@@ -83,7 +80,7 @@ export const stdioTransport =
 const handleLine =
     <O extends Operation>(handler: Step<O>) =>
     (line: string): Effect<Read | Write | O, void> => {
-        const [t, value] = parse(tokenize(stringToList(line)))
+        const [t, value] = parse(line)
         return step(
             t === 'error'
                 ? writeResponse(parseErrorResponse)

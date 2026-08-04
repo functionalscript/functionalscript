@@ -1,6 +1,10 @@
 /**
  * JSON value types, rtti schemas, and utilities: `serialize`, `stringify`,
- * `parse`, and `setProperty` for immutable nested updates.
+ * `parse` / `parseNative`, and `setProperty` for immutable nested updates.
+ *
+ * `parse` is the total, `Result`-returning `text → Unknown` entry point built
+ * on this module's own tokenizer and parser; `parseNative` is `JSON.parse` and
+ * throws.
  *
  * The JSON value types (`Unknown`, `Primitive`) are derived from the rtti
  * schemas defined here, so the schema is the single source of truth — no
@@ -10,6 +14,10 @@
  */
 import { next, flat, map, type List } from '../../types/list/module.f.ts'
 import { concat } from '../../types/string/module.f.ts'
+import { stringToList } from '../../text/utf16/module.f.ts'
+import type { Result } from '../../types/result/module.f.ts'
+import { parse as parseTokens } from './parser/module.f.ts'
+import { tokenize } from './tokenizer/module.f.ts'
 import { at, definedEntries, type Entry as ObjectEntry } from '../../types/object/module.f.ts'
 import { compose, fn } from '../../types/function/module.f.ts'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.ts'
@@ -118,6 +126,20 @@ export const stringify
     : (mapEntries: MapEntries) => (value: Unknown) => string
     = sort => compose(serialize(sort))(concat)
 
+/**
+ * Parses `text` as JSON with this module's own pure tokenizer and parser,
+ * reporting failure as a `Result` rather than throwing — the total,
+ * errors-as-values counterpart of {@link parseNative}.
+ */
 export const parse
+    : (text: string) => Result<Unknown, string>
+    = text => parseTokens(tokenize(stringToList(text)))
+
+/**
+ * The platform's `JSON.parse`. It **throws** on malformed input, so it is only
+ * usable where the text is already known to be valid JSON; everything else
+ * should take the total {@link parse} above.
+ */
+export const parseNative
     : (value: string) => Unknown
     = JSON.parse
