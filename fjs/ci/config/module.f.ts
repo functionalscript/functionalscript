@@ -24,7 +24,7 @@ export const images = {
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = '0.39.0' as const
+export const functionalscript = '0.41.0' as const
 
 // https://bun.sh/
 export const bun = '1.3.14'
@@ -52,7 +52,7 @@ export const node = {
 // https://channels.nixos.org/nixos-26.05/git-revision
 export const nixpkgs = {
     ref: 'nixos-26.05',
-    commit: '6d65bfc1bcef2ef39a239d38e577e92a89fb0f07',
+    commit: '531670d871c0e29724a02f3cbcac170adc65b58c',
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases

@@ -118,8 +118,8 @@ cargo fmt -- --check     # verify formatting
 
 1. Find or file the issue in `todo/` ([§7](#7-issues-todo)). For anything
    non-trivial, make sure it contains a concrete design first.
-2. Write the code, plus a co-located `proof.f.ts` for every new `.f.ts` module
-   ([§3](#3-testing-and-proof-coverage)).
+2. Write the code, plus a co-located proof for every new `.f.ts` or `.f.mjs`
+   module ([§3](#3-testing-and-proof-coverage)).
 3. Run `npm run update` after changing source code.
 4. Run the full check set before submitting:
    ```bash
@@ -142,18 +142,44 @@ cargo fmt -- --check     # verify formatting
 
 - `npx tsc` — type-check using the repository's version of TypeScript.
 - `fjs t` (or any equivalent from [§1.4](#14-ways-to-run-the-functionalscript-test-suite))
-  — test FunctionalScript (`.f.ts`) files.
+  — test FunctionalScript (`.f.ts` / `.f.mjs`) files.
 - `cargo test`, `cargo clippy`, `cargo fmt -- --check` — the Rust crate.
 
 ### 3.2 Proof coverage is mandatory
 
-New FunctionalScript (`.f.ts`) modules and functions must have **100% proof
-coverage** across every dimension: every exported function called, every line
-executed, and every branch (both sides of each conditional) taken. A new
-`module.f.ts` ships with a co-located `proof.f.ts` (its `proof` export) that
-exercises all of its exports along all code paths — partial coverage of new code
-is not acceptable. If a line or branch genuinely cannot be reached, restructure
-the code so it isn't there rather than leaving it uncovered.
+New FunctionalScript modules and functions must have **100% proof coverage**
+across every dimension: every exported function called, every line executed, and
+every branch (both sides of each conditional) taken. This applies to both
+authored FunctionalScript extensions, `.f.ts` and `.f.mjs`
+([`fjs/fsc/README.md`](./fjs/fsc/README.md) defines them). A new implementation
+module ships with a co-located proof (its `proof` export) that exercises all of
+its exports along all code paths — partial coverage of new code is not
+acceptable. If a line or branch genuinely cannot be reached, restructure the code
+so it isn't there rather than leaving it uncovered.
+
+The implementation and proof extensions are independent during the incremental
+`.f.mjs` migration:
+
+| Implementation | Proof | When |
+|---|---|---|
+| `module.f.ts` | `proof.f.ts` | Default. |
+| `module.f.mjs` | `proof.f.ts` | A module migrated to `.f.mjs` keeps its TypeScript proof, which may still import `.f.ts` test helpers such as `fjs/asserts/module.f.ts`. |
+| `module.f.mjs` | `proof.f.mjs` | Once the proof's own syntax and relative FunctionalScript dependencies are compiler-ready. |
+
+Renaming an implementation to `.f.mjs` therefore never requires renaming its
+proof, and never removes it from proof discovery or from Node and Deno coverage:
+`shouldLoad` in [`fjs/dev/module.f.ts`](./fjs/dev/module.f.ts) matches both
+authored extensions, and both `npm run cov` and `deno task cov` include
+`module.f.ts` and `module.f.mjs`. Ordinary (non-FunctionalScript) `.mjs` files
+stay opt-in through the `proof.mjs` filename convention.
+
+A `proof.f.mjs` is authored `.f.mjs` like any other, so it must satisfy the same
+dependency-closure rule as any other migrated file — its relative imports and
+type references may target `.f.mjs` modules only. That rule is what makes
+`proof.f.ts` the default layout for a migrated module: a TypeScript proof can
+keep using the existing `.f.ts` test helpers. See
+[`fjs/fsc/README.md`](./fjs/fsc/README.md) for the migration order and the
+module-import policy it implies.
 
 ### 3.3 Use `assert` / `assertEq`, never a hand-written `if`/`throw`
 
