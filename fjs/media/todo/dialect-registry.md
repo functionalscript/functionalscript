@@ -46,13 +46,10 @@ entry can say to an rtti schema plus a typed refinement predicate** — no
 decoder, no media type, no separate dialect name:
 
 ```ts
-// An rtti struct schema whose `dialect` member is a string const — the subset
-// of `Type` that names its own dialect. Written as one record rather than
-// `Struct & { dialect: string }`: see the note below.
-export type DialectType = {
-    readonly [k: string]: Type | undefined
-    readonly dialect: string
-}
+// The dialect name a schema carries, and the schemas that carry one: an rtti
+// `Struct` whose `dialect` member is a direct string const.
+type DialectName<T extends Struct> = T['dialect'] extends string ? T['dialect'] : never
+type DialectSchema<T extends Struct> = T['dialect'] extends string ? T : never
 
 /** The registry entry: a dialect name and a predicate over a parsed value. */
 export type DialectEntry<S extends string> = {
@@ -61,10 +58,10 @@ export type DialectEntry<S extends string> = {
 }
 
 /** Registers a dialect for detection: its schema, plus whatever rtti can't say. */
-export const dialectEntry = <T extends DialectType>(
-    type: T,
+export const dialectEntry = <T extends Struct>(
+    type: DialectSchema<T>,
     extraValidate: (_: Ts<T>) => boolean = () => true,
-): DialectEntry<T['dialect']> => /* … */
+): DialectEntry<DialectName<T>> => /* … */
 ```
 
 A dialect schema is already a struct whose `dialect` member is a string const —
@@ -73,15 +70,25 @@ self-discriminating. So the dialect name is *in* the schema, and a separate
 `dialect` field alongside it would be a second copy that can disagree with the
 first. `detect` reads `type.dialect` and derives the media type from it.
 
-`DialectType` spells out the index signature instead of intersecting `Struct`
-with `{ dialect: string }`, per AGENTS.md's composition-over-intersection rule.
-The rule's usual remedy — embed the record as a named field — cannot apply
-here: an entry's schema *is* an rtti `Type`, and nesting it
-(`{ struct: Struct, dialect: string }`) would produce a value `validate` cannot
-consume. What the rule is actually against — an `&` that blurs where fields
-came from and tempts widening the part — is avoided by writing one record type
-whose index signature says the same thing `Struct` does
-(`StringMap<string, Type>`, i.e. `{ readonly [k in string]?: Type }`).
+The constraint is a conditional over rtti's own `Struct`, not a new record
+shape. Neither of the obvious spellings is allowed here: `Struct & { dialect:
+string }` is the intersection AGENTS.md rules out, and an inline
+`{ readonly [k: string]: Type | undefined, readonly dialect: string }` is the
+inline index signature it reserves for mutually-recursive types. The rule's
+usual remedy for the first — embed the record as a named field — cannot apply
+either, because an entry's schema *is* an rtti `Type`: nesting it
+(`{ struct: Struct, dialect: string }`) yields something `validate` cannot
+consume. Gating `T` on `T['dialect'] extends string` needs none of them; it
+reuses `Struct` (already `StringMap<string, Type>`) unchanged.
+
+This encoding is checked, not assumed — `tsc --strict` against the real
+`revisionSchema` confirms all four properties it has to have:
+`dialectEntry(revisionSchema, r => r.generation > 0)` infers `r` as the decoded
+`Revision` with no annotation, the returned entry's `dialect` is the literal
+`'vnd.fjs.revision'` (assigning it to another literal type errors), and a
+schema with no `dialect` member or with a thunk-form one is rejected at the
+call site — the parameter resolves to `never` — rather than silently producing
+an entry whose name is `never`.
 
 `extraValidate` closes the gap rtti leaves. Structural validation cannot say
 "this string is cbase32-decodable" or "this number is a non-negative safe
@@ -185,7 +192,7 @@ anyway.
 
 **The `dialect` member must be a direct string const**, not a thunk. rtti
 admits both forms — `dialect: 'vnd.fjs.revision'` and
-`() => ['const', 'vnd.fjs.revision']` — and `DialectType` above accepts only
+`() => ['const', 'vnd.fjs.revision']` — and `DialectSchema` above accepts only
 the first. That is the decision, not an implementer's choice: the direct form
 is what `revisionSchema` already uses, it is what rtti's own docstring
 prescribes outside recursive definitions, it makes `type.dialect` readable
@@ -237,6 +244,18 @@ predicate makes it a weaker claim than its own decoder would. Say so in the
 module docstring, and keep it true by never routing a decode decision through
 `detect`'s verdict.
 
+**`DetectMeta` is unchanged: no `dialect` field.** A matched entry is reported
+only through the derived `mime_type`, as today. `DetectMeta` is
+`fjs/media/type`'s result shape, shared with the dialect-unaware `detectStream`
+— putting a dialect field on it would place a dialect concept in the one layer
+that must not have one, and would leave that field permanently `undefined` on
+every streaming verdict. The caller loses little: it supplied the entry list,
+so it can compare `mime_type` against its own entries, and detection only ever
+claims a blob's shape, so a caller that intends to decode calls its dialect's
+decoder regardless. If a caller ever genuinely needs the matched entry, the
+place to widen is `fjs/media`'s own return type, not `fjs/media/type`'s —
+a separate change, and out of scope here.
+
 Two properties of the current implementation are deliberate and easy to lose
 while adding a registry:
 
@@ -271,10 +290,10 @@ while adding a registry:
       `detectDialect` call sites) and `fjs/media/proof.f.ts` — and add a
       `**BREAKING CHANGES:**` CHANGELOG entry per AGENTS.md §8.4. No
       compatibility shim.
-- [ ] Type `DialectType` so a schema whose `dialect` member is absent, not a
-      string, or a thunk-wrapped const is rejected at compile time — the direct
-      const form is required, per above. Do **not** grammar-check or allowlist
-      the name — record why in the JSDoc, since the rule differs from
+- [ ] Carry the `DialectSchema` / `DialectName` conditionals over as written, so
+      a schema whose `dialect` member is absent, not a string, or a thunk-
+      wrapped const is rejected at the call site. Do **not** grammar-check or
+      allowlist the name — record why in the JSDoc, since the rule differs from
       [detect-cbor](detect-cbor.md)'s blob-supplied names.
 - [ ] Proof coverage in `fjs/media/proof.f.ts`: a second dialect is recognized;
       first-match-wins ordering; no match falls through to the `fjs/media/type`
@@ -285,9 +304,6 @@ while adding a registry:
       structure alone; and a non-`vnd.fjs.*` dialect name yields its own derived
       type.
 - [ ] Confirm `detectStream` is untouched and still dialect-unaware.
-- [ ] Check whether `DetectMeta` needs to carry the matched dialect itself, not
-      only the derived `mime_type` — a caller that matched is usually about to
-      decode, and currently has to re-derive which dialect hit.
 
 ### Related
 
@@ -308,7 +324,7 @@ while adding a registry:
   `application/{dialect}+cbor`; its tier-2 names come from the blob, hence its
   allowlist and this module's lack of one.
 - [`fjs/types/rtti/module.f.ts`](../../types/rtti/module.f.ts) — `Struct` /
-  `Type` / `Const`; `DialectType` is the subset of `Type` with a string
-  `dialect` member, spelled without intersecting `Struct`.
+  `Type` / `Const`; `Struct` is the entry schema's constraint, narrowed by a
+  conditional rather than by intersecting or re-spelling it.
 - [`fjs/types/rtti/validate/module.f.ts`](../../types/rtti/validate/module.f.ts)
   — `validate`, what detection runs per entry over the once-parsed value.
