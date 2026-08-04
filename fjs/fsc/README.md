@@ -23,15 +23,19 @@ Repository migration is incremental, not a single task or pull request. A
 synthetic `.f.mjs` compiler fixture may be added as soon as the parser supports
 it. Before converting the first existing repository module, complete both:
 
-- [`.f.mjs` test and coverage support](../emergent_testing/todo/f-mjs-test-and-coverage.md),
-  so migrated modules remain in proof discovery and coverage reporting and the
-  proof guidance in `AGENTS.md` and `CONTRIBUTING.md` stays aligned;
 - [authored `.f.mjs` package support](../ci/todo/f-mjs-package-support.md),
   including TypeScript checking, `.mjs`/`.d.mts` package inclusion, repeatable
   cleanup and declaration emission, consecutive-pack validation, runtime import
   tests, packed-package type-resolution tests, and the repository module-import
   policy update, so published runtime and declaration imports cannot reference
-  omitted files and unmigrated callers may follow renamed dependencies.
+  omitted files and unmigrated callers may follow renamed dependencies;
+- the remaining
+  [`.f.mjs` test and coverage fixtures](../emergent_testing/todo/f-mjs-test-and-coverage.md),
+  which prove end to end that a migrated module keeps its proofs and its
+  coverage rows. The tooling half already ships: proof discovery
+  (`shouldLoad`), `npm run cov`, `deno task cov`, the generated Deno CI step,
+  and the proof policy in `AGENTS.md` and `CONTRIBUTING.md` all cover both
+  authored extensions today.
 
 The repository import policy is asymmetric during migration: authored `.f.ts`
 may import relative `.f.ts` or `.f.mjs` modules, while authored `.f.mjs` runtime

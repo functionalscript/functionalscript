@@ -1,6 +1,7 @@
 import { ci, main } from './module.f.ts'
 import { functionalscript, node } from './config/module.f.ts'
 import { nodeNixJobs } from './node/module.f.ts'
+import { coverageInclude } from './deno/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
@@ -149,7 +150,7 @@ export const proof = {
             assert(hasRun(`deno install -g -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript}`)(gha), 'expected configured-version deno install cache')
             assert(hasRun('deno install --frozen')(gha), 'expected deno lock install')
             assert(hasRun(`deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} t`)(gha), 'expected configured-version deno install')
-            assert(hasRun("deno test --allow-read --allow-env --allow-sys --coverage && deno coverage --include='.*module\\.f\\.ts'")(gha), 'expected limited-permission deno coverage')
+            assert(hasRun(`deno test --allow-read --allow-env --allow-sys --coverage && deno coverage --include='${coverageInclude}'`)(gha), 'expected limited-permission deno coverage')
             assert(hasRun(`bun install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version bun cache')
             assert(hasRun('bun install --frozen-lockfile')(gha), 'expected bun lock install')
             assert(hasRun(`bunx functionalscript@${functionalscript} t`)(gha), 'expected configured-version bun install')

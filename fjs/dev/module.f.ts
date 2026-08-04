@@ -31,16 +31,22 @@ export type ModuleMap = StringMap<string, Module>
 /**
  * Returns `true` if the file should be loaded for proof discovery.
  *
- * All FunctionalScript modules (`.f.ts` / `.f.js`) are safe to bulk-load by
- * construction — they have no import side effects. For vanilla TS/JS the
- * load gate stays opt-in by filename: any file ending in `proof.ts`,
- * `proof.js`, `proof.mts`, or `proof.mjs` is included.
+ * All FunctionalScript modules are safe to bulk-load by construction — they
+ * have no import side effects. That covers the two authored extensions,
+ * `.f.ts` and `.f.mjs`, plus the `.f.js` generated from `.f.ts`. For vanilla
+ * TS/JS the load gate stays opt-in by filename: any file ending in
+ * `proof.ts`, `proof.js`, `proof.mts`, or `proof.mjs` is included.
+ *
+ * `.f.mjs` is matched by extension like any other FunctionalScript module, so
+ * a migrated `module.f.mjs` keeps its internal `proof` export in discovery.
+ * A `proof.f.mjs` matches the same `.f.mjs` rule, not the vanilla
+ * `proof.mjs` one.
  *
  * Whether a loaded module actually _contains_ a proof is determined at
  * runtime by checking for an exported `proof` property.
  */
 export const shouldLoad = (s: string): boolean =>
-    s.endsWith('.f.ts')    || s.endsWith('.f.js')    ||
+    s.endsWith('.f.ts')    || s.endsWith('.f.js')    || s.endsWith('.f.mjs') ||
     s.endsWith('proof.ts') || s.endsWith('proof.js') ||
     s.endsWith('proof.mts')|| s.endsWith('proof.mjs')
 
@@ -131,6 +137,18 @@ export const proof = {
         assert(isSourceFile('module.mjs'))
         assert(!isSourceFile('readme.md'))
         assert(!isSourceFile('module.json'))
+    },
+    allFilesFindsFunctionalScript: () => {
+        // Both authored FunctionalScript extensions are discovered, so a
+        // module migrated from `.f.ts` to `.f.mjs` keeps its proofs. An
+        // ordinary `.mjs` is still skipped.
+        const root: Dir = {
+            'a.f.ts': [],
+            'b.f.mjs': [],
+            'c.mjs': [],
+        }
+        const [, result] = virtual({ ...emptyState, root })(allFiles('.', shouldLoad))
+        assertEq(result.join(','), './a.f.ts,./b.f.mjs')
     },
     allFilesSkipsNodeModules: () => {
         // `node_modules` is skipped without descending into it, even though

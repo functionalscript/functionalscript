@@ -5,11 +5,17 @@ export const proof = {
     shouldLoad: () => {
         assert(shouldLoad('foo.f.ts'))
         assert(shouldLoad('bar.f.js'))
+        assert(shouldLoad('module.f.mjs'))
+        assert(shouldLoad('proof.f.mjs'))
         assert(shouldLoad('proof.ts'))
         assert(shouldLoad('proof.js'))
         assert(shouldLoad('proof.mts'))
         assert(shouldLoad('proof.mjs'))
         assert(!shouldLoad('module.ts'))
+        // An ordinary `.mjs` module stays opt-in through the `proof.mjs`
+        // convention; only the FunctionalScript `.f.mjs` extension is loaded
+        // by extension alone.
+        assert(!shouldLoad('module.mjs'))
         assert(!shouldLoad('readme.md'))
     },
     shouldPass: () => ({
