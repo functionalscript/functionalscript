@@ -832,14 +832,25 @@ Only add CHANGELOG entries for code changes — PRs that only touch `todo/`,
   | `## Unreleased` contains                    | Pre-1.0 — `0.Y.Z` | 1.0 and later — `X.Y.Z` |
   | ------------------------------------------- | ----------------- | ----------------------- |
   | at least one `**BREAKING CHANGES:**` entry  | `0.(Y+1).0`       | `(X+1).0.0`             |
-  | new features, nothing breaking              | `0.(Y+1).0`       | `X.(Y+1).0`             |
+  | new features, nothing breaking              | `0.Y.(Z+1)`       | `X.(Y+1).0`             |
   | fixes only                                  | `0.Y.(Z+1)`       | `X.Y.(Z+1)`             |
 
-  Pre-1.0 the first two rows collapse into the same bump, which is why `0.32.0`
-  (a breaking CLI change) and `0.35.0` (new features only) are both minor bumps
-  while `0.35.1` and `0.35.2` (pure fixes) are patches. A bigger bump is a number,
-  not a cost — it never argues for holding back a breaking change, it only records
-  that one happened.
+  Pre-1.0 the leading `0.` costs one position, and the distinction it costs is
+  feature-vs-fix, not the break signal: `0.Y` moves **only** for a breaking
+  change, and everything else — new features included — is a patch. That is
+  deliberate. `^0.41.0` and `~0.41.0` both resolve to `>=0.41.0 <0.42.0` under
+  npm (Cargo's bare `0.41.0` and JSR/Deno agree), so while the package is pre-1.0
+  the minor is the only upgrade boundary a resolver enforces. Reserving it for
+  breaking changes makes crossing it mean "something broke, read the entries" and
+  makes every patch release a safe upgrade that still delivers features — the
+  same contract the 1.0-and-later column gives, one position to the left. SemVer
+  §4 leaves `0.y.z` undefined ("Anything MAY change at any time"), so this is a
+  convention chosen inside the spec rather than a departure from it.
+
+  A bigger bump is a number, not a cost — it never argues for holding back a
+  breaking change, it only records that one happened. Releases through `0.41.0`
+  predate this convention and took a minor bump for feature-only releases too
+  (`0.35.0`, `0.33.0`); they are published, so leave their numbers alone.
 - Releasing is its own commit: the version lives in `package.json` (`"version"`)
   — `deno.json` holds tasks and formatting only. When it's bumped, create a new
   `## X.Y.Z` section in `CHANGELOG.md` immediately after `## Unreleased` and move
