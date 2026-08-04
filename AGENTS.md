@@ -515,6 +515,29 @@ independently constructed and consumed — and reads as plain data you destructu
 behind avoiding `as` and type predicates: make the structure explicit instead of
 deriving it.
 
+**Exception:** use `&` when every alternative is materially more complex — when
+composition would misdescribe the value or push real cost onto callers just to
+satisfy the rule. The cases in this repository:
+
+- **A type-level marker on a value that keeps its own runtime shape.**
+  `Nominal<N, R, B> = symbol & {…}` and
+  `Phantom<S, T> = S & { readonly[phantomKey]?: T }` exist precisely because the
+  value still *is* a `symbol` / an `S` at runtime. A named field would invent a
+  wrapper that never exists.
+- **Describing an object you don't own, or a flat serialized shape.**
+  `IncomingMessage = Readable & {…}` in `fjs/effects/node/module.ts` describes
+  Node's object, which really does carry both member sets on one level. Nesting
+  the base under a field there would describe something that isn't there — and
+  for a wire format it would change the encoding, not just the type.
+- **A facade adding a member to a generic interface.**
+  `FileCas = Cas<FileCasOperation> & { url: (v: Vec) => string }` — composition
+  would route every consumer through an extra hop (`fileCas.cas.read(…)`) to
+  express one added member.
+
+The exception is about cost to the reader or to the runtime, not about `&` being
+shorter to type. A composite assembled from record types you define and control —
+the `Signer` case above — is still the rule, not the exception.
+
 #### String literals instead of enum-like aliases
 
 Use string literals as strongly-typed values directly — don't introduce enum-like
