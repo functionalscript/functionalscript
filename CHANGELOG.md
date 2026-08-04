@@ -20,6 +20,8 @@ history.
 
 ## Unreleased
 
+- `nanvm-lib`: add native-JS multiplication proofs matching the Rust coercion
+  cases [#1429](https://github.com/functionalscript/functionalscript/pull/1429)
 - Test and coverage tooling recognizes authored `.f.mjs` FunctionalScript
   modules: proof discovery loads them, and `npm run cov`, `deno task cov`, and
   the generated Deno CI step include `module.f.mjs` alongside `module.f.ts`
