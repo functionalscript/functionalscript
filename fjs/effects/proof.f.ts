@@ -20,6 +20,17 @@ type AddOp = readonly['add', (a: number, b: number) => number]
 
 const next = match<AddOp, number>({ add: (a, b) => a + b })
 
+/**
+ * An operation set whose command is any `string`, which is what a `Do` node
+ * decoded from external input effectively is: `command` is runtime data, so
+ * nothing stops it naming a member `map` inherits from `Object.prototype`
+ * rather than an own handler. `match` must refuse those, and this type is how a
+ * proof says so without an `as` cast.
+ */
+type AnyOp = readonly[string, (a: number) => number]
+
+const anyNext = match<AnyOp, number>({ add: a => a + 1 })
+
 export const proof = {
     foldStep: {
         empty: () => {
@@ -107,6 +118,27 @@ export const proof = {
             const r2 = next(r[2](r[1]))
             assert(r2[0] === 'done', r2)
             assertEq(r2[1], 5)
+        },
+        ownCommand: () => {
+            // The same map the two cases below dispatch against: an own
+            // property still resolves, so what they prove is refusal of
+            // inherited names, not a map that dispatches nothing.
+            const r = anyNext(do_<AnyOp>('add')(41))
+            assert(r[0] === 'cont', r)
+            assertEq(r[1], 42)
+        },
+        // A `command` naming an `Object.prototype` member must not dispatch to
+        // the inherited value. `map['constructor']` is `Object` and
+        // `map['toString']` is `Function.prototype.toString` — both callable,
+        // neither a handler — so a plain index read would call one of them with
+        // the node's payload instead of throwing.
+        throw: {
+            constructorCommand: () => {
+                anyNext(do_<AnyOp>('constructor')(1))
+            },
+            toStringCommand: () => {
+                anyNext(do_<AnyOp>('toString')(1))
+            },
         },
     },
     step: {

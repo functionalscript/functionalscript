@@ -95,7 +95,9 @@
  * @module
  */
 
+import { assert } from '../asserts/module.f.ts'
 import { fold, type List } from '../types/list/module.f.ts'
+import { at } from '../types/object/module.f.ts'
 import type { Option } from '../types/option/module.f.ts'
 import type { Result } from '../types/result/module.f.ts'
 
@@ -449,13 +451,35 @@ export type MatchResult<O extends Operation, T, R> =
  * with the continuation. The one world-specific step — `await` for async
  * runners, state threading for sync ones — is left to the caller, so every
  * interpreter loop is this skeleton plus a single eliminator line.
+ *
+ * **The handler is looked up with `at`, never with `map[command]`.**
+ * `OperationMap<O, R>` pins `command` to `O[0]` at the type level, but a `Do`
+ * node's `command` is runtime data — it can reach an interpreter from a decoded
+ * payload or a deserialized continuation, where no type ever constrained it.
+ * `map` is an ordinary object, so a plain index read resolves an inherited name
+ * (`'constructor'`, `'toString'`, `'hasOwnProperty'`) to the `Object.prototype`
+ * member instead of `undefined`, and the line below would then call it with the
+ * node's payload: a value the type system promised was `(...payload) => R` turns
+ * out to be an arbitrary inherited function, chosen by the same input that
+ * supplies its arguments. `at` reads through `getOwnPropertyDescriptor`, which
+ * only ever sees own properties, so such a command yields `null` and never a
+ * callable.
+ *
+ * A `null` handler is an invariant violation, not an outcome: every `O1 extends
+ * O` the signature admits has its command in `map`, so reaching it means the
+ * node's `command` was never the `O1[0]` it claimed to be. It therefore throws
+ * (`assert`) rather than widening {@link MatchResult} with a variant no
+ * type-correct caller could ever observe — a runner cannot resume a command it
+ * has no handler for, so there is nothing for a recovery branch to do.
  */
 export const match =
     <O extends Operation, R>(map: OperationMap<O, R>) =>
     <O1 extends O, T>(e: Effect<O1, T>): MatchResult<O1, T, R> => {
         if (typeof e === 'function') { return ['done', e()] }
         const { command, payload, continuation } = e
-        return ['cont', map[command](...payload), continuation]
+        const handler = at(command)<OperationMap<O, R>[O[0]]>(map)
+        assert(handler !== null, command)
+        return ['cont', handler(...payload), continuation]
     }
 
 export type ToAsyncOperationMap<O extends Operation> = {
