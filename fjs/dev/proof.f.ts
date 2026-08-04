@@ -3,13 +3,22 @@ import { shouldLoad } from './module.f.ts'
 
 export const proof = {
     shouldLoad: () => {
+        // Every FunctionalScript extension is loaded whatever the file name.
         assert(shouldLoad('foo.f.ts'))
+        assert(shouldLoad('foo.f.mts'))
         assert(shouldLoad('bar.f.js'))
+        assert(shouldLoad('module.f.mjs'))
+        assert(shouldLoad('proof.f.mts'))
+        assert(shouldLoad('proof.f.mjs'))
+        // Every impure JS/TS extension is loaded only under the `proof` name.
         assert(shouldLoad('proof.ts'))
-        assert(shouldLoad('proof.js'))
         assert(shouldLoad('proof.mts'))
+        assert(shouldLoad('proof.js'))
         assert(shouldLoad('proof.mjs'))
         assert(!shouldLoad('module.ts'))
+        assert(!shouldLoad('module.mts'))
+        assert(!shouldLoad('module.js'))
+        assert(!shouldLoad('module.mjs'))
         assert(!shouldLoad('readme.md'))
     },
     shouldPass: () => ({

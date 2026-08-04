@@ -132,11 +132,20 @@ the dependency-closure invariant for compiler-ready `.f.mjs` source.
 ### Ordering
 
 Complete this task, including repeatable emission and the `AGENTS.md`
-module-import policy update, together with
-[`.f.mjs` test and coverage support](../../emergent_testing/todo/f-mjs-test-and-coverage.md),
-before converting the first existing repository module from `.f.ts` to
-`.f.mjs`. A synthetic compiler fixture that does not enter the published runtime
-graph may be used earlier.
+module-import policy update, before converting the first existing repository
+module from `.f.ts` to `.f.mjs`. A synthetic compiler fixture that does not
+enter the published runtime graph may be used earlier.
+
+This task now comes **first** among the two `.f.mjs` prerequisites. The tooling
+half of
+[`.f.mjs` test and coverage support](../../emergent_testing/todo/f-mjs-test-and-coverage.md)
+— proof discovery, Node and Deno coverage, the generated CI step, and the
+`AGENTS.md`/`CONTRIBUTING.md` proof policy — has shipped; what remains there are
+the runtime fixtures, which cannot land until authored `.mjs` is a type-checked,
+packable source extension. Enabling `allowJs`/`checkJs` on its own is not enough:
+`npm run prepack` (`tsc --NoEmit false`) then fails with TS5055 because authored
+`.mjs` becomes both an input and a JavaScript emit target, which is what the
+cleanup and split-emission tasks above fix.
 
 ### Related
 

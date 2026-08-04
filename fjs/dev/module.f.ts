@@ -31,18 +31,28 @@ export type ModuleMap = StringMap<string, Module>
 /**
  * Returns `true` if the file should be loaded for proof discovery.
  *
- * All FunctionalScript modules (`.f.ts` / `.f.js`) are safe to bulk-load by
- * construction — they have no import side effects. For vanilla TS/JS the
- * load gate stays opt-in by filename: any file ending in `proof.ts`,
- * `proof.js`, `proof.mts`, or `proof.mjs` is included.
+ * Two symmetrical rules, each covering all four TS/JS module extensions:
+ *
+ * - **FunctionalScript modules** — anything ending in `.f.ts`, `.f.mts`,
+ *   `.f.js`, or `.f.mjs`. They are safe to bulk-load by construction, since
+ *   they have no import side effects, so the whole module is loaded and its
+ *   internal `proof` export (if any) is discovered. `.f.ts` and `.f.mjs` are
+ *   the authored extensions; `.f.js` is generated from `.f.ts`.
+ * - **Impure JavaScript/TypeScript proofs** — anything ending in `proof.ts`,
+ *   `proof.mts`, `proof.js`, or `proof.mjs`. Outside FunctionalScript a module
+ *   may have import side effects, so the load gate stays opt-in by filename.
+ *
+ * A `proof.f.mts` / `proof.f.mjs` matches the FunctionalScript rule by its
+ * `.f.` infix, not the vanilla proof rule.
  *
  * Whether a loaded module actually _contains_ a proof is determined at
  * runtime by checking for an exported `proof` property.
  */
 export const shouldLoad = (s: string): boolean =>
-    s.endsWith('.f.ts')    || s.endsWith('.f.js')    ||
-    s.endsWith('proof.ts') || s.endsWith('proof.js') ||
-    s.endsWith('proof.mts')|| s.endsWith('proof.mjs')
+    s.endsWith('.f.ts')    || s.endsWith('.f.mts')   ||
+    s.endsWith('.f.js')    || s.endsWith('.f.mjs')   ||
+    s.endsWith('proof.ts') || s.endsWith('proof.mts')||
+    s.endsWith('proof.js') || s.endsWith('proof.mjs')
 
 const isSourceFile = (path: string): boolean =>
     path.endsWith('.js') || path.endsWith('.ts') || path.endsWith('.mts') || path.endsWith('.mjs')
@@ -131,6 +141,19 @@ export const proof = {
         assert(isSourceFile('module.mjs'))
         assert(!isSourceFile('readme.md'))
         assert(!isSourceFile('module.json'))
+    },
+    allFilesFindsFunctionalScript: () => {
+        // Every FunctionalScript extension is discovered, so a module migrated
+        // from `.f.ts` to `.f.mjs` keeps its proofs. An ordinary `.mjs` is
+        // still skipped.
+        const root: Dir = {
+            'a.f.ts': [],
+            'b.f.mjs': [],
+            'c.f.mts': [],
+            'd.mjs': [],
+        }
+        const [, result] = virtual({ ...emptyState, root })(allFiles('.', shouldLoad))
+        assertEq(result.join(','), './a.f.ts,./b.f.mjs,./c.f.mts')
     },
     allFilesSkipsNodeModules: () => {
         // `node_modules` is skipped without descending into it, even though

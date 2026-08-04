@@ -10,7 +10,7 @@
   "scripts": {
     "prepack": "tsc --NoEmit false",
     "test": "tsc && node ./fjs/module.ts t",
-    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts",
+    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts --test-coverage-include=**/module.f.mjs",
     "start": "node ./fjs/module.ts",
     "ci-update": "node ./fjs/module.ts ci",
     "dev-update": "node ./fjs/module.ts r ./fjs/dev/update/module.f.ts",
