@@ -1,19 +1,24 @@
+import { assert } from '../../fjs/asserts/module.f.ts'
+
 const { is } = Object;
 
 const ois = (a: unknown) => (b: unknown): void => {
-    if (is(a, b)) { } else { throw [a, 'is', b] }
+    assert(is(a, b), [a, 'is', b])
 }
 
 const { isNaN } = Number;
 
 const nanRes = (op: (n: unknown) => unknown) => (n: unknown): void => {
     const result = op(n);
-    if (!isNaN(result)) {
-        throw result
-    }
+    assert(isNaN(result), result)
 }
 
 const stringCoercion = String
+const multiply = (a: any) => (b: any): unknown => a * b
+const multiplyEq = (a: any) => (b: any) => (expected: unknown): void => {
+    ois(multiply(a)(b))(expected)
+    ois(multiply(b)(a))(expected)
+}
 
 export const proof = {
     eq: () => {
@@ -165,6 +170,56 @@ export const proof = {
                 // TODO: test objects with valueOf, toString functions - when Rust logic is implemented
             },
             function: () => nan(op(() => {}))
+        }
+    },
+    mul: () => {
+        return {
+            nullish: () => {
+                multiplyEq(null)(null)(0)
+                multiplyEq(null)(0)(0)
+                multiplyEq(undefined)(0)(NaN)
+            },
+            boolean: () => {
+                multiplyEq(true)(0)(0)
+                multiplyEq(true)(1)(1)
+                multiplyEq(true)(10)(10)
+                multiplyEq(false)(0)(0)
+                multiplyEq(false)(1)(0)
+                multiplyEq(false)(10)(0)
+            },
+            number: () => {
+                multiplyEq(0)(0)(0)
+                multiplyEq(0)(1)(0)
+                multiplyEq(1)(1)(1)
+                multiplyEq(1)(-1)(-1)
+                multiplyEq(1)(10)(10)
+                multiplyEq(-1)(10)(-10)
+                multiplyEq(10)(10)(100)
+                multiplyEq(-10)(10)(-100)
+            },
+            bigint: () => {
+                multiplyEq(0n)(0n)(0n)
+                multiplyEq(0n)(1n)(0n)
+                multiplyEq(1n)(1n)(1n)
+                multiplyEq(1n)(-1n)(-1n)
+                multiplyEq(1n)(10n)(10n)
+                multiplyEq(-1n)(10n)(-10n)
+                multiplyEq(10n)(10n)(100n)
+                multiplyEq(-10n)(10n)(-100n)
+            },
+            string: () => {
+                multiplyEq('')(1)(0)
+                multiplyEq('10')(1)(10)
+                multiplyEq('a')(1)(NaN)
+                multiplyEq('1n')(1)(NaN)
+            },
+            array: () => {
+                multiplyEq([])(1)(0)
+                multiplyEq([10])(1)(10)
+                multiplyEq(['10'])(1)(10)
+                multiplyEq([0, 0])(1)(NaN)
+            },
+            object: () => multiplyEq({})(1)(NaN)
         }
     },
     stringCoercion: {
