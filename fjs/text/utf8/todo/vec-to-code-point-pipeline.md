@@ -50,9 +50,11 @@ export const vecToCodePointList = (v: Vec): List<I32> => toCodePointList(u8List(
 `text/module.f.ts`'s `utf8ToString` becomes
 `codePointListToString(vecToCodePointList(msbV))`. Consider going further and
 moving `utf8ToString` into `fjs/text/utf8/module.f.ts` as the unchecked
-sibling of `fromVec` (re-exported from `fjs/text/module.f.ts` for existing
-importers, or migrated as a breaking change) — mirroring how the encode
-direction already pairs `tryUtf8`/`utf8` in one place.
+sibling of `fromVec` — mirroring how the encode direction already pairs
+`tryUtf8`/`utf8` in one place. If it moves, migrate it as a breaking change
+with every importer updated in the same PR; a re-export left in
+`fjs/text/module.f.ts` for existing importers is the stale-re-export case
+`AGENTS.md` §8.4 rules out.
 
 ### Tasks
 

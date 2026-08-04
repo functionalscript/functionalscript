@@ -266,16 +266,28 @@ format or contract for speed is not.
 ### 5.2 The API is the most important part of quality
 
 **Quality is the main priority, and the API is the most important part of it.**
-A clean, readable, simple API for the modules that consume it outweighs the cost
-of changing it. Never cut corners, hack, or bend a caller's input/output to fit
-an existing API's shape just to avoid touching that API.
+A clean, readable, simple API for the modules that consume it is worth more than
+any existing API's shape. **If the new version can have a better, simpler API,
+change it — never hesitate.** An API kept only because something already calls it
+is how a codebase ends up with a heap of legacy nobody is allowed to modify, and
+every later design is then bent around it. Never cut corners, hack, or bend a
+caller's input/output to fit an existing API's shape just to avoid touching that
+API.
 
 When the existing design is the obstacle, **fix the design**: rewrite the API and
-make a breaking change (update every importer in the same PR — see
-[§8.4](#84-breaking-changes-and-versioning)), or, when a hard cutover is
-impractical, introduce a clean transitional API alongside the old one and migrate
-callers to it. Adjusting a call site to work around a poor API, instead of
+make a breaking change, updating every importer in the same PR (see
+[§8.4](#84-breaking-changes-and-versioning)). Every consumer inside this
+repository is visible and updatable, so a hard cutover is nearly always
+available — take it. Adjusting a call site to work around a poor API, instead of
 improving the API, is the wrong trade-off here.
+
+Keeping the old API alongside the new one is a **last resort**, not the
+convenient middle path: two shapes for one concept doubles what a reader has to
+understand and, in practice, the old one never leaves. If a rewrite is genuinely
+too large for one PR, split it by **scope** — module by module, each step its own
+complete breaking change — rather than by **time**. If a transitional API is
+still unavoidable, file a `todo/` issue for removing the old one as part of the
+same change; the work isn't done until that issue is deleted.
 
 **If you see a way to improve an API — or a new API that would make consuming
 modules simpler and more readable — propose it as soon as you notice it.** Don't
@@ -502,6 +514,29 @@ independently constructed and consumed — and reads as plain data you destructu
 (`const { rfc6979, nf, g } = signer`). This mirrors the data-first preference
 behind avoiding `as` and type predicates: make the structure explicit instead of
 deriving it.
+
+**Exception:** use `&` when every alternative is materially more complex — when
+composition would misdescribe the value or push real cost onto callers just to
+satisfy the rule. The cases in this repository:
+
+- **A type-level marker on a value that keeps its own runtime shape.**
+  `Nominal<N, R, B> = symbol & {…}` and
+  `Phantom<S, T> = S & { readonly[phantomKey]?: T }` exist precisely because the
+  value still *is* a `symbol` / an `S` at runtime. A named field would invent a
+  wrapper that never exists.
+- **Describing an object you don't own, or a flat serialized shape.**
+  `IncomingMessage = Readable & {…}` in `fjs/effects/node/module.ts` describes
+  Node's object, which really does carry both member sets on one level. Nesting
+  the base under a field there would describe something that isn't there — and
+  for a wire format it would change the encoding, not just the type.
+- **A facade adding a member to a generic interface.**
+  `FileCas = Cas<FileCasOperation> & { url: (v: Vec) => string }` — composition
+  would route every consumer through an extra hop (`fileCas.cas.read(…)`) to
+  express one added member.
+
+The exception is about cost to the reader or to the runtime, not about `&` being
+shorter to type. A composite assembled from record types you define and control —
+the `Signer` case above — is still the rule, not the exception.
 
 #### String literals instead of enum-like aliases
 
@@ -802,11 +837,44 @@ Only add CHANGELOG entries for code changes — PRs that only touch `todo/`,
 
 ### 8.4 Breaking changes and versioning
 
-- Make breaking changes when they are the right design — don't preserve a worse
-  API (e.g. a stale re-export or a non-canonical export location) just to avoid
-  churn. When a change breaks the public API, prefix its CHANGELOG entry with
+- Make breaking changes whenever they are the right design — don't preserve a
+  worse API (e.g. a stale re-export or a non-canonical export location) just to
+  avoid churn, and don't treat "it's already published" as a reason to keep a
+  shape ([§5.2](#52-the-api-is-the-most-important-part-of-quality)). The version
+  number is what lets consumers stay on the old API; a released version is
+  immutable, so nothing is taken away from anyone by improving the next one.
+  When a change breaks the public API, prefix its CHANGELOG entry with
   `**BREAKING CHANGES:**` and update every importer in the same PR rather than
   keeping a compatibility shim.
-- When the version is bumped in `deno.json`/`package.json`, create a new
+- **The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html),
+  and the CHANGELOG decides which number moves.** A `**BREAKING CHANGES:**` entry
+  in `## Unreleased` means the release shipping it cannot be a patch. The package
+  is still pre-1.0, where the leading `0.` is pinned and the *minor* position
+  plays the role the major one plays after 1.0:
+
+  | `## Unreleased` contains                    | Pre-1.0 — `0.Y.Z` | 1.0 and later — `X.Y.Z` |
+  | ------------------------------------------- | ----------------- | ----------------------- |
+  | at least one `**BREAKING CHANGES:**` entry  | `0.(Y+1).0`       | `(X+1).0.0`             |
+  | new features, nothing breaking              | `0.Y.(Z+1)`       | `X.(Y+1).0`             |
+  | fixes only                                  | `0.Y.(Z+1)`       | `X.Y.(Z+1)`             |
+
+  Pre-1.0 the leading `0.` costs one position, and the distinction it costs is
+  feature-vs-fix, not the break signal: `0.Y` moves **only** for a breaking
+  change, and everything else — new features included — is a patch. That is
+  deliberate. `^0.41.0` and `~0.41.0` both resolve to `>=0.41.0 <0.42.0` under
+  npm (Cargo's bare `0.41.0` and JSR/Deno agree), so while the package is pre-1.0
+  the minor is the only upgrade boundary a resolver enforces. Reserving it for
+  breaking changes makes crossing it mean "something broke, read the entries" and
+  makes every patch release a safe upgrade that still delivers features — the
+  same contract the 1.0-and-later column gives, one position to the left. SemVer
+  §4 leaves `0.y.z` undefined ("Anything MAY change at any time"), so this is a
+  convention chosen inside the spec rather than a departure from it.
+
+  A bigger bump is a number, not a cost — it never argues for holding back a
+  breaking change, it only records that one happened. Releases through `0.41.0`
+  predate this convention and took a minor bump for feature-only releases too
+  (`0.35.0`, `0.33.0`); they are published, so leave their numbers alone.
+- Releasing is its own commit: the version lives in `package.json` (`"version"`)
+  — `deno.json` holds tasks and formatting only. When it's bumped, create a new
   `## X.Y.Z` section in `CHANGELOG.md` immediately after `## Unreleased` and move
   all entries from `## Unreleased` into it, leaving `## Unreleased` empty.
