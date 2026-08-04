@@ -224,7 +224,14 @@ of the open design questions settle:
   add machinery to guard one that does not exist. The boundary that does exist
   — untrusted *blob* content — is on the other side of `match` entirely.
 - **Parsing happens once.** Detection JSON-parses the text a single time and
-  calls each entry's `match` on the parsed value. Validation lives in the
+  calls each entry's `match` on the parsed value. It must parse with the pure,
+  total pipeline — `parse(tokenize(stringToList(text)))`, returning
+  `Result<Unknown, string>` — and **not** with `fjs/media/json`'s `parse`,
+  which is native `JSON.parse`: it throws on malformed input, so ordinary
+  non-JSON text would blow up instead of falling through to the
+  `fjs/media/type` verdict. Today's `detect` never parses (it hands the text to
+  `decodeRevisionText`, which composes the pipeline internally), so this is new
+  ground for the module; see the prerequisite below. Validation lives in the
   entry, not the detector: `dialectEntry` applies `matchWith` to
   `rtti/validate`'s `validate(type)` and its `extraValidate`, so `match` runs
   the structural check followed by the refinement on the same value. `detect`
@@ -301,6 +308,16 @@ predicate makes it a weaker claim than its own decoder would. Say so in the
 module docstring, and keep it true by never routing a decode decision through
 `detect`'s verdict.
 
+**Prerequisite:
+[fjs/media/json parse-text-pipeline](../json/todo/parse-text-pipeline.md).**
+That issue adds the `Result`-returning `text → Unknown` entry point this design
+needs, built on `fjs/media/json`'s own tokenizer and parser. It is already
+justified without this issue — `revision`, `fjs/dev/package_json`, and
+`fjs/protocol/mcp/stdio` each re-wire the same three-call pipeline by hand —
+and `detect` would be the fourth. Land it first and consume it; do not inline
+another copy in `fjs/media/module.f.ts`. Nothing else here depends on it, so
+the rest of the design can be reviewed and settled meanwhile.
+
 **`DetectMeta` is unchanged: no `dialect` field.** A matched entry is reported
 only through the derived `mime_type`, as today. `DetectMeta` is
 `fjs/media/type`'s result shape, shared with the dialect-unaware `detectStream`
@@ -336,10 +353,16 @@ while adding a registry:
       `extraValidate` rather than nesting a `match` closure; it asserts the
       `dialect` member at registration and takes its default predicate from the
       module-scope `always` rather than a fresh `() => true` per call.
+- [ ] Land [parse-text-pipeline](../json/todo/parse-text-pipeline.md) first —
+      `detect` needs its `Result`-returning `text → Unknown` entry point, and
+      must not inline a fourth copy of the pipeline or reach for
+      `fjs/media/json`'s throwing `parse`.
 - [ ] Implement in `fjs/media/module.f.ts`: `detect(dialects)(bytes)` — parse
-      once, call each entry's `match` on the parsed value, and append `+json`
-      to the first matching entry's `dialect`. `detect` handles no schemas and
-      no refinements of its own, and no dialect import remains in this module.
+      once with that entry point, fall through to the `fjs/media/type` verdict
+      on a parse error, call each entry's `match` on the parsed value, and
+      append `+json` to the first matching entry's `dialect`. `detect` handles
+      no schemas and no refinements of its own, and no dialect import remains
+      in this module.
 - [ ] Add `revisionDialect` to `fjs/media/revision`, with the `isValidRevision`
       adapter above — destructured (`const [tag] = checkReferences(r)`), not
       `checkReferences(r)[0]` — and keep the existing `dialect` string const
@@ -378,6 +401,10 @@ while adding a registry:
   derivation an entry relies on instead of naming its own.
 - [`fjs/mcp/cas/module.f.ts`](../../mcp/cas/module.f.ts) — the only non-proof
   importer of `detect`; updated in the same PR as the breaking change.
+- [fjs/media/json parse-text-pipeline](../json/todo/parse-text-pipeline.md) —
+  the prerequisite: the `Result`-returning `text → Unknown` parse `detect`
+  needs. `fjs/media/json`'s own `parse` export is native `JSON.parse` and
+  throws, so it is not usable here.
 - [detect-cbor](detect-cbor.md) — would reuse these entries for
   `application/{dialect}+cbor`; its tier-2 names come from the blob, hence its
   allowlist and this module's lack of one.
