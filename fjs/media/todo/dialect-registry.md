@@ -47,7 +47,7 @@ decoder, no media type, no separate dialect name:
 
 ```ts
 // `Struct`, `Ts` and `Unknown` are rtti's (`fjs/types/rtti`, `…/rtti/ts`),
-// `validate` is `…/rtti/validate`, `assert` is `fjs/asserts`.
+// `validate` and `Validate` are `…/rtti/validate`, `assert` is `fjs/asserts`.
 
 /** The registry entry: a dialect name and a predicate over a parsed value. */
 export type DialectEntry = {
@@ -57,6 +57,14 @@ export type DialectEntry = {
 
 const always = (): boolean => true
 
+/** Structural validation followed by the dialect's own refinement. */
+const matchWith = <T extends Struct>(v: Validate<T>) =>
+    (extraValidate: (_: Ts<T>) => boolean) =>
+    (u: Unknown): boolean => {
+        const [tag, value] = v(u)
+        return tag === 'ok' && extraValidate(value)
+    }
+
 /** Registers a dialect for detection: its schema, plus whatever rtti can't say. */
 export const dialectEntry = <T extends Struct>(
     type: T,
@@ -64,14 +72,7 @@ export const dialectEntry = <T extends Struct>(
 ): DialectEntry => {
     const { dialect } = type
     assert(typeof dialect === 'string', 'dialectEntry: schema has no direct string `dialect` member')
-    const v = validate(type)
-    return {
-        dialect,
-        match: u => {
-            const [tag, value] = v(u)
-            return tag === 'ok' && extraValidate(value)
-        },
-    }
+    return { dialect, match: matchWith(validate(type))(extraValidate) }
 }
 ```
 
@@ -210,13 +211,22 @@ of the open design questions settle:
   when there is one, deriving `application/{dialect}+cbor` from the same name.
   Keeping the name rather than a finished media type costs nothing now and
   avoids a second registry, or a media-type string to parse back apart, later.
-- **The tag and the schema cannot disagree.** With one field there is no entry
+- **`dialectEntry` cannot produce a tag that disagrees with its schema.** It
+  reads the name out of the schema it validates, so there is no registration
   that claims `vnd.fjs.foo` while validating `vnd.fjs.bar` blobs — no
   consistency rule for `detect` to enforce, and none for a proof to cover.
+  Nothing stops a caller from writing the struct literal by hand instead
+  (`{ dialect: 'vnd.fjs.foo', match: always }`), and `DialectEntry` is
+  deliberately *not* made opaque to prevent that: the list is the caller's own
+  declaration of what it wants recognized, passed to its own `detect` call, so
+  a fabricated entry mislabels only that caller's results. There is no trust
+  boundary between a caller and the entries it writes itself, and a brand would
+  add machinery to guard one that does not exist. The boundary that does exist
+  — untrusted *blob* content — is on the other side of `match` entirely.
 - **Parsing happens once.** Detection JSON-parses the text a single time and
   calls each entry's `match` on the parsed value. Validation lives in the
-  entry, not the detector: `dialectEntry` closes over
-  `rtti/validate`'s `validate(type)` and its `extraValidate`, and `match` runs
+  entry, not the detector: `dialectEntry` applies `matchWith` to
+  `rtti/validate`'s `validate(type)` and its `extraValidate`, so `match` runs
   the structural check followed by the refinement on the same value. `detect`
   never sees `type` or `extraValidate` — it walks the list calling `match` and
   takes the first `true`. N dialects therefore cost N structural validations,
@@ -322,10 +332,10 @@ while adding a registry:
 ### Tasks
 
 - [ ] Implement `dialectEntry(type, extraValidate?)` as written above — it owns
-      validation, closing over `validate(type)` and `extraValidate` inside
-      `match`, asserts the `dialect` member at registration, and takes its
-      default predicate from the module-scope `always` rather than a fresh
-      `() => true` per call.
+      validation, applying the module-scope `matchWith` to `validate(type)` and
+      `extraValidate` rather than nesting a `match` closure; it asserts the
+      `dialect` member at registration and takes its default predicate from the
+      module-scope `always` rather than a fresh `() => true` per call.
 - [ ] Implement in `fjs/media/module.f.ts`: `detect(dialects)(bytes)` — parse
       once, call each entry's `match` on the parsed value, and append `+json`
       to the first matching entry's `dialect`. `detect` handles no schemas and
