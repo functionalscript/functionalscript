@@ -533,6 +533,39 @@ satisfy the rule. The cases in this repository:
   `FileCas = Cas<FileCasOperation> & { url: (v: Vec) => string }` — composition
   would route every consumer through an extra hop (`fileCas.cas.read(…)`) to
   express one added member.
+- **Opening a record type to dynamic keys.** A record type restricts its fields:
+  unknown keys are neither writable in a literal nor readable off a value.
+  Intersecting it with `StringMap<string, unknown>` keeps the declared fields
+  checked while allowing arbitrary keys:
+
+  ```ts
+  type A = {
+      readonly x: number
+  }
+
+  // `a` doesn't have access to other fields.
+  const a: A = {
+      x: 5,
+      // b: null, // compilation error
+  }
+  // const aB = a.b // compilation error
+
+  // `AM` is a `StringMap` but with restricted fields.
+  type AM = StringMap<string, unknown> & A
+
+  // `am` has access to all fields, with `A`'s restrictions still applied.
+  const am: AM = {
+      x: 5,
+      b: null,
+      // x: 'no', // compilation error: `x` is still `number`
+  }
+  const amB = am.b // `unknown`
+  ```
+
+  Reach for this only when the composite type itself must carry both. To hand a
+  record to something that expects a map, widen at the use site instead — `A` is
+  already assignable to `StringMap<string, unknown>`, so
+  `const m: StringMap<string, unknown> = a` needs no intersection (and no `as`).
 
 The exception is about cost to the reader or to the runtime, not about `&` being
 shorter to type. A composite assembled from record types you define and control —
