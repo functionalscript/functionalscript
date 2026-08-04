@@ -46,23 +46,24 @@ entry can say to an rtti schema plus a typed refinement predicate** — no
 decoder, no media type, no separate dialect name:
 
 ```ts
-/** A schema that names its own dialect: `StringMap<'dialect', string>`. */
-export type DialectType = StringMap<'dialect', string>
-
 /** The registry entry: a dialect name and a predicate over a parsed value. */
-export type DialectEntry<S extends string> = {
-    readonly dialect: S
+export type DialectEntry = {
+    readonly dialect: string
     readonly match: (_: Unknown) => boolean
 }
 
+const always = (): boolean => true
+
 /** Registers a dialect for detection: its schema, plus whatever rtti can't say. */
-export const dialectEntry = <T extends DialectType>(
+export const dialectEntry = <T extends Struct>(
     type: T,
-    extraValidate: (_: Ts<T>) => boolean = () => true,
-): DialectEntry<T['dialect']> => {
+    extraValidate: (_: Ts<T>) => boolean = always,
+): DialectEntry => {
+    const { dialect } = type
+    assert(typeof dialect === 'string', 'dialectEntry: schema has no direct string `dialect` member')
     const v = validate(type)
     return {
-        dialect: type.dialect,
+        dialect,
         match: u => {
             const [tag, value] = v(u)
             return tag === 'ok' && extraValidate(value)
@@ -77,42 +78,48 @@ self-discriminating. So the dialect name is *in* the schema, and a separate
 `dialect` field alongside it would be a second copy that can disagree with the
 first. `detect` reads `type.dialect` and derives the media type from it.
 
-The constraint is `StringMap<'dialect', string>` — the repo's spelling of
-`{ readonly dialect: string }` — and nothing more. Three other spellings were
-tried against the real `revisionSchema`, `Ts`, and `validate` with
-`tsc --strict`, and each fails:
+**The constraint is `Struct`, and the name is checked at registration.** Two
+properties are wanted from the signature — every member is a real rtti `Type`,
+and `dialect` is a direct string const — and TypeScript will not give both at
+once. Everything below was compiled against the real `revisionSchema`, `Ts`,
+and `validate` with `tsc --strict`:
 
-- `Struct & { readonly dialect: string }` — the intersection AGENTS.md rules
-  out. (Its usual remedy, embedding the record as a named field, cannot apply
-  here either: an entry's schema *is* an rtti `Type`, so
-  `{ struct: Struct, dialect: string }` yields something `validate` cannot
-  consume.)
+- `Struct & StringMap<'dialect', string>` in the constraint — TS2589, "type
+  instantiation is excessively deep". As a *parameter* type
+  (`type: T & DialectType`) it fails differently: TS2322 on `type.dialect`,
+  TS2345 on `Ts<T & …>` vs `Ts<T>`, plus TS2589. It is also the intersection
+  AGENTS.md rules out, whose usual remedy — embed the record as a named field —
+  cannot apply here anyway, since an entry's schema *is* an rtti `Type` and
+  `{ struct: Struct, dialect: string }` is not something `validate` consumes.
 - An inline `{ readonly [k: string]: Type | undefined, readonly dialect:
-  string }` — the inline index signature reserved for mutually-recursive types.
+  string }` — the inline index signature AGENTS.md reserves for
+  mutually-recursive types.
 - `<T extends Struct>` with the member gated by conditionals
-  (`type: DialectSchema<T>`, returning `DialectEntry<DialectName<T>>`). This
-  one type-checks at the *call site* but not in the body: `type.dialect` stays
-  `Type` (including `undefined`) rather than `DialectName<T>` (TS2322), and
-  `validate(type)` yields `Ts<DialectSchema<T>>`, which is not `Ts<T>` and so
-  cannot feed `extraValidate` (TS2345). Adding `Struct` to the constraint
-  alongside `StringMap<'dialect', string>` instead blows up with TS2589,
-  "type instantiation is excessively deep".
+  (`type: DialectSchema<T>` returning `DialectEntry<DialectName<T>>`) —
+  type-checks at the call site, but not in the body: `type.dialect` stays
+  `Type | undefined` (TS2322) and `validate(type)` yields
+  `Ts<DialectSchema<T>>`, which cannot feed `(_: Ts<T>)` (TS2345).
+- `<T extends DialectType>` alone — compiles, but drops the `Type` requirement
+  on the other members, and that is not a cosmetic loss:
+  `{ dialect: 'x', field: () => 42 }` satisfies it, and rtti reads `field` as a
+  thunk, so the *first* `match` throws `rtti is not a function or its return
+  value is not iterable` — verified — rather than returning `false`. One
+  accepted schema mistake would turn detection of unknown blobs into a panic.
 
-The version above compiles end to end, body included, with no `as`. Checked,
-not assumed: `dialectEntry(revisionSchema, r => r.generation >= 0)` infers `r`
-as the decoded `Revision` with no annotation; the entry's `dialect` is the
-literal `'vnd.fjs.revision'`, so
-`revisionDialect: DialectEntry<typeof dialect>` type-checks and assigning it to
-a different literal errors; a schema with no `dialect` member is rejected at
-the call site; and a thunk-form `dialect` is rejected too, since a function is
-not a `string` — which is what makes the direct-const rule below
-compile-enforced rather than merely stated.
+So `Struct` wins the constraint: it rejects `field: () => 42` at compile time,
+which is the failure that matters. The `dialect` member is then checked at
+registration with `assert` — loudly, once, when the entry is constructed, not
+per blob — and the entry type is not generic in the name. That last point
+gives up the literal `'vnd.fjs.revision'` in `DialectEntry`, which is
+acceptable precisely because the literal has nowhere to go:
+`DetectMeta.mime_type` is `string`, and `revision` keeps its own `mediaType`
+const for callers wanting the precise type.
 
-What this constraint does *not* say is that the schema's other members are rtti
-`Type`s — `Struct` cannot be added back, per TS2589 above. In practice the gap
-is small: `Const` admits every primitive, array, and object literal, so almost
-any member is a valid schema; a genuinely malformed one (a function that is not
-a thunk) is caught by `validate`, not by registration.
+The version above compiles end to end, body included, with no `as`:
+`dialectEntry(revisionSchema, r => r.generation >= 0)` infers `r` as the
+decoded `Revision` with no annotation, and
+`dialectEntry({ dialect: 'x', field: () => 42, s: string })` is a compile
+error.
 
 `extraValidate` closes the gap rtti leaves. Structural validation cannot say
 "this string is cbase32-decodable" or "this number is a non-negative safe
@@ -139,8 +146,12 @@ is therefore `dialectEntry`, not `dialect`, so no importer has to alias it, and
 
 ```ts
 // fjs/media/revision/module.f.ts
-export const revisionDialect: DialectEntry<typeof dialect> =
-    dialectEntry(revisionSchema, r => checkReferences(r)[0] === 'ok')
+const isValidRevision = (r: Revision): boolean => {
+    const [tag] = checkReferences(r)
+    return tag === 'ok'
+}
+
+export const revisionDialect: DialectEntry = dialectEntry(revisionSchema, isValidRevision)
 
 // fjs/mcp/cas/module.f.ts
 import { detect } from '../../media/module.f.ts'
@@ -179,10 +190,9 @@ of the open design questions settle:
   one: `DetectMeta.mime_type` is `string`, so no template-literal type survives
   into a detection verdict no matter how the entry is typed, and `revision`
   keeps its own `mediaType` const for callers that want the precise type.
-  `DialectEntry<S>` is generic in the name anyway — erased to
-  `DialectEntry<string>` only where `detect` consumes the heterogeneous list —
-  so a caller reading a single entry keeps the literal; that is the only place
-  it can survive.
+  The entry is not generic in the name, for the reason given above: keeping
+  `Struct` as the constraint is worth more than a literal that has nowhere to
+  survive to.
 - **The entry names a dialect, not an encoding.** Erase to
   `{ dialect, match }`, not `{ mediaType, match }`: the `+json` suffix is the
   JSON detector's to append. Nothing else is needed today — there is no CBOR
@@ -220,19 +230,18 @@ anyway.
 
 **The `dialect` member must be a direct string const**, not a thunk. rtti
 admits both forms — `dialect: 'vnd.fjs.revision'` and
-`() => ['const', 'vnd.fjs.revision']` — and `DialectType` above accepts only
-the first, since a thunk is not a `string`. That is the decision, not an
-implementer's choice: the direct form
-is what `revisionSchema` already uses, it is what rtti's own docstring
-prescribes outside recursive definitions, it makes `type.dialect` readable
-without evaluating anything, and it is enforceable at compile time by the entry
-type rather than at registration time by a runtime check. The requirement is
+`() => ['const', 'vnd.fjs.revision']` — and `dialectEntry`'s `assert` accepts
+only the first. That is the decision, not an implementer's choice: the direct
+form is what `revisionSchema` already uses, it is what rtti's own docstring
+prescribes outside recursive definitions, and it makes `type.dialect` readable
+without evaluating anything. Because the constraint is `Struct`, this one is
+enforced at registration rather than at compile time — the trade recorded
+above. The requirement is
 narrow and always satisfiable — it constrains one member of the top-level
 struct, so a schema that needs thunks anywhere else, recursion included, is
 unaffected, and an author holding a thunk-form schema writes the string
 directly instead. A thunk-form `dialect` is still a perfectly valid rtti
-schema; it just is not registerable, and `dialectEntry()` will not compile with
-one.
+schema; it just is not registerable, and `dialectEntry` refuses it.
 
 **The dialect list is a parameter, and `detect` breaks.** `detect(dialects)`
 returns the classifier, so today's `detect(bytes)` becomes
@@ -305,24 +314,25 @@ while adding a registry:
 
 - [ ] Implement `dialectEntry(type, extraValidate?)` as written above — it owns
       validation, closing over `validate(type)` and `extraValidate` inside
-      `match`; the returned `DialectEntry<T['dialect']>` is generic in the name
-      so the literal is not widened at the return boundary.
+      `match`, asserts the `dialect` member at registration, and takes its
+      default predicate from the module-scope `always` rather than a fresh
+      `() => true` per call.
 - [ ] Implement in `fjs/media/module.f.ts`: `detect(dialects)(bytes)` — parse
       once, call each entry's `match` on the parsed value, and append `+json`
       to the first matching entry's `dialect`. `detect` handles no schemas and
       no refinements of its own, and no dialect import remains in this module.
-- [ ] Add `revisionDialect` to `fjs/media/revision` —
-      `dialectEntry(revisionSchema, r => checkReferences(r)[0] === 'ok')` —
-      keeping the existing `dialect` string const untouched.
+- [ ] Add `revisionDialect` to `fjs/media/revision`, with the `isValidRevision`
+      adapter above — destructured (`const [tag] = checkReferences(r)`), not
+      `checkReferences(r)[0]` — and keep the existing `dialect` string const
+      untouched.
 - [ ] Update every importer in the same PR — `fjs/mcp/cas/module.f.ts` (two
       `detectDialect` call sites) and `fjs/media/proof.f.ts` — and add a
       `**BREAKING CHANGES:**` CHANGELOG entry per AGENTS.md §8.4. No
       compatibility shim.
-- [ ] Keep the `DialectType = StringMap<'dialect', string>` constraint as
-      written — it is what rejects a schema with no `dialect` member or a
-      thunk-form one at the call site, and the alternatives above do not
-      compile. Do **not** grammar-check or allowlist the name — record why in
-      the JSDoc, since the rule differs from
+- [ ] Keep `Struct` as the constraint — it is what rejects a member like
+      `() => 42` that would make `match` throw, and the alternatives above
+      either do not compile or give that safety up. Do **not** grammar-check or
+      allowlist the name — record why in the JSDoc, since the rule differs from
       [detect-cbor](detect-cbor.md)'s blob-supplied names.
 - [ ] Proof coverage in `fjs/media/proof.f.ts`: a second dialect is recognized;
       first-match-wins ordering; no match falls through to the `fjs/media/type`
@@ -353,9 +363,11 @@ while adding a registry:
   `application/{dialect}+cbor`; its tier-2 names come from the blob, hence its
   allowlist and this module's lack of one.
 - [`fjs/types/rtti/module.f.ts`](../../types/rtti/module.f.ts) — `Struct` /
-  `Type` / `Const`; `Struct` is what a dialect schema is, though the entry's
-  constraint is `StringMap<'dialect', string>` (see the compile notes above).
-- [`fjs/types/object/module.f.ts`](../../types/object/module.f.ts) —
-  `StringMap`, which spells that constraint.
+  `Type` / `Const`; `Struct` is `dialectEntry`'s constraint (see the compile
+  notes above).
 - [`fjs/types/rtti/validate/module.f.ts`](../../types/rtti/validate/module.f.ts)
-  — `validate`, what detection runs per entry over the once-parsed value.
+  — `validate`, which each entry's `match` closes over; it throws rather than
+  erroring on a schema member that is not a `Type`, which is why the constraint
+  has to be `Struct`.
+- [`fjs/asserts/module.f.ts`](../../asserts/module.f.ts) — `assert`, used once
+  per registration to check the `dialect` member.
