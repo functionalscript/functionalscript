@@ -16,7 +16,7 @@ history.
   the generated Deno CI step include `module.f.mjs` alongside `module.f.ts`
   [#1422](https://github.com/functionalscript/functionalscript/pull/1422)
 
-### 0.41.0
+## 0.41.0
 
 - `fjs/effects`: `match` resolves a command's handler with an own-property
   lookup, so a `command` naming an `Object.prototype` member (`constructor`,
@@ -27,7 +27,7 @@ history.
   least one current head that is not archived — instead of every subject
   [#1415](https://github.com/functionalscript/functionalscript/pull/1415)
 
-### 0.40.0
+## 0.40.0
 
 - **BREAKING CHANGES:** remove the Playwright integration, which ran proofs in a
   Node worker rather than in a browser: no `@playwright/test` dependency, no
