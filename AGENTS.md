@@ -266,16 +266,28 @@ format or contract for speed is not.
 ### 5.2 The API is the most important part of quality
 
 **Quality is the main priority, and the API is the most important part of it.**
-A clean, readable, simple API for the modules that consume it outweighs the cost
-of changing it. Never cut corners, hack, or bend a caller's input/output to fit
-an existing API's shape just to avoid touching that API.
+A clean, readable, simple API for the modules that consume it is worth more than
+any existing API's shape. **If the new version can have a better, simpler API,
+change it — never hesitate.** An API kept only because something already calls it
+is how a codebase ends up with a heap of legacy nobody is allowed to modify, and
+every later design is then bent around it. Never cut corners, hack, or bend a
+caller's input/output to fit an existing API's shape just to avoid touching that
+API.
 
 When the existing design is the obstacle, **fix the design**: rewrite the API and
-make a breaking change (update every importer in the same PR — see
-[§8.4](#84-breaking-changes-and-versioning)), or, when a hard cutover is
-impractical, introduce a clean transitional API alongside the old one and migrate
-callers to it. Adjusting a call site to work around a poor API, instead of
+make a breaking change, updating every importer in the same PR (see
+[§8.4](#84-breaking-changes-and-versioning)). Every consumer inside this
+repository is visible and updatable, so a hard cutover is nearly always
+available — take it. Adjusting a call site to work around a poor API, instead of
 improving the API, is the wrong trade-off here.
+
+Keeping the old API alongside the new one is a **last resort**, not the
+convenient middle path: two shapes for one concept doubles what a reader has to
+understand and, in practice, the old one never leaves. If a rewrite is genuinely
+too large for one PR, split it by **scope** — module by module, each step its own
+complete breaking change — rather than by **time**. If a transitional API is
+still unavoidable, file a `todo/` issue for removing the old one as part of the
+same change; the work isn't done until that issue is deleted.
 
 **If you see a way to improve an API — or a new API that would make consuming
 modules simpler and more readable — propose it as soon as you notice it.** Don't
@@ -802,9 +814,13 @@ Only add CHANGELOG entries for code changes — PRs that only touch `todo/`,
 
 ### 8.4 Breaking changes and versioning
 
-- Make breaking changes when they are the right design — don't preserve a worse
-  API (e.g. a stale re-export or a non-canonical export location) just to avoid
-  churn. When a change breaks the public API, prefix its CHANGELOG entry with
+- Make breaking changes whenever they are the right design — don't preserve a
+  worse API (e.g. a stale re-export or a non-canonical export location) just to
+  avoid churn, and don't treat "it's already published" as a reason to keep a
+  shape ([§5.2](#52-the-api-is-the-most-important-part-of-quality)). The version
+  number is what lets consumers stay on the old API; a released version is
+  immutable, so nothing is taken away from anyone by improving the next one.
+  When a change breaks the public API, prefix its CHANGELOG entry with
   `**BREAKING CHANGES:**` and update every importer in the same PR rather than
   keeping a compatibility shim.
 - When the version is bumped in `deno.json`/`package.json`, create a new

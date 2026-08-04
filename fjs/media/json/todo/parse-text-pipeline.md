@@ -50,18 +50,19 @@ export const parseText: (text: string) => Result<Unknown, string> =
 
 Then `revision`'s `parseJson`, `package_json`'s `parseJsonText`, and
 `mcp/stdio`'s inline call import `parseText` and delete their local copies.
-Separately, decide what to do about the existing `parse = JSON.parse` export:
-its name collides with the concept consumers actually want, and its
-throwing/native behavior is the reason they avoid it — rename (e.g.
-`parseNative`) as a breaking change with importers updated in the same PR, or
-keep and document the split.
+Separately, the existing `parse = JSON.parse` export needs renaming: its name
+collides with the concept consumers actually want, and its throwing/native
+behavior is the reason they avoid it. Rename it (e.g. `parseNative`) as a
+breaking change with importers updated in the same PR — keeping the misleading
+name and documenting the split around it is the trade-off `AGENTS.md` §5.2
+rejects.
 
 ### Tasks
 
 - [ ] Add `parseText` to `fjs/media/json/module.f.ts` with proof coverage.
 - [ ] Migrate the three consumers; delete their local copies.
-- [ ] Decide the fate of the `parse = JSON.parse` export; if renamed, update
-      all importers in the same PR (**BREAKING CHANGES** entry).
+- [ ] Rename the `parse = JSON.parse` export and update all importers in the
+      same PR (**BREAKING CHANGES** entry).
 - [ ] `npx tsc`, `fjs t`.
 
 ### Related
