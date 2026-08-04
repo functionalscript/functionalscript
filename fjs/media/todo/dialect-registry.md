@@ -102,9 +102,14 @@ of the open design questions settle:
 - **The media type is derived, not supplied.** `application/${dialect}+json`,
   the same mechanical derivation `fjs/media/revision` already documents, read
   off the schema's own literal. An entry has no `mediaType` field to get wrong
-  or to disagree with the schema it validates. The generic `T` keeps the
-  literal, so the derived media type can stay a template-literal type the way
-  `revision`'s `mediaType` is today.
+  or to disagree with the schema it validates. The derivation is a runtime
+  one: `DetectMeta.mime_type` is `string`, so no template-literal type survives
+  into a detection verdict no matter how the entry is typed, and `revision`
+  keeps its own `mediaType` const for callers that want the precise type.
+  Making the entry generic in the name — `Dialect<S extends string>` with
+  `dialect: S`, erased to `Dialect<string>` only where `detect` consumes the
+  heterogeneous list — is still worth doing so a caller reading a single entry
+  keeps the literal; that is the only place it can survive.
 - **The entry names a dialect, not an encoding.** Erase to
   `{ dialect, match }`, not `{ mediaType, match }`: the `+json` suffix is the
   JSON detector's to append. Nothing else is needed today — there is no CBOR
@@ -136,12 +141,19 @@ every other dialect's blob, so disjointness is a property of the entries rather
 than a rule `detect` enforces. First match still wins for entries that overlap
 anyway.
 
-One wrinkle to pin down: rtti admits both the direct const form
-(`dialect: 'vnd.fjs.revision'`) and the thunk form
-(`() => ['const', 'vnd.fjs.revision']`). `DialectType` above accepts only the
-direct form — what `revisionSchema` uses, and what keeps `type.dialect`
-readable without evaluating anything. Either require it or unwrap the thunk
-when reading the name.
+**The `dialect` member must be a direct string const**, not a thunk. rtti
+admits both forms — `dialect: 'vnd.fjs.revision'` and
+`() => ['const', 'vnd.fjs.revision']` — and `DialectType` above accepts only
+the first. That is the decision, not an implementer's choice: the direct form
+is what `revisionSchema` already uses, it is what rtti's own docstring
+prescribes outside recursive definitions, it makes `type.dialect` readable
+without evaluating anything, and it is enforceable at compile time by the entry
+type rather than at registration time by a runtime check. The requirement is
+narrow and always satisfiable — it constrains one member of the top-level
+struct, so a schema that needs thunks anywhere else, recursion included, is
+unaffected, and an author holding a thunk-form schema writes the string
+directly instead. A thunk-form `dialect` is still a perfectly valid rtti
+schema; it just is not registerable, and `dialect()` will not compile with one.
 
 **The dialect list is a parameter, and `detect` breaks.** `detect(dialects)`
 returns the classifier, so today's `detect(bytes)` becomes
@@ -201,10 +213,11 @@ while adding a registry:
 
 ### Tasks
 
-- [ ] Implement `dialect(type, extraValidate?)` and the erased
-      `{ dialect, match }` entry it returns; confirm `Ts<T>` is inferred at the
-      call site so `extraValidate`'s parameter needs no annotation (this is the
-      reason registration is a function).
+- [ ] Implement `dialect(type, extraValidate?)` and the `{ dialect, match }`
+      entry it returns, generic in the name (`Dialect<T['dialect']>`) so the
+      literal is not widened at the return boundary; confirm `Ts<T>` is
+      inferred at the call site so `extraValidate`'s parameter needs no
+      annotation (this is the reason registration is a function).
 - [ ] Implement in `fjs/media/module.f.ts`: `detect(dialects)(bytes)` — parse
       once, `validate(type)` per entry, then `extraValidate` on success,
       appending `+json` to the matched entry's `dialect`. No dialect import
@@ -215,11 +228,11 @@ while adding a registry:
       `detectDialect` call sites) and `fjs/media/proof.f.ts` — and add a
       `**BREAKING CHANGES:**` CHANGELOG entry per AGENTS.md §8.4. No
       compatibility shim.
-- [ ] Type `DialectType` so a schema without a string `dialect` member is
-      rejected at compile time, and decide the thunk-form question (require the
-      direct const, or unwrap when reading the name). Do **not** grammar-check
-      or allowlist the name — record why in the JSDoc, since the rule differs
-      from [detect-cbor](detect-cbor.md)'s blob-supplied names.
+- [ ] Type `DialectType` so a schema whose `dialect` member is absent, not a
+      string, or a thunk-wrapped const is rejected at compile time — the direct
+      const form is required, per above. Do **not** grammar-check or allowlist
+      the name — record why in the JSDoc, since the rule differs from
+      [detect-cbor](detect-cbor.md)'s blob-supplied names.
 - [ ] Proof coverage in `fjs/media/proof.f.ts`: a second dialect is recognized;
       first-match-wins ordering; no match falls through to the `fjs/media/type`
       verdict unchanged; a `revision` blob still reports
