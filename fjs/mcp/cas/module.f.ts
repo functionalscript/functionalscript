@@ -109,7 +109,8 @@ import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../media/type/module.f.ts'
-import { detect as detectDialect } from '../../media/module.f.ts'
+import { detect } from '../../media/module.f.ts'
+import { revisionDialect } from '../../media/revision/module.f.ts'
 import { maxLengthBytes, type Vec } from '../../types/bit_vec/module.f.ts'
 import { ok, type Ok } from '../../types/result/module.f.ts'
 import {
@@ -144,6 +145,9 @@ export const casListArgs = {} as const
 // ── Tool registry ──────────────────────────────────────────────────────────────
 
 const toJson = stringify(identity)
+
+/** The dialect-aware classifier, bound to the dialects this server recognizes. */
+const detectDialect = detect([revisionDialect])
 
 type Meta = {
     readonly length: number

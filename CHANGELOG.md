@@ -20,6 +20,16 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/media` `detect` takes the dialects to recognize —
+  `detect(dialects)(bytes)`. `dialectEntry(schema, extraValidate?)` builds an
+  entry, `fjs/media/revision` exports `revisionDialect`, and no dialect is
+  hardcoded any more
+  [#1428](https://github.com/functionalscript/functionalscript/pull/1428)
+- **BREAKING CHANGES:** `fjs/media/json` `parse` is now the total
+  `(text: string) => Result<Unknown, string>` built on this module's own
+  tokenizer and parser; the throwing `JSON.parse` export is renamed
+  `parseNative`
+  [#1428](https://github.com/functionalscript/functionalscript/pull/1428)
 - Test and coverage tooling recognizes authored `.f.mjs` FunctionalScript
   modules: proof discovery loads them, and `npm run cov`, `deno task cov`, and
   the generated Deno CI step include `module.f.mjs` alongside `module.f.ts`

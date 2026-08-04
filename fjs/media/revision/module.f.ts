@@ -17,12 +17,10 @@
 import { array, number, option, string } from '../../types/rtti/module.f.ts'
 import { validate as rttiValidate, type ValidationError } from '../../types/rtti/validate/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
-import { parse as jsonParse } from '../json/parser/module.f.ts'
-import { tokenize as jsonTokenize } from '../json/tokenizer/module.f.ts'
-import type { Unknown } from '../json/module.f.ts'
-import { stringToList } from '../../text/utf16/module.f.ts'
+import { parse as parseJson, type Unknown } from '../json/module.f.ts'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.ts'
 import { error, ok, type Result } from '../../types/result/module.f.ts'
+import { dialectEntry, type DialectEntry } from '../module.f.ts'
 
 /**
  * Format tag: names the dialect of this BLOB. The media type it is served
@@ -117,10 +115,6 @@ export const validate = (value: Unknown): Result<Revision, RevisionError> => {
     return checkReferences(v)
 }
 
-/** Parses `text` as JSON without relying on `JSON.parse` (the shared `fjs/media/json` parser/tokenizer). */
-const parseJson = (text: string): Result<Unknown, string> =>
-    jsonParse(jsonTokenize(stringToList(text)))
-
 /**
  * Decodes `text` as a `revision` BLOB: JSON-parses it, then validates it per
  * {@link validate}. Detection is semantic, not syntactic — any JSON that
@@ -131,3 +125,17 @@ export const decodeText = (text: string): Result<Revision, RevisionError> => {
     if (t === 'error') { return error(v) }
     return validate(v)
 }
+
+/** {@link checkReferences} as the `boolean` refinement a {@link DialectEntry} takes. */
+const isValidRevision = (r: Revision): boolean => {
+    const [tag] = checkReferences(r)
+    return tag === 'ok'
+}
+
+/**
+ * This dialect as a registry entry for `fjs/media`'s `detect`. It carries the
+ * semantic checks too, so a blob is detected as `vnd.fjs.revision` exactly when
+ * {@link decodeText} would accept it — a structurally valid revision whose
+ * `snapshot` is not a cbase32 hash is not one.
+ */
+export const revisionDialect: DialectEntry = dialectEntry(revisionSchema, isValidRevision)

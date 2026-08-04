@@ -90,8 +90,18 @@ dialect:   vnd.fjs.revision
 mediaType: application/vnd.fjs.revision+json
 ```
 
-No registry entry is required for the vendor tree; the string is stable, and
+No IANA registration is required for the vendor tree; the string is stable, and
 it is validated by the schema itself since the literal is part of the schema.
+
+**Recognizing a blob of unknown provenance.** `fjs/media`'s `detect` is told
+which dialects to recognize rather than knowing any itself; this module
+contributes `revisionDialect` — `revisionSchema` plus `checkReferences` as its
+refinement — so a blob is classified as `application/vnd.fjs.revision+json`
+exactly when `decodeText` would accept it, and the media type is derived from
+the schema's own `dialect` literal by the rule above rather than named a second
+time. Any format following this convention registers the same way, with
+`dialectEntry`; a caller that already knows what it is validating needs none of
+this and calls `decodeText` / `validate` directly.
 
 **Versioning rule:** additive, compatible changes keep the tag — rtti struct
 validation accepts undeclared keys by design, so a blob with extra fields
