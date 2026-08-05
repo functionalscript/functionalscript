@@ -324,4 +324,46 @@ export const proof = {
             assertError(v({ a: 42 }))
         },
     },
+    funcParam: () => {
+        const paramSet0 = ['hello', bigint] as const
+        const paramSet1 = ['goodbye', string, 43] as const
+
+        const paramSet01 = or(paramSet0, paramSet1)
+
+        type Param0 = Ts<typeof paramSet0>
+        type Param1 = Ts<typeof paramSet1>
+        type Param01 = Ts<typeof paramSet01>
+
+        const v0 = validate(paramSet0)
+        const v1 = validate(paramSet1)
+
+        type F0<T> = (...args: Param0) => T
+        type F1<T> = (...args: Param1) => T
+
+        const func = <T>(f0: F0<T>, f1: F1<T>) => (...args: Param01): T => {
+            {
+                const [t, r] = v0(args)
+                if (t === 'ok') {
+                    return f0(...r)
+                }
+            }
+            {
+                const [t, r] = v1(args)
+                if (t === 'ok') {
+                    return f1(...r)
+                }
+            }
+            throw 'unreachable: args did not match any parameter set'
+        }
+
+        const f0 = (a: 'hello', b: bigint): number => 42
+        const f1 = (a: 'goodbye', b: string, c: 43): number => 13
+
+        const x: (...args: Param01) => number = func(f0, f1)
+
+        return () => {
+            assertEq(x('hello', 42n), 42)
+            assertEq(x('goodbye', 'world', 43), 13)
+        }
+    }
 }
