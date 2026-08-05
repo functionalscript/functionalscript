@@ -21,9 +21,8 @@ history.
 ## Unreleased
 
 - **BREAKING CHANGES:** `fjs/types/object`: `StringMap<T>` takes one type
-  argument and is the open-key-set record; a finite key set is now
-  `RequiredMap<K, T>` or `OptionalMap<K, T>`, and `RequiredMap<string, T>` is
-  `never`. `Map<T>` is removed — it was `StringMap<T>`
+  argument, the open-key-set record; a finite key set is `RequiredMap<K, T>` or
+  `OptionalMap<K, T>`. `Map<T>` is removed — it was `StringMap<T>`
   [#1442](https://github.com/functionalscript/functionalscript/pull/1442)
 
 ## 0.42.0
