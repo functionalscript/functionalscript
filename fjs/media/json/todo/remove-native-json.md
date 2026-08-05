@@ -67,7 +67,9 @@ Three semantic differences to respect while migrating, none of them blocking:
 Four phases. They are separable and each is a complete change on its own, so
 they should ship as separate PRs (§8.1); phases 1 and 2 gate the migration.
 
-**1. `stringSerialize` in FunctionalScript — done.** Escapes `"`, `\`, the short
+**1. `stringSerialize` in FunctionalScript — done in
+[#1438](https://github.com/functionalscript/functionalscript/pull/1438).**
+Escapes `"`, `\`, the short
 forms `\b \f \n \r \t`, and every other code point below `0x20` as `\u00XX`,
 over `fjs/text/utf16`; lone surrogates come out as `\ud800` the way well-formed
 `JSON.stringify` (ES2019) emits them, because `stringToCodePointList` already
