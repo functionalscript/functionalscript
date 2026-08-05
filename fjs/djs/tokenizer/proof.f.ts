@@ -932,12 +932,20 @@ export const proof = {
         () => {
             // many distinct short tokens, well past the ~1000-1500 token crash threshold
             // the old whole-file recursive match hit for this shape
-            const src = Array.from({ length: 3000 }, (_, i) => `a${i % 10}`).join(' ')
+            const ids = Array.from({ length: 3000 }, (_, i) => `a${i % 10}`)
+            const src = ids.join(' ')
             const result = tokenizeString(src)
             assert(result !== 'error', result)
-            // 3000 ids + 2999 separating ws + a trailing eof token. Counted off
-            // the token list rather than off `result`: the dump is a string, and
-            // re-parsing it would only measure the serializer.
+            // `tokenizeString` runs its own pipeline (`getTokensFromAstRule` +
+            // filter/scan + `stringify`), not `tokenizeJs`'s, so only its dump
+            // covers it. Compared whole rather than counted: at this size the
+            // count was the only thing the old JSON round-trip could check,
+            // while the reconstructed literal also pins every token's content.
+            assertEq(
+                result,
+                `[${ids.map(v => `{"kind":"id","value":"${v}"}`).join(',{"kind":"ws"},')},{"kind":"eof"}]`)
+            // The token list must agree with the dump: 3000 ids + 2999
+            // separating ws + a trailing eof token.
             assertEq(toArray(tokenizeJs(stringToList(src))('a.js')).length, 3000 + 2999 + 1)
         },
         () => {

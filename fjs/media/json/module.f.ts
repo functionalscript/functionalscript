@@ -127,9 +127,10 @@ export const stringify
 
 /**
  * Parses `text` as JSON with this module's own pure tokenizer and parser,
- * reporting failure as a `Result` rather than throwing. Malformed input is a
- * value the caller destructures, so nothing in FunctionalScript has to survive
- * a panic to read JSON.
+ * reporting failure as a `Result` rather than throwing: malformed input is
+ * *available* as an `error` to branch on. Whether to branch or to `unwrap` it
+ * back into a panic is the caller's decision — the parser no longer makes it
+ * for them.
  *
  * The result is an untyped {@link Unknown}; narrow it to a domain type with an
  * rtti schema (`fjs/types/rtti/parse`) rather than with an `as` cast.

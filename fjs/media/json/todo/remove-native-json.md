@@ -134,6 +134,10 @@ Consider a guard so it does not come back — the cheapest is a proof in
   — an on-hold design whose `writeJsonFile` half waits on phase 4.
 - [stringify-sorted-canonical](./stringify-sorted-canonical.md) — the key-order
   question phase 3 meets at every comparison site.
+- [parser-sibling-container-overflow](./parser-sibling-container-overflow.md) —
+  found while migrating the reading sites: `parse` panics on ~5000 sibling
+  containers, so one proof compares a serialized dump as text rather than
+  round-tripping it.
 - [streaming-recognizer](./streaming-recognizer.md) — the cost profile of this
   module's own pipeline (O(n) value, O(token) buffering); relevant if a
   migrated proof turns out to be slow.
