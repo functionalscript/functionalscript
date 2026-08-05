@@ -398,8 +398,8 @@ export const proof = {
             throw 'unreachable: args did not match any parameter set'
         }
 
-        const f0 = (args: Ts<Param0>): number => Number(args.b) + args.a.length
-        const f1 = (args: Ts<Param1>): number => args.c
+        const f0 = (args: Param0): number => Number(args.b) + args.a.length
+        const f1 = (args: Param1): number => args.c
 
         const x: (args: Param01) => number = func(f0, f1)
 
