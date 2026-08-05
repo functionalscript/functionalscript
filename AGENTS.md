@@ -474,31 +474,35 @@ silently stop matching its asserted type and narrow incorrectly with no compile
 error. Keep such predicates next to the type they discriminate, and revisit them
 whenever that type changes.
 
-#### `StringMap` for string-keyed records
+#### `StringMap` / `RequiredMap` / `OptionalMap` for string-keyed records
 
 Use the record types from `fjs/types/object/module.f.ts` for all string-keyed
 record types. The key set picks the type:
 
-- **Open key set:** `StringMap<T>` is `{ readonly[k in string]?: T }` — any key,
-  every value optional, because "the key may be missing" is what an open key set
-  means at runtime.
+- **Open key set:** `StringMap<T>` is `{ readonly[k in string]?: T }` — any
+  key, every value optional, because "the key may be missing" is what an open
+  key set means at runtime.
 - **Finite key set:** `RequiredMap<'a' | 'b', T>` is
-  `{ readonly a: T; readonly b: T }`, and `OptionalMap<'a' | 'b', T>` is the same
-  record with optional values.
+  `{ readonly a: T; readonly b: T }`, and `OptionalMap<'a' | 'b', T>` is that
+  same record with optional values.
 
 `RequiredMap<string, T>` is `never`: no object can carry every string as a
-required key, so an open key set fails to compile there. Reach for `StringMap<T>`
-instead.
+required key, so an open key set fails to compile there. Reach for
+`StringMap<T>` instead.
 
-Do not write inline `{ readonly[k in string]: T }` without `?` — TypeScript types
-every access as `T` but the value can be `undefined` at runtime. **Exception:**
-mutually-recursive types (e.g. `type Obj = { readonly[k in string]?: Obj }`) must
-use the inline form because TypeScript's circular-reference detection cannot
-resolve through conditional types.
+Do not write inline `{ readonly[k in string]: T }` without `?` — TypeScript
+types every access as `T` but the value can be `undefined` at runtime.
+**Exception:** mutually-recursive types (e.g.
+`type Obj = { readonly[k in string]?: Obj }`) must use the inline form. A type
+alias may not reference itself through *another* alias's instantiation, so
+`type Obj = StringMap<Obj>` is TS2456 ("Type alias 'Obj' circularly references
+itself") even though it expands to the inline spelling, which resolves. That is
+a property of aliasing, not of any one definition — writing the record as a
+mapped type rather than a conditional one does not lift it.
 
-When iterating all defined entries of a `StringMap<T>`, use
-`definedEntries` from `fjs/types/object/module.f.ts` instead of `Object.entries`;
-use `definedValues` instead of `Object.values`.
+When iterating all defined entries of a `StringMap<T>`, use `definedEntries`
+from `fjs/types/object/module.f.ts` instead of `Object.entries`; use
+`definedValues` instead of `Object.values`.
 
 #### `flatMap` over a filtering type predicate
 
