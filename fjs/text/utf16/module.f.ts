@@ -84,7 +84,7 @@ export type CodePoint = number
  * })
  * ```
  */
-const codePointToUtf16 = (codePoint: CodePoint): List<U16> => {
+const codePointToUtf16 = (codePoint: CodePoint): readonly U16[] => {
     if (isBmpCodePoint(codePoint)) { return [codePoint] }
     if (isSupplementaryPlane(codePoint)) {
         const n = codePoint - 0x1_0000
@@ -334,3 +334,29 @@ export const listToString: (input: List<U16>) => string
  */
 export const codePointListToString = (input: List<CodePoint>): string =>
     listToString(fromCodePointList(input))
+
+/**
+ * Converts a single Unicode code point to a string — the scalar counterpart of
+ * {@link codePointListToString}, for callers that hold one code point rather
+ * than a list of them and would otherwise wrap it in a single-element list.
+ *
+ * Input outside the assignable range — a surrogate, a value above
+ * `0x10FFFF`, or a negative one — is truncated to its low 16 bits and encoded
+ * as that code unit, rather than rejected. This matches
+ * {@link codePointListToString}, which reports malformed input through the
+ * decoder's `errorMask` on the way *in* rather than through a failure on the
+ * way out.
+ *
+ * @param codePoint - A Unicode code point (`CodePoint`).
+ * @returns The one- or two-code-unit string encoding it.
+ *
+ * @example
+ *
+ * ```ts
+ * codePointToString(0x48)      // 'H'
+ * codePointToString(0x1F600)   // the 😀 surrogate pair
+ * codePointToString(0x110000)  // '\u0000' — out of range, low 16 bits kept
+ * ```
+ */
+export const codePointToString = (codePoint: CodePoint): string =>
+    String.fromCharCode(...codePointToUtf16(codePoint))

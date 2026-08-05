@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- `fjs/media/json`: `stringSerialize` escapes in FunctionalScript instead of
+  calling the host's `JSON.stringify`, matching it exactly down to `\uXXXX` for
+  unpaired surrogates; `fjs/text/utf16` gains `codePointToString`
+  [#1438](https://github.com/functionalscript/functionalscript/pull/1438)
 - `fjs/djs`: the parser no longer spends a call-stack frame per container —
   the same lazy `drop(1)` pop that #1435 fixed in `fjs/media/json`
   [#1436](https://github.com/functionalscript/functionalscript/pull/1436)

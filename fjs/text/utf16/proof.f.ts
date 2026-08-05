@@ -4,7 +4,8 @@ import {
     stringToList,
     listToString,
     stringToCodePointList,
-    codePointListToString
+    codePointListToString,
+    codePointToString
 } from './module.f.ts'
 import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
@@ -141,5 +142,14 @@ export const proof = {
             const codePoints = [0x48, 0x65, 0x6C, 0x6C, 0x6F]
             const outputString = codePointListToString(codePoints)
         }
+    ],
+    codePointToString: [
+        () => { assertEq(codePointToString(0x48), 'H') },
+        // supplementary plane: one code point, two code units
+        () => { assertEq(codePointToString(0x1f600), '😀') },
+        // a surrogate is not a code point; it round-trips as its own code unit
+        () => { assertEq(codePointToString(0xd800), '\ud800') },
+        // above the maximum code point, the low 16 bits are kept
+        () => { assertEq(codePointToString(0x110000), '\u0000') },
     ]
 }
