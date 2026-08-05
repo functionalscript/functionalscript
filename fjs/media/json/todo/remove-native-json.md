@@ -134,9 +134,11 @@ Consider a guard so it does not come back — the cheapest is a proof in
   — an on-hold design whose `writeJsonFile` half waits on phase 4.
 - [stringify-sorted-canonical](./stringify-sorted-canonical.md) — the key-order
   question phase 3 meets at every comparison site.
-- [parser-container-stack-cost](./parser-container-stack-cost.md) — found while
-  migrating the reading sites: `parse` panics past ~5000 containers, so one
-  proof compares a serialized dump as text rather than round-tripping it.
+- `parse`'s per-container call-stack cost was found while migrating the reading
+  sites — it panicked past ~5000 containers, which is why one proof compares a
+  serialized dump as text rather than round-tripping it. Fixed in
+  [#1435](https://github.com/functionalscript/functionalscript/pull/1435); the
+  dump round-trip is available again if that proof is ever revisited.
 - [streaming-recognizer](./streaming-recognizer.md) — the cost profile of this
   module's own pipeline (O(n) value, O(token) buffering); relevant if a
   migrated proof turns out to be slow.

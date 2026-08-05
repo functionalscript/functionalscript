@@ -20,6 +20,9 @@ history.
 
 ## Unreleased
 
+- `fjs/djs`: the parser no longer spends a call-stack frame per container —
+  the same lazy `drop(1)` pop that #1435 fixed in `fjs/media/json`
+  [#PRNUM](https://github.com/functionalscript/functionalscript/pull/PRNUM)
 - `fjs/media/json`: `parse` no longer overflows the call stack on documents
   with ~5000 or more sibling containers; the parser stack is popped eagerly
   instead of through a lazy `drop(1)` chain
