@@ -399,6 +399,13 @@ export const proof = {
         }
 
         const f0 = (args: Ts<Param0>): number => Number(args.b) + args.a.length
-        const f1 = (args: Ts<Param1>): number => 13
+        const f1 = (args: Ts<Param1>): number => args.c
+
+        const x: (args: Param01) => number = func(f0, f1)
+
+        return () => {
+            assertEq(x({ a: 'hello', b: 42n }), 47)
+            assertEq(x({ a: 'goodbye', b: 'world', c: 43 }), 43)
+        }
     }
 }
