@@ -19,7 +19,7 @@ The goal is a near 1-to-1 match so that any divergence signals either a missing 
 | `number.number`        | [x] | [x] | `number_eq` — includes NaN, ±0, ±Inf |
 | `number.nullish`       | [x] | [x] | `number_eq` |
 | `string.string`        | [x] | [x] | `string_eq` |
-| `string.number`        | [x] | [ ] | `n(0)("0")` — cross-type check missing in Rust |
+| `string.number`        | [x] | [x] | `old_eq` |
 | `bigint.bigint`        | [x] | [x] | `bigint_eq` |
 | `array.array`          | [x] | [x] | `array_eq` |
 | `object.object`        | [x] | [x] | `object_eq` |
@@ -88,11 +88,11 @@ The goal is a near 1-to-1 match so that any divergence signals either a missing 
 | `object.toStringNotFunc`       | [x] | [ ] | non-function `toString` missing in Rust |
 | `object.toStringNonPrimitive`  | [x] | [ ] | `toString()` returning non-primitive missing in Rust |
 
-### `mul` (`*`) — only in `test.rs`
+### `mul` (`*`)
 
 | Test case              | `proof.f.ts` | `test.rs` | Notes |
 |------------------------|:---:|:---:|-------|
-| `mul` (all cases)      | [ ] | [x] | Full table covering null, bool, number, bigint, string, array, object |
+| `mul` (all cases)      | [x] | [x] | Full table covering null, bool, number, bigint, string, array, object |
 
 ### BigInt-specific — only in `test.rs`
 
@@ -115,8 +115,7 @@ The goal is a near 1-to-1 match so that any divergence signals either a missing 
 |-----|---------------|
 | `stringCoercion` for bool/null/undefined/bigint/func/object | Add Rust tests in `test.rs` |
 | `unary_minus.object.empty` | Add Rust test case |
-| `eq.string.number` cross-type | Add Rust test case |
-| `mul` / `bigint_add` / `bigint_mul` | Add TS tests in `proof.f.ts` |
+| `bigint_add` / `bigint_mul` | Add TS tests in `proof.f.ts` |
 | `serialization` | JS serialization is out of scope (VM-internal), keep Rust-only |
 | `format_fn` / `bigint_negative_zero` | Rust-specific, keep Rust-only |
 | `old_eq` in `test.rs` | Redundant — overlaps with `nullish_eq`/`bool_eq`/`number_eq`/etc.; consider removing |
