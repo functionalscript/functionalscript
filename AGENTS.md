@@ -504,7 +504,10 @@ record types. The key set picks the type:
 
 `RequiredMap<string, T>` is `never`: no object can carry every string as a
 required key, so an open key set fails to compile there. Reach for
-`StringMap<T>` instead.
+`StringMap<T>` instead. That guard is `string extends K`, which holds exactly
+when `K` is `string` — TypeScript cannot be asked whether a type is finite, so
+give `RequiredMap` a union of string literals and nothing else. A template
+literal like `` `x-${string}` `` is infinite but passes the guard.
 
 Do not write inline `{ readonly[k in string]: T }` without `?` — TypeScript
 types every access as `T` but the value can be `undefined` at runtime.

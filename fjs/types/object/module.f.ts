@@ -23,6 +23,13 @@ export type OptionalMap<K extends string, T> = { readonly[k in K]?: T }
  * `never`, because no object can carry every string as a key. Use `StringMap<T>`
  * for an open key set — its values are optional, which is what such a key set
  * means at runtime.
+ *
+ * There is no known way to ask TypeScript whether `K` is finite, so the guard
+ * approximates it with `string extends K`, which holds exactly when `K` is
+ * `string`. Other infinite key sets are not caught: a template literal such as
+ * `x-${string}` yields a template index signature instead of `never`, and its
+ * reads are typed `T` while the runtime value is `undefined`. Keep `K` a union
+ * of string literals.
  */
 export type RequiredMap<K extends string, T> =
     string extends K
