@@ -20,10 +20,12 @@ history.
 
 ## Unreleased
 
-- **BREAKING CHANGES:** `fjs/types/object`: `StringMap<K, T>` accepts only a
-  finite union of string literals — `StringMap<string, T>` is now `never`, so an
-  open key set no longer compiles. Use `Map<T>`, which is again a type of its
-  own (`{ readonly[k in string]?: T }`); all 24 sites in this repository moved
+- **BREAKING CHANGES:** `fjs/types/object`: `StringMap<T>` takes one parameter
+  and is the open-key-set record (`{ readonly[k in string]?: T }`) — the old
+  `StringMap<string, T>` spelling no longer compiles. A finite key set is
+  `RequiredMap<K, T>` or `OptionalMap<K, T>`, and `RequiredMap<string, T>` is
+  `never`. `Map<T>` is gone; it was `StringMap<T>` under a name that shadowed the
+  global `Map`
 
 ## 0.42.0
 

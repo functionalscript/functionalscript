@@ -10,11 +10,11 @@ entries" twice, with two different idioms:
 
 ```ts
 export const definedValues =
-    <T>(map: Map<Exclude<T, undefined>>): readonly Exclude<T, undefined>[] =>
+    <T>(map: StringMap<Exclude<T, undefined>>): readonly Exclude<T, undefined>[] =>
     values(map).filter(v => v !== undefined)
 
 export const definedEntries =
-    <T>(cmd: Map<Exclude<T, undefined>>): readonly (readonly[string, Exclude<T, undefined>])[] =>
+    <T>(cmd: StringMap<Exclude<T, undefined>>): readonly (readonly[string, Exclude<T, undefined>])[] =>
     entries(cmd).flatMap(([a, b]) => b === undefined ? [] : [[a, b]])
 ```
 
@@ -28,7 +28,7 @@ Derive one from the other so the predicate lives once:
 
 ```ts
 export const definedValues =
-    <T>(map: Map<Exclude<T, undefined>>): readonly Exclude<T, undefined>[] =>
+    <T>(map: StringMap<Exclude<T, undefined>>): readonly Exclude<T, undefined>[] =>
     definedEntries(map).map(([, v]) => v)
 ```
 
@@ -40,5 +40,5 @@ export const definedValues =
 ### Related
 
 - AGENTS.md — `definedEntries`/`definedValues` are the mandated iteration
-  helpers for `Map`; their own definitions should model the preferred
+  helpers for `StringMap`; their own definitions should model the preferred
   idiom once, not twice.

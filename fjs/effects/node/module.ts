@@ -42,7 +42,7 @@ import { asBase, asNominal } from '../../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { asyncTryCatch } from '../../types/result/module.ts'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.ts'
-import type { Map } from '../../types/object/module.f.ts'
+import type { StringMap } from '../../types/object/module.f.ts'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.ts'
 
 type Server = {
@@ -58,7 +58,7 @@ type IncomingMessage = Readable & {
 }
 
 type ServerResponse = {
-    readonly writeHead: (status: number, headers: Map<string>) => ServerResponse
+    readonly writeHead: (status: number, headers: StringMap<string>) => ServerResponse
     readonly end: (body: Uint8Array) => void
 }
 

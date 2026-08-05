@@ -133,22 +133,22 @@ Judgement calls worth deciding explicitly rather than by accident:
 
   ```ts
   // fjs/effects/console/module.f.ts
-  import type { StringMap } from '../../types/object/module.f.ts'
+  import type { RequiredMap } from '../../types/object/module.f.ts'
 
-  export type Std = StringMap<WriteConsoles, { readonly isTTY: boolean }>
+  export type Std = RequiredMap<WriteConsoles, { readonly isTTY: boolean }>
 
   // fjs/text/sgr/module.f.ts
   export const csiWrite = (std: Std) => (stream: WriteConsoles) => …
   ```
 
-  Note the `StringMap` spelling: `AGENTS.md` requires the `fjs/types/object`
+  Note the `RequiredMap` spelling: `AGENTS.md` requires the `fjs/types/object`
   record types for *all* string-keyed record types, and over a finite key union
-  `StringMap<WriteConsoles, T>` resolves to the same required-field record the
-  inline mapped type produces.
+  `RequiredMap<WriteConsoles, T>` is the same required-field record the inline
+  mapped type produces.
   `NodeProgramOptions.std` (`fjs/effects/node/module.f.ts:535`) writes that
   inline form by hand today — a pre-existing deviation from the rule, in a
-  module that already imports the open-key-set `Map` at `:19` and uses it for
-  `Headers` and `Module`. Pointing `std` at the named `Std` fixes that as a side
+  module that already imports the open-key-set `StringMap` at `:19` and uses it
+  for `Headers` and `Module`. Pointing `std` at the named `Std` fixes that deviation as a side
   effect and keeps the runner contract in sync with the console module by
   construction.
 
@@ -197,7 +197,7 @@ Judgement calls worth deciding explicitly rather than by accident:
 - [ ] Move `All` / `all` / `both` to `fjs/effects/all/module.f.ts`.
 - [ ] Move `Sandbox` / `Await` and helpers to `fjs/effects/sandbox/module.f.ts`.
 - [ ] Move the console family to `fjs/effects/console/module.f.ts`, add the
-      named `Std` type there as `StringMap<WriteConsoles, …>`, point
+      named `Std` type there as `RequiredMap<WriteConsoles, …>`, point
       `NodeProgramOptions.std` at it, and narrow `csiWrite` to take `Std`
       (updating its one caller, `fjs/emergent_testing/module.f.ts:370`). Verify
       `fjs/text/sgr` no longer imports `effects/node` at all — that is the test
