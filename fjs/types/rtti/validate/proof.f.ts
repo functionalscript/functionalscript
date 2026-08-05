@@ -340,7 +340,7 @@ export const proof = {
         type F0<T> = (...args: Param0) => T
         type F1<T> = (...args: Param1) => T
 
-        const func = <T>(f0: F0<T>, f1: F1<T>) =>(...args: Param01): T => {
+        const func = <T>(f0: F0<T>, f1: F1<T>) => (...args: Param01): T => {
             {
                 const [t, r] = v0(args)
                 if (t === 'ok') {
@@ -353,7 +353,7 @@ export const proof = {
                     return f1(...r)
                 }
             }
-            throw new Error('Invalid arguments')
+            throw 'unreachable: args did not match any parameter set'
         }
 
         const f0 = (a: 'hello', b: bigint): number => 42
