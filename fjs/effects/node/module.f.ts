@@ -246,7 +246,7 @@ export type Server =
 
 // createServer
 
-export type Headers = StringMap<string, string>
+export type Headers = StringMap<string>
 
 export type IncomingMessage = {
     readonly method: string
@@ -289,7 +289,7 @@ export const forever: Func<Forever> =
 
 // import
 
-export type Module = StringMap<string, unknown>
+export type Module = StringMap<unknown>
 
 export type Import = ['import', (path: string) => IoResult<Module>]
 

@@ -126,7 +126,7 @@ const tupleValidate = constContainerValidate<ReadonlyArray<Unknown>>(
     (value, k) => value[Number(k)]
 )
 
-const structValidate = constContainerValidate<StringMap<string, Unknown>>(
+const structValidate = constContainerValidate<StringMap<Unknown>>(
     isObject,
     (value, k) => value[k]
 )

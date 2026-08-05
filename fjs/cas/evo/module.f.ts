@@ -133,7 +133,7 @@ export type SubjectState = {
 
 /** In-memory index: subject → its {@link SubjectState}. */
 export type Cache = {
-    readonly bySubject: StringMap<string, SubjectState>
+    readonly bySubject: StringMap<SubjectState>
 }
 
 /** A cache with no known subjects yet — the starting point for {@link buildCache}. */

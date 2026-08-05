@@ -193,7 +193,23 @@ close coverage gaps. `assert`/`assertEq` push that branch into a shared helper
 whose own branches are already fully covered elsewhere, so the call site adds no
 new uncovered branch.
 
-### 3.4 Never use `try`/`catch`; test throwing with the `throw` key
+### 3.4 Assert type-level facts with `Assert<Equal<…>>`
+
+To prove that a type resolves to what you claim, write
+`type _Name = Assert<Equal<Actual, Expected>>` — `Assert` from
+`fjs/asserts/module.f.ts`, `Equal` from `fjs/types/ts/module.f.ts`. A wrong
+claim is then a compile error (TS2344, "Type 'false' does not satisfy the
+constraint 'true'"), and the check costs nothing at runtime.
+
+Do **not** state the claim as `true as _Predicate`, where `_Predicate` is a
+conditional type resolving to `true` or `false`. That proves nothing:
+TypeScript compares an assertion against the *widened* type of its operand, so
+`true as false` — and `true as never` — are both legal, and the assertion
+compiles no matter what the predicate resolved to. Such an entry in a `proof`
+object is doubly inert: the runner only invokes functions, so a boolean leaf is
+never counted as a test either.
+
+### 3.5 Never use `try`/`catch`; test throwing with the `throw` key
 
 Never use `try`/`catch` in `.f.ts` files — FunctionalScript itself has no
 `try`/`catch` and isn't planning to add it soon. To test that a call throws,
@@ -474,22 +490,38 @@ silently stop matching its asserted type and narrow incorrectly with no compile
 error. Keep such predicates next to the type they discriminate, and revisit them
 whenever that type changes.
 
-#### `StringMap` for string-keyed records
+#### `StringMap` / `RequiredMap` / `OptionalMap` for string-keyed records
 
-Use `StringMap<K, T>` from `fjs/types/object/module.f.ts` for all string-keyed
-record types. `StringMap<string, T>` resolves to `{ readonly[k in string]?: T }`
-(infinite key set, optional) and `StringMap<'a' | 'b', T>` resolves to
-`{ readonly a: T; readonly b: T }` (finite key set, required).
+Use the record types from `fjs/types/object/module.f.ts` for all string-keyed
+record types. The key set picks the type:
 
-Do not write inline `{ readonly[k in string]: T }` without `?` — TypeScript types
-every access as `T` but the value can be `undefined` at runtime. **Exception:**
-mutually-recursive types (e.g. `type Obj = { readonly[k in string]?: Obj }`) must
-use the inline form because TypeScript's circular-reference detection cannot
-resolve through conditional types.
+- **Open key set:** `StringMap<T>` is `{ readonly[k in string]?: T }` — any
+  key, every value optional, because "the key may be missing" is what an open
+  key set means at runtime.
+- **Finite key set:** `RequiredMap<'a' | 'b', T>` is
+  `{ readonly a: T; readonly b: T }`, and `OptionalMap<'a' | 'b', T>` is that
+  same record with optional values.
 
-When iterating all defined entries of a `StringMap<string, T>`, use
-`definedEntries` from `fjs/types/object/module.f.ts` instead of `Object.entries`;
-use `definedValues` instead of `Object.values`.
+`RequiredMap<string, T>` is `never`: no object can carry every string as a
+required key, so an open key set fails to compile there. Reach for
+`StringMap<T>` instead. That guard is `string extends K`, which holds exactly
+when `K` is `string` — TypeScript cannot be asked whether a type is finite, so
+give `RequiredMap` a union of string literals and nothing else. A template
+literal like `` `x-${string}` `` is infinite but passes the guard.
+
+Do not write inline `{ readonly[k in string]: T }` without `?` — TypeScript
+types every access as `T` but the value can be `undefined` at runtime.
+**Exception:** mutually-recursive types (e.g.
+`type Obj = { readonly[k in string]?: Obj }`) must use the inline form. A type
+alias may not reference itself through *another* alias's instantiation, so
+`type Obj = StringMap<Obj>` is TS2456 ("Type alias 'Obj' circularly references
+itself") even though it expands to the inline spelling, which resolves. That is
+a property of aliasing, not of any one definition — writing the record as a
+mapped type rather than a conditional one does not lift it.
+
+When iterating all defined entries of a `StringMap<T>`, use `definedEntries`
+from `fjs/types/object/module.f.ts` instead of `Object.entries`; use
+`definedValues` instead of `Object.values`.
 
 #### `flatMap` over a filtering type predicate
 
@@ -535,7 +567,7 @@ satisfy the rule. The cases in this repository:
   express one added member.
 - **Opening a record type to dynamic keys.** A record type restricts its fields:
   unknown keys are neither writable in a literal nor readable off a value.
-  Intersecting it with `StringMap<string, unknown>` keeps the declared fields
+  Intersecting it with `StringMap<unknown>` keeps the declared fields
   checked while allowing arbitrary keys:
 
   ```ts
@@ -551,7 +583,7 @@ satisfy the rule. The cases in this repository:
   // const aB = a.b // compilation error
 
   // `AM` is a `StringMap` but with restricted fields.
-  type AM = StringMap<string, unknown> & A
+  type AM = StringMap<unknown> & A
 
   // `am` has access to all fields, with `A`'s restrictions still applied.
   const am: AM = {
@@ -564,8 +596,8 @@ satisfy the rule. The cases in this repository:
 
   Reach for this only when the composite type itself must carry both. To hand a
   record to something that expects a map, widen at the use site instead — `A` is
-  already assignable to `StringMap<string, unknown>`, so
-  `const m: StringMap<string, unknown> = a` needs no intersection (and no `as`).
+  already assignable to `StringMap<unknown>`, so
+  `const m: StringMap<unknown> = a` needs no intersection (and no `as`).
 
 The exception is about cost to the reader or to the runtime, not about `&` being
 shorter to type. A composite assembled from record types you define and control —
@@ -773,7 +805,7 @@ anywhere else as the rule being broken.
 
 - Only import other `.f.ts` files from FunctionalScript modules. Avoid references
   to built-in or external Node modules such as `node:path` in `.f.ts` files.
-- No `try`/`catch` — see [§3.4](#34-never-use-trycatch-test-throwing-with-the-throw-key).
+- No `try`/`catch` — see [§3.5](#35-never-use-trycatch-test-throwing-with-the-throw-key).
 
 ### 6.6 Formatting
 

@@ -10,11 +10,11 @@ entries" twice, with two different idioms:
 
 ```ts
 export const definedValues =
-    <T>(map: StringMap<string, Exclude<T, undefined>>): readonly Exclude<T, undefined>[] =>
+    <T>(map: StringMap<Exclude<T, undefined>>): readonly Exclude<T, undefined>[] =>
     values(map).filter(v => v !== undefined)
 
 export const definedEntries =
-    <T>(cmd: StringMap<string, Exclude<T, undefined>>): readonly (readonly[string, Exclude<T, undefined>])[] =>
+    <T>(cmd: StringMap<Exclude<T, undefined>>): readonly (readonly[string, Exclude<T, undefined>])[] =>
     entries(cmd).flatMap(([a, b]) => b === undefined ? [] : [[a, b]])
 ```
 
@@ -28,7 +28,7 @@ Derive one from the other so the predicate lives once:
 
 ```ts
 export const definedValues =
-    <T>(map: StringMap<string, Exclude<T, undefined>>): readonly Exclude<T, undefined>[] =>
+    <T>(map: StringMap<Exclude<T, undefined>>): readonly Exclude<T, undefined>[] =>
     definedEntries(map).map(([, v]) => v)
 ```
 

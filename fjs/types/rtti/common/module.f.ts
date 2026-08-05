@@ -107,14 +107,14 @@ export type IsContainer<C extends Unknown> = (value: Unknown) => value is C
 /** Maps a `Tag1` to its runtime container type. */
 export type Container<K extends Tag1> = K extends 'array'
     ? ReadonlyArray<Unknown>
-    : StringMap<string, Unknown>
+    : StringMap<Unknown>
 
 /** `IsContainer` guard for arrays, shared by `validate` and `parse`. */
 export const isArray: IsContainer<ReadonlyArray<Unknown>> =
     value => commonIsArray(value)
 
 /** `IsContainer` guard for records/structs, shared by `validate` and `parse`. */
-export const isObject: IsContainer<StringMap<string, Unknown>> =
+export const isObject: IsContainer<StringMap<Unknown>> =
     value => commonIsObject(value)
 
 /**

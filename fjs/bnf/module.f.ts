@@ -155,7 +155,7 @@ type RangeList = readonly TerminalRange[]
 /**
  * A set of terminal ranges compatible with the `Variant` rule.
  */
-export type RangeVariant = StringMap<string, TerminalRange>
+export type RangeVariant = StringMap<TerminalRange>
 
 const rangeToEntry = (r: TerminalRange): readonly [string, TerminalRange] =>
     ['0x' + r.toString(16), r]

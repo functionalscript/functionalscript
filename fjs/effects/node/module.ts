@@ -58,7 +58,7 @@ type IncomingMessage = Readable & {
 }
 
 type ServerResponse = {
-    readonly writeHead: (status: number, headers: StringMap<string, string>) => ServerResponse
+    readonly writeHead: (status: number, headers: StringMap<string>) => ServerResponse
     readonly end: (body: Uint8Array) => void
 }
 

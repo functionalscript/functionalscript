@@ -33,7 +33,7 @@ export type TerminalRange = number
 export type Sequence = readonly string[]
 
 /** A variant of rule names. */
-export type Variant = StringMap<string, string>
+export type Variant = StringMap<string>
 
 /**
  * Grammar rule definition.
@@ -55,7 +55,7 @@ export type RuleSet = Readonly<Record<string, Rule>>
  */
 export type EmptyTag = string | true | undefined
 
-type EmptyTagMap = StringMap<string, EmptyTag>
+type EmptyTagMap = StringMap<EmptyTag>
 
 const emptyTagOf = (map: EmptyTagMap) => (rule: Rule): EmptyTag => {
     if (typeof rule === 'number') {
@@ -110,7 +110,7 @@ export const emptyTagMap = (ruleSet: RuleSet): EmptyTagMap => {
 
 //
 
-type FRuleMap = StringMap<string, FRule>
+type FRuleMap = StringMap<FRule>
 
 const { entries } = Object
 

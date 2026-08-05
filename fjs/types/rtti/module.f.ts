@@ -59,7 +59,7 @@ export type Const =
 export type ConstObject = Struct | Tuple
 
 /** A struct schema: plain object whose values are nested `Type`s. */
-export type Struct = StringMap<string, Type>
+export type Struct = StringMap<Type>
 
 /** A tuple schema: readonly array whose elements are nested `Type`s. */
 export type Tuple = readonly Type[]

@@ -36,7 +36,7 @@ type DispatchRuleCollection = {
     readonly rules: DispatchRuleOrName[]
 }
 
-type DispatchMap = StringMap<string, DispatchRule>
+type DispatchMap = StringMap<DispatchRule>
 
 /**
  * Represents a parsed AST sequence.

@@ -1,17 +1,23 @@
 import { at } from './module.f.ts'
-import type { StringMap } from './module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import type { OptionalMap, RequiredMap, StringMap } from './module.f.ts'
+import { assertEq, type Assert } from '../../asserts/module.f.ts'
+import type { Equal } from '../ts/module.f.ts'
 
-type E<A, B> = A extends B ? B extends A ? true : false : false
+type _StringMapIsOptional = Assert<Equal<
+    StringMap<bigint>,
+    { readonly[k in string]?: bigint }>>
 
-type _InfiniteIsOptional = E<StringMap<string, bigint>, { readonly[k in string]?: bigint }>
-type _FiniteIsRequired = E<StringMap<'a'|'b', bigint>, { readonly a: bigint; readonly b: bigint }>
+type _OptionalIsPartial = Assert<Equal<
+    OptionalMap<'a'|'b', bigint>,
+    { readonly a?: bigint; readonly b?: bigint }>>
+
+type _RequiredIsRequired = Assert<Equal<
+    RequiredMap<'a'|'b', bigint>,
+    { readonly a: bigint; readonly b: bigint }>>
+
+type _RequiredOverAnyStringIsNever = Assert<Equal<RequiredMap<string, bigint>, never>>
 
 export const proof = {
-    stringMap: {
-        infiniteIsOptional: true as _InfiniteIsOptional,
-        finiteIsRequired: true as _FiniteIsRequired,
-    },
     ctor: () => {
         const a = {}
         const value = at('constructor')(a)

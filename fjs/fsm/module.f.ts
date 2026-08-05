@@ -25,7 +25,7 @@ type Rule = readonly [string, ByteSet, string]
 
 export type Grammar = List<Rule>
 
-type Dfa = StringMap<string, RangeMapArray<string>>
+type Dfa = StringMap<RangeMapArray<string>>
 
 const stringifyIdentity = stringify(identity)
 

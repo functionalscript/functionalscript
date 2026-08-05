@@ -147,7 +147,7 @@ const tupleParse = constContainerParse<ReadonlyArray<Unknown>>(
     arrayRebuild,
 )
 
-const structParse = constContainerParse<StringMap<string, Unknown>>(
+const structParse = constContainerParse<StringMap<Unknown>>(
     isObject,
     (value, k) => value[k],
     recordRebuild,

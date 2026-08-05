@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/object`: `StringMap<T>` takes one type
+  argument, the open-key-set record; a finite key set is `RequiredMap<K, T>` or
+  `OptionalMap<K, T>`. `Map<T>` is removed — it was `StringMap<T>`
+  [#1442](https://github.com/functionalscript/functionalscript/pull/1442)
+
 ## 0.42.0
 
 - `fjs/media/json`: `stringSerialize` escapes in FunctionalScript instead of

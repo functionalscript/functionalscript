@@ -61,7 +61,7 @@ type Element2 = readonly [Tag, Attributes, ...Node[]]
  */
 export type Element = Element1 | Element2
 
-type Attributes = StringMap<string, string>
+type Attributes = StringMap<string>
 
 export type Node = Element | string
 

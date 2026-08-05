@@ -56,7 +56,7 @@ export type Info0Ts<T extends Tag0> =
 /** Maps a `Const` schema to its TypeScript type. */
 export type ConstTs<T> =
     T extends readonly Type[] ? TupleTs<T> :
-    T extends StringMap<string, Type> ? StructTs<T> :
+    T extends StringMap<Type> ? StructTs<T> :
     T
 
 /** Maps a `Tag1` and inner type to its TypeScript type. */
@@ -230,7 +230,7 @@ type _array = Assert<Equal<Ts<
 >>
 type _record = Assert<Equal<
     Ts<() => readonly['record', () => readonly['boolean']]>,
-    StringMap<string, boolean>
+    StringMap<boolean>
 >>
 
 type _tupleString = Assert<Equal<

@@ -26,7 +26,7 @@ export type Module = {
     readonly [k: string]: unknown
 }
 
-export type ModuleMap = StringMap<string, Module>
+export type ModuleMap = StringMap<Module>
 
 /**
  * Returns `true` if the file should be loaded for proof discovery.
