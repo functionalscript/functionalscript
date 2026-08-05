@@ -165,4 +165,12 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(allFiles('.', shouldLoad))
         assertEq(result.join(','), './a.f.ts')
     },
+    loadModuleMapDefaultsToCwdWhenInitCwdUnset: () => {
+        // With no `INIT_CWD` (e.g. `fjs t` invoked outside `npm run`), `env`
+        // lookup returns `undefined` and discovery falls back to `.`, so
+        // every path keeps its own `./`-prefix instead of having one stripped.
+        const root: Dir = { 'a.f.ts': () => ({}) }
+        const [, result] = virtual({ ...emptyState, root })(loadModuleMap({}))
+        assertEq(Object.keys(result).join(','), './a.f.ts')
+    },
 }
