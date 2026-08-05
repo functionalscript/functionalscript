@@ -4,7 +4,7 @@
  * @module
  */
 import { error, ok, type Result } from '../../types/result/module.f.ts'
-import { fold, first, drop, toArray, length, concat, type List } from '../../types/list/module.f.ts'
+import { fold, next, toArray, length, concat, type List } from '../../types/list/module.f.ts'
 import type { Fold } from '../../types/function/operator/module.f.ts'
 import type { DjsToken, DjsTokenWithMetadata } from '../tokenizer/module.f.ts'
 import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
@@ -283,13 +283,24 @@ const startArray
     return { ... state, valueState: '[', top: ['array', null ], stack: newStack }
 }
 
+// Pops the enclosing container off `stack`. `next` is forced here rather than
+// left as a `drop(1)` thunk: the stack is written only by startArray/startObject,
+// always as a literal cons, and a lazy pop leaves one unforced thunk per closed
+// container — a chain that overflows the call stack when it is finally forced.
+const popStack
+    : (state: ParseValueState) => ParseValueState
+    = state => {
+    const ne = next(state.stack)
+    return ne === null
+        ? { ... state, valueState: '', top: null, stack: null }
+        : { ... state, valueState: '', top: ne.first, stack: ne.tail }
+}
+
 const endArray
     : (state: ParseValueState) => ParserState
     = state => {
     const top = state.top;
-    const newState
-        : ParseValueState
-        = { ... state, valueState: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
+    const newState = popStack(state)
     if (top !== null && top[0] === 'array')
     {
         const array
@@ -311,9 +322,7 @@ const endObject
     : (state: ParseValueState) => ParserState
     = state => {
     const obj = state?.top !== null && state?.top[0] === 'object' ? fromMap(state.top[1]) : null;
-    const newState
-        : ParseValueState
-        = { ... state, valueState: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
+    const newState = popStack(state)
     return pushValue(newState)(obj)
 }
 

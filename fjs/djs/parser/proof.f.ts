@@ -509,5 +509,35 @@ export const proof = {
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[null]]')
         },
+    ],
+    // Regression: closing a container popped the parser stack with `drop(1)`,
+    // which is lazy, so every closed container left one unforced thunk wrapping
+    // the stack. The chain was forced only at the end, costing a call-stack
+    // frame per container and overflowing at roughly 5000 of them — whether
+    // nested or flat siblings — while primitives were unbounded. `fjs/media/json`
+    // carried the same defect and was fixed in the same way.
+    containerStackCost: [
+        () => {
+            const [tag, value] = parseFromTokens(tokenizeString(
+                `export default [${Array(20000).fill('{}').join(',')}]`))
+            assert(tag === 'ok', tag)
+            assertEq(value[1].length, 1)
+        },
+        () => {
+            const [tag] = parseFromTokens(tokenizeString(
+                `export default [${Array(20000).fill('[]').join(',')}]`))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            const [tag] = parseFromTokens(tokenizeString(
+                'export default ' + '['.repeat(20000) + ']'.repeat(20000)))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            // primitives never touched the stack — the baseline that always passed
+            const [tag] = parseFromTokens(tokenizeString(
+                `export default [${Array.from({ length: 20000 }, (_, i) => i).join(',')}]`))
+            assert(tag === 'ok', tag)
+        },
     ]
 }

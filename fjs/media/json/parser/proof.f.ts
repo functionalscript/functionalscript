@@ -273,10 +273,12 @@ export const proof = {
         },
     ],
     // Regression: closing a container used to pop the parser stack lazily
-    // (`drop(1)`), leaving one unforced thunk per closed container. The chain
-    // was only forced at the end, overflowing the call stack at roughly 5000
-    // sibling containers while the same count of primitives was fine. See
-    // `fjs/media/json/todo/parser-sibling-container-overflow.md`.
+    // (`drop(1)`, which is `apply(dropStep)` and returns a `Thunk`), leaving one
+    // unforced thunk per closed container. The chain was forced only at the end,
+    // costing a call-stack frame per container and overflowing at roughly 5000 of
+    // them — nested or flat siblings alike — while primitives were unbounded,
+    // since they never push or pop. `popStack` in `module.f.ts` forces the pop
+    // instead, which is why these sizes are safe now.
     siblingContainers: [
         () => {
             const [tag, value] = parse(tokenizeString(`[${Array(6000).fill('{}').join(',')}]`))
