@@ -20,6 +20,8 @@ history.
 
 ## Unreleased
 
+## 0.42.0
+
 - `fjs/media/json`: `stringSerialize` escapes in FunctionalScript instead of
   calling the host's `JSON.stringify`, matching it exactly down to `\uXXXX` for
   unpaired surrogates; `fjs/text/utf16` gains `codePointToString`
