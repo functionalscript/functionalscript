@@ -365,5 +365,47 @@ export const proof = {
             assertEq(x('hello', 42n), 42)
             assertEq(x('goodbye', 'world', 43), 13)
         }
+    },
+    funcObj: () => {
+        const param0 = { a: 'hello', b: bigint }
+        const param1 = { a: 'goodbye', b: string, c: 43 }
+
+        const param01 = or(param0, param1)
+
+        type Param0 = Ts<typeof param0>
+        type Param1 = Ts<typeof param1>
+        type Param01 = Ts<typeof param01>
+
+        const v0 = validate(param0)
+        const v1 = validate(param1)
+
+        type F0<T> = (args: Param0) => T
+        type F1<T> = (args: Param1) => T
+
+        const func = <T>(f0: F0<T>, f1: F1<T>) => (args: Param01): T => {
+            {
+                const [t, r] = v0(args)
+                if (t === 'ok') {
+                    return f0(r)
+                }
+            }
+            {
+                const [t, r] = v1(args)
+                if (t === 'ok') {
+                    return f1(r)
+                }
+            }
+            throw 'unreachable: args did not match any parameter set'
+        }
+
+        const f0 = (args: Param0): number => Number(args.b) + args.a.length
+        const f1 = (args: Param1): number => args.c
+
+        const x: (args: Param01) => number = func(f0, f1)
+
+        return () => {
+            assertEq(x({ a: 'hello', b: 42n }), 47)
+            assertEq(x({ a: 'goodbye', b: 'world', c: 43 }), 43)
+        }
     }
 }
