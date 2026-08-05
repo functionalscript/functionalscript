@@ -935,9 +935,10 @@ export const proof = {
             const src = Array.from({ length: 3000 }, (_, i) => `a${i % 10}`).join(' ')
             const result = tokenizeString(src)
             assert(result !== 'error', result)
-            const parsed = JSON.parse(result)
-            // 3000 ids + 2999 separating ws + a trailing eof token
-            assertEq(parsed.length, 3000 + 2999 + 1)
+            // 3000 ids + 2999 separating ws + a trailing eof token. Counted off
+            // the token list rather than off `result`: the dump is a string, and
+            // re-parsing it would only measure the serializer.
+            assertEq(toArray(tokenizeJs(stringToList(src))('a.js')).length, 3000 + 2999 + 1)
         },
         () => {
             // same many-short-tokens shape through the metadata-aware entry point

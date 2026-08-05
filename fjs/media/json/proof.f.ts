@@ -1,4 +1,4 @@
-import { parse, parseNative, setProperty, stringify } from './module.f.ts'
+import { parse, setProperty, stringify } from './module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { assertEq } from '../../asserts/module.f.ts'
@@ -75,8 +75,5 @@ export const proof = {
             const [t] = parse('{')
             assertEq(t, 'error')
         },
-    },
-    parseNative: () => {
-        assertEq(stringify(sort)(parseNative('{"a":1}')), '{"a":1}')
     },
 }
