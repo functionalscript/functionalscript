@@ -8,14 +8,16 @@
 `fjs/media/json` owns a complete JSON pipeline written in FunctionalScript —
 `tokenize` → `parse` for reading, `serialize` / `stringify` for writing. The
 reading half is done: `parseNative` is gone and every call site goes through
-the total, `Result`-returning `parse`. The writing half is still the host's:
+the total, `Result`-returning `parse`. The writing half is still mostly the
+host's:
 
-- **117 call sites call `JSON.stringify` directly** — and one of them is
-  `fjs/media/json/serializer/module.f.ts:9`, so the FunctionalScript serializer
-  itself bottoms out in the host. `stringSerialize` and `numberSerialize` are
-  `JSON.stringify` with a different name, and `fjs/djs/serializer/module.f.ts:15`
-  imports both, so *every* value this repository serializes — JSON and DJS
-  alike — is ultimately formatted by the host.
+- **115 call sites call `JSON.stringify` directly** — and one of them is
+  `fjs/media/json/serializer/module.f.ts`, so the FunctionalScript serializer
+  itself still bottoms out in the host. `numberSerialize` is `JSON.stringify`
+  with a different name, and `fjs/djs/serializer/module.f.ts:15` imports it, so
+  *every number* this repository serializes — JSON and DJS alike — is still
+  formatted by the host. `stringSerialize` no longer is: phase 1 below has
+  shipped.
 
 Three reasons to finish the job:
 
@@ -32,12 +34,12 @@ Three reasons to finish the job:
    `serialize`'s two leaves are the only thing between this module and being
    self-hosted end to end.
 
-#### `JSON.stringify` — 117 sites in six shapes
+#### `JSON.stringify` — 115 sites in six shapes
 
 | Shape | Sites | Where | Replacement |
 | --- | --- | --- | --- |
-| **Leaf serializers** | 1 | `fjs/media/json/serializer/module.f.ts:9` | FunctionalScript escaping + number formatting — blocks everything below |
-| Expected-output comparison | 75 | `fjs/bnf/ll1/proof.f.ts` (27), `fjs/bnf/descent/proof.f.ts` (22), `fjs/media/json/serializer/proof.f.ts` (12), `fjs/djs/tokenizer/proof.f.ts:795-829` (8), `fjs/bnf/data/proof.f.ts` (4), `fjs/media/revision/proof.f.ts:138`, `fjs/cas/evo/proof.f.ts:57` | `stringify(identity)` |
+| **Leaf serializer** | 1 | `fjs/media/json/serializer/module.f.ts` | FunctionalScript number formatting — blocks everything below |
+| Expected-output comparison | 73 | `fjs/bnf/ll1/proof.f.ts` (27), `fjs/bnf/descent/proof.f.ts` (22), `fjs/media/json/serializer/proof.f.ts` (10), `fjs/djs/tokenizer/proof.f.ts:795-829` (8), `fjs/bnf/data/proof.f.ts` (4), `fjs/media/revision/proof.f.ts:138`, `fjs/cas/evo/proof.f.ts:57` | `stringify(identity)` |
 | Assertion messages | 33 | `fjs/djs/tokenizer/proof.f.ts` (31), `fjs/types/rtti/ts/proof.f.ts:8,12` (2) | pass the value, or `fjs/djs`'s `stringify` |
 | Source-text quoting | 5 | `fjs/emergent_testing/module.f.ts:305,322,335`, `fjs/types/ts/module.f.ts:36,48` | `stringSerialize` — already designed in `66c-emit-literals-via-owner-modules.md` |
 | JSON line framing | 2 | `fjs/emergent_testing/proof.f.ts:42`, `fjs/mcp/proof.f.ts:128` | `stringify(identity)` |
@@ -65,13 +67,25 @@ Three semantic differences to respect while migrating, none of them blocking:
 Four phases. They are separable and each is a complete change on its own, so
 they should ship as separate PRs (§8.1); phases 1 and 2 gate the migration.
 
-**1. `stringSerialize` in FunctionalScript.** Escape `"`, `\`, the short forms
-`\b \f \n \r \t`, and every other code point below `0x20` as `\u00XX`, over
-`fjs/text/utf16`. It must match the host exactly, including well-formed
-`JSON.stringify` (ES2019) escaping of lone surrogates as `\uD800` — the
-migrated proofs compare against literals the host produced, so any divergence
-surfaces as a test failure rather than silently. This is ordinary
-FunctionalScript work and unblocks the source-text-quoting sites too.
+**1. `stringSerialize` in FunctionalScript — done.** Escapes `"`, `\`, the short
+forms `\b \f \n \r \t`, and every other code point below `0x20` as `\u00XX`,
+over `fjs/text/utf16`; lone surrogates come out as `\ud800` the way well-formed
+`JSON.stringify` (ES2019) emits them, because `stringToCodePointList` already
+tags them with `errorMask`. Verified against the host over every code unit and
+every surrogate pair, and the proof pins the host's literals so a divergence
+fails a test.
+
+Two things that fell out of it, worth knowing before phase 2:
+
+- `fjs/text/utf16` gained `codePointToString`, the scalar counterpart of
+  `codePointListToString`. Wrapping one code point in a list to call the list
+  version cost about half of the escape loop's time.
+- A FunctionalScript leaf is roughly 5× the host's on a serialize-heavy
+  benchmark (a 20k-key object: ~130 ms → ~700 ms end to end), which is what
+  replacing a C++ builtin with an interpreted decode pipeline costs. That is
+  the price of self-hosting, not a defect; if it ever becomes a real problem the
+  generic fix is a faster `text/utf16` scan, not a special case in the
+  serializer.
 
 **2. `numberSerialize` in FunctionalScript — its own issue.** This is the one
 genuinely hard piece: `JSON.stringify(x)` on a finite number is ECMAScript
@@ -112,7 +126,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
 
 ### Tasks
 
-- [ ] Phase 1: FunctionalScript `stringSerialize`, with proof coverage for
+- [x] Phase 1: FunctionalScript `stringSerialize`, with proof coverage for
       every escape class including lone surrogates.
 - [ ] Phase 2: file the shortest-round-trip number-formatting issue under
       `fjs/types/bigfloat/todo/`, then implement `numberSerialize` on it.
@@ -123,7 +137,9 @@ Consider a guard so it does not come back — the cheapest is a proof in
 ### Related
 
 - [`fjs/media/json/serializer/module.f.ts`](../serializer/module.f.ts) — the
-  leaf `JSON.stringify` phases 1 and 2 replace.
+  leaf `JSON.stringify` phases 1 and 2 replace; only `numberSerialize` is left.
+- [`fjs/text/utf16/module.f.ts`](../../../text/utf16/module.f.ts) — where the
+  escaping reads code points, and where phase 1 added `codePointToString`.
 - [`fjs/fsc/todo/66c-emit-literals-via-owner-modules.md`](../../../fsc/todo/66c-emit-literals-via-owner-modules.md)
   — already owns the source-text-quoting sites (`fjs/types/ts`,
   `fjs/emergent_testing`); phase 3 defers to it rather than re-deciding.
