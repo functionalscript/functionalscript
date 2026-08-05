@@ -193,7 +193,23 @@ close coverage gaps. `assert`/`assertEq` push that branch into a shared helper
 whose own branches are already fully covered elsewhere, so the call site adds no
 new uncovered branch.
 
-### 3.4 Never use `try`/`catch`; test throwing with the `throw` key
+### 3.4 Assert type-level facts with `Assert<Equal<…>>`
+
+To prove that a type resolves to what you claim, write
+`type _Name = Assert<Equal<Actual, Expected>>` — `Assert` from
+`fjs/asserts/module.f.ts`, `Equal` from `fjs/types/ts/module.f.ts`. A wrong
+claim is then a compile error (TS2344, "Type 'false' does not satisfy the
+constraint 'true'"), and the check costs nothing at runtime.
+
+Do **not** state the claim as `true as _Predicate`, where `_Predicate` is a
+conditional type resolving to `true` or `false`. That proves nothing:
+TypeScript compares an assertion against the *widened* type of its operand, so
+`true as false` — and `true as never` — are both legal, and the assertion
+compiles no matter what the predicate resolved to. Such an entry in a `proof`
+object is doubly inert: the runner only invokes functions, so a boolean leaf is
+never counted as a test either.
+
+### 3.5 Never use `try`/`catch`; test throwing with the `throw` key
 
 Never use `try`/`catch` in `.f.ts` files — FunctionalScript itself has no
 `try`/`catch` and isn't planning to add it soon. To test that a call throws,
@@ -786,7 +802,7 @@ anywhere else as the rule being broken.
 
 - Only import other `.f.ts` files from FunctionalScript modules. Avoid references
   to built-in or external Node modules such as `node:path` in `.f.ts` files.
-- No `try`/`catch` — see [§3.4](#34-never-use-trycatch-test-throwing-with-the-throw-key).
+- No `try`/`catch` — see [§3.5](#35-never-use-trycatch-test-throwing-with-the-throw-key).
 
 ### 6.6 Formatting
 

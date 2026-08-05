@@ -1,24 +1,23 @@
 import { at } from './module.f.ts'
 import type { OptionalMap, RequiredMap, StringMap } from './module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq, type Assert } from '../../asserts/module.f.ts'
+import type { Equal } from '../ts/module.f.ts'
 
-type E<A, B> = A extends B ? B extends A ? true : false : false
+type _StringMapIsOptional = Assert<Equal<
+    StringMap<bigint>,
+    { readonly[k in string]?: bigint }>>
 
-// `[T]` keeps the conditional from distributing, so `never` stays `never`.
-type IsNever<T> = [T] extends [never] ? true : false
+type _OptionalIsPartial = Assert<Equal<
+    OptionalMap<'a'|'b', bigint>,
+    { readonly a?: bigint; readonly b?: bigint }>>
 
-type _StringMapIsOptional = E<StringMap<bigint>, { readonly[k in string]?: bigint }>
-type _OptionalIsPartial = E<OptionalMap<'a'|'b', bigint>, { readonly a?: bigint; readonly b?: bigint }>
-type _RequiredIsRequired = E<RequiredMap<'a'|'b', bigint>, { readonly a: bigint; readonly b: bigint }>
-type _RequiredOverAnyStringIsNever = IsNever<RequiredMap<string, bigint>>
+type _RequiredIsRequired = Assert<Equal<
+    RequiredMap<'a'|'b', bigint>,
+    { readonly a: bigint; readonly b: bigint }>>
+
+type _RequiredOverAnyStringIsNever = Assert<Equal<RequiredMap<string, bigint>, never>>
 
 export const proof = {
-    stringMap: {
-        stringMapIsOptional: true as _StringMapIsOptional,
-        optionalIsPartial: true as _OptionalIsPartial,
-        requiredIsRequired: true as _RequiredIsRequired,
-        requiredOverAnyStringIsNever: true as _RequiredOverAnyStringIsNever,
-    },
     ctor: () => {
         const a = {}
         const value = at('constructor')(a)
