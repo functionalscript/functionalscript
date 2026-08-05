@@ -169,12 +169,11 @@ logic; JS's single `number` type is what makes it necessary here.
   json/djs recursive tree type over its leaf set; this proposal's value type
   is naturally a third instantiation of that generic if the narrower-type
   option is chosen.
-- [parse-text-pipeline.md](../../media/json/todo/parse-text-pipeline.md) —
-  adds a `parse` (string → `Result`) entry point to `fjs/media/json`, moving
-  native `JSON.parse` aside as `parseNative`; the
-  `parseWith` generalization here is the same shape of change (a new
-  parameterized entry point, existing behavior preserved as the default),
-  just on the token-list parser rather than the string-to-tokens pipeline.
+- [`fjs/media/json/module.f.ts`](../../media/json/module.f.ts)'s `parse`
+  (string → `Result`) / `parseNative` split — the same shape of change already
+  landed one layer up (a new entry point built on the module's own pipeline,
+  native `JSON.parse` moved aside); the `parseWith` generalization here applies
+  it to the token-list parser rather than the string-to-tokens pipeline.
 - `fjs/media/json/schema/module.f.ts:93-97,106-107` — already documents a
   `bigint`-as-`Number()` lossy approximation elsewhere (rtti → JSON Schema);
   a related but separate concern (schema description, not value encoding).

@@ -4,10 +4,7 @@
  *
  * @module
  */
-import type { Unknown } from '../../media/json/module.f.ts'
-import { parse as jsonParse } from '../../media/json/parser/module.f.ts'
-import { tokenize as jsonTokenize } from '../../media/json/tokenizer/module.f.ts'
-import { stringToList } from '../../text/utf16/module.f.ts'
+import { parse as parseJsonText } from '../../media/json/module.f.ts'
 import { option, record, string } from '../../types/rtti/module.f.ts'
 import { validate as rttiValidate } from '../../types/rtti/validate/module.f.ts'
 import type { ValidationError } from '../../types/rtti/validate/module.f.ts'
@@ -24,9 +21,6 @@ export type PackageJson = Ts<typeof packageJsonSchema>
 export type JsonTextError = string | ValidationError
 
 export const validatePackageJson = rttiValidate(packageJsonSchema)
-
-const parseJsonText = (text: string): Result<Unknown, string> =>
-    jsonParse(jsonTokenize(stringToList(text)))
 
 export const validatePackageJsonText = (text: string): Result<PackageJson, JsonTextError> => {
     const [t, v] = parseJsonText(text)
