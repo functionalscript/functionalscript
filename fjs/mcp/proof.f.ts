@@ -1,7 +1,9 @@
 import { assert, assertEq } from '../asserts/module.f.ts'
 import { pure, step, type Effect, type Operation } from '../effects/module.f.ts'
 import { create } from '../effects/memory/module.f.ts'
-import type { Unknown } from '../media/json/module.f.ts'
+import { parse as parseJson, type Unknown } from '../media/json/module.f.ts'
+import { number as rttiNumber, option, string as rttiString } from '../types/rtti/module.f.ts'
+import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
 import type { Response } from '../protocol/json_rpc/module.f.ts'
 import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../types/bit_vec/module.f.ts'
 import { vecToCBase32 } from '../basen/cbase32/module.f.ts'
@@ -24,19 +26,26 @@ import type {
 } from '../effects/node/module.f.ts'
 import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
-import { ok as resultOk } from '../types/result/module.f.ts'
+import { ok as resultOk, unwrap } from '../types/result/module.f.ts'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.ts'
 import { fromVec } from '../types/uint8array/module.f.ts'
 import { initEvo } from '../cas/evo/module.f.ts'
 
-type CasGetResult = {
-    readonly length: number
-    readonly mimeType: string
-    readonly type: string
-    readonly uri?: string
-    readonly text?: string
-    readonly blob?: string
-}
+// `cas_get`'s result JSON. As an rtti schema it both describes the shape and
+// checks it, so reading a field needs neither a hand-written type nor an `as`
+// cast — a response that drifts from this fails the test at the parse, not
+// silently at the assertion. `uri` is always emitted; only the payload
+// (`text` for `type: 'text'`, `blob` for `type: 'base64'`) is conditional.
+const casGetResult = {
+    length: rttiNumber,
+    mimeType: rttiString,
+    type: rttiString,
+    uri: rttiString,
+    text: option(rttiString),
+    blob: option(rttiString),
+} as const
+
+const parseCasGetResult = rttiParse(casGetResult)
 
 // ── Session driver ──────────────────────────────────────────────────────────────
 
@@ -128,7 +137,7 @@ const runStdio =
         const stdout = virtual({ ...emptyState, root, stdin: toBytes(input) })(effect)[0].stdout
         // Only requests get a written line (notifications, like `initialized`,
         // write nothing) — drop the `init` response, keep one line per `msgs` entry.
-        return stdout.split('\n').filter(line => line.length > 0).slice(1).map(line => JSON.parse(line))
+        return stdout.split('\n').filter(line => line.length > 0).slice(1).map(line => unwrap(parseJson(line)))
     }
 
 const resultOf = (resp: unknown): ToolsCallResult =>
@@ -137,6 +146,10 @@ const resultOf = (resp: unknown): ToolsCallResult =>
 const item0 = (resp: unknown): unknown => resultOf(resp).content[0]
 
 const textOf = (resp: unknown): string => (item0(resp) as { readonly text: string }).text
+
+/** The `text` payload of a `cas_get` response, parsed and checked against {@link casGetResult}. */
+const casGetResultOf = (resp: unknown) =>
+    unwrap(parseCasGetResult(unwrap(parseJson(textOf(resp)))))
 
 // A plain text sample for text add→get round-trips.
 const textSample = 'hello, world!'
@@ -182,7 +195,7 @@ const largeMultiChunkBlobMeta =
             call(2, 'cas_get', { hash }),
         ]).slice(2) as readonly unknown[]
         assert(!resultOf(metaResp).isError)
-        const meta = JSON.parse(textOf(metaResp)) as CasGetResult
+        const meta = casGetResultOf(metaResp)
         assertEq(meta.type, expectedType)
         assertEq(meta.mimeType, expectedMime)
         assertEq(meta.length, Number((length(chunk0) + length(chunk1)) / 8n))
@@ -284,7 +297,7 @@ export const proof = {
             call(2, 'cas_get', { hash, content: true }),
         ])
         assert(!resultOf(getResp).isError)
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        const result = casGetResultOf(getResp)
         assertEq(result.type, 'base64')
         assertEq(result.length, 90_000)
     },
@@ -372,7 +385,7 @@ export const proof = {
             call(3, 'cas_get', { hash }),
         )
         assert(!resultOf(getResp).isError)
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        const result = casGetResultOf(getResp)
         assertEq(result.mimeType, 'text/plain')
         assertEq(result.type, 'text')
         assertEq(result.length, textSample.length)
@@ -388,7 +401,7 @@ export const proof = {
             call(3, 'cas_get', { hash, content: true }),
         )
         assert(!resultOf(getResp).isError)
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        const result = casGetResultOf(getResp)
         assertEq(result.type, 'text')
         assertEq(result.mimeType, 'text/plain')
         assertEq(result.text, textSample)
@@ -403,7 +416,7 @@ export const proof = {
             call(3, 'cas_get', { hash }),
         )
         assert(!resultOf(getResp).isError)
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        const result = casGetResultOf(getResp)
         assertEq(result.text, undefined)
         assertEq(result.type, 'text')
         assertEq(result.mimeType, 'text/plain')
@@ -418,7 +431,7 @@ export const proof = {
             call(3, 'cas_get', { hash, content: true }),
         )
         assert(!resultOf(getResp).isError)
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        const result = casGetResultOf(getResp)
         assertEq(result.type, 'text')
         assertEq(result.text, '*')
     },
@@ -431,7 +444,7 @@ export const proof = {
             call(3, 'cas_get', { hash, content: true }),
         )
         assert(!resultOf(getResp).isError)
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        const result = casGetResultOf(getResp)
         assertEq(result.text, textSample)
     },
 
@@ -444,7 +457,7 @@ export const proof = {
             call(3, 'cas_get', { hash, content: true }),
         )
         assertEq(item0(getResp) === null ? null : (item0(getResp) as { type: string }).type, 'text')
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        const result = casGetResultOf(getResp)
         assertEq(result.type, 'text')
         assertEq(result.mimeType, 'text/plain')
     },
@@ -459,7 +472,7 @@ export const proof = {
         )
         assert(!resultOf(getResp).isError)
         assertEq((item0(getResp) as { type: string }).type, 'text')
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        const result = casGetResultOf(getResp)
         assertEq(result.type, 'base64')
         assertEq(result.mimeType, 'image/png')
         assertEq(result.blob, pngSample)
@@ -477,7 +490,7 @@ export const proof = {
             call(3, 'cas_get', { hash }),
         )
         assert(!resultOf(metaResp).isError)
-        const meta = JSON.parse(textOf(metaResp)) as CasGetResult
+        const meta = casGetResultOf(metaResp)
         assertEq(meta.mimeType, revisionMediaType)
         assertEq(meta.type, 'text')
     },
@@ -492,7 +505,7 @@ export const proof = {
             call(3, 'cas_get', { hash, content: true }),
         )
         assert(!resultOf(getResp).isError)
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        const result = casGetResultOf(getResp)
         assertEq(result.mimeType, revisionMediaType)
         assertEq(result.type, 'text')
         assertEq(result.text, revisionSample)
@@ -600,7 +613,7 @@ export const proof = {
             call(3, 'cas_get', { hash }),
         )
         assert(!resultOf(metaResp).isError)
-        const meta = JSON.parse(textOf(metaResp)) as CasGetResult
+        const meta = casGetResultOf(metaResp)
         assertEq(meta.mimeType, 'text/plain')
         assertEq(meta.type, 'text')
         assertEq(meta.length, 12)
@@ -615,7 +628,7 @@ export const proof = {
             call(3, 'cas_get', { hash }),
         )
         assert(!resultOf(metaResp).isError)
-        const meta = JSON.parse(textOf(metaResp)) as CasGetResult
+        const meta = casGetResultOf(metaResp)
         assertEq(meta.mimeType, 'image/png')
         assertEq(meta.type, 'base64')
         assertEq(meta.length, 10)
@@ -632,7 +645,7 @@ export const proof = {
             call(3, 'cas_get', { hash }),
         )
         assert(!resultOf(metaResp).isError)
-        const meta = JSON.parse(textOf(metaResp)) as CasGetResult
+        const meta = casGetResultOf(metaResp)
         assertEq(meta.mimeType, 'application/octet-stream')
         assertEq(meta.type, 'base64')
         assertEq(meta.blob, undefined)
@@ -650,7 +663,7 @@ export const proof = {
             call(3, 'cas_get', { hash }),
         )
         assert(!resultOf(metaResp).isError)
-        const meta = JSON.parse(textOf(metaResp)) as CasGetResult
+        const meta = casGetResultOf(metaResp)
         assertEq(meta.mimeType, 'application/octet-stream')
         assertEq(meta.type, 'base64')
     },
@@ -677,7 +690,7 @@ export const proof = {
             call(3, 'cas_get', { hash, content: true }),
         )
         assert(!resultOf(getResp).isError)
-        const result = JSON.parse(textOf(getResp)) as CasGetResult
+        const result = casGetResultOf(getResp)
         assertEq(result.mimeType, 'application/octet-stream')
         assertEq(result.type, 'base64')
         assertEq(result.blob, binaryB64)

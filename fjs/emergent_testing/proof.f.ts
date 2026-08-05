@@ -1,31 +1,52 @@
 import type { Effect } from '../effects/module.f.ts'
-import { log, type NodeProgramOptions, type Sandbox, type SandboxResult, type Write } from '../effects/node/module.f.ts'
+import { log, type NodeProgramOptions, type Sandbox, type Write } from '../effects/node/module.f.ts'
 import { defaultNodeProgramOptions, emptyState, type JsModule } from '../effects/node/virtual/module.f.ts'
 import { virtual } from '../effects/node/virtual/module.f.ts'
 import { assert, assertEq } from '../asserts/module.f.ts'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
-    type Reporter, type Path,
+    type Reporter,
     defaultTest,
 } from './module.f.ts'
 import { run as mockRun } from '../effects/mock/module.f.ts'
 import type { All, Await, Test, TestContext } from '../effects/node/module.f.ts'
 import { shouldLoad } from '../dev/module.f.ts'
+import { parse as parseJson } from '../media/json/module.f.ts'
+import { array, number as rttiNumber, or, string as rttiString } from '../types/rtti/module.f.ts'
+import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
+import type { Ts } from '../types/rtti/ts/module.f.ts'
+import { unwrap } from '../types/result/module.f.ts'
 
-type Event =
-    | readonly ['result', string, Path, SandboxResult<unknown>]
-    | readonly ['summary', number, number, number]
+/**
+ * The mock reporter's stdout lines. A schema rather than a hand-written type:
+ * the events round-trip through JSON, and this is what turns a line back into
+ * a typed value without an `as` cast — a shape change fails at the parse
+ * instead of silently at an assertion.
+ *
+ * `Reporter.result` also receives the test's `SandboxResult`, which is not
+ * written: no assertion here reads it, and its `undefined` payloads have no
+ * JSON representation to round-trip through anyway.
+ */
+const event = or(
+    ['result', rttiString, array(or(rttiString, null))] as const,
+    ['summary', rttiNumber, rttiNumber, rttiNumber] as const,
+)
+
+type Event = Ts<typeof event>
+
+const parseEvent = rttiParse(event)
 
 type TestReporter = Reporter<Sandbox | Write>
 
-const writeEvent = (event: Event) => log(JSON.stringify(event))
+const writeEvent = (e: Event) => log(JSON.stringify(e))
 
 const parseEvents = (stdout: string): readonly Event[] =>
-    stdout === '' ? [] : stdout.trimEnd().split('\n').map(line => JSON.parse(line))
+    stdout === '' ? [] : stdout.trimEnd().split('\n')
+        .map(line => unwrap(parseEvent(unwrap(parseJson(line)))))
 
 const makeReporter = (): TestReporter => ({
-    result: (file, path, r, _throws) => writeEvent(['result', file, [...path], r]),
+    result: (file, path, _r, _throws) => writeEvent(['result', file, [...path]]),
     summary: (pass, fail, time) => writeEvent(['summary', pass, fail, time]),
     test: defaultTest,
 })

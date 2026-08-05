@@ -170,10 +170,11 @@ logic; JS's single `number` type is what makes it necessary here.
   is naturally a third instantiation of that generic if the narrower-type
   option is chosen.
 - [`fjs/media/json/module.f.ts`](../../media/json/module.f.ts)'s `parse`
-  (string → `Result`) / `parseNative` split — the same shape of change already
-  landed one layer up (a new entry point built on the module's own pipeline,
-  native `JSON.parse` moved aside); the `parseWith` generalization here applies
-  it to the token-list parser rather than the string-to-tokens pipeline.
+  (string → `Result`) — the same shape of change already landed one layer up:
+  a total entry point built on the module's own pipeline, with native
+  `JSON.parse` gone rather than kept beside it. The `parseWith` generalization
+  here applies it to the token-list parser rather than the string-to-tokens
+  pipeline, and should likewise leave one entry point behind, not two.
 - `fjs/media/json/schema/module.f.ts:93-97,106-107` — already documents a
   `bigint`-as-`Number()` lossy approximation elsewhere (rtti → JSON Schema);
   a related but separate concern (schema description, not value encoding).

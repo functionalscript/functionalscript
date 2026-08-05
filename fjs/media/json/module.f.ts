@@ -1,10 +1,9 @@
 /**
  * JSON value types, rtti schemas, and utilities: `serialize`, `stringify`,
- * `parse` / `parseNative`, and `setProperty` for immutable nested updates.
+ * `parse`, and `setProperty` for immutable nested updates.
  *
  * `parse` is the total, `Result`-returning `text → Unknown` entry point built
- * on this module's own tokenizer and parser; `parseNative` is `JSON.parse` and
- * throws.
+ * on this module's own tokenizer and parser.
  *
  * The JSON value types (`Unknown`, `Primitive`) are derived from the rtti
  * schemas defined here, so the schema is the single source of truth — no
@@ -128,18 +127,14 @@ export const stringify
 
 /**
  * Parses `text` as JSON with this module's own pure tokenizer and parser,
- * reporting failure as a `Result` rather than throwing — the total,
- * errors-as-values counterpart of {@link parseNative}.
+ * reporting failure as a `Result` rather than throwing: malformed input is
+ * *available* as an `error` to branch on. Whether to branch or to `unwrap` it
+ * back into a panic is the caller's decision — the parser no longer makes it
+ * for them.
+ *
+ * The result is an untyped {@link Unknown}; narrow it to a domain type with an
+ * rtti schema (`fjs/types/rtti/parse`) rather than with an `as` cast.
  */
 export const parse
     : (text: string) => Result<Unknown, string>
     = text => parseTokens(tokenize(stringToList(text)))
-
-/**
- * The platform's `JSON.parse`. It **throws** on malformed input, so it is only
- * usable where the text is already known to be valid JSON; everything else
- * should take the total {@link parse} above.
- */
-export const parseNative
-    : (value: string) => Unknown
-    = JSON.parse

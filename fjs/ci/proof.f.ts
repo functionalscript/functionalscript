@@ -8,7 +8,7 @@ import { type MetaStep, type Os, test, ubuntu, type GitHubAction, parseGitHubAct
 import { assert, assertEq } from '../asserts/module.f.ts'
 import type { State } from '../effects/node/virtual/module.f.ts'
 import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
-import { parseNative as jsonParse } from '../media/json/module.f.ts'
+import { parse as jsonParse } from '../media/json/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { definedValues } from '../types/object/module.f.ts'
 
@@ -46,7 +46,7 @@ const path = (dir: Dir, names: readonly string[]): Dir => names.reduce(subDir, d
 
 const workflow = (state: State): GitHubAction => {
     const workflows = path(state.root, ['.github', 'workflows'])
-    return unwrap(parseGitHubAction(jsonParse(text(workflows, 'ci.yml'))))
+    return unwrap(parseGitHubAction(unwrap(jsonParse(text(workflows, 'ci.yml')))))
 }
 
 const flake = (state: State, id: string): string =>
