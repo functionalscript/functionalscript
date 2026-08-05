@@ -40,7 +40,7 @@ export const deno = '2.9.4'
 // it offers rather than the latest release.
 // https://nodejs.org/en/download
 export const node = {
-    default: '26.5.1',
+    default: '26.6.0',
     node22: '22.23.2',
     node24: '24.18.0',
 } as const
@@ -52,7 +52,7 @@ export const node = {
 // https://channels.nixos.org/nixos-26.05/git-revision
 export const nixpkgs = {
     ref: 'nixos-26.05',
-    commit: '531670d871c0e29724a02f3cbcac170adc65b58c',
+    commit: '04607e1165ac22c5fde6dcc54c9e0b3c0487c555',
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases

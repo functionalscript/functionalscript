@@ -24,7 +24,7 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.1"
+            "node-version": "26.6.0"
           }
         },
         {
@@ -77,7 +77,7 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.1"
+            "node-version": "26.6.0"
           }
         },
         {
@@ -118,7 +118,7 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.1"
+            "node-version": "26.6.0"
           }
         },
         {
@@ -159,7 +159,7 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.1"
+            "node-version": "26.6.0"
           }
         },
         {
@@ -201,7 +201,7 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.1"
+            "node-version": "26.6.0"
           }
         },
         {
@@ -254,7 +254,7 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.1"
+            "node-version": "26.6.0"
           }
         },
         {
@@ -483,7 +483,7 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.1"
+            "node-version": "26.6.0"
           }
         },
         {
@@ -525,7 +525,7 @@
           "run": "test \"$(nix develop ./nix/generated/node24 --command node --version)\" = v24.18.0"
         },
         {
-          "run": "test \"$(nix develop ./nix/generated/node26 --command node --version)\" = v26.5.1"
+          "run": "test \"$(nix develop ./nix/generated/node26 --command node --version)\" = v26.6.0"
         }
       ]
     }
