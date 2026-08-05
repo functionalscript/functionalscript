@@ -8,8 +8,14 @@ import { initEvo, evo, type Evo } from '../../cas/evo/module.f.ts'
 import { evoToolRegistry } from './module.f.ts'
 import type { ToolEntry, ToolsCallResult } from '../../protocol/mcp/module.f.ts'
 import type { Operation } from '../../effects/module.f.ts'
+import { parse as parseJson } from '../../media/json/module.f.ts'
+import { array, string as rttiString } from '../../types/rtti/module.f.ts'
+import { parse as rttiParse } from '../../types/rtti/parse/module.f.ts'
+import { unwrap } from '../../types/result/module.f.ts'
 
 const home = '/home/user'
+
+const parseSubjects = rttiParse(array(rttiString))
 
 const findEntry = <O extends Operation>(registry: readonly ToolEntry<O>[], name: string): ToolEntry<O> => {
     const entry = registry.find(e => e.name === name)
@@ -58,7 +64,7 @@ export const proof = {
         const entry = findEntry(evoToolRegistry(e), 'evo_list')
         const [, result] = virtual(state2)(entry.handle({}))
         assert(!result.isError)
-        const subjects = JSON.parse(textOf(result)) as readonly string[]
+        const subjects = unwrap(parseSubjects(unwrap(parseJson(textOf(result)))))
         assertEq(subjects.length, 2)
         assert(subjects.includes('line one\nline two'), ['unexpected subjects', subjects])
         assert(subjects.includes(''), ['unexpected subjects', subjects])

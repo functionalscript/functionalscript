@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/media/json` no longer exports `parseNative`. Parse
+  JSON with the total `parse` — `unwrap(parse(text))` — and narrow the result
+  with an rtti schema instead of an `as` cast
+  [#1433](https://github.com/functionalscript/functionalscript/pull/1433)
 - `nanvm-lib`: add native-JS multiplication proofs matching the Rust coercion
   cases [#1429](https://github.com/functionalscript/functionalscript/pull/1429)
 - **BREAKING CHANGES:** `fjs/media` `detect` takes the dialects to recognize —
