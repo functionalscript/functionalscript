@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- `fjs/media/json`: `parse` no longer overflows the call stack on documents
+  with ~5000 or more sibling containers; the parser stack is popped eagerly
+  instead of through a lazy `drop(1)` chain
+  [#1435](https://github.com/functionalscript/functionalscript/pull/1435)
 - **BREAKING CHANGES:** `fjs/media/json` no longer exports `parseNative`. Parse
   JSON with the total `parse` — `unwrap(parse(text))` — and narrow the result
   with an rtti schema instead of an `as` cast

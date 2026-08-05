@@ -4,7 +4,7 @@
  * @module
  */
 import { error, ok, type Result } from '../../../types/result/module.f.ts'
-import { type List, fold, first, drop, toArray, concat } from '../../../types/list/module.f.ts'
+import { type List, fold, next, toArray, concat } from '../../../types/list/module.f.ts'
 import { type Fold } from '../../../types/function/operator/module.f.ts'
 import { type JsonToken } from '../tokenizer/module.f.ts'
 import { setReplace, type OrderedMap } from '../../../types/ordered_map/module.f.ts'
@@ -84,13 +84,24 @@ const startArray
         return { status: '[', top: { kind: 'array', values: null }, stack: newStack }
     }
 
+// Pops the enclosing container off `stack`. `next` is forced here rather than
+// left as a `drop(1)` thunk: the stack is written only by startArray/startObject,
+// always as a literal cons, and a lazy pop would leave one unforced thunk per
+// closed container — a chain that overflows the stack when it is finally forced.
+const popStack
+    : (stack: JsonStack) => StateParse
+    = stack => {
+        const ne = next(stack)
+        return ne === null
+            ? { status: '', top: null, stack: null }
+            : { status: '', top: ne.first, stack: ne.tail }
+    }
+
 const endArray
     : (state: StateParse) => JsonState
     = state => {
         const array = state.top !== null ? toArray(state.top.values) : null
-        const newState
-            : StateParse
-            = { status: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
+        const newState = popStack(state.stack)
         return pushValue(newState)(array)
     }
 
@@ -105,9 +116,7 @@ const endObject
     : (state: StateParse) => JsonState
     = state => {
         const obj = state.top?.kind === 'object' ? fromMap(state.top.values) : null
-        const newState
-            : StateParse
-            = { status: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
+        const newState = popStack(state.stack)
         return pushValue(newState)(obj)
     }
 
