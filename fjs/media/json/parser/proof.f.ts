@@ -271,5 +271,39 @@ export const proof = {
             const result = stringify(obj)
             assertEq(result, '["error","unexpected token"]')
         },
-    ]
+    ],
+    // Regression: closing a container used to pop the parser stack lazily
+    // (`drop(1)`), leaving one unforced thunk per closed container. The chain
+    // was only forced at the end, overflowing the call stack at roughly 5000
+    // sibling containers while the same count of primitives was fine. See
+    // `fjs/media/json/todo/parser-sibling-container-overflow.md`.
+    siblingContainers: [
+        () => {
+            const [tag, value] = parse(tokenizeString(`[${Array(6000).fill('{}').join(',')}]`))
+            assertEq(tag, 'ok')
+            assertEq(Array.isArray(value) ? value.length : -1, 6000)
+        },
+        () => {
+            const [tag, value] = parse(tokenizeString(`[${Array(6000).fill('[]').join(',')}]`))
+            assertEq(tag, 'ok')
+            assertEq(Array.isArray(value) ? value.length : -1, 6000)
+        },
+        () => {
+            const keys = Array.from({ length: 6000 }, (_, i) => `"k${i}":{}`)
+            const [tag, value] = parse(tokenizeString(`{${keys.join(',')}}`))
+            assertEq(tag, 'ok')
+            assertEq(typeof value === 'object' && value !== null ? Object.keys(value).length : -1, 6000)
+        },
+        () => {
+            // deep nesting shares the same stack path and overflowed at 5000
+            const [tag] = parse(tokenizeString('['.repeat(5000) + ']'.repeat(5000)))
+            assertEq(tag, 'ok')
+        },
+        () => {
+            // baseline that always worked: primitives never touch the stack
+            const [tag, value] = parse(tokenizeString(`[${Array.from({ length: 12000 }, (_, i) => i).join(',')}]`))
+            assertEq(tag, 'ok')
+            assertEq(Array.isArray(value) ? value.length : -1, 12000)
+        },
+    ],
 }
