@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/object`: `StringMap<K, T>` accepts only a
+  finite union of string literals — `StringMap<string, T>` is now `never`, so an
+  open key set no longer compiles. Use `Map<T>`, which is again a type of its
+  own (`{ readonly[k in string]?: T }`); all 24 sites in this repository moved
+
 ## 0.42.0
 
 - `fjs/media/json`: `stringSerialize` escapes in FunctionalScript instead of

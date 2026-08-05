@@ -34,7 +34,7 @@ import {
     type Type,
 } from '../module.f.ts'
 import { ok, type Result as CommonResult } from '../../result/module.f.ts'
-import type { StringMap } from '../../object/module.f.ts'
+import type { Map } from '../../object/module.f.ts'
 import { reverse, toArray, type List } from '../../list/module.f.ts'
 import {
     constPrimitiveValidate,
@@ -147,7 +147,7 @@ const tupleParse = constContainerParse<ReadonlyArray<Unknown>>(
     arrayRebuild,
 )
 
-const structParse = constContainerParse<StringMap<string, Unknown>>(
+const structParse = constContainerParse<Map<Unknown>>(
     isObject,
     (value, k) => value[k],
     recordRebuild,

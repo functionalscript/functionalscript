@@ -1,6 +1,6 @@
-import type { StringMap } from '../object/module.f.ts'
+import type { Map } from '../object/module.f.ts'
 
-type Tests = StringMap<string, readonly unknown[]>
+type Tests = Map<readonly unknown[]>
 
 const tests: Tests = {
     undefined: [undefined],

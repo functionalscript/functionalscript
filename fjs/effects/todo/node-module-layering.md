@@ -141,13 +141,14 @@ Judgement calls worth deciding explicitly rather than by accident:
   export const csiWrite = (std: Std) => (stream: WriteConsoles) => …
   ```
 
-  Note the `StringMap` spelling: `AGENTS.md` requires it for *all* string-keyed
-  record types, and over a finite key union `StringMap<WriteConsoles, T>`
-  resolves to the same required-field record the inline mapped type produces.
+  Note the `StringMap` spelling: `AGENTS.md` requires the `fjs/types/object`
+  record types for *all* string-keyed record types, and over a finite key union
+  `StringMap<WriteConsoles, T>` resolves to the same required-field record the
+  inline mapped type produces.
   `NodeProgramOptions.std` (`fjs/effects/node/module.f.ts:535`) writes that
   inline form by hand today — a pre-existing deviation from the rule, in a
-  module that already imports `StringMap` at `:19` and uses it for `Headers`
-  and `Module`. Pointing `std` at the named `Std` fixes that deviation as a side
+  module that already imports the open-key-set `Map` at `:19` and uses it for
+  `Headers` and `Module`. Pointing `std` at the named `Std` fixes that as a side
   effect and keeps the runner contract in sync with the console module by
   construction.
 

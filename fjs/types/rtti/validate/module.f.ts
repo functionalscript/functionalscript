@@ -36,7 +36,7 @@ import {
     type Type,
 } from '../module.f.ts'
 import { ok } from '../../result/module.f.ts'
-import type { StringMap } from '../../object/module.f.ts'
+import type { Map } from '../../object/module.f.ts'
 import {
     constPrimitiveValidate,
     eachEntry,
@@ -126,7 +126,7 @@ const tupleValidate = constContainerValidate<ReadonlyArray<Unknown>>(
     (value, k) => value[Number(k)]
 )
 
-const structValidate = constContainerValidate<StringMap<string, Unknown>>(
+const structValidate = constContainerValidate<Map<Unknown>>(
     isObject,
     (value, k) => value[k]
 )

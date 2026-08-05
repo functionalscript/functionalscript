@@ -474,12 +474,19 @@ silently stop matching its asserted type and narrow incorrectly with no compile
 error. Keep such predicates next to the type they discriminate, and revisit them
 whenever that type changes.
 
-#### `StringMap` for string-keyed records
+#### `Map` / `StringMap` for string-keyed records
 
-Use `StringMap<K, T>` from `fjs/types/object/module.f.ts` for all string-keyed
-record types. `StringMap<string, T>` resolves to `{ readonly[k in string]?: T }`
-(infinite key set, optional) and `StringMap<'a' | 'b', T>` resolves to
-`{ readonly a: T; readonly b: T }` (finite key set, required).
+Use the record types from `fjs/types/object/module.f.ts` for all string-keyed
+record types. The key set picks the type:
+
+- **Open key set:** `Map<T>` is `{ readonly[k in string]?: T }` — any key, every
+  value optional, because "the key may be missing" is what an open key set means
+  at runtime.
+- **Finite key set:** `StringMap<'a' | 'b', T>` is
+  `{ readonly a: T; readonly b: T }` — every key required.
+
+`StringMap<string, T>` is `never`, so handing an open key set to the finite type
+fails to compile at every use of the result. Reach for `Map<T>` there instead.
 
 Do not write inline `{ readonly[k in string]: T }` without `?` — TypeScript types
 every access as `T` but the value can be `undefined` at runtime. **Exception:**
@@ -487,7 +494,7 @@ mutually-recursive types (e.g. `type Obj = { readonly[k in string]?: Obj }`) mus
 use the inline form because TypeScript's circular-reference detection cannot
 resolve through conditional types.
 
-When iterating all defined entries of a `StringMap<string, T>`, use
+When iterating all defined entries of a `Map<T>`, use
 `definedEntries` from `fjs/types/object/module.f.ts` instead of `Object.entries`;
 use `definedValues` instead of `Object.values`.
 
@@ -535,7 +542,7 @@ satisfy the rule. The cases in this repository:
   express one added member.
 - **Opening a record type to dynamic keys.** A record type restricts its fields:
   unknown keys are neither writable in a literal nor readable off a value.
-  Intersecting it with `StringMap<string, unknown>` keeps the declared fields
+  Intersecting it with `Map<unknown>` keeps the declared fields
   checked while allowing arbitrary keys:
 
   ```ts
@@ -550,8 +557,8 @@ satisfy the rule. The cases in this repository:
   }
   // const aB = a.b // compilation error
 
-  // `AM` is a `StringMap` but with restricted fields.
-  type AM = StringMap<string, unknown> & A
+  // `AM` is a `Map` but with restricted fields.
+  type AM = Map<unknown> & A
 
   // `am` has access to all fields, with `A`'s restrictions still applied.
   const am: AM = {
@@ -564,8 +571,8 @@ satisfy the rule. The cases in this repository:
 
   Reach for this only when the composite type itself must carry both. To hand a
   record to something that expects a map, widen at the use site instead — `A` is
-  already assignable to `StringMap<string, unknown>`, so
-  `const m: StringMap<string, unknown> = a` needs no intersection (and no `as`).
+  already assignable to `Map<unknown>`, so
+  `const m: Map<unknown> = a` needs no intersection (and no `as`).
 
 The exception is about cost to the reader or to the runtime, not about `&` being
 shorter to type. A composite assembled from record types you define and control —

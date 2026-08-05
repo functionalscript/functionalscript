@@ -18,7 +18,7 @@ import {
     type Rule as FRule,
     type Sequence as FSequence,
 } from '../module.f.ts'
-import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
+import { definedEntries, type Map } from '../../types/object/module.f.ts'
 
 /**
  * Encoded terminal range value used by BNF data rules.
@@ -33,7 +33,7 @@ export type TerminalRange = number
 export type Sequence = readonly string[]
 
 /** A variant of rule names. */
-export type Variant = StringMap<string, string>
+export type Variant = Map<string>
 
 /**
  * Grammar rule definition.
@@ -55,7 +55,7 @@ export type RuleSet = Readonly<Record<string, Rule>>
  */
 export type EmptyTag = string | true | undefined
 
-type EmptyTagMap = StringMap<string, EmptyTag>
+type EmptyTagMap = Map<EmptyTag>
 
 const emptyTagOf = (map: EmptyTagMap) => (rule: Rule): EmptyTag => {
     if (typeof rule === 'number') {
@@ -110,7 +110,7 @@ export const emptyTagMap = (ruleSet: RuleSet): EmptyTagMap => {
 
 //
 
-type FRuleMap = StringMap<string, FRule>
+type FRuleMap = Map<FRule>
 
 const { entries } = Object
 

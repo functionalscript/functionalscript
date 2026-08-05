@@ -16,7 +16,7 @@ import { toArray } from '../../types/list/module.f.ts'
 import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
 import { contains, set, type StringSet } from '../../types/string_set/module.f.ts'
 import { rangeDecode } from '../module.f.ts'
-import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
+import { definedEntries, type Map } from '../../types/object/module.f.ts'
 import { emptyTagMap, type EmptyTag, type RuleSet, toData } from '../data/module.f.ts'
 import { type Rule as FRule } from '../module.f.ts'
 
@@ -36,7 +36,7 @@ type DispatchRuleCollection = {
     readonly rules: DispatchRuleOrName[]
 }
 
-type DispatchMap = StringMap<string, DispatchRule>
+type DispatchMap = Map<DispatchRule>
 
 /**
  * Represents a parsed AST sequence.

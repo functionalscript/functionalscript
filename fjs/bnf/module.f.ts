@@ -7,7 +7,7 @@
  * @module
  */
 import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.ts'
-import { definedValues, type StringMap } from '../types/object/module.f.ts'
+import { definedValues, type Map } from '../types/object/module.f.ts'
 import { type Array2, isArray2 } from '../types/array/module.f.ts'
 import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
 import { contains } from '../types/range/module.f.ts'
@@ -155,7 +155,7 @@ type RangeList = readonly TerminalRange[]
 /**
  * A set of terminal ranges compatible with the `Variant` rule.
  */
-export type RangeVariant = StringMap<string, TerminalRange>
+export type RangeVariant = Map<TerminalRange>
 
 const rangeToEntry = (r: TerminalRange): readonly [string, TerminalRange] =>
     ['0x' + r.toString(16), r]

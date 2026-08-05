@@ -39,7 +39,7 @@
 import type { Assert } from '../../asserts/module.f.ts'
 import { includes, type Includes } from '../array/module.f.ts'
 import type { Equal } from '../ts/module.f.ts'
-import type { StringMap } from '../object/module.f.ts'
+import type { Map } from '../object/module.f.ts'
 
 /** A constant schema: a primitive literal, a struct object, or a tuple. */
 export type Const =
@@ -59,7 +59,7 @@ export type Const =
 export type ConstObject = Struct | Tuple
 
 /** A struct schema: plain object whose values are nested `Type`s. */
-export type Struct = StringMap<string, Type>
+export type Struct = Map<Type>
 
 /** A tuple schema: readonly array whose elements are nested `Type`s. */
 export type Tuple = readonly Type[]
