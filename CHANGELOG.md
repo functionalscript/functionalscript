@@ -23,7 +23,7 @@ history.
 - **BREAKING CHANGES:** `fjs/media/json` no longer exports `parseNative`. Parse
   JSON with the total `parse` — `unwrap(parse(text))` — and narrow the result
   with an rtti schema instead of an `as` cast
-  [#1432](https://github.com/functionalscript/functionalscript/pull/1432)
+  [#1433](https://github.com/functionalscript/functionalscript/pull/1433)
 - **BREAKING CHANGES:** `fjs/media` `detect` takes the dialects to recognize —
   `detect(dialects)(bytes)`. `dialectEntry(schema, extraValidate?)` builds an
   entry, `fjs/media/revision` exports `revisionDialect`, and no dialect is
