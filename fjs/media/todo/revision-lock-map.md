@@ -18,41 +18,45 @@ changes, while creating a separate lock-history format would duplicate the
 existing revision mechanism (`subject`, `parents`, `generation`, and
 `snapshot`).
 
-Revision content and revision-subject resolution are also closely related: a
+Revision content and revision-subject resolution are closely related: a
 revision that references mutable subjects cannot be processed reproducibly
-without resolution information, while a lock map specifically resolves those
-revision subjects.
+without resolution information, while a lock map exists specifically to resolve
+those subjects to immutable content.
 
 ### Proposal
 
-Extend `vnd.fjs.revision` with one optional `lock` field:
+Extend `vnd.fjs.revision` with one optional recursive `lock` field. The intended
+rtti shape is:
 
 ```ts
+export const lock = () => ['record', or(hash, lock)] as const
+
 export const revisionSchema = {
     dialect,
     subject: string,
     parents: array(hash),
     snapshot: hash,
-    lock: option(lockMap),
     generation: number,
     archived: option(true),
+    lock: option(lock),
 } as const
 ```
 
-Conceptually:
+Conceptually, the derived TypeScript type is a sparse recursive record:
 
 ```ts
 type LockValue = Hash | LockMap
 
-type LockMap = Readonly<Record<string, LockValue>>
+type LockMap = Readonly<Partial<Record<string, LockValue>>>
 ```
 
-The exact lazy/recursive rtti expression is part of this task. The lock map is
-resolution data, not another history object: it has no `subject`, `parents`,
-`generation`, or independent lifecycle.
+A missing property is therefore a normal `undefined` result, not an impossible
+state. Empty and partial maps are valid.
 
-Do not introduce `vnd.fjs.lock` or `vnd.fjs.freeze` in the first version.
-Ordinary revisions remain the only history representation.
+The lock map is resolution data, not another history object: it has no
+`subject`, `parents`, `generation`, or independent lifecycle. Do not introduce
+`vnd.fjs.lock` or `vnd.fjs.freeze` in the first version. Ordinary revisions
+remain the only history representation.
 
 ### Revision history represents every kind of change
 
@@ -90,35 +94,65 @@ R0 -----+
 
 The existing revision DAG already represents this correctly.
 
-### Lock-map semantics
+### Direct lock entries
 
-A lock map associates revision subjects with immutable resolution values.
+A lock map associates revision subjects with immutable content hashes or nested
+lock maps.
 
-A direct hash value selects one exact revision for that subject:
+A direct hash value resolves the subject to that exact immutable content:
 
 ```json
 {
-  "B": "revision-hash-of-B",
-  "C": "revision-hash-of-C"
+  "B": "snapshot-hash-of-B",
+  "C": "snapshot-hash-of-C"
 }
 ```
 
-In the first version, a direct hash in a lock map must reference a revision
-whose `subject` equals the map key. Checking the referenced blob and its subject
-requires store access and therefore belongs to referential validation rather
-than the pure shape validator.
+The hash is the content selected for the subject, not the hash of a revision
+blob. This is the same kind of value carried by `revision.snapshot`. Pure
+validation checks only the recursive map shape and native cbase32 hashes; there
+is no referenced revision whose `subject` must be loaded and compared with the
+map key.
 
-The current revision supplies the processing starting point through its
-`snapshot`. Its own subject is implicitly bound to the current revision while
-processing, because a revision cannot contain its own content hash.
+A lock may contain more subjects than a particular processor needs. Extra
+bindings are valid and allow one environment to be useful for several mutually
+related objects.
 
-The same logical flat environment may contain more subjects than a particular
-processor needs. Extra bindings are valid and allow one environment to be
-useful for several mutually related objects.
+### Top-level starting point and current-subject precedence
+
+The revision itself supplies the processing starting point:
+
+```text
+revision.subject -> revision.snapshot
+```
+
+This implicit top-level binding has precedence over a same-subject entry in the
+revision's own `lock` map. For example:
+
+```ts
+{
+    subject: A,
+    snapshot: hashA1,
+    lock: {
+        A: hashA0,
+    },
+}
+```
+
+resolves top-level `A` to `hashA1`. A processor may warn that `lock[A]` is
+shadowed or inconsistent, but it must not use `hashA0` as the top-level
+starting content.
+
+The format should not reject the redundant entry structurally. A future shared
+lock map may legitimately contain a binding for `A` and then be reused by a
+revision whose own snapshot intentionally overrides it.
+
+This precedence applies only to the top-level revision. A nested scope may
+explicitly bind the outer revision's subject to different content.
 
 ### Nested maps and scoped conflicts
 
-A nested map introduces a subject-specific resolution scope. It is intended
+A nested map introduces a new subject-specific resolution scope. It is intended
 primarily for incompatible diamond dependencies or similar scoped conflicts.
 
 For example:
@@ -130,29 +164,89 @@ B -> D(v1)
 C -> D(v2)
 ```
 
-can be represented conceptually as:
+can be represented as:
 
 ```json
 {
   "B": {
-    "B": "revision-hash-of-B",
-    "D": "revision-hash-of-D-v1"
+    "B": "snapshot-hash-of-B",
+    "D": "snapshot-hash-of-D-v1"
   },
   "C": {
-    "C": "revision-hash-of-C",
-    "D": "revision-hash-of-D-v2"
+    "C": "snapshot-hash-of-C",
+    "D": "snapshot-hash-of-D-v2"
   }
 }
 ```
 
-The outer key selects a scoped environment for that subject. The nested map
-must directly bind the same subject to the exact revision selected in that
-scope; otherwise entering the nested scope would not determine which revision
-of the subject to process.
+The nested map **replaces** the enclosing lock scope; it does not overlay or
+inherit outer bindings. Therefore an outer binding omitted by the nested map is
+unresolved in that nested scope. Such a nested map is valid but partial.
 
-Flat maps should remain the common representation. Nested maps are not required
-merely because one revision references another; they are used when one shared
-binding for a subject is insufficient.
+For example:
+
+```json
+{
+  "D": "snapshot-hash-of-D-v0",
+  "B": {
+    "B": "snapshot-hash-of-B"
+  }
+}
+```
+
+does not resolve `D` while processing `B`. A processor may obtain the missing
+binding from revision history, caller input, current heads, or another defined
+algorithm, but that result is not contained in this lock map.
+
+A nested map is also allowed to omit a direct binding for the subject under
+which it appears. That does not make the structure invalid; it makes that scope
+partial. For example:
+
+```json
+{
+  "B": {
+    "C": {
+      "A": "snapshot-hash-of-A0"
+    }
+  }
+}
+```
+
+does not completely determine `B` or which `A` applies directly in the `B`
+scope. Resolving those missing choices is outside the format and must be handled
+by the algorithm consuming the partial lock.
+
+Flat maps should remain the common representation. Nested maps are used only
+when one shared binding for a subject is insufficient.
+
+### Cyclic subject references
+
+A flat lock map can resolve mutually recursive subjects without creating a
+content-addressing cycle because it maps subjects to snapshot/content hashes,
+not to revision hashes whose bytes include their own lock maps.
+
+For example, if A references B and C, and B references A and C, processing the
+revision of A may use:
+
+```json
+{
+  "B": "snapshot-hash-of-B",
+  "C": "snapshot-hash-of-C"
+}
+```
+
+with the implicit top-level binding `A -> revision.snapshot`. The effective
+resolution environment is therefore:
+
+```text
+A -> snapshot-hash-of-A
+B -> snapshot-hash-of-B
+C -> snapshot-hash-of-C
+```
+
+A future shared lock map could store all three explicit bindings and be reused
+from A, B, or C; the selected revision's own snapshot would still override its
+top-level same-subject entry.
 
 ### Partial, complete, and historical resolution
 
@@ -161,8 +255,8 @@ processor and operation.
 
 - An absent lock means the revision carries no local resolution information.
 - A partial lock constrains or records only some subject resolutions.
-- A complete effective lock resolves every subject the processor needs without
-  consulting mutable subject heads.
+- A complete effective lock resolves every subject the processor needs in each
+  active scope without consulting mutable subject heads.
 
 These are semantic properties, not different schemas.
 
@@ -182,42 +276,21 @@ all parents are immutable hashes. Reproducibility does require that the chosen
 resolution algorithm and its precedence/conflict rules are defined by the
 processor or by later shared resolution infrastructure.
 
-The format must not silently prescribe one inheritance algorithm. In
-particular, absence of a local binding does not structurally mean either
-"inherit" or "resolve current head"; that is decided by the algorithm using the
-revision.
-
-### Mutually recursive subjects and CAS cycles
-
-Revision subjects may form logical cycles, for example A referencing B while B
-references A. A flat resolution environment can describe both bindings, but
-embedding independently complete lock maps into both revision blobs can create
-an impossible content-addressing cycle:
-
-```text
-hash(A) depends on a lock containing hash(B)
-hash(B) depends on a lock containing hash(A)
-```
-
-The first version must not pretend this problem is solved by recursive maps.
-Possible processing strategies include caller-provided scope, historical
-resolution, partial local locks, or treating one revision as the current
-implicit binding. A future history-free shared lock format may represent one
-startless environment outside the mutually recursive revision blobs.
-
-This limitation and the exact resolution behavior for cycles must be documented
-rather than hidden in the pure schema.
+The format does not prescribe inheritance from revision parents. Absence of a
+local binding does not structurally mean either "inherit" or "resolve current
+head". In contrast, the meaning of an inline nested map is fixed: it establishes
+a replacement scope and never implicitly inherits its enclosing map.
 
 ### Future shared lock files
 
 A future `vnd.fjs.lock` format may store a reusable, history-free `LockMap` so
-large or mutually shared environments do not have to be repeated inline.
-History for such content would still use ordinary revisions when needed.
+large or shared environments do not have to be repeated inline. History for
+such content would still use ordinary revisions when needed.
 
-That future format may also allow lock-map hash entries to reference either a
-revision or a shared lock object, distinguished by dialect. This is explicitly
-out of scope for the first version; initially a hash entry resolves directly to
-a revision.
+A future extension may also allow a hash in a lock map, or the revision's whole
+`lock` field, to reference shared lock content. The target would be recognized
+by its content dialect. This is out of scope for the first version; initially a
+direct hash resolves a subject to immutable content.
 
 ### Compatibility
 
@@ -233,27 +306,29 @@ instead of silently reusing the old tag.
 
 ### Tasks
 
-- [ ] Design and implement the recursive/lazy rtti schema for `LockMap` and
-      derive its TypeScript type from the schema.
+- [ ] Implement the lazy recursive rtti schema `lock` using
+      `['record', or(hash, lock)]` and derive its sparse TypeScript type.
 - [ ] Add optional `lock` to the revision schema, decoder, validator, exported
       type, README shape, and examples.
-- [ ] Keep pure validation store-independent: validate map structure and native
-      cbase32 hashes without loading referenced revisions.
-- [ ] Add separate store-backed referential validation that direct hash entries
-      resolve to revision blobs whose subjects equal their map keys.
-- [ ] Specify the minimum nested-scope invariants, including the requirement
-      that a nested map directly binds the subject under which it appears.
-- [ ] Add proofs for absent, empty, flat, and nested lock maps; invalid hashes;
-      malformed recursive values; and preservation of nested map structure.
+- [ ] Keep pure validation store-independent: validate recursive map structure
+      and native cbase32 content hashes.
+- [ ] Specify and test top-level current-subject precedence: `snapshot` wins
+      over a same-subject `lock` entry, which may produce a warning but remains
+      structurally valid.
+- [ ] Specify and test nested replacement-scope semantics: nested maps do not
+      inherit enclosing bindings and may be partial.
+- [ ] Add proofs for absent, empty, flat, and nested lock maps; missing lookups;
+      invalid hashes; malformed recursive values; and preservation of nested
+      map structure.
 - [ ] Document that revisions with equal snapshots and different locks are
       valid and may be displayed as dependency-only changes.
 - [ ] Document that resolution algorithms may inspect immutable revision
-      history, while inheritance, precedence, merge, and head-selection rules
-      remain outside the media format.
+      history, while inheritance, precedence across historical sources, merge,
+      and head-selection rules remain outside the media format.
 - [ ] Add processor-facing follow-up work for producing or materializing a
       complete effective lock after subject resolution.
-- [ ] Record and test the CAS-cycle limitation for mutually recursive
-      self-contained revisions; do not claim that inline maps solve it.
+- [ ] Add cyclic-reference examples proving that lock entries select snapshot
+      hashes and therefore do not introduce revision-hash cycles.
 - [ ] Reconcile the change with the revision dialect versioning rule before any
       records are emitted.
 
