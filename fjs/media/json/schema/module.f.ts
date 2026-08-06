@@ -124,5 +124,13 @@ const visitor: Visitor<Unknown> = {
  * | `array(T)`                                    | `{ "type": "array", "items": …T… }`                                                 |
  * | `record(T)`                                   | `{ "type": "object", "additionalProperties": …T… }`                                 |
  * | `or(...types)`                                | `{ "anyOf": […each…] }`                                                             |
+ *
+ * **Acyclic schemas only.** The walk follows every thunk eagerly, so a schema
+ * that reaches itself overflows the call stack — including this module's own
+ * {@link unknown} and `fjs/media/revision`'s `lock`. JSON Schema expresses
+ * recursion with `$defs`/`$ref`, which this producer does not emit yet; see
+ * [todo/recursive-schema-defs.md](todo/recursive-schema-defs.md). rtti's
+ * `validate` and `parse` have no such limit — they instantiate a container's
+ * item walker only once the container is known to be non-empty.
  */
 export const toJsonSchema: (rtti: RttiType) => Unknown = visit(visitor)

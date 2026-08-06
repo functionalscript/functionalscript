@@ -22,7 +22,7 @@
  * server computes anyway, and `lock`, which is silently dropped on the way
  * back in — a recursive schema is not expressible as a JSON Schema
  * `inputSchema` until `toJsonSchema` grows `$defs`/`$ref`
- * ([`fjs/media/revision/todo/lock-resolver-interface.md`](../../media/revision/todo/lock-resolver-interface.md)),
+ * ([`fjs/media/json/schema/todo/recursive-schema-defs.md`](../../media/json/schema/todo/recursive-schema-defs.md)),
  * so a lock is readable over MCP but not yet writable.
  *
  * ## Result size
@@ -84,7 +84,7 @@ export const evoRevisionArgs = {
  * `generation`, which the server computes, and `lock`, whose schema is
  * recursive and therefore not expressible as an `inputSchema` until
  * `toJsonSchema` grows `$defs`/`$ref` (see
- * [`fjs/media/revision/todo/lock-resolver-interface.md`](../../media/revision/todo/lock-resolver-interface.md)).
+ * [`fjs/media/json/schema/todo/recursive-schema-defs.md`](../../media/json/schema/todo/recursive-schema-defs.md)).
  * A lock-carrying revision written some other way still reads back with its
  * lock through `evo_revision`.
  */
