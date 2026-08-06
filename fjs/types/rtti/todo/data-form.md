@@ -15,21 +15,29 @@ Two consequences, both live today:
    recursive one.** [`toJsonSchema`](../../../media/json/schema/module.f.ts) and
    [`printer`](../ts/module.f.ts) both follow every thunk eagerly and overflow
    the call stack. `toJsonSchema(unknown)` fails on the very schema that module
-   defines, and `toJsonSchema(lock)` fails on `fjs/media/revision`'s lock map —
-   see
+   defines — see
    [fjs/media/json/schema recursive-schema-defs](../../../media/json/schema/todo/recursive-schema-defs.md).
+   `fjs/media/revision`'s `lock` field would be a second instance, and is
+   currently typed `unknown` at the rtti level partly for that reason.
 2. **Schema algebra has nowhere to live.** `or` is deliberately a lazy,
    allocation-free constructor doing no flattening, dedup, or subset analysis,
    because there is no representation on which that work is well defined.
    Equality, subset, and canonical ordering are undefined for the same reason:
    two `or(a, b)` calls produce two distinct, incomparable thunks.
 
-Consumers that *check a value against a schema* have no such problem.
+Consumers that *check a value against a schema* do not need names to terminate:
 `validate` and `parse` instantiate a container's item walker only after finding
-the container non-empty, so laziness terminates them on any cyclic schema. The
-split is not about performance — it is computability. Emitting a finite
-description of a cyclic graph requires names; checking one value against it
-does not.
+the container non-empty, so laziness carries them through any cyclic schema.
+The split is not about performance — it is computability. Emitting a finite
+description of a cyclic graph requires names; checking one value against it does
+not.
+
+That is a statement about *termination*, not about safety. Those consumers have
+their own depth problem — they spend a stack frame per level of the **value**,
+so a deeply nested input against a recursive schema throws rather than returning
+a `Result`. Different bug, different fix (an explicit work list), tracked in
+[recursive-validation-stack-safety](./recursive-validation-stack-safety.md).
+Neither issue blocks the other.
 
 ### Proposal
 
@@ -120,5 +128,9 @@ anonymous node is acyclic and can be inlined or given a generated name.
   consumer, with the same eager-walk limitation
 - [fjs/types/rtti/common](../common/module.f.ts) — `visit`, the shared `Type`-ADT
   walker `toData` should be built on
+- [recursive-validation-stack-safety](./recursive-validation-stack-safety.md)
+  — the other depth problem in this ADT: validating a deep *value*, rather than
+  emitting a cyclic *schema*. Independent of this issue, and the reason
+  `fjs/media/revision`'s `lock` has no rtti schema today
 - [662](../../todo/662.md), [172](../../todo/172.md) — both anticipate this as
   the next `Type`-ADT consumer

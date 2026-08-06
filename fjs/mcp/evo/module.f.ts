@@ -16,14 +16,18 @@
  * `evo_add` and `evo_revision` speak the same structure — `fjs/cas/evo`'s
  * `RevisionData` — in opposite directions, so a revision read back can be
  * added again as-is. `evo_add`'s advertised arguments stay as they are, and
- * rtti's struct validation ignores properties the schema does not name, so a
- * whole `evo_revision` result can be passed straight back to `evo_add`. Two
- * fields it returns are not among those arguments: `generation`, which the
- * server computes anyway, and `lock`, which is silently dropped on the way
- * back in — a recursive schema is not expressible as a JSON Schema
- * `inputSchema` until `toJsonSchema` grows `$defs`/`$ref`
- * ([`fjs/media/json/schema/todo/recursive-schema-defs.md`](../../media/json/schema/todo/recursive-schema-defs.md)),
- * so a lock is readable over MCP but not yet writable.
+ * rtti's struct validation ignores properties the schema does not name — it
+ * returns the argument object unchanged, undeclared keys included, and the
+ * handler forwards that object whole. So a complete `evo_revision` result goes
+ * straight back into `evo_add` losing nothing, `lock` included.
+ *
+ * That an undeclared key is *forwarded* rather than dropped is the reason
+ * `lock` must be validated by the layer that consumes it and not by the
+ * `inputSchema` that fails to mention it: `fjs/media/revision`'s `checkLock`
+ * is total over any input for exactly this path, so a malformed `lock` becomes
+ * an error result rather than a stored blob no reader would accept. `lock` is
+ * absent from {@link evoAddArgs} only because its schema cannot be advertised
+ * yet, never as a validation boundary.
  *
  * ## Result size
  *
@@ -80,13 +84,15 @@ export const evoRevisionArgs = {
 
 /**
  * Arguments for `evo_add`: a new revision, per `fjs/cas/evo`'s
- * `RevisionData`, minus the two fields a caller cannot supply here —
- * `generation`, which the server computes, and `lock`, whose schema is
- * recursive and therefore not expressible as an `inputSchema` until
- * `toJsonSchema` grows `$defs`/`$ref` (see
- * [`fjs/media/json/schema/todo/recursive-schema-defs.md`](../../media/json/schema/todo/recursive-schema-defs.md)).
- * A lock-carrying revision written some other way still reads back with its
- * lock through `evo_revision`.
+ * `RevisionData`, minus `generation`, which the server computes.
+ *
+ * `lock` is missing from this list but **is** accepted — rtti struct
+ * validation passes undeclared keys through and the handler forwards the whole
+ * object, so a lock reaches `Evo.add` and is validated there. It is unlisted
+ * because a JSON Schema `inputSchema` cannot express the recursive shape until
+ * `toJsonSchema` grows `$defs`/`$ref`
+ * ([`fjs/media/json/schema/todo/recursive-schema-defs.md`](../../media/json/schema/todo/recursive-schema-defs.md)),
+ * which costs it discoverability, not validation.
  */
 export const evoAddArgs = {
     parents: array(string),

@@ -17,14 +17,14 @@
  *
  * @module
  */
-import { array, number, option, or, string } from '../../types/rtti/module.f.ts'
+import { array, number, option, string, unknown as rttiUnknown } from '../../types/rtti/module.f.ts'
 import { validate as rttiValidate, type ValidationError } from '../../types/rtti/validate/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
 import type { Phantom } from '../../types/phantom/module.f.ts'
 import { parse as parseJson, type Unknown } from '../json/module.f.ts'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.ts'
 import { error, ok, type Result } from '../../types/result/module.f.ts'
-import { definedEntries } from '../../types/object/module.f.ts'
+import { definedEntries, isObject } from '../../types/object/module.f.ts'
 import { dialectEntry, type DialectEntry } from '../module.f.ts'
 
 /**
@@ -48,17 +48,6 @@ export const mediaType = `application/${dialect}+json` as const
 export const hash = string
 
 /**
- * The rtti schema type of {@link lock}, spelled out so the thunk can name
- * itself: `or(hash, lock)` expands to `() => ['or', typeof string, LockSchema]`.
- *
- * Written as an explicit annotation rather than inferred because the schema is
- * self-referential — inference would report `lock` as implicitly `any` for
- * being used in its own initializer. A type alias may recurse through a
- * function's return type, which is exactly where the reference sits.
- */
-type LockSchema = () => readonly['record', () => readonly['or', typeof string, LockSchema]]
-
-/**
  * A lock map: an immutable, resolver-facing index from revision `subject` to
  * either one content hash or a nested, subject-scoped lock map.
  *
@@ -80,23 +69,32 @@ export type LockMap = {
 }
 
 /**
- * rtti schema for a {@link LockMap}: `['record', or(hash, lock)]`, recursing
- * into itself through the lazily-evaluated thunk body.
+ * rtti schema for the `lock` field.
  *
- * The `Phantom` annotation carries the derived TypeScript type: `Ts<>` would
- * otherwise expand the self-reference forever and raise TS2589, so it reads
- * {@link LockMap} straight off the phantom key instead of walking the schema
- * (see `fjs/types/rtti/ts`). rtti's own `validate` needs no such help — it
- * instantiates a container's item validator only after finding the container
- * non-empty, so an empty map terminates the recursion at runtime.
+ * Structurally this is `unknown`, **not** the `['record', or(hash, lock)]` the
+ * format actually describes — the same layering as `hash` being `string`: the
+ * shape rtti can express here is not the shape that is safe to check. A
+ * recursive record schema spends validator frames in proportion to the
+ * *input's* nesting depth, and the input is untrusted. A ~12 KiB blob nested
+ * 2000 deep overflows the call stack, and `fjs/cas/evo`'s `buildCache` decodes
+ * every blob in the store, so one such blob would abort the scan instead of
+ * being skipped as a non-revision — a stored-blob denial of service on
+ * startup. {@link checkLock} validates the whole shape iteratively instead, at
+ * any depth, reporting failure as a message like every other refinement here.
  *
- * The schema is structure only. It says nothing about precedence between a
- * revision's own `subject`/`snapshot` binding and an entry for that same
- * subject, about how a nested map relates to the map enclosing it, or about
- * which subjects have to be present — all of that is a resolver's algorithm,
- * not the format's (see the README).
+ * The recursive schema returns once rtti can validate a self-referential
+ * schema without unbounded stack growth
+ * ([todo/recursive-validation-stack-safety.md](../../types/rtti/todo/recursive-validation-stack-safety.md)).
+ * Until then {@link LockMap} and the README carry the shape.
+ *
+ * The `Phantom` annotation keeps the derived type exact: `Ts<>` reads
+ * {@link LockMap} off the phantom key, so `Revision['lock']` stays
+ * `LockMap | undefined` rather than widening to rtti's `Unknown`.
  */
-export const lock: Phantom<LockSchema, LockMap> = () => ['record', or(hash, lock)] as const
+const lockThunk = rttiUnknown
+
+/** @see {@link lockThunk} — the `lock` field's schema, typed as {@link LockMap}. */
+export const lock: Phantom<typeof lockThunk, LockMap> = lockThunk
 
 /**
  * rtti schema for a `revision` BLOB. See the README for the full semantics of
@@ -125,32 +123,61 @@ export const isHash = (s: string): boolean => cBase32ToVec(s) !== null
 /** Either a structural validation error or a semantic (hash / generation) error message. */
 export type RevisionError = ValidationError | string
 
+/** One pending lock value and the subject path that reaches it, outermost first. */
+type LockEntry = readonly[readonly string[], unknown]
+
+/** The entries of one lock value; none for a hash leaf or any non-map. */
+const lockChildren = ([keys, value]: LockEntry): readonly LockEntry[] =>
+    isObject(value)
+        ? definedEntries(value).map(([k, v]) => [[...keys, k], v] as const)
+        : []
+
 /**
- * The one semantic refinement a lock map carries: every leaf is a cbase32
- * content hash ({@link isHash}). The recursive record structure itself is
- * already guaranteed by {@link lock}, so this walk only reaches into nested
- * maps to check *their* leaves — it never interprets them.
+ * Validates a lock map **completely**: every value is either a cbase32 content
+ * hash ({@link isHash}) or a nested map, to any depth. Returns `null` when the
+ * whole map is well formed, else a message naming the offending subject path.
  *
- * Deliberately store-independent, like the rest of this module: a leaf names
- * content, not a revision, so there is no blob to load and no `subject` to
- * compare a key against. Nothing else about a lock map is checkable in
- * isolation either — a subject bound both by `revision.subject`/`snapshot` and
- * by a lock entry, a nested map that omits the subject it appears under, a
- * subject the resolver never asks about, and a subject it asks about but the
- * map never binds are all structurally valid resolver inputs. Whether the
- * available bindings are enough is a property of one resolver invocation, not
- * of the blob (see the README).
+ * This is the *only* check the `lock` field gets, by design on two counts.
  *
- * `keys` is the enclosing subject path, outermost first, and exists only to
- * point the error message at the offending entry.
+ * It is **total over any input**, not a refinement of an already shape-valid
+ * value, because it is reached from two directions: {@link validate} runs
+ * structural validation first, but {@link checkReferences} is called directly
+ * by writers such as `fjs/cas/evo`'s `addRevision` on a value TypeScript
+ * believes is a `Revision` and the runtime does not — an MCP `evo_add`
+ * argument object keeps every undeclared key rtti validation ignored, `lock`
+ * among them. A structure-assuming walk let `lock: {B: 0}` through to be
+ * stored as a revision no reader would accept, and threw outright on
+ * `lock: null`.
+ *
+ * It is **iterative**, processing one level at a time rather than recursing,
+ * because nesting depth comes from untrusted input — see {@link lock} for the
+ * denial of service a per-level stack frame allows.
+ *
+ * Store-independent like the rest of this module: a leaf names content, not a
+ * revision, so there is no blob to load and no `subject` to compare a key
+ * against. Nothing else about a lock map is checkable in isolation either — a
+ * subject bound both by `revision.subject`/`snapshot` and by a lock entry, a
+ * nested map that omits the subject it appears under, a subject the resolver
+ * never asks about, and a subject it asks about but the map never binds are
+ * all valid resolver inputs. Whether the bindings are enough is a property of
+ * one resolver invocation, not of the blob (see the README).
  */
-const checkLock = (keys: readonly string[]) => (m: LockMap): string | null => {
-    for (const [k, v] of definedEntries(m)) {
-        const path = [...keys, k]
-        const message = typeof v === 'string'
-            ? (isHash(v) ? null : `lock entry is not a valid hash: ${path.join('.')} = ${v}`)
-            : checkLock(path)(v)
-        if (message !== null) { return message }
+const checkLock = (root: unknown): string | null => {
+    // The lock itself is a map, never a bare hash: `lock` binds subjects.
+    if (!isObject(root)) { return 'lock is not a map' }
+    let level: readonly LockEntry[] = lockChildren([[], root])
+    while (level.length !== 0) {
+        for (const [keys, value] of level) {
+            const path = keys.join('.')
+            if (typeof value === 'string') {
+                if (!isHash(value)) {
+                    return `lock entry is not a valid hash: ${path} = ${value}`
+                }
+            } else if (!isObject(value)) {
+                return `lock entry is not a hash or a nested map: ${path}`
+            }
+        }
+        level = level.flatMap(lockChildren)
     }
     return null
 }
@@ -192,7 +219,7 @@ export const checkReferences = (r: Revision): Result<Revision, string> => {
         return error(`generation must be a non-negative safe integer: ${r.generation}`)
     }
     if (r.lock !== undefined) {
-        const lockError = checkLock([])(r.lock)
+        const lockError = checkLock(r.lock)
         if (lockError !== null) { return error(lockError) }
     }
     return ok(r)

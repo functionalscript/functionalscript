@@ -15,8 +15,6 @@ import { revisionSchema, dialect, mediaType, validate, decodeText } from './modu
 ## Shape
 
 ```ts
-export const lock = () => ['record', or(hash, lock)] as const
-
 export const revisionSchema = {
     dialect: 'vnd.fjs.revision',
     subject: string,
@@ -115,11 +113,36 @@ revision blob.
 }
 ```
 
-Validation is structural plus one refinement, and stays store-independent like
-the rest of this module: the recursive record shape, and every leaf decoding as
-a cbase32 hash. Nothing is loaded, so no referenced revision's `subject` is ever
-compared against a key. Keys are subjects and are therefore never validated as
-hashes, exactly as `subject` isn't.
+Validation stays store-independent like the rest of this module: the recursive
+map shape, and every leaf decoding as a cbase32 hash. Nothing is loaded, so no
+referenced revision's `subject` is ever compared against a key. Keys are
+subjects and are therefore never validated as hashes, exactly as `subject`
+isn't.
+
+**The `lock` field has no rtti schema — `checkLock` is its validator.** At the
+schema level the field is `unknown`, the same layering as `hash` being `string`
+with `isHash` doing the real work, and for a sharper reason than rtti's
+inability to express string refinements: an rtti *recursive* schema spends a
+validator frame per level of the **input**, and a lock map's depth is chosen by
+whoever wrote the blob. A ~12 KiB blob nested 2000 deep overflowed the stack and
+**threw**, which is not a validation failure — and since
+[fjs/cas/evo](../../cas/evo/)'s cache build decodes every blob in the store to
+find revisions, one such blob would abort the scan rather than be skipped as a
+non-revision. `checkLock` walks the map one level at a time instead, validating
+structure and leaves together at any depth and reporting failure as an ordinary
+error.
+
+Being the field's *only* check, `checkLock` is total over any input rather than
+a refinement of an already shape-valid value. That matters because `validate`
+is not the only door: a writer such as evo's `addRevision` calls the semantic
+checks directly on a value TypeScript believes is a `Revision`, and an MCP
+`evo_add` argument object carries whatever `lock` the caller sent, since rtti
+struct validation passes undeclared keys through untouched.
+
+The recursive schema returns once rtti can validate a self-referential schema
+without unbounded stack growth
+([fjs/types/rtti recursive-validation-stack-safety](../../types/rtti/todo/recursive-validation-stack-safety.md));
+until then the `LockMap` type and this section are the shape's definition.
 
 **Why here and not in a lock file.** `package-lock.json`, `deno.lock`,
 `bun.lock`, and `Cargo.lock` solve the same problem by generating a file. Keeping

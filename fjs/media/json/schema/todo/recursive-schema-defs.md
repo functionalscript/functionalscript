@@ -13,8 +13,7 @@ for a JSON Schema document, which recurses through `not`, `anyOf`, `items`,
 `properties`, and `additionalProperties`) crashes it today:
 
 ```ts
-toJsonSchema(unknown)                            // RangeError: Maximum call stack size exceeded
-toJsonSchema(revisionLock)                       // RangeError, same reason
+toJsonSchema(unknown)   // RangeError: Maximum call stack size exceeded
 ```
 
 Nothing enforces the limit, so a recursive schema is a `RangeError` at the call
@@ -24,10 +23,10 @@ the container non-empty, which terminates the recursion at runtime.
 
 The immediate consumer is `fjs/protocol/mcp`, which derives every tool's
 `inputSchema` from its rtti argument schema. That is why `fjs/mcp/evo`'s
-`evo_add` cannot advertise the revision `lock` argument: adding
-`lock: option(lock)` to `evoAddArgs` would crash the server at registry
-construction. So `evo_revision` returns a lock that `evo_add` cannot accept —
-the one lossy step in an otherwise round-tripping API.
+`evo_add` cannot *advertise* the revision `lock` argument: a recursive schema
+for it would crash the server at registry construction. `evo_add` accepts and
+validates a lock regardless — rtti passes undeclared keys through — so the cost
+is discoverability, not correctness.
 
 JSON Schema has the answer built in: draft 2020-12 names subschemas under
 `$defs` and points at them with `$ref`, which is exactly how a recursive type
@@ -62,8 +61,9 @@ For the module's own `unknown`, the result is a document whose root is a
 `$ref` into a single self-referential definition — the smallest end-to-end
 proof that the producer can now describe the very format it emits.
 
-Once this lands, `evoAddArgs` gains `lock: option(lock)` and the two
-"not writable over MCP" caveats in `fjs/mcp/evo/module.f.ts` come out.
+Once this lands, `evoAddArgs` can advertise `lock` and the "unlisted but
+accepted" caveats in `fjs/mcp/evo/module.f.ts` come out. That is a
+discoverability fix: `evo_add` already accepts and validates a lock.
 
 ### Out of scope
 
@@ -86,8 +86,8 @@ Once this lands, `evoAddArgs` gains `lock: option(lock)` and the two
 - [ ] Prove a mutually recursive pair (A → B → A) yields two definitions, not a
       duplicated body.
 - [ ] Drop the "acyclic schemas only" caveat from `toJsonSchema`'s JSDoc.
-- [ ] Add `lock: option(lock)` to `fjs/mcp/evo`'s `evoAddArgs` and remove the
-      two caveats in that module's doc.
+- [ ] Advertise `lock` in `fjs/mcp/evo`'s `evoAddArgs` and remove the
+      "unlisted but accepted" caveats in that module's doc.
 
 ### Related
 
@@ -98,7 +98,7 @@ Once this lands, `evoAddArgs` gains `lock: option(lock)` and the two
 - [fjs/mcp/evo/module.f.ts](../../../../mcp/evo/module.f.ts) — `evo_add`, blocked
   from advertising `lock` by this issue
 - [fjs/media/revision/README.md](../../../revision/README.md#lock-map) — the
-  recursive `lock` schema this first came up on
+  recursive `lock` shape this first came up on
 - [fjs/types/rtti/todo/data-form.md](../../../../types/rtti/todo/data-form.md)
   — the naming/reference machinery this waits on; `fjs/types/rtti/ts`'s
   `printer` is the other consumer waiting on the same thing

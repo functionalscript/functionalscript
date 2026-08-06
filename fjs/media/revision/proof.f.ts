@@ -2,10 +2,11 @@ import { assert, assertEq, type Assert } from '../../asserts/module.f.ts'
 import type { Equal } from '../../types/ts/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
 import type { Object as JsonObject } from '../json/module.f.ts'
-import { dialect, mediaType, isHash, lock, validate, decodeText, type LockMap, type Revision } from './module.f.ts'
+import { dialect, mediaType, isHash, lock, validate, decodeText, checkReferences, type LockMap, type Revision } from './module.f.ts'
 
-// The recursive `lock` schema derives exactly the hand-written `LockMap`, and
-// the revision's optional field is that map or nothing.
+// The `lock` field is `unknown` at the rtti level (see the module doc), so the
+// `Phantom` annotation is what keeps the derived type exact rather than
+// widening to rtti's `Unknown`. The revision's field is that map or nothing.
 type _LockMap = Assert<Equal<Ts<typeof lock>, LockMap>>
 type _RevisionLock = Assert<Equal<Revision['lock'], LockMap | undefined>>
 // A lookup that misses is `undefined`, not an error: partial maps are valid.
@@ -205,20 +206,84 @@ export const proof = {
             assertEq(r[1], 'lock entry is not a valid hash: B.C.A = not-a-hash!')
         },
 
-        // Malformed recursive values are structural errors: a lock value is a
-        // hash string or another map, never a number, an array, or `null`.
+        // A non-map deep inside is reported with its full subject path too.
+        nestedNonMapRejected: () => {
+            const r = validate(revisionOf({ lock: { B: { C: [1] } } }))
+            assert(r[0] === 'error', ['expected error', r])
+            assertEq(r[1], 'lock entry is not a hash or a nested map: B.C')
+        },
+
+        // Malformed values are errors: a lock value is a hash string or another
+        // map, never a number, an array, or `null`.
         numberValueRejected: () => {
-            const [t] = validate(revisionOf({ lock: { B: 0 } }))
-            assertEq(t, 'error')
+            const r = validate(revisionOf({ lock: { B: 0 } }))
+            assert(r[0] === 'error', ['expected error', r])
+            assertEq(r[1], 'lock entry is not a hash or a nested map: B')
         },
 
         arrayValueRejected: () => {
-            const [t] = validate(revisionOf({ lock: [h1] }))
+            const [t] = validate(revisionOf({ lock: { B: [h1] } }))
             assertEq(t, 'error')
         },
 
         nullValueRejected: () => {
             const [t] = validate(revisionOf({ lock: { B: null } }))
+            assertEq(t, 'error')
+        },
+
+        // The lock itself is a map of subjects, never a bare hash or any other
+        // non-map — `lock` binds subjects, so there is nothing a scalar means.
+        nonMapRootRejected: () => {
+            const r = validate(revisionOf({ lock: h1 }))
+            assert(r[0] === 'error', ['expected error', r])
+            assertEq(r[1], 'lock is not a map')
+        },
+
+        arrayRootRejected: () => {
+            const [t] = validate(revisionOf({ lock: [h1] }))
+            assertEq(t, 'error')
+        },
+
+        nullRootRejected: () => {
+            const [t] = validate(revisionOf({ lock: null }))
+            assertEq(t, 'error')
+        },
+
+        // `checkLock` is the field's only check and is total over any input,
+        // because `validate` is not the only door: `checkReferences` is called
+        // directly by writers (evo's `addRevision`) on a value whose `lock`
+        // TypeScript trusts and the runtime has never seen — an MCP `evo_add`
+        // argument object keeps every undeclared key rtti validation ignored.
+        // Each of these once passed the semantic walk and was stored as a
+        // revision no reader would accept, or threw outright.
+        checkReferencesRejectsMalformedLock: () => {
+            const r = ({ dialect, subject: h1, parents: [], snapshot: h2, generation: 0 }) as const
+            for (const lock of [null, 0, 'str', { B: 0 }, { B: [1] }, { B: { C: 7 } }]) {
+                const [t] = checkReferences({ ...r, lock } as unknown as Revision)
+                assertEq(t, 'error', ['expected error for lock', lock])
+            }
+        },
+
+        // Nesting depth comes from untrusted input, so the walk must not spend
+        // a stack frame per level. 2000 levels is ~12 KiB — far under the
+        // 128 KiB inline cap — and used to throw `RangeError` out of
+        // `decodeText`, which `fjs/cas/evo`'s store scan cannot contain
+        // (FunctionalScript has no `try`/`catch`), stopping the scan instead of
+        // skipping one blob. Well past that depth is now an ordinary result.
+        deepNestingAccepted: () => {
+            let lock = `"${h1}"`
+            for (let i = 0; i < 20000; ++i) { lock = `{"B":${lock}}` }
+            const [t] = decodeText(
+                `{"dialect":"${dialect}","subject":"${h1}","parents":[],"snapshot":"${h2}","generation":0,"lock":${lock}}`)
+            assertEq(t, 'ok')
+        },
+
+        // The same depth with a bad leaf reports an error rather than throwing.
+        deepNestingInvalidLeafRejected: () => {
+            let lock = '"not-a-hash!"'
+            for (let i = 0; i < 20000; ++i) { lock = `{"B":${lock}}` }
+            const [t] = decodeText(
+                `{"dialect":"${dialect}","subject":"${h1}","parents":[],"snapshot":"${h2}","generation":0,"lock":${lock}}`)
             assertEq(t, 'error')
         },
 

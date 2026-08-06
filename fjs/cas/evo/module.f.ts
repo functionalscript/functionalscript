@@ -418,6 +418,14 @@ const computeGeneration = (parents: readonly Revision[]): number =>
  * value read back by {@link readRevision} round-trips into `add` unchanged,
  * and {@link computeGeneration} always derives the stored value from the
  * resolved parents.
+ *
+ * **Known limit — a `lock` nested deeper than roughly 800 levels throws here**
+ * rather than returning `error(...)`, because `fjs/media/json`'s `stringify`
+ * recurses per level on the way out
+ * ([stringify-deep-nesting](../../media/json/todo/stringify-deep-nesting.md)).
+ * `lock` is the only caller-nestable field, so it is the only way to reach it.
+ * Reading is not affected — validation and decoding handle any depth — so this
+ * is an asymmetry to close on the write side, not a bound on the format.
  */
 export const addRevision =
     <O extends Operation>(cas: Cas<O>) =>

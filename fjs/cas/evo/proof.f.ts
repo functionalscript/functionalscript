@@ -650,6 +650,25 @@ export const proof = {
             e.add({ parents: [], subject: 'doc', snapshot, lock: { B: 'https://example.com/x' } }))
         assert(added[0] === 'error', ['expected error', added])
     },
+    // `add`'s input is `RevisionData` to TypeScript but arbitrary JSON at
+    // runtime: the MCP `evo_add` handler forwards its whole argument object,
+    // and rtti struct validation passes through every key its schema does not
+    // name — `lock` among them, since `evoAddArgs` cannot advertise it yet. So
+    // `lock` arrives unvalidated by any schema and `checkReferences` is the
+    // only thing standing between it and the store. Each value below once
+    // produced a stored blob that `decodeText` then refused to read back, or
+    // threw out of `add` instead of returning an error.
+    addRejectsMalformedLockFromUntypedInput: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const snapshot = vecToCBase32(vec8(0x85n))
+        for (const lock of [null, 0, 'str', { B: 0 }, { B: [1] }, { B: { C: 7 } }]) {
+            const input = { parents: [], subject: 'doc', snapshot, lock } as unknown as RevisionData
+            const [, added] = virtual(state0)(e.add(input))
+            assert(added[0] === 'error', ['expected error for lock', lock, added])
+        }
+    },
     // A raw CAS write (e.g. `cas_add`) of valid revision content is folded
     // into the cache exactly as `addRevision` would, without going through
     // `evo.add` — this is what keeps `cas_add` and `evo_add` writes to the
