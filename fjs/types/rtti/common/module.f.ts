@@ -22,8 +22,9 @@
  *   return the first match.
  *
  * Keeping the kernel here also removes `parse`'s incidental dependency on
- * `validate` and gives future schema-driven consumers (e.g. the data form
- * sketched in [i143](../../../../issues/README.md)) a stable shared base.
+ * `validate` and gives future schema-driven consumers (e.g. the serializable
+ * data form, [../todo/data-form.md](../todo/data-form.md)) a stable shared
+ * base.
  *
  * @module
  */

@@ -177,8 +177,9 @@ export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
  *
  * `or` is intentionally a lazy, allocation-free constructor: it captures its
  * arguments in a thunk and does no flattening, deduplication, subset analysis,
- * or canonical-form work. All such algebra lives on the serializable data form
- * — see `issues/143-rtti-data.md`.
+ * or canonical-form work. All such algebra belongs on the serializable data
+ * form — see [todo/data-form.md](./todo/data-form.md) for that form and
+ * [todo/schema-algebra.md](./todo/schema-algebra.md) for the operations on it.
  */
 export const or = <T extends readonly Type[]>(...types: T): Or<T> =>
     () => ['or', ...types]

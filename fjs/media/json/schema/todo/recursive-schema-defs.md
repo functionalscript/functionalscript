@@ -1,7 +1,8 @@
 ## Emit `$defs`/`$ref` for recursive schemas
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
+**Blocked by:** [Serializable data form](../../../../types/rtti/todo/data-form.md)
 
 ### Problem
 
@@ -34,28 +35,28 @@ is expressed.
 
 ### Proposal
 
-Give `toJsonSchema` a cycle-aware walk that emits `$ref` for a back edge and
-collects the referenced bodies into a root-level `$defs`.
+**Build this on the rtti data form, do not grow a cycle detector here.**
+Naming a cyclic schema's nodes so they can be written down is not a JSON Schema
+problem — it is the whole job of
+[`fjs/types/rtti/todo/data-form.md`](../../../../types/rtti/todo/data-form.md),
+which is in turn `fjs/bnf/data`'s `toDataAdd` applied to the `Type` ADT:
+reference-identity lookup, register-before-recurse to break the cycle,
+`.name`-derived identifiers with numeric de-duplication. `printer` in
+`fjs/types/rtti/ts` needs exactly the same thing for exactly the same reason, so
+a detector written into this module would be the second of three copies.
 
-**Identity.** rtti thunks and const containers are objects, so reference
-identity (`===`) is the only key available and the correct one: two structurally
-identical schemas built separately are different definitions, and the same
-thunk reached twice is the same one. Primitives cannot recurse and need no key.
+Once `toData` exists this consumer is close to mechanical:
 
-**Walk.** Carry the set of `Type`s currently being expanded. Reaching a `Type`
-already in that set is a back edge: emit `{ $ref: '#/$defs/<name>' }` and mark
-it. After the walk, expand each marked schema's body once into `$defs` — its own
-back edges become `$ref`s the same way. Only schemas that actually participate
-in a cycle become definitions; an acyclic schema must keep producing exactly the
-output it produces today, so every existing proof stands unchanged.
-
-**Naming.** rtti schemas are anonymous — a thunk carries no name worth reading —
-so generate `t0`, `t1`, … in discovery order. The walk is deterministic, so the
-names are too. A caller-supplied name map is a possible later refinement and is
-not needed to close this issue.
+- the data form's flat node map becomes `$defs`;
+- its entry id becomes the document root — a `$ref` when the root is itself
+  recursive, the inlined body otherwise;
+- each node reference becomes `{ $ref: '#/$defs/<name>' }`;
+- an acyclic schema must still produce exactly today's output, byte for byte,
+  so every existing proof stands unchanged.
 
 **Types.** `Unknown` (the module's JSON Schema document type) gains `$ref` and
-`$defs`; `unknownConst` gains the matching rtti fields.
+`$defs`; `unknownConst` gains the matching rtti fields. This part is
+independent of the data form and can land first.
 
 For the module's own `unknown`, the result is a document whose root is a
 `$ref` into a single self-referential definition — the smallest end-to-end
@@ -77,10 +78,8 @@ Once this lands, `evoAddArgs` gains `lock: option(lock)` and the two
 ### Tasks
 
 - [ ] Add `$ref` and `$defs` to `Unknown` and `unknownConst`.
-- [ ] Track in-progress schemas by reference identity during the walk and emit
-      `$ref` on a back edge.
-- [ ] Collect referenced bodies into a root-level `$defs`, naming them
-      deterministically.
+- [ ] Re-express `toJsonSchema` over the rtti data form: node map → `$defs`,
+      entry id → document root, node reference → `$ref`.
 - [ ] Prove acyclic schemas are byte-identical to today's output.
 - [ ] Prove `toJsonSchema(unknown)` — the module's own schema — terminates and
       emits a self-referential definition.
@@ -100,3 +99,6 @@ Once this lands, `evoAddArgs` gains `lock: option(lock)` and the two
   from advertising `lock` by this issue
 - [fjs/media/revision/README.md](../../../revision/README.md#lock-map) — the
   recursive `lock` schema this first came up on
+- [fjs/types/rtti/todo/data-form.md](../../../../types/rtti/todo/data-form.md)
+  — the naming/reference machinery this waits on; `fjs/types/rtti/ts`'s
+  `printer` is the other consumer waiting on the same thing
