@@ -51,6 +51,7 @@ type RevisionData = {
     readonly subject?: Subject
     readonly archived?: true
     readonly generation?: number
+    readonly lock?: LockMap
 }
 ```
 
@@ -70,11 +71,23 @@ documented rather than typed (no extension or intersection types):
 | `parents`    | required                                   | always present, canonical   |
 | `subject`    | absent → inherited from the single parent  | always present              |
 | `snapshot`   | absent → resolved from the parents         | always present, canonical   |
-| `archived`   | optional                                   | optional (the only one)     |
+| `archived`   | optional                                   | optional                    |
 | `generation` | **ignored** — the server computes it       | always present              |
+| `lock`       | optional                                   | optional                    |
 
 `generation` is an input field purely so the round trip needs no field
-stripping; `add` always writes the value it computes itself.
+stripping; `add` always writes the value it computes itself. `archived` and
+`lock` are the two genuinely optional fields — the ones that can be absent
+from a read.
+
+`lock` is carried through untouched in both directions: this layer stores and
+returns the resolution choices a revision declares and never reads, merges, or
+computes them — resolution is a processor's concern
+([`fjs/media/revision/todo/lock-resolver-interface.md`](../../media/revision/todo/lock-resolver-interface.md)).
+Its hashes are also the one reference kind `revision(hash)` does **not**
+re-spell canonically: `parents` and `snapshot` are canonicalized so they
+compare directly against `head` output, while a lock entry names content that
+is never compared against a head here.
 
 **Why relax what the format requires.** The stored `vnd.fjs.revision` blob
 requires `subject`, `snapshot` and `generation`, and `revision(hash)` does

@@ -15,11 +15,15 @@
  *
  * `evo_add` and `evo_revision` speak the same structure — `fjs/cas/evo`'s
  * `RevisionData` — in opposite directions, so a revision read back can be
- * added again as-is. `evo_add`'s advertised arguments stay as they are: the
- * one field `evo_revision` returns that `evo_add` does not accept is
- * `generation`, which the server computes, and rtti's struct validation
- * ignores properties the schema does not name, so a whole `evo_revision`
- * result can be passed straight back to `evo_add`.
+ * added again as-is. `evo_add`'s advertised arguments stay as they are, and
+ * rtti's struct validation ignores properties the schema does not name, so a
+ * whole `evo_revision` result can be passed straight back to `evo_add`. Two
+ * fields it returns are not among those arguments: `generation`, which the
+ * server computes anyway, and `lock`, which is silently dropped on the way
+ * back in — a recursive schema is not expressible as a JSON Schema
+ * `inputSchema` until `toJsonSchema` grows `$defs`/`$ref`
+ * ([`fjs/media/revision/todo/lock-resolver-interface.md`](../../media/revision/todo/lock-resolver-interface.md)),
+ * so a lock is readable over MCP but not yet writable.
  *
  * ## Result size
  *
@@ -76,8 +80,13 @@ export const evoRevisionArgs = {
 
 /**
  * Arguments for `evo_add`: a new revision, per `fjs/cas/evo`'s
- * `RevisionData` — every field of it the caller supplies, i.e. all but
- * `generation`, which the server computes.
+ * `RevisionData`, minus the two fields a caller cannot supply here —
+ * `generation`, which the server computes, and `lock`, whose schema is
+ * recursive and therefore not expressible as an `inputSchema` until
+ * `toJsonSchema` grows `$defs`/`$ref` (see
+ * [`fjs/media/revision/todo/lock-resolver-interface.md`](../../media/revision/todo/lock-resolver-interface.md)).
+ * A lock-carrying revision written some other way still reads back with its
+ * lock through `evo_revision`.
  */
 export const evoAddArgs = {
     parents: array(string),
@@ -118,7 +127,7 @@ export const evoToolRegistry =
     ),
     toolEntry(
         'evo_revision',
-        'Read one revision by hash, as JSON: `{ subject, parents, snapshot, generation, archived? }`. `parents[0]` is the mainline parent and every further entry is a merged-in branch; `parents` and `snapshot` come back in their canonical cBase32 spelling, so they compare directly against `evo_head` output. Errors when the hash is not cBase32, is not present in the store, could not be read, or does not hold a `vnd.fjs.revision` blob — use `cas_get` for raw bytes of non-revision content.',
+        'Read one revision by hash, as JSON: `{ subject, parents, snapshot, generation, archived?, lock? }`. `parents[0]` is the mainline parent and every further entry is a merged-in branch; `parents` and `snapshot` come back in their canonical cBase32 spelling, so they compare directly against `evo_head` output. Errors when the hash is not cBase32, is not present in the store, could not be read, or does not hold a `vnd.fjs.revision` blob — use `cas_get` for raw bytes of non-revision content.',
         evoRevisionArgs,
         // The revision goes out as JSON in a text content item, like
         // `evo_list`'s. An encoded response that outgrows the transport cap is

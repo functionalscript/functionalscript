@@ -613,6 +613,43 @@ export const proof = {
         assert(readded[0] === 'ok', ['expected re-add ok', readded])
         assertEq(readded[1], child[1])
     },
+    // A `lock` map rides through both directions untouched — stored as given,
+    // returned as stored, nested structure intact, and *not* re-spelled the
+    // way `parents`/`snapshot` are (a lock entry names content nobody compares
+    // against `head` output). This layer never resolves anything; that is a
+    // processor's job, see `fjs/media/revision/todo/lock-resolver-interface.md`.
+    revisionRoundTripsLock: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const snapshot = vecToCBase32(vec8(0x81n))
+        const flat = vecToCBase32(vec8(0x82n))
+        const scoped = vecToCBase32(vec8(0x83n))
+        const lock = { B: flat, C: { D: scoped } }
+        const [state1, root] = virtual(state0)(e.add({ parents: [], subject: 'doc', snapshot, lock }))
+        assert(root[0] === 'ok', ['expected root ok', root])
+        const [state2, result] = virtual(state1)(e.revision(root[1]))
+        assert(result[0] === 'ok', ['expected revision ok', result])
+        assertEq(result[1].lock?.B, flat)
+        const nested = result[1].lock?.C
+        assert(typeof nested === 'object', ['expected a nested lock map', result])
+        assertEq(nested.D, scoped)
+        // Same content, same hash: the round trip loses nothing.
+        const [, readded] = virtual(state2)(e.add(result[1]))
+        assert(readded[0] === 'ok', ['expected re-add ok', readded])
+        assertEq(readded[1], root[1])
+    },
+    // A lock whose leaf is not a cbase32 hash is rejected at the write
+    // boundary by the same `checkReferences` a reader applies.
+    addRejectsInvalidLockHash: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const snapshot = vecToCBase32(vec8(0x84n))
+        const [, added] = virtual(state0)(
+            e.add({ parents: [], subject: 'doc', snapshot, lock: { B: 'https://example.com/x' } }))
+        assert(added[0] === 'error', ['expected error', added])
+    },
     // A raw CAS write (e.g. `cas_add`) of valid revision content is folded
     // into the cache exactly as `addRevision` would, without going through
     // `evo.add` — this is what keeps `cas_add` and `evo_add` writes to the

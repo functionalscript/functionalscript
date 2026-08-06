@@ -1,6 +1,15 @@
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq, type Assert } from '../../asserts/module.f.ts'
+import type { Equal } from '../../types/ts/module.f.ts'
+import type { Ts } from '../../types/rtti/ts/module.f.ts'
 import type { Object as JsonObject } from '../json/module.f.ts'
-import { dialect, mediaType, isHash, validate, decodeText } from './module.f.ts'
+import { dialect, mediaType, isHash, lock, validate, decodeText, type LockMap, type Revision } from './module.f.ts'
+
+// The recursive `lock` schema derives exactly the hand-written `LockMap`, and
+// the revision's optional field is that map or nothing.
+type _LockMap = Assert<Equal<Ts<typeof lock>, LockMap>>
+type _RevisionLock = Assert<Equal<Revision['lock'], LockMap | undefined>>
+// A lookup that misses is `undefined`, not an error: partial maps are valid.
+type _LockLookup = Assert<Equal<LockMap[string], string | LockMap | undefined>>
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.ts): single
 // cbase32 symbols, cheap to write inline here.
@@ -130,6 +139,131 @@ export const proof = {
         extraFieldsAccepted: () => {
             const [t] = validate(revisionOf({ future: 'field' }))
             assertEq(t, 'ok')
+        },
+    },
+
+    lock: {
+        // `lock` is optional: every revision above validates without one.
+        absent: () => {
+            const r = validate(revisionOf({}))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].lock, undefined)
+        },
+
+        // An empty map is a valid map — it binds nothing, which is a resolver's
+        // problem only if the resolver needed a binding.
+        empty: () => {
+            const r = validate(revisionOf({ lock: {} }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(JSON.stringify(r[1].lock), '{}')
+        },
+
+        // The common representation: subject → one content hash.
+        flat: () => {
+            const r = validate(revisionOf({ lock: { B: h1, C: h2 } }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].lock?.B, h1)
+            assertEq(r[1].lock?.C, h2)
+        },
+
+        // A subject the map doesn't bind reads as `undefined` rather than
+        // failing validation: partial maps are valid.
+        missingLookup: () => {
+            const r = validate(revisionOf({ lock: { B: h1 } }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].lock?.C, undefined)
+        },
+
+        // A leaf that isn't a cbase32 hash is a semantic error, and the message
+        // names the subject path that carries it.
+        invalidHash: () => {
+            const r = validate(revisionOf({ lock: { B: 'https://example.com/x' } }))
+            assert(r[0] === 'error', ['expected error', r])
+            assertEq(r[1], 'lock entry is not a valid hash: B = https://example.com/x')
+        },
+
+        // Nested maps carry scoped information — here the incompatible-diamond
+        // case `A -> B -> D(v1)` / `A -> C -> D(v2)` — and survive validation
+        // with their structure intact. The format records the nesting; what it
+        // means (overlay, replacement, inheritance) is the resolver's rule.
+        nested: () => {
+            const nested = {
+                B: { B: h1, D: h1 },
+                C: { C: h2, D: h2 },
+            }
+            const r = validate(revisionOf({ lock: nested }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(JSON.stringify(r[1].lock), JSON.stringify(nested))
+        },
+
+        // Nesting is walked to any depth, and an invalid leaf deep inside is
+        // reported with its full subject path. The map also omits the subject
+        // it appears under (`B` binds no `B`) — structurally fine.
+        nestedInvalidHash: () => {
+            const r = validate(revisionOf({ lock: { B: { C: { A: 'not-a-hash!' } } } }))
+            assert(r[0] === 'error', ['expected error', r])
+            assertEq(r[1], 'lock entry is not a valid hash: B.C.A = not-a-hash!')
+        },
+
+        // Malformed recursive values are structural errors: a lock value is a
+        // hash string or another map, never a number, an array, or `null`.
+        numberValueRejected: () => {
+            const [t] = validate(revisionOf({ lock: { B: 0 } }))
+            assertEq(t, 'error')
+        },
+
+        arrayValueRejected: () => {
+            const [t] = validate(revisionOf({ lock: [h1] }))
+            assertEq(t, 'error')
+        },
+
+        nullValueRejected: () => {
+            const [t] = validate(revisionOf({ lock: { B: null } }))
+            assertEq(t, 'error')
+        },
+
+        // An entry for the revision's own subject is structurally valid. It
+        // supplies another resolution candidate next to the starting binding
+        // `subject -> snapshot`; the format defines no precedence between them,
+        // so accepting the blob is the only correct answer here.
+        sameSubjectAccepted: () => {
+            const r = validate(revisionOf({ subject: 'A', snapshot: h2, lock: { A: h1 } }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].lock?.A, h1)
+        },
+
+        // Mutually recursive subjects (A references B and C, B references A and
+        // C) resolve from a flat map because entries select *snapshot* hashes,
+        // never revision hashes: the revision's own bytes contain its lock map,
+        // so a revision-hash entry would be uncomputable, while `h1`/`h2` here
+        // are ordinary content addresses that close the cycle.
+        cyclicSubjects: () => {
+            const r = validate(revisionOf({ subject: 'A', snapshot: h1, lock: { B: h2, C: h1 } }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].snapshot, h1)
+            assertEq(r[1].lock?.B, h2)
+        },
+
+        // Two revisions with the same snapshot and different locks are both
+        // valid — the DAG records an external-resolution update the same way it
+        // records a source change, and an application reads the difference by
+        // comparing fields.
+        dependencyOnlyChange: () => {
+            const r0 = validate(revisionOf({ subject: 'A', snapshot: h2, lock: { B: h1 } }))
+            const r1 = validate(revisionOf({ subject: 'A', snapshot: h2, parents: [h1], generation: 1, lock: { B: h2 } }))
+            assert(r0[0] === 'ok', ['expected ok', r0])
+            assert(r1[0] === 'ok', ['expected ok', r1])
+            assertEq(r0[1].snapshot, r1[1].snapshot)
+            assert(r0[1].lock?.B !== r1[1].lock?.B, ['expected different locks', r0, r1])
+        },
+
+        // A lock survives the JSON round trip like any other field.
+        decodeText: () => {
+            const r = decodeText(JSON.stringify(revisionOf({ lock: { B: { D: h1 } } })))
+            assert(r[0] === 'ok', ['expected ok', r])
+            const b = r[1].lock?.B
+            assert(typeof b === 'object', ['expected a nested map', r])
+            assertEq(b.D, h1)
         },
     },
 

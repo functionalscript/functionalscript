@@ -49,7 +49,7 @@ import { collectRead, type Cas } from '../module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
-import { decodeText, dialect, checkReferences, isHash, type Revision } from '../../media/revision/module.f.ts'
+import { decodeText, dialect, checkReferences, isHash, type LockMap, type Revision } from '../../media/revision/module.f.ts'
 import { stringify } from '../../media/json/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { ok, error, type Ok, type Result } from '../../types/result/module.f.ts'
@@ -87,6 +87,14 @@ export type Subject = string
  *   what the stored blob names.
  * - `archived` — genuinely optional in both directions; the only field that
  *   can be absent from a read.
+ * - `lock` — genuinely optional in both directions, like `archived`, and
+ *   carried through untouched: this layer stores and returns the resolution
+ *   choices a revision declares, and never reads, merges, or computes them.
+ *   Resolution is a processor's job (see
+ *   [`fjs/media/revision/todo/lock-resolver-interface.md`](../../media/revision/todo/lock-resolver-interface.md)).
+ *   Its hashes are *not* canonicalized on read, unlike `parents`/`snapshot`:
+ *   those are canonicalized so they compare against {@link Evo.head} output,
+ *   while a lock entry names content nobody compares against a head here.
  * - `generation` — input: **ignored**, {@link computeGeneration} derives the
  *   authoritative value from the parents; output: always present. It exists as
  *   an input field only so a read value round-trips into `add` as-is.
@@ -110,6 +118,7 @@ export type RevisionData = {
     readonly subject?: Subject | undefined
     readonly archived?: true | undefined
     readonly generation?: number | undefined
+    readonly lock?: LockMap | undefined
 }
 
 /**
@@ -430,6 +439,7 @@ export const addRevision =
                 snapshot: snapshotResult[1],
                 generation: computeGeneration(parentsResult[1]),
                 archived: input.archived,
+                lock: input.lock,
             }
             const referencesResult = checkReferences(revision)
             if (referencesResult[0] === 'error') { return pure(referencesResult) }
@@ -474,12 +484,13 @@ export const addRevision =
  * inside `canonicalHash` is safe. Field order follows the stored blob's
  * (minus `dialect`), which is what a JSON encoding of the result shows.
  */
-const toRevisionData = ({ subject, parents, snapshot, generation, archived }: Revision): RevisionData => ({
+const toRevisionData = ({ subject, parents, snapshot, generation, archived, lock }: Revision): RevisionData => ({
     subject,
     parents: parents.map(canonicalHash),
     snapshot: canonicalHash(snapshot),
     generation,
     archived,
+    lock,
 })
 
 /**

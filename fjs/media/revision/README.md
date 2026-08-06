@@ -15,6 +15,8 @@ import { revisionSchema, dialect, mediaType, validate, decodeText } from './modu
 ## Shape
 
 ```ts
+export const lock = () => ['record', or(hash, lock)] as const
+
 export const revisionSchema = {
     dialect: 'vnd.fjs.revision',
     subject: string,
@@ -22,6 +24,7 @@ export const revisionSchema = {
     snapshot: hash,
     generation: number,
     archived: option(true),
+    lock: option(lock),
 } as const
 ```
 
@@ -33,6 +36,7 @@ export const revisionSchema = {
 | `snapshot`   | `hash`                  | Complete materialized content of this revision. Always stated explicitly. |
 | `generation` | `number`                | Generation number — `0` for the first revision, else `1 + max(parent.generation)` for conforming writers. |
 | `archived`   | `true` (optional)       | Marks the mutable object as archived/inactive.                         |
+| `lock`       | `LockMap` (optional)    | Immutable resolution choices for the revision subjects this snapshot references — see [Lock map](#lock-map). |
 
 `hash` is a cbase32 native CAS address ([fjs/basen/cbase32](../../basen/cbase32/)).
 It is the only snapshot-reference type this dialect accepts: `parents` and
@@ -61,10 +65,18 @@ The rule that produces it: **a field whose absent value would have to be
 *derived from other data* is required; optional is reserved for fields whose
 absent value is a constant default.** `snapshot` and `generation` are required
 because their absence would force inference (a resolution algorithm and an
-ancestry walk, respectively). `archived` is the documented boundary of the
-rule and stays **optional**: its absence is the constant `false`, derivable
-from nothing, so the `option(true)` presence-flag idiom is exactly right —
-forcing `archived: false` onto every blob would be pure noise.
+ancestry walk, respectively). `archived` and `lock` are the two fields on the
+permitted side of the rule and stay **optional**: `archived`'s absence is the
+constant `false`, so the `option(true)` presence-flag idiom is exactly right —
+forcing `archived: false` onto every blob would be pure noise — and `lock`'s
+absence is the constant empty map, "this revision records no resolution
+choices". Neither absence is derived from anything.
+
+An absent `lock` is not a promise that none is needed. What a resolver does
+when a binding it wants is missing — consult heads, ask the caller, refuse — is
+its algorithm, not this format's, and that is a statement about resolution, not
+about the revision being interpretable. The blob still states its own content
+and order completely.
 
 Inference has not disappeared; it moved to the write boundary. The `evo_add`
 API ([fjs/cas/evo](../../cas/evo/)) keeps its input conveniences — infer
@@ -72,6 +84,132 @@ API ([fjs/cas/evo](../../cas/evo/)) keeps its input conveniences — infer
 `snapshot` (zero parents → `subject` as the reference, one parent → the
 parent's snapshot) — and writes every field explicitly. APIs infer; the stored
 record never does.
+
+## Lock map
+
+A revision pins its own content, but that content may reference *other*
+revision subjects. Resolving those through their current heads makes processing
+non-reproducible: the same revision yields a different result later even though
+its snapshot never changed. `lock` is where the resolution choices are
+recorded, so the same revision can be processed the same way twice.
+
+```ts
+type LockMap = {
+    readonly[k in string]?: string | LockMap
+}
+```
+
+A key is a **subject**; a value is either one content hash or a nested,
+subject-scoped map. A missing key reads as `undefined`; empty and partial maps
+are valid. The recursion is written into the mapped type directly because a
+type alias may not reach itself through another alias's instantiation, so
+`StringMap<…>` would be TS2456 — see
+[fjs/types/object](../../types/object/). A leaf hash is *content* selected for
+the subject — the same kind of value `snapshot` carries — not the hash of a
+revision blob.
+
+```json
+{
+  "B": "snapshot-hash-of-B",
+  "C": "snapshot-hash-of-C"
+}
+```
+
+Validation is structural plus one refinement, and stays store-independent like
+the rest of this module: the recursive record shape, and every leaf decoding as
+a cbase32 hash. Nothing is loaded, so no referenced revision's `subject` is ever
+compared against a key. Keys are subjects and are therefore never validated as
+hashes, exactly as `subject` isn't.
+
+**Why here and not in a lock file.** `package-lock.json`, `deno.lock`,
+`bun.lock`, and `Cargo.lock` solve the same problem by generating a file. Keeping
+such a file inside the source snapshot mixes source changes with
+external-resolution changes; giving lock content its own history would duplicate
+`subject`/`parents`/`generation`/`snapshot` wholesale. A lock map is not a
+history object — it has no subject, no parents, no generation, no independent
+lifecycle. It is resolver *input*, and it rides on the one history mechanism
+there is.
+
+The revision DAG already represents every kind of change. A dependency-only
+update keeps the snapshot and moves the lock:
+
+```text
+R0: snapshot = S0, lock = M0
+R1: parents = [R0], snapshot = S0, lock = M1
+```
+
+An application may present that as "source unchanged, dependencies updated" by
+comparing fields — an interpretation of revision data, not a reason for a second
+history. Re-resolving an *old* object rather than moving to newer source is an
+ordinary fork from the old revision.
+
+### What the format does not decide
+
+The starting point of processing is the revision's own binding,
+`subject -> snapshot`. Beyond that the format defines **no** precedence,
+inheritance, scope-lookup, conflict-resolution, dependency-discovery, or
+head-selection rule. In particular, all of these are structurally valid and are
+accepted:
+
+- an entry for the revision's own subject (`subject: A, snapshot: hashA1,
+  lock: { A: hashA0 }`) — a second candidate a resolver may ignore, warn about,
+  or use in a different scope;
+- bindings for subjects a given resolver never asks about — one map can be
+  reused by several related objects;
+- a missing binding for a subject it does ask about;
+- a nested map that omits the subject it appears under, or that omits entries
+  present in the enclosing map.
+
+A nested map records *scoped* information — its intended use is an incompatible
+diamond, `A -> B -> D(v1)` and `A -> C -> D(v2)`:
+
+```json
+{
+  "B": { "B": "snapshot-hash-of-B", "D": "snapshot-hash-of-D-v1" },
+  "C": { "C": "snapshot-hash-of-C", "D": "snapshot-hash-of-D-v2" }
+}
+```
+
+Whether a nested map overlays, replaces, or inherits from the map enclosing it
+is the resolver's rule; the format records the nesting and nothing more. Flat
+maps stay the common representation — nest only when one flat binding per
+subject cannot express the available information.
+
+### Sufficiency is per invocation, not a property of the map
+
+A lock map is not intrinsically "partial" or "complete". Whether it suffices
+depends on the resolver and its version, the starting revision and operation,
+the resolver's configuration and caller-provided inputs, and the dependencies
+discovered while examining content. A map is **sufficient for one resolver
+invocation** when that resolver finishes without making an additional unrecorded
+choice. `{ "B": … }` is sufficient for a resolver that discovers only `A -> B`,
+and insufficient for one that reads B's content and finds `B -> C`. Use
+*partial* and *complete* as contextual shorthand, never as properties readable
+off the map.
+
+A resolver may use the entries directly, walk first-parent or multi-parent
+history, combine caller-provided data with the revision-local map, inspect
+content for further dependencies, consult mutable heads, reject unresolved
+ambiguity, apply its own deterministic policy, or return an updated map holding
+what it used and discovered. Consulting history costs no reproducibility —
+every parent reference is an immutable hash — but reproducibility still requires
+compatible resolver semantics, and a returned map is not thereby universally
+complete.
+
+### Cycles
+
+Mutually recursive subjects resolve from a flat map because entries select
+snapshot hashes, not revision hashes. A revision's bytes include its own lock
+map, so a lock pointing at *revisions* would make two subjects that reference
+each other unhashable. Pointing at snapshots does not: with A referencing B and
+C, and B referencing A and C, processing A's revision under
+
+```json
+{ "B": "snapshot-hash-of-B", "C": "snapshot-hash-of-C" }
+```
+
+plus the starting binding `A -> revision.snapshot` gives a resolver the full
+environment for all three, with no content-addressing cycle anywhere.
 
 ## Media type and dialect tag
 
@@ -114,6 +252,16 @@ one. This is why incremental diffs are not a field here: an optional
 reader would still validate such a blob and materialize the base, silently
 ignoring the changes). Incremental changes are a future separate dialect,
 `vnd.fjs.change`, served as `application/vnd.fjs.change+json`.
+
+**`lock` is the same kind of risk, admitted through the same open window.**
+Adding `lock` is schema-additive, but a reader that ignores it would process
+the snapshot against mutable resolutions and silently produce a
+non-reproducible result — semantically the `changes` case, not a free extension.
+It keeps the tag for exactly one reason, the same one that allowed making
+`snapshot` and `generation` required in place: no `vnd.fjs.revision` record has
+ever been stored, so there is no old reader to mislead. That window closes the
+moment the first revision is written, and after it a field with this profile
+needs a new dialect (`vnd.fjs.revision2`) rather than a quiet addition.
 
 **Relaxing a required field is also incompatible.** Making a currently
 required field (`snapshot`, `generation`) optional again is allowed, but only
@@ -206,6 +354,22 @@ the existing `option(true)` idiom (a presence-only flag) rather than
 - Store-touching evolution operations — head resolution, materialization,
   per-object reverse indexes — are a separate, deferred concern. This module
   is the pure format and its schema/detection only.
+- Every resolution algorithm a `lock` map feeds: precedence against the
+  starting binding, nested-scope lookup, inheritance, conflict resolution,
+  dependency discovery, head selection, and the processor interface that
+  accepts a lock and returns an updated one
+  ([todo/lock-resolver-interface.md](todo/lock-resolver-interface.md)). The
+  format records choices; it never makes them.
+- A separate lock/freeze history format with its own `parents`/`generation`,
+  and ecosystem-specific npm/Deno/Bun/Cargo/Nix adapters. A shared,
+  history-free `vnd.fjs.lock` blob — so a large or shared environment need not
+  be repeated inline, with a hash in a lock map (or the whole `lock` field)
+  referencing it, recognized by the target's content dialect — is a possible
+  future extension, deliberately not in this first version.
+- Full build reproducibility. A lock map pins the resolution of revision
+  subjects; compiler versions, platforms, configuration, undeclared
+  environment state, and nondeterministic processors are outside what it can
+  say anything about.
 - The incremental-change dialect `vnd.fjs.change` (event log, likely
   CRDT-based) and how it links to revisions — a future, separate dialect
   ([fjs/media change-content-format](../todo/change-content-format.md)).
