@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- `fjs/media/revision`: revisions may carry an optional recursive `lock` map,
+  pinning the immutable content chosen for the revision subjects a snapshot
+  references so processing is reproducible; `fjs/cas/evo` stores and returns it
+  untouched
+  [#1445](https://github.com/functionalscript/functionalscript/pull/1445)
+
 ## 0.43.0
 
 - **BREAKING CHANGES:** `fjs/types/object`: `StringMap<T>` takes one type
