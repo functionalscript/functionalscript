@@ -14,7 +14,7 @@
  *
  * @module
  */
-import { array, number, option, string } from '../../types/rtti/module.f.ts'
+import { array, number, option, or, record, string } from '../../types/rtti/module.f.ts'
 import { validate as rttiValidate, type ValidationError } from '../../types/rtti/validate/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
 import { parse as parseJson, type Unknown } from '../json/module.f.ts'
@@ -42,6 +42,8 @@ export const mediaType = `application/${dialect}+json` as const
  */
 export const hash = string
 
+export const lock = () => ['record', or(hash, lock)] as const
+
 /**
  * rtti schema for a `revision` BLOB. See the README for the full semantics of
  * each field; `dialect` is the type discriminant, matched here as an exact
@@ -54,6 +56,7 @@ export const revisionSchema = {
     snapshot: hash,
     generation: number,
     archived: option(true),
+    lock: option(lock),
 } as const
 
 /** The TypeScript type derived from {@link revisionSchema} — the single source of truth. */
