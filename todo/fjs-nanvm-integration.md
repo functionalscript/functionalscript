@@ -50,9 +50,10 @@ cleans obsolete generated `.js`, and removes the blanket `**/*.js` ignore so
 Before stage 2 renames any repository source, complete the focused
 [`f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md) prerequisite.
 A standalone authored `.f.js` must be directly included in TypeScript checking,
-receive a generated `.d.ts`, survive cleanup, be included in the packed NPM
-artifact, and work from a clean consumer. Compiler acceptance alone is not a
-sufficient rename gate.
+receive a generated `.d.ts`, be included in the packed NPM artifact, and work
+from a clean consumer. Stage-2 package and publish validation runs from a clean
+CI checkout, so generated-output cleanup or repeated-pack safety is not part of
+this prerequisite. Compiler acceptance alone is not a sufficient rename gate.
 
 Only then does the repository compiler-compatibility migration use:
 
@@ -108,8 +109,8 @@ via the `Function` constructor — no rustc at the user's run time.
       `**/*.js` `.gitignore` rule.
 - [ ] Complete
       [package support for authored `.f.js`](../fjs/ci/todo/f-js-package-support.md),
-      including direct type-checking, declaration emission, cleanup safety,
-      packing, and clean-consumer tests.
+      including direct type-checking, declaration emission, packing, and
+      clean-consumer runtime/type tests.
 - [ ] Verify `.js` is trackable and authored `.f.js` is a first-class package
       source before the first compiler-compatibility rename.
 - [ ] Convert the first eligible dependency-closed repository module or group
