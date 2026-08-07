@@ -95,7 +95,7 @@
  * @module
  */
 
-import { assert } from '../asserts/module.f.ts'
+import { assert } from '../asserts/module.f.mjs'
 import { fold, type List } from '../types/list/module.f.ts'
 import { at } from '../types/object/module.f.ts'
 import type { Option } from '../types/option/module.f.ts'

@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { fileCas } from '../../cas/module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.ts'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.ts'

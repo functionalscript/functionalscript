@@ -2,7 +2,7 @@ import type { Effect } from '../effects/module.f.ts'
 import { log, type NodeProgramOptions, type Sandbox, type Write } from '../effects/node/module.f.ts'
 import { defaultNodeProgramOptions, emptyState, type JsModule } from '../effects/node/virtual/module.f.ts'
 import { virtual } from '../effects/node/virtual/module.f.ts'
-import { assert, assertEq } from '../asserts/module.f.ts'
+import { assert, assertEq } from '../asserts/module.f.mjs'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,

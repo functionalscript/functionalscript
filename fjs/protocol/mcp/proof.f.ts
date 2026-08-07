@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { pure, step, type Operation } from '../../effects/module.f.ts'
 import { eff } from '../../effects/eff/module.f.ts'
 import type { Effect } from '../../effects/module.f.ts'

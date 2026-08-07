@@ -1,7 +1,7 @@
 import { utf8 } from '../../text/module.f.ts'
 import { repeat, uint, vec } from '../../types/bit_vec/module.f.ts'
 import { flip } from '../../types/function/module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 import { map } from '../../types/list/module.f.ts'
 import {
     base32,

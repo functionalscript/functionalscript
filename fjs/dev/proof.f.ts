@@ -1,4 +1,4 @@
-import { assert, assertEq, todo } from '../asserts/module.f.ts'
+import { assert, assertEq, todo } from '../asserts/module.f.mjs'
 import { shouldLoad } from './module.f.ts'
 
 export const proof = {

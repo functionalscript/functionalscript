@@ -8,7 +8,7 @@ import { error, ok, type Ok } from '../types/result/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { join } from '../path/module.f.ts'
 import { nonEmpty, empty, type List } from '../effects/list/module.f.ts'
-import { assert, assertEq, assertNotNullish } from '../asserts/module.f.ts'
+import { assert, assertEq, assertNotNullish } from '../asserts/module.f.mjs'
 
 const testDir = './test-cas-cli'
 

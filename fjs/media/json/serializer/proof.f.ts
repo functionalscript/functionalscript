@@ -1,7 +1,7 @@
 import { arrayWrap, boolSerialize, numberSerialize, objectWrap, stringSerialize } from './module.f.ts'
 import * as list from '../../../types/list/module.f.ts'
 import { concat } from '../../../types/string/module.f.ts'
-import { assertEq } from '../../../asserts/module.f.ts'
+import { assertEq } from '../../../asserts/module.f.mjs'
 
 const { toArray } = list
 
