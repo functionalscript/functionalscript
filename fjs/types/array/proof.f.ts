@@ -1,9 +1,16 @@
-import { at, first, last, head, tail, splitFirst, splitLast, empty } from './module.f.ts'
+import { at, first, last, head, tail, splitFirst, splitLast, empty } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 
 const stringify = jsonStringify(sort)
+
+type _Tuple<N extends number, T, R extends readonly T[]> =
+    N extends R['length'] ? R : ArrayXY<N, T, readonly[...R, T]>
+
+type ArrayX<N extends number, T> = ArrayXY<N, T, readonly[]>
+
+type A = ArrayX<512, number>
 
 export const proof = {
     stringify: () => {

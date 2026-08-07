@@ -3,7 +3,7 @@
  *
  * @module
  */
-import type { Array1, Array2 } from '../../array/module.f.ts'
+import type { Array1, Array2 } from '../../array/module.f.mjs'
 
 export type Leaf1<T> = Array1<T>
 

@@ -7,7 +7,7 @@ import { collapseRoot, type Leaf1, type TNode, type Branch1, type Branch3, type 
 import type { Compare } from '../../function/compare/module.f.ts'
 import { type Path, type PathItem, find } from '../find/module.f.ts'
 import { fold, concat, next } from '../../list/module.f.ts'
-import type { Array2 } from '../../array/module.f.ts'
+import type { Array2 } from '../../array/module.f.mjs'
 import { map } from '../../nullable/module.f.mjs'
 
 type Leaf01<T> = null | Leaf1<T>

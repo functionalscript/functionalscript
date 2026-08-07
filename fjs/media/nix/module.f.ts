@@ -9,7 +9,7 @@
  */
 import { toArray, type List as ChunkList } from '../../types/list/module.f.ts'
 import { concat } from '../../types/string/module.f.ts'
-import { includes } from '../../types/array/module.f.ts'
+import { includes } from '../../types/array/module.f.mjs'
 import {
     digitRange,
     latinCapitalLetterRange,

@@ -6,36 +6,66 @@
 
 import { fromUndefined, map } from '../nullable/module.f.mjs'
 
-export const isArray = (value: unknown): value is readonly unknown[] =>
-    value instanceof Array
+/**
+ * @type {(value: unknown) => value is readonly unknown[]}
+ */
+export const isArray = value => value instanceof Array
 
-export type Array1<T> = readonly [T]
+/**
+ * @template {number} N, T
+ * @typedef {N extends 0 ? readonly[] : ArrayX<(N - 1), T>} ArrayX
+ */
 
-export type Index1 = 0
+/**
+ * @template {readonly unknown[]} P, T
+ * @typedef {readonly[...P, T]} Push
+ */
 
-export type Array2<T> = readonly [T, T]
+/**
+ * @template T
+ * @typedef {readonly[T]} Array1
+ */
+
+/** @typedef {0} Index1 */
+
+/**
+ * @template T
+ * @typedef {Push<Array1<T>, T>} Array2
+ */
 
 /**
  * Currently, TypeScript can't narrow the type of `readonly T[]` to `Array2<T>`
  * only by checking `a.length === 2`, so we need a user-defined type guard.
  *
- * @param a An array of unknown length.
- * @returns True if `a` has length 2, and `a` is narrowed to `Array2<T>` in that case.
+ * @template T
+ * @param {readonly T[]} a An array of unknown length.
+ * @returns {a is Array2<T>} True if `a` has length 2, and `a` is narrowed to `Array2<T>` in that case.
  */
-export const isArray2 = <T>(a: readonly T[]): a is Array2<T> =>
-    a.length === 2
+export const isArray2 = a => a.length === 2
 
-export type Tuple2<T0, T1> = readonly [T0, T1]
+/**
+ * @template T0, T1
+ * @typedef {Push<Array1<T0>, T1>} Tuple2
+ */
 
-export type Index2 = 0 | 1
+/** @typedef {0|1} Index2 */
 
-export type Array3<T> = readonly [T, T, T]
+/**
+ * @template T
+ * @typedef {Push<Array2<T>, T>} Array3
+ */
 
-export type Tuple3<T0, T1, T2> = readonly [T0, T1, T2]
+/**
+ * @template T0, T1, T2
+ * @typedef {readonly[T0, T1, T2]} Tuple3
+ */
 
-export type Index3 = Index2 | 2
+/** @typedef {Index2|2} Index3 */
 
-export type Array4<T> = readonly [T, T, T, T]
+/**
+ * @template T
+ * @typedef {readonly[T, T, T, T]} Array4
+ */
 
 export type Index4 = Index3 | 3
 
