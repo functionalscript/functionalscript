@@ -52,6 +52,28 @@ At that point `.f.js` means authored FunctionalScript source that the current
 FunctionalScript compiler must parse and compile. The package is ESM
 (`"type": "module"`), so `.f.js` remains an ESM module.
 
+### TypeScript JavaScript checking prerequisite
+
+Before migrating the first authored `.ts` / `.f.ts` file to `.mjs` / `.f.mjs`,
+enable both `allowJs` and `checkJs` in the root `tsconfig.json`.
+
+The repository currently relies on TypeScript for static checking and declaration
+emission. Once authored source starts moving to JavaScript, those files must join
+the same checked program immediately rather than becoming temporarily unchecked.
+JSDoc replaces TypeScript syntax for types, but TypeScript continues validating
+those types during the migration.
+
+This is a hard ordering requirement:
+
+```text
+enable allowJs + checkJs
+        ↓
+first .ts/.f.ts -> .mjs/.f.mjs migration
+```
+
+The package/emission work must also prevent authored `.mjs` from becoming a
+JavaScript emit target; see [`f-mjs-package-support.md`](./f-mjs-package-support.md).
+
 ### Gradual migration strategy
 
 Stage 1 is intentionally gradual. It does not require converting the whole
@@ -95,7 +117,8 @@ Before the first package-owned source file is migrated, authored `.mjs` must be
 a first-class checked and published source extension. Reuse and generalize the
 work in [`f-mjs-package-support.md`](./f-mjs-package-support.md):
 
-- TypeScript validates `.mjs` with `allowJs` / `checkJs`;
+- enable `allowJs` and `checkJs` before the first source migration;
+- TypeScript validates authored `.mjs` source;
 - declaration emission produces `.d.mts` for authored `.mjs`;
 - NPM includes package-owned `.mjs` and `.d.mts`;
 - repeated packing is safe;
@@ -106,8 +129,28 @@ wording to the new extension meaning before implementation: `.f.mjs` is authored
 FunctionalScript-intent JavaScript; compiler readiness is represented later by
 `.f.js`.
 
+### End of stage 1: make `.js` authorable again
+
+The current `.gitignore` ignores all `**/*.js` because `.js` is generated from
+TypeScript today. Keep that rule throughout the gradual TypeScript migration so
+generated JavaScript cannot accidentally become authored source.
+
+After the last authored `.ts` / `.f.ts` file is removed:
+
+1. remove the TypeScript-to-JavaScript emission path;
+2. clean obsolete generated `.js` outputs;
+3. remove the blanket `**/*.js` rule from `.gitignore` so `.js` files can be
+   tracked again;
+4. only then begin the compiler-compatibility `.f.mjs` -> `.f.js` migration.
+
+Generated declaration ignores (`.d.ts` / `.d.mts`) are independent and may stay.
+The important boundary is that `.js` becomes authorable only after TypeScript can
+no longer generate conflicting `.js` files from repository source.
+
 ### Tasks
 
+- [ ] Enable `allowJs` and `checkJs` in the root `tsconfig.json` before the first
+      `.ts` / `.f.ts` source migration.
 - [ ] Generalize authored-`.mjs` validation, declaration emission, packaging,
       and clean-consumer tests from
       [`f-mjs-package-support.md`](./f-mjs-package-support.md).
@@ -134,11 +177,15 @@ FunctionalScript-intent JavaScript; compiler readiness is represented later by
       `**BREAKING CHANGES:**` convention where applicable.
 - [ ] Remove the TypeScript-to-JavaScript emission path after the last authored
       `.ts` / `.f.ts` source file is migrated.
+- [ ] Remove obsolete generated `.js` outputs and then remove `**/*.js` from
+      `.gitignore`, making authored `.js` trackable again.
 - [ ] Update the compiler-compatibility migration documentation so it is
       `.f.mjs` -> `.f.js` and explicitly **blocked by** this task.
 
 ### Acceptance criteria
 
+- `allowJs` and `checkJs` are enabled before any authored source moves from
+  TypeScript to JavaScript.
 - No authored `.ts` or `.f.ts` source files remain in the repository.
 - The migration was able to proceed incrementally from dependency leaves toward
   callers; it did not require a repository-wide atomic rename.
@@ -153,10 +200,11 @@ FunctionalScript-intent JavaScript; compiler readiness is represented later by
 - The migration does not depend on the current FunctionalScript parser feature
   set.
 - `.f.mjs` no longer promises current-compiler compatibility.
-- `.f.js` is not authored until TypeScript source emission can no longer produce
-  that extension.
+- After TypeScript source and JavaScript emission are gone, `.gitignore` no
+  longer blanket-ignores `.js`, so authored `.f.js` can be committed.
 - The existing compiler-compatibility migration is explicitly **blocked by**
-  this task and starts only after all authored TypeScript is gone.
+  this task and starts only after all authored TypeScript is gone and `.js` is
+  trackable again.
 
 ### Follow-up: compiler compatibility
 
