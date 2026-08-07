@@ -96,10 +96,12 @@
  */
 
 import { assert } from '../asserts/module.f.mjs'
-import { fold /*, type List */ } from '../types/list/module.f.ts'
+import { fold } from '../types/list/module.f.ts'
 import { at } from '../types/object/module.f.ts'
-// import type { Option } from '../types/option/module.f.ts'
-// import type { Result } from '../types/result/module.f.ts'
+
+/** @import { List } from '../types/list/module.f.ts' */
+/** @import { Option } from '../types/option/module.f.ts' */
+/** @import { Result } from '../types/result/module.f.ts' */
 
 /**
  * @typedef {readonly[string, (..._: readonly never[]) => unknown]} Operation
@@ -321,19 +323,22 @@ export const mapStep = (e, f) => step(e, t => pure(f(t)))
  * rather than a traversal, but a long chain makes the positions hard to count.
  * When that starts to hurt, collapse it into a record of named fields
  * (`pure({ hash, revision } as const)`) and start a fresh history from there.
+ *
+ * // `Readonly<P>` is load-bearing: inferring `P` from a bare rest parameter
+ * // yields a *mutable*, labelled tuple (`[next: string]`), which then rejects
+ * // the `readonly` tuples every history is built from.
+ *
+ * @type {<
+ *  O extends Operation,
+ *  P extends readonly unknown[],
+ *  Q extends Operation,
+ *  R
+ * >(
+ *   e: History<O, P>,
+ *   f: (...p: Readonly<P>) => Effect<Q, R>
+ * ) => History<O | Q, readonly[R, ...P]>}
  */
-export const historyStep = <
-    O extends Operation,
-    P extends readonly unknown[],
-    Q extends Operation,
-    R
->(
-    e: History<O, P>,
-    // `Readonly<P>` is load-bearing: inferring `P` from a bare rest parameter
-    // yields a *mutable*, labelled tuple (`[next: string]`), which then rejects
-    // the `readonly` tuples every history is built from.
-    f: (...p: Readonly<P>) => Effect<Q, R>
-): History<O | Q, readonly[R, ...P]> =>
+export const historyStep = (e, f) =>
     step(e, param => step(f(...param), result => pure([result, ...param])))
 
 /**
@@ -346,17 +351,25 @@ export const historyStep = <
  * chains stop composing: such a step nests its predecessor's tuple instead of
  * flattening it, so link two would have to be spelled differently from link
  * three.
+ *
+ * @type {<O extends Operation, T>(e: Effect<O, T>) => History<O, readonly[T]>}
  */
-export const history = <O extends Operation, T>(e: Effect<O, T>): History<O, readonly[T]> =>
-    step(e, v => pure([v]))
+export const history = e => step(e, v => pure([v]))
 
-export type Param<O extends Operation> = F<O>[0]
+/**
+ * @template {Operation} O
+ * @typedef {F<O>[0]} Param
+ */
 
-export type Return<O extends Operation> = F<O>[1]
+/**
+ * @template {Operation} O
+ * @typedef {F<O>[1]} Return
+ */
 
-export const do_ =
-    <O extends Operation>(command: O[0]) =>
-    (...payload: Param<O>): Effect<O, Return<O>> =>
+/**
+ * @type {<O extends Operation>(command: O[0]) => (...payload: Param<O>) => Effect<O, Return<O>>}
+ */
+export const do_ = command => (...payload) =>
     ({ command, payload, continuation: pure })
 
 /**
@@ -396,35 +409,41 @@ export const do_ =
  * `forEachStep` — takes its effect first and breaks one argument per line when
  * it wraps (see this module's header): every such call is a statement list, and
  * each line is one statement in execution order.
+ *
+ * @type {<O extends Operation, T, Q extends Operation, S>(
+ *  items: Effect<O, List<T>>,
+ *  init: S,
+ *  f: (item: T) => (state: S) => Effect<Q, S>
+ * ) => Effect<O | Q, S>}
  */
-export const foldStep = <O extends Operation, T, Q extends Operation, S>(
-    items: Effect<O, List<T>>,
-    init: S,
-    f: (item: T) => (state: S) => Effect<Q, S>
-): Effect<O | Q, S> =>
-    step(items, fold<T, Effect<O | Q, S>>(item => acc => step(acc, f(item)))(pure(init)))
+export const foldStep = (items, init, f) =>
+    step(items, fold(item => acc => step(acc, f(item)))(pure(init)))
 
 /**
  * Sequentially runs `f(item)` for each item produced by `items`, discarding
  * intermediate results. The `void` accumulator sibling of {@link foldStep}, and
  * a step variant on the same grounds.
+ *
+ * @type {<O extends Operation, T, Q extends Operation>(
+ *  items: Effect<O, List<T>>,
+ *  f: (item: T) => Effect<Q, void>
+ * ) => Effect<O | Q, void>}
  */
-export const forEachStep = <O extends Operation, T, Q extends Operation>(
-    items: Effect<O, List<T>>,
-    f: (item: T) => Effect<Q, void>
-): Effect<O | Q, void> =>
-    foldStep(items, undefined, (item: T) => () => f(item))
+export const forEachStep = (items, f) =>
+    foldStep(items, undefined, item => () => f(item))
 
 /**
  * A step adapter for the `error` short-circuit: `error` → pass it through
  * unchanged as `pure`, `ok` → continue with `f`. Collapses the hand-written
  * `r[0] === 'error' ? pure(r) : f(r[1])` check that recurs at every site
  * chaining `Effect<O, Result<T, E>>` steps.
+ *
+ * @type {<T, E, O extends Operation, R>
+ *  (f: (value: T) => Effect<O, Result<R, E>>) =>
+ *  (r: Result<T, E>) =>
+ *  Effect<O, Result<R, E>>}
  */
-export const okStep =
-    <T, E, O extends Operation, R>(f: (value: T) => Effect<O, Result<R, E>>) =>
-    (r: Result<T, E>): Effect<O, Result<R, E>> =>
-        r[0] === 'error' ? pure(r) : f(r[1])
+export const okStep = f => r => r[0] === 'error' ? pure(r) : f(r[1])
 
 /**
  * Runs an effect that reaches its value without performing a command: `[t]` for
@@ -446,22 +465,33 @@ export const okStep =
  * not the reverse — a continuation's result is always the wider type and would
  * be rejected. `Do<never, T>` is uninhabited besides, which would make the empty
  * case unreachable without a cast.
+ *
+ * @type {<O extends Operation, T>(e: Effect<O, T>) => Option<T>}
  */
-export const runPure = <O extends Operation, T>(e: Effect<O, T>): Option<T> =>
+export const runPure = e =>
     typeof e === 'function' ? [e()] : []
 
 /**
  * An operation map whose entries take a command's payload and return some
  * output `R`. Generalizes `ToAsyncOperationMap` (`R = Promise<…>`) and the
  * curried `MemOperationMap` (`R = (state) => [state, …]`).
+ *
+ * @template {Operation} O
+ * @template R
+ * @typedef {{
+ *  readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => R
+ * }} OperationMap
  */
-export type OperationMap<O extends Operation, R> = {
-    readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => R
-}
 
-export type MatchResult<O extends Operation, T, R> =
-    | readonly['done', T]
-    | readonly['cont', R, Do<O, T>['continuation']]
+/**
+ * @template {Operation} O
+ * @template T
+ * @template R
+ * @typedef {
+ *  | readonly['done', T]
+ *  | readonly['cont', R, Do<O, T>['continuation']]
+ * } MatchResult
+ */
 
 /**
  * Decodes an effect's next step and dispatches its command to `map`,
@@ -489,21 +519,34 @@ export type MatchResult<O extends Operation, T, R> =
  * (`assert`) rather than widening {@link MatchResult} with a variant no
  * type-correct caller could ever observe — a runner cannot resume a command it
  * has no handler for, so there is nothing for a recovery branch to do.
+ *
+ * @type {<O extends Operation, R>(map: OperationMap<O, R>) =>
+ *  <O1 extends O, T>(e: Effect<O1, T>) =>
+ *  MatchResult<O1, T, R>}
  */
 export const match =
-    <O extends Operation, R>(map: OperationMap<O, R>) =>
-    <O1 extends O, T>(e: Effect<O1, T>): MatchResult<O1, T, R> => {
+    map =>
+    e => {
         if (typeof e === 'function') { return ['done', e()] }
         const { command, payload, continuation } = e
-        const handler = at(command)<OperationMap<O, R>[O[0]]>(map)
+        const handler = at(command)(map)
         assert(handler !== null, command)
         return ['cont', handler(...payload), continuation]
     }
 
-export type ToAsyncOperationMap<O extends Operation> = {
-    readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => Promise<Pr<O, K>[1]>
-}
+/**
+ * @template {Operation} O
+ * @typedef {{
+ *  readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => Promise<Pr<O, K>[1]>
+ * }} ToAsyncOperationMap
+ */
 
-export type F<O extends Operation> = Pr<O, O[0]>
+/**
+ * @template {Operation} O
+ * @typedef {Pr<O, O[0]>} F
+ */
 
-export type Func<O extends Operation> = (..._: Param<O>) => Effect<O, Return<O>>
+/**
+ * @template {Operation} O
+ * @typedef {(..._: Param<O>) => Effect<O, Return<O>>} Func
+ */

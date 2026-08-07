@@ -18,7 +18,7 @@ export const assertPure = <O extends Operation, T>(e: Effect<O, T>, expected: T)
 
 type AddOp = readonly['add', (a: number, b: number) => number]
 
-const next = match<AddOp, number>({ add: (a, b) => a + b })
+const next = match({ add: (a: number, b: number) => a + b })
 
 /**
  * An operation set whose command is any `string`, which is what a `Do` node
@@ -187,7 +187,8 @@ export const proof = {
         overDo: () => {
             // The captured value survives a command boundary: the history is
             // rebuilt inside the continuation rather than lost when `e` is a Do.
-            const c = next(historyStep(history(do_<AddOp>('add')(2, 3)), r => pure(r * 10)))
+            const x = historyStep(history(do_<AddOp>('add')(2, 3)), r => pure(r * 10))
+            const c = next(x)
             assert(c[0] === 'cont', c)
             assertEq(c[1], 5)
             const o = runPure(c[2](c[1]))
