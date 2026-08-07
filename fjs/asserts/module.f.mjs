@@ -52,7 +52,7 @@ export const assertEq = (...x) => {
  *
  * @type {<T>(a: T|null|undefined, msg?: unknown) => T}
  */
-export const assertNotNullish = (a, msg = undefined) => {
+export const assertNotNullish = (a, msg) => {
     assert(a !== null && a !== undefined, msg)
     return a
 }
