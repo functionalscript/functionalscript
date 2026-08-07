@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../../asserts/module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { access, awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes } from '../module.f.ts'
 import { maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.ts'
 import { emptyState, virtual, type Dir, type JsModule } from './module.f.ts'

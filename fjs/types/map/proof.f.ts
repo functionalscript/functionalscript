@@ -1,5 +1,5 @@
 import { mapSet, mapDelete } from './module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
     set: () => {

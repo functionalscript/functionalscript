@@ -1,7 +1,7 @@
 import { sort } from '../../types/object/module.f.ts'
 import { run } from './module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
     test: () => {

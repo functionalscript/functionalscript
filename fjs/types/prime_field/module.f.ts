@@ -8,7 +8,7 @@
  */
 import type { Unary, Reduce } from '../bigint/module.f.ts'
 import { repeat } from '../../common/monoid/module.f.ts'
-import { assertNotNullish } from '../../asserts/module.f.ts'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 
 /**
  * A type representing a prime field and its associated operations.

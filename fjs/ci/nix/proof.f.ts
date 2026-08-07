@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { step } from '../../effects/module.f.ts'
 import { readUtf8File } from '../../effects/node/module.f.ts'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.ts'

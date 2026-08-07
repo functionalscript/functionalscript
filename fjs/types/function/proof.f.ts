@@ -1,5 +1,5 @@
 import { fn } from './module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = () => {
     const f: (x: string) => readonly[string]

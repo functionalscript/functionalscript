@@ -1,5 +1,5 @@
 import { sum, min, max, cmp, countOnes } from './module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
     sum: () => {

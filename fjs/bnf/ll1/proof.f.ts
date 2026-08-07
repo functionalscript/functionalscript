@@ -4,7 +4,7 @@ import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.ts'
 import { deterministic } from '../testlib.f.ts'
 import { type RuleSet, toData } from '../data/module.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet } from './module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
     dispatch: [
