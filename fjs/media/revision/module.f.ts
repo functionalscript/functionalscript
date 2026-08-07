@@ -21,7 +21,7 @@ import { parse as parseJson, type Unknown } from '../json/module.f.ts'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.ts'
 import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { dialectEntry, type DialectEntry } from '../module.f.ts'
-import { definedEntries, sort, type StringMap } from '../../types/object/module.f.ts'
+import { definedEntries, sort } from '../../types/object/module.f.ts'
 import { stringify } from '../json/module.f.ts'
 
 /**
@@ -44,11 +44,11 @@ export const mediaType = `application/${dialect}+json` as const
  */
 export const hash = string
 
-/** A flat set of subject-to-snapshot bindings supplied to dependency resolvers. */
-export type LockMap = StringMap<string>
-
 /** Structural schema for a Stage 1 flat lock map. */
 const lock = record(string)
+
+/** A flat set of subject-to-snapshot bindings supplied to dependency resolvers. */
+export type LockMap = Ts<typeof lock>
 
 /**
  * rtti schema for a `revision` BLOB. See the README for the full semantics of

@@ -130,13 +130,14 @@ export const revisionSchema = {
 } as const
 ```
 
-The derived TypeScript type is an open map:
+Derive the exported TypeScript type from the schema so they remain one source
+of truth:
 
 ```ts
-type LockMap = StringMap<string>
+export type LockMap = Ts<typeof lock>
 ```
 
-Equivalently:
+This resolves to the open map:
 
 ```ts
 type LockMap = {
@@ -223,8 +224,8 @@ other lock maps.
 - [x] Change revision writing from `stringify(identity)` to `stringify(sort)`.
 - [x] Document that every revision object is recursively serialized with
       lexicographically sorted property names.
-- [x] Define `const lock = record(string)` and export `LockMap` as
-      `StringMap<string>`.
+- [x] Define `const lock = record(string)` and export
+      `LockMap = Ts<typeof lock>`.
 - [x] Add optional `lock` to the revision schema, decoder, exported type,
       README, and examples.
 - [x] Extend media semantic reference validation to check every direct lock
