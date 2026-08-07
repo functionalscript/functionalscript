@@ -10,8 +10,8 @@ After authored TypeScript is removed, `.f.js` will become the marker for
 FunctionalScript source accepted by the current parser/compiler. The existing
 package design, however, is built around authored `.ts` / `.mjs` roots and does
 not yet guarantee that a standalone authored `.f.js` module is directly checked,
-gets a generated `.d.ts`, survives generated-output cleanup, is included in the
-NPM package, or type-checks from a clean consumer.
+gets a generated `.d.ts`, is included in the NPM package, or type-checks from a
+clean consumer.
 
 Compiler compatibility alone is therefore not enough to rename `.f.mjs` to
 `.f.js`. Without explicit package/tooling support, a compiler-ready module could
@@ -37,16 +37,18 @@ source.f.mjs -> source.f.js + source.f.d.ts
 
 The rename from `.f.mjs` to `.f.js` means the source is accepted by the current
 FunctionalScript compiler. TypeScript still checks the authored JavaScript via
-`allowJs` / `checkJs` and emits its declaration. The authored `.f.js` file itself
-must never be treated as generated output or removed by cleanup.
+`allowJs` / `checkJs` and emits its declaration.
 
 Validation must include `.f.js` as an explicit root/source pattern, not merely
 rely on another `.mjs` module importing it. Declaration emission must likewise
 cover standalone `.f.js` modules and produce `.d.ts` files for package
 consumers.
 
-Generated-output cleanup after stage 1 may remove declarations derived from
-authored JavaScript, but it must preserve authored `.mjs` and `.f.js` source.
+Package and publish jobs continue to run in CI from a clean checkout. Stage 2
+therefore does not need generated-output cleanup or repeated local-pack safety;
+it only needs to make sure authored `.f.js` is included as source and never
+mistaken for generated TypeScript output.
+
 NPM packaging must include the authored `.f.js` runtime and its `.d.ts`
 declaration, and clean-consumer tests must verify runtime and type resolution.
 
@@ -60,18 +62,14 @@ rules in [`todo/fjs-nanvm-integration.md`](../../../todo/fjs-nanvm-integration.m
       checked source set with `allowJs` / `checkJs`.
 - [ ] Ensure declaration emission produces `.d.ts` for standalone authored
       `.f.js` modules.
-- [ ] Update generated-output cleanup so it may remove generated declarations
-      for `.f.js` but never removes authored `.f.js` itself.
 - [ ] Verify NPM package rules include authored `.f.js` and its `.d.ts`.
 - [ ] Add an authored `.f.js` package fixture that is not reachable only through
       an `.mjs` root, proving direct source discovery.
 - [ ] Verify the fixture is type-checked in the repository.
-- [ ] Verify repeated `npm pack` remains safe and deterministic with authored
-      `.f.js` present.
+- [ ] Verify the clean CI package build contains the authored `.f.js` and its
+      generated declaration.
 - [ ] Verify a clean consumer can import the `.f.js` runtime and type-check
       against its generated `.d.ts` without repository source files.
-- [ ] Verify cleanup and packing preserve authored `.f.js` while generated
-      declarations are recreated as needed.
 - [ ] Update package/contributor documentation for the stage-2 authored `.f.js`
       meaning.
 
@@ -80,10 +78,10 @@ rules in [`todo/fjs-nanvm-integration.md`](../../../todo/fjs-nanvm-integration.m
 - A standalone authored `.f.js` is directly included in repository TypeScript
   checking.
 - Declaration emission produces a corresponding `.d.ts`.
-- Generated cleanup never removes authored `.f.js`.
 - The packed NPM artifact contains the authored `.f.js` and all declarations
   required by its public/transitive type graph.
-- Two consecutive package builds succeed without manual cleanup.
+- Package/publish runs start from a clean CI checkout; no local generated-output
+  cleanup or repeated-pack guarantee is required.
 - A clean consumer can execute/import the `.f.js` runtime and type-check it.
 - No staging tree or package-time runtime/declaration specifier rewrite is
   required.
