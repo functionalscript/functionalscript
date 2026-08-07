@@ -6,8 +6,7 @@
     "**/*.js",
     "**/*.d.ts",
     "**/*.mjs",
-    "**/*.d.mts",
-    "!**/benchmark.mjs"
+    "**/*.d.mts"
   ],
   "description": "FunctionalScript is a purely functional subset of JavaScript",
   "scripts": {
