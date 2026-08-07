@@ -23,6 +23,10 @@ FunctionalScript can't currently be installed from Git using NPM.
 
 - [x] Check if the version is new, then publish.
 
+Package and publish jobs run in CI from a clean checkout. We do not rely on
+packing from a developer working tree, and ignored generated outputs from an
+earlier revision are not part of the package-build state.
+
 ### Authored and generated JavaScript extensions
 
 The repository source migration is split into two stages; see
@@ -56,8 +60,8 @@ is removed and the blanket `**/*.js` ignore is removed. Stage 2 can then use
 `.f.js` as authored compiler-compatible FunctionalScript. Before the first
 `.f.mjs` -> `.f.js` rename, complete
 [`f-js-package-support.md`](./f-js-package-support.md) so standalone authored
-`.f.js` source is directly checked, gets `.d.ts`, survives cleanup, is packed,
-and resolves for a clean consumer.
+`.f.js` source is directly checked, gets `.d.ts`, is packed, and resolves for a
+clean consumer.
 
 ### Stage-1 TypeScript configuration
 
@@ -96,35 +100,37 @@ Non-package `.mjs` files must remain excluded from the packed archive.
 
 ### Stage-1 emission
 
-Publishing requires a repository-owned `clean:generated` script followed by two
-TypeScript emission passes:
+Publishing uses two TypeScript emission passes from the clean CI checkout:
 
 ```json
 {
   "scripts": {
     "emit:declarations": "tsc --noEmit false --emitDeclarationOnly",
     "emit:typescript": "tsc --noEmit false --allowJs false --checkJs false --declaration false",
-    "prepack": "npm run clean:generated && npm run emit:declarations && npm run emit:typescript"
+    "prepack": "npm run emit:declarations && npm run emit:typescript"
   }
 }
 ```
 
-The cleanup derives output paths from authored `.ts` and `.mjs` inputs and
-removes only generated `.js`, `.d.ts`, and `.d.mts` artifacts. It must preserve
-authored `.mjs` and unrelated files and must not use broad working-tree cleanup.
-
-Declaration emission covers both authored extensions:
+The first pass emits declarations for both authored extensions:
 
 ```text
 source.ts  -> source.d.ts
 source.mjs -> source.d.mts
 ```
 
-JavaScript emission excludes JavaScript inputs and emits only from TypeScript:
+The second pass disables JavaScript inputs and emits runtime JavaScript only
+from TypeScript:
 
 ```text
 source.ts -> source.js
 ```
+
+This split avoids trying to overwrite authored `.mjs`. No generated-output
+cleanup is needed before packaging because the CI package job starts from a
+clean checkout. In particular, after `source.ts` is renamed to `source.mjs`, an
+ignored `source.js` / `source.d.ts` from a developer's older working tree cannot
+appear in the CI package job.
 
 Authored `.mjs` is copied without rewriting runtime imports, and emitted
 `.d.mts` specifiers are not rewritten. Stage-1 migration is therefore
@@ -143,8 +149,7 @@ source.f.js -> source.f.js + source.f.d.ts
 ```
 
 TypeScript with `allowJs` / `checkJs` must include authored `.f.js` directly in
-its checked source roots and declaration emission. Cleanup may recreate its
-`.d.ts`, but must never delete authored `.f.js`. NPM and clean-consumer tests
+its checked source roots and declaration emission. NPM and clean-consumer tests
 must cover both runtime and declarations. These requirements are owned by
 [`f-js-package-support.md`](./f-js-package-support.md).
 
