@@ -79,12 +79,14 @@ validate both authored TypeScript and JavaScript by enabling:
 }
 ```
 
-Enabling `checkJs` includes `fjs/types/bigint/benchmark.mjs`. Before enabling it,
-either make the benchmark pass TypeScript validation or delete it if it is no
-longer needed. The benchmark should not be excluded from `tsconfig.json`.
+Enabling `checkJs` includes `fjs/types/bigint/benchmark.mjs`; keep it checked
+like any other authored JavaScript. Its eventual removal is independent cleanup
+and is not a prerequisite for the migration.
 
-NPM must include both stage-1 runtime extensions and both declaration extensions.
-Non-package `.mjs` files must remain excluded from the packed archive.
+NPM must include the stage-1 runtime and declaration extensions. It is not
+necessary to special-case incidental non-public authored `.mjs` files: for
+example, packing `benchmark.mjs` is harmless because it exposes no documented
+public API. Such files can be removed later when no longer useful.
 
 ### Stage-1 emission
 
