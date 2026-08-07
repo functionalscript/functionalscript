@@ -45,6 +45,13 @@ authored TypeScript remains. `.f.mjs` during that stage means authored
 FunctionalScript-intent JavaScript; it does not promise that the current
 FunctionalScript compiler accepts the module.
 
+Stage 1 also owns the transition that makes `.js` authorable again. Once the last
+TypeScript source is removed, it removes the TypeScript-to-JavaScript emission
+path, cleans obsolete generated `.js`, and removes the blanket `**/*.js` rule
+from `.gitignore`. The compiler-compatibility migration must not create authored
+`.f.js` before that boundary, because those files would otherwise conflict with
+the repository's generated-JavaScript convention and remain ignored by Git.
+
 Only after that prerequisite is complete does this TODO start the
 compiler-compatibility migration:
 
@@ -52,10 +59,11 @@ compiler-compatibility migration:
 module.f.mjs -> module.f.js
 ```
 
-At that point `.f.js` is available as an unambiguous authored-source marker
-because TypeScript no longer emits generated `.f.js` from `.f.ts` source. An
-authored `.f.js` module must be accepted by the FunctionalScript parser and
-compiler in the same repository revision.
+At that point `.f.js` is available as an unambiguous, trackable authored-source
+marker because TypeScript no longer emits generated `.f.js` from `.f.ts` source
+and `.gitignore` no longer blanket-ignores `.js`. An authored `.f.js` module must
+be accepted by the FunctionalScript parser and compiler in the same repository
+revision.
 
 Compiler-compatibility migration is incremental. Select a dependency-closed
 `.f.mjs` module or coherent group whose complete syntax and required dependency
@@ -100,7 +108,11 @@ via the `Function` constructor — no rustc at the user's run time.
 - [ ] Prove the pipeline with a minimal synthetic JavaScript FunctionalScript
       subset: a constant default export compiled by `fjs` to `.rs`, built and
       run by cargo, with the result printed to stdout as JSON.
-- [ ] Complete [migrate authored TypeScript to `.mjs`](../fjs/ci/todo/migrate-typescript-to-mjs.md).
+- [ ] Complete [migrate authored TypeScript to `.mjs`](../fjs/ci/todo/migrate-typescript-to-mjs.md),
+      including removal of TypeScript JavaScript emission and the blanket
+      `**/*.js` `.gitignore` rule.
+- [ ] Verify `.js` files are trackable before creating the first authored
+      compiler-compatible `.f.js` module.
 - [ ] After that dependency is complete, convert the first eligible
       dependency-closed repository module or group from `.f.mjs` to `.f.js` and
       keep it in the end-to-end compiler, proof, coverage, type-checking,
@@ -110,7 +122,8 @@ via the `Function` constructor — no rustc at the user's run time.
 ### Related
 
 - [migrate authored TypeScript to `.mjs`](../fjs/ci/todo/migrate-typescript-to-mjs.md)
-  — **blocked-by prerequisite** for repository compiler-compatibility migration.
+  — **blocked-by prerequisite** for repository compiler-compatibility migration,
+  including the point where `.js` becomes authored and trackable again.
 - [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — MVP
   definition and task list.
 - [nanvm-lib/todo/console-program.md](../nanvm-lib/todo/console-program.md) —
