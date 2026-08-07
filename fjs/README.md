@@ -9,8 +9,11 @@ node ./fjs/module.ts <command> [args]
 or via `npx` without a global install:
 
 ```sh
-npx fjs <command> [args]
+npx functionalscript <command> [args]
 ```
+
+`npx` resolves the **package** name, not the bin name: `fjs` is an unrelated
+package on npm, so `npx fjs …` would run somebody else's code.
 
 or, once the package is installed globally:
 

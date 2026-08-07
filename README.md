@@ -28,7 +28,7 @@ Install FunctionalScript via npm:
 npm install -g functionalscript
 ```
 
-or run the CLI without installing it, with `npx fjs <command>`.
+or run the CLI without installing it, with `npx functionalscript <command>`.
 
 ### Compiling a module
 
