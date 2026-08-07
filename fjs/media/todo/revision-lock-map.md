@@ -33,6 +33,7 @@ Both stages follow these rules:
 - a direct string value is an immutable content hash selected for the subject;
 - the value is the same kind of content hash carried by `revision.snapshot`,
   not the hash of a revision object;
+- lock-map property order has no semantic meaning;
 - `revision` remains the only history representation;
 - lock maps are resolver input, not objects with their own `subject`,
   `parents`, `generation`, or lifecycle;
@@ -148,6 +149,24 @@ again when reading a revision, using the same cBase32 spelling policy as
 `parents` and `snapshot`. Alias spellings therefore do not create different
 revisions for the same logical lock map.
 
+Evo must also canonicalize lock-map key order before serializing a revision.
+Rebuild the flat map with keys sorted lexicographically, rather than passing the
+caller's insertion order to the current order-preserving JSON serializer.
+`revision(hash)` should return the same key-sorted representation. Therefore:
+
+```ts
+{ B: hashB, C: hashC }
+```
+
+and:
+
+```ts
+{ C: hashC, B: hashB }
+```
+
+produce the same revision bytes and CAS hash. Sorting is serialization
+normalization only; it does not define resolver precedence.
+
 An omitted lock remains omitted. An explicitly empty lock remains an empty map;
 it is not converted to absence because those values may be interpreted
 differently by an application or resolver.
@@ -156,7 +175,7 @@ The Evo documentation table should describe `lock` as:
 
 | field  | as input to `add` | as output of `revision` |
 |--------|-------------------|-------------------------|
-| `lock` | optional flat map; direct hashes validated and canonicalized | optional; present exactly when stored, with canonical direct hashes |
+| `lock` | optional flat map; direct hashes validated and canonicalized; keys sorted before serialization | optional; present exactly when stored, with canonical direct hashes and sorted keys |
 
 The MCP Evo front end exposes `RevisionData`, so `evo_add` and `evo_revision`
 must accept and return the same optional flat lock and test its round trip.
@@ -175,7 +194,7 @@ Example:
 Validation does not load revision objects or require a referenced revision whose
 `subject` matches the map key. It validates the map structure and every direct
 content hash, but the association between the key and the selected content is
-resolver input.
+resolver input. Property order is irrelevant and is normalized by writers.
 
 The revision itself supplies the starting binding:
 
@@ -265,9 +284,10 @@ making additional unrecorded resolution choices.
       and `snapshot`.
 - [ ] Extend Evo `RevisionData` with `readonly lock?: LockMap` while preserving
       the shared add/read round-trip type.
-- [ ] Make Evo `add` validate, canonicalize, and store the optional flat lock.
-- [ ] Make Evo `revision` return the optional lock and canonicalize every direct
-      hash value.
+- [ ] Make Evo `add` validate and canonicalize direct hashes, sort lock keys,
+      and store the normalized optional flat lock.
+- [ ] Make Evo `revision` return the optional lock with canonical direct hashes
+      and lexicographically sorted keys.
 - [ ] Preserve the distinction between an absent lock and an empty lock.
 - [ ] Update Evo README field guarantees and examples.
 - [ ] Update `fjs/mcp/evo` schemas, documentation, and proofs for `evo_add` and
@@ -275,6 +295,8 @@ making additional unrecorded resolution choices.
 - [ ] Add media proofs for absent, empty, and flat lock maps; malformed values;
       invalid hashes; alias hashes; and preservation of entries.
 - [ ] Add Evo proofs for valid, invalid, aliased, empty, and absent lock values.
+- [ ] Add an Evo proof that flat lock maps with different insertion orders
+      produce identical revision bytes and CAS hashes.
 - [ ] Document that direct values select immutable content hashes rather than
       revision hashes.
 - [ ] Document that same-subject, missing, extra, and conflicting historical
@@ -335,9 +357,15 @@ The Evo API does not gain another field or operation in Stage 2. Its existing
 `RevisionData.lock?: LockMap` widens with the shared `LockMap` type.
 
 `add` validates and canonicalizes direct hashes recursively through all nested
-maps before serialization. `revision` recursively canonicalizes all direct
-hashes while preserving the exact nested map structure. Flat maps continue to
-round-trip unchanged.
+maps before serialization. It also sorts keys lexicographically at every map
+level. `revision` recursively canonicalizes direct hashes and key order while
+preserving the nested scope structure. Flat maps continue to round-trip
+unchanged.
+
+Two recursively equivalent maps that differ only in insertion order at the root
+or inside nested scopes must produce identical revision bytes and CAS hashes.
+Recursive sorting is serialization normalization and does not define scope or
+resolver precedence.
 
 The MCP input/output schemas and proofs widen in the same way so nested lock
 maps can pass through `evo_add` and `evo_revision` without flattening or losing
@@ -406,10 +434,12 @@ new dialect/version.
 - [ ] Recursively validate every direct lock string in the media semantic
       reference checker.
 - [ ] Widen Evo `RevisionData.lock` through the shared recursive `LockMap` type.
-- [ ] Recursively validate and canonicalize direct lock hashes in Evo `add` and
-      `revision` while preserving nested structure.
+- [ ] Recursively validate and canonicalize direct lock hashes and sort keys at
+      every nesting level in Evo `add` and `revision`.
 - [ ] Update Evo and MCP documentation, schemas, and proofs for recursive lock
       round trips using the generated `$defs`/`$ref` JSON Schema.
+- [ ] Add a proof that recursively equivalent lock maps with reordered root and
+      nested entries produce identical revision bytes and CAS hashes.
 - [ ] Add nested conflict examples and document their resolver-specific
       semantics.
 - [ ] Preserve Stage 1 flat examples and prove that all flat lock maps remain
