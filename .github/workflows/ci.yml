@@ -61,7 +61,7 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
         }
       ]
     },
@@ -102,7 +102,7 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
         }
       ]
     },
@@ -143,7 +143,7 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
         }
       ]
     },
@@ -184,7 +184,7 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
         }
       ]
     },
@@ -238,7 +238,7 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
         }
       ]
     },
@@ -279,7 +279,7 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
         }
       ]
     },
@@ -395,7 +395,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "deno run -A --minimum-dependency-age=0 npm:functionalscript@0.41.0 t"
+          "run": "deno run -A --minimum-dependency-age=0 npm:functionalscript@0.41.0 test"
         },
         {
           "run": "deno install --frozen"
@@ -424,7 +424,7 @@
           "run": "bun install --frozen-lockfile"
         },
         {
-          "run": "bunx functionalscript@0.41.0 t"
+          "run": "bunx functionalscript@0.41.0 test"
         },
         {
           "run": "bun test --coverage"
@@ -450,7 +450,7 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
         },
         {
           "run": "node --test"

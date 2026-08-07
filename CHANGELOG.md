@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- `ci`: generated workflows invoke the CLI by full command name (`fjs test`,
+  `functionalscript@<version> test`) instead of the `t` alias
+  [#1450](https://github.com/functionalscript/functionalscript/pull/1450)
+
 ## 0.43.1
 
 - `vnd.fjs.revision` gains optional flat subject-to-content lock maps; Evo

@@ -72,11 +72,11 @@ Windows and macOS jobs install.
 ### Expected package scripts
 
 The generated platform jobs run `npm ci`, install the pinned FunctionalScript
-package globally, and run `fjs t`. Canonical Node jobs run on Ubuntu ARM and are
+package globally, and run `fjs test`. Canonical Node jobs run on Ubuntu ARM and are
 split by Node version:
 
 - Node 22 runs `npm ci`, installs the pinned FunctionalScript package globally,
-  and runs `fjs t`.
+  and runs `fjs test`.
 - Node 24 runs `npm ci` and `node --test`.
 - Node 26 runs `npm ci`, `npm run ci-update`, `git add -A && git diff --cached --exit-code`,
   `npx tsc`, `npm run cov`, and `npm pack`.
