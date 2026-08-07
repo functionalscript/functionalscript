@@ -6,7 +6,8 @@ import { dialect, mediaType, isHash, validate, decodeText, encodeText, type Lock
 // cbase32 symbols, cheap to write inline here.
 const h1 = '8'
 const h2 = 'r'
-const alias = 'O' as const
+// `I` is accepted as an alias spelling of canonical cBase32 `1`.
+const alias = 'I' as const
 
 const _lockMapAllowsMissingSubjects: LockMap = {}
 
