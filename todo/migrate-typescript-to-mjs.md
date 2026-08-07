@@ -90,10 +90,9 @@ FunctionalScript parser support is not an eligibility condition. A `.f.ts` file
 may move to `.f.mjs` even if the current FunctionalScript compiler does not yet
 support all syntax in that file.
 
-Type preservation is an eligibility condition. Replace TypeScript-only type
-syntax with the equivalent TypeScript-7 JSDoc form instead of weakening the
-public type contract. In particular, variance annotations are supported on
-JSDoc type aliases through modifiers on `@template`.
+Preserve TypeScript type semantics when translating to JSDoc. In particular,
+TypeScript 7 supports variance annotations on JSDoc type aliases through
+modifiers on `@template`.
 
 For example:
 
@@ -112,11 +111,10 @@ becomes valid JavaScript with JSDoc:
  */
 ```
 
-Use the same form for other variant type parameters: `@template out T`,
-`@template in T`, or `@template {Constraint} out T` / `in T` when constrained.
-The variance modifier belongs to a JSDoc type alias (`@typedef`), matching where
-TypeScript permits `in` / `out`; do not move it onto an ordinary function
-`@template`.
+Use the same form for other variance annotations: `@template out T`,
+`@template in T`, or constrained forms such as `@template {Operation} out O`.
+Variance modifiers belong to a JSDoc type alias (`@typedef`); do not place them
+on an ordinary function's `@template`.
 
 For each migration group:
 
