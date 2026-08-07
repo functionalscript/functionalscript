@@ -24,9 +24,9 @@ all consumers resolve recursion in the same way.
 
 ### Dependency: RTTI data representation
 
-This task depends on
-[`fjs/types/todo/143.md`](../../../types/todo/143.md), which already proposes a
-function-free RTTI data representation modeled after
+This task depends on the
+[RTTI serializable data representation](../../../types/rtti/todo/serializable-data.md),
+which proposes a function-free RTTI data representation modeled after
 [`fjs/bnf/data`](../../../bnf/data/).
 
 That TODO includes the required recursion model: definitions are stored in a
@@ -137,8 +137,8 @@ schema snapshots.
 
 ### Tasks
 
-- [ ] Complete the named/indexed recursive RTTI data representation in
-      [`fjs/types/todo/143.md`](../../../types/todo/143.md).
+- [ ] Complete the named/indexed recursive
+      [RTTI serializable data representation](../../../types/rtti/todo/serializable-data.md).
 - [ ] Add `dataToJsonSchema` over the RTTI data rule set.
 - [ ] Change `toJsonSchema(rtti)` to call RTTI `toData` and then
       `dataToJsonSchema`.
@@ -173,8 +173,8 @@ schema snapshots.
 
 ### Related
 
-- [`fjs/types/todo/143.md`](../../../types/todo/143.md) — serializable RTTI data
-  representation and named/indexed recursion
+- [RTTI serializable data representation](../../../types/rtti/todo/serializable-data.md)
+  — named/indexed recursion shared by RTTI consumers
 - [`fjs/bnf/data`](../../../bnf/data/) — existing function-free grammar data
   representation used as the architectural model
 - [`fjs/media/json/schema/module.f.ts`](../schema/module.f.ts) — current
