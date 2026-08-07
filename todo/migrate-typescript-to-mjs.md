@@ -90,19 +90,33 @@ FunctionalScript parser support is not an eligibility condition. A `.f.ts` file
 may move to `.f.mjs` even if the current FunctionalScript compiler does not yet
 support all syntax in that file.
 
-Type preservation is an eligibility condition. Before converting a file, its
-TypeScript-only public type features must have an equivalent JSDoc-supported
-representation. Do not mechanically remove or weaken a type feature merely to
-complete the extension rename. If no equivalent is available yet, keep that file
-as `.ts` / `.f.ts`, create a focused blocker, and continue migrating independent
-parts of the dependency graph.
+Type preservation is an eligibility condition. Replace TypeScript-only type
+syntax with the equivalent TypeScript-7 JSDoc form instead of weakening the
+public type contract. In particular, variance annotations are supported on
+JSDoc type aliases through modifiers on `@template`.
 
-For example, `fjs/effects/module.f.ts` currently relies on explicit `out O`
-variance annotations for `Cont` and `Do`; JSDoc cannot express those annotations
-directly. Migration of that module is **blocked by**
-[`fjs/effects/todo/jsdoc-variance.md`](../fjs/effects/todo/jsdoc-variance.md),
-which must preserve the same operation-set covariance before the file becomes
-`.f.mjs`.
+For example:
+
+```ts
+export type Cont<out O extends Operation, T> =
+    (_: Pr<O, O[0]>[1]) => Effect<O, T>
+```
+
+becomes valid JavaScript with JSDoc:
+
+```js
+/**
+ * @template {Operation} out O
+ * @template T
+ * @typedef {(_: Pr<O, O[0]>[1]) => Effect<O, T>} Cont
+ */
+```
+
+Use the same form for other variant type parameters: `@template out T`,
+`@template in T`, or `@template {Constraint} out T` / `in T` when constrained.
+The variance modifier belongs to a JSDoc type alias (`@typedef`), matching where
+TypeScript permits `in` / `out`; do not move it onto an ordinary function
+`@template`.
 
 For each migration group:
 
@@ -150,11 +164,8 @@ compiler-compatibility rename.
 - [ ] Update contributor, compiler, language, package, test, and roadmap
       documentation to the stage-1 extension meanings.
 - [ ] Identify dependency-leaf `.ts` / `.f.ts` files and migrate those first.
-- [ ] Identify TypeScript-only public type features that JSDoc cannot represent
-      directly; keep affected files in TypeScript and track focused blockers.
-- [ ] Complete
-      [`fjs/effects/todo/jsdoc-variance.md`](../fjs/effects/todo/jsdoc-variance.md)
-      before migrating `fjs/effects/module.f.ts`.
+- [ ] Translate TypeScript generic constraints and `in` / `out` variance to
+      JSDoc `@template` syntax without changing assignability.
 - [ ] Continue upward through the dependency graph in reviewable groups until no
       authored TypeScript remains.
 - [ ] Translate `.ts` to `.mjs` and `.f.ts` to `.f.mjs`, moving static type
@@ -179,15 +190,11 @@ compiler-compatibility rename.
 - `allowJs` and `checkJs` are enabled before the first authored TypeScript source
   is converted to JavaScript.
 - No authored `.ts` or `.f.ts` source files remain in the repository.
-- Migration can proceed incrementally from dependency leaves toward callers even
-  when an independent file is temporarily blocked by a TypeScript-only type
-  feature.
+- Migration can proceed incrementally from dependency leaves toward callers.
 - Authored JavaScript uses `.mjs` / `.f.mjs` with JSDoc where static type
   information is needed.
-- No public type contract is weakened merely because JSDoc lacks the original
-  TypeScript syntax; focused blockers are completed before affected files move.
-- The Effects operation-set covariance currently enforced by explicit `out O`
-  annotations is preserved before `fjs/effects/module.f.ts` migrates.
+- TypeScript generic constraints and variance annotations are preserved with
+  their JSDoc `@template` equivalents; public assignability is not weakened.
 - `.f.mjs` means FunctionalScript-intent JavaScript, not current-compiler
   compatibility.
 - Migrated JavaScript never depends on remaining authored TypeScript during the
@@ -208,8 +215,6 @@ compiler-compatibility rename.
   — stage-1 authored `.mjs` validation, declarations, and package support.
 - [`../fjs/ci/todo/f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md)
   — stage-2 authored `.f.js` package/tooling prerequisite.
-- [`../fjs/effects/todo/jsdoc-variance.md`](../fjs/effects/todo/jsdoc-variance.md)
-  — Effects-specific blocker for preserving explicit operation-set covariance.
 - [`../fjs/ci/todo/publishing-packages.md`](../fjs/ci/todo/publishing-packages.md)
   — broader package-publishing plan.
 - [`../fjs/fsc/README.md`](../fjs/fsc/README.md) — authoritative FunctionalScript
