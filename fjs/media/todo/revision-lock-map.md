@@ -268,10 +268,26 @@ making additional unrecorded resolution choices.
 
 ## Stage 2: recursive lock map
 
+### Dependency
+
+Stage 2 depends on
+[recursive RTTI-to-JSON-Schema support](../json/todo/rtti-recursive-json-schema.md).
+The current JSON Schema transformer walks thunk RTTI directly and cannot
+terminate on a recursive schema such as the Stage 2 lock.
+
+That transformer TODO in turn depends on the existing
+[RTTI serializable data representation](../../types/todo/143.md), where recursive
+thunks are converted into a function-free rule set with named/indexed
+references, similar to `fjs/bnf/data`.
+
+Do not implement or emit Stage 2 recursive lock records until this dependency
+chain is complete. Stage 1 uses only a finite `record(string)` schema and is not
+blocked by it.
+
 ### Media schema
 
-After the flat format is implemented and used, extend `lock` to accept nested
-maps:
+After the flat format is implemented and the dependencies above are complete,
+extend `lock` to accept nested maps:
 
 ```ts
 const lock = () => ['record', or(string, lock)]
@@ -356,6 +372,9 @@ new dialect/version.
 
 ### Stage 2 tasks
 
+- [ ] Complete
+      [recursive RTTI-to-JSON-Schema support](../json/todo/rtti-recursive-json-schema.md),
+      including its dependency on the RTTI data representation.
 - [ ] Replace the flat schema with
       `const lock = () => ['record', or(string, lock)]`.
 - [ ] Derive and export the recursive TypeScript index-signature type without
@@ -366,7 +385,7 @@ new dialect/version.
 - [ ] Recursively validate and canonicalize direct lock hashes in Evo `add` and
       `revision` while preserving nested structure.
 - [ ] Update Evo and MCP documentation, schemas, and proofs for recursive lock
-      round trips.
+      round trips using the generated `$defs`/`$ref` JSON Schema.
 - [ ] Add nested conflict examples and document their resolver-specific
       semantics.
 - [ ] Preserve Stage 1 flat examples and prove that all flat lock maps remain
@@ -399,6 +418,10 @@ shared lock content. This is outside both stages of this TODO.
 
 - [fjs/media/revision/README.md](../revision/README.md) — revision shape,
   generation rules, and dialect versioning policy
+- [recursive RTTI-to-JSON-Schema support](../json/todo/rtti-recursive-json-schema.md)
+  — direct prerequisite for Stage 2
+- [RTTI serializable data representation](../../types/todo/143.md) — named or
+  indexed references that make recursive RTTI finite and serializable
 - [fjs/cas/evo/README.md](../../cas/evo/README.md) — the round-trippable Evo API
   that must expose the optional lock
 - [fjs/mcp/evo/README.md](../../mcp/evo/README.md) — MCP exposure of Evo
