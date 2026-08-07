@@ -5,40 +5,30 @@
 
 ### Problem
 
-[`toJsonSchema`](../schema/module.f.ts) currently converts the thunk-based RTTI
-`Type` directly by walking it with `fjs/types/rtti/common`'s `visit`.
-
-That works for finite trees, but recursive RTTI values are graphs. For example:
+[`toJsonSchema`](../schema/module.f.ts) currently walks thunk-based RTTI directly.
+That works for finite trees, but recursive RTTI values are graphs:
 
 ```ts
 const lock = () => ['record', or(string, lock)] as const
 ```
 
-Following `lock` recursively does not reach a leaf, so the current transformer
-cannot produce JSON Schema for it. This blocks consumers that expose RTTI as
-JSON Schema, including MCP tool input/output schemas.
-
-Do not solve this by adding ad-hoc thunk identity tracking to only the JSON
-Schema transformer. RTTI needs one shared serializable graph representation so
-all consumers resolve recursion in the same way.
+Following this thunk never reaches a leaf. Recursive consumers therefore need a
+shared, finite RTTI graph representation rather than transformer-specific thunk
+identity tracking.
 
 ### Blocked by
 
 - [RTTI serializable data representation](../../../types/rtti/todo/serializable-data.md)
 
-The blocker proposes a function-free RTTI data representation modeled after
-[`fjs/bnf/data`](../../../bnf/data/).
+That task defines the function-free rule set and named/indexed references used to
+represent recursion. This task must consume that representation.
 
-It includes the required recursion model: definitions are stored in a named or
-indexed rule set, and nested types refer to those definitions instead of
-containing self-referencing functions.
-
-Conceptually, a name-keyed representation must be an open map because a
-reference can name a missing definition:
+A name-keyed rule set is an open map because a reference may name a missing
+definition:
 
 ```ts
 type TypeDataSet = StringMap<TypeData>
-type TypeData = /* finite data nodes containing TypeName references */
+type TypeData = /* finite data nodes containing definition references */
 ```
 
 Equivalently:
@@ -49,20 +39,25 @@ type TypeDataSet = {
 }
 ```
 
-Do not use `Readonly<Record<TypeName, TypeData>>`, because that would type every
-possible name lookup as present and undermine the required missing-reference
-check.
-
-The concrete shape and naming policy belong to the RTTI data TODO. This task
-must consume that shared representation rather than invent a second graph
-encoding specific to JSON Schema.
+Do not use `Readonly<Record<string, TypeData>>`; it incorrectly types every
+possible lookup as present.
 
 ### Proposal
 
-Add a data-driven JSON Schema transformer that converts an RTTI data rule set
-into JSON Schema draft 2020-12 using `$defs` and `$ref`.
+Add a data-driven transformer:
 
-Conceptually:
+```ts
+dataToJsonSchema(data)
+```
+
+Keep the ergonomic public entry point, but route it through RTTI data:
+
+```text
+thunk RTTI -> toData -> dataToJsonSchema -> JSON Schema
+```
+
+Emit recursive and shared definitions with JSON Schema draft 2020-12 `$defs`
+and `$ref`:
 
 ```json
 {
@@ -81,117 +76,114 @@ Conceptually:
 }
 ```
 
-The exact emitted definition names should come from the RTTI data
-representation. The JSON Schema layer only translates those stable references
-into local JSON Pointer references.
+Graph discovery, canonical identity, and definition naming belong to the RTTI
+data layer. The JSON Schema module only translates the finite graph.
 
-Keep the ergonomic thunk API:
+### Reference encoding
 
-```ts
-toJsonSchema(rtti)
-```
+A local `$ref` is a URI fragment containing a JSON Pointer. Definition names
+must therefore be encoded in two steps:
 
-but implement it as a bridge through RTTI data:
+1. JSON Pointer escaping: `~` becomes `~0`, and `/` becomes `~1`.
+2. Percent-encoding for the URI-fragment path segment.
 
-```text
-thunk RTTI -> toData -> dataToJsonSchema -> JSON Schema
-```
+Apply percent-encoding **after** JSON Pointer escaping. For example, a literal
+definition name `%2F` must not be emitted as `#/$defs/%2F`, because URI-fragment
+decoding would turn it into `/` before JSON Pointer evaluation. It must be
+encoded so URI decoding restores the literal `%2F` segment.
 
-Also expose the data-level transformation when useful:
-
-```ts
-dataToJsonSchema(data)
-```
-
-This keeps graph discovery, naming, recursion handling, and canonical identity
-in the RTTI data layer, while the JSON Schema module only performs format
-translation.
+The implementation may avoid this complexity only if the RTTI data format
+formally restricts generated names to a URI-fragment-safe alphabet. Arbitrary
+external names still require the two-step encoding above.
 
 ### Reference rules
 
-- Every recursive or shared RTTI definition is emitted once under `$defs`.
-- Nested uses emit `$ref` rather than recursively expanding the definition.
-- Self-recursion and mutual recursion must both terminate.
+- Emit every recursive or shared definition exactly once under `$defs`.
+- Emit graph edges as `$ref`, never by recursively expanding definitions.
+- Self-recursion and mutual recursion must terminate.
 - Definition names must be deterministic for the same canonical RTTI data.
-- Names used in JSON Pointer fragments must be escaped correctly (`~` as `~0`
-  and `/` as `~1`).
-- A reference to an unknown RTTI definition is an error, not an empty or
-  permissive JSON Schema.
-- The root schema points to the selected root definition with `$ref` when the
-  root is represented by a named/indexed data rule.
-- Non-recursive finite RTTI must preserve the current JSON Schema semantics.
+- The root uses `$ref` when represented by a named/indexed definition.
+- A missing referenced definition is an error.
+- Non-recursive finite RTTI preserves current JSON Schema semantics.
 
 ### JSON Schema RTTI
 
-The module's own `Unknown` RTTI currently describes only the subset emitted by
-the finite-tree transformer. Extend it to support the reference form emitted by
-this task, including at least:
+Extend the module's emitted-schema `Unknown` RTTI/type with the reference fields
+that this transformer emits:
 
 ```ts
-{
-    $schema?: string
-    $ref?: string
-    $defs?: Readonly<Record<string, Unknown>>
+type Unknown = {
+    readonly $schema?: string
+    readonly $ref?: string
+    readonly $defs?: StringMap<Unknown>
+    // existing emitted keywords
 }
 ```
 
-Keep the representation limited to keywords actually emitted by this module.
-Do not turn this task into a complete JSON Schema meta-schema implementation.
+Equivalently, `$defs` is an optional open index:
+
+```ts
+readonly $defs?: {
+    readonly [name: string]: Unknown | undefined
+}
+```
+
+Do not use `Readonly<Record<string, Unknown>>`; an absent `$defs` entry must be
+typed as `undefined` so missing-reference handling cannot be skipped.
+
+Keep this RTTI limited to keywords emitted by this module. This task does not
+implement the complete JSON Schema meta-schema.
 
 ### Compatibility
 
-The current public entry point can keep its name and input type. Finite schemas
-should continue to produce equivalent output, except where wrapping the root in
-`$defs`/`$ref` is required by the shared RTTI data representation.
+The public `toJsonSchema(rtti)` signature can remain unchanged. Finite schemas
+should produce equivalent output except where the shared RTTI data
+representation requires a `$defs`/`$ref` wrapper.
 
-Prefer deterministic output over preserving incidental recursive-thunk traversal
-order. Any intentional output-shape change must be reflected in proofs and MCP
-schema snapshots.
+Prefer deterministic output over preserving incidental thunk traversal order.
+Update proofs and MCP schema snapshots for intentional output-shape changes.
 
 ### Tasks
 
+- [ ] Complete the blocked RTTI serializable-data task.
 - [ ] Add `dataToJsonSchema` over the RTTI data rule set.
-- [ ] Treat name-keyed RTTI definitions as an open map and explicitly handle
-      absent definition lookups.
-- [ ] Change `toJsonSchema(rtti)` to call RTTI `toData` and then
+- [ ] Treat name-keyed RTTI definitions as `StringMap<TypeData>` and explicitly
+      reject absent referenced definitions.
+- [ ] Change `toJsonSchema(rtti)` to call `toData` and then
       `dataToJsonSchema`.
 - [ ] Emit definitions under `$defs` and graph edges as local `$ref` values.
-- [ ] Implement deterministic definition naming and JSON Pointer escaping.
-- [ ] Detect and report missing/invalid data references.
-- [ ] Extend the emitted-JSON-Schema `Unknown` RTTI/type with `$schema`, `$ref`,
-      and `$defs` as needed.
+- [ ] Implement deterministic definition naming.
+- [ ] Escape each definition name as a JSON Pointer segment and then
+      percent-encode it for the URI fragment.
+- [ ] Extend emitted-schema `Unknown` with `$schema`, `$ref`, and
+      `$defs?: StringMap<Unknown>`.
 - [ ] Preserve existing output semantics for primitives, structs, tuples,
       arrays, records, unions, constants, optionals, and `unknown`.
-- [ ] Add proofs for direct self-recursion, mutual recursion, recursive records,
-      recursive arrays/unions, shared non-recursive definitions, and missing
-      named definitions.
+- [ ] Add proofs for self-recursion, mutual recursion, recursive records,
+      recursive arrays/unions, and shared non-recursive definitions.
+- [ ] Add proofs for missing definitions and missing `$defs` lookups.
+- [ ] Add reference-encoding proofs for names containing `~`, `/`, `%2F`,
+      spaces, and non-ASCII characters.
 - [ ] Add a proof for the recursive revision lock schema:
       `() => ['record', or(string, lock)] as const`.
-- [ ] Update MCP schema proofs/snapshots that now contain `$defs` and `$ref`.
-- [ ] Document the dependency for recursive schema consumers.
+- [ ] Update MCP schema proofs/snapshots that contain `$defs` and `$ref`.
 
 ### Out of scope
 
-- Designing a second RTTI graph representation inside the JSON Schema module.
-- A complete JSON Schema validator or complete draft 2020-12 meta-schema.
+- A second RTTI graph representation inside the JSON Schema module.
+- A complete JSON Schema validator or draft 2020-12 meta-schema.
 - Remote `$ref` resolution.
 - Resolver semantics for revision lock maps.
-- Changing the thunk-direct RTTI validator/parser solely to support this
-  transformer.
+- Replacing the thunk-direct RTTI validator/parser.
 
 ### Dependents
 
 - [`fjs/media/todo/revision-lock-map.md`](../../todo/revision-lock-map.md),
-  Stage 2 — recursive lock maps require recursive JSON Schema generation for
-  Evo/MCP schemas.
+  Stage 2.
 
 ### Related
 
 - [RTTI serializable data representation](../../../types/rtti/todo/serializable-data.md)
-  — named/indexed recursion shared by RTTI consumers
-- [`fjs/bnf/data`](../../../bnf/data/) — existing function-free grammar data
-  representation used as the architectural model
-- [`fjs/media/json/schema/module.f.ts`](../schema/module.f.ts) — current
-  finite-tree RTTI transformer
-- [`fjs/protocol/mcp`](../../../protocol/mcp/) — consumer of generated JSON
-  Schemas for tool contracts
+- [`fjs/bnf/data`](../../../bnf/data/)
+- [`fjs/media/json/schema/module.f.ts`](../schema/module.f.ts)
+- [`fjs/protocol/mcp`](../../../protocol/mcp/)
