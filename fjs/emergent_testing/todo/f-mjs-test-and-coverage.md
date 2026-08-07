@@ -8,91 +8,92 @@
 
 Tooling recognition of `.f.mjs` has landed: `shouldLoad` in
 `fjs/dev/module.f.ts` matches `.f.mjs`, `npm run cov` and `deno task cov`
-include `module.f.mjs`, the canonical Deno CI generator
-(`fjs/ci/deno/module.f.ts`) exports `coverageInclude` with a regression proof,
-the checked-in workflow is regenerated from it, and `AGENTS.md` §3.2 plus the
-`CONTRIBUTING.md` summary state the proof policy for both authored extensions
-including the mixed `module.f.mjs` / `proof.f.ts` layout.
+include `module.f.mjs`, and the canonical Deno CI generator
+(`fjs/ci/deno/module.f.ts`) exports `coverageInclude` with a regression proof.
 
-What is still missing is the end-to-end evidence: no `.f.mjs` file exists in the
-repository, so nothing yet proves at runtime that a migrated module keeps its
-proofs and its coverage rows. The current proofs cover discovery and the
-generated command; they do not cover an actual loaded `.f.mjs` module.
+What is still missing is end-to-end evidence from an actual `.f.mjs` runtime
+fixture. No repository fixture currently proves that a migrated
+`module.f.mjs` is loaded through its proof and retained in both Node and Deno
+coverage output.
 
-Adding those fixtures is not just a matter of writing two files. Two concrete
-obstacles were found while implementing the tooling half:
+The fixture depends on authored `.mjs` package support because a TypeScript proof
+must be able to import `module.f.mjs` while `allowJs` / `checkJs` remain enabled,
+and package emission must preserve that authored `.mjs` rather than treating it
+as generated JavaScript.
 
-1. **A `proof.f.ts` cannot import a `module.f.mjs` today.** With `allowJs`
-   off, `npx tsc` reports `TS7016: Could not find a declaration file for module
-   './module.f.mjs'`. Turning `allowJs`/`checkJs` on makes `npx tsc` pass, but
-   then `npm run prepack` (`tsc --NoEmit false`) fails with
-   `TS5055: Cannot write file '…/benchmark.mjs' because it would overwrite input
-   file` — authored `.mjs` becomes both an input and a JavaScript emit target.
-   Making that work is exactly the repeatable-emission and package-content work
-   owned by
-   [`f-mjs-package-support.md`](../../ci/todo/f-mjs-package-support.md); it must
-   not be duplicated here.
-2. **An internal `proof` export inside a `.f.mjs` module has no assert helper
-   it is allowed to import.** `AGENTS.md` §3.3 requires `assert`/`assertEq`
-   from `fjs/asserts/module.f.ts` rather than a hand-written `if`/`throw`, but
-   the dependency-closure rule forbids authored `.f.mjs` from importing a
-   relative `.f.ts` module. A fixture written with `if`/`throw` would also leave
-   a permanently-uncovered branch in a `module.f.mjs` that the new coverage
-   filter now includes.
+This task does **not** require the first real repository module migration or a
+compiler-ready `proof.f.mjs`. Stage 1 is independent of FunctionalScript compiler
+coverage. A mixed synthetic fixture using `module.f.mjs` + `proof.f.ts` is enough
+to prove the first source-migration layout end to end.
+
+`proof.f.mjs` is nevertheless an allowed Stage-1 source extension. A real proof
+may migrate from `proof.f.ts` to `proof.f.mjs` as soon as it can be expressed as
+JavaScript with JSDoc and its authored runtime and declaration-retained type
+dependencies are already `.f.mjs`; current FunctionalScript compiler support is
+not a migration gate. A proof that still depends on an unmigrated `.f.ts` helper,
+such as `fjs/asserts/module.f.ts`, remains `proof.f.ts` until that dependency
+moves.
 
 ### Proposal
 
-Land the fixtures once package support makes authored `.f.mjs` a first-class,
-type-checked, packable source extension.
+After [`f-mjs-package-support.md`](../../ci/todo/f-mjs-package-support.md)
+completes, add the smallest synthetic `.f.mjs` runtime fixture that proves the
+mixed Stage-1 layout:
 
-Decide obstacle 2 explicitly before writing the fixture, and record the decision
-in `AGENTS.md` §3.3. The options are:
+```text
+module.f.mjs
+proof.f.ts
+```
 
-- migrate `fjs/asserts/module.f.ts` to `fjs/asserts/module.f.mjs` as the first
-  real conversion, so every `.f.mjs` proof — fixture or not — has a compliant
-  assert helper (`.f.ts` callers may keep importing it under the asymmetric
-  import policy); or
-- state that a `.f.mjs` module keeps its proofs in a co-located `proof.f.ts`
-  until `fjs/asserts` migrates, and drop the internal-`proof`-in-`.f.mjs`
-  fixture in favour of the mixed-layout one.
+The fixture should be outside the published runtime API and should exercise the
+normal test discovery and coverage commands. It exists only to prove the tooling
+boundary before the first real repository `.f.ts` -> `.f.mjs` conversion.
 
-The first option is preferable: it is a real migration step the plan needs
-anyway, and it removes the fixture's special case instead of documenting one.
+Keep proof-extension migration separate from compiler readiness. Update
+`AGENTS.md` and `CONTRIBUTING.md` so `proof.f.mjs` is explicitly allowed during
+Stage 1 whenever its JavaScript/JSDoc and dependency closure is ready.
+
+A dedicated `proof.f.mjs` fixture may be added when useful, but it is not a
+prerequisite for the first real module conversion and must not create a circular
+dependency on migrating assertion helpers first.
 
 ### Tasks
 
-- [ ] Decide and document how an internal `proof` inside a `.f.mjs` module
-      asserts (see the two options above), updating `AGENTS.md` §3.3.
-- [ ] Add a fixture proving that an internal `proof` export from a `.f.mjs`
-      module is executed by the normal test command.
-- [ ] Add a fixture proving that a co-located `proof.f.ts` can import and test
-      `module.f.mjs`.
-- [ ] Verify that `.f.mjs` implementations appear in both Node and Deno coverage
-      output for the supported proof layouts.
+- [ ] Add a synthetic `module.f.mjs` fixture with a co-located `proof.f.ts` that
+      imports and tests it through the normal test command.
+- [ ] Verify the fixture type-checks under `npx tsc` with the Stage-1
+      `allowJs` / `checkJs` configuration.
+- [ ] Verify the `.f.mjs` implementation appears in both Node and Deno coverage
+      output.
+- [ ] Update `AGENTS.md` and `CONTRIBUTING.md` so `proof.f.mjs` migration is
+      gated by JavaScript/JSDoc plus dependency readiness, not compiler support.
 
 ### Acceptance criteria
 
-- An internal exported `proof` from a `.f.mjs` module is executed by the normal
-  test command.
 - A `proof.f.ts` importing `module.f.mjs` is executed by the normal test command
   and type-checks under `npx tsc`.
 - The `.f.mjs` fixture appears as a covered file in `npm run cov` and in
   `deno task cov`.
+- `proof.f.mjs` is explicitly allowed during Stage 1 when its authored
+  dependencies are already migrated and the proof is valid JavaScript/JSDoc.
 - Existing `.f.ts`, generated `.f.js`, `proof.f.ts`, and standalone `proof.mjs`
   behavior is unchanged.
 
 ### Ordering
 
-Complete this task before converting the first repository module from `.f.ts` to
-`.f.mjs`, and after
-[`f-mjs-package-support.md`](../../ci/todo/f-mjs-package-support.md). The
-tooling half already shipped, so a synthetic compiler fixture that does not
-enter the published runtime graph is not blocked by this issue.
+This task is **blocked by**
+[`f-mjs-package-support.md`](../../ci/todo/f-mjs-package-support.md) and must
+complete before converting the first real repository module from `.f.ts` to
+`.f.mjs`. The synthetic fixture itself is the prerequisite evidence and does not
+count as a production/source migration. A synthetic compiler fixture that does
+not enter the published runtime graph is likewise not blocked by this issue.
 
 ### Related
 
 - [`fjs/fsc/README.md`](../../fsc/README.md) — source-extension convention and
-  incremental repository migration.
+  two-stage repository migration.
+- [`../../../todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
+  — repository-wide Stage-1 migration that is blocked by this fixture task.
 - [`664-emergent-testing-module-files.md`](./664-emergent-testing-module-files.md)
   — separate proposal to bulk-load ordinary `module.*` files for white-box
   testing. Ordinary `.mjs` files stay opt-in through the `proof.mjs` convention
