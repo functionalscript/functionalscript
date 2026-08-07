@@ -28,7 +28,7 @@ import { map, tryFold, type Accumulator, type List, type Thunk } from '../list/m
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../../common/monoid/module.f.ts'
 import { cmp, max, min, type Sign } from '../function/compare/module.f.ts'
-import { mapUnwrap, type Nullable } from '../nullable/module.f.ts'
+import { mapUnwrap, type Nullable } from '../nullable/module.f.mjs'
 
 /**
  * A vector of bits represented as a signed `bigint`.

@@ -4,7 +4,7 @@
  * @module
  */
 import { msb, lsb, type Vec, length, vec, empty } from "../../types/bit_vec/module.f.ts"
-import type { Nullable } from "../../types/nullable/module.f.ts"
+import type { Nullable } from "../../types/nullable/module.f.mjs"
 import { baseN } from "../../base_n/module.f.ts"
 
 //                         0123456789abcdef

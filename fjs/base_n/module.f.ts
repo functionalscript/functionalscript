@@ -14,7 +14,7 @@
 import { msb, lsb, type Vec, vec, chunkList, unpack } from '../types/bit_vec/module.f.ts'
 import { fold, type List } from '../types/list/module.f.ts'
 import { compose } from '../types/function/module.f.mjs'
-import type { Nullable } from '../types/nullable/module.f.ts'
+import type { Nullable } from '../types/nullable/module.f.mjs'
 
 const { unpackSplit } = msb
 
