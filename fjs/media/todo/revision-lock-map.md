@@ -114,7 +114,7 @@ returned by `revision` remains valid input to `add`.
 
 An omitted lock remains omitted. An explicit empty lock remains `{}`.
 
-### Canonical serialization
+### Canonical lock serialization
 
 Equivalent lock maps must produce identical revision bytes and CAS hashes,
 regardless of insertion order.
@@ -123,26 +123,33 @@ Do **not** implement this by rebuilding a JavaScript object in lexicographic
 insertion order. ECMAScript enumerates integer-index keys numerically, so keys
 such as `"10"` and `"2"` would not follow that insertion order.
 
-Instead, use the repository's JSON serialization path that sorts object entry
-lists directly. Apply canonical entry sorting to the whole revision JSON value,
-including the `lock` object. This handles ordinary, numeric-looking, and other
-valid subject strings uniformly.
+Canonicalize only the serialized `lock` subtree by sorting its object entry list
+directly. Preserve the existing top-level revision field order and the current
+serialization of every other revision field. In particular, a revision without a
+`lock` field must serialize to exactly the same bytes and CAS hash before and
+after Stage 1 is implemented.
+
+This targeted rule handles ordinary, numeric-looking, and other valid subject
+strings without migrating the serialization of existing lock-free revisions.
+When `lock` is present, inject its canonically serialized value into the revision
+while retaining the existing revision-field order.
 
 The order observed when iterating the JavaScript object returned by
 `revision(hash)` is not an API guarantee. Only these properties are guaranteed:
 
 - property order is semantically irrelevant;
-- canonical serialization is deterministic;
-- equivalent maps serialize to identical bytes.
+- lock-subtree serialization is deterministic;
+- equivalent lock maps serialize to identical revision bytes;
+- lock-free revisions preserve their existing serialization and hashes.
 
-Sorting is serialization normalization only; it does not define resolver
+Sorting is lock serialization normalization only; it does not define resolver
 precedence.
 
 The Evo README field table should describe `lock` as:
 
 | field | input to `add` | output of `revision` |
 |---|---|---|
-| `lock` | optional flat open map; direct hashes validated and canonicalized; revision JSON canonically serialized | optional; present exactly when stored; direct hashes canonicalized; object iteration order unspecified |
+| `lock` | optional flat open map; direct hashes validated and canonicalized; lock entries canonically serialized without changing existing revision-field order | optional; present exactly when stored; direct hashes canonicalized; object iteration order unspecified |
 
 The MCP Evo front end exposes `RevisionData`, so `evo_add` and `evo_revision`
 must accept and return the same optional flat lock.
@@ -181,8 +188,8 @@ other lock maps.
 - [ ] Extend Evo `RevisionData` with `readonly lock?: LockMap`.
 - [ ] Make Evo `add` validate and canonicalize direct lock hashes.
 - [ ] Make Evo `revision` return the optional lock with canonical hashes.
-- [ ] Serialize revision JSON through canonical object-entry sorting rather
-      than relying on JavaScript object insertion order.
+- [ ] Canonically serialize the `lock` object's entry list without changing the
+      existing top-level revision-field order or other field serialization.
 - [ ] Preserve the distinction between absent and empty locks.
 - [ ] Update Evo and MCP documentation, schemas, and proofs.
 - [ ] Add media proofs for absent, empty, valid, malformed, invalid-hash, and
@@ -193,6 +200,8 @@ other lock maps.
       hashes.
 - [ ] Add proofs that reordered numeric-looking keys such as `"10"` and `"2"`
       also produce identical bytes and CAS hashes.
+- [ ] Add regression proofs that lock-free revisions retain their previous exact
+      bytes and CAS hashes after Stage 1 is implemented.
 - [ ] Document that returned JavaScript object iteration order is unspecified.
 - [ ] Add processor-facing follow-up work for accepting and returning flat lock
       maps.
@@ -240,14 +249,15 @@ the shared recursive `LockMap` type.
 `add` and `revision` recursively validate and canonicalize direct hashes while
 preserving nested scope structure.
 
-Canonical JSON serialization must sort object entry lists at every nested map
-level. Do not rely on reconstructed JavaScript object insertion order. Root and
-nested numeric-looking keys must receive the same deterministic treatment as
-all other keys.
+Canonicalize object entry lists only inside the recursive `lock` subtree, at
+every nesting level. Preserve the existing top-level revision-field order and
+serialization of all non-lock fields. Do not rely on reconstructed JavaScript
+object insertion order. Root and nested numeric-looking lock keys must receive
+the same deterministic treatment as all other lock keys.
 
 Equivalent recursive maps that differ only in property insertion order must
-produce identical revision bytes and CAS hashes. Returned object iteration order
-remains unspecified.
+produce identical revision bytes and CAS hashes. Lock-free revisions must remain
+byte-for-byte unchanged, and returned object iteration order remains unspecified.
 
 ### Nested maps
 
@@ -299,9 +309,12 @@ may be widened or requires a new version.
       checking.
 - [ ] Widen Evo and MCP schemas through the shared recursive `LockMap` type.
 - [ ] Recursively canonicalize direct hashes in Evo `add` and `revision`.
-- [ ] Canonically sort JSON object entry lists at every nested map level.
-- [ ] Add proofs for reordered root and nested keys, including numeric-looking
-      subjects.
+- [ ] Canonically sort entry lists at every level inside the recursive lock
+      subtree without changing top-level revision serialization.
+- [ ] Add proofs for reordered root and nested lock keys, including
+      numeric-looking subjects.
+- [ ] Preserve regression proofs that lock-free revisions retain exact bytes and
+      CAS hashes.
 - [ ] Add nested conflict examples and document resolver-specific semantics.
 - [ ] Preserve and prove Stage 1 compatibility.
 - [ ] Add processor-facing follow-up work for recursive maps.
