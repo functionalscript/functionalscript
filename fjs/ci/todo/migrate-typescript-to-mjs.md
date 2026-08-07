@@ -9,15 +9,16 @@ Remove authored TypeScript from the FunctionalScript repository before using a
 file extension as a marker for source accepted by the current FunctionalScript
 compiler.
 
-The migration has two separate concerns that should not be coupled:
+The migration has two separate concerns:
 
 1. **Source-language migration:** translate authored TypeScript to native ESM
    JavaScript with JSDoc types.
-2. **Compiler-coverage migration:** mark the subset of FunctionalScript source
-   accepted by the compiler available in the same repository revision.
+2. **Compiler-compatibility migration:** after stage 1 is complete, mark the
+   subset of FunctionalScript source accepted by the compiler available in the
+   same repository revision.
 
-This task is stage 1 only. The existing compiler migration becomes stage 2 and
-is **blocked by** completion of this task.
+This task is stage 1 only. The existing compiler-compatibility migration is
+**blocked by** completion of this task.
 
 ### Extension plan
 
@@ -40,40 +41,53 @@ Do not author `.f.js` during stage 1. While authored `.f.ts` files still exist,
 TypeScript compilation can generate `.f.js` files from them, so the extension is
 not yet available as an unambiguous source marker.
 
-After all authored `.ts` and `.f.ts` files are gone, the compiler migration can
-use:
+After all authored `.ts` and `.f.ts` files are gone, the compiler-compatibility
+migration can use:
 
 ```text
 module.f.mjs -> module.f.js
 ```
 
-as the capability transition. At that point `.f.js` means authored
-FunctionalScript source that the current FunctionalScript compiler must parse
-and compile. The package is ESM (`"type": "module"`), so `.f.js` remains an ESM
-module.
+At that point `.f.js` means authored FunctionalScript source that the current
+FunctionalScript compiler must parse and compile. The package is ESM
+(`"type": "module"`), so `.f.js` remains an ESM module.
 
-The existing incremental compiler migration should therefore change from
-`.f.ts` -> `.f.mjs` to `.f.mjs` -> `.f.js` after this task is complete.
+### Gradual migration strategy
 
-### Migration strategy
+Stage 1 is intentionally gradual. It does not require converting the whole
+repository in one PR.
 
-The TypeScript-to-JavaScript migration is independent of FunctionalScript parser
-coverage. A file must not stay `.ts` merely because the new compiler does not
-support some syntax that the file uses yet.
+Migrate dependency leaves first: start with authored `.ts` / `.f.ts` files that
+do not depend on other authored TypeScript files. After those dependencies are
+`.mjs` / `.f.mjs`, migrate their callers, and continue upward through the
+repository dependency graph.
 
-The work may be split into reviewable dependency-safe groups. For each group:
+A file or coherent group is eligible when every relative authored source
+runtime dependency and every declaration-retained type dependency outside that
+group is already JavaScript (`.mjs` / `.f.mjs`). Cyclic files may be migrated as
+one coherent group.
+
+This direction is intentionally asymmetric during the transition:
+
+- remaining `.ts` / `.f.ts` source may depend on already migrated `.mjs` /
+  `.f.mjs` source;
+- migrated `.mjs` / `.f.mjs` source must not depend on remaining authored
+  `.ts` / `.f.ts` source.
+
+This allows the migration to proceed incrementally without import rewriting or a
+staging tree. FunctionalScript parser support is irrelevant to stage-1
+eligibility: a `.f.ts` file should move to `.f.mjs` as soon as its TypeScript
+source dependencies are migrated, even when the FunctionalScript compiler does
+not yet support all of its syntax.
+
+For each migration group:
 
 - rename `.ts` to `.mjs` and `.f.ts` to `.f.mjs`;
 - replace TypeScript-only syntax with equivalent JavaScript plus JSDoc types;
 - update relative runtime imports, JSDoc type imports, tests, proofs, scripts,
   configuration, and documentation that reference the renamed paths;
 - preserve TypeScript checking and declaration generation for authored `.mjs`;
-- preserve runtime behavior, proofs, coverage, and package behavior;
-- ensure authored `.mjs` runtime/declaration references do not point to source
-  files omitted from the packed package.
-
-Dependency ordering may still be needed for package/runtime correctness, but it
-must not be tied to FunctionalScript parser feature support.
+- preserve runtime behavior, proofs, coverage, and package behavior.
 
 ### Package/tooling prerequisite
 
@@ -99,6 +113,10 @@ FunctionalScript-intent JavaScript; compiler readiness is represented later by
       [`f-mjs-package-support.md`](./f-mjs-package-support.md).
 - [ ] Document the stage-1 extension invariant in `AGENTS.md`,
       `CONTRIBUTING.md`, and the relevant compiler/package documentation.
+- [ ] Identify dependency-leaf `.ts` / `.f.ts` files whose authored runtime and
+      type dependencies are already JavaScript, and migrate those first.
+- [ ] Continue the migration upward through the dependency graph in reviewable
+      groups until no authored TypeScript remains.
 - [ ] Translate repository `.ts` source to `.mjs`, preserving runtime behavior
       and moving TypeScript type syntax to JSDoc.
 - [ ] Translate repository `.f.ts` source to `.f.mjs` without requiring support
@@ -116,16 +134,18 @@ FunctionalScript-intent JavaScript; compiler readiness is represented later by
       `**BREAKING CHANGES:**` convention where applicable.
 - [ ] Remove the TypeScript-to-JavaScript emission path after the last authored
       `.ts` / `.f.ts` source file is migrated.
-- [ ] Update the compiler migration plan in `fjs/fsc/README.md`,
-      `todo/plan/roadmap.md`, and `todo/fjs-nanvm-integration.md` so compiler
-      coverage is represented by `.f.mjs` -> `.f.js`.
-- [ ] Update `.f.mjs` compiler fixtures/tests to `.f.js` when stage 2 starts.
+- [ ] Update the compiler-compatibility migration documentation so it is
+      `.f.mjs` -> `.f.js` and explicitly **blocked by** this task.
 
 ### Acceptance criteria
 
 - No authored `.ts` or `.f.ts` source files remain in the repository.
+- The migration was able to proceed incrementally from dependency leaves toward
+  callers; it did not require a repository-wide atomic rename.
 - Authored JavaScript uses `.mjs` / `.f.mjs` and JSDoc where static type
   information is needed.
+- Migrated `.mjs` / `.f.mjs` source does not depend on remaining authored
+  `.ts` / `.f.ts` source during the transition.
 - Generated declaration files are not treated as authored source.
 - Package-owned `.mjs` source and generated declarations work from a clean NPM
   consumer.
@@ -135,20 +155,16 @@ FunctionalScript-intent JavaScript; compiler readiness is represented later by
 - `.f.mjs` no longer promises current-compiler compatibility.
 - `.f.js` is not authored until TypeScript source emission can no longer produce
   that extension.
-- The follow-up compiler migration is explicitly documented as
-  `.f.mjs` -> `.f.js` and **blocked by** this task.
+- The existing compiler-compatibility migration is explicitly **blocked by**
+  this task and starts only after all authored TypeScript is gone.
 
-### Follow-up: compiler coverage
+### Follow-up: compiler compatibility
 
 After this task is complete, migrate compiler-supported FunctionalScript modules
 incrementally from `.f.mjs` to `.f.js`. A file may move only when its complete
 syntax and required dependency graph are accepted by the current compiler.
 Unsupported FunctionalScript modules remain `.f.mjs` until the corresponding
 compiler features land.
-
-This keeps source-language migration independent from compiler implementation
-progress while preserving a simple, visible compatibility marker once the
-`.f.js` namespace is no longer occupied by generated TypeScript output.
 
 ### Related
 
@@ -160,4 +176,4 @@ progress while preserving a simple, visible compatibility marker once the
   incremental migration plan to revise for stage 2.
 - [`todo/plan/roadmap.md`](../../../todo/plan/roadmap.md) — compiler roadmap.
 - [`todo/fjs-nanvm-integration.md`](../../../todo/fjs-nanvm-integration.md) —
-  current repository compiler-coverage integration plan.
+  compiler integration and repository compatibility migration.
