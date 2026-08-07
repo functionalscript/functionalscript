@@ -1,7 +1,7 @@
 ## Recursive RTTI to JSON Schema
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
 
 ### Problem
 
@@ -33,12 +33,25 @@ It includes the required recursion model: definitions are stored in a named or
 indexed rule set, and nested types refer to those definitions instead of
 containing self-referencing functions.
 
-Conceptually:
+Conceptually, a name-keyed representation must be an open map because a
+reference can name a missing definition:
 
 ```ts
-type TypeDataSet = Readonly<Record<TypeName, TypeData>>
+type TypeDataSet = StringMap<TypeData>
 type TypeData = /* finite data nodes containing TypeName references */
 ```
+
+Equivalently:
+
+```ts
+type TypeDataSet = {
+    readonly [name: string]: TypeData | undefined
+}
+```
+
+Do not use `Readonly<Record<TypeName, TypeData>>`, because that would type every
+possible name lookup as present and undermine the required missing-reference
+check.
 
 The concrete shape and naming policy belong to the RTTI data TODO. This task
 must consume that shared representation rather than invent a second graph
@@ -138,6 +151,8 @@ schema snapshots.
 ### Tasks
 
 - [ ] Add `dataToJsonSchema` over the RTTI data rule set.
+- [ ] Treat name-keyed RTTI definitions as an open map and explicitly handle
+      absent definition lookups.
 - [ ] Change `toJsonSchema(rtti)` to call RTTI `toData` and then
       `dataToJsonSchema`.
 - [ ] Emit definitions under `$defs` and graph edges as local `$ref` values.
@@ -148,7 +163,8 @@ schema snapshots.
 - [ ] Preserve existing output semantics for primitives, structs, tuples,
       arrays, records, unions, constants, optionals, and `unknown`.
 - [ ] Add proofs for direct self-recursion, mutual recursion, recursive records,
-      recursive arrays/unions, and shared non-recursive definitions.
+      recursive arrays/unions, shared non-recursive definitions, and missing
+      named definitions.
 - [ ] Add a proof for the recursive revision lock schema:
       `() => ['record', or(string, lock)] as const`.
 - [ ] Update MCP schema proofs/snapshots that now contain `$defs` and `$ref`.
