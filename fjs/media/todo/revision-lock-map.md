@@ -20,7 +20,7 @@ Implement the lock map in two stages:
 
 ### Shared decisions
 
-- `lock` is an optional field of `vnd.fjs.revision`.
+- `lock` is optional resolver input stored on a revision.
 - A direct string value selects immutable content, like `revision.snapshot`; it
   is not a revision-object hash.
 - Lock-map property order has no semantic meaning.
@@ -38,6 +38,27 @@ revision. No second history mechanism is needed.
 
 ## Stage 1: flat lock map
 
+### Dialect compatibility
+
+Stage 1 keeps the existing `vnd.fjs.revision` dialect.
+
+The new field is additive and optional. Its absence has the constant meaning
+“no lock bindings were recorded”; no existing revision field is reinterpreted
+and no value must be inferred from other data.
+
+Older readers already accept undeclared fields and may ignore `lock`. They then
+continue using exactly their existing resolution behavior. That reader does not
+gain lock-aware reproducibility, but it also does not misread `subject`,
+`parents`, `snapshot`, `generation`, or `archived`.
+
+Lock-aware resolution is an additional capability used by consumers that know
+the field. The format does not require every reader to use a lock merely because
+one is present, and the presence of a lock does not change the meaning of an
+existing algorithm that does not accept lock input.
+
+Therefore Stage 1 follows the additive compatibility path documented by the
+revision format and does not introduce `vnd.fjs.revision2`.
+
 ### Media schema
 
 Start with:
@@ -46,7 +67,7 @@ Start with:
 const lock = record(string)
 ```
 
-Add it to the revision schema:
+Add it to the existing revision schema:
 
 ```ts
 export const revisionSchema = {
@@ -125,12 +146,9 @@ such as `"10"` and `"2"` would not follow that insertion order.
 
 Canonicalize only the serialized `lock` subtree by sorting its object entry list
 directly. Preserve the existing top-level revision field order and the current
-serialization of every other revision field. In particular, a revision without a
-`lock` field must serialize to exactly the same bytes and CAS hash before and
-after Stage 1 is implemented.
+serialization of every other revision field. A revision without a `lock` field
+must serialize to exactly the same bytes and CAS hash before and after Stage 1.
 
-This targeted rule handles ordinary, numeric-looking, and other valid subject
-strings without migrating the serialization of existing lock-free revisions.
 When `lock` is present, inject its canonically serialized value into the revision
 while retaining the existing revision-field order.
 
@@ -179,6 +197,8 @@ other lock maps.
 
 ### Stage 1 tasks
 
+- [ ] Document that Stage 1 keeps `vnd.fjs.revision`, that absent `lock` means no
+      recorded bindings, and that older readers may ignore the additive field.
 - [ ] Define `const lock = record(string)` and export `LockMap` as
       `StringMap<string>`.
 - [ ] Add optional `lock` to the revision schema, decoder, exported type,
@@ -205,8 +225,6 @@ other lock maps.
 - [ ] Document that returned JavaScript object iteration order is unspecified.
 - [ ] Add processor-facing follow-up work for accepting and returning flat lock
       maps.
-- [ ] Reconcile the new field with revision dialect versioning before emitting
-      persistent records.
 
 ## Stage 2: recursive lock map
 
@@ -293,14 +311,17 @@ binding cannot express the available scoped choices.
 
 ### Compatibility
 
-Stage 2 widens values from `string` to `string | LockMap`. New readers accept
-all Stage 1 records; Stage 1 readers reject nested maps.
+Stage 2 widens the declared `lock` values from `string` to `string | LockMap`.
+New readers accept all Stage 1 records, while Stage 1 readers that validate the
+known `lock` field reject nested maps.
 
-Before emitting Stage 2 records, decide whether the existing revision dialect
-may be widened or requires a new version.
+Decide whether Stage 2 keeps the revision dialect or introduces a new version
+before emitting recursive lock records. This decision is separate from the
+Stage 1 additive-field decision.
 
 ### Stage 2 tasks
 
+- [ ] Decide the Stage 2 dialect before emitting recursive lock records.
 - [ ] Replace the flat schema with
       `const lock = () => ['record', or(string, lock)] as const`.
 - [ ] Export the recursive open-map TypeScript type.
@@ -318,7 +339,6 @@ may be widened or requires a new version.
 - [ ] Add nested conflict examples and document resolver-specific semantics.
 - [ ] Preserve and prove Stage 1 compatibility.
 - [ ] Add processor-facing follow-up work for recursive maps.
-- [ ] Reconcile the recursive extension with dialect versioning.
 
 ### Future shared lock files
 
