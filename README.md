@@ -89,8 +89,10 @@ data expressions (objects, arrays, strings, numbers, `bigint`, booleans, `null`,
 | `fjs mcp`     | [MCP](https://modelcontextprotocol.io/) server over stdio, exposing the CAS and Evo as tools | [fjs/mcp/README.md](fjs/mcp/README.md) |
 | `fjs ci`      | Generate the GitHub Actions CI workflow                        | [fjs/ci/README.md](fjs/ci/README.md)                   |
 
-Run `fjs help` for the same list, or see [fjs/README.md](fjs/README.md) for the
-full CLI reference.
+Run `fjs help` to print the available commands, or see
+[fjs/README.md](fjs/README.md) for the full CLI reference. Commands also accept
+short aliases, which `fjs help` prints; the documentation spells them out
+instead.
 
 ## Vision
 

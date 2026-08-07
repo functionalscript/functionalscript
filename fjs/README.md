@@ -33,6 +33,9 @@ fjs <command> [args]
 | `run`    | Run a FunctionalScript module as a program | [below](#fjs-run--running-a-module-as-a-program) |
 | `help`   | Print available commands | |
 
+Each command also accepts a short alias (`fjs t` for `fjs test`, and so on).
+`fjs help` prints them; this documentation uses the full names throughout.
+
 ## `fjs compile` — compiling a module
 
 ```sh
