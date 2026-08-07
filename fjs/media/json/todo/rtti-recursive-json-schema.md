@@ -11,7 +11,7 @@
 That works for finite trees, but recursive RTTI values are graphs. For example:
 
 ```ts
-const lock = () => ['record', or(string, lock)]
+const lock = () => ['record', or(string, lock)] as const
 ```
 
 Following `lock` recursively does not reach a leaf, so the current transformer
@@ -150,7 +150,7 @@ schema snapshots.
 - [ ] Add proofs for direct self-recursion, mutual recursion, recursive records,
       recursive arrays/unions, and shared non-recursive definitions.
 - [ ] Add a proof for the recursive revision lock schema:
-      `() => ['record', or(string, lock)]`.
+      `() => ['record', or(string, lock)] as const`.
 - [ ] Update MCP schema proofs/snapshots that now contain `$defs` and `$ref`.
 - [ ] Document the dependency for recursive schema consumers.
 
