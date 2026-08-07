@@ -10,7 +10,7 @@ These tools are not their own server. They are served by the same process as
 `Evo<O>` from its own `Cas<O>` and cache slot (`initEvo`, scanned once at
 startup), concatenates `evoToolRegistry` onto its own tool registry, and
 serves everything — one `~/.cas/` store, one Evo cache, one server, one
-`npx functionalscript m`. See [`fjs/mcp/README.md`](../README.md)
+`npx functionalscript mcp`. See [`fjs/mcp/README.md`](../README.md)
 for how to run it and register it with an MCP client.
 
 ## Tools

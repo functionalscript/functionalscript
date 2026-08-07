@@ -20,21 +20,20 @@ fjs <command> [args]
 
 ## Commands
 
-| Command | Alias | Description | Documentation |
-|---------|-------|-------------|---------------|
-| `test`   | `t`   | Run the FunctionalScript test suite | [emergent_testing](emergent_testing/README.md) |
-| `compile`| `c`   | Compile a FunctionalScript module to JavaScript or JSON | [djs](djs/README.md), [fsc](fsc/README.md) |
-| `cas`    | `s`   | Content-addressable storage operations (`add`, `get`, `list`) | [cas](cas/README.md) |
-| `mcp`    | `m`   | Run an MCP server over stdio exposing the CAS and Evo as tools | [mcp](mcp/README.md) |
-| `ci`     | `i`   | Generate the GitHub Actions CI workflow | [ci](ci/README.md) |
-| `run`    | `r`   | Run a FunctionalScript module as a program | [below](#fjs-run--running-a-module-as-a-program) |
-| `help`   | `h`, `?` | Print available commands | |
+| Command | Description | Documentation |
+|---------|-------------|---------------|
+| `test`   | Run the FunctionalScript test suite | [emergent_testing](emergent_testing/README.md) |
+| `compile`| Compile a FunctionalScript module to JavaScript or JSON | [djs](djs/README.md), [fsc](fsc/README.md) |
+| `cas`    | Content-addressable storage operations (`add`, `get`, `list`) | [cas](cas/README.md) |
+| `mcp`    | Run an MCP server over stdio exposing the CAS and Evo as tools | [mcp](mcp/README.md) |
+| `ci`     | Generate the GitHub Actions CI workflow | [ci](ci/README.md) |
+| `run`    | Run a FunctionalScript module as a program | [below](#fjs-run--running-a-module-as-a-program) |
+| `help`   | Print available commands | |
 
 ## `fjs compile` — compiling a module
 
 ```sh
 fjs compile <input> <output>
-fjs c       <input> <output>
 ```
 
 The output extension picks the format: `.json` emits a tree (shared values are
@@ -46,23 +45,21 @@ cases. See [djs/README.md](djs/README.md) for the accepted subset.
 
 ```sh
 fjs ci
-fjs i
 ```
 
 `fjs ci` runs the built-in CI generator from `fjs/ci/module.f.ts`, writing
 `.github/workflows/ci.yml`. It is the standard entry point for projects that want
 FunctionalScript's default workflow. Projects with custom CI setup code should keep
-using `fjs r <custom-ci-module>`, so their module can call `ci(setup)` with its own
+using `fjs run <custom-ci-module>`, so their module can call `ci(setup)` with its own
 extra runtime steps.
 
 ## `fjs run` — running a module as a program
 
 ```sh
 fjs run <module> [args...]
-fjs r   <module> [args...]
 ```
 
-`fjs r` dynamically imports `<module>` and calls its `main` export as a
+`fjs run` dynamically imports `<module>` and calls its `main` export as a
 `NodeProgram`:
 
 ```ts
@@ -71,7 +68,7 @@ fjs r   <module> [args...]
 
 ### Convention: `export const main`
 
-A module intended to be run with `fjs r` must export a named `main` constant
+A module intended to be run with `fjs run` must export a named `main` constant
 of type `NodeProgram`:
 
 ```ts
@@ -94,7 +91,7 @@ This mirrors:
 Any arguments after `<module>` are forwarded to `main` via `options.args`:
 
 ```sh
-fjs r ./my-tool.f.ts foo bar   # options.args === ['foo', 'bar']
+fjs run ./my-tool.f.ts foo bar   # options.args === ['foo', 'bar']
 ```
 
 

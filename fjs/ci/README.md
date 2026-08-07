@@ -87,7 +87,7 @@ and `ci-update`. A typical FunctionalScript project can define them like this:
 ```json
 {
   "scripts": {
-    "test": "tsc && fjs t",
+    "test": "tsc && fjs test",
     "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts",
     "ci-update": "fjs ci"
   }
@@ -119,13 +119,13 @@ import 'functionalscript/fjs/emergent_testing/all.test.js'
 ```
 
 Without that file, third-party test runners discover no FunctionalScript proofs
-and will report zero tests. `fjs t` is the exception: it discovers proof modules
+and will report zero tests. `fjs test` is the exception: it discovers proof modules
 directly and does not need `all.test.ts`.
 
 **Note,** `npm run ci-update` in this repository runs the same built-in command through the
 checked-in Node entry point, which avoids relying on the package bin before the
 package has been installed. Custom projects that need different runtime setup steps
-should use `fjs r <custom-ci-module>` and call `ci(setup)` directly instead of
+should use `fjs run <custom-ci-module>` and call `ci(setup)` directly instead of
 modifying the built-in command.
 
 The built-in command does not read `package.json` to customize generated steps.

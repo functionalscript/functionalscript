@@ -113,7 +113,7 @@ export default {
 Run it with:
 
 ```sh
-fjs t
+fjs test
 ```
 
 ## 6. Roadmap
