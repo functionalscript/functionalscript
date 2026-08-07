@@ -19,12 +19,20 @@ and the package conventions are documented in
 
 ### Stage 1: remove authored TypeScript
 
-Before the first source conversion, complete
-[authored `.mjs` package support](../ci/todo/f-mjs-package-support.md), including
-`allowJs` / `checkJs`, split declaration/runtime emission, package inclusion,
-and clean-consumer tests. Package and publish jobs run from a clean CI checkout,
-so this prerequisite does not require developer-worktree cleanup or tracking
-ignored outputs from earlier revisions.
+Before the first real repository source conversion, complete both prerequisites
+in order:
+
+1. [authored `.mjs` package support](../ci/todo/f-mjs-package-support.md),
+   including `allowJs` / `checkJs`, split declaration/runtime emission, package
+   inclusion, and clean-consumer tests;
+2. [`.f.mjs` test and coverage fixtures](../emergent_testing/todo/f-mjs-test-and-coverage.md),
+   which are **blocked by** package support and prove with an actual `.f.mjs`
+   runtime fixture that proofs execute and Node/Deno coverage retains the
+   migrated module.
+
+Package and publish jobs run from a clean CI checkout, so the package prerequisite
+does not require developer-worktree cleanup or tracking ignored outputs from
+earlier revisions.
 
 Then migrate dependency leaves first:
 
@@ -43,6 +51,12 @@ The transition is asymmetric: remaining `.f.ts` may depend on already migrated
 `.f.mjs`, while migrated `.f.mjs` must not depend on remaining `.f.ts`. Cycles
 may migrate as a coherent group. Packaging does not rewrite runtime or
 declaration specifiers, so both dependency graphs must resolve directly.
+
+Proofs follow the same source-language rule. `proof.f.ts` may remain temporarily
+beside a migrated `module.f.mjs`, but it may move to `proof.f.mjs` as soon as the
+proof itself is valid JavaScript with JSDoc and its authored runtime and type
+dependencies are already `.f.mjs`. Current FunctionalScript compiler support is
+not a condition for that rename.
 
 When the last authored `.ts` / `.f.ts` file is gone, remove the
 TypeScript-to-JavaScript emit path, remove obsolete generated `.js` from the
