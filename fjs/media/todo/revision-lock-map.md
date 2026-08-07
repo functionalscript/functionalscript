@@ -7,11 +7,11 @@
 
 A [`vnd.fjs.revision`](../revision/README.md) identifies an immutable snapshot
 for one mutable `subject`, but that snapshot may reference other revision
-subjects. Resolving those subjects through their current heads makes processing
+subjects. Resolving those subjects through current heads makes processing
 non-reproducible: the same revision can produce a different result later even
 when its own snapshot is unchanged.
 
-The lock map belongs in the revision format because revision content and
+The lock map belongs in the revision format because source evolution and
 revision-subject resolution are closely related. A separate lock-history format
 would duplicate the existing revision mechanism (`subject`, `parents`,
 `generation`, and `snapshot`).
@@ -21,8 +21,9 @@ Implement the lock map in two stages:
 1. a flat map from subjects to immutable content hashes;
 2. a recursive map that can express scoped conflict resolution.
 
-The first stage should remain small and useful on its own. The second stage
-extends the accepted lock values without changing the role of the `lock` field.
+The first stage should remain small and independently useful. The second stage
+widens the accepted values without changing the role of the `lock` field or the
+shape of the Evo API.
 
 ### Shared decisions
 
@@ -33,13 +34,16 @@ Both stages follow these rules:
 - the value is the same kind of content hash carried by `revision.snapshot`,
   not the hash of a revision object;
 - `revision` remains the only history representation;
-- lock maps contain resolver input, not their own `subject`, `parents`,
-  `generation`, or lifecycle;
+- lock maps are resolver input, not objects with their own `subject`,
+  `parents`, `generation`, or lifecycle;
 - resolution algorithms may inspect immutable revision history;
 - inheritance, precedence, dependency discovery, conflict handling, and
   head-selection rules belong to resolvers rather than the media format;
 - revisions with equal snapshots and different lock maps are valid, and
-  applications may present them as source-unchanged dependency updates.
+  applications may present them as source-unchanged dependency updates;
+- [`fjs/cas/evo`](../../cas/evo/README.md) exposes the same optional lock through
+  its existing round-trippable `RevisionData` API rather than introducing a
+  separate lock API.
 
 For example:
 
@@ -59,7 +63,7 @@ older revision. No second history mechanism is needed.
 
 ## Stage 1: flat lock map
 
-### Schema
+### Media schema
 
 Start with the non-recursive schema:
 
@@ -89,6 +93,56 @@ type LockMap = Readonly<Record<string, string>>
 
 Every property maps one revision subject to one immutable content hash.
 
+### Evo API
+
+Extend the existing shared input/output type:
+
+```ts
+type RevisionData = {
+    readonly parents: readonly Hash[]
+    readonly snapshot?: Hash
+    readonly subject?: Subject
+    readonly archived?: true
+    readonly generation?: number
+    readonly lock?: LockMap
+}
+```
+
+The existing API operations keep their signatures:
+
+```ts
+type Evo<O> = {
+    list: (archived?: true) => Effect<MemOp, readonly Subject[]>
+    head: (subject: Subject) => Effect<MemOp, readonly Hash[]>
+    add: (rev: RevisionData) => Effect<O | MemOp, Result<Hash, string>>
+    revision: (hash: Hash) => Effect<O | MemOp, Result<RevisionData, string>>
+}
+```
+
+`add` accepts an optional flat lock and stores it in the revision. `revision`
+returns the lock when present. Because `RevisionData` is intentionally the same
+vocabulary in both directions, a value returned by `revision` must remain valid
+input to `add` without removing or translating the lock.
+
+Direct lock values are content hashes and should use the same canonical cBase32
+spelling policy as `parents` and `snapshot`. Reading a revision therefore
+canonicalizes every direct lock value. Adding a revision validates and
+canonicalizes the values before serializing the media object, so alias spellings
+do not create different revisions for the same logical lock map.
+
+An omitted lock remains omitted. An explicitly empty lock remains an empty map;
+it is not converted to absence because those values may be interpreted
+differently by an application or resolver.
+
+The Evo documentation table should describe `lock` as:
+
+| field  | as input to `add` | as output of `revision` |
+|--------|-------------------|-------------------------|
+| `lock` | optional flat map; direct hashes validated and canonicalized | optional; present exactly when stored, with canonical direct hashes |
+
+The MCP Evo front end exposes `RevisionData`, so `evo_add` and `evo_revision`
+must accept and return the same optional flat lock and test its round trip.
+
 ### Direct entries
 
 Example:
@@ -100,9 +154,10 @@ Example:
 }
 ```
 
-Pure validation checks only that the value is a record of strings. Validation
-does not load revision objects or require a referenced revision whose `subject`
-matches the map key.
+Pure media validation checks the record-of-strings shape. Store-backed or API
+validation may additionally validate and canonicalize direct strings as content
+hashes. Validation does not load revision objects or require a referenced
+revision whose `subject` matches the map key.
 
 The revision itself supplies the starting binding:
 
@@ -175,24 +230,29 @@ hash inside B or B's revision hash inside A.
 ### Resolver-relative sufficiency
 
 A flat lock map is not intrinsically partial or complete. Sufficiency depends
-on:
-
-- the resolver and its version;
-- the starting revision and operation;
-- resolver configuration and caller-provided inputs;
-- dependencies discovered while examining content.
+on the resolver, its version, the starting revision and operation, caller
+configuration, and dependencies discovered while processing content.
 
 A map is sufficient for one invocation when that resolver can finish without
 making additional unrecorded resolution choices.
 
 ### Stage 1 tasks
 
-- [ ] Define `const lock = record(string)` and derive/export its TypeScript
-      type.
+- [ ] Define `const lock = record(string)` and derive/export `LockMap`.
 - [ ] Add optional `lock` to the revision schema, decoder, validator, exported
       type, README shape, and examples.
-- [ ] Add proofs for absent, empty, and flat lock maps; invalid values; and
-      preservation of entries.
+- [ ] Extend Evo `RevisionData` with `readonly lock?: LockMap` while preserving
+      the shared add/read round-trip type.
+- [ ] Make Evo `add` validate, canonicalize, and store the optional flat lock.
+- [ ] Make Evo `revision` return the optional lock and canonicalize every direct
+      hash value.
+- [ ] Preserve the distinction between an absent lock and an empty lock.
+- [ ] Update Evo README field guarantees and examples.
+- [ ] Update `fjs/mcp/evo` schemas, documentation, and proofs for `evo_add` and
+      `evo_revision` lock round trips.
+- [ ] Add media proofs for absent, empty, and flat lock maps; invalid values;
+      and preservation of entries.
+- [ ] Add Evo proofs for valid, invalid, aliased, empty, and absent lock values.
 - [ ] Document that direct values select immutable content hashes rather than
       revision hashes.
 - [ ] Document that same-subject, missing, extra, and conflicting historical
@@ -208,7 +268,7 @@ making additional unrecorded resolution choices.
 
 ## Stage 2: recursive lock map
 
-### Schema
+### Media schema
 
 After the flat format is implemented and used, extend `lock` to accept nested
 maps:
@@ -226,6 +286,20 @@ type LockMap = {
 ```
 
 All Stage 1 flat lock maps remain valid Stage 2 lock maps.
+
+### Evo API
+
+The Evo API does not gain another field or operation in Stage 2. Its existing
+`RevisionData.lock?: LockMap` widens with the shared `LockMap` type.
+
+`add` validates and canonicalizes direct hashes recursively through all nested
+maps before serialization. `revision` recursively canonicalizes all direct
+hashes while preserving the exact nested map structure. Flat maps continue to
+round-trip unchanged.
+
+The MCP input/output schemas and proofs widen in the same way so nested lock
+maps can pass through `evo_add` and `evo_revision` without flattening or losing
+scope boundaries.
 
 ### Nested maps
 
@@ -260,21 +334,9 @@ The media format records the nested information but does not prescribe whether
 a nested map overlays its enclosing map, replaces it, inherits selected entries,
 or participates in another resolver-specific lookup rule.
 
-Nested maps may be sparse and may omit the subject under which they appear:
-
-```json
-{
-  "D": "snapshot-hash-of-D-v0",
-  "B": {
-    "C": {
-      "A": "snapshot-hash-of-A0"
-    }
-  }
-}
-```
-
-This is structurally valid. A resolver may interpret it using revision history,
-a caller environment, or its own scope policy. If it cannot resolve the
+Nested maps may be sparse and may omit the subject under which they appear.
+This is structurally valid. A resolver may interpret the map using revision
+history, a caller environment, or its own scope policy. If it cannot resolve an
 ambiguity, the map is insufficient for that invocation rather than malformed.
 
 Flat maps should remain the normal representation. Nested maps are introduced
@@ -298,12 +360,17 @@ new dialect/version.
       `const lock = () => ['record', or(string, lock)]`.
 - [ ] Derive and export the recursive TypeScript index-signature type without
       introducing an invalid circular type alias.
-- [ ] Update validation and proofs for nested maps and malformed recursive
+- [ ] Update media validation and proofs for nested maps and malformed recursive
       values.
+- [ ] Widen Evo `RevisionData.lock` through the shared recursive `LockMap` type.
+- [ ] Recursively validate and canonicalize direct lock hashes in Evo `add` and
+      `revision` while preserving nested structure.
+- [ ] Update Evo and MCP documentation, schemas, and proofs for recursive lock
+      round trips.
 - [ ] Add nested conflict examples and document their resolver-specific
       semantics.
 - [ ] Preserve Stage 1 flat examples and prove that all flat lock maps remain
-      accepted.
+      accepted by media, Evo, and MCP layers.
 - [ ] Add processor-facing follow-up work for consuming and returning recursive
       maps.
 - [ ] Reconcile the recursive extension with the dialect versioning rule before
@@ -330,10 +397,10 @@ shared lock content. This is outside both stages of this TODO.
 
 ### Related
 
-- [fjs/media/revision/README.md](../revision/README.md) — the current revision
-  shape, parent ordering, generation rules, interpretability requirements, and
-  dialect versioning policy
-- [fjs/cas/evo/README.md](../../cas/evo/README.md) — revision storage and head
-  operations that remain the only history infrastructure
+- [fjs/media/revision/README.md](../revision/README.md) — revision shape,
+  generation rules, and dialect versioning policy
+- [fjs/cas/evo/README.md](../../cas/evo/README.md) — the round-trippable Evo API
+  that must expose the optional lock
+- [fjs/mcp/evo/README.md](../../mcp/evo/README.md) — MCP exposure of Evo
 - [fjs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
   — media-module placement and dialect naming conventions
