@@ -111,13 +111,21 @@ source.ts  -> source.d.ts
 source.mjs -> source.d.mts
 ```
 
-The generated declarations are then present for the second pass, which emits
-the remaining TypeScript runtime JavaScript while leaving authored `.mjs`
-unchanged:
+The generated declarations are then present for the second invocation. For the
+repository configuration, TypeScript resolves those `.d.mts` declarations for
+the authored `.mjs` modules, so the second pass emits the remaining TypeScript
+runtime JavaScript without trying to overwrite the authored `.mjs` files:
 
 ```text
 source.ts -> source.js
 ```
+
+This exact setup is validated by
+[PR #1451](https://github.com/functionalscript/functionalscript/pull/1451),
+which enables `allowJs` / `checkJs`, keeps an authored `benchmark.mjs`, uses this
+`prepack`, and passes the Node 26 CI `npm pack` step. A separate runtime-emission
+configuration is therefore unnecessary unless a real repository case shows the
+simple two-pass command is insufficient.
 
 No generated-output cleanup is needed before packaging because the CI package
 job starts from a clean checkout. In particular, after `source.ts` is renamed
@@ -169,6 +177,8 @@ must cover both runtime and declarations. These requirements are owned by
 
 ### Related
 
+- [PR #1451](https://github.com/functionalscript/functionalscript/pull/1451) —
+  initial implementation and CI validation of authored `.mjs` package support.
 - [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
   — repository-wide two-stage ordering.
 - [`f-mjs-package-support.md`](./f-mjs-package-support.md) — focused stage-1
