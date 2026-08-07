@@ -108,24 +108,29 @@ See [architecture.md §Human-readable paths](./architecture.md).
    bytecode is an optional, VM-internal, performance-oriented representation
 5. Generic `Any` serialization (CBOR) in `nanvm-lib` — covers code as data; needed for CAS/CAVM
 
-**Incremental repository migration:**
+**Repository source migration and compiler coverage:**
 
-The compiler will begin compiling the FunctionalScript repository as soon as it
-can parse the first useful function modules; it will not wait for the complete
-language feature set. Repository coverage grows together with parser and code
-generator coverage:
+The repository source-language migration is independent of compiler feature
+coverage and is tracked in
+[`todo/migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md):
 
-1. Select an existing `.f.ts` module whose complete syntax is supported.
-2. Rename it to `.f.mjs`, move TypeScript types to JSDoc, and update imports.
-3. Make that module a permanent parser/compiler regression input.
-4. Repeat in separate, reviewable changes as more syntax becomes supported.
+1. Stage 1 migrates authored `.f.ts` to `.f.mjs` dependency-first, moving types
+   to JSDoc. `.f.mjs` means FunctionalScript-intent JavaScript and may contain
+   syntax the current compiler does not support.
+2. The compiler may validate any migrated `.f.mjs` module it already supports,
+   and synthetic compiler fixtures may land earlier, but compiler readiness does
+   not decide whether Stage-1 source or proof files migrate.
+3. After all authored TypeScript is gone, Stage 2 migrates compiler-supported
+   dependency-closed groups from `.f.mjs` to `.f.js`.
+4. An authored `.f.js` is the compiler-compatibility marker: the parser/compiler
+   in the same repository revision must accept it. Unsupported modules remain
+   `.f.mjs` until their compiler features land.
 
-`.f.mjs` is the marker for authored FunctionalScript that the compiler in the
-same repository revision must accept. Unsupported modules remain `.f.ts`; no
-migration should pull unrelated language features into scope merely to convert
-a file. This is a continuing strategy rather than a one-time migration task or
-a prerequisite for the compiler MVP. The extension contract and detailed
-workflow are documented in [`fjs/fsc/README.md`](../../fjs/fsc/README.md).
+This lets TypeScript removal and compiler implementation proceed independently
+without either one blocking unrelated progress. The authoritative extension
+contract and detailed workflow are documented in
+[`fjs/fsc/README.md`](../../fjs/fsc/README.md), and the Stage-2 compiler migration
+is tracked in [`todo/fjs-nanvm-integration.md`](../fjs-nanvm-integration.md).
 
 This is the longest dependency chain. Everything after it depends on it.
 
@@ -164,7 +169,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | SUL deduplication | `fjs/sul/` L1–L4 ✓ | CAS integration layer |
 | Compiler (parsing) | `fjs/djs/` data pipeline ✓, `fjs/bnf/` framework ✓ | Function support, FS grammar |
 | Compiler (codegen) | — | Rust code generator (FJS), `Function` constructor + interpreter in `nanvm-lib` |
-| Compiler (repository coverage) | Extension and migration strategy defined | First eligible `.f.ts` → `.f.mjs` conversion, then incremental expansion |
+| Compiler (repository coverage) | Stage-1 `.f.mjs` source migration is compiler-independent | Validate supported `.f.mjs` as coverage grows; after Stage 1, rename supported groups `.f.mjs` → `.f.js` |
 | CA FunctionalScript | — | Depends on VM + AST canonicalization |
 | Sandboxed execution | — | Depends on CA FS |
 | Hybrid intelligence | — | Depends on all above |
