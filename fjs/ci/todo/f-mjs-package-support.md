@@ -13,9 +13,8 @@ TypeScript and NPM pipeline treats authored `.mjs` as first-class source.
 The current package configuration validates authored TypeScript and publishes
 its generated `.js` / `.d.ts`, but does not yet provide the corresponding
 checked authored `.mjs` plus generated `.d.mts` path. Turning on `allowJs` /
-`checkJs` without changing emission also makes `npm run prepack` fail: authored
-`.mjs` becomes an input and a JavaScript emit target, producing TS5055 overwrite
-errors.
+`checkJs` while keeping the current one-pass emit also makes authored `.mjs` an
+input and JavaScript output target, producing TS5055 overwrite errors.
 
 Stage 1 is dependency-first. Remaining `.ts` / `.f.ts` may import already
 migrated `.mjs` / `.f.mjs`, but migrated JavaScript must not retain runtime or
@@ -23,11 +22,16 @@ declaration references to remaining TypeScript. The package pipeline does not
 rewrite module specifiers, so this invariant must work directly in a clean
 checkout and packed artifact.
 
+Packaging and publishing run in CI from a clean checkout. Generated `.js`,
+`.d.ts`, and `.d.mts` from an earlier commit or package build therefore do not
+survive into the next package job. The package design does not need a local
+working-tree cleanup protocol or legacy-output tracking across source renames.
+
 ### Proposal
 
-Implement the minimum validation, repeatable emission, package-content,
-repository-policy, and clean-consumer support required before the first stage-1
-source migration. The broader package roadmap remains in
+Implement the minimum validation, emission, package-content, repository-policy,
+and clean-consumer support required before the first stage-1 source migration.
+The broader package roadmap remains in
 [`publishing-packages.md`](./publishing-packages.md).
 
 Use the stage-1 authored/generated invariant:
@@ -41,11 +45,15 @@ Enable `allowJs` and `checkJs` before the first source conversion. TypeScript
 must validate both authored extensions and exclude generated declarations from
 the source set.
 
-Declaration emission covers `.ts` and `.mjs`; JavaScript emission covers `.ts`
-only. Authored `.mjs` is preserved unchanged. A repository-owned cleanup runs
-before emission and removes only generated outputs derived from authored source:
-generated `.js` for `.ts`, plus `.d.ts` / `.d.mts` declarations. It must never
-remove authored `.mjs` or use a broad cleanup such as `git clean`.
+Split package emission into two passes. Declaration emission covers `.ts` and
+`.mjs`; JavaScript emission disables JavaScript inputs and covers `.ts` only.
+Authored `.mjs` is therefore preserved unchanged without requiring a cleanup
+step.
+
+Because the CI package job starts from a clean checkout, a renamed
+`source.ts -> source.mjs` does not carry ignored `source.js` / `source.d.ts`
+artifacts from an earlier revision into the package job. Those files never need
+to be discovered or deleted by the new `.mjs` input.
 
 Do not introduce a staging tree or rewrite runtime/declaration specifiers. An
 authored `.mjs` / `.f.mjs` group must therefore be closed over authored
@@ -74,21 +82,19 @@ package prerequisite.
       `.d.ts` and `.d.mts` declarations from source validation.
 - [ ] Update NPM package rules to include package-owned `.mjs` and `.d.mts`
       while excluding unrelated `.mjs` files.
-- [ ] Add a cross-platform cleanup that derives generated outputs from authored
-      source and removes only generated `.js`, `.d.ts`, and `.d.mts` files.
-- [ ] Replace one-pass `prepack` with cleanup, declaration emission for `.ts`
-      and `.mjs`, then JavaScript emission from `.ts` only.
+- [ ] Replace one-pass package emission with declaration emission for `.ts` and
+      `.mjs`, followed by JavaScript emission from `.ts` only.
+- [ ] Keep package/publish jobs on a clean CI checkout; do not add generated
+      output tracking or cleanup for artifacts from previous revisions.
 - [ ] Add a mixed authored `.ts` + JSDoc `.mjs` package fixture.
 - [ ] Test the allowed `.ts` -> `.mjs` dependency direction in a clean checkout
-      and packed archive.
+      and CI-built package archive.
 - [ ] Reject authored `.mjs` runtime imports and declaration-retained references
       to remaining relative `.ts` or generated `.js`.
-- [ ] Run `npm pack` twice consecutively and verify both runs have the same
-      package file set.
 - [ ] Verify emitted `.d.mts` contains no references to omitted package files.
 - [ ] Type-check a clean consumer using exported/transitive types from the
       authored `.mjs` fixture.
-- [ ] Verify the packed archive contains authored `.mjs`, generated `.js`,
+- [ ] Verify the CI-built archive contains authored `.mjs`, generated `.js`,
       `.d.ts`, and `.d.mts` in the expected paths during stage 1.
 - [ ] Update `AGENTS.md` to the asymmetric `.f.ts` / `.f.mjs` migration policy.
 - [ ] Add validation/proofs for the allowed TypeScript -> migrated-JavaScript
@@ -99,13 +105,15 @@ package prerequisite.
 - `allowJs` and `checkJs` are enabled before the first source conversion.
 - The main TypeScript check validates authored `.ts` and `.mjs` without treating
   generated declarations as source.
-- Packing emits `.d.ts` for `.ts`, `.d.mts` for `.mjs`, `.js` only for `.ts`,
-  and preserves authored `.mjs` unchanged.
-- Every pack starts from a known generated-output state, and two consecutive
-  packs succeed without TS5055 or manual cleanup.
+- Package emission produces `.d.ts` for `.ts`, `.d.mts` for `.mjs`, `.js` only
+  for `.ts`, and preserves authored `.mjs` unchanged.
+- Package/publish runs start from a clean CI checkout, so ignored generated
+  outputs from previous revisions cannot leak into a package build.
+- No repository-owned cleanup or legacy generated-output tracking is required
+  for the stage-1 migration.
 - Remaining `.ts` may import migrated `.mjs`; migrated `.mjs` cannot retain
   runtime/declaration references to remaining `.ts` or generated `.js`.
-- A clean consumer can import the packed `.mjs` runtime and type-check against
+- A clean consumer can import the CI-built `.mjs` runtime and type-check against
   its `.d.mts` declarations.
 - `.f.mjs` carries no current-compiler compatibility promise during stage 1.
 - No staging tree or package-time specifier rewrite is needed.
