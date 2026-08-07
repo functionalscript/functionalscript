@@ -268,25 +268,22 @@ making additional unrecorded resolution choices.
 
 ## Stage 2: recursive lock map
 
-### Dependency
+### Blocked by
 
-Stage 2 depends on
-[recursive RTTI-to-JSON-Schema support](../json/todo/rtti-recursive-json-schema.md).
-The current JSON Schema transformer walks thunk RTTI directly and cannot
-terminate on a recursive schema such as the Stage 2 lock.
+- [Recursive RTTI to JSON Schema](../json/todo/rtti-recursive-json-schema.md)
+- [RTTI serializable data representation](../../types/rtti/todo/serializable-data.md)
 
-That transformer TODO in turn depends on the
-[RTTI serializable data representation](../../types/rtti/todo/serializable-data.md),
-where recursive thunks are converted into a function-free rule set with
-named/indexed references, similar to `fjs/bnf/data`.
+The recursive JSON Schema task is itself blocked by the RTTI serializable data
+representation. The current JSON Schema transformer walks thunk RTTI directly
+and cannot terminate on a recursive schema such as the Stage 2 lock.
 
-Do not implement or emit Stage 2 recursive lock records until this dependency
-chain is complete. Stage 1 uses only a finite `record(string)` schema and is not
-blocked by it.
+Do not implement or emit Stage 2 recursive lock records until both blockers are
+complete. Stage 1 uses only a finite `record(string)` schema and is not blocked
+by them.
 
 ### Media schema
 
-After the flat format is implemented and the dependencies above are complete,
+After the flat format is implemented and the blockers above are complete,
 extend `lock` to accept nested maps:
 
 ```ts
@@ -372,9 +369,6 @@ new dialect/version.
 
 ### Stage 2 tasks
 
-- [ ] Complete
-      [recursive RTTI-to-JSON-Schema support](../json/todo/rtti-recursive-json-schema.md),
-      including its dependency on the RTTI data representation.
 - [ ] Replace the flat schema with
       `const lock = () => ['record', or(string, lock)]`.
 - [ ] Derive and export the recursive TypeScript index-signature type without
@@ -418,8 +412,8 @@ shared lock content. This is outside both stages of this TODO.
 
 - [fjs/media/revision/README.md](../revision/README.md) — revision shape,
   generation rules, and dialect versioning policy
-- [recursive RTTI-to-JSON-Schema support](../json/todo/rtti-recursive-json-schema.md)
-  — direct prerequisite for Stage 2
+- [Recursive RTTI to JSON Schema](../json/todo/rtti-recursive-json-schema.md)
+  — direct blocker for Stage 2
 - [RTTI serializable data representation](../../types/rtti/todo/serializable-data.md)
   — named or indexed references that make recursive RTTI finite and serializable
 - [fjs/cas/evo/README.md](../../cas/evo/README.md) — the round-trippable Evo API
