@@ -13,8 +13,8 @@ TypeScript and NPM pipeline treats authored `.mjs` as first-class source.
 The current package configuration validates authored TypeScript and publishes
 its generated `.js` / `.d.ts`, but does not yet provide the corresponding
 checked authored `.mjs` plus generated `.d.mts` path. Turning on `allowJs` /
-`checkJs` while keeping the current one-pass emit also makes authored `.mjs` an
-input and JavaScript output target, producing TS5055 overwrite errors.
+`checkJs` while keeping the current one-pass emit makes authored `.mjs` both an
+input and an output target.
 
 Stage 1 is dependency-first. Remaining `.ts` / `.f.ts` may import already
 migrated `.mjs` / `.f.mjs`, but migrated JavaScript must not retain runtime or
@@ -24,8 +24,9 @@ checkout and packed artifact.
 
 Packaging and publishing run in CI from a clean checkout. Generated `.js`,
 `.d.ts`, and `.d.mts` from an earlier commit or package build therefore do not
-survive into the next package job. The package design does not need a local
-working-tree cleanup protocol or legacy-output tracking across source renames.
+survive into the next package job. `prepack` is part of packaging, not a normal
+development command, so the design does not need a local working-tree cleanup
+protocol or separately exposed emission scripts.
 
 ### Proposal
 
@@ -41,14 +42,22 @@ source.ts  -> source.js + source.d.ts
 source.mjs -> source.mjs + source.d.mts
 ```
 
-Enable `allowJs` and `checkJs` before the first source conversion. TypeScript
-must validate both authored extensions and exclude generated declarations from
-the source set.
+Enable `allowJs` and `checkJs` before the first source conversion so TypeScript
+validates both authored extensions.
 
-Split package emission into two passes. Declaration emission covers `.ts` and
-`.mjs`; JavaScript emission disables JavaScript inputs and covers `.ts` only.
-Authored `.mjs` is therefore preserved unchanged without requiring a cleanup
-step.
+Use one packaging lifecycle command with two ordered TypeScript passes:
+
+```json
+"prepack": "tsc --noEmit false --emitDeclarationOnly && tsc --noEmit false --declaration false"
+```
+
+The first pass emits declarations for both `.ts` and `.mjs`. With those
+declarations present, the second pass emits JavaScript for the remaining
+TypeScript sources while preserving authored `.mjs` unchanged.
+
+Keep both passes inline in `prepack`; do not add public `emit:*` scripts for
+users to run independently. Normal development should type-check and test the
+source tree without generating package artifacts.
 
 Because the CI package job starts from a clean checkout, a renamed
 `source.ts -> source.mjs` does not carry ignored `source.js` / `source.d.ts`
@@ -78,12 +87,12 @@ package prerequisite.
       it if it is no longer needed.
 - [ ] Enable `allowJs` and `checkJs` in the root TypeScript configuration before
       the first `.ts` / `.f.ts` migration.
-- [ ] Include authored `.ts` and `.mjs` source while excluding generated
-      `.d.ts` and `.d.mts` declarations from source validation.
 - [ ] Update NPM package rules to include package-owned `.mjs` and `.d.mts`
       while excluding unrelated `.mjs` files.
-- [ ] Replace one-pass package emission with declaration emission for `.ts` and
-      `.mjs`, followed by JavaScript emission from `.ts` only.
+- [ ] Replace one-pass package emission with the two ordered `tsc` commands
+      directly in `prepack`: declarations first, then JavaScript emission.
+- [ ] Do not expose separate `emit:*` package scripts; packaging owns generated
+      outputs.
 - [ ] Keep package/publish jobs on a clean CI checkout; do not add generated
       output tracking or cleanup for artifacts from previous revisions.
 - [ ] Add a mixed authored `.ts` + JSDoc `.mjs` package fixture.
@@ -103,10 +112,12 @@ package prerequisite.
 ### Acceptance criteria
 
 - `allowJs` and `checkJs` are enabled before the first source conversion.
-- The main TypeScript check validates authored `.ts` and `.mjs` without treating
-  generated declarations as source.
+- The main TypeScript check validates authored `.ts` and `.mjs`.
+- `prepack` contains the two ordered `tsc` passes directly, with declaration
+  emission first and JavaScript emission second.
 - Package emission produces `.d.ts` for `.ts`, `.d.mts` for `.mjs`, `.js` only
   for `.ts`, and preserves authored `.mjs` unchanged.
+- No separate user-facing `emit:*` scripts are required.
 - Package/publish runs start from a clean CI checkout, so ignored generated
   outputs from previous revisions cannot leak into a package build.
 - No repository-owned cleanup or legacy generated-output tracking is required
