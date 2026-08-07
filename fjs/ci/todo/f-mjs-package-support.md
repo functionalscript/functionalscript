@@ -45,7 +45,8 @@ source.mjs -> source.mjs + source.d.mts
 Enable `allowJs` and `checkJs` before the first source conversion so TypeScript
 validates both authored extensions.
 
-Use one packaging lifecycle command with two ordered TypeScript passes:
+Use one packaging lifecycle command with two ordered TypeScript passes while
+TypeScript source remains:
 
 ```json
 "prepack": "tsc --noEmit false --emitDeclarationOnly && tsc --noEmit false --declaration false"
@@ -81,6 +82,13 @@ Update `AGENTS.md` with that asymmetric source-migration policy. Compiler
 compatibility is a later `.f.mjs` -> `.f.js` migration and is not part of this
 package prerequisite.
 
+As soon as no authored `.ts` / `.f.ts` source remains, remove the second
+TypeScript runtime-emission pass. `prepack` then needs only declaration emission:
+
+```json
+"prepack": "tsc --noEmit false --emitDeclarationOnly"
+```
+
 ### Tasks
 
 - [ ] Make `fjs/types/bigint/benchmark.mjs` pass TypeScript validation or delete
@@ -113,8 +121,8 @@ package prerequisite.
 
 - `allowJs` and `checkJs` are enabled before the first source conversion.
 - The main TypeScript check validates authored `.ts` and `.mjs`.
-- `prepack` contains the two ordered `tsc` passes directly, with declaration
-  emission first and JavaScript emission second.
+- `prepack` contains the two ordered `tsc` passes directly while TypeScript
+  remains, with declaration emission first and JavaScript emission second.
 - Package emission produces `.d.ts` for `.ts`, `.d.mts` for `.mjs`, `.js` only
   for `.ts`, and preserves authored `.mjs` unchanged.
 - No separate user-facing `emit:*` scripts are required.
@@ -136,9 +144,10 @@ Complete this task before the first package-owned `.ts` / `.f.ts` -> `.mjs` /
 [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md).
 The migration then proceeds gradually from dependency leaves.
 
-After stage 1 finishes and `.js` becomes authorable, the separate
-[`f-js-package-support.md`](./f-js-package-support.md) task prepares authored
-`.f.js` before compiler-compatibility migration starts.
+After the last authored `.ts` / `.f.ts` source is removed, simplify `prepack` to
+its declaration-only form and remove the TypeScript-to-JavaScript emit path.
+Then the separate [`f-js-package-support.md`](./f-js-package-support.md) task
+prepares authored `.f.js` before compiler-compatibility migration starts.
 
 ### Related
 
