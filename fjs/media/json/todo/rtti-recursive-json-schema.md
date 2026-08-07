@@ -22,16 +22,16 @@ Do not solve this by adding ad-hoc thunk identity tracking to only the JSON
 Schema transformer. RTTI needs one shared serializable graph representation so
 all consumers resolve recursion in the same way.
 
-### Dependency: RTTI data representation
+### Blocked by
 
-This task depends on the
-[RTTI serializable data representation](../../../types/rtti/todo/serializable-data.md),
-which proposes a function-free RTTI data representation modeled after
+- [RTTI serializable data representation](../../../types/rtti/todo/serializable-data.md)
+
+The blocker proposes a function-free RTTI data representation modeled after
 [`fjs/bnf/data`](../../../bnf/data/).
 
-That TODO includes the required recursion model: definitions are stored in a
-named or indexed rule set, and nested types refer to those definitions instead
-of containing self-referencing functions.
+It includes the required recursion model: definitions are stored in a named or
+indexed rule set, and nested types refer to those definitions instead of
+containing self-referencing functions.
 
 Conceptually:
 
@@ -137,8 +137,6 @@ schema snapshots.
 
 ### Tasks
 
-- [ ] Complete the named/indexed recursive
-      [RTTI serializable data representation](../../../types/rtti/todo/serializable-data.md).
 - [ ] Add `dataToJsonSchema` over the RTTI data rule set.
 - [ ] Change `toJsonSchema(rtti)` to call RTTI `toData` and then
       `dataToJsonSchema`.
