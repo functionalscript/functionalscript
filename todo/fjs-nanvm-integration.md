@@ -22,43 +22,49 @@ prove much. The entry point is the module's `export default`: the harness
 evaluates it, runs it if it is a function, and prints the result to stdout
 as JSON.
 
-### Repository source selection
+### Repository compiler-compatibility migration
 
-The first integration does not imply that every existing `.f.ts` module is
-accepted by the new parser. `.f.ts` is the broader authored
-FunctionalScript-intent source set and may contain TypeScript syntax or
-FunctionalScript features that are not implemented yet.
+**Blocked by:** [migrate authored TypeScript to `.mjs`](../fjs/ci/todo/migrate-typescript-to-mjs.md)
 
-Use `.f.mjs` for authored modules whose complete syntax is accepted by the
-current parser and compiler. Types in these modules are expressed with JSDoc,
-not TypeScript syntax. The initial walking skeleton may start with a minimal
-synthetic `.f.mjs` fixture before repository-wide `.mjs` infrastructure is
-complete, because that fixture does not enter the published runtime graph.
+The initial compiler walking skeleton does not require repository source
+migration and may use a small synthetic JavaScript fixture. The extension-based
+compiler-compatibility migration of existing FunctionalScript modules is a
+separate step and must not begin while authored TypeScript remains in the
+repository.
 
-Before converting the first existing repository module, complete both:
+First complete the repository-wide source-language migration:
 
-- [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md),
-  so the rename cannot silently remove internal proofs or coverage and the
-  proof guidance in `AGENTS.md` and `CONTRIBUTING.md` remains consistent;
-- [authored `.f.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md),
-  including TypeScript checking, package inclusion for `.mjs` and `.d.mts`,
-  repeatable generated-output cleanup and declaration emission, consecutive-pack
-  validation, runtime import tests, and packed-package type-resolution tests.
+```text
+module.ts   -> module.mjs
+module.f.ts -> module.f.mjs
+```
 
-After those prerequisites, select a dependency-closed module or coherent group.
-Every relative FunctionalScript dependency used by executable code or retained
-in emitted `.d.mts` declarations must already be `.f.mjs` or be converted in the
-same change. Authored `.f.mjs` runtime imports and JSDoc type references must not
-point to unmigrated `.f.ts` or generated `.f.js`; package emission does not
-rewrite authored `.mjs` imports or declaration specifiers. Rename the group,
-update its runtime and type references plus all importers, and use it as an
-end-to-end compiler input. If either required dependency closure is not yet
-supported, postpone that group and choose a smaller eligible leaf.
+That migration is gradual and dependency-first: `.ts` / `.f.ts` files with no
+authored TypeScript dependencies migrate first, then their callers, until no
+authored TypeScript remains. `.f.mjs` during that stage means authored
+FunctionalScript-intent JavaScript; it does not promise that the current
+FunctionalScript compiler accepts the module.
 
-Repository migration then continues independently, one dependency-closed group
-at a time, as parser features land. It is neither part of one large PR nor a
-gate on the initial synthetic walking skeleton. See
-[`fjs/fsc/README.md`](../fjs/fsc/README.md) for the extension contract and
+Only after that prerequisite is complete does this TODO start the
+compiler-compatibility migration:
+
+```text
+module.f.mjs -> module.f.js
+```
+
+At that point `.f.js` is available as an unambiguous authored-source marker
+because TypeScript no longer emits generated `.f.js` from `.f.ts` source. An
+authored `.f.js` module must be accepted by the FunctionalScript parser and
+compiler in the same repository revision.
+
+Compiler-compatibility migration is incremental. Select a dependency-closed
+`.f.mjs` module or coherent group whose complete syntax and required dependency
+graph are supported by the current compiler, rename it to `.f.js`, update its
+runtime and type references plus callers, and keep it as a permanent end-to-end
+compiler regression input. Unsupported FunctionalScript modules remain
+`.f.mjs` until the needed compiler features land.
+
+See [`fjs/fsc/README.md`](../fjs/fsc/README.md) for the extension contract and
 migration strategy.
 
 ### CLI: an output target, not a command group (decided)
@@ -91,32 +97,28 @@ via the `Function` constructor — no rustc at the user's run time.
 - [ ] Define the convention for generated module imports (`use` paths,
       file/directory layout — see the open question in
       [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md#open-questions)).
-- [ ] Prove the pipeline with a minimal synthetic `.f.mjs` subset: a constant
-      default export compiled by `fjs` to `.rs`, built and run by cargo, with
-      the result printed to stdout as JSON.
-- [ ] Complete
-      [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md).
-- [ ] Complete
-      [authored `.f.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md),
-      including the consecutive-pack repeatability regression.
-- [ ] Convert the first eligible repository module or group that is closed over
-      both runtime and declaration-retained type dependencies from `.f.ts` to
-      `.f.mjs`, and keep it in the end-to-end compiler, proof, coverage,
-      type-checking, repeatable package-runtime, and package-type-resolution test
-      sets.
+- [ ] Prove the pipeline with a minimal synthetic JavaScript FunctionalScript
+      subset: a constant default export compiled by `fjs` to `.rs`, built and
+      run by cargo, with the result printed to stdout as JSON.
+- [ ] Complete [migrate authored TypeScript to `.mjs`](../fjs/ci/todo/migrate-typescript-to-mjs.md).
+- [ ] After that dependency is complete, convert the first eligible
+      dependency-closed repository module or group from `.f.mjs` to `.f.js` and
+      keep it in the end-to-end compiler, proof, coverage, type-checking,
+      package-runtime, and package-type-resolution test sets.
+- [ ] Continue `.f.mjs` -> `.f.js` incrementally as compiler support grows.
 
 ### Related
 
+- [migrate authored TypeScript to `.mjs`](../fjs/ci/todo/migrate-typescript-to-mjs.md)
+  — **blocked-by prerequisite** for repository compiler-compatibility migration.
 - [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — MVP
   definition and task list.
 - [nanvm-lib/todo/console-program.md](../nanvm-lib/todo/console-program.md) —
   the self-hosted `nanvm` crate (post-MVP).
 - [`.f.mjs` test and coverage support](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
-  — proof-discovery, cross-runner coverage, and contributor-policy prerequisite
-  for the first repository conversion.
+  — proof-discovery and cross-runner coverage support used by stage 1.
 - [authored `.f.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md) —
-  focused P1 validation, repeatable emission, package-content, dependency, and
-  consumer type-resolution prerequisite.
+  validation, declaration, and package support used by stage 1.
 - [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md) — broader P3
   package-publishing roadmap and shared authored/generated extension convention.
 - [ast-spec](./ast-spec.md) — the schema of the code-describing `Any`; the
