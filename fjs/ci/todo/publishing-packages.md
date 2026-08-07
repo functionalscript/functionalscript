@@ -89,7 +89,8 @@ Non-package `.mjs` files must remain excluded from the packed archive.
 ### Stage-1 emission
 
 Keep packaging simple and keep emission as an implementation detail of the NPM
-lifecycle. Use the two ordered TypeScript passes directly in `prepack`:
+lifecycle. Use the two ordered TypeScript passes directly in `prepack` while any
+`.ts` / `.f.ts` source remains:
 
 ```json
 {
@@ -129,6 +130,18 @@ asymmetric and dependency-first: authored `.ts` may import already migrated
 `.mjs`, while authored `.mjs` must not retain relative runtime or declaration
 references to remaining `.ts` or generated `.js`.
 
+As soon as the last authored `.ts` / `.f.ts` source is removed, the runtime
+JavaScript emission pass has no purpose and should be removed from
+`package.json`. `prepack` then becomes declaration-only:
+
+```json
+{
+  "scripts": {
+    "prepack": "tsc --noEmit false --emitDeclarationOnly"
+  }
+}
+```
+
 ### Stage-2 authored `.f.js`
 
 Once stage 1 is complete, `.js` is no longer generated from repository
@@ -148,6 +161,8 @@ must cover both runtime and declarations. These requirements are owned by
 
 - [ ] Complete [`f-mjs-package-support.md`](./f-mjs-package-support.md) before
       the first stage-1 source conversion.
+- [ ] After the last `.ts` / `.f.ts` source is removed, simplify `prepack` to the
+      declaration-only `tsc --noEmit false --emitDeclarationOnly` command.
 - [ ] Complete [`f-js-package-support.md`](./f-js-package-support.md) after
       stage 1 and before the first authored `.f.js` compiler-compatibility
       conversion.
