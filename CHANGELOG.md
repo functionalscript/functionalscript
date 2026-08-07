@@ -20,6 +20,8 @@ history.
 
 ## Unreleased
 
+## 0.43.1
+
 - `vnd.fjs.revision` gains optional flat subject-to-content lock maps; Evo
   validates and canonicalizes their hashes, and revision JSON is serialized
   canonically for stable CAS addresses [#1447](https://github.com/functionalscript/functionalscript/pull/1447)
