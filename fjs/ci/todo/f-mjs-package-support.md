@@ -53,8 +53,17 @@ TypeScript source remains:
 ```
 
 The first pass emits declarations for both `.ts` and `.mjs`. With those
-declarations present, the second pass emits JavaScript for the remaining
-TypeScript sources while preserving authored `.mjs` unchanged.
+declarations present, the second TypeScript invocation resolves the generated
+`.d.mts` declarations for authored `.mjs` modules, so it emits runtime
+JavaScript for the remaining TypeScript sources without overwriting authored
+`.mjs`.
+
+This exact configuration is already exercised by
+[PR #1451](https://github.com/functionalscript/functionalscript/pull/1451): it
+enables `allowJs` / `checkJs`, keeps `benchmark.mjs` in the repository, uses the
+same two-pass `prepack`, and its Node 26 CI `npm pack` step succeeds. Keep this
+simple ordering rather than adding a separate runtime-emission configuration
+unless a real repository case demonstrates that it is needed.
 
 Keep both passes inline in `prepack`; do not add public `emit:*` scripts for
 users to run independently. Normal development should type-check and test the
@@ -123,6 +132,8 @@ TypeScript runtime-emission pass. `prepack` then needs only declaration emission
 - The main TypeScript check validates authored `.ts` and `.mjs`.
 - `prepack` contains the two ordered `tsc` passes directly while TypeScript
   remains, with declaration emission first and JavaScript emission second.
+- The exact two-pass command succeeds under `npm pack` with authored `.mjs`
+  present; PR #1451 provides the initial repository validation of this behavior.
 - Package emission produces `.d.ts` for `.ts`, `.d.mts` for `.mjs`, `.js` only
   for `.ts`, and preserves authored `.mjs` unchanged.
 - No separate user-facing `emit:*` scripts are required.
@@ -151,6 +162,9 @@ prepares authored `.f.js` before compiler-compatibility migration starts.
 
 ### Related
 
+- [PR #1451](https://github.com/functionalscript/functionalscript/pull/1451) —
+  initial implementation and CI validation of `allowJs` / `checkJs` plus the
+  two-pass `prepack`.
 - [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
   — repository-wide stage-1 source migration.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package roadmap.
