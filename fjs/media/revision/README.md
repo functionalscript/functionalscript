@@ -9,7 +9,7 @@ updates to one logical mutable object a shared shape, without any mutable
 pointer anywhere in the store itself.
 
 ```ts
-import { revisionSchema, dialect, mediaType, validate, decodeText } from './module.f.ts'
+import { revisionSchema, dialect, mediaType, validate, decodeText, encodeText } from './module.f.ts'
 ```
 
 ## Shape
@@ -22,6 +22,7 @@ export const revisionSchema = {
     snapshot: hash,
     generation: number,
     archived: option(true),
+    lock: option(record(string)),
 } as const
 ```
 
@@ -33,6 +34,7 @@ export const revisionSchema = {
 | `snapshot`   | `hash`                  | Complete materialized content of this revision. Always stated explicitly. |
 | `generation` | `number`                | Generation number — `0` for the first revision, else `1 + max(parent.generation)` for conforming writers. |
 | `archived`   | `true` (optional)       | Marks the mutable object as archived/inactive.                         |
+| `lock`       | `{ [subject: string]?: hash }` (optional) | Flat resolver input binding dependency subjects to immutable content. |
 
 `hash` is a cbase32 native CAS address ([fjs/basen/cbase32](../../basen/cbase32/)).
 It is the only snapshot-reference type this dialect accepts: `parents` and
@@ -40,6 +42,24 @@ It is the only snapshot-reference type this dialect accepts: `parents` and
 other location-addressed reference form. `subject` is a pure identity string,
 never a snapshot reference, so it is never validated as a hash — any string is
 a valid `subject`.
+
+`lock` is an optional flat open map. Each direct value selects immutable
+content, like `snapshot`; it is not a revision-object hash. Missing bindings
+have no format-defined fallback or inheritance behavior: dependency discovery,
+precedence, conflict handling, ancestry inspection, and mutable-head fallback
+belong to resolvers. An omitted lock means no bindings were recorded, while an
+explicit empty lock remains distinct as `{}`. A binding for the revision's own
+subject is structurally valid.
+
+## Canonical serialization
+
+Conforming writers serialize revision JSON canonically by sorting every
+object's property names lexicographically. Sorting is recursive, so it applies
+to the top-level revision, `lock`, and future nested JSON objects; arrays retain
+their declared order. Names are compared as strings (`"10"` precedes `"2"`).
+Consequently parsed revisions that differ only in whitespace, escape spelling,
+or property construction order converge to identical bytes and one CAS address.
+Existing non-canonical blobs remain valid input and normalize when rewritten.
 
 Because rtti struct schemas can't express string-content refinements, `hash`
 is `string` at the schema level and `generation` is `number`; cbase32

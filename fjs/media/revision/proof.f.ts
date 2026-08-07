@@ -1,11 +1,15 @@
 import { assert, assertEq } from '../../asserts/module.f.ts'
 import type { Object as JsonObject } from '../json/module.f.ts'
-import { dialect, mediaType, isHash, validate, decodeText } from './module.f.ts'
+import { dialect, mediaType, isHash, validate, decodeText, encodeText, type LockMap } from './module.f.ts'
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.ts): single
 // cbase32 symbols, cheap to write inline here.
 const h1 = '8'
 const h2 = 'r'
+// `I` is accepted as an alias spelling of canonical cBase32 `1`.
+const alias = 'I' as const
+
+const _lockMapAllowsMissingSubjects: LockMap = {}
 
 // A shape-valid revision: every required field present (`snapshot` and
 // `generation` included), with `extra` overriding or adding fields per test.
@@ -113,6 +117,38 @@ export const proof = {
             assertEq(t, 'ok')
         },
 
+        lockAbsentAccepted: () => {
+            const r = validate(revisionOf({}))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].lock, undefined)
+        },
+
+        emptyLockAccepted: () => {
+            const r = validate(revisionOf({ lock: {} }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(Object.keys(r[1].lock ?? {}).length, 0)
+        },
+
+        validLockAccepted: () => {
+            const [t] = validate(revisionOf({ lock: { dependency: h1 } }))
+            assertEq(t, 'ok')
+        },
+
+        malformedLockRejected: () => {
+            const [t] = validate(revisionOf({ lock: { dependency: 1 } }))
+            assertEq(t, 'error')
+        },
+
+        invalidHashLockRejected: () => {
+            const [t] = validate(revisionOf({ lock: { dependency: 'https://example.com/x' } }))
+            assertEq(t, 'error')
+        },
+
+        aliasHashLockAccepted: () => {
+            const [t] = validate(revisionOf({ lock: { dependency: alias } }))
+            assertEq(t, 'ok')
+        },
+
         // Wrong dialect tag: structural validation rejects it outright.
         wrongDialectRejected: () => {
             const [t] = validate({ dialect: 'vnd.fjs.other', subject: h1, parents: [], snapshot: h2, generation: 0 })
@@ -161,4 +197,29 @@ export const proof = {
             assertEq(t, 'error')
         },
     },
+    encodeText: {
+        recursivelySortsObjectsLexicographically: () => {
+            const revision = revisionOf({ lock: { '2': h2, '10': h1 } })
+            const decoded = validate(revision)
+            assert(decoded[0] === 'ok', ['expected ok', decoded])
+            assertEq(
+                encodeText(decoded[1]),
+                `{"dialect":"${dialect}","generation":0,"lock":{"10":"${h1}","2":"${h2}"},"parents":[],"snapshot":"${h2}","subject":"${h1}"}`,
+            )
+        },
+        preservesArrayOrder: () => {
+            const decoded = validate(revisionOf({ parents: [h2, h1] }))
+            assert(decoded[0] === 'ok', ['expected ok', decoded])
+            assert(encodeText(decoded[1]).includes(`"parents":["${h2}","${h1}"]`))
+        },
+        parsedEquivalentSourcesConverge: () => {
+            const a = decodeText(` { "subject":"${h1}", "snapshot":"${h2}", "parents":[], "generation":0, "dialect":"${dialect}" } `)
+            const b = decodeText(`{"dialect":"${dialect}","generation":0,"parents":[],"snapshot":"${h2}","subject":"${h1}"}`)
+            assert(a[0] === 'ok', ['expected ok', a])
+            assert(b[0] === 'ok', ['expected ok', b])
+            assertEq(encodeText(a[1]), encodeText(b[1]))
+        },
+    },
 }
+
+void _lockMapAllowsMissingSubjects
