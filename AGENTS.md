@@ -429,6 +429,53 @@ cases remain explicit and independently testable.
 
 ### 6.2 Types
 
+#### JavaScript/JSDoc type declarations
+
+Authored `.mjs` / `.f.mjs` files must remain valid JavaScript. Put named and
+generic static types in JSDoc rather than TypeScript syntax, and preserve the
+same public assignability and declaration-emission behavior when translating a
+`.ts` / `.f.ts` file.
+
+Use `@typedef` for a named type and `@template` for its type parameters. A
+constraint goes in braces before the parameter name:
+
+```js
+/**
+ * @template {Operation} O
+ * @template T
+ * @typedef {(_: Pr<O, O[0]>[1]) => Effect<O, T>} Cont
+ */
+```
+
+TypeScript 7 also supports variance modifiers on JSDoc type-alias parameters.
+Translate TypeScript `in` / `out` directly on `@template` instead of dropping
+the variance annotation. For example:
+
+```ts
+export type Cont<out O extends Operation, T> =
+    (_: Pr<O, O[0]>[1]) => Effect<O, T>
+```
+
+becomes:
+
+```js
+/**
+ * @template {Operation} out O
+ * @template T
+ * @typedef {(_: Pr<O, O[0]>[1]) => Effect<O, T>} Cont
+ */
+```
+
+The supported forms are `@template out T`, `@template in T`, and constrained
+forms such as `@template {Operation} out O`. Variance modifiers belong to type
+parameters of a JSDoc type alias (`@typedef`); do not put `in` / `out` on an
+ordinary function's `@template`, where TypeScript rejects them.
+
+When translating a public type, verify both normal type checking and emitted
+`.d.ts` / `.d.mts` declarations. The JSDoc spelling may differ, but the public
+type contract must not become weaker just because the source moved to
+JavaScript.
+
 #### Prefer inference
 
 Let TypeScript infer the type of private constants, local variables, and return
