@@ -10,7 +10,7 @@
   ],
   "description": "FunctionalScript is a purely functional subset of JavaScript",
   "scripts": {
-    "emit:declarations": "tsc --emitDeclarationOnly",
+    "emit:declarations": "tsc --noEmit false --emitDeclarationOnly",
     "emit:typescript": "tsc --noEmit false --declaration false",
     "prepack": "npm run emit:declarations && npm run emit:typescript",
     "test": "tsc && node ./fjs/module.ts t",
