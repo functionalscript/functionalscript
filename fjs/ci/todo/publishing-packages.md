@@ -25,7 +25,9 @@ FunctionalScript can't currently be installed from Git using NPM.
 
 Package and publish jobs run in CI from a clean checkout. We do not rely on
 packing from a developer working tree, and ignored generated outputs from an
-earlier revision are not part of the package-build state.
+earlier revision are not part of the package-build state. `prepack` belongs to
+this packaging path; normal development should type-check and test without
+producing package artifacts.
 
 ### Authored and generated JavaScript extensions
 
@@ -66,30 +68,16 @@ clean consumer.
 ### Stage-1 TypeScript configuration
 
 Before the first `.ts` -> `.mjs` conversion, the main `tsconfig.json` should
-validate authored TypeScript and JavaScript while excluding generated
-declarations:
+validate both authored TypeScript and JavaScript by enabling:
 
 ```jsonc
 {
   "compilerOptions": {
     "allowJs": true,
-    "checkJs": true,
-    "noEmit": true,
-    "declaration": true
-  },
-  "include": [
-    "**/*.ts",
-    "**/*.mjs"
-  ],
-  "exclude": [
-    "target",
-    "**/*.d.ts",
-    "**/*.d.mts"
-  ]
+    "checkJs": true
+  }
 }
 ```
-
-`**/*.d.ts` must be excluded because it also matches `**/*.ts`.
 
 Enabling `checkJs` includes `fjs/types/bigint/benchmark.mjs`. Before enabling it,
 either make the benchmark pass TypeScript validation or delete it if it is no
@@ -100,17 +88,20 @@ Non-package `.mjs` files must remain excluded from the packed archive.
 
 ### Stage-1 emission
 
-Publishing uses two TypeScript emission passes from the clean CI checkout:
+Keep packaging simple and keep emission as an implementation detail of the NPM
+lifecycle. Use the two ordered TypeScript passes directly in `prepack`:
 
 ```json
 {
   "scripts": {
-    "emit:declarations": "tsc --noEmit false --emitDeclarationOnly",
-    "emit:typescript": "tsc --noEmit false --allowJs false --checkJs false --declaration false",
-    "prepack": "npm run emit:declarations && npm run emit:typescript"
+    "prepack": "tsc --noEmit false --emitDeclarationOnly && tsc --noEmit false --declaration false"
   }
 }
 ```
+
+Do not expose separate `emit:declarations` or `emit:typescript` scripts. Users
+should not need to invoke individual package-emission phases during normal
+development.
 
 The first pass emits declarations for both authored extensions:
 
@@ -119,18 +110,18 @@ source.ts  -> source.d.ts
 source.mjs -> source.d.mts
 ```
 
-The second pass disables JavaScript inputs and emits runtime JavaScript only
-from TypeScript:
+The generated declarations are then present for the second pass, which emits
+the remaining TypeScript runtime JavaScript while leaving authored `.mjs`
+unchanged:
 
 ```text
 source.ts -> source.js
 ```
 
-This split avoids trying to overwrite authored `.mjs`. No generated-output
-cleanup is needed before packaging because the CI package job starts from a
-clean checkout. In particular, after `source.ts` is renamed to `source.mjs`, an
-ignored `source.js` / `source.d.ts` from a developer's older working tree cannot
-appear in the CI package job.
+No generated-output cleanup is needed before packaging because the CI package
+job starts from a clean checkout. In particular, after `source.ts` is renamed
+to `source.mjs`, an ignored `source.js` / `source.d.ts` from a developer's older
+working tree cannot appear in the CI package job.
 
 Authored `.mjs` is copied without rewriting runtime imports, and emitted
 `.d.mts` specifiers are not rewritten. Stage-1 migration is therefore
