@@ -1,7 +1,7 @@
 ## Revision lock map: staged reproducible subject resolution
 
 **Priority:** P3
-**Status:** blocked
+**Status:** open
 
 ### Problem
 
@@ -23,7 +23,10 @@ Implement the lock map in two stages:
 - `lock` is optional resolver input stored on a revision.
 - A direct string value selects immutable content, like `revision.snapshot`; it
   is not a revision-object hash.
-- Lock-map property order has no semantic meaning.
+- Object property order has no semantic meaning.
+- All revision JSON is serialized canonically by recursively sorting every object
+  property name lexicographically.
+- Arrays preserve their declared order.
 - `revision` remains the only history representation.
 - Lock maps are resolver input, not objects with their own lifecycle.
 - Resolvers may inspect immutable revision ancestry.
@@ -36,16 +39,47 @@ Implement the lock map in two stages:
 A dependency-resolution change for an old source state forks from that old
 revision. No second history mechanism is needed.
 
+## Canonical JSON serialization
+
+Parsing JSON already discards source formatting, whitespace, escape spelling,
+and the significance of object-property order. Writers must not preserve an
+arbitrary JavaScript construction order after that information has been lost.
+
+Use the existing recursive JSON serializer with lexicographically sorted object
+entries:
+
+```ts
+import { stringify } from '../json/module.f.ts'
+import { sort } from '../../types/object/module.f.ts'
+
+const toJson = stringify(sort)
+```
+
+`serialize` applies its entry mapper to every object recursively, so this one
+rule normalizes:
+
+- the top-level revision object;
+- Stage 1 flat lock maps;
+- Stage 2 nested lock maps;
+- any other nested JSON object added later.
+
+Property names are compared as strings using the repository's ordinary string
+comparison. Numeric-looking names are not numbers: for example, `"10"` sorts
+before `"2"`. Arrays are not reordered.
+
+Do not use JavaScript property-enumeration order and do not reconstruct an object
+in a desired insertion order. Serialization sorts the entry list directly.
+
+Two parsed JSON values with the same structure and values must serialize to the
+same bytes regardless of their source text or object construction order.
+Existing non-canonical blobs remain valid input, but parsing and serializing them
+produces the canonical representation and may therefore produce a different CAS
+hash. That normalization is intentional.
+
+This serialization change does not require a new dialect because it does not
+change the parsed revision value or field semantics.
+
 ## Stage 1: flat lock map
-
-### Blocked by
-
-- [Path-aware JSON serialization](../json/todo/path-aware-serialization.md)
-
-The current JSON serializer applies one entry mapper to every object and cannot
-sort only the `lock` subtree. Do not implement Stage 1 persistence until the
-path-aware serializer exists; otherwise canonical lock ordering would also
-change existing top-level revision serialization and CAS hashes.
 
 ### Dialect compatibility
 
@@ -140,52 +174,11 @@ returned by `revision` remains valid input to `add`.
 
 An omitted lock remains omitted. An explicit empty lock remains `{}`.
 
-### Canonical lock serialization
-
-Equivalent lock maps must produce identical revision bytes and CAS hashes,
-regardless of insertion order.
-
-Do not rebuild a JavaScript object in lexicographic insertion order. ECMAScript
-enumerates integer-index keys numerically, so keys such as `"10"` and `"2"`
-do not preserve arbitrary insertion order.
-
-Use the path-aware JSON serializer from the blocker:
-
-```ts
-const revisionEntries = (path: Path): MapEntries =>
-    path[0] === 'lock' ? sortEntries : identity
-
-const toJson = stringifyAt(revisionEntries)
-```
-
-Path `[]` is the top-level revision and therefore keeps the existing field order.
-For Stage 1, the object at `['lock']` is sorted. Objects outside `lock` retain the
-current serializer behavior.
-
-This is not equivalent to pre-serializing `lock` as a string: feeding such a
-string into the regular serializer would quote it. The serializer must recurse
-through the actual JSON value while selecting the entry mapper by path.
-
-A revision without `lock` must serialize to exactly the same bytes and CAS hash
-before and after Stage 1. When `lock` is present, only its entry order is
-canonicalized.
-
-The JavaScript object iteration order returned by `revision(hash)` is not an API
-guarantee. Only these properties are guaranteed:
-
-- property order is semantically irrelevant;
-- lock-subtree serialization is deterministic;
-- equivalent lock maps serialize to identical revision bytes;
-- lock-free revisions preserve their existing serialization and hashes.
-
-Sorting is lock serialization normalization only; it does not define resolver
-precedence.
-
 The Evo README field table should describe `lock` as:
 
 | field | input to `add` | output of `revision` |
 |---|---|---|
-| `lock` | optional flat open map; direct hashes validated and canonicalized; lock entries canonically serialized without changing existing revision-field order | optional; present exactly when stored; direct hashes canonicalized; object iteration order unspecified |
+| `lock` | optional flat open map; direct hashes validated and canonicalized | optional; present exactly when stored; direct hashes canonicalized |
 
 The MCP Evo front end exposes `RevisionData`, so `evo_add` and `evo_revision`
 must accept and return the same optional flat lock.
@@ -215,9 +208,9 @@ other lock maps.
 
 ### Stage 1 tasks
 
-- [ ] Complete [path-aware JSON serialization](../json/todo/path-aware-serialization.md).
-- [ ] Document that Stage 1 keeps `vnd.fjs.revision`, that absent `lock` means no
-      recorded bindings, and that older readers may ignore the additive field.
+- [ ] Change revision writing from `stringify(identity)` to `stringify(sort)`.
+- [ ] Document that every revision object is recursively serialized with
+      lexicographically sorted property names.
 - [ ] Define `const lock = record(string)` and export `LockMap` as
       `StringMap<string>`.
 - [ ] Add optional `lock` to the revision schema, decoder, exported type,
@@ -227,21 +220,18 @@ other lock maps.
 - [ ] Extend Evo `RevisionData` with `readonly lock?: LockMap`.
 - [ ] Make Evo `add` validate and canonicalize direct lock hashes.
 - [ ] Make Evo `revision` return the optional lock with canonical hashes.
-- [ ] Use `stringifyAt` with identity at the revision root and sorted entry lists
-      only for paths whose first segment is `lock`.
 - [ ] Preserve the distinction between absent and empty locks.
 - [ ] Update Evo and MCP documentation, schemas, and proofs.
 - [ ] Add media proofs for absent, empty, valid, malformed, invalid-hash, and
       alias-hash lock maps.
 - [ ] Add Evo round-trip proofs for absent, empty, valid, invalid, and aliased
       lock values.
-- [ ] Add proofs that reordered ordinary keys produce identical bytes and CAS
+- [ ] Add proofs that equivalent revisions with differently ordered top-level,
+      lock, and other nested object properties produce identical bytes and CAS
       hashes.
-- [ ] Add proofs that reordered numeric-looking keys such as `"10"` and `"2"`
-      also produce identical bytes and CAS hashes.
-- [ ] Add regression proofs that lock-free revisions retain their previous exact
-      bytes and CAS hashes after Stage 1 is implemented.
-- [ ] Document that returned JavaScript object iteration order is unspecified.
+- [ ] Add proofs that numeric-looking property names such as `"10"` and `"2"`
+      are sorted lexicographically as strings.
+- [ ] Add proofs that array order is preserved.
 - [ ] Add processor-facing follow-up work for accepting and returning flat lock
       maps.
 
@@ -288,19 +278,11 @@ the shared recursive `LockMap` type.
 `add` and `revision` recursively validate and canonicalize direct hashes while
 preserving nested scope structure.
 
-Reuse the same path-aware serializer rule:
+The existing `stringify(sort)` rule already sorts every nested lock object.
+Stage 2 needs no serialization API or special-case logic.
 
-```ts
-path[0] === 'lock' ? sortEntries : identity
-```
-
-For Stage 2, every object whose path starts with `lock` is sorted, including
-nested maps. The top-level revision and every non-lock subtree retain their
-existing serialization.
-
-Equivalent recursive maps that differ only in insertion order must produce
-identical revision bytes and CAS hashes. Lock-free revisions remain byte-for-byte
-unchanged, and returned object iteration order remains unspecified.
+Equivalent recursive maps that differ only in object-property order produce
+identical revision bytes and CAS hashes.
 
 ### Nested maps
 
@@ -355,12 +337,8 @@ Stage 1 additive-field decision.
       checking.
 - [ ] Widen Evo and MCP schemas through the shared recursive `LockMap` type.
 - [ ] Recursively canonicalize direct hashes in Evo `add` and `revision`.
-- [ ] Use path-aware serialization to sort entry lists at every level inside the
-      recursive lock subtree without changing top-level revision serialization.
 - [ ] Add proofs for reordered root and nested lock keys, including
       numeric-looking subjects.
-- [ ] Preserve regression proofs that lock-free revisions retain exact bytes and
-      CAS hashes.
 - [ ] Add nested conflict examples and document resolver-specific semantics.
 - [ ] Preserve and prove Stage 1 compatibility.
 - [ ] Add processor-facing follow-up work for recursive maps.
@@ -382,7 +360,6 @@ reference shared lock content. Both are outside this TODO.
 ### Related
 
 - [Revision format](../revision/README.md)
-- [Path-aware JSON serialization](../json/todo/path-aware-serialization.md)
 - [Recursive RTTI to JSON Schema](../json/todo/rtti-recursive-json-schema.md)
 - [RTTI serializable data representation](../../types/rtti/todo/serializable-data.md)
 - [Evo API](../../cas/evo/README.md)
