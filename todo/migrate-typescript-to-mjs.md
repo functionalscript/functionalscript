@@ -126,10 +126,34 @@ Use `@template out T`, `@template in T`, or constrained forms such as
 `@template {Operation} out O`. Variance modifiers belong to a JSDoc type alias
 (`@typedef`), not to an ordinary function's `@template`.
 
+#### Known TypeScript-to-JSDoc hard cases
+
+Do not require the migration plan to pre-design every TypeScript-only type
+construct before Stage 1 starts. Instead, identify hard cases as they are found,
+record them explicitly, and block only the affected migration group until its
+focused design is resolved. Unrelated dependency leaves should continue to
+migrate.
+
+One known case is `fjs/types/phantom/module.f.ts`, whose public `Phantom` type
+uses a type-only `declare const phantomKey: unique symbol`. `declare` is not
+valid JavaScript, and replacing it with a runtime `Symbol()` would change the
+module's current zero-runtime-representation design. The exact JSDoc/runtime
+representation is intentionally deferred; that module and dependents that need
+its declaration identity must not migrate until the focused design is decided.
+
+The same rule applies to future TypeScript constructs without an obvious
+semantics-preserving JSDoc translation: identify the issue, keep the affected
+module in TypeScript temporarily, and resolve it before that group crosses the
+Stage-1 boundary. Stage 1 still ends only when every such case has been resolved
+and no authored `.ts` / `.f.ts` remains.
+
 For each migration group:
 
 - replace TypeScript-only syntax with equivalent JavaScript plus JSDoc types;
 - preserve public assignability semantics, not only runtime behavior;
+- if a TypeScript-only construct has no established semantics-preserving JSDoc
+  translation, record it as a focused hard case and postpone that group rather
+  than inventing a redesign inside the mechanical migration;
 - update runtime imports and JSDoc type imports to the new source paths;
 - update proofs, tests, scripts, generated CI configuration, documentation, and
   other path-sensitive tooling;
@@ -175,6 +199,11 @@ compiler-compatibility rename.
 - [ ] Update contributor, compiler, language, package, test, and roadmap
       documentation to the stage-1 extension meanings.
 - [ ] Identify dependency-leaf `.ts` / `.f.ts` files and migrate those first.
+- [ ] Identify TypeScript-only type constructs that do not yet have a proven
+      semantics-preserving JSDoc translation; record them as focused hard cases
+      and postpone only the affected migration groups.
+- [ ] Resolve the known `Phantom` / `unique symbol` hard case before migrating
+      `fjs/types/phantom/module.f.ts` or dependent groups that require it.
 - [ ] Migrate `proof.f.ts` to `proof.f.mjs` when the proof is JavaScript/JSDoc
       ready and its authored dependencies are migrated; do not gate this on
       compiler support.
@@ -210,6 +239,9 @@ compiler-compatibility rename.
 - Migration can proceed incrementally from dependency leaves toward callers.
 - Authored JavaScript uses `.mjs` / `.f.mjs` with JSDoc where static type
   information is needed.
+- Known TypeScript-to-JSDoc hard cases are explicitly identified; each affected
+  group remains in TypeScript until its focused design preserves the required
+  public/runtime semantics, without blocking unrelated migration groups.
 - `proof.f.mjs` migration is gated by JavaScript/JSDoc and dependency readiness,
   never by current FunctionalScript compiler support.
 - TypeScript generic constraints and variance annotations are preserved with
