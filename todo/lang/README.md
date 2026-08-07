@@ -14,16 +14,23 @@ File Types:
 |File Type|Extension|Notes|
 |---------|---------|-----|
 |JSON|`.json`|Tree.|
-|FJS source|`.f.ts`, `.f.mjs`|Graph with functions.|
-|Generated FJS|`.f.js`|Generated from `.f.ts`; never authored directly.|
+|FJS source|`.f.ts`, `.f.mjs`, `.f.js`|Graph with functions; extension meaning follows the repository migration stage below.|
 
-`.f.ts` is authored FunctionalScript-intent TypeScript and may contain syntax
-that the current FunctionalScript parser does not support yet. `.f.mjs` is
-authored ESM JavaScript with JSDoc types whose complete syntax must be accepted
-by the current parser and compiler. Repository modules move from `.f.ts` to
-`.f.mjs` incrementally as language support grows; this is not a single migration
-step. See [`fjs/fsc/README.md`](../../fjs/fsc/README.md) for the extension
-contract and migration strategy.
+Repository source migration has two separate stages:
+
+1. `.f.ts -> .f.mjs` removes authored TypeScript. `.f.mjs` is authored ESM
+   JavaScript with JSDoc types and does **not** imply that the current
+   FunctionalScript parser/compiler accepts the module.
+2. After authored TypeScript is gone and authored `.f.js` package support is
+   complete, compiler-supported `.f.mjs` modules may move to authored `.f.js`.
+   `.f.js` is then the compiler-compatibility marker.
+
+During Stage 1, `.f.js` remains generated output from `.f.ts` and must not be
+authored. Stage 1 is independent of parser coverage; Stage 2 grows incrementally
+as compiler support grows. See [`fjs/fsc/README.md`](../../fjs/fsc/README.md) for
+the authoritative extension contract and
+[`todo/migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md) for the
+repository migration plan.
 
 **Note**: An FJS value can't be serialized without additional run-time infrastructure.
 
@@ -37,7 +44,6 @@ spellings are a deferred feature, see
 [js-string-literals](./2460-js-string-literals.md).
 
 **VM**:
-
 We are introducing new commands in such a way that every new command depends only on previous commands.
 
 |format|any           |Tag|          |
@@ -437,7 +443,6 @@ FJS value (`Any`) using the tag tables above. Code is data: the `Function` const
    **CBOR** ([RFC 8949](https://www.rfc-editor.org/rfc/rfc8949)), chosen because it represents
    numbers as exact IEEE 754 doubles, avoiding the ambiguous binary↔decimal number conversion of
    text formats.
-
 There are two execution paths, observably identical except in performance:
 
 - **Interpretation** — the `Function` constructor executes the `Any` code description directly:
