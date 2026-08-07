@@ -29,7 +29,7 @@
  *
  * @module
  */
-import { pure, step, type Effect, type Operation } from '../../../effects/module.f.ts'
+import { pure, step, type Effect, type Operation } from '../../../effects/module.f.mjs'
 import { readLine, write, type IoResult, type Read, type Write } from '../../../effects/node/module.f.ts'
 import { tryUtf8 } from '../../../text/module.f.ts'
 import { parse, stringify, type Unknown } from '../../../media/json/module.f.ts'

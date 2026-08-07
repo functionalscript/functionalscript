@@ -17,7 +17,7 @@ import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
 import { ok, error as resultError, mapOk, type Result } from '../../types/result/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
-import { type Effect, type Func, type Operation, type ToAsyncOperationMap, do_, mapStep, okStep, pure, step } from '../module.f.ts'
+import { type Effect, type Func, type Operation, type ToAsyncOperationMap, do_, mapStep, okStep, pure, step } from '../module.f.mjs'
 import type { List } from '../list/module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>

@@ -5,7 +5,7 @@
  */
 import { htmlUtf8 } from '../media/html/module.f.ts'
 import { writeFile, type WriteFile } from '../effects/node/module.f.ts'
-import { pure, step, type Effect } from '../effects/module.f.ts'
+import { pure, step, type Effect } from '../effects/module.f.mjs'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 
 const html: Vec = htmlUtf8()(

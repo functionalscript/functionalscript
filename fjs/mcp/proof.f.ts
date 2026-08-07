@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../asserts/module.f.mjs'
-import { pure, step, type Effect, type Operation } from '../effects/module.f.ts'
+import { pure, step, type Effect, type Operation } from '../effects/module.f.mjs'
 import { create } from '../effects/memory/module.f.ts'
 import { parse as parseJson, type Unknown } from '../media/json/module.f.ts'
 import { number as rttiNumber, option, string as rttiString } from '../types/rtti/module.f.ts'

@@ -1,4 +1,4 @@
-import { pure } from '../effects/module.f.ts'
+import { pure } from '../effects/module.f.mjs'
 import type { NodeOp, NodeProgramOptions } from '../effects/node/module.f.ts'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { dispatch, type Commands } from './module.f.ts'
@@ -52,7 +52,7 @@ export const proof = {
         const commands: Commands<NodeOp> = [{
             names: ['grab'],
             description: 'Capture args',
-            handler: ({ args }): import('../effects/module.f.ts').Effect<NodeOp, number> => {
+            handler: ({ args }): import('../effects/module.f.mjs').Effect<NodeOp, number> => {
                 captured.push(...args)
                 return pure(0)
             },

@@ -12,7 +12,7 @@ import {
 } from '../../memory/module.f.ts'
 import { memoryOperationMap, run } from './module.ts'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
-import { step } from '../../module.f.ts'
+import { step } from '../../module.f.mjs'
 
 export const proof = {
     nodeInterpreter: async () => {

@@ -9,7 +9,7 @@
  *
  * @module
  */
-import { forEachStep, mapStep, pure, step, type Effect } from '../../effects/module.f.ts'
+import { forEachStep, mapStep, pure, step, type Effect } from '../../effects/module.f.mjs'
 import { mkdir, writeUtf8File, type Mkdir, type WriteFile } from '../../effects/node/module.f.ts'
 import { nixToString, type Expression } from '../../media/nix/module.f.ts'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.ts'

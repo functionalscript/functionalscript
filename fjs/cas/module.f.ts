@@ -7,7 +7,7 @@ import { sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/modul
 import { join, normalize, parse } from '../path/module.f.ts'
 import { empty, length, maxLength, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
-import { foldStep, forEachStep, history, historyStep, okStep, pure, step, type Effect, type Operation } from '../effects/module.f.ts'
+import { foldStep, forEachStep, history, historyStep, okStep, pure, step, type Effect, type Operation } from '../effects/module.f.mjs'
 import { eff } from '../effects/eff/module.f.ts'
 import {
     access,

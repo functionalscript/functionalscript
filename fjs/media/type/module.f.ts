@@ -35,7 +35,7 @@
 import { msb, fromSentinel, length, u8List, type Vec } from '../../types/bit_vec/module.f.ts'
 import { iterable } from '../../types/list/module.f.ts'
 import type { Nullable } from '../../types/nullable/module.f.ts'
-import { pure, step, type Effect, type Operation } from '../../effects/module.f.ts'
+import { pure, step, type Effect, type Operation } from '../../effects/module.f.mjs'
 import type { List } from '../../effects/list/module.f.ts'
 import type { IoResult } from '../../effects/node/module.f.ts'
 import { ok, error } from '../../types/result/module.f.ts'

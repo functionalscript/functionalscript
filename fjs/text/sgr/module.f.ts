@@ -9,7 +9,7 @@
 // https://en.wikipedia.org/wiki/ANSI_escape_code#C0_control_codes
 
 import { write, type Write, type WriteConsoles, type NodeProgramOptions } from '../../effects/node/module.f.ts'
-import { type Effect } from '../../effects/module.f.ts'
+import { type Effect } from '../../effects/module.f.mjs'
 import { utf8 } from "../module.f.ts"
 
 export const backspace: string = '\x08'

@@ -96,22 +96,25 @@
  */
 
 import { assert } from '../asserts/module.f.mjs'
-import { fold, type List } from '../types/list/module.f.ts'
+import { fold /*, type List */ } from '../types/list/module.f.ts'
 import { at } from '../types/object/module.f.ts'
-import type { Option } from '../types/option/module.f.ts'
-import type { Result } from '../types/result/module.f.ts'
+// import type { Option } from '../types/option/module.f.ts'
+// import type { Result } from '../types/result/module.f.ts'
 
-export type Operation =
-    readonly[string, (..._: readonly never[]) => unknown]
+/**
+ * @typedef {readonly[string, (..._: readonly never[]) => unknown]} Operation
+ */
 
 /**
  * An `Effect<O, T>` is the raw value: a {@link Pure} thunk that yields `T`, or a
  * {@link Do} node describing a command to perform. It is plain data — compose
  * effects with the external {@link step}, which is eager wherever the head is
  * `Pure`.
+ *
+ * @template {Operation} O
+ * @template T
+ * @typedef {Pure<T> | Do<O, T>} Effect
  */
-export type Effect<O extends Operation, T> =
-    Pure<T> | Do<O, T>
 
 /**
  * A pure effect: an *already-computed* `T` behind a thunk.
@@ -135,12 +138,16 @@ export type Effect<O extends Operation, T> =
  * to advertise the thunk as a suspension. It was the identity function, and it
  * promised a deferral this representation does not keep; it has been removed.
  * Reintroducing it would reintroduce the contradiction, not fix one.
+ *
+ * @template T
+ * @typedef {() => T} Pure
  */
-export type Pure<T> =
-    () => T
 
-export type Pr<O extends Operation, K extends O[0]> =
-    O extends readonly[K, (...args: infer P) => infer R] ? readonly[P, R] : never
+/**
+ * @template {Operation} O
+ * @template {O[0]} K
+ * @typedef {O extends readonly[K, (...args: infer P) => infer R] ? readonly[P, R] : never} Pr
+ */
 
 /**
  * A `Do` node's continuation: given the command's output, produce the rest of
@@ -160,9 +167,11 @@ export type Pr<O extends Operation, K extends O[0]> =
  * (`Effect<A>` <: `Effect<A | B>`), never the unsound narrowing. Anyone changing
  * the continuation representation must re-check this argument before keeping the
  * annotation.
+ *
+ * @template {Operation} out O
+ * @template T
+ * @typedef {(_: Pr<O, O[0]>[1]) => Effect<O, T>} Cont
  */
-export type Cont<out O extends Operation, T> =
-    (_: Pr<O, O[0]>[1]) => Effect<O, T>
 
 /**
  * A `Do` node: the command to perform, its payload, and the continuation to
@@ -185,14 +194,18 @@ export type Cont<out O extends Operation, T> =
  * above is satisfied by any object type, so the numeric keys were paying a
  * tuple's price without being a tuple. Named fields make the node
  * self-describing at every read and leave no layout to memorize.
+ *
+ * @template {Operation} out O
+ * @template T
+ * @typedef {{
+ *  readonly command: O[0]
+ *  readonly payload: Pr<O, O[0]>[0]
+ *  readonly continuation: Cont<O, T>
+ * }} Do
  */
-export type Do<out O extends Operation, T> = {
-    readonly command: O[0]
-    readonly payload: Pr<O, O[0]>[0]
-    readonly continuation: Cont<O, T>
-}
 
-export const pure = <T>(v: T): Effect<never, T> => () => v
+/** @type {<T>(v: T) => Effect<never, T>} */
+export const pure = v => () => v
 
 /**
  * Composes effects: run `e`, then continue with `f` applied to its result.
@@ -220,11 +233,13 @@ export const pure = <T>(v: T): Effect<never, T> => () => v
  * without performing it yet has to keep the ingredients and defer the `step`
  * itself — `Eff` does exactly this, holding its history tuple as a thunk (`h`)
  * precisely because composing it eagerly is the one thing it cannot take back.
+ *
+ * @type {<O extends Operation, T, Q extends Operation, R>(
+ *   e: Effect<O, T>,
+ *   f: (t: T) => Effect<Q, R>
+ * ) => Effect<O | Q, R>}
  */
-export const step = <O extends Operation, T, Q extends Operation, R>(
-    e: Effect<O, T>,
-    f: (t: T) => Effect<Q, R>
-): Effect<O | Q, R> =>
+export const step = (e, f) =>
     typeof e === 'function'
         ? f(e())
         : { ...e, continuation: x => step(e.continuation(x), f) }
@@ -248,12 +263,13 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
  * () => v)` already reads clearly, and it keeps `v`'s evaluation inside the
  * continuation where `step` puts it, rather than moving it to where the
  * composition is written.
+ *
+ * @type {<O extends Operation, T, R>(
+ *  e: Effect<O, T>,
+ *  f: (t: T) => R
+ *  ) => Effect<O, R>}
  */
-export const mapStep = <O extends Operation, T, R>(
-    e: Effect<O, T>,
-    f: (t: T) => R
-): Effect<O, R> =>
-    step(e, t => pure(f(t)))
+export const mapStep = (e, f) => step(e, t => pure(f(t)))
 
 /**
  * An effect whose result is a **history tuple**: the values a chain has bound so
@@ -267,9 +283,11 @@ export const mapStep = <O extends Operation, T, R>(
  *
  * Heterogeneous by design: each element has its own type, so this is not a
  * `List` and nothing that folds or maps a list applies to it.
+ *
+ * @template {Operation} O
+ * @template {readonly unknown[]} H
+ * @typedef {Effect<O, H>} History
  */
-export type History<O extends Operation, H extends readonly unknown[]> =
-    Effect<O, H>
 
 /**
  * Like {@link step}, but keeps the values instead of discarding them: runs `e`

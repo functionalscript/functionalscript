@@ -15,7 +15,7 @@
 
 import type { Phantom } from '../../types/phantom/module.f.ts'
 import { type Nominal, asBase as nominalAsBase, asNominal as nominalAsNominal } from '../../types/nominal/module.f.ts'
-import { do_, type Effect } from '../module.f.ts'
+import { do_, type Effect } from '../module.f.mjs'
 
 /** Nominal brand version for memory keys. */
 type MemKeyHash = '3f114fa6036a8da026b827f0c3e6d901f5e81ad9a320e431ccce31451892d286'

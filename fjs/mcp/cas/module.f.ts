@@ -103,7 +103,7 @@
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.ts'
 import { stringify } from '../../media/json/module.f.ts'
-import { pure, step, type Effect } from '../../effects/module.f.ts'
+import { pure, step, type Effect } from '../../effects/module.f.mjs'
 import { type MemOp } from '../../effects/memory/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.ts'

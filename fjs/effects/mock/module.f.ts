@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { match, type Effect, type Operation, type Pr } from "../module.f.ts"
+import { match, type Effect, type Operation, type Pr } from "../module.f.mjs"
 
 /**
  * A synchronous, state-threading operation map. An entry takes the command's
