@@ -69,7 +69,7 @@ export const revisionSchema = {
 export type Revision = Ts<typeof revisionSchema>
 
 /** Serializes a revision canonically, recursively sorting every object's property names. */
-export const encodeText = stringify(sort)
+export const encodeText: (revision: Revision) => string = stringify(sort)
 
 /** Structural-only validator: checks the shape, not the hash / generation semantics. */
 const validateShape = rttiValidate(revisionSchema)
