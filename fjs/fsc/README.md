@@ -21,8 +21,10 @@ and the package conventions are documented in
 
 Before the first source conversion, complete
 [authored `.mjs` package support](../ci/todo/f-mjs-package-support.md), including
-`allowJs` / `checkJs`, declaration emission, repeatable cleanup, package
-inclusion, and clean-consumer tests.
+`allowJs` / `checkJs`, split declaration/runtime emission, package inclusion,
+and clean-consumer tests. Package and publish jobs run from a clean CI checkout,
+so this prerequisite does not require developer-worktree cleanup or tracking
+ignored outputs from earlier revisions.
 
 Then migrate dependency leaves first:
 
@@ -34,7 +36,7 @@ module.f.ts -> module.f.mjs
 This stage is independent of FunctionalScript parser coverage. `.f.mjs` means
 FunctionalScript-intent JavaScript; it is not a compiler-compatibility promise.
 A `.f.ts` module should move once its authored TypeScript runtime and
- declaration-retained type dependencies can move, even if the current compiler
+declaration-retained type dependencies can move, even if the current compiler
 cannot parse every feature it uses.
 
 The transition is asymmetric: remaining `.f.ts` may depend on already migrated
@@ -43,9 +45,9 @@ may migrate as a coherent group. Packaging does not rewrite runtime or
 declaration specifiers, so both dependency graphs must resolve directly.
 
 When the last authored `.ts` / `.f.ts` file is gone, remove the
-TypeScript-to-JavaScript emit path, clean obsolete generated `.js`, and remove
-the blanket `**/*.js` rule from `.gitignore`. Only then is `.js` available as an
-authored extension.
+TypeScript-to-JavaScript emit path, remove obsolete generated `.js` from the
+working tree for that transition, and remove the blanket `**/*.js` rule from
+`.gitignore`. Only then is `.js` available as an authored extension.
 
 ### Stage 2: mark compiler-compatible FunctionalScript
 
@@ -53,8 +55,8 @@ The repository compiler-compatibility migration in
 [`todo/fjs-nanvm-integration.md`](../../todo/fjs-nanvm-integration.md) is
 **blocked by** stage 1. Before its first rename, also complete
 [authored `.f.js` package support](../ci/todo/f-js-package-support.md), so a
-standalone `.f.js` is directly type-checked, receives a `.d.ts`, survives
-cleanup, is packed, and resolves for a clean consumer.
+standalone `.f.js` is directly type-checked, receives a `.d.ts`, is packed in
+the clean CI package build, and resolves for a clean consumer.
 
 Then migrate compiler-supported dependency-closed groups incrementally:
 
