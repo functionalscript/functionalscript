@@ -26,6 +26,8 @@ Implement the lock map in two stages:
 - Object property order has no semantic meaning.
 - All revision JSON is serialized canonically by recursively sorting every object
   property name lexicographically.
+- Canonicalization makes equal parsed revision content converge to one CAS
+  address, enabling storage, transfer, and derived-cache deduplication.
 - Arrays preserve their declared order.
 - `revision` remains the only history representation.
 - Lock maps are resolver input, not objects with their own lifecycle.
@@ -75,6 +77,14 @@ same bytes regardless of their source text or object construction order.
 Existing non-canonical blobs remain valid input, but parsing and serializing them
 produces the canonical representation and may therefore produce a different CAS
 hash. That normalization is intentional.
+
+In content-addressable storage, canonicalization is also a deduplication rule.
+Inputs that differ only in JSON syntax or object-property order converge to the
+same bytes and therefore the same content hash. The CAS can recognize that the
+content already exists instead of storing or transferring a duplicate, and
+artifacts or caches keyed by that hash can be reused. Without normalization,
+incidental encodings of the same parsed value would fragment one logical value
+across several addresses.
 
 This serialization change does not require a new dialect because it does not
 change the parsed revision value or field semantics.
@@ -229,6 +239,11 @@ other lock maps.
 - [ ] Add proofs that equivalent revisions with differently ordered top-level,
       lock, and other nested object properties produce identical bytes and CAS
       hashes.
+- [ ] Add proofs that distinct JSON source encodings which parse to the same
+      revision value converge to one canonical byte sequence and CAS hash.
+- [ ] Add a CAS/Evo proof that adding equivalent revisions with different object
+      construction orders reuses the same address rather than creating a
+      duplicate blob.
 - [ ] Add proofs that numeric-looking property names such as `"10"` and `"2"`
       are sorted lexicographically as strings.
 - [ ] Add proofs that array order is preserved.
