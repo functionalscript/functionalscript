@@ -1,36 +1,124 @@
-## Revision lock map: reproducible revision-subject resolution
+## Revision lock map: staged reproducible subject resolution
 
 **Priority:** P3
 **Status:** open
 
 ### Problem
 
-A [`vnd.fjs.revision`](../revision/README.md) identifies an immutable snapshot
-for one mutable `subject`, but that snapshot may reference other revision
-subjects. Resolving those subjects through their current heads makes processing
-non-reproducible: the same revision can produce a different result later even
-when its own snapshot is unchanged.
+A [`vnd.fjs.revision`](../revision/README.md) identifies an immutable snapshot for
+one mutable `subject`, but that snapshot may reference other subjects. Resolving
+those subjects through current heads makes processing non-reproducible.
 
-Existing ecosystems address parts of this with generated files such as
-`package-lock.json`, `deno.lock`, `bun.lock`, and `Cargo.lock`. Keeping those
-files in source snapshots mixes source changes with external-resolution
-changes, while creating a separate lock-history format would duplicate the
-existing revision mechanism (`subject`, `parents`, `generation`, and
-`snapshot`).
+The lock map belongs in the revision format because source evolution and subject
+resolution share the same history. A separate lock-history format would duplicate
+`subject`, `parents`, `generation`, and `snapshot`.
 
-Revision content and revision-subject resolution are closely related: a
-revision that references mutable subjects cannot be processed reproducibly
-without resolution information, while a lock map exists specifically to supply
-immutable resolution choices to a resolver.
+Implement the lock map in two stages:
 
-### Proposal
+1. a flat map from subjects to immutable content hashes;
+2. a recursive map for scoped conflict resolution.
 
-Extend `vnd.fjs.revision` with one optional recursive `lock` field. The intended
-rtti shape is:
+### Shared decisions
+
+- `lock` is optional resolver input stored on a revision.
+- A direct string value selects immutable content, like `revision.snapshot`; it
+  is not a revision-object hash.
+- Object property order has no semantic meaning.
+- All revision JSON is serialized canonically by recursively sorting every object
+  property name lexicographically.
+- Canonicalization makes equal parsed revision content converge to one CAS
+  address, enabling storage, transfer, and derived-cache deduplication.
+- Arrays preserve their declared order.
+- `revision` remains the only history representation.
+- Lock maps are resolver input, not objects with their own lifecycle.
+- Resolvers may inspect immutable revision ancestry.
+- Inheritance, precedence, dependency discovery, conflict handling, and mutable
+  head fallback belong to resolvers, not the media format.
+- Equal snapshots with different lock maps are valid dependency-only updates.
+- [`fjs/cas/evo`](../../cas/evo/README.md) exposes the same optional lock through
+  its existing round-trippable `RevisionData` type.
+
+A dependency-resolution change for an old source state forks from that old
+revision. No second history mechanism is needed.
+
+## Canonical JSON serialization
+
+Parsing JSON already discards source formatting, whitespace, escape spelling,
+and the significance of object-property order. Writers must not preserve an
+arbitrary JavaScript construction order after that information has been lost.
+
+Use the existing recursive JSON serializer with lexicographically sorted object
+entries:
 
 ```ts
-export const lock = () => ['record', or(hash, lock)] as const
+import { stringify } from '../json/module.f.ts'
+import { sort } from '../../types/object/module.f.ts'
 
+const toJson = stringify(sort)
+```
+
+`serialize` applies its entry mapper to every object recursively, so this one
+rule normalizes:
+
+- the top-level revision object;
+- Stage 1 flat lock maps;
+- Stage 2 nested lock maps;
+- any other nested JSON object added later.
+
+Property names are compared as strings using the repository's ordinary string
+comparison. Numeric-looking names are not numbers: for example, `"10"` sorts
+before `"2"`. Arrays are not reordered.
+
+Do not use JavaScript property-enumeration order and do not reconstruct an object
+in a desired insertion order. Serialization sorts the entry list directly.
+
+Two parsed JSON values with the same structure and values must serialize to the
+same bytes regardless of their source text or object construction order.
+Existing non-canonical blobs remain valid input, but parsing and serializing them
+produces the canonical representation and may therefore produce a different CAS
+hash. That normalization is intentional.
+
+In content-addressable storage, canonicalization is also a deduplication rule.
+Inputs that differ only in JSON syntax or object-property order converge to the
+same bytes and therefore the same content hash. The CAS can recognize that the
+content already exists instead of storing or transferring a duplicate, and
+artifacts or caches keyed by that hash can be reused. Without normalization,
+incidental encodings of the same parsed value would fragment one logical value
+across several addresses.
+
+This serialization change does not require a new dialect because it does not
+change the parsed revision value or field semantics.
+
+## Stage 1: flat lock map
+
+### Dialect compatibility
+
+Stage 1 keeps the existing `vnd.fjs.revision` dialect.
+
+The new field is additive and optional. Its absence has the constant meaning
+“no lock bindings were recorded”; no existing revision field is reinterpreted
+and no value must be inferred from other data.
+
+Older readers may ignore `lock` and continue their existing behavior. They do not
+gain lock-aware reproducibility, but they do not misread `subject`, `parents`,
+`snapshot`, `generation`, or `archived`.
+
+Lock-aware resolution is an additional capability used by consumers that know
+the field. The presence of a lock does not change an existing algorithm that
+does not accept lock input. Therefore Stage 1 follows the additive compatibility
+path and does not introduce `vnd.fjs.revision2`.
+
+### Media schema
+
+Start with:
+
+```ts
+const lock = record(string)
+```
+
+Add it to the existing revision schema:
+
+```ts
 export const revisionSchema = {
     dialect,
     subject: string,
@@ -42,118 +130,178 @@ export const revisionSchema = {
 } as const
 ```
 
-Conceptually, the derived TypeScript type is a sparse recursive index:
+The derived TypeScript type is an open map:
+
+```ts
+type LockMap = StringMap<string>
+```
+
+Equivalently:
 
 ```ts
 type LockMap = {
-    readonly [subject: string]: Hash | LockMap | undefined
+    readonly [subject: string]: string | undefined
 }
 ```
 
-The recursion is written directly in the index signature so the type is valid
-TypeScript. A missing property produces `undefined`; empty and partial maps are
-valid.
+Do not use `Readonly<Record<string, string>>`; missing subjects must be typed as
+`undefined`.
 
-The lock map is resolver input, not another history object: it has no `subject`,
-`parents`, `generation`, or independent lifecycle. Do not introduce
-`vnd.fjs.lock` or `vnd.fjs.freeze` in the first version. Ordinary revisions
-remain the only history representation.
+RTTI validates only the record-of-strings shape. The media-level semantic
+reference check must validate every direct lock value with the same native
+cBase32 hash predicate used for `parents` and `snapshot`. URLs, malformed hashes,
+and other arbitrary strings are invalid even when a revision bypasses Evo.
 
-### Revision history represents every kind of change
+### Evo API
 
-A revision may change its snapshot, its lock map, both, or neither relevant
-field from an application's point of view.
+Extend the existing shared input/output type:
 
-For example, an external-dependency update may keep the source snapshot
-unchanged:
-
-```text
-R0:
-    snapshot = S0
-    lock = M0
-
-R1:
-    parents = [R0]
-    snapshot = S0
-    lock = M1
-```
-
-Applications and APIs may present this as "source unchanged; dependencies
-updated" by comparing fields. That is an interpretation of revision data, not
-a reason to introduce a second history mechanism.
-
-If someone wants to update dependency resolution for an old object rather than
-move to a newer source revision, they can fork from the old revision:
-
-```text
-          R1
-         /
-R0 -----+
-         \
-          R0-lock-update
-```
-
-The existing revision DAG already represents this correctly.
-
-### Direct lock entries
-
-A lock map associates revision subjects with immutable content hashes or nested
-lock maps.
-
-A direct hash supplies one exact immutable content candidate for the subject:
-
-```json
-{
-  "B": "snapshot-hash-of-B",
-  "C": "snapshot-hash-of-C"
+```ts
+type RevisionData = {
+    readonly parents: readonly Hash[]
+    readonly snapshot?: Hash
+    readonly subject?: Subject
+    readonly archived?: true
+    readonly generation?: number
+    readonly lock?: LockMap
 }
 ```
 
-The hash is content selected for the subject, not the hash of a revision blob.
-This is the same kind of value carried by `revision.snapshot`. Pure validation
-checks only the recursive map shape and native cbase32 hashes; there is no
-referenced revision whose `subject` must be loaded and compared with the key.
+The Evo operations keep their signatures:
 
-A lock may contain more subjects than a particular resolver uses. Extra
-bindings are valid and allow one map to be reused for several related objects.
+```ts
+type Evo<O> = {
+    list: (archived?: true) => Effect<MemOp, readonly Subject[]>
+    head: (subject: Subject) => Effect<MemOp, readonly Hash[]>
+    add: (rev: RevisionData) => Effect<O | MemOp, Result<Hash, string>>
+    revision: (hash: Hash) => Effect<O | MemOp, Result<RevisionData, string>>
+}
+```
 
-### Starting point
+`add` validates and canonicalizes direct lock hashes before writing.
+`revision` returns the stored optional lock with canonical direct hashes. A value
+returned by `revision` remains valid input to `add`.
 
-The revision supplies the initial content and subject:
+An omitted lock remains omitted. An explicit empty lock remains `{}`.
+
+The Evo README field table should describe `lock` as:
+
+| field | input to `add` | output of `revision` |
+|---|---|---|
+| `lock` | optional flat open map; direct hashes validated and canonicalized | optional; present exactly when stored; direct hashes canonicalized |
+
+The MCP Evo front end exposes `RevisionData`, so `evo_add` and `evo_revision`
+must accept and return the same optional flat lock.
+
+### Resolver behavior
+
+The map may be absent, sparse, or sufficient only for a particular resolver
+invocation. A resolver may inspect first-parent history, inspect several parents
+and report conflicts, combine history with caller input, or consult mutable heads
+for unresolved subjects.
+
+The format does not define a missing entry as inheritance or head lookup. It
+stores only the available resolution information.
+
+The revision supplies the starting binding:
 
 ```text
 revision.subject -> revision.snapshot
 ```
 
-This is the processing starting point, but the format does not define a general
-precedence rule between that starting binding and every occurrence of the same
-subject inside the lock map. For example:
+A same-subject lock entry is structurally valid. Resolver semantics decide how
+to interpret it.
+
+Flat maps can also resolve logical dependency cycles without revision-hash
+cycles because entries select content hashes rather than revisions containing
+other lock maps.
+
+### Stage 1 tasks
+
+- [ ] Change revision writing from `stringify(identity)` to `stringify(sort)`.
+- [ ] Document that every revision object is recursively serialized with
+      lexicographically sorted property names.
+- [ ] Define `const lock = record(string)` and export `LockMap` as
+      `StringMap<string>`.
+- [ ] Add optional `lock` to the revision schema, decoder, exported type,
+      README, and examples.
+- [ ] Extend media semantic reference validation to check every direct lock
+      value as a native cBase32 hash.
+- [ ] Extend Evo `RevisionData` with `readonly lock?: LockMap`.
+- [ ] Make Evo `add` validate and canonicalize direct lock hashes.
+- [ ] Make Evo `revision` return the optional lock with canonical hashes.
+- [ ] Preserve the distinction between absent and empty locks.
+- [ ] Update Evo and MCP documentation, schemas, and proofs.
+- [ ] Add media proofs for absent, empty, valid, malformed, invalid-hash, and
+      alias-hash lock maps.
+- [ ] Add Evo round-trip proofs for absent, empty, valid, invalid, and aliased
+      lock values.
+- [ ] Add proofs that equivalent revisions with differently ordered top-level,
+      lock, and other nested object properties produce identical bytes and CAS
+      hashes.
+- [ ] Add proofs that distinct JSON source encodings which parse to the same
+      revision value converge to one canonical byte sequence and CAS hash.
+- [ ] Add a CAS/Evo proof that adding equivalent revisions with different object
+      construction orders reuses the same address rather than creating a
+      duplicate blob.
+- [ ] Add proofs that numeric-looking property names such as `"10"` and `"2"`
+      are sorted lexicographically as strings.
+- [ ] Add proofs that array order is preserved.
+- [ ] Add processor-facing follow-up work for accepting and returning flat lock
+      maps.
+
+## Stage 2: recursive lock map
+
+### Blocked by
+
+- [Stage 1 flat lock map](#stage-1-flat-lock-map)
+- [Recursive RTTI to JSON Schema](../json/todo/rtti-recursive-json-schema.md)
+- [RTTI serializable data representation](../../types/rtti/todo/serializable-data.md)
+
+The recursive JSON Schema task is itself blocked by the RTTI serializable-data
+task. Stage 2 must not be emitted until Stage 1 and both recursive RTTI tasks are
+complete.
+
+### Media schema
+
+After the blockers are complete, widen the schema:
 
 ```ts
-{
-    subject: A,
-    snapshot: hashA1,
-    lock: {
-        A: hashA0,
-    },
+const lock = () => ['record', or(string, lock)] as const
+```
+
+The trailing `as const` is required for the readonly discriminated RTTI tuple.
+
+Conceptually:
+
+```ts
+type LockMap = {
+    readonly [subject: string]: string | LockMap | undefined
 }
 ```
 
-starts processing from `hashA1`, while `lock[A]` supplies another resolution
-candidate that a resolver may ignore, warn about, use in a different scope, or
-otherwise interpret according to its algorithm. If the resolver cannot choose
-unambiguously, the map is insufficient for that resolver invocation.
+Every Stage 1 map remains valid.
 
-The format should not reject this structure. A future shared lock map may
-legitimately contain `A`, and different resolvers or operations may use that
-entry differently.
+RTTI validates the recursive string/map structure. The media semantic reference
+checker validates every direct string at every depth as a native cBase32 hash.
 
-### Nested maps and scoped conflicts
+### Evo and serialization
 
-A nested map supplies subject-specific scoped resolution information. Its main
-intended use is incompatible diamond dependencies or similar conflicts.
+The Evo API gains no new field or operation. `RevisionData.lock` widens through
+the shared recursive `LockMap` type.
 
-For example:
+`add` and `revision` recursively validate and canonicalize direct hashes while
+preserving nested scope structure.
+
+The existing `stringify(sort)` rule already sorts every nested lock object.
+Stage 2 needs no serialization API or special-case logic.
+
+Equivalent recursive maps that differ only in object-property order produce
+identical revision bytes and CAS hashes.
+
+### Nested maps
+
+Nested maps express scoped choices, mainly for incompatible diamond dependencies:
 
 ```text
 A -> B
@@ -161,8 +309,6 @@ A -> C
 B -> D(v1)
 C -> D(v2)
 ```
-
-can be represented as:
 
 ```json
 {
@@ -177,185 +323,59 @@ can be represented as:
 }
 ```
 
-The format does not prescribe whether a nested map overlays its enclosing map,
-replaces it, inherits selected entries, or participates in another resolver-
-specific lookup rule. It records the scoped information only.
+The format records nested information but does not define overlay, replacement,
+inheritance, or lookup semantics. Nested maps may be sparse and may omit the
+subject under which they appear.
 
-A nested map may omit the subject under which it appears or omit entries found
-in an outer map:
-
-```json
-{
-  "D": "snapshot-hash-of-D-v0",
-  "B": {
-    "C": {
-      "A": "snapshot-hash-of-A0"
-    }
-  }
-}
-```
-
-This is structurally valid. A resolver may be able to interpret it using its
-history, caller environment, scope policy, or dependency model. If it cannot,
-the map is insufficient for that resolver invocation. The ambiguity is not a
-format error.
-
-Flat maps should remain the common representation. Nested maps are used when a
-single flat binding for a subject is not enough to express the available
-resolution information.
-
-### Cyclic subject references
-
-A flat lock map can resolve mutually recursive subjects without creating a
-content-addressing cycle because it maps subjects to snapshot/content hashes,
-not to revision hashes whose bytes include their own lock maps.
-
-For example, if A references B and C, and B references A and C, processing the
-revision of A may use:
-
-```json
-{
-  "B": "snapshot-hash-of-B",
-  "C": "snapshot-hash-of-C"
-}
-```
-
-with the initial binding `A -> revision.snapshot`. A resolver may therefore
-construct the effective environment:
-
-```text
-A -> snapshot-hash-of-A
-B -> snapshot-hash-of-B
-C -> snapshot-hash-of-C
-```
-
-A future shared lock map could store all three explicit bindings and be reused
-from A, B, or C.
-
-### Resolver-relative sufficiency
-
-A lock map is not intrinsically partial or complete. Sufficiency depends on:
-
-- the resolver and its version;
-- the starting revision and operation;
-- resolver configuration and caller-provided inputs;
-- the dependencies discovered while examining content.
-
-A map is sufficient for one resolver invocation when that resolver can finish
-without making additional unrecorded resolution choices. The same map may be
-sufficient for one resolver and insufficient for another.
-
-For example, one resolver may discover only `A -> B` and be satisfied by:
-
-```json
-{
-  "B": "snapshot-hash-of-B"
-}
-```
-
-Another resolver may inspect B's content and discover `B -> C`; the same map is
-then insufficient for that invocation. A resolver may also encounter multiple
-candidates, nested-scope ambiguity, or a missing binding and reach the same
-conclusion.
-
-`partial` and `complete` may be used as contextual shorthand, but never as
-properties that can always be determined from the lock map alone.
-
-### Resolver behavior and updated lock maps
-
-Resolution algorithms are separate from the stored format. A resolver may, for
-example:
-
-- use current lock entries directly;
-- inspect first-parent or multi-parent revision history;
-- combine caller-provided resolution data with the revision-local map;
-- inspect content to discover additional dependencies;
-- consult mutable heads or another external source for unresolved choices;
-- reject unresolved ambiguity;
-- apply a deterministic resolver-specific policy;
-- return an updated lock map containing choices and dependencies used or
-  discovered during processing.
-
-Looking into revision history does not by itself weaken reproducibility because
-all parent references are immutable hashes. Reproducibility still depends on
-using compatible resolver semantics.
-
-A returned lock map is not necessarily universally complete. It records a more
-explicit environment and may be sufficient to repeat the same operation with
-the same resolver semantics. Another resolver may discover more dependencies or
-require different information.
-
-The revision format must not prescribe inheritance, precedence, conflict
-resolution, scope lookup, dependency discovery, or head-selection algorithms.
-Those belong to the resolver.
-
-### Future shared lock files
-
-A future `vnd.fjs.lock` format may store a reusable, history-free `LockMap` so
-large or shared environments do not have to be repeated inline. History for
-such content would still use ordinary revisions when needed.
-
-A future extension may also allow a hash in a lock map, or the revision's whole
-`lock` field, to reference shared lock content. The target would be recognized
-by its content dialect. This is out of scope for the first version; initially a
-direct hash supplies immutable content for a subject.
+Flat maps remain the normal representation. Use nesting only when one flat
+binding cannot express the available scoped choices.
 
 ### Compatibility
 
-Adding `lock` is structurally additive, but old readers would accept a revision,
-ignore the lock, and could process the snapshot using mutable resolutions. That
-is a semantic compatibility risk under the revision format's documented
-versioning rule.
+Stage 2 widens the declared `lock` values from `string` to `string | LockMap`.
+New readers accept all Stage 1 records, while Stage 1 readers that validate the
+known `lock` field reject nested maps.
 
-Before implementation, confirm that the pre-first-stored-record design window
-still applies. If persistent `vnd.fjs.revision` records already exist and must
-remain safely interpretable by old readers, introduce a new revision dialect
-instead of silently reusing the old tag.
+Decide whether Stage 2 keeps the revision dialect or introduces a new version
+before emitting recursive lock records. This decision is separate from the
+Stage 1 additive-field decision.
 
-### Tasks
+### Stage 2 tasks
 
-- [ ] Implement the lazy recursive rtti schema `lock` using
-      `['record', or(hash, lock)]` and derive the inline recursive TypeScript
-      index-signature type.
-- [ ] Add optional `lock` to the revision schema, decoder, validator, exported
-      type, README shape, and examples.
-- [ ] Keep pure validation store-independent: validate recursive map structure
-      and native cbase32 content hashes.
-- [ ] Document that same-subject entries, missing entries, and conflicting
-      entries are structurally valid resolver inputs rather than format-level
-      errors.
-- [ ] Document nested maps as scoped information without prescribing overlay,
-      replacement, or inheritance semantics.
-- [ ] Add proofs for absent, empty, flat, and nested lock maps; missing lookups;
-      invalid hashes; malformed recursive values; and preservation of nested
-      map structure.
-- [ ] Document that revisions with equal snapshots and different locks are
-      valid and may be displayed as dependency-only changes.
-- [ ] Define resolver-facing terminology for contextual sufficiency instead of
-      intrinsic lock completeness.
-- [ ] Add processor-facing follow-up work for accepting an optional lock and
-      returning an updated lock containing used or discovered resolution data.
-- [ ] Add cyclic-reference examples proving that lock entries select snapshot
-      hashes and therefore do not introduce revision-hash cycles.
-- [ ] Reconcile the change with the revision dialect versioning rule before any
-      records are emitted.
+- [ ] Complete every item under **Blocked by**.
+- [ ] Decide the Stage 2 dialect before emitting recursive lock records.
+- [ ] Replace the flat schema with
+      `const lock = () => ['record', or(string, lock)] as const`.
+- [ ] Export the recursive open-map TypeScript type.
+- [ ] Add RTTI validation and proofs for nested and malformed maps.
+- [ ] Recursively validate every direct lock value in media semantic reference
+      checking.
+- [ ] Widen Evo and MCP schemas through the shared recursive `LockMap` type.
+- [ ] Recursively canonicalize direct hashes in Evo `add` and `revision`.
+- [ ] Add proofs for reordered root and nested lock keys, including
+      numeric-looking subjects.
+- [ ] Add nested conflict examples and document resolver-specific semantics.
+- [ ] Preserve and prove Stage 1 compatibility.
+- [ ] Add processor-facing follow-up work for recursive maps.
+
+### Future shared lock files
+
+A future `vnd.fjs.lock` format may store a reusable, history-free map. History
+for that content would still use ordinary revisions. A future revision may also
+reference shared lock content. Both are outside this TODO.
 
 ### Out of scope
 
-- A separate lock/freeze history format with its own parents or generation.
+- A separate lock/freeze history format.
 - A mandatory universal dependency-resolution algorithm.
-- Format-level precedence, scope inheritance, or conflict-resolution rules.
+- Format-level precedence, inheritance, or conflict rules.
 - Ecosystem-specific npm, Deno, Bun, Cargo, or Nix adapters.
-- A shared `vnd.fjs.lock` blob format; it is a possible future extension.
-- Full build reproducibility for compiler versions, platforms, configuration,
-  undeclared environment state, or nondeterministic processors.
+- Full build reproducibility beyond subject-to-content resolution.
 
 ### Related
 
-- [fjs/media/revision/README.md](../revision/README.md) — the current revision
-  shape, parent ordering, generation rules, interpretability requirements, and
-  dialect versioning policy
-- [fjs/cas/evo/README.md](../../cas/evo/README.md) — revision storage and head
-  operations that remain the only history infrastructure
-- [fjs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
-  — media-module placement and dialect naming conventions
+- [Revision format](../revision/README.md)
+- [Recursive RTTI to JSON Schema](../json/todo/rtti-recursive-json-schema.md)
+- [RTTI serializable data representation](../../types/rtti/todo/serializable-data.md)
+- [Evo API](../../cas/evo/README.md)
+- [MCP Evo](../../mcp/evo/README.md)

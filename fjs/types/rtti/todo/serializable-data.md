@@ -1,9 +1,14 @@
-## 143. RTTI: Serializable Data Representation
+## RTTI serializable data representation
 
 **Priority:** P3
 **Status:** open
 
-A function-free, serializable representation of `Type` in [../fjs/types/rtti/module.f.ts](../fjs/types/rtti/module.f.ts), modeled after [../fjs/bnf/data/](../fjs/bnf/data/). The motivation is to give RTTI a clear two-form architecture and to move *all* schema algebra (union, subset, normalization, dispatch) off the thunk graph and onto a representation built for it.
+A function-free, serializable representation of `Type` in
+[`fjs/types/rtti/module.f.ts`](../module.f.ts), modeled after
+[`fjs/bnf/data`](../../../bnf/data/). The motivation is to give RTTI a clear
+two-form architecture and to move *all* schema algebra (union, subset,
+normalization, dispatch) off the thunk graph and onto a representation built for
+it.
 
 ### Principle
 
@@ -62,8 +67,9 @@ The existing `reduceOr` / `flattenOr` pass — and the test cases that exercise 
 ### Related
 
 - 130 — superseded by this issue. With the two-form architecture, "optimize `or`" is not a separate project: the canonical-form properties are properties of the data form by construction.
-- [141](../../issues/README.md) — universal, extensible type system based on custom RTTI. The `equal`/`subset` predicates introduced here are the first concrete instance of the proposed `TypeSystem<T>` interface.
+- [141](../../todo/141.md) — universal, extensible type system based on custom RTTI. The `equal`/`subset` predicates introduced here are the first concrete instance of the proposed `TypeSystem<T>` interface.
 
 ### Location
 
-`fjs/types/rtti/data/module.f.ts` (new), with `test.f.ts` alongside.
+[`fjs/types/rtti/data/module.f.ts`](../data/module.f.ts) (new), with `test.f.ts`
+alongside.
