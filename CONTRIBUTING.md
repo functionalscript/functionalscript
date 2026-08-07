@@ -66,9 +66,12 @@ Bun, and published-CLI equivalents are listed in
 [AGENTS.md §1.4](./AGENTS.md#14-ways-to-run-the-functionalscript-test-suite).
 
 New `.f.ts` and `.f.mjs` modules need a co-located proof with 100% proof
-coverage — see [AGENTS.md §3](./AGENTS.md#3-testing-and-proof-coverage). A
-`module.f.mjs` may keep a `proof.f.ts` during the incremental `.f.mjs`
-migration, or use a `proof.f.mjs` once that proof is itself compiler-ready.
+coverage — see [AGENTS.md §3](./AGENTS.md#3-testing-and-proof-coverage). During
+the TypeScript-to-JavaScript migration, a `module.f.mjs` may keep a
+`proof.f.ts`, or the proof may migrate to `proof.f.mjs` as soon as the proof
+itself is valid JavaScript/JSDoc and its authored FunctionalScript dependencies
+are already `.f.mjs`. Current FunctionalScript compiler support is not required
+for that proof rename.
 
 ### Updating dependencies
 

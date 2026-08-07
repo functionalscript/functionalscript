@@ -158,33 +158,38 @@ acceptable. If a line or branch genuinely cannot be reached, restructure the cod
 so it isn't there rather than leaving it uncovered.
 
 The implementation and proof extensions are independent during the incremental
-`.f.mjs` migration:
+TypeScript-to-JavaScript migration:
 
 | Implementation | Proof | When |
 |---|---|---|
-| `module.f.ts` | `proof.f.ts` | Default. |
-| `module.f.mjs` | `proof.f.ts` | A module migrated to `.f.mjs` keeps its TypeScript proof, which may still import `.f.ts` test helpers such as `fjs/asserts/module.f.ts`. |
-| `module.f.mjs` | `proof.f.mjs` | Once the proof's own syntax and relative FunctionalScript dependencies are compiler-ready. |
+| `module.f.ts` | `proof.f.ts` | Both files are still authored TypeScript. |
+| `module.f.mjs` | `proof.f.ts` | The implementation has migrated, while the proof temporarily remains TypeScript. |
+| `module.f.mjs` | `proof.f.mjs` | The proof is valid JavaScript/JSDoc and all of its authored FunctionalScript runtime/type dependencies outside the migration group are already `.f.mjs`. Compiler readiness is not required. |
 
 Renaming an implementation to `.f.mjs` therefore never requires renaming its
-proof, and never removes it from proof discovery or from Node and Deno coverage:
-`shouldLoad` in [`fjs/dev/module.f.ts`](./fjs/dev/module.f.ts) matches both
-authored extensions, and both `npm run cov` and `deno task cov` include
-`module.f.ts` and `module.f.mjs`. Ordinary (non-FunctionalScript) `.mjs` files
-stay opt-in through the `proof.mjs` filename convention.
+proof in the same change, and never removes it from proof discovery or from Node
+and Deno coverage: `shouldLoad` in [`fjs/dev/module.f.ts`](./fjs/dev/module.f.ts)
+matches both authored extensions, and both `npm run cov` and `deno task cov`
+include `module.f.ts` and `module.f.mjs`. Ordinary (non-FunctionalScript) `.mjs`
+files stay opt-in through the `proof.mjs` filename convention. Stage 1 still
+ends with no authored `.f.ts`, so every remaining `proof.f.ts` must eventually
+migrate to `proof.f.mjs`.
 
 A `proof.f.mjs` is authored `.f.mjs` like any other, so it must satisfy the same
-dependency-closure rule as any other migrated file — its relative imports and
-type references may target `.f.mjs` modules only. That rule is what makes
-`proof.f.ts` the default layout for a migrated module: a TypeScript proof can
-keep using the existing `.f.ts` test helpers. See
+source dependency-closure rule as any other migrated file: its relative runtime
+imports and JSDoc type references may target `.f.mjs` modules only. This is a
+JavaScript/JSDoc and dependency-readiness rule, not a FunctionalScript compiler
+feature gate. A proof that still imports an unmigrated helper such as
+`fjs/asserts/module.f.ts` remains `proof.f.ts` until that helper migrates. See
 [`fjs/fsc/README.md`](./fjs/fsc/README.md) for the migration order and the
 module-import policy it implies.
 
 ### 3.3 Use `assert` / `assertEq`, never a hand-written `if`/`throw`
 
-Assert results in `proof` code with `assert`/`assertEq` from
-`fjs/asserts/module.f.ts`, not a hand-written `if (cond) { throw ... }`.
+Assert results in `proof` code with `assert`/`assertEq` from the current authored
+`fjs/asserts/module.f.*` source, not a hand-written `if (cond) { throw ... }`.
+During Stage 1 that helper is `.f.ts` until it migrates to `.f.mjs`; a
+`proof.f.mjs` that needs it must wait for that dependency migration.
 
 A local `if`/`throw` in a test is itself a new branch for the coverage tool to
 track, and its failure side is normally never exercised (the test is expected to
@@ -428,6 +433,53 @@ ordinary typed functions so their structure, supported characters, and edge
 cases remain explicit and independently testable.
 
 ### 6.2 Types
+
+#### JavaScript/JSDoc type declarations
+
+Authored `.mjs` / `.f.mjs` files must remain valid JavaScript. Put named and
+generic static types in JSDoc rather than TypeScript syntax, and preserve the
+same public assignability and declaration-emission behavior when translating a
+`.ts` / `.f.ts` file.
+
+Use `@typedef` for a named type and `@template` for its type parameters. A
+constraint goes in braces before the parameter name:
+
+```js
+/**
+ * @template {Operation} O
+ * @template T
+ * @typedef {(_: Pr<O, O[0]>[1]) => Effect<O, T>} Cont
+ */
+```
+
+TypeScript 7 also supports variance modifiers on JSDoc type-alias parameters.
+Translate TypeScript `in` / `out` directly on `@template` instead of dropping
+the variance annotation. For example:
+
+```ts
+export type Cont<out O extends Operation, T> =
+    (_: Pr<O, O[0]>[1]) => Effect<O, T>
+```
+
+becomes:
+
+```js
+/**
+ * @template {Operation} out O
+ * @template T
+ * @typedef {(_: Pr<O, O[0]>[1]) => Effect<O, T>} Cont
+ */
+```
+
+The supported forms are `@template out T`, `@template in T`, and constrained
+forms such as `@template {Operation} out O`. Variance modifiers belong to type
+parameters of a JSDoc type alias (`@typedef`); do not put `in` / `out` on an
+ordinary function's `@template`, where TypeScript rejects them.
+
+When translating a public type, verify both normal type checking and emitted
+`.d.ts` / `.d.mts` declarations. The JSDoc spelling may differ, but the public
+type contract must not become weaker just because the source moved to
+JavaScript.
 
 #### Prefer inference
 
@@ -803,9 +855,17 @@ anywhere else as the rule being broken.
 
 ### 6.5 FunctionalScript module rules
 
-- Only import other `.f.ts` files from FunctionalScript modules. Avoid references
-  to built-in or external Node modules such as `node:path` in `.f.ts` files.
-- No `try`/`catch` — see [§3.5](#35-never-use-trycatch-test-throwing-with-the-throw-key).
+During Stage 1 of the TypeScript-to-JavaScript migration, relative authored
+FunctionalScript dependencies follow the asymmetric source rule:
+
+- `.f.ts` may import `.f.ts` or already migrated `.f.mjs`;
+- `.f.mjs` may import only `.f.mjs` authored FunctionalScript dependencies;
+- compiler support does not gate an `.f.ts` / `proof.f.ts` -> `.f.mjs` /
+  `proof.f.mjs` rename; JavaScript/JSDoc validity and dependency closure do.
+
+Avoid references to built-in or external Node modules such as `node:path` in
+FunctionalScript source. No `try`/`catch` — see
+[§3.5](#35-never-use-trycatch-test-throwing-with-the-throw-key).
 
 ### 6.6 Formatting
 
