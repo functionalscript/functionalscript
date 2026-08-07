@@ -91,6 +91,12 @@ Update `AGENTS.md` with that asymmetric source-migration policy. Compiler
 compatibility is a later `.f.mjs` -> `.f.js` migration and is not part of this
 package prerequisite.
 
+Package selection does not need to distinguish every authored `.mjs` by public
+API status during this transition. Incidental authored files such as
+`fjs/types/bigint/benchmark.mjs` may be present in the archive; because they are
+not part of the documented public API, their presence does not block this task.
+They can be removed separately when no longer useful.
+
 As soon as no authored `.ts` / `.f.ts` source remains, remove the second
 TypeScript runtime-emission pass. `prepack` then needs only declaration emission:
 
@@ -100,12 +106,13 @@ TypeScript runtime-emission pass. `prepack` then needs only declaration emission
 
 ### Tasks
 
-- [ ] Make `fjs/types/bigint/benchmark.mjs` pass TypeScript validation or delete
-      it if it is no longer needed.
+- [ ] Keep `fjs/types/bigint/benchmark.mjs` type-checked with the rest of authored
+      JavaScript; removing the benchmark is a separate cleanup and is not a
+      prerequisite for this task.
 - [ ] Enable `allowJs` and `checkJs` in the root TypeScript configuration before
       the first `.ts` / `.f.ts` migration.
-- [ ] Update NPM package rules to include package-owned `.mjs` and `.d.mts`
-      while excluding unrelated `.mjs` files.
+- [ ] Update NPM package rules to include authored `.mjs` and generated `.d.mts`.
+      Do not add special exclusions merely for non-public authored `.mjs` files.
 - [ ] Replace one-pass package emission with the two ordered `tsc` commands
       directly in `prepack`: declarations first, then JavaScript emission.
 - [ ] Do not expose separate `emit:*` package scripts; packaging owns generated
@@ -136,6 +143,7 @@ TypeScript runtime-emission pass. `prepack` then needs only declaration emission
   present; PR #1451 provides the initial repository validation of this behavior.
 - Package emission produces `.d.ts` for `.ts`, `.d.mts` for `.mjs`, `.js` only
   for `.ts`, and preserves authored `.mjs` unchanged.
+- Non-public authored `.mjs` files do not require special package exclusions.
 - No separate user-facing `emit:*` scripts are required.
 - Package/publish runs start from a clean CI checkout, so ignored generated
   outputs from previous revisions cannot leak into a package build.
