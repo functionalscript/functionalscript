@@ -20,15 +20,27 @@ fjs <command> [args]
 
 ## Commands
 
-| Command | Alias | Description |
-|---------|-------|-------------|
-| `test`   | `t`   | Run the FunctionalScript test suite |
-| `compile`| `c`   | Compile a FunctionalScript module to JavaScript |
-| `cas`    | `s`   | Content-addressable storage operations |
-| `mcp`    | `m`   | Run an MCP server over stdio exposing the CAS as tools |
-| `ci`     | `i`   | Generate the GitHub Actions CI workflow |
-| `run`    | `r`   | Run a FunctionalScript module as a program |
-| `help`   | `h`, `?` | Print available commands |
+| Command | Alias | Description | Documentation |
+|---------|-------|-------------|---------------|
+| `test`   | `t`   | Run the FunctionalScript test suite | [emergent_testing](emergent_testing/README.md) |
+| `compile`| `c`   | Compile a FunctionalScript module to JavaScript or JSON | [djs](djs/README.md), [fsc](fsc/README.md) |
+| `cas`    | `s`   | Content-addressable storage operations (`add`, `get`, `list`) | [cas](cas/README.md) |
+| `mcp`    | `m`   | Run an MCP server over stdio exposing the CAS and Evo as tools | [mcp](mcp/README.md) |
+| `ci`     | `i`   | Generate the GitHub Actions CI workflow | [ci](ci/README.md) |
+| `run`    | `r`   | Run a FunctionalScript module as a program | [below](#fjs-run--running-a-module-as-a-program) |
+| `help`   | `h`, `?` | Print available commands | |
+
+## `fjs compile` — compiling a module
+
+```sh
+fjs compile <input> <output>
+fjs c       <input> <output>
+```
+
+The output extension picks the format: `.json` emits a tree (shared values are
+expanded), anything else emits a JavaScript module that preserves sharing by
+naming reused values as `const`s. Imports are resolved and inlined in both
+cases. See [djs/README.md](djs/README.md) for the accepted subset.
 
 ## `fjs ci` — generating the standard CI workflow
 
