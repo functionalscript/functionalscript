@@ -275,10 +275,10 @@ Stage 2 depends on
 The current JSON Schema transformer walks thunk RTTI directly and cannot
 terminate on a recursive schema such as the Stage 2 lock.
 
-That transformer TODO in turn depends on the existing
-[RTTI serializable data representation](../../types/todo/143.md), where recursive
-thunks are converted into a function-free rule set with named/indexed
-references, similar to `fjs/bnf/data`.
+That transformer TODO in turn depends on the
+[RTTI serializable data representation](../../types/rtti/todo/serializable-data.md),
+where recursive thunks are converted into a function-free rule set with
+named/indexed references, similar to `fjs/bnf/data`.
 
 Do not implement or emit Stage 2 recursive lock records until this dependency
 chain is complete. Stage 1 uses only a finite `record(string)` schema and is not
@@ -420,8 +420,8 @@ shared lock content. This is outside both stages of this TODO.
   generation rules, and dialect versioning policy
 - [recursive RTTI-to-JSON-Schema support](../json/todo/rtti-recursive-json-schema.md)
   — direct prerequisite for Stage 2
-- [RTTI serializable data representation](../../types/todo/143.md) — named or
-  indexed references that make recursive RTTI finite and serializable
+- [RTTI serializable data representation](../../types/rtti/todo/serializable-data.md)
+  — named or indexed references that make recursive RTTI finite and serializable
 - [fjs/cas/evo/README.md](../../cas/evo/README.md) — the round-trippable Evo API
   that must expose the optional lock
 - [fjs/mcp/evo/README.md](../../mcp/evo/README.md) — MCP exposure of Evo
