@@ -1,5 +1,5 @@
 import { concat, isProperPrefix, join, normalize, relativize, toPosix } from "./module.f.ts"
-import { assertEq } from '../asserts/module.f.ts'
+import { assertEq } from '../asserts/module.f.mjs'
 
 const normalizeTest = [
     () => {

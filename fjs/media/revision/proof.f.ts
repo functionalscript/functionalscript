@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 import type { Object as JsonObject } from '../json/module.f.ts'
 import { dialect, mediaType, isHash, validate, decodeText, encodeText, type LockMap } from './module.f.ts'
 

@@ -6,24 +6,29 @@
 
 /**
  * Marks a code path as unimplemented. Always throws.
+ * @type {() => never}
  */
-export const todo = (): never => { throw 'not implemented' }
+export const todo = () => { throw 'not implemented' }
 
 /**
  * Throws `msg` (default `'assertion failed'`) if `v` is `false`.
  *
  * Narrows `v` to `true` via `asserts v`, so callers can rely on the
  * condition holding for the rest of the enclosing scope.
+ *
+ * @type {(v: boolean, msg?: unknown) => asserts v}
  */
-export const assert: (v: boolean, msg?: unknown) => asserts v = (v, msg = 'assertion failed') => {
+export const assert = (v, msg = 'assertion failed') => {
     if (!v) throw msg
 }
 
 /**
  * Asserts that `a` and `b` are `===`, throwing `x` (the `[a, b]` pair, plus
  * an optional third element used as an extra message) if they differ.
+ *
+ * @type {<T>(...x: readonly[T, T, unknown?]) => void}
  */
-export const assertEq = <T>(...x: readonly[T, T, unknown?]): void => {
+export const assertEq = (...x) => {
     const [a, b] = x
     assert(a === b, x)
 }
@@ -32,8 +37,10 @@ export const assertEq = <T>(...x: readonly[T, T, unknown?]): void => {
  * Compile-time-only check: a type resolves only if it is exactly `true`.
  * Used to assert type-level properties without any runtime cost, e.g.
  * `type _ = Assert<Equal<A, B>>`.
+ *
+ * @template {true} T
+ * @typedef {T} Assert
  */
-export type Assert<T extends true> = T
 
 /**
  * Asserts that `a` is neither `null` nor `undefined` and returns it,
@@ -42,8 +49,10 @@ export type Assert<T extends true> = T
  * Use this to chain directly off a call that may return a nullish value,
  * e.g. `const r = assertNotNullish(f(x))`. For a variable that already
  * exists, prefer `assert(a !== null && a !== undefined)` instead.
+ *
+ * @type {<T>(a: T|null|undefined, msg?: unknown) => T}
  */
-export const assertNotNullish = <T>(a: T|null|undefined, msg?: unknown): T => {
+export const assertNotNullish = (a, msg = undefined) => {
     assert(a !== null && a !== undefined, msg)
     return a
 }

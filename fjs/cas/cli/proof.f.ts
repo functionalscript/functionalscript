@@ -5,7 +5,7 @@ import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/no
 import { type NodeProgramOptions } from '../../effects/node/module.f.ts'
 import { dispatch } from '../../cli/module.f.ts'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.ts'
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const makeOptions = (args: readonly string[]): NodeProgramOptions =>
     ({ ...defaultNodeProgramOptions, args })

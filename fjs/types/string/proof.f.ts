@@ -1,6 +1,6 @@
 import { join, concat, repeat, cmp, splitAt } from './module.f.ts'
 import { repeat as repeatList } from '../list/module.f.ts'
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
     example: () => {

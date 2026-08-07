@@ -3,8 +3,8 @@ import { boolean, number, string, bigint, unknown, array, record, or, option } f
 import type { Equal } from '../../ts/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
-import type { Assert } from '../../../asserts/module.f.ts'
-import { assert, assertEq } from '../../../asserts/module.f.ts'
+import type { Assert } from '../../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
 const assertOk = ([k]: readonly [string, unknown]) => { assertEq(k, 'ok', 'expected ok') }
 const assertError = ([k]: readonly [string, unknown]) => { assertEq(k, 'error', 'expected error') }

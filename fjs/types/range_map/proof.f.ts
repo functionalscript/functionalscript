@@ -5,7 +5,7 @@ import { union, type SortedSet } from '../sorted_set/module.f.ts'
 import { equal, toArray } from '../list/module.f.ts'
 import { strictEqual } from '../function/operator/module.f.ts'
 import { cmp } from '../string/module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 
 const str
     : (a: readonly Unknown[]) => string

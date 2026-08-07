@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { msb, u8ListToVec, vec8, repeat, empty, type Vec } from '../../types/bit_vec/module.f.ts'
 import { runPure } from '../../effects/module.f.ts'
 import { nonEmpty, empty as emptyList, type List } from '../../effects/list/module.f.ts'

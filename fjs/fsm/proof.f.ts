@@ -5,7 +5,7 @@ import { stringify } from '../media/json/module.f.ts'
 import { identity } from '../types/function/module.f.ts'
 import { toArray } from '../types/list/module.f.ts'
 import { stringToList } from '../text/utf16/module.f.ts'
-import { assertEq } from '../asserts/module.f.ts'
+import { assertEq } from '../asserts/module.f.mjs'
 
 const stringifyIdentity = stringify(identity)
 

@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../asserts/module.f.ts'
+import { assert, assertEq } from '../asserts/module.f.mjs'
 import { classic, deterministic } from './testlib.f.ts'
 import {
     rangeEncode,

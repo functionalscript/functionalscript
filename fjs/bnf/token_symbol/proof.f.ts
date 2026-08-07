@@ -1,4 +1,4 @@
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 import { capacity, encoding } from './module.f.ts'
 
 const names = ['>>', '>>>=', 'instanceof'] as const

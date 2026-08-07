@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../../asserts/module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { compress, level3Id, type Id } from '../../id/module.f.ts'
 import { emptyEncodeState, encode, type EncodeState } from './module.f.ts'
 

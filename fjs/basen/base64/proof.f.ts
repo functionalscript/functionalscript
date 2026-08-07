@@ -1,4 +1,4 @@
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 import { empty, vec, repeat, vec8, maxLength, type Vec } from "../../types/bit_vec/module.f.ts"
 import { encode, decode } from "./module.f.ts"
 

@@ -15,7 +15,7 @@ import {
     divUp8,
     roundUp8
 } from './module.f.ts'
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { min } from '../function/compare/module.f.ts'
 
 const oldLog2 = (v: bigint): bigint => {

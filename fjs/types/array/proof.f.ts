@@ -1,7 +1,7 @@
 import { at, first, last, head, tail, splitFirst, splitLast, empty } from './module.f.ts'
 import { stringify as jsonStringify } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
-import { assertEq, assertNotNullish } from '../../asserts/module.f.ts'
+import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 
 const stringify = jsonStringify(sort)
 

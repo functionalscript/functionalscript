@@ -1,4 +1,4 @@
-import { assert, assertEq, todo } from './module.f.ts'
+import { assert, assertEq, todo } from './module.f.mjs'
 
 export const proof = {
     assertPassesOnTrue: () => {
