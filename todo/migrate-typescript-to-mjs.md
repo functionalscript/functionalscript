@@ -104,10 +104,13 @@ For each migration group:
 Keep `**/*.js` ignored while TypeScript can still generate `.js`. After the last
 authored `.ts` / `.f.ts` source file is removed:
 
-1. remove the TypeScript-to-JavaScript emission path;
-2. remove obsolete generated `.js` output from the working tree when performing
+1. simplify `prepack` from
+   `tsc --noEmit false --emitDeclarationOnly && tsc --noEmit false --declaration false`
+   to declaration-only `tsc --noEmit false --emitDeclarationOnly`;
+2. remove the TypeScript-to-JavaScript emission path;
+3. remove obsolete generated `.js` output from the working tree when performing
    that transition;
-3. remove the blanket `**/*.js` rule from `.gitignore` so authored `.js` can be
+4. remove the blanket `**/*.js` rule from `.gitignore` so authored `.js` can be
    tracked again.
 
 Generated declaration ignores are independent and may remain.
@@ -144,8 +147,9 @@ compiler-compatibility rename.
       CI package behavior throughout the migration.
 - [ ] Add required `**BREAKING CHANGES:**` changelog entries for public runtime
       import paths that change.
-- [ ] After the last authored TypeScript file is gone, remove the TS-to-JS emit
-      path and obsolete generated `.js` outputs.
+- [ ] After the last authored TypeScript file is gone, simplify `prepack` to its
+      declaration-only command and remove the TS-to-JS emit path and obsolete
+      generated `.js` outputs.
 - [ ] Then remove `**/*.js` from `.gitignore` so authored `.js` is trackable.
 - [ ] Keep the compiler-compatibility migration explicitly **blocked by** this
       task.
@@ -166,8 +170,8 @@ compiler-compatibility rename.
   build and clean NPM consumer.
 - Tests, proofs, coverage, supported runtimes, and type checking continue to
   pass.
-- TypeScript-to-JavaScript emission is removed after the last authored
-  TypeScript source is removed.
+- After the last authored TypeScript source is removed, `prepack` performs only
+  declaration emission and no TypeScript-to-JavaScript emission remains.
 - `.gitignore` no longer blanket-ignores `.js` at the end of this task.
 - The compiler-compatibility migration starts only after this task and the
   authored-`.f.js` package/tooling prerequisite are complete.
