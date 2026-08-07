@@ -10,7 +10,7 @@ import { fold } from '../../types/list/module.f.ts'
 import { concat } from '../../types/string/module.f.ts'
 import { type List, flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.ts'
 const { entries } = Object
-import { compose, fn } from '../../types/function/module.f.ts'
+import { compose, fn } from '../../types/function/module.f.mjs'
 import { serialize as bigintSerialize } from '../../types/bigint/module.f.ts'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.ts'
 

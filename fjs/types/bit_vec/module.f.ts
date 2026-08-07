@@ -22,7 +22,7 @@
  * @module
  */
 import { bitLength, divUp, mask, maxLength, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
-import { flip, identity } from '../function/module.f.ts'
+import { flip, identity } from '../function/module.f.mjs'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
 import { map, tryFold, type Accumulator, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'

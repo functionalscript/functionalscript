@@ -4,7 +4,7 @@
  * @module
  */
 import { assert } from '../../asserts/module.f.mjs'
-import { fn } from '../function/module.f.ts'
+import { fn } from '../function/module.f.mjs'
 import type { Option } from '../option/module.f.ts'
 
 export type Nullable<T> = T | null

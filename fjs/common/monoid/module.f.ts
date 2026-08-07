@@ -8,7 +8,7 @@
  */
 import type { Fold, Reduce } from '../../types/function/operator/module.f.ts'
 import { reduce, type List } from '../../types/list/module.f.ts'
-import { flip } from '../../types/function/module.f.ts'
+import { flip } from '../../types/function/module.f.mjs'
 
 /**
  * Represents a monoid, an algebraic structure with a binary operation
