@@ -56,20 +56,20 @@ below Node `26.0.0`, so `node --test` and `npm run cov` correctly handle
 Every row below runs the same suite; pick the first one that fits your
 environment.
 
-| Command                                | Runtime  | Needs internet | Notes                                      |
-| -------------------------------------- | -------- | -------------- | ------------------------------------------ |
-| `npm test`                             | Node 22+ | no             | `tsc` + the repo's runner.                  |
-| `npm start t`                          | Node 22+ | no             | The repo's runner, no type-check step.      |
-| `node --test`                          | Node 22+ | no             | Node's native test runner.                  |
-| `npm run cov`                          | Node 22+ | no             | `node --test` plus coverage.                |
-| `deno task fjs t`                      | Deno     | no             | The repo's runner under Deno.               |
-| `deno task test` / `deno task cov`     | Deno     | no             | Deno's native test runner / coverage.       |
-| `bun fjs/module.ts t`                  | Bun      | no             | The repo's runner under Bun.                |
-| `bun test`                             | Bun      | no             | Bun's native test runner.                   |
-| `fjs t`                                | Node 22+ | to install     | After `npm install -g functionalscript`.    |
-| `npx functionalscript t`               | Node 22+ | yes            | No install step.                            |
-| `deno run -A npm:functionalscript t`   | Deno     | yes            | No install step.                            |
-| `bunx functionalscript t`              | Bun      | yes            | No install step.                            |
+| Command                                 | Runtime  | Needs internet | Notes                                    |
+| --------------------------------------- | -------- | -------------- | ---------------------------------------- |
+| `npm test`                              | Node 22+ | no             | `tsc` + the repo's runner.               |
+| `npm start test`                        | Node 22+ | no             | The repo's runner, no type-check step.   |
+| `node --test`                           | Node 22+ | no             | Node's native test runner.               |
+| `npm run cov`                           | Node 22+ | no             | `node --test` plus coverage.             |
+| `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |
+| `deno task test` / `deno task cov`      | Deno     | no             | Deno's native test runner / coverage.    |
+| `bun fjs/module.ts test`                | Bun      | no             | The repo's runner under Bun.             |
+| `bun test`                              | Bun      | no             | Bun's native test runner.                |
+| `fjs test`                              | Node 22+ | to install     | After `npm install -g functionalscript`. |
+| `npx functionalscript test`             | Node 22+ | yes            | No install step.                         |
+| `deno run -A npm:functionalscript test` | Deno     | yes            | No install step.                         |
+| `bunx functionalscript test`            | Bun      | yes            | No install step.                         |
 
 The last four rows run a **published** FunctionalScript rather than this working
 tree's version. `npx`, `deno run`, and `bunx` resolve the latest release each
@@ -87,7 +87,7 @@ CI exercises these same combinations — see the `node22`, `node24`, `node26`,
 and pinned runtime versions.
 
 To run only the tests under a subtree, `cd` into that directory and run the
-runner from there (e.g. `cd fjs/base64 && fjs t`). Module discovery starts at
+runner from there (e.g. `cd fjs/base64 && fjs test`). Module discovery starts at
 the current working directory, and results are reported per test.
 
 ### 1.5 Updating dependencies
@@ -124,7 +124,7 @@ cargo fmt -- --check     # verify formatting
 4. Run the full check set before submitting:
    ```bash
    npx tsc                  # type-check with the repo's TypeScript
-   fjs t                    # or any equivalent from §1.4
+   fjs test                 # or any equivalent from §1.4
    cargo test               # only if you touched Rust
    cargo clippy
    cargo fmt -- --check
@@ -141,7 +141,7 @@ cargo fmt -- --check     # verify formatting
 ### 3.1 Commands
 
 - `npx tsc` — type-check using the repository's version of TypeScript.
-- `fjs t` (or any equivalent from [§1.4](#14-ways-to-run-the-functionalscript-test-suite))
+- `fjs test` (or any equivalent from [§1.4](#14-ways-to-run-the-functionalscript-test-suite))
   — test FunctionalScript (`.f.ts` / `.f.mjs`) files.
 - `cargo test`, `cargo clippy`, `cargo fmt -- --check` — the Rust crate.
 

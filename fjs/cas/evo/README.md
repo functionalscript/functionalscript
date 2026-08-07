@@ -239,7 +239,7 @@ any other reason, a blob that is not a revision — comes back as
 - [`fjs/mcp/evo`](../../mcp/evo/) — MCP tool definitions (`evo_list` / `evo_head` /
   `evo_revision` / `evo_add`) for agents, served by the same process as
   [`fjs/mcp`](../../mcp/)'s `cas_add`/`cas_get`/`cas_list` — one
-  `~/.cas/` store, one Evo cache, one server (`npx functionalscript m`).
+  `~/.cas/` store, one Evo cache, one server (`npx functionalscript mcp`).
 
 ## In-memory cache is per process
 

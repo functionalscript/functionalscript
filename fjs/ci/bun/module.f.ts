@@ -11,6 +11,6 @@ export const bunSteps = (version: string): readonly MetaStep[] => [
     install(uses('oven-sh/setup-bun', { 'bun-version': bun })),
     install({ run: `bun install -g functionalscript@${version}` }),
     test({ run: 'bun install --frozen-lockfile' }),
-    test({ run: `bunx functionalscript@${version} t` }),
+    test({ run: `bunx functionalscript@${version} test` }),
     test({ run: 'bun test --coverage' }),
 ]
