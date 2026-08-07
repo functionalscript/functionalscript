@@ -85,13 +85,31 @@ export const revisionSchema = {
 } as const
 ```
 
-Conceptually, the derived TypeScript type is:
+Conceptually, the derived TypeScript type is an open map whose missing lookups
+produce `undefined`:
 
 ```ts
-type LockMap = Readonly<Record<string, string>>
+type LockMap = StringMap<string>
 ```
 
-Every property maps one revision subject to one immutable content hash.
+Equivalently:
+
+```ts
+type LockMap = {
+    readonly [subject: string]: string | undefined
+}
+```
+
+Every present property maps one revision subject to one immutable content hash.
+Do not use `Readonly<Record<string, string>>`, because that incorrectly types
+every possible subject lookup as present.
+
+The RTTI shape is only a record of strings because native cBase32 hashes are
+structurally strings. The media-level semantic reference check must validate
+every direct lock value with the same hash predicate used for `parents` and
+`snapshot`. A revision containing a URL, malformed cBase32 value, or another
+non-hash string is invalid even when it bypasses Evo and is decoded directly by
+`fjs/media/revision`.
 
 ### Evo API
 
@@ -124,11 +142,11 @@ returns the lock when present. Because `RevisionData` is intentionally the same
 vocabulary in both directions, a value returned by `revision` must remain valid
 input to `add` without removing or translating the lock.
 
-Direct lock values are content hashes and should use the same canonical cBase32
-spelling policy as `parents` and `snapshot`. Reading a revision therefore
-canonicalizes every direct lock value. Adding a revision validates and
-canonicalizes the values before serializing the media object, so alias spellings
-do not create different revisions for the same logical lock map.
+Media validation rejects invalid direct lock hashes. Evo additionally
+canonicalizes every direct lock value before serialization and canonicalizes it
+again when reading a revision, using the same cBase32 spelling policy as
+`parents` and `snapshot`. Alias spellings therefore do not create different
+revisions for the same logical lock map.
 
 An omitted lock remains omitted. An explicitly empty lock remains an empty map;
 it is not converted to absence because those values may be interpreted
@@ -154,10 +172,10 @@ Example:
 }
 ```
 
-Pure media validation checks the record-of-strings shape. Store-backed or API
-validation may additionally validate and canonicalize direct strings as content
-hashes. Validation does not load revision objects or require a referenced
-revision whose `subject` matches the map key.
+Validation does not load revision objects or require a referenced revision whose
+`subject` matches the map key. It validates the map structure and every direct
+content hash, but the association between the key and the selected content is
+resolver input.
 
 The revision itself supplies the starting binding:
 
@@ -238,9 +256,13 @@ making additional unrecorded resolution choices.
 
 ### Stage 1 tasks
 
-- [ ] Define `const lock = record(string)` and derive/export `LockMap`.
-- [ ] Add optional `lock` to the revision schema, decoder, validator, exported
-      type, README shape, and examples.
+- [ ] Define `const lock = record(string)` and derive/export `LockMap` as an open
+      optional index (`StringMap<string>`), not `Record<string, string>`.
+- [ ] Add optional `lock` to the revision schema, decoder, exported type, README
+      shape, and examples.
+- [ ] Extend media-level semantic reference validation to check every direct
+      lock value with the same native cBase32 hash predicate used for `parents`
+      and `snapshot`.
 - [ ] Extend Evo `RevisionData` with `readonly lock?: LockMap` while preserving
       the shared add/read round-trip type.
 - [ ] Make Evo `add` validate, canonicalize, and store the optional flat lock.
@@ -250,13 +272,13 @@ making additional unrecorded resolution choices.
 - [ ] Update Evo README field guarantees and examples.
 - [ ] Update `fjs/mcp/evo` schemas, documentation, and proofs for `evo_add` and
       `evo_revision` lock round trips.
-- [ ] Add media proofs for absent, empty, and flat lock maps; invalid values;
-      and preservation of entries.
+- [ ] Add media proofs for absent, empty, and flat lock maps; malformed values;
+      invalid hashes; alias hashes; and preservation of entries.
 - [ ] Add Evo proofs for valid, invalid, aliased, empty, and absent lock values.
 - [ ] Document that direct values select immutable content hashes rather than
       revision hashes.
 - [ ] Document that same-subject, missing, extra, and conflicting historical
-      entries are structurally valid resolver input rather than format errors.
+      entries are valid resolver input rather than format errors.
 - [ ] Document that resolvers may inspect immutable revision history without
       prescribing one inheritance or merge algorithm.
 - [ ] Add processor-facing follow-up work for accepting an optional flat lock
@@ -287,8 +309,11 @@ After the flat format is implemented and the blockers above are complete,
 extend `lock` to accept nested maps:
 
 ```ts
-const lock = () => ['record', or(string, lock)]
+const lock = () => ['record', or(string, lock)] as const
 ```
+
+The trailing `as const` is required so TypeScript infers the thunk result as the
+readonly discriminated RTTI tuple rather than a mutable array.
 
 Conceptually:
 
@@ -299,6 +324,10 @@ type LockMap = {
 ```
 
 All Stage 1 flat lock maps remain valid Stage 2 lock maps.
+
+As in Stage 1, RTTI validates the recursive string/map structure while the
+media-level semantic reference check validates every direct string encountered
+at any nesting depth as a native cBase32 hash.
 
 ### Evo API
 
@@ -370,11 +399,12 @@ new dialect/version.
 ### Stage 2 tasks
 
 - [ ] Replace the flat schema with
-      `const lock = () => ['record', or(string, lock)]`.
-- [ ] Derive and export the recursive TypeScript index-signature type without
-      introducing an invalid circular type alias.
-- [ ] Update media validation and proofs for nested maps and malformed recursive
-      values.
+      `const lock = () => ['record', or(string, lock)] as const`.
+- [ ] Derive and export the recursive TypeScript index-signature type.
+- [ ] Update RTTI structural validation and proofs for nested maps and malformed
+      recursive values.
+- [ ] Recursively validate every direct lock string in the media semantic
+      reference checker.
 - [ ] Widen Evo `RevisionData.lock` through the shared recursive `LockMap` type.
 - [ ] Recursively validate and canonicalize direct lock hashes in Evo `add` and
       `revision` while preserving nested structure.
