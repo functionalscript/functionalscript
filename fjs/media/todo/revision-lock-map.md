@@ -247,8 +247,6 @@ other lock maps.
 - [x] Add proofs that numeric-looking property names such as `"10"` and `"2"`
       are sorted lexicographically as strings.
 - [x] Add proofs that array order is preserved.
-- [x] Add processor-facing follow-up work for accepting and returning flat lock
-      maps.
 
 ## Stage 2: recursive lock map
 
@@ -356,7 +354,6 @@ Stage 1 additive-field decision.
       numeric-looking subjects.
 - [ ] Add nested conflict examples and document resolver-specific semantics.
 - [ ] Preserve and prove Stage 1 compatibility.
-- [ ] Add processor-facing follow-up work for recursive maps.
 
 ### Future shared lock files
 
