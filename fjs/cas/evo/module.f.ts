@@ -49,9 +49,7 @@ import { collectRead, type Cas } from '../module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
-import { decodeText, dialect, checkReferences, isHash, type Revision } from '../../media/revision/module.f.ts'
-import { stringify } from '../../media/json/module.f.ts'
-import { identity } from '../../types/function/module.f.ts'
+import { decodeText, encodeText, dialect, checkReferences, isHash, type LockMap, type Revision } from '../../media/revision/module.f.ts'
 import { ok, error, type Ok, type Result } from '../../types/result/module.f.ts'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
 import { at, definedEntries, type StringMap } from '../../types/object/module.f.ts'
@@ -110,6 +108,7 @@ export type RevisionData = {
     readonly subject?: Subject | undefined
     readonly archived?: true | undefined
     readonly generation?: number | undefined
+    readonly lock?: LockMap | undefined
 }
 
 /**
@@ -139,9 +138,6 @@ export type Cache = {
 /** A cache with no known subjects yet — the starting point for {@link buildCache}. */
 export const emptyCache: Cache = { bySubject: {} }
 
-/** Canonical JSON encoder for a `Revision` — key order carries no meaning for detection. */
-const toJson = stringify(identity)
-
 const emptySubjectState: SubjectState = { hashes: [], parents: [], archived: [] }
 
 /** Adds every item of `items` to `set` that isn't already there, preserving `set`'s existing order. */
@@ -161,6 +157,10 @@ const union = (set: readonly Hash[]) => (items: readonly Hash[]): readonly Hash[
  * (`fjs/media/revision` `checkReferences`), so decoding here cannot fail.
  */
 const canonicalHash = (h: Hash): Hash => vecToCBase32(unwrap(cBase32ToVec(h)))
+
+/** Canonicalizes every direct hash in a structurally validated flat lock map. */
+const canonicalLock = (lock: LockMap): LockMap =>
+    Object.fromEntries(definedEntries(lock).map(([subject, hash]) => [subject, canonicalHash(hash)]))
 
 /** A subject's current heads: revision hashes seen that no other revision of the same subject names as a parent. */
 const headsOf = (state: SubjectState): readonly Hash[] =>
@@ -430,6 +430,7 @@ export const addRevision =
                 snapshot: snapshotResult[1],
                 generation: computeGeneration(parentsResult[1]),
                 archived: input.archived,
+                lock: input.lock,
             }
             const referencesResult = checkReferences(revision)
             if (referencesResult[0] === 'error') { return pure(referencesResult) }
@@ -444,8 +445,9 @@ export const addRevision =
                 ...revision,
                 parents: revision.parents.map(canonicalHash),
                 snapshot: canonicalHash(revision.snapshot),
+                lock: revision.lock === undefined ? undefined : canonicalLock(revision.lock),
             }
-            const bytes = tryUtf8(toJson(canonicalRevision))
+            const bytes = tryUtf8(encodeText(canonicalRevision))
             if (bytes === null) {
                 return pure(error('revision too large to encode'))
             }
@@ -474,12 +476,13 @@ export const addRevision =
  * inside `canonicalHash` is safe. Field order follows the stored blob's
  * (minus `dialect`), which is what a JSON encoding of the result shows.
  */
-const toRevisionData = ({ subject, parents, snapshot, generation, archived }: Revision): RevisionData => ({
+const toRevisionData = ({ subject, parents, snapshot, generation, archived, lock }: Revision): RevisionData => ({
     subject,
     parents: parents.map(canonicalHash),
     snapshot: canonicalHash(snapshot),
     generation,
     archived,
+    lock: lock === undefined ? undefined : canonicalLock(lock),
 })
 
 /**

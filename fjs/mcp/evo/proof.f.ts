@@ -140,6 +140,22 @@ export const proof = {
         assert(!result.isError)
         assert(textOf(result).length > 0)
     },
+    evoLockRoundTrips: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const add = findEntry(evoToolRegistry(e), 'evo_add')
+        const snapshot = vecToCBase32(vec8(0xffn))
+        const [state1, added] = virtual(state0)(add.handle({
+            parents: [], subject: 'doc', snapshot,
+            lock: { dependency: snapshot.toUpperCase() },
+        }))
+        assert(!added.isError)
+        const revision = findEntry(evoToolRegistry(e), 'evo_revision')
+        const [, result] = virtual(state1)(revision.handle({ hash: textOf(added) }))
+        assert(!result.isError)
+        assert(textOf(result).includes(`"lock":{"dependency":"${snapshot}"}`))
+    },
     // Covers evo_add's error branch: a domain-level failure (Evo.add's
     // Result) is surfaced as isError with the failure message as text.
     evoAddDomainErrorIsError: () => {

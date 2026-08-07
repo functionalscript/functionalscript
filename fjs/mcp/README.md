@@ -59,7 +59,7 @@ with your CAS instance, and the `evo_list`, `evo_head`, `evo_revision`, and
 | `evo_list`     | `{ archived? }`                              | `e.list(...)`     | subjects, as a JSON array of strings      |
 | `evo_head`     | `{ subject }`                                | `e.head(...)`     | head hashes, one per line                 |
 | `evo_revision` | `{ hash }`                                   | `e.revision(...)` | the revision, as JSON                     |
-| `evo_add`      | `{ parents, snapshot?, subject?, archived? }` | `e.add(...)`      | hash (cBase32)                            |
+| `evo_add`      | `{ parents, snapshot?, subject?, archived?, lock? }` | `e.add(...)` | hash (cBase32)                            |
 
 `evo_*` tools are documented in full in
 [`fjs/mcp/evo/README.md`](evo/README.md); the rest of this page

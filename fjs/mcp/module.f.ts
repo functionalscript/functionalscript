@@ -17,7 +17,7 @@
  * | `evo_list`     | `{ archived? }`                               | `e.list(...)`    | subjects, as a JSON array of strings |
  * | `evo_head`     | `{ subject }`                                 | `e.head(...)`    | head hashes, one per line           |
  * | `evo_revision` | `{ hash }`                                    | `e.revision(...)`| the revision, as JSON               |
- * | `evo_add`      | `{ parents, snapshot?, subject?, archived? }` | `e.add(...)`     | hash (cBase32)                      |
+ * | `evo_add`      | `{ parents, snapshot?, subject?, archived?, lock? }` | `e.add(...)` | hash (cBase32)                      |
  *
  * `cas_add`/`cas_get`/`cas_list` are `fjs/mcp/cas` — see that module for tool
  * documentation (input encoding, output shape, error convention). `evo_*` is

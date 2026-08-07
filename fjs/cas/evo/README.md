@@ -51,6 +51,7 @@ type RevisionData = {
     readonly subject?: Subject
     readonly archived?: true
     readonly generation?: number
+    readonly lock?: LockMap
 }
 ```
 
@@ -72,6 +73,7 @@ documented rather than typed (no extension or intersection types):
 | `snapshot`   | absent → resolved from the parents         | always present, canonical   |
 | `archived`   | optional                                   | optional (the only one)     |
 | `generation` | **ignored** — the server computes it       | always present              |
+| `lock`       | optional flat open map; direct hashes validated and canonicalized | optional; present exactly when stored; direct hashes canonicalized |
 
 `generation` is an input field purely so the round trip needs no field
 stripping; `add` always writes the value it computes itself.

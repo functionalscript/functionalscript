@@ -1,7 +1,7 @@
 ## Revision lock map: staged reproducible subject resolution
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -218,36 +218,36 @@ other lock maps.
 
 ### Stage 1 tasks
 
-- [ ] Change revision writing from `stringify(identity)` to `stringify(sort)`.
-- [ ] Document that every revision object is recursively serialized with
+- [x] Change revision writing from `stringify(identity)` to `stringify(sort)`.
+- [x] Document that every revision object is recursively serialized with
       lexicographically sorted property names.
-- [ ] Define `const lock = record(string)` and export `LockMap` as
+- [x] Define `const lock = record(string)` and export `LockMap` as
       `StringMap<string>`.
-- [ ] Add optional `lock` to the revision schema, decoder, exported type,
+- [x] Add optional `lock` to the revision schema, decoder, exported type,
       README, and examples.
-- [ ] Extend media semantic reference validation to check every direct lock
+- [x] Extend media semantic reference validation to check every direct lock
       value as a native cBase32 hash.
-- [ ] Extend Evo `RevisionData` with `readonly lock?: LockMap`.
-- [ ] Make Evo `add` validate and canonicalize direct lock hashes.
-- [ ] Make Evo `revision` return the optional lock with canonical hashes.
-- [ ] Preserve the distinction between absent and empty locks.
-- [ ] Update Evo and MCP documentation, schemas, and proofs.
-- [ ] Add media proofs for absent, empty, valid, malformed, invalid-hash, and
+- [x] Extend Evo `RevisionData` with `readonly lock?: LockMap`.
+- [x] Make Evo `add` validate and canonicalize direct lock hashes.
+- [x] Make Evo `revision` return the optional lock with canonical hashes.
+- [x] Preserve the distinction between absent and empty locks.
+- [x] Update Evo and MCP documentation, schemas, and proofs.
+- [x] Add media proofs for absent, empty, valid, malformed, invalid-hash, and
       alias-hash lock maps.
-- [ ] Add Evo round-trip proofs for absent, empty, valid, invalid, and aliased
+- [x] Add Evo round-trip proofs for absent, empty, valid, invalid, and aliased
       lock values.
-- [ ] Add proofs that equivalent revisions with differently ordered top-level,
+- [x] Add proofs that equivalent revisions with differently ordered top-level,
       lock, and other nested object properties produce identical bytes and CAS
       hashes.
-- [ ] Add proofs that distinct JSON source encodings which parse to the same
+- [x] Add proofs that distinct JSON source encodings which parse to the same
       revision value converge to one canonical byte sequence and CAS hash.
-- [ ] Add a CAS/Evo proof that adding equivalent revisions with different object
+- [x] Add a CAS/Evo proof that adding equivalent revisions with different object
       construction orders reuses the same address rather than creating a
       duplicate blob.
-- [ ] Add proofs that numeric-looking property names such as `"10"` and `"2"`
+- [x] Add proofs that numeric-looking property names such as `"10"` and `"2"`
       are sorted lexicographically as strings.
-- [ ] Add proofs that array order is preserved.
-- [ ] Add processor-facing follow-up work for accepting and returning flat lock
+- [x] Add proofs that array order is preserved.
+- [x] Add processor-facing follow-up work for accepting and returning flat lock
       maps.
 
 ## Stage 2: recursive lock map

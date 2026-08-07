@@ -14,13 +14,15 @@
  *
  * @module
  */
-import { array, number, option, string } from '../../types/rtti/module.f.ts'
+import { array, number, option, record, string } from '../../types/rtti/module.f.ts'
 import { validate as rttiValidate, type ValidationError } from '../../types/rtti/validate/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
 import { parse as parseJson, type Unknown } from '../json/module.f.ts'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.ts'
 import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { dialectEntry, type DialectEntry } from '../module.f.ts'
+import { definedEntries, sort, type StringMap } from '../../types/object/module.f.ts'
+import { stringify } from '../json/module.f.ts'
 
 /**
  * Format tag: names the dialect of this BLOB. The media type it is served
@@ -42,6 +44,12 @@ export const mediaType = `application/${dialect}+json` as const
  */
 export const hash = string
 
+/** A flat set of subject-to-snapshot bindings supplied to dependency resolvers. */
+export type LockMap = StringMap<string>
+
+/** Structural schema for a Stage 1 flat lock map. */
+const lock = record(string)
+
 /**
  * rtti schema for a `revision` BLOB. See the README for the full semantics of
  * each field; `dialect` is the type discriminant, matched here as an exact
@@ -54,10 +62,14 @@ export const revisionSchema = {
     snapshot: hash,
     generation: number,
     archived: option(true),
+    lock: option(lock),
 } as const
 
 /** The TypeScript type derived from {@link revisionSchema} — the single source of truth. */
 export type Revision = Ts<typeof revisionSchema>
+
+/** Serializes a revision canonically, recursively sorting every object's property names. */
+export const encodeText = stringify(sort)
 
 /** Structural-only validator: checks the shape, not the hash / generation semantics. */
 const validateShape = rttiValidate(revisionSchema)
@@ -99,6 +111,9 @@ export const checkReferences = (r: Revision): Result<Revision, string> => {
         if (!isHash(p)) { return error(`parent is not a valid hash: ${p}`) }
     }
     if (!isHash(r.snapshot)) { return error(`snapshot is not a valid hash: ${r.snapshot}`) }
+    for (const [subject, snapshot] of definedEntries(r.lock ?? {})) {
+        if (!isHash(snapshot)) { return error(`lock value for ${subject} is not a valid hash: ${snapshot}`) }
+    }
     if (!Number.isSafeInteger(r.generation) || r.generation < 0) {
         return error(`generation must be a non-negative safe integer: ${r.generation}`)
     }

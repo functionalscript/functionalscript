@@ -20,7 +20,7 @@ for how to run it and register it with an MCP client.
 | `evo_list`     | `{ archived? }`                              | `e.list(...)`     | subjects, as a JSON array of strings |
 | `evo_head`     | `{ subject }`                                | `e.head(...)`     | head hashes, one per line            |
 | `evo_revision` | `{ hash }`                                   | `e.revision(...)` | the revision, as JSON                |
-| `evo_add`      | `{ parents, snapshot?, subject?, archived? }` | `e.add(...)`      | hash (cBase32)                       |
+| `evo_add`      | `{ parents, snapshot?, subject?, archived?, lock? }` | `e.add(...)` | hash (cBase32)                       |
 
 `evo_list` returns JSON rather than the newline-joined line format `evo_head`/`cas_list` use: subjects are arbitrary caller-supplied strings, not constrained to a newline-free alphabet the way hashes are, so a subject containing `\n` (or an empty subject) would be ambiguous in a line-based format.
 
@@ -52,6 +52,11 @@ so a revision read back can be added again as-is. The one field
 which the server computes; rtti struct validation ignores properties the
 schema does not name, so a whole `evo_revision` result can be passed straight
 back to `evo_add`.
+
+Both tools expose `RevisionData`'s optional flat `lock` map. `evo_add`
+validates every binding as a native cBase32 content hash, and
+`evo_revision` returns those values in canonical spelling while preserving the
+distinction between an omitted lock and an explicit empty map.
 
 Each tool's argument schema is an rtti struct declared once and used twice:
 [`toJsonSchema`](../../media/json/schema/module.f.ts) derives the

@@ -613,6 +613,60 @@ export const proof = {
         assert(readded[0] === 'ok', ['expected re-add ok', readded])
         assertEq(readded[1], child[1])
     },
+    revisionLockRoundTripsAndCanonicalizes: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const canonical = vecToCBase32(vec8(0xffn))
+        const alias = canonical.toUpperCase()
+        const [state1, added] = virtual(state0)(e.add({
+            parents: [], subject: 'doc', snapshot: canonical,
+            lock: { dependency: alias },
+        }))
+        assert(added[0] === 'ok', ['expected add ok', added])
+        const [, result] = virtual(state1)(e.revision(added[1]))
+        assert(result[0] === 'ok', ['expected revision ok', result])
+        assertEq(result[1].lock?.dependency, canonical)
+    },
+    revisionAbsentAndEmptyLocksRemainDistinct: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const snapshot = vecToCBase32(vec8(0x42n))
+        const [state1, absent] = virtual(state0)(e.add({ parents: [], subject: 'absent', snapshot }))
+        assert(absent[0] === 'ok', ['expected add ok', absent])
+        const [state2, empty] = virtual(state1)(e.add({ parents: [], subject: 'empty', snapshot, lock: {} }))
+        assert(empty[0] === 'ok', ['expected add ok', empty])
+        const [state3, absentRead] = virtual(state2)(e.revision(absent[1]))
+        assert(absentRead[0] === 'ok', ['expected revision ok', absentRead])
+        const [, emptyRead] = virtual(state3)(e.revision(empty[1]))
+        assert(emptyRead[0] === 'ok', ['expected revision ok', emptyRead])
+        assertEq(absentRead[1].lock, undefined)
+        assertEq(Object.keys(emptyRead[1].lock ?? {}).length, 0)
+    },
+    revisionInvalidLockValueIsRejected: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const [, result] = virtual(state0)(e.add({
+            parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x42n)),
+            lock: { dependency: 'not a hash!' },
+        }))
+        assertEq(result[0], 'error')
+    },
+    equivalentLockOrdersReuseOneCasAddress: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const a = vecToCBase32(vec8(0x1an))
+        const b = vecToCBase32(vec8(0x2bn))
+        const snapshot = vecToCBase32(vec8(0x3cn))
+        const [state1, first] = virtual(state0)(e.add({ parents: [], subject: 'doc', snapshot, lock: { '2': b, '10': a } }))
+        assert(first[0] === 'ok', ['expected add ok', first])
+        const [, second] = virtual(state1)(e.add({ lock: { '10': a, '2': b }, snapshot, subject: 'doc', parents: [] }))
+        assert(second[0] === 'ok', ['expected add ok', second])
+        assertEq(second[1], first[1])
+    },
     // A raw CAS write (e.g. `cas_add`) of valid revision content is folded
     // into the cache exactly as `addRevision` would, without going through
     // `evo.add` — this is what keeps `cas_add` and `evo_add` writes to the
