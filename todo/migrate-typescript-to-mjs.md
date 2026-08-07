@@ -64,6 +64,11 @@ The focused package prerequisite is
 It must make authored `.mjs` a checked, declaration-emitting, packable source
 extension before the first package-owned source migration.
 
+Package and publish jobs run only in CI from a clean checkout. The migration does
+not need to preserve packability of arbitrary developer working trees or track
+ignored generated outputs across source renames; a later CI package job starts
+without those stale files.
+
 #### Migrate gradually from dependency leaves
 
 Stage 1 is incremental, not a repository-wide atomic rename. Start with authored
@@ -100,7 +105,8 @@ Keep `**/*.js` ignored while TypeScript can still generate `.js`. After the last
 authored `.ts` / `.f.ts` source file is removed:
 
 1. remove the TypeScript-to-JavaScript emission path;
-2. clean obsolete generated `.js` output;
+2. remove obsolete generated `.js` output from the working tree when performing
+   that transition;
 3. remove the blanket `**/*.js` rule from `.gitignore` so authored `.js` can be
    tracked again.
 
@@ -115,8 +121,8 @@ module.f.mjs -> module.f.js
 Stage 2 additionally requires
 [`../fjs/ci/todo/f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md)
 so authored `.f.js` is directly type-checked, receives `.d.ts` declarations, is
-cleaned safely, is packed, and works for a clean package consumer before the
-first compiler-compatibility rename.
+packed, and works for a clean package consumer before the first
+compiler-compatibility rename.
 
 ### Tasks
 
@@ -135,7 +141,7 @@ first compiler-compatibility rename.
 - [ ] Update imports, proofs, tests, coverage globs, scripts, generated CI, and
       documentation for every migrated group.
 - [ ] Preserve Node, Deno, Bun, proof, coverage, type-checking, declaration, and
-      NPM package behavior throughout the migration.
+      CI package behavior throughout the migration.
 - [ ] Add required `**BREAKING CHANGES:**` changelog entries for public runtime
       import paths that change.
 - [ ] After the last authored TypeScript file is gone, remove the TS-to-JS emit
@@ -156,8 +162,8 @@ first compiler-compatibility rename.
   compatibility.
 - Migrated JavaScript never depends on remaining authored TypeScript during the
   transition.
-- Package-owned `.mjs` and generated declarations work from a clean NPM
-  consumer.
+- Package-owned `.mjs` and generated declarations work from a clean CI package
+  build and clean NPM consumer.
 - Tests, proofs, coverage, supported runtimes, and type checking continue to
   pass.
 - TypeScript-to-JavaScript emission is removed after the last authored
