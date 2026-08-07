@@ -11,7 +11,7 @@
  * | `evo_list`     | `{ archived? }`                               | `e.list(...)`     | subjects, as a JSON array of strings |
  * | `evo_head`     | `{ subject }`                                 | `e.head(...)`     | head hashes, one per line            |
  * | `evo_revision` | `{ hash }`                                    | `e.revision(...)` | the revision, as JSON `RevisionData` |
- * | `evo_add`      | `{ parents, snapshot?, subject?, archived?, lock? }` | `e.add(...)` | hash (cBase32)                       |
+ * | `evo_add`      | `{ parents, snapshot?, subject?, archived? }`  | `e.add(...)`      | hash (cBase32)                       |
  *
  * `evo_add` and `evo_revision` speak the same structure — `fjs/cas/evo`'s
  * `RevisionData` — in opposite directions, so a revision read back can be
@@ -43,7 +43,7 @@
  *
  * @module
  */
-import { string, option, array, record } from '../../types/rtti/module.f.ts'
+import { string, option, array } from '../../types/rtti/module.f.ts'
 import { pure, step, type Effect, type Operation } from '../../effects/module.f.ts'
 import { type MemOp } from '../../effects/memory/module.f.ts'
 import {
@@ -84,7 +84,6 @@ export const evoAddArgs = {
     snapshot: option(string),
     subject: option(string),
     archived: option(true),
-    lock: option(record(string)),
 } as const
 
 // ── Tool registry ────────────────────────────────────────────────────────────────
@@ -119,7 +118,7 @@ export const evoToolRegistry =
     ),
     toolEntry(
         'evo_revision',
-        'Read one revision by hash, as JSON: `{ subject, parents, snapshot, generation, archived?, lock? }`. `parents[0]` is the mainline parent and every further entry is a merged-in branch; `parents`, `snapshot`, and direct `lock` values come back in their canonical cBase32 spelling, so they compare directly against `evo_head` output. Errors when the hash is not cBase32, is not present in the store, could not be read, or does not hold a `vnd.fjs.revision` blob — use `cas_get` for raw bytes of non-revision content.',
+        'Read one revision by hash, as JSON: `{ subject, parents, snapshot, generation, archived? }`. `parents[0]` is the mainline parent and every further entry is a merged-in branch; `parents` and `snapshot` come back in their canonical cBase32 spelling, so they compare directly against `evo_head` output. Errors when the hash is not cBase32, is not present in the store, could not be read, or does not hold a `vnd.fjs.revision` blob — use `cas_get` for raw bytes of non-revision content.',
         evoRevisionArgs,
         // The revision goes out as JSON in a text content item, like
         // `evo_list`'s. An encoded response that outgrows the transport cap is
@@ -132,7 +131,7 @@ export const evoToolRegistry =
     ),
     toolEntry(
         'evo_add',
-        'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot`, when omitted, is resolved from the parents (zero parents → `subject`, one parent → the parent\'s snapshot; a merge requires an explicit `snapshot`) and written explicitly. Optional `lock` is a flat subject-to-content-hash map. `generation` is computed by the server.',
+        'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot`, when omitted, is resolved from the parents (zero parents → `subject`, one parent → the parent\'s snapshot; a merge requires an explicit `snapshot`) and written explicitly. `generation` is computed by the server.',
         evoAddArgs,
         (input): Effect<O | MemOp, ToolsCallResult> => step(
             e.add(input),

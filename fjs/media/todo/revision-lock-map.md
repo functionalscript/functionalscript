@@ -190,8 +190,10 @@ The Evo README field table should describe `lock` as:
 |---|---|---|
 | `lock` | optional flat open map; direct hashes validated and canonicalized | optional; present exactly when stored; direct hashes canonicalized |
 
-The MCP Evo front end exposes `RevisionData`, so `evo_add` and `evo_revision`
-must accept and return the same optional flat lock.
+The advertised MCP Evo schema remains unchanged in Stage 1. The MCP facade
+continues forwarding Evo values generically; its declared lock-map shape will
+evolve together with the recursive revision parser in Stage 2 rather than
+publishing a temporary flat-only schema.
 
 ### Resolver behavior
 
@@ -231,7 +233,7 @@ other lock maps.
 - [x] Make Evo `add` validate and canonicalize direct lock hashes.
 - [x] Make Evo `revision` return the optional lock with canonical hashes.
 - [x] Preserve the distinction between absent and empty locks.
-- [x] Update Evo and MCP documentation, schemas, and proofs.
+- [x] Update Evo documentation and proofs; defer MCP schema changes to Stage 2.
 - [x] Add media proofs for absent, empty, valid, malformed, invalid-hash, and
       alias-hash lock maps.
 - [x] Add Evo round-trip proofs for absent, empty, valid, invalid, and aliased
@@ -348,7 +350,7 @@ Stage 1 additive-field decision.
 - [ ] Add RTTI validation and proofs for nested and malformed maps.
 - [ ] Recursively validate every direct lock value in media semantic reference
       checking.
-- [ ] Widen Evo and MCP schemas through the shared recursive `LockMap` type.
+- [ ] Widen Evo and MCP schemas together through the shared recursive `LockMap` type.
 - [ ] Recursively canonicalize direct hashes in Evo `add` and `revision`.
 - [ ] Add proofs for reordered root and nested lock keys, including
       numeric-looking subjects.
