@@ -67,7 +67,7 @@ The existing `reduceOr` / `flattenOr` pass — and the test cases that exercise 
 ### Related
 
 - 130 — superseded by this issue. With the two-form architecture, "optimize `or`" is not a separate project: the canonical-form properties are properties of the data form by construction.
-- [141](../../../issues/README.md) — universal, extensible type system based on custom RTTI. The `equal`/`subset` predicates introduced here are the first concrete instance of the proposed `TypeSystem<T>` interface.
+- [141](../../todo/141.md) — universal, extensible type system based on custom RTTI. The `equal`/`subset` predicates introduced here are the first concrete instance of the proposed `TypeSystem<T>` interface.
 
 ### Location
 
