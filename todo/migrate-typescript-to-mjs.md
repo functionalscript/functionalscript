@@ -90,18 +90,16 @@ FunctionalScript parser support is not an eligibility condition. A `.f.ts` file
 may move to `.f.mjs` even if the current FunctionalScript compiler does not yet
 support all syntax in that file.
 
-Preserve TypeScript type semantics when translating to JSDoc. In particular,
-TypeScript 7 supports variance annotations on JSDoc type aliases through
-modifiers on `@template`.
-
-For example:
+Preserve TypeScript type semantics when translating to JSDoc. TypeScript 7
+supports variance annotations on JSDoc type aliases through modifiers on
+`@template`. For example:
 
 ```ts
 export type Cont<out O extends Operation, T> =
     (_: Pr<O, O[0]>[1]) => Effect<O, T>
 ```
 
-becomes valid JavaScript with JSDoc:
+becomes:
 
 ```js
 /**
@@ -111,10 +109,9 @@ becomes valid JavaScript with JSDoc:
  */
 ```
 
-Use the same form for other variance annotations: `@template out T`,
-`@template in T`, or constrained forms such as `@template {Operation} out O`.
-Variance modifiers belong to a JSDoc type alias (`@typedef`); do not place them
-on an ordinary function's `@template`.
+Use `@template out T`, `@template in T`, or constrained forms such as
+`@template {Operation} out O`. Variance modifiers belong to a JSDoc type alias
+(`@typedef`), not to an ordinary function's `@template`.
 
 For each migration group:
 
