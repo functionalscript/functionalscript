@@ -52,17 +52,22 @@ module.f.ts -> module.f.mjs
 The authoritative extension contract in [`../fjs/fsc/README.md`](../fjs/fsc/README.md)
 and the package plans must use these meanings throughout stage 1.
 
-#### Enable JavaScript checking first
+#### Enable JavaScript checking and `.f.mjs` validation first
 
 Before the first `.ts` / `.f.ts` source file moves to `.mjs` / `.f.mjs`, enable
 `allowJs` and `checkJs` in the root `tsconfig.json`. TypeScript remains the
 repository type checker during this migration; JSDoc replaces TypeScript syntax
 without creating an unchecked intermediate source set.
 
-The focused package prerequisite is
-[`../fjs/ci/todo/f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md).
-It must make authored `.mjs` a checked, declaration-emitting, packable source
-extension before the first package-owned source migration.
+Stage 1 is **blocked by** both of these prerequisites before the first real
+repository `.f.ts` -> `.f.mjs` conversion:
+
+- [`../fjs/ci/todo/f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md)
+  makes authored `.mjs` a checked, declaration-emitting, packable source
+  extension;
+- [`../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
+  is **blocked by** that package-support task and adds an actual `.f.mjs`
+  runtime fixture proving proof execution plus Node and Deno coverage.
 
 Package and publish jobs run only in CI from a clean checkout. The migration does
 not need to preserve packability of arbitrary developer working trees or track
@@ -89,6 +94,14 @@ The transition is intentionally asymmetric:
 FunctionalScript parser support is not an eligibility condition. A `.f.ts` file
 may move to `.f.mjs` even if the current FunctionalScript compiler does not yet
 support all syntax in that file.
+
+Proof files follow the same source-language rule. A migrated `module.f.mjs` may
+keep its existing `proof.f.ts` temporarily, but `proof.f.mjs` is allowed as soon
+as that proof can be expressed as JavaScript with JSDoc and every authored
+runtime or declaration-retained type dependency outside its migration group is
+already `.f.mjs`. Compiler support for the proof is not required. By the end of
+stage 1, all remaining `proof.f.ts` files must therefore have migrated to
+`proof.f.mjs` along with the rest of authored TypeScript.
 
 Preserve TypeScript type semantics when translating to JSDoc. TypeScript 7
 supports variance annotations on JSDoc type aliases through modifiers on
@@ -155,10 +168,16 @@ compiler-compatibility rename.
 
 - [ ] Complete
       [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
-      including `allowJs` / `checkJs`, before the first source migration.
+      including `allowJs` / `checkJs`.
+- [ ] Then complete
+      [`f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
+      before the first real repository `.f.ts` -> `.f.mjs` conversion.
 - [ ] Update contributor, compiler, language, package, test, and roadmap
       documentation to the stage-1 extension meanings.
 - [ ] Identify dependency-leaf `.ts` / `.f.ts` files and migrate those first.
+- [ ] Migrate `proof.f.ts` to `proof.f.mjs` when the proof is JavaScript/JSDoc
+      ready and its authored dependencies are migrated; do not gate this on
+      compiler support.
 - [ ] Translate TypeScript generic constraints and `in` / `out` variance to
       JSDoc `@template` syntax without changing assignability.
 - [ ] Continue upward through the dependency graph in reviewable groups until no
@@ -184,10 +203,15 @@ compiler-compatibility rename.
 
 - `allowJs` and `checkJs` are enabled before the first authored TypeScript source
   is converted to JavaScript.
-- No authored `.ts` or `.f.ts` source files remain in the repository.
+- The `.f.mjs` runtime test/coverage fixture is complete before the first real
+  repository `.f.ts` -> `.f.mjs` conversion.
+- No authored `.ts` or `.f.ts` source files remain in the repository, including
+  proof files.
 - Migration can proceed incrementally from dependency leaves toward callers.
 - Authored JavaScript uses `.mjs` / `.f.mjs` with JSDoc where static type
   information is needed.
+- `proof.f.mjs` migration is gated by JavaScript/JSDoc and dependency readiness,
+  never by current FunctionalScript compiler support.
 - TypeScript generic constraints and variance annotations are preserved with
   their JSDoc `@template` equivalents; public assignability is not weakened.
 - `.f.mjs` means FunctionalScript-intent JavaScript, not current-compiler
@@ -208,6 +232,8 @@ compiler-compatibility rename.
 
 - [`../fjs/ci/todo/f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md)
   — stage-1 authored `.mjs` validation, declarations, and package support.
+- [`../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
+  — stage-1 end-to-end `.f.mjs` proof and coverage prerequisite.
 - [`../fjs/ci/todo/f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md)
   — stage-2 authored `.f.js` package/tooling prerequisite.
 - [`../fjs/ci/todo/publishing-packages.md`](../fjs/ci/todo/publishing-packages.md)
