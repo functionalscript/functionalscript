@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { abs, sign } from '../bigint/module.f.ts'
+import { abs, sign } from '../bigint/module.f.mjs'
 
 export type BigFloat = readonly[bigint,number]
 

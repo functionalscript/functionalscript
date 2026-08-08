@@ -4,7 +4,7 @@
  * @module
  */
 import type { Tuple } from '../../types/array/module.f.mjs'
-import { mask, type Reduce } from "../../types/bigint/module.f.ts"
+import { mask, type Reduce } from "../../types/bigint/module.f.mjs"
 import {
     vec,
     length,

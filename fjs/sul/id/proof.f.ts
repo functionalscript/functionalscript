@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { mask } from '../../types/bigint/module.f.ts'
+import { mask } from '../../types/bigint/module.f.mjs'
 import { vec } from '../../types/bit_vec/module.f.ts'
 import { compress, hashId, isHash, isRaw, level3Id, rawId } from './module.f.ts'
 import { asBase } from '../../types/nominal/module.f.ts'

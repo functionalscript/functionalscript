@@ -21,7 +21,7 @@
  *
  * @module
  */
-import { bitLength, divUp, mask, maxLength, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
+import { bitLength, divUp, mask, maxLength, xor, type Reduce as BigintReduce } from '../bigint/module.f.mjs'
 import { flip, identity } from '../function/module.f.mjs'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.mjs'
 import { map, tryFold, type Accumulator, type List, type Thunk } from '../list/module.f.mjs'

@@ -4,7 +4,7 @@
  *
  * @module
  */
-import { bitLength, divUp8 } from "../types/bigint/module.f.ts"
+import { bitLength, divUp8 } from "../types/bigint/module.f.mjs"
 import {
     empty,
     isVec,

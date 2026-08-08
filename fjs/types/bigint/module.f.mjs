@@ -17,78 +17,79 @@
  * ```
  */
 
-import { cmp, type Sign } from '../function/compare/module.f.mjs'
-import type { Unary as OpUnary, Reduce as OpReduce } from '../function/operator/module.f.mjs'
-import { type List } from '../list/module.f.mjs'
+import { cmp } from '../function/compare/module.f.mjs'
+/** @import { Sign } from '../function/compare/module.f.mjs' */
+/** @import { Unary as OpUnary, Reduce as OpReduce } from '../function/operator/module.f.mjs' */
+/** @import { List } from '../list/module.f.mjs' */
 import { fold } from '../../common/monoid/module.f.mjs'
 
 /**
  * Type representing a unary operation on `bigint`.
+ *
+ * @typedef {OpUnary<bigint, bigint>} Unary
  */
-export type Unary = OpUnary<bigint, bigint>
 
 /**
  * Type representing a reduction operation on `bigint` values.
+ *
+ * @typedef {OpReduce<bigint>} Reduce
  */
-export type Reduce = OpReduce<bigint>
 
 /**
  * Adds two `bigint` values.
+ * TODO: should be combined with `addition` for `number`.
  *
- * @param a - The first bigint value.
- * @returns A function that takes the second bigint value and returns the sum.
+ * @param {bigint} a - The first bigint value.
+ * @returns {Unary} A function that takes the second bigint value and returns the sum.
  */
-export const addition: Reduce = a => b => a + b
+export const addition = a => b => a + b
 
 /**
  * Calculates the sum of a list of `bigint` values.
  *
- * @param input - A list of bigint values.
- * @returns The sum of all values in the list.
+ * @param {List<bigint>} input - A list of bigint values.
+ * @returns {bigint} The sum of all values in the list.
  */
-export const sum: (input: List<bigint>) => bigint
-    = fold({ identity: 0n, operation: addition })
+export const sum = fold({ identity: 0n, operation: addition })
 
 /**
  * Multiplies two `bigint` values.
  *
- * @param a - The first bigint value.
- * @returns A function that takes the second bigint value and returns the product.
+ * @param {bigint} a - The first bigint value.
+ * @returns {Unary} A function that takes the second bigint value and returns the product.
  */
-export const multiple: Reduce = a => b => a * b
+export const multiple = a => b => a * b
 
 /**
  * Calculates the product of a list of `bigint` values.
  *
- * @param input - A list of bigint values.
- * @returns The product of all values in the list.
+ * @param {List<bigint>} input - A list of bigint values.
+ * @returns {bigint} The product of all values in the list.
  */
-export const product: (input: List<bigint>) => bigint
-    = fold({ identity: 1n, operation: multiple })
+export const product = fold({ identity: 1n, operation: multiple })
 
 /**
  * Calculates the absolute value of a `bigint`.
  *
- * @param a - The bigint value.
- * @returns The absolute value of the input bigint.
+ * @param {bigint} a - The bigint value.
+ * @returns {bigint} The absolute value of the input bigint.
  */
-export const abs: Unary
-    = a => a >= 0 ? a : -a
+export const abs = a => a >= 0 ? a : -a
 
 /**
  * Determines the sign of a `bigint`.
- * @param a - The bigint value.
- * @returns `1` if positive, `-1` if negative, and `0` if zero.
+ * @param {bigint} a - The bigint value.
+ * @returns {Sign} `1` if positive, `-1` if negative, and `0` if zero.
  */
-export const sign = (a: bigint): Sign => cmp(a)(0n)
+export const sign = a => cmp(a)(0n)
 
 /**
  * Serializes a `bigint` to a string representation.
  *
- * @param a - The bigint value.
- * @returns A string representation of the bigint (e.g., '123n').
+ * @param {bigint} a - The bigint value.
+ * @returns {string} A string representation of the bigint (e.g., '123n').
  */
-export const serialize = (a: bigint): string => `${a}n`
+export const serialize = a => `${a}n`
 
 const { isFinite } = Number
 
@@ -102,8 +103,8 @@ const { log2: mathLog2 } = Math
  * - `log2(2n)` returns `1n`,
  * - `log2(15n)` returns `3n`.
  *
- * @param v - The input BigInt.
- * @returns The base-2 logarithm (floor) of the input BigInt, or `-1n` if the input is less than or equal to 0.
+ * @param {bigint} v - The input BigInt.
+ * @returns {bigint} The base-2 logarithm (floor) of the input BigInt, or `-1n` if the input is less than or equal to 0.
  *
  * @remarks
  * The function operates in two phases:
@@ -113,7 +114,7 @@ const { log2: mathLog2 } = Math
  *    determining the exact value of the logarithm.
  * 3. **Remainder Phase:** Using `Math.log2`.
  */
-export const log2 = (v: bigint): bigint => {
+export const log2 = v => {
     if (v <= 0n) { return -1n }
 
     //
@@ -182,20 +183,20 @@ export const log2 = (v: bigint): bigint => {
  * The function handles both positive and negative numbers. For negative inputs, the bit length is calculated
  * based on the absolute value of the number. Zero has a bit length of 0.
  *
- * @param v - The input BigInt.
- * @returns The bit length of the input BigInt.
+ * @param {bigint} v - The input BigInt.
+ * @returns {bigint} The bit length of the input BigInt.
  *
  * @remark
  * The function uses the `log2` function to calculate the position of the most significant bit (MSB)
  * and adds `1n` to account for the MSB itself. For negative numbers, the absolute value is used.
  */
-export const bitLength = (v: bigint): bigint => log2(abs(v)) + 1n
+export const bitLength = v => log2(abs(v)) + 1n
 
 /**
  * Generates a bitmask with the specified number of bits set to 1.
  *
- * @param len - The number of bits to set in the mask. Must be a non-negative integer.
- * @returns A bigint representing the bitmask, where the least significant `len` bits are 1.
+ * @param {bigint} len - The number of bits to set in the mask. Must be a non-negative integer.
+ * @returns {bigint} A bigint representing the bitmask, where the least significant `len` bits are 1.
  *
  * @example
  *
@@ -203,7 +204,7 @@ export const bitLength = (v: bigint): bigint => log2(abs(v)) + 1n
  * const result = mask(3n) // 7n
  * ```
  */
-export const mask = (len: bigint): bigint => {
+export const mask = len => {
     // we compute this way to avoid overflowing in Bun when len === maxLength.
     const r = len & 1n
     const h = len >> 1n
@@ -219,10 +220,10 @@ export const max = mask(maxLength)
 /**
  * Calculates the partial factorial `b!/a!`.
  *
- * @param a - The starting bigint value.
- * @returns A function that takes `b` and computes `b!/a!`.
+ * @param {bigint} a - The starting bigint value.
+ * @returns {Unary} A function that takes `b` and computes `b!/a!`.
  */
-export const partialFactorial = (a: bigint) => (b: bigint): bigint => {
+export const partialFactorial = a => b => {
     let result = b
     while (true) {
         --b
@@ -234,18 +235,18 @@ export const partialFactorial = (a: bigint) => (b: bigint): bigint => {
 /**
  * Calculates the factorial of a `bigint`.
  *
- * @param b - The bigint value.
- * @returns The factorial of the input.
+ * @param {bigint} b - The bigint value.
+ * @returns {bigint} The factorial of the input.
  */
-export const factorial: (b: bigint) => bigint = partialFactorial(1n)
+export const factorial = partialFactorial(1n)
 
 /**
  * Calculates the number of combinations for a list of `bigint` values.
  *
- * @param k - A list of bigint values.
- * @returns The number of combinations.
+ * @param {readonly bigint[]} k - A list of bigint values.
+ * @returns {bigint} The number of combinations.
  */
-export const combination = (...k: readonly bigint[]): bigint => {
+export const combination = (...k) => {
     let s = 0n
     let m = 1n
     let p = 1n
@@ -259,14 +260,21 @@ export const combination = (...k: readonly bigint[]): bigint => {
     return partialFactorial(m)(s) / p
 }
 
-export const xor: Reduce = a => b => a ^ b
+/**
+ * TODO: It should be combined with `number`.
+ *
+ * @type {Reduce}
+ */
+export const xor = a => b => a ^ b
 
-export const divUp = (b: bigint): Unary => {
+/** @type {Reduce} */
+export const divUp = b => {
     const m = b - 1n
     return v => (v + m) / b
 }
 
-export const roundUp = (b: bigint): Unary => {
+/** @type {Reduce} */
+export const roundUp = b => {
     const d = divUp(b)
     return v => d(v) * b
 }
@@ -277,13 +285,17 @@ export const roundUp = (b: bigint): Unary => {
  * Domain: non-negative inputs (bit/byte counts). On negative inputs `divUp`
  * truncates toward zero rather than flooring toward −∞, so the rounding
  * direction is only meaningful for `v >= 0n`.
+ *
+ * @type {Unary}
  */
-export const divUp8: Unary = divUp(8n)
+export const divUp8 = divUp(8n)
 
 /**
  * Rounds a bit count up to the nearest whole byte — the nearest multiple of `8`.
  *
  * Domain: non-negative inputs (bit/byte counts). See `divUp8` for the
  * truncate-vs-floor caveat on negative values.
+ *
+ * @type {Unary}
  */
-export const roundUp8: Unary = roundUp(8n)
+export const roundUp8 = roundUp(8n)
