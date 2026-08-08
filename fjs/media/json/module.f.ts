@@ -23,7 +23,7 @@ import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize,
 import { boolean as rttiBoolean, number as rttiNumber, string as rttiString, or, record, array as rttiArray } from '../../types/rtti/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
 import type { Assert } from '../../asserts/module.f.mjs'
-import type { Equal } from '../../types/ts/module.f.ts'
+import type { Equal } from '../../types/ts/module.f.mjs'
 
 // ── rtti schemas ──────────────────────────────────────────────────────────────
 

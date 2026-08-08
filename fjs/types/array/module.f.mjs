@@ -7,7 +7,7 @@
 import { fromUndefined, map } from '../nullable/module.f.mjs'
 
 /** @import { Assert } from '../../asserts/module.f.mjs' */
-/** @import { Equal } from '../../types/ts/module.f.ts' */
+/** @import { Equal } from '../ts/module.f.mjs' */
 
 /**
  * @type {(value: unknown) => value is readonly unknown[]}
