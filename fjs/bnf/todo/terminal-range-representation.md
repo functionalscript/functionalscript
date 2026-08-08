@@ -23,6 +23,19 @@ That representation is simple and fixed-width, but even a range with very small
 endpoints becomes a very large integer. The current compact-number motivation for
 packing the pair therefore no longer obviously applies.
 
+This is not only a runtime-performance question. `TerminalRange` is part of the
+serializable BNF rule representation, so choosing the fixed-width layout during
+the uint256 migration would also choose the persistent representation emitted by
+JSON/DJS and stored or hashed as BNF data. Changing that representation later may
+therefore be a format migration rather than a local optimization.
+
+The fixed-width form is the **baseline** because it is the simplest continuation
+of the current encoding. The investigation should compare other representations
+against that baseline and choose only if they provide a meaningful enough benefit
+to justify extra complexity. Do not assume in advance that a more compact scheme
+wins, but also do not commit the serialized format before making this small design
+comparison.
+
 Before the bigint symbol migration chooses a `TerminalRange` representation,
 investigate whether the range should remain one `bigint` or become a different
 rule representation.
@@ -31,7 +44,9 @@ rule representation.
 
 At minimum, compare:
 
-- fixed-width bigint packing, equivalent to `(start << 256n) | end`;
+- fixed-width bigint packing, equivalent to `(start << 256n) | end`; this is the
+  simplest baseline and should be preferred unless another representation has a
+  clear advantage;
 - bigint bit interleaving, for example storing bits from one endpoint in even bit
   positions and bits from the other endpoint in odd bit positions, so small
   endpoints remain small;
@@ -52,6 +67,8 @@ assuming that only `TerminalRange` changes.
 
 ### Evaluation criteria
 
+- [ ] Use fixed-width `(start << 256n) | end` as the baseline and compare actual
+      encoded/serialized sizes before choosing a more complex representation.
 - [ ] Compare encoded size for common small ranges such as bytes, ASCII, and
       Unicode code-point ranges, as well as ranges near the uint256 boundary.
 - [ ] Require a deterministic, canonical, lossless representation with simple
@@ -61,6 +78,9 @@ assuming that only `TerminalRange` changes.
 - [ ] Consider JSON/DJS serialization size and debuggability. The current packed
       range is already not meaningfully human-readable, so readability alone is
       not a reason to preserve primitive packing.
+- [ ] Treat representation stability as part of the decision because serialized
+      BNF data may be persisted/content-addressed; avoid knowingly choosing a
+      temporary wire representation merely to defer the comparison.
 - [ ] Preserve the reserved EOF symbol and `fullRange` semantics from the bigint
       symbol design.
 - [ ] If considering a structural representation, specify how `Rule`, `DataRule`,
