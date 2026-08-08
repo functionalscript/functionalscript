@@ -93,6 +93,33 @@ This is parser end-of-stream semantics, not a second EOF type. Alphabet adapters
 must never produce the reserved EOF value as ordinary input; mappings whose
 natural output can reach it must reject or remap it at their boundary.
 
+#### Bigint range infrastructure
+
+Do not widen the shared `fjs/types/range` and `fjs/types/range_map` APIs as part of
+this task. They currently model `number` boundaries, and `range_map` also depends
+on number-specific comparison/arithmetic. Making those utilities boundary-generic
+would expand this BNF migration into an unrelated shared-types redesign.
+
+Keep the bigint boundary logic local to BNF instead:
+
+- generic BNF terminal containment should compare decoded `Symbol` endpoints
+  directly (`start <= symbol && symbol <= end`) rather than calling the
+  number-only `fjs/types/range.contains`;
+- add a small BNF-local bigint range-map helper for parser backends that need
+  dispatch by symbol, for example `fjs/bnf/symbol_range_map/module.f.ts`;
+- that helper uses `bigint` boundaries/lookup values throughout and provides only
+  the operations BNF currently needs from `range_map` (`fromRange`, `merge`, and
+  `get` or equivalent);
+- update LL(1) dispatch construction/lookup to use the BNF-local bigint helper;
+  other parser/recognizer backends should use direct bigint comparisons where a
+  full range map is unnecessary.
+
+The BNF-local helper may mirror the current inclusive-upper-bound representation,
+but its arithmetic must be bigint arithmetic (for example `a - 1n`, never number
+conversion). No BNF symbol/range endpoint should be converted to `number` merely
+to reuse an existing utility. If a later task finds broader demand for generic
+ordered-boundary range maps, the shared utility can be generalized separately.
+
 Unicode code points and bytes are possible symbol alphabets supplied through
 alphabet-specific helpers; the generic BNF core itself should know neither
 Unicode nor byte-stream semantics. Those adapters convert their values into the
@@ -113,6 +140,14 @@ boundary, not to BNF parsers.
       maximal-symbol range.
 - [ ] Update generic `rangeEncode`, `rangeDecode`, `oneEncode`, complement/range
       helpers, and their callers for bigint symbols.
+- [ ] Replace BNF use of number-only `fjs/types/range.contains` with direct
+      `Symbol` endpoint comparison; do not convert bigint endpoints to `number`.
+- [ ] Add a BNF-local bigint symbol range-map helper (for example
+      `fjs/bnf/symbol_range_map/module.f.ts`) with the minimal operations needed
+      by parser dispatch, and migrate LL(1) away from number-boundary
+      `fjs/types/range_map`.
+- [ ] Keep `fjs/types/range` / `fjs/types/range_map` number-specific in this task;
+      any later generic ordered-boundary abstraction is separate work.
 - [ ] Update every parser/recognizer backend to synthesize exactly one logical EOF
       after physical input, consume it at most once, and distinguish the post-EOF
       state without requiring callers to append EOF.
@@ -123,12 +158,13 @@ boundary, not to BNF parsers.
 - [ ] Update alphabet-specific helpers so their input values are converted to
       bigint ordinary symbols only at their BNF boundary and never emit reserved
       EOF; keep source-domain APIs unchanged.
-- [ ] Verify range complement and ordering semantics over the 256-bit domain,
-      including the boundary immediately below EOF.
+- [ ] Verify range complement, containment, range-map merge/lookup, and ordering
+      semantics over the 256-bit domain, including the boundary immediately below
+      EOF and ranges whose endpoints exceed `Number.MAX_SAFE_INTEGER`.
 - [ ] Add proof coverage for minimum/maximum ordinary symbols, EOF, singleton
-      ranges, general ranges, complements, alphabet-adapter boundaries, explicit
-      EOF on empty/non-empty input, failure before physical end, and the one-time
-      EOF-consumption rule.
+      ranges, general ranges, complements, bigint dispatch-map lookup/merge,
+      alphabet-adapter boundaries, explicit EOF on empty/non-empty input, failure
+      before physical end, and the one-time EOF-consumption rule.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
@@ -144,3 +180,8 @@ boundary, not to BNF parsers.
 - [Layered parser](./layered-parser.md) — tokenizer output becomes input symbols to
   the next BNF layer.
 - [`fjs/bnf/module.f.ts`](../module.f.ts) — current 24-bit symbol/range encoding.
+- [`fjs/types/range/module.f.ts`](../../types/range/module.f.ts) — remains the
+  existing number-boundary helper; BNF bigint containment should not depend on it.
+- [`fjs/types/range_map/module.f.ts`](../../types/range_map/module.f.ts) — remains
+  number-boundary infrastructure; LL(1) should migrate to the BNF-local bigint
+  range map for this task.
