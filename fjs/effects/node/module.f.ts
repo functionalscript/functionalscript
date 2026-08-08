@@ -175,7 +175,7 @@ export const access: Func<Access> =
 /**
  * Creates `path` as an empty file with `O_CREAT|O_EXCL` — fails if it already
  * exists. This is the exclusive create that claims a staging name in the
- * lock-free upload ([staging-lease.md](../../../issues/cas/staging-lease.md));
+ * lock-free upload ([staging-lease.md](../../cas/plan/staging-lease.md));
  * with 256 random bits in the name `EEXIST` never happens in practice, so it
  * is just a sanity guard.
  */
