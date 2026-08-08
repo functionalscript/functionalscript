@@ -20,11 +20,20 @@ implementation detail:
 - negative zero (`-0`);
 - positive infinity (`Infinity`);
 - negative infinity (`-Infinity`);
-- `NaN`.
+- `NaN`;
+- integer-valued `number`s outside the safe-integer range.
 
 JSON text itself cannot spell the non-finite values, while JavaScript callers can
 still pass them to a serializer. Negative zero is valid JSON number syntax, but
 parse/stringify behavior is asymmetric in the standard JavaScript API.
+
+The standard-to-extended transformer also needs care when deciding which
+integer-valued JavaScript `number`s should become `bigint`. Mapping every value
+for which `Number.isInteger(value)` is true can significantly change standard
+stringify output. For example, a value such as `1e200` is integer-valued as a
+JavaScript `number`; converting it to `bigint` would serialize the represented
+binary floating-point integer as a decimal integer with hundreds of digits
+instead of preserving a compact exponent form such as `1e+200`.
 
 ### Questions to investigate
 
@@ -38,6 +47,17 @@ layer.
       `-Infinity` at the top level, in arrays, and in object properties.
 - [ ] Confirm how the existing `fjs/media/json` parser/serializer behaves for the
       same cases and record any difference from native `JSON.*`.
+- [ ] Investigate whether standard-to-extended conversion used by `json.stringify`
+      should map only `Number.isSafeInteger(value)` values to `bigint` rather than
+      every `Number.isInteger(value)` value.
+- [ ] Compare native `JSON.stringify` output for large integer-valued numbers such
+      as `1e20`, `1e21`, `1e100`, and `1e200` with the output produced after
+      converting those values to `bigint`; avoid accidentally expanding compact
+      exponent notation into very large decimal integer literals.
+- [ ] Decide whether the reusable standard-to-extended transformer and the
+      standard `json.stringify` compatibility path should use exactly the same
+      integer-conversion policy or whether stringify needs a compatibility-specific
+      normalization policy.
 - [ ] Decide which representations the extended serializer should accept for
       programmatically-created `number` leaves that are `NaN` or infinite.
 - [ ] Decide whether an unsupported extended numeric value should fail,
