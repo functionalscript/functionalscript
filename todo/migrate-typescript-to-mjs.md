@@ -217,6 +217,11 @@ compiler-compatibility rename.
       dependencies on remaining authored TypeScript.
 - [ ] Update imports, proofs, tests, coverage globs, scripts, generated CI, and
       documentation for every migrated group.
+- [ ] Sweep prose references to already-migrated modules: `AGENTS.md`, README
+      files, and `todo/*.md` still name `.f.ts` paths that no longer exist, so
+      snippets copied from them produce broken imports and links. Per-group
+      updates miss these because they are not importers; run a repository-wide
+      `.f.ts`-reference check at least at the end of stage 1.
 - [ ] Preserve Node, Deno, Bun, proof, coverage, type-checking, declaration, and
       CI package behavior throughout the migration.
 - [ ] Add required `**BREAKING CHANGES:**` changelog entries for public runtime

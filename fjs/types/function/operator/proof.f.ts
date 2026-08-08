@@ -10,7 +10,7 @@ import {
     stateScanToScan,
     foldToScan,
     reduceToScan,
-} from './module.f.ts'
+} from './module.f.mjs'
 
 const joinTest = () => {
     const result = join(', ')('world')('hello')

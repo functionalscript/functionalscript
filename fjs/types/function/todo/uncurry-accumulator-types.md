@@ -10,7 +10,7 @@
 Several sibling accumulator types still curry their data parameters, contradicting that precedent:
 
 ```ts
-// fjs/types/function/operator/module.f.ts
+// fjs/types/function/operator/module.f.mjs
 export type Fold<I, O> = Binary<I, O, O>   // (input: I) => (acc: O) => O
 export type Reduce<T>  = Fold<T, T>        // (value: T) => (acc: T) => T
 
