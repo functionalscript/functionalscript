@@ -1,48 +1,40 @@
 ## data-tosequence-reuse. `bnf/data` re-implements `toSequence`
 
 **Priority:** P5
-**Status:** open
+**Status:** superseded
+**Superseded by:** [Separate alphabet-specific BNF helpers](./unicode-rules.md)
 
-### Problem
+### Why superseded
 
-`fjs/bnf/module.f.ts:104-107` exports the string → terminal-range-sequence
-conversion:
+This TODO proposed preserving `bnf/data`'s generic `string` rule case and reusing
+`toSequence` from `fjs/bnf/module.f.ts` to implement its Unicode expansion.
 
-```ts
-const mapOneEncode = map(oneEncode)
-export const toSequence = (s: string): readonly TerminalRange[] =>
-    toArray(mapOneEncode(stringToCodePointList(s)))
-```
+The alphabet-specific BNF split intentionally removes that architecture instead:
 
-`fjs/bnf/data/module.f.ts:102,104-107` redeclares `mapOneEncode` and inlines
-the identical expression:
+- `string` is removed from the generic `DataRule` / `Rule` representation;
+- `fjs/bnf/data/module.f.ts` no longer interprets strings as Unicode code points;
+- `toSequence` moves to `fjs/bnf/unicode/module.f.ts` as an alphabet-specific
+  construction helper;
+- Unicode helpers lower strings to ordinary generic rules before they reach
+  `bnf/data`.
 
-```ts
-const mapOneEncode = map(oneEncode)
-const data = (dr: DataRule): NewRule => {
-    switch (typeof dr) {
-        case 'string': {
-            return sequence(toArray(mapOneEncode(stringToCodePointList(dr))))
-```
+Therefore there is no remaining duplicate `toSequence` implementation to reuse in
+`bnf/data`. Implementing this TODO first would create work that the alphabet split
+immediately removes, while implementing it afterward would no longer make sense.
 
-`bnf/data` already imports `oneEncode` from `../module.f.ts`, so it depends
-on that module anyway — it re-imports the primitive and re-derives the
-composite instead of importing the composite.
+### Historical proposal
 
-### Proposal
+The original proposal was to import `toSequence` in `fjs/bnf/data/module.f.ts`,
+replace the `'string'` case body with `sequence(toSequence(dr))`, and delete the
+local duplicate Unicode-conversion helpers/imports.
 
-Import `toSequence` in `fjs/bnf/data/module.f.ts`, replace the `'string'`
-case body with `sequence(toSequence(dr))`, and delete the local
-`mapOneEncode` (and the then-unused `stringToCodePointList`/`map` imports if
-nothing else uses them).
-
-### Tasks
-
-- [ ] Replace the inline expression with `toSequence`; drop the duplicate
-      helper and any now-unused imports.
-- [ ] `npx tsc`, `fjs t`.
+Do not implement that proposal. Implement
+[Separate alphabet-specific BNF helpers](./unicode-rules.md) instead.
 
 ### Related
 
-- `AGENTS.md` — "When a sibling module already has the type or helper you
-  need, import it."
+- [Separate alphabet-specific BNF helpers](./unicode-rules.md) — removes the
+  generic string-expansion path that motivated this TODO.
+- `AGENTS.md` — "When a sibling module already has the type or helper you need,
+  import it." The general rule still applies; this specific duplication disappears
+  with the new BNF module boundary.
