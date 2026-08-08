@@ -32,11 +32,21 @@ a `.ts` cast could.
 Tightening `match`'s return type is therefore a **required first step**, not
 an optional cleanup — and it must decouple the two branches, not just narrow
 the existing shared `R`, since `f` and `none` genuinely return different
-types in the derivation (`R` vs. `null`):
+types in the derivation (`R` vs. `null`).
+
+**`R1`/`R2` must live on separate curry steps, not the same generic
+function.** All of `T`, `R1`, `R2` on one outer generic
+(`<T, R1, R2>(f: (_: T) => R1) => (none: () => R2) => …`) are instantiated
+together at the *first* call `match(f)` — before `none` is even supplied —
+so `R2` has no argument to infer from at that point and collapses to
+`unknown`; `match(f)(() => null)` then types as
+`(_: Nullable<T>) => unknown`, which still fails against `map`'s declared
+`Nullable<R>` return. `R2` needs its own generic step, inferred from `none`
+at the *second* call:
 
 ```js
 /**
- * @type {<T, R1, R2>(f: (_: T) => R1) => (none: () => R2) => (_: Nullable<T>) => R1 | R2}
+ * @type {<T, R1>(f: (_: T) => R1) => <R2>(none: () => R2) => (_: Nullable<T>) => R1 | R2}
  */
 export const match = f => none => value => value === null ? none() : f(value)
 
@@ -46,10 +56,10 @@ export const match = f => none => value => value === null ? none() : f(value)
 export const map = f => match(f)(() => null)
 ```
 
-With `R1`/`R2` inferred independently, `map`'s call site infers `R1 = R`
-(from `f`) and `R2 = null` (from `() => null`), giving `R | null` —
-exactly `Nullable<R>` — with no cast needed. Existing `match` call sites,
-which pass the same type for both branches, still unify `R1 = R2` and are
+Now `T`/`R1` are inferred at `match(f)` (from `f`), and `R2` is inferred
+separately at `(() => null)` (from `none`), giving `R1 | R2` = `R | null` =
+`Nullable<R>` — with no cast needed. Existing `match` call sites, which
+supply both `f` and `none` together, still unify to the same result and are
 unaffected.
 
 ### Tasks
