@@ -107,7 +107,7 @@ more information-preserving behavior should use the extended representation and
 its transformers directly.
 
 The remaining exceptional-number behavior (`NaN`, `Infinity`, `-Infinity`, and
-the precise extended/standard boundary for `-0`) is tracked separately in
+other exact edge rules) is tracked separately in
 [number edge cases](./number-edge-cases.md) so it is verified explicitly instead
 of being chosen accidentally during implementation.
 
