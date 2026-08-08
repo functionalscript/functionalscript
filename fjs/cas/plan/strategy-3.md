@@ -189,7 +189,7 @@ As a result, the canonical identity of a file in Strategy 3 is the **Strategy 3
 Merkle root** — the hash of the root reference node in Strategy 3's encoding — not
 the native SUL root `Id`. These are different values for the same content.
 
-See [`fjs/sul/README.md`](../../fjs/sul/README.md) for the encoding and streaming API.
+See [`fjs/sul/README.md`](../../sul/README.md) for the encoding and streaming API.
 
 ## Trade-offs
 
