@@ -44,8 +44,6 @@ export const find
                 const first = [index, node] as PathItem<T>
                 return f({ first, tail })(child(first))
             }
-        type N = typeof node
-        type X = KeyOf<Tuple<2, number>>
         const done: (index: KeyOf<typeof node>) => Result<T>
             = index => ({ first: [index, node] as First<T>, tail })
         switch (node.length) {

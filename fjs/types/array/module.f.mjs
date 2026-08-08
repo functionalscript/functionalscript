@@ -6,6 +6,9 @@
 
 import { fromUndefined, map } from '../nullable/module.f.mjs'
 
+/** @import { Assert } from '../../asserts/module.f.mjs' */
+/** @import { Equal } from '../../types/ts/module.f.ts' */
+
 /**
  * @type {(value: unknown) => value is readonly unknown[]}
  */
@@ -26,7 +29,7 @@ export const isArray = value => value instanceof Array
 
 /**
  * @template {number} N
- * @typedef {N extends number ? IndexX<N, readonly[]> : never} Index
+ * @typedef {number extends N ? number : N extends number ? IndexX<N, readonly[]> : never} Index
  */
 
 /**
@@ -41,15 +44,14 @@ export const isArray = value => value instanceof Array
  */
 
 /**
- * @typedef {KeyOf<Tuple<2, number> | Tuple<1, number>>} X
+ * @typedef {Assert<Equal<KeyOf<readonly number[]>, number>>} _X0
+ * @typedef {Assert<Equal<KeyOf<readonly [true]>, 0>>} _X1
+ * @typedef {Assert<Equal<KeyOf<readonly [true] | readonly [false, false]>, 0 | 1>>} _X2
  */
 
 /**
  * Currently, TypeScript can't narrow the type of `readonly T[]` to `Array2<T>`
  * only by checking `a.length === 2`, so we need a user-defined type guard.
- *
- * @param a An array of unknown length.
- * @returns True if `a` has length 2, and `a` is narrowed to `Array2<T>` in that case.
  */
 export const isTuple =
     /**
@@ -59,8 +61,8 @@ export const isTuple =
     n =>
     /**
      * @template T
-     * @param {readonly T[]} a
-     * @return {a is Tuple<N, T>}
+     * @param {readonly T[]} a An array of unknown length.
+     * @return {a is Tuple<N, T>} True if `a` has length 2, and `a` is narrowed to `Array2<T>` in that case.
      */
     a =>
         a.length === n
