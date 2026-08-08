@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { mask } from '../bigint/module.f.ts'
-import type { Sign } from '../function/compare/module.f.ts'
+import type { Sign } from '../function/compare/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.ts'
 import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, maxLength, u8ListToVec, tryU8ListToVec, u8List, chunkList, fromSentinel } from './module.f.ts'
 import { repeat as listRepeat, toArray, type List } from '../list/module.f.ts'
