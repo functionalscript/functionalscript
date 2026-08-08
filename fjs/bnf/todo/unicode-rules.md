@@ -67,6 +67,27 @@ representation without defining their own sentinel.
 The result should allow the same core BNF API to describe grammars over any
 symbol alphabet without importing or depending on Unicode or byte-stream support.
 
+### Dependent design documents
+
+This split changes the public design assumptions used by older open TODOs. Treat
+the following designs as **blocked by this task** even if an older document still
+has `**Status:** open` in its header:
+
+- [`fjs/media/json/todo/bnf-grammar-single-owner.md`](../../media/json/todo/bnf-grammar-single-owner.md)
+  currently imports `range`, `set`, and `unicodeMax` from generic
+  `fjs/bnf/module.f.ts` and uses raw string values as generic rules. Its
+  implementation must instead import Unicode-specific construction from
+  `fjs/bnf/unicode/module.f.ts` and lower text literals to generic rules before
+  they reach core BNF.
+- [`fjs/bnf/todo/207.md`](./207.md) currently describes `string` as a fourth
+  generic rule kind and gives it separate semantic-action/raw-output behavior.
+  After this split, semantic-action design must treat text helpers as constructors
+  of ordinary generic rules rather than a distinct generic `string` rule kind.
+
+Do not implement either older design against the pre-split API after this task
+lands. When those TODOs are next revised/split, update their status/dependency
+headers and examples to the new module boundary before implementation starts.
+
 ### Tasks
 
 - [ ] Add `fjs/bnf/unicode/module.f.ts` for Unicode code-point rule helpers.
@@ -83,6 +104,12 @@ symbol alphabet without importing or depending on Unicode or byte-stream support
       `fjs/bnf/unicode/module.f.ts`.
 - [ ] Update grammars and imports to construct text terminals through the Unicode
       helpers instead of relying on raw strings as generic rules.
+- [ ] Update/block `fjs/media/json/todo/bnf-grammar-single-owner.md` so its JSON
+      grammar design imports Unicode helpers from `fjs/bnf/unicode/module.f.ts`
+      and does not depend on raw string rules in core BNF.
+- [ ] Update `fjs/bnf/todo/207.md` when it is split/revised so `string` is no
+      longer described as a generic rule kind; Unicode text constructors lower to
+      ordinary generic rules before semantic evaluation.
 - [ ] Add byte helper proofs for byte boundaries and representative binary
       sequences/ranges.
 - [ ] Move/add proof coverage so generic BNF proofs exercise abstract symbols and
@@ -99,6 +126,10 @@ symbol alphabet without importing or depending on Unicode or byte-stream support
   machinery with a different symbol alphabet.
 - [UTF-8 token symbols](./utf8-token-symbols.md) — tokenizer-output symbols are
   another non-Unicode alphabet consumed by the generic BNF core.
+- [JSON BNF grammar owner](../../media/json/todo/bnf-grammar-single-owner.md) —
+  blocked on this split and must target `bnf/unicode` for text terminals.
+- [BNF semantic actions](./207.md) — blocked conceptually on this split; its rule
+  model must remove generic `string` before implementation.
 - [`fjs/bnf/module.f.ts`](../module.f.ts) — currently mixes generic and Unicode
   rule construction.
 - [`fjs/bnf/data/module.f.ts`](../data/module.f.ts) — currently expands string
