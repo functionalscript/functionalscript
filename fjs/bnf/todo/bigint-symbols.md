@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [JSON bigint serialization](../../djs/todo/json-bigint-serialization.md)
+**Blocked by:** [Bigint-aware JSON parse/serialize](../../media/json/todo/bigint-parse-serialize.md)
 
 ### Problem
 
@@ -69,8 +69,9 @@ the BNF symbol domain and range representation.
 
 ### Related
 
-- [JSON bigint serialization](../../djs/todo/json-bigint-serialization.md) — exact
-  JSON-compatible parse/serialize support required by bigint-valued BNF data.
+- [Bigint-aware JSON parse/serialize](../../media/json/todo/bigint-parse-serialize.md)
+  — exact JSON-compatible parse/serialize support required by bigint-valued BNF
+  data.
 - [UTF-8 token symbols](./utf8-token-symbols.md) — replace registered 24-bit token
   IDs with deterministic token-name-derived symbols after this task lands.
 - [Layered parser](./layered-parser.md) — tokenizer output becomes input symbols to
