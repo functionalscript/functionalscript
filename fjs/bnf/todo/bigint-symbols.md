@@ -132,9 +132,28 @@ rangeMapBy(boundaryOps)(valueOps)
 
 Preserve the existing number-oriented `rangeMap(valueOps)` API as a thin
 instantiation/wrapper using number comparison and `value => value - 1`, so current
-callers do not need an unrelated migration. Add a bigint boundary instantiation
-using bigint comparison and `value => value - 1n`; LL(1) should use that shared
-implementation for `Symbol` boundaries.
+callers do not need an unrelated migration.
+
+For BNF, instantiate the shared range-map boundary type as raw `bigint`, not the
+semantic `Symbol` domain. A range-map entry stores an **upper cut point**, and
+`fromRange` may need a cut point immediately below the first valid symbol. Thus a
+BNF range beginning at `0n` legitimately produces the internal cut point `-1n`:
+
+```text
+[0n, b] -> [[default, -1n], [value, b]]
+```
+
+`-1n` is not a BNF symbol and must never be accepted from an alphabet adapter or
+terminal range. It exists only inside the range-map representation. The `Symbol`
+invariant applies to parser input and terminal endpoints, not to these internal
+cut points. LL(1) lookup still receives a valid `Symbol`; because `Symbol` is
+backed by `bigint`, it can be passed to the bigint range-map lookup without
+converting it to `number`.
+
+This distinction avoids making predecessor fallible and avoids inventing a fake
+BNF symbol below zero. It also matches the existing number range-map semantics,
+where `fromRange([0, b])` already creates an internal `-1` cut point even when the
+consumer's meaningful input domain starts at zero.
 
 The parameterized core should accept a generic inclusive boundary pair
 `readonly [B, B]` rather than depending internally on the existing number-only
@@ -176,14 +195,19 @@ boundary, not to BNF parsers.
       lookup values generic over that boundary type.
 - [ ] Preserve the current number `rangeMap(...)` API as a thin instantiation of
       the generic core so existing number callers keep their current behavior.
-- [ ] Add/use a bigint boundary instantiation of the same shared range-map
-      algorithm and migrate BNF LL(1) dispatch construction/lookup to it.
+- [ ] Instantiate the shared range-map core for BNF with raw `bigint` cut-point
+      boundaries, not the semantic `Symbol` domain; allow the internal `-1n` cut
+      point required for a range beginning at the minimum symbol `0n`.
+- [ ] Keep BNF range-map lookup inputs restricted to valid `Symbol` values even
+      though the map's internal bigint cut points may lie outside the symbol
+      domain.
 - [ ] Keep `fjs/types/range` itself number-specific; the parameterized range-map
       core may use a generic internal `readonly [B, B]` boundary pair while the
       number wrapper continues accepting `Range`.
 - [ ] Add shared `range_map` proofs showing that the generic implementation
       preserves existing number behavior and works with bigint boundaries,
-      including endpoints above `Number.MAX_SAFE_INTEGER`.
+      including a BNF range starting at `0n`, its internal `-1n` cut point, and
+      endpoints above `Number.MAX_SAFE_INTEGER`.
 - [ ] Update every parser/recognizer backend to synthesize exactly one logical EOF
       after physical input, consume it at most once, and distinguish the post-EOF
       state without requiring callers to append EOF.
