@@ -52,8 +52,8 @@ export type Array = Tree.Array<Primitive>
 
 ```ts
 // fjs/djs/module.f.ts
-import type * as Tree from '../json/common/module.f.ts'
-import type { Primitive as JsonPrimitive } from '../json/module.f.ts'
+import type * as Tree from '../media/json/common/module.f.ts'
+import type { Primitive as JsonPrimitive } from '../media/json/module.f.ts'
 export type Primitive = JsonPrimitive | bigint | undefined
 export type Unknown = Tree.Unknown<Primitive>
 export type Object = Tree.Object<Primitive>
