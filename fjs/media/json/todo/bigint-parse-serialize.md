@@ -126,12 +126,26 @@ RTTI-aware surfaces are transformations on top of the extended value rather than
 separate JSON parsers.
 
 If the generic JSON/DJS tree type lands first, use it for the shared recursive
-container shape and vary only the primitive leaf type.
+container shape and vary only the primitive leaf type. That reuse is conditional
+on the generic object's index signature being optional:
+
+```ts
+type Object<P> = { readonly [k in string]?: Unknown<P> }
+```
+
+A required index signature is not sound here because an arbitrary missing object
+property evaluates to `undefined`, while `undefined` is not an extended JSON leaf.
+Do not adopt a shared `Tree.Object<P>` that types every string key as present.
+The generic-tree TODO owns this requirement.
 
 ### Tasks
 
 - [ ] Define the extended JSON value type with `bigint` added to the JSON leaf
       set.
+- [ ] If reusing the generic JSON/DJS tree type, require its object shape to use
+      the optional recursive index signature
+      `{ readonly [k in string]?: Unknown<P> }`; do not reuse a required index
+      signature.
 - [ ] Factor the JSON parser so number-token conversion can produce the extended
       numeric leaves without duplicating the structural parse state machine.
 - [ ] Parse bare JSON integer syntax directly to `bigint`, except exact `-0`.
@@ -168,7 +182,8 @@ container shape and vary only the primitive leaf type.
 - [`fjs/djs/todo/json-bigint-serialization.md`](../../../djs/todo/json-bigint-serialization.md)
   — DJS-specific JSON interchange should build on this extended representation.
 - [Generic JSON/DJS tree type](../../../djs/todo/663-json-djs-tree-type.md) — may
-  provide the shared recursive tree shape.
+  provide the shared recursive tree shape; its object index signature must be
+  optional before this task reuses it.
 - [Integer literal `123` is a `bigint`](../../../../todo/blocked/integer-as-bigint.md)
   — broader language-level bigint-literal direction; this task is only a JSON
   representation.
