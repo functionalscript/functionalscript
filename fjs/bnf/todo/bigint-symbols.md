@@ -61,10 +61,43 @@ is the singleton range `EOF .. EOF`. Complements over ordinary symbols therefore
 do not include EOF, while grammars can still refer to EOF with the same
 `TerminalRange` representation as every other terminal.
 
+#### EOF in parser input
+
+Alphabet adapters and callers provide only physical input symbols. They do **not**
+append the reserved EOF value or invent metadata for it. Every parser backend
+instead synthesizes exactly one logical EOF symbol immediately after the last
+physical input symbol.
+
+Terminal matching therefore has three logical positions:
+
+```text
+idx < input.length   -> match the physical input symbol
+idx == input.length  -> match the synthesized EOF symbol
+idx > input.length   -> no symbol remains
+```
+
+Matching EOF consumes that one logical symbol, so it advances the parser past the
+end position and EOF cannot be consumed repeatedly. Indexed parsers can represent
+that post-EOF position as `input.length + 1`; remainder-based parsers need an
+equivalent internal state that distinguishes "at EOF" from "EOF already
+consumed".
+
+The synthesized EOF has no physical source element and therefore contributes no
+ordinary symbol/metadata leaf to the AST. Diagnostics that reject a terminal at
+EOF still point at the physical end position (`input.length`). This avoids
+requiring a generic metadata type `T` to manufacture EOF metadata while keeping
+EOF itself in the same `Symbol` / `TerminalRange` representation as every other
+terminal.
+
+This is parser end-of-stream semantics, not a second EOF type. Alphabet adapters
+must never produce the reserved EOF value as ordinary input; mappings whose
+natural output can reach it must reject or remap it at their boundary.
+
 Unicode code points and bytes are possible symbol alphabets supplied through
 alphabet-specific helpers; the generic BNF core itself should know neither
 Unicode nor byte-stream semantics. Those adapters convert their values into the
-new bigint symbol domain. Metadata carried alongside symbols is unchanged.
+new bigint symbol domain. Metadata carried alongside physical symbols is
+unchanged.
 
 A 256-bit symbol also leaves a natural path for token mappings whose input may be
 arbitrarily large and whose output is a cryptographic hash. Such mappings must
@@ -80,14 +113,22 @@ boundary, not to BNF parsers.
       maximal-symbol range.
 - [ ] Update generic `rangeEncode`, `rangeDecode`, `oneEncode`, complement/range
       helpers, and their callers for bigint symbols.
+- [ ] Update every parser/recognizer backend to synthesize exactly one logical EOF
+      after physical input, consume it at most once, and distinguish the post-EOF
+      state without requiring callers to append EOF.
+- [ ] Keep synthesized EOF out of ordinary AST metadata leaves; preserve end-of-
+      input diagnostics at the physical end position.
 - [ ] Update BNF data, parsers, recognizers, AST/meta inputs, and proofs to consume
       bigint symbols without introducing a separate EOF representation.
 - [ ] Update alphabet-specific helpers so their input values are converted to
-      bigint symbols only at their BNF boundary; keep source-domain APIs unchanged.
+      bigint ordinary symbols only at their BNF boundary and never emit reserved
+      EOF; keep source-domain APIs unchanged.
 - [ ] Verify range complement and ordering semantics over the 256-bit domain,
       including the boundary immediately below EOF.
 - [ ] Add proof coverage for minimum/maximum ordinary symbols, EOF, singleton
-      ranges, general ranges, complements, and alphabet-adapter boundaries.
+      ranges, general ranges, complements, alphabet-adapter boundaries, explicit
+      EOF on empty/non-empty input, failure before physical end, and the one-time
+      EOF-consumption rule.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
