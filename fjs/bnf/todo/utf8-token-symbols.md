@@ -22,17 +22,41 @@ Replace the registration-based `fjs/bnf/token_symbol` mapping with a determinist
 mapping from a token name to the 256-bit BNF `Symbol` introduced by
 [bigint-symbols](./bigint-symbols.md).
 
-The default mapping should derive the symbol from the token name's UTF-8 encoding,
+The default mapping derives the symbol from the token name's UTF-8 encoding,
 reusing the existing `utf8` / bit-vector representation rather than maintaining a
 separate alphabet. Short descriptive token names therefore have stable identities
 that depend only on the name itself and can be shared independently by tokenizer
 and parser.
 
-The exact packing from UTF-8 into the unsigned 256-bit symbol domain must be
-canonical and injective for every name it accepts, including names whose UTF-8
-bytes contain leading zero bits. It should reject names that do not fit instead
-of silently truncating them. The practical inline-name limit will be slightly
-below 32 UTF-8 bytes once the representation preserves length/tag information.
+`utf8(name)` returns a signed, length-bearing `Vec`; its bigint representation
+must not be used directly as a BNF symbol. Add the inverse of `fromSentinel` to
+`fjs/types/bit_vec`, conceptually:
+
+```ts
+const toSentinel = (v: Vec): bigint => {
+    const { length, uint } = unpack(v)
+    return (1n << length) | uint
+}
+```
+
+Then define the direct token mapping exactly as:
+
+```text
+tokenSymbol(name) = toSentinel(utf8(name))
+```
+
+The highest `1` bit is an explicit length sentinel, so the mapping preserves
+leading zero bits and is injective. For example, `"A"` and `"\0A"` have the same
+unsigned payload prefix only if length is ignored; their sentinel positions differ,
+so their symbols remain distinct.
+
+Because UTF-8 vectors are byte-aligned, a 256-bit `Symbol` can directly encode at
+most 31 UTF-8 bytes: 31 bytes use 248 data bits plus one sentinel bit (249 bits),
+while 32 bytes require a sentinel at bit 256 and therefore 257 bits. Reject names
+whose UTF-8 encoding exceeds 31 bytes instead of truncating them.
+
+The direct encoding cannot collide with EOF. Its largest result is below `2^249`,
+while BNF reserves `2^256 - 1` for EOF.
 
 Do not make UTF-8 the only possible token mapping. The BNF layer should only care
 about the resulting 256-bit `Symbol`; callers may use another deterministic
@@ -50,10 +74,13 @@ special EOF representation in BNF parsers.
 
 ### Tasks
 
-- [ ] Define a deterministic token-name-to-`Symbol` mapping based on UTF-8.
-- [ ] Specify and prove the canonical packing, including preservation of length
-      and leading zero bits.
-- [ ] Reject token names that cannot be represented inline in the 256-bit symbol.
+- [ ] Add `toSentinel` to `fjs/types/bit_vec` as the inverse representation of
+      `fromSentinel`, with proofs that preserve logical length and unsigned data.
+- [ ] Implement `tokenSymbol(name) = toSentinel(utf8(name))` for names whose UTF-8
+      encoding is at most 31 bytes.
+- [ ] Reject token names longer than 31 UTF-8 bytes.
+- [ ] Prove injectivity for the supported direct encoding, including preservation
+      of leading zero bytes/bits.
 - [ ] Keep the mapping API independent from BNF internals so alternative mappings,
       including cryptographic hashes, can produce the same `Symbol` type.
 - [ ] Reserve `2^256 - 1` for EOF in every token-symbol mapping.
@@ -61,8 +88,9 @@ special EOF representation in BNF parsers.
 - [ ] Remove `fjs/bnf/token_symbol` after all callers migrate.
 - [ ] Update layered-parser examples/documentation to use descriptive token names
       instead of registered numeric IDs where useful.
-- [ ] Add proof coverage for punctuation, keywords, multi-byte UTF-8 names,
-      boundary-length names, overflow, determinism, and EOF non-collision.
+- [ ] Add proof coverage for empty names, punctuation, keywords, embedded NUL /
+      leading-zero bytes, multi-byte UTF-8 names, 31-byte names, 32-byte rejection,
+      determinism, and EOF non-collision.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
@@ -74,3 +102,5 @@ special EOF representation in BNF parsers.
 - [`fjs/bnf/token_symbol`](../token_symbol/README.md) — registration-based mapping
   to replace.
 - [`fjs/text/module.f.ts`](../../text/module.f.ts) — existing `utf8` helper.
+- [`fjs/types/bit_vec/module.f.ts`](../../types/bit_vec/module.f.ts) — signed
+  length-bearing `Vec`, `unpack`, and existing `fromSentinel` representation.
