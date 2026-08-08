@@ -22,9 +22,6 @@ export const asNominal =
     /** @type {<N extends string, R extends string, B>(b: B) => Nominal<N, R, B>} */
     (identity)
 
-/**
- * note: It should compiles into `identity` and no-ops at runtime.
- */
 export const asBase =
     /** @type {<T extends string, R extends string, B>(n: Nominal<T, R, B>) => B} */
     (identity)
