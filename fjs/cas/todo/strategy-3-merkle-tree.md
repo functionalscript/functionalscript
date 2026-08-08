@@ -56,8 +56,19 @@ today.
 - [ ] Mark-and-sweep GC with the required write/GC mutual-exclusion lock.
 - [ ] Cached `_hashes/<algo>/<digest>` → Strategy 3 Merkle root maps
       (sha256, sha3-512), lazily validated on lookup.
-- [ ] Decide fixed-size vs. SUL content-defined chunk boundaries (SUL is
-      recommended for real cross-edit deduplication).
+- [ ] Decide fixed-size vs. SUL content-defined chunk boundaries. **SUL needs
+      a byte-alignment design before it's usable here, not just a yes/no
+      call**: `fjs/sul/module.f.ts`'s `Encode` consumes one *bit* at a time
+      and its `push` returns only the next `EncodeState` — no word-boundary
+      event is exposed (only the internal `literalStep` sees the completed-word
+      signal, and `push` discards it) — while Strategy 3 leaves store whole
+      bytes with no field for a trailing partial-byte length. Using SUL as the
+      boundary algorithm therefore requires either exposing a boundary event
+      from `push` plus a canonical byte-alignment rule (e.g. round up to the
+      next byte and record how, deterministically, so re-encoding the same
+      content reproduces the same split points), or extending the leaf
+      encoding to carry a partial-byte length. Fixed-size chunking has no such
+      gap and remains the safe fallback if this isn't resolved first.
 - [ ] Proof coverage: streaming write/read round-trip, dedup across shared
       subtrees, GC reclaiming orphaned parts, a write concurrent with GC.
 
