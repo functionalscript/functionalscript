@@ -21,54 +21,67 @@
 
 /**
  * Represents a successful result.
+ *
+ * @template T
+ * @typedef {readonly ['ok', T]} Ok
  */
-export type Ok<T> = readonly ['ok', T]
 
 /**
  * Represents a failed result.
+ *
+ * @template E
+ * @typedef {readonly ['error', E]} Error
  */
-export type Error<E> = readonly ['error', E]
 
 /**
  * Represents a result that can be either successful or failed.
+ *
+ * @template T
+ * @template E
+ * @typedef {Ok<T> | Error<E>} Result
  */
-export type Result<T, E> = Ok<T> | Error<E>
 
 /**
  * Creates a successful result.
  *
- * @param value - The value to wrap.
- * @returns A successful result containing the value.
+ * @template T
+ * @param {T} value - The value to wrap.
+ * @returns {Ok<T>} A successful result containing the value.
  */
-export const ok = <T>(value: T): Ok<T> => ['ok', value]
+export const ok = value  => ['ok', value]
 
 /**
  * Creates a failed result.
  *
- * @param e - The error to wrap.
- * @returns A failed result containing the error.
+ * @template E
+ * @param {E} e - The error to wrap.
+ * @returns {Error<E>} A failed result containing the error.
  */
-export const error = <E>(e: E): Error<E> => ['error', e]
+export const error = e => ['error', e]
 
 /**
  * Unwraps a result, returning the value if successful or throwing the error if failed.
  *
- * @param param0 - The result to unwrap.
- * @returns The value if the result is successful. Otherwise, throws the error.
+ * @template T
+ * @template E
+ * @param {Result<T, E>} param0 - The result to unwrap.
+ * @returns {T} The value if the result is successful. Otherwise, throws the error.
  */
-export const unwrap = <T, E>([kind, v]: Result<T, E>): T => {
+export const unwrap = ([kind, v]) => {
     if (kind === 'error') { throw v }
     return v
 }
 
 /**
  * Swaps the `ok` and `error` cases of a result.
+ *
+ * @type {<T, E>([k, v]: Result<T, E>) => Result<E, T>}
  */
-export const invert = <T, E>([k, v]: Result<T, E>): Result<E, T> =>
-    k === 'ok' ? error(v) : ok(v)
+export const invert = ([k, v]) => k === 'ok' ? error(v) : ok(v)
 
 /**
  * Maps the `ok` case of a result, passing an `error` through unchanged.
+ *
+ * @type {<T, R>(f: (value: T) => R) => <E>(r: Result<T, E>) => Result<R, E>}
  */
-export const mapOk = <T, R>(f: (value: T) => R) => <E>(r: Result<T, E>): Result<R, E> =>
-    r[0] === 'ok' ? ok(f(r[1])) : r
+export const mapOk = f => r => r[0] === 'ok' ? ok(f(r[1])) : r

@@ -38,7 +38,7 @@ import type { Nullable } from '../../types/nullable/module.f.mjs'
 import { pure, step, type Effect, type Operation } from '../../effects/module.f.ts'
 import type { List } from '../../effects/list/module.f.ts'
 import type { IoResult } from '../../effects/node/module.f.ts'
-import { ok, error } from '../../types/result/module.f.ts'
+import { ok, error } from '../../types/result/module.f.mjs'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.ts'
 import { utf8ByteToCodePointOp, type Utf8State } from '../../text/utf8/module.f.ts'
 

@@ -33,7 +33,7 @@ import {
     type Tuple,
     type Type,
 } from '../module.f.ts'
-import { ok, type Result as CommonResult } from '../../result/module.f.ts'
+import { ok, type Result as CommonResult } from '../../result/module.f.mjs'
 import type { StringMap } from '../../object/module.f.ts'
 import { reverse, toArray, type List } from '../../list/module.f.mjs'
 import {

@@ -19,7 +19,7 @@ import { validate as rttiValidate, type ValidationError } from '../../types/rtti
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
 import { parse as parseJson, type Unknown } from '../json/module.f.ts'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.ts'
-import { error, ok, type Result } from '../../types/result/module.f.ts'
+import { error, ok, type Result } from '../../types/result/module.f.mjs'
 import { dialectEntry, type DialectEntry } from '../module.f.ts'
 import { definedEntries, sort } from '../../types/object/module.f.ts'
 import { stringify } from '../json/module.f.ts'

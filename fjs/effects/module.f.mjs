@@ -100,7 +100,7 @@ import { fold } from '../types/list/module.f.mjs'
 /** @import { List } from '../types/list/module.f.mjs' */
 import { at } from '../types/object/module.f.ts'
 /** @import { Option } from '../types/option/module.f.mjs' */
-/** @import { Result } from '../types/result/module.f.ts' */
+/** @import { Result } from '../types/result/module.f.mjs' */
 
 /**
  * @typedef {readonly[string, (..._: readonly never[]) => unknown]} Operation

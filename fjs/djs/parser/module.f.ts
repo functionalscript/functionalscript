@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { error, ok, type Result } from '../../types/result/module.f.ts'
+import { error, ok, type Result } from '../../types/result/module.f.mjs'
 import { fold, next, toArray, length, concat, type List } from '../../types/list/module.f.mjs'
 import type { Fold } from '../../types/function/operator/module.f.mjs'
 import type { DjsToken, DjsTokenWithMetadata } from '../tokenizer/module.f.ts'

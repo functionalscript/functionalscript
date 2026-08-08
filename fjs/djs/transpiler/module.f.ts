@@ -4,7 +4,7 @@
  * @module
  */
 import { type Unknown } from '../module.f.ts'
-import { type Result, error, ok } from '../../types/result/module.f.ts'
+import { type Result, error, ok } from '../../types/result/module.f.mjs'
 import { drop, map as listMap, type List, toArray, includes } from '../../types/list/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.ts'
 import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'

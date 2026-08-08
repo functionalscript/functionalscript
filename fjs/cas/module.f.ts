@@ -36,7 +36,7 @@ import {
     type WriteBytes,
 } from '../effects/node/module.f.ts'
 import { toOption } from '../types/nullable/module.f.mjs'
-import { error, ok, unwrap } from '../types/result/module.f.ts'
+import { error, ok, unwrap } from '../types/result/module.f.mjs'
 import { splitAt } from '../types/string/module.f.ts'
 import { nonEmpty, empty as elEmpty, type List } from '../effects/list/module.f.ts'
 
