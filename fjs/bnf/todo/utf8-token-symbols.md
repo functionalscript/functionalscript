@@ -43,7 +43,10 @@ arbitrarily long token names with a cryptographic hash whose output fits the sam
 Different parser layers have different symbol alphabets, so the same numeric
 symbol does not need a global meaning across byte, code-point, token, and later
 layers. A mapping only needs to be deterministic and agreed upon by the producer
-and consumer of that layer. It must still respect BNF's reserved EOF value.
+and consumer of that layer. It must reserve the BNF EOF value `2^256 - 1`; any
+mapping whose natural output can equal that value must define how it avoids that
+single reserved result. This stays local to the mapping and does not introduce a
+special EOF representation in BNF parsers.
 
 ### Tasks
 
@@ -53,6 +56,7 @@ and consumer of that layer. It must still respect BNF's reserved EOF value.
 - [ ] Reject token names that cannot be represented inline in the 256-bit symbol.
 - [ ] Keep the mapping API independent from BNF internals so alternative mappings,
       including cryptographic hashes, can produce the same `Symbol` type.
+- [ ] Reserve `2^256 - 1` for EOF in every token-symbol mapping.
 - [ ] Replace callers of `fjs/bnf/token_symbol` with the UTF-8 mapping.
 - [ ] Remove `fjs/bnf/token_symbol` after all callers migrate.
 - [ ] Update layered-parser examples/documentation to use descriptive token names
