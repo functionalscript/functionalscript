@@ -28,39 +28,71 @@ Install FunctionalScript via npm:
 npm install -g functionalscript
 ```
 
-The `fjs` CLI provides several commands:
+or run the CLI without installing it, with `npx functionalscript <command>`.
 
-| Command          | Description                                               |
-|------------------|-----------------------------------------------------------|
-| `fjs test` / `t` | Run the FunctionalScript test suite                       |
-| `fjs compile` / `c` | Compile a `.f.ts` module to JavaScript                 |
-| `fjs run` / `r`  | Run a FunctionalScript module as a Node program           |
-| `fjs cas` / `s`  | Content-addressable storage (`add`, `get`, `list`)        |
-| `fjs mcp` / `m`  | Run an MCP server over stdio exposing the CAS as tools    |
-| `fjs ci` / `i`   | Generate the GitHub Actions CI workflow                   |
+### Compiling a module
 
-### Content-Addressable Storage (CAS)
+A FunctionalScript module is already a valid JavaScript module, so nothing has to
+be compiled in order to *run* it. The compiler serves the other direction: it
+evaluates a module and emits the data it exports, with every `import` resolved.
 
-FunctionalScript ships a built-in CAS for storing and retrieving blobs by their cryptographic hash:
+`m.f.js`:
 
-```bash
-fjs cas add myfile.txt   # store a file, print its cBase32 hash
-fjs cas get <hash>       # restore a blob by hash
-fjs cas list             # list all stored hashes
+```js
+export default "text"
 ```
 
-Blobs are stored under `~/.cas/` and addressed by their SHA-256 hash encoded in cBase32.
+`input.f.js`:
 
-### MCP Server
-
-The CAS is also exposed as an [MCP](https://modelcontextprotocol.io/) server so LLM agents can read and write blobs without a shell:
-
-```bash
-# register with Claude CLI
-claude mcp add cas -- npx functionalscript m
+```js
+import c from "./m.f.js"
+const a = 1
+export default [a, a, c, { x: c }]
 ```
 
-See [`fjs/mcp/README.md`](fjs/mcp/README.md) for details on the `cas_add`, `cas_get`, and `cas_list` tools.
+The output file extension picks the format:
+
+```bash
+fjs compile input.f.js output.f.js   # JavaScript
+fjs compile input.f.js output.json   # JSON
+```
+
+`output.f.js` preserves the object graph — a value referenced more than once
+stays shared and is emitted as a `const`:
+
+```js
+const c0 = "text"
+export default [1,1,c0,{"x":c0}]
+```
+
+`output.json` is a tree, so shared values are expanded, and types that JSON
+cannot express (`bigint`, `undefined`) are not available:
+
+```json
+[1,1,"text",{"x":"text"}]
+```
+
+The compiler currently accepts `import` statements, `const` declarations, and
+data expressions (objects, arrays, strings, numbers, `bigint`, booleans, `null`,
+`undefined`). Functions and computed expressions are not supported yet. See
+[fjs/djs/README.md](fjs/djs/README.md) for the data language and its roadmap, and
+[fjs/fsc/README.md](fjs/fsc/README.md) for the compiler itself.
+
+### The `fjs` CLI
+
+| Command       | Description                                                    | Documentation                                          |
+|---------------|----------------------------------------------------------------|--------------------------------------------------------|
+| `fjs test`    | Run the FunctionalScript test suite                            | [fjs/emergent_testing](fjs/emergent_testing/README.md) |
+| `fjs compile` | Compile a FunctionalScript module to JavaScript or JSON        | [fjs/djs](fjs/djs/README.md)                           |
+| `fjs run`     | Run a FunctionalScript module as a Node program                | [fjs/README.md](fjs/README.md)                         |
+| `fjs cas`     | Content-addressable storage (`add`, `get`, `list`)             | [fjs/cas/README.md](fjs/cas/README.md)                 |
+| `fjs mcp`     | [MCP](https://modelcontextprotocol.io/) server over stdio, exposing the CAS and Evo as tools | [fjs/mcp/README.md](fjs/mcp/README.md) |
+| `fjs ci`      | Generate the GitHub Actions CI workflow                        | [fjs/ci/README.md](fjs/ci/README.md)                   |
+
+Run `fjs help` to print the available commands, or see
+[fjs/README.md](fjs/README.md) for the full CLI reference. Commands also accept
+short aliases, which `fjs help` prints; the documentation spells them out
+instead.
 
 ## Vision
 

@@ -24,13 +24,14 @@ Three terms are used precisely throughout this document:
 The built-in emergent testing runner can run without adding FunctionalScript to
 `package.json` or `deno.json`:
 
-- Node: `npx npm:functionalscript t`
-- Deno: `deno run -A npm:functionalscript t`
-- Bun: `bunx functionalscript t`
+- Node: `npx npm:functionalscript test`
+- Deno: `deno run -A npm:functionalscript test`
+- Bun: `bunx functionalscript test`
 
 Pin a specific package version by adding it after the package name, for example
-`npx npm:functionalscript@0.29.0 t`, `deno run -A npm:functionalscript@0.29.0 t`,
-or `bunx functionalscript@0.29.0 t`.
+`npx npm:functionalscript@0.29.0 test`,
+`deno run -A npm:functionalscript@0.29.0 test`, or
+`bunx functionalscript@0.29.0 test`.
 
 This only applies to the built-in runner. External runners still need
 FunctionalScript installed so `all.test.ts` can import
@@ -53,13 +54,13 @@ deno install npm:functionalscript
 
 ## Running proofs
 
-### `fjs t` (built-in runner)
+### `fjs test` (built-in runner)
 
 FunctionalScript's own runner discovers all proof modules automatically — no
 entry file required:
 
 ```sh
-fjs t
+fjs test
 ```
 
 ### External runners (Node, Bun, Deno)
@@ -172,7 +173,7 @@ The `throw` key can appear at any depth; every test case reachable through it
 inherits the throw expectation. For example,
 `import('proof.ts').proof[5].throw.my()` is a throw test because `throw` appears
 in its path. Because the expectation is encoded in the path, no separate marker
-is needed in the output — `fjs t` appends `# EXPECTED TO THROW` to such a case
+is needed in the output — `fjs test` appends `# EXPECTED TO THROW` to such a case
 when it passes.
 
 ### Return value as a sub-tree
