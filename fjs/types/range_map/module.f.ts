@@ -37,7 +37,7 @@
  */
 
 import { genericMerge, type TailReduce, type ReduceOp, type SortedList } from '../sorted_list/module.f.ts'
-import { next } from '../list/module.f.ts'
+import { next } from '../list/module.f.mjs'
 import type { Nullable } from '../nullable/module.f.mjs'
 import { cmp } from '../number/module.f.ts'
 import { bsearch } from '../function/compare/module.f.mjs'

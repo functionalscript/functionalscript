@@ -11,7 +11,7 @@
 import { utf8, utf8ToString } from '../../text/module.f.ts'
 import { toCodePointList } from '../../text/utf8/module.f.ts'
 import { codePointListToString } from '../../text/utf16/module.f.ts'
-import { reverse, type List as EffectList } from '../../types/list/module.f.ts'
+import { reverse, type List as EffectList } from '../../types/list/module.f.mjs'
 import { length, type Vec } from '../../types/bit_vec/module.f.ts'
 import type { MemOp } from '../memory/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'

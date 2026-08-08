@@ -24,7 +24,7 @@
 import { bitLength, divUp, mask, maxLength, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
 import { flip, identity } from '../function/module.f.mjs'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.mjs'
-import { map, tryFold, type Accumulator, type List, type Thunk } from '../list/module.f.ts'
+import { map, tryFold, type Accumulator, type List, type Thunk } from '../list/module.f.mjs'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../../common/monoid/module.f.ts'
 import { cmp, max, min, type Sign } from '../function/compare/module.f.mjs'

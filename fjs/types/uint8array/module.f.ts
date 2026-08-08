@@ -13,7 +13,7 @@ import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { utf8, utf8ToString } from '../../text/module.f.ts'
 import { maxLengthBytes, msb, tryU8ListToVec, u8List, u8ListToVec, type Vec } from '../bit_vec/module.f.ts'
 import { compose } from '../function/module.f.mjs'
-import { flat, fromArrayLike, iterable, map, type List } from '../list/module.f.ts'
+import { flat, fromArrayLike, iterable, map, type List } from '../list/module.f.mjs'
 
 const u8ListToVecMsb = u8ListToVec(msb)
 const tryU8ListToVecMsb = tryU8ListToVec(msb)

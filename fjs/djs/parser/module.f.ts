@@ -4,7 +4,7 @@
  * @module
  */
 import { error, ok, type Result } from '../../types/result/module.f.ts'
-import { fold, next, toArray, length, concat, type List } from '../../types/list/module.f.ts'
+import { fold, next, toArray, length, concat, type List } from '../../types/list/module.f.mjs'
 import type { Fold } from '../../types/function/operator/module.f.mjs'
 import type { DjsToken, DjsTokenWithMetadata } from '../tokenizer/module.f.ts'
 import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'

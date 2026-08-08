@@ -11,7 +11,7 @@
  *
  * @module
  */
-import { next, flat, map, type List } from '../../types/list/module.f.ts'
+import { next, flat, map, type List } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import type { Result } from '../../types/result/module.f.ts'

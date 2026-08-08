@@ -15,7 +15,7 @@ import {
     type Vec
 } from '../../types/bit_vec/module.f.ts'
 import type { Fold } from '../../types/function/operator/module.f.mjs'
-import { fold, type List } from '../../types/list/module.f.ts'
+import { fold, type List } from '../../types/list/module.f.mjs'
 
 const { concat, front } = msb
 

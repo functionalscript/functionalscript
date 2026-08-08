@@ -43,7 +43,12 @@ export const logicalNot = v => !v
  * @typedef {Binary<T, T, boolean>} Equal
  */
 
-/** @type {<T>(a: T) => (b: T) => boolean} */
+/**
+ * See also `Object.is` which should be used for deep comparison instead of the `structEqual`.
+ * TODO: add `binaryEqual = a => b => Object.is(a, b)`.
+ *
+ * @type {<T>(a: T) => (b: T) => boolean}
+ */
 export const strictEqual = a => b => a === b
 
 /**

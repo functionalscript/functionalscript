@@ -96,22 +96,26 @@
  */
 
 import { assert } from '../asserts/module.f.mjs'
-import { fold, type List } from '../types/list/module.f.mjs'
+import { fold } from '../types/list/module.f.mjs'
+/** @import { List } from '../types/list/module.f.mjs' */
 import { at } from '../types/object/module.f.ts'
-import type { Option } from '../types/option/module.f.mjs'
-import type { Result } from '../types/result/module.f.ts'
+/** @import { Option } from '../types/option/module.f.mjs' */
+/** @import { Result } from '../types/result/module.f.ts' */
 
-export type Operation =
-    readonly[string, (..._: readonly never[]) => unknown]
+/**
+ * @typedef {readonly[string, (..._: readonly never[]) => unknown]} Operation
+ */
 
 /**
  * An `Effect<O, T>` is the raw value: a {@link Pure} thunk that yields `T`, or a
  * {@link Do} node describing a command to perform. It is plain data — compose
  * effects with the external {@link step}, which is eager wherever the head is
  * `Pure`.
+ *
+ * @template {Operation} O
+ * @template T
+ * @typedef {Pure<T> | Do<O, T>} Effect
  */
-export type Effect<O extends Operation, T> =
-    Pure<T> | Do<O, T>
 
 /**
  * A pure effect: an *already-computed* `T` behind a thunk.
@@ -135,12 +139,16 @@ export type Effect<O extends Operation, T> =
  * to advertise the thunk as a suspension. It was the identity function, and it
  * promised a deferral this representation does not keep; it has been removed.
  * Reintroducing it would reintroduce the contradiction, not fix one.
+ *
+ * @template T
+ * @typedef {() => T} Pure
  */
-export type Pure<T> =
-    () => T
 
-export type Pr<O extends Operation, K extends O[0]> =
-    O extends readonly[K, (...args: infer P) => infer R] ? readonly[P, R] : never
+/**
+ * @template {Operation} O
+ * @template {O[0]} K
+ * @typedef {O extends readonly[K, (...args: infer P) => infer R] ? readonly[P, R] : never} Pr
+ */
 
 /**
  * A `Do` node's continuation: given the command's output, produce the rest of
@@ -160,9 +168,11 @@ export type Pr<O extends Operation, K extends O[0]> =
  * (`Effect<A>` <: `Effect<A | B>`), never the unsound narrowing. Anyone changing
  * the continuation representation must re-check this argument before keeping the
  * annotation.
+ *
+ * @template {Operation} out O
+ * @template T
+ * @typedef {(_: Pr<O, O[0]>[1]) => Effect<O, T>} Cont
  */
-export type Cont<out O extends Operation, T> =
-    (_: Pr<O, O[0]>[1]) => Effect<O, T>
 
 /**
  * A `Do` node: the command to perform, its payload, and the continuation to
@@ -185,14 +195,18 @@ export type Cont<out O extends Operation, T> =
  * above is satisfied by any object type, so the numeric keys were paying a
  * tuple's price without being a tuple. Named fields make the node
  * self-describing at every read and leave no layout to memorize.
+ *
+ * @template {Operation} out O
+ * @template T
+ * @typedef {{
+ *  readonly command: O[0]
+ *  readonly payload: Pr<O, O[0]>[0]
+ *  readonly continuation: Cont<O, T>
+ * }} Do
  */
-export type Do<out O extends Operation, T> = {
-    readonly command: O[0]
-    readonly payload: Pr<O, O[0]>[0]
-    readonly continuation: Cont<O, T>
-}
 
-export const pure = <T>(v: T): Effect<never, T> => () => v
+/** @type {<T>(v: T) => Effect<never, T>} */
+export const pure = v => () => v
 
 /**
  * Composes effects: run `e`, then continue with `f` applied to its result.
@@ -220,11 +234,13 @@ export const pure = <T>(v: T): Effect<never, T> => () => v
  * without performing it yet has to keep the ingredients and defer the `step`
  * itself — `Eff` does exactly this, holding its history tuple as a thunk (`h`)
  * precisely because composing it eagerly is the one thing it cannot take back.
+ *
+ * @type {<O extends Operation, T, Q extends Operation, R>(
+ *   e: Effect<O, T>,
+ *   f: (t: T) => Effect<Q, R>
+ * ) => Effect<O | Q, R>}
  */
-export const step = <O extends Operation, T, Q extends Operation, R>(
-    e: Effect<O, T>,
-    f: (t: T) => Effect<Q, R>
-): Effect<O | Q, R> =>
+export const step = (e, f) =>
     typeof e === 'function'
         ? f(e())
         : { ...e, continuation: x => step(e.continuation(x), f) }
@@ -248,12 +264,13 @@ export const step = <O extends Operation, T, Q extends Operation, R>(
  * () => v)` already reads clearly, and it keeps `v`'s evaluation inside the
  * continuation where `step` puts it, rather than moving it to where the
  * composition is written.
+ *
+ * @type {<O extends Operation, T, R>(
+ *  e: Effect<O, T>,
+ *  f: (t: T) => R
+ *  ) => Effect<O, R>}
  */
-export const mapStep = <O extends Operation, T, R>(
-    e: Effect<O, T>,
-    f: (t: T) => R
-): Effect<O, R> =>
-    step(e, t => pure(f(t)))
+export const mapStep = (e, f) => step(e, t => pure(f(t)))
 
 /**
  * An effect whose result is a **history tuple**: the values a chain has bound so
@@ -267,9 +284,11 @@ export const mapStep = <O extends Operation, T, R>(
  *
  * Heterogeneous by design: each element has its own type, so this is not a
  * `List` and nothing that folds or maps a list applies to it.
+ *
+ * @template {Operation} O
+ * @template {readonly unknown[]} H
+ * @typedef {Effect<O, H>} History
  */
-export type History<O extends Operation, H extends readonly unknown[]> =
-    Effect<O, H>
 
 /**
  * Like {@link step}, but keeps the values instead of discarding them: runs `e`
@@ -304,18 +323,23 @@ export type History<O extends Operation, H extends readonly unknown[]> =
  * When that starts to hurt, collapse it into a record of named fields
  * (`pure({ hash, revision } as const)`) and start a fresh history from there.
  */
-export const historyStep = <
-    O extends Operation,
-    P extends readonly unknown[],
-    Q extends Operation,
-    R
->(
-    e: History<O, P>,
-    // `Readonly<P>` is load-bearing: inferring `P` from a bare rest parameter
-    // yields a *mutable*, labelled tuple (`[next: string]`), which then rejects
-    // the `readonly` tuples every history is built from.
-    f: (...p: Readonly<P>) => Effect<Q, R>
-): History<O | Q, readonly[R, ...P]> =>
+export const historyStep =
+    /**
+     * @template {Operation} O
+     * @template {readonly unknown[]} P
+     * @template {Operation} Q
+     * @template R
+     * @param {History<O, P>} e
+     * @param {(...p: Readonly<P>) => Effect<Q, R>} f
+     * @returns {History<O | Q, readonly[R, ...P]>}
+     */
+    (
+        e,
+        // `Readonly<P>` is load-bearing: inferring `P` from a bare rest parameter
+        // yields a *mutable*, labelled tuple (`[next: string]`), which then rejects
+        // the `readonly` tuples every history is built from.
+        f,
+    ) =>
     step(e, param => step(f(...param), result => pure([result, ...param])))
 
 /**
@@ -328,17 +352,32 @@ export const historyStep = <
  * chains stop composing: such a step nests its predecessor's tuple instead of
  * flattening it, so link two would have to be spelled differently from link
  * three.
+ *
+ * @type {<O extends Operation, T>(e: Effect<O, T>) => History<O, readonly[T]>}
  */
-export const history = <O extends Operation, T>(e: Effect<O, T>): History<O, readonly[T]> =>
-    step(e, v => pure([v]))
+export const history = e => step(e, v => pure([v]))
 
-export type Param<O extends Operation> = F<O>[0]
+/**
+ * @template {Operation} O
+ * @typedef {F<O>[0]} Param
+ */
 
-export type Return<O extends Operation> = F<O>[1]
+/**
+ * @template {Operation} O
+ * @typedef {F<O>[1]} Return
+ */
 
 export const do_ =
-    <O extends Operation>(command: O[0]) =>
-    (...payload: Param<O>): Effect<O, Return<O>> =>
+    /**
+     * @template {Operation} O
+     * @param {O[0]} command
+     */
+    command =>
+    /**
+     * @param {Param<O>} payload
+     * @return {Effect<O, Return<O>>}
+     */
+    (...payload) =>
     ({ command, payload, continuation: pure })
 
 /**
@@ -379,23 +418,43 @@ export const do_ =
  * it wraps (see this module's header): every such call is a statement list, and
  * each line is one statement in execution order.
  */
-export const foldStep = <O extends Operation, T, Q extends Operation, S>(
-    items: Effect<O, List<T>>,
-    init: S,
-    f: (item: T) => (state: S) => Effect<Q, S>
-): Effect<O | Q, S> =>
-    step(items, fold<T, Effect<O | Q, S>>(item => acc => step(acc, f(item)))(pure(init)))
+export const foldStep =
+    /**
+     * @template {Operation} O
+     * @template T
+     * @template {Operation} Q
+     * @template S
+     * @param {Effect<O, List<T>>} items
+     * @param {S} init
+     * @param {(item: T) => (state: S) => Effect<Q, S>} f
+     * @return {Effect<O | Q, S>}
+     */
+    (
+        items,
+        init,
+        f,
+    ) =>
+        step(items, fold/*<T, Effect<O | Q, S>>*/(item => acc => step(acc, f(item)))(pure(init)))
 
 /**
  * Sequentially runs `f(item)` for each item produced by `items`, discarding
  * intermediate results. The `void` accumulator sibling of {@link foldStep}, and
  * a step variant on the same grounds.
  */
-export const forEachStep = <O extends Operation, T, Q extends Operation>(
-    items: Effect<O, List<T>>,
-    f: (item: T) => Effect<Q, void>
-): Effect<O | Q, void> =>
-    foldStep(items, undefined, (item: T) => () => f(item))
+export const forEachStep =
+    /**
+     * @template {Operation} O
+     * @template T
+     * @template {Operation} Q
+     * @param {Effect<O, List<T>>} items
+     * @param {(item: T) => Effect<Q, void>} f
+     * @return {Effect<O | Q, void>}
+     */
+    (
+        items,
+        f,
+    ) =>
+    foldStep(items, undefined, item/*: T*/ => () => f(item))
 
 /**
  * A step adapter for the `error` short-circuit: `error` → pass it through
@@ -404,8 +463,19 @@ export const forEachStep = <O extends Operation, T, Q extends Operation>(
  * chaining `Effect<O, Result<T, E>>` steps.
  */
 export const okStep =
-    <T, E, O extends Operation, R>(f: (value: T) => Effect<O, Result<R, E>>) =>
-    (r: Result<T, E>): Effect<O, Result<R, E>> =>
+    /**
+     * @template T
+     * @template E
+     * @template {Operation} O
+     * @template R
+     * @param {(value: T) => Effect<O, Result<R, E>>} f
+     */
+    f =>
+    /**
+     * @param {Result<T, E>} r
+     * @return {Effect<O, Result<R, E>>}
+     */
+    r =>
         r[0] === 'error' ? pure(r) : f(r[1])
 
 /**
@@ -428,22 +498,32 @@ export const okStep =
  * not the reverse — a continuation's result is always the wider type and would
  * be rejected. `Do<never, T>` is uninhabited besides, which would make the empty
  * case unreachable without a cast.
+ *
+ * @type {<O extends Operation, T>(e: Effect<O, T>) => Option<T>}
  */
-export const runPure = <O extends Operation, T>(e: Effect<O, T>): Option<T> =>
+export const runPure = e =>
     typeof e === 'function' ? [e()] : []
 
 /**
  * An operation map whose entries take a command's payload and return some
  * output `R`. Generalizes `ToAsyncOperationMap` (`R = Promise<…>`) and the
  * curried `MemOperationMap` (`R = (state) => [state, …]`).
+ *
+ * @template {Operation} O
+ * @template R
+ * @typedef {{
+ *  readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => R
+ * }} OperationMap
  */
-export type OperationMap<O extends Operation, R> = {
-    readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => R
-}
 
-export type MatchResult<O extends Operation, T, R> =
-    | readonly['done', T]
-    | readonly['cont', R, Do<O, T>['continuation']]
+/**
+ * @template {Operation} O
+ * @template T
+ * @template R
+ * @typedef  {readonly['done', T]
+ *  | readonly['cont', R, Do<O, T>['continuation']]
+ * } MatchResult
+ */
 
 /**
  * Decodes an effect's next step and dispatches its command to `map`,
@@ -473,19 +553,39 @@ export type MatchResult<O extends Operation, T, R> =
  * has no handler for, so there is nothing for a recovery branch to do.
  */
 export const match =
-    <O extends Operation, R>(map: OperationMap<O, R>) =>
-    <O1 extends O, T>(e: Effect<O1, T>): MatchResult<O1, T, R> => {
+    /**
+     * @template {Operation} O
+     * @template R
+     * @param {OperationMap<O, R>} map
+     */
+    map =>
+    /**
+     * @template {O} O1
+     * @template T
+     * @param {Effect<O1, T>} e
+     * @return {MatchResult<O1, T, R>}
+     */
+    e => {
         if (typeof e === 'function') { return ['done', e()] }
         const { command, payload, continuation } = e
-        const handler = at(command)<OperationMap<O, R>[O[0]]>(map)
+        const handler = at(command)/*<OperationMap<O, R>[O[0]]>*/(map)
         assert(handler !== null, command)
         return ['cont', handler(...payload), continuation]
     }
 
-export type ToAsyncOperationMap<O extends Operation> = {
-    readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => Promise<Pr<O, K>[1]>
-}
+/**
+ * @template {Operation} O
+ * @typedef {{
+ *   readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => Promise<Pr<O, K>[1]>
+ * }} ToAsyncOperationMap
+ */
 
-export type F<O extends Operation> = Pr<O, O[0]>
+/**
+ * @template {Operation} O
+ * @typedef {Pr<O, O[0]>} F
+ */
 
-export type Func<O extends Operation> = (..._: Param<O>) => Effect<O, Return<O>>
+/**
+ * @template {Operation} O
+ * @typedef {(..._: Param<O>) => Effect<O, Return<O>>} Func
+ */

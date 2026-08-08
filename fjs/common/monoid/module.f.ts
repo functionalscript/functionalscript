@@ -7,7 +7,7 @@
  * @module
  */
 import type { Fold, Reduce } from '../../types/function/operator/module.f.mjs'
-import { reduce, type List } from '../../types/list/module.f.ts'
+import { reduce, type List } from '../../types/list/module.f.mjs'
 import { flip } from '../../types/function/module.f.mjs'
 
 /**

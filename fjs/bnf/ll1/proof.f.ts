@@ -1,5 +1,5 @@
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
-import { toArray } from '../../types/list/module.f.ts'
+import { toArray } from '../../types/list/module.f.mjs'
 import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.ts'
 import { deterministic } from '../testlib.f.ts'
 import { type RuleSet, toData } from '../data/module.f.ts'

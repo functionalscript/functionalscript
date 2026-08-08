@@ -6,7 +6,7 @@
  * @module
  */
 
-import { toArray } from '../../types/list/module.f.ts'
+import { toArray } from '../../types/list/module.f.mjs'
 import {
     length,
     msb,

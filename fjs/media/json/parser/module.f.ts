@@ -4,7 +4,7 @@
  * @module
  */
 import { error, ok, type Result } from '../../../types/result/module.f.ts'
-import { type List, fold, next, toArray, concat } from '../../../types/list/module.f.ts'
+import { type List, fold, next, toArray, concat } from '../../../types/list/module.f.mjs'
 import { type Fold } from '../../../types/function/operator/module.f.mjs'
 import { type JsonToken } from '../tokenizer/module.f.ts'
 import { setReplace, type OrderedMap } from '../../../types/ordered_map/module.f.ts'
