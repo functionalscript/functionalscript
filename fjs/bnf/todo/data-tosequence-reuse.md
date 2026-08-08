@@ -1,10 +1,10 @@
 ## data-tosequence-reuse. `bnf/data` re-implements `toSequence`
 
 **Priority:** P5
-**Status:** superseded
+**Status:** irrelevant
 **Superseded by:** [Separate alphabet-specific BNF helpers](./unicode-rules.md)
 
-### Why superseded
+### Why irrelevant
 
 This TODO proposed preserving `bnf/data`'s generic `string` rule case and reusing
 `toSequence` from `fjs/bnf/module.f.ts` to implement its Unicode expansion.
