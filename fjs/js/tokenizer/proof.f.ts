@@ -1,5 +1,5 @@
 import { tokenize, type JsToken, type JsTokenWithMetadata } from './module.f.ts'
-import { map, toArray } from '../../types/list/module.f.ts'
+import { map, toArray } from '../../types/list/module.f.mjs'
 import { stringifyAsTree } from '../../djs/serializer/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'

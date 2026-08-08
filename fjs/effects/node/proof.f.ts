@@ -6,7 +6,7 @@ import { create as memCreate, read as memRead, write as memWrite } from "../memo
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.ts"
 import { emptyState, virtual, type Dir } from "./virtual/module.f.ts"
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
-import { ok } from '../../types/result/module.f.ts'
+import { ok } from '../../types/result/module.f.mjs'
 
 // Answers the one command the `map` proof below drives. Routing the loop
 // through `match` keeps the `Pure`/`Do` layout out of this module: the map key

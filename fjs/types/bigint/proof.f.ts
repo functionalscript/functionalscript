@@ -14,7 +14,7 @@ import {
     roundUp,
     divUp8,
     roundUp8
-} from './module.f.ts'
+} from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { min } from '../function/compare/module.f.mjs'
 

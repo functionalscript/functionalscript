@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { flat, type List, type Thunk } from '../list/module.f.ts'
+import { flat, type List, type Thunk } from '../list/module.f.mjs'
 import { map } from '../nullable/module.f.mjs'
 import type { TNode, Tree } from './types/module.f.ts'
 

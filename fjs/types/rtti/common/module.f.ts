@@ -37,7 +37,7 @@ import {
     type Tuple,
     type Type,
 } from '../module.f.ts'
-import { error, ok, type Error, type Result as CommonResult } from '../../result/module.f.ts'
+import { error, ok, type Error, type Result as CommonResult } from '../../result/module.f.mjs'
 import type { Ts } from '../ts/module.f.ts'
 import { isArray as commonIsArray } from '../../array/module.f.mjs'
 import { isObject as commonIsObject, type StringMap } from '../../object/module.f.ts'

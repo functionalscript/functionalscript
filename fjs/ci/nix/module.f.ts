@@ -13,7 +13,7 @@ import { forEachStep, mapStep, pure, step, type Effect } from '../../effects/mod
 import { mkdir, writeUtf8File, type Mkdir, type WriteFile } from '../../effects/node/module.f.ts'
 import { nixToString, type Expression } from '../../media/nix/module.f.ts'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.ts'
+import { unwrap } from '../../types/result/module.f.mjs'
 import { install, test, uses, type MetaStep } from '../common/module.f.ts'
 import { nixpkgs } from '../config/module.f.ts'
 

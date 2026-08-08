@@ -1,5 +1,5 @@
 import { step, do_, foldStep, forEachStep, mapStep, match, okStep, history, pure, runPure, type Effect, type Operation, historyStep } from './module.f.ts'
-import { error, ok } from '../types/result/module.f.ts'
+import { error, ok } from '../types/result/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 
 /**

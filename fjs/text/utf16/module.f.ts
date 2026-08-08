@@ -13,7 +13,7 @@ import {
     type List,
     type Result,
     type Thunk,
-} from '../../types/list/module.f.ts'
+} from '../../types/list/module.f.mjs'
 import { concat, type StateScan } from '../../types/function/operator/module.f.mjs'
 import { contains } from '../../types/range/module.f.ts'
 import { fn } from '../../types/function/module.f.mjs'

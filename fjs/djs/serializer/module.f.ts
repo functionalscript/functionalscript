@@ -6,12 +6,12 @@
 import type { Unknown, Object } from '../module.f.ts'
 import type { Fold } from '../../types/function/operator/module.f.mjs'
 import type { Entry as ObjectEntry } from '../../types/object/module.f.ts'
-import { fold } from '../../types/list/module.f.ts'
+import { fold } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.ts'
-import { type List, flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.ts'
+import { type List, flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.mjs'
 const { entries } = Object
 import { compose, fn } from '../../types/function/module.f.mjs'
-import { serialize as bigintSerialize } from '../../types/bigint/module.f.ts'
+import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.ts'
 
 const colon = [':']

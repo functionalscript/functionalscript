@@ -11,7 +11,7 @@
  * @module
  */
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
-import { map, toArray } from '../../types/list/module.f.ts'
+import { map, toArray } from '../../types/list/module.f.mjs'
 import {
     oneEncode,
     type DataRule,

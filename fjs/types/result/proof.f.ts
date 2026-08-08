@@ -1,4 +1,4 @@
-import { error, ok, unwrap, invert, mapOk, type Result } from "./module.f.ts"
+import { error, ok, unwrap, invert, mapOk, type Result } from "./module.f.mjs"
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const example = () => {

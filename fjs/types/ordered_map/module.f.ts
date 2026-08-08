@@ -10,7 +10,7 @@ import { remove as btreeRemove } from '../btree/remove/module.f.ts'
 import { values } from '../btree/module.f.ts'
 import type { Sign } from '../function/compare/module.f.mjs'
 import { cmp } from '../string/module.f.ts'
-import { fold, type List } from '../list/module.f.ts'
+import { fold, type List } from '../list/module.f.mjs'
 import type { Reduce } from '../function/operator/module.f.mjs'
 
 export type Entry<T> = readonly [string, T]
