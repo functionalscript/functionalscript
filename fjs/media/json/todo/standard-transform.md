@@ -22,9 +22,9 @@ The value conversion is intentionally asymmetric:
 
 - extended JSON -> standard JSON removes `bigint`, accepting the normal
   JavaScript-number precision loss where necessary;
-- standard JSON -> extended JSON canonicalizes safe integer-valued numbers back
-  to `bigint` so values such as `[1, 2, 3]` serialize as `[1,2,3]`, not
-  `[1.0,2.0,3.0]`, while larger integer-valued numbers remain `number`.
+- standard JSON -> extended JSON canonicalizes safe whole-valued numbers back to
+  `bigint` so values such as `[1, 2, 3]` serialize as `[1,2,3]`, not
+  `[1.0,2.0,3.0]`, while unsafe integer-valued numbers remain `number`.
 
 ### Proposal
 
@@ -71,10 +71,11 @@ domains, not a reimplementation of `JSON.stringify`:
 1e200     -> 1e200 as number
 ```
 
-Only safe integers are canonicalized to `bigint`. An unsafe integer-valued
-`number` is already an approximate IEEE-754 value and remains a `number`. This
-also avoids changing compact standard serialization such as `1e+200` into a
-hundreds-of-digits decimal bigint literal.
+Only safe integers are promoted to `bigint`. This prevents values such as
+`1e200`, for which `Number.isInteger` is true but `Number.isSafeInteger` is false,
+from expanding into hundreds of decimal bigint digits during serialization.
+Unsafe integer-valued numbers remain `number` and can keep normal floating-point
+serialization, including exponent notation where appropriate.
 
 ### Standard compatibility surface
 
@@ -108,8 +109,8 @@ The standard surface should be treated as compatibility API. Users that want
 more information-preserving behavior should use the extended representation and
 its transformers directly.
 
-The remaining exceptional-number behavior (`NaN`, `Infinity`, `-Infinity`, and
-numeric syntax that overflows a JavaScript `number`) is tracked separately in
+The remaining exceptional-number behavior (`NaN`, `Infinity`, `-Infinity`,
+exponent overflow, and other exact edge rules) is tracked separately in
 [number edge cases](./number-edge-cases.md) so it is verified explicitly instead
 of being chosen accidentally during implementation.
 
@@ -119,8 +120,8 @@ of being chosen accidentally during implementation.
       extended `bigint` leaf with `Number` and otherwise preserves values.
 - [ ] Add `standardToExtended` (name TBD) that recursively converts only
       `Number.isSafeInteger` values to `bigint`, except `-0`.
-- [ ] Keep unsafe integer-valued numbers as `number`; in particular, do not expand
-      values such as `1e200` into large decimal bigint literals.
+- [ ] Keep unsafe integer-valued numbers as `number`, including values such as
+      `1e200`, so they are not expanded to huge decimal bigint literals.
 - [ ] Rebuild arrays and objects immutably in both directions.
 - [ ] Compose the standard JSON parser from extended parse + extended-to-standard
       transform.
@@ -130,10 +131,12 @@ of being chosen accidentally during implementation.
       while keeping `standardToExtended(-0)` information-preserving.
 - [ ] Ensure safe whole-valued standard numbers serialize with ordinary integer
       JSON syntax (`[1,2,3]`, not `[1.0,2.0,3.0]`).
+- [ ] Preserve `number` serialization for unsafe integer-valued values, including
+      exponent notation when that is the normal compact number form.
 - [ ] Add proof coverage comparing the standard surface with native `JSON.*` for
-      numeric compatibility cases, including safe/unsafe integers, `1e200`,
-      fractions, nested arrays/objects, and large bigint precision loss at the
-      extended-to-standard boundary.
+      numeric compatibility cases, plus safe/unsafe integers, fractions, nested
+      arrays/objects, and large bigint precision loss at the extended-to-standard
+      boundary.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
@@ -141,7 +144,8 @@ of being chosen accidentally during implementation.
 - [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — provides
   the intermediate value type and JSON text codec.
 - [JSON numeric edge cases](./number-edge-cases.md) — investigates exceptional
-  JavaScript numbers and exponent overflow before their final policies are fixed.
+  JavaScript numbers and exponent-overflow behavior before their final policies
+  are fixed.
 - [RTTI-aware extended JSON parser](./rtti-parse.md) — another policy layer over
   the same extended JSON representation.
 - [Generic JSON/DJS tree type](../../../djs/todo/663-json-djs-tree-type.md) — if
