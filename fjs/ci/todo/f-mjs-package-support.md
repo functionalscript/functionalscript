@@ -1,7 +1,7 @@
 ## Package support for authored `.mjs`
 
-**Priority:** P1
-**Status:** open
+**Priority:** P2
+**Status:** wip
 
 ### Problem
 
@@ -104,18 +104,29 @@ TypeScript runtime-emission pass. `prepack` then needs only declaration emission
 "prepack": "tsc --noEmit false --emitDeclarationOnly"
 ```
 
+### Progress
+
+The core TypeScript/NPM pipeline support is in place: `tsconfig.json` has
+`allowJs`/`checkJs` enabled, `package.json`'s `prepack` is the exact two-pass
+`tsc` command proposed here, `files` already lists `**/*.mjs`/`**/*.d.mts`
+alongside `**/*.js`/`**/*.d.ts`, and `AGENTS.md` documents the asymmetric
+`.f.ts`/`.f.mjs` dependency policy (see "FunctionalScript dependencies follow
+the asymmetric source rule"). What remains open is the *validation* half:
+no fixture or proof yet exercises the mixed `.ts`+`.mjs` package build,
+the clean-consumer type-check, or the rejected `.mjs`→`.ts` import direction.
+
 ### Tasks
 
 - [ ] Keep `fjs/types/bigint/benchmark.mjs` type-checked with the rest of authored
       JavaScript; removing the benchmark is a separate cleanup and is not a
       prerequisite for this task.
-- [ ] Enable `allowJs` and `checkJs` in the root TypeScript configuration before
+- [x] Enable `allowJs` and `checkJs` in the root TypeScript configuration before
       the first `.ts` / `.f.ts` migration.
-- [ ] Update NPM package rules to include authored `.mjs` and generated `.d.mts`.
+- [x] Update NPM package rules to include authored `.mjs` and generated `.d.mts`.
       Do not add special exclusions merely for non-public authored `.mjs` files.
-- [ ] Replace one-pass package emission with the two ordered `tsc` commands
+- [x] Replace one-pass package emission with the two ordered `tsc` commands
       directly in `prepack`: declarations first, then JavaScript emission.
-- [ ] Do not expose separate `emit:*` package scripts; packaging owns generated
+- [x] Do not expose separate `emit:*` package scripts; packaging owns generated
       outputs.
 - [ ] Keep package/publish jobs on a clean CI checkout; do not add generated
       output tracking or cleanup for artifacts from previous revisions.
@@ -129,7 +140,7 @@ TypeScript runtime-emission pass. `prepack` then needs only declaration emission
       authored `.mjs` fixture.
 - [ ] Verify the CI-built archive contains authored `.mjs`, generated `.js`,
       `.d.ts`, and `.d.mts` in the expected paths during stage 1.
-- [ ] Update `AGENTS.md` to the asymmetric `.f.ts` / `.f.mjs` migration policy.
+- [x] Update `AGENTS.md` to the asymmetric `.f.ts` / `.f.mjs` migration policy.
 - [ ] Add validation/proofs for the allowed TypeScript -> migrated-JavaScript
       direction and rejected migrated-JavaScript -> TypeScript direction.
 

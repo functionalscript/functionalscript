@@ -5,14 +5,12 @@
 
 ### Problem
 
-`fjs/types/nullable/module.f.ts:12-16` writes the null-dispatch guard twice:
+`fjs/types/nullable/module.f.mjs:18-23` writes the null-dispatch guard twice:
 
-```ts
-export const map: <T, R>(f: (value: T) => R) => (value: Nullable<T>) => Nullable<R>
-    = f => value => value === null ? null : f(value)
+```js
+export const map = f => value => value === null ? null : f(value)
 
-export const match: <T, R>(f: (_: T) => R) => (none: () => R) => (_: Nullable<T>) => Nullable<R>
-    = f => none => value => value === null ? none() : f(value)
+export const match = f => none => value => value === null ? none() : f(value)
 ```
 
 `map` is exactly `match` with the `none` branch fixed to `() => null`. This
@@ -25,17 +23,18 @@ combinators.
 
 Derive `map` from `match`:
 
-```ts
-export const map = <T, R>(f: (value: T) => R): (value: Nullable<T>) => Nullable<R> =>
-    match<T, Nullable<R>>(f)(() => null)
+```js
+/**
+ * @type {<T, R>(f: (value: T) => R) => (value: Nullable<T>) => Nullable<R>}
+ */
+export const map = f => match(f)(() => null)
 ```
 
 Typing rider: `match`'s declared return `Nullable<R>` is wider than its
-actual `R` (both branches return `R`); instantiating it at `Nullable<R>` (as
-above) makes the derivation check because `Nullable<Nullable<R>>` collapses
-to `Nullable<R>`. While touching the file, consider tightening `match`'s
-return type to `R` — then `map = match(f)(() => null)` needs no explicit
-instantiation at all.
+actual `R` (both branches return `R`); the `@type` cast on `map` papers over
+the mismatch, same as today's independent casts on `map`/`match`. While
+touching the file, consider tightening `match`'s JSDoc return type to `R`
+so `map`'s cast can drop the extra widening.
 
 ### Tasks
 

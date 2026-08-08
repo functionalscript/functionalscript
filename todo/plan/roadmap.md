@@ -28,11 +28,10 @@
 - `fjs cas mcp` CLI subcommand registered in `fjs/cas/module.f.ts` ✓
 - Remaining: refactor to extract `casMcpStep` for transport-agnostic shape
 
-**Layer 2 — Content encoding**
-- Switch `cas_add` / `cas_get` content from cBase32 to base64 (MCP-idiomatic for binary)
-- Hashes stay as cBase32
-- `fjs/base64/module.f.ts` (`encode`/`decode`) already implemented ✓; only MCP wiring remains
-- Tracked: [i66E-cas-mcp-base64-content](../66E-cas-mcp-base64-content.md)
+**Layer 2 — Content encoding (done)**
+- `cas_add` / `cas_get` content is base64 (MCP-idiomatic for binary), wired in
+  `fjs/mcp/cas/module.f.ts` via `fjs/basen/base64/module.f.ts` (`encode`/`decode`) ✓
+- Hashes stay as cBase32 ✓
 
 **Layer 3 — Type detection (done)**
 - Detection via magic bytes: PNG, JPEG, GIF, WebP, PDF, ZIP → `null` for unrecognized bytes ✓
