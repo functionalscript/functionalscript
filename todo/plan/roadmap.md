@@ -29,10 +29,14 @@
 - Remaining: refactor to extract `casMcpStep` for transport-agnostic shape
 
 **Layer 2 — Content encoding (done)**
-- `cas_add` / `cas_get` content is text for valid UTF-8 and base64
-  (MCP-idiomatic for binary) otherwise — no more cBase32 for content — wired
-  in `fjs/mcp/cas/module.f.ts` via `fjs/basen/base64/module.f.ts`
+- No more cBase32 for content — replaced by text/base64 (MCP-idiomatic for
+  binary), wired in `fjs/mcp/cas/module.f.ts` via `fjs/basen/base64/module.f.ts`
   (`encode`/`decode`) ✓
+- `cas_add`: caller declares the encoding via `type` (`'text'`, the default,
+  or `'base64'`) — decoding follows what the caller says, not autodetection ✓
+- `cas_get`: encoding is chosen by the server — a magic-byte hit or non-UTF-8
+  fallback returns `type: 'base64'`; whole-blob-valid UTF-8 returns
+  `type: 'text'` ✓
 - Hashes stay as cBase32 ✓
 
 **Layer 3 — Type detection (done)**
