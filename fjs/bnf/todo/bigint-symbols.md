@@ -74,19 +74,36 @@ append the reserved EOF value or invent metadata for it. Every parser backend
 instead synthesizes exactly one logical EOF symbol immediately after the last
 physical input symbol.
 
-Terminal matching therefore has three logical positions:
+Keep the public parser position in the physical input domain:
 
 ```text
-idx < input.length   -> match the physical input symbol
-idx == input.length  -> match the synthesized EOF symbol
-idx > input.length   -> no symbol remains
+0 <= idx <= input.length
 ```
 
-Matching EOF consumes that one logical symbol, so it advances the parser past the
-end position and EOF cannot be consumed repeatedly. Indexed parsers can represent
-that post-EOF position as `input.length + 1`; remainder-based parsers need an
-equivalent internal state that distinguishes "at EOF" from "EOF already
-consumed".
+The parser's internal state must separately record whether the synthesized EOF has
+already been consumed. Conceptually:
+
+```text
+idx < input.length
+    -> match the physical input symbol
+idx == input.length && !eofConsumed
+    -> match the synthesized EOF symbol
+idx == input.length && eofConsumed
+    -> no symbol remains
+```
+
+Matching EOF marks that logical symbol as consumed but does **not** expose a
+physical position beyond the input. Indexed parser results such as
+`DescentMatchResult.idx` therefore report `input.length` after a successful EOF
+match, not `input.length + 1`. Remainder-based public results likewise continue to
+report the empty physical remainder. The extra EOF-consumed state is internal to
+the parser and exists only to prevent a second EOF match.
+
+This preserves the meaning of existing public parser positions and callers that
+check complete consumption with `idx === input.length`, including the DJS
+tokenizer. Parser implementations may choose any internal representation for the
+EOF-consumed bit/state, but must normalize public positions and remainders back to
+the physical input domain.
 
 The synthesized EOF has no physical source element and therefore contributes no
 ordinary symbol/metadata leaf to the AST. Diagnostics that reject a terminal at
@@ -209,8 +226,12 @@ boundary, not to BNF parsers.
       including a BNF range starting at `0n`, its internal `-1n` cut point, and
       endpoints above `Number.MAX_SAFE_INTEGER`.
 - [ ] Update every parser/recognizer backend to synthesize exactly one logical EOF
-      after physical input, consume it at most once, and distinguish the post-EOF
-      state without requiring callers to append EOF.
+      after physical input and track whether it has been consumed in internal
+      parser state; do not require callers to append EOF.
+- [ ] Keep public parser positions/remainders in the physical input domain after
+      EOF consumption: indexed results report `input.length`, never
+      `input.length + 1`, and remainder-based results report the empty physical
+      remainder.
 - [ ] Keep synthesized EOF out of ordinary AST metadata leaves; preserve end-of-
       input diagnostics at the physical end position.
 - [ ] Update BNF data, parsers, recognizers, AST/meta inputs, and proofs to consume
@@ -224,7 +245,8 @@ boundary, not to BNF parsers.
 - [ ] Add BNF proof coverage for minimum/maximum ordinary symbols, EOF, singleton
       ranges, general ranges, complements, bigint dispatch-map lookup/merge,
       alphabet-adapter boundaries, explicit EOF on empty/non-empty input, failure
-      before physical end, and the one-time EOF-consumption rule.
+      before physical end, one-time EOF consumption, and public result positions
+      normalized to the physical input length.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
