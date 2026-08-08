@@ -40,8 +40,8 @@ import { genericMerge, type TailReduce, type ReduceOp, type SortedList } from '.
 import { next } from '../list/module.f.ts'
 import type { Nullable } from '../nullable/module.f.mjs'
 import { cmp } from '../number/module.f.ts'
-import { bsearch } from '../function/compare/module.f.ts'
-import type { Reduce, Equal } from '../function/operator/module.f.ts'
+import { bsearch } from '../function/compare/module.f.mjs'
+import type { Reduce, Equal } from '../function/operator/module.f.mjs'
 import type { Range } from '../range/module.f.ts'
 
 export type Entry<T> = [T, number]

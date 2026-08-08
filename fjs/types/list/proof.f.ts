@@ -30,7 +30,7 @@ import {
 } from './module.f.ts'
 import { stringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
-import { addition, strictEqual, reduceToScan } from '../function/operator/module.f.ts'
+import { addition, strictEqual, reduceToScan } from '../function/operator/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 
 const str

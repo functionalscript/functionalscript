@@ -11,7 +11,7 @@
  * @module
  */
 import { type CodePoint } from '../../text/utf16/module.f.ts'
-import { strictEqual } from '../../types/function/operator/module.f.ts'
+import { strictEqual } from '../../types/function/operator/module.f.mjs'
 import { toArray } from '../../types/list/module.f.ts'
 import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
 import { contains, set, type StringSet } from '../../types/string_set/module.f.ts'

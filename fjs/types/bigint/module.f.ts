@@ -17,8 +17,8 @@
  * ```
  */
 
-import { cmp, type Sign } from '../function/compare/module.f.ts'
-import type { Unary as OpUnary, Reduce as OpReduce } from '../function/operator/module.f.ts'
+import { cmp, type Sign } from '../function/compare/module.f.mjs'
+import type { Unary as OpUnary, Reduce as OpReduce } from '../function/operator/module.f.mjs'
 import { type List } from '../list/module.f.ts'
 import { fold } from '../../common/monoid/module.f.ts'
 
