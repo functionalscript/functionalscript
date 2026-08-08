@@ -1,13 +1,13 @@
-## 663-json-djs-tree-type. One generic recursive value shape for `json`/`djs`/serializer
+## 663-json-djs-tree-type. One generic recursive value shape for `json`/`djs`
 
 **Priority:** P4
 **Status:** open
 
 ### Problem
 
-The recursive JSON-like tree container shape is repeated in `fjs/media/json`,
-`fjs/djs`, and the generic JSON serializer. The copies have the same recursive
-object/array structure and differ only in their primitive leaf set.
+The recursive JSON-like tree container shape is repeated in `fjs/media/json` and
+`fjs/djs`. The copies have the same recursive object/array structure and differ
+only in their primitive leaf set.
 
 The shared shape must also model JavaScript object property access honestly. A
 JSON-shaped object may not contain a requested key, so reading an arbitrary key
@@ -60,14 +60,11 @@ export type Object = Tree.Object<Primitive>
 export type Array = Tree.Array<Primitive>
 ```
 
-```ts
-// fjs/media/json/serializer/module.f.ts
-import type * as Tree from '../common/module.f.ts'
-```
-
-The serializer's private recursive aliases can then be replaced by
-`Tree.Unknown<T>` / `Tree.Object<T>` / `Tree.Array<T>`. Its currently unused
-private `Primitive` alias can be removed as part of the same cleanup.
+Do not add consumers merely to justify the generic type. The current JSON
+serializer does not define its own recursive generic value aliases, so there is
+nothing to migrate there. A future parser, serializer, transformer, or other
+module may use `Tree.Unknown<P>` when it actually needs the same recursive
+shape.
 
 This is a type-only change: it should not change runtime representation or
 serialization behavior.
@@ -87,9 +84,6 @@ serialization behavior.
   broader generic types package without another real consumer.
 - Confirm recursive generic aliases work with `tsc` and the repository's Deno
   checks.
-- When migrating the serializer, ensure its leaf type passed to
-  `Tree.Unknown<T>` includes `null` wherever the old serializer representation
-  included `null` outside `T`.
 
 ### Tasks
 
@@ -102,8 +96,6 @@ serialization behavior.
 - [ ] Re-express `fjs/media/json`'s `Unknown` / `Object` / `Array` aliases using
       the shared generic tree while preserving their current public names.
 - [ ] Re-express `fjs/djs`'s aliases using the same shared generic tree.
-- [ ] Replace the serializer's private recursive tree aliases with the shared
-      type and remove its dead private `Primitive` alias.
 - [ ] Preserve existing runtime behavior; this task should remain type-only.
 - [ ] Add the standard module header and handle `deno.json` exports according to
       the repository's current exports-map policy.
@@ -119,5 +111,5 @@ serialization behavior.
 - [197](./197.md) — extracts traversal over the same `Unknown` shape.
 - `fjs/media/json/module.f.ts` — current JSON recursive type aliases.
 - `fjs/djs/module.f.ts` — current DJS recursive type aliases.
-- `fjs/media/json/serializer/module.f.ts` — current private generic recursive
-  shape.
+- `fjs/media/json/serializer/module.f.ts` — currently has no separate recursive
+  generic value aliases and therefore is not part of this migration.
