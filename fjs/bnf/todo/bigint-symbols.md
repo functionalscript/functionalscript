@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [Bigint-aware JSON parse/serialize](../../media/json/todo/bigint-parse-serialize.md)
+**Blocked by:** [Bigint-aware JSON parse/serialize](../../media/json/todo/bigint-parse-serialize.md), [Separate Unicode BNF helpers](./unicode-rules.md)
 
 ### Problem
 
@@ -18,6 +18,10 @@ Changing BNF data from `number` to `bigint` also means the data representation c
 no longer round-trip through native `JSON.parse` / `JSON.stringify`. The bigint-
 precise JSON parse/serialize task provides the JSON-compatible representation this
 change needs.
+
+The generic BNF core should also be separated from Unicode-specific rule
+construction first, so changing the symbol representation does not preserve or
+reinforce the current assumption that BNF symbols are Unicode code points.
 
 ### Proposal
 
@@ -44,8 +48,9 @@ This preserves the current simple range algebra while removing the 24-bit limit.
 Keep the symbol space finite so `fullRange`, `eof`, complements, and range checks
 remain well-defined. `eof` can continue to use the maximal symbol value.
 
-Unicode code points remain ordinary symbol values inside the larger domain; only
-the representation changes from `number` to `bigint` when they enter BNF.
+Unicode code points are one possible symbol alphabet supplied through
+`fjs/bnf/unicode.f.ts`; the generic BNF core itself should not know about Unicode.
+The Unicode adapter converts code points into the new bigint symbol domain.
 Metadata carried alongside symbols is unchanged.
 
 A 256-bit symbol also leaves a natural path for token mappings whose output is a
@@ -56,15 +61,15 @@ the BNF symbol domain and range representation.
 
 - [ ] Introduce a BNF `Symbol` type backed by `bigint` with the 256-bit invariant.
 - [ ] Change `TerminalRange` to a 512-bit packed `bigint` range of two symbols.
-- [ ] Update `fullRange`, `unicodeRange`, `eof`, `rangeEncode`, `rangeDecode`,
-      `oneEncode`, and range/set helpers for bigint symbols.
+- [ ] Update generic `fullRange`, `eof`, `rangeEncode`, `rangeDecode`, `oneEncode`,
+      complement/range helpers, and their callers for bigint symbols.
 - [ ] Update BNF data, parsers, recognizers, AST/meta inputs, and proofs to consume
       bigint symbols.
-- [ ] Convert Unicode code points to bigint only at the BNF boundary; keep text
-      code-point APIs unchanged unless a separate reason requires changing them.
+- [ ] Update `fjs/bnf/unicode.f.ts` so Unicode code points are converted to bigint
+      symbols only at the BNF/Unicode boundary; keep text code-point APIs unchanged.
 - [ ] Verify range complement and ordering semantics over the full 256-bit domain.
-- [ ] Add proof coverage for minimum/maximum symbols, Unicode boundaries, EOF,
-      singleton ranges, general ranges, and complements.
+- [ ] Add proof coverage for minimum/maximum symbols, EOF, singleton ranges,
+      general ranges, complements, and Unicode adapter boundaries.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
@@ -72,6 +77,8 @@ the BNF symbol domain and range representation.
 - [Bigint-aware JSON parse/serialize](../../media/json/todo/bigint-parse-serialize.md)
   — exact JSON-compatible parse/serialize support required by bigint-valued BNF
   data.
+- [Separate Unicode BNF helpers](./unicode-rules.md) — makes the core BNF symbol
+  algebra independent of Unicode before its representation changes.
 - [UTF-8 token symbols](./utf8-token-symbols.md) — replace registered 24-bit token
   IDs with deterministic token-name-derived symbols after this task lands.
 - [Layered parser](./layered-parser.md) — tokenizer output becomes input symbols to
