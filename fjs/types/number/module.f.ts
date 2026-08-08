@@ -5,7 +5,7 @@
  * @module
  */
 import { reduce, type List } from '../list/module.f.ts'
-import { addition } from '../function/operator/module.f.ts'
+import { addition } from '../function/operator/module.f.mjs'
 import { type Sign, cmp as uCmp, min as uMin, max as uMax } from '../function/compare/module.f.mjs'
 import { fold } from '../../common/monoid/module.f.ts'
 

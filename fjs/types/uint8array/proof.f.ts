@@ -1,6 +1,6 @@
 import { maxLength, maxLengthBytes, vec } from '../bit_vec/module.f.ts'
 import { toVec, fromVec, listToVec, decodeUtf8, encodeUtf8 } from './module.f.ts'
-import { strictEqual } from '../function/operator/module.f.ts'
+import { strictEqual } from '../function/operator/module.f.mjs'
 import { equal, fromArrayLike } from '../list/module.f.ts'
 import { assert } from '../../asserts/module.f.mjs'
 
