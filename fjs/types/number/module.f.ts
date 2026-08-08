@@ -7,7 +7,7 @@
 import { reduce, type List } from '../list/module.f.mjs'
 import { addition } from '../function/operator/module.f.mjs'
 import { type Sign, cmp as uCmp, min as uMin, max as uMax } from '../function/compare/module.f.mjs'
-import { fold } from '../../common/monoid/module.f.ts'
+import { fold } from '../../common/monoid/module.f.mjs'
 
 export const sum: (input: List<number>) => number
     = fold({ identity: 0, operation: addition })

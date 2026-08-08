@@ -19,7 +19,7 @@ import { type List, reduce as listReduce, repeat as listRepeat } from '../list/m
 import { compose } from '../function/module.f.mjs'
 import { type Sign, cmp as uCmp } from '../function/compare/module.f.mjs'
 import { join as joinOp, type Reduce } from '../function/operator/module.f.mjs'
-import { fold } from '../../common/monoid/module.f.ts'
+import { fold } from '../../common/monoid/module.f.mjs'
 
 // `join`'s per-separator reduction is seeded at `''` but is *not* a monoid fold:
 // `joinOp(sep)` has no identity (`joinOp(sep)('')(x)` prepends a separator), so

@@ -6,8 +6,9 @@
  *
  * @module
  */
-import type { Fold, Reduce } from '../../types/function/operator/module.f.mjs'
-import { reduce, type List } from '../../types/list/module.f.mjs'
+/** @import { Fold, Reduce } from '../../types/function/operator/module.f.mjs' */
+import { reduce } from '../../types/list/module.f.mjs'
+/** @import { List } from  '../../types/list/module.f.mjs' */
 import { flip } from '../../types/function/module.f.mjs'
 
 /**
@@ -25,43 +26,45 @@ import { flip } from '../../types/function/module.f.mjs'
  * Learn more about monoids: {@link https://en.wikipedia.org/wiki/Monoid}.
  *
  * @template T The type of the elements in the monoid.
+ * @typedef {{
+ *  readonly identity: T
+ *  readonly operation: Reduce<T>
+ * }} Monoid
+ *
+ * @property identity
+ *
+ * The identity (neutral) element for the monoid.
+ * When combined with any value under the `operation`, it leaves the other value unchanged.
+ *
+ * Examples:
+ * - `0` for addition
+ * - `1` for multiplication
+ * - `""` for string concatenation
+ * - `[]` for array concatenation
+ *
+ * Learn more: {@link https://en.wikipedia.org/wiki/Identity_element}
+ *
+ * @property operation
+ *
+ * The associative binary operation of the monoid.
+ * Takes one value of type `T` and returns a function that takes another value of type `T`,
+ * producing a result of type `T`.
+ *
+ * Examples:
+ * - `(a, b) => a + b` for addition
+ * - `(a, b) => a * b` for multiplication
+ * - `(a, b) => a.concat(b)` for arrays or strings
+ *
+ * Learn more: {@link https://en.wikipedia.org/wiki/Binary_operation}
  */
-export type Monoid<T> = {
-    /**
-     * The identity (neutral) element for the monoid.
-     * When combined with any value under the `operation`, it leaves the other value unchanged.
-     *
-     * Examples:
-     * - `0` for addition
-     * - `1` for multiplication
-     * - `""` for string concatenation
-     * - `[]` for array concatenation
-     *
-     * Learn more: {@link https://en.wikipedia.org/wiki/Identity_element}
-     */
-    readonly identity: T
-    /**
-     * The associative binary operation of the monoid.
-     * Takes one value of type `T` and returns a function that takes another value of type `T`,
-     * producing a result of type `T`.
-     *
-     * Examples:
-     * - `(a, b) => a + b` for addition
-     * - `(a, b) => a * b` for multiplication
-     * - `(a, b) => a.concat(b)` for arrays or strings
-     *
-     * Learn more: {@link https://en.wikipedia.org/wiki/Binary_operation}
-     */
-    readonly operation: Reduce<T>
-}
 
 /**
  * Repeats a monoid operation `n` times on the given element `a`.
  * This function efficiently performs the operation using exponentiation by squaring.
  *
  * @template T The type of the elements in the monoid.
- * @param monoid The monoid structure, including the identity and binary operation.
- * @returns A function that takes an element `a` and a repetition count `n`,
+ * @param {Monoid<T>} monoid The monoid structure, including the identity and binary operation.
+ * @returns {Fold<bigint, T>} A function that takes an element `a` and a repetition count `n`,
  * and returns the result of applying the operation `n` times.
  *
  * See also {@link https://en.wikipedia.org/wiki/Exponentiation_by_squaring}.
@@ -84,7 +87,7 @@ export type Monoid<T> = {
  * const resultConcat = repeat(concat)(3n)('ha') // 'hahaha'
  * ```
  */
-export const repeat = <T>({ identity, operation }: Monoid<T>): Fold<bigint, T> => n => a => {
+export const repeat = ({ identity, operation }) => n => a => {
     let ai = a
     let ni = n
     let result = identity
@@ -119,8 +122,8 @@ export const repeat = <T>({ identity, operation }: Monoid<T>): Fold<bigint, T> =
  * element-first, so the operation is `flip`ped before it is handed over.
  *
  * @template T The type of the elements in the monoid.
- * @param monoid The monoid structure, including the identity and binary operation.
- * @returns A function that reduces a `List<T>` to a single `T`.
+ * @param {Monoid<T>} monoid The monoid structure, including the identity and binary operation.
+ * @returns {(list: List<T>) => T} A function that reduces a `List<T>` to a single `T`.
  *
  * @example
  *
@@ -141,5 +144,5 @@ export const repeat = <T>({ identity, operation }: Monoid<T>): Fold<bigint, T> =
  * fold(concat)(['a', 'b', 'c']) // 'abc' — order preserved
  * ```
  */
-export const fold = <T>({ identity, operation }: Monoid<T>): (list: List<T>) => T =>
+export const fold = ({ identity, operation }) =>
     reduce(flip(operation))(identity)
