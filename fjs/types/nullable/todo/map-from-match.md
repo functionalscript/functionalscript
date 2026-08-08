@@ -21,24 +21,42 @@ combinators.
 
 ### Proposal
 
-Derive `map` from `match`:
+`match`'s current JSDoc type ties both branches to one `R`:
+`<T, R>(f: (_: T) => R) => (none: () => R) => (_: Nullable<T>) => Nullable<R>`.
+Deriving `map = f => match(f)(() => null)` against that type does **not**
+type-check: `none: () => R` requires `null` assignable to the generic `R`,
+which fails (TS2322) for an unconstrained `R`, and a `.mjs` call site has no
+JSDoc syntax to explicitly instantiate `match`'s `R` at `Nullable<R>` the way
+a `.ts` cast could.
+
+Tightening `match`'s return type is therefore a **required first step**, not
+an optional cleanup — and it must decouple the two branches, not just narrow
+the existing shared `R`, since `f` and `none` genuinely return different
+types in the derivation (`R` vs. `null`):
 
 ```js
+/**
+ * @type {<T, R1, R2>(f: (_: T) => R1) => (none: () => R2) => (_: Nullable<T>) => R1 | R2}
+ */
+export const match = f => none => value => value === null ? none() : f(value)
+
 /**
  * @type {<T, R>(f: (value: T) => R) => (value: Nullable<T>) => Nullable<R>}
  */
 export const map = f => match(f)(() => null)
 ```
 
-Typing rider: `match`'s declared return `Nullable<R>` is wider than its
-actual `R` (both branches return `R`); the `@type` cast on `map` papers over
-the mismatch, same as today's independent casts on `map`/`match`. While
-touching the file, consider tightening `match`'s JSDoc return type to `R`
-so `map`'s cast can drop the extra widening.
+With `R1`/`R2` inferred independently, `map`'s call site infers `R1 = R`
+(from `f`) and `R2 = null` (from `() => null`), giving `R | null` —
+exactly `Nullable<R>` — with no cast needed. Existing `match` call sites,
+which pass the same type for both branches, still unify `R1 = R2` and are
+unaffected.
 
 ### Tasks
 
-- [ ] Derive `map` from `match`; optionally tighten `match`'s return type.
+- [ ] Generalize `match`'s JSDoc type to independent `R1`/`R2` branch types
+      (required for the derivation to type-check).
+- [ ] Derive `map` from `match`.
 - [ ] `npx tsc`, `fjs t`; nullable proofs pass unchanged.
 
 ### Related
