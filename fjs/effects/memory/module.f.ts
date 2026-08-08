@@ -14,7 +14,7 @@
  */
 
 import type { Phantom } from '../../types/phantom/module.f.ts'
-import { type Nominal, asBase as nominalAsBase, asNominal as nominalAsNominal } from '../../types/nominal/module.f.ts'
+import { type Nominal, asBase as nominalAsBase, asNominal as nominalAsNominal } from '../../types/nominal/module.f.mjs'
 import { do_, type Effect } from '../module.f.ts'
 
 /** Nominal brand version for memory keys. */

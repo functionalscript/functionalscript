@@ -22,7 +22,7 @@ import { secp256r1, type Point2D } from '../../crypto/secp/module.f.ts'
 import { base32, type V8 } from '../../crypto/sha2/module.f.ts'
 import { literal3ToVec } from '../level/literal/module.f.ts'
 import { log2 } from '../../types/bigint/module.f.mjs'
-import { asBase, asNominal, type Nominal } from '../../types/nominal/module.f.ts'
+import { asBase, asNominal, type Nominal } from '../../types/nominal/module.f.mjs'
 
 /** A 256-bit SUL identifier. One of three variants: level-3 literal, raw bit vector, or SHA2 hash. */
 export type Id = Nominal<
