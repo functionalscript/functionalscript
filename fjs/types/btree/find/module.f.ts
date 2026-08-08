@@ -6,14 +6,13 @@
 import type { Leaf1, Leaf2, Branch3, Branch5, TNode } from '../types/module.f.ts'
 import type { List } from '../../list/module.f.ts'
 import { index3, index5, type Compare } from '../../function/compare/module.f.ts'
-import type { KeyOf } from '../../array/module.f.ts'
-import type { Index3, Index5 } from "../../array/module.f.ts";
+import type { KeyOf, Index, Tuple } from "../../array/module.f.mjs";
 
-export type FirstLeaf1<T> = readonly[Index3, Leaf1<T>]
+export type FirstLeaf1<T> = readonly[Index<3>, Leaf1<T>]
 
 export type FirstBranch3<T> = readonly[1, Branch3<T>]
 
-export type FirstLeaf2<T> = readonly[Index5, Leaf2<T>]
+export type FirstLeaf2<T> = readonly[Index<5>, Leaf2<T>]
 
 export type FirstBranch5<T> = readonly[1|3, Branch5<T>]
 

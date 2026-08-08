@@ -37,8 +37,8 @@
  * See `./ts/module.f.ts` for `Ts<T>` and the `*Ts` transformer types.
  */
 import type { Assert } from '../../asserts/module.f.mjs'
-import { includes, type Includes } from '../array/module.f.ts'
-import type { Equal } from '../ts/module.f.ts'
+import { includes, type Includes } from '../array/module.f.mjs'
+import type { Equal } from '../ts/module.f.mjs'
 import type { StringMap } from '../object/module.f.ts'
 
 /** A constant schema: a primitive literal, a struct object, or a tuple. */

@@ -20,6 +20,14 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/array`, `fjs/types/function`,
+  `fjs/types/nullable`, and `fjs/types/option` migrate from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
+  TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier;
+  `fjs/types/array`'s fixed-arity type exports (`Array1`..`Array16`,
+  `Index1`..`Index16`, `Tuple2`, `Tuple3`, `isArray2`) are replaced by the
+  generic `Tuple<N, T>`, `Index<N>`, and `isTuple(n)`
+  [#1454](https://github.com/functionalscript/functionalscript/pull/1454)
 - `ci`: generated workflows invoke the CLI by full command name (`fjs test`,
   `functionalscript@<version> test`) instead of the `t` alias
   [#1450](https://github.com/functionalscript/functionalscript/pull/1450)
