@@ -20,10 +20,10 @@ history.
 
 ## Unreleased
 
-- **BREAKING CHANGES:** `fjs/types/list` and `fjs/types/result` migrate from
-  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
-  stage-1 TypeScript-to-mjs migration — importers must use the `.f.mjs`
-  specifier
+- **BREAKING CHANGES:** `fjs/types/list`, `fjs/types/result`, and
+  `fjs/common/monoid` migrate from authored TypeScript (`.f.ts`) to JSDoc-typed
+  JavaScript (`.f.mjs`) under the stage-1 TypeScript-to-mjs migration —
+  importers must use the `.f.mjs` specifier
   [#1458](https://github.com/functionalscript/functionalscript/pull/1458)
 - **BREAKING CHANGES:** `fjs/types/function/compare` and
   `fjs/types/function/operator` migrate from authored TypeScript (`.f.ts`) to
