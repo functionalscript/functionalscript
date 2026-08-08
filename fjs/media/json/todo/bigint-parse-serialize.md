@@ -79,6 +79,11 @@ transformer canonicalizes ordinary whole-valued JavaScript numbers to `bigint`
 before serialization, so normal standard JSON values still produce `[1,2,3]`
 rather than `[1.0,2.0,3.0]`.
 
+Do not implicitly settle serialization of programmatically-created non-finite
+`number` values here. `NaN`, `Infinity`, `-Infinity`, and their interaction with
+standard compatibility are covered by the separate
+[number edge-case investigation](./number-edge-cases.md).
+
 ### Architecture
 
 Keep this layer policy-free:
@@ -122,6 +127,9 @@ container shape and vary only the primitive leaf type.
 
 ### Related
 
+- [JSON numeric edge cases](./number-edge-cases.md) — investigates exceptional
+  JavaScript number inputs without baking accidental serializer behavior into
+  this design.
 - [Standard JSON transformer](./standard-transform.md) — converts between the
   extended value and the ordinary bigint-free JSON value domain and composes the
   standard parser/stringifier on top of this layer.
