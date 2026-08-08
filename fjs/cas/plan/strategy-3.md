@@ -1,5 +1,15 @@
 # Strategy 3: Merkle Tree
 
+> **API note.** This document predates the current `Cas<O>` API in
+> `fjs/cas/module.f.ts`, which is streaming-only (`read`/`write` over
+> `List<O, IoResult<Vec>>`) and has no `fileKvStore` or whole-blob
+> `write(Vec) => hash` / `read(hash) => Vec` primitive. Below, `write`,
+> `read`, `readFile`, `writeFile`, and `fileKvStore` describe the *shape* of
+> the small-object (`<=maxLengthBytes`, single CAS object) primitive this
+> design needs — not code that exists today. Defining that primitive against
+> the current API is a prerequisite implementation step; see
+> [`fjs/cas/todo/strategy-3-merkle-tree.md`](../todo/strategy-3-merkle-tree.md).
+
 ## Overview
 
 Every object written to CAS is a small file of at most `maxLengthBytes` (128 KiB).
@@ -189,7 +199,7 @@ As a result, the canonical identity of a file in Strategy 3 is the **Strategy 3
 Merkle root** — the hash of the root reference node in Strategy 3's encoding — not
 the native SUL root `Id`. These are different values for the same content.
 
-See [`fjs/sul/README.md`](../../fjs/sul/README.md) for the encoding and streaming API.
+See [`fjs/sul/README.md`](../../sul/README.md) for the encoding and streaming API.
 
 ## Trade-offs
 

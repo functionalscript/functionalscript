@@ -115,7 +115,7 @@ const stageRel = '_stage'
 /**
  * Lease duration in ms: a staging file's deadline is `now() + leaseDelta`.
  * Renewed after every chunk, so it only has to cover the gap between two
- * consecutive chunks (see [staging-lease.md](../../issues/cas/staging-lease.md)).
+ * consecutive chunks (see [staging-lease.md](./plan/staging-lease.md)).
  */
 const leaseDelta = 30_000
 
@@ -187,7 +187,7 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                     .value
             return loop(0)
         },
-        // Lock-free staging upload (issues/cas/staging-lease.md): stream each chunk straight
+        // Lock-free staging upload (plan/staging-lease.md): stream each chunk straight
         // to a `_stage/<deadline>-<rand>` file via `writeBytes` while folding it into the
         // running SHA-2 state — the payload never lives in memory as a whole. The lease is
         // renewed (rename to a fresh deadline) after every chunk; any error deletes the
