@@ -1,5 +1,5 @@
 import type { Assert } from '../../asserts/module.f.mjs'
-import { printer, primitive, union, type Equal } from './module.f.ts'
+import { printer, primitive, union, type Equal } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 const ro = printer()

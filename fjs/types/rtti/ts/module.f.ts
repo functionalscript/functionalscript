@@ -7,7 +7,7 @@
  * The runtime `toTs` function mirrors `Ts<T>` at value level, returning a TypeScript
  * type expression string for a given RTTI schema.
  */
-import { type Equal, primitive, union, printer as tsPrinter } from '../../ts/module.f.ts'
+import { type Equal, primitive, union, printer as tsPrinter } from '../../ts/module.f.mjs'
 import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, ConstObject } from '../module.f.ts'
 import type { Assert } from '../../../asserts/module.f.mjs'
 import type { phantomKey } from '../../phantom/module.f.ts'
