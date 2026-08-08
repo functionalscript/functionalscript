@@ -78,13 +78,17 @@ This split changes the public design assumptions used by older open TODOs:
 - [`fjs/bnf/todo/207.md`](./207.md) is conceptually blocked until its planned
   split/revision removes `string` as a generic rule kind. Unicode text helpers are
   constructors of ordinary generic rules rather than a distinct generic rule kind.
+- [`fjs/bnf/todo/recognizer-backend.md`](./recognizer-backend.md) is blocked by
+  this task. It previously assigned byte/hex/byte-range helper creation to the
+  recognizer work; those helpers now belong exclusively to `fjs/bnf/byte`, and
+  recognizer/DFA backends consume the generic rules produced by that adapter.
 - [`fjs/bnf/todo/data-tosequence-reuse.md`](./data-tosequence-reuse.md) is
-  **superseded by this task**. It proposed preserving `bnf/data`'s string case and
-  reusing core `toSequence`; this task removes that string case and moves
-  `toSequence` to the Unicode adapter instead, so there is no duplicate generic
-  string-expansion implementation left to reuse.
+  **irrelevant because it is superseded by this task**. It proposed preserving
+  `bnf/data`'s string case and reusing core `toSequence`; this task removes that
+  string case and moves `toSequence` to the Unicode adapter instead, so there is
+  no duplicate generic string-expansion implementation left to reuse.
 
-Do not implement these older designs against the pre-split API. The superseded
+Do not implement these older designs against the pre-split API. The irrelevant
 `data-tosequence-reuse.md` should not be implemented at all; when the other TODOs
 are next revised/split, update their status/dependency headers and examples to the
 new module boundary before implementation starts.
@@ -111,8 +115,11 @@ new module boundary before implementation starts.
 - [ ] Update `fjs/bnf/todo/207.md` when it is split/revised so `string` is no
       longer described as a generic rule kind; Unicode text constructors lower to
       ordinary generic rules before semantic evaluation.
-- [ ] Keep `fjs/bnf/todo/data-tosequence-reuse.md` superseded; do not implement
-      its old generic-string reuse proposal.
+- [ ] Keep `fjs/bnf/todo/recognizer-backend.md` blocked on this split and have it
+      consume byte helpers from `fjs/bnf/byte/module.f.ts` rather than defining
+      another binary-helper family.
+- [ ] Keep `fjs/bnf/todo/data-tosequence-reuse.md` irrelevant/superseded; do not
+      implement its old generic-string reuse proposal.
 - [ ] Add byte helper proofs for byte boundaries and representative binary
       sequences/ranges.
 - [ ] Move/add proof coverage so generic BNF proofs exercise abstract symbols and
@@ -133,8 +140,11 @@ new module boundary before implementation starts.
   blocked on this split and must target `bnf/unicode` for text terminals.
 - [BNF semantic actions](./207.md) — blocked conceptually on this split; its rule
   model must remove generic `string` before implementation.
-- [Reuse `toSequence` in BNF data](./data-tosequence-reuse.md) — superseded by
-  this split because generic BNF data no longer performs Unicode string expansion.
+- [Recognizer backend](./recognizer-backend.md) — blocked on this split and must
+  consume `bnf/byte` helpers instead of owning a duplicate binary authoring API.
+- [Reuse `toSequence` in BNF data](./data-tosequence-reuse.md) — irrelevant because
+  it is superseded by this split; generic BNF data no longer performs Unicode
+  string expansion.
 - [`fjs/bnf/module.f.ts`](../module.f.ts) — currently mixes generic and Unicode
   rule construction.
 - [`fjs/bnf/data/module.f.ts`](../data/module.f.ts) — currently expands string
