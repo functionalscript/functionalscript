@@ -29,20 +29,36 @@ identities that depend only on the name itself and can be shared independently b
 tokenizer and parser.
 
 A UTF-8 `Vec` is signed and length-bearing; its bigint representation must not be
-used directly as a BNF symbol. Add the inverse of `fromSentinel` to
+used directly as a BNF symbol. Add a fallible positive-sentinel conversion to
 `fjs/types/bit_vec`, conceptually:
 
 ```ts
-const toSentinel = (v: Vec): bigint => {
+const tryToSentinel = (v: Vec): Nullable<bigint> => {
     const { length, uint } = unpack(v)
+    if (length >= maxLength) { return null }
     return (1n << length) | uint
 }
 ```
 
-For a successfully encoded UTF-8 vector, the candidate is exactly:
+The sentinel form needs one more bit than the vector itself. `Vec` may legally
+have exactly `maxLength` bits, but the corresponding positive sentinel value would
+need `maxLength + 1` bits. Bun cannot represent that value and may throw while
+evaluating `1n << maxLength`. Therefore sentinel conversion itself is fallible;
+it must reject the exact `maxLength` vector before performing the unsupported
+shift. This is an exact representability boundary of the `Vec -> bigint`
+conversion, not a source-size estimate.
+
+For vectors whose sentinel form is representable, `tryToSentinel` is the natural
+inverse representation of `fromSentinel`: it preserves both logical length and
+unsigned data. If a throwing convenience `toSentinel` is useful elsewhere, it may
+be implemented as an unwrap of `tryToSentinel`, but bounded/fallible callers such
+as token-symbol mapping must use the `try*` form directly.
+
+For a successfully encoded UTF-8 vector and sentinel conversion, the candidate is
+exactly:
 
 ```text
-encoded = toSentinel(vec)
+encoded = tryToSentinel(vec)
 ```
 
 The highest `1` bit is an explicit length sentinel, so the mapping preserves
@@ -58,27 +74,30 @@ failure through the complete encoding pipeline:
 const tryTokenSymbol = (name: string): Nullable<Symbol> => {
     const vec = tryUtf8(name)
     if (vec === null) { return null }
-    const encoded = toSentinel(vec)
+    const encoded = tryToSentinel(vec)
+    if (encoded === null) { return null }
     return encoded < eofSymbol ? encoded : null
 }
 ```
 
 Use `tryUtf8`, not the throwing `utf8` wrapper: a token name may exceed the
-bit-vector representation before a BNF-domain candidate can be produced. The
-`tryTokenSymbol` contract must return `null` for that case as well as for a
-candidate outside the ordinary BNF symbol domain.
+bit-vector representation before a BNF-domain candidate can be produced. Then
+propagate `tryToSentinel` failure as well: a UTF-8 value at the exact bit-vector
+limit is a valid `Vec`, but its positive sentinel form is not representable on all
+supported runtimes. The `tryTokenSymbol` contract must return `null` for both
+cases, as well as for a candidate outside the ordinary BNF symbol domain.
 
 `eofSymbol` is the maximal 256-bit value reserved by BNF. Thus a successful
 direct mapping is always an ordinary BNF symbol and can never collide with EOF.
-The validation is against the actual encoded candidate, not against an estimated
-or precomputed source size.
+The final validation is against the actual encoded candidate, not against an
+estimated or precomputed source size.
 
 For the current UTF-8 sentinel encoding, the 31-byte boundary remains a useful
 derived property rather than a preflight rule: byte-aligned names up to 31 UTF-8
 bytes produce values below the ordinary-symbol limit, while a 32-byte name puts
-the sentinel at bit 256 and therefore returns `null`. Proofs should cover that
-boundary, but implementation should branch on the actual `tryUtf8` / encoded
-results.
+the sentinel at bit 256 and therefore returns `null` at the BNF-domain check.
+Proofs should cover that boundary, but implementation should branch on the actual
+`tryUtf8`, `tryToSentinel`, and symbol-domain results.
 
 Do not make UTF-8 the only possible token mapping. The BNF layer should only care
 about the resulting 256-bit `Symbol`; callers may use another deterministic
@@ -105,15 +124,23 @@ not introduce a special EOF representation in BNF parsers.
 
 ### Tasks
 
-- [ ] Add `toSentinel` to `fjs/types/bit_vec` as the inverse representation of
-      `fromSentinel`, with proofs that preserve logical length and unsigned data.
+- [ ] Add `tryToSentinel(v): Nullable<bigint>` to `fjs/types/bit_vec` as the
+      fallible positive-sentinel representation corresponding to `fromSentinel`.
+- [ ] Make `tryToSentinel` return `null` when the vector has exactly `maxLength`
+      bits, because the sentinel form requires `maxLength + 1` bits and must not
+      evaluate the unsupported Bun shift.
+- [ ] Add proofs that `tryToSentinel` preserves logical length/unsigned data for
+      representable vectors, round-trips with `fromSentinel` on its representable
+      domain, and returns `null` without throwing for an exact-`maxLength` vector.
+- [ ] If a throwing `toSentinel` convenience is added, implement it only as an
+      unwrap of `tryToSentinel`; fallible encoding paths must not call it.
 - [ ] Add a fallible `tryTokenSymbol(name): Nullable<Symbol>` (name may follow
       local naming conventions) that calls `tryUtf8(name)`, propagates `null`,
-      computes `toSentinel(vec)` only for a successful vector, and validates the
+      calls `tryToSentinel(vec)`, propagates `null` again, and validates the
       produced value against the ordinary BNF symbol domain.
-- [ ] Return `null` when UTF-8/bit-vector encoding fails or when the encoded
-      candidate is outside the ordinary symbol domain/reserved EOF; do not use a
-      UTF-8 length preflight check.
+- [ ] Return `null` when UTF-8/bit-vector encoding fails, sentinel conversion
+      fails, or the encoded candidate is outside the ordinary symbol domain /
+      reserved EOF; do not use a UTF-8 length preflight check.
 - [ ] Prove injectivity for every successful direct encoding, including
       preservation of leading zero bytes/bits.
 - [ ] Prove the derived current boundary: 31-byte UTF-8 names succeed and 32-byte
@@ -132,8 +159,9 @@ not introduce a special EOF representation in BNF parsers.
       instead of registered numeric IDs where useful.
 - [ ] Add proof coverage for empty names, punctuation, keywords, embedded NUL /
       leading-zero bytes, multi-byte UTF-8 names, the 31/32-byte boundary,
-      bit-vector overflow, BNF-domain overflow, determinism, EOF non-collision,
-      and rejection of colliding alternative mappings.
+      exact `bit_vec.maxLength`, bit-vector overflow, sentinel overflow,
+      BNF-domain overflow, determinism, EOF non-collision, and rejection of
+      colliding alternative mappings.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
@@ -147,4 +175,7 @@ not introduce a special EOF representation in BNF parsers.
 - [`fjs/text/module.f.ts`](../../text/module.f.ts) — existing `tryUtf8` helper and
   throwing `utf8` wrapper.
 - [`fjs/types/bit_vec/module.f.ts`](../../types/bit_vec/module.f.ts) — signed
-  length-bearing `Vec`, `unpack`, and existing `fromSentinel` representation.
+  length-bearing `Vec`, `maxLength`, `unpack`, and existing `fromSentinel`
+  representation.
+- [`fjs/types/bigint/module.f.ts`](../../types/bigint/module.f.ts) — defines the
+  cross-runtime bigint `maxLength` and documents Bun's exact-limit behavior.
