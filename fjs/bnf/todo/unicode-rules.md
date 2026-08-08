@@ -28,13 +28,13 @@ Split alphabet-specific rule construction from the generic BNF module:
 - `fjs/bnf/module.f.ts` defines generic symbols/ranges, rule types, and grammar
   combinators. It has no dependency on text/Unicode or byte-stream modules and
   does not give JavaScript `string` or byte-container values terminal meaning.
-- `fjs/bnf/unicode.f.ts` contains helpers for constructing generic BNF rules from
-  Unicode code points and JavaScript strings.
-- `fjs/bnf/byte.f.ts` contains helpers for constructing generic BNF rules over
-  binary byte streams, including the byte range `0..255` and convenient byte
-  sequence/set/range construction where useful.
+- `fjs/bnf/unicode/module.f.ts` contains helpers for constructing generic BNF
+  rules from Unicode code points and JavaScript strings.
+- `fjs/bnf/byte/module.f.ts` contains helpers for constructing generic BNF rules
+  over binary byte streams, including the byte range `0..255` and convenient
+  byte sequence/set/range construction where useful.
 
-Move Unicode-specific APIs such as these to `unicode.f.ts`:
+Move Unicode-specific APIs such as these to `fjs/bnf/unicode/module.f.ts`:
 
 - `unicodeRange`
 - `unicodeMax`
@@ -45,8 +45,9 @@ Move Unicode-specific APIs such as these to `unicode.f.ts`:
 - `notSet`
 
 The exact list should follow the semantic boundary: if an API needs to interpret
-text as Unicode code points, it belongs in `unicode.f.ts`. Likewise, helpers that
-interpret binary data as byte symbols belong in `byte.f.ts` rather than core BNF.
+text as Unicode code points, it belongs in `fjs/bnf/unicode`. Likewise, helpers
+that interpret binary data as byte symbols belong in `fjs/bnf/byte` rather than
+core BNF.
 
 Remove `string` from the generic `DataRule` / `Rule` representation. Unicode
 helpers should translate strings into ordinary generic rules before the grammar
@@ -56,7 +57,7 @@ reaches `fjs/bnf/data`, so `fjs/bnf/data/module.f.ts` no longer imports
 Keep generic combinators generic. If an existing combinator currently embeds
 Unicode syntax in its API (for example `commaJoin0Plus` accepting `'[]'` and
 constructing `','` as a string rule), change its core form to accept rules or
-symbols. A Unicode convenience wrapper may live in `unicode.f.ts` if useful.
+symbols. A Unicode convenience wrapper may live in `fjs/bnf/unicode` if useful.
 
 EOF remains a generic BNF symbol convention rather than an alphabet-specific
 helper. The bigint-symbol task reserves the maximal 256-bit symbol value for EOF,
@@ -68,8 +69,8 @@ symbol alphabet without importing or depending on Unicode or byte-stream support
 
 ### Tasks
 
-- [ ] Add `fjs/bnf/unicode.f.ts` for Unicode code-point rule helpers.
-- [ ] Add `fjs/bnf/byte.f.ts` for binary byte-stream rule helpers.
+- [ ] Add `fjs/bnf/unicode/module.f.ts` for Unicode code-point rule helpers.
+- [ ] Add `fjs/bnf/byte/module.f.ts` for binary byte-stream rule helpers.
 - [ ] Move Unicode constants and string/code-point helper functions out of
       `fjs/bnf/module.f.ts`.
 - [ ] Remove Unicode/text imports from `fjs/bnf/module.f.ts`.
@@ -78,7 +79,8 @@ symbol alphabet without importing or depending on Unicode or byte-stream support
 - [ ] Remove `string` as a generic BNF `DataRule` / `Rule` case.
 - [ ] Remove Unicode string expansion from `fjs/bnf/data/module.f.ts`.
 - [ ] Make any core combinators that currently embed string/Unicode syntax
-      alphabet-agnostic; keep optional Unicode conveniences in `unicode.f.ts`.
+      alphabet-agnostic; keep optional Unicode conveniences in
+      `fjs/bnf/unicode/module.f.ts`.
 - [ ] Update grammars and imports to construct text terminals through the Unicode
       helpers instead of relying on raw strings as generic rules.
 - [ ] Add byte helper proofs for byte boundaries and representative binary
