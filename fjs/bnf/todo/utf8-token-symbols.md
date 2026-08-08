@@ -39,24 +39,38 @@ const toSentinel = (v: Vec): bigint => {
 }
 ```
 
-Then define the direct token mapping exactly as:
+The encoded candidate is therefore exactly:
 
 ```text
-tokenSymbol(name) = toSentinel(utf8(name))
+encoded = toSentinel(utf8(name))
 ```
 
 The highest `1` bit is an explicit length sentinel, so the mapping preserves
 leading zero bits and is injective. For example, `"A"` and `"\0A"` have the same
 unsigned payload prefix only if length is ignored; their sentinel positions differ,
-so their symbols remain distinct.
+so their encoded values remain distinct.
 
-Because UTF-8 vectors are byte-aligned, a 256-bit `Symbol` can directly encode at
-most 31 UTF-8 bytes: 31 bytes use 248 data bits plus one sentinel bit (249 bits),
-while 32 bytes require a sentinel at bit 256 and therefore 257 bits. Reject names
-whose UTF-8 encoding exceeds 31 bytes instead of truncating them.
+Do not precompute the UTF-8 length to predict whether the candidate fits the BNF
+symbol domain. Follow the repository's bounded-encoding convention: perform the
+real encoding, validate the produced value, and expose a fallible `try*` API:
 
-The direct encoding cannot collide with EOF. Its largest result is below `2^249`,
-while BNF reserves `2^256 - 1` for EOF.
+```ts
+const tryTokenSymbol = (name: string): Nullable<Symbol> => {
+    const encoded = toSentinel(utf8(name))
+    return encoded < eofSymbol ? encoded : null
+}
+```
+
+`eofSymbol` is the maximal 256-bit value reserved by BNF. Thus a successful
+mapping is always an ordinary BNF symbol and can never collide with EOF. The
+validation is against the actual encoded candidate, not against an estimated or
+precomputed source size.
+
+For the current UTF-8 sentinel encoding, the 31-byte boundary remains a useful
+derived property rather than a preflight rule: byte-aligned names up to 31 UTF-8
+bytes produce values below the ordinary-symbol limit, while a 32-byte name puts
+the sentinel at bit 256 and therefore returns `null`. Proofs should cover that
+boundary, but implementation should branch on the encoded result.
 
 Do not make UTF-8 the only possible token mapping. The BNF layer should only care
 about the resulting 256-bit `Symbol`; callers may use another deterministic
@@ -76,21 +90,26 @@ special EOF representation in BNF parsers.
 
 - [ ] Add `toSentinel` to `fjs/types/bit_vec` as the inverse representation of
       `fromSentinel`, with proofs that preserve logical length and unsigned data.
-- [ ] Implement `tokenSymbol(name) = toSentinel(utf8(name))` for names whose UTF-8
-      encoding is at most 31 bytes.
-- [ ] Reject token names longer than 31 UTF-8 bytes.
-- [ ] Prove injectivity for the supported direct encoding, including preservation
-      of leading zero bytes/bits.
+- [ ] Add a fallible `tryTokenSymbol(name): Nullable<Symbol>` (name may follow
+      local naming conventions) that computes `toSentinel(utf8(name))` first and
+      then validates the produced value against the ordinary BNF symbol domain.
+- [ ] Return `null` when the encoded candidate is outside the ordinary symbol
+      domain or equals/reserves EOF; do not use a UTF-8 length preflight check.
+- [ ] Prove injectivity for every successful direct encoding, including
+      preservation of leading zero bytes/bits.
+- [ ] Prove the derived current boundary: 31-byte UTF-8 names succeed and 32-byte
+      names return `null`, while keeping the implementation result-driven.
 - [ ] Keep the mapping API independent from BNF internals so alternative mappings,
       including cryptographic hashes, can produce the same `Symbol` type.
 - [ ] Reserve `2^256 - 1` for EOF in every token-symbol mapping.
-- [ ] Replace callers of `fjs/bnf/token_symbol` with the UTF-8 mapping.
+- [ ] Replace callers of `fjs/bnf/token_symbol` with the UTF-8 mapping and handle
+      the nullable result explicitly.
 - [ ] Remove `fjs/bnf/token_symbol` after all callers migrate.
 - [ ] Update layered-parser examples/documentation to use descriptive token names
       instead of registered numeric IDs where useful.
 - [ ] Add proof coverage for empty names, punctuation, keywords, embedded NUL /
-      leading-zero bytes, multi-byte UTF-8 names, 31-byte names, 32-byte rejection,
-      determinism, and EOF non-collision.
+      leading-zero bytes, multi-byte UTF-8 names, the 31/32-byte boundary,
+      overflow, determinism, and EOF non-collision.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
