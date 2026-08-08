@@ -95,30 +95,51 @@ natural output can reach it must reject or remap it at their boundary.
 
 #### Bigint range infrastructure
 
-Do not widen the shared `fjs/types/range` and `fjs/types/range_map` APIs as part of
-this task. They currently model `number` boundaries, and `range_map` also depends
-on number-specific comparison/arithmetic. Making those utilities boundary-generic
-would expand this BNF migration into an unrelated shared-types redesign.
+BNF terminal containment can compare decoded bigint endpoints directly, but the
+LL(1) backend also needs the existing range-map merge/lookup algorithm. Do not
+copy that algorithm into a BNF-local module. Instead, parameterize the existing
+`fjs/types/range_map` implementation by its ordered boundary type so both number
+and bigint users share the same splitting, ordering, and merge invariants.
 
-Keep the bigint boundary logic local to BNF instead:
+The range-map algorithm currently has only two boundary-specific operations:
 
-- generic BNF terminal containment should compare decoded `Symbol` endpoints
-  directly (`start <= symbol && symbol <= end`) rather than calling the
-  number-only `fjs/types/range.contains`;
-- add a small BNF-local bigint range-map helper for parser backends that need
-  dispatch by symbol, for example `fjs/bnf/symbol_range_map/module.f.ts`;
-- that helper uses `bigint` boundaries/lookup values throughout and provides only
-  the operations BNF currently needs from `range_map` (`fromRange`, `merge`, and
-  `get` or equivalent);
-- update LL(1) dispatch construction/lookup to use the BNF-local bigint helper;
-  other parser/recognizer backends should use direct bigint comparisons where a
-  full range map is unnecessary.
+- comparison/order, used by merge and lookup;
+- predecessor, currently written as `a - 1` by `fromRange`.
 
-The BNF-local helper may mirror the current inclusive-upper-bound representation,
-but its arithmetic must be bigint arithmetic (for example `a - 1n`, never number
-conversion). No BNF symbol/range endpoint should be converted to `number` merely
-to reuse an existing utility. If a later task finds broader demand for generic
-ordered-boundary range maps, the shared utility can be generalized separately.
+Factor those into boundary properties, conceptually:
+
+```ts
+type BoundaryOps<B> = {
+    readonly compare: Compare<B>
+    readonly previous: (value: B) => B
+}
+```
+
+Then make the core range-map entries/ranges generic over `B`, and route **all**
+boundary ordering and predecessor arithmetic through those operations. The exact
+factory/type names should follow local conventions, but the architecture should
+be equivalent to:
+
+```ts
+rangeMapBy(boundaryOps)(valueOps)
+```
+
+Preserve the existing number-oriented `rangeMap(valueOps)` API as a thin
+instantiation/wrapper using number comparison and `value => value - 1`, so current
+callers do not need an unrelated migration. Add a bigint boundary instantiation
+using bigint comparison and `value => value - 1n`; LL(1) should use that shared
+implementation for `Symbol` boundaries.
+
+The parameterized core should accept a generic inclusive boundary pair
+`readonly [B, B]` rather than depending internally on the existing number-only
+`fjs/types/range.Range`. The current public number wrapper can continue to accept
+that existing `Range` type. This keeps `fjs/types/range` itself number-specific
+while avoiding duplication in `range_map`.
+
+Generic BNF terminal containment does not need a range map and should simply use
+bigint endpoint comparisons (`start <= symbol && symbol <= end`) rather than the
+number-only `fjs/types/range.contains`. No BNF symbol/range endpoint should ever be
+converted to `number` merely to reuse an existing utility.
 
 Unicode code points and bytes are possible symbol alphabets supplied through
 alphabet-specific helpers; the generic BNF core itself should know neither
@@ -142,12 +163,19 @@ boundary, not to BNF parsers.
       helpers, and their callers for bigint symbols.
 - [ ] Replace BNF use of number-only `fjs/types/range.contains` with direct
       `Symbol` endpoint comparison; do not convert bigint endpoints to `number`.
-- [ ] Add a BNF-local bigint symbol range-map helper (for example
-      `fjs/bnf/symbol_range_map/module.f.ts`) with the minimal operations needed
-      by parser dispatch, and migrate LL(1) away from number-boundary
-      `fjs/types/range_map`.
-- [ ] Keep `fjs/types/range` / `fjs/types/range_map` number-specific in this task;
-      any later generic ordered-boundary abstraction is separate work.
+- [ ] Parameterize the core `fjs/types/range_map` algorithm by boundary type and
+      explicit comparison/predecessor operations; make entry/range boundaries and
+      lookup values generic over that boundary type.
+- [ ] Preserve the current number `rangeMap(...)` API as a thin instantiation of
+      the generic core so existing number callers keep their current behavior.
+- [ ] Add/use a bigint boundary instantiation of the same shared range-map
+      algorithm and migrate BNF LL(1) dispatch construction/lookup to it.
+- [ ] Keep `fjs/types/range` itself number-specific; the parameterized range-map
+      core may use a generic internal `readonly [B, B]` boundary pair while the
+      number wrapper continues accepting `Range`.
+- [ ] Add shared `range_map` proofs showing that the generic implementation
+      preserves existing number behavior and works with bigint boundaries,
+      including endpoints above `Number.MAX_SAFE_INTEGER`.
 - [ ] Update every parser/recognizer backend to synthesize exactly one logical EOF
       after physical input, consume it at most once, and distinguish the post-EOF
       state without requiring callers to append EOF.
@@ -158,10 +186,10 @@ boundary, not to BNF parsers.
 - [ ] Update alphabet-specific helpers so their input values are converted to
       bigint ordinary symbols only at their BNF boundary and never emit reserved
       EOF; keep source-domain APIs unchanged.
-- [ ] Verify range complement, containment, range-map merge/lookup, and ordering
-      semantics over the 256-bit domain, including the boundary immediately below
-      EOF and ranges whose endpoints exceed `Number.MAX_SAFE_INTEGER`.
-- [ ] Add proof coverage for minimum/maximum ordinary symbols, EOF, singleton
+- [ ] Verify range complement, containment, shared range-map merge/lookup, and
+      ordering semantics over the 256-bit domain, including the boundary
+      immediately below EOF.
+- [ ] Add BNF proof coverage for minimum/maximum ordinary symbols, EOF, singleton
       ranges, general ranges, complements, bigint dispatch-map lookup/merge,
       alphabet-adapter boundaries, explicit EOF on empty/non-empty input, failure
       before physical end, and the one-time EOF-consumption rule.
@@ -181,7 +209,7 @@ boundary, not to BNF parsers.
   the next BNF layer.
 - [`fjs/bnf/module.f.ts`](../module.f.ts) — current 24-bit symbol/range encoding.
 - [`fjs/types/range/module.f.ts`](../../types/range/module.f.ts) — remains the
-  existing number-boundary helper; BNF bigint containment should not depend on it.
-- [`fjs/types/range_map/module.f.ts`](../../types/range_map/module.f.ts) — remains
-  number-boundary infrastructure; LL(1) should migrate to the BNF-local bigint
-  range map for this task.
+  existing number-boundary helper used by current number callers.
+- [`fjs/types/range_map/module.f.ts`](../../types/range_map/module.f.ts) — shared
+  range-map algorithm to parameterize for number and bigint boundaries instead of
+  duplicating it in BNF.
