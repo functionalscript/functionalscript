@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [Bigint-aware JSON parse/serialize](../../media/json/todo/bigint-parse-serialize.md), [Separate alphabet-specific BNF helpers](./unicode-rules.md)
+**Blocked by:** [Bigint-aware JSON parse/serialize](../../media/json/todo/bigint-parse-serialize.md), [Separate alphabet-specific BNF helpers](./unicode-rules.md), [Investigate TerminalRange representation](./terminal-range-representation.md)
 
 ### Problem
 
@@ -22,6 +22,11 @@ change needs.
 The generic BNF core should also be separated from alphabet-specific rule
 construction first, so changing the symbol representation does not preserve or
 reinforce the current assumption that BNF symbols are Unicode code points.
+
+The current terminal-range encoding also depends on the 24-bit symbol width. A
+naive uint256 version would shift the first endpoint by 256 bits, making even
+small ranges serialize as very large integers. The representation of
+`TerminalRange` therefore needs a separate design decision before this migration.
 
 ### Proposal
 
@@ -49,17 +54,18 @@ representation throughout the parser stack: scanners, parsers, recognizers,
 serialized BNF data, and range operations do not need a second EOF case in their
 APIs.
 
-Keep terminal ranges fixed-width as well. Pack the inclusive start/end symbols
-into one 512-bit `bigint`:
+Do **not** decide the `TerminalRange` representation in this task. Resolve
+[Investigate TerminalRange representation](./terminal-range-representation.md)
+first. The investigation includes fixed-width bigint packing, bit-interleaved
+bigint packing, other variable-width bigint encodings, and structural
+representations. If the chosen representation is not a primitive bigint, the BNF
+rule/data format may need a broader redesign so terminal ranges remain
+unambiguous from sequences and variants.
 
-```text
-TerminalRange = (start << 256) | end
-```
-
-Define `fullRange` over ordinary input symbols only, `0 .. EOF - 1`, while `eof`
-is the singleton range `EOF .. EOF`. Complements over ordinary symbols therefore
-do not include EOF, while grammars can still refer to EOF with the same
-`TerminalRange` representation as every other terminal.
+Regardless of the chosen representation, define `fullRange` over ordinary input
+symbols only, `0 .. EOF - 1`, while `eof` represents the singleton `EOF .. EOF`.
+Complements over ordinary symbols therefore do not include EOF, while grammars can
+still refer to EOF through the normal terminal-range abstraction.
 
 #### EOF in parser input
 
@@ -86,7 +92,7 @@ The synthesized EOF has no physical source element and therefore contributes no
 ordinary symbol/metadata leaf to the AST. Diagnostics that reject a terminal at
 EOF still point at the physical end position (`input.length`). This avoids
 requiring a generic metadata type `T` to manufacture EOF metadata while keeping
-EOF itself in the same `Symbol` / `TerminalRange` representation as every other
+EOF itself in the same `Symbol` / terminal-range abstraction as every other
 terminal.
 
 This is parser end-of-stream semantics, not a second EOF type. Alphabet adapters
@@ -137,9 +143,9 @@ that existing `Range` type. This keeps `fjs/types/range` itself number-specific
 while avoiding duplication in `range_map`.
 
 Generic BNF terminal containment does not need a range map and should simply use
-bigint endpoint comparisons (`start <= symbol && symbol <= end`) rather than the
-number-only `fjs/types/range.contains`. No BNF symbol/range endpoint should ever be
-converted to `number` merely to reuse an existing utility.
+bigint endpoint comparisons (`start <= symbol && symbol <= end`) after obtaining
+the endpoints from the chosen `TerminalRange` representation. No BNF symbol/range
+endpoint should ever be converted to `number` merely to reuse an existing utility.
 
 Unicode code points and bytes are possible symbol alphabets supplied through
 alphabet-specific helpers; the generic BNF core itself should know neither
@@ -156,11 +162,13 @@ boundary, not to BNF parsers.
 
 - [ ] Introduce a BNF `Symbol` type backed by `bigint` with the 256-bit invariant.
 - [ ] Reserve `2^256 - 1` as EOF; ordinary symbols are smaller values.
-- [ ] Change `TerminalRange` to a 512-bit packed `bigint` range of two symbols.
+- [ ] Adopt the `TerminalRange` representation selected by
+      [the representation investigation](./terminal-range-representation.md);
+      do not assume fixed-width `(start << 256n) | end` packing here.
 - [ ] Define `fullRange` over ordinary symbols only and `eof` as the singleton
-      maximal-symbol range.
+      maximal-symbol range using the selected terminal-range representation.
 - [ ] Update generic `rangeEncode`, `rangeDecode`, `oneEncode`, complement/range
-      helpers, and their callers for bigint symbols.
+      helpers, and their callers for bigint symbols and the selected range format.
 - [ ] Replace BNF use of number-only `fjs/types/range.contains` with direct
       `Symbol` endpoint comparison; do not convert bigint endpoints to `number`.
 - [ ] Parameterize the core `fjs/types/range_map` algorithm by boundary type and
@@ -203,6 +211,9 @@ boundary, not to BNF parsers.
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md) — makes the core
   BNF symbol algebra independent of Unicode and byte-stream semantics before its
   representation changes.
+- [Investigate TerminalRange representation](./terminal-range-representation.md)
+  — chooses how bigint range endpoints are represented without assuming a
+  fixed-width 512-bit packed integer.
 - [UTF-8 token symbols](./utf8-token-symbols.md) — replace registered 24-bit token
   IDs with deterministic token-name-derived symbols after this task lands.
 - [Layered parser](./layered-parser.md) — tokenizer output becomes input symbols to
