@@ -160,7 +160,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | Layer | What exists | What's missing |
 |---|---|---|
 | 1. Base MCP (add/get/list) | `fjs/mcp/cas/`, `fjs/protocol/mcp/stdio/`, CLI ✓ | `casMcpStep` extraction |
-| 2. Content encoding (base64) | `fjs/base64/` ✓ | MCP wiring only |
+| 2. Content encoding (base64) | `fjs/basen/base64/`, `fjs/mcp/cas/` wiring ✓ | — |
 | 3. Type detection | `fjs/media/type/` magic-byte detection (PNG/JPEG/GIF/WebP/PDF/ZIP), `cas_get` wiring, `embeddedResource` schema ✓ | — |
 | 4. Signatures | `fjs/crypto/sign/` (sign only), `fjs/crypto/secp/` ✓ | ECDSA verify + MCP wiring |
 | 5. Trusted timestamps | — | RFC 3161 client + MCP tool |
