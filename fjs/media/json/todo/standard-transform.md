@@ -11,12 +11,19 @@ the existing standard JSON value type has only JavaScript `number`. We need an
 explicit conversion layer between those two value domains instead of duplicating
 the structural JSON parser/serializer.
 
-The conversion is intentionally asymmetric:
+The two layers have different goals:
+
+- extended JSON is the information-preserving intermediate representation;
+- the standard `json.*` surface is a compatibility layer and should match native
+  JavaScript `JSON.parse` / `JSON.stringify` semantics, including their lossy
+  edge cases.
+
+The value conversion is intentionally asymmetric:
 
 - extended JSON -> standard JSON removes `bigint`, accepting the normal
   JavaScript-number precision loss where necessary;
-- standard JSON -> extended JSON should canonicalize whole-valued numbers back to
-  `bigint` so normal JSON values such as `[1, 2, 3]` serialize as `[1,2,3]`, not
+- standard JSON -> extended JSON canonicalizes ordinary whole-valued numbers back
+  to `bigint` so values such as `[1, 2, 3]` serialize as `[1,2,3]`, not
   `[1.0,2.0,3.0]`.
 
 ### Proposal
@@ -48,49 +55,61 @@ integers.
 Transform every standard JSON `number` leaf as follows:
 
 ```text
-Object.is(value, -0)   -> keep -0 as number
+Object.is(value, -0)    -> keep -0 as number
 Number.isInteger(value) -> BigInt(value)
 otherwise               -> keep value as number
 ```
 
 Other leaves are unchanged and arrays/objects are rebuilt recursively.
 
-This canonicalizes ordinary integer-valued JavaScript numbers before the
-extended serializer sees them:
+This transformer itself preserves `-0`; it is a conversion between runtime value
+domains, not a reimplementation of `JSON.stringify`:
 
 ```text
-[1, 2, 3]
-    -> [1n, 2n, 3n]
-    -> "[1,2,3]"
-```
-
-Negative zero is deliberately excluded from integer canonicalization because
-`bigint` has no negative zero:
-
-```text
--0 -> -0 -> "-0"
+[1, 2, 3] -> [1n, 2n, 3n]
+-0        -> -0
 ```
 
 The transformation uses the numeric value already present in JavaScript. For an
 unsafe integer-valued `number`, `BigInt(value)` captures that represented value;
 it cannot recover precision that was already lost before the transformer ran.
 
-### Composition
+### Standard compatibility surface
 
-Use these transformers to build the ordinary JSON surface on top of the extended
-JSON implementation rather than maintaining another structural parser:
+Build standard parse/stringify on top of the extended layer, but do not let the
+extended serializer's information-preserving choices accidentally change the
+public standard API.
 
 ```text
 standard parse:
 JSON text -> extended parse -> extendedToStandard -> standard JSON value
 
 standard stringify:
-standard JSON value -> standardToExtended -> extended stringify -> JSON text
+standard JSON value -> standardToExtended -> standard compatibility normalization
+                    -> extended stringify -> JSON text
 ```
 
-The resulting text is ordinary valid JSON. The extended representation remains
-the shared structural parse/serialize layer; standard JSON is a policy applied
-on top of it.
+The compatibility normalization exists only where native `JSON.stringify`
+requires behavior different from the reusable value transformer. In particular,
+standard stringify must preserve current/native behavior for negative zero:
+
+```text
+JSON.stringify(-0) == "0"
+standard json.stringify(-0) == "0"
+```
+
+Therefore standard stringify must normalize `-0` before the extended serializer
+sees it, even though `standardToExtended(-0)` itself keeps `-0` so the generic
+runtime transformer does not discard information.
+
+The standard surface should be treated as compatibility API. Users that want
+more information-preserving behavior should use the extended representation and
+its transformers directly.
+
+The remaining exceptional-number behavior (`NaN`, `Infinity`, `-Infinity`, and
+the precise extended/standard boundary for `-0`) is tracked separately in
+[number edge cases](./number-edge-cases.md) so it is verified explicitly instead
+of being chosen accidentally during implementation.
 
 ### Tasks
 
@@ -101,19 +120,24 @@ on top of it.
 - [ ] Rebuild arrays and objects immutably in both directions.
 - [ ] Compose the standard JSON parser from extended parse + extended-to-standard
       transform.
-- [ ] Compose the standard JSON serializer/stringifier from standard-to-extended
-      transform + extended serialization.
+- [ ] Compose standard stringify from standard-to-extended + the minimal native
+      `JSON.stringify` compatibility normalization + extended serialization.
+- [ ] Preserve native/current standard behavior for `-0`: stringify it as `0`,
+      while keeping `standardToExtended(-0)` information-preserving.
 - [ ] Ensure whole-valued standard numbers serialize with ordinary integer JSON
       syntax (`[1,2,3]`, not `[1.0,2.0,3.0]`).
-- [ ] Add proof coverage for safe/unsafe integers, fractions, exponents, `0`,
-      `-0`, nested arrays/objects, and large bigint precision loss at the
-      extended-to-standard boundary.
+- [ ] Add proof coverage comparing the standard surface with native `JSON.*` for
+      numeric compatibility cases, plus safe/unsafe integers, fractions, nested
+      arrays/objects, and large bigint precision loss at the extended-to-standard
+      boundary.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
 
 - [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — provides
   the intermediate value type and JSON text codec.
+- [JSON numeric edge cases](./number-edge-cases.md) — investigates exceptional
+  JavaScript numbers before their final extended/standard policies are fixed.
 - [RTTI-aware extended JSON parser](./rtti-parse.md) — another policy layer over
   the same extended JSON representation.
 - [Generic JSON/DJS tree type](../../../djs/todo/663-json-djs-tree-type.md) — if
