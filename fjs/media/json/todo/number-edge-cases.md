@@ -31,8 +31,19 @@ parse/stringify behavior is asymmetric in the standard JavaScript API.
 
 For the extended parser, exponent notation has a fixed lexical meaning: any JSON
 number token containing `e` or `E` is a `number`, not a `bigint`, even when its
-mathematical value is integral. The open question is only what to do when such a
-valid exponent token cannot be represented as a finite JavaScript `number`.
+mathematical value is integral. The open question is how the extended layer
+represents a valid exponent token that cannot be represented as a finite
+JavaScript `number`.
+
+The shared-parser architecture adds one hard compatibility constraint: standard
+`json.parse` is intended to compose `extended parse -> extendedToStandard`, and
+native `JSON.parse('1e400')` succeeds with `Infinity`. Therefore the extended
+parsing path must not simply reject valid overflowed exponent syntax if it is to
+remain the common substrate for the standard parser. It must preserve enough
+information for the standard boundary to produce the same result as native
+`JSON.parse`. If investigation shows that cannot be done cleanly in the extended
+value model, the alternative is to define an explicit separate compatibility
+path rather than silently changing standard parse behavior.
 
 The standard-to-extended transformer also needs care when deciding which
 integer-valued JavaScript `number`s should become `bigint`. Mapping every value
@@ -49,12 +60,13 @@ number notation remains available.
 
 ### Questions to investigate
 
-Do not choose new behavior in this TODO yet except where a direction is already
-settled above. First document the relevant native JavaScript behavior and the
-information-preserving options for the extended layer.
+Do not choose a concrete overflow representation in this TODO yet except where a
+direction is already settled above. First document the relevant native JavaScript
+behavior and the information-preserving options for the extended layer.
 
-- [ ] Verify `JSON.parse` behavior for `0`, `-0`, decimal zero, and exponent zero,
-      including `Object.is` checks for the resulting values.
+- [ ] Verify `JSON.parse` behavior for `0`, `-0`, decimal zero, exponent zero, and
+      overflowed exponent syntax such as `1e400`, including `Object.is` checks for
+      the resulting values where relevant.
 - [ ] Verify `JSON.stringify` behavior for `0`, `-0`, `NaN`, `Infinity`, and
       `-Infinity` at the top level, in arrays, and in object properties.
 - [ ] Confirm how the existing `fjs/media/json` parser/serializer behaves for the
@@ -62,9 +74,13 @@ information-preserving options for the extended layer.
 - [ ] Verify and document the settled lexical rule that any number token containing
       `e` / `E` parses as `number`, never `bigint`, regardless of whether the
       resulting numeric value is mathematically integral.
-- [ ] Decide how the extended parser handles valid exponent syntax that overflows
-      finite JavaScript `number`, such as `1e400`: reject it, preserve it through
-      another representation, or use another explicit policy.
+- [ ] Choose an extended representation/policy for valid exponent syntax that
+      overflows finite JavaScript `number`, such as `1e400`, while preserving the
+      shared-parser requirement that standard conversion can produce the same
+      result as native `JSON.parse` (`Infinity` / `-Infinity` as applicable).
+- [ ] If no clean extended representation satisfies that requirement, explicitly
+      design a separate standard compatibility parse path instead of rejecting
+      syntax that native `JSON.parse` accepts.
 - [ ] Define the matching extended-serialization/error behavior for any value or
       representation chosen for overflowed exponent input so parse/serialize has
       a coherent contract.
