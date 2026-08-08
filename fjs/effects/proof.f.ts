@@ -1,4 +1,4 @@
-import { step, do_, foldStep, forEachStep, mapStep, match, okStep, history, pure, runPure, type Effect, type Operation, historyStep } from './module.f.mjs'
+import { step, do_, foldStep, forEachStep, mapStep, match, okStep, history, pure, runPure, type Effect, type Operation, historyStep, type MatchResult } from './module.f.mjs'
 import { error, ok } from '../types/result/module.f.ts'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 
@@ -187,7 +187,9 @@ export const proof = {
         overDo: () => {
             // The captured value survives a command boundary: the history is
             // rebuilt inside the continuation rather than lost when `e` is a Do.
-            const c = next(historyStep(history(do_<AddOp>('add')(2, 3)), r => pure(r * 10)))
+            const c0 =
+                historyStep(history(do_<AddOp>('add')(2, 3)), r => pure(r * 10))
+            const c = next(c0)
             assert(c[0] === 'cont', c)
             assertEq(c[1], 5)
             const o = runPure(c[2](c[1]))
