@@ -45,14 +45,18 @@ On serialization:
 - emit `number` using JSON number syntax;
 - when a finite `number` would otherwise serialize as integer syntax, preserve
   the type distinction by emitting a decimal form such as `3.0` so parsing the
-  result returns `number`, not `bigint`.
+  result returns `number`, not `bigint`;
+- preserve negative zero explicitly: `Object.is(value, -0)` must serialize as
+  `-0.0` (or an equivalent decimal/exponent JSON spelling), because native
+  `JSON.stringify(-0)` yields `0` and would otherwise lose the sign.
 
-Thus both `3n` and `3` can round-trip while the serialized text remains valid
-JSON:
+Thus bigint, ordinary whole-valued numbers, and negative zero all round-trip while
+the serialized text remains valid JSON:
 
 ```text
-3n -> 3   -> 3n
-3  -> 3.0 -> 3
+3n -> 3    -> 3n
+3  -> 3.0  -> 3
+-0 -> -0.0 -> -0
 ```
 
 Do not introduce tagged objects or quote large integers as strings. The purpose
@@ -74,9 +78,14 @@ serialization machinery with only their numeric leaf mapping differing.
 - [ ] Parse decimal and exponent syntax to `number`.
 - [ ] Add a serializer that emits `bigint` as plain decimal digits and preserves
       whole-valued `number` leaves with decimal/exponent syntax.
+- [ ] Special-case `Object.is(value, -0)` so serialization emits `-0.0` (or an
+      equivalent non-integer JSON number spelling) and reparsing preserves
+      negative zero.
 - [ ] Keep the existing ordinary JSON parse/serialize API behavior unchanged.
 - [ ] Add round-trip proofs for integers beyond `Number.MAX_SAFE_INTEGER`,
-      negative integers, zero, whole-valued numbers, fractions, and exponents.
+      negative integers, bigint zero, positive number zero, negative number zero,
+      whole-valued numbers, fractions, and exponents; use `Object.is` to verify
+      the `-0` case.
 - [ ] Document that the output is valid JSON but native JavaScript `JSON.parse`
       may lose precision when consuming large integer literals.
 - [ ] `npx tsc`, `fjs test`.
