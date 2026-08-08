@@ -17,7 +17,7 @@ import {
     type Fold,
     type Reduce,
     type Equal,
-} from '../function/operator/module.f.ts'
+} from '../function/operator/module.f.mjs'
 
 export type List<T> = NotLazy<T> | Thunk<T>
 

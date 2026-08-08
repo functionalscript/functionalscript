@@ -180,7 +180,7 @@ source dependency-closure rule as any other migrated file: its relative runtime
 imports and JSDoc type references may target `.f.mjs` modules only. This is a
 JavaScript/JSDoc and dependency-readiness rule, not a FunctionalScript compiler
 feature gate. A proof that still imports an unmigrated helper such as
-`fjs/asserts/module.f.ts` remains `proof.f.ts` until that helper migrates. See
+`fjs/types/list/module.f.ts` remains `proof.f.ts` until that helper migrates. See
 [`fjs/fsc/README.md`](./fjs/fsc/README.md) for the migration order and the
 module-import policy it implies.
 
@@ -188,8 +188,8 @@ module-import policy it implies.
 
 Assert results in `proof` code with `assert`/`assertEq` from the current authored
 `fjs/asserts/module.f.*` source, not a hand-written `if (cond) { throw ... }`.
-During Stage 1 that helper is `.f.ts` until it migrates to `.f.mjs`; a
-`proof.f.mjs` that needs it must wait for that dependency migration.
+That helper has already migrated, so the current source is
+`fjs/asserts/module.f.mjs` and a `proof.f.mjs` may import it directly.
 
 A local `if`/`throw` in a test is itself a new branch for the coverage tool to
 track, and its failure side is normally never exercised (the test is expected to
@@ -202,7 +202,7 @@ new uncovered branch.
 
 To prove that a type resolves to what you claim, write
 `type _Name = Assert<Equal<Actual, Expected>>` — `Assert` from
-`fjs/asserts/module.f.ts`, `Equal` from `fjs/types/ts/module.f.ts`. A wrong
+`fjs/asserts/module.f.mjs`, `Equal` from `fjs/types/ts/module.f.mjs`. A wrong
 claim is then a compile error (TS2344, "Type 'false' does not satisfy the
 constraint 'true'"), and the check costs nothing at runtime.
 

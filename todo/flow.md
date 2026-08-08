@@ -238,7 +238,7 @@ Planned engine work, each a separate change:
 
 - [fjs/types/list/module.f.ts](../fjs/types/list/module.f.ts) — the sequence
   type the naive engine binds to
-- [fjs/types/function/operator/module.f.ts](../fjs/types/function/operator/module.f.ts)
+- [fjs/types/function/operator/module.f.mjs](../fjs/types/function/operator/module.f.mjs)
   — `Scan`, `StateScan`, `Fold`: the closure-form operators `Transducer`
   generalizes (its JSDoc already frames them as Mealy machines)
 - [fjs/types/rtti](../fjs/types/rtti) — runtime type descriptions for the

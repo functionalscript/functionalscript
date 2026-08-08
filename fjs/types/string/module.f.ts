@@ -17,8 +17,8 @@
  */
 import { type List, reduce as listReduce, repeat as listRepeat } from '../list/module.f.ts'
 import { compose } from '../function/module.f.mjs'
-import { type Sign, cmp as uCmp } from '../function/compare/module.f.ts'
-import { join as joinOp, type Reduce } from '../function/operator/module.f.ts'
+import { type Sign, cmp as uCmp } from '../function/compare/module.f.mjs'
+import { join as joinOp, type Reduce } from '../function/operator/module.f.mjs'
 import { fold } from '../../common/monoid/module.f.ts'
 
 // `join`'s per-separator reduction is seeded at `''` but is *not* a monoid fold:

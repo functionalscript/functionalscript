@@ -8,7 +8,7 @@
  * @module
  */
 import { flat, map, reduce, empty, type List } from '../../../types/list/module.f.ts'
-import { type Reduce } from '../../../types/function/operator/module.f.ts'
+import { type Reduce } from '../../../types/function/operator/module.f.mjs'
 import { concat } from '../../../types/string/module.f.ts'
 import {
     codePointToString,

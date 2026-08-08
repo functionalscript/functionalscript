@@ -1,4 +1,4 @@
-import { cmp, min, max } from './module.f.ts'
+import { cmp, min, max } from './module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
 export const proof = () => {

@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { strictEqual } from '../types/function/operator/module.f.ts'
+import { strictEqual } from '../types/function/operator/module.f.mjs'
 import {
     merge as rangeMapMerge,
     fromRange,

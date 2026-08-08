@@ -3,7 +3,7 @@ import { stringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { union, type SortedSet } from '../sorted_set/module.f.ts'
 import { equal, toArray } from '../list/module.f.ts'
-import { strictEqual } from '../function/operator/module.f.ts'
+import { strictEqual } from '../function/operator/module.f.mjs'
 import { cmp } from '../string/module.f.ts'
 import { assertEq } from '../../asserts/module.f.mjs'
 
