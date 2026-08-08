@@ -10,11 +10,15 @@ The repository-wide
 cannot convert its first package-owned `.ts` / `.f.ts` source until the
 TypeScript and NPM pipeline treats authored `.mjs` as first-class source.
 
-The current package configuration validates authored TypeScript and publishes
-its generated `.js` / `.d.ts`, but does not yet provide the corresponding
-checked authored `.mjs` plus generated `.d.mts` path. Turning on `allowJs` /
-`checkJs` while keeping the current one-pass emit makes authored `.mjs` both an
-input and an output target.
+The package configuration originally validated only authored TypeScript and
+published its generated `.js` / `.d.ts`, with no checked authored `.mjs` plus
+generated `.d.mts` path — turning on `allowJs` / `checkJs` while keeping a
+one-pass emit would have made authored `.mjs` both an input and an output
+target. **This part is done** (see Progress below): `allowJs`/`checkJs` are
+on and `prepack` is the two-pass emit that keeps authored `.mjs` untouched.
+What the Problem below still motivates is the *validation* half — a fixture
+and proofs that the mixed-source package actually builds and type-checks
+correctly for a consumer.
 
 Stage 1 is dependency-first. Remaining `.ts` / `.f.ts` may import already
 migrated `.mjs` / `.f.mjs`, but migrated JavaScript must not retain runtime or

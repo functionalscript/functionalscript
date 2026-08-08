@@ -35,8 +35,8 @@
 - `cas_add`: caller declares the encoding via `type` (`'text'`, the default,
   or `'base64'`) — decoding follows what the caller says, not autodetection ✓
 - `cas_get`: encoding is chosen by the server — a magic-byte hit or non-UTF-8
-  fallback returns `type: 'base64'`; whole-blob-valid UTF-8 returns
-  `type: 'text'` ✓
+  fallback returns `type: 'base64'`; whole-blob-valid, all-text UTF-8 (no
+  NUL/other control code points) returns `type: 'text'` ✓
 - Hashes stay as cBase32 ✓
 
 **Layer 3 — Type detection (done)**
