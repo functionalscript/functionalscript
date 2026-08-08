@@ -31,13 +31,13 @@ const fjsGlobalInstall = (version: string): MetaStep =>
 export const platformNodeSteps = (version: string): readonly MetaStep[] => [
     ...nodeInstall(node.default),
     fjsGlobalInstall(version),
-    test({ run: 'fjs t' }),
+    test({ run: 'fjs test' }),
 ]
 
 const node22Steps = (version: string): readonly MetaStep[] => [
     ...nodeInstall(node.node22),
     fjsGlobalInstall(version),
-    test({ run: 'fjs t' }),
+    test({ run: 'fjs test' }),
     test({ run: 'node --test' }),
 ]
 

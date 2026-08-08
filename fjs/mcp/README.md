@@ -24,7 +24,7 @@ step, so `evo_list`/`evo_head` never rescan.
 Register the CAS MCP server command with your LLM client:
 
 ```sh
-npx functionalscript m
+npx functionalscript mcp
 ```
 
 Follow your LLM client's instructions to register that command as an MCP server.
@@ -32,9 +32,9 @@ For example:
 
 ```sh
 # register the MCP for Claude
-claude mcp add cas -- npx functionalscript m
+claude mcp add cas -- npx functionalscript mcp
 # register the MCP for Codex
-codex mcp add cas -- npx functionalscript m
+codex mcp add cas -- npx functionalscript mcp
 ```
 
 This command uses `npx` to run the latest version of [FunctionalScript](https://www.npmjs.com/package/functionalscript), downloading it on startup if needed.
