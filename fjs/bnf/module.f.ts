@@ -8,7 +8,7 @@
  */
 import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.ts'
 import { definedValues, type StringMap } from '../types/object/module.f.ts'
-import { type Array2, isArray2 } from '../types/array/module.f.mjs'
+import { isTuple, type Tuple } from '../types/array/module.f.mjs'
 import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
 import { contains } from '../types/range/module.f.ts'
 import { assert } from '../asserts/module.f.mjs'
@@ -111,7 +111,7 @@ export const eof: TerminalRange = oneEncode(mask)
 /**
  * Decodes a packed range into `[start, end]` symbols.
  */
-export const rangeDecode = (r: number): Array2<number> =>
+export const rangeDecode = (r: number): Tuple<2, number> =>
     [Number(BigInt(r) >> BigInt(offset)), r & mask]
 
 const mapOneEncode = map(oneEncode)
@@ -137,6 +137,8 @@ const mapEntry = map((v: number) => [fromCodePoint(v), oneEncode(v)])
 export const set = (s: string): RangeVariant =>
     fromEntries(toArray(mapEntry(stringToCodePointList(s))))
 
+const isTuple2 = isTuple(2)
+
 /**
  * Encodes a two-symbol string into a terminal range.
  *
@@ -144,7 +146,7 @@ export const set = (s: string): RangeVariant =>
  */
 export const range = (ab: string): TerminalRange => {
     const a = toArray(stringToCodePointList(ab))
-    if (!isArray2(a)) {
+    if (!isTuple2(a)) {
         throw `Invalid range ${ab}.`
     }
     return rangeEncode(...a)

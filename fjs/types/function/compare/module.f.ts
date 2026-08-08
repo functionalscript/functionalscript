@@ -3,7 +3,7 @@
  *
  * @module
  */
-import type { Index3, Index5, Array2 } from '../../array/module.f.mjs'
+import type { Index, Tuple } from '../../array/module.f.mjs'
 
 export type Sign = -1|0|1
 
@@ -11,14 +11,14 @@ export type Compare<T> = (_: T) => Sign
 
 export type Cmp<T> = (a: T) => Compare<T>
 
-export const index3: <T>(cmp: Compare<T>) => (value: T) => Index3
-    = cmp => value => (cmp(value) + 1) as Index3
+export const index3: <T>(cmp: Compare<T>) => (value: T) => Index<3>
+    = cmp => value => (cmp(value) + 1) as Index<3>
 
 export const index5
-    : <T>(cmp: Compare<T>) => (v2: Array2<T>) => Index5
+    : <T>(cmp: Compare<T>) => (v2: Tuple<2, T>) => Index<5>
     = cmp => ([v0, v1]) => {
         const _0 = cmp(v0)
-        return (_0 <= 0 ? _0 + 1 : cmp(v1) + 3) as Index5
+        return (_0 <= 0 ? _0 + 1 : cmp(v1) + 3) as Index<5>
     }
 
 export type Cmp1 = boolean | string | number | bigint

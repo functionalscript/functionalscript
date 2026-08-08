@@ -7,7 +7,7 @@ import { collapseRoot, type Leaf1, type TNode, type Branch1, type Branch3, type 
 import type { Compare } from '../../function/compare/module.f.ts'
 import { type Path, type PathItem, find } from '../find/module.f.ts'
 import { fold, concat, next } from '../../list/module.f.ts'
-import type { Array2 } from '../../array/module.f.mjs'
+import type { Tuple } from '../../array/module.f.mjs'
 import { map } from '../../nullable/module.f.mjs'
 
 type Leaf01<T> = null | Leaf1<T>
@@ -80,7 +80,7 @@ const initValue1 = <T>(a: Leaf01<T>) => (n: Branch3<T>): Branch1<T> | Branch3<T>
 
 type Merge<A, T> = (a: A) => (n: Branch3<T>) => Branch1<T> | Branch3<T>
 
-const reduceX = <A, T>(ms: Array2<Merge<A, T>>) => ([i, n]: PathItem<T>) => (a: A): Branch<T> => {
+const reduceX = <A, T>(ms: Tuple<2, Merge<A, T>>) => ([i, n]: PathItem<T>) => (a: A): Branch<T> => {
     const [m0, m2] = ms
     const f
         : (m: Merge<A, T>) => Branch<T>

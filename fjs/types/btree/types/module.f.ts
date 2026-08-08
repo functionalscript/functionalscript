@@ -3,11 +3,11 @@
  *
  * @module
  */
-import type { Array1, Array2 } from '../../array/module.f.mjs'
+import type { Tuple } from '../../array/module.f.mjs'
 
-export type Leaf1<T> = Array1<T>
+export type Leaf1<T> = Tuple<1, T>
 
-export type Leaf2<T> = Array2<T>
+export type Leaf2<T> = Tuple<2, T>
 
 export type Branch3<T> = readonly[TNode<T>, T, TNode<T>]
 

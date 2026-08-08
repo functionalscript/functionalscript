@@ -4,7 +4,7 @@
  * @module
  */
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-import type { Array2 } from '../../types/array/module.f.mjs'
+import type { Tuple } from '../../types/array/module.f.mjs'
 import { bitLength, divUp8, roundUp8 } from '../../types/bigint/module.f.ts'
 import { empty, length, msb, repeat, unpack, vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { hmac } from '../hmac/module.f.ts'
@@ -129,7 +129,7 @@ export const computeK: (_: All) => (_: Sha2) => (x: bigint) => (m: Vec) => bigin
     }
 }
 
-type Signature = Array2<bigint>
+type Signature = Tuple<2, bigint>
 
 /**
  * Signs a message bit vector and returns an ECDSA `(r, s)` signature pair.
