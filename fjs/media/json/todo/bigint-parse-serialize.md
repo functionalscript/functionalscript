@@ -43,13 +43,19 @@ Use the JSON number token's lexical form:
 -0        -> -0 as number
 1.5       -> 1.5
 1e3       -> 1000 as number
+1E3       -> 1000 as number
 1.0       -> 1 as number
 ```
 
 A number token with no decimal point and no exponent becomes a `bigint`, except
 for the exact token `-0`. JavaScript `bigint` has no negative-zero value, so `-0`
 remains a JavaScript `number` to preserve the information present in the JSON
-text. Fraction or exponent syntax also becomes a JavaScript `number`.
+text.
+
+The distinction is lexical, not mathematical: **any JSON number token containing
+a decimal point or exponent marker (`e` / `E`) is a floating-point `number`, even
+when its mathematical value is an integer.** For example, `1e3` is `number`
+`1000`, not `1000n`.
 
 Reuse the tokenizer's exact numeric representation for bare integers rather than
 converting them through `number` first.
@@ -65,7 +71,8 @@ before this parse/serialize task is implemented.
 For finite values whose behavior is already settled, serialize according to the
 runtime type of the extended numeric leaf:
 
-- `bigint` -> ordinary decimal JSON integer syntax, without an `n` suffix;
+- `bigint` -> canonical base-10 JSON integer syntax, without an `n` suffix and
+  **never using exponent (`e` / `E`) notation**;
 - finite `number` -> JSON number syntax;
 - a finite whole-valued `number` other than `-0` -> a non-integer lexical form
   such as `3.0`, so reparsing returns `number` rather than `bigint`;
@@ -80,6 +87,11 @@ This gives a one-to-one mapping for the settled finite extended values:
 3n -> 3    -> 3n
 3  -> 3.0  -> 3
 ```
+
+A `bigint` is always serialized as its full decimal integer digits. Even a very
+large bigint is never shortened to exponent notation, because exponent syntax is
+reserved for the `number` side of the extended representation and would parse
+back as `number` rather than `bigint`.
 
 The `.0` form is correct for the **extended** representation because it preserves
 whether the runtime leaf is `number` or `bigint`. A separate standard-JSON
@@ -124,14 +136,20 @@ container shape and vary only the primitive leaf type.
       numeric leaves without duplicating the structural parse state machine.
 - [ ] Parse bare JSON integer syntax directly to `bigint`, except exact `-0`.
 - [ ] Parse exact `-0` to JavaScript negative-zero `number`.
+- [ ] Parse every number token containing `.` or `e` / `E` as `number`, even when
+      the resulting numeric value is mathematically integral.
 - [ ] Parse decimal and exponent syntax according to the numeric-edge policy,
       including values such as `1e400` that overflow finite JavaScript `number`.
+- [ ] Serialize every `bigint` as canonical full base-10 integer digits and never
+      use exponent notation.
 - [ ] Add the extended serializer with the settled numeric rules above and the
       non-finite policy chosen by the blocking numeric-edge task.
 - [ ] Add round-trip/error proofs for integers beyond `Number.MAX_SAFE_INTEGER`,
       negative integers, bigint zero, positive number zero, negative number zero,
       whole-valued numbers, fractions, ordinary exponents, and overflowed
-      exponents; use `Object.is` for `-0`.
+      exponents; explicitly prove that exponent syntax parses as `number` and
+      bigint serialization never emits exponent syntax; use `Object.is` for
+      `-0`.
 - [ ] Document that the serialized output is valid JSON but native JavaScript
       `JSON.parse` may lose precision when consuming large integer literals.
 - [ ] `npx tsc`, `fjs test`.
