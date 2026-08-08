@@ -125,6 +125,16 @@ and consumer of that layer, injective over that layer's token names, and produce
 only ordinary BNF symbols. These constraints stay local to the mapping and do not
 introduce a special EOF representation in BNF parsers.
 
+### Dependent parser designs
+
+Any open parser design that still consumes `fjs/bnf/token_symbol` must be rebased
+before that module is removed. In particular,
+[new-parser](./new-parser.md) is blocked by this task and the bigint-symbol
+migration. It now defines its complete DJS token-name alphabet up front, maps all
+of those names through the same fallible `Symbol` mapping, validates the alphabet
+before parser use, and no longer assigns raw ASCII numbers to single-character
+tokens or calls `token_symbol.encoding()` for multi-character names.
+
 ### Tasks
 
 - [ ] Add `tryToSentinel(v): Nullable<bigint>` to `fjs/types/bit_vec` as the
@@ -158,9 +168,13 @@ introduce a special EOF representation in BNF parsers.
       before the layer is used.
 - [ ] Reserve `2^256 - 1` for EOF in every token-symbol mapping; every successful
       mapping result must be in `0 .. EOF - 1`.
+- [ ] Keep dependent parser designs, including [new-parser](./new-parser.md),
+      blocked until their token-name alphabets use this fallible `Symbol` mapping
+      instead of `token_symbol.encoding()` or raw 24-bit/ASCII identities.
 - [ ] Replace callers of `fjs/bnf/token_symbol` with the UTF-8 mapping and handle
       the nullable result explicitly.
-- [ ] Remove `fjs/bnf/token_symbol` after all callers migrate.
+- [ ] Remove `fjs/bnf/token_symbol` only after all callers and dependent designs
+      have migrated.
 - [ ] Update layered-parser examples/documentation to use descriptive token names
       instead of registered numeric IDs where useful.
 - [ ] Add proof coverage for empty names, punctuation, keywords, embedded NUL /
@@ -175,10 +189,12 @@ introduce a special EOF representation in BNF parsers.
 
 - [256-bit bigint BNF symbols](./bigint-symbols.md) — provides the symbol space
   used by this mapping.
+- [New parser](./new-parser.md) — consumes a validated finite token-name alphabet
+  through this mapping rather than the current 24-bit registration API.
 - [Layered parser](./layered-parser.md) — tokenizer output feeds the next BNF
   parser as one symbol per token plus metadata.
 - [`fjs/bnf/token_symbol`](../token_symbol/README.md) — registration-based mapping
-  to replace.
+  to replace after all callers/designs migrate.
 - [`fjs/text/module.f.ts`](../../text/module.f.ts) — existing `tryUtf8` helper and
   throwing `utf8` wrapper.
 - [`fjs/types/bit_vec/module.f.ts`](../../types/bit_vec/module.f.ts) — signed
