@@ -16,7 +16,7 @@ import {
 } from '../../types/list/module.f.ts'
 import { concat, type StateScan } from '../../types/function/operator/module.f.ts'
 import { contains } from '../../types/range/module.f.ts'
-import { fn } from '../../types/function/module.f.ts'
+import { fn } from '../../types/function/module.f.mjs'
 import {
     decoder,
     errorMask,

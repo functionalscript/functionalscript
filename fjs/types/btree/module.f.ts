@@ -4,7 +4,7 @@
  * @module
  */
 import { flat, type List, type Thunk } from '../list/module.f.ts'
-import { map } from '../nullable/module.f.ts'
+import { map } from '../nullable/module.f.mjs'
 import type { TNode, Tree } from './types/module.f.ts'
 
 const nodeValues: <T>(node: TNode<T>) => Thunk<T>

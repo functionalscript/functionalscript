@@ -5,8 +5,8 @@
  */
 import { type Sign, type Cmp, bsearch } from '../function/compare/module.f.ts'
 import { type List, next } from '../list/module.f.ts'
-import type { Nullable } from '../nullable/module.f.ts'
-import { identity } from '../function/module.f.ts'
+import type { Nullable } from '../nullable/module.f.mjs'
+import { identity } from '../function/module.f.mjs'
 
 export type SortedList<T> = List<T>
 

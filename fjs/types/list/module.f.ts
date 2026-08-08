@@ -3,8 +3,8 @@
  *
  * @module
  */
-import { identity, fn, compose } from '../function/module.f.ts'
-import type { Nullable } from '../nullable/module.f.ts'
+import { identity, fn, compose } from '../function/module.f.mjs'
+import type { Nullable } from '../nullable/module.f.mjs'
 import {
     addition,
     logicalNot,

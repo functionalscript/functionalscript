@@ -17,7 +17,7 @@ import {
 } from '../types/range_map/module.f.ts'
 import { type Fold, type Scan, strictEqual } from '../types/function/operator/module.f.ts'
 import { stringify } from '../media/json/module.f.ts'
-import { identity } from '../types/function/module.f.ts'
+import { identity } from '../types/function/module.f.mjs'
 import { stringToList } from '../text/utf16/module.f.ts'
 import { cmp } from '../types/string/module.f.ts'
 
