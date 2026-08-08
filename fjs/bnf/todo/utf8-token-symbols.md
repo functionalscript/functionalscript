@@ -76,7 +76,7 @@ const tryTokenSymbol = (name: string): Nullable<Symbol> => {
     if (vec === null) { return null }
     const encoded = tryToSentinel(vec)
     if (encoded === null) { return null }
-    return encoded < eofSymbol ? encoded : null
+    return 0n <= encoded && encoded < eofSymbol ? encoded : null
 }
 ```
 
@@ -85,12 +85,13 @@ bit-vector representation before a BNF-domain candidate can be produced. Then
 propagate `tryToSentinel` failure as well: a UTF-8 value at the exact bit-vector
 limit is a valid `Vec`, but its positive sentinel form is not representable on all
 supported runtimes. The `tryTokenSymbol` contract must return `null` for both
-cases, as well as for a candidate outside the ordinary BNF symbol domain.
+cases, as well as for any candidate outside the ordinary BNF symbol domain.
 
 `eofSymbol` is the maximal 256-bit value reserved by BNF. Thus a successful
 direct mapping is always an ordinary BNF symbol and can never collide with EOF.
-The final validation is against the actual encoded candidate, not against an
-estimated or precomputed source size.
+The final validation is against the complete actual symbol-domain invariant,
+`0n <= encoded && encoded < eofSymbol`, not merely against the exact EOF value or
+an estimated/precomputed source size.
 
 For the current UTF-8 sentinel encoding, the 31-byte boundary remains a useful
 derived property rather than a preflight rule: byte-aligned names up to 31 UTF-8
@@ -111,16 +112,18 @@ every successful encoding. A mapping such as a cryptographic hash cannot prove
 global injectivity, so construction/configuration of a layer that uses such a
 mapping must map its complete finite set of token names and reject the
 configuration if two distinct names produce the same symbol, if any mapping
-returns `null`, or if any result is reserved EOF. Producer and consumer may still
-compute symbols independently after that alphabet has been validated; no ordered
-registration ID is introduced.
+returns `null`, or if any produced bigint is outside the ordinary symbol domain
+`0n <= symbol && symbol < eofSymbol`. This rejects negative values, values wider
+than the 256-bit domain, and reserved EOF uniformly. Producer and consumer may
+still compute symbols independently after that alphabet has been validated; no
+ordered registration ID is introduced.
 
 Different parser layers have different symbol alphabets, so the same numeric
 symbol does not need a global meaning across byte, code-point, token, and later
 layers. A mapping only needs to be deterministic and agreed upon by the producer
-and consumer of that layer, injective over that layer's token names, and exclude
-the BNF EOF value `2^256 - 1`. These constraints stay local to the mapping and do
-not introduce a special EOF representation in BNF parsers.
+and consumer of that layer, injective over that layer's token names, and produce
+only ordinary BNF symbols. These constraints stay local to the mapping and do not
+introduce a special EOF representation in BNF parsers.
 
 ### Tasks
 
@@ -139,8 +142,9 @@ not introduce a special EOF representation in BNF parsers.
       calls `tryToSentinel(vec)`, propagates `null` again, and validates the
       produced value against the ordinary BNF symbol domain.
 - [ ] Return `null` when UTF-8/bit-vector encoding fails, sentinel conversion
-      fails, or the encoded candidate is outside the ordinary symbol domain /
-      reserved EOF; do not use a UTF-8 length preflight check.
+      fails, or the encoded candidate does not satisfy
+      `0n <= encoded && encoded < eofSymbol`; do not use a UTF-8 length preflight
+      check.
 - [ ] Prove injectivity for every successful direct encoding, including
       preservation of leading zero bytes/bits.
 - [ ] Prove the derived current boundary: 31-byte UTF-8 names succeed and 32-byte
@@ -150,8 +154,10 @@ not introduce a special EOF representation in BNF parsers.
 - [ ] Require every token mapping to be injective over the concrete token alphabet
       used by a parser layer. For mappings without a mathematical injectivity
       guarantee, validate the complete configured token-name set and reject
-      duplicate symbols, `null`, and reserved EOF before the layer is used.
-- [ ] Reserve `2^256 - 1` for EOF in every token-symbol mapping.
+      duplicate symbols, `null`, negative/out-of-width bigints, and reserved EOF
+      before the layer is used.
+- [ ] Reserve `2^256 - 1` for EOF in every token-symbol mapping; every successful
+      mapping result must be in `0 .. EOF - 1`.
 - [ ] Replace callers of `fjs/bnf/token_symbol` with the UTF-8 mapping and handle
       the nullable result explicitly.
 - [ ] Remove `fjs/bnf/token_symbol` after all callers migrate.
@@ -160,8 +166,9 @@ not introduce a special EOF representation in BNF parsers.
 - [ ] Add proof coverage for empty names, punctuation, keywords, embedded NUL /
       leading-zero bytes, multi-byte UTF-8 names, the 31/32-byte boundary,
       exact `bit_vec.maxLength`, bit-vector overflow, sentinel overflow,
-      BNF-domain overflow, determinism, EOF non-collision, and rejection of
-      colliding alternative mappings.
+      negative/too-wide alternative mapping results, BNF-domain overflow,
+      determinism, EOF non-collision, and rejection of colliding alternative
+      mappings.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
