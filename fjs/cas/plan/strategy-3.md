@@ -1,5 +1,15 @@
 # Strategy 3: Merkle Tree
 
+> **API note.** This document predates the current `Cas<O>` API in
+> `fjs/cas/module.f.ts`, which is streaming-only (`read`/`write` over
+> `List<O, IoResult<Vec>>`) and has no `fileKvStore` or whole-blob
+> `write(Vec) => hash` / `read(hash) => Vec` primitive. Below, `write`,
+> `read`, `readFile`, `writeFile`, and `fileKvStore` describe the *shape* of
+> the small-object (`<=maxLengthBytes`, single CAS object) primitive this
+> design needs — not code that exists today. Defining that primitive against
+> the current API is a prerequisite implementation step; see
+> [`fjs/cas/todo/strategy-3-merkle-tree.md`](../todo/strategy-3-merkle-tree.md).
+
 ## Overview
 
 Every object written to CAS is a small file of at most `maxLengthBytes` (128 KiB).
