@@ -20,9 +20,10 @@ history.
 
 ## Unreleased
 
-- **BREAKING CHANGES:** `fjs/types/function/compare` migrates from authored
-  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
-  TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier
+- **BREAKING CHANGES:** `fjs/types/function/compare` and
+  `fjs/types/function/operator` migrate from authored TypeScript (`.f.ts`) to
+  JSDoc-typed JavaScript (`.f.mjs`) under the stage-1 TypeScript-to-mjs
+  migration — importers must use the `.f.mjs` specifier
   [#1456](https://github.com/functionalscript/functionalscript/pull/1456)
 - **BREAKING CHANGES:** `fjs/types/array`, `fjs/types/function`,
   `fjs/types/nullable`, and `fjs/types/option` migrate from authored
