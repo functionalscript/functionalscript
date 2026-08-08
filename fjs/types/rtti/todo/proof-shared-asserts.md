@@ -60,7 +60,7 @@ Two steps; the first is the high-confidence part:
    parameterized by `validate` / `parse`; each proof file spreads
    `...commonSuite(validate)` and adds only its divergent container-success
    cases. This mirrors the "inject the one thing that differs" shape that
-   `fjs/types/todo/172.md` proposes for the source-side container walkers.
+   `fjs/types/rtti/todo/172.md` proposes for the source-side container walkers.
 
 ## Tasks
 
@@ -75,7 +75,7 @@ Two steps; the first is the high-confidence part:
 
 ## Related
 
-- `fjs/types/todo/172.md` — source-side validate/parse container-walk
+- `fjs/types/rtti/todo/172.md` — source-side validate/parse container-walk
   deduplication; this issue is the proof-side counterpart and is
   independent of it.
 - `AGENTS.md` proof-assertion rule — `assert`/`assertEq` over local

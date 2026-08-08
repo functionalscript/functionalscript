@@ -28,11 +28,16 @@
 - `fjs cas mcp` CLI subcommand registered in `fjs/cas/module.f.ts` ✓
 - Remaining: refactor to extract `casMcpStep` for transport-agnostic shape
 
-**Layer 2 — Content encoding**
-- Switch `cas_add` / `cas_get` content from cBase32 to base64 (MCP-idiomatic for binary)
-- Hashes stay as cBase32
-- `fjs/base64/module.f.ts` (`encode`/`decode`) already implemented ✓; only MCP wiring remains
-- Tracked: [i66E-cas-mcp-base64-content](../66E-cas-mcp-base64-content.md)
+**Layer 2 — Content encoding (done)**
+- No more cBase32 for content — replaced by text/base64 (MCP-idiomatic for
+  binary), wired in `fjs/mcp/cas/module.f.ts` via `fjs/basen/base64/module.f.ts`
+  (`encode`/`decode`) ✓
+- `cas_add`: caller declares the encoding via `type` (`'text'`, the default,
+  or `'base64'`) — decoding follows what the caller says, not autodetection ✓
+- `cas_get`: encoding is chosen by the server — a magic-byte hit or non-UTF-8
+  fallback returns `type: 'base64'`; whole-blob-valid, all-text UTF-8 (no
+  NUL/other control code points) returns `type: 'text'` ✓
+- Hashes stay as cBase32 ✓
 
 **Layer 3 — Type detection (done)**
 - Detection via magic bytes: PNG, JPEG, GIF, WebP, PDF, ZIP → `null` for unrecognized bytes ✓
@@ -159,7 +164,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | Layer | What exists | What's missing |
 |---|---|---|
 | 1. Base MCP (add/get/list) | `fjs/mcp/cas/`, `fjs/protocol/mcp/stdio/`, CLI ✓ | `casMcpStep` extraction |
-| 2. Content encoding (base64) | `fjs/base64/` ✓ | MCP wiring only |
+| 2. Content encoding (base64) | `fjs/basen/base64/`, `fjs/mcp/cas/` wiring ✓ | — |
 | 3. Type detection | `fjs/media/type/` magic-byte detection (PNG/JPEG/GIF/WebP/PDF/ZIP), `cas_get` wiring, `embeddedResource` schema ✓ | — |
 | 4. Signatures | `fjs/crypto/sign/` (sign only), `fjs/crypto/secp/` ✓ | ECDSA verify + MCP wiring |
 | 5. Trusted timestamps | — | RFC 3161 client + MCP tool |

@@ -61,5 +61,5 @@ lease-deadline path rule then exists once, next to its inverse.
   coordinate if both are picked up together.
 - [../../effects/todo/fold-stream-combinator.md](../../effects/todo/fold-stream-combinator.md)
   — captures the loop skeleton, not the lease-path rule.
-- [../../../todo/cas/staging-lease.md](../../../todo/cas/staging-lease.md) —
+- [../plan/staging-lease.md](../plan/staging-lease.md) —
   the lease design this rule implements.
