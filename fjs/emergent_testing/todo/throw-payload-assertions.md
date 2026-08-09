@@ -10,12 +10,12 @@ hand-rolled `try`/`catch` throw-test with the structural [`throw`](../README.md#
 marker, and [AGENTS.md](../../../AGENTS.md) now flatly bans `try`/`catch` in `.f.ts` files
 (FunctionalScript itself has no `try`/`catch` and isn't planning one soon). Codex flagged the
 regression this causes on that PR
-([`fjs/asserts/proof.f.ts:17`](../../asserts/proof.f.ts#L17)): `defaultTest` in
+([`fjs/asserts/proof.f.mjs:17`](../../asserts/proof.f.mjs#L17)): `defaultTest` in
 [`module.f.ts`](../module.f.ts) treats *any* caught exception under `throw` as a pass — it
 never inspects *what* was thrown. The `try`/`catch` versions it replaced did:
 
 ```ts
-// before (fjs/asserts/proof.f.ts, pre-#1295)
+// before (fjs/asserts/proof.f.mjs, pre-#1295)
 assertThrowsCustomMsg: () => { throws(() => assert(false, 'oops'), 'oops') },
 assertEqThrowsOnUnequal: () => {
     try { assertEq(1, 2) } catch (e) {
@@ -72,7 +72,7 @@ is a live example (it isn't the shape we need here, since it captures a rejected
 already works and is already discovered by `fjs t` — `shouldLoad` in
 [`fjs/dev/module.f.ts`](../../dev/module.f.ts#L41) matches any `*proof.ts` filename alongside
 `*.f.ts`). AGENTS.md's `.f.ts` rule needs no change: it never applied to `proof.ts` in the first
-place. The fix for `fjs/asserts/proof.f.ts` and `fjs/types/result/proof.f.ts` is simply to move
+place. The fix for `fjs/asserts/proof.f.mjs` and `fjs/types/result/proof.f.ts` is simply to move
 just the payload-checking cases (`assertThrowsCustomMsg`, `assertEqThrowsOnUnequal`,
 `assertEqThrowsOnUnequal3`, `todoThrows`, `unwrapError`) into a sibling `proof.ts` in the same
 directory, using ordinary `try`/`catch`, while the rest of each module's coverage stays in
@@ -172,4 +172,4 @@ Playwright bridge.
 - [todo-property](./todo-property.md), [skip-property](./skip-property.md) — the same
   structural-marker mechanism this proposal extends.
 - [browser-testing](./browser-testing.md) — shared browser-side execution and reporting.
-- `fjs/asserts/proof.f.ts`, `fjs/types/result/proof.f.ts` — the sites that lost payload checks.
+- `fjs/asserts/proof.f.mjs`, `fjs/types/result/proof.f.ts` — the sites that lost payload checks.

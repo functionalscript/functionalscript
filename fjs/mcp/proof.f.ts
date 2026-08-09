@@ -6,8 +6,8 @@ import { number as rttiNumber, option, string as rttiString } from '../types/rtt
 import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
 import type { Response } from '../protocol/json_rpc/module.f.ts'
 import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
-import { vecToCBase32 } from '../basen/cbase32/module.f.ts'
-import { encode as base64Encode } from '../basen/base64/module.f.ts'
+import { vecToCBase32 } from '../basen/cbase32/module.f.mjs'
+import { encode as base64Encode } from '../basen/base64/module.f.mjs'
 import { utf8 } from '../text/module.f.ts'
 import { fileCas, type FileCasOperation } from '../cas/module.f.ts'
 import { dialect as revisionDialect, mediaType as revisionMediaType } from '../media/revision/module.f.ts'
@@ -276,7 +276,7 @@ export const proof = {
     // This test originally timed out under `bun test`'s native 5s per-test
     // limit (12-14s observed in CI on PR #1201) — the cost was in
     // `base64Encode`, quadratic before the `baseN.vecToString` fix (see
-    // `fjs/basen/base64/proof.f.ts` `encodeLargeVecIsSlow`). Now well under budget on
+    // `fjs/basen/base64/proof.f.mjs` `encodeLargeVecIsSlow`). Now well under budget on
     // both engines.
     getContentBase64InflationOverflowWritesInternalError: () => {
         const [root, hash] = seedBlob({})([oversizedBase64Chunk])

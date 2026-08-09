@@ -265,7 +265,7 @@ boundary, not to BNF parsers.
 - [Layered parser](./layered-parser.md) — tokenizer output becomes input symbols to
   the next BNF layer.
 - [`fjs/bnf/module.f.ts`](../module.f.ts) — current 24-bit symbol/range encoding.
-- [`fjs/types/range/module.f.ts`](../../types/range/module.f.ts) — remains the
+- [`fjs/types/range/module.f.mjs`](../../types/range/module.f.mjs) — remains the
   existing number-boundary helper used by current number callers.
 - [`fjs/types/range_map/module.f.ts`](../../types/range_map/module.f.ts) — shared
   range-map algorithm to parameterize for number and bigint boundaries instead of

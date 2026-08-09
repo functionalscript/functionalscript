@@ -8,9 +8,15 @@
  *
  * @module
  */
-import { flat, type List, stateScan } from '../../types/list/module.f.mjs'
-import type { StateScan } from '../../types/function/operator/module.f.mjs'
-import { contains } from '../../types/range/module.f.ts'
+
+import { flat, stateScan } from '../../types/list/module.f.mjs'
+/** @import { List } from '../../types/list/module.f.mjs' */
+
+/** @import { StateScan } from '../../types/function/operator/module.f.mjs' */
+
+import { contains } from '../../types/range/module.f.mjs'
+
+//
 
 /**
  * Error mask used to tag invalid code points or encoding errors. A decoded
@@ -26,18 +32,22 @@ export const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
  * unit through `byteOp`, then a trailing end-of-input marker drives `eofOp` to
  * flush any leftover decoding state.
  *
- * @param byteOp - The per-unit decoding step.
- * @param eofOp - The end-of-input step that flushes the remaining state.
- * @returns A function converting a list of code units into a list of code points.
+ * @template Unit
+ * @template S
+ * @template Cp
+ * @param {StateScan<Unit, S | null, List<Cp>>} byteOp - The per-unit decoding step.
+ * @param {(state: S | null) => readonly [List<Cp>, S | null]} eofOp - The end-of-input step that flushes the remaining state.
+ * @returns {(input: List<Unit>) => List<Cp>} A function converting a list of code units into a list of code points.
  */
-export const decoder = <Unit, S, Cp>(
-    byteOp: StateScan<Unit, S | null, List<Cp>>,
-    eofOp: (state: S | null) => readonly [List<Cp>, S | null],
-): (input: List<Unit>) => List<Cp> => {
-    const op: StateScan<Unit | null, S | null, List<Cp>> = (input, state) =>
+export const decoder = (
+    byteOp,
+    eofOp,
+) => {
+    /** @type {StateScan<Unit | null, S | null, List<Cp>>} */
+    const op = (input, state) =>
         input === null ? eofOp(state) : byteOp(input, state)
     const run = stateScan(op)(null)
-    return input => flat(run(flat<Unit | null>([input, [null]])))
+    return input => flat(run(flat(/** @type {List<List<Unit|null>>} */([input, [null]]))))
 }
 
 /**
@@ -47,11 +57,11 @@ export const decoder = <Unit, S, Cp>(
  * is the largest assignable code point. Every predicate below is derived from
  * these constants so the surrogate bounds and the maximum appear exactly once.
  */
-const surrogateMin = 0xd800 as const
-const lowSurrogateMin = 0xdc00 as const
-const surrogateMax = 0xdfff as const
-const bmpMax = 0xffff as const
-const maxCodePoint = 0x10_ffff as const
+const surrogateMin = /** @type {const} */ 0xd800
+const lowSurrogateMin = /** @type {const} */ 0xdc00
+const surrogateMax = /** @type {const} */ 0xdfff
+const bmpMax = /** @type {const} */ 0xffff
+const maxCodePoint = /** @type {const} */ 0x10_ffff
 
 /**
  * Checks whether the 16-bit word (U16) is a high surrogate.
@@ -76,8 +86,10 @@ const highBmp = contains(surrogateMax + 1, bmpMax)
  * Checks whether the code point is in the BMP range.
  * BMP is the main Unicode plane that covers code points 0x0000 - 0xFFFF, except
  * for the range of surrogates.
+ *
+ * @type {(codePoint: number) => boolean}
  */
-export const isBmpCodePoint = (codePoint: number): boolean =>
+export const isBmpCodePoint = codePoint =>
     lowBmp(codePoint) || highBmp(codePoint)
 
 /**
@@ -96,8 +108,10 @@ const isSurrogate = contains(surrogateMin, surrogateMax)
 /**
  * Checks whether the code point is a valid scalar value: within the assignable
  * Unicode range (0x0000 - 0x10FFFF) and not a surrogate.
+ *
+ * @type {(c: number) => boolean}
  */
-export const isValidCodePoint = (c: number): boolean =>
+export const isValidCodePoint = c =>
     validRange(c) && !isSurrogate(c)
 
 /**
@@ -118,6 +132,8 @@ const textWhitespace = contains(0x09, 0x0d)
  * 0x001F, 0x007F (DEL), and 0x0080 - 0x009F (C1), minus the whitespace block
  * 0x0009 - 0x000D (TAB, LF, VT, FF, CR), which is legitimate in text. Every
  * code point at or above 0x0020 that is not DEL or a C1 control is text.
+ *
+ * @type {(c: number) => boolean}
  */
-export const isTextCodePoint = (c: number): boolean =>
+export const isTextCodePoint = c =>
     textWhitespace(c) || !(c0Control(c) || delAndC1Control(c))

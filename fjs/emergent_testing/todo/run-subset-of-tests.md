@@ -11,7 +11,7 @@
 there is no way to say "run only these tests".
 
 The only selection mechanism today is the working directory: module
-discovery starts at `INIT_CWD`, so `cd fjs/base_n && fjs t` runs that
+discovery starts at `INIT_CWD`, so `cd fjs/basen && fjs t` runs that
 subtree. That is coarse — it cannot select a single proof module, a single
 test case, or a set of cases matching a pattern, and it does not work at
 all for a selection that spans directories.

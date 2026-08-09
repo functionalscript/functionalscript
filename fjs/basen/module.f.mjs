@@ -11,10 +11,16 @@
  *
  * @module
  */
-import { msb, lsb, type Vec, vec, chunkList, unpack } from '../types/bit_vec/module.f.mjs'
-import { fold, type List } from '../types/list/module.f.mjs'
+
+import { msb, lsb, vec, chunkList, unpack } from '../types/bit_vec/module.f.mjs'
+/** @import { Vec } from '../types/bit_vec/module.f.mjs' */
+
+import { fold } from '../types/list/module.f.mjs'
+/** @import { List } from '../types/list/module.f.mjs' */
+
 import { compose } from '../types/function/module.f.mjs'
-import type { Nullable } from '../types/nullable/module.f.mjs'
+
+/** @import { Nullable } from '../types/nullable/module.f.mjs' */
 
 const { unpackSplit } = msb
 
@@ -26,56 +32,48 @@ const chunkListMsb = chunkList(msb)
 
 /**
  * The encode/decode pair returned by {@link baseN}.
+ *
+ * @typedef {{
+ *  readonly vecToString: (v: Vec) => string
+ *  readonly stringToVec: (s: string) => Nullable<Vec>
+ * }} BaseN
  */
-export type BaseN = {
-    /**
-     * Encodes a bit vector by splitting it into `bits`-wide MSB chunks
-     * (`chunkList`, a balanced divide-and-conquer split, not a linear scan)
-     * and indexing each into the alphabet. A trailing partial chunk shorter
-     * than `bits` is left-padded with zeros.
-     */
-    readonly vecToString: (v: Vec) => string
-    /**
-     * Decodes a string by mapping each character to its alphabet index and
-     * concatenating the resulting `bits`-wide chunks. Returns `null` on the
-     * first character that is not in the alphabet (after `normalize`, when
-     * provided).
-     */
-    readonly stringToVec: (s: string) => Nullable<Vec>
-}
 
 /**
  * Builds a {@link BaseN} codec for a fixed chunk width and alphabet.
  *
- * @param bits The chunk width in bits. `alphabet.length` must equal `2 ** bits`.
- * @param alphabet The character used for each unsigned `bits`-bit value, in
+ * @param {bigint} bits The chunk width in bits. `alphabet.length` must equal `2 ** bits`.
+ * @param {string} alphabet The character used for each unsigned `bits`-bit value, in
  *   ascending order (index `0` → first character).
- * @param normalize Optional pre-lookup transform applied to each input
+ * @param {undefined | ((c: string) => string)} normalize Optional pre-lookup transform applied to each input
  *   character on decode — e.g. Crockford base32 lowercases and folds
  *   `i`/`l`→`1`, `o`→`0`.
+ * @return {BaseN}
  */
 export const baseN = (
-    bits: bigint,
-    alphabet: string,
-    normalize?: (c: string) => string,
-): BaseN => {
+    bits,
+    alphabet,
+    normalize = undefined,
+) => {
     const vecN = vec(bits)
     const toIndex = normalize === undefined
-        ? (c: string) => alphabet.indexOf(c)
-        : (c: string) => alphabet.indexOf(normalize(c))
+        ? (/** @type {string} */c) => alphabet.indexOf(c)
+        : (/** @type {string} */c) => alphabet.indexOf(normalize(c))
     const unpackSplitBits = unpackSplit(bits)
     // Converts one `<= bits`-wide chunk (as yielded by `chunkList`, already
     // masked to its own length) to its alphabet index. A trailing partial
     // chunk shorter than `bits` is left-padded with zeros: `unpackSplit`'s
     // shift amount goes negative, which per spec becomes a left shift.
-    const chunkToIndex = (chunk: Vec): number => {
+    /** @type {(chunk: Vec) => number} */
+    const chunkToIndex = chunk => {
         const u = unpack(chunk)
         return Number(u.length < bits ? unpackSplitBits(u)[0] : u.uint)
     }
     // Folds directly over `chunkList`'s lazy list in one pass — faster than
     // `map` into a second lazy list before joining, since there's no second
     // list to allocate/traverse.
-    const chunkToString = (chunk: Vec) => (acc: string): string =>
+    /** @type {(chunk: Vec) => (acc: string) => string} */
+    const chunkToString = chunk => acc =>
         acc + alphabet[chunkToIndex(chunk)]
     return {
         // `chunkListMsb(bits)` then `fold(chunkToString)('')` — neither half
@@ -88,7 +86,8 @@ export const baseN = (
             // character so malformed input is rejected in O(prefix) time and
             // `normalize` is never run past it. `listToVec` then concatenates in
             // O(n log n).
-            let chunks: List<Vec> = null
+            /** @type {List<Vec>} */
+            let chunks = null
             for (const c of s) {
                 const index = toIndex(c)
                 if (index < 0) { return null }
