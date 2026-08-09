@@ -12,11 +12,23 @@ does not impose the IEEE-754 safe-integer limit.
 
 We need a schema-neutral intermediate JSON representation that preserves bare
 integers exactly as `bigint`. Higher-level policies can then transform that value
-into ordinary JSON values, RTTI-directed values, DJS values, or other domains
-without duplicating the JSON tokenizer and structural parser.
+into ordinary JSON values, DJS values, or other domains without duplicating the
+JSON tokenizer and structural parser.
 
-In particular, BNF data will need this once its symbols and terminal ranges move
-from `number` to `bigint`.
+Some schema-directed consumers need one additional piece of information before a
+decimal/exponent token is materialized as JavaScript `number`: its exact decimal
+value. For example, `1.00000000000000001` may round to `1`, so an RTTI bigint
+validator cannot distinguish it from an integer if it sees only the final number.
+The existing tokenizer already preserves this as `NumberToken.value` plus exact
+`NumberToken.bf`.
+
+Therefore the structural parser should retain `NumberToken` leaves in an internal
+exact parse representation and let each numeric policy materialize those leaves.
+The public extended JSON value remains simple; the exact-token representation is
+an internal shared substrate, not a new JSON syntax or public numeric type.
+
+In particular, BNF data will need the extended runtime representation once its
+symbols and terminal ranges move from `number` to `bigint`.
 
 ### Extended JSON value
 
@@ -32,9 +44,30 @@ This is an intermediate runtime representation. Its serialized form is still
 ordinary valid JSON text; there is no `123n` syntax, tagged object, or quoted
 integer convention.
 
+### Shared exact structural parse
+
+Factor the current JSON structural parser so it can preserve numeric tokens before
+runtime numeric materialization. Conceptually, its internal tree has ordinary
+JSON container structure and `NumberToken` numeric leaves:
+
+```text
+ExactPrimitive = null | boolean | string | NumberToken
+ExactUnknown   = ExactPrimitive | ExactObject | ExactArray
+```
+
+The exact representation need not become a public API. It exists so the tokenizer
+and structural state machine are implemented once while consumers that require
+exact decimal information can inspect `NumberToken.value` / `NumberToken.bf`
+before JavaScript number rounding occurs.
+
+Extended JSON materialization converts this exact tree to `ExtendedUnknown` using
+the lexical rules below. RTTI-aware JSON may transform the same exact tree
+directly because validating a fractional token after it has already collapsed to
+`number` is too late.
+
 ### Parse
 
-Use the JSON number token's lexical form:
+Use the JSON number token's lexical form when materializing extended JSON:
 
 ```text
 123       -> 123n
@@ -58,7 +91,8 @@ when its mathematical value is an integer.** For example, `1e3` is `number`
 `1000`, not `1000n`.
 
 Reuse the tokenizer's exact numeric representation for bare integers rather than
-converting them through `number` first.
+converting them through `number` first. Keep the exact `NumberToken` available to
+schema-directed consumers until their numeric validation has run.
 
 Exponent syntax can overflow the JavaScript `number` domain even though the JSON
 text is valid; for example, `1e400` may materialize as `Infinity` under a direct
@@ -94,10 +128,9 @@ reserved for the `number` side of the extended representation and would parse
 back as `number` rather than `bigint`.
 
 The `.0` form is correct for the **extended** representation because it preserves
-whether the runtime leaf is `number` or `bigint`. A separate standard-JSON
-transformer canonicalizes safe whole-valued JavaScript numbers to `bigint`
-before serialization, so normal standard JSON values still produce `[1,2,3]`
-rather than `[1.0,2.0,3.0]`.
+whether the runtime leaf is `number` or `bigint`. The separate standard-JSON
+compatibility task decides which integer-valued standard numbers may be promoted
+to bigint before serialization without changing native `JSON.stringify` spelling.
 
 Do not settle non-finite values here. `NaN`, `Infinity`, `-Infinity`, including
 non-finite results produced by parsing valid exponent syntax, and their
@@ -106,28 +139,36 @@ interaction with standard compatibility are covered by the blocking
 
 ### Architecture
 
-Keep this layer policy-free:
+Keep the tokenizer and structural parser single-source while retaining exact
+numeric information until the consumer no longer needs it:
 
 ```text
 JSON text
    |
    v
-extended JSON parse
+JSON tokenizer
    |
-   +--> standard JSON transformer
+   v
+shared structural parse
+(NumberToken numeric leaves)
    |
-   +--> RTTI-aware transformer
+   +--> extended materialization -> ExtendedUnknown
+   |         |
+   |         +--> standard JSON transformer
+   |         +--> DJS / other runtime-value consumers
    |
-   +--> future domain-specific transformers
+   +--> RTTI-aware transform -> Ts<T>
 ```
 
-The tokenizer and structural JSON parser should exist once. The standard JSON and
-RTTI-aware surfaces are transformations on top of the extended value rather than
-separate JSON parsers.
+The standard surface can remain a transformation over `ExtendedUnknown`. The
+RTTI text parser is different only at the numeric-policy step: it consumes the
+same exact structural parse before decimal/exponent tokens are rounded to plain
+JavaScript numbers. This avoids a second tokenizer or structural parser while
+preserving enough information for exact schema validation.
 
-If the generic JSON/DJS tree type lands first, use it for the shared recursive
-container shape and vary only the primitive leaf type. That reuse is conditional
-on the generic object's index signature being optional:
+If the generic JSON/DJS tree type lands first, use it for both the exact and
+extended recursive container shapes and vary only the primitive leaf type. That
+reuse is conditional on the generic object's index signature being optional:
 
 ```ts
 type Object<P> = { readonly [k in string]?: Unknown<P> }
@@ -146,8 +187,13 @@ The generic-tree TODO owns this requirement.
       the optional recursive index signature
       `{ readonly [k in string]?: Unknown<P> }`; do not reuse a required index
       signature.
-- [ ] Factor the JSON parser so number-token conversion can produce the extended
-      numeric leaves without duplicating the structural parse state machine.
+- [ ] Factor the JSON parser so the shared structural parse retains `NumberToken`
+      numeric leaves before runtime numeric materialization; do not duplicate the
+      structural parse state machine for extended/standard/RTTI consumers.
+- [ ] Materialize extended JSON from that exact tree using the lexical numeric
+      rules in this task.
+- [ ] Keep `NumberToken.value` / exact decimal `NumberToken.bf` available to
+      schema-directed consumers until their numeric validation is complete.
 - [ ] Parse bare JSON integer syntax directly to `bigint`, except exact `-0`.
 - [ ] Parse exact `-0` to JavaScript negative-zero `number`.
 - [ ] Parse every number token containing `.` or `e` / `E` as `number`, even when
@@ -175,10 +221,11 @@ The generic-tree TODO owns this requirement.
 - [Standard JSON transformer](./standard-transform.md) — converts between the
   extended value and the ordinary bigint-free JSON value domain and composes the
   standard parser/stringifier on top of this layer.
-- [RTTI-aware extended JSON parser](./rtti-parse.md) — transforms the extended
-  numeric leaves according to a requested RTTI schema.
-- [BNF bigint symbols](../../../bnf/todo/bigint-symbols.md) — consumes this
-  representation so bigint-valued BNF data remains JSON-serializable.
+- [RTTI-aware extended JSON parser](./rtti-parse.md) — reuses the same exact
+  structural parse so fractional-token validation occurs before JavaScript
+  number rounding.
+- [BNF bigint symbols](../../../bnf/todo/bigint-symbols.md) — consumes the extended
+  runtime representation so bigint-valued BNF data remains JSON-serializable.
 - [`fjs/djs/todo/json-bigint-serialization.md`](../../../djs/todo/json-bigint-serialization.md)
   — DJS-specific JSON interchange should build on this extended representation.
 - [Generic JSON/DJS tree type](../../../djs/todo/663-json-djs-tree-type.md) — may
