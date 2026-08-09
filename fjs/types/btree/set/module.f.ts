@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { collapseRoot, type Branch1, type Branch3, type Branch5, type Branch7, type TNode, type Tree } from '../types/module.f.ts'
+import { collapseRoot, type Branch1, type Branch3, type Branch5, type Branch7, type TNode, type Tree } from '../types/module.f.mjs'
 import { find, type First, type PathItem, type Result } from '../find/module.f.ts'
 import type { Compare } from '../../function/compare/module.f.mjs'
 import { fold } from '../../list/module.f.mjs'
