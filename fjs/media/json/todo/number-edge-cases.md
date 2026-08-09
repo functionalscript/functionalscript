@@ -47,37 +47,64 @@ information for the standard boundary to produce the same result as native
 value model, the alternative is to define an explicit separate compatibility
 path rather than silently changing standard parse behavior.
 
-Standard stringify has a separate integer-spelling problem. The initial
-conservative direction was to convert only `Number.isSafeInteger(value)` values
-to `bigint` before extended serialization. That preserves ordinary integers but
-is not enough to match native `JSON.stringify`: some unsafe integer-valued
-numbers, such as values around `9e15` through the plain-decimal range, still
-serialize without exponent notation. Keeping those as extended `number` would
-force an information-preserving non-integer spelling such as `.0`, changing the
-standard API output.
+### Native plain-integer spelling boundary
 
-Investigate the actual native spelling boundary instead of equating
-"serialization-safe" with `Number.MAX_SAFE_INTEGER`. Provisionally call the
-largest positive integer-valued `number` that still uses plain integer JSON
-syntax `max_safe_integer`, and the most-negative corresponding value
-`min_safe_integer` (names TBD). These are local serialization concepts, not
-aliases for `Number.MAX_SAFE_INTEGER` / `Number.MIN_SAFE_INTEGER`, and the
-positive/negative boundaries must not be assumed symmetric.
+The native `JSON.stringify` boundary has now been measured. The largest positive
+integer-valued double still written in plain decimal form is:
 
-The boundary alone may still be insufficient. For unsafe integer-valued numbers,
-`BigInt(value)` represents the exact integer value of the binary floating-point
-number, while `JSON.stringify(value)` uses the shortest decimal spelling that
-round-trips to the same `number`. The investigation must verify whether converting
-all integers inside the candidate bounds preserves the exact native decimal text.
-If it does not, standard stringify needs either a stricter conversion predicate or
-a compatibility-specific number serialization path.
+```text
+max_plain_integer = 999999999999999900000
+```
+
+The next representable double is `1e21`, which is still integer-valued but is
+serialized with exponent notation:
+
+```text
+JSON.stringify(max_plain_integer) == "999999999999999900000"
+JSON.stringify(1e21)              == "1e+21"
+```
+
+The negative boundary is symmetric:
+
+```text
+min_plain_integer = -999999999999999900000
+JSON.stringify(min_plain_integer) == "-999999999999999900000"
+JSON.stringify(-1e21)             == "-1e+21"
+```
+
+A sweep across the double range and around the transition found no sign
+asymmetry, consistent with number formatting operating on the magnitude and then
+prefixing the negative sign. Use the names `max_plain_integer` and
+`min_plain_integer` (or equivalent final API names) rather than
+`max_safe_integer` / `min_safe_integer`: these are serialization-spelling bounds,
+not exact-arithmetic bounds, and are far outside `Number.MAX_SAFE_INTEGER` /
+`Number.MIN_SAFE_INTEGER`.
+
+The plain-spelling bounds are **not** sufficient as the standard-to-extended
+integer conversion predicate. Unsafe integer-valued doubles can have a shortest
+decimal spelling different from the exact integer represented by the binary
+floating-point value. At the upper boundary itself:
+
+```text
+JSON.stringify(999999999999999900000)
+    == "999999999999999900000"
+
+BigInt(999999999999999900000).toString()
+    == "999999999999999868928"
+```
+
+Therefore converting every integer-valued number inside
+`[min_plain_integer, max_plain_integer]` to `bigint` would change observable
+standard JSON output. The final standard stringify design needs either a stricter
+conversion predicate that proves the bigint decimal spelling matches native
+number spelling, or a compatibility-specific number serialization path for the
+mismatching values. Do not use the plain-spelling bounds alone as the predicate.
 
 ### Questions to investigate
 
-Do not choose a concrete overflow representation or integer conversion predicate
-in this TODO yet except where a direction is already settled above. First
-document the relevant native JavaScript behavior and the information-preserving
-options for the extended layer.
+The integer exponent-switch boundary is settled above, but the remaining numeric
+policies are still open. Do not choose a concrete overflow representation or the
+final integer conversion predicate until the relevant behavior is documented.
 
 - [ ] Verify `JSON.parse` behavior for `0`, `-0`, decimal zero, exponent zero, and
       overflowed exponent syntax such as `1e400`, including `Object.is` checks for
@@ -99,24 +126,25 @@ options for the extended layer.
 - [ ] Define the matching extended-serialization/error behavior for any value or
       representation chosen for overflowed exponent input so parse/serialize has
       a coherent contract.
-- [ ] Determine the positive `max_safe_integer` candidate: the greatest
-      integer-valued JavaScript `number` for which native `JSON.stringify`
-      produces plain integer syntax without `e` / `E`.
-- [ ] Determine the negative `min_safe_integer` candidate independently: the
-      least integer-valued JavaScript `number` for which native `JSON.stringify`
-      still produces plain integer syntax. Do not assume it is exactly
-      `-max_safe_integer`.
-- [ ] Clearly distinguish these serialization bounds from the built-in
-      `Number.MAX_SAFE_INTEGER` / `Number.MIN_SAFE_INTEGER` exact-arithmetic
-      bounds; choose final names that avoid accidental confusion if needed.
+- [x] Determine the positive plain-integer spelling boundary:
+      `max_plain_integer = 999999999999999900000`; the next double is `1e21` and
+      native `JSON.stringify` switches to exponent notation there.
+- [x] Determine the negative boundary independently and verify symmetry:
+      `min_plain_integer = -999999999999999900000`; the next magnitude is
+      `-1e21` and native `JSON.stringify` uses exponent notation.
+- [x] Use plain-spelling terminology rather than `safe integer` terminology so
+      these serialization bounds cannot be confused with
+      `Number.MAX_SAFE_INTEGER` / `Number.MIN_SAFE_INTEGER`.
 - [ ] Test representative and boundary-adjacent unsafe integers throughout the
-      candidate interval and compare `JSON.stringify(value)` with
+      plain-spelling interval and compare `JSON.stringify(value)` with
       `BigInt(value).toString()`.
-- [ ] Determine whether the candidate min/max interval alone guarantees exact
-      native spelling after conversion to `bigint`. If not, define a stricter
-      predicate, such as requiring the bigint decimal spelling to equal the
-      native JSON number spelling, or retain a standard-only number serializer
-      for the mismatching cases.
+- [x] Determine whether the min/max interval alone guarantees exact native
+      spelling after conversion to `bigint`: it does not. The upper boundary is
+      already a counterexample (`999999999999999900000` vs exact bigint
+      `999999999999999868928`).
+- [ ] Define the stricter conversion predicate or standard-only number serializer
+      required for plain-spelled integer values whose bigint decimal spelling does
+      not equal native `JSON.stringify` output.
 - [ ] Compare native `JSON.stringify` output for large integer-valued numbers such
       as `9007199254740992`, `1e20`, `1e21`, `1e100`, and `1e200`, plus their
       negative counterparts, with the output produced after candidate conversion.
@@ -153,7 +181,7 @@ options for the extended layer.
   information-preserving intermediate JSON representation and is blocked on this
   task for exponent-overflow/non-finite behavior.
 - [Standard JSON transformer](./standard-transform.md) — now also blocked on this
-  investigation for the exact integer-to-bigint/stringify compatibility boundary.
+  investigation for the exact integer-to-bigint/stringify compatibility policy.
 - [`fjs/media/json/module.f.ts`](../module.f.ts) — current standard JSON surface.
 - [`fjs/media/json/serializer/module.f.ts`](../serializer/module.f.ts) — current
   number serialization behavior to compare with native `JSON.stringify`.
