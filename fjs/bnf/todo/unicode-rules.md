@@ -75,9 +75,10 @@ This split changes the public design assumptions used by older open TODOs:
   is blocked by this task. Its implementation must import Unicode-specific
   construction from `fjs/bnf/unicode/module.f.ts` and lower text literals to
   generic rules before they reach core BNF.
-- [`fjs/bnf/todo/207.md`](./207.md) is conceptually blocked until its planned
-  split/revision removes `string` as a generic rule kind. Unicode text helpers are
-  constructors of ordinary generic rules rather than a distinct generic rule kind.
+- [`fjs/bnf/todo/207.md`](./207.md) is blocked by this task. Its planned
+  split/revision must remove `string` as a generic rule kind. Unicode text helpers
+  are constructors of ordinary generic rules rather than a distinct generic rule
+  kind.
 - [`fjs/bnf/todo/667-bnf-repeat-flatten.md`](./667-bnf-repeat-flatten.md) is
   blocked by this task (and by the bigint symbol/range migration). Its previous
   design used a bare `string` as a new generic `Repeat` rule and assumed terminals
@@ -127,9 +128,9 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Update/block `fjs/media/json/todo/bnf-grammar-single-owner.md` so its JSON
       grammar design imports Unicode helpers from `fjs/bnf/unicode/module.f.ts`
       and does not depend on raw string rules in core BNF.
-- [ ] Update `fjs/bnf/todo/207.md` when it is split/revised so `string` is no
-      longer described as a generic rule kind; Unicode text constructors lower to
-      ordinary generic rules before semantic evaluation.
+- [ ] Keep `fjs/bnf/todo/207.md` blocked until it is rebased/split so `string` is
+      no longer described as a generic rule kind; Unicode text constructors lower
+      to ordinary generic rules before semantic evaluation.
 - [ ] Keep `fjs/bnf/todo/667-bnf-repeat-flatten.md` blocked until it is rebased on
       the post-split/post-bigint `Rule` union; its `Repeat` encoding must not reuse
       bare `string`, and dispatch must not assume terminals are JavaScript
@@ -163,8 +164,8 @@ new module boundary and final rule discriminants before implementation starts.
   another non-Unicode alphabet consumed by the generic BNF core.
 - [JSON BNF grammar owner](../../media/json/todo/bnf-grammar-single-owner.md) —
   blocked on this split and must target `bnf/unicode` for text terminals.
-- [BNF semantic actions](./207.md) — blocked conceptually on this split; its rule
-  model must remove generic `string` before implementation.
+- [BNF semantic actions](./207.md) — blocked on this split; its rule model must
+  remove generic `string` before implementation.
 - [BNF repeat flattening](./667-bnf-repeat-flatten.md) — blocked on the final
   generic rule discriminants; its old bare-string repeat encoding is invalidated
   by this split.
