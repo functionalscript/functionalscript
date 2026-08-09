@@ -15,17 +15,24 @@ integers exactly as `bigint`. Higher-level policies can then transform that valu
 into ordinary JSON values, DJS values, or other domains without duplicating the
 JSON tokenizer and structural parser.
 
-Some schema-directed consumers need one additional piece of information before a
-decimal/exponent token is materialized as JavaScript `number`: its exact decimal
-value. For example, `1.00000000000000001` may round to `1`, so an RTTI bigint
-validator cannot distinguish it from an integer if it sees only the final number.
-The existing tokenizer already preserves this as `NumberToken.value` plus exact
-`NumberToken.bf`.
+Some schema-directed consumers need exact numeric information before a
+decimal/exponent token is materialized as JavaScript `number`. For example,
+`1.00000000000000001` may round to `1`, so an RTTI bigint validator cannot
+distinguish it from an integer if it sees only the final number.
+
+The existing tokenizer already preserves the original number lexeme as
+`NumberToken.value`. It also carries `NumberToken.bf`, which is useful for normal
+numeric conversion but is **not** an exact representation for every valid JSON
+number: the tokenizer currently accumulates exponent digits in a JavaScript
+`number`, so an arbitrarily long exponent can lose precision or become infinite.
+Exact policies must therefore treat `NumberToken.value` as the source of truth
+and must not assume `NumberToken.bf` is exact for unbounded exponent syntax.
 
 Therefore the structural parser should retain `NumberToken` leaves in an internal
-exact parse representation and let each numeric policy materialize those leaves.
-The public extended JSON value remains simple; the exact-token representation is
-an internal shared substrate, not a new JSON syntax or public numeric type.
+lossless parse representation and let each numeric policy materialize those
+leaves. The public extended JSON value remains simple; the token-preserving
+representation is an internal shared substrate, not a new JSON syntax or public
+numeric type.
 
 In particular, BNF data will need the extended runtime representation once its
 symbols and terminal ranges move from `number` to `bigint`.
@@ -44,7 +51,7 @@ This is an intermediate runtime representation. Its serialized form is still
 ordinary valid JSON text; there is no `123n` syntax, tagged object, or quoted
 integer convention.
 
-### Shared exact structural parse
+### Shared lossless structural parse
 
 Factor the current JSON structural parser so it can preserve numeric tokens before
 runtime numeric materialization. Conceptually, its internal tree has ordinary
@@ -57,8 +64,15 @@ ExactUnknown   = ExactPrimitive | ExactObject | ExactArray
 
 The exact representation need not become a public API. It exists so the tokenizer
 and structural state machine are implemented once while consumers that require
-exact decimal information can inspect `NumberToken.value` / `NumberToken.bf`
-before JavaScript number rounding occurs.
+exact decimal syntax can inspect `NumberToken.value` before JavaScript number
+rounding occurs.
+
+`NumberToken.bf` may still be reused where its exponent is representable by the
+current tokenizer implementation, but it is a derived convenience, not the
+canonical exact representation. Policies that must be correct for every valid
+JSON number must operate from `NumberToken.value` or another representation that
+preserves the exponent digits without first narrowing them to JavaScript
+`number`.
 
 Extended JSON materialization converts this exact tree to `ExtendedUnknown` using
 the lexical rules below. RTTI-aware JSON may transform the same exact tree
@@ -90,8 +104,8 @@ a decimal point or exponent marker (`e` / `E`) is a floating-point `number`, eve
 when its mathematical value is an integer.** For example, `1e3` is `number`
 `1000`, not `1000n`.
 
-Reuse the tokenizer's exact numeric representation for bare integers rather than
-converting them through `number` first. Keep the exact `NumberToken` available to
+Parse bare integer syntax directly from the token text rather than converting it
+through `number` first. Keep the complete `NumberToken.value` available to
 schema-directed consumers until their numeric validation has run.
 
 Exponent syntax can overflow the JavaScript `number` domain even though the JSON
@@ -99,6 +113,35 @@ text is valid; for example, `1e400` may materialize as `Infinity` under a direct
 number conversion. The representation and serialization/failure behavior for
 such inputs must be settled by [JSON numeric edge cases](./number-edge-cases.md)
 before this parse/serialize task is implemented.
+
+#### Exact checks with unbounded exponents
+
+Exact schema-directed checks must not convert an arbitrary exponent to JavaScript
+`number`, and must not evaluate a power such as `10 ** exponent` merely to decide
+whether a token is integral.
+
+Use a lexical, input-bounded check instead. Parse `NumberToken.value` into:
+
+- coefficient digits (integer digits plus fraction digits);
+- the count of fraction digits;
+- exponent sign and exponent digit text, if present.
+
+For integrality, only the decimal shift relative to the coefficient's available
+trailing zeros matters. Compare the exponent digit text against small counts such
+as the fraction-digit count and coefficient length. Convert the exponent to an
+ordinary integer only after proving its magnitude is bounded by the token length;
+otherwise the result can already be decided from the comparison. A huge negative
+exponent on a nonzero coefficient is therefore rejected as fractional without
+constructing a huge power or bigint, while a huge positive exponent can be known
+to be mathematically integral before ordinary JavaScript-number conversion later
+rejects it if it is not a safe finite target value.
+
+The zero coefficient is a special simple case: it is mathematically integral for
+any exponent magnitude.
+
+This keeps exact validation O(input length) and makes valid inputs such as
+`1e-99999999999999999999` fail normally where appropriate instead of overflowing
+an internal exponent representation or triggering enormous exponentiation.
 
 ### Serialize
 
@@ -139,8 +182,8 @@ interaction with standard compatibility are covered by the blocking
 
 ### Architecture
 
-Keep the tokenizer and structural parser single-source while retaining exact
-numeric information until the consumer no longer needs it:
+Keep the tokenizer and structural parser single-source while retaining lossless
+numeric syntax until the consumer no longer needs it:
 
 ```text
 JSON text
@@ -150,7 +193,7 @@ JSON tokenizer
    |
    v
 shared structural parse
-(NumberToken numeric leaves)
+(NumberToken numeric leaves; value is canonical exact lexeme)
    |
    +--> extended materialization -> ExtendedUnknown
    |         |
@@ -162,9 +205,9 @@ shared structural parse
 
 The standard surface can remain a transformation over `ExtendedUnknown`. The
 RTTI text parser is different only at the numeric-policy step: it consumes the
-same exact structural parse before decimal/exponent tokens are rounded to plain
-JavaScript numbers. This avoids a second tokenizer or structural parser while
-preserving enough information for exact schema validation.
+same token-preserving structural parse before decimal/exponent tokens are rounded
+to plain JavaScript numbers. This avoids a second tokenizer or structural parser
+while preserving enough information for exact schema validation.
 
 If the generic JSON/DJS tree type lands first, use it for both the exact and
 extended recursive container shapes and vary only the primitive leaf type. That
@@ -190,10 +233,15 @@ The generic-tree TODO owns this requirement.
 - [ ] Factor the JSON parser so the shared structural parse retains `NumberToken`
       numeric leaves before runtime numeric materialization; do not duplicate the
       structural parse state machine for extended/standard/RTTI consumers.
+- [ ] Treat `NumberToken.value` as the canonical lossless numeric source. Do not
+      assume `NumberToken.bf` remains exact after an arbitrarily long exponent.
 - [ ] Materialize extended JSON from that exact tree using the lexical numeric
       rules in this task.
-- [ ] Keep `NumberToken.value` / exact decimal `NumberToken.bf` available to
-      schema-directed consumers until their numeric validation is complete.
+- [ ] Add a bounded lexical helper for exact decimal/exponent properties needed by
+      schema-directed consumers; it must not narrow an unbounded exponent before
+      deciding whether the exponent magnitude matters.
+- [ ] Ensure exact integrality checks never compute `10 ** hugeExponent` or an
+      equivalent enormous bigint power merely to reject a token.
 - [ ] Parse bare JSON integer syntax directly to `bigint`, except exact `-0`.
 - [ ] Parse exact `-0` to JavaScript negative-zero `number`.
 - [ ] Parse every number token containing `.` or `e` / `E` as `number`, even when
@@ -206,10 +254,9 @@ The generic-tree TODO owns this requirement.
       non-finite policy chosen by the blocking numeric-edge task.
 - [ ] Add round-trip/error proofs for integers beyond `Number.MAX_SAFE_INTEGER`,
       negative integers, bigint zero, positive number zero, negative number zero,
-      whole-valued numbers, fractions, ordinary exponents, and overflowed
-      exponents; explicitly prove that exponent syntax parses as `number` and
-      bigint serialization never emits exponent syntax; use `Object.is` for
-      `-0`.
+      whole-valued numbers, fractions, ordinary exponents, overflowed exponents,
+      and exponent text far beyond JavaScript-number precision; explicitly prove
+      that exact checks remain bounded by input length and do not throw.
 - [ ] Document that the serialized output is valid JSON but native JavaScript
       `JSON.parse` may lose precision when consuming large integer literals.
 - [ ] `npx tsc`, `fjs test`.
@@ -221,7 +268,7 @@ The generic-tree TODO owns this requirement.
 - [Standard JSON transformer](./standard-transform.md) — converts between the
   extended value and the ordinary bigint-free JSON value domain and composes the
   standard parser/stringifier on top of this layer.
-- [RTTI-aware extended JSON parser](./rtti-parse.md) — reuses the same exact
+- [RTTI-aware extended JSON parser](./rtti-parse.md) — reuses the same lossless
   structural parse so fractional-token validation occurs before JavaScript
   number rounding.
 - [BNF bigint symbols](../../../bnf/todo/bigint-symbols.md) — consumes the extended
