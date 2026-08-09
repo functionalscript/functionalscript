@@ -3,9 +3,13 @@
  *
  * @module
  */
-import { msb, lsb, type Vec, length, vec, empty } from "../../types/bit_vec/module.f.mjs"
-import type { Nullable } from "../../types/nullable/module.f.mjs"
-import { baseN } from "../module.f.ts"
+
+import { msb, lsb, length, vec, empty } from '../../types/bit_vec/module.f.mjs'
+/** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
+
+/** @import { Nullable } from '../../types/nullable/module.f.mjs' */
+
+import { baseN } from '../module.f.ts'
 
 //                         0123456789abcdef
 const m = '0123456789abcdefghjkmnpqrstvwxyz'
@@ -14,7 +18,8 @@ const { concat } = msb
 
 const popBack1 = lsb.popFront(1n)
 
-const normalizeChar = (c: string): string => {
+/** @type {(c: string) => string} */
+const normalizeChar = c => {
     const lower = c.toLowerCase()
     switch (lower) {
         case 'i': { return '1' }
@@ -26,11 +31,14 @@ const normalizeChar = (c: string): string => {
 
 const codec = baseN(5n, m, normalizeChar)
 
-export const vec5xToCBase32: (v: Vec) => string = codec.vecToString
+/** @type {(v: Vec) => string} */
+export const vec5xToCBase32 = codec.vecToString
 
-export const cBase32ToVec5x: (s: string) => Nullable<Vec> = codec.stringToVec
+/** @type {(s: string) => Nullable<Vec>} */
+export const cBase32ToVec5x = codec.stringToVec
 
-export const vecToCBase32 = (v: Vec): string => {
+/** @type {(v: Vec) => string} */
+export const vecToCBase32 = v => {
     const len = length(v)
     const extraLen = 5n - len % 5n
     const last = 1n << (extraLen - 1n)
@@ -38,7 +46,8 @@ export const vecToCBase32 = (v: Vec): string => {
     return vec5xToCBase32(padded)
 }
 
-export const cBase32ToVec = (s: string): Nullable<Vec> => {
+/** @type {(s: string) => Nullable<Vec>} */
+export const cBase32ToVec = s => {
     let v = cBase32ToVec5x(s)
     if (v === null) { return null }
     // Strip the padding: trailing zeros up to and including the sentinel `1` bit.

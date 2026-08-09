@@ -6,7 +6,7 @@ import { number as rttiNumber, option, string as rttiString } from '../types/rtt
 import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
 import type { Response } from '../protocol/json_rpc/module.f.ts'
 import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
-import { vecToCBase32 } from '../basen/cbase32/module.f.ts'
+import { vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { encode as base64Encode } from '../basen/base64/module.f.mjs'
 import { utf8 } from '../text/module.f.ts'
 import { fileCas, type FileCasOperation } from '../cas/module.f.ts'

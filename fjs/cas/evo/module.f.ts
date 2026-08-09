@@ -46,7 +46,7 @@ import { pure, foldStep, type Effect, type Operation } from '../../effects/modul
 import { eff } from '../../effects/eff/module.f.ts'
 import { create, read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import { collectRead, type Cas } from '../module.f.ts'
-import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.ts'
+import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.ts'
 import { tryUtf8 } from '../../text/module.f.ts'
 import { decodeText, encodeText, dialect, checkReferences, isHash, type LockMap, type Revision } from '../../media/revision/module.f.ts'
