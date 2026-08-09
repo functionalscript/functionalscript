@@ -481,16 +481,6 @@ When translating a public type, verify both normal type checking and emitted
 type contract must not become weaker just because the source moved to
 JavaScript.
 
-Preserve private type intent as well. An implementation-only JSDoc typedef must
-use a leading `_`, for example `/** @typedef {number} _Node */`. TypeScript
-currently emits JSDoc typedefs as exported aliases even when they are intended to
-be private, so `_` is the repository's temporary private-API marker: consumers
-must not depend on these names, and changing, renaming, or removing them is not a
-breaking change. Public typedefs use ordinary names without the `_` prefix. See
-[`fjs/fsc/README.md`](./fjs/fsc/README.md) for the migration contract and
-[`todo/blocked/jsdoc-typedef-strip-internal.md`](./todo/blocked/jsdoc-typedef-strip-internal.md)
-for replacing this workaround with `@internal` when TypeScript supports it.
-
 #### Prefer inference
 
 Let TypeScript infer the type of private constants, local variables, and return
