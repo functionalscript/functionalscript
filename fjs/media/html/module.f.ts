@@ -10,7 +10,7 @@ import { definedEntries, type Entry, type StringMap } from '../../types/object/m
 import { compose } from '../../types/function/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { includes } from '../../types/array/module.f.mjs'
-import { type Vec } from '../../types/bit_vec/module.f.ts'
+import { type Vec } from '../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../text/module.f.ts'
 import { quotationMark, ampersand, lessThanSign, greaterThanSign } from '../../text/ascii/module.f.ts'
 

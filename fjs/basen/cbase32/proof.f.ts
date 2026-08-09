@@ -1,4 +1,4 @@
-import { empty, vec, type Vec } from "../../types/bit_vec/module.f.ts"
+import { empty, vec, type Vec } from "../../types/bit_vec/module.f.mjs"
 import { cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from "./module.f.ts"
 import { assertEq } from '../../asserts/module.f.mjs'
 

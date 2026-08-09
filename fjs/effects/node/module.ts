@@ -43,7 +43,7 @@ import { error, ok, type Result } from '../../types/result/module.f.mjs'
 import { asyncTryCatch } from '../../types/result/module.ts'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.ts'
 import type { StringMap } from '../../types/object/module.f.ts'
-import { maxLengthBytes } from '../../types/bit_vec/module.f.ts'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 
 type Server = {
     readonly listen: (port: number) => void

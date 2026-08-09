@@ -13,7 +13,7 @@ import {
     chunkList,
     uint,
     type Vec
-} from '../../types/bit_vec/module.f.ts'
+} from '../../types/bit_vec/module.f.mjs'
 import type { Fold } from '../../types/function/operator/module.f.mjs'
 import { fold, type List } from '../../types/list/module.f.mjs'
 

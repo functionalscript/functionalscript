@@ -41,7 +41,7 @@
  *
  * @module
  */
-import type { Vec } from '../types/bit_vec/module.f.ts'
+import type { Vec } from '../types/bit_vec/module.f.mjs'
 import { fromVec } from '../text/utf8/module.f.ts'
 import { detectVec, type DetectMeta } from './type/module.f.ts'
 import { parse } from './json/module.f.ts'

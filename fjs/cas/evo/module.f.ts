@@ -54,7 +54,7 @@ import { ok, error, type Ok, type Result } from '../../types/result/module.f.mjs
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
 import { at, definedEntries, type StringMap } from '../../types/object/module.f.ts'
 import { unwrap } from '../../types/nullable/module.f.mjs'
-import type { Vec } from '../../types/bit_vec/module.f.ts'
+import type { Vec } from '../../types/bit_vec/module.f.mjs'
 import { isNotFound, type IoResult } from '../../effects/node/module.f.ts'
 
 /** A cBase32 content hash, as accepted/returned by `Cas<O>`. */

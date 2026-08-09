@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/bit_vec` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
+  TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier
+  [#1460](https://github.com/functionalscript/functionalscript/pull/1460)
 - **BREAKING CHANGES:** `fjs/types/list`, `fjs/types/result`,
   `fjs/common/monoid`, `fjs/types/bigint`, and `fjs/types/nominal` migrate from
   authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the

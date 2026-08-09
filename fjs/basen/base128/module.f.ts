@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { vec8, type Vec, msb, empty } from '../../types/bit_vec/module.f.ts'
+import { vec8, type Vec, msb, empty } from '../../types/bit_vec/module.f.mjs'
 
 const { concat, popFront } = msb
 
