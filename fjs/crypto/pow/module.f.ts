@@ -5,7 +5,7 @@
  * @module
  */
 import { mask } from '../../types/bigint/module.f.mjs'
-import { type Vec, uint } from '../../types/bit_vec/module.f.ts'
+import { type Vec, uint } from '../../types/bit_vec/module.f.mjs'
 import type { Nullable } from '../../types/nullable/module.f.mjs'
 import { computeSync, sha256, type Sha2 } from '../sha2/module.f.ts'
 

@@ -1,4 +1,4 @@
-import { empty, isVec, uint, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
+import { empty, isVec, uint, vec, vec8, type Vec } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { match, pure, step } from "../module.f.ts"
 import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, type IoResult, type ReadFile } from "./module.f.ts"

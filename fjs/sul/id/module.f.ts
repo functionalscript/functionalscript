@@ -15,7 +15,7 @@ import {
     unpack,
     vec,
     type Vec
-} from '../../types/bit_vec/module.f.ts'
+} from '../../types/bit_vec/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.ts'
 import { secp256r1, type Point2D } from '../../crypto/secp/module.f.ts'

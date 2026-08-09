@@ -1,4 +1,4 @@
-import { length, maxLength, msb, vec, vec8, type Vec } from '../types/bit_vec/module.f.ts'
+import { length, maxLength, msb, vec, vec8, type Vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.ts'
 import { fileCas, casAddFile, collectRead, type FileCasOperation, casUpload } from './module.f.ts'

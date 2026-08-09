@@ -2,7 +2,7 @@ import { toCodePointList, fromCodePointList, fromVec, utf8ByteToCodePointOp } fr
 import { stringify as jsonStringify } from '../../media/json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { toArray } from '../../types/list/module.f.mjs'
-import { msb, u8ListToVec, vec } from '../../types/bit_vec/module.f.ts'
+import { msb, u8ListToVec, vec } from '../../types/bit_vec/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 const stringify = jsonStringify(sort)

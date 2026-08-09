@@ -1,6 +1,6 @@
 import { assertEq } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.ts'
-import { uint, vec } from '../../types/bit_vec/module.f.ts'
+import { uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { sha256, sha384, sha512 } from '../sha2/module.f.ts'
 import { hmac } from './module.f.ts'
 

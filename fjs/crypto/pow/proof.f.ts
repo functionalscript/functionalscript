@@ -1,5 +1,5 @@
 import { utf8 } from '../../text/module.f.ts'
-import { empty, uint } from '../../types/bit_vec/module.f.ts'
+import { empty, uint } from '../../types/bit_vec/module.f.mjs'
 import { computeSync, sha224, sha256 } from '../sha2/module.f.ts'
 import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBits } from './module.f.ts'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'

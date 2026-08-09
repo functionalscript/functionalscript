@@ -1,5 +1,5 @@
 import { assertEq } from '../asserts/module.f.mjs'
-import { empty, maxLength, vec, length } from '../types/bit_vec/module.f.ts'
+import { empty, maxLength, vec, length } from '../types/bit_vec/module.f.mjs'
 import { baseN } from './module.f.ts'
 
 const hex = baseN(4n, '0123456789abcdef')
