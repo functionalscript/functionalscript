@@ -75,8 +75,11 @@ leading `_` for implementation-only typedefs created during the migration:
 The underscore is an API contract, not declaration-level visibility. Generated
 `.d.ts` / `.d.mts` may still contain `export type _Type = number`, but names that
 begin with `_` are private FunctionalScript implementation details. Consumers
-must not rely on them, and changing, renaming, or removing them is not a breaking
-change and does not require a `**BREAKING CHANGES:**` changelog entry.
+must not rely on those names directly, so renaming or removing a `_`-prefixed
+alias is not a breaking change solely because TypeScript emitted it. The public
+contract still governs transitive effects: if a public type depends on `_Type`,
+changing `_Type` in a way that changes that public type's assignability is a
+breaking change and requires the normal `**BREAKING CHANGES:**` treatment.
 
 Public typedefs keep ordinary names without the `_` prefix. When upstream
 support is ready, replace this workaround with `@internal`; that cleanup is
