@@ -15,7 +15,7 @@ import {
     stringToCodePointList,
     type CodePoint,
 } from '../../../text/utf16/module.f.ts'
-import { errorMask } from '../../../text/code_point/module.f.ts'
+import { errorMask } from '../../../text/code_point/module.f.mjs'
 import {
     backspace,
     cr,

@@ -24,7 +24,7 @@ import {
     isHighSurrogate,
     isLowSurrogate,
     isSupplementaryPlane,
-} from '../code_point/module.f.ts'
+} from '../code_point/module.f.mjs'
 
 /**
  * Optional Utf16State - represents the state of utf16 decoding operation or null.
