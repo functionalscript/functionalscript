@@ -21,7 +21,7 @@ const assertErrorPath = (expected: readonly string[]) =>
 ```
 
 In addition, `parse/proof.f.ts:12-15` hand-rolls an `unwrap` that duplicates
-`unwrap` from `fjs/types/result/module.f.ts:59` (assert `'ok'`, return the
+`unwrap` from `fjs/types/result/module.f.mjs:59` (assert `'ok'`, return the
 payload), and `assertErrorPath`/`assertDeepEqual`
 (`parse/proof.f.ts:17-45`) still use raw `if`/`throw` instead of
 `assert`/`assertEq`, contrary to the proof-assertion rule in `AGENTS.md`
@@ -42,11 +42,11 @@ Two steps; the first is the high-confidence part:
 1. **Shared helpers.**
    - `assertOk` / `assertError` are generic result-tag assertions on the
      repo-wide `Result` tuple convention; move them to
-     `fjs/asserts/module.f.ts` (type-only import of `Result` from
+     `fjs/asserts/module.f.mjs` (type-only import of `Result` from
      `fjs/types/result`, or structural `readonly [string, unknown]` to keep
      `fjs/asserts` dependency-free).
    - Replace `parse/proof.f.ts`'s local `unwrap` with `unwrap` from
-     `fjs/types/result/module.f.ts`.
+     `fjs/types/result/module.f.mjs`.
    - Rewrite `assertErrorPath` with `assertEq` (compare `e.path.length` and
      each element, or compare the joined path string), export it from one
      place both proofs can import — since `ValidationError` is owned by
@@ -64,7 +64,7 @@ Two steps; the first is the high-confidence part:
 
 ## Tasks
 
-- [ ] Move `assertOk`/`assertError` to `fjs/asserts/module.f.ts` (with proof
+- [ ] Move `assertOk`/`assertError` to `fjs/asserts/module.f.mjs` (with proof
       coverage) and update both rtti proofs.
 - [ ] Replace parse/proof's local `unwrap` with `fjs/types/result`'s `unwrap`.
 - [ ] Rewrite `assertErrorPath` (and `assertDeepEqual`) on top of

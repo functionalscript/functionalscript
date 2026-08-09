@@ -39,8 +39,8 @@ arbitrary host objects. Accepting `unknown` is useful at assertion and parsing
 boundaries, but the result only describes the structural rules below.
 
 The implementation placement must also avoid an import cycle. The existing
-`fjs/types/object/module.f.ts` imports `fjs/types/nullable/module.f.ts`, which
-imports `fjs/asserts/module.f.ts`. Therefore, `asserts/module.f.ts` cannot import
+`fjs/types/object/module.f.ts` imports `fjs/types/nullable/module.f.mjs`, which
+imports `fjs/asserts/module.f.mjs`. Therefore, `asserts/module.f.mjs` cannot import
 the object module to reuse `structurallySame` without creating the runtime cycle
 `asserts -> object -> nullable -> asserts`.
 
@@ -53,12 +53,12 @@ Define the recursive comparison in a cycle-free leaf module:
 export const structurallySame = (a: unknown, b: unknown): boolean => ...
 ```
 
-The leaf must not import `fjs/asserts/module.f.ts`,
-`fjs/types/nullable/module.f.ts`, or `fjs/types/object/module.f.ts`.
+The leaf must not import `fjs/asserts/module.f.mjs`,
+`fjs/types/nullable/module.f.mjs`, or `fjs/types/object/module.f.ts`.
 Re-export `structurallySame` from `fjs/types/object/module.f.ts` as the public
 object-helper API.
 
-Add the corresponding assertion helper to `fjs/asserts/module.f.ts`, importing
+Add the corresponding assertion helper to `fjs/asserts/module.f.mjs`, importing
 the comparison directly from the cycle-free leaf rather than from the public
 object module:
 
@@ -159,7 +159,7 @@ These cases can be added later when a concrete consumer requires them.
 - [ ] Add the co-located `fjs/types/object/structurally_same/proof.f.ts` module,
       export `proof`, and exercise every branch of `structurallySame` there.
 - [ ] Re-export `structurallySame` from `fjs/types/object/module.f.ts`.
-- [ ] Add `assertStructurallySame` to `fjs/asserts/module.f.ts`, importing
+- [ ] Add `assertStructurallySame` to `fjs/asserts/module.f.mjs`, importing
       `structurallySame` directly from the leaf module.
 - [ ] Verify that the change does not introduce the
       `asserts -> object -> nullable -> asserts` import cycle.
@@ -193,7 +193,7 @@ These cases can be added later when a concrete consumer requires them.
 
 - [`fjs/types/object/module.f.ts`](../module.f.ts) — public object-helper module;
   it currently depends on `types/nullable`.
-- [`fjs/types/nullable/module.f.ts`](../../nullable/module.f.ts) — imports the
+- [`fjs/types/nullable/module.f.mjs`](../../nullable/module.f.mjs) — imports the
   assertion module, which makes importing the public object module from assertions
   cyclic.
 - [`fjs/types/rtti/parse/proof.f.ts`](../../rtti/parse/proof.f.ts) — contains the
@@ -206,5 +206,5 @@ These cases can be added later when a concrete consumer requires them.
 - [`proof-shared-asserts.md`](../../rtti/todo/proof-shared-asserts.md) — also
   tracks replacing the RTTI proof's local deep-comparison helper; update that
   tracker when this TODO removes `assertDeepEqual`.
-- [`fjs/asserts/module.f.ts`](../../../asserts/module.f.ts) — existing assertion
+- [`fjs/asserts/module.f.mjs`](../../../asserts/module.f.mjs) — existing assertion
   naming and failure-shape conventions.

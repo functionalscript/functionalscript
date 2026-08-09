@@ -5,7 +5,7 @@
 
 ### Problem
 
-`List` (`fjs/types/list/module.f.ts`) currently has four shapes behind two
+`List` (`fjs/types/list/module.f.mjs`) currently has four shapes behind two
 type aliases:
 
 ```ts
@@ -74,5 +74,5 @@ mechanical change; the type-level part is caught by `npx tsc`.
 
 - [GitHub issue #256](https://github.com/functionalscript/functionalscript/issues/256)
   — the original report.
-- `fjs/types/list/module.f.ts:22-47` — the current type; `:54`, `:62`,
+- `fjs/types/list/module.f.mjs:22-47` — the current type; `:54`, `:62`,
   `:279` — the `Concat` branches.

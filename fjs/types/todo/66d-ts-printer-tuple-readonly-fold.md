@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/types/ts/module.f.ts`'s `printer` already computes the readonly prefix once
+`fjs/types/ts/module.f.mjs`'s `printer` already computes the readonly prefix once
 as `ro`, then uses it for `struct`, `array`, and `record` — but `tuple`
 re-derives the same `mut` distinction with a whole second `complex(...)` call
 instead of reusing `ro`:
