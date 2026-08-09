@@ -21,10 +21,10 @@ There are two runtime codecs with different goals:
   `fjs/media/json.Unknown` domain and emits deterministic valid JSON according to
   its own documented contract.
 
-Native `JSON.*` compatibility is now optional and is tracked in
-[standard JSON parse/serialize](./standard-parse-serialize.md). Measurements of
-host-specific number spelling or normalization belong there and must not
-constrain the default codecs unless we deliberately adopt the same rule.
+Exact native `JSON.*` compatibility is P5 follow-up work in
+[native JSON compatibility](./native-json-compatibility.md). Do not spend P3
+implementation or investigation time on host-specific equivalence unless it is
+needed to choose the FunctionalScript codec's own behavior.
 
 The edge cases that still matter to the FunctionalScript codecs are:
 
@@ -85,8 +85,8 @@ Choose one explicit extended policy, for example:
 - preserve another internal representation until a later conversion;
 - return a controlled extended-parse failure.
 
-Do not choose the policy merely to match native `JSON.parse`; the default extended
-codec should choose the simplest coherent contract for FunctionalScript.
+Choose the simplest coherent FunctionalScript contract; matching native
+`JSON.parse` is not a requirement.
 
 #### Oversized bare integers
 
@@ -94,9 +94,8 @@ A valid bare integer can be too large for runtime bigint construction.
 
 The extended materializer must detect/contain this case and choose a controlled
 policy. It may fail if the runtime domain genuinely cannot represent the value;
-that does not prevent the standard FunctionalScript parser or an optional native
-compatibility materializer from consuming the same lossless structural tree with
-a different numeric policy.
+that does not prevent the standard FunctionalScript parser from consuming the
+same lossless structural tree with a different numeric policy.
 
 #### Non-finite programmatic numbers
 
@@ -129,25 +128,19 @@ number behavior:
 - what deterministic valid JSON spelling is used for finite `number` values when
   exact native shortest-decimal output is not a requirement.
 
-A simple FunctionalScript contract is preferable to reproducing host quirks. For
-example, the standard serializer may preserve `-0` as `-0` if that gives a cleaner
-round-trip, even though native `JSON.stringify(-0)` emits `"0"`. If we later need
-the native behavior, the optional compatibility policy can normalize it there.
+A simple FunctionalScript contract is preferable to reproducing host quirks.
+Later, after the Extended JSON codec and the standard/extended transforms exist,
+we may choose to move `json.*` closer to native behavior through documented
+breaking changes. If both contracts turn out to be useful, a separate compatible
+API remains an option. That decision is intentionally deferred to P5.
 
-### Native compatibility is separate
+### Native compatibility is P5
 
-Do not use host measurements as blockers for the default codec.
+Do not add native differential tests, spelling-boundary investigations, or API
+parity work to this P3 task. Existing measurements can remain as historical
+reference elsewhere, but no additional compatibility work is required here.
 
-The following questions are useful only for an optional native-compatible policy:
-
-- where native `JSON.stringify` changes from plain decimal to exponent notation;
-- shortest-round-trip spelling of unsafe integer-valued doubles;
-- native `-0`, non-finite, and overflow behavior;
-- byte-for-byte equivalence with native number formatting.
-
-Existing measurements for those cases have been moved to
-[standard-parse-serialize.md](./standard-parse-serialize.md), where they can be
-used if a real consumer justifies implementing the compatibility layer.
+See [native JSON compatibility](./native-json-compatibility.md).
 
 ### Tasks
 
@@ -168,25 +161,24 @@ used if a real consumer justifies implementing the compatibility layer.
 - [ ] Choose the default FunctionalScript standard parse policy for valid numeric
       tokens that become non-finite JavaScript numbers.
 - [ ] Choose the default FunctionalScript standard stringify policy for `-0`,
-      `NaN`, `Infinity`, and `-Infinity` without treating native `JSON.stringify`
-      as mandatory behavior.
+      `NaN`, `Infinity`, and `-Infinity`.
 - [ ] Define a deterministic finite-number serialization rule sufficient for the
-      FunctionalScript standard codec. Exact native shortest-round-trip spelling
-      is optional compatibility work, not a blocker.
+      FunctionalScript standard codec.
 - [ ] Add proof cases for every settled default behavior, including oversized bare
       integer input, unbounded exponent text, negative zero, fractions, ordinary
       exponents, exponent overflow, and programmatic non-finite numbers.
-- [ ] Keep native differential tests in the optional compatibility part of
-      [standard-parse-serialize.md](./standard-parse-serialize.md).
+- [ ] Do not add native-compatibility work here; defer it to the P5 TODO.
 
 ### Related
 
 - [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — blocked on
   this task for extended exceptional-number materialization/serialization policy.
 - [Standard JSON parse/serialize](./standard-parse-serialize.md) — owns the default
-  bigint-free codec and optional native-compatible policy.
+  bigint-free FunctionalScript codec.
 - [Standard/extended value transforms](./standard-transform.md) — reusable runtime
-  conversions; they no longer depend on native stringify compatibility.
+  conversions; they do not depend on native stringify compatibility.
+- [Native JSON compatibility](./native-json-compatibility.md) — P5 follow-up; does
+  not block this investigation.
 - [`fjs/media/json/module.f.ts`](../module.f.ts) — current ordinary JSON surface.
 - [`fjs/media/json/serializer/module.f.ts`](../serializer/module.f.ts) — current
   primitive serialization implementation to replace/self-host.
