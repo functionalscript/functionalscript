@@ -6,7 +6,7 @@
 import type { Leaf1, Leaf2, Branch3, Branch5, TNode } from '../types/module.f.mjs'
 import type { List } from '../../list/module.f.mjs'
 import { index3, index5, type Compare } from '../../function/compare/module.f.mjs'
-import type { KeyOf, Index, Tuple } from "../../array/module.f.mjs";
+import type { KeyOf, Index } from "../../array/module.f.mjs"
 
 export type FirstLeaf1<T> = readonly[Index<3>, Leaf1<T>]
 
