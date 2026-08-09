@@ -180,7 +180,7 @@ source dependency-closure rule as any other migrated file: its relative runtime
 imports and JSDoc type references may target `.f.mjs` modules only. This is a
 JavaScript/JSDoc and dependency-readiness rule, not a FunctionalScript compiler
 feature gate. A proof that still imports an unmigrated helper such as
-`fjs/types/list/module.f.mjs` remains `proof.f.ts` until that helper migrates. See
+`fjs/types/object/module.f.ts` remains `proof.f.ts` until that helper migrates. See
 [`fjs/fsc/README.md`](./fjs/fsc/README.md) for the migration order and the
 module-import policy it implies.
 

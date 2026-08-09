@@ -31,7 +31,7 @@ than re-spelling the template:
 
 ```ts
 // fjs/djs/serializer/module.f.ts:14
-import { serialize as bigintSerialize } from '../../types/bigint/module.f.ts'
+import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
 // :113
 case 'bigint': { return [bigintSerialize(value)] }
 ```
@@ -89,7 +89,7 @@ but isn't exposed in a reusable (bare-string) form.
    owner and drop the inline template:
 
    ```ts
-   import { serialize as bigintSerialize } from '../bigint/module.f.ts'
+   import { serialize as bigintSerialize } from '../bigint/module.f.mjs'
    // ...
    case 'bigint': return bigintSerialize(c)
    ```

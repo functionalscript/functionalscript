@@ -27,7 +27,7 @@ over `result[1]`.
 ### Proposal
 
 ```ts
-import { map as nullableMap } from '../nullable/module.f.ts'
+import { map as nullableMap } from '../nullable/module.f.mjs'
 
 export const at
     = (name: string) => <T>(map: OrderedMap<T>): T | null =>
