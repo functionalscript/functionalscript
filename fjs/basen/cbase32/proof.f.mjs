@@ -1,8 +1,17 @@
-import { empty, vec, type Vec } from "../../types/bit_vec/module.f.mjs"
-import { cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from "./module.f.mjs"
+import { empty, vec } from '../../types/bit_vec/module.f.mjs'
+/** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
+
+import { cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from './module.f.mjs'
+
 import { assertEq } from '../../asserts/module.f.mjs'
 
-const check5x = (s: string, v: Vec) => {
+//
+
+/**
+ * @param {string} s
+ * @param {Vec} v
+ */
+const check5x = (s, v) => {
     const sr = vec5xToCBase32(v)
     assertEq(sr, s, [sr, s])
     const vr = cBase32ToVec5x(s)
@@ -11,7 +20,11 @@ const check5x = (s: string, v: Vec) => {
     check(`${s}g`, v)
 }
 
-const check = (s: string, v: Vec) => {
+/**
+ * @param {string} s
+ * @param {Vec} v
+ */
+const check = (s, v) => {
     const sr = vecToCBase32(v)
     assertEq(sr, s, [sr, s])
     const vr = cBase32ToVec(s)
