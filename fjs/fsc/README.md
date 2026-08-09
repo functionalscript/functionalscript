@@ -58,6 +58,31 @@ proof itself is valid JavaScript with JSDoc and its authored runtime and type
 dependencies are already `.f.mjs`. Current FunctionalScript compiler support is
 not a condition for that rename.
 
+#### Private JSDoc typedefs
+
+TypeScript declaration emit currently turns JSDoc `@typedef`s into exported type
+aliases, including typedefs that exist only as implementation details. This is
+tracked upstream by
+[microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407).
+
+Until JSDoc typedefs can be stripped with `@internal` and `stripInternal`, use a
+leading `_` for implementation-only typedefs created during the migration:
+
+```js
+/** @typedef {number} _Type */
+```
+
+The underscore is an API contract, not declaration-level visibility. Generated
+`.d.ts` / `.d.mts` may still contain `export type _Type = number`, but names that
+begin with `_` are private FunctionalScript implementation details. Consumers
+must not rely on them, and changing, renaming, or removing them is not a breaking
+change and does not require a `**BREAKING CHANGES:**` changelog entry.
+
+Public typedefs keep ordinary names without the `_` prefix. When upstream
+support is ready, replace this workaround with `@internal`; that cleanup is
+tracked by
+[`todo/blocked/jsdoc-typedef-strip-internal.md`](../../todo/blocked/jsdoc-typedef-strip-internal.md).
+
 When the last authored `.ts` / `.f.ts` file is gone, remove the
 TypeScript-to-JavaScript emit path, remove obsolete generated `.js` from the
 working tree for that transition, and remove the blanket `**/*.js` rule from
