@@ -38,10 +38,16 @@ would lose the source position needed for failures exactly at physical end.
 
 ### Proposal
 
-A second parser over the same token stream, built on `descentParser` and kept
-alongside `parseFromTokens` until it reaches parity. Call it `new_parser` for
-now; the final name, and whether it replaces `fjs/djs/parser`, are deliberately
-left open.
+Replace the hand-written implementation behind the existing `parseFromTokens`
+API with a BNF/descent implementation. During development, keep a private second
+implementation in `fjs/djs/parser/module.f.ts` only long enough to run parity
+proofs against the current state machine. Do not introduce a permanent
+`new_parser` public surface or a new published parser module.
+
+The BNF grammar covers the **full current DJS module grammar**, including value
+syntax and module framing (`import`, `const`, `export default`). The cutover is
+therefore one parser replacement rather than a value-only parser wrapped by the
+old framing machine.
 
 **1. Consume the generic BNF `Symbol` alphabet.** The bigint-symbol migration
 already generalizes parser backends from Unicode code-point `number` values to
@@ -94,8 +100,9 @@ tokenizer and parser can compute the same `Symbol` independently from the same
 token name. The token's value and source position ride along as descent metadata,
 so no ordinary token information is lost.
 
-**4. Write the DJS grammar and fold its AST.** Express the module grammar in
-`fjs/bnf` combinators over the validated token-symbol alphabet, then fold
+**4. Write the full DJS grammar and fold its AST.** Express the complete current
+module grammar in `fjs/bnf` combinators over the validated token-symbol alphabet,
+including module framing as well as values, then fold
 `AstRuleMeta<DjsTokenWithMetadata>` to `AstModule`.
 
 **5. Report positions from token metadata, never from `idx`.** `idx` in
@@ -126,19 +133,39 @@ bigint-symbol migration keeps public positions in the physical input domain even
 when a grammar consumes synthesized EOF, so token-index callers do not need a
 special post-EOF `input.length + 1` case.
 
-### Open questions
+### Transition and cutover
 
-Deliberately unresolved — this issue exists to hold the task, not to settle these.
+The transition is intentionally temporary and has a concrete completion
+boundary.
 
-- **Overlap with [157](../../djs/todo/157.md) §1.** That issue extracts the
-  hand-written value machine into a factory shared by `fjs/media/json/parser`
-  and `fjs/djs/parser`. If a grammar replaces the machine on the DJS side, §1
-  loses one of its two consumers and the extraction stops paying for itself.
-  Whichever lands first should say what happens to the other.
-- **Scope of the grammar.** Whether it covers module framing (`import`, `const`,
-  `export default`) or only values, with the framing left to a wrapper.
-- **Where the module lives** — a `fjs/djs/new_parser/` sibling, or inside
-  `fjs/djs/parser/`.
+- **Location:** keep both implementations in the existing
+  `fjs/djs/parser/module.f.ts` during parity work. The BNF implementation may use
+  private helpers there, but this task does not add a temporary published
+  `new_parser` module or API.
+- **Scope:** the BNF implementation parses the complete token stream currently
+  accepted by `parseFromTokens`, including module framing. It is not considered
+  complete after value-only parity.
+- **Success parity:** for every existing successful parser proof and representative
+  grammar feature, both implementations must produce structurally the same
+  `AstModule`.
+- **Failure parity:** both implementations must reject the existing malformed
+  parser corpus and new boundary cases. Exact wording of error messages need not
+  be byte-identical, but the BNF error must identify the furthest relevant token
+  or EOF through `TokenMetadata` and preserve the public `ParseError` contract.
+- **Public API:** callers continue to use `parseFromTokens`; no consumer migration
+  to a temporary parser name is required.
+- **Cutover:** once the parity proofs pass, make `parseFromTokens` use the BNF
+  implementation and delete the old nine-state value/module state machine and
+  helpers in the same task. Do not leave two production parser implementations.
+
+This also settles the overlap with [157](../../djs/todo/157.md) §1. The BNF
+cutover supersedes the **DJS side** of that proposed shared hand-written
+value-machine extraction. If §1 lands first, its DJS instantiation is temporary
+and is removed at this cutover; keep the extracted factory afterward only if the
+JSON side still benefits from it. If this BNF parser lands first, do not later
+implement §1 as a JSON/DJS shared machine solely to recreate a DJS consumer; rebase
+that parser sub-task to the remaining JSON need or mark that sub-task irrelevant.
+The serializer and other independent parts of TODO 157 are unaffected.
 
 ### Tasks
 
@@ -158,15 +185,27 @@ Deliberately unresolved — this issue exists to hold the task, not to settle th
 - [ ] Map each ordinary `DjsToken` to its validated symbol, carrying the token as
       descent metadata; never feed the tokenizer's physical `eof` token to the
       BNF symbol stream.
-- [ ] Write the DJS grammar in `fjs/bnf` combinators.
+- [ ] Implement the complete DJS module grammar, including module framing, in the
+      existing `fjs/djs/parser/module.f.ts`; do not create a temporary public
+      parser module/API.
 - [ ] Fold `AstRuleMeta` into `AstModule`.
 - [ ] Report errors as metadata position ranges; widen `ParseError.metadata`
-      from a single `TokenMetadata` to a range, using ordinary token metadata for
-      `idx < tokens.length` and `eofMetadata` for `idx === tokens.length`.
-- [ ] Add proof coverage for empty input, successful EOF consumption, failure at
-      EOF, missing/non-final physical tokenizer EOF, and no duplicate EOF symbol.
+      from a single `TokenMetadata` to a range where required, using ordinary
+      token metadata for `idx < tokens.length` and `eofMetadata` for
+      `idx === tokens.length`.
+- [ ] Add differential success proofs requiring structurally identical
+      `AstModule` output from the hand-written and BNF implementations across the
+      existing parser corpus and every module/value grammar feature.
+- [ ] Add failure-parity proofs for the existing malformed corpus plus empty
+      input, failure at EOF, missing/non-final physical tokenizer EOF, and no
+      duplicate EOF symbol.
+- [ ] After parity passes, switch the existing `parseFromTokens` implementation
+      to BNF and delete the old hand-written parser state machine/helpers; do not
+      leave both production implementations.
+- [ ] Rebase [157](../../djs/todo/157.md) §1 according to which parser work lands
+      first; do not recreate a shared DJS hand-written value machine after the BNF
+      cutover.
 - [ ] `proof.f.ts` with full coverage; `npx tsc`, `fjs t`.
-- [ ] Decide the fate of `parseFromTokens` and of [157](../../djs/todo/157.md) §1.
 
 ### Related
 
@@ -182,4 +221,6 @@ Deliberately unresolved — this issue exists to hold the task, not to settle th
 - [../descent/README.md](../descent/README.md) — the backend being reused.
 - [../descent/README.md](../descent/README.md#failure-reporting) — the
   `DescentFailure` record errors are located from.
-- [157](../../djs/todo/157.md) — the competing direction for the same code.
+- [157](../../djs/todo/157.md) — its parser §1 may temporarily precede this task,
+  but the DJS side is superseded when this BNF parser cuts over; its independent
+  serializer work is unaffected.
