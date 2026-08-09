@@ -1,6 +1,6 @@
 # nanvm-lib
 
-A NaN-boxing VM for FunctionalScript implemented in Rust. See [`issues/082-nanvm.md`](../issues/082-nanvm.md) for design notes.
+A NaN-boxing VM for FunctionalScript implemented in Rust. See [`todo/fjs-nanvm-integration.md`](../todo/fjs-nanvm-integration.md) and [`nanvm-lib/todo/`](./todo/) for design notes.
 
 ## JS Operator Implementation Status
 
