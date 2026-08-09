@@ -30,7 +30,7 @@ import {
  * Optional Utf16State - represents the state of utf16 decoding operation or null.
  * - number is used an unsigned integer.
  */
-type Utf16State = number | null
+type _Utf16State = number | null
 
 /**
  * Represent an unsigned UTF16, used to store one word UTF-16 (code unit).
@@ -186,7 +186,7 @@ const u16: (i: U16) => boolean = contains(0x0000, 0xFFFF)
  * const [decodedCodePoints, newState] = utf16ByteToCodePointOp(word, state);
  * ```
  */
-const utf16ByteToCodePointOp: StateScan<U16, Utf16State, List<CodePoint>>
+const utf16ByteToCodePointOp: StateScan<U16, _Utf16State, List<CodePoint>>
     = (word, state) => {
         if (!u16(word)) {
             return [[0xffffffff], state]
@@ -231,7 +231,7 @@ const utf16ByteToCodePointOp: StateScan<U16, Utf16State, List<CodePoint>>
  * const validState = utf16EofToCodePointOp(null) // No pending state
  * ```
  */
-const utf16EofToCodePointOp = (state: Utf16State): readonly[List<CodePoint>, Utf16State] =>
+const utf16EofToCodePointOp = (state: _Utf16State): readonly[List<CodePoint>, _Utf16State] =>
     [state === null ? empty : [state | errorMask],  null]
 
 
