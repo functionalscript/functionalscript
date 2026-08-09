@@ -162,6 +162,30 @@ change. The underscore exempts only the private alias itself, never a change to
 the expanded public API. Public typedefs keep ordinary names without a leading
 `_`.
 
+Which typedefs are public is an API design decision made at the migration
+boundary, not a mechanical copy of what the `.f.ts` happened to export. The
+`.f.ts` -> `.f.mjs` rename is already a breaking change — importers must update
+the specifier — so it is the one moment where a module's visibility contract can
+be corrected at no extra cost to consumers: a former export whose only role was
+an implementation detail may become `_`, and a module-private helper that belongs
+to the module's public vocabulary may be published under an ordinary name. Such
+a correction rides along with the migration's own `**BREAKING CHANGES:**` entry
+and does not need a second one.
+
+After a module is `.mjs` its visibility contract is settled, and the convention
+then runs in one direction only. Moving a published public typedef to a `_` name
+is an ordinary breaking API change from that point on: it needs its own
+`**BREAKING CHANGES:**` entry and importer updates, exactly like removing any
+other public declaration. Only the migration itself gets the free correction.
+
+A pending refactor is not a reason to pre-privatize. Visibility follows what the
+module should offer consumers today, not what a future task plans to delete:
+`Concat` and `NotLazy` in `fjs/types/list` stay public even though
+[`../fjs/types/list/todo/simplify-list-type.md`](../fjs/types/list/todo/simplify-list-type.md)
+plans to remove both. Hiding a type behind `_` to make its eventual removal
+cheaper gives up a real present-day API in exchange for a discount on a breaking
+change that should simply be documented when it happens.
+
 This convention is temporary. Once TypeScript can strip `@internal` JSDoc
 typedefs correctly, replace the underscore workaround as tracked by
 [`blocked/jsdoc-typedef-strip-internal.md`](./blocked/jsdoc-typedef-strip-internal.md).
@@ -251,11 +275,17 @@ compiler-compatibility rename.
       compiler support.
 - [ ] Translate TypeScript generic constraints and `in` / `out` variance to
       JSDoc `@template` syntax without changing assignability.
-- [ ] Prefix implementation-only JSDoc typedefs with `_` when converting
-      non-exported TypeScript types; keep public typedef names unprefixed.
+- [ ] Decide each typedef's visibility at the migration boundary: prefix
+      implementation-only typedefs with `_` and leave publicly useful ones
+      unprefixed, judged by what the module should offer its consumers rather
+      than by what the `.f.ts` happened to export or by what a pending refactor
+      plans to delete.
 - [ ] Treat `_`-prefixed typedef names as private even when declarations emit
       them as exports, but still require `**BREAKING CHANGES:**` whenever a
       change to one alters the assignability of a public declaration.
+- [ ] Once a module is `.mjs`, treat any later move of a public typedef to a `_`
+      name as an ordinary breaking API change with its own changelog entry and
+      importer updates, not as a visibility cleanup.
 - [ ] Continue upward through the dependency graph in reviewable groups until no
       authored TypeScript remains.
 - [ ] Translate `.ts` to `.mjs` and `.f.ts` to `.f.mjs`, moving static type
@@ -266,9 +296,12 @@ compiler-compatibility rename.
       documentation for every migrated group.
 - [ ] Sweep prose references to already-migrated modules: `AGENTS.md`, README
       files, and `todo/*.md` still name `.f.ts` paths that no longer exist, so
-      snippets copied from them produce broken imports and links. Per-group
-      updates miss these because they are not importers; run a repository-wide
-      `.f.ts`-reference check at least at the end of stage 1.
+      snippets copied from them produce broken imports and links. The sweep
+      covers typedefs a migration renamed as well — `balanced-fold.md` still
+      calls `bit_vec`'s accumulator state `ListToVecState`, now
+      `_ListToVecState`. Per-group updates miss both kinds because prose files
+      are not importers; run a repository-wide `.f.ts`-reference and
+      renamed-typedef check at least at the end of stage 1.
 - [ ] Preserve Node, Deno, Bun, proof, coverage, type-checking, declaration, and
       CI package behavior throughout the migration.
 - [ ] Add required `**BREAKING CHANGES:**` changelog entries for every public
@@ -304,6 +337,12 @@ compiler-compatibility rename.
 - Renaming or removing an emitted `_`-prefixed alias is not breaking solely due
   to that alias being emitted; any resulting change to a public declaration's
   assignability is still a breaking change.
+- Each migrated module's typedef visibility is justified by the public
+  vocabulary that module should offer; pre-migration export status is evidence
+  for that decision, not the decision itself.
+- Reclassifying a public typedef as `_` after its module has migrated is treated
+  as a breaking API change, so the free correction is available only at the
+  `.f.ts` -> `.f.mjs` boundary.
 - `.f.mjs` means FunctionalScript-intent JavaScript, not current-compiler
   compatibility.
 - Migrated JavaScript never depends on remaining authored TypeScript during the

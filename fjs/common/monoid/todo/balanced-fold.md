@@ -98,7 +98,7 @@ Hence the result is `null` **iff** the total length exceeds `maxLength`,
 independent of grouping — so the balanced fold's reassociation is safe.
 `bit_vec.tryListToVec` then becomes the generic balanced `fold` over this
 monoid, with `null` meaning "overflowed"; the `len` bookkeeping and the
-`Accumulator` / `ListToVecState` machinery go away.
+`_Accumulator` / `_ListToVecState` machinery go away.
 
 Accepted trade-off: unlike today's `unpackListToVec`, this does **not** break
 out the moment the cap is crossed — the fold runs to completion and `null`
