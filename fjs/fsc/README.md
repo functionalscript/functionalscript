@@ -81,6 +81,33 @@ contract still governs transitive effects: if a public type depends on `_Type`,
 changing `_Type` in a way that changes that public type's assignability is a
 breaking change and requires the normal `**BREAKING CHANGES:**` treatment.
 
+For example, suppose the generated declaration initially contains:
+
+```ts
+export type _Internal = number
+export type Public = readonly [_Internal]
+```
+
+Changing it to this is **not** a breaking change:
+
+```ts
+export type Public = readonly [number]
+```
+
+`_Internal` disappeared, but the expanded public contract of `Public` is still
+`readonly [number]`. A consumer that imported `_Internal` directly was depending
+on a private implementation detail.
+
+By contrast, changing it to this **is** a breaking change:
+
+```ts
+export type _Internal = string
+export type Public = readonly [_Internal]
+```
+
+The emitted private alias is still private, but the expanded public contract of
+`Public` changed from `readonly [number]` to `readonly [string]`.
+
 Public typedefs keep ordinary names without the `_` prefix. When upstream
 support is ready, replace this workaround with `@internal`; that cleanup is
 tracked by
