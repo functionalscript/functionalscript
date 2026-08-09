@@ -5,7 +5,7 @@
  */
 import { msb, lsb, type Vec, length, vec, empty } from "../../types/bit_vec/module.f.mjs"
 import type { Nullable } from "../../types/nullable/module.f.mjs"
-import { baseN } from "../../base_n/module.f.ts"
+import { baseN } from "../module.f.ts"
 
 //                         0123456789abcdef
 const m = '0123456789abcdefghjkmnpqrstvwxyz'

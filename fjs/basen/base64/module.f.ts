@@ -5,7 +5,7 @@
  */
 import { msb, type Vec, length, vec, maxLength } from "../../types/bit_vec/module.f.mjs"
 import type { Nullable } from "../../types/nullable/module.f.mjs"
-import { baseN } from "../../base_n/module.f.ts"
+import { baseN } from "../module.f.ts"
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 
