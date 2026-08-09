@@ -1,4 +1,4 @@
-import { type Result, find as btreeFind } from './module.f.ts'
+import { type Result, find as btreeFind } from './module.f.mjs'
 import { map, toArray } from '../../list/module.f.mjs'
 import { stringify, type Unknown } from '../../../media/json/module.f.ts'
 import { sort } from '../../object/module.f.ts'

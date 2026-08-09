@@ -5,7 +5,7 @@
  */
 import { collapseRoot, type Leaf1, type TNode, type Branch1, type Branch3, type Branch5, type Tree } from '../types/module.f.mjs'
 import type { Compare } from '../../function/compare/module.f.mjs'
-import { type Path, type PathItem, find } from '../find/module.f.ts'
+import { type Path, type PathItem, find } from '../find/module.f.mjs'
 import { fold, concat, next } from '../../list/module.f.mjs'
 import type { Tuple } from '../../array/module.f.mjs'
 import { map } from '../../nullable/module.f.mjs'
