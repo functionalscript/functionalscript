@@ -112,7 +112,7 @@ invented, and whether the value history was actually used or merely carried.
 
 ## Related open questions
 
-`fn` in [`fjs/types/function`](../../types/function/module.f.ts) is the same
+`fn` in [`fjs/types/function`](../../types/function/module.f.mjs) is the same
 idea for plain functions, with the same unresolved trade-off. Whatever is
 decided here should probably apply there too.
 

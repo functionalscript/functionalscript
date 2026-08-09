@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fold` in `fjs/common/monoid/module.f.ts` is a strict left fold — it derives
+`fold` in `fjs/common/monoid/module.f.mjs` is a strict left fold — it derives
 from list `reduce`, so it evaluates `((((a op b) op c) op d) op e)`. For an
 associative `operation` that maximally-unbalanced tree is wasteful, in two
 distinct ways:
@@ -23,7 +23,7 @@ distinct ways:
   better-on-average accuracy simply comes along for free (a `number` addition
   is O(1), so there is no speed angle here either way).
 
-This is not speculative: `fjs/types/bit_vec/module.f.ts` already implements
+This is not speculative: `fjs/types/bit_vec/module.f.mjs` already implements
 exactly this algorithm for its own `concat` reduction. `unpackListToVec`
 (the `listToVecOp` accumulator) is a **binary-counter accumulator** — slot `i`
 holds an already-combined run of the most recent `2 ** i` elements, each
@@ -122,11 +122,11 @@ finishing a walk over an already-doomed list.
 
 ### Related
 
-- `fjs/common/monoid/module.f.ts` — `fold` (the left fold to replace) and
+- `fjs/common/monoid/module.f.mjs` — `fold` (the left fold to replace) and
   `repeat` (already balanced via exponentiation by squaring).
-- `fjs/types/bit_vec/module.f.ts` — `unpackListToVec` / `listToVecOp`, the
+- `fjs/types/bit_vec/module.f.mjs` — `unpackListToVec` / `listToVecOp`, the
   in-repo binary-counter accumulator this generalises.
 - `fjs/types/number/module.f.ts` — `sum`, the reduction whose accuracy improves
   and whose output changes.
-- `fjs/types/bigint/module.f.ts`, `fjs/types/string/module.f.ts` — `product` /
+- `fjs/types/bigint/module.f.mjs`, `fjs/types/string/module.f.ts` — `product` /
   `sum` / `concat`, the reductions that gain the O(n log n) speedup.

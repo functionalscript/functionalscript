@@ -31,7 +31,7 @@ may migrate from `proof.f.ts` to `proof.f.mjs` as soon as it can be expressed as
 JavaScript with JSDoc and its authored runtime and declaration-retained type
 dependencies are already `.f.mjs`; current FunctionalScript compiler support is
 not a migration gate. A proof that still depends on an unmigrated `.f.ts` helper,
-such as `fjs/types/list/module.f.ts`, remains `proof.f.ts` until that dependency
+such as `fjs/types/object/module.f.ts`, remains `proof.f.ts` until that dependency
 moves.
 
 ### Proposal

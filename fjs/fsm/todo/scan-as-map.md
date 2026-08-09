@@ -21,10 +21,10 @@ const fetchOp: Scan<Entry<SortedSet<string>>, SortedSet<string>>
 const scanFetch = scan(fetchOp)
 ```
 
-`scan` (`fjs/types/list/module.f.ts:232`) exists for *stateful* streaming
+`scan` (`fjs/types/list/module.f.mjs:232`) exists for *stateful* streaming
 transforms; an operator whose only "state" is a reference to itself is an
 element-wise projection — exactly what `map`
-(`fjs/types/list/module.f.ts:117`) expresses directly. The self-referential
+(`fjs/types/list/module.f.mjs:117`) expresses directly. The self-referential
 idiom makes the reader hunt for evolving state that isn't there.
 
 ### Proposal
@@ -62,6 +62,6 @@ behavior are unchanged; verify with the existing proof.
 ### Related
 
 - `fjs/fsm/module.f.ts:59-67` — the two operators; consumers at `:74-78`.
-- `fjs/types/list/module.f.ts` — `map` (`:117`), `scan` (`:232`).
+- `fjs/types/list/module.f.mjs` — `map` (`:117`), `scan` (`:232`).
 - `fjs/bnf/todo/recognizer-backend.md` — reuses fsm's scan *drivers*; does not
   touch these internal helpers.

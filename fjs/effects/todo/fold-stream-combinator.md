@@ -66,7 +66,7 @@ so write the signature in terms of `Result` — call sites that hold
 `IoResult` values type-check unchanged:
 
 ```ts
-import type { Result } from '../../types/result/module.f.ts'
+import type { Result } from '../../types/result/module.f.mjs'
 
 export const foldStream =
     <O extends Operation, A>(step: (acc: A) => (chunk: Vec) => Effect<O, Result<A, unknown>>) =>

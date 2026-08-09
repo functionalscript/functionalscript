@@ -236,7 +236,7 @@ Planned engine work, each a separate change:
 
 ## Related
 
-- [fjs/types/list/module.f.ts](../fjs/types/list/module.f.ts) — the sequence
+- [fjs/types/list/module.f.mjs](../fjs/types/list/module.f.mjs) — the sequence
   type the naive engine binds to
 - [fjs/types/function/operator/module.f.mjs](../fjs/types/function/operator/module.f.mjs)
   — `Scan`, `StateScan`, `Fold`: the closure-form operators `Transducer`
