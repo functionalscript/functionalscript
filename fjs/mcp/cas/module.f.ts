@@ -111,7 +111,7 @@ import { tryUtf8 } from '../../text/module.f.ts'
 import { detectStream } from '../../media/type/module.f.ts'
 import { detect } from '../../media/module.f.ts'
 import { revisionDialect } from '../../media/revision/module.f.ts'
-import { maxLengthBytes, type Vec } from '../../types/bit_vec/module.f.ts'
+import { maxLengthBytes, type Vec } from '../../types/bit_vec/module.f.mjs'
 import { ok, type Ok } from '../../types/result/module.f.mjs'
 import {
     toolEntry, errorResult, okResult,

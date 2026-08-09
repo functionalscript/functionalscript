@@ -1,5 +1,5 @@
 import { assertEq } from '../../asserts/module.f.mjs'
-import { empty, vec, repeat, vec8, maxLength, type Vec } from "../../types/bit_vec/module.f.ts"
+import { empty, vec, repeat, vec8, maxLength, type Vec } from "../../types/bit_vec/module.f.mjs"
 import { encode, decode } from "./module.f.ts"
 
 const check = (s: string, v: Vec) => {
