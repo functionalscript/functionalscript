@@ -131,6 +131,16 @@ export const proof = {
             ]
             const expectedResult = stringifyIdentity(expectedOutput)
             assertEq(result, expectedResult)
+        },
+        () => {
+            // `run` accepts any `Dfa` (a `StringMap`, so entries may be
+            // missing), not only one built by `dfa()`. A state absent from
+            // the map falls back to the empty transition table.
+            const result = stringifyIdentity(toArray(run({})(stringToList('a'))))
+
+            const expectedOutput = ['[]']
+            const expectedResult = stringifyIdentity(expectedOutput)
+            assertEq(result, expectedResult)
         }
     ]
 }
