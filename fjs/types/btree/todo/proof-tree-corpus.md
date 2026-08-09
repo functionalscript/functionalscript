@@ -230,7 +230,7 @@ are.
   at 39 sites while its three siblings have moved to `assertEq`. Orthogonal to
   the fixture work, but the same file, so do them in either order rather than
   at once.
-- [66F-btree-remove-mirror-merge](../../todo/66f-btree-remove-mirror-merge.md)
+- [66F-btree-remove-mirror-merge](./66f-btree-remove-mirror-merge.md)
   — a `btree/remove` *implementation* refactor; it would be reviewed against
   these proofs, so landing the fixture first makes that diff readable.
 - [proof-recognizer-and-fixtures](../../../bnf/todo/proof-recognizer-and-fixtures.md)

@@ -1,5 +1,8 @@
 # Types for FunctionalScript
 
+**Priority:** P5
+**Status:** open
+
 TypeScript has a fundamental flow in its type system for analyzing mutable types.
 
 A typical example that shows the problem:
