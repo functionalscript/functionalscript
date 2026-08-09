@@ -92,6 +92,11 @@ This split changes the public design assumptions used by older open TODOs:
   this task. It previously assigned byte/hex/byte-range helper creation to the
   recognizer work; those helpers now belong exclusively to `fjs/bnf/byte`, and
   recognizer/DFA backends consume the generic rules produced by that adapter.
+- [`fjs/bnf/todo/proof-recognizer-and-fixtures.md`](./proof-recognizer-and-fixtures.md)
+  is blocked by this task. Its shared `number` fixture currently constructs text
+  terminals with core `range('--')` / `range('09')` and assumes `testlib.f.ts`
+  obtains those helpers from `./module.f.ts`; after the split, fixture construction
+  must import the Unicode adapter while descent/LL1 remain generic consumers.
 - [`fjs/bnf/todo/data-tosequence-reuse.md`](./data-tosequence-reuse.md) is
   **irrelevant because it is superseded by this task**. It proposed preserving
   `bnf/data`'s string case and reusing core `toSequence`; this task removes that
@@ -135,6 +140,9 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Keep `fjs/bnf/todo/recognizer-backend.md` blocked on this split and have it
       consume byte helpers from `fjs/bnf/byte/module.f.ts` rather than defining
       another binary-helper family.
+- [ ] Keep `fjs/bnf/todo/proof-recognizer-and-fixtures.md` blocked on this split;
+      rebase its shared text fixtures/testlib imports on
+      `fjs/bnf/unicode/module.f.ts` before implementing the extraction.
 - [ ] Keep `fjs/bnf/todo/data-tosequence-reuse.md` irrelevant/superseded; do not
       implement its old generic-string reuse proposal.
 - [ ] Add byte helper proofs for byte boundaries and representative binary
@@ -165,6 +173,9 @@ new module boundary and final rule discriminants before implementation starts.
   dispatch assumptions.
 - [Recognizer backend](./recognizer-backend.md) — blocked on this split and must
   consume `bnf/byte` helpers instead of owning a duplicate binary authoring API.
+- [Shared recognizer/proof fixtures](./proof-recognizer-and-fixtures.md) — blocked
+  on this split; text fixture construction moves to `bnf/unicode` while parser
+  backends stay alphabet-agnostic.
 - [Reuse `toSequence` in BNF data](./data-tosequence-reuse.md) — irrelevant because
   it is superseded by this split; generic BNF data no longer performs Unicode
   string expansion.
