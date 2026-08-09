@@ -98,7 +98,7 @@ Hence the result is `null` **iff** the total length exceeds `maxLength`,
 independent of grouping — so the balanced fold's reassociation is safe.
 `bit_vec.tryListToVec` then becomes the generic balanced `fold` over this
 monoid, with `null` meaning "overflowed"; the `len` bookkeeping and the
-`Accumulator` / `ListToVecState` machinery go away.
+`Accumulator` / `_ListToVecState` machinery go away.
 
 Accepted trade-off: unlike today's `unpackListToVec`, this does **not** break
 out the moment the cap is crossed — the fold runs to completion and `null`
@@ -115,7 +115,7 @@ finishing a walk over an already-doomed list.
       `number.sum`.
 - [ ] Re-express `bit_vec`'s `tryListToVec` as the balanced `fold` over a
       `Nullable<Unpacked>` monoid whose operation is null-absorbing and caps at
-      `maxLength`; delete the `Accumulator` / `ListToVecState` bookkeeping.
+      `maxLength`; delete the `Accumulator` / `_ListToVecState` bookkeeping.
 - [ ] Update any proof asserting an exact `number.sum` value to the new result;
       confirm `bigint` / `string` / `bit_vec` results are unchanged.
 - [ ] Run `npx tsc` and `fjs t`.
