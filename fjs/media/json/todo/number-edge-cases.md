@@ -5,9 +5,10 @@
 
 ### Problem
 
-The shared JSON tokenizer can preserve every valid numeric token as text, but the
-runtime layers still need explicit policies for values that do not map cleanly to
-their ordinary numeric types.
+The shared JSON tokenizer must preserve every valid numeric token as text before
+any bounded runtime numeric representation is required. The runtime layers then
+need explicit policies for values that do not map cleanly to their ordinary
+numeric types.
 
 This investigation owns those **FunctionalScript codec** decisions. It does not
 require the default `fjs/media/json` API to mimic native `JSON.parse` /
@@ -47,19 +48,27 @@ literals directly.
 ### Lossless numeric source
 
 `NumberToken.value` is the canonical source for numeric text until materialization
-is complete.
+is complete, but **the tokenizer must be able to create that token without first
+materializing an unbounded numeric value**.
 
-Do not depend on `NumberToken.bf` being exact for arbitrarily large exponent text:
-the current tokenizer accumulates exponent digits through JavaScript `number`, so
-an unbounded exponent can lose precision or become infinite. Exact decisions must
-use the original lexeme or another representation that preserves it without
-narrowing first.
+The current tokenizer eagerly accumulates coefficient digits into bigint and
+exponent digits into JavaScript `number`. Either can exceed its runtime
+representation before `NumberToken.value` reaches the parser. The JSON numeric
+path therefore needs a lexeme-first tokenization boundary: preserve syntactically
+valid number text independently, and treat derived numeric data such as `bf` as
+fallible/lazy/optional where necessary.
 
-This also protects the bare-integer path. The structural parser must retain the
-lexeme before any `BigInt(NumberToken.value)` call, because a valid JSON integer
-can exceed the runtime bigint-size limit. Such input must produce a documented
-materialization result or controlled parse failure, never an uncaught runtime
-exception.
+Do not depend on `NumberToken.bf` being exact for arbitrarily large exponent text,
+and do not depend on eager coefficient bigint construction succeeding. Exact
+decisions use the original lexeme or another representation that preserves it
+without narrowing first.
+
+After tokenization succeeds, materializers may attempt their target runtime
+conversion. A valid bare integer can exceed the runtime bigint-size limit; that
+must produce the documented extended materialization result or controlled parse
+failure, never an uncaught runtime exception. Likewise, a standard or RTTI
+materializer remains free to choose a different target representation from the
+same exact token.
 
 ### Extended JSON questions
 
@@ -92,10 +101,12 @@ Choose the simplest coherent FunctionalScript contract; matching native
 
 A valid bare integer can be too large for runtime bigint construction.
 
-The extended materializer must detect/contain this case and choose a controlled
-policy. It may fail if the runtime domain genuinely cannot represent the value;
-that does not prevent the standard FunctionalScript parser from consuming the
-same lossless structural tree with a different numeric policy.
+The extended materializer must contain this case and choose a controlled policy.
+Do not preflight by guessing from digit count merely to avoid an unsafe operation;
+use a fallible materialization boundary and branch on whether the actual target
+value can be produced. It may fail if the runtime domain genuinely cannot
+represent the value; that does not prevent the standard FunctionalScript parser
+or RTTI parser from consuming the same lossless token with another policy.
 
 #### Non-finite programmatic numbers
 
@@ -144,6 +155,11 @@ See [native JSON compatibility](./native-json-compatibility.md).
 
 ### Tasks
 
+- [ ] Make JSON number tokenization lexeme-first: valid coefficient/exponent text
+      must reach `NumberToken.value` without requiring an unbounded bigint
+      coefficient or JavaScript-number exponent to be constructed first.
+- [ ] Prove tokenization does not throw for a valid coefficient beyond the runtime
+      bigint limit or for exponent text beyond JavaScript-number precision.
 - [ ] Verify and document the lexical rule that every token containing `.` or
       `e` / `E` belongs to the extended `number` branch, while bare integers
       belong to bigint except exact `-0`.
@@ -151,8 +167,8 @@ See [native JSON compatibility](./native-json-compatibility.md).
       bounded by input length; do not narrow an unbounded exponent first.
 - [ ] Choose the extended policy for exponent overflow such as `1e400`.
 - [ ] Choose the extended policy for a valid bare integer whose coefficient
-      cannot be constructed as runtime bigint; no uncaught `BigInt(...)` limit
-      failure may escape.
+      cannot be constructed as runtime bigint; no uncaught bigint-limit failure
+      may escape.
 - [ ] Define matching extended serialization/failure behavior for any exceptional
       representation accepted by the parser.
 - [ ] Decide how the extended serializer handles programmatic `NaN`, `Infinity`,
@@ -172,7 +188,8 @@ See [native JSON compatibility](./native-json-compatibility.md).
 ### Related
 
 - [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — blocked on
-  this task for extended exceptional-number materialization/serialization policy.
+  this task for extended exceptional-number materialization/serialization policy
+  and owns the tokenizer/structural exact-value architecture.
 - [Standard JSON parse/serialize](./standard-parse-serialize.md) — owns the default
   bigint-free FunctionalScript codec.
 - [Standard/extended value transforms](./standard-transform.md) — reusable runtime
