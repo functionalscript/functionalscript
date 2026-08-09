@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/basen/base128` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
+  TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier
+  [#1463](https://github.com/functionalscript/functionalscript/pull/1463)
 -  **BREAKING CHANGES:** Implementation-only JSDoc typedefs in the migrated
   `fjs/types/array` and `fjs/types/bit_vec` modules are renamed to their private
   `_`-prefixed forms. Public declarations keep the same expanded types

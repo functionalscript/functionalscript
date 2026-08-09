@@ -1,6 +1,6 @@
 import { empty, vec, vec8, type Vec } from '../../types/bit_vec/module.f.mjs'
 import { asBase } from '../../types/nominal/module.f.mjs'
-import { encode, decode } from './module.f.ts'
+import { encode, decode } from './module.f.mjs'
 
 const test = (a: bigint, b: Vec) => {
     const encoded = encode(a)
