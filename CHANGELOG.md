@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/text/utf16` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
+  TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier;
+  implementation-only typedefs in `fjs/bnf/data` are renamed to their private
+  `_`-prefixed forms to match the established convention
+  [#1468](https://github.com/functionalscript/functionalscript/pull/1468)
 - **BREAKING CHANGES:** `fjs/types/range` and `fjs/text/code_point` migrate from
   authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
   stage-1 TypeScript-to-mjs migration — importers must use the `.f.mjs`
