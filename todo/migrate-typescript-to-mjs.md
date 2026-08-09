@@ -151,10 +151,16 @@ becomes conceptually:
 
 The leading `_` is the FunctionalScript API visibility convention. It does not
 prevent declaration emission, so generated declarations may contain
-`export type _Node = number`. Nevertheless, `_Node` remains private by contract:
-consumers must not depend on it, and changing, renaming, or removing it is not a
-breaking change and does not require a `**BREAKING CHANGES:**` changelog entry.
-Public typedefs keep ordinary names without a leading `_`.
+`export type _Node = number`. `_Node` is still private by contract: consumers
+must not depend on that emitted name directly, so renaming or removing `_Node`
+is not a breaking change solely because TypeScript exposed the alias.
+
+The public contract still governs transitive effects. In the example above,
+`Tree` is public and depends on `_Node`; changing `_Node` from `number` to
+`string` changes `Tree`'s public assignability and is therefore a breaking
+change. The underscore exempts only the private alias itself, never a change to
+the expanded public API. Public typedefs keep ordinary names without a leading
+`_`.
 
 This convention is temporary. Once TypeScript can strip `@internal` JSDoc
 typedefs correctly, replace the underscore workaround as tracked by
@@ -247,8 +253,9 @@ compiler-compatibility rename.
       JSDoc `@template` syntax without changing assignability.
 - [ ] Prefix implementation-only JSDoc typedefs with `_` when converting
       non-exported TypeScript types; keep public typedef names unprefixed.
-- [ ] Do not treat changes to `_`-prefixed typedefs as breaking API changes or
-      require a `**BREAKING CHANGES:**` entry solely for those changes.
+- [ ] Treat `_`-prefixed typedef names as private even when declarations emit
+      them as exports, but still require `**BREAKING CHANGES:**` whenever a
+      change to one alters the assignability of a public declaration.
 - [ ] Continue upward through the dependency graph in reviewable groups until no
       authored TypeScript remains.
 - [ ] Translate `.ts` to `.mjs` and `.f.ts` to `.f.mjs`, moving static type
@@ -264,8 +271,9 @@ compiler-compatibility rename.
       `.f.ts`-reference check at least at the end of stage 1.
 - [ ] Preserve Node, Deno, Bun, proof, coverage, type-checking, declaration, and
       CI package behavior throughout the migration.
-- [ ] Add required `**BREAKING CHANGES:**` changelog entries for public runtime
-      import paths that change; `_`-prefixed private typedef changes are exempt.
+- [ ] Add required `**BREAKING CHANGES:**` changelog entries for every public
+      runtime or type-contract change; direct changes to an emitted `_` alias
+      are exempt only when the expanded public contract is unchanged.
 - [ ] After the last authored TypeScript file is gone, simplify `prepack` to its
       declaration-only command and remove the TS-to-JS emit path and obsolete
       generated `.js` outputs.
@@ -293,8 +301,9 @@ compiler-compatibility rename.
   their JSDoc `@template` equivalents; public assignability is not weakened.
 - Implementation-only JSDoc typedefs use `_`-prefixed names and are treated as
   private API even when TypeScript emits them as exported declaration aliases.
-- Changing, renaming, or removing an `_`-prefixed typedef is not a breaking
-  change; public typedefs remain unprefixed.
+- Renaming or removing an emitted `_`-prefixed alias is not breaking solely due
+  to that alias being emitted; any resulting change to a public declaration's
+  assignability is still a breaking change.
 - `.f.mjs` means FunctionalScript-intent JavaScript, not current-compiler
   compatibility.
 - Migrated JavaScript never depends on remaining authored TypeScript during the
