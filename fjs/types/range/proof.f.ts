@@ -1,4 +1,4 @@
-import { contains } from './module.f.ts'
+import { contains } from './module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
 
 export const proof = () => {

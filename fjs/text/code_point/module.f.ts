@@ -10,7 +10,7 @@
  */
 import { flat, type List, stateScan } from '../../types/list/module.f.mjs'
 import type { StateScan } from '../../types/function/operator/module.f.mjs'
-import { contains } from '../../types/range/module.f.ts'
+import { contains } from '../../types/range/module.f.mjs'
 
 /**
  * Error mask used to tag invalid code points or encoding errors. A decoded
