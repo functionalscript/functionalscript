@@ -1,4 +1,4 @@
-import { assertEq } from '../asserts/module.f.mjs'
+import { assertEq, assertNotNullish } from '../asserts/module.f.mjs'
 import { empty, maxLength, vec, length } from '../types/bit_vec/module.f.mjs'
 import { baseN } from './module.f.mjs'
 
@@ -64,6 +64,6 @@ export const proof = {
     // per-chunk `concat`).
     big: () => {
         const x = hex.stringToVec(bigSampleHex)
-        assertEq(length(x!), maxLength)
+        assertEq(length(assertNotNullish(x)), maxLength)
     }
 }
