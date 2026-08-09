@@ -43,10 +43,12 @@ import { cmp, max, min } from '../function/compare/module.f.mjs'
 import { mapUnwrap } from '../nullable/module.f.mjs'
 /** @import { Nullable } from '../nullable/module.f.mjs' */
 
+/** @typedef {'1a23a4336197e6158b6936cad34e90d146cd84b9b40ff7ab75a17c6d79e31d89'} Revision */
+
 /**
  * A vector of bits represented as a signed `bigint`.
  *
- * @typedef {Nominal<'bit_vec', '1a23a4336197e6158b6936cad34e90d146cd84b9b40ff7ab75a17c6d79e31d89', bigint>} Vec
+ * @typedef {Nominal<'bit_vec', Revision, bigint>} Vec
  */
 
 /**
