@@ -3,8 +3,12 @@
  *
  * @module
  */
-import { msb, type Vec, length, vec, maxLength } from "../../types/bit_vec/module.f.mjs"
-import type { Nullable } from "../../types/nullable/module.f.mjs"
+
+import { msb, length, vec, maxLength } from '../../types/bit_vec/module.f.mjs'
+/** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
+
+/** @import { Nullable } from '../../types/nullable/module.f.mjs' */
+
 import { baseN } from "../module.f.ts"
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
@@ -13,7 +17,8 @@ const { popFront } = msb
 
 const { vecToString, stringToVec } = baseN(6n, alphabet)
 
-export const encode = (input: Vec): Nullable<string> => {
+/** @type {(input: Vec) => Nullable<string>} */
+export const encode = input => {
     const len = length(input)
     // Base64 is a byte codec; reject non-octet-aligned inputs.
     if (len % 8n !== 0n) { return null }
@@ -27,7 +32,8 @@ export const encode = (input: Vec): Nullable<string> => {
     return result
 }
 
-export const decode = (input: string): Nullable<Vec> => {
+/** @type {(input: string) => Nullable<Vec>} */
+export const decode = input => {
     // Count and strip trailing `=` padding (0, 1, or 2).
     let padChars = 0
     for (let i = input.length - 1; i >= 0 && input[i] === '='; i--) { padChars++ }

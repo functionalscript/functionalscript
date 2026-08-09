@@ -255,7 +255,7 @@ export const proof = {
     },
     objectIdentifier: {
         simple: () => {
-            // /** @type {ObjectIdentifier} */
+            /** @type {ObjectIdentifier} */
             const oid = [1n, 2n]
             const encoded = encodeObjectIdentifier(oid)
             const decoded = decodeObjectIdentifier(encoded)
@@ -265,7 +265,7 @@ export const proof = {
         },
         withArc: () => {
             // OID 1.2.840.113549 (RSA)
-            // /** @type {ObjectIdentifier} */
+            /** @type {ObjectIdentifier} */
             const oid = [1n, 2n, 840n, 113549n]
             const decoded = decodeObjectIdentifier(encodeObjectIdentifier(oid))
             assertEq(decoded.length, 4)
