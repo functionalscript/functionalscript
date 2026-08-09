@@ -20,8 +20,8 @@ Those are separate concerns:
 - [Standard JSON parse/serialize](./standard-parse-serialize.md) owns the ordinary
   FunctionalScript JSON codec over the shared lossless structural parser and
   serializer.
-- Native `JSON.*` compatibility, if a real consumer needs it, is an optional
-  policy in that task rather than a constraint on these reusable transforms.
+- [Native JSON compatibility](./native-json-compatibility.md) is P5 follow-up work
+  and must not constrain these reusable transforms.
 
 Keeping this boundary narrow avoids making a generic runtime conversion depend on
 questions such as native shortest-double spelling, `JSON.stringify(-0)`, or the
@@ -86,9 +86,10 @@ The reusable transformations should have simple, testable semantics:
 - arrays and objects are rebuilt immutably.
 
 Do not add native JSON formatting rules to make a transformed value serialize the
-same way as `JSON.stringify`. If a serializer needs native compatibility, it uses
-the separate compatibility policy from
-[standard-parse-serialize.md](./standard-parse-serialize.md).
+same way as `JSON.stringify`. Compatibility can be improved later after these
+transforms exist, through documented breaking changes to `json.*` or through a
+separate compatible API if both contracts prove useful. That decision belongs to
+the P5 [native JSON compatibility](./native-json-compatibility.md) task.
 
 ### Tasks
 
@@ -109,11 +110,11 @@ the separate compatibility policy from
 - [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — provides
   the extended runtime value domain.
 - [Standard JSON parse/serialize](./standard-parse-serialize.md) — owns the
-  ordinary `json.parse` / `json.stringify` codec and optional native-compatible
-  policy over the shared structural machinery.
+  ordinary `json.parse` / `json.stringify` codec.
+- [Native JSON compatibility](./native-json-compatibility.md) — P5 follow-up;
+  does not block this task.
 - [JSON numeric edge cases](./number-edge-cases.md) — owns extended/default codec
-  decisions for values that are not straightforward finite numbers; native
-  compatibility comparisons are not a requirement of this transformer.
+  decisions for values that are not straightforward finite numbers.
 - [RTTI-aware extended JSON parser](./rtti-parse.md) — another consumer of the
   shared lossless structural parse.
 - [Generic JSON/DJS tree type](../../../djs/todo/663-json-djs-tree-type.md) — if
