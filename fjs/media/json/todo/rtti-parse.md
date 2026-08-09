@@ -22,15 +22,18 @@ to the safe integer `1`. If the RTTI path first materializes that token as the
 extended `number` value `1`, a later `Number.isSafeInteger` check would incorrectly
 allow RTTI `bigint` and could even match the bigint const `1n`.
 
-The JSON tokenizer preserves the original numeric lexeme in `NumberToken.value`.
-That string is the canonical exact source for schema-directed validation.
-`NumberToken.bf` may be useful for ordinary conversion, but it is not exact for
-every valid JSON token because the current tokenizer accumulates exponent digits
-in a JavaScript `number`; a sufficiently long exponent can lose precision or
-become infinite.
+The JSON numeric tokenization path must therefore preserve the original lexeme in
+`NumberToken.value` before any potentially unrepresentable derived numeric value
+is built. This is a prerequisite owned by the extended-JSON task: the current
+tokenizer eagerly accumulates coefficient digits in bigint and exponent digits in
+JavaScript `number`, so retaining the token only in the structural parser is too
+late for coefficients/exponents beyond those runtime representations.
 
-The shared JSON structural parse therefore needs to keep the complete
-`NumberToken` available until the domain-specific numeric policy has run.
+Once that tokenizer boundary is lossless, `NumberToken.value` is the canonical
+exact source for schema-directed validation. `NumberToken.bf` may be useful when
+available, but it is not required to exist or be exact for every valid JSON token.
+The shared JSON structural parse keeps the complete token available until the
+domain-specific numeric policy has run.
 
 The existing `fjs/types/rtti/parse` should remain unchanged: it parses arbitrary
 runtime values and therefore correctly requires primitive runtime types to match
@@ -40,13 +43,13 @@ the schema. JSON-specific numeric conversion is a separate adapter concern.
 
 Build RTTI-aware JSON on the same tokenizer and structural parser as extended
 JSON, but transform the parser's token-preserving numeric tree before
-decimal/exponent numbers are collapsed to JavaScript `number` values:
+numbers are collapsed to runtime numeric values:
 
 ```text
 JSON text
    |
    v
-JSON tokenize
+lossless JSON numeric tokenization
    |
    v
 shared structural parse with NumberToken leaves
@@ -65,8 +68,7 @@ its simple `null | boolean | string | number | bigint` leaf domain.
 Do not implement the JSON-text RTTI parser as `extended parse -> RTTI transform`
 when that would discard the exact `NumberToken` first. A transformer over an
 already-materialized extended value may exist as a separate runtime-value helper,
-but it cannot promise the same lexical validation as parsing JSON text and must
-not be used to enforce the fractional-token rules below.
+but it cannot promise the same lexical validation as parsing JSON text.
 
 #### Numeric conversion
 
@@ -80,18 +82,35 @@ decimal/exponent NumberToken  -> JavaScript number conversion per extended polic
 The conversion may round or overflow because `number` is the requested target
 type.
 
-For RTTI `bigint`:
+For RTTI `bigint`, all runtime bigint creation must be **fallible**. Conceptually,
+use a helper such as:
 
 ```text
-bare integer token -> exact bigint (except negative zero -> 0n)
+tryBigInt(NumberToken.value) -> bigint | null
+```
+
+The exact helper/API name is not important. Its contract is: branch on whether
+the actual runtime bigint construction succeeds; do not predict success from a
+coefficient digit count and do not let a runtime size exception escape. If an
+otherwise-valid integer cannot be represented by the runtime bigint type, the
+RTTI JSON parser returns its normal validation/error `Result` rather than
+panicking.
+
+Then apply these rules:
+
+```text
+bare integer token -> try exact bigint materialization
+                      null -> validation error
+                      bigint -> success
+exact -0           -> 0n
 decimal/exponent token -> bigint only when BOTH:
     1. the exact token text is mathematically integral; and
     2. Number(token.value) satisfies Number.isSafeInteger(...)
 ```
 
-The first test must be lexical and input-bounded. Do not use
-`NumberToken.bf` as the source of truth for an arbitrary exponent and do not
-compute a power proportional to the exponent magnitude.
+For a decimal/exponent token, the first test must be lexical and input-bounded.
+Do not use `NumberToken.bf` as the source of truth for an arbitrary exponent and
+do not compute a power proportional to the exponent magnitude.
 
 Parse `NumberToken.value` into coefficient digits, fraction-digit count, and the
 optional exponent sign/digit text. Let `z` be the number of trailing zeros in the
@@ -113,10 +132,8 @@ as fractional and rejected without overflowing an exponent variable or evaluatin
 an enormous `10 ** exponent` expression.
 
 Only after exact lexical integrality succeeds should the implementation materialize
-`Number(token.value)` and apply `Number.isSafeInteger`. If that also succeeds,
-convert the resulting safe integer to bigint. This retains the existing
-safe-number coercion policy while preventing either rounded fractional input or
-unbounded exponent syntax from corrupting validation.
+`Number(token.value)` and apply `Number.isSafeInteger`. If that succeeds, the
+resulting safe integer can be converted to bigint without a magnitude problem.
 
 Examples:
 
@@ -127,6 +144,7 @@ Examples:
 1.00000000000000001  + RTTI bigint -> error
 1e-99999999999999999999 + RTTI bigint -> error
 9007199254740992.0   + RTTI bigint -> error
+<bare integer beyond runtime bigint limit> + RTTI bigint -> error
 -0                   + RTTI bigint -> 0n
 ```
 
@@ -137,7 +155,8 @@ negative-zero value.
 Apply the same type-directed conversion before matching numeric const RTTI values.
 Use `Object.is` for number consts so `0` and `-0` remain distinct. Bigint consts
 compare as bigint values only after the exact-token conversion above succeeds;
-thus a rounded fractional token must not match an integer bigint const.
+thus a rounded fractional token or an unrepresentable oversized integer must not
+panic or accidentally match an integer bigint const.
 
 For nonnumeric primitives, containers, optional values, and structural schemas,
 follow the existing RTTI parse behavior: construct fresh containers, drop extra
@@ -147,9 +166,9 @@ path-oriented validation errors where practical.
 For RTTI unions, classify a numeric token by the same lexical rule as extended
 JSON before considering coercion: bare integer syntax prefers a bigint branch;
 decimal/exponent syntax prefers a number branch. Only after an exact-category
-branch fails should a numeric coercion be attempted. This preserves the extended
-numeric category when the schema permits it and avoids arbitrary conversion caused
-only by union branch order.
+branch fails should a numeric coercion be attempted. A failure to materialize an
+oversized bigint is an ordinary branch failure/error, not an exception escaping
+the `Result` API.
 
 ### API
 
@@ -167,14 +186,15 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
 
 ### Tasks
 
-- [ ] Reuse the shared JSON tokenizer and structural parser while retaining
-      `NumberToken` leaves in the internal exact parse representation until a
-      numeric policy materializes them.
-- [ ] Treat `NumberToken.value`, not `NumberToken.bf`, as the canonical exact
-      representation for schema-directed numeric validation.
+- [ ] Reuse the shared lossless JSON tokenizer and structural parser while
+      retaining `NumberToken` leaves until a numeric policy materializes them.
+- [ ] Treat `NumberToken.value`, not a mandatory `NumberToken.bf`, as the canonical
+      exact representation for schema-directed numeric validation.
 - [ ] Add the RTTI-directed transform from that exact parse representation to
       `Ts<T>`; do not route JSON text through a plain extended `number` first.
-- [ ] Convert bare integer tokens exactly to bigint when RTTI requires `bigint`.
+- [ ] Materialize bare integer tokens for RTTI `bigint` through a fallible helper
+      that returns an ordinary failure when runtime bigint construction is not
+      possible; do not preflight by digit length and do not leak a runtime throw.
 - [ ] For decimal/exponent tokens targeting RTTI `bigint`, use a bounded lexical
       integrality check over coefficient/fraction/exponent text before JavaScript
       number conversion, then require `Number.isSafeInteger` before converting to
@@ -187,6 +207,9 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
 - [ ] Prove that extremely large positive/negative exponent text is handled in
       O(input length), does not throw, and follows the exact lexical integrality
       rule before safe-number conversion.
+- [ ] Prove that a syntactically valid bare integer beyond the runtime bigint
+      magnitude returns a validation/error `Result` for RTTI `bigint` rather than
+      throwing.
 - [ ] Convert numeric tokens to JavaScript `number` when RTTI requires `number`,
       accepting the target type's normal rounding/overflow policy.
 - [ ] Handle `-0` explicitly: preserve it for RTTI `number`; convert it to `0n`
@@ -201,21 +224,19 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
       validation.
 - [ ] Add proof coverage for integer JSON into RTTI `number`, decimal/exponent
       JSON into RTTI `bigint`, safe/unsafe conversions, rounded fractional tokens,
-      unbounded exponent text, numeric consts, `0`/`-0`, unions, and nested
-      containers.
+      oversized bare integers, unbounded exponent text, numeric consts, `0`/`-0`,
+      unions, and nested containers.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
 
 - [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — owns the
-  shared tokenizer/structural parse path, token-preserving numeric intermediate,
-  and extended runtime materialization.
-- [Standard JSON transformer](./standard-transform.md) — alternative policy layer
-  that removes bigint for standard JSON compatibility.
-- [`fjs/media/json/tokenizer/module.f.ts`](../tokenizer/module.f.ts) — currently
-  exposes `NumberToken` with the original source `value`; its `bf` field is a
-  derived numeric representation and is not relied on for unbounded-exponent
-  exactness.
+  lossless tokenizer/structural parse path and extended runtime materialization.
+- [Standard JSON transformer](./standard-transform.md) — runtime value conversion
+  between already-materialized extended and ordinary JSON trees.
+- [`fjs/media/json/tokenizer/module.f.ts`](../tokenizer/module.f.ts) — JSON token
+  production must preserve the numeric lexeme before any unrepresentable derived
+  numeric construction.
 - [`fjs/types/rtti/parse`](../../../types/rtti/parse/module.f.ts) — existing strict
   runtime-value parser whose structural behavior should be reused where possible,
   not changed to add JSON-specific coercion.
