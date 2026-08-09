@@ -1,12 +1,14 @@
-import { empty, isVec, length, msb, uint, unpack, vec, vec8, type Vec } from "../types/bit_vec/module.f.mjs"
-import { asBase } from "../types/nominal/module.f.mjs"
+import { empty, isVec, length, msb, uint, unpack, vec, vec8 } from '../types/bit_vec/module.f.mjs'
+/** @import { Vec } from '../types/bit_vec/module.f.mjs' */
+
+import { asBase } from '../types/nominal/module.f.mjs'
+
 import {
     decodeRaw,
     decodeInteger,
     encodeRaw,
     encodeInteger,
     integer,
-    type SupportedRecord,
     encode,
     decode,
     constructedSequence,
@@ -15,14 +17,20 @@ import {
     constructedSet,
     encodeObjectIdentifier,
     decodeObjectIdentifier,
-    type ObjectIdentifier,
-} from "./module.f.mjs"
+} from './module.f.mjs'
+/** @import { SupportedRecord, ObjectIdentifier } from './module.f.mjs' */
+
 import { assert, assertEq } from '../asserts/module.f.mjs'
 
 const { concat, popFront: pop, listToVec } = msb
 const pop8 = pop(8n)
 
-const check = (tag: bigint, v: Vec, rest: Vec) => {
+/**
+ * @param {bigint} tag
+ * @param {Vec} v
+ * @param {Vec} rest
+ */
+const check = (tag, v, rest) => {
     const s = encodeRaw([tag, v])
     const [[t0, v0], r] = decodeRaw(concat(s)(rest))
     if (t0 !== tag) { throw `t0: ${t0}` }
@@ -30,14 +38,23 @@ const check = (tag: bigint, v: Vec, rest: Vec) => {
     if (r !== rest) { throw `r: ${asBase(r)}` }
 }
 
-const integerValueCheck = (i: bigint, v: Vec) => {
+/**
+ * @param {bigint} i
+ * @param {Vec} v
+ */
+const integerValueCheck = (i, v) => {
     const v0 = encodeInteger(i)
     if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
     const i0 = decodeInteger(v)
     assertEq(i, i0, [i, i0])
 }
 
-const ch0 = (r: SupportedRecord, v: Vec, rest: Vec) => {
+/**
+ * @param {SupportedRecord} r
+ * @param {Vec} v
+ * @param {Vec} rest
+ */
+const ch0 = (r, v, rest) => {
     const [r0, rest0] = decode(concat(v)(rest))
     if (rest0 !== rest) { throw `rest: ${asBase(rest0)}` }
     const v0 = encode(r)
@@ -46,7 +63,11 @@ const ch0 = (r: SupportedRecord, v: Vec, rest: Vec) => {
     if (v !== v1) { throw `encode: ${asBase(v)}, ${asBase(v1)}` }
 }
 
-const ch = (r: SupportedRecord, v: Vec) => {
+/**
+ * @param {SupportedRecord} r
+ * @param {Vec} v
+ */
+const ch = (r, v) => {
     ch0(r, v, empty)
     ch0(r, v, vec8(0x23n))
     ch0(r, v, vec(16n)(0x2345n))
@@ -234,7 +255,8 @@ export const proof = {
     },
     objectIdentifier: {
         simple: () => {
-            const oid: ObjectIdentifier = [1n, 2n]
+            // /** @type {ObjectIdentifier} */
+            const oid = [1n, 2n]
             const encoded = encodeObjectIdentifier(oid)
             const decoded = decodeObjectIdentifier(encoded)
             assertEq(decoded.length, 2)
@@ -243,7 +265,8 @@ export const proof = {
         },
         withArc: () => {
             // OID 1.2.840.113549 (RSA)
-            const oid: ObjectIdentifier = [1n, 2n, 840n, 113549n]
+            // /** @type {ObjectIdentifier} */
+            const oid = [1n, 2n, 840n, 113549n]
             const decoded = decodeObjectIdentifier(encodeObjectIdentifier(oid))
             assertEq(decoded.length, 4)
             assertEq(decoded[0], 1n)
