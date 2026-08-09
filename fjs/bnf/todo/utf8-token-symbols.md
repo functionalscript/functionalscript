@@ -197,7 +197,7 @@ tokens or calls `token_symbol.encoding()` for multi-character names.
   to replace after all callers/designs migrate.
 - [`fjs/text/module.f.ts`](../../text/module.f.ts) — existing `tryUtf8` helper and
   throwing `utf8` wrapper.
-- [`fjs/types/bit_vec/module.f.ts`](../../types/bit_vec/module.f.ts) — signed
+- [`fjs/types/bit_vec/module.f.mjs`](../../types/bit_vec/module.f.mjs) — signed
   length-bearing `Vec`, `maxLength`, `unpack`, and existing `fromSentinel`
   representation.
 - [`fjs/types/bigint/module.f.mjs`](../../types/bigint/module.f.mjs) — defines the
