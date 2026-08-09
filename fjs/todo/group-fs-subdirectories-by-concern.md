@@ -9,17 +9,16 @@
 
 Move `base64`, `base128`, `cbase32` under `fjs/basen/`. They are sibling alphabet-parameterised encoders sharing a codec factory.
 
-The three codecs have moved, but the codec factory they share has not: it is
-still `fjs/base_n/module.f.ts`, a top-level directory whose name differs from
-`fjs/basen/` by one underscore. Two directories one character apart, one holding
-the factory and the other its consumers, is a live confusion hazard in imports
-and in `grep`. Finish the group by moving the factory to `fjs/basen/module.f.ts`
-— the parent of the codecs that call it, which is where a shared factory belongs
-— and delete `fjs/base_n/`. The whole directory moves, not just the module:
-`fjs/base_n/proof.f.ts` becomes `fjs/basen/proof.f.ts` (it is the factory's only
-proof — it covers `normalize`, invalid input, chunk boundaries and large inputs,
-so leaving it behind would silently drop `baseN`'s coverage), and the two open
-issues move to `fjs/basen/todo/`.
+Done. The three codecs moved first, then the codec factory they share followed:
+`fjs/base_n/` was a top-level directory whose name differed from `fjs/basen/` by
+one underscore, and two directories one character apart — one holding the
+factory, the other its consumers — was a live confusion hazard in imports and in
+`grep`. The whole directory moved, not just the module: the factory is now
+`fjs/basen/module.f.mjs`, the parent of the codecs that call it, and its proof is
+`fjs/basen/proof.f.mjs` (it is the factory's only proof — it covers `normalize`,
+invalid input, chunk boundaries and large inputs, so leaving it behind would have
+silently dropped `baseN`'s coverage). The two open issues moved to
+`fjs/basen/todo/` and `fjs/base_n/` is deleted.
 
 ### 2. `fjs/common/` — common algorithms
 
@@ -141,7 +140,7 @@ it — see [fjs/media/revision/README.md](../media/revision/README.md) and
   media formats, not an implementation of `text/plain`. Remains top-level.
 - `js/` — `identifier` + `tokenizer` only, i.e. language tooling consumed by
   `djs`/`fsc`, closer in kind to `bnf`; decide with the tooling bucket, not here.
-- `base64`/`base_n`/`cbase32`/`base128` — transfer encodings, not media types
+- `base64`/`basen`/`cbase32`/`base128` — transfer encodings, not media types
   (they move under `fjs/basen/`, item 1 above).
 
 **Rejected names** for the bucket: `mime/` (collides with the existing detector
@@ -156,7 +155,7 @@ API (no `exports` map), so every move is a breaking change. The first wave is
 ### Tasks
 
 - [x] Create `fjs/basen/` and move `base64`, `base128`, `cbase32` into it.
-- [ ] Move the shared codec factory `fjs/base_n/module.f.ts` to `fjs/basen/module.f.ts` **together with `fjs/base_n/proof.f.ts`** (→ `fjs/basen/proof.f.ts`), move `fjs/base_n/todo/*` to `fjs/basen/todo/`, and delete `fjs/base_n/`.
+- [x] Move the shared codec factory `fjs/base_n/module.f.ts` to `fjs/basen/module.f.mjs` **together with `fjs/base_n/proof.f.ts`** (→ `fjs/basen/proof.f.mjs`), move `fjs/base_n/todo/*` to `fjs/basen/todo/`, and delete `fjs/base_n/`.
 - [x] Create `fjs/common/` and move `monoid` from `fjs/types/` into it.
 - [x] Promote the `fjs` bin to `fjs/` root; update `package.json`/`deno.json` script paths and fix relative imports.
 - [x] Move `fjs/json/` → `fjs/media/json/` (one PR; establishes the `fjs/media/` bucket).

@@ -122,7 +122,7 @@ export const proof = {
         check('A'.repeat(174_763) + '=', vec(maxLength)(0n))
     },
     // Regression guard: `encode` used to be quadratic in the input size, not
-    // linear. `baseN`'s `vecToString` (`fjs/base_n/module.f.ts`) popped one
+    // linear. `baseN`'s `vecToString` (`fjs/basen/module.f.mjs`) popped one
     // 6-bit chunk off the front at a time via `popFront`, and each `popFront`
     // re-masked the entire remaining bigint through `vec()`'s `m & ui` —
     // O(remaining length) — so encoding a vector of `n` bits cost O(n²). A

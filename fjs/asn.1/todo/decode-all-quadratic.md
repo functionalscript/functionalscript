@@ -68,6 +68,6 @@ revoked-certificate list) and hits it.
 
 ### Related
 
-- `fjs/base_n/module.f.ts` `vecToString` / `unpackToString` — the fixed
+- `fjs/basen/module.f.mjs` `vecToString` / `unpackToString` — the fixed
   sibling bug, PR #1202.
 - `fjs/crypto/sha2/todo.md` — the hot sibling bug (`append`).

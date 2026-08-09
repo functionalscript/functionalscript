@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/range` and `fjs/text/code_point` migrate from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
+  stage-1 TypeScript-to-mjs migration — importers must use the `.f.mjs`
+  specifier
+  [#1464](https://github.com/functionalscript/functionalscript/pull/1464)
 - **BREAKING CHANGES:** `fjs/basen`, `fjs/basen/base64`, and `fjs/basen/cbase32`
   migrate from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
   (`.f.mjs`) under the stage-1 TypeScript-to-mjs migration — importers must use

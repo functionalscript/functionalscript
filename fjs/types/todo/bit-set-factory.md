@@ -24,7 +24,7 @@ bitmask-as-set algebra as `byte_set`"*.
 (`union`/`intersect`/`difference`) that `byte_set` has (`:32-42`).
 
 This is exactly the AGENTS.md DRY case: same algorithm, two real consumers,
-differing only in constants — the situation `fjs/base_n` already solves for
+differing only in constants — the situation `fjs/basen` already solves for
 base-N codecs with a parameterized factory.
 
 ### Proposal
@@ -74,5 +74,5 @@ generic `has`.
 
 - [185](./185.md) — `byte_set`-internal `range`/`one` via `bigint.mask`;
   orthogonal — the shared `range` can use `mask` internally once extracted.
-- `fjs/base_n/module.f.ts` — the codebase's precedent for
+- `fjs/basen/module.f.mjs` — the codebase's precedent for
   constants-parameterized codec factories.
