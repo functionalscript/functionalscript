@@ -95,6 +95,20 @@ Update `AGENTS.md` with that asymmetric source-migration policy. Compiler
 compatibility is a later `.f.mjs` -> `.f.js` migration and is not part of this
 package prerequisite.
 
+JSDoc declaration emit currently exposes every top-level `@typedef` as an
+exported type alias. During the migration, implementation-only typedefs use the
+repository's leading-`_` convention, for example `_Node`; see
+[`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md).
+An emitted `export type _Node = ...` is therefore package-private by contract,
+not public API. Clean-consumer tests must exercise documented public types and
+must not turn `_`-prefixed declaration artifacts into supported API merely
+because TypeScript emitted them.
+
+The eventual replacement is `@internal` plus `stripInternal`, blocked on
+[microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
+and tracked in
+[`todo/blocked/jsdoc-typedef-strip-internal.md`](../../../todo/blocked/jsdoc-typedef-strip-internal.md).
+
 Package selection does not need to distinguish every authored `.mjs` by public
 API status during this transition. Incidental authored files such as
 `fjs/types/bigint/benchmark.mjs` may be present in the archive; because they are
@@ -135,13 +149,16 @@ the clean-consumer type-check, or the rejected `.mjs`→`.ts` import direction.
 - [ ] Keep package/publish jobs on a clean CI checkout; do not add generated
       output tracking or cleanup for artifacts from previous revisions.
 - [ ] Add a mixed authored `.ts` + JSDoc `.mjs` package fixture.
+- [ ] Include an implementation-only `_`-prefixed JSDoc typedef in the fixture;
+      tolerate its current exported declaration form without treating it as
+      clean-consumer public API.
 - [ ] Test the allowed `.ts` -> `.mjs` dependency direction in a clean checkout
       and CI-built package archive.
 - [ ] Reject authored `.mjs` runtime imports and declaration-retained references
       to remaining relative `.ts` or generated `.js`.
 - [ ] Verify emitted `.d.mts` contains no references to omitted package files.
 - [ ] Type-check a clean consumer using exported/transitive types from the
-      authored `.mjs` fixture.
+      authored `.mjs` fixture, without importing `_`-prefixed private typedefs.
 - [ ] Verify the CI-built archive contains authored `.mjs`, generated `.js`,
       `.d.ts`, and `.d.mts` in the expected paths during stage 1.
 - [x] Update `AGENTS.md` to the asymmetric `.f.ts` / `.f.mjs` migration policy.
@@ -158,6 +175,9 @@ the clean-consumer type-check, or the rejected `.mjs`→`.ts` import direction.
   present; PR #1451 provides the initial repository validation of this behavior.
 - Package emission produces `.d.ts` for `.ts`, `.d.mts` for `.mjs`, `.js` only
   for `.ts`, and preserves authored `.mjs` unchanged.
+- `_`-prefixed JSDoc typedefs are treated as private API even if declaration
+  emission currently writes them as exported aliases; clean-consumer tests do
+  not depend on those names.
 - Non-public authored `.mjs` files do not require special package exclusions.
 - No separate user-facing `emit:*` scripts are required.
 - Package/publish runs start from a clean CI checkout, so ignored generated
@@ -190,6 +210,11 @@ prepares authored `.f.js` before compiler-compatibility migration starts.
   two-pass `prepack`.
 - [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
   — repository-wide stage-1 source migration.
+- [`todo/blocked/jsdoc-typedef-strip-internal.md`](../../../todo/blocked/jsdoc-typedef-strip-internal.md)
+  — replace the temporary `_` convention with `@internal` when declaration emit
+  supports it.
+- [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
+  — upstream blocker for stripping private JSDoc typedefs.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package roadmap.
 - [`f-js-package-support.md`](./f-js-package-support.md) — stage-2 authored
   `.f.js` package prerequisite.
