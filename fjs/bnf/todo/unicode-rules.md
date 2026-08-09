@@ -78,6 +78,12 @@ This split changes the public design assumptions used by older open TODOs:
 - [`fjs/bnf/todo/207.md`](./207.md) is conceptually blocked until its planned
   split/revision removes `string` as a generic rule kind. Unicode text helpers are
   constructors of ordinary generic rules rather than a distinct generic rule kind.
+- [`fjs/bnf/todo/667-bnf-repeat-flatten.md`](./667-bnf-repeat-flatten.md) is
+  blocked by this task (and by the bigint symbol/range migration). Its previous
+  design used a bare `string` as a new generic `Repeat` rule and assumed terminals
+  were detected with `typeof rule === 'number'`. Both assumptions are pre-migration
+  and must be rebased on the final generic `Rule` discriminants before that TODO is
+  implemented.
 - [`fjs/bnf/todo/recognizer-backend.md`](./recognizer-backend.md) is blocked by
   this task. It previously assigned byte/hex/byte-range helper creation to the
   recognizer work; those helpers now belong exclusively to `fjs/bnf/byte`, and
@@ -91,7 +97,7 @@ This split changes the public design assumptions used by older open TODOs:
 Do not implement these older designs against the pre-split API. The irrelevant
 `data-tosequence-reuse.md` should not be implemented at all; when the other TODOs
 are next revised/split, update their status/dependency headers and examples to the
-new module boundary before implementation starts.
+new module boundary and final rule discriminants before implementation starts.
 
 ### Tasks
 
@@ -115,6 +121,10 @@ new module boundary before implementation starts.
 - [ ] Update `fjs/bnf/todo/207.md` when it is split/revised so `string` is no
       longer described as a generic rule kind; Unicode text constructors lower to
       ordinary generic rules before semantic evaluation.
+- [ ] Keep `fjs/bnf/todo/667-bnf-repeat-flatten.md` blocked until it is rebased on
+      the post-split/post-bigint `Rule` union; its `Repeat` encoding must not reuse
+      bare `string`, and dispatch must not assume terminals are JavaScript
+      `number` values.
 - [ ] Keep `fjs/bnf/todo/recognizer-backend.md` blocked on this split and have it
       consume byte helpers from `fjs/bnf/byte/module.f.ts` rather than defining
       another binary-helper family.
@@ -140,6 +150,9 @@ new module boundary before implementation starts.
   blocked on this split and must target `bnf/unicode` for text terminals.
 - [BNF semantic actions](./207.md) — blocked conceptually on this split; its rule
   model must remove generic `string` before implementation.
+- [BNF repeat flattening](./667-bnf-repeat-flatten.md) — blocked on the final
+  generic rule discriminants; its old bare-string repeat encoding is invalidated
+  by this split.
 - [Recognizer backend](./recognizer-backend.md) — blocked on this split and must
   consume `bnf/byte` helpers instead of owning a duplicate binary authoring API.
 - [Reuse `toSequence` in BNF data](./data-tosequence-reuse.md) — irrelevant because
