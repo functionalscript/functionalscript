@@ -75,9 +75,11 @@ preserves the exponent digits without first narrowing them to JavaScript
 `number`.
 
 Extended JSON materialization converts this exact tree to `ExtendedUnknown` using
-the lexical rules below. RTTI-aware JSON may transform the same exact tree
-directly because validating a fractional token after it has already collapsed to
-`number` is too late.
+the lexical rules below. Standard FunctionalScript JSON and RTTI-aware JSON may
+transform the same exact tree directly because their runtime numeric policies are
+different. In particular, a valid bare integer can exceed the runtime bigint
+construction limit, so the ordinary bigint-free parser must not be forced to
+materialize `ExtendedUnknown` first.
 
 ### Parse
 
@@ -171,19 +173,21 @@ reserved for the `number` side of the extended representation and would parse
 back as `number` rather than `bigint`.
 
 The `.0` form is correct for the **extended** representation because it preserves
-whether the runtime leaf is `number` or `bigint`. The separate standard-JSON
-compatibility task decides which integer-valued standard numbers may be promoted
-to bigint before serialization without changing native `JSON.stringify` spelling.
+whether the runtime leaf is `number` or `bigint`. It is not a requirement for the
+ordinary FunctionalScript JSON serializer, which owns a separate standard-number
+formatting policy and does not have to route every value through the extended
+serializer.
 
 Do not settle non-finite values here. `NaN`, `Infinity`, `-Infinity`, including
-non-finite results produced by parsing valid exponent syntax, and their
-interaction with standard compatibility are covered by the blocking
-[number edge-case investigation](./number-edge-cases.md).
+non-finite results produced by parsing valid exponent syntax, are covered by the
+blocking [number edge-case investigation](./number-edge-cases.md). Native
+`JSON.*` compatibility is optional and belongs to the separate standard-codec
+TODO rather than this extended representation.
 
 ### Architecture
 
 Keep the tokenizer and structural parser single-source while retaining lossless
-numeric syntax until the consumer no longer needs it:
+numeric syntax until each consumer applies its own numeric policy:
 
 ```text
 JSON text
@@ -197,17 +201,25 @@ shared structural parse
    |
    +--> extended materialization -> ExtendedUnknown
    |         |
-   |         +--> standard JSON transformer
+   |         +--> runtime extended/standard value transforms
    |         +--> DJS / other runtime-value consumers
    |
+   +--> standard materialization -> json.Unknown
+   |
    +--> RTTI-aware transform -> Ts<T>
+   |
+   +--> optional native-compatible materialization
 ```
 
-The standard surface can remain a transformation over `ExtendedUnknown`. The
-RTTI text parser is different only at the numeric-policy step: it consumes the
-same token-preserving structural parse before decimal/exponent tokens are rounded
-to plain JavaScript numbers. This avoids a second tokenizer or structural parser
-while preserving enough information for exact schema validation.
+The ordinary standard parser is therefore not required to pass through
+`ExtendedUnknown`. The runtime transformer remains useful when a caller already
+has an extended value, but text parsing can materialize the bigint-free value
+directly from the same exact tree. RTTI likewise consumes the token-preserving
+structural parse before decimal/exponent tokens are rounded to plain JavaScript
+numbers.
+
+This keeps one tokenizer and one structural parser while avoiding artificial
+coupling between numeric policies.
 
 If the generic JSON/DJS tree type lands first, use it for both the exact and
 extended recursive container shapes and vary only the primitive leaf type. That
@@ -237,6 +249,9 @@ The generic-tree TODO owns this requirement.
       assume `NumberToken.bf` remains exact after an arbitrarily long exponent.
 - [ ] Materialize extended JSON from that exact tree using the lexical numeric
       rules in this task.
+- [ ] Keep the exact structural tree reusable by the ordinary standard materializer
+      so standard JSON parsing does not require successful intermediate bigint
+      construction.
 - [ ] Add a bounded lexical helper for exact decimal/exponent properties needed by
       schema-directed consumers; it must not narrow an unbounded exponent before
       deciding whether the exponent magnitude matters.
@@ -255,19 +270,23 @@ The generic-tree TODO owns this requirement.
 - [ ] Add round-trip/error proofs for integers beyond `Number.MAX_SAFE_INTEGER`,
       negative integers, bigint zero, positive number zero, negative number zero,
       whole-valued numbers, fractions, ordinary exponents, overflowed exponents,
-      and exponent text far beyond JavaScript-number precision; explicitly prove
-      that exact checks remain bounded by input length and do not throw.
-- [ ] Document that the serialized output is valid JSON but native JavaScript
-      `JSON.parse` may lose precision when consuming large integer literals.
+      oversized bare integers, and exponent text far beyond JavaScript-number
+      precision; explicitly prove that exact checks remain bounded by input length
+      and do not throw.
+- [ ] Document that the serialized output is valid JSON but ordinary JavaScript
+      consumers may choose a different runtime numeric representation.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
 
 - [JSON numeric edge cases](./number-edge-cases.md) — **blocks this task** until
-  non-finite and exponent-overflow behavior is decided.
-- [Standard JSON transformer](./standard-transform.md) — converts between the
-  extended value and the ordinary bigint-free JSON value domain and composes the
-  standard parser/stringifier on top of this layer.
+  extended non-finite, exponent-overflow, and oversized-bigint behavior is decided.
+- [Standard JSON parse/serialize](./standard-parse-serialize.md) — reuses the same
+  exact structural parse but materializes the ordinary bigint-free JSON domain
+  directly; optional native compatibility lives there too.
+- [Standard/extended value transforms](./standard-transform.md) — converts between
+  already-materialized extended and ordinary runtime value trees; it does not own
+  parser/stringifier composition.
 - [RTTI-aware extended JSON parser](./rtti-parse.md) — reuses the same lossless
   structural parse so fractional-token validation occurs before JavaScript
   number rounding.
