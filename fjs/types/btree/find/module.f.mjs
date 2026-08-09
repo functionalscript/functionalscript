@@ -3,49 +3,87 @@
  *
  * @module
  */
-import type { Leaf1, Leaf2, Branch3, Branch5, TNode } from '../types/module.f.mjs'
-import type { List } from '../../list/module.f.mjs'
-import { index3, index5, type Compare } from '../../function/compare/module.f.mjs'
-import type { KeyOf, Index } from "../../array/module.f.mjs"
+/** @import { Leaf1, Leaf2, Branch3, Branch5, TNode } from '../types/module.f.mjs' */
+/** @import { List } from '../../list/module.f.mjs' */
 
-export type FirstLeaf1<T> = readonly[Index<3>, Leaf1<T>]
+import { index3, index5 } from '../../function/compare/module.f.mjs'
+/** @import { Compare } from '../../function/compare/module.f.mjs' */
 
-export type FirstBranch3<T> = readonly[1, Branch3<T>]
+/** @import { KeyOf, Index } from '../../array/module.f.mjs' */
 
-export type FirstLeaf2<T> = readonly[Index<5>, Leaf2<T>]
+/**
+ * @template T
+ * @typedef {readonly[Index<3>, Leaf1<T>]} _FirstLeaf1
+ */
 
-export type FirstBranch5<T> = readonly[1|3, Branch5<T>]
+/**
+ * @template T
+ * @typedef {readonly[1, Branch3<T>]} _FirstBranch3
+ */
 
-export type First<T> = FirstLeaf1<T> | FirstBranch3<T> | FirstLeaf2<T> | FirstBranch5<T>
+/**
+ * @template T
+ * @typedef {readonly[Index<5>, Leaf2<T>]} _FirstLeaf2
+ */
 
-export type PathItem3<T> = readonly[0|2, Branch3<T>]
+/**
+ * @template T
+ * @typedef {readonly[1|3, Branch5<T>]} _FirstBranch5
+ */
 
-export type PathItem5<T> = readonly[0|2|4, Branch5<T>]
+/**
+ * @template T
+ * @typedef {_FirstLeaf1<T> | _FirstBranch3<T> | _FirstLeaf2<T> | _FirstBranch5<T>} First
+ */
 
-export type PathItem<T> = PathItem3<T> | PathItem5<T>
+/**
+ * @template T
+ * @typedef {readonly[0|2, Branch3<T>]} _PathItem3
+ */
 
-const child
-= <T>(item: PathItem<T>): TNode<T> => (item[1][item[0]] as TNode<T>)
+/**
+ * @template T
+ * @typedef {readonly[0|2|4, Branch5<T>]} _PathItem5
+ */
 
-export type Path<T> = List<PathItem<T>>
+/**
+ * @template T
+ * @typedef {_PathItem3<T> | _PathItem5<T>} PathItem
+ */
 
-export type Result<T> = {
-    readonly first: First<T>,
-    readonly tail: Path<T>
+/** @type {<T>(item: PathItem<T>) => TNode<T>} */
+const child = item => {
+    /** @typedef {typeof item extends PathItem<infer T> ? T : never} T */
+    return /** @type {TNode<T>} */ (item[1][item[0]])
 }
 
-export const find
-= <T>(c: Compare<T>): (node: TNode<T>) => Result<T> => {
+/**
+ * @template T
+ * @typedef {List<PathItem<T>>} Path
+ */
+
+/**
+ * @template T
+ * @typedef {{
+ *   readonly first: First<T>,
+ *   readonly tail: Path<T>
+ * }} Result
+ */
+
+/** @type {<T>(c: Compare<T>) => (node: TNode<T>) => Result<T>} */
+export const find = c => {
+    /** @typedef {typeof c extends Compare<infer T> ? T : never} T */
     const i3 = index3(c)
     const i5 = index5(c)
-    const f = (tail: Path<T>) => (node: TNode<T>): Result<T> => {
-        const append: (index: KeyOf<typeof node>) => Result<T>
-            = index => {
-                const first = [index, node] as PathItem<T>
-                return f({ first, tail })(child(first))
-            }
-        const done: (index: KeyOf<typeof node>) => Result<T>
-            = index => ({ first: [index, node] as First<T>, tail })
+    /** @type {(tail: Path<T>) => (node: TNode<T>) => Result<T>} */
+    const f = tail => node => {
+        /** @type {(index: KeyOf<typeof node>) => Result<T>} */
+        const append = index => {
+            const first = /** @type {PathItem<T>} */ ([index, node])
+            return f({ first, tail })(child(first))
+        }
+        /** @type {(index: KeyOf<typeof node>) => Result<T>} */
+        const done = index => ({ first: /** @type {First<T>} */ ([index, node]), tail })
         switch (node.length) {
             case 1: { return done(i3(node[0])) }
             case 2: { return done(i5(node)) }
@@ -68,14 +106,16 @@ export const find
     return f(null)
 }
 
-export const isFound = <T>([i]: First<T>): boolean => {
+/** @type {<T>(first: First<T>) => boolean} */
+export const isFound = ([i]) => {
     switch (i) {
         case 1: case 3: { return true }
         default: { return false }
     }
 }
 
-export const value = <T>([i, r]: First<T>): T | null => {
+/** @type {<T>(first: First<T>) => T | null} */
+export const value = ([i, r]) => {
     switch (i) {
         case 1: {
             switch (r.length) {
