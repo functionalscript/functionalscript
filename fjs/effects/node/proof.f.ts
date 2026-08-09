@@ -1,12 +1,12 @@
-import { empty, isVec, uint, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
+import { empty, isVec, uint, vec, vec8, type Vec } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { match, pure, step } from "../module.f.ts"
 import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, type IoResult, type ReadFile } from "./module.f.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.ts"
 import { emptyState, virtual, type Dir } from "./virtual/module.f.ts"
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.ts'
-import { ok } from '../../types/result/module.f.ts'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { ok } from '../../types/result/module.f.mjs'
 
 // Answers the one command the `map` proof below drives. Routing the loop
 // through `match` keeps the `Pure`/`Do` layout out of this module: the map key

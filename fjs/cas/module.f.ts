@@ -5,8 +5,8 @@
  */
 import { sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/module.f.ts'
 import { join, normalize, parse } from '../path/module.f.ts'
-import { empty, length, maxLength, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.ts'
-import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.ts'
+import { empty, length, maxLength, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.mjs'
+import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { foldStep, forEachStep, history, historyStep, okStep, pure, step, type Effect, type Operation } from '../effects/module.f.ts'
 import { eff } from '../effects/eff/module.f.ts'
 import {
@@ -35,8 +35,8 @@ import {
     type Stat,
     type WriteBytes,
 } from '../effects/node/module.f.ts'
-import { toOption } from '../types/nullable/module.f.ts'
-import { error, ok, unwrap } from '../types/result/module.f.ts'
+import { toOption } from '../types/nullable/module.f.mjs'
+import { error, ok, unwrap } from '../types/result/module.f.mjs'
 import { splitAt } from '../types/string/module.f.ts'
 import { nonEmpty, empty as elEmpty, type List } from '../effects/list/module.f.ts'
 
@@ -115,7 +115,7 @@ const stageRel = '_stage'
 /**
  * Lease duration in ms: a staging file's deadline is `now() + leaseDelta`.
  * Renewed after every chunk, so it only has to cover the gap between two
- * consecutive chunks (see [staging-lease.md](../../issues/cas/staging-lease.md)).
+ * consecutive chunks (see [staging-lease.md](./plan/staging-lease.md)).
  */
 const leaseDelta = 30_000
 
@@ -187,7 +187,7 @@ export const fileCas = (sha2: Sha2) => (path: string): FileCas => {
                     .value
             return loop(0)
         },
-        // Lock-free staging upload (issues/cas/staging-lease.md): stream each chunk straight
+        // Lock-free staging upload (plan/staging-lease.md): stream each chunk straight
         // to a `_stage/<deadline>-<rand>` file via `writeBytes` while folding it into the
         // running SHA-2 state — the payload never lives in memory as a whole. The lease is
         // renewed (rename to a fresh deadline) after every chunk; any error deletes the

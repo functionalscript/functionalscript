@@ -1,0 +1,301 @@
+/**
+ * Utility functions for working with `bigint` values.
+ *
+ * @module
+ *
+ * @example
+ *
+ * ```js
+ * import { sum, abs, log2, bitLength, mask } from './module.f.ts'
+ *
+ * const total = sum([1n, 2n, 3n]) // 6n
+ * const absoluteValue = abs(-42n) // 42n
+ * const logValue = log2(8n) // 3n
+ * const bitCount = bitLength(255n) // 8n
+ * const bitmask = mask(5n) // 31n
+ * const c = combination([3n, 2n, 1n]) // 60n
+ * ```
+ */
+
+import { cmp } from '../function/compare/module.f.mjs'
+/** @import { Sign } from '../function/compare/module.f.mjs' */
+/** @import { Unary as OpUnary, Reduce as OpReduce } from '../function/operator/module.f.mjs' */
+/** @import { List } from '../list/module.f.mjs' */
+import { fold } from '../../common/monoid/module.f.mjs'
+
+/**
+ * Type representing a unary operation on `bigint`.
+ *
+ * @typedef {OpUnary<bigint, bigint>} Unary
+ */
+
+/**
+ * Type representing a reduction operation on `bigint` values.
+ *
+ * @typedef {OpReduce<bigint>} Reduce
+ */
+
+/**
+ * Adds two `bigint` values.
+ * TODO: should be combined with `addition` for `number`.
+ *
+ * @param {bigint} a - The first bigint value.
+ * @returns {Unary} A function that takes the second bigint value and returns the sum.
+ */
+export const addition = a => b => a + b
+
+/**
+ * Calculates the sum of a list of `bigint` values.
+ *
+ * @param {List<bigint>} input - A list of bigint values.
+ * @returns {bigint} The sum of all values in the list.
+ */
+export const sum = fold({ identity: 0n, operation: addition })
+
+/**
+ * Multiplies two `bigint` values.
+ *
+ * @param {bigint} a - The first bigint value.
+ * @returns {Unary} A function that takes the second bigint value and returns the product.
+ */
+export const multiple = a => b => a * b
+
+/**
+ * Calculates the product of a list of `bigint` values.
+ *
+ * @param {List<bigint>} input - A list of bigint values.
+ * @returns {bigint} The product of all values in the list.
+ */
+export const product = fold({ identity: 1n, operation: multiple })
+
+/**
+ * Calculates the absolute value of a `bigint`.
+ *
+ * @param {bigint} a - The bigint value.
+ * @returns {bigint} The absolute value of the input bigint.
+ */
+export const abs = a => a >= 0 ? a : -a
+
+/**
+ * Determines the sign of a `bigint`.
+ * @param {bigint} a - The bigint value.
+ * @returns {Sign} `1` if positive, `-1` if negative, and `0` if zero.
+ */
+export const sign = a => cmp(a)(0n)
+
+/**
+ * Serializes a `bigint` to a string representation.
+ *
+ * @param {bigint} a - The bigint value.
+ * @returns {string} A string representation of the bigint (e.g., '123n').
+ */
+export const serialize = a => `${a}n`
+
+const { isFinite } = Number
+
+const { log2: mathLog2 } = Math
+
+/**
+ * Calculates the base-2 logarithm (floor).
+ *
+ * This function returns the integer part of the logarithm. For example:
+ * - `log2(1n)` returns `0n`,
+ * - `log2(2n)` returns `1n`,
+ * - `log2(15n)` returns `3n`.
+ *
+ * @param {bigint} v - The input BigInt.
+ * @returns {bigint} The base-2 logarithm (floor) of the input BigInt, or `-1n` if the input is less than or equal to 0.
+ *
+ * @remarks
+ * The function operates in two phases:
+ * 1. **Fast Doubling Phase:** Uses exponential steps to quickly narrow down the range
+ *    of the most significant bit.
+ * 2. **Binary Search Phase:** Refines the result by halving the step size and incrementally
+ *    determining the exact value of the logarithm.
+ * 3. **Remainder Phase:** Using `Math.log2`.
+ */
+export const log2 = v => {
+    if (v <= 0n) { return -1n }
+
+    //
+    // 1. Fast Doubling.
+    //
+
+    let result = -1n
+    // `bigints` higher than 2**1023 may lead to `Inf` during conversion to `number`.
+    // For example: `Number((1n << 1024n) - (1n << 970n)) === Inf`.
+    let i = 0x400n
+    while (true) {
+        const n = v >> i
+        if (n === 0n) {
+            // overshot
+            break
+        }
+        v = n
+        result += i
+        i <<= 1n
+    }
+
+    //
+    // 2. Binary Search.
+    //
+
+    // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
+    // Because of this, We check if `i` is greater than 1023 before we divide it by 2.
+    while (i !== 0x400n) {
+        i >>= 1n
+        const n = v >> i
+        if (n !== 0n) {
+            result += i
+            v = n
+        }
+    }
+
+    //
+    // 3. Remainder Phase.
+    //
+
+    // We know that `v` is less than `1n << 1024` so we can calculate a remainder using
+    // `Math.log2`.
+    const nl = mathLog2(Number(v))
+    if (isFinite(nl)) {
+        const rem = BigInt(nl | 0)
+        // (v >> rem) is either `0` or `1`, and it's used as a correction for
+        // Math.log2 rounding.
+        return result + rem + (v >> rem)
+    } else {
+        // nl is Inf, it means log2(v) === 0x3FF and we add +1 to compensate for initial
+        // `result = -1n`.
+        return result + 0x400n
+    }
+}
+
+/**
+ * Calculates the bit length of a given BigInt.
+ *
+ * The bit length of a number is the number of bits required to represent its absolute value in binary,
+ * excluding leading zeros. For example:
+ * - `0n` has a bit length of 0 (it has no bits).
+ * - `1n` (binary `1`) has a bit length of 1.
+ * - `255n` (binary `11111111`) has a bit length of 8.
+ * - `-255n` (absolute value `255`, binary `11111111`) also has a bit length of 8.
+ *
+ * The function handles both positive and negative numbers. For negative inputs, the bit length is calculated
+ * based on the absolute value of the number. Zero has a bit length of 0.
+ *
+ * @param {bigint} v - The input BigInt.
+ * @returns {bigint} The bit length of the input BigInt.
+ *
+ * @remark
+ * The function uses the `log2` function to calculate the position of the most significant bit (MSB)
+ * and adds `1n` to account for the MSB itself. For negative numbers, the absolute value is used.
+ */
+export const bitLength = v => log2(abs(v)) + 1n
+
+/**
+ * Generates a bitmask with the specified number of bits set to 1.
+ *
+ * @param {bigint} len - The number of bits to set in the mask. Must be a non-negative integer.
+ * @returns {bigint} A bigint representing the bitmask, where the least significant `len` bits are 1.
+ *
+ * @example
+ *
+ * ```js
+ * const result = mask(3n) // 7n
+ * ```
+ */
+export const mask = len => {
+    // we compute this way to avoid overflowing in Bun when len === maxLength.
+    const r = len & 1n
+    const h = len >> 1n
+    const x = (((1n << h) - 1n) << r) | r
+    return (x << h) | x
+}
+
+export const maxLength = 0x100000n
+
+// max + 1n // bun throws an error
+export const max = mask(maxLength)
+
+/**
+ * Calculates the partial factorial `b!/a!`.
+ *
+ * @param {bigint} a - The starting bigint value.
+ * @returns {Unary} A function that takes `b` and computes `b!/a!`.
+ */
+export const partialFactorial = a => b => {
+    let result = b
+    while (true) {
+        --b
+        if (b <= a) { return result }
+        result *= b
+    }
+}
+
+/**
+ * Calculates the factorial of a `bigint`.
+ *
+ * @param {bigint} b - The bigint value.
+ * @returns {bigint} The factorial of the input.
+ */
+export const factorial = partialFactorial(1n)
+
+/**
+ * Calculates the number of combinations for a list of `bigint` values.
+ *
+ * @param {readonly bigint[]} k - A list of bigint values.
+ * @returns {bigint} The number of combinations.
+ */
+export const combination = (...k) => {
+    let s = 0n
+    let m = 1n
+    let p = 1n
+    for (let i of k) {
+        s += i
+        if (i >= m) {
+            [i, m] = [m, i]
+        }
+        p *= factorial(i)
+    }
+    return partialFactorial(m)(s) / p
+}
+
+/**
+ * TODO: It should be combined with `number`.
+ *
+ * @type {Reduce}
+ */
+export const xor = a => b => a ^ b
+
+/** @type {Reduce} */
+export const divUp = b => {
+    const m = b - 1n
+    return v => (v + m) / b
+}
+
+/** @type {Reduce} */
+export const roundUp = b => {
+    const d = divUp(b)
+    return v => d(v) * b
+}
+
+/**
+ * Converts a bit count to a byte count, rounding up — divides by `8`.
+ *
+ * Domain: non-negative inputs (bit/byte counts). On negative inputs `divUp`
+ * truncates toward zero rather than flooring toward −∞, so the rounding
+ * direction is only meaningful for `v >= 0n`.
+ *
+ * @type {Unary}
+ */
+export const divUp8 = divUp(8n)
+
+/**
+ * Rounds a bit count up to the nearest whole byte — the nearest multiple of `8`.
+ *
+ * Domain: non-negative inputs (bit/byte counts). See `divUp8` for the
+ * truncate-vs-floor caveat on negative values.
+ *
+ * @type {Unary}
+ */
+export const roundUp8 = roundUp(8n)

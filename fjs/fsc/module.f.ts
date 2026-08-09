@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { strictEqual } from '../types/function/operator/module.f.ts'
+import { strictEqual } from '../types/function/operator/module.f.mjs'
 import {
     merge as rangeMapMerge,
     fromRange,
@@ -11,11 +11,11 @@ import {
     type RangeMapArray,
     type RangeMerge,
 } from '../types/range_map/module.f.ts'
-import { reduce as listReduce, toArray, map, type List } from '../types/list/module.f.ts'
+import { reduce as listReduce, toArray, map, type List } from '../types/list/module.f.mjs'
 import { range as asciiRange } from '../text/ascii/module.f.ts'
-import { flip, fn } from '../types/function/module.f.ts'
-import { one, type Range } from '../types/range/module.f.ts'
-import { assertEq } from '../asserts/module.f.ts'
+import { flip, fn } from '../types/function/module.f.mjs'
+import { one, type Range } from '../types/range/module.f.mjs'
+import { assertEq } from '../asserts/module.f.mjs'
 
 const fromCharCode = String.fromCharCode
 

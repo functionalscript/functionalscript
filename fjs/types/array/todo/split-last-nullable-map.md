@@ -5,23 +5,21 @@
 
 ### Problem
 
-The two split accessors in `fjs/types/array/module.f.ts:84-99` handle absence
-inconsistently:
+The two split accessors in `fjs/types/array/module.f.mjs:105-119` handle
+absence inconsistently:
 
-```ts
-export const splitFirst
-    = <T>(a: readonly T[]): readonly [T, readonly T[]] | null => {
-        const split = (first: T): readonly [T, readonly T[]] =>
-            [first, uncheckTail(a)]
-        return map(split)(first(a))          // routes through nullable.map
-    }
+```js
+export const splitFirst = a => {
+    /** @typedef {(typeof a)[0]} T */
+    const split = (/** @type {T} */first) =>
+        /** @type {const} */([first, uncheckTail(a)])
+    return map(split)(first(a))          // routes through nullable.map
+}
 
-export const splitLast
-    = <T>(a: readonly T[]): readonly [readonly T[], T] | null => {
-        const lastA = last(a)
-        if (lastA === null) { return null }  // re-inlines the guard by hand
-        return [uncheckHead(a), lastA]
-    }
+export const splitLast = a => {
+    const lastA = last(a)
+    return lastA === null ? null : [uncheckHead(a), lastA]  // re-inlines the guard by hand
+}
 ```
 
 `splitLast` is `map(lastA => [uncheckHead(a), lastA])(last(a))` — the exact
@@ -33,13 +31,13 @@ safe accessors as the positive precedent for routing through `nullable.map`;
 
 Mirror `splitFirst`:
 
-```ts
-export const splitLast
-    = <T>(a: readonly T[]): readonly [readonly T[], T] | null => {
-        const split = (lastA: T): readonly [readonly T[], T] =>
-            [uncheckHead(a), lastA]
-        return map(split)(last(a))
-    }
+```js
+export const splitLast = a => {
+    /** @typedef {(typeof a)[0]} T */
+    const split = (/** @type {T} */lastA) =>
+        /** @type {const} */([uncheckHead(a), lastA])
+    return map(split)(last(a))
+}
 ```
 
 ### Tasks

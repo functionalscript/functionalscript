@@ -3,10 +3,10 @@ import { values } from './module.f.ts'
 import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { cmp } from '../string/module.f.ts'
-import { next, toArray, type List, type Result } from '../list/module.f.ts'
+import { next, toArray, type List, type Result } from '../list/module.f.mjs'
 import { set as setSet } from './set/module.f.ts'
 import { value, find as findFind } from './find/module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 
 const jsonStr = jsonStringify(sort)
 

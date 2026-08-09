@@ -3,8 +3,8 @@
  *
  * @module
  */
-import type { Fold, Reduce, Unary } from '../types/function/operator/module.f.ts'
-import { type List, fold, last, take, length, concat as listConcat, toArray } from '../types/list/module.f.ts'
+import type { Fold, Reduce, Unary } from '../types/function/operator/module.f.mjs'
+import { type List, fold, last, take, length, concat as listConcat, toArray } from '../types/list/module.f.mjs'
 import { join as listJoin, concat as stringConcat } from '../types/string/module.f.ts'
 
 const foldNormalizeOp: Fold<string, List<string>>

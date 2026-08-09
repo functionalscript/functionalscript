@@ -13,10 +13,10 @@ import {
     type List,
     type Result,
     type Thunk,
-} from '../../types/list/module.f.ts'
-import { concat, type StateScan } from '../../types/function/operator/module.f.ts'
-import { contains } from '../../types/range/module.f.ts'
-import { fn } from '../../types/function/module.f.ts'
+} from '../../types/list/module.f.mjs'
+import { concat, type StateScan } from '../../types/function/operator/module.f.mjs'
+import { contains } from '../../types/range/module.f.mjs'
+import { fn } from '../../types/function/module.f.mjs'
 import {
     decoder,
     errorMask,
@@ -24,7 +24,7 @@ import {
     isHighSurrogate,
     isLowSurrogate,
     isSupplementaryPlane,
-} from '../code_point/module.f.ts'
+} from '../code_point/module.f.mjs'
 
 /**
  * Optional Utf16State - represents the state of utf16 decoding operation or null.

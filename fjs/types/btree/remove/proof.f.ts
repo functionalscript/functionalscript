@@ -4,7 +4,7 @@ import { set as setSet } from '../set/module.f.ts'
 import { cmp } from '../../string/module.f.ts'
 import { stringify } from '../../../media/json/module.f.ts'
 import { sort } from '../../object/module.f.ts'
-import { assertEq, assertNotNullish } from '../../../asserts/module.f.ts'
+import { assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
 
 const set = (node: TNode<string>) => (value: string) =>
     setSet(cmp(value))(() => value)(node)

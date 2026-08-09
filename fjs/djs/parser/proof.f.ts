@@ -1,11 +1,11 @@
 import { parseFromTokens } from './module.f.ts'
 import { tokenize, type DjsTokenWithMetadata } from '../tokenizer/module.f.ts'
-import { toArray } from '../../types/list/module.f.ts'
+import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
 import { stringify } from '../../media/json/module.f.ts'
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const tokenizeString
     : (s: string) => readonly DjsTokenWithMetadata[]

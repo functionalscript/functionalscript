@@ -1,5 +1,5 @@
-import { assert, assertEq } from '../../asserts/module.f.ts'
-import { unwrap } from '../../types/result/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
 import {
     validatePackageJson,
     validatePackageJsonText,

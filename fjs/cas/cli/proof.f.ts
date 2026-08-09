@@ -1,11 +1,11 @@
 import { commands } from './module.f.ts'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.ts'
-import { maxLength, vec, vec8 } from '../../types/bit_vec/module.f.ts'
+import { maxLength, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
 import { type NodeProgramOptions } from '../../effects/node/module.f.ts'
 import { dispatch } from '../../cli/module.f.ts'
-import { vecToCBase32 } from '../../basen/cbase32/module.f.ts'
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const makeOptions = (args: readonly string[]): NodeProgramOptions =>
     ({ ...defaultNodeProgramOptions, args })

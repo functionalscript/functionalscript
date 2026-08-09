@@ -1,8 +1,8 @@
 import { utf8 } from '../../text/module.f.ts'
-import { repeat, uint, vec } from '../../types/bit_vec/module.f.ts'
-import { flip } from '../../types/function/module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
-import { map } from '../../types/list/module.f.ts'
+import { repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { flip } from '../../types/function/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.mjs'
+import { map } from '../../types/list/module.f.mjs'
 import {
     base32,
     base64,
@@ -139,7 +139,7 @@ export const proof = {
     // O(n²); now near-linear (~40-60ms on Node, well under `bun test`'s 5s
     // per-test limit on Bun). No timing assertion (duration varies by
     // engine/machine); relies on the test runner's own per-test timing to
-    // catch a regression, same convention as `fjs/basen/base64/proof.f.ts`
+    // catch a regression, same convention as `fjs/basen/base64/proof.f.mjs`
     // `encodeLargeVecIsSlow`.
     appendLargeVecIsFast: () => {
         const big = repeat(100_000n)(vec(8n)(0xffn))

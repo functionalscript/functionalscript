@@ -8,8 +8,8 @@
  *
  * @module
  */
-import { assert } from '../../asserts/module.f.ts'
-import { fromUndefined, type Nullable } from '../../types/nullable/module.f.ts'
+import { assert } from '../../asserts/module.f.mjs'
+import { fromUndefined, type Nullable } from '../../types/nullable/module.f.mjs'
 import { eof, rangeDecode, unicodeRange } from '../module.f.ts'
 
 const [, unicodeLast] = rangeDecode(unicodeRange)

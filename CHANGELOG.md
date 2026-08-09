@@ -20,6 +20,59 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/range` and `fjs/text/code_point` migrate from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
+  stage-1 TypeScript-to-mjs migration — importers must use the `.f.mjs`
+  specifier
+  [#1464](https://github.com/functionalscript/functionalscript/pull/1464)
+- **BREAKING CHANGES:** `fjs/basen`, `fjs/basen/base64`, and `fjs/basen/cbase32`
+  migrate from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
+  (`.f.mjs`) under the stage-1 TypeScript-to-mjs migration — importers must use
+  the `.f.mjs` specifier
+  [#1464](https://github.com/functionalscript/functionalscript/pull/1464)
+- **BREAKING CHANGES:** the `fjs/base_n` module moves to `fjs/basen`, next to the
+  encodings built on it — importers must use the `fjs/basen/module.f.mjs`
+  specifier
+  [#1464](https://github.com/functionalscript/functionalscript/pull/1464)
+- **BREAKING CHANGES:** `fjs/asn.1` migrates from authored TypeScript (`.f.ts`)
+  to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1 TypeScript-to-mjs
+  migration — importers must use the `.f.mjs` specifier
+  [#1464](https://github.com/functionalscript/functionalscript/pull/1464)
+- **BREAKING CHANGES:** `fjs/basen/base128` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
+  TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier
+  [#1463](https://github.com/functionalscript/functionalscript/pull/1463)
+-  **BREAKING CHANGES:** Implementation-only JSDoc typedefs in the migrated
+  `fjs/types/array` and `fjs/types/bit_vec` modules are renamed to their private
+  `_`-prefixed forms. Public declarations keep the same expanded types
+  [#1462](https://github.com/functionalscript/functionalscript/pull/1462)
+- **BREAKING CHANGES:** `fjs/types/bit_vec` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
+  TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier
+  [#1460](https://github.com/functionalscript/functionalscript/pull/1460)
+- **BREAKING CHANGES:** `fjs/types/list`, `fjs/types/result`,
+  `fjs/common/monoid`, `fjs/types/bigint`, and `fjs/types/nominal` migrate from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
+  stage-1 TypeScript-to-mjs migration — importers must use the `.f.mjs`
+  specifier
+  [#1458](https://github.com/functionalscript/functionalscript/pull/1458)
+- **BREAKING CHANGES:** `fjs/types/function/compare` and
+  `fjs/types/function/operator` migrate from authored TypeScript (`.f.ts`) to
+  JSDoc-typed JavaScript (`.f.mjs`) under the stage-1 TypeScript-to-mjs
+  migration — importers must use the `.f.mjs` specifier
+  [#1456](https://github.com/functionalscript/functionalscript/pull/1456)
+- **BREAKING CHANGES:** `fjs/types/array`, `fjs/types/function`,
+  `fjs/types/nullable`, and `fjs/types/option` migrate from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
+  TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier;
+  `fjs/types/array`'s fixed-arity type exports (`Array1`..`Array16`,
+  `Index1`..`Index16`, `Tuple2`, `Tuple3`, `isArray2`) are replaced by the
+  generic `Tuple<N, T>`, `Index<N>`, and `isTuple(n)`
+  [#1454](https://github.com/functionalscript/functionalscript/pull/1454)
+- `ci`: generated workflows invoke the CLI by full command name (`fjs test`,
+  `functionalscript@<version> test`) instead of the `t` alias
+  [#1450](https://github.com/functionalscript/functionalscript/pull/1450)
+
 ## 0.43.1
 
 - `vnd.fjs.revision` gains optional flat subject-to-content lock maps; Evo

@@ -1,11 +1,11 @@
 import { utf8 } from "../../text/module.f.ts"
-import type { Array4 } from "../../types/array/module.f.ts"
-import { empty, msb, repeat, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
+import type { Tuple } from "../../types/array/module.f.mjs"
+import { empty, msb, repeat, vec, vec8, type Vec } from "../../types/bit_vec/module.f.mjs"
 import { hmac } from "../hmac/module.f.ts"
 import { secp192r1, secp256r1, secp384r1, secp521r1, type Curve } from "../secp/module.f.ts"
 import { computeSync, sha224, sha256, sha384, sha512, type Sha2 } from "../sha2/module.f.ts"
 import { all, concat, computeK, fromCurve, sign } from "./module.f.ts"
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 
 const sample = utf8("sample")
 const test = utf8("test")
@@ -119,7 +119,7 @@ export const proof = {
         assertEq(kk, 0x4381526B3FC1E7128F202E194505592F01D5FF4C5AF015D8n)
     },
     a2: () =>{
-        type H = Array4<bigint>
+        type H = Tuple<4, bigint>
         type P = {
             readonly q: bigint
             readonly x: bigint
@@ -362,7 +362,7 @@ export const proof = {
             readonly r: bigint
             readonly s: bigint
         }
-        type H = Array4<Result>
+        type H = Tuple<4, Result>
         type P = {
             readonly q: Curve
             readonly x: bigint

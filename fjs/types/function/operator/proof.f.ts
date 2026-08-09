@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../../asserts/module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import {
     join,
     concat,
@@ -10,7 +10,7 @@ import {
     stateScanToScan,
     foldToScan,
     reduceToScan,
-} from './module.f.ts'
+} from './module.f.mjs'
 
 const joinTest = () => {
     const result = join(', ')('world')('hello')

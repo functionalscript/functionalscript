@@ -1,5 +1,5 @@
-import { error, ok, unwrap, invert, mapOk, type Result } from "./module.f.ts"
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { error, ok, unwrap, invert, mapOk, type Result } from "./module.f.mjs"
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const example = () => {
     const success: Result<number, string> = ok(42)

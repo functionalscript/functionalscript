@@ -3,11 +3,11 @@
  *
  * @module
  */
-import { todo } from '../../../asserts/module.f.ts'
+import { todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, parse } from '../../../path/module.f.ts'
 import { utf8ToString } from '../../../text/module.f.ts'
-import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
-import { error, ok } from '../../../types/result/module.f.ts'
+import { empty, length, maxLengthBytes, msb, vec, type Vec } from '../../../types/bit_vec/module.f.mjs'
+import { error, ok } from '../../../types/result/module.f.mjs'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
 import { asBase, asNominal, type Key } from '../../memory/module.f.ts'
 import type { Dirent, FileStat, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../module.f.ts'

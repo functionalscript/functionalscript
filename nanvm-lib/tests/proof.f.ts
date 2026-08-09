@@ -1,4 +1,4 @@
-import { assert } from '../../fjs/asserts/module.f.ts'
+import { assert } from '../../fjs/asserts/module.f.mjs'
 
 const { is } = Object;
 

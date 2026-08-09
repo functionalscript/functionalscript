@@ -2,7 +2,7 @@ import type { Effect } from '../effects/module.f.ts'
 import { log, type NodeProgramOptions, type Sandbox, type Write } from '../effects/node/module.f.ts'
 import { defaultNodeProgramOptions, emptyState, type JsModule } from '../effects/node/virtual/module.f.ts'
 import { virtual } from '../effects/node/virtual/module.f.ts'
-import { assert, assertEq } from '../asserts/module.f.ts'
+import { assert, assertEq } from '../asserts/module.f.mjs'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
@@ -16,7 +16,7 @@ import { parse as parseJson } from '../media/json/module.f.ts'
 import { array, number as rttiNumber, or, string as rttiString } from '../types/rtti/module.f.ts'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
 import type { Ts } from '../types/rtti/ts/module.f.ts'
-import { unwrap } from '../types/result/module.f.ts'
+import { unwrap } from '../types/result/module.f.mjs'
 
 /**
  * The mock reporter's stdout lines. A schema rather than a hand-written type:

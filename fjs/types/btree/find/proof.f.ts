@@ -1,11 +1,11 @@
 import { type Result, find as btreeFind } from './module.f.ts'
-import { map, toArray } from '../../list/module.f.ts'
+import { map, toArray } from '../../list/module.f.mjs'
 import { stringify, type Unknown } from '../../../media/json/module.f.ts'
 import { sort } from '../../object/module.f.ts'
 import { type TNode } from '../types/module.f.ts'
 import { cmp } from '../../string/module.f.ts'
 import { set as setSet } from '../set/module.f.ts'
-import { assertEq } from '../../../asserts/module.f.ts'
+import { assertEq } from '../../../asserts/module.f.mjs'
 
 const jsonStr = stringify(sort)
 

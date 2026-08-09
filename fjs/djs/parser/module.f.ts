@@ -3,15 +3,15 @@
  *
  * @module
  */
-import { error, ok, type Result } from '../../types/result/module.f.ts'
-import { fold, next, toArray, length, concat, type List } from '../../types/list/module.f.ts'
-import type { Fold } from '../../types/function/operator/module.f.ts'
+import { error, ok, type Result } from '../../types/result/module.f.mjs'
+import { fold, next, toArray, length, concat, type List } from '../../types/list/module.f.mjs'
+import type { Fold } from '../../types/function/operator/module.f.mjs'
 import type { DjsToken, DjsTokenWithMetadata } from '../tokenizer/module.f.ts'
 import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
 import type { AstArray, AstConst, AstModule, AstModuleRef } from '../ast/module.f.ts'
 import type { TokenMetadata } from '../../js/tokenizer/module.f.ts'
-import { assertEq } from '../../asserts/module.f.ts'
+import { assertEq } from '../../asserts/module.f.mjs'
 
 export type ParseError = {
     readonly message: string,

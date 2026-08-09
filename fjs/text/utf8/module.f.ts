@@ -3,11 +3,11 @@
  *
  * @module
  */
-import { flatMap, toArray, type List, type Thunk } from '../../types/list/module.f.ts'
-import type { StateScan } from '../../types/function/operator/module.f.ts'
-import type { Array1, Array2, Array3 } from '../../types/array/module.f.ts'
-import { decoder, errorMask, isValidCodePoint } from '../code_point/module.f.ts'
-import { msb, u8List, length, type Vec } from '../../types/bit_vec/module.f.ts'
+import { flatMap, toArray, type List, type Thunk } from '../../types/list/module.f.mjs'
+import type { StateScan } from '../../types/function/operator/module.f.mjs'
+import type { Tuple } from '../../types/array/module.f.mjs'
+import { decoder, errorMask, isValidCodePoint } from '../code_point/module.f.mjs'
+import { msb, u8List, length, type Vec } from '../../types/bit_vec/module.f.mjs'
 import { codePointListToString } from '../utf16/module.f.ts'
 
 /**
@@ -30,9 +30,9 @@ export type ByteOrEof = U8 | null
  * Represents the state of a UTF-8 decoding operation that contains at least one byte.
  */
 export type Utf8NonEmptyState =
-    | Array1<number>
-    | Array2<number>
-    | Array3<number>
+    | Tuple<1, number>
+    | Tuple<2, number>
+    | Tuple<3, number>
 
 /**
  * Represents the state of a UTF-8 decoding operation, which can be either `null` (no state)

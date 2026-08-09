@@ -5,7 +5,7 @@ import {
     isSupplementaryPlane,
     isTextCodePoint,
     isValidCodePoint,
-} from './module.f.ts'
+} from './module.f.mjs'
 
 const check = (actual: boolean, expected: boolean) => {
     if (actual !== expected) { throw `${actual} !== ${expected}` }

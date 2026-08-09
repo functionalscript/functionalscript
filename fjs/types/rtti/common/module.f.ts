@@ -37,9 +37,9 @@ import {
     type Tuple,
     type Type,
 } from '../module.f.ts'
-import { error, ok, type Error, type Result as CommonResult } from '../../result/module.f.ts'
+import { error, ok, type Error, type Result as CommonResult } from '../../result/module.f.mjs'
 import type { Ts } from '../ts/module.f.ts'
-import { isArray as commonIsArray } from '../../array/module.f.ts'
+import { isArray as commonIsArray } from '../../array/module.f.mjs'
 import { isObject as commonIsObject, type StringMap } from '../../object/module.f.ts'
 
 /** A path to a sub-value within the validated structure. Each step is an object key or stringified array index. */

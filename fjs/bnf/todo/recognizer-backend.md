@@ -1,7 +1,8 @@
 ## Recognizer backend (no AST) and BNF→DFA for regular grammars
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
+**Blocked by:** [Separate alphabet-specific BNF helpers](./unicode-rules.md)
 
 ### Problem
 
@@ -24,6 +25,14 @@ AST — they only want "did it match, and what is the final state":
 
 Today the only way to "run a grammar" is the LL(1) dispatch that produces an
 AST, which is the wrong shape (and wrong cost) for these.
+
+This TODO previously also assigned ownership of binary BNF authoring helpers to
+the recognizer work. That responsibility now belongs to
+[Separate alphabet-specific BNF helpers](./unicode-rules.md), which establishes
+`fjs/bnf/byte/module.f.ts` alongside `fjs/bnf/unicode/module.f.ts`. Implement the
+alphabet split first so the recognizer can consume those helpers instead of
+creating a second byte-helper API or restoring alphabet-specific syntax in core
+BNF.
 
 ### Proposal
 
@@ -138,24 +147,19 @@ Two backends, distinguished by grammar class — this distinction is load-bearin
    configuration. `S` is a parser configuration (stack), **not** finite. This is
    the tier above the scanner (PL/structure recognition).
 
-**BNF is symbol-agnostic; the alphabet is the runner's choice.** Both BNF
-levels — functional and the serializable data IR — are neutral about what a
-symbol *is*: a `Rule` over ranges/sequence/variant does not know whether symbol
-`0x41` is the code point `A` or the byte `0x41`. `TerminalRange`'s 24 bits are
-just capacity (enough for Unicode `0x10FFFF`, and bytes trivially), not a
-code-point commitment, and `step` is symbol-numeric. So a **byte runner** for
-UTF-8/magic and a **code-point runner** for the PL/Markdown tier are just two
-consumers feeding different symbol streams to the *same* `RuleSet`.
+**BNF core is symbol-agnostic; alphabet-specific authoring lives in adapters.**
+Both BNF levels — functional and the serializable data IR — are neutral about
+whether a symbol originated as a byte, Unicode code point, token symbol, or some
+future intermediate alphabet. The concrete `Symbol` representation may change,
+but generic `Rule` / `TerminalRange` semantics do not assign Unicode or byte
+meaning to it.
 
-There is no code-point coupling in BNF itself. The string-literal constructors
-(`str` / `set` / `range`, via `stringToCodePointList`) are just **text-authoring
-helpers** sitting *above* the agnostic core; a parallel family of **binary
-helpers** — byte / hex literals, byte sequences, byte-range sets — would author
-byte grammars the same way, all bottoming out in the agnostic `rangeEncode` /
-`oneEncode` primitives. (`fjs/media/type`'s `fromSentinel` hex-signature notation,
-`0x1_89_50_4e_47…n`, is a precedent for compact byte-sequence literals — just
-targeting `Vec` today rather than `RuleSet` terminals. The matcher's
-`CodePoint[]` typing is likewise nominal — structurally numbers.)
+After the alphabet split, text constructors such as `str` / `set` / `range` live
+in `fjs/bnf/unicode/module.f.ts`, while byte / hex literals, byte sequences, and
+byte-range helpers live in `fjs/bnf/byte/module.f.ts`. They are authoring adapters
+that lower to ordinary generic BNF rules before automaton construction. The
+recognizer/DFA backends consume the resulting `RuleSet`; they do not define a
+second family of binary helpers.
 
 The grand goal — recognize programming languages, Markdown, etc. — is the
 **layered** composition of the two:
@@ -197,8 +201,8 @@ Bigger automata are built from BNF pieces in two complementary ways:
 - [ ] Use the existing `Scan` family as the streaming contract (no new type):
       `Fold<I, S>` for a recognizer + a separate `λ: (S) => Verdict`,
       `StateScan<I, S, O>` for a transducer; drivers `foldScan` / `stateScan` /
-      `scan`. Keep it parametric in the symbol space (byte vs code-point runner)
-      over the same `RuleSet`. (`fjs/fsm`'s `run = foldScan(runOp)` is precedent.)
+      `scan`. Keep it parametric in the symbol space over the same generic
+      `RuleSet`. (`fjs/fsm`'s `run = foldScan(runOp)` is precedent.)
 - [ ] Tokenizer stage needs maximal munch (emit at the longest accepting
       prefix, then restart) — a mechanism over plain recognition
 - [ ] DFA backend: `RuleSet` (regular subset) → finite DFA, built as a sibling
@@ -207,9 +211,10 @@ Bigger automata are built from BNF pieces in two complementary ways:
       (no DFA exists) — do not fall back to another engine
 - [ ] AST-less LL(1) recognizer: derive from the existing `fjs/bnf/data` matcher
       by dropping `AstRule` accumulation; return accept/reject + final config
-- [ ] Add binary terminal helpers (byte / hex literals, byte sequences,
-      byte-range sets) as a sibling to the text `str` / `set` / `range` helpers,
-      for authoring byte grammars like magic-bytes / UTF-8
+- [ ] Consume binary terminal helpers from `fjs/bnf/byte/module.f.ts` after the
+      alphabet split for byte/hex literals, byte sequences, and byte ranges used
+      by grammars such as magic-byte and UTF-8 recognizers; do **not** create a
+      recognizer-local or second binary-helper family.
 - [ ] Union/product (grammar combination) for the DFA backend via subset
       construction; document the analogous state-pairing for the LL recognizer
 - [ ] First consumer: the `cas_get` magic-byte + UTF-8 detector consumes the
@@ -217,6 +222,9 @@ Bigger automata are built from BNF pieces in two complementary ways:
 
 ### Related
 
+- [Separate alphabet-specific BNF helpers](./unicode-rules.md) — owns Unicode and
+  byte authoring helpers; this recognizer work consumes the generic rules they
+  produce.
 - [layered-parser](./layered-parser.md) — same "one BNF engine, multiple layers"
   instinct; the DFA backend is the scanner tier
 - [parser-structure](./parser-structure.md) — the AST-producing backend

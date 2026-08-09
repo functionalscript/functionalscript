@@ -11,11 +11,11 @@
 import { utf8, utf8ToString } from '../../text/module.f.ts'
 import { toCodePointList } from '../../text/utf8/module.f.ts'
 import { codePointListToString } from '../../text/utf16/module.f.ts'
-import { reverse, type List as EffectList } from '../../types/list/module.f.ts'
-import { length, type Vec } from '../../types/bit_vec/module.f.ts'
+import { reverse, type List as EffectList } from '../../types/list/module.f.mjs'
+import { length, type Vec } from '../../types/bit_vec/module.f.mjs'
 import type { MemOp } from '../memory/module.f.ts'
-import type { Nominal } from '../../types/nominal/module.f.ts'
-import { ok, error as resultError, mapOk, type Result } from '../../types/result/module.f.ts'
+import type { Nominal } from '../../types/nominal/module.f.mjs'
+import { ok, error as resultError, mapOk, type Result } from '../../types/result/module.f.mjs'
 import type { StringMap } from '../../types/object/module.f.ts'
 import { type Effect, type Func, type Operation, type ToAsyncOperationMap, do_, mapStep, okStep, pure, step } from '../module.f.ts'
 import type { List } from '../list/module.f.ts'
@@ -175,7 +175,7 @@ export const access: Func<Access> =
 /**
  * Creates `path` as an empty file with `O_CREAT|O_EXCL` — fails if it already
  * exists. This is the exclusive create that claims a staging name in the
- * lock-free upload ([staging-lease.md](../../../issues/cas/staging-lease.md));
+ * lock-free upload ([staging-lease.md](../../cas/plan/staging-lease.md));
  * with 256 random bits in the name `EEXIST` never happens in practice, so it
  * is just a sanity guard.
  */

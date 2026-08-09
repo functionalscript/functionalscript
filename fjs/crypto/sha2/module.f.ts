@@ -3,8 +3,8 @@
  *
  * @module
  */
-import type { Array16, Array3, Array4, Array8 } from '../../types/array/module.f.ts'
-import { mask, type Reduce } from "../../types/bigint/module.f.ts"
+import type { Tuple } from '../../types/array/module.f.mjs'
+import { mask, type Reduce } from "../../types/bigint/module.f.mjs"
 import {
     vec,
     length,
@@ -13,9 +13,9 @@ import {
     chunkList,
     uint,
     type Vec
-} from '../../types/bit_vec/module.f.ts'
-import type { Fold } from '../../types/function/operator/module.f.ts'
-import { fold, type List } from '../../types/list/module.f.ts'
+} from '../../types/bit_vec/module.f.mjs'
+import type { Fold } from '../../types/function/operator/module.f.mjs'
+import { fold, type List } from '../../types/list/module.f.mjs'
 
 const { concat, front } = msb
 
@@ -23,15 +23,15 @@ const { concat, front } = msb
 // across every `base(...)` config (32-bit and 64-bit SHA-2 variants).
 const chunkListMsb = chunkList(msb)
 
-type V3 = Array3<bigint>
+type V3 = Tuple<3, bigint>
 
-type V4 = Array4<bigint>
+type V4 = Tuple<4, bigint>
 
 /** 8-word SHA-2 state vector. */
-export type V8 = Array8<bigint>
+export type V8 = Tuple<8, bigint>
 
 /** 16-word SHA-2 message schedule chunk. */
-export type V16 = Array16<bigint>
+export type V16 = Tuple<16, bigint>
 
 /**
  * Type definition for the state of the SHA-2 algorithm.

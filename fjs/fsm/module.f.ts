@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { equal, isEmpty, fold, toArray, scan, foldScan, empty as emptyList, type List } from '../types/list/module.f.ts'
+import { equal, isEmpty, fold, toArray, scan, foldScan, empty as emptyList, type List } from '../types/list/module.f.mjs'
 import type { StringMap } from '../types/object/module.f.ts'
 import { toRangeMap, union as byteSetUnion, one, empty, range, type ByteSet } from '../types/byte_set/module.f.ts'
 import { intersect, type SortedSet, union as sortedSetUnion } from '../types/sorted_set/module.f.ts'
@@ -15,9 +15,9 @@ import {
     type RangeMapArray,
     type Entry
 } from '../types/range_map/module.f.ts'
-import { type Fold, type Scan, strictEqual } from '../types/function/operator/module.f.ts'
+import { type Fold, type Scan, strictEqual } from '../types/function/operator/module.f.mjs'
 import { stringify } from '../media/json/module.f.ts'
-import { identity } from '../types/function/module.f.ts'
+import { identity } from '../types/function/module.f.mjs'
 import { stringToList } from '../text/utf16/module.f.ts'
 import { cmp } from '../types/string/module.f.ts'
 

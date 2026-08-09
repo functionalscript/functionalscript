@@ -1,85 +1,153 @@
 # FunctionalScript Compiler
 
-## Source files and incremental repository migration
+## Source files and repository migration
 
-The FunctionalScript repository uses file extensions to distinguish authored
-source, generated output, and the subset accepted by the current
-FunctionalScript compiler.
+The FunctionalScript repository uses extensions to separate source-language
+migration from compatibility with the current FunctionalScript compiler.
 
 | Extension | Meaning |
 |---|---|
-| `.f.ts` | Authored FunctionalScript-intent TypeScript. It may use TypeScript syntax or FunctionalScript features that the current parser does not support yet. |
-| `.f.mjs` | Authored FunctionalScript ESM JavaScript with JSDoc types. The complete module must be accepted by the current FunctionalScript parser and compiler. |
-| `.f.js` | Generated JavaScript emitted from `.f.ts`; never authored directly. |
+| `.f.ts` | Authored FunctionalScript-intent TypeScript that has not yet completed the repository TypeScript-to-JavaScript migration. |
+| `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
+| `.f.js` | During stage 1, generated JavaScript emitted from `.f.ts` and never authored. After stage 1 and authored-`.f.js` package support are complete, authored FunctionalScript that the current parser/compiler must accept. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 
-The general authored/generated JavaScript convention is described in
+The migration is deliberately split into two stages. The repository-wide plan is
+[`todo/migrate-typescript-to-mjs.md`](../../todo/migrate-typescript-to-mjs.md),
+and the package conventions are documented in
 [`fjs/ci/todo/publishing-packages.md`](../ci/todo/publishing-packages.md).
-The `.f.mjs` extension adds a stronger FunctionalScript-specific promise: it
-marks a module that is ready for translation by the compiler available in the
-same revision of the repository.
 
-Repository migration is incremental, not a single task or pull request. A
-synthetic `.f.mjs` compiler fixture may be added as soon as the parser supports
-it. Before converting the first existing repository module, complete both:
+### Stage 1: remove authored TypeScript
 
-- [authored `.f.mjs` package support](../ci/todo/f-mjs-package-support.md),
-  including TypeScript checking, `.mjs`/`.d.mts` package inclusion, repeatable
-  cleanup and declaration emission, consecutive-pack validation, runtime import
-  tests, packed-package type-resolution tests, and the repository module-import
-  policy update, so published runtime and declaration imports cannot reference
-  omitted files and unmigrated callers may follow renamed dependencies;
-- the remaining
-  [`.f.mjs` test and coverage fixtures](../emergent_testing/todo/f-mjs-test-and-coverage.md),
-  which prove end to end that a migrated module keeps its proofs and its
-  coverage rows. The tooling half already ships: proof discovery
-  (`shouldLoad`), `npm run cov`, `deno task cov`, the generated Deno CI step,
-  and the proof policy in `AGENTS.md` and `CONTRIBUTING.md` all cover both
-  authored extensions today.
+Before the first real repository source conversion, complete both prerequisites
+in order:
 
-The repository import policy is asymmetric during migration: authored `.f.ts`
-may import relative `.f.ts` or `.f.mjs` modules, while authored `.f.mjs` runtime
-imports and type references may target relative `.f.mjs` modules only. Update
-`AGENTS.md` with this rule as part of the package-support prerequisite before the
-first real rename.
+1. [authored `.mjs` package support](../ci/todo/f-mjs-package-support.md),
+   including `allowJs` / `checkJs`, split declaration/runtime emission, package
+   inclusion, and clean-consumer tests;
+2. [`.f.mjs` test and coverage fixtures](../emergent_testing/todo/f-mjs-test-and-coverage.md),
+   which are **blocked by** package support and prove with an actual `.f.mjs`
+   runtime fixture that proofs execute and Node/Deno coverage retains the
+   migrated module.
 
-Migration uses a dependency-closed order. An existing module is eligible only
-when every relative FunctionalScript dependency referenced by its runtime code
-or retained in its emitted `.d.mts` declaration is already `.f.mjs` or is
-converted in the same coherent group. Authored `.f.mjs` runtime imports and
-JSDoc type references must not point to an unmigrated `.f.ts` module or generated
-`.f.js` output. Packaging copies `.mjs` source and emits declarations without a
-specifier-rewrite step, so the runtime and declaration graphs must both resolve
-in a clean checkout and in the packed NPM artifact. If either dependency closure
-is not yet eligible, leave the module as `.f.ts`; this plan does not introduce a
-staging, package-time import-rewrite, or declaration-rewrite mechanism.
+Package and publish jobs run from a clean CI checkout, so the package prerequisite
+does not require developer-worktree cleanup or tracking ignored outputs from
+earlier revisions.
 
-1. As soon as the parser supports the first useful function modules, select an
-   existing dependency-closed `.f.ts` module or coherent group whose complete
-   syntax, runtime dependencies, and declaration-retained type dependencies are
-   supported.
-2. Rename the selected files to `.f.mjs` and replace TypeScript-only syntax with
-   JSDoc types.
-3. Update runtime imports and JSDoc type references within the group, plus all
-   `.f.ts` importers of renamed modules, to the authored `.f.mjs` paths.
-4. Add the group to parser/compiler validation and preserve its existing proof,
-   coverage, type-checking, repeatable package-runtime, and package-type-resolution
-   expectations.
-5. Repeat as each new parser feature makes more dependency-closed groups
-   eligible.
+Then migrate dependency leaves first:
 
-A file stays `.f.ts` until all syntax it uses and both required dependency
-closures are supported. Migration must not require implementing unrelated
-language features merely to convert a file. Likewise, `.f.mjs` must not be used
-as an aspirational label: once a module has that extension, accepting and
-compiling it, resolving its runtime imports, and resolving its emitted types are
-compatibility requirements.
+```text
+module.ts   -> module.mjs
+module.f.ts -> module.f.mjs
+```
 
-The migration grows real-repository compiler coverage alongside the parser and
-code generator. It does not wait for the complete FunctionalScript feature set,
-and compiler progress does not wait for the entire repository to migrate. See
-the [project roadmap](../../todo/plan/roadmap.md) and the
-[fjs–nanvm integration plan](../../todo/fjs-nanvm-integration.md).
+This stage is independent of FunctionalScript parser coverage. `.f.mjs` means
+FunctionalScript-intent JavaScript; it is not a compiler-compatibility promise.
+A `.f.ts` module should move once its authored TypeScript runtime and
+declaration-retained type dependencies can move, even if the current compiler
+cannot parse every feature it uses.
+
+The transition is asymmetric: remaining `.f.ts` may depend on already migrated
+`.f.mjs`, while migrated `.f.mjs` must not depend on remaining `.f.ts`. Cycles
+may migrate as a coherent group. Packaging does not rewrite runtime or
+declaration specifiers, so both dependency graphs must resolve directly.
+
+Proofs follow the same source-language rule. `proof.f.ts` may remain temporarily
+beside a migrated `module.f.mjs`, but it may move to `proof.f.mjs` as soon as the
+proof itself is valid JavaScript with JSDoc and its authored runtime and type
+dependencies are already `.f.mjs`. Current FunctionalScript compiler support is
+not a condition for that rename.
+
+#### Private JSDoc typedefs
+
+TypeScript declaration emit currently turns JSDoc `@typedef`s into exported type
+aliases, including typedefs that exist only as implementation details. This is
+tracked upstream by
+[microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407).
+
+Until JSDoc typedefs can be stripped with `@internal` and `stripInternal`, use a
+leading `_` for implementation-only typedefs created during the migration:
+
+```js
+/** @typedef {number} _Type */
+```
+
+The underscore is an API contract, not declaration-level visibility. Generated
+`.d.ts` / `.d.mts` may still contain `export type _Type = number`, but names that
+begin with `_` are private FunctionalScript implementation details. Consumers
+must not rely on those names directly, so renaming or removing a `_`-prefixed
+alias is not a breaking change solely because TypeScript emitted it. The public
+contract still governs transitive effects: if a public type depends on `_Type`,
+changing `_Type` in a way that changes that public type's assignability is a
+breaking change and requires the normal `**BREAKING CHANGES:**` treatment.
+
+For example, suppose the generated declaration initially contains:
+
+```ts
+export type _Internal = number
+export type Public = readonly [_Internal]
+```
+
+Changing it to this is **not** a breaking change:
+
+```ts
+export type Public = readonly [number]
+```
+
+`_Internal` disappeared, but the expanded public contract of `Public` is still
+`readonly [number]`. A consumer that imported `_Internal` directly was depending
+on a private implementation detail.
+
+By contrast, changing it to this **is** a breaking change:
+
+```ts
+export type _Internal = string
+export type Public = readonly [_Internal]
+```
+
+The emitted private alias is still private, but the expanded public contract of
+`Public` changed from `readonly [number]` to `readonly [string]`.
+
+Public typedefs keep ordinary names without the `_` prefix. Which typedefs are
+public is an API design decision, not a mechanical restatement of what the
+pre-migration `.f.ts` file happened to export: a helper that belongs to the
+module's public vocabulary may be published under an ordinary name even though
+its TypeScript alias was module-private, and a former export may become `_` when
+it only ever described an implementation detail. Decide per typedef what the
+module should offer its consumers, then apply the prefix accordingly.
+
+When upstream support is ready, replace this workaround with `@internal`; that
+cleanup is tracked by
+[`todo/blocked/jsdoc-typedef-strip-internal.md`](../../todo/blocked/jsdoc-typedef-strip-internal.md).
+
+When the last authored `.ts` / `.f.ts` file is gone, remove the
+TypeScript-to-JavaScript emit path, remove obsolete generated `.js` from the
+working tree for that transition, and remove the blanket `**/*.js` rule from
+`.gitignore`. Only then is `.js` available as an authored extension.
+
+### Stage 2: mark compiler-compatible FunctionalScript
+
+The repository compiler-compatibility migration in
+[`todo/fjs-nanvm-integration.md`](../../todo/fjs-nanvm-integration.md) is
+**blocked by** stage 1. Before its first rename, also complete
+[authored `.f.js` package support](../ci/todo/f-js-package-support.md), so a
+standalone `.f.js` is directly type-checked, receives a `.d.ts`, is packed in
+the clean CI package build, and resolves for a clean consumer.
+
+Then migrate compiler-supported dependency-closed groups incrementally:
+
+```text
+module.f.mjs -> module.f.js
+```
+
+An authored `.f.js` is a compatibility commitment: the FunctionalScript parser
+and compiler in the same repository revision must accept the complete module,
+and its runtime and declaration dependencies must satisfy the compiler migration
+rules. Unsupported modules remain `.f.mjs` until the required compiler features
+land.
+
+A synthetic JavaScript compiler fixture may be used before repository migration;
+it does not change the extension contract for repository source.
 
 ## Tokenizer
 

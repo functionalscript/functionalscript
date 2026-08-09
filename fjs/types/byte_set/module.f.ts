@@ -3,10 +3,10 @@
  *
  * @module
  */
-import { compose } from '../function/module.f.ts'
+import { compose } from '../function/module.f.mjs'
 import type { RangeMap } from '../range_map/module.f.ts'
 import type { SortedSet } from '../sorted_set/module.f.ts'
-import { reverse, countdown, flat, map } from '../list/module.f.ts'
+import { reverse, countdown, flat, map } from '../list/module.f.mjs'
 
 export type ByteSet = bigint
 type Byte = number

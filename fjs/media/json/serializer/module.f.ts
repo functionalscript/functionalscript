@@ -7,15 +7,15 @@
  *
  * @module
  */
-import { flat, map, reduce, empty, type List } from '../../../types/list/module.f.ts'
-import { type Reduce } from '../../../types/function/operator/module.f.ts'
+import { flat, map, reduce, empty, type List } from '../../../types/list/module.f.mjs'
+import { type Reduce } from '../../../types/function/operator/module.f.mjs'
 import { concat } from '../../../types/string/module.f.ts'
 import {
     codePointToString,
     stringToCodePointList,
     type CodePoint,
 } from '../../../text/utf16/module.f.ts'
-import { errorMask } from '../../../text/code_point/module.f.ts'
+import { errorMask } from '../../../text/code_point/module.f.mjs'
 import {
     backspace,
     cr,

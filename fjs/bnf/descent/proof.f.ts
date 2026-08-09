@@ -1,10 +1,10 @@
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
-import { map, toArray } from '../../types/list/module.f.ts'
+import { map, toArray } from '../../types/list/module.f.mjs'
 import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.ts'
 import { deterministic } from '../testlib.f.ts'
 import { emptyTagMap, toData } from '../data/module.f.ts'
 import { descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult } from './module.f.ts'
-import { assertEq, assertNotNullish } from '../../asserts/module.f.ts'
+import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
 

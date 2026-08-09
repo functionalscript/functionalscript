@@ -1,7 +1,7 @@
-import { assertEq, assertNotNullish } from '../asserts/module.f.ts'
+import { assertEq, assertNotNullish } from '../asserts/module.f.mjs'
 import { flat, utf8, utf8ToString, tryUtf8, type Block } from './module.f.ts'
 import { join } from '../types/string/module.f.ts'
-import { empty, maxLengthBytes } from '../types/bit_vec/module.f.ts'
+import { empty, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 
 const overflowStr = 'a'.repeat(Number(maxLengthBytes) + 1)
 

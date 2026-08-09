@@ -1,5 +1,5 @@
-import { contains } from './module.f.ts'
-import { assert } from '../../asserts/module.f.ts'
+import { contains } from './module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
 
 export const proof = () => {
     assert(contains(0, 5)(1), 1)

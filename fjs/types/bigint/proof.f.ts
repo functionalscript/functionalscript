@@ -14,9 +14,9 @@ import {
     roundUp,
     divUp8,
     roundUp8
-} from './module.f.ts'
-import { assert, assertEq } from '../../asserts/module.f.ts'
-import { min } from '../function/compare/module.f.ts'
+} from './module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { min } from '../function/compare/module.f.mjs'
 
 const oldLog2 = (v: bigint): bigint => {
     if (v <= 0n) { return -1n }

@@ -26,8 +26,8 @@ import { find, isFound } from '../btree/find/module.f.ts'
 import { remove as btreeRemove } from '../btree/remove/module.f.ts'
 import { set as btreeSet } from '../btree/set/module.f.ts'
 import { cmp } from "../string/module.f.ts"
-import { fold, type List } from '../list/module.f.ts'
-import { compose } from '../function/module.f.ts'
+import { fold, type List } from '../list/module.f.mjs'
+import { compose } from '../function/module.f.mjs'
 
 export const values: (s: StringSet) => List<string> = btValues
 export const empty: null = btEmpty

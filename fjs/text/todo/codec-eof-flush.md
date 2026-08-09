@@ -29,13 +29,13 @@ const utf16EofToCodePointOp = (state: Utf16State): readonly[List<CodePoint>, Utf
 Both say *"if there is leftover state, flush it as a single error unit, then
 reset"*. The only variable is the flush function: `utf8StateToError` vs
 `state | errorMask` (`null` and `empty` are both the empty list). The
-`code_point.decoder` factory (`fjs/text/code_point/module.f.ts:33-41`, i168)
+`code_point.decoder` factory (`fjs/text/code_point/module.f.mjs:33-41`, i168)
 already unifies the rest of the streaming skeleton; the eof-op is the last
 structurally identical per-codec piece left behind.
 
 ### Proposal
 
-Add a companion to `decoder` in `fjs/text/code_point/module.f.ts`:
+Add a companion to `decoder` in `fjs/text/code_point/module.f.mjs`:
 
 ```ts
 export const eofFlush =
@@ -59,13 +59,13 @@ drives it.
 
 ### Tasks
 
-- [ ] Add `eofFlush` to `fjs/text/code_point/module.f.ts` beside `decoder`.
+- [ ] Add `eofFlush` to `fjs/text/code_point/module.f.mjs` beside `decoder`.
 - [ ] Redefine both eof ops through it; keep JSDoc on the utf8 export.
 - [ ] `npx tsc` clean; `fjs t` passes (utf8/utf16 proofs).
 
 ### Related
 
-- `fjs/text/code_point/module.f.ts:33-41` — `decoder` (i168), the factory this
+- `fjs/text/code_point/module.f.mjs:33-41` — `decoder` (i168), the factory this
   completes.
 - [word-classifier-dedup](../utf16/todo/word-classifier-dedup.md) — the
   companion fresh-dispatch extraction (utf8's half landed in PR #1258).

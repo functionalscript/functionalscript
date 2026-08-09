@@ -24,7 +24,7 @@ bitmask-as-set algebra as `byte_set`"*.
 (`union`/`intersect`/`difference`) that `byte_set` has (`:32-42`).
 
 This is exactly the AGENTS.md DRY case: same algorithm, two real consumers,
-differing only in constants — the situation `fjs/base_n` already solves for
+differing only in constants — the situation `fjs/basen` already solves for
 base-N codecs with a parameterized factory.
 
 ### Proposal
@@ -54,7 +54,7 @@ AGENTS.md). `byte_set`'s `toRangeMap` stays local — it is genuinely
 byte-specific.
 
 Rider: both modules inline `readonly [number, number]` for `range`'s
-parameter; the factory should use `Range` from `fjs/types/range/module.f.ts`.
+parameter; the factory should use `Range` from `fjs/types/range/module.f.mjs`.
 
 `has` on a `bigint` set may deserve a domain-specific override if the
 generic form costs (see [185](./185.md) for the mask-based direction) —
@@ -74,5 +74,5 @@ generic `has`.
 
 - [185](./185.md) — `byte_set`-internal `range`/`one` via `bigint.mask`;
   orthogonal — the shared `range` can use `mask` internally once extracted.
-- `fjs/base_n/module.f.ts` — the codebase's precedent for
+- `fjs/basen/module.f.mjs` — the codebase's precedent for
   constants-parameterized codec factories.

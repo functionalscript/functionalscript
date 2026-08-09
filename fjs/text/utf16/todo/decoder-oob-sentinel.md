@@ -39,7 +39,7 @@ Make the out-of-range guard obey the shared `code_point` error contract:
 emit `[[errorMask], state]`, matching utf8's behavior, and update the JSDoc.
 If, after that, centralizing the shape is judged worthwhile (both decoders
 would then open with the identical guard body — a real second consumer), add
-a small helper next to `decoder` in `fjs/text/code_point/module.f.ts`:
+a small helper next to `decoder` in `fjs/text/code_point/module.f.mjs`:
 
 ```ts
 export const outOfRange = <S>(state: S): readonly [readonly number[], S] => [[errorMask], state]

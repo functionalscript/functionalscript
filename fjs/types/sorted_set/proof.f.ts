@@ -1,10 +1,10 @@
 import { has, intersect, union } from './module.f.ts'
 import { stringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
-import { toArray, countdown, length } from '../list/module.f.ts'
-import { flip } from '../function/module.f.ts'
+import { toArray, countdown, length } from '../list/module.f.mjs'
+import { flip } from '../function/module.f.mjs'
 import { cmp } from '../number/module.f.ts'
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const str: (a: readonly Unknown[]) => string
     = a => stringify(sort)(a)

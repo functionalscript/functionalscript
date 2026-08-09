@@ -1,6 +1,6 @@
-import { every, map, countdown } from '../list/module.f.ts'
+import { every, map, countdown } from '../list/module.f.mjs'
 import { empty, has, set, setRange, unset, universe, complement } from './module.f.ts'
-import { assert, assertEq } from '../../asserts/module.f.ts'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
     has: () => {
