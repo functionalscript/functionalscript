@@ -13,7 +13,11 @@ to be public API.
 Until the declaration emitter can strip private JSDoc typedefs, the repository
 uses a leading `_` as an API convention: a typedef such as `_Node` is private by
 contract even if the generated `.d.ts` / `.d.mts` contains `export type _Node`.
-Changing, renaming, or removing such a type is therefore not a breaking change.
+Consumers must not depend on that emitted name directly, so renaming or removing
+the alias is not a breaking change solely because it was emitted. This does not
+exempt changes propagated into public types: if a public declaration depends on
+`_Node`, any change that alters that public declaration's assignability remains
+a breaking API change.
 
 The desired long-term representation is `@internal` plus `stripInternal`, so the
 generated declaration does not expose the private type at all.
@@ -66,7 +70,7 @@ Once the trigger is satisfied:
 
 Do not strip a private typedef if a public declaration still depends on its name;
 refactor the public declaration first so emitted declarations remain
-self-contained.
+self-contained and preserve the same public assignability contract.
 
 ### Acceptance criteria
 
@@ -74,6 +78,8 @@ self-contained.
   declaration emitter when `stripInternal` is enabled.
 - Generated `.d.ts` / `.d.mts` files omit implementation-only typedefs.
 - Public emitted declarations never reference a stripped private type.
+- Removing the `_` workaround does not weaken or otherwise change public
+  assignability unless that change is explicitly treated as breaking.
 - The `_`-prefix workaround is removed from repository documentation and from
   private typedefs that used it solely for visibility.
 - Clean package-consumer type checking still passes.
