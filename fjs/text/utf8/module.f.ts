@@ -6,7 +6,7 @@
 import { flatMap, toArray, type List, type Thunk } from '../../types/list/module.f.mjs'
 import type { StateScan } from '../../types/function/operator/module.f.mjs'
 import type { Tuple } from '../../types/array/module.f.mjs'
-import { decoder, errorMask, isValidCodePoint } from '../code_point/module.f.ts'
+import { decoder, errorMask, isValidCodePoint } from '../code_point/module.f.mjs'
 import { msb, u8List, length, type Vec } from '../../types/bit_vec/module.f.mjs'
 import { codePointListToString } from '../utf16/module.f.ts'
 

@@ -22,7 +22,7 @@ nothing tying them together.
 ### Proposal
 
 Define named constants (or a small encode/decode pair) for the layout flags
-once — e.g. next to `errorMask` in `fjs/text/code_point/module.f.ts`, or at
+once — e.g. next to `errorMask` in `fjs/text/code_point/module.f.mjs`, or at
 the top of `fjs/text/utf8/module.f.ts` if the layout is considered
 utf8-private — and use them in both functions. Names should follow the
 README's terminology so the doc table and the constants are trivially

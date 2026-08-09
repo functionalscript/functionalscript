@@ -6,7 +6,7 @@
 
 ### Problem
 
-`decodeAll` (`fjs/asn.1/module.f.ts`) drains a bit vector by repeatedly
+`decodeAll` (`fjs/asn.1/module.f.mjs`) drains a bit vector by repeatedly
 applying `step` until it's empty:
 
 ```ts
@@ -39,7 +39,7 @@ as the popFront-loop shape elsewhere).
 
 Unlike `sha2.append` and `vecToString`, this is currently **latent**: a repo
 grep turned up no callers of `decodeSequence` / `decodeSet` / `decodeAll`
-outside `fjs/asn.1/module.f.ts` itself (not wired into `fjs/crypto/sign` or
+outside `fjs/asn.1/module.f.mjs` itself (not wired into `fjs/crypto/sign` or
 anywhere else yet). Filing this so it's known before someone decodes a
 `SEQUENCE OF` with many elements (e.g. a certificate chain or a CRL's
 revoked-certificate list) and hits it.
@@ -63,11 +63,11 @@ revoked-certificate list) and hits it.
       acceptable given ASN.1 structures in this codebase's actual usage
       (RFC 3161 timestamp requests/responses) are small.
 - [ ] If fixed, add a proof test with a `SEQUENCE OF` containing many
-      elements, timed the same way as `fjs/basen/base64/proof.f.ts`
+      elements, timed the same way as `fjs/basen/base64/proof.f.mjs`
       `encodeLargeVecIsSlow` (no timing assertion).
 
 ### Related
 
-- `fjs/base_n/module.f.ts` `vecToString` / `unpackToString` — the fixed
+- `fjs/basen/module.f.mjs` `vecToString` / `unpackToString` — the fixed
   sibling bug, PR #1202.
 - `fjs/crypto/sha2/todo.md` — the hot sibling bug (`append`).

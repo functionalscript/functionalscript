@@ -6,7 +6,7 @@
 ### Problem
 
 `base64.decode`'s fix (see Resolution below) leaves one related exposure
-unaudited: `fjs/basen/cbase32/module.f.ts`'s `cBase32ToVec` builds its decoded `Vec`
+unaudited: `fjs/basen/cbase32/module.f.mjs`'s `cBase32ToVec` builds its decoded `Vec`
 the same way `base64.decode` used to — via `cBase32ToVec5x` (`baseN`'s
 `stringToVec`), which accumulates the *entire* raw body before any padding is
 stripped. cbase32's sentinel-bit padding differs from base64's zero-padding
@@ -27,7 +27,7 @@ in a way that makes this **worse**, not just "the same bug elsewhere":
 - [ ] Confirm whether `cBase32ToVec` actually rejects a legitimate
       `maxLength`-boundary payload today (mirror
       `decodeAtMaxLengthSucceeds`/`encodeAtMaxLengthSucceeds` in
-      `fjs/basen/base64/proof.f.ts` for cbase32, using `fjs/basen/cbase32/proof.f.ts`).
+      `fjs/basen/base64/proof.f.mjs` for cbase32, using `fjs/basen/cbase32/proof.f.mjs`).
 - [ ] If confirmed, design a fix that never builds an intermediate `Vec`
       over `maxLength` while decoding — the sentinel scan makes base64's
       "decode the last character separately" approach not directly
@@ -39,7 +39,7 @@ in a way that makes this **worse**, not just "the same bug elsewhere":
 
 ### Resolution (base64)
 
-`base64.decode` (`fjs/basen/base64/module.f.ts`) now decodes every body character
+`base64.decode` (`fjs/basen/base64/module.f.mjs`) now decodes every body character
 but the last through `stringToVec` as before, then decodes and trims the
 last character (which always holds the encoding's 2 or 4 zero-padding bits,
 per RFC 4648 — padding never spans more than one base64 character)
@@ -47,5 +47,5 @@ separately, checking the combined length against `maxLength` only *after*
 trimming. No intermediate `Vec` built while decoding is ever wider than the
 final, post-trim result, so an exactly-`maxLength`-sized payload now decodes
 instead of being rejected. See `decodeAtMaxLengthSucceeds` in
-`fjs/basen/base64/proof.f.ts` and `addBase64AtLimitSucceeds` in
+`fjs/basen/base64/proof.f.mjs` and `addBase64AtLimitSucceeds` in
 `fjs/mcp/proof.f.ts` (flipped from `addBase64AtLimitIsError`).

@@ -5,7 +5,7 @@
 The code-point classification predicates — `isBmpCodePoint`, `isHighSurrogate`,
 `isLowSurrogate`, `isSupplementaryPlane`, and `isValidCodePoint` — describe fixed
 Unicode ranges, not per-encoding details, so they live in
-[`module.f.ts`](./module.f.ts) alongside `errorMask` and `decoder`. They are
+[`module.f.mjs`](./module.f.mjs) alongside `errorMask` and `decoder`. They are
 derived from one set of boundary constants so the surrogate bounds
 (`0xD800`–`0xDFFF`) and the maximum code point (`0x10FFFF`) are spelled out
 exactly once. UTF-8 and UTF-16 import them instead of redefining their own range

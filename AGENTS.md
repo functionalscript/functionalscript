@@ -219,7 +219,7 @@ never counted as a test either.
 Never use `try`/`catch` in `.f.ts` files — FunctionalScript itself has no
 `try`/`catch` and isn't planning to add it soon. To test that a call throws,
 nest the test function under a `throw` property key instead of wrapping it in
-`try`/`catch` (see `fjs/asserts/proof.f.ts`).
+`try`/`catch` (see `fjs/asserts/proof.f.mjs`).
 
 The test runner (`fjs/emergent_testing/module.f.ts`) treats `throw` as a
 structural marker: any function reachable under a `throw` key gets
@@ -439,7 +439,16 @@ cases remain explicit and independently testable.
 Authored `.mjs` / `.f.mjs` files must remain valid JavaScript. Put named and
 generic static types in JSDoc rather than TypeScript syntax, and preserve the
 same public assignability and declaration-emission behavior when translating a
-`.ts` / `.f.ts` file.
+`.ts` / `.f.ts` file. Types that are implementation details are marked by name,
+not by declaration-level visibility.
+
+Name implementation-only typedefs with a leading `_`
+(`/** @typedef {number} _Type */`). Declaration emit cannot strip them yet, so
+the underscore — not the emitted `.d.ts` — is what marks a name private,
+and renaming or removing a `_`-prefixed alias is not by itself a breaking
+change. The public contract still governs transitive effects. See
+[Private JSDoc typedefs](./fjs/fsc/README.md#private-jsdoc-typedefs) for the
+full rule and examples.
 
 Use `@typedef` for a named type and `@template` for its type parameters. A
 constraint goes in braces before the parameter name:
@@ -743,7 +752,7 @@ makes the computation's dependency structure visible: the scope a binding lives
 in tells the reader which arguments it needs without tracing the whole call
 chain.
 
-Example (`fjs/base_n/module.f.ts`): `chunkList(msb)` depends on neither `bits`
+Example (`fjs/basen/module.f.mjs`): `chunkList(msb)` depends on neither `bits`
 nor `v`, so it's bound once at module scope (`chunkListMsb`), shared by every
 `baseN(...)` codec; `chunkListMsb(bits)` depends on `bits` but not `v`, so it's
 applied once inside `baseN`'s body, not once per `vecToString(v)` call. When the

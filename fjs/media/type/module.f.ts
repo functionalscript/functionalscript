@@ -39,7 +39,7 @@ import { pure, step, type Effect, type Operation } from '../../effects/module.f.
 import type { List } from '../../effects/list/module.f.ts'
 import type { IoResult } from '../../effects/node/module.f.ts'
 import { ok, error } from '../../types/result/module.f.mjs'
-import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.ts'
+import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.mjs'
 import { utf8ByteToCodePointOp, type Utf8State } from '../../text/utf8/module.f.ts'
 
 const { startsWith, removeFront } = msb

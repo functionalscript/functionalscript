@@ -1,8 +1,17 @@
-import { empty, vec, vec8, type Vec } from '../../types/bit_vec/module.f.mjs'
+import { empty, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
+/** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
+
 import { asBase } from '../../types/nominal/module.f.mjs'
+
 import { encode, decode } from './module.f.mjs'
 
-const test = (a: bigint, b: Vec) => {
+//
+
+/**
+ * @param {bigint} a
+ * @param {Vec} b
+ */
+const test = (a, b) => {
     const encoded = encode(a)
     if (encoded !== b) { throw `encoded: ${asBase(encoded).toString(16)}, expected: ${asBase(b).toString(16)}` }
     const [decoded, rest] = decode(b)
