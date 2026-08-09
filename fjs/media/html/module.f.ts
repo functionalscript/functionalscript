@@ -8,7 +8,7 @@ import { map, flatMap, flat, concat as listConcat, type List } from '../../types
 import { concat, concat as stringConcat } from '../../types/string/module.f.ts'
 import { definedEntries, type Entry, type StringMap } from '../../types/object/module.f.ts'
 import { compose } from '../../types/function/module.f.mjs'
-import { stringToList } from '../../text/utf16/module.f.ts'
+import { stringToList } from '../../text/utf16/module.f.mjs'
 import { includes } from '../../types/array/module.f.mjs'
 import { type Vec } from '../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../text/module.f.ts'

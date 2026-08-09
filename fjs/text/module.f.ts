@@ -8,7 +8,7 @@
 import { msb, tryU8ListToVec, u8List, type Vec } from '../types/bit_vec/module.f.mjs'
 import { flatMap, type List } from '../types/list/module.f.mjs'
 import { fromCodePointList, toCodePointList } from './utf8/module.f.ts'
-import { stringToCodePointList, codePointListToString } from './utf16/module.f.ts'
+import { stringToCodePointList, codePointListToString } from './utf16/module.f.mjs'
 import { mapUnwrap, type Nullable } from '../types/nullable/module.f.mjs'
 
 export type Block = ItemThunk | ItemArray

@@ -10,7 +10,7 @@
  *
  * @module
  */
-import { stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
 import {
     oneEncode,
@@ -55,9 +55,9 @@ export type RuleSet = Readonly<Record<string, Rule>>
  */
 export type EmptyTag = string | true | undefined
 
-type EmptyTagMap = StringMap<EmptyTag>
+type _EmptyTagMap = StringMap<EmptyTag>
 
-const emptyTagOf = (map: EmptyTagMap) => (rule: Rule): EmptyTag => {
+const emptyTagOf = (map: _EmptyTagMap) => (rule: Rule): EmptyTag => {
     if (typeof rule === 'number') {
         return undefined
     } else if (rule instanceof Array) {
@@ -73,7 +73,7 @@ const emptyTagOf = (map: EmptyTagMap) => (rule: Rule): EmptyTag => {
     }
 }
 
-const emptyTagStep = (ruleSet: RuleSet) => (map: EmptyTagMap): readonly [EmptyTagMap, boolean] => {
+const emptyTagStep = (ruleSet: RuleSet) => (map: _EmptyTagMap): readonly [_EmptyTagMap, boolean] => {
     let next = map
     let changed = false
     for (const name in ruleSet) {
@@ -99,9 +99,9 @@ const emptyTagStep = (ruleSet: RuleSet) => (map: EmptyTagMap): readonly [EmptyTa
  * nullable/non-nullable status has already settled, while a cyclic
  * dependency's tag catches up, so a fixed round count isn't enough.
  */
-export const emptyTagMap = (ruleSet: RuleSet): EmptyTagMap => {
+export const emptyTagMap = (ruleSet: RuleSet): _EmptyTagMap => {
     const step = emptyTagStep(ruleSet)
-    const relax = (map: EmptyTagMap): EmptyTagMap => {
+    const relax = (map: _EmptyTagMap): _EmptyTagMap => {
         const [next, changed] = step(map)
         return changed ? relax(next) : next
     }
@@ -110,11 +110,11 @@ export const emptyTagMap = (ruleSet: RuleSet): EmptyTagMap => {
 
 //
 
-type FRuleMap = StringMap<FRule>
+type _FRuleMap = StringMap<FRule>
 
 const { entries } = Object
 
-const find = (map: FRuleMap) => (fr: FRule): string | undefined => {
+const find = (map: _FRuleMap) => (fr: FRule): string | undefined => {
     for (const [k, v] of entries(map)) {
         if (v === fr) {
             return k
@@ -123,7 +123,7 @@ const find = (map: FRuleMap) => (fr: FRule): string | undefined => {
     return undefined
 }
 
-const newName = (map: FRuleMap, name: string) => {
+const newName = (map: _FRuleMap, name: string) => {
     let i = 0
     let result = name
     while (result in map) {
@@ -133,9 +133,9 @@ const newName = (map: FRuleMap, name: string) => {
     return result
 }
 
-type NewRule = (m: FRuleMap) => readonly [FRuleMap, RuleSet, Rule]
+type _NewRule = (m: _FRuleMap) => readonly [_FRuleMap, RuleSet, Rule]
 
-const sequence = (list: FSequence): NewRule => map => {
+const sequence = (list: FSequence): _NewRule => map => {
     let result: Sequence = []
     let set = {}
     for (const fr of list) {
@@ -147,7 +147,7 @@ const sequence = (list: FSequence): NewRule => map => {
     return [map, set, result]
 }
 
-const variant = (fr: FRule): NewRule => map => {
+const variant = (fr: FRule): _NewRule => map => {
     let set: RuleSet = {}
     let rule: Variant = {}
     for (const [k, v] of entries(fr)) {
@@ -161,7 +161,7 @@ const variant = (fr: FRule): NewRule => map => {
 
 const mapOneEncode = map(oneEncode)
 
-const data = (dr: DataRule): NewRule => {
+const data = (dr: DataRule): _NewRule => {
     switch (typeof dr) {
         case 'string': {
             return sequence(toArray(mapOneEncode(stringToCodePointList(dr))))
@@ -176,7 +176,7 @@ const data = (dr: DataRule): NewRule => {
     }
 }
 
-const toDataAdd = (map: FRuleMap) => (fr: FRule): readonly [FRuleMap, RuleSet, string] => {
+const toDataAdd = (map: _FRuleMap) => (fr: FRule): readonly [_FRuleMap, RuleSet, string] => {
     {
         const id = find(map)(fr)
         if (id !== undefined) {
