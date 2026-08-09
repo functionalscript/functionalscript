@@ -43,12 +43,12 @@ import { cmp, max, min } from '../function/compare/module.f.mjs'
 import { mapUnwrap } from '../nullable/module.f.mjs'
 /** @import { Nullable } from '../nullable/module.f.mjs' */
 
-/** @typedef {'1a23a4336197e6158b6936cad34e90d146cd84b9b40ff7ab75a17c6d79e31d89'} Revision */
+/** @typedef {'1a23a4336197e6158b6936cad34e90d146cd84b9b40ff7ab75a17c6d79e31d89'} _Revision */
 
 /**
  * A vector of bits represented as a signed `bigint`.
  *
- * @typedef {Nominal<'bit_vec', Revision, bigint>} Vec
+ * @typedef {Nominal<'bit_vec', _Revision, bigint>} Vec
  */
 
 /**
@@ -182,17 +182,17 @@ export const unpackedUint = ({ uint }) => uint
  * @typedef {(len: bigint) => {
  *  readonly a: bigint
  *  readonly b: bigint
- * }} Norm
+ * }} _Norm
  */
 
-/** @typedef {Binary<Unpacked, Unpacked, Norm>} NormOp */
+/** @typedef {Binary<Unpacked, Unpacked, _Norm>} _NormOp */
 
 /** @typedef {OpReduce<Vec>} Reduce */
 
 /**
  * Normalizes two vectors to the same length before applying a bigint reducer.
  *
- * @type {(norm: NormOp) => (op: BigintReduce) => Reduce}
+ * @type {(norm: _NormOp) => (op: BigintReduce) => Reduce}
  */
 const op = norm => op => ap => bp => {
     const au = unpack(ap)
@@ -221,10 +221,10 @@ const op = norm => op => ap => bp => {
  *  readonly listToVec: (list: List<Vec>) => Vec
  *  readonly xor: Reduce
  *  readonly unpackPopFront: PopFront<Unpacked>
- *  readonly norm: NormOp
+ *  readonly norm: _NormOp
  *  readonly cmp: (a: Vec) => (b: Vec) => Sign
  *  readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
- *  readonly unpackConcat: UnpackConcat
+ *  readonly unpackConcat: _UnpackConcat
  *  readonly startsWith: (prefix: Vec) => (v: Vec) => boolean
  * }} BitOrder
  */
@@ -233,27 +233,27 @@ const op = norm => op => ap => bp => {
  * @typedef {{
  *  readonly front: (len: bigint) => (v: Vec) => bigint
  *  readonly removeFront: (len: bigint) => (v: Vec) => Vec
- *  readonly norm: NormOp
+ *  readonly norm: _NormOp
  *  readonly uintCmp: (a: bigint) => (b: bigint) => Sign
  *  readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
  *  readonly unpackConcatUint: (a: Unpacked) => (b: Unpacked) => bigint
- * }} Base
+ * }} _Base
  */
 
 const unpackEmpty = /** @type {const} */{ length: 0n, uint: 0n }
 
-/** @typedef {(a: Unpacked) => (b: Unpacked) => Unpacked} UnpackConcat */
+/** @typedef {(a: Unpacked) => (b: Unpacked) => Unpacked} _UnpackConcat */
 
 /**
  * @typedef {{
  *  readonly len: bigint
  *  readonly stack: readonly Unpacked[]
- * }} ListToVecState
+ * }} _ListToVecState
  */
 
-/** @typedef {Accumulator<Unpacked, ListToVecState, Vec>} ListToVecOp */
+/** @typedef {Accumulator<Unpacked, _ListToVecState, Vec>} _ListToVecOp */
 
-/** @type {(unpackConcat: UnpackConcat) => ListToVecOp} */
+/** @type {(unpackConcat: _UnpackConcat) => _ListToVecOp} */
 const listToVecOp = unpackConcat => ({
     init: { len: 0n, stack: [] },
     update: (v, {len, stack}) => {
@@ -299,11 +299,11 @@ const listToVecOp = unpackConcat => ({
  * and materializes the combined result on demand, such as `StringBuilder`
  * (Java, C#) or `strings.Builder` (Go).
  *
- * @param {UnpackConcat} unpackConcat
+ * @param {_UnpackConcat} unpackConcat
  */
 const unpackListToVec = unpackConcat => tryFold(listToVecOp(unpackConcat))
 
-/** @type {(base: Base) => BitOrder} */
+/** @type {(base: _Base) => BitOrder} */
 const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }) => {
     /** @param {bigint} len */
     const unpackPopFront = len => {
@@ -315,7 +315,7 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
             return /** @type {const} */([uint & m, { length: v.length - len, uint: rest }])
         }
     }
-    /** @type {UnpackConcat} */
+    /** @type {_UnpackConcat} */
     const unpackConcat = a => b => ({
         length: a.length + b.length,
         uint: unpackConcatUint(a)(b)

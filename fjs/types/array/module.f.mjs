@@ -18,24 +18,24 @@ export const isArray = value => value instanceof Array
  * @template {number} N
  * @template T
  * @template {readonly T[]} R
- * @typedef {N extends R['length'] ? R : TupleX<N, T, readonly[...R, T]>} TupleX
+ * @typedef {N extends R['length'] ? R : _Tuple<N, T, readonly[...R, T]>} _Tuple
 */
 
 /**
  * @template {number} N
  * @template {readonly unknown[]} R
- * @typedef {R['length'] extends N ? never : R['length'] | IndexX<N, readonly[...R, unknown]>} IndexX
+ * @typedef {R['length'] extends N ? never : R['length'] | _Index<N, readonly[...R, unknown]>} _Index
  */
 
 /**
  * @template {number} N
- * @typedef {number extends N ? number : N extends number ? IndexX<N, readonly[]> : never} Index
+ * @typedef {number extends N ? number : N extends number ? _Index<N, readonly[]> : never} Index
  */
 
 /**
  * @template {number} N
  * @template T
- * @typedef {TupleX<N, T, readonly[]>} Tuple
+ * @typedef {_Tuple<N, T, readonly[]>} Tuple
  */
 
 /**

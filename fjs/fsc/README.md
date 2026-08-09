@@ -108,9 +108,16 @@ export type Public = readonly [_Internal]
 The emitted private alias is still private, but the expanded public contract of
 `Public` changed from `readonly [number]` to `readonly [string]`.
 
-Public typedefs keep ordinary names without the `_` prefix. When upstream
-support is ready, replace this workaround with `@internal`; that cleanup is
-tracked by
+Public typedefs keep ordinary names without the `_` prefix. Which typedefs are
+public is an API design decision, not a mechanical restatement of what the
+pre-migration `.f.ts` file happened to export: a helper that belongs to the
+module's public vocabulary may be published under an ordinary name even though
+its TypeScript alias was module-private, and a former export may become `_` when
+it only ever described an implementation detail. Decide per typedef what the
+module should offer its consumers, then apply the prefix accordingly.
+
+When upstream support is ready, replace this workaround with `@internal`; that
+cleanup is tracked by
 [`todo/blocked/jsdoc-typedef-strip-internal.md`](../../todo/blocked/jsdoc-typedef-strip-internal.md).
 
 When the last authored `.ts` / `.f.ts` file is gone, remove the
