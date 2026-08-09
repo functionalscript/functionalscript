@@ -54,7 +54,7 @@ AGENTS.md). `byte_set`'s `toRangeMap` stays local — it is genuinely
 byte-specific.
 
 Rider: both modules inline `readonly [number, number]` for `range`'s
-parameter; the factory should use `Range` from `fjs/types/range/module.f.ts`.
+parameter; the factory should use `Range` from `fjs/types/range/module.f.mjs`.
 
 `has` on a `bigint` set may deserve a domain-specific override if the
 generic form costs (see [185](./185.md) for the mask-based direction) —

@@ -139,7 +139,7 @@ export const proof = {
     // O(n²); now near-linear (~40-60ms on Node, well under `bun test`'s 5s
     // per-test limit on Bun). No timing assertion (duration varies by
     // engine/machine); relies on the test runner's own per-test timing to
-    // catch a regression, same convention as `fjs/basen/base64/proof.f.ts`
+    // catch a regression, same convention as `fjs/basen/base64/proof.f.mjs`
     // `encodeLargeVecIsSlow`.
     appendLargeVecIsFast: () => {
         const big = repeat(100_000n)(vec(8n)(0xffn))

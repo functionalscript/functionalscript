@@ -276,7 +276,7 @@ export const proof = {
     // This test originally timed out under `bun test`'s native 5s per-test
     // limit (12-14s observed in CI on PR #1201) — the cost was in
     // `base64Encode`, quadratic before the `baseN.vecToString` fix (see
-    // `fjs/basen/base64/proof.f.ts` `encodeLargeVecIsSlow`). Now well under budget on
+    // `fjs/basen/base64/proof.f.mjs` `encodeLargeVecIsSlow`). Now well under budget on
     // both engines.
     getContentBase64InflationOverflowWritesInternalError: () => {
         const [root, hash] = seedBlob({})([oversizedBase64Chunk])

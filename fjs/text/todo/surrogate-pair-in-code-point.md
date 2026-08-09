@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/text/code_point/module.f.ts` owns the surrogate/BMP boundary as named
+`fjs/text/code_point/module.f.mjs` owns the surrogate/BMP boundary as named
 constants and derives every classification predicate from them (`:50-54`):
 
 ```ts
@@ -51,7 +51,7 @@ Move the inverse pair into `code_point`, derived from the existing constants
 consumer today):
 
 ```ts
-// fjs/text/code_point/module.f.ts
+// fjs/text/code_point/module.f.mjs
 const supplementaryBase = bmpMax + 1
 
 /** Splits a supplementary-plane code point into a `[high, low]` surrogate pair. */
@@ -74,13 +74,13 @@ string escape encoder) gets the arithmetic for free.
 ### Tasks
 
 - [ ] Add `toSurrogatePair`/`fromSurrogatePair` (and `supplementaryBase`) to
-      `fjs/text/code_point/module.f.ts`; cover them in its proof.
+      `fjs/text/code_point/module.f.mjs`; cover them in its proof.
 - [ ] Rewrite the two utf16 sites through them.
 - [ ] `npx tsc` clean; `fjs t` passes (code_point/utf16 proofs).
 
 ### Related
 
-- `fjs/text/code_point/module.f.ts:50-54` — the constants and their
+- `fjs/text/code_point/module.f.mjs:50-54` — the constants and their
   "appear exactly once" intent.
 - [666-utf16-encode-errormask](./666-utf16-encode-errormask.md) — touches
   only the invalid branch of `codePointToUtf16`; orthogonal.
