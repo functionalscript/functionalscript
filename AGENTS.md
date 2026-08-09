@@ -439,7 +439,16 @@ cases remain explicit and independently testable.
 Authored `.mjs` / `.f.mjs` files must remain valid JavaScript. Put named and
 generic static types in JSDoc rather than TypeScript syntax, and preserve the
 same public assignability and declaration-emission behavior when translating a
-`.ts` / `.f.ts` file.
+`.ts` / `.f.ts` file. Types that are implementation details are marked by name,
+not by declaration-level visibility.
+
+Name implementation-only typedefs with a leading `_`
+(`/** @typedef {number} _Type */`). Declaration emit cannot strip them yet, so
+the underscore — not the emitted `.d.ts` — is what marks a name private,
+and renaming or removing a `_`-prefixed alias is not by itself a breaking
+change. The public contract still governs transitive effects. See
+[Private JSDoc typedefs](./fjs/fsc/README.md#private-jsdoc-typedefs) for the
+full rule and examples.
 
 Use `@typedef` for a named type and `@template` for its type parameters. A
 constraint goes in braces before the parameter name:
