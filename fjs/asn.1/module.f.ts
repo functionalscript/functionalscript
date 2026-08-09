@@ -27,7 +27,7 @@ const pop8 = pop(8n)
 
 // tag
 
-type ClassPc =
+type _ClassPc =
     | 0b000_00000n
     | 0b001_00000n
     | 0b010_00000n
@@ -43,21 +43,21 @@ const tagNumberMask = 0b000_11111n
 
 // Note: the tag number (the second parameter) can be arbitrarily large,
 //       so we can't just use a single byte to represent it.
-type ParsedTag = readonly[ClassPc, bigint]
+type _ParsedTag = readonly[_ClassPc, bigint]
 
 /** ASN.1 tag number. */
-type Tag = bigint
+type _Tag = bigint
 
-const parsedTagEncode = ([classPc, number]: ParsedTag): Vec => {
+const parsedTagEncode = ([classPc, number]: _ParsedTag): Vec => {
     const [firstByteNumber, rest] = number < tagNumberMask
         ? [number, empty]
         : [tagNumberMask, b128encode(number)]
     return listToVec([vec8(classPc | firstByteNumber), rest])
 }
 
-const parsedTagDecode = (v: Vec): readonly[ParsedTag, Vec] => {
+const parsedTagDecode = (v: Vec): readonly[_ParsedTag, Vec] => {
     const [firstByte, rest] = pop8(v)
-    const classPc = (firstByte & classPcMask) as ClassPc
+    const classPc = (firstByte & classPcMask) as _ClassPc
     const firstByteNumber = firstByte & tagNumberMask
     const [number, rest1] = firstByteNumber < tagNumberMask
         ? [firstByteNumber, rest]
@@ -65,10 +65,10 @@ const parsedTagDecode = (v: Vec): readonly[ParsedTag, Vec] => {
     return [[classPc, number], rest1]
 }
 
-const tagEncode = (tag: Tag): Vec =>
+const tagEncode = (tag: _Tag): Vec =>
     vec(max(divUp8(bitLength(tag)))(1n) << 3n)(tag)
 
-const tagDecode = (v: Vec): readonly[Tag, Vec] => {
+const tagDecode = (v: Vec): readonly[_Tag, Vec] => {
     const [parsedTag, rest] = parsedTagDecode(v)
     return [uint(parsedTagEncode(parsedTag)), rest]
 }
@@ -123,12 +123,12 @@ export const constructedSet = 0x31n      // constructed | set
 
 //
 
-type Round8 = {
+type _Round8 = {
     readonly byteLen: bigint
     readonly v: Vec
 }
 
-const round8 = ({ length, uint }: Unpacked): Round8 => {
+const round8 = ({ length, uint }: Unpacked): _Round8 => {
     const byteLen = divUp8(length)
     return { byteLen, v: vec(byteLen << 3n)(uint) }
 }
@@ -157,7 +157,7 @@ const lenDecode = (v: Vec): readonly[bigint, Vec] => {
 // raw
 
 /** Raw ASN.1 TLV tuple. */
-export type Raw = readonly [Tag, Vec]
+export type Raw = readonly [_Tag, Vec]
 
 /** Encodes a raw ASN.1 TLV tuple into a bit vector. */
 export const encodeRaw = ([tag, value]: Raw): Vec => {
