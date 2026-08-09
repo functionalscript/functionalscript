@@ -57,7 +57,7 @@ it is genuinely strategy-specific and must stay so:
 So the strategy layer must let each codec own its aligned-case decision; do not
 "normalize" it to a single rule across both.
 
-> Note: `base128` (`fjs/basen/base128/module.f.ts`) is a variable-length
+> Note: `base128` (`fjs/basen/base128/module.f.mjs`) is a variable-length
 > continuation-bit (LEB128-style) `bigint ↔ Vec` codec, **not** an alphabet
 > chunk codec. It correctly does not use `baseN` and is out of scope here.
 

@@ -25,7 +25,7 @@ external consumer.
 
 ### Proposal
 
-Move the variadic form into `fjs/types/bit_vec/module.f.ts` as part of the
+Move the variadic form into `fjs/types/bit_vec/module.f.mjs` as part of the
 bit-order namespace (both `msb` and `lsb` get it for symmetry, since it is
 one line over the existing `listToVec`):
 
@@ -45,7 +45,7 @@ readonly Vec[]): Vec => listToVec(x)` kept **private** in `crypto/sign`
 
 ### Tasks
 
-- [ ] Add `concatAll` to `BitOrder` in `fjs/types/bit_vec/module.f.ts` with
+- [ ] Add `concatAll` to `BitOrder` in `fjs/types/bit_vec/module.f.mjs` with
       proof coverage (0, 1, n arguments; both bit orders).
 - [ ] Replace `concat` uses in `fjs/crypto/sign/module.f.ts` and
       `proof.f.ts`; delete the local export.
@@ -53,6 +53,6 @@ readonly Vec[]): Vec => listToVec(x)` kept **private** in `crypto/sign`
 
 ### Related
 
-- `fjs/types/bit_vec/module.f.ts` — `listToVec`, `concat` (binary), the
+- `fjs/types/bit_vec/module.f.mjs` — `listToVec`, `concat` (binary), the
   natural home.
 - `AGENTS.md` — separation-of-concerns and export-only-with-consumer rules.

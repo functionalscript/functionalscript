@@ -6,7 +6,7 @@
 ### Problem
 
 The codebase has a canonical null-projection combinator —
-`map` in `fjs/types/nullable/module.f.ts` (`f => value => value === null ?
+`map` in `fjs/types/nullable/module.f.mjs` (`f => value => value === null ?
 null : f(value)`) — and `array`'s safe accessors already route through it.
 `ordered_map.at` (`fjs/types/ordered_map/module.f.ts:23-28`) re-inlines the
 same shape by hand:
@@ -46,5 +46,5 @@ points at the one `Nullable` combinator instead of a bespoke ternary.
 
 ### Related
 
-- `fjs/types/nullable/module.f.ts` — the combinator.
-- `fjs/types/array/module.f.ts` — precedent: safe accessors already use it.
+- `fjs/types/nullable/module.f.mjs` — the combinator.
+- `fjs/types/array/module.f.mjs` — precedent: safe accessors already use it.

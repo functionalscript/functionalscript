@@ -54,7 +54,7 @@ Each one allocates a second array purely to re-discover a fact
 #### 2. `undefined` where the codebase uses `null`
 
 The module signals absence with `undefined` throughout.
-`fjs/types/nullable/module.f.ts` states the convention the other way round —
+`fjs/types/nullable/module.f.mjs` states the convention the other way round —
 `fromUndefined` exists precisely as "the boundary rule between JavaScript
 hosts (which return `undefined` from property/index lookups) and
 FunctionalScript (which uses `null` for absence)". Nothing here is a host
@@ -288,7 +288,7 @@ where it lands.
   "one owner for a serializer atom" question, disjoint atoms.
 - `fjs/media/json/serializer/module.f.ts` — `join` / `wrap` over
   `List<List<string>>`, the existing chunk-joining vocabulary.
-- `fjs/types/nullable/module.f.ts` — the `null`-for-absence convention and the
+- `fjs/types/nullable/module.f.mjs` — the `null`-for-absence convention and the
   `fromUndefined` boundary rule.
 - [65z-ci-nix](../../../ci/todo/65z-ci-nix.md) — the motivating consumer
   (generating `flake.nix`); it is the caller that would read the rejection

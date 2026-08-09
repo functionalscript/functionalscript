@@ -17,11 +17,11 @@ This is the same shape as [i190-text-char-code-boundary](../text/todo.md)
 
 #### 1. bigint literal `${a}n` — owner exists, one consumer already uses it
 
-`fjs/types/bigint/module.f.ts:90` owns the bigint → source-literal renderer and
+`fjs/types/bigint/module.f.mjs:90` owns the bigint → source-literal renderer and
 exports it:
 
 ```ts
-// fjs/types/bigint/module.f.ts:90
+// fjs/types/bigint/module.f.mjs:90
 /** A string representation of the bigint (e.g., '123n'). */
 export const serialize = (a: bigint): string => `${a}n`
 ```
@@ -40,7 +40,7 @@ But the sibling emitter `fjs/types/ts` re-implements the exact same literal by
 hand:
 
 ```ts
-// fjs/types/ts/module.f.ts:45
+// fjs/types/ts/module.f.mjs:45
 case 'bigint': return `${c}n`
 ```
 
@@ -66,9 +66,9 @@ where a bare quoted string is needed. As a result, two other modules reach for
 the raw built-in to do the same quoting:
 
 ```ts
-// fjs/types/ts/module.f.ts:36 — struct field key
+// fjs/types/ts/module.f.mjs:36 — struct field key
 structX(fields.map(([k, v]) => `${ro}${JSON.stringify(k)}:${v}`))
-// fjs/types/ts/module.f.ts:46 — string primitive literal
+// fjs/types/ts/module.f.mjs:46 — string primitive literal
 case 'string': return JSON.stringify(c)
 
 // fjs/emergent_testing/module.f.ts:281 — property access  obj["key"]
@@ -85,7 +85,7 @@ but isn't exposed in a reusable (bare-string) form.
 
 ### Proposal
 
-1. **bigint (do now, unambiguous).** In `fjs/types/ts/module.f.ts`, import the
+1. **bigint (do now, unambiguous).** In `fjs/types/ts/module.f.mjs`, import the
    owner and drop the inline template:
 
    ```ts
