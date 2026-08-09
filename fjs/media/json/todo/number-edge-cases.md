@@ -25,7 +25,9 @@ implementation detail:
 - the positive and negative boundaries where native `JSON.stringify` changes
   from plain integer notation to exponent notation;
 - exponent syntax whose numeric conversion overflows the finite JavaScript
-  `number` range, such as `1e400`.
+  `number` range, such as `1e400`;
+- bare integer syntax whose coefficient is too large for the runtime's `bigint`
+  implementation to construct directly.
 
 JSON text itself cannot spell the non-finite values, while JavaScript callers can
 still pass them to a serializer. Negative zero is valid JSON number syntax, but
@@ -37,15 +39,25 @@ mathematical value is integral. The open question is how the extended layer
 represents a valid exponent token that cannot be represented as a finite
 JavaScript `number`.
 
-The shared-parser architecture adds one hard compatibility constraint: standard
-`json.parse` is intended to compose `extended parse -> extendedToStandard`, and
-native `JSON.parse('1e400')` succeeds with `Infinity`. Therefore the extended
-parsing path must not simply reject valid overflowed exponent syntax if it is to
-remain the common substrate for the standard parser. It must preserve enough
-information for the standard boundary to produce the same result as native
-`JSON.parse`. If investigation shows that cannot be done cleanly in the extended
-value model, the alternative is to define an explicit separate compatibility
-path rather than silently changing standard parse behavior.
+Bare integer syntax has a separate runtime-limit edge. The extended lexical rule
+normally materializes a bare integer as `bigint`, but the runtime may reject a
+coefficient beyond its supported bigint size. The shared structural parser must
+therefore retain `NumberToken.value` before bigint construction and must not let a
+valid JSON token escape as an uncaught `BigInt(...)` exception. The numeric policy
+must decide whether such a token has an extended representation or produces a
+controlled extended-parse failure.
+
+The shared-parser architecture adds a compatibility constraint for both kinds of
+overflow. Native `JSON.parse` accepts valid numeric text that may materialize as a
+finite rounded `number` or as `Infinity`, including sufficiently large bare
+integers. Standard `json.parse` therefore must still be able to consume the
+lossless `NumberToken` tree even when the extended runtime value cannot be
+materialized as a finite `number` or supported `bigint`. Prefer preserving the
+single tokenizer/structural parser and choosing materialization afterward. If the
+standard parser cannot cleanly compose through `ExtendedUnknown` for an overflow
+case, define an explicit standard compatibility materialization from the same
+lossless tree rather than duplicating the structural parser or rejecting syntax
+that native `JSON.parse` accepts.
 
 ### Native plain-integer spelling boundary
 
@@ -109,6 +121,9 @@ final integer conversion predicate until the relevant behavior is documented.
 - [ ] Verify `JSON.parse` behavior for `0`, `-0`, decimal zero, exponent zero, and
       overflowed exponent syntax such as `1e400`, including `Object.is` checks for
       the resulting values where relevant.
+- [ ] Verify native `JSON.parse` behavior for bare integer tokens around and far
+      beyond the runtime bigint-size limit, including the point where JavaScript
+      number materialization becomes `Infinity`.
 - [ ] Verify `JSON.stringify` behavior for `0`, `-0`, `NaN`, `Infinity`, and
       `-Infinity` at the top level, in arrays, and in object properties.
 - [ ] Confirm how the existing `fjs/media/json` parser/serializer behaves for the
@@ -120,12 +135,22 @@ final integer conversion predicate until the relevant behavior is documented.
       overflows finite JavaScript `number`, such as `1e400`, while preserving the
       shared-parser requirement that standard conversion can produce the same
       result as native `JSON.parse` (`Infinity` / `-Infinity` as applicable).
-- [ ] If no clean extended representation satisfies that requirement, explicitly
-      design a separate standard compatibility parse path instead of rejecting
+- [ ] Choose the extended behavior for a valid bare integer whose coefficient
+      cannot be constructed as a runtime `bigint`. The implementation must detect
+      this before an unsupported `BigInt(NumberToken.value)` operation can escape;
+      either preserve/materialize it through an explicit representation or return
+      a controlled extended-parse failure.
+- [ ] Preserve the original numeric lexeme through the shared structural parse so
+      the standard compatibility parser can materialize oversized bare integers
+      with native `number` semantics even when extended bigint materialization is
+      unavailable.
+- [ ] If no clean `ExtendedUnknown` representation satisfies an overflow case,
+      explicitly design a standard compatibility materializer over the same
+      lossless structural tree instead of duplicating the parser or rejecting
       syntax that native `JSON.parse` accepts.
 - [ ] Define the matching extended-serialization/error behavior for any value or
-      representation chosen for overflowed exponent input so parse/serialize has
-      a coherent contract.
+      representation chosen for overflowed exponent or oversized bare-integer
+      input so parse/serialize has a coherent contract.
 - [x] Determine the positive plain-integer spelling boundary:
       `max_plain_integer = 999999999999999900000`; the next double is `1e21` and
       native `JSON.stringify` switches to exponent notation there.
@@ -173,13 +198,14 @@ final integer conversion predicate until the relevant behavior is documented.
       number serialization belongs so the reusable standard/extended value
       transformers do not lose information unnecessarily.
 - [ ] Add proof cases for every settled behavior before implementation of the new
-      JSON surfaces is considered complete.
+      JSON surfaces is considered complete, including an oversized bare integer
+      that cannot be directly materialized as runtime `bigint`.
 
 ### Related
 
 - [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — owns the
   information-preserving intermediate JSON representation and is blocked on this
-  task for exponent-overflow/non-finite behavior.
+  task for exponent-overflow, oversized-integer, and non-finite behavior.
 - [Standard JSON transformer](./standard-transform.md) — now also blocked on this
   investigation for the exact integer-to-bigint/stringify compatibility policy.
 - [`fjs/media/json/module.f.ts`](../module.f.ts) — current standard JSON surface.
