@@ -23,7 +23,7 @@ import {
 /**
  * @template T
  * @typedef {Result<T> |
- *  Concat<T> |
+ *   Concat<T> |
  *   readonly T[]
  * } NotLazy
  */
