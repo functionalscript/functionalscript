@@ -29,6 +29,11 @@ The canonical blocker is
 which is still open and specifically requests `stripInternal` support for types
 defined with JSDoc.
 
+Another open TypeScript declaration/comment-emission issue,
+[microsoft/TypeScript#62453](https://github.com/microsoft/TypeScript/issues/62453),
+demonstrates the same JSDoc typedef-to-`export type` emission path while tracking
+duplicated typedef comments. It is related context, not the visibility blocker.
+
 A separate equivalent TypeScript 7 / Go issue was not found in
 `microsoft/typescript-go`. The native compiler does implement `stripInternal`
 in general, but the known JSDoc declaration-emission reports still show
@@ -83,3 +88,5 @@ self-contained.
   — declaration-emission and clean-consumer validation.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
   — canonical upstream feature request.
+- [microsoft/TypeScript#62453](https://github.com/microsoft/TypeScript/issues/62453)
+  — related JSDoc typedef declaration/comment emission bug.
