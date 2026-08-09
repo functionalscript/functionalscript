@@ -16,7 +16,7 @@ import {
     encodeObjectIdentifier,
     decodeObjectIdentifier,
     type ObjectIdentifier,
-} from "./module.f.ts"
+} from "./module.f.mjs"
 import { assert, assertEq } from '../asserts/module.f.mjs'
 
 const { concat, popFront: pop, listToVec } = msb
