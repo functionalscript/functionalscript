@@ -3,7 +3,7 @@
  *
  * @module
  */
-import type { Tree } from '../btree/types/module.f.ts'
+import type { Tree } from '../btree/types/module.f.mjs'
 import { value, find } from '../btree/find/module.f.ts'
 import { set } from '../btree/set/module.f.ts'
 import { remove as btreeRemove } from '../btree/remove/module.f.ts'

@@ -1,4 +1,4 @@
-import type { TNode } from './types/module.f.ts'
+import type { TNode } from './types/module.f.mjs'
 import { values } from './module.f.ts'
 import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
