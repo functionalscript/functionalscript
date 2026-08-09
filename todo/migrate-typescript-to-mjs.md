@@ -126,6 +126,46 @@ Use `@template out T`, `@template in T`, or constrained forms such as
 `@template {Operation} out O`. Variance modifiers belong to a JSDoc type alias
 (`@typedef`), not to an ordinary function's `@template`.
 
+#### Preserve private type intent with `_`
+
+A non-exported TypeScript type can become externally visible merely by being
+translated to a JSDoc `@typedef`: TypeScript currently emits JSDoc typedefs as
+exported aliases in generated declarations. The upstream request to make
+`@internal` plus `stripInternal` work for JSDoc typedefs is
+[microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407).
+
+Until that support is available, prefix implementation-only typedef names with
+`_` during migration. For example:
+
+```ts
+type Node = number
+export type Tree = readonly Node[]
+```
+
+becomes conceptually:
+
+```js
+/** @typedef {number} _Node */
+/** @typedef {readonly _Node[]} Tree */
+```
+
+The leading `_` is the FunctionalScript API visibility convention. It does not
+prevent declaration emission, so generated declarations may contain
+`export type _Node = number`. `_Node` is still private by contract: consumers
+must not depend on that emitted name directly, so renaming or removing `_Node`
+is not a breaking change solely because TypeScript exposed the alias.
+
+The public contract still governs transitive effects. In the example above,
+`Tree` is public and depends on `_Node`; changing `_Node` from `number` to
+`string` changes `Tree`'s public assignability and is therefore a breaking
+change. The underscore exempts only the private alias itself, never a change to
+the expanded public API. Public typedefs keep ordinary names without a leading
+`_`.
+
+This convention is temporary. Once TypeScript can strip `@internal` JSDoc
+typedefs correctly, replace the underscore workaround as tracked by
+[`blocked/jsdoc-typedef-strip-internal.md`](./blocked/jsdoc-typedef-strip-internal.md).
+
 #### Known TypeScript-to-JSDoc hard cases
 
 Do not require the migration plan to pre-design every TypeScript-only type
@@ -151,6 +191,8 @@ For each migration group:
 
 - replace TypeScript-only syntax with equivalent JavaScript plus JSDoc types;
 - preserve public assignability semantics, not only runtime behavior;
+- preserve type visibility intent: public typedefs retain public names and
+  implementation-only typedefs use the `_` prefix;
 - if a TypeScript-only construct has no established semantics-preserving JSDoc
   translation, record it as a focused hard case and postpone that group rather
   than inventing a redesign inside the mechanical migration;
@@ -209,6 +251,11 @@ compiler-compatibility rename.
       compiler support.
 - [ ] Translate TypeScript generic constraints and `in` / `out` variance to
       JSDoc `@template` syntax without changing assignability.
+- [ ] Prefix implementation-only JSDoc typedefs with `_` when converting
+      non-exported TypeScript types; keep public typedef names unprefixed.
+- [ ] Treat `_`-prefixed typedef names as private even when declarations emit
+      them as exports, but still require `**BREAKING CHANGES:**` whenever a
+      change to one alters the assignability of a public declaration.
 - [ ] Continue upward through the dependency graph in reviewable groups until no
       authored TypeScript remains.
 - [ ] Translate `.ts` to `.mjs` and `.f.ts` to `.f.mjs`, moving static type
@@ -224,8 +271,9 @@ compiler-compatibility rename.
       `.f.ts`-reference check at least at the end of stage 1.
 - [ ] Preserve Node, Deno, Bun, proof, coverage, type-checking, declaration, and
       CI package behavior throughout the migration.
-- [ ] Add required `**BREAKING CHANGES:**` changelog entries for public runtime
-      import paths that change.
+- [ ] Add required `**BREAKING CHANGES:**` changelog entries for every public
+      runtime or type-contract change; direct changes to an emitted `_` alias
+      are exempt only when the expanded public contract is unchanged.
 - [ ] After the last authored TypeScript file is gone, simplify `prepack` to its
       declaration-only command and remove the TS-to-JS emit path and obsolete
       generated `.js` outputs.
@@ -251,6 +299,11 @@ compiler-compatibility rename.
   never by current FunctionalScript compiler support.
 - TypeScript generic constraints and variance annotations are preserved with
   their JSDoc `@template` equivalents; public assignability is not weakened.
+- Implementation-only JSDoc typedefs use `_`-prefixed names and are treated as
+  private API even when TypeScript emits them as exported declaration aliases.
+- Renaming or removing an emitted `_`-prefixed alias is not breaking solely due
+  to that alias being emitted; any resulting change to a public declaration's
+  assignability is still a breaking change.
 - `.f.mjs` means FunctionalScript-intent JavaScript, not current-compiler
   compatibility.
 - Migrated JavaScript never depends on remaining authored TypeScript during the
@@ -277,6 +330,11 @@ compiler-compatibility rename.
   — broader package-publishing plan.
 - [`../fjs/fsc/README.md`](../fjs/fsc/README.md) — authoritative FunctionalScript
   extension and migration contract.
+- [`blocked/jsdoc-typedef-strip-internal.md`](./blocked/jsdoc-typedef-strip-internal.md)
+  — replace the temporary `_` convention with `@internal` when upstream
+  declaration emit supports it.
+- [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
+  — upstream request for `stripInternal` support on JSDoc typedefs.
 - [`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md) — existing compiler
   integration and compiler-compatibility migration.
 - [`plan/roadmap.md`](./plan/roadmap.md) — project roadmap.

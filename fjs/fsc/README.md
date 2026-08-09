@@ -58,6 +58,61 @@ proof itself is valid JavaScript with JSDoc and its authored runtime and type
 dependencies are already `.f.mjs`. Current FunctionalScript compiler support is
 not a condition for that rename.
 
+#### Private JSDoc typedefs
+
+TypeScript declaration emit currently turns JSDoc `@typedef`s into exported type
+aliases, including typedefs that exist only as implementation details. This is
+tracked upstream by
+[microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407).
+
+Until JSDoc typedefs can be stripped with `@internal` and `stripInternal`, use a
+leading `_` for implementation-only typedefs created during the migration:
+
+```js
+/** @typedef {number} _Type */
+```
+
+The underscore is an API contract, not declaration-level visibility. Generated
+`.d.ts` / `.d.mts` may still contain `export type _Type = number`, but names that
+begin with `_` are private FunctionalScript implementation details. Consumers
+must not rely on those names directly, so renaming or removing a `_`-prefixed
+alias is not a breaking change solely because TypeScript emitted it. The public
+contract still governs transitive effects: if a public type depends on `_Type`,
+changing `_Type` in a way that changes that public type's assignability is a
+breaking change and requires the normal `**BREAKING CHANGES:**` treatment.
+
+For example, suppose the generated declaration initially contains:
+
+```ts
+export type _Internal = number
+export type Public = readonly [_Internal]
+```
+
+Changing it to this is **not** a breaking change:
+
+```ts
+export type Public = readonly [number]
+```
+
+`_Internal` disappeared, but the expanded public contract of `Public` is still
+`readonly [number]`. A consumer that imported `_Internal` directly was depending
+on a private implementation detail.
+
+By contrast, changing it to this **is** a breaking change:
+
+```ts
+export type _Internal = string
+export type Public = readonly [_Internal]
+```
+
+The emitted private alias is still private, but the expanded public contract of
+`Public` changed from `readonly [number]` to `readonly [string]`.
+
+Public typedefs keep ordinary names without the `_` prefix. When upstream
+support is ready, replace this workaround with `@internal`; that cleanup is
+tracked by
+[`todo/blocked/jsdoc-typedef-strip-internal.md`](../../todo/blocked/jsdoc-typedef-strip-internal.md).
+
 When the last authored `.ts` / `.f.ts` file is gone, remove the
 TypeScript-to-JavaScript emit path, remove obsolete generated `.js` from the
 working tree for that transition, and remove the blanket `**/*.js` rule from
