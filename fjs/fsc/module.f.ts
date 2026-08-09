@@ -11,7 +11,7 @@ import {
     type RangeMapArray,
     type RangeMerge,
 } from '../types/range_map/module.f.ts'
-import { reduce as listReduce, toArray, map, type List } from '../types/list/module.f.ts'
+import { reduce as listReduce, toArray, map, type List } from '../types/list/module.f.mjs'
 import { range as asciiRange } from '../text/ascii/module.f.ts'
 import { flip, fn } from '../types/function/module.f.mjs'
 import { one, type Range } from '../types/range/module.f.ts'

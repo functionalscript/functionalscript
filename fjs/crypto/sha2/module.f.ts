@@ -4,7 +4,7 @@
  * @module
  */
 import type { Tuple } from '../../types/array/module.f.mjs'
-import { mask, type Reduce } from "../../types/bigint/module.f.ts"
+import { mask, type Reduce } from "../../types/bigint/module.f.mjs"
 import {
     vec,
     length,
@@ -15,7 +15,7 @@ import {
     type Vec
 } from '../../types/bit_vec/module.f.ts'
 import type { Fold } from '../../types/function/operator/module.f.mjs'
-import { fold, type List } from '../../types/list/module.f.ts'
+import { fold, type List } from '../../types/list/module.f.mjs'
 
 const { concat, front } = msb
 

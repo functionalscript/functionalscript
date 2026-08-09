@@ -1,5 +1,5 @@
 import { at, setReplace, setReduce, empty, entries, remove, fromEntries, type OrderedMap } from './module.f.ts'
-import { toArray } from '../list/module.f.ts'
+import { toArray } from '../list/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {

@@ -1,4 +1,4 @@
-import { ok, error, type Result } from './module.f.ts'
+import { ok, error, type Result } from './module.f.mjs'
 
 export const tryCatch
     : <T>(f: () => T) => Result<T, unknown>

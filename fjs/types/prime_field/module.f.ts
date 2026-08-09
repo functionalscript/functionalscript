@@ -6,8 +6,8 @@
  *
  * @module
  */
-import type { Unary, Reduce } from '../bigint/module.f.ts'
-import { repeat } from '../../common/monoid/module.f.ts'
+import type { Unary, Reduce } from '../bigint/module.f.mjs'
+import { repeat } from '../../common/monoid/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 
 /**

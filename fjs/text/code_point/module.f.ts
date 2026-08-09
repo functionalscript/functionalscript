@@ -8,7 +8,7 @@
  *
  * @module
  */
-import { flat, type List, stateScan } from '../../types/list/module.f.ts'
+import { flat, type List, stateScan } from '../../types/list/module.f.mjs'
 import type { StateScan } from '../../types/function/operator/module.f.mjs'
 import { contains } from '../../types/range/module.f.ts'
 

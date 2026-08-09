@@ -1,6 +1,6 @@
 import { descentParser } from '../../bnf/descent/module.f.ts'
 import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.ts'
-import { toArray } from '../../types/list/module.f.ts'
+import { toArray } from '../../types/list/module.f.mjs'
 import { jsGrammar, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { stringifyAsTree } from '../serializer/module.f.ts'

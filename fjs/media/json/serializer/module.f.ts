@@ -7,7 +7,7 @@
  *
  * @module
  */
-import { flat, map, reduce, empty, type List } from '../../../types/list/module.f.ts'
+import { flat, map, reduce, empty, type List } from '../../../types/list/module.f.mjs'
 import { type Reduce } from '../../../types/function/operator/module.f.mjs'
 import { concat } from '../../../types/string/module.f.ts'
 import {

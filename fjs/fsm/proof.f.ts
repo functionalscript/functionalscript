@@ -3,7 +3,7 @@ import { union } from '../types/byte_set/module.f.ts'
 import { sort, fromEntries } from '../types/object/module.f.ts'
 import { stringify } from '../media/json/module.f.ts'
 import { identity } from '../types/function/module.f.mjs'
-import { toArray } from '../types/list/module.f.ts'
+import { toArray } from '../types/list/module.f.mjs'
 import { stringToList } from '../text/utf16/module.f.ts'
 import { assertEq } from '../asserts/module.f.mjs'
 

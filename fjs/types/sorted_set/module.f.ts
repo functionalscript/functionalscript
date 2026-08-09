@@ -27,7 +27,7 @@
  * ```
  */
 import type { Cmp } from '../function/compare/module.f.mjs'
-import { toArray } from "../list/module.f.ts"
+import { toArray } from "../list/module.f.mjs"
 import { merge, intersect as listIntersect, find } from '../sorted_list/module.f.ts'
 
 export type SortedSet<T> = readonly T[]

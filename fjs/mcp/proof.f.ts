@@ -26,7 +26,7 @@ import type {
 } from '../effects/node/module.f.ts'
 import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
-import { ok as resultOk, unwrap } from '../types/result/module.f.ts'
+import { ok as resultOk, unwrap } from '../types/result/module.f.mjs'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.ts'
 import { fromVec } from '../types/uint8array/module.f.ts'
 import { initEvo } from '../cas/evo/module.f.ts'

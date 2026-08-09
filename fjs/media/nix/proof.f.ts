@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { toArray } from '../../types/list/module.f.ts'
+import { toArray } from '../../types/list/module.f.mjs'
 import { nix, nixToString, type Expression } from './module.f.ts'
 
 const nodeFlake = (nodePackage: string, shellHook: boolean): Expression => ['set',
