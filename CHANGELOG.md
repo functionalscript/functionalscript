@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** the `fjs/base_n` module moves to `fjs/basen`, next to the
+  encodings built on it — importers must use the `fjs/basen/module.f.ts`
+  specifier
+  [#1464](https://github.com/functionalscript/functionalscript/pull/1464)
 - **BREAKING CHANGES:** `fjs/asn.1` migrates from authored TypeScript (`.f.ts`)
   to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1 TypeScript-to-mjs
   migration — importers must use the `.f.mjs` specifier
