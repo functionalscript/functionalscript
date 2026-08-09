@@ -43,8 +43,10 @@ export type RuleVisitor<R> = {
 }
 ```
 
-The concrete `matchRule` discrimination must follow the final `Rule`
-representation chosen by the blocking tasks. Do **not** preserve or reintroduce
+This type sketch names semantic cases only; it does not prescribe the final
+runtime representation of `TerminalRange`. The concrete `matchRule`
+discrimination must follow whatever final `Rule` representation the blocking
+bigint/range work chooses. Do **not** preserve or reintroduce
 `typeof rule === 'number'` merely for this visitor, and do not add a generic
 string branch after the alphabet split removes one.
 
