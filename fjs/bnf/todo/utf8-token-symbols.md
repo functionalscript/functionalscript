@@ -200,5 +200,5 @@ tokens or calls `token_symbol.encoding()` for multi-character names.
 - [`fjs/types/bit_vec/module.f.ts`](../../types/bit_vec/module.f.ts) — signed
   length-bearing `Vec`, `maxLength`, `unpack`, and existing `fromSentinel`
   representation.
-- [`fjs/types/bigint/module.f.ts`](../../types/bigint/module.f.ts) — defines the
+- [`fjs/types/bigint/module.f.mjs`](../../types/bigint/module.f.mjs) — defines the
   cross-runtime bigint `maxLength` and documents Bun's exact-limit behavior.
