@@ -10,7 +10,7 @@
  *
  * @module
  */
-import { type CodePoint } from '../../text/utf16/module.f.ts'
+import { type CodePoint } from '../../text/utf16/module.f.mjs'
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'

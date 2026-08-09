@@ -1,4 +1,4 @@
-import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
 import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.ts'
 import { deterministic } from '../testlib.f.ts'

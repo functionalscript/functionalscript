@@ -10,7 +10,7 @@
  *
  * @module
  */
-import { stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
 import {
     oneEncode,

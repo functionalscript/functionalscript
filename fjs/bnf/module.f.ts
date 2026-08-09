@@ -6,7 +6,7 @@
  *
  * @module
  */
-import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.ts'
+import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.mjs'
 import { definedValues, type StringMap } from '../types/object/module.f.ts'
 import { isTuple, type Tuple } from '../types/array/module.f.mjs'
 import { map, toArray, repeat as listRepeat } from '../types/list/module.f.mjs'

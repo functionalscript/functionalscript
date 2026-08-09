@@ -3,7 +3,7 @@ import { tokenize, type JsonToken } from '../tokenizer/module.f.ts'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { stringify as jsonStringify } from '../module.f.ts'
 import { sort } from '../../../types/object/module.f.ts'
-import { stringToList } from '../../../text/utf16/module.f.ts'
+import { stringToList } from '../../../text/utf16/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
 const tokenizeString

@@ -52,7 +52,7 @@ import {
     latinSmallLetterN, latinSmallLetterR, latinSmallLetterT, latinSmallLetterU,
     range as asciiRange,
 } from "../../text/ascii/module.f.ts"
-import { type CodePoint, codePointListToString, stringToCodePointList } from "../../text/utf16/module.f.ts"
+import { type CodePoint, codePointListToString, stringToCodePointList } from "../../text/utf16/module.f.mjs"
 import type { StateScan } from "../../types/function/operator/module.f.mjs"
 import { contains } from "../../types/range/module.f.mjs"
 import { concat, empty, filter, flat, flatMap, fold, map, stateScan, toArray, type List } from "../../types/list/module.f.mjs"
