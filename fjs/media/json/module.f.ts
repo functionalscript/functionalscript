@@ -13,7 +13,7 @@
  */
 import { next, flat, map, type List } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.ts'
-import { stringToList } from '../../text/utf16/module.f.ts'
+import { stringToList } from '../../text/utf16/module.f.mjs'
 import type { Result } from '../../types/result/module.f.mjs'
 import { parse as parseTokens } from './parser/module.f.ts'
 import { tokenize } from './tokenizer/module.f.ts'

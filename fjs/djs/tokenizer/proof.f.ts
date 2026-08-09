@@ -1,5 +1,5 @@
 import { descentParser } from '../../bnf/descent/module.f.ts'
-import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.ts'
+import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { jsGrammar, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
