@@ -25,7 +25,7 @@ import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
  *
  * The same as the functional TerminalRange.
  */
-export type _TerminalRange = number
+export type TerminalRange = number
 
 /**
  * Ordered list of grammar rule names.
@@ -43,7 +43,7 @@ export type Variant = StringMap<string>
  * - a sequence of referenced rule names,
  * - an encoded terminal range.
  */
-export type Rule = Variant | Sequence | _TerminalRange
+export type Rule = Variant | Sequence | TerminalRange
 
 /** The full grammar */
 export type RuleSet = Readonly<Record<string, Rule>>
