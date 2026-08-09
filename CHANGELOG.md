@@ -20,9 +20,9 @@ history.
 
 ## Unreleased
 
-- Implementation-only JSDoc typedefs in the migrated `fjs/types/array` and
-  `fjs/types/bit_vec` modules are renamed to their private `_`-prefixed forms.
-  Public declarations keep the same expanded types
+-  **BREAKING CHANGES:** Implementation-only JSDoc typedefs in the migrated
+  `fjs/types/array` and `fjs/types/bit_vec` modules are renamed to their private
+  `_`-prefixed forms. Public declarations keep the same expanded types
   [#1462](https://github.com/functionalscript/functionalscript/pull/1462)
 - **BREAKING CHANGES:** `fjs/types/bit_vec` migrates from authored TypeScript
   (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
