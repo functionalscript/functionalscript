@@ -22,7 +22,7 @@
 
 import type { Tree } from '../btree/types/module.f.mjs'
 import { empty as btEmpty, values as btValues } from '../btree/module.f.ts'
-import { find, isFound } from '../btree/find/module.f.ts'
+import { find, isFound } from '../btree/find/module.f.mjs'
 import { remove as btreeRemove } from '../btree/remove/module.f.ts'
 import { set as btreeSet } from '../btree/set/module.f.ts'
 import { cmp } from "../string/module.f.ts"
