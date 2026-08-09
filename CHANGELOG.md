@@ -20,6 +20,13 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/btree/find` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
+  stage-1 TypeScript-to-mjs migration — importers must use the `.f.mjs`
+  specifier; implementation-only typedefs (`FirstLeaf1`, `FirstBranch3`,
+  `FirstLeaf2`, `FirstBranch5`, `PathItem3`, `PathItem5`) are renamed to
+  their private `_`-prefixed forms
+  [#1470](https://github.com/functionalscript/functionalscript/pull/1470)
 - **BREAKING CHANGES:** `fjs/types/btree/types` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
   stage-1 TypeScript-to-mjs migration — importers must use the `.f.mjs`
