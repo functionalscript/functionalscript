@@ -2,55 +2,34 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md), [JSON numeric edge cases](./number-edge-cases.md)
+**Blocked by:** [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md)
 
 ### Problem
 
-The extended JSON representation preserves bare JSON integers as `bigint`, while
-the existing standard JSON value type has only JavaScript `number`. We need an
-explicit conversion layer between those two value domains instead of duplicating
-the structural JSON parser/serializer.
+The extended JSON runtime representation adds `bigint`, while the ordinary
+`fjs/media/json` value domain has only JavaScript `number`. We need explicit
+recursive conversions between those two runtime value domains.
 
-The two layers have different goals:
+This task is only about **value transformation**. It does not define the public
+`json.parse` / `json.stringify` codec and it does not require the result to mimic
+native JavaScript `JSON.parse` / `JSON.stringify` edge behavior or textual
+spelling.
 
-- extended JSON is the information-preserving intermediate representation;
-- the standard `json.*` surface is a compatibility layer and should match native
-  JavaScript `JSON.parse` / `JSON.stringify` semantics, including their lossy
-  edge cases.
+Those are separate concerns:
 
-The value conversion is intentionally asymmetric:
+- [Standard JSON parse/serialize](./standard-parse-serialize.md) owns the ordinary
+  FunctionalScript JSON codec over the shared lossless structural parser and
+  serializer.
+- Native `JSON.*` compatibility, if a real consumer needs it, is an optional
+  policy in that task rather than a constraint on these reusable transforms.
 
-- extended JSON -> standard JSON removes `bigint`, accepting the normal
-  JavaScript-number precision loss where necessary;
-- standard JSON -> extended JSON may canonicalize some whole-valued numbers back
-  to `bigint`, but the exact conversion predicate used by standard stringify must
-  preserve native `JSON.stringify` spelling.
-
-`Number.isSafeInteger` is not the serialization boundary. Native stringify keeps
-plain decimal integer notation through:
-
-```text
-min_plain_integer = -999999999999999900000
-max_plain_integer =  999999999999999900000
-```
-
-and switches to exponent notation at `-1e21` / `1e21`. These are spelling bounds,
-not exact-arithmetic bounds, and must not be confused with
-`Number.MIN_SAFE_INTEGER` / `Number.MAX_SAFE_INTEGER`.
-
-The bounds are also not sufficient as the conversion predicate. At the positive
-boundary, for example, native stringify chooses the shortest round-tripping
-spelling `"999999999999999900000"`, while
-`BigInt(999999999999999900000).toString()` yields the exact binary-double integer
-`"999999999999999868928"`. Converting every integer-valued number inside the
-plain-spelling interval to `bigint` would therefore change standard JSON output.
-The remaining [number edge cases](./number-edge-cases.md) work must settle a
-stricter compatibility predicate or a standard-only number serialization path.
+Keeping this boundary narrow avoids making a generic runtime conversion depend on
+questions such as native shortest-double spelling, `JSON.stringify(-0)`, or the
+host's treatment of non-finite numbers.
 
 ### Proposal
 
-Add recursive transformers between the standard `fjs/media/json` value type and
-the extended JSON value type.
+Add two recursive value transformers.
 
 #### Extended -> standard
 
@@ -66,120 +45,77 @@ null         -> unchanged
 
 Arrays and objects are rebuilt recursively.
 
-Converting `bigint` to `number` may round large integers or overflow to
-`Infinity`. That is expected at this boundary: the target type is the ordinary
-JavaScript JSON value domain, which cannot represent arbitrary-precision
-integers.
+`Number(value)` may round a large bigint or overflow to `Infinity`. That is an
+explicit consequence of converting from the arbitrary-precision extended domain
+to the ordinary JavaScript-number domain; the transformer does not pretend this
+conversion is lossless.
 
 #### Standard -> extended
 
-The exact integer-to-`bigint` predicate is blocked on the numeric-edge
-investigation. Its required shape is:
+Use a simple exact-number canonicalization rule rather than a native-stringify
+compatibility rule:
 
 ```text
-Object.is(value, -0)                  -> keep -0 as number
-isStandardIntegerForBigInt(value)     -> BigInt(value)
-otherwise                             -> keep value as number
+Object.is(value, -0)      -> keep -0 as number
+Number.isSafeInteger(v)   -> BigInt(v)
+otherwise                 -> keep value as number
 ```
 
-`isStandardIntegerForBigInt` is a name placeholder, not a decided API. It must be
-defined from native `JSON.stringify` compatibility rather than assumed to be
-`Number.isSafeInteger` or a simple
-`min_plain_integer <= value <= max_plain_integer` check.
+`Number.isSafeInteger` is appropriate here because it identifies the ordinary
+integer values that can be promoted to bigint without first relying on an
+inexact integer interpretation. It is **not** claimed to be a serialization
+boundary and is intentionally unrelated to the decimal spelling chosen by
+native `JSON.stringify`.
 
-A conversion to `bigint` is valid for the standard stringify path only when it
-preserves the exact native number spelling. The numeric-edge investigation must
-define a practical predicate for that property, or standard stringify must retain
-a compatibility-specific number serialization path for values whose shortest
-native decimal spelling differs from the exact bigint integer.
+The `-0` case must run first because `Number.isSafeInteger(-0)` is true while
+`bigint` has no negative zero.
 
-This transformer itself preserves `-0`; it is a conversion between runtime value
-domains, not a reimplementation of `JSON.stringify`.
+This transformer is allowed to be conservative. An unsafe integer-valued
+`number` can remain a `number`; converting every mathematically integral double
+to bigint is not a goal of this utility.
 
-### Standard compatibility surface
+### Properties
 
-Build standard parse/stringify on top of the extended layer, but do not let the
-extended serializer's information-preserving choices accidentally change the
-public standard API.
+The reusable transformations should have simple, testable semantics:
 
-```text
-standard parse:
-JSON text -> extended parse -> extendedToStandard -> standard JSON value
+- `extendedToStandard` removes every bigint leaf recursively.
+- `standardToExtended` never changes a non-number primitive.
+- `standardToExtended` preserves `-0` as a number.
+- safe integer numbers become exact bigint values.
+- unsafe/fractional/non-finite numbers remain numbers.
+- arrays and objects are rebuilt immutably.
 
-standard stringify:
-standard JSON value -> settled compatibility conversion/normalization
-                    -> extended structural serialization or standard-number path
-                    -> JSON text
-```
-
-The exact stringify composition is intentionally blocked until the numeric-edge
-investigation settles which plain-spelled integer values can be converted to
-`bigint` without changing native spelling. Values that fail that predicate must
-retain a compatibility-specific number path instead of being forced through the
-extended number round-trip rule.
-
-The compatibility normalization exists only where native `JSON.stringify`
-requires behavior different from the reusable value transformer. In particular,
-standard stringify must preserve current/native behavior for negative zero:
-
-```text
-JSON.stringify(-0) == "0"
-standard json.stringify(-0) == "0"
-```
-
-Therefore standard stringify must normalize `-0` before the extended serializer
-sees it, even though the reusable standard-to-extended transformer keeps `-0` so
-the generic runtime conversion does not discard information.
-
-The standard surface should be treated as compatibility API. Users that want
-more information-preserving behavior should use the extended representation and
-its transformers directly.
-
-The remaining exceptional-number behavior (`NaN`, `Infinity`, `-Infinity`,
-exponent overflow, exact plain-integer conversion compatibility, and other edge
-rules) is tracked separately in [number edge cases](./number-edge-cases.md) so it
-is verified explicitly instead of being chosen accidentally during implementation.
+Do not add native JSON formatting rules to make a transformed value serialize the
+same way as `JSON.stringify`. If a serializer needs native compatibility, it uses
+the separate compatibility policy from
+[standard-parse-serialize.md](./standard-parse-serialize.md).
 
 ### Tasks
 
-- [ ] Add `extendedToStandard` (name TBD) that recursively converts every
-      extended `bigint` leaf with `Number` and otherwise preserves values.
-- [ ] After the numeric-edge investigation, add `standardToExtended` (name TBD)
-      with the settled integer-to-`bigint` predicate; do not assume
-      `Number.isSafeInteger` or the plain-spelling interval is sufficient.
-- [ ] Preserve `-0` as `number` in the reusable value transformer.
+- [ ] Add `extendedToStandard` (name TBD) that recursively converts every bigint
+      leaf with `Number` and otherwise preserves the runtime value.
+- [ ] Add `standardToExtended` (name TBD) using the ordered `-0` /
+      `Number.isSafeInteger` rules above.
 - [ ] Rebuild arrays and objects immutably in both directions.
-- [ ] Compose the standard JSON parser from extended parse + extended-to-standard
-      transform.
-- [ ] Use the settled native spelling boundaries
-      `[-999999999999999900000, 999999999999999900000]` only as information about
-      where exponent notation begins, not as the bigint-conversion predicate.
-- [ ] Settle standard stringify composition from the numeric-edge result: convert
-      only values whose exact bigint decimal spelling is compatible with native
-      output, or retain a standard-number serialization path for the others.
-- [ ] Preserve native/current standard behavior for `-0`: stringify it as `0`,
-      while keeping the reusable runtime transformer information-preserving.
-- [ ] Ensure ordinary whole-valued standard numbers serialize with the exact
-      spelling native `JSON.stringify` would produce, including unsafe integers
-      whose native spelling contains no exponent.
-- [ ] Keep exponent-form integer-valued numbers as `number` when that is the
-      native compact representation.
-- [ ] Add proof coverage comparing the standard surface with native `JSON.*` for
-      numeric compatibility cases, including values around the settled positive
-      and negative integer spelling boundaries, the boundary spelling mismatch,
-      fractions, nested arrays/objects, and large bigint precision loss at the
-      extended-to-standard boundary.
+- [ ] Prove safe integer promotion, fractional values, unsafe integer-valued
+      numbers, bigint precision loss on the reverse transform, positive zero,
+      and negative zero.
+- [ ] Keep parser/stringifier composition and native `JSON.*` compatibility out
+      of these reusable transforms.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
 
 - [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — provides
-  the intermediate value type and JSON text codec.
-- [JSON numeric edge cases](./number-edge-cases.md) — blocks this task until the
-  final standard integer conversion/stringify policy and exceptional-number
-  behavior are settled.
-- [RTTI-aware extended JSON parser](./rtti-parse.md) — another policy layer over
-  the same extended JSON representation.
+  the extended runtime value domain.
+- [Standard JSON parse/serialize](./standard-parse-serialize.md) — owns the
+  ordinary `json.parse` / `json.stringify` codec and optional native-compatible
+  policy over the shared structural machinery.
+- [JSON numeric edge cases](./number-edge-cases.md) — owns extended/default codec
+  decisions for values that are not straightforward finite numbers; native
+  compatibility comparisons are not a requirement of this transformer.
+- [RTTI-aware extended JSON parser](./rtti-parse.md) — another consumer of the
+  shared lossless structural parse.
 - [Generic JSON/DJS tree type](../../../djs/todo/663-json-djs-tree-type.md) — if
   it lands first, reuse its generic recursive tree shape rather than duplicating
   traversal types.
