@@ -63,6 +63,12 @@ and do not depend on eager coefficient bigint construction succeeding. Exact
 decisions use the original lexeme or another representation that preserves it
 without narrowing first.
 
+This task owns only the **policy decisions** that the codecs need for exceptional
+numeric values. [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md)
+owns the tokenizer/structural implementation that establishes the lexeme-first
+boundary, including the tokenizer proofs for oversized coefficients and unbounded
+exponents. Do not duplicate that implementation work here.
+
 After tokenization succeeds, materializers may attempt their target runtime
 conversion. A valid bare integer can exceed the runtime bigint-size limit; that
 must produce the documented extended materialization result or controlled parse
@@ -155,15 +161,10 @@ See [native JSON compatibility](./native-json-compatibility.md).
 
 ### Tasks
 
-- [ ] Make JSON number tokenization lexeme-first: valid coefficient/exponent text
-      must reach `NumberToken.value` without requiring an unbounded bigint
-      coefficient or JavaScript-number exponent to be constructed first.
-- [ ] Prove tokenization does not throw for a valid coefficient beyond the runtime
-      bigint limit or for exponent text beyond JavaScript-number precision.
 - [ ] Verify and document the lexical rule that every token containing `.` or
       `e` / `E` belongs to the extended `number` branch, while bare integers
       belong to bigint except exact `-0`.
-- [ ] Verify that exact numeric decisions use `NumberToken.value` and remain
+- [ ] Verify that exact numeric policy decisions use `NumberToken.value` and remain
       bounded by input length; do not narrow an unbounded exponent first.
 - [ ] Choose the extended policy for exponent overflow such as `1e400`.
 - [ ] Choose the extended policy for a valid bare integer whose coefficient
@@ -189,7 +190,8 @@ See [native JSON compatibility](./native-json-compatibility.md).
 
 - [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — blocked on
   this task for extended exceptional-number materialization/serialization policy
-  and owns the tokenizer/structural exact-value architecture.
+  and solely owns the tokenizer/structural exact-value implementation and its
+  tokenizer proofs.
 - [Standard JSON parse/serialize](./standard-parse-serialize.md) — owns the default
   bigint-free FunctionalScript codec.
 - [Standard/extended value transforms](./standard-transform.md) — reusable runtime
