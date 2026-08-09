@@ -72,6 +72,21 @@ Do not strip a private typedef if a public declaration still depends on its name
 refactor the public declaration first so emitted declarations remain
 self-contained and preserve the same public assignability contract.
 
+### Tasks
+
+- [ ] Enable or retain `stripInternal` for declaration emission once the trigger
+      is satisfied.
+- [ ] Mark implementation-only JSDoc typedefs with `@internal`.
+- [ ] Remove leading `_` from private typedef names where the prefix exists only
+      as the temporary visibility workaround.
+- [ ] Refactor public declarations that refer to private typedef names so they
+      remain self-contained and preserve the same public assignability contract
+      before those private typedefs are stripped.
+- [ ] Add a package/declaration fixture proving that private typedefs are absent
+      from emitted declarations while public declarations remain valid.
+- [ ] Update migration, compiler, package, and contributor documentation to
+      remove the underscore workaround.
+
 ### Acceptance criteria
 
 - `@internal` on a JSDoc `@typedef` is honored by the repository's TypeScript
