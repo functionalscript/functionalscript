@@ -1,7 +1,7 @@
 ## Native JSON.parse/stringify compatibility
 
 **Priority:** P5
-**Status:** open
+**Status:** blocked
 **Blocked by:** [Standard JSON parse/serialize](./standard-parse-serialize.md)
 
 ### Goal
