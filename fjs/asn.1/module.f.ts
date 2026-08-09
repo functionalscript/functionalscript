@@ -19,7 +19,7 @@ import {
 } from "../types/bit_vec/module.f.mjs"
 import { identity } from "../types/function/module.f.mjs"
 import { max } from "../types/function/compare/module.f.mjs"
-import { encode as b128encode, decode as b128decode } from "../basen/base128/module.f.ts"
+import { encode as b128encode, decode as b128decode } from "../basen/base128/module.f.mjs"
 
 const { popFront: pop, listToVec } = msb
 
