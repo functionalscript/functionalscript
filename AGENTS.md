@@ -178,20 +178,19 @@ permanently.
 
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
 imports must target migrated `.f.mjs` modules. Type-only APIs may live in an
-authored `types.d.ts` companion and are referenced through its stable
-JavaScript-looking specifier. For example:
+authored `types.d.ts` companion and are referenced by its actual source path. For
+example:
 
 ```js
-/** @import { Phantom } from '../phantom/types.js' */
+/** @import { Phantom } from '../phantom/types.d.ts' */
 ```
 
-TypeScript resolves that type-only specifier to `types.d.ts`; no runtime
-`types.js` file or JavaScript import is required. If a type needed by migrated
-JavaScript still lives only inside a remaining implementation `.f.ts`, split the
-type into `types.d.ts` before migrating the consumer instead of retaining a
-JavaScript-to-TypeScript source edge. Never add a runtime value for a
-TypeScript-only declaration such as `declare const`. Compiler support remains
-independent of this JavaScript/JSDoc migration rule. See
+The JSDoc `@import` is type-only and introduces no runtime dependency. If a type
+needed by migrated JavaScript still lives only inside a remaining implementation
+`.f.ts`, split the type into `types.d.ts` before migrating the consumer instead
+of retaining a JavaScript-to-TypeScript source edge. Never add a runtime value
+for a TypeScript-only declaration such as `declare const`. Compiler support
+remains independent of this JavaScript/JSDoc migration rule. See
 [`fjs/fsc/README.md`](./fjs/fsc/README.md) for the migration order and module
 policy.
 
@@ -498,24 +497,25 @@ parameters of a JSDoc type alias (`@typedef`); do not put `in` / `out` on an
 ordinary function's `@template`, where TypeScript rejects them.
 
 When JavaScript needs a type from an authored `types.d.ts` companion, use JSDoc
-`@import` with the stable JavaScript-looking module specifier, not a JavaScript
-runtime import:
+`@import` with the authored declaration source path, not a JavaScript runtime
+import:
 
 ```js
-/** @import { Types } from './types.js' */
+/** @import { Types } from './types.d.ts' */
 ```
 
-The TypeScript implementation uses the same specifier with `import type`:
+The TypeScript implementation uses the same source path with `import type`:
 
 ```ts
-import type { Types } from './types.js'
+import type { Types } from './types.d.ts'
 ```
 
-TypeScript resolves `./types.js` to sibling `types.d.ts`; no runtime `types.js`
-file is required. The same type-only specifier survives
-`module.f.ts -> module.f.mjs -> module.f.js`. Declaration-only `module.f.ts`
-files, and existing `.f.mjs` files that are truly declaration-only, should
-normally become `types.d.ts` instead of acquiring an artificial runtime
+Both forms are type-only and introduce no runtime import. Authored `types.d.ts`
+files are shipped directly and are semantically checked because the root
+TypeScript configuration uses `skipLibCheck: false`. The same source path
+survives `module.f.ts -> module.f.mjs -> module.f.js`. Declaration-only
+`module.f.ts` files, and existing `.f.mjs` files that are truly declaration-only,
+should normally become `types.d.ts` instead of acquiring an artificial runtime
 representation.
 
 Do not make migrated JavaScript point back to a remaining implementation `.ts` /
@@ -950,7 +950,7 @@ source rule:
 - `types.d.ts` is authored, permanent type-only source and does not participate
   in the implementation migration;
 - `.f.ts`, `.f.mjs`, and later `.f.js` may consume a sibling `types.d.ts` through
-  a type-only `types.js` specifier (`import type` from TypeScript, JSDoc
+  the direct `types.d.ts` source specifier (`import type` from TypeScript, JSDoc
   `@import` from JavaScript);
 - migrated JavaScript must not retain a type-only reference to remaining
   implementation `.ts` / `.f.ts`; split independently needed declarations into
@@ -1040,7 +1040,7 @@ as existing entries. New entries always go above existing ones. CHANGELOG entrie
 are created after the PR exists because they reference the PR number.
 
 Only add CHANGELOG entries for code changes — PRs that only touch `todo/`,
-`AGENTS.md`, or other documentation files do not need one.
+`AGENTS.md`, or other documentation files do not need a CHANGELOG entry.
 
 - **Keep it short.** An entry is **at most a few lines** (about three wrapped
   lines, ~250 characters) — what changed and, when it isn't obvious, why. It is a
