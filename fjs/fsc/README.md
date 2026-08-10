@@ -72,22 +72,24 @@ import remaining implementation `.f.ts`. Cycles may migrate as a coherent group.
 Type-only APIs may remain permanently in authored `types.d.ts` companions and do
 not participate in runtime migration ordering.
 
-Authored source references an authored declaration companion by its real source
-path. TypeScript source uses `import type`:
+Both TypeScript and JavaScript source reference an authored declaration companion
+through the same TypeScript-style `types.ts` specifier. TypeScript source uses
+`import type`:
 
 ```ts
-import type { Phantom } from './types.d.ts'
+import type { Phantom } from './types.ts'
 ```
 
 JavaScript source uses JSDoc `@import`:
 
 ```js
-/** @import { Phantom } from './types.d.ts' */
+/** @import { Phantom } from './types.ts' */
 ```
 
-Both forms are type-only and introduce no runtime import. The same authored
-`types.d.ts` file is shipped with the package, so the source specifier remains
-valid without generating or inventing a runtime `types.js` module.
+Both forms are type-only. TypeScript resolves `./types.ts` to the authored
+`types.d.ts` declaration file, so no runtime `types.ts` or `types.js` module is
+required. The same specifier can therefore remain unchanged across
+`module.f.ts -> module.f.mjs -> module.f.js`.
 
 Migrated JavaScript must not retain a type-only source edge to a remaining
 implementation `.ts` / `.f.ts`. If that type should survive independently of the
@@ -104,9 +106,10 @@ An existing `.f.mjs` that is truly declaration-only may be normalized to
 `types.d.ts` for the same reason.
 
 Authored declaration files must be checked, not merely parsed. The root
-TypeScript configuration therefore uses `skipLibCheck: false`; this makes
-`types.d.ts` participate in normal declaration-file semantic checking, including
-name resolution and generic constraints.
+TypeScript configuration therefore removes the `skipLibCheck: true` override and
+relies on TypeScript's default `skipLibCheck: false`; this makes `types.d.ts`
+participate in normal declaration-file semantic checking, including name
+resolution and generic constraints.
 
 Proofs follow the same runtime source-language rule. `proof.f.ts` may remain
 temporarily beside a migrated `module.f.mjs`, but it may move to `proof.f.mjs` as
