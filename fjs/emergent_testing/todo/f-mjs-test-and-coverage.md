@@ -28,11 +28,19 @@ to prove the first source-migration layout end to end.
 
 `proof.f.mjs` is nevertheless an allowed Stage-1 source extension. A real proof
 may migrate from `proof.f.ts` to `proof.f.mjs` as soon as it can be expressed as
-JavaScript with JSDoc and its authored runtime and declaration-retained type
-dependencies are already `.f.mjs`; current FunctionalScript compiler support is
-not a migration gate. A proof that still depends on an unmigrated `.f.ts` helper,
-such as `fjs/types/object/module.f.ts`, remains `proof.f.ts` until that dependency
-moves.
+JavaScript with JSDoc and its authored **runtime** dependencies are already
+`.f.mjs`; current FunctionalScript compiler support is not a migration gate.
+Type-only dependencies do not need to migrate first: a proof may reference a
+remaining `.f.ts` type with JSDoc `@import`, for example:
+
+```js
+/** @import { Phantom } from '../../types/phantom/module.f.ts' */
+```
+
+Such an `@import` is type-only and creates no runtime dependency. Do not add a
+runtime `import` merely to expose a type, and do not introduce a runtime value for
+a TypeScript-only declaration such as `declare const` just to unblock proof
+migration.
 
 ### Proposal
 
@@ -51,7 +59,9 @@ boundary before the first real repository `.f.ts` -> `.f.mjs` conversion.
 
 Keep proof-extension migration separate from compiler readiness. Update
 `AGENTS.md` and `CONTRIBUTING.md` so `proof.f.mjs` is explicitly allowed during
-Stage 1 whenever its JavaScript/JSDoc and dependency closure is ready.
+Stage 1 whenever its JavaScript/JSDoc and runtime dependency closure are ready.
+Type-only JSDoc `@import` references to remaining `.f.ts` files are allowed and
+do not count as runtime dependency edges.
 
 A dedicated `proof.f.mjs` fixture may be added when useful, but it is not a
 prerequisite for the first real module conversion and must not create a circular
@@ -65,8 +75,12 @@ dependency on migrating assertion helpers first.
       `allowJs` / `checkJs` configuration.
 - [ ] Verify the `.f.mjs` implementation appears in both Node and Deno coverage
       output.
+- [ ] Add a migrated-JavaScript fixture that uses JSDoc `@import` to reference a
+      type from a remaining `.f.ts` file and verify that no runtime import is
+      required.
 - [ ] Update `AGENTS.md` and `CONTRIBUTING.md` so `proof.f.mjs` migration is
-      gated by JavaScript/JSDoc plus dependency readiness, not compiler support.
+      gated by JavaScript/JSDoc plus runtime dependency readiness, not compiler
+      support or type-only dependency migration.
 
 ### Acceptance criteria
 
@@ -74,8 +88,10 @@ dependency on migrating assertion helpers first.
   and type-checks under `npx tsc`.
 - The `.f.mjs` fixture appears as a covered file in `npm run cov` and in
   `deno task cov`.
-- `proof.f.mjs` is explicitly allowed during Stage 1 when its authored
+- `proof.f.mjs` is explicitly allowed during Stage 1 when its authored runtime
   dependencies are already migrated and the proof is valid JavaScript/JSDoc.
+- A type-only JSDoc `@import` from `.f.mjs` to remaining `.f.ts` is accepted and
+  does not require a JavaScript runtime import or runtime representation.
 - Existing `.f.ts`, generated `.f.js`, `proof.f.ts`, and standalone `proof.mjs`
   behavior is unchanged.
 
