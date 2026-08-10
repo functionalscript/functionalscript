@@ -11,7 +11,7 @@ the current FunctionalScript compiler.
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source that has not yet completed the repository TypeScript-to-JavaScript migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
 | `.f.js` | During stage 1, generated JavaScript emitted from `.f.ts` and never authored. After stage 1 and authored-`.f.js` package support are complete, authored FunctionalScript that the current parser/compiler must accept. |
-| `types.d.ts` | Authored type-only declaration source. It may coexist with `.f.ts`, `.f.mjs`, or `.f.js` and is not migrated to JavaScript. |
+| `types.d.ts` | Authored, type-checked type-only declaration source. It may coexist with `.f.ts`, `.f.mjs`, or `.f.js` and is not migrated to JavaScript. |
 | other `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 
 The migration is deliberately split into two implementation stages. The
@@ -26,8 +26,9 @@ Before the first real repository implementation conversion, complete both
 prerequisites in order:
 
 1. [authored `.mjs` package support](../ci/todo/f-mjs-package-support.md),
-   including `allowJs` / `checkJs`, authored `types.d.ts`, split
-   declaration/runtime emission, package inclusion, and clean-consumer tests;
+   including `allowJs` / `checkJs`, `skipLibCheck: false`, authored `types.d.ts`,
+   split declaration/runtime emission, package inclusion, and clean-consumer
+   tests;
 2. [`.f.mjs` test and coverage fixtures](../emergent_testing/todo/f-mjs-test-and-coverage.md),
    which are **blocked by** package support and prove with an actual `.f.mjs`
    runtime fixture that proofs execute and Node/Deno coverage retains the
@@ -71,22 +72,22 @@ import remaining implementation `.f.ts`. Cycles may migrate as a coherent group.
 Type-only APIs may remain permanently in authored `types.d.ts` companions and do
 not participate in runtime migration ordering.
 
-Use a stable JavaScript-looking specifier for an authored declaration companion.
-TypeScript source uses `import type`:
+Authored source references an authored declaration companion by its real source
+path. TypeScript source uses `import type`:
 
 ```ts
-import type { Phantom } from './types.js'
+import type { Phantom } from './types.d.ts'
 ```
 
 JavaScript source uses JSDoc `@import`:
 
 ```js
-/** @import { Phantom } from './types.js' */
+/** @import { Phantom } from './types.d.ts' */
 ```
 
-TypeScript resolves `./types.js` to sibling `types.d.ts`; there is no runtime
-`types.js` module. The same specifier therefore survives
-`module.f.ts -> module.f.mjs -> module.f.js`.
+Both forms are type-only and introduce no runtime import. The same authored
+`types.d.ts` file is shipped with the package, so the source specifier remains
+valid without generating or inventing a runtime `types.js` module.
 
 Migrated JavaScript must not retain a type-only source edge to a remaining
 implementation `.ts` / `.f.ts`. If that type should survive independently of the
@@ -101,6 +102,11 @@ A declaration-only file should normally become `types.d.ts` rather than
 become `fjs/types/phantom/types.d.ts` without creating a runtime phantom module.
 An existing `.f.mjs` that is truly declaration-only may be normalized to
 `types.d.ts` for the same reason.
+
+Authored declaration files must be checked, not merely parsed. The root
+TypeScript configuration therefore uses `skipLibCheck: false`; this makes
+`types.d.ts` participate in normal declaration-file semantic checking, including
+name resolution and generic constraints.
 
 Proofs follow the same runtime source-language rule. `proof.f.ts` may remain
 temporarily beside a migrated `module.f.mjs`, but it may move to `proof.f.mjs` as
@@ -306,8 +312,8 @@ it does not change the extension contract for repository source.
 - `{` - objectBegin
 - `|` - bitwiseOr
   - `|=` - bitwiseOrAssignment
-  - `||` - logicalOr
-  - `||=` - logicalOrAssignment
+  - `||` - logicalAnd
+  - `||=` - logicalAndAssignment
 - `}` - objectEnd
 - `~` - bitwiseNot
   - `~=` - bitwiseNotAssignment
