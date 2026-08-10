@@ -195,7 +195,7 @@ clean consumer.
       directly in `prepack`: declarations first, then JavaScript emission.
 - [x] Do not expose separate `emit:*` package scripts; packaging owns generated
       outputs.
-- [ ] Explicitly unignore authored `**/types.d.ts` while keeping generated
+- [x] Explicitly unignore authored `**/types.d.ts` while keeping generated
       `**/*.d.ts` ignored.
 - [ ] Keep package/publish jobs on a clean CI checkout; do not add generated
       output tracking or cleanup for artifacts from previous revisions.
