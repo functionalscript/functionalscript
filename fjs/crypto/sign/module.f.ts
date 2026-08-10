@@ -8,7 +8,7 @@ import type { Tuple } from '../../types/array/module.f.mjs'
 import { bitLength, divUp8, roundUp8 } from '../../types/bigint/module.f.mjs'
 import { empty, length, msb, repeat, unpack, vec, vec8, type Vec } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.ts'
-import type { Curve } from '../secp/module.f.ts'
+import type { Curve } from '../secp/module.f.mjs'
 import { computeSync, type Sha2 } from '../sha2/module.f.mjs'
 
 export type All = {

@@ -112,7 +112,7 @@ it's by far the most common and the lowest-judgement case.
   and AGENTS.md: keep helpers minimal until a second consumer needs
   more.
 - **Import edge.** `proof.f.ts` files in `fjs/types/` currently avoid
-  importing from `fjs/dev/module.f.ts` (only `fjs/types/patricia_trie/proof.f.ts`
+  importing from `fjs/dev/module.f.ts` (only `fjs/types/patricia_trie/proof.f.mjs`
   pulls `assert` from there today). Verify there is no module-cycle
   problem before mass-importing from `fjs/dev` into the `fjs/types`
   subtree. If there is, hoist `assert`/`assertEq` into a small

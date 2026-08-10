@@ -4,10 +4,13 @@
  *
  * @module
  */
+
 import { mask } from '../../types/bigint/module.f.mjs'
-import { type Vec, uint } from '../../types/bit_vec/module.f.mjs'
-import type { Nullable } from '../../types/nullable/module.f.mjs'
-import { computeSync, sha256, type Sha2 } from '../sha2/module.f.mjs'
+import { uint } from '../../types/bit_vec/module.f.mjs'
+/** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
+/** @import { Nullable } from '../../types/nullable/module.f.mjs' */
+import { computeSync, sha256 } from '../sha2/module.f.mjs'
+/** @import { Sha2 } from '../sha2/module.f.mjs' */
 
 const nBitsMantissa = mask(24n)
 const mantissaSign = 0x00800000n
@@ -22,17 +25,21 @@ export const genesisNBits = 0x1d00ffffn
 export const genesisTarget =
     0x00000000ffff0000000000000000000000000000000000000000000000000000n
 
-const decodeShift = (exponent: bigint): bigint => 8n * (exponent - 3n)
+/** @type {(exponent: bigint) => bigint} */
+const decodeShift = exponent => 8n * (exponent - 3n)
 
-const compactTarget = (exponent: bigint) => (mantissa: bigint): bigint => {
+/** @type {(exponent: bigint) => (mantissa: bigint) => bigint} */
+const compactTarget = exponent => mantissa => {
     const shift = decodeShift(exponent)
     return shift >= 0n ? mantissa << shift : mantissa >> -shift
 }
 
-const negativeNBits = (mantissa: bigint): boolean =>
+/** @type {(mantissa: bigint) => boolean} */
+const negativeNBits = mantissa =>
     mantissa !== 0n && (mantissa & mantissaSign) !== 0n
 
-const overflowNBits = (exponent: bigint) => (mantissa: bigint) => (target: bigint): boolean =>
+/** @type {(exponent: bigint) => (mantissa: bigint) => (target: bigint) => boolean} */
+const overflowNBits = exponent => mantissa => target =>
     target !== 0n &&
     (exponent > 34n || (mantissa !== 0n && (mantissa & mantissaBody) === 0n))
 
@@ -46,10 +53,10 @@ const overflowNBits = (exponent: bigint) => (mantissa: bigint) => (target: bigin
  * Returns `null` for malformed encodings per Bitcoin `SetCompact` rules (negative
  * sign bit, overflow, target wider than 256 bits).
  *
- * @param nBits - Compact target encoding.
- * @returns Decoded target, or `null` when **nBits** is invalid.
+ * @param {bigint} nBits Compact target encoding.
+ * @returns {Nullable<bigint>} Decoded target, or `null` when **nBits** is invalid.
  */
-export const targetFromNBits = (nBits: bigint): Nullable<bigint> => {
+export const targetFromNBits = nBits => {
     const exponent = nBits >> exponentShift
     const mantissa = nBits & nBitsMantissa
     if (negativeNBits(mantissa)) { return null }
@@ -59,22 +66,33 @@ export const targetFromNBits = (nBits: bigint): Nullable<bigint> => {
     return target
 }
 
-export type Pow = {
-    /** Hash `data` with the configured `Sha2`; digest as big-endian uint256. */
-    readonly hashInt: (data: Vec) => bigint
-    /** Whether `hashInt(data) <= targetFromNBits(nBits)`; `false` when **nBits** is invalid. */
-    readonly meets: (nBits: bigint) => (data: Vec) => boolean
-}
+/**
+ * @typedef {{
+ *  readonly hashInt: (data: Vec) => bigint
+ *  readonly meets: (nBits: bigint) => (data: Vec) => boolean
+ * }} Pow
+ *
+ * @property hashInt
+ *
+ * Hash `data` with the configured `Sha2`; digest as big-endian uint256.
+ *
+ * @property meets
+ *
+ * Whether `hashInt(data) <= targetFromNBits(nBits)`; `false` when **nBits** is invalid.
+ */
 
 /**
  * Builds PoW helpers for a hash function (typical consumer: {@link sha256}).
  *
- * @param hash - SHA-2 configuration whose digest is compared as uint256.
+ * @param {Sha2} hash SHA-2 configuration whose digest is compared as uint256.
+ * @returns {Pow}
  */
-export const pow = (hash: Sha2): Pow => {
+export const pow = hash => {
     const c = computeSync(hash)
-    const hashInt = (data: Vec): bigint => uint(c([data]))
-    const meets = (nBits: bigint) => (data: Vec): boolean => {
+    /** @type {(data: Vec) => bigint} */
+    const hashInt = data => uint(c([data]))
+    /** @type {(nBits: bigint) => (data: Vec) => boolean} */
+    const meets = nBits => data => {
         const target = targetFromNBits(nBits)
         return target !== null && hashInt(data) <= target
     }
@@ -82,7 +100,7 @@ export const pow = (hash: Sha2): Pow => {
 }
 
 /** SHA-256 proof-of-work (`pow(sha256)`). */
-export const sha256Pow: Pow = pow(sha256)
+export const sha256Pow = pow(sha256)
 
 /** Bitcoin block-header PoW; same as {@link sha256Pow}. */
-export const bitcoinPow: Pow = sha256Pow
+export const bitcoinPow = sha256Pow

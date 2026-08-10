@@ -1,11 +1,13 @@
-import { assert } from "../../asserts/module.f.mjs"
-import { toArray } from "../list/module.f.mjs"
-import { fromRange, merge, get } from "./module.f.ts"
-import { type Range } from '../range/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
+import { toArray } from '../list/module.f.mjs'
+import { fromRange, merge, get } from './module.f.mjs'
+/** @import { Range } from '../range/module.f.mjs' */
 
-const c = (a: string) => a.charCodeAt(0)
+/** @type {(a: string) => number} */
+const c = a => a.charCodeAt(0)
 
-const range = ([a, b]: string): Range => [c(a), c(b)]
+/** @type {(_: string) => Range} */
+const range = ([a, b]) => [c(a), c(b)]
 
 export const proof = () => {
     const digit = fromRange(range('09'))

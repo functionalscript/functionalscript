@@ -2,7 +2,7 @@ import { utf8 } from "../../text/module.f.ts"
 import type { Tuple } from "../../types/array/module.f.mjs"
 import { empty, msb, repeat, vec, vec8, type Vec } from "../../types/bit_vec/module.f.mjs"
 import { hmac } from "../hmac/module.f.ts"
-import { secp192r1, secp256r1, secp384r1, secp521r1, type Curve } from "../secp/module.f.ts"
+import { secp192r1, secp256r1, secp384r1, secp521r1, type Curve } from "../secp/module.f.mjs"
 import { computeSync, sha224, sha256, sha384, sha512, type Sha2 } from "../sha2/module.f.mjs"
 import { all, concat, computeK, fromCurve, sign } from "./module.f.ts"
 import { assertEq } from '../../asserts/module.f.mjs'

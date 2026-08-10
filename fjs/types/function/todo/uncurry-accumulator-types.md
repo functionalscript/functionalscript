@@ -14,9 +14,9 @@ Several sibling accumulator types still curry their data parameters, contradicti
 export type Fold<I, O> = Binary<I, O, O>   // (input: I) => (acc: O) => O
 export type Reduce<T>  = Fold<T, T>        // (value: T) => (acc: T) => T
 
-// fjs/types/sorted_list/module.f.ts
-export type ReduceOp<T, S>   = (state: S) => (a: T) => (b: T) => readonly[Nullable<T>, Sign, S]
-export type TailReduce<T, S> = (state: S) => (tail: List<T>) => List<T>
+// fjs/types/sorted_list/module.f.mjs
+/** @typedef {(state: S) => (a: T) => (b: T) => readonly [Nullable<T>, Sign, S]} ReduceOp */
+/** @typedef {(state: S) => (tail: List<T>) => List<T>} TailReduce */
 ```
 
 ### Proposal

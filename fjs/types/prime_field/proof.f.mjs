@@ -1,4 +1,4 @@
-import { modSqrt, prime_field, sqrt } from './module.f.ts'
+import { modSqrt, prime_field, sqrt } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
@@ -38,9 +38,8 @@ export const proof = {
                 }
             },
             pow: () => {
-                const test
-                    : (a: bigint) => void
-                    = a => {
+                /** @type {(a: bigint) => void} */
+                const test = a => {
                     assertEq(f.pow(0n)(a), 1n)
                     assertEq(f.pow(1n)(a), a)
                     // https://en.wikipedia.org/wiki/Fermat%27s_little_theorem
@@ -77,9 +76,8 @@ export const proof = {
                 assertEq(sqrt(field)(4n), 2n)
             },
             sqrt: () => {
-                const test
-                    : (a: bigint) => void
-                    = a => {
+                /** @type {(a: bigint) => void} */
+                const test = a => {
                     const a2 = f.mul(a)(a)
                     const s = sqrt_f(a2)
                     assert(s === null || f.abs(s) === f.abs(a), 'sqrt')

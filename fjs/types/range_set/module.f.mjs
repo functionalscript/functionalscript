@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { rangeMap } from '../range_map/module.f.ts'
+import { rangeMap } from '../range_map/module.f.mjs'
 
 const map = rangeMap({
     union: a => b => a || b,

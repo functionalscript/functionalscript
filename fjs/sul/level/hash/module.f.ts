@@ -4,7 +4,7 @@
  * @module
  */
 
-import { emptyState, patriciaTrie, type Create, type State } from '../../../types/patricia_trie/module.f.ts'
+import { emptyState, patriciaTrie, type Create, type State } from '../../../types/patricia_trie/module.f.mjs'
 import { compress, type Id } from '../../id/module.f.ts'
 import { asBase } from '../../../types/nominal/module.f.mjs'
 

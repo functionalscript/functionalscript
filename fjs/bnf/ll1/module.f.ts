@@ -13,7 +13,7 @@
 import { type CodePoint } from '../../text/utf16/module.f.mjs'
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
+import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.mjs'
 import { contains, set, type StringSet } from '../../types/string_set/module.f.ts'
 import { rangeDecode } from '../module.f.ts'
 import { definedEntries, type StringMap } from '../../types/object/module.f.ts'

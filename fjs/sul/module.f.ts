@@ -8,7 +8,7 @@
 import { emptyPipelineState, pipelineStep, type PipelineState } from './level/literal/module.f.ts'
 import { encode as hashEncode, type Add } from './level/hash/module.f.ts'
 import { level3Id, type Id } from './id/module.f.ts'
-import type { InternalState } from '../types/patricia_trie/module.f.ts'
+import type { InternalState } from '../types/patricia_trie/module.f.mjs'
 
 type HashState = InternalState<Id>
 

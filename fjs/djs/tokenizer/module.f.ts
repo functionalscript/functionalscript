@@ -42,7 +42,7 @@ import {
     type TokenMetadata,
     type WhitespaceToken,
 } from "../../js/tokenizer/module.f.ts"
-import { multiply } from "../../types/bigfloat/module.f.ts"
+import { multiply } from "../../types/bigfloat/module.f.mjs"
 import {
     asterisk, backspace, ht, lf, ff, cr,
     quotationMark, solidus, reverseSolidus,

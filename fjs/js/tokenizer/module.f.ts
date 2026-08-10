@@ -6,11 +6,11 @@
  * @module
  */
 import { strictEqual, type Scan, type StateScan } from '../../types/function/operator/module.f.mjs'
-import { merge, fromRange, get, type RangeMapArray, type RangeMerge } from '../../types/range_map/module.f.ts'
+import { merge, fromRange, get, type RangeMapArray, type RangeMerge } from '../../types/range_map/module.f.mjs'
 import { empty, stateScan, flat, toArray, reduce as listReduce, scan, map as listMap, type List } from '../../types/list/module.f.mjs'
 import { at, fromEntries, type Entry } from '../../types/ordered_map/module.f.ts'
 import { one, type Range as NumberRange } from '../../types/range/module.f.mjs'
-import type { BigFloat } from '../../types/bigfloat/module.f.ts'
+import type { BigFloat } from '../../types/bigfloat/module.f.mjs'
 import {
     range,
     //
