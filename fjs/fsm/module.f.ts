@@ -14,7 +14,7 @@ import {
     type Properties,
     type RangeMapArray,
     type Entry
-} from '../types/range_map/module.f.ts'
+} from '../types/range_map/module.f.mjs'
 import { type Fold, type Scan, strictEqual } from '../types/function/operator/module.f.mjs'
 import { stringify } from '../media/json/module.f.ts'
 import { identity } from '../types/function/module.f.mjs'

@@ -267,6 +267,6 @@ boundary, not to BNF parsers.
 - [`fjs/bnf/module.f.ts`](../module.f.ts) — current 24-bit symbol/range encoding.
 - [`fjs/types/range/module.f.mjs`](../../types/range/module.f.mjs) — remains the
   existing number-boundary helper used by current number callers.
-- [`fjs/types/range_map/module.f.ts`](../../types/range_map/module.f.ts) — shared
+- [`fjs/types/range_map/module.f.mjs`](../../types/range_map/module.f.mjs) — shared
   range-map algorithm to parameterize for number and bigint boundaries instead of
   duplicating it in BNF.

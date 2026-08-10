@@ -10,7 +10,7 @@ import {
     get,
     type RangeMapArray,
     type RangeMerge,
-} from '../types/range_map/module.f.ts'
+} from '../types/range_map/module.f.mjs'
 import { reduce as listReduce, toArray, map, type List } from '../types/list/module.f.mjs'
 import { range as asciiRange } from '../text/ascii/module.f.ts'
 import { flip, fn } from '../types/function/module.f.mjs'

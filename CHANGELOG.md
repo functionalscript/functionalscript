@@ -20,10 +20,10 @@ history.
 
 ## Unreleased
 
-- **BREAKING CHANGES:** `fjs/types/patricia_trie` and `fjs/types/sorted_list`
-  migrate from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
-  (`.f.mjs`) under the stage-1 TypeScript-to-mjs migration — importers must
-  use the `.f.mjs` specifier
+- **BREAKING CHANGES:** `fjs/types/patricia_trie`, `fjs/types/sorted_list`,
+  and `fjs/types/range_map` migrate from authored TypeScript (`.f.ts`) to
+  JSDoc-typed JavaScript (`.f.mjs`) under the stage-1 TypeScript-to-mjs
+  migration — importers must use the `.f.mjs` specifier
   [#1478](https://github.com/functionalscript/functionalscript/pull/1478)
 - **BREAKING CHANGES:** `fjs/types/number` and `fjs/types/nibble_set` migrate
   from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`)
