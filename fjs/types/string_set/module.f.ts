@@ -21,7 +21,7 @@
  */
 
 import type { Tree } from '../btree/types/module.f.mjs'
-import { empty as btEmpty, values as btValues } from '../btree/module.f.ts'
+import { empty as btEmpty, values as btValues } from '../btree/module.f.mjs'
 import { find, isFound } from '../btree/find/module.f.mjs'
 import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
 import { set as btreeSet } from '../btree/set/module.f.mjs'
