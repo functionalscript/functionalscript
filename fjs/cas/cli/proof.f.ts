@@ -1,5 +1,5 @@
 import { commands } from './module.f.ts'
-import { computeSync, sha256 } from '../../crypto/sha2/module.f.ts'
+import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { maxLength, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
 import { type NodeProgramOptions } from '../../effects/node/module.f.ts'

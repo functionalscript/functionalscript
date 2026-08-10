@@ -3,8 +3,9 @@
  *
  * @module
  */
-import type { Tuple } from '../../types/array/module.f.mjs'
-import { mask, type Reduce } from "../../types/bigint/module.f.mjs"
+/** @import { Tuple } from '../../types/array/module.f.mjs' */
+import { mask } from '../../types/bigint/module.f.mjs'
+/** @import { Reduce } from '../../types/bigint/module.f.mjs' */
 import {
     vec,
     length,
@@ -12,10 +13,11 @@ import {
     msb,
     chunkList,
     uint,
-    type Vec
 } from '../../types/bit_vec/module.f.mjs'
-import type { Fold } from '../../types/function/operator/module.f.mjs'
-import { fold, type List } from '../../types/list/module.f.mjs'
+/** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
+/** @import { Fold } from '../../types/function/operator/module.f.mjs' */
+import { fold } from '../../types/list/module.f.mjs'
+/** @import { List } from '../../types/list/module.f.mjs' */
 
 const { concat, front } = msb
 
@@ -23,70 +25,77 @@ const { concat, front } = msb
 // across every `base(...)` config (32-bit and 64-bit SHA-2 variants).
 const chunkListMsb = chunkList(msb)
 
-type V3 = Tuple<3, bigint>
+/** @typedef {Tuple<3, bigint>} _V3 */
 
-type V4 = Tuple<4, bigint>
-
-/** 8-word SHA-2 state vector. */
-export type V8 = Tuple<8, bigint>
-
-/** 16-word SHA-2 message schedule chunk. */
-export type V16 = Tuple<16, bigint>
+/** @typedef {Tuple<4, bigint>} _V4 */
 
 /**
- * Type definition for the state of the SHA-2 algorithm.
+ * 8-word SHA-2 state vector.
+ *
+ * @typedef {Tuple<8, bigint>} V8
  */
-export type State = {
-    /**
-     * The current hash value.
-     */
-    readonly hash: V8
-    /**
-     * The length of the data processed so far.
-     */
-    readonly len: bigint
-    /**
-     * The remaining data that has not yet been processed.
-     */
-    readonly remainder: Vec
-}
 
-export type Base = {
-    readonly bitLength: bigint
-    readonly chunkLength: bigint
-    readonly compress: (i: V8) => (u: bigint) => V8
-    readonly fromV8: (a: V8) => bigint
-    readonly append: Fold<Vec, State>
-    readonly end: (hashLength: bigint) => (state: State) => Vec
-}
+/**
+ * 16-word SHA-2 message schedule chunk.
+ *
+ * @typedef {Tuple<16, bigint>} V16
+ */
 
-type BaseInit = {
-    readonly logBitLen: bigint
-    readonly k: readonly V16[]
-    readonly bs0: V3
-    readonly bs1: V3
-    readonly ss0: V3
-    readonly ss1: V3
-}
+/**
+ * State of the SHA-2 algorithm: `hash` is the current hash value, `len` the
+ * length of the data processed so far, and `remainder` the data that has not
+ * yet been processed.
+ *
+ * @typedef {{
+ *   readonly hash: V8,
+ *   readonly len: bigint,
+ *   readonly remainder: Vec,
+ * }} State
+ */
 
-const lastOne: Vec = vec(1n)(1n)
+/**
+ * @typedef {{
+ *   readonly bitLength: bigint,
+ *   readonly chunkLength: bigint,
+ *   readonly compress: (i: V8) => (u: bigint) => V8,
+ *   readonly fromV8: (a: V8) => bigint,
+ *   readonly append: Fold<Vec, State>,
+ *   readonly end: (hashLength: bigint) => (state: State) => Vec,
+ * }} Base
+ */
 
-const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
+/**
+ * @typedef {{
+ *   readonly logBitLen: bigint,
+ *   readonly k: readonly V16[],
+ *   readonly bs0: _V3,
+ *   readonly bs1: _V3,
+ *   readonly ss0: _V3,
+ *   readonly ss1: _V3,
+ * }} _BaseInit
+ */
+
+/** @type {Vec} */
+const lastOne = vec(1n)(1n)
+
+/** @type {(init: _BaseInit) => Base} */
+const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
 
     const bitLength = 1n << logBitLen
 
-    const rotr = (d: bigint) => {
+    /** @type {Reduce} */
+    const rotr = d => {
         const r = bitLength - d
-        return (n: bigint) => n >> d | n << r
+        return n => n >> d | n << r
     }
 
-    const sigma: (third: Reduce) => (..._: V3) => (x: bigint) => bigint =
-        third => (a, b, c) => {
-            const ra = rotr(a)
-            const rb = rotr(b)
-            const rc = third(c)
-            return x => ra(x) ^ rb(x) ^ rc(x)
-        }
+    /** @type {(third: Reduce) => (..._: _V3) => (x: bigint) => bigint} */
+    const sigma = third => (a, b, c) => {
+        const ra = rotr(a)
+        const rb = rotr(b)
+        const rc = third(c)
+        return x => ra(x) ^ rb(x) ^ rc(x)
+    }
 
     const bigSigma = sigma(rotr)
 
@@ -100,16 +109,20 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const smallSigma1 = smallSigma(...ss1)
 
-    const ch = (x: bigint, y: bigint, z: bigint) => x & y ^ ~x & z
+    /** @type {(x: bigint, y: bigint, z: bigint) => bigint} */
+    const ch = (x, y, z) => x & y ^ ~x & z
 
-    const maj = (x: bigint, y: bigint, z: bigint) => x & y ^ x & z ^ y & z
+    /** @type {(x: bigint, y: bigint, z: bigint) => bigint} */
+    const maj = (x, y, z) => x & y ^ x & z ^ y & z
 
     const m = mask(bitLength)
 
-    const wi: (..._: V4) => bigint = (a0, a1, a2, a3) =>
+    /** @type {(..._: _V4) => bigint} */
+    const wi = (a0, a1, a2, a3) =>
         (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) & m
 
-    const nextW: (...w: V16) => V16
+    /** @type {(...w: V16) => V16} */
+    const nextW
     = (w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF) => {
         w0 = wi(wE, w9, w1, w0)
         w1 = wi(wF, wA, w2, w1)
@@ -132,8 +145,8 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const kLength = k.length
 
-    const compressV16: (..._: V8) => (_: V16) => V8 =
-    (a0, b0, c0, d0, e0, f0, g0, h0) => w => {
+    /** @type {(..._: V8) => (_: V16) => V8} */
+    const compressV16 = (a0, b0, c0, d0, e0, f0, g0, h0) => w => {
         let a = a0
         let b = b0
         let c = c0
@@ -175,10 +188,12 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         ]
     }
 
-    const at: Reduce = u => i =>
+    /** @type {Reduce} */
+    const at = u => i =>
         (u >> (i << logBitLen)) & m
 
-    const compress: (i: V8) => (u: bigint) => V8 = i => u => {
+    /** @type {(i: V8) => (u: bigint) => V8} */
+    const compress = i => u => {
         const a = at(u)
         return compressV16(...i)([
             a(15n),
@@ -211,7 +226,8 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
     // possibly the last one, which is why `remainder` only ever holds that
     // last chunk (`empty` otherwise) — same shape as `State` itself, so no
     // separate accumulator type is needed.
-    const appendChunk = (chunk: Vec) => (state: State): State =>
+    /** @type {Fold<Vec, State>} */
+    const appendChunk = chunk => state =>
         length(chunk) === chunkLength
             ? { hash: compress(state.hash)(uint(chunk)), len: state.len + chunkLength, remainder: empty }
             : { ...state, remainder: chunk }
@@ -220,7 +236,8 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
     // starting accumulator passed to it per `append` call does.
     const foldChunks = fold(appendChunk)
 
-    const fromV8 = (a: V8) => a.reduce((p, v) => (p << bitLength) | v)
+    /** @type {(a: V8) => bigint} */
+    const fromV8 = a => a.reduce((p, v) => (p << bitLength) | v)
 
     // See https://www.rfc-editor.org/rfc/rfc6234#section-4
     const lastChunkLength = chunkLength - 1n - (bitLength << 1n)
@@ -230,12 +247,12 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         chunkLength,
         compress,
         fromV8,
-        append: (v: Vec) => (state: State): State =>
+        append: v => state =>
             foldChunks({ ...state, remainder: empty })(chunkListChunkLength(concat(state.remainder)(v))),
-        end: (hashLength: bigint) => {
+        end: hashLength => {
             const offset = (bitLength << 3n) - hashLength
             const result = vec(hashLength)
-            return (state: State): Vec => {
+            return state => {
                 const { len, remainder } = state
                 let { hash } = state
                 const rLen = length(remainder)
@@ -254,6 +271,10 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 /**
  * SHA2. See https://en.wikipedia.org/wiki/SHA-2
  *
+ * `hashLength` is a hash length, `blockLength` an internal block length,
+ * `init` the initial state of the SHA-2 algorithm, `append` adds data to a
+ * state and returns the new state, and `end` finalizes the hash of a state.
+ *
  * @example
  *
  * ```js
@@ -262,38 +283,18 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
  * state = sha224.append(state)(s)
  * const h = sha224.end(state) // 0x1_619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn
  * ```
+ *
+ * @typedef {{
+ *   readonly hashLength: bigint,
+ *   readonly blockLength: bigint,
+ *   readonly init: State,
+ *   readonly append: Fold<Vec, State>,
+ *   readonly end: (state: State) => Vec,
+ * }} Sha2
  */
-export type Sha2 = {
-    /**
-     * A hash length.
-     */
-    readonly hashLength: bigint
-    /**
-     * An internal block length.
-     */
-    readonly blockLength: bigint
-    /**
-     * Initial state of the SHA-2 algorithm.
-     */
-    readonly init: State
-    /**
-     * Appends data to the state and returns the new state.
-     *
-     * @param v The data to append.
-     * @param state The current state.
-     * @returns The new state after appending data.
-     */
-    readonly append: Fold<Vec, State>
-    /**
-     * Finalizes the hash and returns the result as a bigint.
-     *
-     * @param state The final state.
-     * @returns The resulting hash.
-     */
-    readonly end: (state: State) => Vec
-}
 
-const sha2 = ({ append, end, chunkLength }: Base, hash: V8, hashLength: bigint): Sha2 => ({
+/** @type {(base: Base, hash: V8, hashLength: bigint) => Sha2} */
+const sha2 = ({ append, end, chunkLength }, hash, hashLength) => ({
     hashLength,
     blockLength: chunkLength,
     init: {
@@ -308,16 +309,19 @@ const sha2 = ({ append, end, chunkLength }: Base, hash: V8, hashLength: bigint):
 /**
  * Computes a SHA-2 hash from a list of message chunks.
  *
- * @param sha2 A SHA-2 algorithm configuration.
- * @returns A function that hashes the full list of chunks.
+ * @type {(sha2: Sha2) => (list: List<Vec>) => Vec}
  */
-export const computeSync = ({ append, init, end }: Sha2): (list: List<Vec>) => Vec => {
+export const computeSync = ({ append, init, end }) => {
     const f = fold(append)(init)
-    return (list: List<Vec>): Vec => end(f(list))
+    return list => end(f(list))
 }
 
-/** 32-bit SHA-2 base configuration shared by SHA-224 and SHA-256. */
-export const base32: Base = base({
+/**
+ * 32-bit SHA-2 base configuration shared by SHA-224 and SHA-256.
+ *
+ * @type {Base}
+ */
+export const base32 = base({
     logBitLen: 5n,
     k: [
         [
@@ -343,8 +347,12 @@ export const base32: Base = base({
     ss1: [17n, 19n, 10n],
 })
 
-/** 64-bit SHA-2 base configuration shared by SHA-384, SHA-512, SHA-512/224 and SHA-512/256. */
-export const base64: Base = base({
+/**
+ * 64-bit SHA-2 base configuration shared by SHA-384, SHA-512, SHA-512/224 and SHA-512/256.
+ *
+ * @type {Base}
+ */
+export const base64 = base({
     logBitLen: 6n,
     k: [
         [
@@ -384,22 +392,34 @@ export const base64: Base = base({
     ss1: [19n, 61n, 6n],
 })
 
-/** SHA-256 */
-export const sha256: Sha2 = sha2(
+/**
+ * SHA-256
+ *
+ * @type {Sha2}
+ */
+export const sha256 = sha2(
     base32,
     [0x6a09e667n, 0xbb67ae85n, 0x3c6ef372n, 0xa54ff53an, 0x510e527fn, 0x9b05688cn, 0x1f83d9abn, 0x5be0cd19n],
     256n,
 )
 
-/** SHA-224 */
-export const sha224: Sha2 = sha2(
+/**
+ * SHA-224
+ *
+ * @type {Sha2}
+ */
+export const sha224 = sha2(
     base32,
     [0xc1059ed8n, 0x367cd507n, 0x3070dd17n, 0xf70e5939n, 0xffc00b31n, 0x68581511n, 0x64f98fa7n, 0xbefa4fa4n],
     224n,
 )
 
-/** SHA-512 */
-export const sha512: Sha2 = sha2(
+/**
+ * SHA-512
+ *
+ * @type {Sha2}
+ */
+export const sha512 = sha2(
     base64,
     [
         0x6a09e667f3bcc908n, 0xbb67ae8584caa73bn, 0x3c6ef372fe94f82bn, 0xa54ff53a5f1d36f1n,
@@ -408,8 +428,12 @@ export const sha512: Sha2 = sha2(
     512n,
 )
 
-/** SHA-384 */
-export const sha384: Sha2 = sha2(
+/**
+ * SHA-384
+ *
+ * @type {Sha2}
+ */
+export const sha384 = sha2(
     base64,
     [
         0xcbbb9d5dc1059ed8n, 0x629a292a367cd507n, 0x9159015a3070dd17n, 0x152fecd8f70e5939n,
@@ -418,8 +442,12 @@ export const sha384: Sha2 = sha2(
     384n,
 )
 
-/** SHA-512/256 */
-export const sha512x256: Sha2 = sha2(
+/**
+ * SHA-512/256
+ *
+ * @type {Sha2}
+ */
+export const sha512x256 = sha2(
     base64,
     [
         0x22312194fc2bf72cn, 0x9f555fa3c84c64c2n, 0x2393b86b6f53b151n, 0x963877195940eabdn,
@@ -428,8 +456,12 @@ export const sha512x256: Sha2 = sha2(
     256n,
 )
 
-/** SHA-512/224 */
-export const sha512x224: Sha2 = sha2(
+/**
+ * SHA-512/224
+ *
+ * @type {Sha2}
+ */
+export const sha512x224 = sha2(
     base64,
     [
         0x8c3d37c819544da2n, 0x73e1996689dcd4d6n, 0x1dfab7ae32ff9c82n, 0x679dd514582f9fcfn,
