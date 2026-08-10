@@ -24,8 +24,10 @@ export const proof = () => {
     }
     {
         // const result = cmp(true)("hello") // compilation error
-        const a: string | number = "hello"
-        const b: string | number = 5
+        /** @type {string | number} */
+        const a = "hello"
+        /** @type {string | number} */
+        const b = 5
         // const _ = cmp(a)(b) // compilation error
         const _ = cmp(a)("hello") // ??? TypeScript changes a type definition of `a`.
         // const f = (a: string|number, b: string|number) => cmp(a)(b) // compilation error
