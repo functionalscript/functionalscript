@@ -30,25 +30,28 @@ to prove the first source-migration layout end to end.
 may migrate from `proof.f.ts` to `proof.f.mjs` as soon as it can be expressed as
 JavaScript with JSDoc and its authored **runtime** dependencies are already
 `.f.mjs`; current FunctionalScript compiler support is not a migration gate.
-Type-only dependencies do not need to migrate first: a proof may reference a
-remaining `.f.ts` type with JSDoc `@import`, for example:
+Type-only declarations may live in an authored sibling `types.d.ts`, which does
+not participate in the implementation migration. JavaScript references that
+companion through its JavaScript module specifier, for example:
 
 ```js
-/** @import { Phantom } from '../../types/phantom/module.f.ts' */
+/** @import { Phantom } from '../../types/phantom/types.js' */
 ```
 
-Such an `@import` is type-only and creates no runtime dependency. Do not add a
-runtime `import` merely to expose a type, and do not introduce a runtime value for
-a TypeScript-only declaration such as `declare const` just to unblock proof
-migration.
+If a type needed by the proof still lives only inside an implementation
+`.f.ts`, split that type into the directory's `types.d.ts` before migrating the
+consumer. Do not retain a JSDoc reference from migrated JavaScript to the
+remaining `.f.ts`, and do not introduce a runtime value merely to represent a
+type-system-only declaration such as `declare const`.
 
 ### Proposal
 
 After [`f-mjs-package-support.md`](../../ci/todo/f-mjs-package-support.md)
 completes, add the smallest synthetic `.f.mjs` runtime fixture that proves the
-mixed Stage-1 layout:
+mixed Stage-1 layout and the permanent declaration companion:
 
 ```text
+types.d.ts
 module.f.mjs
 proof.f.ts
 ```
@@ -60,8 +63,8 @@ boundary before the first real repository `.f.ts` -> `.f.mjs` conversion.
 Keep proof-extension migration separate from compiler readiness. Update
 `AGENTS.md` and `CONTRIBUTING.md` so `proof.f.mjs` is explicitly allowed during
 Stage 1 whenever its JavaScript/JSDoc and runtime dependency closure are ready.
-Type-only JSDoc `@import` references to remaining `.f.ts` files are allowed and
-do not count as runtime dependency edges.
+Authored `types.d.ts` companions are type-only source and do not block proof
+migration.
 
 A dedicated `proof.f.mjs` fixture may be added when useful, but it is not a
 prerequisite for the first real module conversion and must not create a circular
@@ -71,16 +74,15 @@ dependency on migrating assertion helpers first.
 
 - [ ] Add a synthetic `module.f.mjs` fixture with a co-located `proof.f.ts` that
       imports and tests it through the normal test command.
+- [ ] Add an authored sibling `types.d.ts` used from JavaScript with JSDoc
+      `@import` through `./types.js`; verify that no runtime import is required.
 - [ ] Verify the fixture type-checks under `npx tsc` with the Stage-1
       `allowJs` / `checkJs` configuration.
 - [ ] Verify the `.f.mjs` implementation appears in both Node and Deno coverage
-      output.
-- [ ] Add a migrated-JavaScript fixture that uses JSDoc `@import` to reference a
-      type from a remaining `.f.ts` file and verify that no runtime import is
-      required.
+      output while `types.d.ts` remains declaration-only source.
 - [ ] Update `AGENTS.md` and `CONTRIBUTING.md` so `proof.f.mjs` migration is
       gated by JavaScript/JSDoc plus runtime dependency readiness, not compiler
-      support or type-only dependency migration.
+      support; `types.d.ts` companions are explicitly outside that migration.
 
 ### Acceptance criteria
 
@@ -90,8 +92,11 @@ dependency on migrating assertion helpers first.
   `deno task cov`.
 - `proof.f.mjs` is explicitly allowed during Stage 1 when its authored runtime
   dependencies are already migrated and the proof is valid JavaScript/JSDoc.
-- A type-only JSDoc `@import` from `.f.mjs` to remaining `.f.ts` is accepted and
-  does not require a JavaScript runtime import or runtime representation.
+- A JSDoc `@import` from `.f.mjs` to `./types.js` resolves the authored
+  `types.d.ts` companion without a JavaScript runtime import or runtime
+  representation.
+- Migrated JavaScript does not retain a type-only reference to remaining
+  implementation `.ts` / `.f.ts`; such types are split into `types.d.ts` first.
 - Existing `.f.ts`, generated `.f.js`, `proof.f.ts`, and standalone `proof.mjs`
   behavior is unchanged.
 
