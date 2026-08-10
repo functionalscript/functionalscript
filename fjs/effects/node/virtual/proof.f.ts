@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
-import { access, awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes } from '../module.f.ts'
+import { access, awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat } from '../module.f.ts'
 import { maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { emptyState, virtual, type Dir, type JsModule } from './module.f.ts'
 
@@ -173,6 +173,14 @@ export const proof = {
         const root: Dir = { 'file': [vec8(0x42n)] }
         const [, result] = virtual({ ...emptyState, root })(writeBytes('file', 5, vec8(0x43n)))
         assert(result[0] === 'error')
+    },
+    statOnJsModule: () => {
+        // stat on a JsModule entry (neither an array nor a descendable
+        // directory) covers the !Array.isArray(file) branch of statOp.
+        const root: Dir = { 'a.f.ts': (() => ({})) as JsModule }
+        const [, result] = virtual({ ...emptyState, root })(stat('a.f.ts'))
+        assert(result[0] === 'error')
+        assertEq(result[1], `'a.f.ts' is not a file`)
     },
     largeFileReadBytes: () => {
         // A file stored as two 128 KiB chunks is larger than maxLengthBytes.
