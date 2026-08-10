@@ -6,7 +6,7 @@
 ### Problem
 
 `codePointToUtf8`'s error branch (`fjs/text/utf8/module.f.mjs:107-128`) and
-`utf8StateToError` (`:148-173`) are exact inverses that both hardcode the
+`utf8StateToError` (`:173-198`) are exact inverses that both hardcode the
 same un-named partial-state flag offsets:
 
 - `0b1000_0000_0000_0000` at `:108` and `:166`

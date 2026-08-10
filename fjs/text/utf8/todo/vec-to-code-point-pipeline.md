@@ -10,7 +10,7 @@ independently in two modules, once unchecked and once checked, with no shared
 helper:
 
 ```ts
-// fjs/text/module.f.mjs:69-70 — unchecked, top module reaching into three modules
+// fjs/text/module.f.mjs:70-71 — unchecked, top module reaching into three modules
 export const utf8ToString = msbV =>
     codePointListToString(toCodePointList(u8List(msb)(msbV)))
 
