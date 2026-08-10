@@ -1,4 +1,4 @@
-import { mapSet, mapDelete } from './module.f.ts'
+import { mapSet, mapDelete } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
@@ -13,7 +13,7 @@ export const proof = {
         assertEq(map.size, 0, 'error')
     },
     deleteOneOfMany: () => {
-        const m0 = mapSet(new Map<string, number>(), 'a', 1)
+        const m0 = mapSet(/** @type {ReadonlyMap<string, number>} */ (new Map()), 'a', 1)
         const m1 = mapSet(m0, 'b', 2)
         const result = mapDelete(m1, 'a')
         assertEq(result.get('b'), 2)
