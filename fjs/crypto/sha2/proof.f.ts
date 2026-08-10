@@ -14,7 +14,7 @@ import {
     sha512,
     sha512x224,
     sha512x256,
-} from './module.f.ts'
+} from './module.f.mjs'
 
 const checkEmpty = ({ init, end, hashLength }: Sha2) => (x: bigint) => {
     const result = end(init)
