@@ -1,4 +1,4 @@
-import { init, terminal } from './module.f.ts'
+import { init, terminal } from './module.f.mjs'
 import { one } from '../text/ascii/module.f.mjs'
 import { stringify } from '../media/json/module.f.ts'
 import { assertEq } from '../asserts/module.f.mjs'
