@@ -312,8 +312,8 @@ it does not change the extension contract for repository source.
 - `{` - objectBegin
 - `|` - bitwiseOr
   - `|=` - bitwiseOrAssignment
-  - `||` - logicalAnd
-  - `||=` - logicalAndAssignment
+  - `||` - logicalOr
+  - `||=` - logicalOrAssignment
 - `}` - objectEnd
 - `~` - bitwiseNot
   - `~=` - bitwiseNotAssignment
