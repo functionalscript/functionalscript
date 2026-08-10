@@ -28,7 +28,7 @@ const fromCharCode = String.fromCharCode
 const unexpectedSymbol = codePoint => [[`unexpected symbol ${codePoint}`], unexpectedSymbol]
 
 /** @type {<T>(state: T) => _ToResult} */
-const def = () => unexpectedSymbol
+const def = _state => unexpectedSymbol
 
 const union =
     /**
