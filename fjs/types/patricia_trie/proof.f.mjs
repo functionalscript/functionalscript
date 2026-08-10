@@ -1,26 +1,27 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { emptyState, patriciaTrie, type State } from './module.f.ts'
+import { emptyState, patriciaTrie } from './module.f.mjs'
+/** @import { State } from './module.f.mjs' */
 
-type NodeList = readonly [bigint, bigint, bigint][]
+/** @typedef {readonly [bigint, bigint, bigint][]} _NodeList */
 
-const combine = (a: bigint, b: bigint): bigint => a * 1_000n + b
+/** @type {(a: bigint, b: bigint) => bigint} */
+const combine = (a, b) => a * 1_000n + b
 
-const create = (a: bigint, b: bigint, s: NodeList): readonly[bigint, NodeList] => {
+/** @type {(a: bigint, b: bigint, s: _NodeList) => readonly [bigint, _NodeList]} */
+const create = (a, b, s) => {
     const h = combine(a, b)
     return [h, [...s, [a, b, h]]]
 }
 
 const { push, end } = patriciaTrie(create)
 
-const leaves = ([, candidates]: State<NodeList, bigint>): readonly bigint[] =>
-    candidates.map(([leaf]) => leaf)
+/** @type {(state: State<_NodeList, bigint>) => readonly bigint[]} */
+const leaves = ([, candidates]) => candidates.map(([leaf]) => leaf)
 
-const runExample = (
-    inputs: readonly bigint[],
-    expectedLeaves: readonly (readonly bigint[])[],
-    expectedNodeCounts: readonly number[]
-) => {
-    let state: State<NodeList, bigint> = emptyState([])
+/** @type {(inputs: readonly bigint[], expectedLeaves: readonly (readonly bigint[])[], expectedNodeCounts: readonly number[]) => void} */
+const runExample = (inputs, expectedLeaves, expectedNodeCounts) => {
+    /** @type {State<_NodeList, bigint>} */
+    let state = emptyState([])
     for (let i = 0; i < inputs.length; i++) {
         const x = inputs[i]
         const prevCount = state[0].length
