@@ -3,14 +3,14 @@
  *
  * @module
  */
+
 import { assert } from '../../asserts/module.f.mjs'
+
 import { fn } from '../function/module.f.mjs'
+
 /** @import { Option } from '../option/module.f.mjs' */
 
-/**
- * @template T
- * @typedef {T | null} Nullable
- */
+/** @import { Nullable } from './types.ts' */
 
 /**
  * @type {<T, R>(f: (value: T) => R) => (value: Nullable<T>) => Nullable<R>}

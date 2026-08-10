@@ -20,7 +20,7 @@ import { fold } from '../types/list/module.f.mjs'
 
 import { compose } from '../types/function/module.f.mjs'
 
-/** @import { Nullable } from '../types/nullable/module.f.mjs' */
+/** @import { Nullable } from '../types/nullable/types.ts' */
 
 const { unpackSplit } = msb
 

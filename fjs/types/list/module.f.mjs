@@ -4,7 +4,7 @@
  * @module
  */
 import { identity, fn, compose } from '../function/module.f.mjs'
-/** @import { Nullable } from '../nullable/module.f.mjs' */
+/** @import { Nullable } from '../nullable/types.ts' */
 import {
     addition,
     logicalNot,

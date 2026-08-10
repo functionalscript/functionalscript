@@ -8,7 +8,7 @@ import { bsearch } from '../function/compare/module.f.mjs'
 /** @import { Sign, Cmp } from '../function/compare/module.f.mjs' */
 import { next } from '../list/module.f.mjs'
 /** @import { List } from '../list/module.f.mjs' */
-/** @import { Nullable } from '../nullable/module.f.mjs' */
+/** @import { Nullable } from '../nullable/types.ts' */
 import { identity } from '../function/module.f.mjs'
 
 /** @template T @typedef {List<T>} SortedList */

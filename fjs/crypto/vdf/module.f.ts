@@ -15,7 +15,7 @@
  * ```
  */
 import { modSqrt, prime_field, type PrimeField } from '../../types/prime_field/module.f.mjs'
-import type { Nullable } from '../../types/nullable/module.f.mjs'
+import type { Nullable } from '../../types/nullable/types.ts'
 import type { Unary } from '../../types/bigint/module.f.mjs'
 
 /** Sloth VDF modulus (3072-bit safe prime, same as reference implementations). */

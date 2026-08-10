@@ -39,7 +39,7 @@
 import { genericMerge } from '../sorted_list/module.f.mjs'
 /** @import { TailReduce, ReduceOp, SortedList } from '../sorted_list/module.f.mjs' */
 import { next } from '../list/module.f.mjs'
-/** @import { Nullable } from '../nullable/module.f.mjs' */
+/** @import { Nullable } from '../nullable/types.ts' */
 import { cmp } from '../number/module.f.mjs'
 import { bsearch } from '../function/compare/module.f.mjs'
 /** @import { Reduce, Equal } from '../function/operator/module.f.mjs' */
