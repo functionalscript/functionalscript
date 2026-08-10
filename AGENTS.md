@@ -178,19 +178,20 @@ permanently.
 
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
 imports must target migrated `.f.mjs` modules. Type-only APIs may live in an
-authored `types.d.ts` companion and are referenced by its actual source path. For
-example:
+authored `types.d.ts` companion and are referenced through the TypeScript-style
+`types.ts` specifier. For example:
 
 ```js
-/** @import { Phantom } from '../phantom/types.d.ts' */
+/** @import { Phantom } from '../phantom/types.ts' */
 ```
 
-The JSDoc `@import` is type-only and introduces no runtime dependency. If a type
-needed by migrated JavaScript still lives only inside a remaining implementation
-`.f.ts`, split the type into `types.d.ts` before migrating the consumer instead
-of retaining a JavaScript-to-TypeScript source edge. Never add a runtime value
-for a TypeScript-only declaration such as `declare const`. Compiler support
-remains independent of this JavaScript/JSDoc migration rule. See
+TypeScript resolves that type-only specifier to the authored `types.d.ts` file;
+`@import` introduces no runtime dependency. If a type needed by migrated
+JavaScript still lives only inside a remaining implementation `.f.ts`, split the
+type into `types.d.ts` before migrating the consumer instead of retaining a
+JavaScript-to-TypeScript source edge. Never add a runtime value for a
+TypeScript-only declaration such as `declare const`. Compiler support remains
+independent of this JavaScript/JSDoc migration rule. See
 [`fjs/fsc/README.md`](./fjs/fsc/README.md) for the migration order and module
 policy.
 
@@ -497,25 +498,25 @@ parameters of a JSDoc type alias (`@typedef`); do not put `in` / `out` on an
 ordinary function's `@template`, where TypeScript rejects them.
 
 When JavaScript needs a type from an authored `types.d.ts` companion, use JSDoc
-`@import` with the authored declaration source path, not a JavaScript runtime
-import:
+`@import` with the same TypeScript-style specifier used by TypeScript `import type`:
 
 ```js
-/** @import { Types } from './types.d.ts' */
+/** @import { Types } from './types.ts' */
 ```
 
-The TypeScript implementation uses the same source path with `import type`:
+The TypeScript implementation uses the same specifier:
 
 ```ts
-import type { Types } from './types.d.ts'
+import type { Types } from './types.ts'
 ```
 
-Both forms are type-only and introduce no runtime import. Authored `types.d.ts`
-files are shipped directly and are semantically checked because the root
-TypeScript configuration uses `skipLibCheck: false`. The same source path
-survives `module.f.ts -> module.f.mjs -> module.f.js`. Declaration-only
-`module.f.ts` files, and existing `.f.mjs` files that are truly declaration-only,
-should normally become `types.d.ts` instead of acquiring an artificial runtime
+Both forms are type-only and introduce no runtime import. TypeScript resolves
+`./types.ts` to the authored `types.d.ts` declaration file. Authored declaration
+files are semantically checked because the root configuration relies on the
+default `skipLibCheck: false`. The same `types.ts` specifier survives
+`module.f.ts -> module.f.mjs -> module.f.js`. Declaration-only `module.f.ts`
+files, and existing `.f.mjs` files that are truly declaration-only, should
+normally become `types.d.ts` instead of acquiring an artificial runtime
 representation.
 
 Do not make migrated JavaScript point back to a remaining implementation `.ts` /
@@ -950,8 +951,8 @@ source rule:
 - `types.d.ts` is authored, permanent type-only source and does not participate
   in the implementation migration;
 - `.f.ts`, `.f.mjs`, and later `.f.js` may consume a sibling `types.d.ts` through
-  the direct `types.d.ts` source specifier (`import type` from TypeScript, JSDoc
-  `@import` from JavaScript);
+  the `types.ts` type-only specifier (`import type` from TypeScript, JSDoc
+  `@import` from JavaScript), which TypeScript resolves to the declaration file;
 - migrated JavaScript must not retain a type-only reference to remaining
   implementation `.ts` / `.f.ts`; split independently needed declarations into
   `types.d.ts` first;
@@ -1040,7 +1041,7 @@ as existing entries. New entries always go above existing ones. CHANGELOG entrie
 are created after the PR exists because they reference the PR number.
 
 Only add CHANGELOG entries for code changes — PRs that only touch `todo/`,
-`AGENTS.md`, or other documentation files do not need a CHANGELOG entry.
+`AGENTS.md`, or other documentation files do not need one.
 
 - **Keep it short.** An entry is **at most a few lines** (about three wrapped
   lines, ~250 characters) — what changed and, when it isn't obvious, why. It is a
