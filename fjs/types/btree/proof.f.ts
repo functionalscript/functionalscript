@@ -4,7 +4,7 @@ import { stringify as jsonStringify, type Unknown } from '../../media/json/modul
 import { sort } from '../object/module.f.ts'
 import { cmp } from '../string/module.f.ts'
 import { next, toArray, type List, type Result } from '../list/module.f.mjs'
-import { set as setSet } from './set/module.f.ts'
+import { set as setSet } from './set/module.f.mjs'
 import { value, find as findFind } from './find/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 

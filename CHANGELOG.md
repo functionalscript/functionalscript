@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/btree/set` and `fjs/types/btree/remove`
+  migrate from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
+  (`.f.mjs`) under the stage-1 TypeScript-to-mjs migration — importers must use
+  the `.f.mjs` specifier
+  [#1471](https://github.com/functionalscript/functionalscript/pull/1471)
 - **BREAKING CHANGES:** `fjs/types/btree/find` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
   stage-1 TypeScript-to-mjs migration — importers must use the `.f.mjs`
