@@ -1,7 +1,7 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { pure } from '../../effects/module.f.ts'
 import { fileCas, type Cas } from '../module.f.ts'
-import { sha256 } from '../../crypto/sha2/module.f.ts'
+import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
 import { vec, vec8, type Vec } from '../../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
