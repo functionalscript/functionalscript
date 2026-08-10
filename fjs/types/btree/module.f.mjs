@@ -3,11 +3,13 @@
  *
  * @module
  */
-import { flat, type List, type Thunk } from '../list/module.f.mjs'
+import { flat } from '../list/module.f.mjs'
+/** @import { List, Thunk } from '../list/module.f.mjs' */
 import { map } from '../nullable/module.f.mjs'
-import type { TNode, Tree } from './types/module.f.mjs'
+/** @import { TNode, Tree } from './types/module.f.mjs' */
 
-const nodeValues: <T>(node: TNode<T>) => Thunk<T>
+/** @type {<T>(node: TNode<T>) => Thunk<T>} */
+const nodeValues
     = node => () => {
         switch (node.length) {
             case 1: case 2: { return node }
@@ -32,5 +34,5 @@ const nodeValues: <T>(node: TNode<T>) => Thunk<T>
 
 export const empty = null
 
-export const values: <T>(tree: Tree<T>) => List<T>
-    = map(nodeValues)
+/** @type {<T>(tree: Tree<T>) => List<T>} */
+export const values = map(nodeValues)
