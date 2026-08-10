@@ -3,21 +3,35 @@
  *
  * @module
  */
-import { collapseRoot, type Leaf1, type TNode, type Branch1, type Branch3, type Branch5, type Tree } from '../types/module.f.mjs'
-import type { Compare } from '../../function/compare/module.f.mjs'
-import { type Path, type PathItem, find } from '../find/module.f.mjs'
+import { collapseRoot } from '../types/module.f.mjs'
+/** @import { Leaf1, TNode, Branch1, Branch3, Branch5, Tree } from '../types/module.f.mjs' */
+
+/** @import { Compare } from '../../function/compare/module.f.mjs' */
+
+import { find } from '../find/module.f.mjs'
+/** @import { Path, PathItem } from '../find/module.f.mjs' */
+
 import { fold, concat, next } from '../../list/module.f.mjs'
-import type { Tuple } from '../../array/module.f.mjs'
+
+/** @import { Tuple } from '../../array/module.f.mjs' */
+
 import { map } from '../../nullable/module.f.mjs'
 
-type Leaf01<T> = null | Leaf1<T>
+/**
+ * @template T
+ * @typedef {null | Leaf1<T>} _Leaf01
+ */
 
-type RemovePath<T> = {
-   readonly first: Leaf01<T>,
-   readonly tail: Path<T>
-}
+/**
+ * @template T
+ * @typedef {{
+ *   readonly first: _Leaf01<T>,
+ *   readonly tail: Path<T>
+ * }} _RemovePath
+ */
 
-const path = <T>(tail: Path<T>) => (n: TNode<T>): readonly[T, RemovePath<T>] => {
+/** @type {<T>(tail: Path<T>) => (n: TNode<T>) => readonly[T, _RemovePath<T>]} */
+const path = tail => n => {
     switch (n.length) {
         case 1: { return [n[0], { first: null, tail }] }
         case 2: { return [n[0], { first: [n[1]], tail }] }
@@ -26,9 +40,13 @@ const path = <T>(tail: Path<T>) => (n: TNode<T>): readonly[T, RemovePath<T>] => 
     }
 }
 
-type Branch<T> = Branch1<T> | Branch3<T> | Branch5<T>
+/**
+ * @template T
+ * @typedef {Branch1<T> | Branch3<T> | Branch5<T>} _Branch
+ */
 
-const reduceValue0 = <T>(a: Branch<T>) => (n: Branch3<T>): Branch1<T> | Branch3<T> => {
+/** @type {<T>(a: _Branch<T>) => (n: Branch3<T>) => Branch1<T> | Branch3<T>} */
+const reduceValue0 = a => n => {
     const [, v1, n2] = n
     if (a.length === 1) {
         switch (n2.length) {
@@ -41,7 +59,8 @@ const reduceValue0 = <T>(a: Branch<T>) => (n: Branch3<T>): Branch1<T> | Branch3<
     }
 }
 
-const reduceValue2 = <T>(a: Branch<T>) => (n: Branch3<T>): Branch1<T> | Branch3<T> => {
+/** @type {<T>(a: _Branch<T>) => (n: Branch3<T>) => Branch1<T> | Branch3<T>} */
+const reduceValue2 = a => n => {
     const [n0, v1, ] = n
     if (a.length === 1) {
         switch (n0.length) {
@@ -54,7 +73,8 @@ const reduceValue2 = <T>(a: Branch<T>) => (n: Branch3<T>): Branch1<T> | Branch3<
     }
 }
 
-const initValue0 = <T>(a: Leaf01<T>) => (n: Branch3<T>): Branch1<T> | Branch3<T> => {
+/** @type {<T>(a: _Leaf01<T>) => (n: Branch3<T>) => Branch1<T> | Branch3<T>} */
+const initValue0 = a => n => {
     const [, v1, n2] = n
     if (a === null) {
         switch (n2.length) {
@@ -67,7 +87,8 @@ const initValue0 = <T>(a: Leaf01<T>) => (n: Branch3<T>): Branch1<T> | Branch3<T>
     }
 }
 
-const initValue1 = <T>(a: Leaf01<T>) => (n: Branch3<T>): Branch1<T> | Branch3<T> => {
+/** @type {<T>(a: _Leaf01<T>) => (n: Branch3<T>) => Branch1<T> | Branch3<T>} */
+const initValue1 = a => n => {
     const [n0, v1] = n
     if (a === null) {
         switch (n0.length) {
@@ -78,13 +99,18 @@ const initValue1 = <T>(a: Leaf01<T>) => (n: Branch3<T>): Branch1<T> | Branch3<T>
     } else { return [n0, v1, a] }
 }
 
-type Merge<A, T> = (a: A) => (n: Branch3<T>) => Branch1<T> | Branch3<T>
+/**
+ * @template A
+ * @template T
+ * @typedef {(a: A) => (n: Branch3<T>) => Branch1<T> | Branch3<T>} _Merge
+ */
 
-const reduceX = <A, T>(ms: Tuple<2, Merge<A, T>>) => ([i, n]: PathItem<T>) => (a: A): Branch<T> => {
+/** @type {<A, T>(ms: Tuple<2, _Merge<A, T>>) => (item: PathItem<T>) => (a: A) => _Branch<T>} */
+const reduceX = ms => ([i, n]) => a => {
+    /** @typedef {(typeof n)[1]} T */
     const [m0, m2] = ms
-    const f
-        : (m: Merge<A, T>) => Branch<T>
-        = m => {
+    /** @type {(m: typeof m0) => _Branch<T>} */
+    const f = m => {
         const ra = m(a)
         return n.length === 3 ? ra(n) : [...ra([n[0], n[1], n[2]]), n[3], n[4]]
     }
@@ -99,16 +125,17 @@ const reduce = fold(reduceX([reduceValue0, reduceValue2]))
 
 const initReduce = reduceX([initValue0, initValue1])
 
-export const nodeRemove
-    = <T>(c: Compare<T>) => (node: TNode<T>): Tree<T> => {
-    const f = (): null | RemovePath<T> => {
+/** @type {<T>(c: Compare<T>) => (node: TNode<T>) => Tree<T>} */
+export const nodeRemove = c => node => {
+    /** @typedef {typeof c extends Compare<infer T> ? T : never} T */
+    /** @type {() => null | _RemovePath<T>} */
+    const f = () => {
         const { first, tail } = find(c)(node)
-        const branch
-            : (n: TNode<T>) => (f: (v: T) => PathItem<T>) => RemovePath<T>
-            = n => f => {
-                const [v, p] = path(null as Path<T>)(n)
-                return { first: p.first, tail: concat(p.tail)({ first: f(v), tail }) }
-            }
+        /** @type {(n: TNode<T>) => (f: (v: T) => PathItem<T>) => _RemovePath<T>} */
+        const branch = n => f => {
+            const [v, p] = path(/** @type {Path<T>} */(null))(n)
+            return { first: p.first, tail: concat(p.tail)({ first: f(v), tail }) }
+        }
         const [i, n] = first
         switch (i) {
             case 1: {
@@ -137,8 +164,8 @@ export const nodeRemove
     return collapseRoot(reduce(initReduce(tf)(first))(tt))
 }
 
-export const remove: <T>(c: Compare<T>) => (tree: Tree<T>) => Tree<T>
-    = c => map(nodeRemove(c))
+/** @type {<T>(c: Compare<T>) => (tree: Tree<T>) => Tree<T>} */
+export const remove = c => map(nodeRemove(c))
 
 // `reduceValue0`/`reduceValue2`/`initValue0`/`initValue1` merge a Branch1's lone
 // child into its Branch3 sibling. The sibling is always a Branch (length 3 or 5)
@@ -148,7 +175,7 @@ export const remove: <T>(c: Compare<T>) => (tree: Tree<T>) => Tree<T>
 export const proof = {
     throw: {
         reduceValue0DefaultBranch: () => {
-            reduceValue0<string>([['leaf']])([['x'], 's', ['y']])
+            reduceValue0([['leaf']])([['x'], 's', ['y']])
         },
     },
 }

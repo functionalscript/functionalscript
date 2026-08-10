@@ -6,7 +6,7 @@
 import type { Tree } from '../btree/types/module.f.mjs'
 import { value, find } from '../btree/find/module.f.mjs'
 import { set } from '../btree/set/module.f.mjs'
-import { remove as btreeRemove } from '../btree/remove/module.f.ts'
+import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
 import { values } from '../btree/module.f.ts'
 import type { Sign } from '../function/compare/module.f.mjs'
 import { cmp } from '../string/module.f.ts'
