@@ -32,10 +32,10 @@ JavaScript with JSDoc and its authored **runtime** dependencies are already
 `.f.mjs`; current FunctionalScript compiler support is not a migration gate.
 Type-only declarations may live in an authored sibling `types.d.ts`, which does
 not participate in the implementation migration. JavaScript references that
-companion through its JavaScript module specifier, for example:
+companion through its authored source path, for example:
 
 ```js
-/** @import { Phantom } from '../../types/phantom/types.js' */
+/** @import { Phantom } from '../../types/phantom/types.d.ts' */
 ```
 
 If a type needed by the proof still lives only inside an implementation
@@ -75,9 +75,9 @@ dependency on migrating assertion helpers first.
 - [ ] Add a synthetic `module.f.mjs` fixture with a co-located `proof.f.ts` that
       imports and tests it through the normal test command.
 - [ ] Add an authored sibling `types.d.ts` used from JavaScript with JSDoc
-      `@import` through `./types.js`; verify that no runtime import is required.
+      `@import` through `./types.d.ts`; verify that no runtime import is required.
 - [ ] Verify the fixture type-checks under `npx tsc` with the Stage-1
-      `allowJs` / `checkJs` configuration.
+      `allowJs` / `checkJs` configuration and `skipLibCheck: false`.
 - [ ] Verify the `.f.mjs` implementation appears in both Node and Deno coverage
       output while `types.d.ts` remains declaration-only source.
 - [ ] Update `AGENTS.md` and `CONTRIBUTING.md` so `proof.f.mjs` migration is
@@ -92,7 +92,7 @@ dependency on migrating assertion helpers first.
   `deno task cov`.
 - `proof.f.mjs` is explicitly allowed during Stage 1 when its authored runtime
   dependencies are already migrated and the proof is valid JavaScript/JSDoc.
-- A JSDoc `@import` from `.f.mjs` to `./types.js` resolves the authored
+- A JSDoc `@import` from `.f.mjs` to `./types.d.ts` resolves the authored
   `types.d.ts` companion without a JavaScript runtime import or runtime
   representation.
 - Migrated JavaScript does not retain a type-only reference to remaining
