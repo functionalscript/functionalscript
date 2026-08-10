@@ -162,32 +162,35 @@ TypeScript-to-JavaScript migration:
 
 | Implementation | Proof | When |
 |---|---|---|
-| `module.f.ts` | `proof.f.ts` | Both files are still authored TypeScript. |
+| `module.f.ts` | `proof.f.ts` | Both files are still authored TypeScript implementations/proofs. |
 | `module.f.mjs` | `proof.f.ts` | The implementation has migrated, while the proof temporarily remains TypeScript. |
-| `module.f.mjs` | `proof.f.mjs` | The proof is valid JavaScript/JSDoc and all authored runtime dependencies outside the migration group are already `.f.mjs`. Type-only dependencies may remain `.f.ts` and be referenced with JSDoc `@import`. Compiler readiness is not required. |
+| `module.f.mjs` | `proof.f.mjs` | The proof is valid JavaScript/JSDoc and all authored runtime dependencies outside the migration group are already `.f.mjs`. Type-only APIs may remain in authored `types.d.ts` companions. Compiler readiness is not required. |
 
 Renaming an implementation to `.f.mjs` therefore never requires renaming its
 proof in the same change, and never removes it from proof discovery or from Node
 and Deno coverage: `shouldLoad` in [`fjs/dev/module.f.ts`](./fjs/dev/module.f.ts)
 matches both authored extensions, and both `npm run cov` and `deno task cov`
 include `module.f.ts` and `module.f.mjs`. Ordinary (non-FunctionalScript) `.mjs`
-files stay opt-in through the `proof.mjs` filename convention. Stage 1 still
-ends with no authored `.f.ts`, so every remaining `proof.f.ts` must eventually
-migrate to `proof.f.mjs`.
+files stay opt-in through the `proof.mjs` filename convention. Stage 1 ends with
+no authored implementation/proof `.f.ts`, so every remaining `proof.f.ts` must
+eventually migrate to `proof.f.mjs`; authored `types.d.ts` files may remain
+permanently.
 
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
-imports must target migrated `.f.mjs` modules, but a type-only dependency may
-remain `.f.ts` and be referenced with JSDoc `@import`; this does not create a
-runtime dependency. For example:
+imports must target migrated `.f.mjs` modules. Type-only APIs may live in an
+authored `types.d.ts` companion and are referenced through its stable
+JavaScript-looking specifier. For example:
 
 ```js
-/** @import { Phantom } from '../phantom/module.f.ts' */
+/** @import { Phantom } from '../phantom/types.js' */
 ```
 
-Do not add a runtime `import` merely to make a TypeScript type visible, and do
-not add a runtime value for a type-system-only declaration such as `declare
-const`. When the referenced TypeScript module itself migrates, update the
-`@import` specifier to its new authored JavaScript path. Compiler support remains
+TypeScript resolves that type-only specifier to `types.d.ts`; no runtime
+`types.js` file or JavaScript import is required. If a type needed by migrated
+JavaScript still lives only inside a remaining implementation `.f.ts`, split the
+type into `types.d.ts` before migrating the consumer instead of retaining a
+JavaScript-to-TypeScript source edge. Never add a runtime value for a
+TypeScript-only declaration such as `declare const`. Compiler support remains
 independent of this JavaScript/JSDoc migration rule. See
 [`fjs/fsc/README.md`](./fjs/fsc/README.md) for the migration order and module
 policy.
@@ -264,12 +267,12 @@ where `<...Module documentation...>` should be documentation for the module.
 
 Where each kind of documentation belongs:
 
-| Content                                          | Home                             |
-| ------------------------------------------------ | -------------------------------- |
-| API shape and invariants                         | JSDoc on `module.f.ts` exports   |
-| Architectural choices, *why this / why not that* | the relevant `README.md`         |
-| What changed in a release                        | `CHANGELOG.md` (short, see §8.3) |
-| Rationale, measurements, alternatives considered | the PR description               |
+| Content                                          | Home                                      |
+| ------------------------------------------------ | ----------------------------------------- |
+| API shape and invariants                         | JSDoc on `module.f.*` exports or `types.d.ts` |
+| Architectural choices, *why this / why not that* | the relevant `README.md`                  |
+| What changed in a release                        | `CHANGELOG.md` (short, see §8.3)          |
+| Rationale, measurements, alternatives considered | the PR description                        |
 
 ---
 
@@ -447,10 +450,11 @@ cases remain explicit and independently testable.
 Authored `.mjs` / `.f.mjs` files must remain valid JavaScript. Put named and
 generic static types in JSDoc rather than TypeScript syntax, and preserve the
 same public assignability and declaration-emission behavior when translating a
-`.ts` / `.f.ts` file. Types that are implementation details are marked by name,
-not by declaration-level visibility.
+`.ts` / `.f.ts` implementation file. A separately useful type-level API may live
+in an authored sibling `types.d.ts` instead; that declaration file is permanent
+type source and is not migrated to JavaScript.
 
-Name implementation-only typedefs with a leading `_`
+Name implementation-only JSDoc typedefs with a leading `_`
 (`/** @typedef {number} _Type */`). Declaration emit cannot strip them yet, so
 the underscore — not the emitted `.d.ts` — is what marks a name private,
 and renaming or removing a `_`-prefixed alias is not by itself a breaking
@@ -493,25 +497,39 @@ forms such as `@template {Operation} out O`. Variance modifiers belong to type
 parameters of a JSDoc type alias (`@typedef`); do not put `in` / `out` on an
 ordinary function's `@template`, where TypeScript rejects them.
 
-When a JavaScript file needs only types from another module, use JSDoc
-`@import` instead of a JavaScript `import` statement:
+When JavaScript needs a type from an authored `types.d.ts` companion, use JSDoc
+`@import` with the stable JavaScript-looking module specifier, not a JavaScript
+runtime import:
 
 ```js
-/** @import { Types } from '../only_types/module.f.ts' */
+/** @import { Types } from './types.js' */
 ```
 
-During the TypeScript-to-JavaScript migration, a type-only `@import` may point to
-a remaining `.ts` / `.f.ts` source. This is the exception to the runtime
-dependency-closure rule: it introduces no runtime dependency, so type-only
-modules and declarations such as `declare const` do not need artificial
-JavaScript values or runtime imports just to unblock their consumers. Use the
-current authored TypeScript path while that source remains TypeScript; update the
-specifier when the referenced source migrates.
+The TypeScript implementation uses the same specifier with `import type`:
 
-When translating a public type, verify both normal type checking and emitted
-`.d.ts` / `.d.mts` declarations. The JSDoc spelling may differ, but the public
-type contract must not become weaker just because the source moved to
-JavaScript.
+```ts
+import type { Types } from './types.js'
+```
+
+TypeScript resolves `./types.js` to sibling `types.d.ts`; no runtime `types.js`
+file is required. The same type-only specifier survives
+`module.f.ts -> module.f.mjs -> module.f.js`. Declaration-only `module.f.ts`
+files, and existing `.f.mjs` files that are truly declaration-only, should
+normally become `types.d.ts` instead of acquiring an artificial runtime
+representation.
+
+Do not make migrated JavaScript point back to a remaining implementation `.ts` /
+`.f.ts` merely for a type. If that type should survive independently, split it
+into `types.d.ts` first; if it is naturally implementation-local and expressible
+in JSDoc, migrate it with the implementation. Never invent a runtime import,
+export, `Symbol()`, or other value solely to represent a TypeScript-only
+declaration such as `declare const`.
+
+When translating a public type that remains in JSDoc, verify both normal type
+checking and emitted `.d.ts` / `.d.mts` declarations. The JSDoc spelling may
+differ, but the public type contract must not become weaker just because the
+source moved to JavaScript. Types intentionally authored in `types.d.ts` are
+already declaration source and use ordinary TypeScript declaration syntax.
 
 #### Prefer inference
 
@@ -921,15 +939,24 @@ anywhere else as the rule being broken.
 
 ### 6.5 FunctionalScript module rules
 
-During Stage 1 of the TypeScript-to-JavaScript migration, relative authored
-FunctionalScript **runtime** dependencies follow the asymmetric source rule:
+During Stage 1 of the TypeScript-to-JavaScript implementation migration,
+relative authored FunctionalScript **runtime** dependencies follow the asymmetric
+source rule:
 
-- `.f.ts` may import `.f.ts` or already migrated `.f.mjs`;
+- `.f.ts` is remaining authored TypeScript implementation/proof source and may
+  import `.f.ts` or already migrated `.f.mjs` at runtime;
 - `.f.mjs` runtime imports may target only migrated `.f.mjs` authored
   FunctionalScript dependencies;
-- `.f.mjs` may use JSDoc `@import` for type-only dependencies that still live in
-  `.f.ts`; such references do not block migration because they create no runtime
-  dependency;
+- `types.d.ts` is authored, permanent type-only source and does not participate
+  in the implementation migration;
+- `.f.ts`, `.f.mjs`, and later `.f.js` may consume a sibling `types.d.ts` through
+  a type-only `types.js` specifier (`import type` from TypeScript, JSDoc
+  `@import` from JavaScript);
+- migrated JavaScript must not retain a type-only reference to remaining
+  implementation `.ts` / `.f.ts`; split independently needed declarations into
+  `types.d.ts` first;
+- declaration-only `.f.ts`, and truly declaration-only `.f.mjs`, should become
+  `types.d.ts` rather than acquiring an artificial runtime representation;
 - never add a runtime import/export or runtime value solely to represent a
   TypeScript-only type declaration;
 - compiler support does not gate an `.f.ts` / `proof.f.ts` -> `.f.mjs` /
@@ -1013,7 +1040,7 @@ as existing entries. New entries always go above existing ones. CHANGELOG entrie
 are created after the PR exists because they reference the PR number.
 
 Only add CHANGELOG entries for code changes — PRs that only touch `todo/`,
-`AGENTS.md`, or other documentation files do not need a CHANGELOG entry.
+`AGENTS.md`, or other documentation files do not need one.
 
 - **Keep it short.** An entry is **at most a few lines** (about three wrapped
   lines, ~250 characters) — what changed and, when it isn't obvious, why. It is a
