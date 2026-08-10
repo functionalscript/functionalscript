@@ -13,7 +13,7 @@ import type { Equal, StateScan } from '../../../types/function/operator/types.ts
 import { strictEqual } from '../../../types/function/operator/module.f.mjs'
 import type { List } from '../../../types/list/types.ts'
 import { equal, map } from '../../../types/list/module.f.mjs'
-import { join } from '../../../types/string/module.f.ts'
+import { join } from '../../../types/string/module.f.mjs'
 
 export const symbolToString = (s: bigint): string => s.toString(16)
 

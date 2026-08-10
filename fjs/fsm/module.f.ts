@@ -15,7 +15,7 @@ import { strictEqual } from '../types/function/operator/module.f.mjs'
 import { stringify } from '../media/json/module.f.ts'
 import { identity } from '../types/function/module.f.mjs'
 import { stringToList } from '../text/utf16/module.f.mjs'
-import { cmp } from '../types/string/module.f.ts'
+import { cmp } from '../types/string/module.f.mjs'
 
 type Rule = readonly [string, ByteSet, string]
 

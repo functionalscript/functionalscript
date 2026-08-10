@@ -6,7 +6,7 @@
  */
 import type { List } from '../../types/list/types.ts'
 import { map, flatMap, flat, concat as listConcat } from '../../types/list/module.f.mjs'
-import { concat, concat as stringConcat } from '../../types/string/module.f.ts'
+import { concat, concat as stringConcat } from '../../types/string/module.f.mjs'
 import { definedEntries, type Entry, type StringMap } from '../../types/object/module.f.ts'
 import { compose } from '../../types/function/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'

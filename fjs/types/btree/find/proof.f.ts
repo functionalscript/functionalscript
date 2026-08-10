@@ -4,7 +4,7 @@ import { map, toArray } from '../../list/module.f.mjs'
 import { stringify, type Unknown } from '../../../media/json/module.f.ts'
 import { sort } from '../../object/module.f.ts'
 import type { TNode } from '../types/types.ts'
-import { cmp } from '../../string/module.f.ts'
+import { cmp } from '../../string/module.f.mjs'
 import { set as setSet } from '../set/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 

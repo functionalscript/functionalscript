@@ -5,7 +5,7 @@ import { sort } from '../object/module.f.ts'
 import { union, type SortedSet } from '../sorted_set/module.f.ts'
 import { equal, toArray } from '../list/module.f.mjs'
 import { strictEqual } from '../function/operator/module.f.mjs'
-import { cmp } from '../string/module.f.ts'
+import { cmp } from '../string/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 const str
