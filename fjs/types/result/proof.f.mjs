@@ -1,9 +1,12 @@
-import { error, ok, unwrap, invert, mapOk, type Result } from "./module.f.mjs"
+import { error, ok, unwrap, invert, mapOk } from './module.f.mjs'
+/** @import { Result } from './module.f.mjs' */
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const example = () => {
-    const success: Result<number, string> = ok(42)
-    const failure: Result<number, string> = error('Something went wrong')
+    /** @type {Result<number, string>} */
+    const success = ok(42)
+    /** @type {Result<number, string>} */
+    const failure = error('Something went wrong')
 
     assertEq(unwrap(success), 42, 'error')
     const [kind, v] = failure
@@ -20,9 +23,11 @@ const invertTest = () => {
 }
 
 const mapOkTest = () => {
-    const [k0, v0] = mapOk((n: number) => n + 1)(ok(41))
+    /** @type {(n: number) => number} */
+    const inc = n => n + 1
+    const [k0, v0] = mapOk(inc)(ok(41))
     assert(!(k0 !== 'ok' || v0 !== 42), [k0, v0])
-    const [k1, v1] = mapOk((n: number) => n + 1)(error('oops'))
+    const [k1, v1] = mapOk(inc)(error('oops'))
     assert(!(k1 !== 'error' || v1 !== 'oops'), [k1, v1])
 }
 

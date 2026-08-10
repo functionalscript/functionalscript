@@ -20,10 +20,10 @@ history.
 
 ## Unreleased
 
-- `fjs/types/nullable/proof.f.ts`, `fjs/types/range/proof.f.ts`, and
-  `fjs/types/function/proof.f.ts` migrate to `proof.f.mjs` under the
-  stage-1 TypeScript-to-mjs migration; no other module imports a proof
-  file, so this is not a breaking change
+- `fjs/types/nullable/proof.f.ts`, `fjs/types/range/proof.f.ts`,
+  `fjs/types/function/proof.f.ts`, and `fjs/types/result/proof.f.ts`
+  migrate to `proof.f.mjs` under the stage-1 TypeScript-to-mjs migration;
+  no other module imports a proof file, so this is not a breaking change
   [#1480](https://github.com/functionalscript/functionalscript/pull/1480)
 - **BREAKING CHANGES:** `fjs/text/utf8`, `fjs/text` (top module), and
   `fjs/types/uint8array` migrate from authored TypeScript (`.f.ts`) to
