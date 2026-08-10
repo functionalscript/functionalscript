@@ -1,4 +1,4 @@
-/** @import { Func } from './types.ts' */
+/** @import { Func, Fn } from './types.ts' */
 
 /**
  * A postfix compose function.
@@ -20,16 +20,6 @@ export const identity = value => value
  * @type {<A, B, C>(f: (a: A) => (b: B) => C) => (b: B) => (a: A) => C}
  */
 export const flip = f => b => a => f(a)(b)
-
-/**
- * A functional utility type that enables seamless chaining of transformations.
- *
- * @template I, O
- * @typedef {{
- *   readonly result: Func<I, O>
- *   readonly map: <T>(g: Func<O, T>) => Fn<I, T>
- * }} Fn
- */
 
 /**
  * Creates an `Fn` instance from a function, enabling chaining of transformations.
