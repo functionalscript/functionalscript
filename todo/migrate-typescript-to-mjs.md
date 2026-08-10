@@ -263,6 +263,56 @@ intent.
 `fjs/types/list` and `fjs/types/nullable` are the five that currently lose their
 header and want the same one-line fix.
 
+#### Curried generic exports need an explicit `@returns`
+
+A curried, generic exported function whose `@template`/`@param` chain has no
+`@returns` still type-checks correctly in the repository — `npx tsc` reads the
+`.mjs` source and infers the return type from the body, so `fjs t` and every
+in-repo consumer stay correct. What breaks is declaration emit: TypeScript
+infers a deep, often self-referential structural type for the return value
+(e.g. a recursive `List<T>` union) that it cannot *name* in a `.d.mts` file,
+so it collapses the unresolved part to `any` or `/*elided*/`. The loss is
+invisible in the repository — only a consumer type-checking against the
+published declaration sees it, exactly the same failure mode as [typedef
+documentation not surviving declaration
+emit](#typedef-documentation-does-not-survive-declaration-emit) above, but for
+assignability instead of prose.
+
+Found on `fjs/types/sorted_list`'s `genericMerge`, `merge`, and `intersect`
+during review of [#1478](https://github.com/functionalscript/functionalscript/pull/1478):
+omitting `@returns` took the module's emitted declaration from 0 to 7 `any`
+and 6 `/*elided*/`, and let a call like `merge(cmp)(a)(b)` be assigned to the
+wrong `SortedList<T>` without a type error when checked against the emitted
+`.d.mts` — while the same misuse was correctly rejected against the `.mjs`
+source and against `main`'s pre-migration `.f.ts`. Adding an explicit
+`@returns` naming the return type on each restored the declaration to 0
+`any`/`elided` and made both directions of the substitution check fail again,
+matching `main`.
+
+The fix generalizes: every exported function, curried or not, should carry an
+explicit `@returns` (or a top-level `@type` on the whole signature) rather
+than relying on inferred return types — check the emitted `.d.mts` for
+`any`/`elided` as part of migrating any module with generics or recursive
+data.
+
+A related mechanical finding from the same review round: composing multiple
+independently-generic helper functions inside another generic function's body
+(e.g. `genericMerge` calling `cmpReduce` calling into `mergeTail`, all
+separately `<T>`-generic) loses type inference when each is annotated with a
+single `@type {<T, S>(...) => ...}` on the whole arrow chain — TypeScript
+cannot always unify the type parameters across the nested generic-value calls,
+and parameters silently widen to `unknown`. The fix already has precedent in
+`fjs/types/array/module.f.mjs`'s `isTuple`: give each arrow in the curried
+chain its own JSDoc comment with `@template`/`@param`/`@returns`, so the
+template parameter is a real, named binding in scope for the rest of the
+function body instead of an anonymous part of a value's call signature.
+`fjs/types/sorted_list`, `fjs/types/range_map`, and `fjs/fsc` all use this
+per-arrow style for their generic helpers. Prefer the single `@type {<T,
+S>(...) => ...}` form (as `fjs/types/list/module.f.mjs`'s `reduce` and similar
+non-composing generics already do) when a generic function does not call
+other independently-generic functions in its body; switch to the per-arrow
+style once composition breaks inference.
+
 #### Known TypeScript-to-JSDoc hard cases
 
 Do not require the migration plan to pre-design every TypeScript-only type
@@ -348,6 +398,20 @@ compiler-compatibility rename.
       compiler support.
 - [ ] Translate TypeScript generic constraints and `in` / `out` variance to
       JSDoc `@template` syntax without changing assignability.
+- [ ] Give every exported function an explicit `@returns` (or top-level
+      `@type` covering the full signature) rather than relying on inferred
+      return types, and check the emitted `.d.mts` for new `any`/`elided`
+      after migrating any module with generics or recursive data — inferred
+      return types on curried generic exports can silently collapse to `any`
+      in declaration emit even though `npx tsc` and `fjs t` stay green. Use
+      the per-arrow `@template`/`@param`/`@returns` style (`fjs/types/array`'s
+      `isTuple`, reused by `sorted_list`/`range_map`/`fsc`) instead of a
+      single `@type {<T, S>(...) => ...}` when a generic function composes
+      other independently-generic functions in its body.
+- [ ] Keep `/** @type {const} */` as an inline cast on the expression, never
+      hoisted to a leading declaration annotation — the declaration-level
+      form fails with `TS2304` because TypeScript resolves `const` as an
+      ordinary type name there, unlike every other `@type` cast.
 - [ ] Decide each typedef's visibility at the migration boundary: prefix
       implementation-only typedefs with `_` and leave publicly useful ones
       unprefixed, judged by what the module should offer its consumers rather
@@ -422,6 +486,14 @@ compiler-compatibility rename.
 - Every migrated module's `@module` header survives into its emitted
   declaration, which requires a blank line between that header and the first
   `import` statement.
+- Every exported function's return type survives into its emitted
+  declaration as a named type, not `any` or `/*elided*/`; curried generic
+  exports carry an explicit `@returns` rather than relying on inference, and
+  the per-arrow `@template`/`@param`/`@returns` style is used wherever a
+  generic function composes other independently-generic functions in its
+  body.
+- `/** @type {const} */` stays an inline cast on the expression it types,
+  never a leading declaration-level annotation.
 - Renaming or removing an emitted `_`-prefixed alias is not breaking solely due
   to that alias being emitted; any resulting change to a public declaration's
   assignability is still a breaking change.
