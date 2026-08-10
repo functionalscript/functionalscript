@@ -164,7 +164,7 @@ TypeScript-to-JavaScript migration:
 |---|---|---|
 | `module.f.ts` | `proof.f.ts` | Both files are still authored TypeScript. |
 | `module.f.mjs` | `proof.f.ts` | The implementation has migrated, while the proof temporarily remains TypeScript. |
-| `module.f.mjs` | `proof.f.mjs` | The proof is valid JavaScript/JSDoc and all of its authored FunctionalScript runtime/type dependencies outside the migration group are already `.f.mjs`. Compiler readiness is not required. |
+| `module.f.mjs` | `proof.f.mjs` | The proof is valid JavaScript/JSDoc and all authored runtime dependencies outside the migration group are already `.f.mjs`. Type-only dependencies may remain `.f.ts` and be referenced with JSDoc `@import`. Compiler readiness is not required. |
 
 Renaming an implementation to `.f.mjs` therefore never requires renaming its
 proof in the same change, and never removes it from proof discovery or from Node
@@ -175,14 +175,22 @@ files stay opt-in through the `proof.mjs` filename convention. Stage 1 still
 ends with no authored `.f.ts`, so every remaining `proof.f.ts` must eventually
 migrate to `proof.f.mjs`.
 
-A `proof.f.mjs` is authored `.f.mjs` like any other, so it must satisfy the same
-source dependency-closure rule as any other migrated file: its relative runtime
-imports and JSDoc type references may target `.f.mjs` modules only. This is a
-JavaScript/JSDoc and dependency-readiness rule, not a FunctionalScript compiler
-feature gate. A proof that still imports an unmigrated helper such as
-`fjs/types/object/module.f.ts` remains `proof.f.ts` until that helper migrates. See
-[`fjs/fsc/README.md`](./fjs/fsc/README.md) for the migration order and the
-module-import policy it implies.
+A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
+imports must target migrated `.f.mjs` modules, but a type-only dependency may
+remain `.f.ts` and be referenced with JSDoc `@import`; this does not create a
+runtime dependency. For example:
+
+```js
+/** @import { Phantom } from '../phantom/module.f.ts' */
+```
+
+Do not add a runtime `import` merely to make a TypeScript type visible, and do
+not add a runtime value for a type-system-only declaration such as `declare
+const`. When the referenced TypeScript module itself migrates, update the
+`@import` specifier to its new authored JavaScript path. Compiler support remains
+independent of this JavaScript/JSDoc migration rule. See
+[`fjs/fsc/README.md`](./fjs/fsc/README.md) for the migration order and module
+policy.
 
 ### 3.3 Use `assert` / `assertEq`, never a hand-written `if`/`throw`
 
@@ -484,6 +492,21 @@ The supported forms are `@template out T`, `@template in T`, and constrained
 forms such as `@template {Operation} out O`. Variance modifiers belong to type
 parameters of a JSDoc type alias (`@typedef`); do not put `in` / `out` on an
 ordinary function's `@template`, where TypeScript rejects them.
+
+When a JavaScript file needs only types from another module, use JSDoc
+`@import` instead of a JavaScript `import` statement:
+
+```js
+/** @import { Types } from '../only_types/module.f.ts' */
+```
+
+During the TypeScript-to-JavaScript migration, a type-only `@import` may point to
+a remaining `.ts` / `.f.ts` source. This is the exception to the runtime
+dependency-closure rule: it introduces no runtime dependency, so type-only
+modules and declarations such as `declare const` do not need artificial
+JavaScript values or runtime imports just to unblock their consumers. Use the
+current authored TypeScript path while that source remains TypeScript; update the
+specifier when the referenced source migrates.
 
 When translating a public type, verify both normal type checking and emitted
 `.d.ts` / `.d.mts` declarations. The JSDoc spelling may differ, but the public
@@ -899,12 +922,19 @@ anywhere else as the rule being broken.
 ### 6.5 FunctionalScript module rules
 
 During Stage 1 of the TypeScript-to-JavaScript migration, relative authored
-FunctionalScript dependencies follow the asymmetric source rule:
+FunctionalScript **runtime** dependencies follow the asymmetric source rule:
 
 - `.f.ts` may import `.f.ts` or already migrated `.f.mjs`;
-- `.f.mjs` may import only `.f.mjs` authored FunctionalScript dependencies;
+- `.f.mjs` runtime imports may target only migrated `.f.mjs` authored
+  FunctionalScript dependencies;
+- `.f.mjs` may use JSDoc `@import` for type-only dependencies that still live in
+  `.f.ts`; such references do not block migration because they create no runtime
+  dependency;
+- never add a runtime import/export or runtime value solely to represent a
+  TypeScript-only type declaration;
 - compiler support does not gate an `.f.ts` / `proof.f.ts` -> `.f.mjs` /
-  `proof.f.mjs` rename; JavaScript/JSDoc validity and dependency closure do.
+  `proof.f.mjs` rename; JavaScript/JSDoc validity and runtime dependency closure
+  do.
 
 Avoid references to built-in or external Node modules such as `node:path` in
 FunctionalScript source. No `try`/`catch` — see
