@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import { flat } from '../list/module.f.mjs'
 /** @import { List, Thunk } from '../list/module.f.mjs' */
 import { map } from '../nullable/module.f.mjs'
