@@ -190,6 +190,36 @@ This convention is temporary. Once TypeScript can strip `@internal` JSDoc
 typedefs correctly, replace the underscore workaround as tracked by
 [`blocked/jsdoc-typedef-strip-internal.md`](./blocked/jsdoc-typedef-strip-internal.md).
 
+#### Typedef documentation does not survive declaration emit
+
+The same upstream gap has a second, opposite-facing symptom: declaration emit
+drops the documentation written on a JSDoc `@typedef`. A TypeScript
+`/** 8-word SHA-2 state vector. */ export type V8 = …` keeps its comment in the
+emitted `.d.ts`; the equivalent `@typedef` in a `.mjs` emits as a bare
+`export type V8 = …`, and the prose — including any `@example` — is gone from the
+published declaration. Documentation on `export const` declarations is
+unaffected, so a migrated module loses exactly its *type* documentation.
+
+`fjs/crypto/sha2` is the clearest case so far: `V8`, `V16`, `State` and `Sha2`
+were documented types, and `Sha2` carried the module's `@example` walkthrough.
+All of it survives in the source and none of it reaches `module.f.d.mts`. The
+loss is therefore invisible to anyone reading the repository and visible only to
+a consumer of the published package.
+
+Related upstream behavior: TypeScript sometimes re-emits a bare `@typedef`
+comment attached to the *following* declaration instead
+([microsoft/TypeScript#43534](https://github.com/microsoft/TypeScript/issues/43534),
+fixed for the services layer), and
+[microsoft/TypeScript#61664](https://github.com/microsoft/TypeScript/issues/61664)
+proposes stripping redundant JSDoc type directives from declaration emit while
+keeping documentation. Neither tracks this loss directly; no upstream issue for
+it has been identified yet.
+
+This does not block any migration group — it is a documentation-fidelity
+regression, not a type-contract one. Record it, keep writing the documentation in
+the source, and file an upstream issue so the gap is tracked rather than
+rediscovered by each migration.
+
 #### Known TypeScript-to-JSDoc hard cases
 
 Do not require the migration plan to pre-design every TypeScript-only type
@@ -280,6 +310,10 @@ compiler-compatibility rename.
       unprefixed, judged by what the module should offer its consumers rather
       than by what the `.f.ts` happened to export or by what a pending refactor
       plans to delete.
+- [ ] File an upstream issue for typedef documentation being dropped from
+      declaration emit, and keep writing type documentation in the source
+      meanwhile — the loss is a published-package regression only, and blocks no
+      migration group.
 - [ ] Treat `_`-prefixed typedef names as private even when declarations emit
       them as exports, but still require `**BREAKING CHANGES:**` whenever a
       change to one alters the assignability of a public declaration.
@@ -334,6 +368,9 @@ compiler-compatibility rename.
   their JSDoc `@template` equivalents; public assignability is not weakened.
 - Implementation-only JSDoc typedefs use `_`-prefixed names and are treated as
   private API even when TypeScript emits them as exported declaration aliases.
+- Documentation lost from emitted declarations because it was attached to a
+  JSDoc `@typedef` is recorded as a known upstream gap, not treated as a reason
+  to keep a module in TypeScript or to stop documenting its types.
 - Renaming or removing an emitted `_`-prefixed alias is not breaking solely due
   to that alias being emitted; any resulting change to a public declaration's
   assignability is still a breaking change.
