@@ -1,4 +1,4 @@
-import { find, merge } from './module.f.ts'
+import { find, merge } from './module.f.mjs'
 import { stringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { toArray, countdown, length } from '../list/module.f.mjs'

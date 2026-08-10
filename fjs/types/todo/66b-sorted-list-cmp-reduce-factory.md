@@ -5,18 +5,18 @@
 
 ### Problem
 
-`fjs/types/sorted_list/module.f.ts` defines two `ReduceOp<T, null>` constructors
+`fjs/types/sorted_list/module.f.mjs` defines two `ReduceOp<T, null>` constructors
 for `genericMerge` that are identical except for the value they place in the
 first tuple slot:
 
 ```ts
-// :48-51
+// :82-91
 const cmpReduce = <T>(cmp: Cmp<T>): CmpReduceOp<T> => () => a => b => {
     const sign = cmp(a)(b)
     return [sign === 1 ? b : a, sign, null]
 }
 
-// :57-60
+// :97-106
 const intersectReduce = <T>(cmp: Cmp<T>): ReduceOp<T, null> => () => a => b => {
     const sign = cmp(a)(b)
     return [sign === 0 ? a : null, sign, null]

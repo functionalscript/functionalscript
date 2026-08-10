@@ -36,7 +36,7 @@
  * ```
  */
 
-import { genericMerge, type TailReduce, type ReduceOp, type SortedList } from '../sorted_list/module.f.ts'
+import { genericMerge, type TailReduce, type ReduceOp, type SortedList } from '../sorted_list/module.f.mjs'
 import { next } from '../list/module.f.mjs'
 import type { Nullable } from '../nullable/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'
