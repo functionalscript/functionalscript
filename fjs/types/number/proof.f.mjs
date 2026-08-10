@@ -1,4 +1,4 @@
-import { sum, min, max, cmp, countOnes } from './module.f.ts'
+import { sum, min, max, cmp, countOnes } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
@@ -25,15 +25,13 @@ export const proof = {
         assertEq(result, -1)
     },
     standard: () => {
-        const check
-            : (a: bigint) => (a: bigint) => void
-            = a => b => {
+        /** @type {(a: bigint) => (b: bigint) => void} */
+        const check = a => b => {
             assertEq(BigInt(Number(a)), b, [a, b])
         }
 
-        const eq
-            : (v: bigint) => void
-            = v => check(v)(v)
+        /** @type {(v: bigint) => void} */
+        const eq = v => check(v)(v)
 
         // 53, 0x35 bits.
         //        3                   2                   1                   0

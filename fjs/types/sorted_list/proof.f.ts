@@ -3,7 +3,7 @@ import { stringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { toArray, countdown, length } from '../list/module.f.mjs'
 import { flip } from '../function/module.f.mjs'
-import { cmp } from '../number/module.f.ts'
+import { cmp } from '../number/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const str: (a: readonly Unknown[]) => string
