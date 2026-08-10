@@ -5,14 +5,14 @@
 
 ### Problem
 
-`codePointToUtf8`'s error branch (`fjs/text/utf8/module.f.mjs:107-128`) and
+`codePointToUtf8`'s error branch (`fjs/text/utf8/module.f.mjs:130-151`) and
 `utf8StateToError` (`:173-198`) are exact inverses that both hardcode the
 same un-named partial-state flag offsets:
 
-- `0b1000_0000_0000_0000` at `:108` and `:166`
-- `0b0000_0100_0000_0000` at `:115` and `:158`
-- `0b0000_0010_0000_0000` at `:121` and `:159`
-- `0b0000_0000_1000_0000` at `:127`
+- `0b1000_0000_0000_0000` at `:131` and `:191`
+- `0b0000_0100_0000_0000` at `:138` and `:183`
+- `0b0000_0010_0000_0000` at `:144` and `:185`
+- `0b0000_0000_1000_0000` at `:150`
 
 The "partial UTF-8 state ↔ error-tagged code point" bit layout is documented
 only as a table in `fjs/text/README.md` (the "utf8 error" sections), so the
