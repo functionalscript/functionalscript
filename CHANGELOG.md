@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** the type-only `Assert` moves from
+  `fjs/asserts/module.f.mjs` to `fjs/asserts/types.ts`, and `Func` / `Fn` from
+  `fjs/types/function/module.f.mjs` to `fjs/types/function/types.ts` — importers
+  of these types must use the `types.ts` specifier
+  [#1483](https://github.com/functionalscript/functionalscript/pull/1483)
 - `fjs/types/nullable/proof.f.ts`, `fjs/types/range/proof.f.ts`,
   `fjs/types/function/proof.f.ts`, `fjs/types/result/proof.f.ts`, and
   `fjs/types/function/compare/proof.f.ts` migrate to `proof.f.mjs` under
