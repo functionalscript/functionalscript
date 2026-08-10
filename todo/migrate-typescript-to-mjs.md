@@ -244,14 +244,14 @@ actually reference — and when the statement carrying the header is not among t
 survivors, the header goes with it. With the blank line the header detaches from
 that statement and is emitted as the file's own leading comment.
 
-Checked against every `.mjs` in the repository carrying an `@module` header — 24
+Checked against every `.mjs` in the repository carrying an `@module` header — 26
 modules, no exceptions:
 
 | header separated from first `import` statement | header kept | count |
 | ---------------------------------------------- | ----------- | ----- |
 | yes                                             | yes         | 13    |
 | no `import` statement at all                    | yes         | 8     |
-| no                                              | **no**      | 3     |
+| no                                              | **no**      | 5     |
 
 A module with no `import` statement keeps its header unconditionally: there is no
 statement for the comment to attach to, so it is already the file's own leading
@@ -259,8 +259,9 @@ comment. That is why the loss looks intermittent rather than systematic — most
 migrated modules are in one of the two safe categories by accident, not by
 intent.
 
-`fjs/types/list`, `fjs/types/nullable` and `fjs/common/monoid` are the three that
-currently lose their header and want the same one-line fix.
+`fjs/common/monoid`, `fjs/types/btree/remove`, `fjs/types/btree/set`,
+`fjs/types/list` and `fjs/types/nullable` are the five that currently lose their
+header and want the same one-line fix.
 
 #### Known TypeScript-to-JSDoc hard cases
 
@@ -354,8 +355,9 @@ compiler-compatibility rename.
       plans to delete.
 - [ ] Keep a blank line between a module's `@module` header and its first
       `import` statement so the header survives declaration emit; fix the
-      modules that already lost theirs (`fjs/types/list`, `fjs/types/nullable`,
-      `fjs/common/monoid`).
+      modules that already lost theirs (`fjs/common/monoid`,
+      `fjs/types/btree/remove`, `fjs/types/btree/set`, `fjs/types/list`,
+      `fjs/types/nullable`).
 - [ ] File an upstream issue for typedef documentation being dropped from
       declaration emit, and keep writing type documentation in the source
       meanwhile — the loss is a published-package regression only, and blocks no
