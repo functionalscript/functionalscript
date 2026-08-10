@@ -118,7 +118,7 @@ import {
     type ToolEntry, type ToolsCallResult,
 } from '../../protocol/mcp/module.f.ts'
 import { collectRead, fileCas, type FileCasOperation } from '../../cas/module.f.ts'
-import { fromVec } from '../../text/utf8/module.f.ts'
+import { fromVec } from '../../text/utf8/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'

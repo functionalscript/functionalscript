@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/text/utf8` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
+  TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier
+  [#1480](https://github.com/functionalscript/functionalscript/pull/1480)
 - **BREAKING CHANGES:** `fjs/ci/config`, `fjs/text/ascii`, and `fjs/fsc`
   migrate from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
   (`.f.mjs`) under the stage-1 TypeScript-to-mjs migration — importers

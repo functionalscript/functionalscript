@@ -14,8 +14,8 @@ helper:
 export const utf8ToString = (msbV: Utf8): string =>
     codePointListToString(toCodePointList(u8List(msb)(msbV)))
 
-// fjs/text/utf8/module.f.ts:283-290 — checked / Nullable, in the utf8 module
-export const fromVec = (v: Vec): string | null => {
+// fjs/text/utf8/module.f.mjs:293-300 — checked / Nullable, in the utf8 module
+export const fromVec = v => {
     if ((length(v) & 0b111n) !== 0n) { return null }
     const arr = toArray(toCodePointList(u8List(msb)(v)))
     for (const cp of arr) {
@@ -42,14 +42,14 @@ Give the utf8 module sole ownership of the `Vec` → code-point decode and
 express both string forms through it:
 
 ```ts
-// fjs/text/utf8/module.f.ts
+// fjs/text/utf8/module.f.mjs
 export const vecToCodePointList = (v: Vec): List<I32> => toCodePointList(u8List(msb)(v))
 ```
 
 `fromVec` builds on it (adding its alignment/validity checks), and
 `text/module.f.ts`'s `utf8ToString` becomes
 `codePointListToString(vecToCodePointList(msbV))`. Consider going further and
-moving `utf8ToString` into `fjs/text/utf8/module.f.ts` as the unchecked
+moving `utf8ToString` into `fjs/text/utf8/module.f.mjs` as the unchecked
 sibling of `fromVec` — mirroring how the encode direction already pairs
 `tryUtf8`/`utf8` in one place. If it moves, migrate it as a breaking change
 with every importer updated in the same PR; a re-export left in
@@ -58,7 +58,7 @@ with every importer updated in the same PR; a re-export left in
 
 ### Tasks
 
-- [ ] Add `vecToCodePointList` to `fjs/text/utf8/module.f.ts`; rewrite
+- [ ] Add `vecToCodePointList` to `fjs/text/utf8/module.f.mjs`; rewrite
       `fromVec` and `utf8ToString` through it.
 - [ ] Decide whether `utf8ToString` moves next to `fromVec`; update importers
       if so.

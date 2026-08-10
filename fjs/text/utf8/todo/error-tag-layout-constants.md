@@ -5,7 +5,7 @@
 
 ### Problem
 
-`codePointToUtf8`'s error branch (`fjs/text/utf8/module.f.ts:107-128`) and
+`codePointToUtf8`'s error branch (`fjs/text/utf8/module.f.mjs:107-128`) and
 `utf8StateToError` (`:148-173`) are exact inverses that both hardcode the
 same un-named partial-state flag offsets:
 
@@ -23,7 +23,7 @@ nothing tying them together.
 
 Define named constants (or a small encode/decode pair) for the layout flags
 once — e.g. next to `errorMask` in `fjs/text/code_point/module.f.mjs`, or at
-the top of `fjs/text/utf8/module.f.ts` if the layout is considered
+the top of `fjs/text/utf8/module.f.mjs` if the layout is considered
 utf8-private — and use them in both functions. Names should follow the
 README's terminology so the doc table and the constants are trivially
 cross-checkable.
