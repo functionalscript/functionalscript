@@ -9,18 +9,30 @@
 for `genericMerge` that are identical except for the value they place in the
 first tuple slot:
 
-```ts
-// :82-91
-const cmpReduce = <T>(cmp: Cmp<T>): CmpReduceOp<T> => () => a => b => {
-    const sign = cmp(a)(b)
-    return [sign === 1 ? b : a, sign, null]
-}
+```js
+// :85-94
+const cmpReduce =
+    /**
+     * @template T
+     * @param {Cmp<T>} cmp
+     * @returns {_CmpReduceOp<T>}
+     */
+    cmp => () => a => b => {
+        const sign = cmp(a)(b)
+        return [sign === 1 ? b : a, sign, null]
+    }
 
-// :97-106
-const intersectReduce = <T>(cmp: Cmp<T>): ReduceOp<T, null> => () => a => b => {
-    const sign = cmp(a)(b)
-    return [sign === 0 ? a : null, sign, null]
-}
+// :101-110
+const intersectReduce =
+    /**
+     * @template T
+     * @param {Cmp<T>} cmp
+     * @returns {ReduceOp<T, null>}
+     */
+    cmp => () => a => b => {
+        const sign = cmp(a)(b)
+        return [sign === 0 ? a : null, sign, null]
+    }
 ```
 
 Both share the entire skeleton — the `() => a => b =>` shape, the

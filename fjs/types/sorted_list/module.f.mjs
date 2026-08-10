@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import { bsearch } from '../function/compare/module.f.mjs'
 /** @import { Sign, Cmp } from '../function/compare/module.f.mjs' */
 import { next } from '../list/module.f.mjs'
@@ -45,6 +46,7 @@ export const genericMerge =
      * @template T
      * @template S
      * @param {_MergeReduce<T, S>} _
+     * @returns {(state: S) => (a: List<T>) => (b: List<T>) => List<T>}
      */
     ({ reduceOp, tailReduce }) => {
         /** @param {S} state */
@@ -72,6 +74,7 @@ export const merge =
     /**
      * @template T
      * @param {Cmp<T>} cmp
+     * @returns {(a: SortedList<T>) => (b: SortedList<T>) => SortedList<T>}
      */
     cmp => {
         /** @type {TailReduce<T, null>} */
@@ -110,6 +113,7 @@ export const intersect =
     /**
      * @template T
      * @param {Cmp<T>} cmp
+     * @returns {(a: SortedList<T>) => (b: SortedList<T>) => SortedList<T>}
      */
     cmp => genericMerge({ reduceOp: intersectReduce(cmp), tailReduce })(null)
 
