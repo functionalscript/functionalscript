@@ -531,6 +531,29 @@ Avoid `as` type assertions (except `as const`). Treat them like `unsafe` in Rust
 justified. They silence the type checker and hide real bugs; if a cast is needed,
 it usually means the types or the code structure should be improved instead.
 
+The JSDoc equivalent, an inline `/** @type {T} */ (expr)` cast, carries the same
+hazard and the same rule: avoid it. Prefer annotating a separate `const`
+declaration instead of casting an expression inline —
+
+```js
+/** @type {ReadonlyMap<string, number>} */
+const empty = new Map()
+```
+
+rather than
+
+```js
+mapSet(/** @type {ReadonlyMap<string, number>} */ (new Map()), 'a', 1)
+```
+
+— because the declaration form documents the variable's intended type and lets
+the compiler check the initializer against it (closer to `satisfies`), while the
+inline form silently overrides whatever the compiler inferred, exactly like `as`.
+An exception applies when the original TypeScript source used `as`: a mechanical
+`.f.ts` → `.f.mjs` migration may carry the assertion over as an inline
+`@type`-cast rather than block on a redesign, but should still prefer the
+declaration form when it is a straightforward rewrite.
+
 #### Avoid type predicates
 
 Avoid TypeScript type predicates (`(x: T): x is U`). They are error-prone: the
