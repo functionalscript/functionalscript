@@ -220,6 +220,38 @@ regression, not a type-contract one. Record it, keep writing the documentation i
 the source, and file an upstream issue so the gap is tracked rather than
 rediscovered by each migration.
 
+#### Separate the `@module` header from the first import with a blank line
+
+A module's `@module` header can disappear from the emitted declaration too, but
+that one is **not** an upstream gap — it is a source-formatting requirement, and
+a blank line fixes it:
+
+```js
+/**
+ * ...
+ * @module
+ */
+                                    // <- this blank line is load-bearing
+/** @import { Tuple } from '...' */
+import { mask } from '...'
+```
+
+Without the blank line, the header is the leading comment of the first `import`
+*statement* (an `@import` tag is a comment, not a statement, so it does not
+separate them). Declaration emit rewrites the import list — dropping
+runtime-only imports and synthesizing `import type` for what the declarations
+actually reference — and when the statement carrying the header is not among the
+survivors, the header goes with it. With the blank line the header detaches from
+that statement and is emitted as the file's own leading comment.
+
+Checked against every migrated `.f.mjs` carrying an `@module` header: the blank
+line predicts retention in all 16, with no exceptions. Modules whose first import
+happens to survive into the declarations keep their header either way, which is
+why the loss looks intermittent rather than systematic.
+
+`fjs/types/list` and `fjs/common/monoid` currently lose their header this way and
+want the same one-line fix.
+
 #### Known TypeScript-to-JSDoc hard cases
 
 Do not require the migration plan to pre-design every TypeScript-only type
@@ -310,6 +342,9 @@ compiler-compatibility rename.
       unprefixed, judged by what the module should offer its consumers rather
       than by what the `.f.ts` happened to export or by what a pending refactor
       plans to delete.
+- [ ] Keep a blank line between a module's `@module` header and its first
+      `import` statement so the header survives declaration emit; fix the
+      modules that already lost theirs (`fjs/types/list`, `fjs/common/monoid`).
 - [ ] File an upstream issue for typedef documentation being dropped from
       declaration emit, and keep writing type documentation in the source
       meanwhile — the loss is a published-package regression only, and blocks no
@@ -371,6 +406,9 @@ compiler-compatibility rename.
 - Documentation lost from emitted declarations because it was attached to a
   JSDoc `@typedef` is recorded as a known upstream gap, not treated as a reason
   to keep a module in TypeScript or to stop documenting its types.
+- Every migrated module's `@module` header survives into its emitted
+  declaration, which requires a blank line between that header and the first
+  `import` statement.
 - Renaming or removing an emitted `_`-prefixed alias is not breaking solely due
   to that alias being emitted; any resulting change to a public declaration's
   assignability is still a breaking change.

@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 /** @import { Tuple } from '../../types/array/module.f.mjs' */
 import { mask } from '../../types/bigint/module.f.mjs'
 /** @import { Reduce } from '../../types/bigint/module.f.mjs' */
