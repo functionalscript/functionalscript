@@ -1,5 +1,5 @@
 import type { TNode } from './types/module.f.mjs'
-import { values } from './module.f.ts'
+import { values } from './module.f.mjs'
 import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { cmp } from '../string/module.f.ts'

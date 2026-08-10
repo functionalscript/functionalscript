@@ -24,6 +24,10 @@ history.
   (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
   TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier
   [#1476](https://github.com/functionalscript/functionalscript/pull/1476)
+- **BREAKING CHANGES:** `fjs/types/btree` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
+  TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier
+  [#1475](https://github.com/functionalscript/functionalscript/pull/1475)
 - **BREAKING CHANGES:** `fjs/crypto/sha2` migrates from authored TypeScript
   (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
   TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier
