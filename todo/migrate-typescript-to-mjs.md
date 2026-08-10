@@ -13,17 +13,24 @@ implementations is a repository-wide source-language migration, while compiler
 compatibility depends on the feature set implemented by the FunctionalScript
 parser/compiler.
 
-TypeScript is also useful for type-level source. A type-only API does not need to
-be translated to JSDoc merely because its runtime implementation migrates. It may
-remain in a real authored `types.ts` file, including TypeScript-only declarations
-such as `declare const` and `unique symbol`.
+TypeScript is also useful as a type language. A type-only API does not need a
+JavaScript runtime representation and should not be forced through the
+implementation migration merely because its declarations currently live in a
+`module.f.ts`. Likewise, a runtime implementation may benefit from keeping a
+separate TypeScript type-level API beside it.
 
-The repository therefore has two source categories and two ordered implementation
-stages:
+Keeping unsupported runtime modules as `.f.ts` until the FunctionalScript
+compiler can parse them would unnecessarily block the implementation migration.
+Forcing type-only files into JSDoc would create the opposite problem: it would
+make us translate TypeScript constructs such as `declare const` and `unique
+symbol` even though no JavaScript runtime module is wanted.
+
+The repository therefore needs two independent source categories and two ordered
+implementation stages:
 
 1. type-only APIs may live permanently in authored `types.ts` files;
-2. migrate authored TypeScript **implementations and proofs** to JavaScript with
-   JSDoc, independently of FunctionalScript compiler support;
+2. migrate all authored TypeScript **implementations and proofs** to JavaScript
+   with JSDoc, independently of FunctionalScript compiler support;
 3. after implementation TypeScript is gone, migrate compiler-supported
    FunctionalScript implementations from `.f.mjs` to authored `.f.js`.
 
@@ -58,27 +65,27 @@ module.f.ts -> module.f.mjs
 proof.f.ts  -> proof.f.mjs
 ```
 
-- `.ts` / `.f.ts` are authored TypeScript implementation/proof source that still
-  remains to migrate, except for intentional `types.ts` type modules;
+- `.ts` / `.f.ts` are authored TypeScript **implementation/proof** source that
+  still remains to migrate, except for intentional `types.ts` type modules;
 - `.mjs` is authored ESM JavaScript with JSDoc types;
 - `.f.mjs` is authored FunctionalScript-intent JavaScript with JSDoc types;
 - `.f.mjs` does **not** promise that the current FunctionalScript compiler can
   parse the module;
-- `types.ts` is authored TypeScript source for a type-level API and is outside the
-  runtime implementation migration;
+- `types.ts` is authored TypeScript type-only source and is **not** an
+  implementation migration target;
 - `.js` remains generated output and must not be authored while TypeScript
-  implementation source can still generate it;
+  implementation source remains;
 - `.d.ts` / `.d.mts` remain generated declarations.
 
 The authoritative extension contract in [`../fjs/fsc/README.md`](../fjs/fsc/README.md)
-and the package/test plans must use these meanings throughout Stage 1.
+and the package plans must use these meanings throughout stage 1.
 
-#### Keep type-only APIs in real `types.ts`
+#### Separate type-only APIs into `types.ts`
 
 Use `types.ts` for declarations that intentionally have no runtime
-implementation or that are intentionally separated from runtime code. This is
-ordinary authored TypeScript source, not generated output and not a temporary
-migration extension.
+representation or that are intentionally separated from the runtime
+implementation. This is ordinary authored TypeScript source, not generated
+output and not a temporary migration extension.
 
 A `types.ts` may coexist with every implementation stage:
 
@@ -87,6 +94,11 @@ types.ts + module.f.ts
 types.ts + module.f.mjs
 types.ts + module.f.js
 ```
+
+This gives the type-level API a stable lifetime while the runtime implementation
+moves independently. It also lets declarations use the full TypeScript type
+language, including constructs that cannot be represented faithfully or
+conveniently in JSDoc.
 
 Both TypeScript and JavaScript implementations reference the same real source
 file:
@@ -99,52 +111,58 @@ import type { Phantom } from './types.ts'
 /** @import { Phantom } from './types.ts' */
 ```
 
-Both forms are type-only. The important property is that `types.ts` actually
-exists. Do not rely on TypeScript resolving a missing `types.ts` or `types.js`
-specifier to an authored `.d.ts`; Deno does not provide that substitution and
-fails such source graphs.
+Both forms are type-only, and the referenced `types.ts` physically exists. This
+avoids relying on TypeScript-specific substitution from a missing `.ts` / `.js`
+specifier to an authored `.d.ts`, which Deno does not perform. The source
+specifier does not change when `module.f.ts -> module.f.mjs -> module.f.js`.
 
 This split is a normal module-organization option, not only an escape hatch. A
 runtime module may keep simple, implementation-local types in TypeScript/JSDoc
 beside the code, while a separately useful type-level API can live in `types.ts`.
 Do not split mechanically when it only adds indirection, but do not force a type
-into JSDoc merely to remove all TypeScript syntax either.
+into JSDoc merely to keep all declarations in `module.f.*` either.
 
 A file containing only `type`/`interface` declarations, type-only imports/exports,
 `declare const`, or similar compile-time declarations should normally become
-`types.ts` instead of `.f.mjs`. Never invent runtime `Symbol()` values or other
-JavaScript representations just to preserve a type-system-only declaration.
+`types.ts` instead of `.f.mjs`. Existing `.f.mjs` files that are truly
+runtime-empty declaration modules may likewise be converted to `types.ts` when
+that is the cleaner type-module organization. Never invent runtime exports,
+`Symbol()` values, or other JavaScript representations just to preserve a
+type-system-only declaration.
 
-`types.ts` is checked as normal TypeScript source, so no `skipLibCheck` change and
-no `.gitignore` exception are required.
+`types.ts` is normal TypeScript source, so it is checked without changing
+`skipLibCheck`; generated declaration files remain ignored as before and no
+`.gitignore` exception is needed.
 
-#### Validate package behavior before migration
+#### Enable JavaScript checking and validate `types.ts` packaging first
 
-Before the first real `.f.ts -> .f.mjs` implementation conversion, complete:
+Before the first `.ts` / `.f.ts` implementation file moves to `.mjs` / `.f.mjs`,
+keep `allowJs` and `checkJs` enabled in the root `tsconfig.json`. TypeScript
+remains the repository type checker during this migration; JSDoc replaces
+implementation TypeScript syntax without creating an unchecked intermediate
+source set.
 
-- [`../fjs/ci/todo/f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
-  which validates authored `.mjs`, real `types.ts`, declaration/runtime emission,
-  packed-package resolution, and clean consumers;
-- [`../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md),
-  which is **blocked by** package support and validates an actual `.f.mjs`
-  runtime fixture under Node and Deno coverage.
+Stage 1 is **blocked by** both of these prerequisites before the first real
+repository `.f.ts` -> `.f.mjs` implementation conversion:
 
-`allowJs` and `checkJs` are already enabled and TypeScript remains the repository
-type checker during Stage 1.
+- [`../fjs/ci/todo/f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md)
+  makes authored `.mjs` and real `types.ts` checked, packable source and validates
+  the emitted package layout;
+- [`../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
+  is **blocked by** that package-support task and adds an actual `.f.mjs`
+  runtime fixture proving proof execution plus Node and Deno coverage.
 
-The real `types.ts` convention must be tested end to end rather than inferred
-from `tsc` alone. In particular, with `rewriteRelativeImportExtensions: true`,
-verify:
+Package and publish jobs run only in CI from a clean checkout. The migration does
+not need to preserve packability of arbitrary developer working trees or track
+ignored generated outputs across source renames; a later CI package job starts
+without those stale files.
 
-- how `./types.ts` references from `.ts` and JSDoc `.mjs` appear in emitted
-  `.d.ts` / `.d.mts`;
-- which generated `types.js` / `types.d.ts` artifacts are required in the packed
-  package;
-- whether TypeScript, Node, Deno, and Bun all resolve the packed result;
-- whether the second TypeScript runtime-emission pass must remain while authored
-  `types.ts` exists.
-
-Do not simplify the package pipeline until that experiment establishes the
+The `types.ts` source convention must also be validated outside `tsc`. With
+`rewriteRelativeImportExtensions: true`, the package fixture must establish how
+`./types.ts` references from `.ts` and `.mjs` appear in emitted declarations,
+which generated `types.js` / `types.d.ts` artifacts are required in the packed
+package, and that TypeScript, Node, Deno, and Bun can consume the result. Do not
+simplify the package emit pipeline until that experiment establishes the minimal
 portable layout.
 
 #### Migrate gradually from runtime dependency leaves
@@ -163,13 +181,12 @@ The transition is intentionally asymmetric for runtime dependencies:
 
 - remaining `.ts` / `.f.ts` implementations may depend at runtime on already
   migrated `.mjs` / `.f.mjs`;
-- migrated `.mjs` / `.f.mjs` must not runtime-import remaining implementation
-  `.ts` / `.f.ts`;
-- migrated JavaScript may use JSDoc `@import` from intentional `types.ts` type
-  modules;
+- migrated `.mjs` / `.f.mjs` must not import remaining authored implementation
+  `.ts` / `.f.ts` at runtime;
+- migrated JavaScript may use JSDoc `@import` from a real authored `types.ts`;
 - when a required type still lives only in a remaining implementation `.ts` /
   `.f.ts`, split that type into `types.ts` before migrating the JavaScript
-  consumer rather than retaining a type edge to the implementation module.
+  consumer rather than retaining a JavaScript-to-TypeScript implementation edge.
 
 FunctionalScript parser support is not an eligibility condition. A `.f.ts`
 implementation may move to `.f.mjs` even if the current FunctionalScript
@@ -179,10 +196,9 @@ Proof files follow the same source-language rule. A migrated `module.f.mjs` may
 keep its existing `proof.f.ts` temporarily, but `proof.f.mjs` is allowed as soon
 as that proof can be expressed as JavaScript with JSDoc and every authored
 runtime dependency outside its migration group is already `.f.mjs`. Type-only
-APIs may remain permanently in `types.ts`. Compiler support for the proof is not
-required.
-
-#### Preserve TypeScript semantics in JSDoc
+APIs may remain permanently in `types.ts`. Compiler support for the proof is
+not required. By the end of stage 1, every `proof.f.ts` implementation/proof file
+must therefore have migrated to `proof.f.mjs`.
 
 Preserve TypeScript type semantics when translating types that remain inside
 JavaScript source to JSDoc. TypeScript 7 supports variance annotations on JSDoc
@@ -209,29 +225,37 @@ Use `@template out T`, `@template in T`, or constrained forms such as
 
 #### Use `@import` for type-only dependencies
 
-A JavaScript implementation must not gain a runtime import just because it uses a
-separately declared type. Use JSDoc `@import`:
+A JavaScript implementation must not gain a real JavaScript import just because
+it uses a separately declared type. Use JSDoc `@import` with the same real source
+path used by `import type`:
 
 ```js
 /** @import { Types } from './types.ts' */
 ```
 
-The corresponding TypeScript source uses the same real path:
+This introduces no runtime dependency. The corresponding TypeScript
+implementation uses `import type` with the same specifier:
 
 ```ts
 import type { Types } from './types.ts'
 ```
 
-Do not point migrated JavaScript at a remaining implementation `.ts` / `.f.ts`
-merely for a type. If that type must survive independently of the implementation,
-move or split it into `types.ts` first. If it is naturally implementation-local
-and expressible in JSDoc, migrate it with the implementation instead.
+Do not point migrated JavaScript back at a remaining implementation `.ts` /
+`.f.ts` merely for a type. If that type must survive independently of the
+implementation, move or split it into `types.ts` first. If it is naturally
+local to the implementation and expressible in JSDoc, migrate it with the
+implementation instead.
 
-#### Preserve private JSDoc type intent with `_`
+Package validation must prove that authored `types.ts`, generated declarations,
+any generated type-module runtime artifact required by resolution, and a clean
+consumer all work; that is tracked in
+[`../fjs/ci/todo/f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md).
+
+#### Preserve private type intent with `_`
 
 A non-exported TypeScript type that is translated into a JavaScript `@typedef`
-can become externally visible because TypeScript currently emits JSDoc typedefs
-as exported aliases. The upstream request to make `@internal` plus
+can become externally visible merely because TypeScript currently emits JSDoc
+typedefs as exported aliases. The upstream request to make `@internal` plus
 `stripInternal` work for JSDoc typedefs is
 [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407).
 
@@ -256,20 +280,40 @@ prevent declaration emission, so generated declarations may contain
 must not depend on that emitted name directly, so renaming or removing `_Node`
 is not a breaking change solely because TypeScript exposed the alias.
 
-The public contract still governs transitive effects. If changing `_Node` changes
-the assignability of a public `Tree`, that is still a breaking change. The
-underscore exempts only the private alias itself.
+The public contract still governs transitive effects. In the example above,
+`Tree` is public and depends on `_Node`; changing `_Node` from `number` to
+`string` changes `Tree`'s public assignability and is therefore a breaking
+change. The underscore exempts only the private alias itself, never a change to
+the expanded public API. Public typedefs keep ordinary names without a leading
+`_`.
+
+Types intentionally separated into `types.ts` use ordinary TypeScript source
+visibility and syntax and do not need the JSDoc underscore workaround merely
+because they remain TypeScript.
 
 Which JSDoc typedefs are public is an API design decision made at the migration
-boundary, not a mechanical copy of what the `.f.ts` happened to export. Once a
-module is `.mjs`, later moving a published public typedef to `_` is an ordinary
-breaking API change.
+boundary, not a mechanical copy of what the `.f.ts` happened to export. The
+`.f.ts` -> `.f.mjs` rename is already a breaking change — importers must update
+the specifier — so it is the one moment where a module's JSDoc visibility
+contract can be corrected at no extra cost to consumers: a former export whose
+only role was an implementation detail may become `_`, and a module-private
+helper that belongs to the module's public vocabulary may be published under an
+ordinary name. Such a correction rides along with the migration's own
+`**BREAKING CHANGES:**` entry and does not need a second one.
+
+After a module is `.mjs` its JSDoc visibility contract is settled, and the
+convention then runs in one direction only. Moving a published public typedef to
+a `_` name is an ordinary breaking API change from that point on: it needs its
+own `**BREAKING CHANGES:**` entry and importer updates, exactly like removing any
+other public declaration. Only the migration itself gets the free correction.
 
 A pending refactor is not a reason to pre-privatize. Visibility follows what the
-module should offer consumers today. `Concat` and `NotLazy` in `fjs/types/list`
-stay public even though
+module should offer consumers today, not what a future task plans to delete:
+`Concat` and `NotLazy` in `fjs/types/list` stay public even though
 [`../fjs/types/list/todo/simplify-list-type.md`](../fjs/types/list/todo/simplify-list-type.md)
-plans to remove both.
+plans to remove both. Hiding a type behind `_` to make its eventual removal
+cheaper gives up a real present-day API in exchange for a discount on a breaking
+change that should simply be documented when it happens.
 
 This convention is temporary. Once TypeScript can strip `@internal` JSDoc
 typedefs correctly, replace the underscore workaround as tracked by
@@ -277,105 +321,163 @@ typedefs correctly, replace the underscore workaround as tracked by
 
 #### Typedef documentation does not survive declaration emit
 
-Declaration emit currently drops documentation written on a JSDoc `@typedef`.
-A TypeScript declaration such as
+The same upstream gap has a second, opposite-facing symptom: declaration emit
+drops the documentation written on a JSDoc `@typedef`. A TypeScript
 `/** 8-word SHA-2 state vector. */ export type V8 = …` keeps its comment in the
-emitted `.d.ts`; the equivalent JSDoc typedef in `.mjs` emits as a bare type
-alias. Documentation on runtime exports is unaffected.
+emitted `.d.ts`; the equivalent `@typedef` in a `.mjs` emits as a bare
+`export type V8 = …`, and the prose — including any `@example` — is gone from the
+published declaration. Documentation on `export const` declarations is
+unaffected, so a migrated module loses exactly its JSDoc type documentation.
 
-`fjs/crypto/sha2` is the clearest case so far: `V8`, `V16`, `State`, and `Sha2`
+`fjs/crypto/sha2` is the clearest case so far: `V8`, `V16`, `State` and `Sha2`
 were documented types, and `Sha2` carried the module's `@example` walkthrough.
-The source documentation survives, but it does not reach `module.f.d.mts`.
+All of it survives in the source and none of it reaches `module.f.d.mts`. The
+loss is therefore invisible to anyone reading the repository and visible only to
+a consumer of the published package.
 
-A substantial type-level API kept in authored `types.ts` avoids this JSDoc
-translation problem because TypeScript emits its declaration comments normally.
-This is a legitimate reason to split a type API, but not a requirement to split
-every small typedef.
+A separately authored `types.ts` avoids this JSDoc-emission problem: its
+TypeScript declaration comments are emitted through the normal TypeScript
+pipeline. That is another legitimate reason to split a substantial type-level
+API, but it is not a requirement to split every small typedef out of its
+implementation.
 
-Related upstream behavior includes
-[microsoft/TypeScript#43534](https://github.com/microsoft/TypeScript/issues/43534)
-and
-[microsoft/TypeScript#61664](https://github.com/microsoft/TypeScript/issues/61664),
-but no issue specifically tracking this documentation loss has been identified.
-File one and keep documenting source types meanwhile; this gap does not block a
-migration group.
+Related upstream behavior: TypeScript sometimes re-emits a bare `@typedef`
+comment attached to the *following* declaration instead
+([microsoft/TypeScript#43534](https://github.com/microsoft/TypeScript/issues/43534),
+fixed for the services layer), and
+[microsoft/TypeScript#61664](https://github.com/microsoft/TypeScript/issues/61664)
+proposes stripping redundant JSDoc type directives from declaration emit while
+keeping documentation. Neither tracks this loss directly; no upstream issue for
+it has been identified yet.
 
-#### Separate the `@module` header from the first import
+This does not block any migration group — it is a documentation-fidelity
+regression, not a type-contract one. Record it, keep writing the documentation in
+the source, and file an upstream issue so the gap is tracked rather than
+rediscovered by each migration.
 
-A module's `@module` header can disappear from emitted declarations when it is
-attached to the first import statement. Keep a blank line after the module JSDoc:
+#### Separate the `@module` header from the first import with a blank line
+
+A module's `@module` header can disappear from the emitted declaration too, but
+that one is **not** an upstream gap — it is a source-formatting requirement, and
+a blank line fixes it:
 
 ```js
 /**
  * ...
  * @module
  */
-
+                                    // <- this blank line is load-bearing
 /** @import { Tuple } from './types.ts' */
 import { mask } from '...'
 ```
 
-Without the blank line, declaration emit may drop the import statement and its
-attached header. This is a source-formatting requirement, not an upstream type
-system gap.
+Without the blank line, the header is the leading comment of the first `import`
+*statement* (an `@import` tag is a comment, not a statement, so it does not
+separate them). Declaration emit rewrites the import list — dropping
+runtime-only imports and synthesizing `import type` for what the declarations
+actually reference — and when the statement carrying the header is not among the
+survivors, the header goes with it. With the blank line the header detaches from
+that statement and is emitted as the file's own leading comment.
 
-The modules currently known to need this fix are:
+Checked against every `.mjs` in the repository carrying an `@module` header — 26
+modules, no exceptions:
+
+| header separated from first `import` statement | header kept | count |
+| ---------------------------------------------- | ----------- | ----- |
+| yes                                             | yes         | 13    |
+| no `import` statement at all                    | yes         | 8     |
+| no                                              | **no**      | 5     |
+
+A module with no `import` statement keeps its header unconditionally: there is no
+statement for the comment to attach to, so it is already the file's own leading
+comment. That is why the loss looks intermittent rather than systematic — most
+migrated modules are in one of the two safe categories by accident, not by
+intent.
+
 `fjs/common/monoid`, `fjs/types/btree/remove`, `fjs/types/btree/set`,
-`fjs/types/list`, and `fjs/types/nullable`.
+`fjs/types/list` and `fjs/types/nullable` are the five that currently lose their
+header and want the same one-line fix.
 
-#### Exported generic functions need stable declaration signatures
+#### Curried generic exports need an explicit `@returns`
 
-A curried generic exported function may type-check correctly from `.mjs` source
-while declaration emit collapses an inferred return type to `any` or
-`/*elided*/`. This was observed in `fjs/types/sorted_list` during review of
-[#1478](https://github.com/functionalscript/functionalscript/pull/1478).
+A curried, generic exported function whose `@template`/`@param` chain has no
+`@returns` still type-checks correctly in the repository — `npx tsc` reads the
+`.mjs` source and infers the return type from the body, so `fjs t` and every
+in-repo consumer stay correct. What breaks is declaration emit: TypeScript
+infers a deep, often self-referential structural type for the return value
+(e.g. a recursive `List<T>` union) that it cannot *name* in a `.d.mts` file,
+so it collapses the unresolved part to `any` or `/*elided*/`. The loss is
+invisible in the repository — only a consumer type-checking against the
+published declaration sees it, exactly the same failure mode as [typedef
+documentation not surviving declaration
+emit](#typedef-documentation-does-not-survive-declaration-emit) above, but for
+assignability instead of prose.
 
-Give every exported function an explicit `@returns`, or a top-level `@type`
-covering the complete signature, rather than relying on declaration emit to name
-a deep inferred type. Check emitted `.d.mts` for `any` / `/*elided*/` after
-migrating modules with generics or recursive data.
+Found on `fjs/types/sorted_list`'s `genericMerge`, `merge`, and `intersect`
+during review of [#1478](https://github.com/functionalscript/functionalscript/pull/1478):
+omitting `@returns` took the module's emitted declaration from 0 to 7 `any`
+and 6 `/*elided*/`, and let a call like `merge(cmp)(a)(b)` be assigned to the
+wrong `SortedList<T>` without a type error when checked against the emitted
+`.d.mts` — while the same misuse was correctly rejected against the `.mjs`
+source and against `main`'s pre-migration `.f.ts`. Adding an explicit
+`@returns` naming the return type on each restored the declaration to 0
+`any`/`elided` and made both directions of the substitution check fail again,
+matching `main`.
 
-A related inference issue appears when a generic function composes other
-independently generic helpers. A single `@type {<T, S>(...) => ...}` on a whole
-curried chain may widen parameters to `unknown`. Use per-arrow
-`@template` / `@param` / `@returns` when composition breaks inference. Existing
-precedents include `fjs/types/array`'s `isTuple`, plus `sorted_list`, `range_map`,
-and `fsc`.
+The fix generalizes: every exported function, curried or not, should carry an
+explicit `@returns` (or a top-level `@type` on the whole signature) rather
+than relying on inferred return types — check the emitted `.d.mts` for
+`any`/`elided` as part of migrating any module with generics or recursive
+data.
 
-Prefer the simpler single-`@type` form when it works; switch to per-arrow JSDoc
-only when inference demonstrates the need.
-
-#### Keep `@type {const}` as an inline cast
-
-`/** @type {const} */` is valid as an inline JSDoc cast on an expression. Do not
-hoist it into a declaration-level annotation: TypeScript resolves `const` there
-as an ordinary type name and reports TS2304.
+A related mechanical finding from the same review round: composing multiple
+independently-generic helper functions inside another generic function's body
+(e.g. `genericMerge` calling `cmpReduce` calling into `mergeTail`, all
+separately `<T>`-generic) loses type inference when each is annotated with a
+single `@type {<T, S>(...) => ...}` on the whole arrow chain — TypeScript
+cannot always unify the type parameters across the nested generic-value calls,
+and parameters silently widen to `unknown`. The fix already has precedent in
+`fjs/types/array/module.f.mjs`'s `isTuple`: give each arrow in the curried
+chain its own JSDoc comment with `@template`/`@param`/`@returns`, so the
+template parameter is a real, named binding in scope for the rest of the
+function body instead of an anonymous part of a value's call signature.
+`fjs/types/sorted_list`, `fjs/types/range_map`, and `fjs/fsc` all use this
+per-arrow style for their generic helpers. Prefer the single `@type {<T,
+S>(...) => ...}` form (as `fjs/types/list/module.f.mjs`'s `reduce` and similar
+non-composing generics already do) when a generic function does not call
+other independently-generic functions in its body; switch to the per-arrow
+style once composition breaks inference.
 
 #### Declaration-only TypeScript is not a migration hard case
 
-Do not design a JavaScript/JSDoc runtime representation for a type-only module.
-If a source file has no runtime API, rewrite it as `types.ts` and keep the type
-language in TypeScript.
+Do not require the migration plan to pre-design a JavaScript/JSDoc
+representation for a type-only module. If a source file has no runtime API,
+rename/rewrite it as `types.ts` and keep the declarations in TypeScript.
 
-`fjs/types/phantom/module.f.ts` is the canonical example. Its public `Phantom`
-type uses a type-only `declare const phantomKey: unique symbol`. `declare` is not
+`fjs/types/phantom/module.f.ts` is the known example. Its public `Phantom` type
+uses a type-only `declare const phantomKey: unique symbol`. `declare` is not
 valid JavaScript, and replacing it with a runtime `Symbol()` would change the
-module's current zero-runtime-value design. Under this convention:
+module's current zero-runtime-representation design. Under the `types.ts`
+convention this is no longer a hard case at all:
 
 ```text
 fjs/types/phantom/module.f.ts -> fjs/types/phantom/types.ts
 ```
 
-Consumers reference the real `../phantom/types.ts` from TypeScript `import type`
-or JSDoc `@import`.
+Consumers reference the real `../phantom/types.ts` from `import type` or JSDoc
+`@import`. No artificial JavaScript phantom module is required in source.
 
-For a mixed runtime/type module, split declarations that should remain TypeScript
-into `types.ts` and migrate the implementation separately. Only TypeScript syntax
-that remains inside runtime implementation source needs a JSDoc translation.
+For a mixed runtime/type module, split the declarations that should remain
+TypeScript into `types.ts` and migrate the actual implementation separately.
+Only TypeScript syntax that remains inside runtime implementation source needs a
+JSDoc translation. If such syntax has no established semantics-preserving JSDoc
+translation and cannot naturally move into `types.ts`, record it as a focused
+hard case and postpone only that runtime implementation group.
 
 For each migration group:
 
-- identify type-only files and convert them to `types.ts` rather than JavaScript;
+- identify declaration-only files and convert them to `types.ts` rather than
+  JavaScript;
 - optionally split a stable type-level API into sibling `types.ts` before
   migrating the runtime implementation;
 - replace remaining TypeScript-only implementation syntax with equivalent
@@ -383,29 +485,38 @@ For each migration group:
 - preserve public assignability semantics, not only runtime behavior;
 - preserve JSDoc type visibility intent: public typedefs retain public names and
   implementation-only typedefs use the `_` prefix;
+- if an implementation-only TypeScript construct has no established
+  semantics-preserving JSDoc translation and does not belong in `types.ts`,
+  record it as a focused hard case and postpone that runtime source module rather
+  than inventing a redesign inside the mechanical migration;
 - update runtime imports to migrated JavaScript paths;
-- update type-only imports to real `types.ts` paths where declarations are split;
+- update type-only imports to the real `types.ts` paths when declarations are
+  split out;
 - update proofs, tests, scripts, generated CI configuration, documentation, and
   other path-sensitive tooling;
-- preserve TypeScript, Node, Deno, Bun, declaration, proof, coverage, and package
-  behavior.
+- preserve type checking, declaration generation, runtime behavior, proofs,
+  coverage, and package behavior.
 
-#### End of Stage 1
+#### End of stage 1
 
-Stage 1 ends when no authored TypeScript **implementation/proof** source remains;
-authored `types.ts` may remain permanently.
+Keep `**/*.js` ignored while TypeScript implementations can still generate
+`.js`. After the last authored implementation/proof `.ts` / `.f.ts` source file
+is removed:
 
-Keep `**/*.js` ignored while TypeScript implementation sources can generate
-`.js`. After the last implementation/proof source migrates, remove obsolete
-generated implementation `.js` and make `.js` authorable only when the package
-pipeline no longer needs that blanket ignore.
+1. authored `types.ts` may remain permanently;
+2. remove obsolete generated implementation `.js` output when performing that
+   transition;
+3. remove the blanket `**/*.js` rule from `.gitignore` when generated
+   implementation output no longer conflicts with authored `.js`.
 
 Do **not** assume the second TypeScript runtime-emission pass can be removed just
-because only `types.ts` files remain. The package-support fixture must determine
-whether generated `types.js` is required for portable package resolution. Apply
-the simplest proven package layout at that boundary.
+because only `types.ts` source remains. The package-support experiment must first
+determine whether generated `types.js` is required for portable package
+resolution. Simplify `prepack` only to the minimal layout proven by that test.
 
-Only after Stage 1 may Stage 2 use:
+Generated declaration ignores remain unchanged.
+
+Only after this boundary may stage 2 use:
 
 ```text
 module.f.mjs -> module.f.js
@@ -413,74 +524,103 @@ module.f.mjs -> module.f.js
 
 Stage 2 additionally requires
 [`../fjs/ci/todo/f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md)
-so authored `.f.js` is directly type-checked, receives declarations, is packed,
-and works for a clean consumer before the first compiler-compatibility rename.
-A sibling `types.ts` remains unchanged across this rename.
+so authored `.f.js` is directly type-checked, receives `.d.ts` declarations, is
+packed, and works for a clean package consumer before the first
+compiler-compatibility rename. A sibling `types.ts` remains unchanged across
+this rename.
 
 ### Tasks
 
 - [ ] Complete
       [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
-      including real `types.ts`, Deno validation, package emit, and clean
-      consumers.
+      including `allowJs` / `checkJs`, authored `types.ts`, Deno validation, and
+      clean-consumer validation.
 - [ ] Then complete
       [`f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
-      before the first real repository `.f.ts -> .f.mjs` implementation
+      before the first real repository `.f.ts` -> `.f.mjs` implementation
       conversion.
-- [ ] Update contributor, compiler, package, test, and roadmap documentation to
-      the Stage-1 extension meanings and `types.ts` convention.
-- [ ] Identify type-only `.ts` / `.f.ts` files and convert them to `types.ts`.
+- [ ] Update contributor, compiler, language, package, test, and roadmap
+      documentation to the stage-1 extension meanings and `types.ts` convention.
+- [ ] Identify type-only `.ts` / `.f.ts` files and convert them directly to
+      `types.ts`; identify truly runtime-empty declaration-only `.f.mjs` files
+      that should become `types.ts` as well when that is the cleaner design.
 - [ ] Rename `fjs/types/phantom/module.f.ts` to
-      `fjs/types/phantom/types.ts`; do not introduce a runtime phantom value.
+      `fjs/types/phantom/types.ts` and update its type-only consumers to use the
+      real `types.ts` source path; do not introduce a runtime phantom value.
 - [ ] For mixed modules where a type-level API should stay in TypeScript, split
       that API into sibling `types.ts` before migrating JavaScript consumers.
 - [ ] Identify runtime-dependency-leaf `.ts` / `.f.ts` implementation files and
-      migrate those first; `types.ts` companions do not participate in runtime
-      ordering.
+      migrate those first; `types.ts` companions do not participate in that
+      runtime ordering.
 - [ ] Migrate `proof.f.ts` to `proof.f.mjs` when the proof is JavaScript/JSDoc
-      ready and its authored runtime dependencies are migrated; allow type-only
-      imports from `types.ts` and do not gate this on compiler support.
-- [ ] Validate a migrated `.mjs` / `.f.mjs` fixture with real authored `types.ts`
-      from both TypeScript and JSDoc, including `npx tsc`, Deno, Bun, package
-      emit, and clean package consumers.
-- [ ] Verify emitted declarations reference paths that actually exist in the
-      packed package and determine whether generated `types.js` is required.
-- [ ] Keep migrated JavaScript free of runtime dependencies on remaining
-      implementation `.ts` / `.f.ts`; intentional type-only dependencies on
-      `types.ts` are allowed.
+      ready and its authored runtime dependencies are migrated; allow stable
+      type-only imports from `types.ts` and do not gate this on compiler support.
+- [ ] Validate a migrated `.mjs` / `.f.mjs` fixture with an authored `types.ts`,
+      using the same real `types.ts` path from `.ts` and `.mjs`, including
+      TypeScript, Deno, Bun, package emit, and clean consumers.
+- [ ] Verify emitted declarations reference package paths that actually exist and
+      determine whether generated `types.js` is required for portable consumers.
+- [ ] Keep migrated JavaScript free of runtime **and type-only source**
+      dependencies on remaining implementation `.ts` / `.f.ts`; split required
+      declarations into `types.ts` first.
 - [ ] Translate TypeScript generic constraints and `in` / `out` variance that
       remain in JavaScript source to JSDoc `@template` syntax without changing
       assignability.
-- [ ] Give every exported function an explicit `@returns` or top-level `@type`
-      when needed to prevent `any` / `/*elided*/` declaration output; use
-      per-arrow generic JSDoc when composition breaks inference.
-- [ ] Keep `/** @type {const} */` as an inline cast on the expression, never a
-      leading declaration annotation.
+- [ ] Give every exported function an explicit `@returns` (or top-level
+      `@type` covering the full signature) rather than relying on inferred
+      return types, and check the emitted `.d.mts` for new `any`/`elided`
+      after migrating any module with generics or recursive data — inferred
+      return types on curried generic exports can silently collapse to `any`
+      in declaration emit even though `npx tsc` and `fjs t` stay green. Use
+      the per-arrow `@template`/`@param`/`@returns` style (`fjs/types/array`'s
+      `isTuple`, reused by `sorted_list`/`range_map`/`fsc`) instead of a
+      single `@type {<T, S>(...) => ...}` when a generic function composes
+      other independently-generic functions in its body.
+- [ ] Keep `/** @type {const} */` as an inline cast on the expression, never
+      hoisted to a leading declaration annotation — the declaration-level
+      form fails with `TS2304` because TypeScript resolves `const` as an
+      ordinary type name there, unlike every other `@type` cast.
 - [ ] Decide each JSDoc typedef's visibility at the migration boundary: prefix
       implementation-only typedefs with `_` and leave publicly useful ones
-      unprefixed.
-- [ ] Keep a blank line between a module's `@module` header and its first import
-      statement so the header survives declaration emit.
+      unprefixed, judged by what the module should offer its consumers rather
+      than by what the `.f.ts` happened to export or by what a pending refactor
+      plans to delete. Types intentionally moved to `types.ts` use normal
+      TypeScript source visibility instead.
+- [ ] Keep a blank line between a module's `@module` header and its first
+      `import` statement so the header survives declaration emit; fix the
+      modules that already lost theirs (`fjs/common/monoid`,
+      `fjs/types/btree/remove`, `fjs/types/btree/set`, `fjs/types/list`,
+      `fjs/types/nullable`).
 - [ ] File an upstream issue for JSDoc typedef documentation being dropped from
-      declaration emit.
+      declaration emit, and keep writing type documentation in the source
+      meanwhile; substantial type APIs may instead live directly in `types.ts`
+      when that is the cleaner module design.
 - [ ] Treat `_`-prefixed JSDoc typedef names as private even when declarations
       emit them as exports, but still require `**BREAKING CHANGES:**` whenever a
-      change alters a public declaration's assignability.
+      change to one alters the assignability of a public declaration.
 - [ ] Once a module is `.mjs`, treat any later move of a public JSDoc typedef to
-      `_` as an ordinary breaking API change.
+      a `_` name as an ordinary breaking API change with its own changelog entry
+      and importer updates, not as a visibility cleanup.
 - [ ] Continue upward through the runtime dependency graph in reviewable groups
       until no authored TypeScript implementation/proof source remains.
+- [ ] Translate `.ts` to `.mjs` and `.f.ts` to `.f.mjs`, moving static type
+      information either to JSDoc or to an intentionally separate `types.ts`
+      without weakening public type semantics.
 - [ ] Update imports, proofs, tests, coverage globs, scripts, generated CI, and
       documentation for every migrated group.
-- [ ] Sweep prose references to migrated paths and renamed typedefs at least at
-      the end of Stage 1.
+- [ ] Sweep prose references to already-migrated modules: `AGENTS.md`, README
+      files, and `todo/*.md` still name `.f.ts` paths that no longer exist, so
+      snippets copied from them produce broken imports and links. Include
+      type-only renames such as `module.f.ts -> types.ts` and any typedef renames
+      in this sweep.
 - [ ] Preserve Node, Deno, Bun, proof, coverage, type-checking, declaration, and
       CI package behavior throughout the migration.
-- [ ] Add required `**BREAKING CHANGES:**` changelog entries for public runtime
-      or type-contract changes; direct changes to emitted `_` aliases are exempt
-      only when the expanded public contract is unchanged.
-- [ ] After implementation/proof TypeScript is gone, simplify the package emit
-      path only as allowed by the validated `types.ts` package layout.
+- [ ] Add required `**BREAKING CHANGES:**` changelog entries for every public
+      runtime or type-contract change; direct changes to an emitted `_` alias
+      are exempt only when the expanded public contract is unchanged.
+- [ ] After the last authored TypeScript implementation/proof file is gone,
+      simplify the package emit path only as allowed by the validated `types.ts`
+      package layout. Authored `types.ts` remains.
 - [ ] Then remove `**/*.js` from `.gitignore` when generated implementation
       JavaScript no longer needs the blanket ignore.
 - [ ] Keep the compiler-compatibility migration explicitly **blocked by** this
@@ -491,48 +631,90 @@ A sibling `types.ts` remains unchanged across this rename.
 - `allowJs` and `checkJs` are enabled before the first authored TypeScript
   implementation source is converted to JavaScript.
 - Authored `types.ts` is a first-class checked type-source convention.
-- TypeScript `import type` and JSDoc `@import` both use the same real `types.ts`
-  path.
+- Declaration-only source can become `types.ts` without creating an artificial
+  runtime JavaScript value; `fjs/types/phantom` uses this path.
+- A runtime module may coexist with sibling `types.ts`, and TypeScript
+  `import type` plus JSDoc `@import` both use the same real source path.
 - Deno resolves source `types.ts` without `@ts-types`, `@ts-self-types`, a dummy
-  runtime `types.js`, or missing-file declaration substitution.
+  authored `types.js`, or missing-file declaration substitution.
 - The `.f.mjs` runtime test/coverage fixture is complete before the first real
-  repository implementation conversion.
-- No authored implementation/proof `.ts` or `.f.ts` source remains at the end of
-  Stage 1; authored `types.ts` may remain permanently.
-- Migration proceeds incrementally from runtime dependency leaves toward callers;
-  type-only APIs do not require runtime migration ordering.
+  repository `.f.ts` -> `.f.mjs` implementation conversion.
+- No authored implementation/proof `.ts` or `.f.ts` source files remain at the
+  end of Stage 1; authored `types.ts` files may remain permanently.
+- Migration proceeds incrementally from runtime dependency leaves toward
+  callers; type-only APIs can be separated into `types.ts` and do not require
+  runtime migration ordering.
 - Authored JavaScript uses `.mjs` / `.f.mjs` with JSDoc where static type
-  information remains with the implementation.
-- Migrated JavaScript does not runtime-import remaining implementation `.ts` /
-  `.f.ts`; intentional type-only imports target `types.ts`.
+  information stays with the implementation, while `types.ts` holds
+  intentionally separate type-level APIs.
+- `proof.f.mjs` migration is gated by JavaScript/JSDoc and runtime dependency
+  readiness, never by current FunctionalScript compiler support.
+- Migrated JavaScript does not reference remaining implementation `.ts` /
+  `.f.ts`, even for a type-only edge; declarations needed independently are
+  split into `types.ts` first.
 - No artificial runtime representation is introduced for declarations such as
-  `declare const` or `unique symbol`.
+  `declare const` or `unique symbol` that live naturally in `types.ts`.
 - TypeScript generic constraints and variance annotations that remain in JSDoc
-  preserve public assignability.
+  are preserved with their JSDoc `@template` equivalents; public assignability
+  is not weakened.
 - Implementation-only JSDoc typedefs use `_`-prefixed names and are treated as
   private API even when TypeScript emits them as exported declaration aliases.
-- Every migrated module's `@module` header survives declaration emit.
-- Exported generic functions do not silently degrade to `any` / `/*elided*/` in
-  emitted declarations.
-- Package-owned `.mjs`, real source `types.ts`, generated declarations, and any
-  required generated `types.js` work from a clean CI package build and clean
-  TypeScript/Node/Deno/Bun consumers.
+- Documentation lost from emitted declarations because it was attached to a
+  JSDoc `@typedef` is recorded as a known upstream gap; an intentionally separate
+  `types.ts` may preserve declaration documentation through normal TypeScript
+  emit.
+- Every migrated module's `@module` header survives into its emitted
+  declaration, which requires a blank line between that header and the first
+  `import` statement.
+- Every exported function's return type survives into its emitted declaration as
+  a named type, not `any` or `/*elided*/`; curried generic exports carry an
+  explicit `@returns` rather than relying on inference, and the per-arrow
+  `@template`/`@param`/`@returns` style is used wherever a generic function
+  composes other independently-generic functions in its body.
+- `/** @type {const} */` stays an inline cast on the expression it types, never a
+  leading declaration-level annotation.
+- Renaming or removing an emitted `_`-prefixed alias is not breaking solely due
+  to that alias being emitted; any resulting change to a public declaration's
+  assignability is still a breaking change.
+- Each migrated module's JSDoc typedef visibility is justified by the public
+  vocabulary that module should offer; pre-migration export status is evidence
+  for that decision, not the decision itself.
+- Reclassifying a public JSDoc typedef as `_` after its module has migrated is
+  treated as a breaking API change, so the free correction is available only at
+  the `.f.ts` -> `.f.mjs` boundary.
 - `.f.mjs` means FunctionalScript-intent JavaScript, not current-compiler
   compatibility.
-- `.gitignore` no longer blanket-ignores authored `.js` once that is safe.
+- Package-owned `.mjs`, authored `types.ts`, generated declarations, and any
+  generated `types.js` required by package resolution work from a clean CI
+  package build and clean TypeScript/Node/Deno/Bun consumers.
+- Tests, proofs, coverage, supported runtimes, and type checking continue to
+  pass.
+- After the last authored TypeScript implementation/proof source is removed, the
+  package emit path is simplified only as far as the `types.ts` package
+  experiment proves portable; authored `types.ts` remains supported.
+- `.gitignore` no longer blanket-ignores `.js` at the end of this task once
+  generated implementation JavaScript no longer requires that rule.
 - The compiler-compatibility migration starts only after this task and the
   authored-`.f.js` package/tooling prerequisite are complete.
 
 ### Related
 
 - [`../fjs/ci/todo/f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md)
-  — Stage-1 authored `.mjs` / `types.ts` package validation.
+  — stage-1 authored `.mjs` / `types.ts` validation, declarations, and package
+  support.
 - [`../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
-  — Stage-1 end-to-end `.f.mjs` proof and coverage prerequisite.
+  — stage-1 end-to-end `.f.mjs` proof and coverage prerequisite.
 - [`../fjs/ci/todo/f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md)
-  — Stage-2 authored `.f.js` package prerequisite.
+  — stage-2 authored `.f.js` package/tooling prerequisite.
+- [`../fjs/ci/todo/publishing-packages.md`](../fjs/ci/todo/publishing-packages.md)
+  — broader package-publishing plan.
+- [`../fjs/fsc/README.md`](../fjs/fsc/README.md) — authoritative FunctionalScript
+  extension and migration contract.
 - [`blocked/jsdoc-typedef-strip-internal.md`](./blocked/jsdoc-typedef-strip-internal.md)
-  — upstream blocker for stripping private JSDoc typedefs.
-- [`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md) — compiler integration
-  and compiler-compatibility migration.
+  — replace the temporary `_` convention with `@internal` when upstream
+  declaration emit supports it.
+- [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
+  — upstream request for `stripInternal` support on JSDoc typedefs.
+- [`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md) — existing compiler
+  integration and compiler-compatibility migration.
 - [`plan/roadmap.md`](./plan/roadmap.md) — project roadmap.
