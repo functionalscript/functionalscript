@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/module.f.ts'
+import { sha256, type Sha2, type State as Sha2State } from '../crypto/sha2/module.f.mjs'
 import { join, normalize, parse } from '../path/module.f.ts'
 import { empty, length, maxLength, maxLengthBytes, msb, vec, type Vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
