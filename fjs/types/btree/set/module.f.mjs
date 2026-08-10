@@ -3,20 +3,26 @@
  *
  * @module
  */
-import { collapseRoot, type Branch1, type Branch3, type Branch5, type Branch7, type TNode, type Tree } from '../types/module.f.mjs'
-import { find, type First, type PathItem, type Result } from '../find/module.f.mjs'
-import type { Compare } from '../../function/compare/module.f.mjs'
+import { collapseRoot } from '../types/module.f.mjs'
+/** @import { Branch1, Branch3, Branch5, Branch7, TNode, Tree } from '../types/module.f.mjs' */
+
+import { find } from '../find/module.f.mjs'
+/** @import { First, PathItem, Result } from '../find/module.f.mjs' */
+
+/** @import { Compare } from '../../function/compare/module.f.mjs' */
+
 import { fold } from '../../list/module.f.mjs'
 
-type Branch1To3<T> = Branch1<T> | Branch3<T>
+/**
+ * @template T
+ * @typedef {Branch1<T> | Branch3<T>} _Branch1To3
+ */
 
-const b57
-    : <T>(b: Branch5<T> | Branch7<T>) => Branch1To3<T>
-    = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
+/** @type {<T>(b: Branch5<T> | Branch7<T>) => _Branch1To3<T>} */
+const b57 = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
 
-const reduceOp
-    : <T>(i: PathItem<T>) => (a: Branch1To3<T>) => Branch1To3<T>
-    = ([i, x]) => a => {
+/** @type {<T>(i: PathItem<T>) => (a: _Branch1To3<T>) => _Branch1To3<T>} */
+const reduceOp = ([i, x]) => a => {
     switch (i) {
         case 0: {
             switch (x.length) {
@@ -38,24 +44,21 @@ const reduceOp
 
 const reduceBranch = fold(reduceOp)
 
-const nodeSet
-    = <T>(c: Compare<T>) => (g: (value: T | null) => T) => (node: TNode<T>): TNode<T> => {
-    // export type Result<T> = {
-    //    readonly first: First<T>,
-    //    readonly tail: Path<T>
-    //}
-    const { first, tail }: Result<T> = find(c)(node)
-    // export type Index2 = 0 | 1
-    // export type Index3 = Index2 | 2 // 0 | 1 | 2
-    // export type Index4 = Index3 | 3 // 0 | 1 | 2 | 3
-    // export type Index5 = Index4 | 4 // 0 | 1 | 2 | 3 | 4
-    // type FirstLeaf1<T> = readonly[Index3, Leaf1<T>]
-    // type FirstBranch3<T> = readonly[1, Branch3<T>]
-    // type FirstLeaf2<T> = readonly[Index5, Leaf2<T>]
-    // type FirstBranch5<T> = readonly[1|3, Branch5<T>]
-    // export type First<T> = FirstLeaf1<T> | FirstBranch3<T> | FirstLeaf2<T> | FirstBranch5<T>
-    const [i, x]: First<T> = first;
-    const f = (): Branch1To3<T> => {
+/** @type {<T>(c: Compare<T>) => (g: (value: T | null) => T) => (node: TNode<T>) => TNode<T>} */
+const nodeSet = c => g => node => {
+    /** @typedef {typeof c extends Compare<infer T> ? T : never} T */
+    // Result<T> is { readonly first: First<T>, readonly tail: Path<T> }.
+    /** @type {Result<T>} */
+    const { first, tail } = find(c)(node)
+    // First<T> is one of:
+    //   readonly[Index<3>, Leaf1<T>]
+    //   readonly[1, Branch3<T>]
+    //   readonly[Index<5>, Leaf2<T>]
+    //   readonly[1|3, Branch5<T>]
+    /** @type {First<T>} */
+    const [i, x] = first
+    /** @type {() => _Branch1To3<T>} */
+    const f = () => {
         switch (i) {
             case 0: {
                 // insert
@@ -102,7 +105,7 @@ const nodeSet
                 // insert
                 // TODO: remove after TSGO fix the regression.
                 // const _xl: 2 = x.length
-                const [v0, v1] = x;
+                const [v0, v1] = x
                 return [[v0], v1, [g(null)]]
             }
         }
@@ -110,6 +113,5 @@ const nodeSet
     return collapseRoot(reduceBranch(f())(tail))
 }
 
-export const set
-    : <T>(c: Compare<T>) => (f: (value: T|null) => T) => (tree: Tree<T>) => TNode<T>
-    = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)
+/** @type {<T>(c: Compare<T>) => (f: (value: T|null) => T) => (tree: Tree<T>) => TNode<T>} */
+export const set = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)
