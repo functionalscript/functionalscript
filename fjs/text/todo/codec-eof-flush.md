@@ -8,12 +8,10 @@
 The two decoders' end-of-input steps are the same one-liner differing only in
 a state→error function.
 
-`fjs/text/utf8/module.f.ts:262-267`:
+`fjs/text/utf8/module.f.mjs:270-273`:
 
-```ts
-export const utf8EofToCodePointOp = (
-    state: Utf8State,
-): readonly [List<I32>, Utf8State] => [
+```js
+export const utf8EofToCodePointOp = state => [
     state === null ? null : [utf8StateToError(state)],
     null,
 ]

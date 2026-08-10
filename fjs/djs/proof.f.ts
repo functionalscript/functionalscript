@@ -1,6 +1,6 @@
 import { compile } from './module.f.ts'
 import { virtual, emptyState } from '../effects/node/virtual/module.f.ts'
-import { utf8, utf8ToString } from '../text/module.f.ts'
+import { utf8, utf8ToString } from '../text/module.f.mjs'
 import type { Vec } from '../types/bit_vec/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 

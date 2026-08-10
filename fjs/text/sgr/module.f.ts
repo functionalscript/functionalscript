@@ -10,7 +10,7 @@
 
 import { write, type Write, type WriteConsoles, type NodeProgramOptions } from '../../effects/node/module.f.ts'
 import { type Effect } from '../../effects/module.f.ts'
-import { utf8 } from "../module.f.ts"
+import { utf8 } from "../module.f.mjs"
 
 export const backspace: string = '\x08'
 

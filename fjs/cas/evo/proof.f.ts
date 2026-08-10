@@ -9,7 +9,7 @@ import { unwrap } from '../../types/nullable/module.f.mjs'
 import { ok, error, type Ok } from '../../types/result/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
 import type { IoResult } from '../../effects/node/module.f.ts'
-import { tryUtf8 } from '../../text/module.f.ts'
+import { tryUtf8 } from '../../text/module.f.mjs'
 import { dialect as revisionDialect } from '../../media/revision/module.f.ts'
 import {
     buildCache, decodeRevisionBlob, initEvo, evo, emptyCache, syncRevision,

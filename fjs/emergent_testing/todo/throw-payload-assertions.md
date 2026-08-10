@@ -27,7 +27,7 @@ assertEqThrowsOnUnequal: () => {
 
 Under the plain `throw` key, `assert(false, 'oops')` throwing `'anything'` instead of `'oops'`,
 `assertEq(1, 2)` throwing the wrong tuple, or `todo()` throwing the wrong sentinel would all
-still pass. The same gap exists in `fjs/types/result/proof.f.ts`'s `unwrapError` (dropped the
+still pass. The same gap exists in `fjs/types/result/proof.f.mjs`'s `unwrapError` (dropped the
 check that `unwrap(error('oops'))` throws exactly `'oops'`, not some wrapped value) and
 `fjs/cas/cli/proof.f.ts`'s `mainListCorruptStore` (only checks *that* the storage error
 surfaces, which was already all it checked).
@@ -72,7 +72,7 @@ is a live example (it isn't the shape we need here, since it captures a rejected
 already works and is already discovered by `fjs t` — `shouldLoad` in
 [`fjs/dev/module.f.ts`](../../dev/module.f.ts#L41) matches any `*proof.ts` filename alongside
 `*.f.ts`). AGENTS.md's `.f.ts` rule needs no change: it never applied to `proof.ts` in the first
-place. The fix for `fjs/asserts/proof.f.mjs` and `fjs/types/result/proof.f.ts` is simply to move
+place. The fix for `fjs/asserts/proof.f.mjs` and `fjs/types/result/proof.f.mjs` is simply to move
 just the payload-checking cases (`assertThrowsCustomMsg`, `assertEqThrowsOnUnequal`,
 `assertEqThrowsOnUnequal3`, `todoThrows`, `unwrapError`) into a sibling `proof.ts` in the same
 directory, using ordinary `try`/`catch`, while the rest of each module's coverage stays in
@@ -172,4 +172,4 @@ Playwright bridge.
 - [todo-property](./todo-property.md), [skip-property](./skip-property.md) — the same
   structural-marker mechanism this proposal extends.
 - [browser-testing](./browser-testing.md) — shared browser-side execution and reporting.
-- `fjs/asserts/proof.f.mjs`, `fjs/types/result/proof.f.ts` — the sites that lost payload checks.
+- `fjs/asserts/proof.f.mjs`, `fjs/types/result/proof.f.mjs` — the sites that lost payload checks.

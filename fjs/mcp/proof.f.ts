@@ -8,7 +8,7 @@ import type { Response } from '../protocol/json_rpc/module.f.ts'
 import { msb, u8ListToVec, vec8, repeat, length, type Vec, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 import { vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { encode as base64Encode } from '../basen/base64/module.f.mjs'
-import { utf8 } from '../text/module.f.ts'
+import { utf8 } from '../text/module.f.mjs'
 import { fileCas, type FileCasOperation } from '../cas/module.f.ts'
 import { dialect as revisionDialect, mediaType as revisionMediaType } from '../media/revision/module.f.ts'
 import { sha256 } from '../crypto/sha2/module.f.mjs'
@@ -28,7 +28,7 @@ import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.
 import { casConfig, casMcpHandlers } from './module.f.ts'
 import { ok as resultOk, unwrap } from '../types/result/module.f.mjs'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.ts'
-import { fromVec } from '../types/uint8array/module.f.ts'
+import { fromVec } from '../types/uint8array/module.f.mjs'
 import { initEvo } from '../cas/evo/module.f.ts'
 
 // `cas_get`'s result JSON. As an rtti schema it both describes the shape and

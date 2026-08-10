@@ -195,7 +195,7 @@ tokens or calls `token_symbol.encoding()` for multi-character names.
   parser as one symbol per token plus metadata.
 - [`fjs/bnf/token_symbol`](../token_symbol/README.md) — registration-based mapping
   to replace after all callers/designs migrate.
-- [`fjs/text/module.f.ts`](../../text/module.f.ts) — existing `tryUtf8` helper and
+- [`fjs/text/module.f.mjs`](../../text/module.f.mjs) — existing `tryUtf8` helper and
   throwing `utf8` wrapper.
 - [`fjs/types/bit_vec/module.f.mjs`](../../types/bit_vec/module.f.mjs) — signed
   length-bearing `Vec`, `maxLength`, `unpack`, and existing `fromSentinel`

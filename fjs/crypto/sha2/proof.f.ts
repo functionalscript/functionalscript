@@ -1,4 +1,4 @@
-import { utf8 } from '../../text/module.f.ts'
+import { utf8 } from '../../text/module.f.mjs'
 import { repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { flip } from '../../types/function/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'

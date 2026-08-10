@@ -1,4 +1,4 @@
-import { utf8 } from "../../text/module.f.ts"
+import { utf8 } from "../../text/module.f.mjs"
 import type { Tuple } from "../../types/array/module.f.mjs"
 import { empty, msb, repeat, vec, vec8, type Vec } from "../../types/bit_vec/module.f.mjs"
 import { hmac } from "../hmac/module.f.ts"

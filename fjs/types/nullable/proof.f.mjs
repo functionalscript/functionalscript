@@ -3,7 +3,9 @@ import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = [
     () => {
-        const optionSq = map((v: number) => v * v)
+        /** @type {(v: number) => number} */
+        const sq = v => v * v
+        const optionSq = map(sq)
         const sq3 = optionSq(3)
         assertEq(sq3, 9)
         const sqNull = optionSq(null)
@@ -16,7 +18,9 @@ export const proof = [
         assertEq(opt2.length, 0, opt2)
     },
     () => {
-        const double = match((v: number) => v * 2)(() => -1)
+        /** @type {(v: number) => number} */
+        const twice = v => v * 2
+        const double = match(twice)(() => -1)
         assertEq(double(3), 6)
         assertEq(double(null), -1)
     },

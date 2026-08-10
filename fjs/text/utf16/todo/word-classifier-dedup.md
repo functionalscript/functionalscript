@@ -24,7 +24,7 @@ return [[state | errorMask, word | errorMask], null]
 The two blocks differ only in whether the flushed error
 (`state | errorMask`) is prepended to the emitted list. This is exactly the
 duplication PR #1258 removed from utf8's `utf8ByteToCodePointOp` with a
-`restart(prefix)` helper (`fjs/text/utf8/module.f.ts:83-92`); utf16 is the
+`restart(prefix)` helper (`fjs/text/utf8/module.f.mjs:85-96`); utf16 is the
 same shape with a different classifier, left undone by that PR.
 
 ### Proposal
@@ -33,7 +33,7 @@ Mirror the utf8 fix: a fresh dispatch written once, parameterized by the
 emitted prefix, called as `restart([])(word)` from the `state === null` arm
 and `restart([state | errorMask])(word)` from the recovery arm.
 
-Since utf8 already has its own `restart` (`fjs/text/utf8/module.f.ts:88-92`),
+Since utf8 already has its own `restart` (`fjs/text/utf8/module.f.mjs:92-96`),
 this creates the second real consumer of the *"prefix a flushed error onto a
 fresh dispatch"* wrapper, which by the AGENTS.md DRY rule justifies hoisting
 the generic part into the codecs' shared dependency,
