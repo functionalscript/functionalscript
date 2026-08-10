@@ -7,8 +7,9 @@
 
 The repository-wide
 [TypeScript-to-`.mjs` migration](../../../todo/migrate-typescript-to-mjs.md)
-cannot convert its first package-owned `.ts` / `.f.ts` source until the
-TypeScript and NPM pipeline treats authored `.mjs` as first-class source.
+cannot convert its first package-owned `.ts` / `.f.ts` implementation source
+until the TypeScript and NPM pipeline treats authored `.mjs` as first-class
+source.
 
 The package configuration originally validated only authored TypeScript and
 published its generated `.js` / `.d.ts`, with no checked authored `.mjs` plus
@@ -20,13 +21,13 @@ What the Problem below still motivates is the *validation* half — a fixture
 and proofs that the mixed-source package actually builds and type-checks
 correctly for a consumer.
 
-Stage 1 is dependency-first for **runtime** dependencies. Remaining `.ts` /
+Stage 1 is dependency-first for runtime implementations. Remaining `.ts` /
 `.f.ts` may import already migrated `.mjs` / `.f.mjs`, while migrated JavaScript
-must not retain runtime imports of remaining TypeScript. Type-only dependencies
-are different: migrated JavaScript may reference types from remaining `.ts` /
-`.f.ts` with JSDoc `@import`, because it creates no runtime dependency. The
-package pipeline must preserve a usable declaration path for those references
-without inventing a JavaScript runtime import or runtime representation.
+must not depend on remaining implementation TypeScript. Type-only APIs are
+separate: a directory may contain an authored `types.d.ts` companion that is
+stable before, during, and after the implementation migration. It is permanent
+type source, not generated output and not a file that Stage 1 later converts to
+JavaScript.
 
 Packaging and publishing run in CI from a clean checkout. Generated `.js`,
 `.d.ts`, and `.d.mts` from an earlier commit or package build therefore do not
@@ -44,15 +45,22 @@ The broader package roadmap remains in
 Use the stage-1 authored/generated invariant:
 
 ```text
-source.ts  -> source.js + source.d.ts
-source.mjs -> source.mjs + source.d.mts
+source.ts   -> source.js + source.d.ts
+source.mjs  -> source.mjs + source.d.mts
+types.d.ts  -> types.d.ts
 ```
 
+`types.d.ts` is authored declaration source. It may coexist with either
+`module.f.ts`, `module.f.mjs`, or later `module.f.js` in the same directory.
+Package selection already includes `**/*.d.ts`; repository ignore rules must make
+an explicit exception for authored `types.d.ts` while continuing to ignore
+generated declarations.
+
 Enable `allowJs` and `checkJs` before the first source conversion so TypeScript
-validates both authored extensions.
+validates both authored implementation extensions.
 
 Use one packaging lifecycle command with two ordered TypeScript passes while
-TypeScript source remains:
+TypeScript implementation source remains:
 
 ```json
 "prepack": "tsc --noEmit false --emitDeclarationOnly && tsc --noEmit false --declaration false"
@@ -61,15 +69,16 @@ TypeScript source remains:
 The first pass emits declarations for both `.ts` and `.mjs`. With those
 declarations present, the second TypeScript invocation resolves the generated
 `.d.mts` declarations for authored `.mjs` modules, so it emits runtime
-JavaScript for the remaining TypeScript sources without overwriting authored
-`.mjs`.
+JavaScript for the remaining TypeScript implementations without overwriting
+authored `.mjs`. Authored `types.d.ts` is already a declaration and is packaged
+as source rather than regenerated as a runtime file.
 
-This exact configuration is already exercised by
+This exact `.ts` + `.mjs` configuration is already exercised by
 [PR #1451](https://github.com/functionalscript/functionalscript/pull/1451): it
 enables `allowJs` / `checkJs`, keeps `benchmark.mjs` in the repository, uses the
-same two-pass `prepack`, and its Node 26 CI `npm pack` step succeeds. Keep this
-simple ordering rather than adding a separate runtime-emission configuration
-unless a real repository case demonstrates that it is needed.
+same two-pass `prepack`, and its Node 26 CI `npm pack` step succeeds. Extend that
+validation with an authored `types.d.ts` companion rather than adding a staging
+tree or a separate runtime-emission configuration.
 
 Keep both passes inline in `prepack`; do not add public `emit:*` scripts for
 users to run independently. Normal development should type-check and test the
@@ -81,45 +90,65 @@ artifacts from an earlier revision into the package job. Those files never need
 to be discovered or deleted by the new `.mjs` input.
 
 Do not introduce a staging tree or rewrite runtime specifiers. An authored
-`.mjs` / `.f.mjs` group must therefore be closed over authored **runtime**
-JavaScript dependencies outside the group. Remaining TypeScript may import
-already migrated `.mjs`; migrated JavaScript may use JSDoc `@import` for a
-remaining TypeScript type-only dependency, for example:
+`.mjs` / `.f.mjs` group must therefore be closed over authored runtime
+JavaScript dependencies outside the group. Remaining implementation TypeScript
+may import already migrated `.mjs`; migrated JavaScript must not import or
+JSDoc-reference remaining `.ts` / `.f.ts` implementation source.
 
-```js
-/** @import { Phantom } from '../../types/phantom/module.f.ts' */
+When a migrated implementation needs a type that would otherwise keep such a
+type-only edge, split that type into the directory's authored `types.d.ts` first.
+Both TypeScript and JavaScript implementations reference the declaration module
+through the stable JavaScript-looking specifier:
+
+```ts
+import type { Phantom } from './types.js'
 ```
 
-This exception is type-only. A real JavaScript `import` from `.mjs` / `.f.mjs`
-to remaining `.ts` / `.f.ts` is still rejected. Do not create runtime imports,
-exports, or values merely to make a type-only module usable from migrated
-JavaScript.
+```js
+/** @import { Phantom } from './types.js' */
+```
+
+TypeScript resolves that specifier to `types.d.ts`; there is no runtime import or
+runtime file requirement. The same `./types.js` spelling survives
+`module.f.ts -> module.f.mjs -> module.f.js`, so the type edge does not need to be
+rewritten as the implementation migrates.
+
+A declaration-only `module.f.ts` should therefore become `types.d.ts` instead of
+`module.f.mjs`. The same cleanup may be applied to an existing `.f.mjs` that is
+truly declaration-only and has no runtime API. Do not invent exports, `Symbol()`
+values, or other runtime representations merely to keep type-system-only
+constructs in JavaScript.
 
 For FunctionalScript modules during stage 1:
 
-- `.f.ts` is remaining authored TypeScript;
+- `.f.ts` is remaining authored TypeScript implementation source;
 - `.f.mjs` is authored FunctionalScript-intent JavaScript, whether or not the
   current FunctionalScript compiler accepts all of its syntax;
+- `types.d.ts` is authored type-only source and is not part of the implementation
+  migration;
 - `.f.ts` may depend at runtime on `.f.ts` or already migrated `.f.mjs`;
 - `.f.mjs` runtime imports may depend on `.f.mjs`, not remaining `.f.ts` or
   generated `.f.js`;
-- `.f.mjs` JSDoc `@import` may reference a type from remaining `.f.ts` without
-  making that TypeScript file a runtime dependency.
+- `.f.ts`, `.f.mjs`, and later `.f.js` may consume a sibling `types.d.ts` through
+  the `./types.js` type-only specifier.
 
-Update `AGENTS.md` with that asymmetric runtime source-migration policy and the
-JSDoc type-only exception. Compiler compatibility is a later `.f.mjs` -> `.f.js`
-migration and is not part of this package prerequisite.
+Update `AGENTS.md` with that runtime source-migration policy and the stable
+`types.d.ts` companion convention. Compiler compatibility is a later
+`.f.mjs -> .f.js` migration and is not part of this package prerequisite.
 
 JSDoc declaration emit currently exposes every top-level `@typedef` as an
-exported type alias. During the migration, implementation-only typedefs use the
-repository's leading-`_` convention, for example `_Node`; see
-[`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md).
+exported type alias. During the migration, implementation-only typedefs that stay
+inside `.mjs` use the repository's leading-`_` convention, for example `_Node`;
+see [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md).
 An emitted `export type _Node = ...` is therefore package-private by contract,
 not public API. Clean-consumer tests must exercise documented public types and
 must not turn `_`-prefixed declaration artifacts into supported API merely
 because TypeScript emitted them.
 
-The eventual replacement is `@internal` plus `stripInternal`, blocked on
+Types intentionally moved to `types.d.ts` use ordinary TypeScript declaration
+syntax and do not need the JSDoc-emission workaround merely to remain expressible.
+The eventual replacement for private JSDoc typedefs is still `@internal` plus
+`stripInternal`, blocked on
 [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
 and tracked in
 [`todo/blocked/jsdoc-typedef-strip-internal.md`](../../../todo/blocked/jsdoc-typedef-strip-internal.md).
@@ -130,8 +159,10 @@ API status during this transition. Incidental authored files such as
 not part of the documented public API, their presence does not block this task.
 They can be removed separately when no longer useful.
 
-As soon as no authored `.ts` / `.f.ts` source remains, remove the second
-TypeScript runtime-emission pass. `prepack` then needs only declaration emission:
+As soon as no authored implementation/proof `.ts` / `.f.ts` source remains,
+remove the second TypeScript runtime-emission pass. Authored `types.d.ts` files
+may remain permanently; they do not require JavaScript emission. `prepack` then
+needs only declaration emission:
 
 ```json
 "prepack": "tsc --noEmit false --emitDeclarationOnly"
@@ -141,12 +172,11 @@ TypeScript runtime-emission pass. `prepack` then needs only declaration emission
 
 The core TypeScript/NPM pipeline support is in place: `tsconfig.json` has
 `allowJs`/`checkJs` enabled, `package.json`'s `prepack` is the exact two-pass
-`tsc` command proposed here, `files` already lists `**/*.mjs`/`**/*.d.mts`
-alongside `**/*.js`/`**/*.d.ts`, and `AGENTS.md` documents the asymmetric
-`.f.ts`/`.f.mjs` runtime dependency policy. What remains open is the
-*validation* half: no fixture or proof yet exercises the mixed `.ts`+`.mjs`
-package build, the clean-consumer type-check, the rejected `.mjs`→`.ts` runtime
-import direction, or the allowed JSDoc type-only `.mjs`→`.ts` direction.
+`tsc` command proposed here, and `files` already lists `**/*.mjs`/`**/*.d.mts`
+alongside `**/*.js`/`**/*.d.ts`. What remains open is the validation half: no
+fixture yet exercises the mixed implementation-source package build together
+with an authored `types.d.ts`, the stable `./types.js` type specifier, and a
+clean consumer.
 
 ### Tasks
 
@@ -154,76 +184,82 @@ import direction, or the allowed JSDoc type-only `.mjs`→`.ts` direction.
       JavaScript; removing the benchmark is a separate cleanup and is not a
       prerequisite for this task.
 - [x] Enable `allowJs` and `checkJs` in the root TypeScript configuration before
-      the first `.ts` / `.f.ts` migration.
+      the first `.ts` / `.f.ts` implementation migration.
 - [x] Update NPM package rules to include authored `.mjs` and generated `.d.mts`.
       Do not add special exclusions merely for non-public authored `.mjs` files.
 - [x] Replace one-pass package emission with the two ordered `tsc` commands
       directly in `prepack`: declarations first, then JavaScript emission.
 - [x] Do not expose separate `emit:*` package scripts; packaging owns generated
       outputs.
+- [ ] Explicitly unignore authored `**/types.d.ts` while keeping generated
+      `**/*.d.ts` ignored.
 - [ ] Keep package/publish jobs on a clean CI checkout; do not add generated
       output tracking or cleanup for artifacts from previous revisions.
-- [ ] Add a mixed authored `.ts` + JSDoc `.mjs` package fixture.
-- [ ] Include an implementation-only `_`-prefixed JSDoc typedef in the fixture;
-      tolerate its current exported declaration form without treating it as
-      clean-consumer public API.
+- [ ] Add a mixed `module.f.ts` / `module.f.mjs` plus authored `types.d.ts`
+      package fixture.
+- [ ] Import a type from that fixture through `./types.js` from both TypeScript
+      (`import type`) and JavaScript (JSDoc `@import`) and verify that TypeScript
+      resolves `types.d.ts` without any runtime file/import.
+- [ ] Include an implementation-only `_`-prefixed JSDoc typedef in the `.mjs`
+      fixture; tolerate its current exported declaration form without treating it
+      as clean-consumer public API.
 - [ ] Test the allowed `.ts` -> `.mjs` runtime dependency direction in a clean
       checkout and CI-built package archive.
-- [ ] Reject authored `.mjs` runtime imports of remaining relative `.ts` or
-      generated `.js`.
-- [ ] Add a remaining `.ts` type-only dependency and consume it from authored
-      `.mjs` with JSDoc `@import`; verify that no runtime import/value is needed.
-- [ ] Verify the emitted `.d.mts` for that type-only edge resolves correctly from
-      the clean CI-built package and does not reference an omitted package file.
+- [ ] Reject authored `.mjs` runtime imports or JSDoc type references to remaining
+      relative implementation `.ts` / `.f.ts`; split required type APIs into
+      `types.d.ts` first.
+- [ ] Verify the CI-built archive preserves authored `types.d.ts` at its source
+      path and a clean consumer can resolve the `./types.js` type specifier.
 - [ ] Type-check a clean consumer using exported/transitive types from the
-      authored `.mjs` fixture, including the type-only dependency, without
-      importing `_`-prefixed private typedefs.
-- [ ] Verify the CI-built archive contains authored `.mjs`, generated `.js`,
-      `.d.ts`, and `.d.mts` in the expected paths during stage 1.
+      authored `.mjs` fixture and `types.d.ts`, without importing `_`-prefixed
+      private JSDoc typedefs.
+- [ ] Verify the CI-built archive contains authored `.mjs`, authored
+      `types.d.ts`, generated `.js`, `.d.ts`, and `.d.mts` in the expected paths
+      during stage 1.
 - [x] Update `AGENTS.md` to the asymmetric `.f.ts` / `.f.mjs` migration policy.
 - [ ] Add validation/proofs for the allowed TypeScript -> migrated-JavaScript
-      runtime direction, the rejected migrated-JavaScript -> TypeScript runtime
-      direction, and the allowed JSDoc type-only migrated-JavaScript ->
-      TypeScript direction.
+      runtime direction, rejected migrated-JavaScript -> TypeScript source
+      direction, and stable `types.d.ts` companion resolution.
 
 ### Acceptance criteria
 
-- `allowJs` and `checkJs` are enabled before the first source conversion.
-- The main TypeScript check validates authored `.ts` and `.mjs`.
+- `allowJs` and `checkJs` are enabled before the first implementation source
+  conversion.
+- The main TypeScript check validates authored `.ts`, `.mjs`, and `types.d.ts`.
 - `prepack` contains the two ordered `tsc` passes directly while TypeScript
-  remains, with declaration emission first and JavaScript emission second.
-- The exact two-pass command succeeds under `npm pack` with authored `.mjs`
-  present; PR #1451 provides the initial repository validation of this behavior.
-- Package emission produces `.d.ts` for `.ts`, `.d.mts` for `.mjs`, `.js` only
-  for `.ts`, and preserves authored `.mjs` unchanged.
+  implementation source remains, with declaration emission first and JavaScript
+  emission second.
+- The exact two-pass command succeeds under `npm pack` with authored `.mjs` and
+  `types.d.ts` present; PR #1451 provides the initial `.mjs` validation.
+- Package emission produces `.d.ts` for implementation `.ts`, `.d.mts` for
+  `.mjs`, `.js` only for implementation `.ts`, preserves authored `.mjs`
+  unchanged, and preserves authored `types.d.ts` as source.
 - `_`-prefixed JSDoc typedefs are treated as private API even if declaration
   emission currently writes them as exported aliases; clean-consumer tests do
   not depend on those names.
-- Non-public authored `.mjs` files do not require special package exclusions.
-- No separate user-facing `emit:*` scripts are required.
-- Package/publish runs start from a clean CI checkout, so ignored generated
-  outputs from previous revisions cannot leak into a package build.
-- No repository-owned cleanup or legacy generated-output tracking is required
-  for the stage-1 migration.
-- Remaining `.ts` may import migrated `.mjs`; migrated `.mjs` cannot runtime
-  import remaining `.ts` or generated `.js`.
-- Migrated `.mjs` may use JSDoc `@import` for a type-only dependency that remains
-  `.ts`, and the resulting declarations work for a clean package consumer
-  without adding a runtime dependency.
+- Authored `types.d.ts` is tracked despite the generated `*.d.ts` ignore and is
+  included in the package.
+- TypeScript `import type` and JSDoc `@import` can both use `./types.js` to reach
+  the same `types.d.ts` companion, with no runtime `types.js` file required.
+- Remaining `.ts` may import migrated `.mjs`; migrated `.mjs` cannot import or
+  JSDoc-reference remaining implementation `.ts` / `.f.ts` or generated `.js`.
 - A clean consumer can import the CI-built `.mjs` runtime and type-check against
-  its `.d.mts` declarations.
+  both its generated `.d.mts` and authored `types.d.ts` declarations.
 - `.f.mjs` carries no current-compiler compatibility promise during stage 1.
 - No staging tree or package-time runtime-specifier rewrite is needed.
 
 ### Ordering
 
-Complete this task before the first package-owned `.ts` / `.f.ts` -> `.mjs` /
-`.f.mjs` conversion in
+Complete this task before the first package-owned implementation `.ts` / `.f.ts`
+-> `.mjs` / `.f.mjs` conversion in
 [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md).
-The migration then proceeds gradually from runtime dependency leaves.
+The migration then proceeds gradually from runtime dependency leaves, with
+`types.d.ts` companions split out where needed before their JavaScript consumers
+migrate.
 
-After the last authored `.ts` / `.f.ts` source is removed, simplify `prepack` to
-its declaration-only form and remove the TypeScript-to-JavaScript emit path.
+After the last authored implementation/proof `.ts` / `.f.ts` source is removed,
+simplify `prepack` to its declaration-only form and remove the
+TypeScript-to-JavaScript emit path. Authored `types.d.ts` remains supported.
 Then the separate [`f-js-package-support.md`](./f-js-package-support.md) task
 prepares authored `.f.js` before compiler-compatibility migration starts.
 
@@ -233,7 +269,7 @@ prepares authored `.f.js` before compiler-compatibility migration starts.
   initial implementation and CI validation of `allowJs` / `checkJs` plus the
   two-pass `prepack`.
 - [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
-  — repository-wide stage-1 source migration.
+  — repository-wide stage-1 implementation source migration.
 - [`todo/blocked/jsdoc-typedef-strip-internal.md`](../../../todo/blocked/jsdoc-typedef-strip-internal.md)
   — replace the temporary `_` convention with `@internal` when declaration emit
   supports it.
