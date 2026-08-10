@@ -48,7 +48,7 @@ import { create, read, write, type Key, type MemOp } from '../../effects/memory/
 import { collectRead, type Cas } from '../module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
-import { tryUtf8 } from '../../text/module.f.ts'
+import { tryUtf8 } from '../../text/module.f.mjs'
 import { decodeText, encodeText, dialect, checkReferences, isHash, type LockMap, type Revision } from '../../media/revision/module.f.ts'
 import { ok, error, type Ok, type Result } from '../../types/result/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'

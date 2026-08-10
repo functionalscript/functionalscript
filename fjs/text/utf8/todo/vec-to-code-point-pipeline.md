@@ -10,8 +10,8 @@ independently in two modules, once unchecked and once checked, with no shared
 helper:
 
 ```ts
-// fjs/text/module.f.ts:61-62 — unchecked, top module reaching into three modules
-export const utf8ToString = (msbV: Utf8): string =>
+// fjs/text/module.f.mjs:69-70 — unchecked, top module reaching into three modules
+export const utf8ToString = msbV =>
     codePointListToString(toCodePointList(u8List(msb)(msbV)))
 
 // fjs/text/utf8/module.f.mjs:293-300 — checked / Nullable, in the utf8 module
@@ -47,13 +47,13 @@ export const vecToCodePointList = (v: Vec): List<I32> => toCodePointList(u8List(
 ```
 
 `fromVec` builds on it (adding its alignment/validity checks), and
-`text/module.f.ts`'s `utf8ToString` becomes
+`text/module.f.mjs`'s `utf8ToString` becomes
 `codePointListToString(vecToCodePointList(msbV))`. Consider going further and
 moving `utf8ToString` into `fjs/text/utf8/module.f.mjs` as the unchecked
 sibling of `fromVec` — mirroring how the encode direction already pairs
 `tryUtf8`/`utf8` in one place. If it moves, migrate it as a breaking change
 with every importer updated in the same PR; a re-export left in
-`fjs/text/module.f.ts` for existing importers is the stale-re-export case
+`fjs/text/module.f.mjs` for existing importers is the stale-re-export case
 `AGENTS.md` §8.4 rules out.
 
 ### Tasks
