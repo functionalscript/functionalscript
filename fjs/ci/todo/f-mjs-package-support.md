@@ -57,7 +57,9 @@ an explicit exception for authored `types.d.ts` while continuing to ignore
 generated declarations.
 
 Enable `allowJs` and `checkJs` before the first source conversion so TypeScript
-validates both authored implementation extensions.
+validates both authored implementation extensions. Keep `skipLibCheck: false`
+so authored `types.d.ts` files receive declaration-file semantic checking rather
+than being accepted without diagnostics.
 
 Use one packaging lifecycle command with two ordered TypeScript passes while
 TypeScript implementation source remains:
@@ -98,20 +100,19 @@ JSDoc-reference remaining `.ts` / `.f.ts` implementation source.
 When a migrated implementation needs a type that would otherwise keep such a
 type-only edge, split that type into the directory's authored `types.d.ts` first.
 Both TypeScript and JavaScript implementations reference the declaration module
-through the stable JavaScript-looking specifier:
+through its authored source path:
 
 ```ts
-import type { Phantom } from './types.js'
+import type { Phantom } from './types.d.ts'
 ```
 
 ```js
-/** @import { Phantom } from './types.js' */
+/** @import { Phantom } from './types.d.ts' */
 ```
 
-TypeScript resolves that specifier to `types.d.ts`; there is no runtime import or
-runtime file requirement. The same `./types.js` spelling survives
-`module.f.ts -> module.f.mjs -> module.f.js`, so the type edge does not need to be
-rewritten as the implementation migrates.
+Both forms are type-only, so there is no runtime import or runtime file
+requirement. The same authored `./types.d.ts` source path survives
+`module.f.ts -> module.f.mjs -> module.f.js`.
 
 A declaration-only `module.f.ts` should therefore become `types.d.ts` instead of
 `module.f.mjs`. The same cleanup may be applied to an existing `.f.mjs` that is
@@ -130,7 +131,7 @@ For FunctionalScript modules during stage 1:
 - `.f.mjs` runtime imports may depend on `.f.mjs`, not remaining `.f.ts` or
   generated `.f.js`;
 - `.f.ts`, `.f.mjs`, and later `.f.js` may consume a sibling `types.d.ts` through
-  the `./types.js` type-only specifier.
+  the `./types.d.ts` type-only source specifier.
 
 Update `AGENTS.md` with that runtime source-migration policy and the stable
 `types.d.ts` companion convention. Compiler compatibility is a later
@@ -173,9 +174,10 @@ needs only declaration emission:
 The core TypeScript/NPM pipeline support is in place: `tsconfig.json` has
 `allowJs`/`checkJs` enabled, `package.json`'s `prepack` is the exact two-pass
 `tsc` command proposed here, and `files` already lists `**/*.mjs`/`**/*.d.mts`
-alongside `**/*.js`/`**/*.d.ts`. What remains open is the validation half: no
-fixture yet exercises the mixed implementation-source package build together
-with an authored `types.d.ts`, the stable `./types.js` type specifier, and a
+alongside `**/*.js`/`**/*.d.ts`. This PR also sets `skipLibCheck: false`, so
+`types.d.ts` is semantically checked. What remains open is the validation half:
+no fixture yet exercises the mixed implementation-source package build together
+with an authored `types.d.ts`, direct `./types.d.ts` type specifiers, and a
 clean consumer.
 
 ### Tasks
@@ -185,6 +187,8 @@ clean consumer.
       prerequisite for this task.
 - [x] Enable `allowJs` and `checkJs` in the root TypeScript configuration before
       the first `.ts` / `.f.ts` implementation migration.
+- [x] Set `skipLibCheck: false` so authored declaration source is semantically
+      checked by the repository TypeScript run.
 - [x] Update NPM package rules to include authored `.mjs` and generated `.d.mts`.
       Do not add special exclusions merely for non-public authored `.mjs` files.
 - [x] Replace one-pass package emission with the two ordered `tsc` commands
@@ -197,9 +201,9 @@ clean consumer.
       output tracking or cleanup for artifacts from previous revisions.
 - [ ] Add a mixed `module.f.ts` / `module.f.mjs` plus authored `types.d.ts`
       package fixture.
-- [ ] Import a type from that fixture through `./types.js` from both TypeScript
+- [ ] Import a type from that fixture through `./types.d.ts` from both TypeScript
       (`import type`) and JavaScript (JSDoc `@import`) and verify that TypeScript
-      resolves `types.d.ts` without any runtime file/import.
+      resolves the authored declaration directly without any runtime import.
 - [ ] Include an implementation-only `_`-prefixed JSDoc typedef in the `.mjs`
       fixture; tolerate its current exported declaration form without treating it
       as clean-consumer public API.
@@ -209,7 +213,7 @@ clean consumer.
       relative implementation `.ts` / `.f.ts`; split required type APIs into
       `types.d.ts` first.
 - [ ] Verify the CI-built archive preserves authored `types.d.ts` at its source
-      path and a clean consumer can resolve the `./types.js` type specifier.
+      path and a clean consumer can resolve the `./types.d.ts` type specifier.
 - [ ] Type-check a clean consumer using exported/transitive types from the
       authored `.mjs` fixture and `types.d.ts`, without importing `_`-prefixed
       private JSDoc typedefs.
@@ -219,12 +223,14 @@ clean consumer.
 - [x] Update `AGENTS.md` to the asymmetric `.f.ts` / `.f.mjs` migration policy.
 - [ ] Add validation/proofs for the allowed TypeScript -> migrated-JavaScript
       runtime direction, rejected migrated-JavaScript -> TypeScript source
-      direction, and stable `types.d.ts` companion resolution.
+      direction, and authored `types.d.ts` companion resolution.
 
 ### Acceptance criteria
 
 - `allowJs` and `checkJs` are enabled before the first implementation source
   conversion.
+- `skipLibCheck` is `false`, so authored `types.d.ts` participates in normal
+  declaration-file semantic checking.
 - The main TypeScript check validates authored `.ts`, `.mjs`, and `types.d.ts`.
 - `prepack` contains the two ordered `tsc` passes directly while TypeScript
   implementation source remains, with declaration emission first and JavaScript
@@ -239,8 +245,8 @@ clean consumer.
   not depend on those names.
 - Authored `types.d.ts` is tracked despite the generated `*.d.ts` ignore and is
   included in the package.
-- TypeScript `import type` and JSDoc `@import` can both use `./types.js` to reach
-  the same `types.d.ts` companion, with no runtime `types.js` file required.
+- TypeScript `import type` and JSDoc `@import` can both reference
+  `./types.d.ts` directly, with no runtime import or runtime representation.
 - Remaining `.ts` may import migrated `.mjs`; migrated `.mjs` cannot import or
   JSDoc-reference remaining implementation `.ts` / `.f.ts` or generated `.js`.
 - A clean consumer can import the CI-built `.mjs` runtime and type-check against
