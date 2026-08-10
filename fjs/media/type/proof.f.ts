@@ -1,8 +1,10 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { msb, u8ListToVec, vec8, repeat, empty, type Vec } from '../../types/bit_vec/module.f.mjs'
+import type { Vec } from '../../types/bit_vec/types.ts'
+import { msb, u8ListToVec, vec8, repeat, empty } from '../../types/bit_vec/module.f.mjs'
 import { runPure } from '../../effects/module.f.ts'
 import { nonEmpty, empty as emptyList, type List } from '../../effects/list/module.f.ts'
-import { ok, type Result } from '../../types/result/module.f.mjs'
+import type { Result } from '../../types/result/types.ts'
+import { ok } from '../../types/result/module.f.mjs'
 import { detect, detectStream, detectVec, type DetectMeta } from './module.f.ts'
 
 // Builds a big-endian `Vec` from a list of byte values — mirrors how the CAS

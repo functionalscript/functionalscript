@@ -96,10 +96,11 @@
  */
 
 import { assert } from '../asserts/module.f.mjs'
-import { fold, type List } from '../types/list/module.f.mjs'
+import type { List } from '../types/list/types.ts'
+import { fold } from '../types/list/module.f.mjs'
 import { at } from '../types/object/module.f.ts'
-import type { Option } from '../types/option/module.f.mjs'
-import type { Result } from '../types/result/module.f.mjs'
+import type { Option } from '../types/option/types.ts'
+import type { Result } from '../types/result/types.ts'
 
 export type Operation =
     readonly[string, (..._: readonly never[]) => unknown]

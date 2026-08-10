@@ -5,8 +5,7 @@
  */
 
 import { abs, sign } from '../bigint/module.f.mjs'
-
-/** @typedef {readonly [bigint, number]} BigFloat */
+/** @import { BigFloat } from './types.ts' */
 
 /** @typedef {readonly [BigFloat, bigint]} _BigFloatWithRemainder */
 

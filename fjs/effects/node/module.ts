@@ -39,7 +39,8 @@ import {
     usesInlineTestContext,
 } from './module.f.ts'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
-import { error, ok, type Result } from '../../types/result/module.f.mjs'
+import type { Result } from '../../types/result/types.ts'
+import { error, ok } from '../../types/result/module.f.mjs'
 import { asyncTryCatch } from '../../types/result/module.ts'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.mjs'
 import type { StringMap } from '../../types/object/module.f.ts'

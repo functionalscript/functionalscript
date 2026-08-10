@@ -5,36 +5,16 @@
  */
 
 import { flatMap, toArray } from '../../types/list/module.f.mjs'
-/** @import { List, Thunk } from '../../types/list/module.f.mjs' */
-/** @import { StateScan } from '../../types/function/operator/module.f.mjs' */
-/** @import { Tuple } from '../../types/array/module.f.mjs' */
+/** @import { List, Thunk } from '../../types/list/types.ts' */
+/** @import { StateScan } from '../../types/function/operator/types.ts' */
 import { decoder, errorMask, isValidCodePoint } from '../code_point/module.f.mjs'
 import { msb, u8List, length } from '../../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
+/** @import { Vec } from '../../types/bit_vec/types.ts' */
 import { codePointListToString } from '../utf16/module.f.mjs'
-
-/** An unsigned 8-bit integer, represents a single byte. @typedef {number} U8 */
-
-/** A singed 32-bit integer. @typedef {number} I32 */
-
 /**
- * Represents an unsigned 8-bit type - U8 or the end-of-file indicator.
- * The U8 represents the byte itself, and null indicates that reading does not return anything else.
- *
- * @typedef {U8 | null} ByteOrEof
- */
-
-/**
- * Represents the state of a UTF-8 decoding operation that contains at least one byte.
- *
- * @typedef {Tuple<1, number> | Tuple<2, number> | Tuple<3, number>} Utf8NonEmptyState
- */
-
-/**
- * Represents the state of a UTF-8 decoding operation, which can be either `null` (no state)
- * or a non-empty state containing one or more bytes.
- *
- * @typedef {null | Utf8NonEmptyState} Utf8State
+ * @import {
+ *  ByteOrEof, I32, U8, Utf8NonEmptyState, Utf8State,
+ * } from './types.ts'
  */
 
 /**

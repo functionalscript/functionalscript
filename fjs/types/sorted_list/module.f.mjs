@@ -5,36 +5,13 @@
  */
 
 import { bsearch } from '../function/compare/module.f.mjs'
-/** @import { Sign, Cmp } from '../function/compare/module.f.mjs' */
+/** @import { Cmp } from '../function/compare/types.ts' */
 import { next } from '../list/module.f.mjs'
-/** @import { List } from '../list/module.f.mjs' */
-/** @import { Nullable } from '../nullable/module.f.mjs' */
+/** @import { List } from '../list/types.ts' */
 import { identity } from '../function/module.f.mjs'
-
-/** @template T @typedef {List<T>} SortedList */
+/** @import { ReduceOp, SortedList, TailReduce, _MergeReduce } from './types.ts' */
 
 /** @template T @typedef {readonly T[]} _SortedArray */
-
-/**
- * @template T
- * @template S
- * @typedef {(state: S) => (a: T) => (b: T) => readonly [Nullable<T>, Sign, S]} ReduceOp
- */
-
-/**
- * @template T
- * @template S
- * @typedef {(state: S) => (tail: List<T>) => List<T>} TailReduce
- */
-
-/**
- * @template T
- * @template S
- * @typedef {{
- *  readonly reduceOp: ReduceOp<T, S>
- *  readonly tailReduce: TailReduce<T, S>
- * }} _MergeReduce
- */
 
 /**
  * Two-way sorted-list merge.

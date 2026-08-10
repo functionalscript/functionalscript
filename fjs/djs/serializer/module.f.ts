@@ -4,11 +4,12 @@
  * @module
  */
 import type { Unknown, Object } from '../module.f.ts'
-import type { Fold } from '../../types/function/operator/module.f.mjs'
+import type { Fold } from '../../types/function/operator/types.ts'
 import type { Entry as ObjectEntry } from '../../types/object/module.f.ts'
 import { fold } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.ts'
-import { type List, flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.mjs'
+import type { List } from '../../types/list/types.ts'
+import { flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.mjs'
 const { entries } = Object
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'

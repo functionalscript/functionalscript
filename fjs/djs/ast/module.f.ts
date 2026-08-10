@@ -4,7 +4,8 @@
  * @module
  */
 import type { Primitive, Array, Unknown } from '../module.f.ts'
-import { type List, concat, fold, last, map, take, toArray } from '../../types/list/module.f.mjs'
+import type { List } from '../../types/list/types.ts'
+import { concat, fold, last, map, take, toArray } from '../../types/list/module.f.mjs'
 import type { Entry } from '../../types/ordered_map/module.f.ts'
 import { fromEntries } from '../../types/object/module.f.ts'
 const { entries } = Object

@@ -7,10 +7,11 @@
 
 import { mask } from '../../types/bigint/module.f.mjs'
 import { uint } from '../../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
-/** @import { Nullable } from '../../types/nullable/module.f.mjs' */
+/** @import { Vec } from '../../types/bit_vec/types.ts' */
+/** @import { Nullable } from '../../types/nullable/types.ts' */
 import { computeSync, sha256 } from '../sha2/module.f.mjs'
-/** @import { Sha2 } from '../sha2/module.f.mjs' */
+/** @import { Sha2 } from '../sha2/types.ts' */
+/** @import { Pow } from './types.ts' */
 
 const nBitsMantissa = mask(24n)
 const mantissaSign = 0x00800000n
@@ -65,21 +66,6 @@ export const targetFromNBits = nBits => {
     if (target > uint256Mask) { return null }
     return target
 }
-
-/**
- * @typedef {{
- *  readonly hashInt: (data: Vec) => bigint
- *  readonly meets: (nBits: bigint) => (data: Vec) => boolean
- * }} Pow
- *
- * @property hashInt
- *
- * Hash `data` with the configured `Sha2`; digest as big-endian uint256.
- *
- * @property meets
- *
- * Whether `hashInt(data) <= targetFromNBits(nBits)`; `false` when **nBits** is invalid.
- */
 
 /**
  * Builds PoW helpers for a hash function (typical consumer: {@link sha256}).

@@ -18,7 +18,13 @@ import {
     vec8,
 } from '../types/bit_vec/module.f.mjs'
 
-/** @import { Unpacked, Vec } from '../types/bit_vec/module.f.mjs' */
+/** @import { Unpacked, Vec } from '../types/bit_vec/types.ts' */
+
+/**
+ * @import {
+ *  ObjectIdentifier, Raw, Record, Sequence, SupportedRecord, _Tag,
+ * } from './types.ts'
+ */
 
 import { identity } from '../types/function/module.f.mjs'
 
@@ -55,12 +61,6 @@ const tagNumberMask = 0b000_11111n
  * Note: the tag number (the second parameter) can be arbitrarily large,
  *       so we can't just use a single byte to represent it.
  * @typedef {readonly[_ClassPc, bigint]} _ParsedTag
- */
-
-/**
- * ASN.1 tag number.
- *
- * @typedef {bigint} _Tag
  */
 
 /** @type {([classPc, number]: _ParsedTag) => Vec} */
@@ -180,12 +180,6 @@ const lenDecode = v => {
 // raw
 
 /**
- * Raw ASN.1 TLV tuple.
- *
- * @typedef {readonly [_Tag, Vec]} Raw
- */
-
-/**
  * Encodes a raw ASN.1 TLV tuple into a bit vector.
  *
  * @type {(_: Raw) => Vec}
@@ -266,12 +260,6 @@ export const decodeOctetString = v => v
 // object identifier
 
 /**
- * ASN.1 OBJECT IDENTIFIER components.
- *
- * @typedef {readonly bigint[]} ObjectIdentifier
- */
-
-/**
  * Encodes an OBJECT IDENTIFIER value.
  *
  * @type {(oid: ObjectIdentifier) => Vec}
@@ -314,12 +302,6 @@ export const decodeObjectIdentifier = v => {
 // sequence
 
 /**
- * ASN.1 ordered collection of records.
- *
- * @typedef {readonly Record[]} Sequence
- */
-
-/**
  * @param {(vec: readonly Vec[]) => readonly Vec[]} map
  * @return {(...records: Sequence) => Vec}
  */
@@ -344,12 +326,6 @@ export const decodeSequence = v => decodeAll(decode)(v)
 // set
 
 /**
- * ASN.1 SET represented as a sequence of records.
- *
- * @typedef {Sequence} Set
- */
-
-/**
  * Encodes a SET payload with canonical byte ordering.
  *
  * @type {(...records: Sequence) => Vec}
@@ -363,43 +339,6 @@ export const encodeSet =
  * @type {(v: Vec) => Sequence}
  */
 export const decodeSet = decodeSequence
-
-// Record
-
-/**
- * Supported ASN.1 record variants.
- *
- * @typedef {|
- *  readonly[typeof boolean, boolean] |
- *  readonly[typeof integer, bigint] |
- *  readonly[typeof octetString, Vec] |
- *  readonly[typeof objectIdentifier, ObjectIdentifier] |
- *  readonly[typeof constructedSequence, Sequence] |
- *  readonly[typeof constructedSet, Set]
- * } SupportedRecord
- */
-
-// Alternative:
-//
-// export type SupportedRecord =
-//     | boolean
-//     | bigint                                                    // integer
-//     | { tag: typeof octetString, value: Vec }
-//     | { tag: typeof objectIdentifier, value: ObjectIdentifier }
-//     | readonly Record[]                                         // sequence
-//     | { tag: typeof constructedSet, value: readonly Record[] }
-//
-// export type UnsupportedRecord =
-//     | { tag: null, value: Vec }
-
-/**
- * For unsupported tags, we just store the raw value including the tag and length,
- * so that it can be re-encoded without loss of information.
- *
- * @typedef {Vec} UnsupportedRecord
- */
-
-/** @typedef {SupportedRecord | UnsupportedRecord} Record */
 
 // encode
 

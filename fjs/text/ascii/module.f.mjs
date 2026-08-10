@@ -4,7 +4,7 @@
  * @module
  */
 
-/** @import { Range } from '../../types/range/module.f.mjs' */
+/** @import { Range } from '../../types/range/types.ts' */
 
 /** @type {(s: string) => (i: number) => number} */
 const at = s => i => {

@@ -6,11 +6,11 @@
  */
 
 import { reduce } from '../list/module.f.mjs'
-/** @import { List } from '../list/module.f.mjs' */
+/** @import { List } from '../list/types.ts' */
 import { addition } from '../function/operator/module.f.mjs'
-/** @import { Reduce } from '../function/operator/module.f.mjs' */
+/** @import { Reduce } from '../function/operator/types.ts' */
 import { cmp as uCmp, min as uMin, max as uMax } from '../function/compare/module.f.mjs'
-/** @import { Sign } from '../function/compare/module.f.mjs' */
+/** @import { Sign } from '../function/compare/types.ts' */
 import { fold } from '../../common/monoid/module.f.mjs'
 
 /** @type {(input: List<number>) => number} */

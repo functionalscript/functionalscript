@@ -1,7 +1,7 @@
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { prime_field } from '../../types/prime_field/module.f.mjs'
 import { curve, secp256k1, secp192r1, secp256r1, eq, secp384r1, secp521r1 } from './module.f.mjs'
-/** @import { Point, Curve, Init } from './module.f.mjs' */
+/** @import { Point, Curve, Init } from './types.ts' */
 
 /** @type {(param: Curve) => () => void} */
 const poker = param => () => {

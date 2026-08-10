@@ -4,13 +4,14 @@
  *
  * @module
  */
-import { map, flatMap, flat, concat as listConcat, type List } from '../../types/list/module.f.mjs'
+import type { List } from '../../types/list/types.ts'
+import { map, flatMap, flat, concat as listConcat } from '../../types/list/module.f.mjs'
 import { concat, concat as stringConcat } from '../../types/string/module.f.ts'
 import { definedEntries, type Entry, type StringMap } from '../../types/object/module.f.ts'
 import { compose } from '../../types/function/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { includes } from '../../types/array/module.f.mjs'
-import { type Vec } from '../../types/bit_vec/module.f.mjs'
+import type { Vec } from '../../types/bit_vec/types.ts'
 import { utf8 } from '../../text/module.f.mjs'
 import { quotationMark, ampersand, lessThanSign, greaterThanSign } from '../../text/ascii/module.f.mjs'
 

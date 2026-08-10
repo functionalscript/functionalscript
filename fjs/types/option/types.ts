@@ -6,7 +6,5 @@
 
 /**
  * Represents an optional value as an empty tuple or a tuple with one value.
- *
- * @template T
- * @typedef {readonly [T] | readonly []} Option
  */
+export type Option<T> = readonly [T] | readonly []

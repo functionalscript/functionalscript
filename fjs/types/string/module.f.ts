@@ -15,10 +15,13 @@
  * cmp('apple')('banana') // -1
  * ```
  */
-import { type List, reduce as listReduce, repeat as listRepeat } from '../list/module.f.mjs'
+import type { List } from '../list/types.ts'
+import { reduce as listReduce, repeat as listRepeat } from '../list/module.f.mjs'
 import { compose } from '../function/module.f.mjs'
-import { type Sign, cmp as uCmp } from '../function/compare/module.f.mjs'
-import { join as joinOp, type Reduce } from '../function/operator/module.f.mjs'
+import type { Sign } from '../function/compare/types.ts'
+import { cmp as uCmp } from '../function/compare/module.f.mjs'
+import type { Reduce } from '../function/operator/types.ts'
+import { join as joinOp } from '../function/operator/module.f.mjs'
 import { fold } from '../../common/monoid/module.f.mjs'
 
 // `join`'s per-separator reduction is seeded at `''` but is *not* a monoid fold:

@@ -3,15 +3,16 @@
  *
  * @module
  */
-import type { Tree } from '../btree/types/module.f.mjs'
+import type { Tree } from '../btree/types/types.ts'
 import { value, find } from '../btree/find/module.f.mjs'
 import { set } from '../btree/set/module.f.mjs'
 import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
 import { values } from '../btree/module.f.mjs'
-import type { Sign } from '../function/compare/module.f.mjs'
+import type { Sign } from '../function/compare/types.ts'
 import { cmp } from '../string/module.f.ts'
-import { fold, type List } from '../list/module.f.mjs'
-import type { Reduce } from '../function/operator/module.f.mjs'
+import type { List } from '../list/types.ts'
+import { fold } from '../list/module.f.mjs'
+import type { Reduce } from '../function/operator/types.ts'
 
 export type Entry<T> = readonly [string, T]
 

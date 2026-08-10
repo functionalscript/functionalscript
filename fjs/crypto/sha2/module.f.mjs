@@ -4,9 +4,9 @@
  * @module
  */
 
-/** @import { Tuple } from '../../types/array/module.f.mjs' */
+/** @import { Tuple } from '../../types/array/types.ts' */
 import { mask } from '../../types/bigint/module.f.mjs'
-/** @import { Reduce } from '../../types/bigint/module.f.mjs' */
+/** @import { Reduce } from '../../types/bigint/types.ts' */
 import {
     vec,
     length,
@@ -15,10 +15,11 @@ import {
     chunkList,
     uint,
 } from '../../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
-/** @import { Fold } from '../../types/function/operator/module.f.mjs' */
+/** @import { Vec } from '../../types/bit_vec/types.ts' */
+/** @import { Fold } from '../../types/function/operator/types.ts' */
 import { fold } from '../../types/list/module.f.mjs'
-/** @import { List } from '../../types/list/module.f.mjs' */
+/** @import { List } from '../../types/list/types.ts' */
+/** @import { Base, Sha2, State, V16, V8 } from './types.ts' */
 
 const { concat, front } = msb
 
@@ -29,41 +30,6 @@ const chunkListMsb = chunkList(msb)
 /** @typedef {Tuple<3, bigint>} _V3 */
 
 /** @typedef {Tuple<4, bigint>} _V4 */
-
-/**
- * 8-word SHA-2 state vector.
- *
- * @typedef {Tuple<8, bigint>} V8
- */
-
-/**
- * 16-word SHA-2 message schedule chunk.
- *
- * @typedef {Tuple<16, bigint>} V16
- */
-
-/**
- * State of the SHA-2 algorithm: `hash` is the current hash value, `len` the
- * length of the data processed so far, and `remainder` the data that has not
- * yet been processed.
- *
- * @typedef {{
- *   readonly hash: V8,
- *   readonly len: bigint,
- *   readonly remainder: Vec,
- * }} State
- */
-
-/**
- * @typedef {{
- *   readonly bitLength: bigint,
- *   readonly chunkLength: bigint,
- *   readonly compress: (i: V8) => (u: bigint) => V8,
- *   readonly fromV8: (a: V8) => bigint,
- *   readonly append: Fold<Vec, State>,
- *   readonly end: (hashLength: bigint) => (state: State) => Vec,
- * }} Base
- */
 
 /**
  * @typedef {{
@@ -284,14 +250,6 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
  * state = sha224.append(state)(s)
  * const h = sha224.end(state) // 0x1_619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn
  * ```
- *
- * @typedef {{
- *   readonly hashLength: bigint,
- *   readonly blockLength: bigint,
- *   readonly init: State,
- *   readonly append: Fold<Vec, State>,
- *   readonly end: (state: State) => Vec,
- * }} Sha2
  */
 
 /** @type {(base: Base, hash: V8, hashLength: bigint) => Sha2} */

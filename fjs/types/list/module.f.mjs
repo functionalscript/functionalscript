@@ -4,7 +4,7 @@
  * @module
  */
 import { identity, fn, compose } from '../function/module.f.mjs'
-/** @import { Nullable } from '../nullable/module.f.mjs' */
+/** @import { Nullable } from '../nullable/types.ts' */
 import {
     addition,
     logicalNot,
@@ -13,50 +13,8 @@ import {
     foldToScan,
     reduceToScan,
 } from '../function/operator/module.f.mjs'
-/** @import {Scan, StateScan, Fold, Reduce, Equal} from '../function/operator/module.f.mjs' */
-
-/**
- * @template T
- * @typedef {NotLazy<T> | Thunk<T>} List
- */
-
-/**
- * @template T
- * @typedef {Result<T> |
- *   Concat<T> |
- *   readonly T[]
- * } NotLazy
- */
-
-/** @typedef {null} Empty */
-
-/**
- * @template T
- * @typedef {Empty | NonEmpty<T>} Result
- */
-
-/**
- * @template T
- * @typedef {() => List<T>} Thunk
- */
-
-/**
- * See also https://en.wikipedia.org/wiki/Cons#Lists
- *
- * @template T
- * @typedef {{
- *  readonly first: T
- *  readonly tail: List<T>
- * }} NonEmpty
- */
-
-/**
- * @template T
- * @typedef {{
- *  readonly head: List<T>
- *  readonly tail: List<T>
- * }} Concat
- */
+/** @import {Scan, StateScan, Fold, Reduce, Equal} from '../function/operator/types.ts' */
+/** @import { Accumulator, Concat, Entry, List, NonEmpty, NotLazy, Result, Thunk } from './types.ts' */
 
 export const fromArrayLike =
     /**
@@ -275,24 +233,6 @@ export const fold = op => init => compose(foldScan(op)(init))(last(init))
 export const reduce = op => def => compose(scan(reduceToScan(op)))(last(def))
 
 /**
- * A fold that can bail out early, packaged as plain data.
- *
- * `init` is the starting state, `update` advances the state by one item and
- * returns `null` to abort the whole fold, and `end` finalizes the surviving
- * state into a result. Keeping the three parts together lets `tryFold` drive
- * any short-circuiting accumulation without knowing its domain.
- *
- * @template I
- * @template T
- * @template R
- * @typedef {{
- *  readonly init: T
- *  readonly update: (i: I, state: T) => Nullable<T>
- *  readonly end: (state: T) => R
- * }} Accumulator
- */
-
-/**
  * Folds `input` with an {@link Accumulator}, short-circuiting to `null` the
  * moment `update` rejects an item; otherwise finalizes with `end`. This is the
  * list-level `try*` sibling of {@link fold} for accumulations that can fail
@@ -326,11 +266,6 @@ const sum = reduce(addition)(0)
 
 /** @type {<T>(input: List<T>) => number} */
 export const length = input => sum(lengthList(input))
-
-/**
- * @template T
- * @typedef {readonly [number, T]} Entry
- */
 
 /** @type {<T>(value: T, index: number) => readonly [Entry<T>, number]} */
 const entryOperator = (value, index) => [[index, value], index + 1]

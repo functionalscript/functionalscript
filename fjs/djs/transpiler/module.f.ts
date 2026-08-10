@@ -4,8 +4,10 @@
  * @module
  */
 import { type Unknown } from '../module.f.ts'
-import { type Result, error, ok } from '../../types/result/module.f.mjs'
-import { drop, map as listMap, type List, toArray, includes } from '../../types/list/module.f.mjs'
+import type { Result } from '../../types/result/types.ts'
+import { error, ok } from '../../types/result/module.f.mjs'
+import type { List } from '../../types/list/types.ts'
+import { drop, map as listMap, toArray, includes } from '../../types/list/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.ts'
 import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.mjs'

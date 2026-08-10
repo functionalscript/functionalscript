@@ -3,18 +3,8 @@ import { repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { flip } from '../../types/function/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 import { map } from '../../types/list/module.f.mjs'
-import {
-    base32,
-    base64,
-    computeSync,
-    type Sha2,
-    sha224,
-    sha256,
-    sha384,
-    sha512,
-    sha512x224,
-    sha512x256,
-} from './module.f.mjs'
+import type { Sha2 } from './types.ts'
+import { base32, base64, computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
 
 const checkEmpty = ({ init, end, hashLength }: Sha2) => (x: bigint) => {
     const result = end(init)

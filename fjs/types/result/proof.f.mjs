@@ -1,5 +1,5 @@
 import { error, ok, unwrap, invert, mapOk } from './module.f.mjs'
-/** @import { Result } from './module.f.mjs' */
+/** @import { Result } from './types.ts' */
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const example = () => {

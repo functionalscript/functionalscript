@@ -23,32 +23,30 @@
  */
 
 import { bitLength, divUp, mask, maxLength, xor } from '../bigint/module.f.mjs'
-/** @import { Reduce as BigintReduce } from '../bigint/module.f.mjs' */
+/** @import { Reduce as BigintReduce } from '../bigint/types.ts' */
 
 import { flip, identity } from '../function/module.f.mjs'
 
-/** @import { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.mjs' */
+/** @import { Fold } from '../function/operator/types.ts' */
 
 import { map, tryFold } from '../list/module.f.mjs'
-/** @import { Accumulator, List, Thunk } from '../list/module.f.mjs' */
+/** @import { Accumulator, List, Thunk } from '../list/types.ts' */
 
 import { asBase, asNominal } from '../nominal/module.f.mjs'
-/** @import { Nominal } from '../nominal/module.f.mjs' */
 
 import { repeat as mRepeat } from '../../common/monoid/module.f.mjs'
 
 import { cmp, max, min } from '../function/compare/module.f.mjs'
-/** @import { Sign } from '../function/compare/module.f.mjs' */
+/** @import { Sign } from '../function/compare/types.ts' */
 
 import { mapUnwrap } from '../nullable/module.f.mjs'
-/** @import { Nullable } from '../nullable/module.f.mjs' */
-
-/** @typedef {'1a23a4336197e6158b6936cad34e90d146cd84b9b40ff7ab75a17c6d79e31d89'} _Revision */
+/** @import { Nullable } from '../nullable/types.ts' */
 
 /**
- * A vector of bits represented as a signed `bigint`.
- *
- * @typedef {Nominal<'bit_vec', _Revision, bigint>} Vec
+ * @import {
+ *  BitOrder, PopFront, Reduce, Unpacked, Vec,
+ *  _NormOp, _UnpackConcat,
+ * } from './types.ts'
  */
 
 /**
@@ -151,14 +149,6 @@ export const uint = v => {
 }
 
 /**
- * Structure describing the unpacked view of a vector.
- * @typedef {{
- *  readonly length: bigint
- *  readonly uint: bigint
- * }} Unpacked
- */
-
-/**
  * Extracts the logical length and unsigned integer from the vector.
  *
  * @type {(v: Vec) => Unpacked}
@@ -179,17 +169,6 @@ export const pack = ({ length, uint }) => vec(length)(uint)
 export const unpackedUint = ({ uint }) => uint
 
 /**
- * @typedef {(len: bigint) => {
- *  readonly a: bigint
- *  readonly b: bigint
- * }} _Norm
- */
-
-/** @typedef {Binary<Unpacked, Unpacked, _Norm>} _NormOp */
-
-/** @typedef {OpReduce<Vec>} Reduce */
-
-/**
  * Normalizes two vectors to the same length before applying a bigint reducer.
  *
  * @type {(norm: _NormOp) => (op: BigintReduce) => Reduce}
@@ -203,33 +182,6 @@ const op = norm => op => ap => bp => {
 }
 
 /**
- * @template T
- * @typedef {(len: bigint) => (u: T) => readonly [bigint, T]} PopFront
- */
-
-/**
- * Represents operations for handling bit vectors with a specific bit order.
- *
- * https://en.wikipedia.org/wiki/Bit_numbering
- *
- * @typedef {{
- *  readonly front: (len: bigint) => (v: Vec) => bigint
- *  readonly removeFront: (len: bigint) => (v: Vec) => Vec
- *  readonly popFront: PopFront<Vec>
- *  readonly concat: Reduce
- *  readonly tryListToVec: (list: List<Vec>) => Nullable<Vec>
- *  readonly listToVec: (list: List<Vec>) => Vec
- *  readonly xor: Reduce
- *  readonly unpackPopFront: PopFront<Unpacked>
- *  readonly norm: _NormOp
- *  readonly cmp: (a: Vec) => (b: Vec) => Sign
- *  readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
- *  readonly unpackConcat: _UnpackConcat
- *  readonly startsWith: (prefix: Vec) => (v: Vec) => boolean
- * }} BitOrder
- */
-
-/**
  * @typedef {{
  *  readonly front: (len: bigint) => (v: Vec) => bigint
  *  readonly removeFront: (len: bigint) => (v: Vec) => Vec
@@ -241,8 +193,6 @@ const op = norm => op => ap => bp => {
  */
 
 const unpackEmpty = /** @type {const} */{ length: 0n, uint: 0n }
-
-/** @typedef {(a: Unpacked) => (b: Unpacked) => Unpacked} _UnpackConcat */
 
 /**
  * @typedef {{

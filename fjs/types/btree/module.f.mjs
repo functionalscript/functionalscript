@@ -5,9 +5,9 @@
  */
 
 import { flat } from '../list/module.f.mjs'
-/** @import { List, Thunk } from '../list/module.f.mjs' */
+/** @import { List, Thunk } from '../list/types.ts' */
 import { map } from '../nullable/module.f.mjs'
-/** @import { TNode, Tree } from './types/module.f.mjs' */
+/** @import { TNode, Tree } from './types/types.ts' */
 
 /** @type {<T>(node: TNode<T>) => Thunk<T>} */
 const nodeValues

@@ -18,8 +18,10 @@
  * ```
  */
 
-import { length, type Vec, msb, vec, vec8, type Reduce, repeat } from '../../types/bit_vec/module.f.mjs'
-import { computeSync, type Sha2 } from '../sha2/module.f.mjs'
+import type { Vec, Reduce } from '../../types/bit_vec/types.ts'
+import { length, msb, vec, vec8, repeat } from '../../types/bit_vec/module.f.mjs'
+import type { Sha2 } from '../sha2/types.ts'
+import { computeSync } from '../sha2/module.f.mjs'
 
 const { concat, xor } = msb
 

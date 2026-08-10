@@ -1,6 +1,6 @@
 import { validate, type ValidationError } from './module.f.ts'
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.ts'
-import type { Equal } from '../../ts/module.f.mjs'
+import type { Equal } from '../../ts/types.ts'
 import type { Ts } from '../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 import type { Assert } from '../../../asserts/types.ts'

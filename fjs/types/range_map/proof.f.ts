@@ -1,4 +1,5 @@
-import { get, merge, type RangeMapArray, type Properties, type RangeMap, fromRange, rangeMap } from './module.f.mjs'
+import type { RangeMapArray, Properties, RangeMap } from './types.ts'
+import { get, merge, fromRange, rangeMap } from './module.f.mjs'
 import { stringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { union, type SortedSet } from '../sorted_set/module.f.ts'

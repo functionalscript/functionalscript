@@ -1,49 +1,10 @@
 /**
- * Shared type definitions for persistent B-tree modules.
+ * Node helpers shared by the persistent B-tree modules. The node types
+ * themselves live in `./types.ts`.
  *
  * @module
  */
-/** @import { Tuple } from '../../array/module.f.mjs' */
-
-/**
- * @template T
- * @typedef {Tuple<1, T>} Leaf1
- */
-
-/**
- * @template T
- * @typedef {Tuple<2, T>} Leaf2
- */
-
-/**
- * @template T
- * @typedef {readonly[TNode<T>, T, TNode<T>]} Branch3
- */
-
-/**
- * @template T
- * @typedef {readonly[TNode<T>, T, TNode<T>, T, TNode<T>]} Branch5
- */
-
-/**
- * @template T
- * @typedef {Leaf1<T> | Leaf2<T> | Branch3<T> | Branch5<T>} TNode
- */
-
-/**
- * @template T
- * @typedef {TNode<T> | null} Tree
- */
-
-/**
- * @template T
- * @typedef {readonly[TNode<T>]} Branch1
- */
-
-/**
- * @template T
- * @typedef {readonly[...Branch5<T>, T, TNode<T>]} Branch7
- */
+/** @import { Branch1, Branch3, Branch5, TNode } from './types.ts' */
 
 /**
  * Demotes a single-child branch root to its only child.

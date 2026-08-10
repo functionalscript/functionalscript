@@ -3,9 +3,11 @@
  *
  * @module
  */
-import { error, ok, type Result } from '../../types/result/module.f.mjs'
-import { fold, next, toArray, length, concat, type List } from '../../types/list/module.f.mjs'
-import type { Fold } from '../../types/function/operator/module.f.mjs'
+import type { Result } from '../../types/result/types.ts'
+import { error, ok } from '../../types/result/module.f.mjs'
+import type { List } from '../../types/list/types.ts'
+import { fold, next, toArray, length, concat } from '../../types/list/module.f.mjs'
+import type { Fold } from '../../types/function/operator/types.ts'
 import type { DjsToken, DjsTokenWithMetadata } from '../tokenizer/module.f.ts'
 import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
