@@ -4,7 +4,7 @@ import { stringify, type Unknown } from '../../../media/json/module.f.ts'
 import { sort } from '../../object/module.f.ts'
 import { type TNode } from '../types/module.f.mjs'
 import { cmp } from '../../string/module.f.ts'
-import { set as setSet } from '../set/module.f.ts'
+import { set as setSet } from '../set/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
 const jsonStr = stringify(sort)

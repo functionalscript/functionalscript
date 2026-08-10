@@ -5,13 +5,14 @@
 
 ### Problem
 
-`fjs/types/btree/remove/module.f.ts` defines two pairs of merge helpers that are
+`fjs/types/btree/remove/module.f.mjs` defines two pairs of merge helpers that are
 **left/right mirror images** of each other — identical control flow, with the
 sibling tuple and the placement of the merged leaf swapped:
 
-```ts
-// fjs/types/btree/remove/module.f.ts:31-42  (left)
-const reduceValue0 = <T>(a: Branch<T>) => (n: Branch3<T>): Branch1<T> | Branch3<T> => {
+```js
+// fjs/types/btree/remove/module.f.mjs:48-60  (left)
+/** @type {<T>(a: _Branch<T>) => (n: Branch3<T>) => Branch1<T> | Branch3<T>} */
+const reduceValue0 = a => n => {
     const [, v1, n2] = n
     if (a.length === 1) {
         switch (n2.length) {
@@ -24,8 +25,9 @@ const reduceValue0 = <T>(a: Branch<T>) => (n: Branch3<T>): Branch1<T> | Branch3<
     }
 }
 
-// fjs/types/btree/remove/module.f.ts:44-55  (right — mirror of the above)
-const reduceValue2 = <T>(a: Branch<T>) => (n: Branch3<T>): Branch1<T> | Branch3<T> => {
+// fjs/types/btree/remove/module.f.mjs:62-74  (right — mirror of the above)
+/** @type {<T>(a: _Branch<T>) => (n: Branch3<T>) => Branch1<T> | Branch3<T>} */
+const reduceValue2 = a => n => {
     const [n0, v1, ] = n
     if (a.length === 1) {
         switch (n0.length) {
@@ -39,11 +41,11 @@ const reduceValue2 = <T>(a: Branch<T>) => (n: Branch3<T>): Branch1<T> | Branch3<
 }
 ```
 
-The same mirroring holds for `initValue0` (`:57-68`) vs `initValue1` (`:70-79`):
+The same mirroring holds for `initValue0` (`:76-88`) vs `initValue1` (`:90-100`):
 identical structure, with `a` placed left vs right and the sibling read from the
 opposite end. The two pairs are already consumed symmetrically — `reduceX` is
-fed `[reduceValue0, reduceValue2]` (`:98`) and `[initValue0, initValue1]`
-(`:100`), and `reduceX` itself dispatches `case 0 → m0`, `case 2 → m2`.
+fed `[reduceValue0, reduceValue2]` (`:124`) and `[initValue0, initValue1]`
+(`:126`), and `reduceX` itself dispatches `case 0 → m0`, `case 2 → m2`.
 
 So the module encodes "left vs right" **three times**: once in `reduceX`'s
 `switch (i)`, and once in each mirror pair. Changing the rebalancing invariant
