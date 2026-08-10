@@ -5,7 +5,7 @@
  */
 import { type StateScan } from '../../../types/function/operator/module.f.mjs'
 import { concat, empty, flat, stateScan, type List } from '../../../types/list/module.f.mjs'
-import { multiply } from '../../../types/bigfloat/module.f.ts'
+import { multiply } from '../../../types/bigfloat/module.f.mjs'
 import {
     tokenize as jsTokenize,
     type EofToken,

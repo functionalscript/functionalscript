@@ -5,7 +5,7 @@
 
 ### Problem
 
-`round53` (`fjs/types/bigfloat/module.f.ts`) reduces the mantissa to 54 bits
+`round53` (`fjs/types/bigfloat/module.f.mjs`) reduces the mantissa to 54 bits
 with `decreaseMantissa(...)(twoPow54)`, then rounds to 53 bits by adding the
 dropped bit back:
 
@@ -79,4 +79,4 @@ already normalizes on the way in.
 
 - [GitHub issue #265](https://github.com/functionalscript/functionalscript/issues/265)
   — the original report.
-- `fjs/types/bigfloat/module.f.ts` — `round53`, `decToBin`.
+- `fjs/types/bigfloat/module.f.mjs` — `round53`, `decToBin`.
