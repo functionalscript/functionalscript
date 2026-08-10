@@ -5,47 +5,52 @@
  *
  * @module
  */
-import type { Equal, Fold, Reduce } from '../../types/function/operator/module.f.mjs'
-import { prime_field, sqrt, type PrimeField } from '../../types/prime_field/module.f.mjs'
+
+/** @import { Equal, Fold, Reduce } from '../../types/function/operator/module.f.mjs' */
+import { prime_field, sqrt } from '../../types/prime_field/module.f.mjs'
+/** @import { PrimeField } from '../../types/prime_field/module.f.mjs' */
 import { repeat } from '../../common/monoid/module.f.mjs'
 
-/**
- * A 2D point represented as a pair of `bigint` values `[x, y]`.
- */
-export type Point2D = readonly[bigint, bigint]
+/** A 2D point represented as a pair of `bigint` values `[x, y]`. @typedef {readonly [bigint, bigint]} Point2D */
 
 /**
  * A 2D point on an elliptic curve, represented as a pair of `bigint` values.
  * `null` represents the point at infinity (`O`).
+ *
+ * @typedef {Point2D | null} Point
  */
-export type Point = Point2D|null
 
 /**
  * Initialization parameters for an elliptic curve.
+ *
+ * @typedef {{
+ *  readonly p: bigint
+ *  readonly a: readonly [bigint, bigint]
+ *  readonly g: readonly [bigint, bigint]
+ *  readonly n: bigint
+ * }} Init
  */
-export type Init = {
-    readonly p: bigint
-    readonly a: readonly[bigint, bigint]
-    readonly g: readonly[bigint, bigint]
-    readonly n: bigint
-}
 
 /**
  * Represents an elliptic curve and its associated operations.
+ *
+ * @typedef {{
+ *  readonly pf: PrimeField
+ *  readonly nf: PrimeField
+ *  readonly g: Point
+ *  readonly y2: (x: bigint) => bigint
+ *  readonly y: (x: bigint) => bigint | null
+ *  readonly neg: (a: Point) => Point
+ *  readonly add: Reduce<Point>
+ *  readonly mul: Fold<bigint, Point>
+ * }} Curve
  */
-export type Curve = {
-    readonly pf: PrimeField
-    readonly nf: PrimeField
-    readonly g: Point
-    readonly y2: (x: bigint) => bigint
-    readonly y: (x: bigint) => bigint|null
-    readonly neg: (a: Point) => Point
-    readonly add: Reduce<Point>
-    readonly mul: Fold<bigint, Point>
-}
 
 /**
  * Constructs an elliptic curve with the given initialization parameters.
+ *
+ * @param {Init} _
+ * @returns {Curve}
  *
  * @example
  *
@@ -64,7 +69,7 @@ export type Curve = {
  * const mulPoint = curveInstance.mul([1n, 1n])(3n); // Multiply a point by 3
  * ```
  */
-export const curve = ({ p, a: [a0, a1], n, g }: Init): Curve => {
+export const curve = ({ p, a: [a0, a1], n, g }) => {
     const pf = prime_field(p)
     const { pow2, pow3, sub, add, mul, neg, div } = pf
     const mul3 = mul(3n)
@@ -75,10 +80,13 @@ export const curve = ({ p, a: [a0, a1], n, g }: Init): Curve => {
 
     /**
      * y**2 = a1*x**3 + a0
+     *
+     * @type {(x: bigint) => bigint}
      */
-    const y2 = (x: bigint) => addA0(add(pow3(x))(mulA1(x)))
+    const y2 = x => addA0(add(pow3(x))(mulA1(x)))
 
-    const addPoint: Reduce<Point> = p => q => {
+    /** @type {Reduce<Point>} */
+    const addPoint = p => q => {
         if (p === null) {
             return q
         }
@@ -121,7 +129,8 @@ export const curve = ({ p, a: [a0, a1], n, g }: Init): Curve => {
     }
 }
 
-export const eq: Equal<Point> = a => b => {
+/** @type {Equal<Point>} */
+export const eq = a => b => {
     if (a === null || b === null) {
         return a === b
     }
@@ -134,7 +143,7 @@ export const eq: Equal<Point> = a => b => {
  * https://neuromancer.sk/std/secg/secp192r1
  * NIST P-192
  */
-export const secp192r1: Curve = curve({
+export const secp192r1 = curve({
     p: 0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_ffffffffn,
     a: [
         0x64210519_e59c80e7_0fa7e9ab_72243049_feb8deec_c146b9b1n,
@@ -169,7 +178,7 @@ export const secp192r1: Curve = curve({
  * https://en.bitcoin.it/wiki/Secp256k1
  * https://neuromancer.sk/std/secg/secp256k1
  */
-export const secp256k1: Curve = curve({
+export const secp256k1 = curve({
     p: 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn,
     a: [7n, 0n],
     g: [
@@ -183,7 +192,7 @@ export const secp256k1: Curve = curve({
  * https://neuromancer.sk/std/secg/secp256r1
  * NIST P-256
  */
-export const secp256r1: Curve = curve({
+export const secp256r1 = curve({
     p: 0xffffffff_00000001_00000000_00000000_00000000_ffffffff_ffffffff_ffffffffn,
     a: [
         0x5ac635d8_aa3a93e7_b3ebbd55_769886bc_651d06b0_cc53b0f6_3bce3c3e_27d2604bn, //< b
@@ -199,7 +208,7 @@ export const secp256r1: Curve = curve({
 /**
  * https://neuromancer.sk/std/secg/secp384r1
  */
-export const secp384r1: Curve = curve({
+export const secp384r1 = curve({
     p: 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffffn,
     a: [
         0xb3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088f5013875ac656398d8a2ed19d2a85c8edd3ec2aefn, //< b
@@ -215,7 +224,7 @@ export const secp384r1: Curve = curve({
 /**
  * https://neuromancer.sk/std/secg/secp521r1
  */
-export const secp521r1: Curve = curve({
+export const secp521r1 = curve({
     p: 0x01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn,
     a: [
         0x0051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00n, //< b

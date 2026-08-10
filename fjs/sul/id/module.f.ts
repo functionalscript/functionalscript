@@ -18,7 +18,7 @@ import {
 } from '../../types/bit_vec/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.ts'
-import { secp256r1, type Point2D } from '../../crypto/secp/module.f.ts'
+import { secp256r1, type Point2D } from '../../crypto/secp/module.f.mjs'
 import { base32, type V8 } from '../../crypto/sha2/module.f.mjs'
 import { literal3ToVec } from '../level/literal/module.f.ts'
 import { log2 } from '../../types/bigint/module.f.mjs'

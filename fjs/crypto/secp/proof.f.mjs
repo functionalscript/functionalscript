@@ -1,13 +1,16 @@
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { prime_field } from '../../types/prime_field/module.f.mjs'
-import { curve, secp256k1, secp192r1, secp256r1, eq, type Point, secp384r1, secp521r1, type Curve, type Init } from './module.f.ts'
+import { curve, secp256k1, secp192r1, secp256r1, eq, secp384r1, secp521r1 } from './module.f.mjs'
+/** @import { Point, Curve, Init } from './module.f.mjs' */
 
-const poker = (param: Curve) => () => {
+/** @type {(param: Curve) => () => void} */
+const poker = param => () => {
     // (c ^ x) ^ y = c ^ (x * y)
     // c ^ ((x * y) * (1/x * 1/y)) = c
     // const { g, n } = param
     const { mul, y, nf: { p: n } } = param
-    const f = (m: bigint) => (pList: readonly Point[]) => pList.map(mul(m))
+    /** @type {(m: bigint) => (pList: readonly Point[]) => readonly Point[]} */
+    const f = m => pList => pList.map(mul(m))
     //
     const pf = prime_field(n)
     //           0        1        2        3        4        5        6        7
@@ -22,11 +25,13 @@ const poker = (param: Curve) => () => {
     // "6ca248e88c124478975b57c4c3ca682bd8be0f0d9f11593d01273d9ceebdb735"
     const rB = pf.reciprocal(sB)
     //
-    let d: readonly Point[] = []
+    /** @type {readonly Point[]} */
+    let d = []
     for (let i = 0n; i < 52n; ++i) {
         let nonce = 0n // can be a random number in a range [`0`, `p >> 6n`).
         let x = 0n
-        let yi: bigint|null
+        /** @type {bigint | null} */
+        let yi
         while (true) {
             x = i | (nonce << 6n)
             yi = y(x)
@@ -54,7 +59,8 @@ const poker = (param: Curve) => () => {
 
 export const proof = {
     example: () => {
-        const curveParams: Init = {
+        /** @type {Init} */
+        const curveParams = {
             p: 23n,
             a: [0n, 1n],
             g: [1n, 1n],
@@ -67,11 +73,11 @@ export const proof = {
         const mulPoint = c.mul(3n)([1n, 1n]); // Multiply a point by 3
     },
     test: () => {
-        const test_curve
-        : (c: Curve) => void
-        = c => {
+        /** @type {(c: Curve) => void} */
+        const test_curve = c => {
             const { mul, neg, pf: { abs }, y: yf, nf: { p: n }, g } = c
-            const point_check = (p: Point): void => {
+            /** @type {(p: Point) => void} */
+            const point_check = p => {
                 assert(p !== null, 'p === null')
                 const [x, y] = p
                 const ye = assertNotNullish(yf(x), 'ye === null')
@@ -79,15 +85,15 @@ export const proof = {
             }
             point_check(g)
             point_check(neg(g))
-            const test_mul = (p: Point): void => {
+            /** @type {(p: Point) => void} */
+            const test_mul = p => {
                 assertEq(mul(0n)(p), null, 'O')
                 assertEq(mul(1n)(p), p, 'p')
                 assertEq(mul(n)(p), null, 'n')
                 const pn = neg(p)
                 assert(eq(mul(n - 1n)(p))(pn), 'n - 1')
-                const f
-                : (s: bigint) => void
-                = s => {
+                /** @type {(s: bigint) => void} */
+                const f = s => {
                     const r = mul(s)(p)
                     point_check(r)
                     const rn = mul(s)(pn)

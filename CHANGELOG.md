@@ -22,10 +22,10 @@ history.
 
 - **BREAKING CHANGES:** `fjs/types/patricia_trie`, `fjs/types/sorted_list`,
   `fjs/types/range_map`, `fjs/types/range_set`, `fjs/crypto/pow`,
-  `fjs/types/bigfloat`, and `fjs/types/prime_field` migrate from authored
-  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
-  stage-1 TypeScript-to-mjs migration — importers must use the `.f.mjs`
-  specifier
+  `fjs/types/bigfloat`, `fjs/types/prime_field`, and `fjs/crypto/secp`
+  migrate from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
+  (`.f.mjs`) under the stage-1 TypeScript-to-mjs migration — importers
+  must use the `.f.mjs` specifier
   [#1478](https://github.com/functionalscript/functionalscript/pull/1478)
 - **BREAKING CHANGES:** `fjs/types/number` and `fjs/types/nibble_set` migrate
   from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`)

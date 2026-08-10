@@ -95,7 +95,7 @@ Two distinct duplications here:
      `all(5n)`, `all(11n)`, `all(q)`. None of those callers has an `nf`/`g`/`mul`
      to supply. So the curve pieces live on `Signer`, not on the RFC6979 record.
    - **`mul` isn't on `nf` anyway.** `mul` is a field of `Curve`
-     (`fjs/crypto/secp/module.f.ts:44`, `mul: Fold<bigint, Point>`), not of the
+     (`fjs/crypto/secp/module.f.mjs:45`, `mul: Fold<bigint, Point>`), not of the
      prime field `nf` — so `nf` + `g` alone wouldn't cover `sign`'s `c.mul(k)(g)`.
 
    `Signer` is therefore a plain record composing the unchanged RFC6979 helpers
