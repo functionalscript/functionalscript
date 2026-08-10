@@ -74,22 +74,27 @@ not need to preserve packability of arbitrary developer working trees or track
 ignored generated outputs across source renames; a later CI package job starts
 without those stale files.
 
-#### Migrate gradually from dependency leaves
+#### Migrate gradually from runtime dependency leaves
 
 Stage 1 is incremental, not a repository-wide atomic rename. Start with authored
-`.ts` / `.f.ts` files that do not depend on other authored TypeScript files, then
-migrate their callers and continue upward through the dependency graph.
+`.ts` / `.f.ts` files whose relative authored **runtime** dependencies have
+already migrated to JavaScript, then migrate their callers and continue upward
+through the runtime dependency graph.
 
-A file or coherent group is eligible when every relative authored runtime
-source dependency and every declaration-retained type dependency outside the
-group is already JavaScript (`.mjs` / `.f.mjs`). Cycles may migrate as one
-coherent group.
+A file or coherent group is eligible when every relative authored runtime source
+dependency outside the group is already JavaScript (`.mjs` / `.f.mjs`). Cycles
+may migrate as one coherent group. A type-only dependency does not determine
+migration order: it may remain TypeScript and be referenced from migrated
+JavaScript with JSDoc `@import`.
 
-The transition is intentionally asymmetric:
+The transition is intentionally asymmetric for runtime dependencies:
 
-- remaining `.ts` / `.f.ts` may depend on already migrated `.mjs` / `.f.mjs`;
-- migrated `.mjs` / `.f.mjs` must not depend on remaining authored `.ts` /
-  `.f.ts`.
+- remaining `.ts` / `.f.ts` may depend at runtime on already migrated `.mjs` /
+  `.f.mjs`;
+- migrated `.mjs` / `.f.mjs` must not have runtime imports of remaining authored
+  `.ts` / `.f.ts`;
+- migrated `.mjs` / `.f.mjs` may use JSDoc `@import` to reference types from
+  remaining `.ts` / `.f.ts` because that creates no runtime dependency.
 
 FunctionalScript parser support is not an eligibility condition. A `.f.ts` file
 may move to `.f.mjs` even if the current FunctionalScript compiler does not yet
@@ -98,10 +103,11 @@ support all syntax in that file.
 Proof files follow the same source-language rule. A migrated `module.f.mjs` may
 keep its existing `proof.f.ts` temporarily, but `proof.f.mjs` is allowed as soon
 as that proof can be expressed as JavaScript with JSDoc and every authored
-runtime or declaration-retained type dependency outside its migration group is
-already `.f.mjs`. Compiler support for the proof is not required. By the end of
-stage 1, all remaining `proof.f.ts` files must therefore have migrated to
-`proof.f.mjs` along with the rest of authored TypeScript.
+runtime dependency outside its migration group is already `.f.mjs`. Type-only
+dependencies may remain `.f.ts` and be referenced with JSDoc `@import`. Compiler
+support for the proof is not required. By the end of stage 1, all remaining
+`proof.f.ts` files must therefore have migrated to `proof.f.mjs` along with the
+rest of authored TypeScript.
 
 Preserve TypeScript type semantics when translating to JSDoc. TypeScript 7
 supports variance annotations on JSDoc type aliases through modifiers on
@@ -125,6 +131,34 @@ becomes:
 Use `@template out T`, `@template in T`, or constrained forms such as
 `@template {Operation} out O`. Variance modifiers belong to a JSDoc type alias
 (`@typedef`), not to an ordinary function's `@template`.
+
+#### Use `@import` for type-only dependencies
+
+A migrated JavaScript file must not gain a real JavaScript import just because it
+uses a type declared by a TypeScript module. Use JSDoc `@import` for that edge:
+
+```js
+/** @import { Types } from '../only_types/module.f.ts' */
+```
+
+This is especially important for modules that exist only for the TypeScript type
+system, including modules containing only type declarations or a type-only
+`declare const`. Their consumers do not need a runtime dependency, and migration
+must not invent runtime exports, `Symbol()` values, or other JavaScript
+representations merely to make those types importable.
+
+During Stage 1, the `@import` specifier may use the current `.ts` / `.f.ts` source
+path while that type provider remains TypeScript. The root TypeScript
+configuration already permits TypeScript-extension imports. When the referenced
+source itself migrates, update the JSDoc specifier to its new `.mjs` / `.f.mjs`
+path as part of that migration group.
+
+This exception applies only to type-only JSDoc references. A real JavaScript
+`import` from migrated `.mjs` / `.f.mjs` to remaining authored TypeScript is
+still forbidden. Package validation must also prove that declaration emit and a
+clean consumer preserve these type-only edges without requiring omitted source
+files or a runtime import; that is tracked in
+[`../fjs/ci/todo/f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md).
 
 #### Preserve private type intent with `_`
 
@@ -317,22 +351,25 @@ style once composition breaks inference.
 
 Do not require the migration plan to pre-design every TypeScript-only type
 construct before Stage 1 starts. Instead, identify hard cases as they are found,
-record them explicitly, and block only the affected migration group until its
-focused design is resolved. Unrelated dependency leaves should continue to
-migrate.
+record them explicitly, and block only the module whose own source cannot yet be
+translated. Callers that need only its types may still migrate by using JSDoc
+`@import`; unrelated runtime dependency leaves should continue to migrate.
 
 One known case is `fjs/types/phantom/module.f.ts`, whose public `Phantom` type
 uses a type-only `declare const phantomKey: unique symbol`. `declare` is not
 valid JavaScript, and replacing it with a runtime `Symbol()` would change the
 module's current zero-runtime-representation design. The exact JSDoc/runtime
-representation is intentionally deferred; that module and dependents that need
-its declaration identity must not migrate until the focused design is decided.
+representation is intentionally deferred, so `phantom/module.f.ts` itself stays
+TypeScript until that focused design is decided. Its type-only consumers do
+**not** need to wait: migrated JavaScript can reference `Phantom` with JSDoc
+`@import` from the existing `.f.ts` source without adding a runtime dependency.
 
 The same rule applies to future TypeScript constructs without an obvious
-semantics-preserving JSDoc translation: identify the issue, keep the affected
-module in TypeScript temporarily, and resolve it before that group crosses the
-Stage-1 boundary. Stage 1 still ends only when every such case has been resolved
-and no authored `.ts` / `.f.ts` remains.
+semantics-preserving JSDoc translation: identify the issue, keep that source
+module in TypeScript temporarily, and allow callers whose edge is type-only to
+migrate independently. Runtime dependents still wait for the provider to
+migrate. Stage 1 ends only when every such source module has been resolved and no
+authored `.ts` / `.f.ts` remains.
 
 For each migration group:
 
@@ -341,9 +378,11 @@ For each migration group:
 - preserve type visibility intent: public typedefs retain public names and
   implementation-only typedefs use the `_` prefix;
 - if a TypeScript-only construct has no established semantics-preserving JSDoc
-  translation, record it as a focused hard case and postpone that group rather
-  than inventing a redesign inside the mechanical migration;
-- update runtime imports and JSDoc type imports to the new source paths;
+  translation, record it as a focused hard case and postpone that source module
+  rather than inventing a redesign inside the mechanical migration;
+- update runtime imports to migrated JavaScript paths; use JSDoc `@import` for
+  type-only dependencies that remain TypeScript and update those specifiers when
+  their providers later migrate;
 - update proofs, tests, scripts, generated CI configuration, documentation, and
   other path-sensitive tooling;
 - preserve type checking, declaration generation, runtime behavior, proofs,
@@ -387,15 +426,22 @@ compiler-compatibility rename.
       before the first real repository `.f.ts` -> `.f.mjs` conversion.
 - [ ] Update contributor, compiler, language, package, test, and roadmap
       documentation to the stage-1 extension meanings.
-- [ ] Identify dependency-leaf `.ts` / `.f.ts` files and migrate those first.
+- [ ] Identify runtime-dependency-leaf `.ts` / `.f.ts` files and migrate those
+      first; type-only dependencies do not have to migrate first.
 - [ ] Identify TypeScript-only type constructs that do not yet have a proven
       semantics-preserving JSDoc translation; record them as focused hard cases
-      and postpone only the affected migration groups.
-- [ ] Resolve the known `Phantom` / `unique symbol` hard case before migrating
-      `fjs/types/phantom/module.f.ts` or dependent groups that require it.
+      and postpone only the source modules that contain them.
+- [ ] Keep the known `Phantom` / `unique symbol` hard case in TypeScript until its
+      own representation is resolved; do not block type-only dependent groups,
+      which may use JSDoc `@import` from `fjs/types/phantom/module.f.ts`.
 - [ ] Migrate `proof.f.ts` to `proof.f.mjs` when the proof is JavaScript/JSDoc
-      ready and its authored dependencies are migrated; do not gate this on
+      ready and its authored runtime dependencies are migrated; allow JSDoc
+      `@import` to remaining TypeScript type providers and do not gate this on
       compiler support.
+- [ ] Validate a migrated `.mjs` / `.f.mjs` fixture with a type-only JSDoc
+      `@import` from remaining `.ts` / `.f.ts`, including declaration emit and a
+      clean package consumer; no runtime import/value may be introduced for that
+      edge.
 - [ ] Translate TypeScript generic constraints and `in` / `out` variance to
       JSDoc `@template` syntax without changing assignability.
 - [ ] Give every exported function an explicit `@returns` (or top-level
@@ -432,12 +478,12 @@ compiler-compatibility rename.
 - [ ] Once a module is `.mjs`, treat any later move of a public typedef to a `_`
       name as an ordinary breaking API change with its own changelog entry and
       importer updates, not as a visibility cleanup.
-- [ ] Continue upward through the dependency graph in reviewable groups until no
-      authored TypeScript remains.
+- [ ] Continue upward through the runtime dependency graph in reviewable groups
+      until no authored TypeScript remains.
 - [ ] Translate `.ts` to `.mjs` and `.f.ts` to `.f.mjs`, moving static type
       information to JSDoc without weakening public type semantics.
-- [ ] Keep migrated JavaScript free of runtime and declaration-retained
-      dependencies on remaining authored TypeScript.
+- [ ] Keep migrated JavaScript free of **runtime** dependencies on remaining
+      authored TypeScript; type-only JSDoc `@import` references are allowed.
 - [ ] Update imports, proofs, tests, coverage globs, scripts, generated CI, and
       documentation for every migrated group.
 - [ ] Sweep prose references to already-migrated modules: `AGENTS.md`, README
@@ -468,14 +514,20 @@ compiler-compatibility rename.
   repository `.f.ts` -> `.f.mjs` conversion.
 - No authored `.ts` or `.f.ts` source files remain in the repository, including
   proof files.
-- Migration can proceed incrementally from dependency leaves toward callers.
+- Migration can proceed incrementally from runtime dependency leaves toward
+  callers; type-only edges do not impose migration ordering.
 - Authored JavaScript uses `.mjs` / `.f.mjs` with JSDoc where static type
   information is needed.
-- Known TypeScript-to-JSDoc hard cases are explicitly identified; each affected
-  group remains in TypeScript until its focused design preserves the required
-  public/runtime semantics, without blocking unrelated migration groups.
-- `proof.f.mjs` migration is gated by JavaScript/JSDoc and dependency readiness,
-  never by current FunctionalScript compiler support.
+- Known TypeScript-to-JSDoc hard cases are explicitly identified; each source
+  module remains in TypeScript until its focused design preserves the required
+  public/runtime semantics, without blocking callers whose dependency is
+  type-only.
+- `proof.f.mjs` migration is gated by JavaScript/JSDoc and runtime dependency
+  readiness, never by current FunctionalScript compiler support or by type-only
+  providers remaining in TypeScript.
+- Migrated JavaScript may reference remaining TypeScript types with JSDoc
+  `@import`, and this introduces neither a runtime import nor an artificial
+  runtime representation for type-system-only declarations.
 - TypeScript generic constraints and variance annotations are preserved with
   their JSDoc `@template` equivalents; public assignability is not weakened.
 - Implementation-only JSDoc typedefs use `_`-prefixed names and are treated as
@@ -505,10 +557,11 @@ compiler-compatibility rename.
   `.f.ts` -> `.f.mjs` boundary.
 - `.f.mjs` means FunctionalScript-intent JavaScript, not current-compiler
   compatibility.
-- Migrated JavaScript never depends on remaining authored TypeScript during the
-  transition.
-- Package-owned `.mjs` and generated declarations work from a clean CI package
-  build and clean NPM consumer.
+- Migrated JavaScript never has runtime dependencies on remaining authored
+  TypeScript during the transition; JSDoc type-only references are permitted.
+- Package-owned `.mjs` and generated declarations, including allowed type-only
+  edges to remaining TypeScript, work from a clean CI package build and clean
+  NPM consumer.
 - Tests, proofs, coverage, supported runtimes, and type checking continue to
   pass.
 - After the last authored TypeScript source is removed, `prepack` performs only
