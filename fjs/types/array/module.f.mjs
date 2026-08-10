@@ -6,7 +6,7 @@
 
 import { fromUndefined, map } from '../nullable/module.f.mjs'
 
-/** @import { Assert } from '../../asserts/module.f.mjs' */
+/** @import { Assert } from '../../asserts/types.d.ts' */
 /** @import { Equal } from '../ts/module.f.mjs' */
 
 /**

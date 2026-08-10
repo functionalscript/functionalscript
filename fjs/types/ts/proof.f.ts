@@ -1,4 +1,4 @@
-import type { Assert } from '../../asserts/module.f.mjs'
+import type { Assert } from '../../asserts/types.d.ts'
 import { printer, primitive, union, type Equal } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 

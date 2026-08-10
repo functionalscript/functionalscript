@@ -1,6 +1,7 @@
 import { at } from './module.f.ts'
 import type { OptionalMap, RequiredMap, StringMap } from './module.f.ts'
-import { assertEq, type Assert } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.mjs'
+import type { Assert } from '../../asserts/types.d.ts'
 import type { Equal } from '../ts/module.f.mjs'
 
 type _StringMapIsOptional = Assert<Equal<

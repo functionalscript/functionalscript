@@ -36,7 +36,7 @@
  *
  * See `./ts/module.f.ts` for `Ts<T>` and the `*Ts` transformer types.
  */
-import type { Assert } from '../../asserts/module.f.mjs'
+import type { Assert } from '../../asserts/types.d.ts'
 import { includes, type Includes } from '../array/module.f.mjs'
 import type { Equal } from '../ts/module.f.mjs'
 import type { StringMap } from '../object/module.f.ts'
