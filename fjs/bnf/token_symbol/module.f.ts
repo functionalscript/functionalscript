@@ -10,7 +10,7 @@
  */
 import { assert } from '../../asserts/module.f.mjs'
 import { fromUndefined } from '../../types/nullable/module.f.mjs'
-import type { Nullable } from '../../types/nullable/types.ts'
+import type { Nullable } from '../../types/nullable/types.js'
 import { eof, rangeDecode, unicodeRange } from '../module.f.ts'
 
 const [, unicodeLast] = rangeDecode(unicodeRange)

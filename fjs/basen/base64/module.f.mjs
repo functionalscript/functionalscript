@@ -7,7 +7,7 @@
 import { msb, length, vec, maxLength } from '../../types/bit_vec/module.f.mjs'
 /** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
 
-/** @import { Nullable } from '../../types/nullable/types.ts' */
+/** @import { Nullable } from '../../types/nullable/types.js' */
 
 import { baseN } from "../module.f.mjs"
 

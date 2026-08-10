@@ -8,7 +8,7 @@
 import { mask } from '../../types/bigint/module.f.mjs'
 import { uint } from '../../types/bit_vec/module.f.mjs'
 /** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
-/** @import { Nullable } from '../../types/nullable/types.ts' */
+/** @import { Nullable } from '../../types/nullable/types.js' */
 import { computeSync, sha256 } from '../sha2/module.f.mjs'
 /** @import { Sha2 } from '../sha2/module.f.mjs' */
 

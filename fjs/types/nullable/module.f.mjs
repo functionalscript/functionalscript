@@ -10,7 +10,7 @@ import { fn } from '../function/module.f.mjs'
 
 /** @import { Option } from '../option/module.f.mjs' */
 
-/** @import { Nullable } from './types.ts' */
+/** @import { Nullable } from './types.js' */
 
 /**
  * @type {<T, R>(f: (value: T) => R) => (value: Nullable<T>) => Nullable<R>}

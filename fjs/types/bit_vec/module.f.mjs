@@ -41,7 +41,7 @@ import { cmp, max, min } from '../function/compare/module.f.mjs'
 /** @import { Sign } from '../function/compare/module.f.mjs' */
 
 import { mapUnwrap } from '../nullable/module.f.mjs'
-/** @import { Nullable } from '../nullable/types.ts' */
+/** @import { Nullable } from '../nullable/types.js' */
 
 /** @typedef {'1a23a4336197e6158b6936cad34e90d146cd84b9b40ff7ab75a17c6d79e31d89'} _Revision */
 
