@@ -13,7 +13,7 @@
  * @module
  */
 
-import type { Phantom } from '../../types/phantom/module.f.ts'
+import type { Phantom } from '../../types/phantom/types.ts'
 import type { Nominal } from '../../types/nominal/types.ts'
 import { asBase as nominalAsBase, asNominal as nominalAsNominal } from '../../types/nominal/module.f.mjs'
 import { do_, type Effect } from '../module.f.ts'

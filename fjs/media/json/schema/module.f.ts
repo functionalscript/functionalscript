@@ -10,7 +10,7 @@ import { type Struct, type Tuple, type Type as RttiType, array, option, or, reco
 import { visit, type Visitor } from '../../../types/rtti/common/module.f.ts'
 import type { Primitive } from '../../../djs/module.f.ts'
 import type { Ts } from '../../../types/rtti/ts/module.f.ts'
-import type { Phantom } from '../../../types/phantom/module.f.ts'
+import type { Phantom } from '../../../types/phantom/types.ts'
 import { unknown as jsonUnknown } from '../module.f.ts'
 
 const unknownThunk = () => ['const', unknownConst] as const

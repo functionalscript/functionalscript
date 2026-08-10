@@ -11,7 +11,7 @@ import type { Equal } from '../../ts/types.ts'
 import { primitive, union, printer as tsPrinter } from '../../ts/module.f.mjs'
 import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, ConstObject } from '../module.f.ts'
 import type { Assert } from '../../../asserts/types.ts'
-import type { phantomKey } from '../../phantom/module.f.ts'
+import type { phantomKey } from '../../phantom/types.ts'
 import type { StringMap } from '../../object/module.f.ts'
 
 /**
