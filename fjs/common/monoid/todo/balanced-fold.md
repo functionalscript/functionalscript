@@ -126,7 +126,7 @@ finishing a walk over an already-doomed list.
   `repeat` (already balanced via exponentiation by squaring).
 - `fjs/types/bit_vec/module.f.mjs` — `unpackListToVec` / `listToVecOp`, the
   in-repo binary-counter accumulator this generalises.
-- `fjs/types/number/module.f.ts` — `sum`, the reduction whose accuracy improves
+- `fjs/types/number/module.f.mjs` — `sum`, the reduction whose accuracy improves
   and whose output changes.
 - `fjs/types/bigint/module.f.mjs`, `fjs/types/string/module.f.ts` — `product` /
   `sum` / `concat`, the reductions that gain the O(n log n) speedup.

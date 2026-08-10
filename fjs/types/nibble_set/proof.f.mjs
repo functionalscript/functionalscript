@@ -1,5 +1,5 @@
 import { every, map, countdown } from '../list/module.f.mjs'
-import { empty, has, set, setRange, unset, universe, complement } from './module.f.ts'
+import { empty, has, set, setRange, unset, universe, complement } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
@@ -41,7 +41,9 @@ export const proof = {
         assertEq(result, 60)
     },
     universe: () => {
-        const x = every(map((v: number) => has(v)(universe))(countdown(16)))
+        /** @type {(v: number) => boolean} */
+        const hasInUniverse = v => has(v)(universe)
+        const x = every(map(hasInUniverse)(countdown(16)))
         assert(x, x)
     },
     compliment: {

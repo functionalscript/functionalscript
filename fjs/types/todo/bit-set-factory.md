@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/types/nibble_set/module.f.ts` and `fjs/types/byte_set/module.f.ts`
+`fjs/types/nibble_set/module.f.mjs` and `fjs/types/byte_set/module.f.ts`
 implement the same bitmask-as-set algebra, line for line, differing only in
 the numeric domain (`number` with `universe = 0xFFFF` vs `bigint` with the
 256-bit universe) and the `BigInt(n)` shift-operand conversion. The
@@ -14,11 +14,11 @@ bitmask-as-set algebra as `byte_set`"*.
 
 | operation | `byte_set` (bigint) | `nibble_set` (number) |
 |-----------|---------------------|-----------------------|
-| `has` | `n => s => ((s >> BigInt(n)) & 1n) === 1n` (`:15`) | `n => s => ((s >> n) & 1) === 1` (`:31`) |
-| `one` | `n => 1n << BigInt(n)` (`:24`) | `n => 1 << n` (`:28`) |
-| `range` | `([b, e]) => one(e - b + 1) - 1n << BigInt(b)` (`:27`) | `([a, b]) => one(b - a + 1) - 1 << a` (`:43`) |
-| `complement` | `n => universe ^ n` (`:38`) | `s => universe ^ s` (`:37`) |
-| `set` / `setRange` / `unset` | `:45-52` | `:34-46` |
+| `has` | `n => s => ((s >> BigInt(n)) & 1n) === 1n` (`:15`) | `n => s => ((s >> n) & 1) === 1` (`:30`) |
+| `one` | `n => 1n << BigInt(n)` (`:24`) | `n => 1 << n` (`:27`) |
+| `range` | `([b, e]) => one(e - b + 1) - 1n << BigInt(b)` (`:27`) | `([a, b]) => one(b - a + 1) - 1 << a` (`:42`) |
+| `complement` | `n => universe ^ n` (`:38`) | `s => universe ^ s` (`:36`) |
+| `set` / `setRange` / `unset` | `:45-52` | `:33-45` |
 
 `nibble_set` is also an *incomplete* copy: it lacks the binary set ops
 (`union`/`intersect`/`difference`) that `byte_set` has (`:32-42`).
