@@ -15,7 +15,7 @@ import {
     latinCapitalLetterRange,
     latinSmallLetterRange,
     range,
-} from '../../text/ascii/module.f.ts'
+} from '../../text/ascii/module.f.mjs'
 import { fromRange, get, merge } from '../../types/range_set/module.f.mjs'
 
 type Identifier = string

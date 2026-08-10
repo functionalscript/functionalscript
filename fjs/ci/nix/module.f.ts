@@ -2,7 +2,7 @@
  * Generates one self-contained Nix flake per declared CI job.
  *
  * Each job gets its own `nix/generated/<id>/flake.nix` pinning the exact
- * Nixpkgs commit from `../config/module.f.ts` and exposing a single
+ * Nixpkgs commit from `../config/module.f.mjs` and exposing a single
  * `devShells.<system>.default` development shell. The files are static and
  * readable on purpose: no job selection, no shared Nix modules, no helper
  * libraries.
@@ -15,7 +15,7 @@ import { nixToString, type Expression } from '../../media/nix/module.f.ts'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { install, test, uses, type MetaStep } from '../common/module.f.ts'
-import { nixpkgs } from '../config/module.f.ts'
+import { nixpkgs } from '../config/module.f.mjs'
 
 /** A CI job's development environment, one generated flake each. */
 export type NixJob = {

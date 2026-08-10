@@ -554,6 +554,17 @@ An exception applies when the original TypeScript source used `as`: a mechanical
 `@type`-cast rather than block on a redesign, but should still prefer the
 declaration form when it is a straightforward rewrite.
 
+`@type {const}` (the JSDoc equivalent of `as const`, see "Pin literal
+`const`s" above) is the one case where this preference inverts: it **must**
+stay an inline cast on the expression —
+`export const x = /** @type {const} */({ ... })` — and cannot be hoisted to a
+leading declaration annotation. `/** @type {const} */` directly above
+`export const x = { ... }` makes TypeScript try to resolve `const` as an
+ordinary type name and fail with `TS2304: Cannot find name 'const'`; only the
+inline-cast position gives it the special const-assertion meaning. This is
+unlike every other `@type` cast, which works in both positions — don't
+"clean up" a `@type {const}` inline cast into the declaration form.
+
 #### Avoid type predicates
 
 Avoid TypeScript type predicates (`(x: T): x is U`). They are error-prone: the
@@ -701,7 +712,7 @@ languages require. TypeScript narrows string literals precisely, so the string
    mapping (and `keyof typeof my` gives you the key type).
 
 Existing examples: `os` / `Os` and `architecture` / `Architecture` in
-`fjs/ci/common/module.f.ts`, and `actions` in `fjs/ci/config/module.f.ts`.
+`fjs/ci/common/module.f.ts`, and `actions` in `fjs/ci/config/module.f.mjs`.
 
 #### Write the call, not the value it computes
 

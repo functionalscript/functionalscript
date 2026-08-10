@@ -68,7 +68,7 @@ import {
     leftCurlyBracket,
     rightCurlyBracket,
     dollarSign
-}  from '../../text/ascii/module.f.ts'
+}  from '../../text/ascii/module.f.mjs'
 import { todo, assertEq } from '../../asserts/module.f.mjs'
 
 const { fromCharCode } = String

@@ -6,7 +6,7 @@
  *
  * @module
  */
-import { wasmer, wasmtime } from '../config/module.f.ts'
+import { wasmer, wasmtime } from '../config/module.f.mjs'
 import { type Architecture, type MetaStep, type Os, install, test, uses } from '../common/module.f.ts'
 
 const cargoCommand = (tool: 'clippy' | 'test', target?: string, config?: string): string => {

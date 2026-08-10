@@ -51,7 +51,7 @@ import {
     latinSmallLetterA, latinSmallLetterB, latinSmallLetterF,
     latinSmallLetterN, latinSmallLetterR, latinSmallLetterT, latinSmallLetterU,
     range as asciiRange,
-} from "../../text/ascii/module.f.ts"
+} from "../../text/ascii/module.f.mjs"
 import { type CodePoint, codePointListToString, stringToCodePointList } from "../../text/utf16/module.f.mjs"
 import type { StateScan } from "../../types/function/operator/module.f.mjs"
 import { contains } from "../../types/range/module.f.mjs"

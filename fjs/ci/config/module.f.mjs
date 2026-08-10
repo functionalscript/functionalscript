@@ -4,8 +4,9 @@
  *
  * @module
  */
+
 // https://docs.github.com/en/actions/reference/runners/github-hosted-runners#standard-github-hosted-runners-for-public-repositories
-export const images = {
+export const images = /** @type {const} */({
     ubuntu: {
         intel: 'ubuntu-26.04',
         arm: 'ubuntu-26.04-arm'
@@ -18,13 +19,13 @@ export const images = {
         intel: 'windows-2025',
         arm: 'windows-11-arm',
     }
-} as const
+})
 
 // Bootstrap package version used by generated smoke tests. Keep this on a
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = '0.43.1' as const
+export const functionalscript = /** @type {const} */ '0.43.1'
 
 // https://bun.sh/
 export const bun = '1.3.14'
@@ -39,21 +40,21 @@ export const deno = '2.9.5'
 // usually trails nodejs.org, so bump the snapshot first and copy the versions
 // it offers rather than the latest release.
 // https://nodejs.org/en/download
-export const node = {
+export const node = /** @type {const} */({
     default: '26.7.0',
     node22: '22.23.2',
     node24: '24.18.1',
-} as const
+})
 
 // Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
 // stable channel the commit is accepted from; `commit` is the exact revision
 // every generated `flake.nix` pins. The Node versions above come from this
 // snapshot, so the two move together.
 // https://channels.nixos.org/nixos-26.05/git-revision
-export const nixpkgs = {
+export const nixpkgs = /** @type {const} */({
     ref: 'nixos-26.05',
     commit: 'fcb8fcd6bf2d0adecae5bd491afaaaf8311b758d',
-} as const
+})
 
 // https://github.com/bytecodealliance/wasmtime/releases
 export const wasmtime = '47.0.3'
@@ -65,7 +66,7 @@ export const wasmer = '7.2.1'
 // `owner/name`; call sites compose the full ref as
 // `` `${name}@${actions[name]}` ``.
 // Note: dtolnay/rust-toolchain value is a Rust version, not an action version.
-export const actions = {
+export const actions = /** @type {const} */({
     // https://github.com/marketplace/actions/checkout
     'actions/checkout': 'v7.0.1',
     // https://github.com/marketplace/actions/setup-node-js-environment
@@ -85,4 +86,4 @@ export const actions = {
     'cachix/install-nix-action': 'v31.11.0',
     // https://rust-lang.org/ - value is Rust version, not action version
     'dtolnay/rust-toolchain': '1.97.1',
-} as const
+})

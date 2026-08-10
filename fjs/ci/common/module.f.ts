@@ -5,7 +5,7 @@
  *
  * @module
  */
-import { actions, images } from '../config/module.f.ts'
+import { actions, images } from '../config/module.f.mjs'
 import { option, array, record, string } from '../../types/rtti/module.f.ts'
 import { type Ts } from '../../types/rtti/ts/module.f.ts'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.ts'

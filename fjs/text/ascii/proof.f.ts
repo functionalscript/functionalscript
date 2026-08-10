@@ -1,4 +1,4 @@
-import { one, range } from './module.f.ts'
+import { one, range } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { assertEq } from '../../asserts/module.f.mjs'
