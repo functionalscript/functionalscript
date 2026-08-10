@@ -9,11 +9,14 @@
  *
  * @module
  */
+
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
-import { utf8, utf8ToString } from '../../text/module.f.ts'
-import { maxLengthBytes, msb, tryU8ListToVec, u8List, u8ListToVec, type Vec } from '../bit_vec/module.f.mjs'
+import { utf8, utf8ToString } from '../../text/module.f.mjs'
+import { maxLengthBytes, msb, tryU8ListToVec, u8List, u8ListToVec } from '../bit_vec/module.f.mjs'
+/** @import { Vec } from '../bit_vec/module.f.mjs' */
 import { compose } from '../function/module.f.mjs'
-import { flat, fromArrayLike, iterable, map, type List } from '../list/module.f.mjs'
+import { flat, fromArrayLike, iterable, map } from '../list/module.f.mjs'
+/** @import { List } from '../list/module.f.mjs' */
 
 const u8ListToVecMsb = u8ListToVec(msb)
 const tryU8ListToVecMsb = tryU8ListToVec(msb)
@@ -21,25 +24,30 @@ const u8ListMsb = u8List(msb)
 
 /**
  * Converts a Uint8Array into an MSB-first bit vector.
+ *
+ * @type {(input: Uint8Array) => Vec}
  */
-export const toVec = (input: Uint8Array): Vec => {
+export const toVec = input => {
     assert(input.length <= maxLengthBytes, "the array is too big")
     return u8ListToVecMsb(fromArrayLike(input))
 }
 
 const m = map(fromArrayLike)
 
-export const listToVec = (input: List<Uint8Array>): Vec =>
+/** @type {(input: List<Uint8Array>) => Vec} */
+export const listToVec = input =>
     assertNotNullish(tryU8ListToVecMsb(flat(m(input))), "the array is too big")
 
 /**
  * Converts an MSB-first bit vector into a Uint8Array.
+ *
+ * @type {(input: Vec) => Uint8Array}
  */
-export const fromVec = (input: Vec): Uint8Array =>
+export const fromVec = input =>
     Uint8Array.from(iterable(u8ListMsb(input)))
 
-export const decodeUtf8: (input: Uint8Array) => string
-    = compose(toVec)(utf8ToString)
+/** @type {(input: Uint8Array) => string} */
+export const decodeUtf8 = compose(toVec)(utf8ToString)
 
-export const encodeUtf8: (input: string) => Uint8Array
-    = compose(utf8)(fromVec)
+/** @type {(input: string) => Uint8Array} */
+export const encodeUtf8 = compose(utf8)(fromVec)

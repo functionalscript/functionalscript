@@ -4,7 +4,7 @@
  * @module
  */
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { utf8 } from '../../text/module.f.ts'
+import { utf8 } from '../../text/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.ts'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
 import { main, syncMcp } from './module.f.ts'

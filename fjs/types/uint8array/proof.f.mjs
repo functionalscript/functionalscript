@@ -1,14 +1,20 @@
 import { maxLengthBytes, vec } from '../bit_vec/module.f.mjs'
-import { toVec, fromVec, listToVec, decodeUtf8, encodeUtf8 } from './module.f.ts'
+import { toVec, fromVec, listToVec, decodeUtf8, encodeUtf8 } from './module.f.mjs'
 import { strictEqual } from '../function/operator/module.f.mjs'
 import { equal, fromArrayLike } from '../list/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
 
-const assertEq = <T>(a: T, b: T) => {
+/**
+ * @template T
+ * @param {T} a
+ * @param {T} b
+ */
+const assertEq = (a, b) => {
     assert(a === b, [a, b])
 }
 
-const assertArrayEq = (a: Uint8Array, b: Uint8Array) => {
+/** @type {(a: Uint8Array, b: Uint8Array) => void} */
+const assertArrayEq = (a, b) => {
     assert(equal(strictEqual)(fromArrayLike(a))(fromArrayLike(b)), [a, b])
 }
 

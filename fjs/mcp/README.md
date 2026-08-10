@@ -163,7 +163,7 @@ payload lands in `text` or `blob`:
 1. **Magic-byte hit** (PNG/JPEG/GIF/WebP/PDF/ZIP) → `type: 'base64'`, `blob` is
    RFC 4648 base64.
 2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mimeType: 'text/plain'`, and
-   `text` is the decoded string ([`fjs/text/utf8`](../text/utf8/module.f.ts)
+   `text` is the decoded string ([`fjs/text/utf8`](../text/utf8/module.f.mjs)
    `fromVec`, used here purely as the decoder).
 3. **Fallback** → `type: 'base64'`, `mimeType: 'application/octet-stream'`,
    `blob` is base64.

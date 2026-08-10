@@ -3,42 +3,39 @@
  *
  * @module
  */
-import { flatMap, toArray, type List, type Thunk } from '../../types/list/module.f.mjs'
-import type { StateScan } from '../../types/function/operator/module.f.mjs'
-import type { Tuple } from '../../types/array/module.f.mjs'
+
+import { flatMap, toArray } from '../../types/list/module.f.mjs'
+/** @import { List, Thunk } from '../../types/list/module.f.mjs' */
+/** @import { StateScan } from '../../types/function/operator/module.f.mjs' */
+/** @import { Tuple } from '../../types/array/module.f.mjs' */
 import { decoder, errorMask, isValidCodePoint } from '../code_point/module.f.mjs'
-import { msb, u8List, length, type Vec } from '../../types/bit_vec/module.f.mjs'
+import { msb, u8List, length } from '../../types/bit_vec/module.f.mjs'
+/** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
 import { codePointListToString } from '../utf16/module.f.mjs'
 
-/**
- * An unsigned 8-bit integer, represents a single byte.
- */
-export type U8 = number
+/** An unsigned 8-bit integer, represents a single byte. @typedef {number} U8 */
 
-/**
- * A singed 32-bit integer.
- */
-export type I32 = number
+/** A singed 32-bit integer. @typedef {number} I32 */
 
 /**
  * Represents an unsigned 8-bit type - U8 or the end-of-file indicator.
  * The U8 represents the byte itself, and null indicates that reading does not return anything else.
+ *
+ * @typedef {U8 | null} ByteOrEof
  */
-export type ByteOrEof = U8 | null
 
 /**
  * Represents the state of a UTF-8 decoding operation that contains at least one byte.
+ *
+ * @typedef {Tuple<1, number> | Tuple<2, number> | Tuple<3, number>} Utf8NonEmptyState
  */
-export type Utf8NonEmptyState =
-    | Tuple<1, number>
-    | Tuple<2, number>
-    | Tuple<3, number>
 
 /**
  * Represents the state of a UTF-8 decoding operation, which can be either `null` (no state)
  * or a non-empty state containing one or more bytes.
+ *
+ * @typedef {null | Utf8NonEmptyState} Utf8State
  */
-export type Utf8State = null | Utf8NonEmptyState
 
 /**
  * UTF-8 byte-format constants. Each byte kind is defined by a tag — the fixed
@@ -64,13 +61,17 @@ const lead4Mask = 0b0000_0111
 
 /**
  * Encodes the low six bits of `x` as a UTF-8 continuation byte.
+ *
+ * @type {(x: number) => number}
  */
-const contByte = (x: number) => x & contMask | contTag
+const contByte = x => x & contMask | contTag
 
 /**
  * Reads the six payload bits of a continuation byte.
+ *
+ * @type {(b: number) => number}
  */
-const contPayload = (b: number) => b & contMask
+const contPayload = b => b & contMask
 
 /**
  * The valid lead-byte range for 2-, 3-, and 4-byte sequences (RFC 3629);
@@ -78,30 +79,33 @@ const contPayload = (b: number) => b & contMask
  */
 const leadMin = 0b1100_0010
 const leadMax = 0b1111_0100
-const isLeadByte = (b: number): boolean => b >= leadMin && b <= leadMax
+/** @type {(b: number) => boolean} */
+const isLeadByte = b => b >= leadMin && b <= leadMax
 
 /**
  * Dispatches a fresh-state byte, emitting `prefix` ahead of whatever the byte
  * itself produces. Shared by the `state === null` arm and by error recovery
  * after {@link utf8StateToError}, which differ only in `prefix`.
+ *
+ * @type {(prefix: readonly I32[]) => (byte: number) => readonly [readonly I32[], Utf8State]}
  */
-const restart = (prefix: readonly I32[]) =>
-    (byte: number): readonly [readonly I32[], Utf8State] =>
+const restart = prefix =>
+    byte =>
         byte < contTag ? [[...prefix, byte], null]
         : isLeadByte(byte) ? [[...prefix], [byte]]
         : [[...prefix, byte | errorMask], null]
 
 /**
  * Converts a Unicode code point to a sequence of UTF-8 bytes.
- * @param input The Unicode code point to be converted. Valid range:
+ * @param {number} input The Unicode code point to be converted. Valid range:
  *   - 0x0000 to 0x007F for 1-byte sequences.
  *   - 0x0080 to 0x07FF for 2-byte sequences.
  *   - 0x0800 to 0xFFFF for 3-byte sequences.
  *   - 0x10000 to 0x10FFFF for 4-byte sequences.
- * @returns A readonly array of UTF-8 bytes representing the input code point.
+ * @returns {readonly U8[]} A readonly array of UTF-8 bytes representing the input code point.
  *   - Returns `[errorMask]` if the input does not match valid UTF-8 encoding rules.
  */
-const codePointToUtf8 = (input: number): readonly U8[] => {
+const codePointToUtf8 = input => {
     if (input >= 0x0000 && input <= 0x007f) {
         return [input & 0b01111_1111]
     }
@@ -153,18 +157,20 @@ const codePointToUtf8 = (input: number): readonly U8[] => {
  *
  * @param input - A list of Unicode code points to be converted.
  * @returns A thunk that lazily produces a sequence of UTF-8 bytes.
+ *
+ * @type {(input: List<number>) => Thunk<U8>}
  */
-export const fromCodePointList: (input: List<number>) => Thunk<U8> = flatMap(
+export const fromCodePointList = flatMap(
     codePointToUtf8,
 )
 
 /**
  * Converts a non-empty UTF-8 decoding state to an error code.
  *
- * @param state - A non-empty UTF-8 decoding state.
- * @returns An I32 error code derived from the invalid UTF-8 state.
+ * @param {Utf8NonEmptyState} state A non-empty UTF-8 decoding state.
+ * @returns {I32} An I32 error code derived from the invalid UTF-8 state.
  */
-export const utf8StateToError = (state: Utf8NonEmptyState): I32 => {
+export const utf8StateToError = state => {
     let x
     switch (state.length) {
         case 1: {
@@ -205,8 +211,10 @@ export const utf8StateToError = (state: Utf8NonEmptyState): I32 => {
  * @returns A tuple containing:
  *   - A list of decoded Unicode code points or error codes.
  *   - The updated UTF-8 state.
+ *
+ * @type {StateScan<number, Utf8State, readonly I32[]>}
  */
-export const utf8ByteToCodePointOp: StateScan<number, Utf8State, readonly I32[]> = (byte, state) => {
+export const utf8ByteToCodePointOp = (byte, state) => {
     if (byte < 0x00 || byte > 0xff) {
         return [[errorMask], state]
     }
@@ -254,14 +262,12 @@ export const utf8ByteToCodePointOp: StateScan<number, Utf8State, readonly I32[]>
 /**
  * Handles the end-of-file (EOF) case for UTF-8 decoding.
  *
- * @param state - The current UTF-8 decoding state.
- * @returns A tuple containing:
+ * @param {Utf8State} state The current UTF-8 decoding state.
+ * @returns {readonly [List<I32>, Utf8State]} A tuple containing:
  *   - A list of decoded Unicode code points or error codes.
  *   - The reset UTF-8 state (`null`).
  */
-export const utf8EofToCodePointOp = (
-    state: Utf8State,
-): readonly [List<I32>, Utf8State] => [
+export const utf8EofToCodePointOp = state => [
     state === null ? null : [utf8StateToError(state)],
     null,
 ]
@@ -271,16 +277,20 @@ export const utf8EofToCodePointOp = (
  *
  * @param input - A list of UTF-8 bytes.
  * @returns A list of Unicode code points or error codes.
+ *
+ * @type {(input: List<U8>) => List<I32>}
  */
-export const toCodePointList: (input: List<U8>) => List<I32> =
+export const toCodePointList =
     decoder(utf8ByteToCodePointOp, utf8EofToCodePointOp)
 
 /**
  * Returns the decoded string if `v` is valid UTF-8, or `null` otherwise.
  * Rejects non-octet Vecs, invalid byte sequences, surrogates, and out-of-range
  * code points.
+ *
+ * @type {(v: Vec) => string | null}
  */
-export const fromVec = (v: Vec): string | null => {
+export const fromVec = v => {
     if ((length(v) & 0b111n) !== 0n) { return null }
     const arr = toArray(toCodePointList(u8List(msb)(v)))
     for (const cp of arr) {

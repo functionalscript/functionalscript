@@ -11,8 +11,8 @@ step performs when the raw code unit is outside its valid range — disagree on
 the sentinel:
 
 ```ts
-// fjs/text/utf8/module.f.ts:209-212 — uses the shared constant
-export const utf8ByteToCodePointOp: StateScan<number, Utf8State, readonly I32[]> = (byte, state) => {
+// fjs/text/utf8/module.f.mjs:217-220 — uses the shared constant
+export const utf8ByteToCodePointOp = (byte, state) => {
     if (byte < 0x00 || byte > 0xff) {
         return [[errorMask], state]
     }

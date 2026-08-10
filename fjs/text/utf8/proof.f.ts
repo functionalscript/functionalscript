@@ -1,4 +1,4 @@
-import { toCodePointList, fromCodePointList, fromVec, utf8ByteToCodePointOp } from './module.f.ts'
+import { toCodePointList, fromCodePointList, fromVec, utf8ByteToCodePointOp } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { toArray } from '../../types/list/module.f.mjs'

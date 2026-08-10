@@ -8,8 +8,8 @@
  *
  * @module
  */
-import { utf8, utf8ToString } from '../../text/module.f.ts'
-import { toCodePointList } from '../../text/utf8/module.f.ts'
+import { utf8, utf8ToString } from '../../text/module.f.mjs'
+import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { reverse, type List as EffectList } from '../../types/list/module.f.mjs'
 import { length, type Vec } from '../../types/bit_vec/module.f.mjs'
