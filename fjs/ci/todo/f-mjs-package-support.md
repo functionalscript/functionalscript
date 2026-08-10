@@ -20,11 +20,13 @@ What the Problem below still motivates is the *validation* half — a fixture
 and proofs that the mixed-source package actually builds and type-checks
 correctly for a consumer.
 
-Stage 1 is dependency-first. Remaining `.ts` / `.f.ts` may import already
-migrated `.mjs` / `.f.mjs`, but migrated JavaScript must not retain runtime or
-declaration references to remaining TypeScript. The package pipeline does not
-rewrite module specifiers, so this invariant must work directly in a clean
-checkout and packed artifact.
+Stage 1 is dependency-first for **runtime** dependencies. Remaining `.ts` /
+`.f.ts` may import already migrated `.mjs` / `.f.mjs`, while migrated JavaScript
+must not retain runtime imports of remaining TypeScript. Type-only dependencies
+are different: migrated JavaScript may reference types from remaining `.ts` /
+`.f.ts` with JSDoc `@import`, because it creates no runtime dependency. The
+package pipeline must preserve a usable declaration path for those references
+without inventing a JavaScript runtime import or runtime representation.
 
 Packaging and publishing run in CI from a clean checkout. Generated `.js`,
 `.d.ts`, and `.d.mts` from an earlier commit or package build therefore do not
@@ -78,22 +80,35 @@ Because the CI package job starts from a clean checkout, a renamed
 artifacts from an earlier revision into the package job. Those files never need
 to be discovered or deleted by the new `.mjs` input.
 
-Do not introduce a staging tree or rewrite runtime/declaration specifiers. An
-authored `.mjs` / `.f.mjs` group must therefore be closed over authored
+Do not introduce a staging tree or rewrite runtime specifiers. An authored
+`.mjs` / `.f.mjs` group must therefore be closed over authored **runtime**
 JavaScript dependencies outside the group. Remaining TypeScript may import
-already migrated `.mjs`; the reverse direction is rejected.
+already migrated `.mjs`; migrated JavaScript may use JSDoc `@import` for a
+remaining TypeScript type-only dependency, for example:
+
+```js
+/** @import { Phantom } from '../../types/phantom/module.f.ts' */
+```
+
+This exception is type-only. A real JavaScript `import` from `.mjs` / `.f.mjs`
+to remaining `.ts` / `.f.ts` is still rejected. Do not create runtime imports,
+exports, or values merely to make a type-only module usable from migrated
+JavaScript.
 
 For FunctionalScript modules during stage 1:
 
 - `.f.ts` is remaining authored TypeScript;
 - `.f.mjs` is authored FunctionalScript-intent JavaScript, whether or not the
   current FunctionalScript compiler accepts all of its syntax;
-- `.f.ts` may depend on `.f.ts` or already migrated `.f.mjs`;
-- `.f.mjs` may depend on `.f.mjs`, not remaining `.f.ts` or generated `.f.js`.
+- `.f.ts` may depend at runtime on `.f.ts` or already migrated `.f.mjs`;
+- `.f.mjs` runtime imports may depend on `.f.mjs`, not remaining `.f.ts` or
+  generated `.f.js`;
+- `.f.mjs` JSDoc `@import` may reference a type from remaining `.f.ts` without
+  making that TypeScript file a runtime dependency.
 
-Update `AGENTS.md` with that asymmetric source-migration policy. Compiler
-compatibility is a later `.f.mjs` -> `.f.js` migration and is not part of this
-package prerequisite.
+Update `AGENTS.md` with that asymmetric runtime source-migration policy and the
+JSDoc type-only exception. Compiler compatibility is a later `.f.mjs` -> `.f.js`
+migration and is not part of this package prerequisite.
 
 JSDoc declaration emit currently exposes every top-level `@typedef` as an
 exported type alias. During the migration, implementation-only typedefs use the
@@ -128,10 +143,10 @@ The core TypeScript/NPM pipeline support is in place: `tsconfig.json` has
 `allowJs`/`checkJs` enabled, `package.json`'s `prepack` is the exact two-pass
 `tsc` command proposed here, `files` already lists `**/*.mjs`/`**/*.d.mts`
 alongside `**/*.js`/`**/*.d.ts`, and `AGENTS.md` documents the asymmetric
-`.f.ts`/`.f.mjs` dependency policy (see "FunctionalScript dependencies follow
-the asymmetric source rule"). What remains open is the *validation* half:
-no fixture or proof yet exercises the mixed `.ts`+`.mjs` package build,
-the clean-consumer type-check, or the rejected `.mjs`→`.ts` import direction.
+`.f.ts`/`.f.mjs` runtime dependency policy. What remains open is the
+*validation* half: no fixture or proof yet exercises the mixed `.ts`+`.mjs`
+package build, the clean-consumer type-check, the rejected `.mjs`→`.ts` runtime
+import direction, or the allowed JSDoc type-only `.mjs`→`.ts` direction.
 
 ### Tasks
 
@@ -152,18 +167,24 @@ the clean-consumer type-check, or the rejected `.mjs`→`.ts` import direction.
 - [ ] Include an implementation-only `_`-prefixed JSDoc typedef in the fixture;
       tolerate its current exported declaration form without treating it as
       clean-consumer public API.
-- [ ] Test the allowed `.ts` -> `.mjs` dependency direction in a clean checkout
-      and CI-built package archive.
-- [ ] Reject authored `.mjs` runtime imports and declaration-retained references
-      to remaining relative `.ts` or generated `.js`.
-- [ ] Verify emitted `.d.mts` contains no references to omitted package files.
+- [ ] Test the allowed `.ts` -> `.mjs` runtime dependency direction in a clean
+      checkout and CI-built package archive.
+- [ ] Reject authored `.mjs` runtime imports of remaining relative `.ts` or
+      generated `.js`.
+- [ ] Add a remaining `.ts` type-only dependency and consume it from authored
+      `.mjs` with JSDoc `@import`; verify that no runtime import/value is needed.
+- [ ] Verify the emitted `.d.mts` for that type-only edge resolves correctly from
+      the clean CI-built package and does not reference an omitted package file.
 - [ ] Type-check a clean consumer using exported/transitive types from the
-      authored `.mjs` fixture, without importing `_`-prefixed private typedefs.
+      authored `.mjs` fixture, including the type-only dependency, without
+      importing `_`-prefixed private typedefs.
 - [ ] Verify the CI-built archive contains authored `.mjs`, generated `.js`,
       `.d.ts`, and `.d.mts` in the expected paths during stage 1.
 - [x] Update `AGENTS.md` to the asymmetric `.f.ts` / `.f.mjs` migration policy.
 - [ ] Add validation/proofs for the allowed TypeScript -> migrated-JavaScript
-      direction and rejected migrated-JavaScript -> TypeScript direction.
+      runtime direction, the rejected migrated-JavaScript -> TypeScript runtime
+      direction, and the allowed JSDoc type-only migrated-JavaScript ->
+      TypeScript direction.
 
 ### Acceptance criteria
 
@@ -184,19 +205,22 @@ the clean-consumer type-check, or the rejected `.mjs`→`.ts` import direction.
   outputs from previous revisions cannot leak into a package build.
 - No repository-owned cleanup or legacy generated-output tracking is required
   for the stage-1 migration.
-- Remaining `.ts` may import migrated `.mjs`; migrated `.mjs` cannot retain
-  runtime/declaration references to remaining `.ts` or generated `.js`.
+- Remaining `.ts` may import migrated `.mjs`; migrated `.mjs` cannot runtime
+  import remaining `.ts` or generated `.js`.
+- Migrated `.mjs` may use JSDoc `@import` for a type-only dependency that remains
+  `.ts`, and the resulting declarations work for a clean package consumer
+  without adding a runtime dependency.
 - A clean consumer can import the CI-built `.mjs` runtime and type-check against
   its `.d.mts` declarations.
 - `.f.mjs` carries no current-compiler compatibility promise during stage 1.
-- No staging tree or package-time specifier rewrite is needed.
+- No staging tree or package-time runtime-specifier rewrite is needed.
 
 ### Ordering
 
 Complete this task before the first package-owned `.ts` / `.f.ts` -> `.mjs` /
 `.f.mjs` conversion in
 [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md).
-The migration then proceeds gradually from dependency leaves.
+The migration then proceeds gradually from runtime dependency leaves.
 
 After the last authored `.ts` / `.f.ts` source is removed, simplify `prepack` to
 its declaration-only form and remove the TypeScript-to-JavaScript emit path.
