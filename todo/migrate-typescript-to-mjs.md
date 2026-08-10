@@ -542,7 +542,7 @@ this rename.
       conversion.
 - [x] Set `skipLibCheck: false` so authored declaration files are semantically
       checked by the repository TypeScript run.
-- [ ] Explicitly unignore authored `**/types.d.ts` while keeping other generated
+- [x] Explicitly unignore authored `**/types.d.ts` while keeping other generated
       `**/*.d.ts` ignored.
 - [ ] Update contributor, compiler, language, package, test, and roadmap
       documentation to the stage-1 extension meanings and `types.d.ts`
