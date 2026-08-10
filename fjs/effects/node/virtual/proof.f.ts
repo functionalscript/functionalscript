@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
-import { access, awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes } from '../module.f.ts'
+import { access, awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat } from '../module.f.ts'
 import { maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { emptyState, virtual, type Dir, type JsModule } from './module.f.ts'
 
@@ -172,6 +172,12 @@ export const proof = {
         // file size must fail rather than silently create a hole.
         const root: Dir = { 'file': [vec8(0x42n)] }
         const [, result] = virtual({ ...emptyState, root })(writeBytes('file', 5, vec8(0x43n)))
+        assert(result[0] === 'error')
+    },
+    statOnDirectory: () => {
+        // stat on a directory covers the !Array.isArray(file) branch of statOp
+        const root: Dir = { 'mydir': {} }
+        const [, result] = virtual({ ...emptyState, root })(stat('mydir'))
         assert(result[0] === 'error')
     },
     largeFileReadBytes: () => {
