@@ -4,7 +4,7 @@ import { emptyState, virtual, type State } from '../../../effects/node/virtual/m
 import type { Unknown } from '../../../media/json/module.f.ts'
 import { stringify } from '../../../media/json/module.f.ts'
 import { utf8 } from '../../../text/module.f.mjs'
-import { fromVec } from '../../../types/uint8array/module.f.ts'
+import { fromVec } from '../../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../../types/bit_vec/module.f.mjs'
 import { sort } from '../../../types/object/module.f.ts'
 import { internalError, jsonrpc, parseError, type Id, type Response } from '../../json_rpc/module.f.ts'
