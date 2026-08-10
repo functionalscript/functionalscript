@@ -1,9 +1,4 @@
-/**
- * A generic function type.
- *
- * @template I, O
- * @typedef {(_: I) => O} Func
- */
+/** @import { Func } from './types.ts' */
 
 /**
  * A postfix compose function.
