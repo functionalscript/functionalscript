@@ -16,7 +16,7 @@ camelCase everywhere else. 48 keys across 7 files are snake_case instead:
 | `nanvm-lib/tests/proof.f.ts` | 6 |
 | `fjs/sul/proof.f.ts` | 5 |
 | `fjs/types/bit_vec/proof.f.ts` | 4 |
-| `fjs/types/prime_field/proof.f.ts` | 3 |
+| `fjs/types/prime_field/proof.f.mjs` | 3 |
 | `fjs/fsc/proof.f.ts` | 1 |
 
 They are only names, so nothing is broken — but the split means a new proof

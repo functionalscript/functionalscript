@@ -6,52 +6,61 @@
  *
  * @module
  */
-import type { Unary, Reduce } from '../bigint/module.f.mjs'
+
+/** @import { Unary, Reduce } from '../bigint/module.f.mjs' */
 import { repeat } from '../../common/monoid/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 
 /**
  * A type representing a prime field and its associated operations.
+ *
+ * @typedef {{
+ *  readonly p: bigint
+ *  readonly middle: bigint
+ *  readonly max: bigint
+ *  readonly neg: Unary
+ *  readonly sub: Reduce
+ *  readonly add: Reduce
+ *  readonly abs: Unary
+ *  readonly mul: Reduce
+ *  readonly reciprocal: Unary
+ *  readonly div: Reduce
+ *  readonly pow: Reduce
+ *  readonly pow2: Unary
+ *  readonly pow3: Unary
+ *  readonly reduce: Unary
+ *  readonly quadRes: (x: bigint) => boolean
+ * }} PrimeField
+ *
+ * @property reduce
+ *
+ * Reduces an arbitrary `bigint` into `[0, p)`.
+ *
+ * @property quadRes
+ *
+ * `true` when `x` is a square modulo `p`, including `0`.
+ *
+ * Nonzero values are tested with Euler's criterion:
+ * `x^((p - 1) / 2) === 1 (mod p)`.
+ * For `p === 2n`, both field elements are squares.
  */
-export type PrimeField = {
-    readonly p: bigint
-    readonly middle: bigint
-    readonly max: bigint
-    readonly neg: Unary
-    readonly sub: Reduce
-    readonly add: Reduce
-    readonly abs: Unary
-    readonly mul: Reduce
-    readonly reciprocal: Unary
-    readonly div: Reduce
-    readonly pow: Reduce
-    readonly pow2: Unary
-    readonly pow3: Unary
-    /** Reduces an arbitrary `bigint` into `[0, p)`. */
-    readonly reduce: Unary
-    /**
-     * `true` when `x` is a square modulo `p`, including `0`.
-     *
-     * Nonzero values are tested with Euler's criterion:
-     * `x^((p - 1) / 2) === 1 (mod p)`.
-     * For `p === 2n`, both field elements are squares.
-     */
-    readonly quadRes: (x: bigint) => boolean
-}
 
 /**
  * Creates a prime field with the specified prime modulus and associated operations.
  *
- * @param p - A prime number to define the field.
- * @returns The prime field object.
+ * @param {bigint} p A prime number to define the field.
+ * @returns {PrimeField} The prime field object.
  */
-export const prime_field = (p: bigint): PrimeField => {
-    const sub: Reduce = a => b => {
+export const prime_field = p => {
+    /** @type {Reduce} */
+    const sub = a => b => {
         const r = a - b
         return r < 0 ? r + p : r
     }
-    const mul: Reduce = a => b => a * b % p
-    const reciprocal: Unary = a => {
+    /** @type {Reduce} */
+    const mul = a => b => a * b % p
+    /** @type {Unary} */
+    const reciprocal = a => {
         if (a === 0n) { throw '1/0' }
         let a1 = a
         let a0 = p
@@ -69,13 +78,17 @@ export const prime_field = (p: bigint): PrimeField => {
         return f1
     }
     const middle = p >> 1n
-    const pow2: Unary = a => mul(a)(a)
-    const pow: Reduce = repeat({ identity: 1n, operation: mul })
-    const add: Reduce = a => b => {
+    /** @type {Unary} */
+    const pow2 = a => mul(a)(a)
+    /** @type {Reduce} */
+    const pow = repeat({ identity: 1n, operation: mul })
+    /** @type {Reduce} */
+    const add = a => b => {
         const r = a + b
         return r < p ? r : r - p
     }
-    const reduce: Unary = x => {
+    /** @type {Unary} */
+    const reduce = x => {
         const r = x % p
         return r < 0n ? add(p)(r) : r
     }
@@ -84,7 +97,8 @@ export const prime_field = (p: bigint): PrimeField => {
     // gives exponent `0n` instead of `1n`.
     // 0 is a square mod p; Euler's criterion needs a separate case because 0^e = 0.
     const powHalf = pow(max >> 1n)
-    const quadRes = (x: bigint): boolean => {
+    /** @type {(x: bigint) => boolean} */
+    const quadRes = x => {
         const v = reduce(x)
         return v === 0n || powHalf(v) === 1n
     }
@@ -112,6 +126,9 @@ export const prime_field = (p: bigint): PrimeField => {
  *
  * @throws If the prime modulus `p` does not satisfy `p % 4 == 3`.
  *
+ * @param {PrimeField} field
+ * @returns {(a: bigint) => bigint | null}
+ *
  * @example
  *
  * ```js
@@ -120,7 +137,7 @@ export const prime_field = (p: bigint): PrimeField => {
  * if (root !== 2n) { throw root }
  * ```
  */
-export const sqrt = ({p, pow, pow2 }: PrimeField): (a: bigint) => bigint|null => {
+export const sqrt = ({ p, pow, pow2 }) => {
     if ((p & 3n) !== 3n) { throw 'sqrt' }
     const sqrt_k = (p + 1n) >> 2n
     const psk = pow(sqrt_k)
@@ -132,8 +149,11 @@ export const sqrt = ({p, pow, pow2 }: PrimeField): (a: bigint) => bigint|null =>
 
 /**
  * Modular square root mod `p` (`p ≡ 3 (mod 4)`); uses {@link PrimeField.neg} when `x` is not a residue.
+ *
+ * @param {PrimeField} field
+ * @returns {Unary}
  */
-export const modSqrt = (field: PrimeField): Unary => {
+export const modSqrt = field => {
     const { neg, reduce } = field
     const sqrt_p = sqrt(field)
     return x => {

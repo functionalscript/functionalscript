@@ -14,7 +14,7 @@
  * if (y === null || !sloth.verify(steps)(x)(y)) { throw y }
  * ```
  */
-import { modSqrt, prime_field, type PrimeField } from '../../types/prime_field/module.f.ts'
+import { modSqrt, prime_field, type PrimeField } from '../../types/prime_field/module.f.mjs'
 import type { Nullable } from '../../types/nullable/module.f.mjs'
 import type { Unary } from '../../types/bigint/module.f.mjs'
 
