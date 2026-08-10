@@ -27,7 +27,7 @@ import {
     quotationMark,
     reverseSolidus,
     space,
-} from '../../../text/ascii/module.f.ts'
+} from '../../../text/ascii/module.f.mjs'
 
 const jsonStringify = JSON.stringify
 

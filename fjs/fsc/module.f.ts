@@ -12,7 +12,7 @@ import {
     type RangeMerge,
 } from '../types/range_map/module.f.mjs'
 import { reduce as listReduce, toArray, map, type List } from '../types/list/module.f.mjs'
-import { range as asciiRange } from '../text/ascii/module.f.ts'
+import { range as asciiRange } from '../text/ascii/module.f.mjs'
 import { flip, fn } from '../types/function/module.f.mjs'
 import { one, type Range } from '../types/range/module.f.mjs'
 import { assertEq } from '../asserts/module.f.mjs'
