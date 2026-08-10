@@ -4,7 +4,7 @@
  *
  * @module
  */
-import { node } from '../config/module.f.ts'
+import { node } from '../config/module.f.mjs'
 import { type Job, type Jobs, type MetaStep, install, test, ubuntuArm, uses } from '../common/module.f.ts'
 import { nixInstall, nixVersionCheckStep, type NixJob } from '../nix/module.f.ts'
 

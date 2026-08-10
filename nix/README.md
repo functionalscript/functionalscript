@@ -6,7 +6,7 @@
 committed files no longer match the generator's output.
 
 Each flake pins the exact Nixpkgs commit from
-[`fjs/ci/config`](../fjs/ci/config/module.f.ts) and exposes a single
+[`fjs/ci/config`](../fjs/ci/config/module.f.mjs) and exposes a single
 development shell for the job's runner:
 
 ```sh

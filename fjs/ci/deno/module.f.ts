@@ -4,7 +4,7 @@
  *
  * @module
  */
-import { deno } from '../config/module.f.ts'
+import { deno } from '../config/module.f.mjs'
 import { type MetaStep, install, test, uses } from '../common/module.f.ts'
 
 const denoTest = 'deno test --allow-read --allow-env --allow-sys' as const

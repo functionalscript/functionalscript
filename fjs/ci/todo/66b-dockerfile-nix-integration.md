@@ -7,7 +7,7 @@
 
 Phase 2 is done: `fjs/ci/nix/module.f.ts` generates
 `nix/generated/node{22,24,26}/flake.nix` from the pinned Nixpkgs commit in
-`fjs/ci/config/module.f.ts`, and `npm run ci-update` regenerates them without
+`fjs/ci/config/module.f.mjs`, and `npm run ci-update` regenerates them without
 running Nix. `nodejs_22`, `nodejs_24`, and `nodejs_26` were verified to exist in
 the accepted snapshot.
 
@@ -17,7 +17,7 @@ every pull request. It is not part of the migration: the canonical Node jobs
 keep their `setup-node` runtime, and the temporary job is deleted once they all
 run through `nix develop`.
 
-The Node versions in `fjs/ci/config/module.f.ts` are now the ones the pinned
+The Node versions in `fjs/ci/config/module.f.mjs` are now the ones the pinned
 snapshot provides, shared by `setup-node` and the flakes' package attributes.
 The expectation is stated once, in the `nix-flakes` job — the flakes themselves
 carry no `assert`, because a flake pinning an exact commit already determines its
@@ -55,7 +55,7 @@ existing CI config -> generated Node flake.nix -> existing Node job commands
 #### Design rules
 
 - use one exact official Nixpkgs commit;
-- keep the configuration in `fjs/ci/config/module.f.ts` for this milestone;
+- keep the configuration in `fjs/ci/config/module.f.mjs` for this milestone;
 - generate one self-contained `flake.nix` per Node job;
 - expose one static default development shell for each configured system;
 - keep generated files static and readable;
@@ -86,7 +86,7 @@ It should:
 2. read the Node 22, Node 24, and Node 26 package versions from that commit;
 3. verify that the snapshot exposes `nodejs_22`, `nodejs_24`, and `nodejs_26`;
 4. update the commit and relevant exact versions in
-   `fjs/ci/config/module.f.ts`;
+   `fjs/ci/config/module.f.mjs`;
 5. invoke `npm run ci-update` to regenerate files.
 
 It does not update npm dependencies or package-manager lockfiles.

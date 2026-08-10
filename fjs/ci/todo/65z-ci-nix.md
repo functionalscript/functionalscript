@@ -51,7 +51,7 @@ Those concerns evolve independently and must not block the first Node flakes.
 
 #### Configuration
 
-For this milestone, extend the existing `fjs/ci/config/module.f.ts` configuration. It is
+For this milestone, extend the existing `fjs/ci/config/module.f.mjs` configuration. It is
 already consumed by CI generation and works on native Windows.
 
 A future task may migrate CI configuration to another format. That migration is not a
@@ -145,7 +145,7 @@ At a high level it:
 2. verifies that `nodejs_22`, `nodejs_24`, and `nodejs_26` exist;
 3. reads the package versions needed by the currently declared Nix jobs;
 4. updates the Nixpkgs commit and relevant exact versions in
-   `fjs/ci/config/module.f.ts`;
+   `fjs/ci/config/module.f.mjs`;
 5. runs ordinary CI generation to regenerate the declared flakes;
 6. leaves all generated changes for review and commit.
 

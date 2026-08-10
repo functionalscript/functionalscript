@@ -16,7 +16,7 @@ canonical Node job under `nix/generated/`.
 - `common/module.f.ts` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
-- `config/module.f.ts` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin.
+- `config/module.f.mjs` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin.
 - `nix/module.f.ts` — writes one self-contained `nix/generated/<job>/flake.nix`
   per declared job, using the Nix eDSL in `fjs/media/nix`.
 - `node/module.f.ts` — Node.js job steps: platform smoke tests, canonical
@@ -37,7 +37,7 @@ canonical Node job under `nix/generated/`.
 
 The generator is idempotent — rerunning it without modifying the source produces the
 same files. It never runs Nix itself, so it stays Windows-compatible: the flakes are
-plain text built from the pinned commit in `config/module.f.ts`.
+plain text built from the pinned commit in `config/module.f.mjs`.
 
 ### Generated Nix environments
 
@@ -49,7 +49,7 @@ installed `fjs` stays on `PATH` for the rest of the same `nix develop` invocatio
 See [nix/README.md](../../nix/README.md) for how the generated files are meant to be
 consumed.
 
-Every runtime uses the same Node versions. `config/module.f.ts` records the versions
+Every runtime uses the same Node versions. `config/module.f.mjs` records the versions
 the pinned Nixpkgs snapshot provides — not the latest nodejs.org release, which the
 snapshot usually trails — and those feed both `setup-node` on the GitHub-hosted
 runners and the flakes' package attributes. Bumping a Node version therefore means
@@ -130,7 +130,7 @@ modifying the built-in command.
 
 The built-in command does not read `package.json` to customize generated steps.
 The FunctionalScript package version used by generated Node, Deno, and Bun smoke
-tests is pinned in `config/module.f.ts`, not read from `package.json`.
+tests is pinned in `config/module.f.mjs`, not read from `package.json`.
 
 ## Customisation
 

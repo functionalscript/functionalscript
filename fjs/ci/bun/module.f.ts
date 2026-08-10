@@ -4,7 +4,7 @@
  *
  * @module
  */
-import { bun } from '../config/module.f.ts'
+import { bun } from '../config/module.f.mjs'
 import { type MetaStep, install, test, uses } from '../common/module.f.ts'
 
 export const bunSteps = (version: string): readonly MetaStep[] => [
