@@ -4,7 +4,7 @@
  * @module
  */
 import { todo } from '../../../asserts/module.f.mjs'
-import { isProperPrefix, join, parse } from '../../../path/module.f.ts'
+import { isProperPrefix, join, parse } from '../../../path/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import type { Vec } from '../../../types/bit_vec/types.ts'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'

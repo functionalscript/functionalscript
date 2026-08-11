@@ -17,7 +17,7 @@ import { cmp as strCmp } from '../types/string/module.f.mjs'
 import type { StringMap } from '../types/object/types.ts'
 import { unwrap } from '../types/result/module.f.mjs'
 import { pure, step, type Effect } from '../effects/module.f.ts'
-import { join, relativize, toPosix } from '../path/module.f.ts'
+import { join, relativize, toPosix } from '../path/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 
