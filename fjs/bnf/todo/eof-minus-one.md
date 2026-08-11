@@ -46,19 +46,36 @@ needed.
 #### Keep the current 24-bit stored representation
 
 The current packed `TerminalRange` can remain two 24-bit stored endpoints.
-Only the semantic interpretation of the existing EOF code changes:
+Encode a semantic terminal into its stored 24-bit value with:
 
-```text
-encodeTerminal(-1)         = 2^24 - 1
-encodeTerminal(0..2^24-2)  = 0..2^24-2
+```js
+const terminalSize = 2 ** 24
+const terminalMask = terminalSize - 1
 
-decodeTerminal(2^24 - 1)   = -1
-decodeTerminal(0..2^24-2)  = 0..2^24-2
+const encodeTerminal = value =>
+    (value + terminalSize) & terminalMask
 ```
 
-So the stored code previously used for EOF remains the stored code for EOF.
-Ordinary symbols also keep their existing stored codes. The packed width and
-serialized values therefore do not need a migration for this task.
+For the current semantic domain this gives:
+
+```text
+-1            -> 2^24 - 1
+0             -> 0
+1             -> 1
+...
+2^24 - 2      -> 2^24 - 2
+```
+
+The inverse is also branchless:
+
+```js
+const decodeTerminal = value =>
+    ((value + 1) & terminalMask) - 1
+```
+
+So the stored code previously used for EOF remains the stored code for EOF, and
+all ordinary symbols keep their existing stored codes. The packed width and
+serialized `TerminalRange` values therefore remain bit-for-bit unchanged.
 
 The stored codes are an implementation representation, not semantic terminal
 ordering. Range operations that care about semantic ordering must compare decoded
@@ -109,10 +126,10 @@ metadata leaf to the AST. EOF diagnostics point at `input.length`.
 - [ ] Change semantic EOF from `2^24 - 1` to `-1`.
 - [ ] Keep the current ordinary domain `0 .. 2^24 - 2` unchanged.
 - [ ] Keep `TerminalRange` packed as two 24-bit stored endpoints.
-- [ ] Encode semantic EOF as the existing stored code `2^24 - 1`; leave ordinary
-      stored codes unchanged.
-- [ ] Update range encode/decode, containment, validation, keys, and proofs to
-      distinguish semantic terminal values from stored endpoint codes.
+- [ ] Encode/decode semantic terminals with the branchless 24-bit formulas above,
+      preserving the existing stored EOF code and all ordinary stored codes.
+- [ ] Update range containment, validation, keys, and proofs to distinguish
+      semantic terminal values from stored endpoint codes.
 - [ ] Define `eof` as semantic `[-1, -1]` and `fullRange` as
       `[0, 2^24 - 2]`.
 - [ ] Synthesize logical EOF exactly once in parser/recognizer backends; callers
