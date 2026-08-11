@@ -6,7 +6,7 @@
  * @example
  *
  * ```js
- * import { join, concat, repeat, cmp } from './module.f.ts'
+ * import { join, concat, repeat, cmp } from './module.f.mjs'
  *
  * const words = ['hello', 'world']
  * join(' ')(words) // 'hello world'
