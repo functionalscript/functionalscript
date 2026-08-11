@@ -29,7 +29,8 @@ import {
     type Write,
     type WriteConsoles
 } from '../effects/node/module.f.ts'
-import { history, historyStep, pure, step, type Effect, type Operation } from '../effects/module.f.ts'
+import { history, historyStep, pure, step } from '../effects/module.f.mjs'
+import type { Effect, Operation } from '../effects/types.ts'
 import { eff } from '../effects/eff/module.f.ts'
 import { loadModuleMap, shouldLoad, type LoadModuleOperations, type ModuleMap } from '../dev/module.f.ts'
 import { invert } from '../types/result/module.f.mjs'

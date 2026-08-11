@@ -3,7 +3,8 @@
  *
  * @module
  */
-import { history, historyStep, mapStep, step, type Effect } from '../../effects/module.f.ts'
+import { history, historyStep, mapStep, step } from '../../effects/module.f.mjs'
+import type { Effect } from '../../effects/types.ts'
 import { mkdir, type Mkdir, type NodeProgram, readUtf8File, type ReadFile, type WriteFile, writeUtf8File } from '../../effects/node/module.f.ts'
 import { unwrap } from '../../types/result/module.f.mjs'
 

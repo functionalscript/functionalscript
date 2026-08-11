@@ -42,7 +42,8 @@
  *
  * @module
  */
-import { pure, foldStep, type Effect, type Operation } from '../../effects/module.f.ts'
+import { pure, foldStep } from '../../effects/module.f.mjs'
+import type { Effect, Operation } from '../../effects/types.ts'
 import { eff } from '../../effects/eff/module.f.ts'
 import { create, read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import { collectRead, type Cas } from '../module.f.ts'
@@ -52,7 +53,7 @@ import { tryUtf8 } from '../../text/module.f.mjs'
 import { decodeText, encodeText, dialect, checkReferences, isHash, type LockMap, type Revision } from '../../media/revision/module.f.ts'
 import type { Ok, Result } from '../../types/result/types.ts'
 import { ok, error } from '../../types/result/module.f.mjs'
-import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
+import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { at, definedEntries } from '../../types/object/module.f.mjs'
 import type { StringMap } from '../../types/object/types.ts'
 import { unwrap } from '../../types/nullable/module.f.mjs'

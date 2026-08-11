@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/bnf/ll1/module.f.ts`'s matcher `f` (inside `parserRuleSet`) recurses
+`fjs/bnf/ll1/module.f.mjs`'s matcher `f` (inside `parserRuleSet`) recurses
 natively: after consuming a code point it walks the dispatched `rules` chain
 with one nested `f` call per rule. For a right-recursive rule — which is how
 `repeat0Plus` encodes repetition — every additional repetition adds another
@@ -21,7 +21,7 @@ identical).
 
 This is the same bug that was fixed in the sibling descent backend in PR
 [#1303](https://github.com/functionalscript/functionalscript/pull/1303) (see
-its CHANGELOG entry for the history): `fjs/bnf/descent/module.f.ts`'s matcher
+its CHANGELOG entry for the history): `fjs/bnf/descent/module.f.mjs`'s matcher
 now runs as an explicit-stack machine and handles 100 KB+ inputs; the LL(1)
 matcher was not touched. Today nothing outside `fjs/bnf/ll1`'s own proofs consumes this
 parser (hence P3, not P1), but any future consumer with realistic input
@@ -30,7 +30,7 @@ sizes will hit it.
 ### Proposal
 
 Port the descent backend's fix: rewrite `f` as an explicit-stack machine.
-`fjs/bnf/descent/module.f.ts` is the template — its matcher keeps two
+`fjs/bnf/descent/module.f.mjs` is the template — its matcher keeps two
 suspended-frame kinds on an immutable cons-cell stack and loops, either
 starting the current rule invocation or feeding the pending result into the
 innermost frame. The LL(1) version is simpler: `f` has only one recursion
@@ -61,7 +61,7 @@ grammar size, not input size — it does not need to change.
 
 ### Related
 
-- `fjs/bnf/descent/module.f.ts` — the ported fix to mirror (explicit frame
+- `fjs/bnf/descent/module.f.mjs` — the ported fix to mirror (explicit frame
   stack; see the `longInput` proof group in its `proof.f.ts`), landed in PR
   [#1303](https://github.com/functionalscript/functionalscript/pull/1303),
   whose CHANGELOG entry records the history of the same bug in the descent

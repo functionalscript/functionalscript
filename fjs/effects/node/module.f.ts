@@ -20,8 +20,9 @@ import type { Nominal } from '../../types/nominal/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import { ok, error as resultError, mapOk } from '../../types/result/module.f.mjs'
 import type { StringMap } from '../../types/object/types.ts'
-import { type Effect, type Func, type Operation, type ToAsyncOperationMap, do_, mapStep, okStep, pure, step } from '../module.f.ts'
-import type { List } from '../list/module.f.ts'
+import { do_, mapStep, okStep, pure, step } from '../module.f.mjs'
+import type { Effect, Func, Operation, ToAsyncOperationMap } from '../types.ts'
+import type { List } from '../list/types.ts'
 
 export type IoResult<T> = Result<T, unknown>
 

@@ -41,7 +41,7 @@ methods, so `.step` is reachable only through the `Eff` wrapper
 (`fjs/effects/eff/module.f.ts`). An earlier draft of this issue quoted these
 sites as `all(...).step(...)` — that form does not exist and would not compile.
 
-`fjs/effects/module.f.ts` already ships `forEachStep` (the *sequential* void
+`fjs/effects/module.f.mjs` already ships `forEachStep` (the *sequential* void
 combinator, line 90), and [allreduce-combinator](./allreduce-combinator.md)
 covers the parallel *reduce* variant — but the parallel *void* sibling is
 missing, so every call site re-spells the whole wrap-step-unwrap dance.
@@ -50,7 +50,7 @@ missing, so every call site re-spells the whole wrap-step-unwrap dance.
 
 Add the void sibling in `fjs/effects/node/module.f.ts`, next to `all` /
 `All` / `both`. It cannot live next to `forEachStep` in the core
-`fjs/effects/module.f.ts`: `all`/`All` are defined in the node module,
+`fjs/effects/module.f.mjs`: `all`/`All` are defined in the node module,
 which already imports the core module — placing `allVoid` in core would
 invert that dependency. (`fjs/emergent_testing` already imports `all` from
 the node module, so the call sites need no new import path.)
@@ -95,4 +95,4 @@ duplicating the `all(...map)` core — whichever reads better.
 
 - [allreduce-combinator](./allreduce-combinator.md) — the aggregating
   sibling; `allVoid` discards.
-- `fjs/effects/module.f.ts:90` — `forEachStep`, the sequential sibling.
+- `fjs/effects/module.f.mjs:297` — `forEachStep`, the sequential sibling.

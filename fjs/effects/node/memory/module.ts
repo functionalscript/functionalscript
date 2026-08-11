@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { asyncRun } from '../../module.ts'
-import type { Effect, ToAsyncOperationMap } from '../../module.f.ts'
+import type { Effect, ToAsyncOperationMap } from '../../types.ts'
 import { asBase, asNominal, type Key, type MemOp } from '../../memory/module.f.ts'
 
 export type MemoryOperationMap = ToAsyncOperationMap<MemOp>

@@ -3,7 +3,7 @@
 **Priority:** P3
 **Status:** open
 
-> **The APIs have landed.** `mapStep` is in `fjs/effects/module.f.ts` and
+> **The APIs have landed.** `mapStep` is in `fjs/effects/module.f.mjs` and
 > `Eff.map` in `fjs/effects/eff/module.f.ts`, each with proof coverage and with
 > its first real consumers converted in the same change — `readUtf8File`,
 > `awaitIfPromise` and `errorExit` (`fjs/effects/node/module.f.ts`),
@@ -13,7 +13,7 @@
 
 ### Problem
 
-`fjs/effects/module.f.ts` ships `pure` (return) and `step` (bind), plus the
+`fjs/effects/module.f.mjs` ships `pure` (return) and `step` (bind), plus the
 derived combinators `historyStep`, `foldStep`, `forEachStep`, the `okStep`
 adapter — and now `mapStep`, the functor `map`: "run the effect, then apply a
 pure function to its result". Before it existed, every call site re-derived it
@@ -124,6 +124,6 @@ conversion as one 14-module diff.
   projection (`() => undefined`).
 - [fold-stream-combinator](./fold-stream-combinator.md) — its pure consumers
   (`detectStream`, `collectRead`) end in `pure(ok(...))` projections.
-- `fjs/effects/module.f.ts` — `mapStep`, `step`, `historyStep`, `foldStep`,
+- `fjs/effects/module.f.mjs` — `mapStep`, `step`, `historyStep`, `foldStep`,
   `forEachStep`, `okStep`; the "do not nest steps" rule in the module header.
 </content>

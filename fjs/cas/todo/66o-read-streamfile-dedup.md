@@ -34,7 +34,7 @@ const loop = (offset: number): List<ReadBytes, IoResult<Vec>> =>
 ```
 
 (`nonEmpty` / `elEmpty` are `nonEmpty` and `empty as elEmpty` from
-`fjs/effects/list/module.f.ts`.) The only real difference is the declared effect
+`fjs/effects/list/module.f.mjs`.) The only real difference is the declared effect
 type: `FileCasOperation` in `read` vs. `ReadBytes` in `streamFile`, with
 `ReadBytes ⊆ FileCasOperation`. So the EOF/error streaming invariant is
 maintained in two places that must stay in sync.

@@ -106,5 +106,5 @@ matched items rather than the nested right-recursive cons structure.
 - [256-bit bigint BNF symbols](./bigint-symbols.md) — changes terminal/range
   representation assumptions used by the old dispatch example.
 - [BNF semantic actions](./207.md) — origin of the flat-list/action motivation.
-- `fjs/bnf/data/module.f.ts` — owns the data `Rule` representation and dispatch.
+- `fjs/bnf/data/module.f.mjs` — owns the data `Rule` representation and dispatch.
 - `fjs/bnf/module.f.mjs` — owns BNF combinators such as `repeat0Plus`.

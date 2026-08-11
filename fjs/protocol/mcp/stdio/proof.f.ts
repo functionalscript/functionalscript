@@ -1,5 +1,6 @@
 import { assertEq } from '../../../asserts/module.f.mjs'
-import { pure, type Effect } from '../../../effects/module.f.ts'
+import { pure } from '../../../effects/module.f.mjs'
+import type { Effect } from '../../../effects/types.ts'
 import { emptyState, virtual, type State } from '../../../effects/node/virtual/module.f.ts'
 import type { Unknown } from '../../../media/json/module.f.ts'
 import { stringify } from '../../../media/json/module.f.ts'

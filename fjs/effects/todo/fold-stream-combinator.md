@@ -53,13 +53,13 @@ in sync.
 
 ### Proposal
 
-Add a `foldStream` combinator to `fjs/effects/list/module.f.ts` whose step
+Add a `foldStream` combinator to `fjs/effects/list/module.f.mjs` whose step
 returns an `Effect`, so it subsumes both the pure folds (step = `pure(...)`)
 and the effectful writers.
 
 **Layering note:** `IoResult` cannot appear in this module's signature —
 it is exported by `fjs/effects/node/module.f.ts`, which already imports
-`List` from `fjs/effects/list/module.f.ts`, so importing it back would be
+`List` from `fjs/effects/list/module.f.mjs`, so importing it back would be
 a cycle. But `IoResult<T>` is just an alias for `Result<T, unknown>` from
 `fjs/types/result` (a types-layer module `effects/list` can import freely),
 so write the signature in terms of `Result` — call sites that hold
@@ -101,7 +101,7 @@ consumers first; the writers follow only if the shape stays clean.
 
 ### Tasks
 
-- [ ] Add `foldStream` to `fjs/effects/list/module.f.ts` with proof coverage.
+- [ ] Add `foldStream` to `fjs/effects/list/module.f.mjs` with proof coverage.
 - [ ] Convert `detectStream` (`fjs/media/type`) and `collectRead` (`fjs/cas`).
 - [ ] Convert `writeLoop` (`fjs/effects/node`) if the effectful step fits
       without contortion; otherwise document why in this issue and keep it.
@@ -118,7 +118,7 @@ consumers first; the writers follow only if the shape stays clean.
   abstraction; `foldStream` is the consumer-side generalization.
 - [allreduce-combinator](./allreduce-combinator.md) — sibling combinator for
   parallel effects.
-- `okStep` (`fjs/effects/module.f.ts`) — the step-adapter helper shape; this
+- `okStep` (`fjs/effects/module.f.mjs`) — the step-adapter helper shape; this
   combinator's per-chunk step is a Kleisli function of the same shape.
 - [write-closed-helpers](../../cas/todo/write-closed-helpers.md) — hoists
   `fileCas.write`'s remaining nested helpers; its loop conversion depends on

@@ -1,7 +1,7 @@
 # Eff — an experiment, not a settled design
 
 `Eff` is a fluent, method-chaining wrapper over the raw `Effect` from
-[`../module.f.ts`](../module.f.ts). **It is under active investigation and its
+[`../module.f.mjs`](../module.f.mjs). **It is under active investigation and its
 design is unstable.** Expect the shape to change between releases, and expect
 it to be a real possibility that it is removed entirely.
 

@@ -12,7 +12,7 @@ This TODO proposed preserving `bnf/data`'s generic `string` rule case and reusin
 The alphabet-specific BNF split intentionally removes that architecture instead:
 
 - `string` is removed from the generic `DataRule` / `Rule` representation;
-- `fjs/bnf/data/module.f.ts` no longer interprets strings as Unicode code points;
+- `fjs/bnf/data/module.f.mjs` no longer interprets strings as Unicode code points;
 - `toSequence` moves to `fjs/bnf/unicode/module.f.ts` as an alphabet-specific
   construction helper;
 - Unicode helpers lower strings to ordinary generic rules before they reach
@@ -24,7 +24,7 @@ immediately removes, while implementing it afterward would no longer make sense.
 
 ### Historical proposal
 
-The original proposal was to import `toSequence` in `fjs/bnf/data/module.f.ts`,
+The original proposal was to import `toSequence` in `fjs/bnf/data/module.f.mjs`,
 replace the `'string'` case body with `sequence(toSequence(dr))`, and delete the
 local duplicate Unicode-conversion helpers/imports.
 

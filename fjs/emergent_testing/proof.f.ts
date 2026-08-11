@@ -1,4 +1,4 @@
-import type { Effect } from '../effects/module.f.ts'
+import type { Effect } from '../effects/types.ts'
 import { log, type NodeProgramOptions, type Sandbox, type Write } from '../effects/node/module.f.ts'
 import { defaultNodeProgramOptions, emptyState, type JsModule } from '../effects/node/virtual/module.f.ts'
 import { virtual } from '../effects/node/virtual/module.f.ts'

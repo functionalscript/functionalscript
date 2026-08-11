@@ -5,13 +5,13 @@
 
 ### Problem
 
-The same public type is declared in two modules. `fjs/bnf/module.f.mjs:23`:
+The same public type is declared in two modules. `fjs/bnf/types.ts:30`:
 
 ```ts
 export type TerminalRange = number
 ```
 
-and `fjs/bnf/data/module.f.ts:25-27`:
+and `fjs/bnf/data/types.ts:11-14`:
 
 ```ts
 /**
@@ -29,10 +29,10 @@ changes from a plain `number`).
 
 ### Proposal
 
-Define `TerminalRange` once in `fjs/bnf/module.f.mjs` (the module that owns the
-range encode/decode primitives) and have `fjs/bnf/data/module.f.ts` import and
-re-export it rather than redeclaring. Per `AGENTS.md`: "When a sibling module
-already has the type you need, import it" instead of duplicating.
+Define `TerminalRange` once in `fjs/bnf/types.ts` (the module that owns the
+range encode/decode primitives' types) and have `fjs/bnf/data/types.ts` import
+and re-export it rather than redeclaring. Per `AGENTS.md`: "When a sibling
+module already has the type you need, import it" instead of duplicating.
 
 ### Tasks
 

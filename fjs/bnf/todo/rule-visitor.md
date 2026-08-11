@@ -30,7 +30,7 @@ union**, not against today's `number | string` implementation details.
 ### Proposal
 
 After the alphabet and terminal-representation migrations settle the generic
-`Rule` union, add a visitor in `fjs/bnf/data/module.f.ts` (the module that owns the
+`Rule` union, add a visitor in `fjs/bnf/data/module.f.mjs` (the module that owns the
 type), mirroring the proven `visit` pattern in `fjs/types/rtti/common`.
 
 Conceptually the visitor exposes the semantic rule cases:
@@ -63,7 +63,7 @@ scheme. Each call site keeps its own recursion/accumulator structure.
 - [ ] Wait for the alphabet split and bigint terminal/range migration to settle
       the final generic `Rule` union and terminal representation.
 - [ ] Define `RuleVisitor` / `matchRule` against those final discriminants in
-      `fjs/bnf/data/module.f.ts`; do not depend on the obsolete raw-string rule or
+      `fjs/bnf/data/module.f.mjs`; do not depend on the obsolete raw-string rule or
       `typeof rule === 'number'` terminal test.
 - [ ] Rewrite the backend dispatch sites to use the shared visitor.
 - [ ] Keep any alphabet-specific lowering outside this generic visitor.
