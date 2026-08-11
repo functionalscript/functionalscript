@@ -76,7 +76,7 @@ const tryTokenSymbol = (name: string): Nullable<Symbol> => {
     if (vec === null) { return null }
     const encoded = tryToSentinel(vec)
     if (encoded === null) { return null }
-    return 0n <= encoded && encoded < eofSymbol ? encoded : null
+    return 0n <= encoded && encoded < (1n << 256n) ? encoded : null
 }
 ```
 
@@ -87,15 +87,15 @@ limit is a valid `Vec`, but its positive sentinel form is not representable on a
 supported runtimes. The `tryTokenSymbol` contract must return `null` for both
 cases, as well as for any candidate outside the ordinary BNF symbol domain.
 
-`eofSymbol` is the maximal 256-bit value reserved by BNF. Thus a successful
-direct mapping is always an ordinary BNF symbol and can never collide with EOF.
-The final validation is against the complete actual symbol-domain invariant,
-`0n <= encoded && encoded < eofSymbol`, not merely against the exact EOF value or
-an estimated/precomputed source size.
+BNF EOF is `-1`, outside the non-negative uint256 input-symbol domain. Therefore a
+successful direct mapping can use the complete ordinary-symbol range
+`0 .. 2^256 - 1` and cannot collide with EOF. The final validation is against the
+complete actual symbol-domain invariant, `0n <= encoded && encoded < 2^256`, not
+against a reserved maximal value or an estimated/precomputed source size.
 
 For the current UTF-8 sentinel encoding, the 31-byte boundary remains a useful
 derived property rather than a preflight rule: byte-aligned names up to 31 UTF-8
-bytes produce values below the ordinary-symbol limit, while a 32-byte name puts
+bytes produce values inside the uint256 symbol domain, while a 32-byte name puts
 the sentinel at bit 256 and therefore returns `null` at the BNF-domain check.
 Proofs should cover that boundary, but implementation should branch on the actual
 `tryUtf8`, `tryToSentinel`, and symbol-domain results.
@@ -113,10 +113,11 @@ global injectivity, so construction/configuration of a layer that uses such a
 mapping must map its complete finite set of token names and reject the
 configuration if two distinct names produce the same symbol, if any mapping
 returns `null`, or if any produced bigint is outside the ordinary symbol domain
-`0n <= symbol && symbol < eofSymbol`. This rejects negative values, values wider
-than the 256-bit domain, and reserved EOF uniformly. Producer and consumer may
-still compute symbols independently after that alphabet has been validated; no
-ordered registration ID is introduced.
+`0n <= symbol && symbol < 2^256`. This rejects negative values and values wider
+than the 256-bit domain uniformly. Because EOF is `-1`, restricting mappings to
+that non-negative domain also excludes EOF automatically. Producer and consumer
+may still compute symbols independently after that alphabet has been validated;
+no ordered registration ID is introduced.
 
 Different parser layers have different symbol alphabets, so the same numeric
 symbol does not need a global meaning across byte, code-point, token, and later
@@ -153,7 +154,7 @@ tokens or calls `token_symbol.encoding()` for multi-character names.
       produced value against the ordinary BNF symbol domain.
 - [ ] Return `null` when UTF-8/bit-vector encoding fails, sentinel conversion
       fails, or the encoded candidate does not satisfy
-      `0n <= encoded && encoded < eofSymbol`; do not use a UTF-8 length preflight
+      `0n <= encoded && encoded < 2^256`; do not use a UTF-8 length preflight
       check.
 - [ ] Prove injectivity for every successful direct encoding, including
       preservation of leading zero bytes/bits.
@@ -164,10 +165,11 @@ tokens or calls `token_symbol.encoding()` for multi-character names.
 - [ ] Require every token mapping to be injective over the concrete token alphabet
       used by a parser layer. For mappings without a mathematical injectivity
       guarantee, validate the complete configured token-name set and reject
-      duplicate symbols, `null`, negative/out-of-width bigints, and reserved EOF
-      before the layer is used.
-- [ ] Reserve `2^256 - 1` for EOF in every token-symbol mapping; every successful
-      mapping result must be in `0 .. EOF - 1`.
+      duplicate symbols, `null`, negative/out-of-width bigints, and other values
+      outside `0 .. 2^256 - 1` before the layer is used.
+- [ ] Treat EOF as `-1`; token mappings produce only non-negative uint256 symbols,
+      so the full `0 .. 2^256 - 1` domain is available and EOF is excluded
+      automatically.
 - [ ] Keep dependent parser designs, including [new-parser](./new-parser.md),
       blocked until their token-name alphabets use this fallible `Symbol` mapping
       instead of `token_symbol.encoding()` or raw 24-bit/ASCII identities.
@@ -187,8 +189,10 @@ tokens or calls `token_symbol.encoding()` for multi-character names.
 
 ### Related
 
-- [256-bit bigint BNF symbols](./bigint-symbols.md) — provides the symbol space
-  used by this mapping.
+- [256-bit bigint BNF symbols](./bigint-symbols.md) — provides the full uint256
+  ordinary-symbol space used by this mapping; BNF EOF remains `-1`.
+- [Use `-1` as BNF EOF](./eof-minus-one.md) — defines EOF outside the physical
+  symbol domain.
 - [New parser](./new-parser.md) — consumes a validated finite token-name alphabet
   through this mapping rather than the current 24-bit registration API.
 - [Layered parser](./layered-parser.md) — tokenizer output feeds the next BNF
