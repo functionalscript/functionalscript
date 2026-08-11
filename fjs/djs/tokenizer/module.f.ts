@@ -3,15 +3,15 @@
  *
  * @module
  */
-import {
-    descentParser,
-    type AstRuleMeta,
-    type AstSequenceMeta,
-    type AstTag,
-    type CodePointMeta,
-    type DescentMatch,
-    type DescentMatchResult
-} from "../../bnf/descent/module.f.ts"
+import { descentParser } from "../../bnf/descent/module.f.mjs"
+import type {
+    AstRuleMeta,
+    AstSequenceMeta,
+    AstTag,
+    CodePointMeta,
+    DescentMatch,
+    DescentMatchResult
+} from "../../bnf/descent/types.ts"
 import {
     eof,
     none,
@@ -234,7 +234,7 @@ const buildToken = (): Rule => {
 
 // The whole file's token stream as one right-recursive grammar rule. Safe at any input
 // length: descentParser matches on an explicit frame stack, not the JS call stack
-// (see fjs/bnf/descent/module.f.ts).
+// (see fjs/bnf/descent/module.f.mjs).
 export const jsGrammar = (): Rule => repeat0Plus(buildToken())
 
 const stringify = stringifyAsTree(sort)

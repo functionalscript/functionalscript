@@ -11,145 +11,89 @@
  * terminal was rejected at, which — unlike the result's own index — never
  * rewinds and is what diagnostics should be built from.
  *
+ * See `./types.ts` for the type-level API.
+ *
  * @module
  */
-import type { CodePoint } from '../../text/utf16/types.ts'
 import { rangeDecode } from '../module.f.mjs'
-import type { TerminalRange } from '../types.ts'
+/** @import { TerminalRange } from '../types.ts' */
 import { contains as rangeContains } from '../../types/range/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { emptyTagMap, toData } from '../data/module.f.mjs'
-import type { Rule as DataRule, Sequence } from '../data/types.ts'
-import type { Rule as FRule } from '../types.ts'
-
-export type AstTag = string|true|undefined
-
-/**
- * Recursive descent matcher for a single named rule.
- */
-export type DescentMatchRule<T> = (name: string, tag: AstTag, s: readonly CodePointMeta<T>[], idx: number) => DescentMatchResult<T>
-
-/**
- * Where a match ran out of road, for diagnostics.
- *
- * `idx` is the furthest position any terminal was tried at and rejected, and
- * `expected` holds the terminals that would have allowed progress there, in the
- * order the grammar tried them and without repeats.
- *
- * Unlike a failed result's own index, this never rewinds: a failing sequence
- * item rewinds the result to the sequence's start, while the furthest failure is
- * a high-water mark over the whole match — including branches the grammar
- * backtracked out of. That is what makes "expected X or Y at N" possible.
- *
- * `idx` is `0` with an empty `expected` when the match failed without ever
- * rejecting a terminal, as an empty variant does.
- */
-export type DescentFailure = {
-    readonly idx: number
-    readonly expected: readonly TerminalRange[]
-}
-
-/**
- * Result of a descent match operation.
- *
- * `failure` is present exactly when `success` is `false`: a successful match has
- * nothing to diagnose, and its `idx` already says where matching stopped. Note
- * the consequence for a match that succeeds *without consuming all input* —
- * `idx` still locates the position it stopped at, but the terminals that would
- * have let it continue are not reported.
- *
- * On failure `idx` has rewound to the start of the enclosing sequence and
- * locates nothing; read `failure.idx` instead.
- *
- * The same type describes a match in progress, where `failure` is likewise
- * absent until the match ends.
- */
-export type DescentMatchResult<T> = {
-    readonly ast: AstRuleMeta<T>
-    readonly success: boolean
-    readonly idx: number
-    readonly failure?: DescentFailure
-}
+/** @import { Rule as DataRule, Sequence } from '../data/types.ts' */
+/** @import { Rule as FRule } from '../types.ts' */
+/** @import { AstTag, AstSequenceMeta, DescentFailure, DescentMatch, DescentMatchResult, DescentMatchRule } from './types.ts' */
 
 /**
  * Folds one rejected terminal into the furthest-failure record: further along
  * replaces, the same position accumulates (ignoring repeats), earlier is
  * discarded.
+ *
+ * @type {(failure: DescentFailure, idx: number, terminal: TerminalRange) => DescentFailure}
  */
-const recordFailure = (failure: DescentFailure, idx: number, terminal: TerminalRange): DescentFailure => {
+const recordFailure = (failure, idx, terminal) => {
     if (idx > failure.idx) { return { idx, expected: [terminal] } }
     if (idx < failure.idx || failure.expected.includes(terminal)) { return failure }
     return { idx, expected: [...failure.expected, terminal] }
 }
 
 /**
- * Entry-point recursive descent matcher.
- */
-export type DescentMatch<T> = (name: string, s: readonly CodePointMeta<T>[]) => DescentMatchResult<T>
-
-/**
- * Code point value paired with metadata.
- */
-export type CodePointMeta<T> = readonly[CodePoint, T]
-
-/**
- * AST sequence for the metadata-aware parser.
- */
-export type AstSequenceMeta<T> = readonly(AstRuleMeta<T>|CodePointMeta<T>)[]
-
-/**
- * Metadata-aware AST node.
- */
-export type AstRuleMeta<T> = {
-    readonly tag: AstTag,
-    readonly sequence: AstSequenceMeta<T>
-}
-
-/**
  * Creates a recursive descent parser that preserves metadata for each consumed
  * code point.
+ *
+ * @template T
+ * @param {FRule} fr
+ * @returns {DescentMatch<T>}
  */
-export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
+export const descentParser = fr => {
     const data = toData(fr)
     const emptyTags = emptyTagMap(data[0])
 
     // A suspended sequence match: items[itemIndex] is being matched by the current
     // task; `seq` holds the ASTs of the items already matched.
-    type SeqFrame = {
-        readonly kind: 'seq'
-        readonly tag: AstTag
-        readonly items: Sequence
-        readonly itemIndex: number
-        readonly startIdx: number
-        readonly seq: AstSequenceMeta<T>
-    }
+    /**
+     * @typedef {{
+     *     readonly kind: 'seq'
+     *     readonly tag: AstTag
+     *     readonly items: Sequence
+     *     readonly itemIndex: number
+     *     readonly startIdx: number
+     *     readonly seq: AstSequenceMeta<T>
+     * }} _SeqFrame
+     */
 
     // A suspended variant match: entries[entryIndex] is being matched by the current
     // task; `emptyResult` is the best zero-consumption success seen so far (or the
     // initial failure), returned if no branch consumes input.
-    type VariantFrame = {
-        readonly kind: 'variant'
-        readonly entries: readonly (readonly [string, string])[]
-        readonly entryIndex: number
-        readonly idx: number
-        readonly emptyResult: DescentMatchResult<T>
-    }
+    /**
+     * @typedef {{
+     *     readonly kind: 'variant'
+     *     readonly entries: readonly (readonly [string, string])[]
+     *     readonly entryIndex: number
+     *     readonly idx: number
+     *     readonly emptyResult: DescentMatchResult<T>
+     * }} _VariantFrame
+     */
 
-    type Frame = SeqFrame | VariantFrame
+    /** @typedef {_SeqFrame | _VariantFrame} _Frame */
 
     // Immutable cons-cell stack: O(1) push/pop, no array copying per step.
-    type Stack = null | {
-        readonly top: Frame
-        readonly rest: Stack
-    }
+    /**
+     * @typedef {null | {
+     *     readonly top: _Frame
+     *     readonly rest: _Stack
+     * }} _Stack
+     */
 
     // The rule invocation about to be evaluated (the recursive version's argument
     // tuple), or null when a result is ready to resume the innermost frame.
-    type Task = {
-        readonly name: string
-        readonly tag: AstTag
-        readonly idx: number
-    }
+    /**
+     * @typedef {{
+     *     readonly name: string
+     *     readonly tag: AstTag
+     *     readonly idx: number
+     * }} _Task
+     */
 
     // The recursive-descent matcher as an explicit-stack machine: each iteration either
     // starts the current task (pushing a frame for a sequence/variant and descending into
@@ -157,25 +101,33 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
     // identical to the former recursive `f`, but the JS call stack stays O(1) regardless of
     // grammar recursion depth — right-recursive rules (e.g. repeat0Plus chains) no longer
     // overflow on long input (see the longInput proof group).
-    const f: DescentMatchRule<T> = (name, tag, cp, idx): DescentMatchResult<T> => {
-        const mrSuccess = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): DescentMatchResult<T> => ({ ast: {tag, sequence}, success: true, idx })
-        const mrFail = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): DescentMatchResult<T> => ({ ast: {tag, sequence}, success: false, idx })
+    /** @type {DescentMatchRule<T>} */
+    const f = (name, tag, cp, idx) => {
+        /** @type {(tag: AstTag, sequence: AstSequenceMeta<T>, idx: number) => DescentMatchResult<T>} */
+        const mrSuccess = (tag, sequence, idx) => ({ ast: {tag, sequence}, success: true, idx })
+        /** @type {(tag: AstTag, sequence: AstSequenceMeta<T>, idx: number) => DescentMatchResult<T>} */
+        const mrFail = (tag, sequence, idx) => ({ ast: {tag, sequence}, success: false, idx })
 
-        let stack: Stack = null
-        let task: Task | null = { name, tag, idx }
-        let result: DescentMatchResult<T> = mrFail(undefined, [], idx)
+        /** @type {_Stack} */
+        let stack = null
+        /** @type {_Task | null} */
+        let task = { name, tag, idx }
+        /** @type {DescentMatchResult<T>} */
+        let result = mrFail(undefined, [], idx)
         // High-water mark across the whole match, so it survives the rewinds a
         // failing sequence item does to `result`.
-        let furthest: DescentFailure = { idx: 0, expected: [] }
+        /** @type {DescentFailure} */
+        let furthest = { idx: 0, expected: [] }
 
         while (true) {
             if (task !== null) {
-                const { name, tag, idx }: Task = task
-                task = null
                 // The explicit annotation cuts a control-flow inference cycle (TS7022):
                 // `name`'s narrowed type feeds `rule`, whose type would otherwise feed the
                 // later `task` assignments that `name`'s narrowing depends on.
-                const rule: DataRule = data[0][name]
+                const { name, tag, idx } = /** @type {_Task} */ (task)
+                task = null
+                /** @type {DataRule} */
+                const rule = data[0][name]
                 if (typeof rule === 'number') {
                     // No nullable case: `emptyTagOf` in `bnf/data` returns `undefined`
                     // for every terminal, so `emptyTags[name]` here is always
@@ -249,7 +201,8 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
         }
     }
 
-    const match: DescentMatch<T> = (name, cp): DescentMatchResult<T> => {
+    /** @type {DescentMatch<T>} */
+    const match = (name, cp) => {
         return f(name, undefined, cp, 0)
     }
 

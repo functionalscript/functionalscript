@@ -45,7 +45,7 @@ const expect = (s: string, success: boolean) => {
 
 The two backends read their results differently because their result *types*
 differ: descent returns the record `DescentMatchResult`
-(`fjs/bnf/descent/module.f.ts:65-70` — `{ ast, success, idx, failure? }`),
+(`fjs/bnf/descent/types.ts:52-57` — `{ ast, success, idx, failure? }`),
 while ll1's `MatchResult` is still a tuple. Any adapter has to speak both.
 
 `fjs/djs/tokenizer/proof.f.ts:27` is an eighth site in the descent shape, with
@@ -181,5 +181,5 @@ explicit named override list for the rows where token-stream acceptance differs.
   long-input regression corpus.
 - [new-parser](./new-parser.md) — token-symbol alphabet needs its own recognizer
   adapter, but can share `Case` / `assertRecognizes`.
-- `fjs/bnf/descent/module.f.ts` `DescentFailure` — failure diagnostics compose
+- `fjs/bnf/descent/types.ts` `DescentFailure` — failure diagnostics compose
   through `Recognition.diagnostic`; do not collapse them to boolean.

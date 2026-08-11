@@ -4,7 +4,8 @@ import { map, toArray } from '../../types/list/module.f.mjs'
 import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.mjs'
 import { deterministic } from '../testlib.f.ts'
 import { emptyTagMap, toData } from '../data/module.f.mjs'
-import { descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult } from './module.f.ts'
+import { descentParser } from './module.f.mjs'
+import type { DescentMatch, CodePointMeta, DescentMatchResult } from './types.ts'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
