@@ -105,6 +105,24 @@ The synthesized EOF has no physical source element and contributes no ordinary
 symbol/metadata leaf to the AST. Diagnostics that reject a terminal at EOF should
 continue to point at the physical end position (`input.length`).
 
+Failure high-water tracking must also use the complete internal cursor rather than
+public `idx` alone. Order cursors lexicographically by physical position first and
+EOF consumption second:
+
+```text
+(idx, false) < (idx, true)
+```
+
+Thus a failure after consuming logical EOF is farther than a failure before EOF at
+the same physical index. Merge expected-terminal sets only for failures at the
+same complete cursor. Select the farthest failure using this internal ordering,
+then normalize its public reported position back to `idx`.
+
+For example, on empty physical input, `[eof, x] | y` can reject `x` at
+`(0, true)` and reject `y` at `(0, false)`. The `x` failure is the high-water
+failure even though both publicly report index `0`; their expected sets must not
+be merged.
+
 This logical EOF behavior is part of this task, not deferred to the bigint
 migration. Otherwise changing the exported `eof` range to `-1` before bigint
 would make EOF grammars unmatchable because current physical inputs never contain
@@ -174,6 +192,9 @@ boundaries may remain raw integers/bigints outside the semantic terminal domain.
       progress in sequencing, variant/alternative selection, and repetition.
 - [ ] Snapshot and restore both `idx` and `eofConsumed` during backtracking so a
       failing branch cannot consume logical EOF permanently.
+- [ ] Order diagnostic/high-water failures by the complete internal cursor and
+      merge expected terminals only at the same complete cursor; normalize the
+      selected failure to public `idx` only afterward.
 - [ ] Keep public positions/remainders in the physical input domain after EOF
       consumption: indexed results report `input.length`, never `input.length + 1`.
 - [ ] Keep synthesized EOF out of ordinary AST metadata leaves and preserve EOF
@@ -197,6 +218,7 @@ boundaries may remain raw integers/bigints outside the semantic terminal domain.
 - [ ] Add proof coverage for EOF on empty/non-empty input, one-time EOF
       consumption, EOF branches inside variants, EOF inside repetition, nullable
       alternatives after an EOF branch, restoration after a failing branch,
+      failure ordering on both sides of logical EOF at the same physical index,
       failure before physical end, public position normalization,
       minimum/maximum ordinary symbols, encode/decode round trips,
       singleton/general ranges, `fullRange`, and complements.
