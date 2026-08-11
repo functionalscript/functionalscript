@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/bnf/ll1/module.f.ts`'s matcher `f` (inside `parserRuleSet`) recurses
+`fjs/bnf/ll1/module.f.mjs`'s matcher `f` (inside `parserRuleSet`) recurses
 natively: after consuming a code point it walks the dispatched `rules` chain
 with one nested `f` call per rule. For a right-recursive rule — which is how
 `repeat0Plus` encodes repetition — every additional repetition adds another

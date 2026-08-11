@@ -8,78 +8,25 @@
  * grammar is not LL(1) — a first/first conflict. Nullability is looked up from
  * {@link emptyTagMap} in `fjs/bnf/data` rather than re-derived here.
  *
+ * See `./types.ts` for the type-level API.
+ *
  * @module
  */
-import type { CodePoint } from '../../text/utf16/types.ts'
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import type { RangeMapArray } from '../../types/range_map/types.ts'
 import { rangeMap } from '../../types/range_map/module.f.mjs'
+/** @import { Properties } from '../../types/range_map/types.ts' */
 import { contains, set } from '../../types/string_set/module.f.mjs'
-import type { StringSet } from '../../types/string_set/types.ts'
+/** @import { StringSet } from '../../types/string_set/types.ts' */
 import { rangeDecode } from '../module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
-import type { StringMap } from '../../types/object/types.ts'
 import { emptyTagMap, toData } from '../data/module.f.mjs'
-import type { EmptyTag, RuleSet } from '../data/types.ts'
-import type { Rule as FRule } from '../types.ts'
+/** @import { EmptyTag, RuleSet } from '../data/types.ts' */
+/** @import { Rule as FRule } from '../types.ts' */
+/** @import { AstSequence, AstTag, Match, MatchResult, MatchRule, Remainder, _Dispatch, _DispatchMap, _DispatchResult, _DispatchRule } from './types.ts' */
 
-type DispatchRule = {
-    readonly emptyTag: EmptyTag,
-    readonly rangeMap: Dispatch
-}
-
-type Dispatch = RangeMapArray<DispatchResult>
-
-type DispatchResult = DispatchRuleCollection | null
-
-type DispatchRuleOrName = DispatchRule | string
-
-type DispatchRuleCollection = {
-    readonly tag: string | undefined,
-    readonly rules: DispatchRuleOrName[]
-}
-
-type DispatchMap = StringMap<DispatchRule>
-
-/**
- * Represents a parsed AST sequence.
- */
-export type AstSequence = readonly(AstRule|CodePoint)[]
-
-export type AstTag = string|true|undefined
-
-/**
- * Represents a parsed AST rule, consisting of a rule name and its parsed sequence.
- */
-type AstRule = {
-    readonly tag: AstTag,
-    readonly sequence: AstSequence
-}
-
-/**
- * Represents the remaining input after a match attempt, or `null` if no match is possible.
- */
-export type Remainder = readonly CodePoint[] | null
-
-/**
- * Parsing result of {@link parser} and {@link parserRuleSet}.
- *
- * Represents the result of a match operation, including the parsed AST rule and the remainder of the input.
- */
-export type MatchResult = readonly[AstRule, boolean, Remainder]
-
-/**
- * LL(1) parser function for matching by rule name.
- */
-export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
-
-/**
- * Internal match function signature used by compiled dispatch rules.
- */
-export type MatchRule = (dr: DispatchRule, s: readonly CodePoint[]) => MatchResult
-
-const dispatchOp = rangeMap<DispatchResult>({
+/** @type {Properties<_DispatchResult>} */
+const dispatchProps = {
     union: a => b => {
         if (a === null) {
             return b
@@ -91,47 +38,57 @@ const dispatchOp = rangeMap<DispatchResult>({
     },
     equal: strictEqual,
     def: null,
-})
+}
+
+const dispatchOp = rangeMap(dispatchProps)
 
 /**
  * Builds a dispatch map for a {@link RuleSet} to enable predictive parsing.
+ *
+ * @type {(ruleSet: RuleSet) => _DispatchMap}
  */
-export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
+export const dispatchMap = ruleSet => {
 
     const nullMap = emptyTagMap(ruleSet)
 
-    const addRuleToDispatch = (dr: DispatchResult, name: string): DispatchResult => {
+    /** @type {(dr: _DispatchResult, name: string) => _DispatchResult} */
+    const addRuleToDispatch = (dr, name) => {
         if (dr === null)
             return null
 
         return { tag: dr.tag, rules: [...dr.rules, name]}
     }
 
-    const addTagToDispatch = (dr: DispatchResult, tag: string): DispatchResult => {
+    /** @type {(dr: _DispatchResult, tag: string) => _DispatchResult} */
+    const addTagToDispatch = (dr, tag) => {
         if (dr === null)
             return null
 
         return { tag, rules: dr.rules}
     }
 
-    const dispatchRule = (dm: DispatchMap, name: string, current: StringSet): DispatchMap => {
+    /** @type {(dm: _DispatchMap, name: string, current: StringSet) => _DispatchMap} */
+    const dispatchRule = (dm, name, current) => {
         if (name in dm) { return dm }
         const newCurrent = set(name)(current)
         const rule = ruleSet[name]
         if (typeof rule === 'number') {
             const range = rangeDecode(rule)
             const dispatch = dispatchOp.fromRange({tag: undefined, rules: []})(range)
-            const dr: DispatchRule = {emptyTag: undefined, rangeMap: dispatch}
+            /** @type {_DispatchRule} */
+            const dr = {emptyTag: undefined, rangeMap: dispatch}
             return { ...dm, [name]: dr }
         } else if (rule instanceof Array) {
-            let emptyTag: EmptyTag = true
-            let result: Dispatch = []
+            /** @type {EmptyTag} */
+            let emptyTag = true
+            /** @type {_Dispatch} */
+            let result = []
             for (const item of rule) {
                 if (contains(item)(newCurrent)) {
                     result = result.map(x => [addRuleToDispatch(x[0], item), x[1]])
                 } else {
                     dm = dispatchRule(dm, item, newCurrent)
-                    const dr = dm[item]!
+                    const dr = /** @type {_DispatchRule} */ (dm[item])
                     if (emptyTag === true) {
                         result = result.map(x => [addRuleToDispatch(x[0], item), x[1]])
                         result = toArray(dispatchOp.merge(result)(dr.rangeMap))
@@ -141,28 +98,34 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
                     }
                 }
             }
-            const dr: DispatchRule = {emptyTag, rangeMap: result}
+            /** @type {_DispatchRule} */
+            const dr = {emptyTag, rangeMap: result}
             return { ...dm, [name]: dr}
         } else {
             const entries = definedEntries(rule)
-            let result: Dispatch = []
-            let emptyTag: EmptyTag = undefined
+            /** @type {_Dispatch} */
+            let result = []
+            /** @type {EmptyTag} */
+            let emptyTag = undefined
             for (const [tag, item] of entries) {
                 dm = dispatchRule(dm, item, newCurrent)
-                const dr = dm[item]!
+                const dr = /** @type {_DispatchRule} */ (dm[item])
                 if (nullMap[item] !== undefined) {
                     emptyTag = tag
                 } else {
-                    const d: Dispatch = dr.rangeMap.map(x => [addTagToDispatch(x[0], tag), x[1]])
+                    /** @type {_Dispatch} */
+                    const d = dr.rangeMap.map(x => [addTagToDispatch(x[0], tag), x[1]])
                     result = toArray(dispatchOp.merge(result)(d))
                 }
             }
-            const dr: DispatchRule = {emptyTag, rangeMap: result}
+            /** @type {_DispatchRule} */
+            const dr = {emptyTag, rangeMap: result}
             return { ...dm, [name]: dr}
         }
     }
 
-    let result: DispatchMap = {}
+    /** @type {_DispatchMap} */
+    let result = {}
     for (const k in ruleSet) {
         result = dispatchRule(result, k, null)
     }
@@ -172,25 +135,32 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 
 /**
  * Creates an LL(1) parser from a functional grammar rule.
+ *
+ * @type {(fr: FRule) => Match}
  */
-export const parser = (fr: FRule): Match => {
+export const parser = fr => {
     const data = toData(fr)
     return parserRuleSet(data[0])
 }
 
-const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult =>
+/** @type {(tag: AstTag, sequence: AstSequence, r: Remainder) => MatchResult} */
+const mrSuccess = (tag, sequence, r) =>
     [{tag, sequence}, true, r]
 
-const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult =>
+/** @type {(tag: AstTag, sequence: AstSequence, r: Remainder) => MatchResult} */
+const mrFail = (tag, sequence, r) =>
     [{tag, sequence}, false, r]
 
 /**
  * Creates an LL(1) parser from an already materialized {@link RuleSet}.
+ *
+ * @type {(ruleSet: RuleSet) => Match}
  */
-export const parserRuleSet = (ruleSet: RuleSet): Match => {
+export const parserRuleSet = ruleSet => {
     const map = dispatchMap(ruleSet)
 
-    const f: MatchRule = ({emptyTag, rangeMap}, cp): MatchResult => {
+    /** @type {MatchRule} */
+    const f = ({emptyTag, rangeMap}, cp) => {
         if (cp.length === 0) {
             return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
         }
@@ -201,12 +171,14 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
                 ? mrFail(emptyTag, [], cp)
                 : mrSuccess(emptyTag, [], cp)
         }
-        let seq: AstSequence = [cp0]
+        /** @type {AstSequence} */
+        let seq = [cp0]
         const [, ...restCp] = cp
-        let r: readonly number[] = restCp
+        /** @type {readonly number[]} */
+        let r = restCp
         const {tag, rules} = dr
         for (const i of rules) {
-            const rule = typeof i === 'string' ? map[i]! : i
+            const rule = typeof i === 'string' ? /** @type {_DispatchRule} */ (map[i]) : i
             const res = f(rule, r)
             const [astRule, success, newR] = res
             if (success === false) {
@@ -221,5 +193,5 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
         return mrSuccess(tag, seq, r)
     }
 
-    return (name, cp): MatchResult => f(map[name]!, cp)
+    return (name, cp) => f(/** @type {_DispatchRule} */ (map[name]), cp)
 }
