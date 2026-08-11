@@ -19,27 +19,7 @@
  * ```
  */
 
-/**
- * Represents a successful result.
- *
- * @template T
- * @typedef {readonly ['ok', T]} Ok
- */
-
-/**
- * Represents a failed result.
- *
- * @template E
- * @typedef {readonly ['error', E]} Error
- */
-
-/**
- * Represents a result that can be either successful or failed.
- *
- * @template T
- * @template E
- * @typedef {Ok<T> | Error<E>} Result
- */
+/** @import { Ok, Error, Result } from './types.ts' */
 
 /**
  * Creates a successful result.

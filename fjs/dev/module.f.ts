@@ -13,7 +13,7 @@ import {
     type Import,
     type Readdir
 } from '../effects/node/module.f.ts'
-import { cmp as strCmp } from '../types/string/module.f.ts'
+import { cmp as strCmp } from '../types/string/module.f.mjs'
 import type { StringMap } from '../types/object/module.f.ts'
 import { unwrap } from '../types/result/module.f.mjs'
 import { pure, step, type Effect } from '../effects/module.f.ts'

@@ -6,11 +6,14 @@
  */
 
 import { log2 } from '../../../types/bigint/module.f.mjs'
-import { msb, vec, type Vec } from '../../../types/bit_vec/module.f.mjs'
-import type { Func } from '../../../types/function/module.f.mjs'
-import { strictEqual, type Equal, type StateScan } from '../../../types/function/operator/module.f.mjs'
-import { equal, map, type List } from '../../../types/list/module.f.mjs'
-import { join } from '../../../types/string/module.f.ts'
+import type { Vec } from '../../../types/bit_vec/types.ts'
+import { msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import type { Func } from '../../../types/function/types.ts'
+import type { Equal, StateScan } from '../../../types/function/operator/types.ts'
+import { strictEqual } from '../../../types/function/operator/module.f.mjs'
+import type { List } from '../../../types/list/types.ts'
+import { equal, map } from '../../../types/list/module.f.mjs'
+import { join } from '../../../types/string/module.f.mjs'
 
 export const symbolToString = (s: bigint): string => s.toString(16)
 

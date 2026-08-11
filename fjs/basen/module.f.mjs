@@ -13,14 +13,14 @@
  */
 
 import { msb, lsb, vec, chunkList, unpack } from '../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../types/bit_vec/module.f.mjs' */
+/** @import { Vec } from '../types/bit_vec/types.ts' */
 
 import { fold } from '../types/list/module.f.mjs'
-/** @import { List } from '../types/list/module.f.mjs' */
+/** @import { List } from '../types/list/types.ts' */
 
 import { compose } from '../types/function/module.f.mjs'
 
-/** @import { Nullable } from '../types/nullable/module.f.mjs' */
+/** @import { BaseN } from './types.ts' */
 
 const { unpackSplit } = msb
 
@@ -29,15 +29,6 @@ const { tryListToVec: reversedListToVec } = lsb
 // `chunkList(msb)` doesn't depend on `bits` or `v` — shared across every
 // `baseN(...)` codec (base64, cbase32, ...).
 const chunkListMsb = chunkList(msb)
-
-/**
- * The encode/decode pair returned by {@link baseN}.
- *
- * @typedef {{
- *  readonly vecToString: (v: Vec) => string
- *  readonly stringToVec: (s: string) => Nullable<Vec>
- * }} BaseN
- */
 
 /**
  * Builds a {@link BaseN} codec for a fixed chunk width and alphabet.

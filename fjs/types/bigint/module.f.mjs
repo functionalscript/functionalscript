@@ -18,22 +18,10 @@
  */
 
 import { cmp } from '../function/compare/module.f.mjs'
-/** @import { Sign } from '../function/compare/module.f.mjs' */
-/** @import { Unary as OpUnary, Reduce as OpReduce } from '../function/operator/module.f.mjs' */
-/** @import { List } from '../list/module.f.mjs' */
+/** @import { Sign } from '../function/compare/types.ts' */
+/** @import { List } from '../list/types.ts' */
+/** @import { Reduce, Unary } from './types.ts' */
 import { fold } from '../../common/monoid/module.f.mjs'
-
-/**
- * Type representing a unary operation on `bigint`.
- *
- * @typedef {OpUnary<bigint, bigint>} Unary
- */
-
-/**
- * Type representing a reduction operation on `bigint` values.
- *
- * @typedef {OpReduce<bigint>} Reduce
- */
 
 /**
  * Adds two `bigint` values.

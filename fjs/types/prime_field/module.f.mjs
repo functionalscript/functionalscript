@@ -7,43 +7,10 @@
  * @module
  */
 
-/** @import { Unary, Reduce } from '../bigint/module.f.mjs' */
+/** @import { Reduce, Unary } from '../bigint/types.ts' */
 import { repeat } from '../../common/monoid/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-
-/**
- * A type representing a prime field and its associated operations.
- *
- * @typedef {{
- *  readonly p: bigint
- *  readonly middle: bigint
- *  readonly max: bigint
- *  readonly neg: Unary
- *  readonly sub: Reduce
- *  readonly add: Reduce
- *  readonly abs: Unary
- *  readonly mul: Reduce
- *  readonly reciprocal: Unary
- *  readonly div: Reduce
- *  readonly pow: Reduce
- *  readonly pow2: Unary
- *  readonly pow3: Unary
- *  readonly reduce: Unary
- *  readonly quadRes: (x: bigint) => boolean
- * }} PrimeField
- *
- * @property reduce
- *
- * Reduces an arbitrary `bigint` into `[0, p)`.
- *
- * @property quadRes
- *
- * `true` when `x` is a square modulo `p`, including `0`.
- *
- * Nonzero values are tested with Euler's criterion:
- * `x^((p - 1) / 2) === 1 (mod p)`.
- * For `p === 2n`, both field elements are squares.
- */
+/** @import { PrimeField } from './types.ts' */
 
 /**
  * Creates a prime field with the specified prime modulus and associated operations.

@@ -1,4 +1,5 @@
-import { at, setReplace, setReduce, empty, entries, remove, fromEntries, type OrderedMap } from './module.f.ts'
+import { at, setReplace, setReduce, empty, entries, remove, fromEntries } from './module.f.mjs'
+/** @import { OrderedMap } from './types.ts' */
 import { toArray } from '../list/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
@@ -44,7 +45,7 @@ export const proof = {
             m = remove('Hello world!')(m)
             assertEq(at('Hello world!')(m), null)
 
-            m = setReduce((a: number) => (b: number) => a + b)('a')(43)(m)
+            m = setReduce((/** @type {number} */a) => (/** @type {number} */b) => a + b)('a')(43)(m)
             assertEq(at('a')(m), 44)
         },
         () => {
@@ -58,18 +59,20 @@ export const proof = {
         },
     ],
     fromEntries: () => {
-        const list: readonly (readonly [string, number])[] = [['a', 1], ['b', 2], ['c', 3]]
+        /** @type {readonly (readonly [string, number])[]} */
+        const list = [['a', 1], ['b', 2], ['c', 3]]
         const m = fromEntries(list)
         assertEq(at('a')(m), 1)
         assertEq(at('b')(m), 2)
         assertEq(at('c')(m), 3)
         assertEq(at('d')(m), null)
         // duplicate key: last one wins
-        const m2 = fromEntries([['x', 10], ['x', 20]] as const)
+        const m2 = fromEntries(/** @type {const} */([['x', 10], ['x', 20]]))
         assertEq(at('x')(m2), 20)
     },
     stress: () => {
-        let m: OrderedMap<number> = empty
+        /** @type {OrderedMap<number>} */
+        let m = empty
         for (let i = 0; i < 100_000; ++i) {
             m = setReplace((i * i).toString())(i)(m)
             /*

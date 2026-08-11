@@ -82,7 +82,7 @@ declaration site per (tag, encode, decode) triple.
 
 ### Caveats
 
-- `SupportedRecord` is a discriminated union keyed by tag (`fjs/asn.1/module.f.mjs:272-278`),
+- `SupportedRecord` is a discriminated union keyed by tag (`fjs/asn.1/types.ts:45-51`),
   so the codec values are heterogeneously typed. The table approach loses the
   per-branch payload typing that the switch currently gives `recordToRaw`. A
   small per-tag helper that types `encode` against the union branch may be

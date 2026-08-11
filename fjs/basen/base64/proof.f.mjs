@@ -1,7 +1,7 @@
 import { assertEq } from '../../asserts/module.f.mjs'
 
 import { empty, vec, repeat, vec8, maxLength } from '../../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
+/** @import { Vec } from '../../types/bit_vec/types.ts' */
 
 import { encode, decode } from './module.f.mjs'
 

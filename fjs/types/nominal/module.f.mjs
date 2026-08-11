@@ -5,18 +5,7 @@
  */
 
 import { identity } from "../function/module.f.mjs"
-
-/**
- * Nominal type.
- *
- * It doesn't allow `===` between different nominal types.
- * It doesn't allow `<`, `>`, `<=`, `>=` comparisons at all.
- *
- * @template {string} N
- * @template {string} R
- * @template B
- * @typedef {symbol & {[k in N]: readonly[R, B]}} Nominal
- */
+/** @import { Nominal } from './types.ts' */
 
 export const asNominal =
     /** @type {<N extends string, R extends string, B>(b: B) => Nominal<N, R, B>} */

@@ -4,23 +4,7 @@
  * @module
  */
 
-/**
- * @template A
- * @template B
- * @template R
- * @typedef {(a: A) => (b: B) => R} Binary
- */
-
-/**
- * @template I
- * @template O
- * @typedef {Binary<I, O, O>} Fold
- */
-
-/**
- * @template T
- * @typedef {Fold<T, T>} Reduce
- */
+/** @import { Fold, Reduce, Scan, StateScan, Unary } from './types.ts' */
 
 /** @type {(separator: string) => Reduce<string>} */
 export const join = separator => value => prior =>
@@ -29,19 +13,8 @@ export const join = separator => value => prior =>
 /** @type {Reduce<string>} */
 export const concat = i => acc => `${acc}${i}`
 
-/**
- * @template T
- * @template R
- * @typedef {(value: T) => R} Unary
- */
-
 /** @type {Unary<boolean, boolean>} */
 export const logicalNot = v => !v
-
-/**
- * @template T
- * @typedef {Binary<T, T, boolean>} Equal
- */
 
 /**
  * See also `Object.is` which should be used for deep comparison instead of the `structEqual`.
@@ -50,44 +23,6 @@ export const logicalNot = v => !v
  * @type {<T>(a: T) => (b: T) => boolean}
  */
 export const strictEqual = a => b => a === b
-
-/**
- * @template I
- * @template O
- * @typedef {(input: I) => readonly[O, Scan<I,O>]} Scan
- */
-
-/**
- * One step of a stream transducer: given an `input` symbol and the `prior`
- * state, produce an `output` and the next state. It both maps an input stream
- * to an output stream and threads state, so it models tokenizers, decoders, and
- * other stream-to-stream stages.
- *
- * This is the *shape* of a [Mealy machine](https://en.wikipedia.org/wiki/Mealy_machine)
- * — a [finite-state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer)
- * — but only its signature. The state `S` (and `I`, `O`) is an arbitrary type,
- * not a finite set, so a `StateScan` is strictly more expressive than a Mealy
- * machine — its power is the power of `S`:
- * - a finite `S`/`I`/`O` recovers the classical finite-state machine (e.g. the
- *   DFA states in `../../../fsm/module.f.ts`);
- * - an `S` that is a stack makes it a
- *   [pushdown / stack machine](https://en.wikipedia.org/wiki/Pushdown_automaton)
- *   (context-free power — balanced brackets, nested structure, the AST tier);
- * - an unbounded `S` like `bigint` can count, which no finite automaton can.
- *
- * And `O` may be a list (0+ symbols per input), not the single symbol strict
- * Mealy emits. (Functional/coalgebraic usage still calls this `(input, state)
- * => [output, state]` shape a "Mealy machine", finiteness aside.)
- *
- * A {@link Fold} is the output-less special case (state only); driving a
- * `StateScan` over a `List` is `stateScan` in `../../list/module.f.ts`, and
- * {@link stateScanToScan} hides the state to recover a {@link Scan}.
- *
- * @template I
- * @template S
- * @template O
- * @typedef {(input: I, prior: S) => readonly[O, S]} StateScan
- */
 
 /** @type {<I, S, O>(op: StateScan<I, S, O>) => (prior: S) => Scan<I, O>} */
 export const stateScanToScan = op => prior => i => {

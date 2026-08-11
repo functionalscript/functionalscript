@@ -11,10 +11,11 @@
  *
  * @module
  */
-import { next, flat, map, type List } from '../../types/list/module.f.mjs'
-import { concat } from '../../types/string/module.f.ts'
+import type { List } from '../../types/list/types.ts'
+import { next, flat, map } from '../../types/list/module.f.mjs'
+import { concat } from '../../types/string/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
-import type { Result } from '../../types/result/module.f.mjs'
+import type { Result } from '../../types/result/types.ts'
 import { parse as parseTokens } from './parser/module.f.ts'
 import { tokenize } from './tokenizer/module.f.ts'
 import { at, definedEntries, type Entry as ObjectEntry } from '../../types/object/module.f.ts'
@@ -22,8 +23,8 @@ import { compose, fn } from '../../types/function/module.f.mjs'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.ts'
 import { boolean as rttiBoolean, number as rttiNumber, string as rttiString, or, record, array as rttiArray } from '../../types/rtti/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
-import type { Assert } from '../../asserts/module.f.mjs'
-import type { Equal } from '../../types/ts/module.f.mjs'
+import type { Assert } from '../../asserts/types.ts'
+import type { Equal } from '../../types/ts/types.ts'
 
 // ── rtti schemas ──────────────────────────────────────────────────────────────
 

@@ -7,14 +7,12 @@
  *
  * @module
  */
-import { flat, map, reduce, empty, type List } from '../../../types/list/module.f.mjs'
-import { type Reduce } from '../../../types/function/operator/module.f.mjs'
-import { concat } from '../../../types/string/module.f.ts'
-import {
-    codePointToString,
-    stringToCodePointList,
-    type CodePoint,
-} from '../../../text/utf16/module.f.mjs'
+import type { List } from '../../../types/list/types.ts'
+import { flat, map, reduce, empty } from '../../../types/list/module.f.mjs'
+import type { Reduce } from '../../../types/function/operator/types.ts'
+import { concat } from '../../../types/string/module.f.mjs'
+import type { CodePoint } from '../../../text/utf16/types.ts'
+import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { errorMask } from '../../../text/code_point/module.f.mjs'
 import {
     backspace,

@@ -1,5 +1,5 @@
 import { empty, isVec, length, msb, uint, unpack, vec, vec8 } from '../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../types/bit_vec/module.f.mjs' */
+/** @import { Vec } from '../types/bit_vec/types.ts' */
 
 import { asBase } from '../types/nominal/module.f.mjs'
 
@@ -18,7 +18,7 @@ import {
     encodeObjectIdentifier,
     decodeObjectIdentifier,
 } from './module.f.mjs'
-/** @import { SupportedRecord, ObjectIdentifier } from './module.f.mjs' */
+/** @import { SupportedRecord, ObjectIdentifier } from './types.ts' */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
 

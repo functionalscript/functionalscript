@@ -7,8 +7,9 @@
  *
  * @module
  */
-import { toArray, type List as ChunkList } from '../../types/list/module.f.mjs'
-import { concat } from '../../types/string/module.f.ts'
+import type { List as ChunkList } from '../../types/list/types.ts'
+import { toArray } from '../../types/list/module.f.mjs'
+import { concat } from '../../types/string/module.f.mjs'
 import { includes } from '../../types/array/module.f.mjs'
 import {
     digitRange,

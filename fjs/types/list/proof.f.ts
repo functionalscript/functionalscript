@@ -1,33 +1,5 @@
-import {
-    length,
-    concat,
-    countdown,
-    cycle,
-    drop,
-    dropWhile,
-    entries,
-    every,
-    filter,
-    find,
-    flat,
-    flatMap,
-    map,
-    next,
-    reduce,
-    reverse,
-    scan,
-    some,
-    take,
-    takeWhile,
-    toArray,
-    zip,
-    type List,
-    first,
-    filterMap,
-    isEmpty,
-    equal,
-    tryFold
-} from './module.f.mjs'
+import type { List } from './types.ts'
+import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, take, takeWhile, toArray, zip, first, filterMap, isEmpty, equal, tryFold } from './module.f.mjs'
 import { stringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { addition, strictEqual, reduceToScan } from '../function/operator/module.f.mjs'

@@ -20,13 +20,14 @@
  * ```
  */
 
-import type { Tree } from '../btree/types/module.f.mjs'
+import type { Tree } from '../btree/types/types.ts'
 import { empty as btEmpty, values as btValues } from '../btree/module.f.mjs'
 import { find, isFound } from '../btree/find/module.f.mjs'
 import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
 import { set as btreeSet } from '../btree/set/module.f.mjs'
-import { cmp } from "../string/module.f.ts"
-import { fold, type List } from '../list/module.f.mjs'
+import { cmp } from "../string/module.f.mjs"
+import type { List } from '../list/types.ts'
+import { fold } from '../list/module.f.mjs'
 import { compose } from '../function/module.f.mjs'
 
 export const values: (s: StringSet) => List<string> = btValues

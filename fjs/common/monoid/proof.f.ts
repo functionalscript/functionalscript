@@ -1,4 +1,5 @@
-import { repeat, fold, type Monoid } from "./module.f.mjs";
+import type { Monoid } from "./types.ts"
+import { repeat, fold } from "./module.f.mjs";
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {

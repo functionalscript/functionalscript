@@ -12,10 +12,10 @@ import {
     flatMap,
     empty,
 } from '../../types/list/module.f.mjs'
-/** @import { List, Result, Thunk } from '../../types/list/module.f.mjs' */
+/** @import { List, Result, Thunk } from '../../types/list/types.ts' */
 
 import { concat } from '../../types/function/operator/module.f.mjs'
-/** @import { StateScan } from '../../types/function/operator/module.f.mjs' */
+/** @import { StateScan } from '../../types/function/operator/types.ts' */
 
 import { contains } from '../../types/range/module.f.mjs'
 
@@ -37,24 +37,7 @@ import {
  * @typedef {number | null} _Utf16State
  */
 
-/**
- * Represent an unsigned UTF16, used to store one word UTF-16 (code unit).
- *
- * @typedef {number} U16
- */
-
-/**
- * [0, 0x10_FFFF]: 16+5 = 21 bits
- *
- * 121_0000_0000: 16+16+9 = 41 bits
- */
-
-/**
- * Represent an Unicode code point.
- * Has range: from 0x0000 to 0x10_FFFF (21 bits).
- *
- * @typedef {number} CodePoint
- */
+/** @import { CodePoint, U16 } from './types.ts' */
 
 /**
  * The BMP / surrogate / supplementary-plane predicates used below live in

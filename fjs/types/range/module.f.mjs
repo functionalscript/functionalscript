@@ -4,7 +4,7 @@
  * @module
  */
 
-/** @typedef { readonly [number, number]} Range */
+/** @import { Range } from './types.ts' */
 
 /** @type {(...range: Range) => (i: number) => boolean} */
 export const contains = (b, e) => i => b <= i && i <= e

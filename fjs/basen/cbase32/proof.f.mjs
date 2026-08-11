@@ -1,5 +1,5 @@
 import { empty, vec } from '../../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
+/** @import { Vec } from '../../types/bit_vec/types.ts' */
 
 import { cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from './module.f.mjs'
 

@@ -7,21 +7,13 @@
  */
 
 import { msb, tryU8ListToVec, u8List } from '../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../types/bit_vec/module.f.mjs' */
 import { flatMap } from '../types/list/module.f.mjs'
-/** @import { List } from '../types/list/module.f.mjs' */
+/** @import { List } from '../types/list/types.ts' */
 import { fromCodePointList, toCodePointList } from './utf8/module.f.mjs'
 import { stringToCodePointList, codePointListToString } from './utf16/module.f.mjs'
 import { mapUnwrap } from '../types/nullable/module.f.mjs'
-/** @import { Nullable } from '../types/nullable/module.f.mjs' */
-
-/** @typedef {_ItemThunk | _ItemArray} Block */
-
-/** @typedef {readonly Item[]} _ItemArray */
-
-/** @typedef {() => List<Item>} _ItemThunk */
-
-/** @typedef {string | _ItemArray | _ItemThunk} Item */
+/** @import { Nullable } from '../types/nullable/types.ts' */
+/** @import { Block, Item, Utf8 } from './types.ts' */
 
 /** @type {(indent: string) => (text: Block) => List<string>} */
 export const flat = indent => {
@@ -36,8 +28,6 @@ export const flat = indent => {
 }
 
 const tryU8ListToVecMsb = tryU8ListToVec(msb)
-
-/** @typedef {Vec} Utf8 */
 
 /**
  * Converts a string to an UTF-8, represented as an MSB first bit vector,

@@ -4,12 +4,14 @@
  * @module
  */
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-import type { Tuple } from '../../types/array/module.f.mjs'
+import type { Tuple } from '../../types/array/types.ts'
 import { bitLength, divUp8, roundUp8 } from '../../types/bigint/module.f.mjs'
-import { empty, length, msb, repeat, unpack, vec, vec8, type Vec } from '../../types/bit_vec/module.f.mjs'
+import type { Vec } from '../../types/bit_vec/types.ts'
+import { empty, length, msb, repeat, unpack, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.ts'
-import type { Curve } from '../secp/module.f.mjs'
-import { computeSync, type Sha2 } from '../sha2/module.f.mjs'
+import type { Curve } from '../secp/types.ts'
+import type { Sha2 } from '../sha2/types.ts'
+import { computeSync } from '../sha2/module.f.mjs'
 
 export type All = {
     readonly q: bigint

@@ -33,9 +33,11 @@ import {
     type Tuple,
     type Type,
 } from '../module.f.ts'
-import { ok, type Result as CommonResult } from '../../result/module.f.mjs'
+import type { Result as CommonResult } from '../../result/types.ts'
+import { ok } from '../../result/module.f.mjs'
 import type { StringMap } from '../../object/module.f.ts'
-import { reverse, toArray, type List } from '../../list/module.f.mjs'
+import type { List } from '../../list/types.ts'
+import { reverse, toArray } from '../../list/module.f.mjs'
 import {
     constPrimitiveValidate,
     eachEntry,

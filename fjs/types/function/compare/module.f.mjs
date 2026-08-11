@@ -3,19 +3,8 @@
  *
  * @module
  */
-/** @import { Index, Tuple } from '../../array/module.f.mjs' */
-
-/** @typedef {-1 | 0 | 1} Sign */
-
-/**
- * @template T
- * @typedef {(_: T) => Sign} Compare
- */
-
-/**
- * @template T
- * @typedef {(a: T) => Compare<T>} Cmp
- */
+/** @import { Index, Tuple } from '../../array/types.ts' */
+/** @import { Cmp1, Cmp2, Compare, Sign } from './types.ts' */
 
 /** @type {<T>(cmp: Compare<T>) => (value: T) => Index<3>} */
 export const index3
@@ -26,19 +15,6 @@ export const index5 = cmp => ([v0, v1]) => {
     const _0 = cmp(v0)
     return /** @type {Index<5>} */(_0 <= 0 ? _0 + 1 : cmp(v1) + 3)
 }
-
-/** @typedef {boolean | string | number | bigint} Cmp1 */
-
-/**
- * @template A
- * @template B
- * @typedef {[A, B] extends [boolean, boolean] ? boolean :
- *  [A, B] extends [string, string] ? string :
- *  [A, B] extends [number, number] ? number :
- *  [A, B] extends [bigint, bigint] ? bigint :
- *  never
- * } Cmp2
- */
 
 /** @type {<A extends Cmp1>(a: A) => <B extends Cmp2<A, B>>(b: B) => Sign} */
 export const cmp = a => b =>

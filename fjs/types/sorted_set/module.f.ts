@@ -26,7 +26,7 @@
  * has(cmp)(2)(setA) // false
  * ```
  */
-import type { Cmp } from '../function/compare/module.f.mjs'
+import type { Cmp } from '../function/compare/types.ts'
 import { toArray } from "../list/module.f.mjs"
 import { merge, intersect as listIntersect, find } from '../sorted_list/module.f.mjs'
 

@@ -1,4 +1,5 @@
-import { asBase, asNominal, type Nominal } from "./module.f.mjs"
+import type { Nominal } from "./types.ts"
+import { asBase, asNominal } from "./module.f.mjs"
 import { assert } from '../../asserts/module.f.mjs'
 
 declare const noCompareBrand: unique symbol

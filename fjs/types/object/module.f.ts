@@ -6,10 +6,15 @@
  *
  * @module
  */
+
+import type { List } from '../list/types.ts'
+import type { Nullable } from '../nullable/types.ts'
+import type { OrderedMap } from '../ordered_map/types.ts'
+
 import { isArray } from '../array/module.f.mjs'
-import { iterable, type List } from '../list/module.f.mjs'
-import { fromUndefined, type Nullable } from '../nullable/module.f.mjs'
-import { entries as mapEntries, fromEntries as mapFromEntries, type OrderedMap } from '../ordered_map/module.f.ts'
+import { iterable } from '../list/module.f.mjs'
+import { fromUndefined } from '../nullable/module.f.mjs'
+import { entries as mapEntries, fromEntries as mapFromEntries } from '../ordered_map/module.f.mjs'
 
 const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
 

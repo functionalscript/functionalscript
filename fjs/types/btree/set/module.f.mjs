@@ -4,12 +4,12 @@
  * @module
  */
 import { collapseRoot } from '../types/module.f.mjs'
-/** @import { Branch1, Branch3, Branch5, Branch7, TNode, Tree } from '../types/module.f.mjs' */
+/** @import { Branch1, Branch3, Branch5, Branch7, TNode, Tree } from '../types/types.ts' */
 
 import { find } from '../find/module.f.mjs'
-/** @import { First, PathItem, Result } from '../find/module.f.mjs' */
+/** @import { First, PathItem, Result } from '../find/types.ts' */
 
-/** @import { Compare } from '../../function/compare/module.f.mjs' */
+/** @import { Compare } from '../../function/compare/types.ts' */
 
 import { fold } from '../../list/module.f.mjs'
 

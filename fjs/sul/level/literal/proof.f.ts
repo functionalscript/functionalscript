@@ -1,4 +1,5 @@
-import { chunkList, msb, vec, type Vec } from '../../../types/bit_vec/module.f.mjs'
+import type { Vec } from '../../../types/bit_vec/types.ts'
+import { chunkList, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { map, stateScan, toArray } from '../../../types/list/module.f.mjs'
 import {

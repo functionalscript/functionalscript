@@ -10,9 +10,9 @@
  */
 
 import { flat, stateScan } from '../../types/list/module.f.mjs'
-/** @import { List } from '../../types/list/module.f.mjs' */
+/** @import { List } from '../../types/list/types.ts' */
 
-/** @import { StateScan } from '../../types/function/operator/module.f.mjs' */
+/** @import { StateScan } from '../../types/function/operator/types.ts' */
 
 import { contains } from '../../types/range/module.f.mjs'
 

@@ -6,45 +6,10 @@
  * @module
  */
 
-/** @import { Equal, Fold, Reduce } from '../../types/function/operator/module.f.mjs' */
+/** @import { Equal, Fold, Reduce } from '../../types/function/operator/types.ts' */
 import { prime_field, sqrt } from '../../types/prime_field/module.f.mjs'
-/** @import { PrimeField } from '../../types/prime_field/module.f.mjs' */
 import { repeat } from '../../common/monoid/module.f.mjs'
-
-/** A 2D point represented as a pair of `bigint` values `[x, y]`. @typedef {readonly [bigint, bigint]} Point2D */
-
-/**
- * A 2D point on an elliptic curve, represented as a pair of `bigint` values.
- * `null` represents the point at infinity (`O`).
- *
- * @typedef {Point2D | null} Point
- */
-
-/**
- * Initialization parameters for an elliptic curve.
- *
- * @typedef {{
- *  readonly p: bigint
- *  readonly a: readonly [bigint, bigint]
- *  readonly g: readonly [bigint, bigint]
- *  readonly n: bigint
- * }} Init
- */
-
-/**
- * Represents an elliptic curve and its associated operations.
- *
- * @typedef {{
- *  readonly pf: PrimeField
- *  readonly nf: PrimeField
- *  readonly g: Point
- *  readonly y2: (x: bigint) => bigint
- *  readonly y: (x: bigint) => bigint | null
- *  readonly neg: (a: Point) => Point
- *  readonly add: Reduce<Point>
- *  readonly mul: Fold<bigint, Point>
- * }} Curve
- */
+/** @import { Curve, Init, Point, Point2D } from './types.ts' */
 
 /**
  * Constructs an elliptic curve with the given initialization parameters.

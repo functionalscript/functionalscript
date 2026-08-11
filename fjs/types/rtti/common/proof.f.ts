@@ -1,5 +1,6 @@
 import { eachEntry } from './module.f.ts'
-import { error, ok, type Result } from '../../result/module.f.mjs'
+import type { Result } from '../../result/types.ts'
+import { error, ok } from '../../result/module.f.mjs'
 import type { ValidationError } from './module.f.ts'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 

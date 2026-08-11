@@ -212,7 +212,7 @@ new uncovered branch.
 
 To prove that a type resolves to what you claim, write
 `type _Name = Assert<Equal<Actual, Expected>>` — `Assert` from
-`fjs/asserts/module.f.mjs`, `Equal` from `fjs/types/ts/module.f.mjs`. A wrong
+`fjs/asserts/types.ts`, `Equal` from `fjs/types/ts/types.ts`. A wrong
 claim is then a compile error (TS2344, "Type 'false' does not satisfy the
 constraint 'true'"), and the check costs nothing at runtime.
 

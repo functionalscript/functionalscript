@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** every public type exported by an authored `.f.mjs`
+  module moves to a sibling `types.ts` (31 modules, including `asserts`,
+  `types/list`, `types/bit_vec`, `types/result`, `text`, `crypto/sha2`) —
+  importers of these types must use the `types.ts` specifier. The runtime-empty
+  `fjs/types/option/module.f.mjs` becomes `fjs/types/option/types.ts`
+  [#1483](https://github.com/functionalscript/functionalscript/pull/1483)
 - `fjs/types/nullable/proof.f.ts`, `fjs/types/range/proof.f.ts`,
   `fjs/types/function/proof.f.ts`, `fjs/types/result/proof.f.ts`, and
   `fjs/types/function/compare/proof.f.ts` migrate to `proof.f.mjs` under

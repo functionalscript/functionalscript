@@ -1,5 +1,6 @@
 import { assertEq } from '../asserts/module.f.mjs'
-import { msb, u8ListToVec, repeat, vec8, type Vec } from '../types/bit_vec/module.f.mjs'
+import type { Vec } from '../types/bit_vec/types.ts'
+import { msb, u8ListToVec, repeat, vec8 } from '../types/bit_vec/module.f.mjs'
 import { detect, dialectEntry, type DialectEntry } from './module.f.ts'
 import { dialect, revisionDialect } from './revision/module.f.ts'
 import { number, string } from '../types/rtti/module.f.ts'

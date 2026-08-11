@@ -3,11 +3,14 @@
  *
  * @module
  */
-import { error, ok, type Result } from '../../../types/result/module.f.mjs'
-import { type List, fold, next, toArray, concat } from '../../../types/list/module.f.mjs'
-import { type Fold } from '../../../types/function/operator/module.f.mjs'
+import type { Result } from '../../../types/result/types.ts'
+import { error, ok } from '../../../types/result/module.f.mjs'
+import type { List } from '../../../types/list/types.ts'
+import { fold, next, toArray, concat } from '../../../types/list/module.f.mjs'
+import type { Fold } from '../../../types/function/operator/types.ts'
 import { type JsonToken } from '../tokenizer/module.f.ts'
-import { setReplace, type OrderedMap } from '../../../types/ordered_map/module.f.ts'
+import { setReplace } from '../../../types/ordered_map/module.f.mjs'
+import type { OrderedMap } from '../../../types/ordered_map/types.ts'
 import { type Unknown } from '../module.f.ts'
 import { fromMap } from '../../../types/object/module.f.ts'
 import { assertEq } from '../../../asserts/module.f.mjs'

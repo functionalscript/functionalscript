@@ -15,9 +15,7 @@
  * @module
  */
 
-/** A set of nibbles as a 16-bit mask. JSON-serializable. @typedef {number} NibbleSet */
-
-/** A 4-bit value, `0..15`. @typedef {number} Nibble */
+/** @import { Nibble, NibbleSet } from './types.ts' */
 
 export const empty = 0
 

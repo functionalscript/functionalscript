@@ -7,10 +7,11 @@
  * The runtime `toTs` function mirrors `Ts<T>` at value level, returning a TypeScript
  * type expression string for a given RTTI schema.
  */
-import { type Equal, primitive, union, printer as tsPrinter } from '../../ts/module.f.mjs'
+import type { Equal } from '../../ts/types.ts'
+import { primitive, union, printer as tsPrinter } from '../../ts/module.f.mjs'
 import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, ConstObject } from '../module.f.ts'
-import type { Assert } from '../../../asserts/module.f.mjs'
-import type { phantomKey } from '../../phantom/module.f.ts'
+import type { Assert } from '../../../asserts/types.ts'
+import type { phantomKey } from '../../phantom/types.ts'
 import type { StringMap } from '../../object/module.f.ts'
 
 /**
@@ -96,11 +97,11 @@ export type StructTs<T extends Struct> =
  *
  * **Recursive schemas and TS2589:** when a schema is self-referential, `StructTs` would
  * expand infinitely and TypeScript raises TS2589. Break the cycle by annotating the
- * schema value with `Phantom<typeof myThunk, MyType>` from `fjs/types/phantom/module.f.ts`.
+ * schema value with `Phantom<typeof myThunk, MyType>` from `fjs/types/phantom/types.ts`.
  * `Ts<>` detects the phantom key and returns `MyType` directly without recursing:
  *
  * ```ts
- * import { type Phantom } from '../types/phantom/module.f.ts'
+ * import { type Phantom } from '../../phantom/types.ts'
  *
  * type MyType = { readonly self?: MyType }
  * const myThunk = () => ['const', myConst] as const

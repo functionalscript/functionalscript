@@ -3,72 +3,19 @@
  *
  * @module
  */
-/** @import { Leaf1, Leaf2, Branch3, Branch5, TNode } from '../types/module.f.mjs' */
-/** @import { List } from '../../list/module.f.mjs' */
+/** @import { TNode } from '../types/types.ts' */
 
 import { index3, index5 } from '../../function/compare/module.f.mjs'
-/** @import { Compare } from '../../function/compare/module.f.mjs' */
+/** @import { Compare } from '../../function/compare/types.ts' */
 
-/** @import { KeyOf, Index } from '../../array/module.f.mjs' */
-
-/**
- * @template T
- * @typedef {readonly[Index<3>, Leaf1<T>]} _FirstLeaf1
- */
-
-/**
- * @template T
- * @typedef {readonly[1, Branch3<T>]} _FirstBranch3
- */
-
-/**
- * @template T
- * @typedef {readonly[Index<5>, Leaf2<T>]} _FirstLeaf2
- */
-
-/**
- * @template T
- * @typedef {readonly[1|3, Branch5<T>]} _FirstBranch5
- */
-
-/**
- * @template T
- * @typedef {_FirstLeaf1<T> | _FirstBranch3<T> | _FirstLeaf2<T> | _FirstBranch5<T>} First
- */
-
-/**
- * @template T
- * @typedef {readonly[0|2, Branch3<T>]} _PathItem3
- */
-
-/**
- * @template T
- * @typedef {readonly[0|2|4, Branch5<T>]} _PathItem5
- */
-
-/**
- * @template T
- * @typedef {_PathItem3<T> | _PathItem5<T>} PathItem
- */
+/** @import { KeyOf } from '../../array/types.ts' */
+/** @import { First, Path, PathItem, Result } from './types.ts' */
 
 /** @type {<T>(item: PathItem<T>) => TNode<T>} */
 const child = item => {
     /** @typedef {typeof item extends PathItem<infer T> ? T : never} T */
     return /** @type {TNode<T>} */ (item[1][item[0]])
 }
-
-/**
- * @template T
- * @typedef {List<PathItem<T>>} Path
- */
-
-/**
- * @template T
- * @typedef {{
- *   readonly first: First<T>,
- *   readonly tail: Path<T>
- * }} Result
- */
 
 /** @type {<T>(c: Compare<T>) => (node: TNode<T>) => Result<T>} */
 export const find = c => {

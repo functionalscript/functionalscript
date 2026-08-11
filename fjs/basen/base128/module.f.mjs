@@ -5,7 +5,7 @@
  */
 
 import { vec8, msb, empty } from '../../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/module.f.mjs' */
+/** @import { Vec } from '../../types/bit_vec/types.ts' */
 
 const { concat, popFront } = msb
 

@@ -5,29 +5,27 @@
 
 ### Problem
 
-`Init` (`fjs/crypto/secp/module.f.mjs:26-31`) stores the curve-equation
+`Init` (`fjs/crypto/secp/types.ts:22-27`) stores the curve-equation
 coefficients as a pair under the name `a`:
 
-```js
-/**
- * @typedef {{
- *  readonly p: bigint
- *  readonly a: readonly [bigint, bigint]
- *  readonly g: readonly [bigint, bigint]
- *  readonly n: bigint
- * }} Init
- */
+```ts
+export type Init = {
+    readonly p: bigint
+    readonly a: readonly [bigint, bigint]
+    readonly g: readonly [bigint, bigint]
+    readonly n: bigint
+}
 ```
 
 The pair's convention is index = power of `x`: `curve` unpacks
-`({ a: [a0, a1] })` (`:72`) and builds the equation (`:86`) as
+`({ a: [a0, a1] })` (`:37`) and builds the equation (`:51`) as
 `x³ + a1·x¹ + a0·x⁰`. The indexed scheme itself is good — the index states
 the coefficient's defining property (its power) — but the letter `a` is a
 bad fit: in the standard Weierstrass notation `y² = x³ + a·x + b`, `a` is
 specifically the *linear* coefficient, so a field named `a` whose slot `a0`
 holds Weierstrass `b` invites misreading. That's why every non-trivial curve
-literal needs prose comments to decode it (`secp256r1` `:198-199`,
-`secp384r1` `:214-215`, `secp521r1` `:230-231`):
+literal needs prose comments to decode it (`secp256r1` `:163-164`,
+`secp384r1` `:179-180`, `secp521r1` `:195-196`):
 
 ```ts
 a: [
@@ -82,9 +80,9 @@ c: [
 
 and add the same comments to `secp192r1` and `secp256k1`, which have none
 today. Update all **five** active curve literals in
-`fjs/crypto/secp/module.f.mjs` (`secp192r1` `:146`, `secp256k1` `:181`,
-`secp256r1` `:195`, `secp384r1` `:211`, `secp521r1` `:227`), the
-commented-out `secp224r1` block (`:164-175`, so it doesn't rot on the old
+`fjs/crypto/secp/module.f.mjs` (`secp192r1` `:111`, `secp256k1` `:146`,
+`secp256r1` `:160`, `secp384r1` `:176`, `secp521r1` `:192`), the
+commented-out `secp224r1` block (`:129-140`, so it doesn't rot on the old
 shape), and the `example` init in `fjs/crypto/secp/proof.f.mjs:63-68`. This is
 a breaking
 change to an exported type — update every importer in the same PR per
@@ -103,9 +101,9 @@ AGENTS.md; `curve`'s behavior and all curve constants are unchanged.
 
 ### Related
 
-- `fjs/crypto/secp/module.f.mjs:14` (`Point2D`), `:26-31` (`Init`), `:72-86`
-  (`curve`/`y2`), `:146-238` (curve literals, including the commented-out
-  `secp224r1`).
+- `fjs/crypto/secp/types.ts:11` (`Point2D`), `:22-27` (`Init`).
+- `fjs/crypto/secp/module.f.mjs:37-51` (`curve`/`y2`), `:111-203` (curve
+  literals, including the commented-out `secp224r1`).
 - `fjs/crypto/todo/666-crypto-sign-fromcurve.md` — reshapes the
   `sign`→`curve` boundary; independent of this record cleanup, but land
   whichever goes first and rebase the other.

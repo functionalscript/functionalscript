@@ -5,7 +5,7 @@
 
 ### Problem
 
-`List` (`fjs/types/list/module.f.mjs`) currently has four shapes behind two
+`List` (`fjs/types/list/types.ts`) currently has four shapes behind two
 type aliases:
 
 ```ts

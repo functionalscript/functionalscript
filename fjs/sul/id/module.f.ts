@@ -7,22 +7,18 @@
  */
 
 import { toArray } from '../../types/list/module.f.mjs'
-import {
-    length,
-    msb,
-    uint,
-    uintChunkList,
-    unpack,
-    vec,
-    type Vec
-} from '../../types/bit_vec/module.f.mjs'
+import type { Vec } from '../../types/bit_vec/types.ts'
+import { length, msb, uint, uintChunkList, unpack, vec } from '../../types/bit_vec/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { secp256r1, type Point2D } from '../../crypto/secp/module.f.mjs'
-import { base32, type V8 } from '../../crypto/sha2/module.f.mjs'
+import type { Point2D } from '../../crypto/secp/types.ts'
+import { secp256r1 } from '../../crypto/secp/module.f.mjs'
+import type { V8 } from '../../crypto/sha2/types.ts'
+import { base32 } from '../../crypto/sha2/module.f.mjs'
 import { literal3ToVec } from '../level/literal/module.f.ts'
 import { log2 } from '../../types/bigint/module.f.mjs'
-import { asBase, asNominal, type Nominal } from '../../types/nominal/module.f.mjs'
+import type { Nominal } from '../../types/nominal/types.ts'
+import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
 
 /** A 256-bit SUL identifier. One of three variants: level-3 literal, raw bit vector, or SHA2 hash. */
 export type Id = Nominal<
