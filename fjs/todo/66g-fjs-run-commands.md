@@ -25,7 +25,7 @@ runtime. Every downstream caller (`fjs run`, bin scripts) already goes through
 export type NodeMain = NodeProgram | Commands<NodeOp>
 ```
 
-Widen `dispatch` in `fjs/cli/module.f.ts` to accept either a `Commands` array
+Widen `dispatch` in `fjs/cli/module.f.mjs` to accept either a `Commands` array
 or a `Program` function, and short-circuit to the function when it receives one:
 
 ```ts
@@ -61,4 +61,5 @@ wrapper in `fjs/cas/module.f.ts` simplifies to `export const main = commands`.
 - `fjs/module.f.ts` — the `run` handler at line 39.
 - `fjs/cas/module.f.ts` — the `main = dispatch(commands)` boilerplate this issue
   eliminates.
-- `fjs/cli/module.f.ts` — `dispatch` and `Commands` used by the new branch.
+- `fjs/cli/module.f.mjs` — `dispatch` used by the new branch; `Commands`
+  is defined in `fjs/cli/types.ts`.

@@ -1,22 +1,22 @@
+/**
+ * CLI command dispatch table.
+ *
+ * See `./types.ts` for the type-level API.
+ *
+ * @module
+ */
+
 import { errorExit, log } from '../effects/node/module.f.mjs'
-import type { NodeOp, NodeProgramOptions, Write } from '../effects/node/types.ts'
+/** @import { NodeOp, NodeProgramOptions, Write } from '../effects/node/types.ts' */
 import { pure, step } from '../effects/module.f.mjs'
-import type { Effect } from '../effects/types.ts'
+/** @import { Effect } from '../effects/types.ts' */
 import { at, fromEntries } from '../types/object/module.f.mjs'
-
-type Handler<O extends NodeOp> = (options: NodeProgramOptions) => Effect<O, number>
-
-export type Command<O extends NodeOp> = {
-    readonly names: readonly string[]
-    readonly description: string
-    readonly handler: Handler<O> | Commands<O>
-}
-
-export type Commands<O extends NodeOp> = readonly Command<O>[]
+/** @import { Commands } from './types.ts' */
 
 const helpMeta = { names: ['help', 'h', '?'], description: 'Print this help message' }
 
-export const dispatch = <O extends NodeOp>(commands: Commands<O>) => (options: NodeProgramOptions): Effect<O | Write, number> => {
+/** @type {<O extends NodeOp>(commands: Commands<O>) => (options: NodeProgramOptions) => Effect<O | Write, number>} */
+export const dispatch = commands => options => {
     const [cmd, ...rest] = options.args
     const rows = [...commands, helpMeta]
     const nameCol = rows.map(({names}) => names.join(', '))
@@ -25,7 +25,7 @@ export const dispatch = <O extends NodeOp>(commands: Commands<O>) => (options: N
         'Available commands:',
         ...rows.map(({description}, i) => `  ${nameCol[i].padEnd(width)}  ${description}`)
     ].join('\n')
-    const map = fromEntries(commands.flatMap(c => c.names.map(n => [n, c] as const)))
+    const map = fromEntries(commands.flatMap(c => c.names.map(n => /** @type {const} */ ([n, c]))))
     if (cmd === undefined) {
         return errorExit(`Error: command is required.\n${helpText}`)
     }
