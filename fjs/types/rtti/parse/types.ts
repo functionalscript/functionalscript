@@ -6,6 +6,8 @@
 import type { Type } from '../types.ts'
 import type { Result as CommonValidateResult, Validate } from '../common/types.ts'
 
+export type { Path, ValidationError } from '../common/types.ts'
+
 /** Parse result: either the freshly constructed typed value or a `ValidationError`. */
 export type Result<T extends Type> = CommonValidateResult<T>
 

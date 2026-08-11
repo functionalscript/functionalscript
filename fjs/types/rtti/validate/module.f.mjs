@@ -25,6 +25,8 @@
  * only after confirming the container is non-empty. This prevents infinite recursion
  * when validating recursive schemas like `const list = () => ['array', list]`.
  *
+ * See `./types.ts` for the `Path`/`Result`/`Validate`/`ValidationError` type-level API.
+ *
  * @module
  */
 /** @import { Unknown } from '../ts/types.ts' */
