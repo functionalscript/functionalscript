@@ -21,7 +21,7 @@ import { do_, mapStep, okStep, pure, step } from '../module.f.mjs'
 /** @import { Effect, Func, Operation } from '../types.ts' */
 /** @import { List } from '../list/types.ts' */
 /** @import {
-    All, Access, Await, CreateExclusive, CreateServer, Dirent, Engine,
+    All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine,
     Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http,
     IncomingMessage, Import, IoResult, Listen, MakeDirectoryOptions, Mkdir,
     Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes,
@@ -222,10 +222,10 @@ const writeString = stream => s =>
     write(stream, utf8(s + '\n'))
 
 /** Writes a line to `stdout`. Replaces the retired `Log` effect. */
-export const log = writeString('stdout')
+export const log = /** @type {Console} */ (writeString('stdout'))
 
 /** Writes a line to `stderr`. Replaces the retired `Error` effect. */
-export const error = writeString('stderr')
+export const error = /** @type {Console} */ (writeString('stderr'))
 
 // read
 
