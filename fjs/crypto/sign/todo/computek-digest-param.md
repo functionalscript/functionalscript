@@ -6,7 +6,7 @@
 ### Problem
 
 A single `sign(c)(hf)(x)(m)` runs the message hash **twice** over
-identical inputs. In `sign` itself (`fjs/crypto/sign/module.f.ts:150-151`):
+identical inputs. In `sign` itself (`fjs/crypto/sign/module.f.mjs:150-151`):
 
 ```ts
 const hm = computeSync(hf)([m])
@@ -14,7 +14,7 @@ const h = bits2int(hm) % q
 ```
 
 and then `sign` calls `computeK(a)(hf)(x)(m)`, whose body recomputes the
-same digest (`fjs/crypto/sign/module.f.ts:86`):
+same digest (`fjs/crypto/sign/module.f.mjs:86`):
 
 ```ts
 // a. Process m through the hash function H, yielding:

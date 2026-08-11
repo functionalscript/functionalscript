@@ -1,13 +1,13 @@
 import { utf8 } from "../../text/module.f.mjs"
-import type { Tuple } from "../../types/array/types.ts"
-import type { Vec } from "../../types/bit_vec/types.ts"
+/** @import { Tuple } from "../../types/array/types.ts" */
+/** @import { Vec } from "../../types/bit_vec/types.ts" */
 import { empty, msb, repeat, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { hmac } from "../hmac/module.f.mjs"
-import type { Curve } from "../secp/types.ts"
+/** @import { Curve } from "../secp/types.ts" */
 import { secp192r1, secp256r1, secp384r1, secp521r1 } from "../secp/module.f.mjs"
-import type { Sha2 } from "../sha2/types.ts"
+/** @import { Sha2 } from "../sha2/types.ts" */
 import { computeSync, sha224, sha256, sha384, sha512 } from "../sha2/module.f.mjs"
-import { all, concat, computeK, fromCurve, sign } from "./module.f.ts"
+import { all, concat, computeK, fromCurve, sign } from "./module.f.mjs"
 import { assertEq } from '../../asserts/module.f.mjs'
 
 const sample = utf8("sample")
@@ -59,7 +59,7 @@ export const proof = {
         const vv = concat(v, x00, xi2o, h1b2o)
         const vvu =
             0x0101010101010101010101010101010101010101010101010101010101010101_00_009A4D6792295A7F730FC3F2B49CBC0F62E862272F_01795EDF0D54DB760F156D0DAC04C0322B3A204224n
-        assertEq(vv, v600(vvu), [(vv as any).toString(16), vvu.toString(16)])
+        assertEq(vv, v600(vvu), [(/** @type {any} */ (vv)).toString(16), vvu.toString(16)])
         k = hmac256(k)(vv)
         assertEq(k, v256(0x09999A9BFEF972D3346911883FAD7951D23F2C8B47F420222D1171EEEEAC5AB8n))
         // e.
@@ -122,21 +122,24 @@ export const proof = {
         assertEq(kk, 0x4381526B3FC1E7128F202E194505592F01D5FF4C5AF015D8n)
     },
     a2: () =>{
-        type H = Tuple<4, bigint>
-        type P = {
-            readonly q: bigint
-            readonly x: bigint
-            readonly msg0: H
-            readonly msg1: H
-        }
-        type S = { readonly [key: string]: P }
-        const check = ({ q, x, msg0, msg1 }: P) => {
+        /** @typedef {Tuple<4, bigint>} _H */
+        /**
+         * @typedef {object} _P
+         * @property {bigint} q
+         * @property {bigint} x
+         * @property {_H} msg0
+         * @property {_H} msg1
+         */
+        /** @type {(p: _P) => void} */
+        const check = ({ q, x, msg0, msg1 }) => {
             const a = all(q)
-            const check = (sha: Sha2, expected: bigint, m: Vec) => {
+            /** @type {(sha: Sha2, expected: bigint, m: Vec) => void} */
+            const check = (sha, expected, m) => {
                 const k = computeK(a)(sha)(x)(m)
                 assertEq(k, expected, [k.toString(16), expected.toString(16)])
             }
-            const check4 = (m: Vec, h: H) => {
+            /** @type {(m: Vec, h: _H) => void} */
+            const check4 = (m, h) => {
                 check(sha224, h[0], m)
                 check(sha256, h[1], m)
                 check(sha384, h[2], m)
@@ -145,7 +148,8 @@ export const proof = {
             check4(sample, msg0)
             check4(test, msg1)
         }
-        const testVectors: S = {
+        /** @type {{ readonly [key: string]: _P }} */
+        const testVectors = {
             x1: {
                 q: 0x996F967F6C8E388D9E28D01E205FBA957A5698B1n,
                 x: 0x411602CB19A6CCC34494D79D98EF1E7ED5AF25F7n,
@@ -360,29 +364,33 @@ export const proof = {
         }
     },
     a2s: () => {
-        type Result = {
-            readonly k: bigint
-            readonly r: bigint
-            readonly s: bigint
-        }
-        type H = Tuple<4, Result>
-        type P = {
-            readonly q: Curve
-            readonly x: bigint
-            readonly msg0: H
-            readonly msg1: H
-        }
-        type S = { readonly [key: string]: P }
-        const check = ({ q, x, msg0, msg1 }: P) => {
+        /**
+         * @typedef {object} _Result
+         * @property {bigint} k
+         * @property {bigint} r
+         * @property {bigint} s
+         */
+        /** @typedef {Tuple<4, _Result>} _H */
+        /**
+         * @typedef {object} _P
+         * @property {Curve} q
+         * @property {bigint} x
+         * @property {_H} msg0
+         * @property {_H} msg1
+         */
+        /** @type {(p: _P) => void} */
+        const check = ({ q, x, msg0, msg1 }) => {
             const a = all(q.nf.p)
-            const check = (sha: Sha2, { k, r, s }: Result, m: Vec) => {
+            /** @type {(sha: Sha2, result: _Result, m: Vec) => void} */
+            const check = (sha, { k, r, s }, m) => {
                 const k0 = computeK(a)(sha)(x)(m)
                 assertEq(k0, k, [k0.toString(16), k.toString(16)])
                 const [r0, s0] = sign(q)(sha)(x)(m)
                 assertEq(r0, r, [r0, r])
                 assertEq(s0, s, [s0, s])
             }
-            const check4 = (m: Vec, h: H) => {
+            /** @type {(m: Vec, h: _H) => void} */
+            const check4 = (m, h) => {
                 check(sha224, h[0], m)
                 check(sha256, h[1], m)
                 check(sha384, h[2], m)
@@ -391,7 +399,8 @@ export const proof = {
             check4(sample, msg0)
             check4(test, msg1)
         }
-        const testVectors: S = {
+        /** @type {{ readonly [key: string]: _P }} */
+        const testVectors = {
             x3: {
                 q: secp192r1,
                 x: 0x6FAB034934E4C0FC9AE67F5B5659A9D7D1FEFD187EE09FD4n,

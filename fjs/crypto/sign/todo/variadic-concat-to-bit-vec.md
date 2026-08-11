@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/crypto/sign/module.f.ts:53-55` defines and **exports** an n-ary
+`fjs/crypto/sign/module.f.mjs:53-55` defines and **exports** an n-ary
 bit-vector concatenation:
 
 ```ts
@@ -47,7 +47,7 @@ readonly Vec[]): Vec => listToVec(x)` kept **private** in `crypto/sign`
 
 - [ ] Add `concatAll` to `BitOrder` in `fjs/types/bit_vec/module.f.mjs` with
       proof coverage (0, 1, n arguments; both bit orders).
-- [ ] Replace `concat` uses in `fjs/crypto/sign/module.f.ts` and
+- [ ] Replace `concat` uses in `fjs/crypto/sign/module.f.mjs` and
       `proof.f.ts`; delete the local export.
 - [ ] Run `npx tsc` and `fjs t`.
 

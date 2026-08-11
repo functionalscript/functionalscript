@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/crypto/sign` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  the `All` type into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier
+  for the type
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
 - **BREAKING CHANGES:** `fjs/media/html` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
   the `Element`/`Node` types into a sibling `types.ts` — importers must
