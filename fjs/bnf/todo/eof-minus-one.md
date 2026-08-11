@@ -73,9 +73,17 @@ const decodeTerminal = value =>
     ((value + 1) & terminalMask) - 1
 ```
 
-So the stored code previously used for EOF remains the stored code for EOF, and
-all ordinary symbols keep their existing stored codes. The packed width and
-serialized `TerminalRange` values therefore remain bit-for-bit unchanged.
+The stored endpoint **codes and width** stay unchanged: EOF still uses stored code
+`2^24 - 1`, and every ordinary symbol keeps its existing stored code.
+
+This does not mean every existing serialized range has unchanged semantics.
+Ranges whose old endpoint was EOF must be regenerated under the new semantic
+ordering. In particular, the old `fullRange = [0, 2^24 - 1]` becomes the ordinary
+range `[0, 2^24 - 2]`; decoding the old upper endpoint now means EOF (`-1`).
+
+Treat this as a breaking semantic change to BNF range data. We do not need a
+compatibility/versioning layer for old serialized grammars; update in-repo data
+and generated ranges to the new semantics instead.
 
 The stored codes are an implementation representation, not semantic terminal
 ordering. Range operations that care about semantic ordering must compare decoded
@@ -128,6 +136,8 @@ metadata leaf to the AST. EOF diagnostics point at `input.length`.
 - [ ] Keep `TerminalRange` packed as two 24-bit stored endpoints.
 - [ ] Encode/decode semantic terminals with the branchless 24-bit formulas above,
       preserving the existing stored EOF code and all ordinary stored codes.
+- [ ] Regenerate/update ranges whose old endpoint was EOF, including `fullRange`;
+      do not add compatibility/versioning for old serialized grammar data.
 - [ ] Update range containment, validation, keys, and proofs to distinguish
       semantic terminal values from stored endpoint codes.
 - [ ] Define `eof` as semantic `[-1, -1]` and `fullRange` as
@@ -142,6 +152,8 @@ metadata leaf to the AST. EOF diagnostics point at `input.length`.
 - [ ] Add proofs for empty/non-empty input, one-time EOF consumption, EOF in
       alternatives/repetition, backtracking, diagnostic ordering, ordinary
       minimum/maximum values, and range encode/decode round trips.
+- [ ] Add a `CHANGELOG.md` breaking-change entry if this changes published BNF
+      range semantics.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
