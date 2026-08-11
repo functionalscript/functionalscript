@@ -5,7 +5,7 @@
 
 ### Problem
 
-`Command` (`fjs/cli/module.f.ts`) hands every handler a raw
+`Command` (`fjs/cli/types.ts`) hands every handler a raw
 `args: readonly string[]` and has no concept of a named option. Any command
 that wants a flag has to hand-parse it:
 

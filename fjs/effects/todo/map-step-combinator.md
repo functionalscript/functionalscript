@@ -39,13 +39,13 @@ Also `fjs/dev/module.f.ts`, `fjs/cas/evo/module.f.ts`,
 yield an exit code" shape of a `NodeProgram`:
 
 ```ts
-// fjs/cli/module.f.ts:38-40
+// fjs/cli/module.f.mjs:39-41
 return step(
     log(helpText),
     () => pure(0))
 
-// fjs/website/module.f.ts:17-19
-const program: Effect<WriteFile, number> = step(
+// fjs/website/module.f.mjs:19-21
+const program = step(
     writeFile('index.html', html),
     () => pure(0))
 ```

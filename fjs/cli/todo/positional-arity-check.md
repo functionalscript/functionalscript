@@ -25,8 +25,8 @@ handler: ({ home, args: [hashCBase32, path, ...rest] }) => {
 
 ### Proposal
 
-A combinator in `fjs/cli/module.f.ts`, the layer that already owns
-`Command`/`dispatch`:
+A combinator in `fjs/cli/module.f.mjs`, the layer that already owns
+`dispatch` (`Command` is defined in `fjs/cli/types.ts`):
 
 ```ts
 export const exact = <O extends NodeOp>(name: string, n: number) =>

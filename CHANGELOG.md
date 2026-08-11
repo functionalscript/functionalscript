@@ -24,6 +24,22 @@ history.
   `fjs/nanvm/module.f.mjs`: the JavaScript proof and the generated
   Rust tests both read it, so a case is written once instead of twice
   [#1489](https://github.com/functionalscript/functionalscript/pull/1489)
+- **BREAKING CHANGES:** `fjs/cli` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting its
+  type-level API into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier
+  for types. `proof.f.ts` stays TypeScript for now
+  [#1491](https://github.com/functionalscript/functionalscript/pull/1491)
+- **BREAKING CHANGES:** `fjs/website` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — importers
+  must use the `.f.mjs` specifier. `proof.f.ts` stays TypeScript for
+  now
+  [#1491](https://github.com/functionalscript/functionalscript/pull/1491)
+- **BREAKING CHANGES:** `fjs/dev/update` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — importers
+  must use the `.f.mjs` specifier. `proof.f.ts` stays TypeScript for
+  now
+  [#1491](https://github.com/functionalscript/functionalscript/pull/1491)
 - **BREAKING CHANGES:** `fjs/text/sgr` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
   its type-level API into a sibling `types.ts` — importers must use

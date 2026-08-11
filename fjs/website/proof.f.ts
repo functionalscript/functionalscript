@@ -1,4 +1,4 @@
-import { main } from './module.f.ts'
+import { main } from './module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { assertEq, assertNotNullish } from '../asserts/module.f.mjs'
 
