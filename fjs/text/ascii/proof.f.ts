@@ -1,6 +1,6 @@
 import { one, range } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.ts'
-import { sort } from '../../types/object/module.f.ts'
+import { sort } from '../../types/object/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 const stringify = jsonStringify(sort)

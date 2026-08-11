@@ -8,7 +8,7 @@ import { mkdir, writeFile, rm, readFile, type ReadFile, type WriteFile, type Rm,
 import type { Ok } from '../types/result/types.ts'
 import { error, ok } from '../types/result/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
-import { join } from '../path/module.f.ts'
+import { join } from '../path/module.f.mjs'
 import { nonEmpty, empty, type List } from '../effects/list/module.f.ts'
 import { assert, assertEq, assertNotNullish } from '../asserts/module.f.mjs'
 

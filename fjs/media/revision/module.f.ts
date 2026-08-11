@@ -22,7 +22,7 @@ import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
 import type { Result } from '../../types/result/types.ts'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { dialectEntry, type DialectEntry } from '../module.f.ts'
-import { definedEntries, sort } from '../../types/object/module.f.ts'
+import { definedEntries, sort } from '../../types/object/module.f.mjs'
 import { stringify } from '../json/module.f.ts'
 
 /**

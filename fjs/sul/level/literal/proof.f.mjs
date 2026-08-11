@@ -1,4 +1,4 @@
-import type { Vec } from '../../../types/bit_vec/types.ts'
+/** @import { Vec } from '../../../types/bit_vec/types.ts' */
 import { chunkList, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { map, stateScan, toArray } from '../../../types/list/module.f.mjs'
@@ -13,18 +13,18 @@ import {
     symbolToString,
     wordEqual,
     wordToString
-} from './module.f.ts'
+} from './module.f.mjs'
 
-const tests = (n: bigint) => {
+const tests = (/** @type {bigint} */ n) => {
     const { sum, decode, encode: push } = level(n)
     return {
-        c: (i: bigint, s: bigint) => {
+        c: (/** @type {bigint} */ i, /** @type {bigint} */ s) => {
             const result = sum(i)
             if (result !== s) {
                 throw new Error(`Assertion failed for n=${n}, i=${i}, s=${symbolToString(s)}, got ${symbolToString(result)}`);
             }
         },
-        n: (word: readonly bigint[], expected: bigint) => {
+        n: (/** @type {readonly bigint[]} */ word, /** @type {bigint} */ expected) => {
             // encode
             const decoded = decode(expected)
             if (!wordEqual(decoded)(word)) {
@@ -39,14 +39,14 @@ const tests = (n: bigint) => {
     }
 }
 
-const l = (f: (literal: bigint) => Vec) => (l: bigint, e: Vec) => {
+const l = (/** @type {(literal: bigint) => Vec} */ f) => (/** @type {bigint} */ l, /** @type {Vec} */ e) => {
     const result = f(l)
     assertEq(result, e, [result, e])
 }
 
-const vecToBits = (v: Vec) => map((b: Vec) => msb.front(1n)(b))(chunkList(msb)(1n)(v))
+const vecToBits = (/** @type {Vec} */ v) => map((/** @type {Vec} */ b) => msb.front(1n)(b))(chunkList(msb)(1n)(v))
 
-const w = (symbol: bigint, expected: Vec) => {
+const w = (/** @type {bigint} */ symbol, /** @type {Vec} */ expected) => {
     const result = literal3ToVec(symbol)
     assertEq(result, expected, [result, expected])
     const a = toArray(stateScan(pipelineStep)(emptyPipelineState)(vecToBits(expected)))

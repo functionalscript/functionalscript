@@ -10,7 +10,7 @@ import type { State } from '../effects/node/virtual/module.f.ts'
 import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 import { parse as jsonParse } from '../media/json/module.f.ts'
 import { unwrap } from '../types/result/module.f.mjs'
-import { definedValues } from '../types/object/module.f.ts'
+import { definedValues } from '../types/object/module.f.mjs'
 
 const hasRun = (cmd: string) => (gha: GitHubAction): boolean =>
     definedValues(gha.jobs).some(job => job.steps.some(step => step.run?.includes(cmd)))

@@ -12,7 +12,7 @@ import { type JsonToken } from '../tokenizer/module.f.ts'
 import { setReplace } from '../../../types/ordered_map/module.f.mjs'
 import type { OrderedMap } from '../../../types/ordered_map/types.ts'
 import { type Unknown } from '../module.f.ts'
-import { fromMap } from '../../../types/object/module.f.ts'
+import { fromMap } from '../../../types/object/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
 type JsonObject = {

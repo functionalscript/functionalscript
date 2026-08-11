@@ -36,7 +36,7 @@ import {
     type Type,
 } from '../module.f.ts'
 import { ok } from '../../result/module.f.mjs'
-import type { StringMap } from '../../object/module.f.ts'
+import type { StringMap } from '../../object/types.ts'
 import {
     constPrimitiveValidate,
     eachEntry,

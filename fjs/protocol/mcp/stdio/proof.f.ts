@@ -6,7 +6,7 @@ import { stringify } from '../../../media/json/module.f.ts'
 import { utf8 } from '../../../text/module.f.mjs'
 import { fromVec } from '../../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../../types/bit_vec/module.f.mjs'
-import { sort } from '../../../types/object/module.f.ts'
+import { sort } from '../../../types/object/module.f.mjs'
 import { internalError, jsonrpc, parseError, type Id, type Response } from '../../json_rpc/module.f.ts'
 import { stdioTransport, type Step } from './module.f.ts'
 

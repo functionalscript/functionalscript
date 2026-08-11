@@ -55,7 +55,7 @@ string syntax, and `fjs/media/json/serializer` already concentrates it: it alias
 built-in privately and wraps it as `stringSerialize`.
 
 ```ts
-// fjs/media/json/serializer/module.f.ts:28
+// fjs/media/json/serializer/module.f.mjs:28
 const jsonStringify = JSON.stringify
 // :33
 export const stringSerialize: (_: string) => List<string> = input => [jsonStringify(input)]

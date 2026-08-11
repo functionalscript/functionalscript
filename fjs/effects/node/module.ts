@@ -21,7 +21,7 @@ import process from 'node:process'
 import { once } from 'node:events'
 import * as testContext from 'node:test'
 
-import { concat, normalize, toPosix } from '../../path/module.f.ts'
+import { concat, normalize, toPosix } from '../../path/module.f.mjs'
 import { type Effect } from '../module.f.ts'
 import { asyncRun } from '../module.ts'
 import { memoryOperationMap } from './memory/module.ts'
@@ -43,7 +43,7 @@ import type { Result } from '../../types/result/types.ts'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { asyncTryCatch } from '../../types/result/module.ts'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.mjs'
-import type { StringMap } from '../../types/object/module.f.ts'
+import type { StringMap } from '../../types/object/types.ts'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 
 type Server = {

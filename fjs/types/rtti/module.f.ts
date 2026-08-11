@@ -40,7 +40,7 @@ import type { Assert } from '../../asserts/types.ts'
 import type { Includes } from '../array/types.ts'
 import { includes } from '../array/module.f.mjs'
 import type { Equal } from '../ts/types.ts'
-import type { StringMap } from '../object/module.f.ts'
+import type { StringMap } from '../object/types.ts'
 
 /** A constant schema: a primitive literal, a struct object, or a tuple. */
 export type Const =

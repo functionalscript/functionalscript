@@ -35,7 +35,7 @@ import {
 } from '../module.f.ts'
 import type { Result as CommonResult } from '../../result/types.ts'
 import { ok } from '../../result/module.f.mjs'
-import type { StringMap } from '../../object/module.f.ts'
+import type { StringMap } from '../../object/types.ts'
 import type { List } from '../../list/types.ts'
 import { reverse, toArray } from '../../list/module.f.mjs'
 import {

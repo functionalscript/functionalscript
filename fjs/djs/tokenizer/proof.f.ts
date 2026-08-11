@@ -4,7 +4,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { jsGrammar, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { stringifyAsTree } from '../serializer/module.f.ts'
-import { sort } from '../../types/object/module.f.ts'
+import { sort } from '../../types/object/module.f.mjs'
 import type { Unknown } from '../module.f.ts'
 
 // DjsTokenWithMetadata carries bigint fields (bf, bigint value) that JSON.stringify can't

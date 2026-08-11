@@ -20,6 +20,19 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/object`, `fjs/sul/level/literal`,
+  `fjs/sul/id`, `fjs/sul/level/hash`, `fjs/types/string_set`, and the
+  `module.f.ts` of `fjs/types/sorted_set` and `fjs/types/byte_set`
+  migrate to `.f.mjs`, splitting their public types into a sibling
+  `types.ts` — importers must use the `.f.mjs` specifier for runtime
+  values and the `types.ts` specifier for types
+  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
+- **BREAKING CHANGES:** `fjs/crypto/hmac`, `fjs/path`, and
+  `fjs/media/json/serializer` migrate from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
+  TypeScript-to-mjs migration — importers must use the `.f.mjs`
+  specifier
+  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
 - **BREAKING CHANGES:** every public type exported by an authored `.f.mjs`
   module moves to a sibling `types.ts` (31 modules, including `asserts`,
   `types/list`, `types/bit_vec`, `types/result`, `text`, `crypto/sha2`) —

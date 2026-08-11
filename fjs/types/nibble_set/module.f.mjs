@@ -3,7 +3,7 @@
  *
  * A set of nibbles (values `0..15`) stored as a 16-bit mask in a plain
  * `number`. It implements the same bitmask-as-set algebra as
- * {@link ../byte_set/module.f.ts | `byte_set`}, which tracks all 256 byte
+ * {@link ../byte_set/module.f.mjs | `byte_set`}, which tracks all 256 byte
  * values in a `bigint`.
  *
  * **Prefer `byte_set`.** Its 256-value universe covers the common cases and

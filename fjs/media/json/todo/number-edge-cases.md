@@ -199,5 +199,5 @@ See [native JSON compatibility](./native-json-compatibility.md).
 - [Native JSON compatibility](./native-json-compatibility.md) — P5 follow-up; does
   not block this investigation.
 - [`fjs/media/json/module.f.ts`](../module.f.ts) — current ordinary JSON surface.
-- [`fjs/media/json/serializer/module.f.ts`](../serializer/module.f.ts) — current
+- [`fjs/media/json/serializer/module.f.mjs`](../serializer/module.f.mjs) — current
   primitive serialization implementation to replace/self-host.

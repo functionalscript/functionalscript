@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/sul/id/module.f.ts` implements the "a 256-bit id is tagged by its top
+`fjs/sul/id/module.f.mjs` implements the "a 256-bit id is tagged by its top
 set bit at `offset`; membership is `asBase(v) >> offset === 1n`" scheme
 twice, byte-identical modulo the offset:
 

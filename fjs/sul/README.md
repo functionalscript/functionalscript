@@ -23,7 +23,7 @@ The top-level encoder accepts a stream of bits and produces a single [`Id`](id/R
 
 ```ts
 import { encode, emptyEncodeState } from './module.f.ts'
-import type { Add } from './level/hash/module.f.ts'
+import type { Add } from './level/hash/types.ts'
 
 const enc = encode(add)              // add: Add<S> — called on every merge
 let state = emptyEncodeState(storage)

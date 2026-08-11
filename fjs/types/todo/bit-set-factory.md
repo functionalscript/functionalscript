@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/types/nibble_set/module.f.mjs` and `fjs/types/byte_set/module.f.ts`
+`fjs/types/nibble_set/module.f.mjs` and `fjs/types/byte_set/module.f.mjs`
 implement the same bitmask-as-set algebra, line for line, differing only in
 the numeric domain (`number` with `universe = 0xFFFF` vs `bigint` with the
 256-bit universe) and the `BigInt(n)` shift-operand conversion. The

@@ -9,7 +9,7 @@
  * @example
  *
  * ```ts
- * import { vec } from '../../types/bit_vec/module.f.ts'
+ * import { vec } from '../../types/bit_vec/module.f.mjs'
  * import { msbUtf8 } from '../../text/module.f.mjs'
  * import { sha256 } from '../sha2/module.f.mjs'
  *
@@ -18,9 +18,9 @@
  * ```
  */
 
-import type { Vec, Reduce } from '../../types/bit_vec/types.ts'
+/** @import { Vec, Reduce } from '../../types/bit_vec/types.ts' */
 import { length, msb, vec, vec8, repeat } from '../../types/bit_vec/module.f.mjs'
-import type { Sha2 } from '../sha2/types.ts'
+/** @import { Sha2 } from '../sha2/types.ts' */
 import { computeSync } from '../sha2/module.f.mjs'
 
 const { concat, xor } = msb
@@ -38,11 +38,11 @@ const iPad = vec8(0x36n)
 /**
  * Generates an HMAC (Hash-based Message Authentication Code) using the specified hash function.
  *
- * @param hashFunc - The hash function implementation to use.
- * @returns - A function that takes a key and returns another function
+ * @param {Sha2} hashFunc - The hash function implementation to use.
+ * @returns {Reduce} A function that takes a key and returns another function
  * that takes a message and computes the HMAC.
  */
-export const hmac = (hashFunc: Sha2): Reduce => {
+export const hmac = hashFunc => {
     const { blockLength } = hashFunc
     const p = repeat(blockLength >> 3n)
     const ip = p(iPad)
@@ -52,9 +52,10 @@ export const hmac = (hashFunc: Sha2): Reduce => {
         const k1 = length(k) > blockLength ? c([k]) : k
         const k2 = concat(k1)(vec(blockLength - length(k1))(0n))
         const xk2 = xor(k2)
-        const f = (p: Vec) => {
+        /** @type {(p: Vec) => (msg: Vec) => Vec} */
+        const f = p => {
             const x = xk2(p)
-            return (msg: Vec) => c([x, msg])
+            return msg => c([x, msg])
         }
         const fip = f(ip)
         const fop = f(op)

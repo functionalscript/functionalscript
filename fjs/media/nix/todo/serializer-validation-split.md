@@ -77,7 +77,7 @@ the way out.
 `joinChunks(chunks, separator)` (`:154`) re-invent what the other two
 serializers in `fjs/media/` already do with `fjs/types/list`:
 
-- `fjs/media/json/serializer/module.f.ts:39-52` — `join` (a `reduce` with a
+- `fjs/media/json/serializer/module.f.mjs:39-52` — `join` (a `reduce` with a
   separator) and `wrap(open)(close)`, both over `List<List<string>>`;
 - `fjs/media/html/module.f.ts` — `flatMap`/`flat`/`map` over `List<string>`
   end to end.
@@ -224,7 +224,7 @@ build `List<string>` with `fjs/types/list`'s `flat`/`flatMap`/`map` as
 `fjs/media/html` does.
 
 Do **not** plan on importing `join`/`wrap` from
-`fjs/media/json/serializer/module.f.ts`. They are private constants (`:39-53`)
+`fjs/media/json/serializer/module.f.mjs`. They are private constants (`:39-53`)
 — only `objectWrap`/`arrayWrap` are exported — and, more decisively, `join`
 hardcodes its separator to `comma` (`:38`, `:40-42`), while Nix separates
 bindings with `'\n'` plus an indent. Sharing them would mean parameterizing
@@ -286,7 +286,7 @@ where it lands.
 - [serializer-shared-atoms](../../json/todo/serializer-shared-atoms.md) —
   shares `colon` / `MapEntries` between the json and djs serializers; the same
   "one owner for a serializer atom" question, disjoint atoms.
-- `fjs/media/json/serializer/module.f.ts` — `join` / `wrap` over
+- `fjs/media/json/serializer/module.f.mjs` — `join` / `wrap` over
   `List<List<string>>`, the existing chunk-joining vocabulary.
 - `fjs/types/nullable/module.f.mjs` — the `null`-for-absence convention and the
   `fromUndefined` boundary rule.

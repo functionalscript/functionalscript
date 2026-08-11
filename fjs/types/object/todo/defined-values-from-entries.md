@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/types/object/module.f.ts:66-77` expresses "drop the `undefined`-valued
+`fjs/types/object/module.f.mjs:66-77` expresses "drop the `undefined`-valued
 entries" twice, with two different idioms:
 
 ```ts

@@ -1,4 +1,4 @@
-import { sort } from '../../types/object/module.f.ts'
+import { sort } from '../../types/object/module.f.mjs'
 import { transpile } from './module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
 import { virtual, emptyState, type Dir } from '../../effects/node/virtual/module.f.ts'

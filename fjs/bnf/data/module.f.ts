@@ -18,7 +18,8 @@ import {
     type Rule as FRule,
     type Sequence as FSequence,
 } from '../module.f.ts'
-import { definedEntries, type StringMap } from '../../types/object/module.f.ts'
+import { definedEntries } from '../../types/object/module.f.mjs'
+import type { StringMap } from '../../types/object/types.ts'
 
 /**
  * Encoded terminal range value used by BNF data rules.

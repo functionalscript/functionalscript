@@ -1,12 +1,13 @@
 /**
- * A set of strings implemented as a B-Tree.
+ * A set of strings implemented as a B-Tree. See `./types.ts` for the
+ * `StringSet` type.
  *
  * @module
  *
  * @example
  *
  * ```js
- * import { set, contains, remove, fromValues, values, empty } from './module.d.ts';
+ * import { set, contains, remove, fromValues, values, empty } from './module.f.mjs';
  *
  * let mySet = fromValues(['apple', 'banana', 'cherry']);
  * if (!contains('banana')(mySet)) { throw '1' }
@@ -20,32 +21,33 @@
  * ```
  */
 
-import type { Tree } from '../btree/types/types.ts'
 import { empty as btEmpty, values as btValues } from '../btree/module.f.mjs'
 import { find, isFound } from '../btree/find/module.f.mjs'
 import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
 import { set as btreeSet } from '../btree/set/module.f.mjs'
 import { cmp } from "../string/module.f.mjs"
-import type { List } from '../list/types.ts'
+/** @import { List } from '../list/types.ts' */
 import { fold } from '../list/module.f.mjs'
 import { compose } from '../function/module.f.mjs'
+/** @import { StringSet } from './types.ts' */
 
-export const values: (s: StringSet) => List<string> = btValues
-export const empty: null = btEmpty
+/** @type {(s: StringSet) => List<string>} */
+export const values = btValues
+/** @type {null} */
+export const empty = btEmpty
 
-export type StringSet = Tree<string>
-
-export const contains: (value: string) => (set: StringSet) => boolean
-    = value => {
+/** @type {(value: string) => (set: StringSet) => boolean} */
+export const contains =
+    value => {
         const f = find(cmp(value))
         return s => s !== null && isFound(f(s).first)
     }
 
-export const set: (value: string) => (s: StringSet) => StringSet
-    = value => btreeSet(cmp(value))(() => value)
+/** @type {(value: string) => (s: StringSet) => StringSet} */
+export const set = value => btreeSet(cmp(value))(() => value)
 
-export const fromValues: (input: List<string>) => StringSet
-    = fold(set)(null)
+/** @type {(input: List<string>) => StringSet} */
+export const fromValues = fold(set)(null)
 
-export const remove: (value: string) => (s: StringSet) => StringSet
-    = compose(cmp)(btreeRemove)
+/** @type {(value: string) => (s: StringSet) => StringSet} */
+export const remove = compose(cmp)(btreeRemove)

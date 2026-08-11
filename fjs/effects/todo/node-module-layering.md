@@ -133,7 +133,7 @@ Judgement calls worth deciding explicitly rather than by accident:
 
   ```ts
   // fjs/effects/console/module.f.ts
-  import type { RequiredMap } from '../../types/object/module.f.ts'
+  import type { RequiredMap } from '../../types/object/types.ts'
 
   export type Std = RequiredMap<WriteConsoles, { readonly isTTY: boolean }>
 

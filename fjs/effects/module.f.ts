@@ -98,7 +98,7 @@
 import { assert } from '../asserts/module.f.mjs'
 import type { List } from '../types/list/types.ts'
 import { fold } from '../types/list/module.f.mjs'
-import { at } from '../types/object/module.f.ts'
+import { at } from '../types/object/module.f.mjs'
 import type { Option } from '../types/option/types.ts'
 import type { Result } from '../types/result/types.ts'
 

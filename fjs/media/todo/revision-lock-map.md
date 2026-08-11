@@ -52,7 +52,7 @@ entries:
 
 ```ts
 import { stringify } from '../json/module.f.ts'
-import { sort } from '../../types/object/module.f.ts'
+import { sort } from '../../types/object/module.f.mjs'
 
 const toJson = stringify(sort)
 ```
