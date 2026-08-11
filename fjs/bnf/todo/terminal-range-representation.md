@@ -97,5 +97,5 @@ assuming that only `TerminalRange` changes.
   decision.
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md) — keeps the range
   representation independent from Unicode-specific syntax.
-- [`fjs/bnf/module.f.mjs`](../module.f.ts) — current 24-bit packed range encoding and
+- [`fjs/bnf/module.f.mjs`](../module.f.mjs) — current 24-bit packed range encoding and
   rule representation.

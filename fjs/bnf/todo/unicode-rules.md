@@ -180,7 +180,7 @@ new module boundary and final rule discriminants before implementation starts.
 - [Reuse `toSequence` in BNF data](./data-tosequence-reuse.md) — irrelevant because
   it is superseded by this split; generic BNF data no longer performs Unicode
   string expansion.
-- [`fjs/bnf/module.f.mjs`](../module.f.ts) — currently mixes generic and Unicode
+- [`fjs/bnf/module.f.mjs`](../module.f.mjs) — currently mixes generic and Unicode
   rule construction.
 - [`fjs/bnf/data/module.f.ts`](../data/module.f.ts) — currently expands string
   rules into Unicode code-point terminals.

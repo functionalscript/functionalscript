@@ -264,7 +264,7 @@ boundary, not to BNF parsers.
   IDs with deterministic token-name-derived symbols after this task lands.
 - [Layered parser](./layered-parser.md) — tokenizer output becomes input symbols to
   the next BNF layer.
-- [`fjs/bnf/module.f.mjs`](../module.f.ts) — current 24-bit symbol/range encoding.
+- [`fjs/bnf/module.f.mjs`](../module.f.mjs) — current 24-bit symbol/range encoding.
 - [`fjs/types/range/module.f.mjs`](../../types/range/module.f.mjs) — remains the
   existing number-boundary helper used by current number callers.
 - [`fjs/types/range_map/module.f.mjs`](../../types/range_map/module.f.mjs) — shared
