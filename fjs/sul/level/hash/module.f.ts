@@ -6,7 +6,8 @@
 
 import type { Create, State } from '../../../types/patricia_trie/types.ts'
 import { emptyState, patriciaTrie } from '../../../types/patricia_trie/module.f.mjs'
-import { compress, type Id } from '../../id/module.f.ts'
+import { compress } from '../../id/module.f.mjs'
+import type { Id } from '../../id/types.ts'
 import { asBase } from '../../../types/nominal/module.f.mjs'
 
 /**

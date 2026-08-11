@@ -1,5 +1,6 @@
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
-import { compress, level3Id, type Id } from '../../id/module.f.ts'
+import { compress, level3Id } from '../../id/module.f.mjs'
+import type { Id } from '../../id/types.ts'
 import { emptyEncodeState, encode, type EncodeState } from './module.f.ts'
 
 type NodeList = readonly [Id, Id, Id, boolean][]
