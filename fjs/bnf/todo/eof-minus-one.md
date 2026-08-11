@@ -59,8 +59,14 @@ Keep public parser positions in the physical input domain:
 0 <= idx <= input.length
 ```
 
-The parser's internal state must separately record whether the synthesized EOF has
-already been consumed. Conceptually:
+The parser's internal cursor must include both the physical position and logical
+EOF-consumption state:
+
+```text
+cursor = (idx, eofConsumed)
+```
+
+Conceptually:
 
 ```text
 idx < input.length
@@ -71,10 +77,29 @@ idx == input.length && eofConsumed
     -> no symbol remains
 ```
 
-Matching EOF marks that logical symbol as consumed but does not advance a public
-physical position beyond the input. Indexed results therefore report
-`input.length` after a successful EOF match, not `input.length + 1`; remainder-
-based results continue to expose the empty physical remainder.
+Matching EOF changes the internal cursor from `(input.length, false)` to
+`(input.length, true)`. It therefore **does count as parser progress**, even though
+the public physical `idx` does not change.
+
+Parser control flow must compare and snapshot the complete internal cursor, not
+`idx` alone. In particular:
+
+- sequencing observes the updated `(idx, eofConsumed)` state after a successful
+  EOF match;
+- variant/alternative selection treats an EOF-consuming branch as consuming
+  input/progress and must not replace it with a later nullable branch merely
+  because the public `idx` is unchanged;
+- repetition uses complete-cursor equality for its no-progress/termination check,
+  so consuming EOF is one real step rather than a nullable match;
+- backtracking/failing alternatives restore both `idx` and `eofConsumed` to the
+  branch-entry snapshot, so a failed branch that tentatively consumes EOF does
+  not make EOF unavailable to a later branch.
+
+Matching EOF does not advance a public physical position beyond the input.
+Indexed results therefore report `input.length` after a successful EOF match, not
+`input.length + 1`; remainder-based results continue to expose the empty physical
+remainder. Public result normalization happens after internal parser control flow
+has used the complete cursor state.
 
 The synthesized EOF has no physical source element and contributes no ordinary
 symbol/metadata leaf to the AST. Diagnostics that reject a terminal at EOF should
@@ -144,7 +169,11 @@ boundaries may remain raw integers/bigints outside the semantic terminal domain.
       value.
 - [ ] Preserve the full current 24-bit ordinary-symbol domain `0 .. 2^24 - 1`.
 - [ ] Update every parser/recognizer backend to synthesize exactly one logical EOF
-      after physical input and track whether it has been consumed internally.
+      after physical input and track the internal cursor as `(idx, eofConsumed)`.
+- [ ] Use complete internal-cursor equality, not public `idx` equality, for parser
+      progress in sequencing, variant/alternative selection, and repetition.
+- [ ] Snapshot and restore both `idx` and `eofConsumed` during backtracking so a
+      failing branch cannot consume logical EOF permanently.
 - [ ] Keep public positions/remainders in the physical input domain after EOF
       consumption: indexed results report `input.length`, never `input.length + 1`.
 - [ ] Keep synthesized EOF out of ordinary AST metadata leaves and preserve EOF
@@ -166,7 +195,9 @@ boundaries may remain raw integers/bigints outside the semantic terminal domain.
       point below ordinary symbol `0`; use `-2` when a raw cut point is required
       below EOF.
 - [ ] Add proof coverage for EOF on empty/non-empty input, one-time EOF
-      consumption, failure before physical end, public position normalization,
+      consumption, EOF branches inside variants, EOF inside repetition, nullable
+      alternatives after an EOF branch, restoration after a failing branch,
+      failure before physical end, public position normalization,
       minimum/maximum ordinary symbols, encode/decode round trips,
       singleton/general ranges, `fullRange`, and complements.
 - [ ] Add the required `CHANGELOG.md` breaking-change entry if the implementation
