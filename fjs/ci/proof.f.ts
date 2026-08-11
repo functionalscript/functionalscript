@@ -1,7 +1,7 @@
 import { ci, main } from './module.f.ts'
 import { functionalscript, node } from './config/module.f.mjs'
 import { nodeNixJobs } from './node/module.f.ts'
-import { coverageInclude } from './deno/module.f.ts'
+import { coverageInclude } from './deno/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
 import { test, ubuntu, parseGitHubAction } from './common/module.f.mjs'

@@ -24,7 +24,7 @@ import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.ts'
 import { nodeMainSteps, nodeNixJobs, nodeNixVersionSteps, nodeVersionJobs } from './node/module.f.ts'
 import { nixFlakes, nixInstall, type NixJob } from './nix/module.f.ts'
 import { bunSteps } from './bun/module.f.mjs'
-import { denoSteps } from './deno/module.f.ts'
+import { denoSteps } from './deno/module.f.mjs'
 
 const job = (
     rust: boolean,

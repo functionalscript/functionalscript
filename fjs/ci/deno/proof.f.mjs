@@ -1,8 +1,9 @@
-import { coverageInclude, denoSteps } from './module.f.ts'
+import { coverageInclude, denoSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
-const coverageRuns = (version: string): readonly string[] =>
+/** @type {(version: string) => readonly string[]} */
+const coverageRuns = version =>
     toSteps(denoSteps(version))
         .flatMap(s => s.run !== undefined && s.run.includes('deno coverage') ? [s.run] : [])
 

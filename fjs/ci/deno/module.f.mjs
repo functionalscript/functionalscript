@@ -6,9 +6,9 @@
  */
 import { deno } from '../config/module.f.mjs'
 import { install, test, uses } from '../common/module.f.mjs'
-import type { MetaStep } from '../common/types.ts'
+/** @import { MetaStep } from '../common/types.ts' */
 
-const denoTest = 'deno test --allow-read --allow-env --allow-sys' as const
+const denoTest = 'deno test --allow-read --allow-env --allow-sys'
 
 /**
  * The regular expression selecting FunctionalScript implementation modules for
@@ -17,9 +17,10 @@ const denoTest = 'deno test --allow-read --allow-env --allow-sys' as const
  * the `--test-coverage-include` list in `package.json` and to the `cov` task in
  * `deno.json`.
  */
-export const coverageInclude = '.*module\\.f\\.(ts|mjs)' as const
+export const coverageInclude = '.*module\\.f\\.(ts|mjs)'
 
-export const denoSteps = (version: string): readonly MetaStep[] => [
+/** @type {(version: string) => readonly MetaStep[]} */
+export const denoSteps = version => [
     install(uses('denoland/setup-deno', { 'deno-version': deno })),
     // We need --minimum-dependency-age=0 for functionalscript because we would like to use
     // the latest version of the package even if it is not yet 24 hours old,
