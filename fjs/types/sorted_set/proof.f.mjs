@@ -1,19 +1,22 @@
-import { has, intersect, union } from './module.f.ts'
-import { stringify, type Unknown } from '../../media/json/module.f.ts'
+import { has, intersect, union } from './module.f.mjs'
+import { stringify } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.mjs'
 import { toArray, countdown, length } from '../list/module.f.mjs'
 import { flip } from '../function/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
-const str: (a: readonly Unknown[]) => string
-    = a => stringify(sort)(a)
+const str = stringify(sort)
 
 const reverseCmp = flip(cmp)
 
 export const proof = {
     example: () => {
-        const cmp = (a: number) => (b: number) => a < b ? -1 : a > b ? 1 : 0
+        const cmp =
+            /** @param {number} a */
+            a =>
+            /** @param {number} b */
+            b => a < b ? -1 : a > b ? 1 : 0
 
         const setA = [1, 3, 5]
         const setB = [3, 4, 5]
