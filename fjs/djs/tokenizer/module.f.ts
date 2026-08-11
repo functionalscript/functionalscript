@@ -24,9 +24,11 @@ import {
     set,
     unicodeMax,
     unicodeRange,
-    type DataRule,
-    type Rule
-} from "../../bnf/module.f.ts"
+} from "../../bnf/module.f.mjs"
+import type {
+    DataRule,
+    Rule
+} from "../../bnf/types.ts"
 import {
     isKeywordToken,
     type BigIntToken,

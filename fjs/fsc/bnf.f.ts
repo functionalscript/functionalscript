@@ -1,4 +1,5 @@
-import { range, remove, set, type Rule, option } from '../bnf/module.f.ts'
+import { range, remove, set, option } from '../bnf/module.f.mjs'
+import type { Rule } from '../bnf/types.ts'
 import { digit, json, unicode, ws0, ws1, wsNoNewLine0 } from './json.f.ts'
 
 export const wsModule: Rule = () => [ws0, module]

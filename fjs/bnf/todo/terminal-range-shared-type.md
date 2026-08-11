@@ -5,7 +5,7 @@
 
 ### Problem
 
-The same public type is declared in two modules. `fjs/bnf/module.f.ts:23`:
+The same public type is declared in two modules. `fjs/bnf/module.f.mjs:23`:
 
 ```ts
 export type TerminalRange = number
@@ -29,7 +29,7 @@ changes from a plain `number`).
 
 ### Proposal
 
-Define `TerminalRange` once in `fjs/bnf/module.f.ts` (the module that owns the
+Define `TerminalRange` once in `fjs/bnf/module.f.mjs` (the module that owns the
 range encode/decode primitives) and have `fjs/bnf/data/module.f.ts` import and
 re-export it rather than redeclaring. Per `AGENTS.md`: "When a sibling module
 already has the type you need, import it" instead of duplicating.

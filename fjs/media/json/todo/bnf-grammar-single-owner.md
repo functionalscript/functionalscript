@@ -18,7 +18,7 @@ The duplicated digit/string rules have no single owner, while `fjs/bnf` itself
 should remain grammar tooling rather than the home of a concrete media grammar.
 
 This design originally imported Unicode helpers such as `range`, `set`, and
-`unicodeMax` from generic `fjs/bnf/module.f.ts` and used raw JavaScript strings as
+`unicodeMax` from generic `fjs/bnf/module.f.mjs` and used raw JavaScript strings as
 `Rule` values. That API is removed by the blocking alphabet-specific BNF split.
 Do not implement this TODO against the old API.
 
@@ -38,7 +38,7 @@ fjs/media/json/grammar -> fjs/bnf + fjs/bnf/unicode
 
 After the alphabet split:
 
-- generic grammar structure/combinators come from `fjs/bnf/module.f.ts`;
+- generic grammar structure/combinators come from `fjs/bnf/module.f.mjs`;
 - all JavaScript-string / Unicode-code-point interpretation comes from
   `fjs/bnf/unicode/module.f.ts`;
 - raw strings are not generic BNF rules. Text literals such as `"`, `\`, `/`,
@@ -51,7 +51,7 @@ Conceptually the imports should follow this boundary:
 import {
     commaJoin0Plus, option, remove, repeat, repeat0Plus,
     type Rule, type Variant,
-} from '../../../bnf/module.f.ts'
+} from '../../../bnf/module.f.mjs'
 import {
     range, set, str, unicodeMax,
 } from '../../../bnf/unicode/module.f.ts'
@@ -97,7 +97,7 @@ Before implementing this TODO after the blocking split:
 - [ ] Replace every raw string used as a generic BNF `Rule` with the appropriate
       Unicode helper construction.
 - [ ] Ensure generic combinators receive already-lowered rules/symbols and do not
-      reintroduce hidden string interpretation into `fjs/bnf/module.f.ts`.
+      reintroduce hidden string interpretation into `fjs/bnf/module.f.mjs`.
 - [ ] Update examples/proofs to make the generic-vs-Unicode boundary visible.
 
 ### Tasks

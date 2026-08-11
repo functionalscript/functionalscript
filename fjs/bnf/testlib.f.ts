@@ -8,8 +8,8 @@ import {
     repeat0Plus,
     set,
     unicodeMax,
-    type Rule
-} from './module.f.ts'
+} from './module.f.mjs'
+import type { Rule } from './types.ts'
 
 export const classic = (): Rule => {
 

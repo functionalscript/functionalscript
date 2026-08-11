@@ -75,7 +75,7 @@ const numberRule = [optionalMinusRule, digitRule]
 
 The fixture remains a Unicode/text fixture, so after the alphabet split the
 `range` used here must come from `fjs/bnf/unicode/module.f.ts` (or the equivalent
-final Unicode adapter API), **not** from core `fjs/bnf/module.f.ts`. The produced
+final Unicode adapter API), **not** from core `fjs/bnf/module.f.mjs`. The produced
 rules are still ordinary generic BNF rules consumed by descent/LL1.
 
 Four of the nine copies carry a `minursRule` typo. One site is a deliberate

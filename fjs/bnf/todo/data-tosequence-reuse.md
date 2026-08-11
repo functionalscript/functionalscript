@@ -7,7 +7,7 @@
 ### Why irrelevant
 
 This TODO proposed preserving `bnf/data`'s generic `string` rule case and reusing
-`toSequence` from `fjs/bnf/module.f.ts` to implement its Unicode expansion.
+`toSequence` from `fjs/bnf/module.f.mjs` to implement its Unicode expansion.
 
 The alphabet-specific BNF split intentionally removes that architecture instead:
 

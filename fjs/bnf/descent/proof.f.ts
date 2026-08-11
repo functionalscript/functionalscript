@@ -1,7 +1,7 @@
 import type { CodePoint } from '../../text/utf16/types.ts'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
-import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.ts'
+import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.mjs'
 import { deterministic } from '../testlib.f.ts'
 import { emptyTagMap, toData } from '../data/module.f.ts'
 import { descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult } from './module.f.ts'

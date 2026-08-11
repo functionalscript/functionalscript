@@ -14,11 +14,12 @@
  * @module
  */
 import type { CodePoint } from '../../text/utf16/types.ts'
-import { rangeDecode, type TerminalRange } from '../module.f.ts'
+import { rangeDecode } from '../module.f.mjs'
+import type { TerminalRange } from '../types.ts'
 import { contains as rangeContains } from '../../types/range/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { emptyTagMap, toData, type Rule as DataRule, type Sequence } from '../data/module.f.ts'
-import { type Rule as FRule } from '../module.f.ts'
+import type { Rule as FRule } from '../types.ts'
 
 export type AstTag = string|true|undefined
 
