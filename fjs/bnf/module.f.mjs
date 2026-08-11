@@ -56,11 +56,13 @@ export const eof = oneEncode(mask)
 
 /**
  * Full 24-bit symbol range packed into a single {@link TerminalRange}.
+ * @type {TerminalRange}
  */
 export const fullRange = 0x000000_FFFFFF
 
 /**
  * Unicode scalar value range packed into a single {@link TerminalRange}.
+ * @type {TerminalRange}
  */
 export const unicodeRange = 0x000000_10FFFF
 
