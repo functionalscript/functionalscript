@@ -25,7 +25,7 @@ history.
   `EncodeState`/`Encode` types into a sibling `types.ts` — importers
   must use the `.f.mjs` specifier for runtime values and the `types.ts`
   specifier for types
-  [#TBD](https://github.com/functionalscript/functionalscript/pull/TBD)
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
 - **BREAKING CHANGES:** `fjs/types/object`, `fjs/sul/level/literal`,
   `fjs/sul/id`, `fjs/sul/level/hash`, `fjs/types/string_set`, and the
   `module.f.ts` of `fjs/types/sorted_set` and `fjs/types/byte_set`
