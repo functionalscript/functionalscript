@@ -1,12 +1,14 @@
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { access, awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat } from '../module.f.mjs'
 import { maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
-import { emptyState, virtual, type Dir, type JsModule } from './module.f.ts'
+import { emptyState, virtual } from './module.f.mjs'
+/** @import { Dir, JsModule } from './types.ts' */
 
 export const proof = {
     rm: {
         success: () => {
-            const root: Dir = { 'a.txt': [vec8(0x42n)] }
+            /** @type {Dir} */
+            const root = { 'a.txt': [vec8(0x42n)] }
             const [, result] = virtual({ ...emptyState, root })(rm('a.txt'))
             assert(result[0] === 'ok')
         },
@@ -15,23 +17,30 @@ export const proof = {
             assert(result[0] === 'error')
         },
         isDirectory: () => {
-            const inner: Dir = {}
-            const root: Dir = { 'mydir': inner }
+            /** @type {Dir} */
+            const inner = {}
+            /** @type {Dir} */
+            const root = { 'mydir': inner }
             const [, result] = virtual({ ...emptyState, root })(rm('mydir'))
             assert(result[0] === 'error')
         },
     },
     writeFileOnDirectory: () => {
-        const inner: Dir = {}
-        const root: Dir = { 'mydir': inner }
+        /** @type {Dir} */
+        const inner = {}
+        /** @type {Dir} */
+        const root = { 'mydir': inner }
         const [, result] = virtual({ ...emptyState, root })(writeFile('mydir', vec8(0x42n)))
         assert(result[0] === 'error')
     },
     readdirRecursive: () => {
-        const file = [vec8(0x42n)] as const
-        const sub: Dir = { 'file.txt': file }
-        const outer: Dir = { 'sub': sub }
-        const root: Dir = { 'mydir': outer }
+        const file = /** @type {const} */ ([vec8(0x42n)])
+        /** @type {Dir} */
+        const sub = { 'file.txt': file }
+        /** @type {Dir} */
+        const outer = { 'sub': sub }
+        /** @type {Dir} */
+        const root = { 'mydir': outer }
         const [, result] = virtual({ ...emptyState, root })(readdir('mydir', { recursive: true }))
         assert(result[0] === 'ok')
         assert(result[0] === 'ok', result)
@@ -42,16 +51,20 @@ export const proof = {
         // fallback passes the full remaining path through unchanged, covering the
         // path.length !== 1 branch of the access op (only path.length === 0 was
         // otherwise exercised).
-        const root: Dir = { 'a': [vec8(0x42n)] }
+        /** @type {Dir} */
+        const root = { 'a': [vec8(0x42n)] }
         const [, result] = virtual({ ...emptyState, root })(access('a/b/c'))
         assert(result[0] === 'error')
     },
     readFileIntoDir: () => {
         // 'a/b' where both 'a' and 'b' are directories
         // hits path.length === 0 in operation's f and path.length !== 1 in readFile op
-        const inner: Dir = {}
-        const outer: Dir = { 'b': inner }
-        const root: Dir = { 'a': outer }
+        /** @type {Dir} */
+        const inner = {}
+        /** @type {Dir} */
+        const outer = { 'b': inner }
+        /** @type {Dir} */
+        const root = { 'a': outer }
         const [, result] = virtual({ ...emptyState, root })(readFile('a/b'))
         assert(result[0] === 'error')
     },
@@ -73,50 +86,58 @@ export const proof = {
     },
     importNonModule: () => {
         // import_ on a Vec (not a JsModule) covers typeof entry !== 'function' branch
-        const root: Dir = { 'module.f.ts': [vec8(0x42n)] }
+        /** @type {Dir} */
+        const root = { 'module.f.ts': [vec8(0x42n)] }
         const [, result] = virtual({ ...emptyState, root })(import_('module.f.ts'))
         assert(result[0] === 'error')
     },
     throw: {
         readFileOnJsModule: () => {
             // readFile on a JsModule path covers typeof file === 'function' branch
-            const root: Dir = { 'a.f.ts': (() => ({})) as JsModule }
+            /** @type {Dir} */
+            const root = { 'a.f.ts': /** @type {JsModule} */ (() => ({})) }
             virtual({ ...emptyState, root })(readFile('a.f.ts'))
         },
     },
     renameSamePath: () => {
         // rename('a', 'a') should succeed as a no-op, not reject
-        const root: Dir = { 'a': [vec8(0x42n)] }
+        /** @type {Dir} */
+        const root = { 'a': [vec8(0x42n)] }
         const [, result] = virtual({ ...emptyState, root })(rename('a', 'a'))
         assert(result[0] === 'ok')
     },
     renameIntoOwnSubtree: () => {
         // rename('a', 'a/b') should fail (dst inside src's subtree)
-        const root: Dir = { 'a': { 'b': [vec8(0x42n)] } }
+        /** @type {Dir} */
+        const root = { 'a': { 'b': [vec8(0x42n)] } }
         const [, result] = virtual({ ...emptyState, root })(rename('a', 'a/b'))
         assert(result[0] === 'error')
     },
     renameOntoOwnAncestor: () => {
         // rename('a/b', 'a') should fail (src inside dst's subtree)
-        const root: Dir = { 'a': { 'b': [vec8(0x42n)] } }
+        /** @type {Dir} */
+        const root = { 'a': { 'b': [vec8(0x42n)] } }
         const [, result] = virtual({ ...emptyState, root })(rename('a/b', 'a'))
         assert(result[0] === 'error')
     },
     renameNonEmptyDirOverEmptyDir: () => {
         // rename a directory onto an empty directory should succeed
-        const root: Dir = { 'src': { 'file': [vec8(0x42n)] }, 'dst': {} }
+        /** @type {Dir} */
+        const root = { 'src': { 'file': [vec8(0x42n)] }, 'dst': {} }
         const [, result] = virtual({ ...emptyState, root })(rename('src', 'dst'))
         assert(result[0] === 'ok')
     },
     renameEmptyDirOverNonEmptyDir: () => {
         // rename an empty directory onto a non-empty directory should fail
-        const root: Dir = { 'src': {}, 'dst': { 'file': [vec8(0x42n)] } }
+        /** @type {Dir} */
+        const root = { 'src': {}, 'dst': { 'file': [vec8(0x42n)] } }
         const [, result] = virtual({ ...emptyState, root })(rename('src', 'dst'))
         assert(result[0] === 'error')
     },
     renameFileOntoDirectory: () => {
         // rename a file to a path that is already an existing directory should fail
-        const root: Dir = { 'myfile': [vec8(0x42n)], 'mydir': {} }
+        /** @type {Dir} */
+        const root = { 'myfile': [vec8(0x42n)], 'mydir': {} }
         const [, result] = virtual({ ...emptyState, root })(rename('myfile', 'mydir'))
         assert(result[0] === 'error')
     },
@@ -124,37 +145,43 @@ export const proof = {
         // a file stored as two max-size chunks exceeds the limit; readFile must return an error
         const chunk0 = vec(maxLengthBytes * 8n)(0n)
         const chunk1 = vec(1n)(1n)
-        const root: Dir = { 'big': [chunk0, chunk1] }
+        /** @type {Dir} */
+        const root = { 'big': [chunk0, chunk1] }
         const [, result] = virtual({ ...emptyState, root })(readFile('big'))
         assert(result[0] === 'error')
     },
     readBytesNegativeSize: () => {
         // readBytes with negative size should fail
-        const root: Dir = { 'file': [vec8(0x42n)] }
+        /** @type {Dir} */
+        const root = { 'file': [vec8(0x42n)] }
         const [, result] = virtual({ ...emptyState, root })(readBytes('file', 0, -1))
         assert(result[0] === 'error')
     },
     readBytesZeroSize: () => {
         // readBytes with zero size should succeed and return empty vec
-        const root: Dir = { 'file': [vec8(0x42n)] }
+        /** @type {Dir} */
+        const root = { 'file': [vec8(0x42n)] }
         const [, result] = virtual({ ...emptyState, root })(readBytes('file', 0, 0))
         assert(result[0] === 'ok')
     },
     readBytesNegativeOffset: () => {
         // readBytes with negative offset should fail
-        const root: Dir = { 'file': [vec8(0x42n)] }
+        /** @type {Dir} */
+        const root = { 'file': [vec8(0x42n)] }
         const [, result] = virtual({ ...emptyState, root })(readBytes('file', -1, 1))
         assert(result[0] === 'error')
     },
     readBytesFractionalSize: () => {
         // readBytes with fractional size should fail rather than throw RangeError
-        const root: Dir = { 'file': [vec8(0x42n)] }
+        /** @type {Dir} */
+        const root = { 'file': [vec8(0x42n)] }
         const [, result] = virtual({ ...emptyState, root })(readBytes('file', 0, 1.5))
         assert(result[0] === 'error')
     },
     readBytesFractionalOffset: () => {
         // readBytes with fractional offset should fail rather than throw RangeError
-        const root: Dir = { 'file': [vec8(0x42n)] }
+        /** @type {Dir} */
+        const root = { 'file': [vec8(0x42n)] }
         const [, result] = virtual({ ...emptyState, root })(readBytes('file', 0.5, 1))
         assert(result[0] === 'error')
     },
@@ -163,21 +190,24 @@ export const proof = {
         const chunkSize = Number(maxLengthBytes)
         const chunk0 = vec(maxLengthBytes * 8n)(0xAAn)
         const chunk1 = vec(maxLengthBytes * 8n)(0xBBn)
-        const root: Dir = { 'big': [chunk0, chunk1] }
+        /** @type {Dir} */
+        const root = { 'big': [chunk0, chunk1] }
         const [, result] = virtual({ ...emptyState, root })(readBytes('big', chunkSize - 1, 2))
         assert(result[0] === 'ok')
     },
     writeBytesWrongOffset: () => {
         // writeBytes is append-only; an offset that doesn't match the current
         // file size must fail rather than silently create a hole.
-        const root: Dir = { 'file': [vec8(0x42n)] }
+        /** @type {Dir} */
+        const root = { 'file': [vec8(0x42n)] }
         const [, result] = virtual({ ...emptyState, root })(writeBytes('file', 5, vec8(0x43n)))
         assert(result[0] === 'error')
     },
     statOnJsModule: () => {
         // stat on a JsModule entry (neither an array nor a descendable
         // directory) covers the !Array.isArray(file) branch of statOp.
-        const root: Dir = { 'a.f.ts': (() => ({})) as JsModule }
+        /** @type {Dir} */
+        const root = { 'a.f.ts': /** @type {JsModule} */ (() => ({})) }
         const [, result] = virtual({ ...emptyState, root })(stat('a.f.ts'))
         assert(result[0] === 'error')
         assertEq(result[1], `'a.f.ts' is not a file`)
@@ -188,7 +218,8 @@ export const proof = {
         const chunkSize = Number(maxLengthBytes)
         const chunk0 = vec(maxLengthBytes * 8n)(0n)
         const chunk1 = vec(maxLengthBytes * 8n)(0xFFn)
-        const root: Dir = { 'large': [chunk0, chunk1] }
+        /** @type {Dir} */
+        const root = { 'large': [chunk0, chunk1] }
         const [, result] = virtual({ ...emptyState, root })(readBytes('large', chunkSize, 1))
         assert(result[0] === 'ok')
     },

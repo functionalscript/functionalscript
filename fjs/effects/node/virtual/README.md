@@ -5,7 +5,7 @@ A synchronous, in-memory implementation of the `NodeOp` effect runner, primarily
 ## Usage
 
 ```ts
-import { virtual, emptyState } from './module.f.ts'
+import { virtual, emptyState } from './module.f.mjs'
 
 const [finalState, result] = virtual(emptyState)(myEffect)
 ```

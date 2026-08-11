@@ -9,7 +9,7 @@ import { mkdir, writeFile, rm, readFile, access } from '../effects/node/module.f
 import type { ReadFile, WriteFile, Rm, Mkdir, IoResult } from '../effects/node/types.ts'
 import type { Ok } from '../types/result/types.ts'
 import { error, ok } from '../types/result/module.f.mjs'
-import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
+import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { join } from '../path/module.f.mjs'
 import { nonEmpty, empty } from '../effects/list/module.f.mjs'
 import type { List } from '../effects/list/types.ts'

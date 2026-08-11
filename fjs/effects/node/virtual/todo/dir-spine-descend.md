@@ -5,13 +5,13 @@
 
 ### Problem
 
-Three helpers in `fjs/effects/node/virtual/module.f.ts` independently
+Three helpers in `fjs/effects/node/virtual/module.f.mjs` independently
 implement "recurse down `path` segments through the `Dir` tree, bail when an
 intermediate node isn't a directory, then rebuild the immutable spine with a
 spread":
 
-- `operation`'s inner `f` — `:62-74`
-- `extractEntity` — `:188-193`
+- `operation`'s inner `f` — `:44-50`
+- `extractEntity` — `:187-192`
 - `insertEntityAt` — `:220-226`
 
 ```ts

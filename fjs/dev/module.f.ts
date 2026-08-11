@@ -12,7 +12,8 @@ import { pure, step } from '../effects/module.f.mjs'
 import type { Effect } from '../effects/types.ts'
 import { join, relativize, toPosix } from '../path/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
-import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
+import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import type { Dir } from '../effects/node/virtual/types.ts'
 
 export type Module = {
     readonly proof?: unknown

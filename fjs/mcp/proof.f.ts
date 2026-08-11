@@ -27,7 +27,8 @@ import type {
     ReadBytes,
     Rename,
 } from '../effects/node/types.ts'
-import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
+import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import type { Dir } from '../effects/node/virtual/types.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
 import { ok as resultOk, unwrap } from '../types/result/module.f.mjs'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.ts'
