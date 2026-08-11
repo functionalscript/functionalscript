@@ -2,7 +2,7 @@ import { assert, assertEq } from '../asserts/module.f.mjs'
 import { compress } from './id/module.f.mjs'
 import type { Id } from './id/types.ts'
 import { encode, emptyEncodeState } from './module.f.ts'
-import type { Add } from './level/hash/module.f.ts'
+import type { Add } from './level/hash/types.ts'
 
 type Merge = readonly [Id, Id, Id, boolean]
 

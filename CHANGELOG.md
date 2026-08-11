@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/sul/level/hash` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
+  stage-1 TypeScript-to-mjs migration, splitting the `Add`/`EncodeState`
+  types into a sibling `types.ts` — importers must use the `.f.mjs`
+  specifier for runtime values and the `types.ts` specifier for types
+  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
 - **BREAKING CHANGES:** `fjs/sul/id` migrates from authored TypeScript
   (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
   TypeScript-to-mjs migration, splitting the `Id` type into a sibling

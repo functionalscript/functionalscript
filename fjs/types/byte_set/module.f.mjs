@@ -10,9 +10,9 @@ import { compose } from '../function/module.f.mjs'
 import { reverse, countdown, flat, map } from '../list/module.f.mjs'
 /** @import { ByteSet } from './types.ts' */
 
-/** @typedef {number} Byte */
+/** @typedef {number} _Byte */
 
-/** @type {(n: Byte) => (s: ByteSet) => boolean} */
+/** @type {(n: _Byte) => (s: ByteSet) => boolean} */
 export const has = n => s => ((s >> BigInt(n)) & 1n) === 1n
 
 // create a set
@@ -22,10 +22,10 @@ export const empty = 0n
 //                        0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
 export const universe = 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFFn
 
-/** @type {(n: Byte) => ByteSet} */
+/** @type {(n: _Byte) => ByteSet} */
 export const one = n => 1n << BigInt(n)
 
-/** @type {(r: readonly [Byte, Byte]) => ByteSet} */
+/** @type {(r: readonly [_Byte, _Byte]) => ByteSet} */
 export const range = ([b, e]) => one(e - b + 1) - 1n << BigInt(b)
 
 // set operations
@@ -50,7 +50,7 @@ export const set = compose(one)(union)
 /** @type {(_: readonly [number, number]) => (b: ByteSet) => ByteSet} */
 export const setRange = compose(range)(union)
 
-/** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
+/** @type {(n: _Byte) => (s: ByteSet) => ByteSet} */
 export const unset = n => s => difference(s)(one(n))
 
 const counter = reverse(countdown(256))

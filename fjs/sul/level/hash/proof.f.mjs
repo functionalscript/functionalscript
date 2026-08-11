@@ -1,16 +1,20 @@
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { compress, level3Id } from '../../id/module.f.mjs'
-import type { Id } from '../../id/types.ts'
-import { emptyEncodeState, encode, type EncodeState } from './module.f.ts'
+/** @import { Id } from '../../id/types.ts' */
+import { emptyEncodeState, encode } from './module.f.mjs'
+/** @import { EncodeState } from './types.ts' */
 
-type NodeList = readonly [Id, Id, Id, boolean][]
+/** @typedef {readonly (readonly [Id, Id, Id, boolean])[]} NodeList */
 
-const add = (l: Id, r: Id, m: Id, isSymbol: boolean, s: NodeList): NodeList => [...s, [l, r, m, isSymbol]]
+/** @type {(l: Id, r: Id, m: Id, isSymbol: boolean, s: NodeList) => NodeList} */
+const add = (l, r, m, isSymbol, s) => [...s, [l, r, m, isSymbol]]
 const enc = encode(add)
-const initial: EncodeState<NodeList> = emptyEncodeState([])
+/** @type {EncodeState<NodeList>} */
+const initial = emptyEncodeState([])
 
 // Run a complete valid word from a clean state; throws if no output is produced.
-const runWord = (symbols: readonly Id[]): readonly [Id, NodeList] => {
+/** @type {(symbols: readonly Id[]) => readonly [Id, NodeList]} */
+const runWord = symbols => {
     let state = initial
     for (const s of symbols) {
         const [out, newState] = enc(s, state)
@@ -21,7 +25,8 @@ const runWord = (symbols: readonly Id[]): readonly [Id, NodeList] => {
 }
 
 // Every stored triple must satisfy m === compress(l, r).
-const verifyStorage = (storage: NodeList) => {
+/** @type {(storage: NodeList) => void} */
+const verifyStorage = storage => {
     for (const [l, r, m] of storage) { assertEq(m, compress(l, r)) }
 }
 
@@ -72,7 +77,7 @@ export const proof = {
     // Output equals the merged value in the last add call
     output_is_last_add: () => {
         const [out, storage] = runWord([s1, s0, s1])
-        assertEq(out, storage.at(-1)![2])
+        assertEq(out, /** @type {NodeList[number]} */ (storage.at(-1))[2])
     },
 
     // Stack is empty after flush; storage is preserved
