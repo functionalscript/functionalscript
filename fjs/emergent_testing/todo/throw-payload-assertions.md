@@ -11,7 +11,7 @@ marker, and [AGENTS.md](../../../AGENTS.md) now flatly bans `try`/`catch` in `.f
 (FunctionalScript itself has no `try`/`catch` and isn't planning one soon). Codex flagged the
 regression this causes on that PR
 ([`fjs/asserts/proof.f.mjs:17`](../../asserts/proof.f.mjs#L17)): `defaultTest` in
-[`module.f.ts`](../module.f.ts) treats *any* caught exception under `throw` as a pass — it
+[`module.f.mjs`](../module.f.mjs) treats *any* caught exception under `throw` as a pass — it
 never inspects *what* was thrown. The `try`/`catch` versions it replaced did:
 
 ```ts

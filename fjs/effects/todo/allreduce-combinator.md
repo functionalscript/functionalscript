@@ -35,7 +35,7 @@ data with no methods — `.step` exists only on the `Eff` wrapper
 
 `op` must be **commutative** — results may arrive in any order when the runner schedules sub-effects in parallel.
 
-After adding `allReduce`, `runModuleMap` in `fjs/emergent_testing/module.f.ts` simplifies to:
+After adding `allReduce`, `runModuleMap` in `fjs/emergent_testing/module.f.mjs` simplifies to:
 
 ```ts
 return allReduce

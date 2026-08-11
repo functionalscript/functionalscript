@@ -7,9 +7,9 @@ import { assert, assertEq } from '../asserts/module.f.mjs'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
-    type Reporter,
     defaultTest,
-} from './module.f.ts'
+} from './module.f.mjs'
+import type { Reporter } from './types.ts'
 import { run as mockRun } from '../effects/mock/module.f.mjs'
 import type { All, Await, Test, TestContext } from '../effects/node/types.ts'
 import { shouldLoad } from '../dev/module.f.mjs'

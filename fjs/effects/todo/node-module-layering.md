@@ -34,7 +34,7 @@ itself cleanly. Two concrete symptoms:
 
 2. **`fjs/text/sgr/module.f.mjs:13`** — an ANSI SGR module imports `write`,
    `Write`, `WriteConsoles` and `NodeProgramOptions` from the Node module;
-   `fjs/emergent_testing/module.f.ts:14-30` imports 15 names from it, of which
+   `fjs/emergent_testing/module.f.mjs:16-29` imports names from it, of which
    only `Env`/`NodeProgram`/`NodeProgramOptions` are Node-specific.
 
 The module's own header already reads as a list of unrelated concerns:
@@ -103,7 +103,7 @@ Judgement calls worth deciding explicitly rather than by accident:
   (`fjs/effects/node/types.ts:282`) and `NodeProgramOptions` carries the
   `TestContext` fields used by the surviving process-side test adapters. Those
   are runner configuration and stay in `effects/node` — so `effects/node` would
-  have to import `emergent_testing`, while `emergent_testing/module.f.ts:21-24`
+  have to import `emergent_testing`, while `emergent_testing/module.f.mjs:21-24`
   keeps importing `NodeProgram`, `NodeProgramOptions` and `Program` back from
   `effects/node`. `fjs/effects/test/module.f.ts` sits below both, so both may
   import it and the dependency stays a DAG. (The alternative — moving
@@ -152,7 +152,7 @@ Judgement calls worth deciding explicitly rather than by accident:
   effect and keeps the runner contract in sync with the console module by
   construction.
 
-  `csiWrite` has one caller — `fjs/emergent_testing/module.f.ts:370`,
+  `csiWrite` has one caller — `fjs/emergent_testing/module.f.mjs:360`,
   `csiWrite(options)` — which becomes `csiWrite(options.std)`. This is the
   AGENTS.md "fix the design rather than bend the caller" direction: `csiWrite`
   never wanted a whole program-options record.
@@ -199,7 +199,7 @@ Judgement calls worth deciding explicitly rather than by accident:
 - [ ] Move the console family to `fjs/effects/console/module.f.ts`, add the
       named `Std` type there as `RequiredMap<WriteConsoles, …>`, point
       `NodeProgramOptions.std` at it, and narrow `csiWrite` to take `Std`
-      (updating its one caller, `fjs/emergent_testing/module.f.ts:370`). Verify
+      (updating its one caller, `fjs/emergent_testing/module.f.mjs:360`). Verify
       `fjs/text/sgr` no longer imports `effects/node` at all — that is the test
       for this step.
 - [ ] Move `Test` / `TestFn` / `TestContext` / `test` to
@@ -228,7 +228,7 @@ Judgement calls worth deciding explicitly rather than by accident:
 - [browser-testing](../../emergent_testing/todo/browser-testing.md) — owns the
   future Playwright adapter and browser-side test report.
 - `fjs/media/type/module.f.mjs:45`, `fjs/text/sgr/module.f.mjs:13`,
-  `fjs/emergent_testing/module.f.ts:14-30` — importers that reach into the Node
+  `fjs/emergent_testing/module.f.mjs:16-29` — importers that reach into the Node
   module for non-Node things.
 - [group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
   — the same regroup-by-concern exercise one level up, at `fjs/`.

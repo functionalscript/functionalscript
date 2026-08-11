@@ -6,7 +6,7 @@
 ### Problem
 
 `fjs t` always runs every discovered proof. `main`
-(`fjs/emergent_testing/module.f.ts`) passes `options` straight to
+(`fjs/emergent_testing/module.f.mjs`) passes `options` straight to
 `testAll(defaultReporter(options))` and never looks at `options.args`, so
 there is no way to say "run only these tests".
 
@@ -77,7 +77,7 @@ Open design questions to settle before implementing:
 
 - [GitHub issue #401](https://github.com/functionalscript/functionalscript/issues/401)
   — the original report.
-- `fjs/emergent_testing/module.f.ts` — `main`, `collectTests`, `testAll`.
+- `fjs/emergent_testing/module.f.mjs` — `main`, `collectTests`, `testAll`.
 - `fjs/dev/module.f.mjs` — `loadModuleMap` / `allFiles`; the predicate hook
   this needs.
 - [211](./211.md) — reporter modes; a filtered run's summary is a reporter

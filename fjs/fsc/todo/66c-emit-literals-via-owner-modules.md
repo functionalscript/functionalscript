@@ -71,11 +71,11 @@ structX(fields.map(([k, v]) => `${ro}${JSON.stringify(k)}:${v}`))
 // fjs/types/ts/module.f.mjs:46 — string primitive literal
 case 'string': return JSON.stringify(c)
 
-// fjs/emergent_testing/module.f.ts:281 — property access  obj["key"]
+// fjs/emergent_testing/module.f.mjs:282 — property access  obj["key"]
 : `[${JSON.stringify(k)}]`
-// fjs/emergent_testing/module.f.ts:298 — import("path")
+// fjs/emergent_testing/module.f.mjs:303 — import("path")
 `import(${JSON.stringify(file)}).proof${fmtPath(path)}()`
-// fjs/emergent_testing/module.f.ts:311 — terminal output
+// fjs/emergent_testing/module.f.mjs:318 — terminal output
 `${indent}${isInteger(last) || isIdentifier(last) ? last : JSON.stringify(last)}`
 ```
 

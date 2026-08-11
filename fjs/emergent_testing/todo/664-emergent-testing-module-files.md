@@ -48,7 +48,7 @@ determined at runtime by the existing check in `runModuleMap` /
 `registerModuleMap`:
 
 ```ts
-// fjs/emergent_testing/module.f.ts:222,244
+// fjs/emergent_testing/module.f.mjs:205,218
 .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
 ```
 

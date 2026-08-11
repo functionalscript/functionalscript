@@ -243,6 +243,6 @@ or each property proof through the removed Node-side Playwright bridge.
 ### Related
 
 - `fjs/emergent_testing/README.md` — current definition of test case (zero-arg only).
-- `fjs/emergent_testing/module.f.ts` — `runModule`, `registerModule` — the entry points to extend.
+- `fjs/emergent_testing/module.f.mjs` — `runModule`, `registerModule` — the entry points to extend.
 - [browser-testing](browser-testing.md) — browser-native execution shared by the HTML
   UI, `fjs browser-test`, and optional external Playwright Test adapter.

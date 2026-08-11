@@ -20,6 +20,14 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/emergent_testing/module.f.ts` migrates from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  splitting `TestFn`, `TestEntry`, `TestSet`, `Path`, `Reporter`, and the
+  internal `_TestState`/`_TestAndPath` types into a sibling `types.ts` —
+  importers must use the `.f.mjs` specifier for runtime values and the
+  `types.ts` specifier for types. `proof.f.ts` stays TypeScript for now
+  (it depends on `media/json/module.f.ts`, still unmigrated)
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
 - **BREAKING CHANGES:** `fjs/cas/cli` migrates from authored TypeScript
   (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — no local types to
   split. `proof.f.ts` migrates alongside it. Importers must use the
