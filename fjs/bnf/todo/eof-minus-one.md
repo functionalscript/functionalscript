@@ -29,8 +29,8 @@ EOF              = -1
 ordinary symbols = 0 .. 2^24 - 2
 ```
 
-This does **not** expand the current terminal space. There are still exactly
-`2^24` terminal values.
+This does **not** expand the current terminal space. There are exactly `2^24`
+terminal values both before and after the change.
 
 The later bigint-symbol migration is a separate change. It may expand ordinary
 symbols to the full uint256 domain:
