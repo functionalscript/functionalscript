@@ -20,6 +20,16 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/js/tokenizer/module.f.ts` migrates from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  splitting `StringToken`, `NumberToken`, `BigIntToken`, `ErrorToken`,
+  `WhitespaceToken`, `NewLineToken`, `IdToken`, `CommentToken`,
+  `EofToken`, `JsToken`, `TokenMetadata`, `JsTokenWithMetadata`, and a
+  large set of internal state-machine types into a sibling `types.ts` —
+  importers must use the `.f.mjs` specifier for runtime values and the
+  `types.ts` specifier for types. `proof.f.ts` stays TypeScript for now
+  (it depends on `djs/serializer/module.f.ts`, still unmigrated)
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
 - **BREAKING CHANGES:** `fjs/emergent_testing/module.f.ts` migrates from
   authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
   splitting `TestFn`, `TestEntry`, `TestSet`, `Path`, `Reporter`, and the

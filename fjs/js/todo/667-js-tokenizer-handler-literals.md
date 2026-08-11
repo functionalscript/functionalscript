@@ -5,14 +5,14 @@
 
 ### Problem
 
-The number- and escape-state handlers in `fjs/js/tokenizer/module.f.ts` repeat
+The number- and escape-state handlers in `fjs/js/tokenizer/module.f.mjs` repeat
 the same token-emitting object literals, differing only in a constant (the next
 `numberKind`, the `b` accumulator update, or the escaped character). The handler
 *structure* is duplicated; only the data varies — exactly what DRY targets.
 
 #### 1. `digit0ToToken` and `digit19ToToken` are the same function
 
-`fjs/js/tokenizer/module.f.ts:575-587` and `:590-602` are line-for-line
+`fjs/js/tokenizer/module.f.mjs:449-460` and `:463-474` are line-for-line
 identical except for the `numberKind` in the `default` branch:
 
 ```ts
@@ -24,7 +24,7 @@ Every other branch (`'0'`, `'.'`/`'fractional'`, `'e'`/`'e+'`/`'e-'`/`'expDigits
 is byte-identical. The two are registered side by side in `parseNumberStateOp`:
 
 ```ts
-// fjs/js/tokenizer/module.f.ts:675
+// fjs/js/tokenizer/module.f.mjs:538
 rangeFunc<ParseNumberState>(one(digit0))(digit0ToToken),
 rangeFunc<ParseNumberState>(rangeOneNine)(digit19ToToken),
 ```
@@ -49,7 +49,7 @@ envelope are constant noise repeated at every call site.
 
 #### 3. The five `\b \f \n \r \t` escape handlers differ only in the output char
 
-`fjs/js/tokenizer/module.f.ts:712-716`:
+`fjs/js/tokenizer/module.f.mjs:577-580`:
 
 ```ts
 rangeFunc<ParseEscapeCharState>(one(latinSmallLetterB))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(backspace) }]),
@@ -71,7 +71,7 @@ at module scope per `AGENTS.md`.
 #### 1 + 2 — a `numberToken` constructor, and one `digitToToken` factory
 
 The `numberKind` union and the `b` buffer shape are currently inline in
-`ParseNumberState` (`fjs/js/tokenizer/module.f.ts:297-300`); name them
+`ParseNumberState` (`fjs/js/tokenizer/types.ts:178-183`); name them
 (`NumberKind`, `NumberBuffer`) when extracting so the helper signatures stay
 precise:
 

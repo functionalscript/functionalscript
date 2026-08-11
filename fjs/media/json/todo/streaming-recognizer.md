@@ -18,7 +18,7 @@ pipeline unfit as a validity check for a size-independent streaming consumer:
 2. **The tokenizer buffers token payloads.** The shared `fjs/js` string and
    number states accumulate their text with `appendChar`
    (`ParseStringState.value`, `ParseNumberState.value` —
-   `fjs/js/tokenizer/module.f.ts:571-602,694-700`). A single huge token — e.g.
+   `fjs/js/tokenizer/module.f.mjs:436-474,550-556`). A single huge token — e.g.
    `{"x":"⟨1 MB⟩"}` or one very long number — allocates O(token length) even
    before the parser runs. So a recognizer built by discarding only the parser's
    values still buffers whole tokens.
@@ -123,5 +123,5 @@ property, scoped to make it actually hold:
 ### Related
 
 - `fjs/media/json/parser/module.f.ts:205-238` — `foldOp` / `parse`; the control machine to reuse value-free.
-- `fjs/js/tokenizer/module.f.ts:571-602,694-700` — string/number states that buffer payloads and must gain payload-free variants.
+- `fjs/js/tokenizer/module.f.mjs:436-474,550-556` — string/number states that buffer payloads and must gain payload-free variants.
 - `fjs/media/type/todo/detect-json.md` — first consumer; needs O(depth), payload-free validity to keep `detectStream` size-independent.

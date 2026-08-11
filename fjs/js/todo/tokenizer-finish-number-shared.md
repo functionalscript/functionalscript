@@ -8,7 +8,7 @@
 The classification "these `numberKind`s (`'.'`, `'e'`, `'e+'`, `'e-'`) are an
 *incomplete* number → emit an `invalid number` error; everything else is a
 *complete* number → emit `bufferToNumberToken(state)`" is implemented twice
-in `fjs/js/tokenizer/module.f.ts` with the same two outcomes:
+in `fjs/js/tokenizer/module.f.mjs` with the same two outcomes:
 
 ```ts
 // terminalToToken (:636-654)

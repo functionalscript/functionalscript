@@ -7,15 +7,15 @@ import type { StateScan } from '../../../types/function/operator/types.ts'
 import type { List } from '../../../types/list/types.ts'
 import { concat, empty, flat, stateScan } from '../../../types/list/module.f.mjs'
 import { multiply } from '../../../types/bigfloat/module.f.mjs'
-import {
-    tokenize as jsTokenize,
-    type EofToken,
-    type ErrorToken,
-    type JsToken,
-    type JsTokenWithMetadata,
-    type NumberToken,
-    type StringToken
-} from '../../../js/tokenizer/module.f.ts'
+import { tokenize as jsTokenize } from '../../../js/tokenizer/module.f.mjs'
+import type {
+    EofToken,
+    ErrorToken,
+    JsToken,
+    JsTokenWithMetadata,
+    NumberToken,
+    StringToken
+} from '../../../js/tokenizer/types.ts'
 
 export type JsonToken = |
     {readonly kind: 'true' | 'false' | 'null' } |
