@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/effects/eff` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  the `Eff` type into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier
+  for types. `proof.f.ts` stays TypeScript for now
+  [#1488](https://github.com/functionalscript/functionalscript/pull/1488)
 - **BREAKING CHANGES:** `fjs/effects/mock` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
   its type-level API into a sibling `types.ts` — importers must use

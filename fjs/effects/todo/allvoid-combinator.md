@@ -38,7 +38,7 @@ return eff(all(...modules.map(([k, v]) => registerModule(ctx, k, v, star))))
 
 Note the `eff(...)` / `.value` bracketing: a raw `Effect` is plain data with no
 methods, so `.step` is reachable only through the `Eff` wrapper
-(`fjs/effects/eff/module.f.ts`). An earlier draft of this issue quoted these
+(`fjs/effects/eff/module.f.mjs`). An earlier draft of this issue quoted these
 sites as `all(...).step(...)` — that form does not exist and would not compile.
 
 `fjs/effects/module.f.mjs` already ships `forEachStep` (the *sequential* void

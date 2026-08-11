@@ -11,7 +11,7 @@ import { empty, length, maxLength, maxLengthBytes, msb, vec } from '../types/bit
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { foldStep, forEachStep, history, historyStep, okStep, pure, step } from '../effects/module.f.mjs'
 import type { Effect, Operation } from '../effects/types.ts'
-import { eff } from '../effects/eff/module.f.ts'
+import { eff } from '../effects/eff/module.f.mjs'
 import {
     access,
     createExclusive,

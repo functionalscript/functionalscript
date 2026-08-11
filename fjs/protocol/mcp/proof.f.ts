@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { pure, step } from '../../effects/module.f.mjs'
-import { eff } from '../../effects/eff/module.f.ts'
+import { eff } from '../../effects/eff/module.f.mjs'
 import type { Effect, Operation } from '../../effects/types.ts'
 import { run } from '../../effects/mock/module.f.mjs'
 import type { MemOperationMap } from '../../effects/mock/types.ts'

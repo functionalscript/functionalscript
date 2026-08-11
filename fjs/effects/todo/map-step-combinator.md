@@ -4,7 +4,7 @@
 **Status:** open
 
 > **The APIs have landed.** `mapStep` is in `fjs/effects/module.f.mjs` and
-> `Eff.map` in `fjs/effects/eff/module.f.ts`, each with proof coverage and with
+> `Eff.map` in `fjs/effects/eff/module.f.mjs`, each with proof coverage and with
 > its first real consumers converted in the same change — `readUtf8File`,
 > `awaitIfPromise` and `errorExit` (`fjs/effects/node/module.f.ts`),
 > `decodeRevisionBlob` (`fjs/cas/evo/module.f.ts`), and `Eff`'s own `.step`,

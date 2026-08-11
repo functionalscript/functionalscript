@@ -44,7 +44,7 @@
  */
 import { pure, foldStep } from '../../effects/module.f.mjs'
 import type { Effect, Operation } from '../../effects/types.ts'
-import { eff } from '../../effects/eff/module.f.ts'
+import { eff } from '../../effects/eff/module.f.mjs'
 import { create, read, write } from '../../effects/memory/module.f.mjs'
 import type { Key, MemOp } from '../../effects/memory/types.ts'
 import { collectRead, type Cas } from '../module.f.ts'
