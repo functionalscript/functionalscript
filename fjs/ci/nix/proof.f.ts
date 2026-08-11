@@ -17,8 +17,8 @@ import {
     nixDevelopAll,
     nixFlakes,
     nixInstall,
-    type NixJob,
-} from './module.f.ts'
+} from './module.f.mjs'
+import type { NixJob } from './types.ts'
 
 const { commit } = nixpkgs
 

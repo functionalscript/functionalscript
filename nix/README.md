@@ -1,6 +1,6 @@
 # Nix environments
 
-`generated/<job>/flake.nix` is **generated** by [`fjs/ci/nix`](../fjs/ci/nix/module.f.ts)
+`generated/<job>/flake.nix` is **generated** by [`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs)
 — one self-contained flake per CI job. Do not edit these files by hand: run
 `npm run ci-update` and commit the result. The Node 26 CI job fails when the
 committed files no longer match the generator's output.

@@ -7,40 +7,33 @@
  * readable on purpose: no job selection, no shared Nix modules, no helper
  * libraries.
  *
+ * See `./types.ts` for the `NixJob` type-level API.
+ *
  * @module
  */
+
 import { forEachStep, mapStep, pure, step } from '../../effects/module.f.mjs'
-import type { Effect } from '../../effects/types.ts'
+/** @import { Effect } from '../../effects/types.ts' */
 import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
-import type { Mkdir, WriteFile } from '../../effects/node/types.ts'
+/** @import { Mkdir, WriteFile } from '../../effects/node/types.ts' */
 import { nixToString } from '../../media/nix/module.f.mjs'
-import type { Expression } from '../../media/nix/types.ts'
+/** @import { Expression } from '../../media/nix/types.ts' */
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { install, test, uses } from '../common/module.f.mjs'
-import type { MetaStep } from '../common/types.ts'
+/** @import { MetaStep } from '../common/types.ts' */
 import { nixpkgs } from '../config/module.f.mjs'
-
-/** A CI job's development environment, one generated flake each. */
-export type NixJob = {
-    /** Generated directory name under `nix/generated`, matching the CI job id. */
-    readonly id: string
-    /** Nix system of the job's runner, e.g. `aarch64-linux`. */
-    readonly system: string
-    /** Nixpkgs attribute names made available in the job's shell. */
-    readonly packages: readonly string[]
-    /** Job-local shell initialization, when the job needs one. */
-    readonly shellHook?: string
-}
+/** @import { NixJob } from './types.ts' */
 
 /** Directory owned by this generator. */
-export const generatedDirectory = 'nix/generated' as const
+export const generatedDirectory = /** @type {const} */ ('nix/generated')
 
 const { commit } = nixpkgs
 
 const url = `github:NixOS/nixpkgs/${commit}`
 
-const flake = ({ system, packages, shellHook }: NixJob): Expression => ['set',
+/** @type {(job: NixJob) => Expression} */
+const flake = ({ system, packages, shellHook }) => ['set',
     ['=', ['inputs', 'nixpkgs', 'url'], url],
     ['=', ['outputs'], ['lambda',
         ['open-set-pattern', 'nixpkgs'],
@@ -54,10 +47,10 @@ const flake = ({ system, packages, shellHook }: NixJob): Expression => ['set',
                 ['apply',
                     ['ref', 'pkgs', 'mkShell'],
                     ['set',
-                        ['=', ['packages'], ['list', ...packages.map(p => ['ref', 'pkgs', p] as const)]],
+                        ['=', ['packages'], ['list', ...packages.map(p => /** @type {const} */ (['ref', 'pkgs', p]))]],
                         ...(shellHook === undefined
                             ? []
-                            : [['=', ['shellHook'], ['indented-string', shellHook]] as const])
+                            : [/** @type {const} */ (['=', ['shellHook'], ['indented-string', shellHook]])])
                     ]
                 ]
             ]]
@@ -72,11 +65,14 @@ const flake = ({ system, packages, shellHook }: NixJob): Expression => ['set',
  * is written here — a job only contributes attribute names and strings, which
  * are quoted when they are not identifiers. The unwrap is therefore a totality
  * assertion, not an input check.
+ *
+ * @type {(job: NixJob) => string}
  */
-export const flakeText = (job: NixJob): string =>
+export const flakeText = job =>
     unwrapNullable(fromUndefined(nixToString(flake(job))))
 
-const writeFlake = (job: NixJob): Effect<Mkdir | WriteFile, void> => {
+/** @type {(job: NixJob) => Effect<Mkdir | WriteFile, void>} */
+const writeFlake = job => {
     const directory = `${generatedDirectory}/${job.id}`
     const created = mapStep(mkdir(directory, { recursive: true }), unwrap)
     const written = step(
@@ -85,26 +81,32 @@ const writeFlake = (job: NixJob): Effect<Mkdir | WriteFile, void> => {
     return mapStep(written, unwrap)
 }
 
-/** Writes one generated flake per job. */
-export const nixFlakes = (jobs: readonly NixJob[]): Effect<Mkdir | WriteFile, void> =>
+/**
+ * Writes one generated flake per job.
+ *
+ * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | WriteFile, void>}
+ */
+export const nixFlakes = jobs =>
     forEachStep(pure(jobs), writeFlake)
 
 /** Path a workflow passes to `nix develop`, for the job of the given id. */
-export const flakePath = (id: string): string => `./${generatedDirectory}/${id}`
+export const flakePath = /** @type {(id: string) => string} */ (id => `./${generatedDirectory}/${id}`)
 
 /** Installs Nix, with `nix-command` and `flakes` enabled by the action's defaults. */
-export const nixInstall: MetaStep = install(uses('cachix/install-nix-action'))
+export const nixInstall = install(uses('cachix/install-nix-action'))
 
 /** Runs one command inside a job's generated development shell. */
-export const nixDevelop = (id: string, command: string): string =>
-    `nix develop ${flakePath(id)} --command ${command}`
+export const nixDevelop = /** @type {(id: string, command: string) => string} */
+    ((id, command) => `nix develop ${flakePath(id)} --command ${command}`)
 
 /**
  * Wraps a string so a POSIX shell reproduces it exactly. Single quotes protect
  * every other character, so only the quote itself needs handling: leave the
  * literal, reopen it, and escape the quote outside (`'` becomes `'\''`).
+ *
+ * @type {(value: string) => string}
  */
-const singleQuoted = (value: string): string =>
+const singleQuoted = value =>
     `'${value.replaceAll("'", "'\\''")}'`
 
 /**
@@ -114,8 +116,10 @@ const singleQuoted = (value: string): string =>
  *
  * The commands are a shell script, joined so a failure stops the rest, and are
  * quoted as one argument — a command may contain quotes of its own.
+ *
+ * @type {(id: string, commands: readonly string[]) => string}
  */
-export const nixDevelopAll = (id: string, commands: readonly string[]): string =>
+export const nixDevelopAll = (id, commands) =>
     nixDevelop(id, `bash -euo pipefail -c ${singleQuoted(commands.join(' && '))}`)
 
 /**
@@ -124,6 +128,8 @@ export const nixDevelopAll = (id: string, commands: readonly string[]): string =
  * already determines the version, so this is the only place the expectation
  * is stated — the generated flakes stay declarative instead of carrying an
  * `assert` that restates the commit they pin.
+ *
+ * @type {(id: string, version: string) => MetaStep}
  */
-export const nixVersionCheckStep = (id: string, version: string): MetaStep =>
+export const nixVersionCheckStep = (id, version) =>
     test({ run: `test "$(${nixDevelop(id, 'node --version')})" = v${version}` })

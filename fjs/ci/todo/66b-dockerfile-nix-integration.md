@@ -5,7 +5,7 @@
 
 ### Progress
 
-Phase 2 is done: `fjs/ci/nix/module.f.ts` generates
+Phase 2 is done: `fjs/ci/nix/module.f.mjs` generates
 `nix/generated/node{22,24,26}/flake.nix` from the pinned Nixpkgs commit in
 `fjs/ci/config/module.f.mjs`, and `npm run ci-update` regenerates them without
 running Nix. `nodejs_22`, `nodejs_24`, and `nodejs_26` were verified to exist in

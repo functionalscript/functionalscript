@@ -7,7 +7,8 @@
 import { node } from '../config/module.f.mjs'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
 import type { Job, Jobs, MetaStep } from '../common/types.ts'
-import { nixInstall, nixVersionCheckStep, type NixJob } from '../nix/module.f.ts'
+import { nixInstall, nixVersionCheckStep } from '../nix/module.f.mjs'
+import type { NixJob } from '../nix/types.ts'
 
 export const major = (v: string): string => v.split('.')[0]
 
