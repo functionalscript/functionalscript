@@ -9,7 +9,7 @@ import {
     type Reporter,
     defaultTest,
 } from './module.f.ts'
-import { run as mockRun } from '../effects/mock/module.f.ts'
+import { run as mockRun } from '../effects/mock/module.f.mjs'
 import type { All, Await, Test, TestContext } from '../effects/node/module.f.ts'
 import { shouldLoad } from '../dev/module.f.ts'
 import { parse as parseJson } from '../media/json/module.f.ts'
