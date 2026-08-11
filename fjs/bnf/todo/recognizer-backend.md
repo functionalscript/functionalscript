@@ -53,10 +53,11 @@ type Scan<I, O>         = (input: I) => readonly[O, Scan<I, O>]     // state-hid
 ```
 
 - A **recognizer** uses `Fold<Symbol, State>` for its per-physical-symbol `δ`,
-  plus an explicit finalization operation that synthesizes logical EOF exactly
-  once and then computes the verdict from the finalized state. Driven by
-  `foldScan` (stream of states) / `fold` (state after physical input) — exactly
-  what `fjs/fsm`'s `run = foldScan(runOp)` already does.
+  plus an explicit finalization operation that provides exactly one logical EOF
+  transition opportunity while preserving acceptance already established at the
+  physical end of input. Driven by `foldScan` (stream of states) / `fold` (state
+  after physical input) — exactly what `fjs/fsm`'s `run = foldScan(runOp)`
+  already does.
 - A **transducer** is `StateScan<Symbol, State, Out>` (the Mealy step that emits
   output), driven by `stateScan(op)(init): List<Out>`.
 
@@ -77,29 +78,52 @@ state = fold(physicalSymbols, init)
 verdict = finish(state)
 ```
 
-where `finish` internally performs the backend's transition for the one logical
-EOF defined by the EOF task and only then computes the final verdict. Equivalently,
-if the backend exposes an internal terminal transition `δTerminal` and final-state
-classifier `λ`:
+Logical EOF is available exactly once at finalization, but existing whole-input
+grammars must not be forced to add an explicit `eof` terminal. A grammar that is
+already accepting after the complete physical stream remains accepted; a grammar
+that requires `eof` may instead become accepting after consuming the synthesized
+EOF.
+
+If the backend exposes an internal terminal transition `δTerminal` and an
+accepting-state classifier `λ`, the observable semantics are equivalent to:
 
 ```text
-finish(state) = λ(δTerminal(EOF, state))
+beforeEOF = λ(state)
+afterEOF  = λ(δTerminal(EOF, state))
+finish(state) = beforeEOF || afterEOF
 ```
 
-The exact internal representation may differ by backend, but the semantics are
-fixed:
+The EOF transition is therefore not allowed to erase acceptance that was already
+established at the physical end. For example, if an ordinary grammar reaches an
+accepting state after its last physical symbol and the EOF transition would move
+that state to a rejecting sink, `finish` still returns true. Conversely, a
+grammar whose final rule explicitly requires `eof` can return false before EOF
+and true after the one synthesized transition.
+
+A backend may encode the same behavior by compiling an optional final EOF path
+rather than literally evaluating both states, but the semantics must be
+identical. The exact internal representation may differ by backend; the contract
+is about the accepted language and one-time EOF availability.
+
+The finalization semantics are fixed:
 
 - physical folds/chunks never contain or synthesize EOF;
 - chunk boundaries do not invoke finalization;
-- finalization processes logical EOF exactly once before the verdict;
-- empty input finalizes directly from the initial state through that one EOF;
+- finalization provides exactly one logical EOF transition opportunity;
+- acceptance at the physical end is preserved even if the EOF transition would
+  reject;
+- a grammar that explicitly requires EOF may accept through the synthesized EOF
+  transition;
+- rejection means neither the pre-EOF nor post-EOF state is accepting;
+- empty input is handled by the same rule from the initial state;
 - callers do not append `-1` and do not manufacture EOF metadata;
 - repeated chunking of the same physical stream must produce the same finalized
   verdict as processing it as one chunk.
 
 This finalization rule applies to the DFA recognizer and the AST-less LL(1)
-recognizer. It is the streaming equivalent of the parser cursor transition from
-`(input.length, false)` to `(input.length, true)` in the EOF prerequisite.
+recognizer. It preserves the existing "recognized and consumed the complete
+physical input" contract while also making the EOF terminal available to grammars
+that use it explicitly.
 
 #### Build from the data representation, not the functional one
 
@@ -248,10 +272,16 @@ Bigger automata are built from BNF pieces in two complementary ways:
       `RuleSet`. (`fjs/fsm`'s `run = foldScan(runOp)` is precedent.)
 - [ ] Add explicit end-of-stream finalization for DFA and AST-less LL(1)
       recognizers: ordinary/chunk folds consume only physical symbols; `finish`
-      synthesizes logical EOF exactly once and then computes the verdict.
-- [ ] Prove finalization on empty and non-empty inputs and chunking independence:
+      preserves an accepting pre-EOF state and also evaluates the one synthesized
+      EOF transition so grammars that explicitly require `eof` can accept.
+- [ ] Prove both finalization acceptance paths: an existing whole-input grammar
+      without `eof` remains accepted at physical end, and a grammar that requires
+      `eof` becomes accepted only after the synthesized transition. Also prove a
+      grammar rejecting both states remains rejected.
+- [ ] Prove finalization on empty/non-empty inputs and chunking independence:
       splitting the same physical input into different chunk boundaries must not
-      change the finalized verdict or synthesize additional EOF transitions.
+      change the finalized verdict or create additional EOF transition
+      opportunities.
 - [ ] Tokenizer stage needs maximal munch (emit at the longest accepting
       prefix, then restart) — a mechanism over plain recognition
 - [ ] DFA backend: `RuleSet` (regular subset) → finite DFA, built as a sibling
