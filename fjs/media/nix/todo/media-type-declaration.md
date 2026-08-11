@@ -29,7 +29,7 @@ one member that most needs it stated.
 ### Proposal
 
 Declare the conventional unregistered type `text/x-nix` in
-`fjs/media/nix/module.f.ts`'s module header. That is the whole change: Nix
+`fjs/media/nix/module.f.mjs`'s module header. That is the whole change: Nix
 expressions *are* content, so the bucket is right and nothing moves — only the
 declaration is missing.
 
@@ -43,7 +43,7 @@ speculative API.
 
 ### Tasks
 
-- [ ] State `text/x-nix` in the `fjs/media/nix/module.f.ts` module header.
+- [ ] State `text/x-nix` in the `fjs/media/nix/module.f.mjs` module header.
 - [ ] Export it as `mediaType` **only** if a detector-side consumer exists by
       then; otherwise leave it as documentation.
 

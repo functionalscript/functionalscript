@@ -1,8 +1,10 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { nix, nixToString, type Expression } from './module.f.ts'
+import { nix, nixToString } from './module.f.mjs'
+/** @import { Expression } from './types.ts' */
 
-const nodeFlake = (nodePackage: string, shellHook: boolean): Expression => ['set',
+/** @type {(nodePackage: string, shellHook: boolean) => Expression} */
+const nodeFlake = (nodePackage, shellHook) => ['set',
     ['=', ['inputs', 'nixpkgs', 'url'], 'github:NixOS/nixpkgs/<commit>'],
     ['=', ['outputs'], ['lambda',
         ['open-set-pattern', 'nixpkgs'],
@@ -18,13 +20,13 @@ const nodeFlake = (nodePackage: string, shellHook: boolean): Expression => ['set
                     ['ref', 'pkgs', 'mkShell'],
                     ['set',
                         ['=', ['packages'], ['list', ['ref', 'pkgs', nodePackage]]],
-                        ...(shellHook ? [[
+                        ...(shellHook ? [/** @type {const} */ ([
                             '=',
                             ['shellHook'],
                             ['indented-string', `export NPM_CONFIG_PREFIX="$HOME/.npm-global"
 export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
 mkdir -p "$NPM_CONFIG_PREFIX"`]
-                        ] as const] : [])
+                        ])] : [])
                     ]
                 ]]
             ]

@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/media/nix` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  the `Expression` type (and its private helper types) into a sibling
+  `types.ts` — importers must use the `.f.mjs` specifier for runtime
+  values and the `types.ts` specifier for types
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
 - **BREAKING CHANGES:** `fjs/ci/rust` migrates from authored TypeScript
   (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — importers must use
   the `.f.mjs` specifier

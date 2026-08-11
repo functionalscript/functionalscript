@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/media/nix/module.f.ts` folds two unrelated jobs into one recursive walk:
+`fjs/media/nix/module.f.mjs` folds two unrelated jobs into one recursive walk:
 deciding whether an `Expression` is *legal Nix* and deciding what text it
 *renders as*. Because every node can reject, partiality plumbing propagates
 through the whole module: **twelve functions return `X | undefined`** — every
@@ -248,7 +248,7 @@ where it lands.
 - [ ] Make `serialize` total and curry it on `level` first; delete the three
       all-or-nothing traverse copies together with the `| undefined` returns.
 - [ ] Switch the public entry points to `Result<…, string>` and update
-      `fjs/media/nix/proof.f.ts`. Not `Nullable` — see "`Result`, not
+      `fjs/media/nix/proof.f.mjs`. Not `Nullable` — see "`Result`, not
       `Nullable`" above; the caller migration below assumes `Result`'s
       `unwrap`.
 - [ ] Keep `nixToString`'s single trailing newline: the ten
