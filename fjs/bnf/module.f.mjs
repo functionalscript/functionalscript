@@ -51,6 +51,8 @@ export const oneEncode = a => rangeEncode(a, a)
  * space can hold (the top of `fullRange`). Deliberately outside Unicode
  * (`unicodeRange` tops out at `0x10FFFF`) so it can never collide with a
  * real code point.
+ *
+ * @type {TerminalRange}
  */
 export const eof = oneEncode(mask)
 
