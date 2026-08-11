@@ -25,7 +25,7 @@ handler: ({ home, args: [hashCBase32, path, ...rest] }) => {
 
 ### Proposal
 
-A combinator in `fjs/cli/module.f.ts`, the layer that already owns
+A combinator in `fjs/cli/module.f.mjs`, the layer that already owns
 `Command`/`dispatch`:
 
 ```ts

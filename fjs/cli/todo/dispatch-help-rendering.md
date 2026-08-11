@@ -5,7 +5,7 @@
 
 ### Problem
 
-`dispatch` (`fjs/cli/module.f.ts:17-46`) interleaves three distinct concerns —
+`dispatch` (`fjs/cli/module.f.mjs:18-49`) interleaves three distinct concerns —
 building the name→command lookup map, rendering the aligned help table, and
 routing — and computes the first two eagerly at the top of every call:
 
@@ -22,9 +22,9 @@ const map = fromEntries(commands.flatMap(c => c.names.map(n => [n, c] as const))
 ```
 
 `helpText` — the column-measuring and padding work — is consumed only by the
-three error/help branches (`:28`, `:38`, `:42`); on the common success path
+three error/help branches (`:29`, `:39-41`, `:45`); on the common success path
 it is dead work. And because `dispatch` recurses for nested command groups
-(`:35`, `:45`), the table and the map are rebuilt at every level of the
+(`:36`, `:48`), the table and the map are rebuilt at every level of the
 descent even when neither is used.
 
 Per AGENTS.md, separation of concerns is "always appropriate" even with a
@@ -34,7 +34,7 @@ its own named, independently testable function.
 
 ### Proposal
 
-Extract a module-scope pure helper in `fjs/cli/module.f.ts` (the layer that
+Extract a module-scope pure helper in `fjs/cli/module.f.mjs` (the layer that
 owns `Command`/`Commands`):
 
 ```ts
@@ -64,6 +64,6 @@ help rendering is the clear win.
 
 ### Related
 
-- `fjs/cli/module.f.ts:17-46` — current `dispatch`.
+- `fjs/cli/module.f.mjs:18-49` — current `dispatch`.
 - [positional-arity-check](./positional-arity-check.md) — separate concern
   (argument validation), independent of this change.

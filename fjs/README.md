@@ -106,5 +106,5 @@ fjs run ./my-tool.f.ts foo bar   # options.args === ['foo', 'bar']
 ```
 fjs/module.ts          — Node.js entry point (runs main via the node runner)
 fjs/module.f.ts        — FunctionalScript command dispatcher (Commands list + dispatch)
-fjs/cli/module.f.ts    — generic Command/Commands/dispatch primitives
+fjs/cli/module.f.mjs   — generic Command/Commands/dispatch primitives
 ```
