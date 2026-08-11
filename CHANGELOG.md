@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/bnf/data` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting its
+  type-level API into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier
+  for types. `proof.f.ts` stays TypeScript for now
+  [#1487](https://github.com/functionalscript/functionalscript/pull/1487)
 - **BREAKING CHANGES:** `fjs/bnf/token_symbol` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
   the `Encoding<T>` type into a sibling `types.ts` — importers must use
