@@ -31,7 +31,11 @@ export const proof = {
     },
     throw: {
         duplicateName: () => { encoding(['a', 'b', 'a']) },
-        unregisteredName: () => { encoding(/** @type {readonly string[]} */ (['a'])).encode('b') },
+        unregisteredName: () => {
+            /** @type {readonly string[]} */
+            const names = ['a']
+            encoding(names).encode('b')
+        },
         // `capacity` names fit, so one more is the smallest list that doesn't.
         // The array is sparse, so this costs a length, not the strings.
         tooManyNames: () => { encoding(new Array(capacity + 1)) },
