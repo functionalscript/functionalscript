@@ -12,15 +12,15 @@ The current BNF `TerminalRange` packs two 24-bit endpoints into one JavaScript
 range = start * 2^24 + end
 ```
 
-The preceding [EOF migration](./eof-minus-one.md) separates semantic terminal
-values from their stored endpoint representation:
+The proposed [EOF migration](./eof-minus-one.md) separates semantic terminal
+values from non-negative stored endpoint values with the order-preserving mapping:
 
 ```text
 encodeTerminal(value) = value + 1
 decodeTerminal(value) = value - 1
 ```
 
-This maps EOF (`-1`) to encoded endpoint `0` and keeps all stored endpoints
+This maps EOF (`-1`) to encoded endpoint `0` and keeps encoded endpoints
 non-negative. After BNF ordinary symbols move to the full uint256 domain, encoded
 endpoints therefore occupy:
 
@@ -39,19 +39,22 @@ endpoints becomes a very large integer. The current compact-number motivation fo
 packing the pair therefore no longer obviously applies.
 
 This is not only a runtime-performance question. `TerminalRange` is part of the
-serializable BNF rule representation, so choosing the fixed-width layout during
-the uint256 migration would also choose the persistent representation emitted by
-JSON/DJS and stored or hashed as BNF data. Changing that representation later may
-therefore be a format migration rather than a local optimization.
+serializable BNF rule representation, so changing its layout changes persistent
+JSON/DJS/content-addressed BNF data. We should therefore choose the stable
+representation **before implementing the EOF migration**, rather than first
+shipping a temporary 25-bit packed-number format and migrating persisted data a
+second time later.
 
 The fixed-width 257-bit-per-endpoint form is the **baseline** because it is the
-simplest continuation of the current encoding plus the EOF offset. Compare other
-representations against that baseline and choose one only if it provides a clear
-enough benefit to justify extra complexity.
+simplest continuation of the current encoding plus the proposed EOF offset.
+Compare other representations against that baseline and choose one only if it
+provides a clear enough benefit to justify extra complexity.
 
-Before the bigint symbol migration chooses a `TerminalRange` representation,
-investigate whether the range should remain one `bigint` or become a different
-rule representation.
+This investigation is a design prerequisite for both the EOF implementation and
+the bigint-symbol migration. It may assume the proposed semantic contract
+`EOF = -1` and the full non-negative ordinary-symbol domain while making its
+representation decision; it does not depend on the EOF implementation landing
+first.
 
 ### Alternatives to investigate
 
@@ -65,7 +68,8 @@ At minimum, compare:
   endpoints remain small;
 - another self-delimiting / variable-width bigint encoding whose size follows the
   actual endpoint sizes rather than the full 257-bit encoded-endpoint width;
-- a non-bigint structural representation for a range.
+- a non-bigint structural representation for a range, potentially storing signed
+  semantic endpoints directly rather than applying a separate `+1` encoding.
 
 Do not choose one of these representations in this investigation TODO yet.
 Additional simple representations may be considered if they make the rule model
@@ -83,10 +87,14 @@ assuming that only `TerminalRange` changes.
 - [ ] Use fixed-width `(encodedStart << 257n) | encodedEnd` as the baseline and
       compare actual encoded/serialized sizes before choosing a more complex
       representation.
-- [ ] Apply the `value + 1` / `value - 1` endpoint mapping from the EOF task at the
-      representation boundary; semantic range operations use decoded values.
+- [ ] Preserve the proposed semantic terminal ordering `EOF = -1` followed by
+      ordinary non-negative symbols. If the representation stores only
+      non-negative endpoints, use `value + 1` / `value - 1`; if it stores signed
+      semantic endpoints directly, document why a separate offset layer is not
+      needed.
 - [ ] Compare encoded size for EOF, bytes, ASCII, Unicode code-point ranges, and
-      ranges near the uint256 boundary, including encoded endpoint `2^256`.
+      ranges near the uint256 boundary, including encoded endpoint `2^256` for
+      non-negative endpoint encodings.
 - [ ] Require a deterministic, canonical, lossless representation with simple
       encode/decode semantics.
 - [ ] Compare containment/range-operation cost; avoid conversions through
@@ -95,8 +103,9 @@ assuming that only `TerminalRange` changes.
       range is already not meaningfully human-readable, so readability alone is
       not a reason to preserve primitive packing.
 - [ ] Treat representation stability as part of the decision because serialized
-      BNF data may be persisted/content-addressed; avoid knowingly choosing a
-      temporary wire representation merely to defer the comparison.
+      BNF data may be persisted/content-addressed; choose the representation once
+      before the EOF migration and do not introduce a temporary 25-bit wire
+      representation.
 - [ ] Preserve `EOF = -1`, `eof` as the EOF singleton, and `fullRange` over the
       complete ordinary input-symbol domain from the EOF/bigint-symbol designs.
 - [ ] If considering a structural representation, specify how `Rule`, `DataRule`,
@@ -104,15 +113,19 @@ assuming that only `TerminalRange` changes.
       unambiguous.
 - [ ] Consider migration complexity for BNF core, data conversion, descent/LL(1)
       parsers, and proofs.
-- [ ] Choose the representation before implementing the uint256 BNF-symbol
-      migration.
+- [ ] Choose the stable persisted representation before implementing either the
+      EOF migration or the uint256 BNF-symbol migration.
+- [ ] Document the one-time migration path from the current 24-bit packed format,
+      including the required `CHANGELOG.md` breaking-change entry if the
+      serialized/public representation changes.
 
 ### Related
 
-- [Use `-1` as the BNF EOF symbol](./eof-minus-one.md) — defines the semantic EOF
-  value and unsigned endpoint offset used by every candidate representation.
-- [256-bit bigint BNF symbols](./bigint-symbols.md) — blocked on this representation
-  decision.
+- [Use `-1` as the BNF EOF symbol](./eof-minus-one.md) — **blocked by this
+  decision**; supplies the proposed semantic EOF value/domain that this
+  investigation must preserve.
+- [256-bit bigint BNF symbols](./bigint-symbols.md) — blocked on both the EOF
+  migration and this representation decision.
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md) — keeps the range
   representation independent from Unicode-specific syntax.
 - [`fjs/bnf/module.f.mjs`](../module.f.mjs) — current 24-bit packed range encoding and
