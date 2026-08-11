@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [Separate alphabet-specific BNF helpers](./unicode-rules.md)
+**Blocked by:** [Use `-1` as the BNF EOF symbol](./eof-minus-one.md), [Separate alphabet-specific BNF helpers](./unicode-rules.md)
 
 ### Problem
 
@@ -34,6 +34,11 @@ alphabet split first so the recognizer can consume those helpers instead of
 creating a second byte-helper API or restoring alphabet-specific syntax in core
 BNF.
 
+The recognizer must also preserve the logical EOF contract from
+[Use `-1` as the BNF EOF symbol](./eof-minus-one.md). Incremental chunk boundaries
+are not end-of-input; EOF is synthesized only when the complete stream is
+explicitly finalized.
+
 ### Proposal
 
 Treat **BNF as the single source, with a family of backends** that share one
@@ -47,16 +52,54 @@ type StateScan<I, S, O> = (input: I, prior: S) => readonly[O, S]    // Mealy ste
 type Scan<I, O>         = (input: I) => readonly[O, Scan<I, O>]     // state-hidden form; stateScanToScan unifies
 ```
 
-- A **recognizer** is the output-less case: `Fold<Symbol, State>` for `δ`, plus
-  a separate `λ: (State) => Verdict` on the final state. Driven by `foldScan`
-  (stream of states) / `fold` (final state) — exactly what `fjs/fsm`'s
-  `run = foldScan(runOp)` already does.
+- A **recognizer** uses `Fold<Symbol, State>` for its per-physical-symbol `δ`,
+  plus an explicit finalization operation that synthesizes logical EOF exactly
+  once and then computes the verdict from the finalized state. Driven by
+  `foldScan` (stream of states) / `fold` (state after physical input) — exactly
+  what `fjs/fsm`'s `run = foldScan(runOp)` already does.
 - A **transducer** is `StateScan<Symbol, State, Out>` (the Mealy step that emits
   output), driven by `stateScan(op)(init): List<Out>`.
 
 `δ` being a pure step is what makes both **streamable** (fold/scan over an
 incremental input, including the effectful CAS chunk stream) and lets callers
 **short-circuit** once the state reaches an absorbing sink.
+
+#### Logical EOF finalization
+
+The ordinary streaming step consumes physical symbols only. It must never inject
+EOF merely because one array/chunk ended. State is carried unchanged across chunk
+boundaries until the caller knows the complete input stream has ended.
+
+At true end-of-stream, use one explicit finalization operation. Conceptually:
+
+```text
+state = fold(physicalSymbols, init)
+verdict = finish(state)
+```
+
+where `finish` internally performs the backend's transition for the one logical
+EOF defined by the EOF task and only then computes the final verdict. Equivalently,
+if the backend exposes an internal terminal transition `δTerminal` and final-state
+classifier `λ`:
+
+```text
+finish(state) = λ(δTerminal(EOF, state))
+```
+
+The exact internal representation may differ by backend, but the semantics are
+fixed:
+
+- physical folds/chunks never contain or synthesize EOF;
+- chunk boundaries do not invoke finalization;
+- finalization processes logical EOF exactly once before the verdict;
+- empty input finalizes directly from the initial state through that one EOF;
+- callers do not append `-1` and do not manufacture EOF metadata;
+- repeated chunking of the same physical stream must produce the same finalized
+  verdict as processing it as one chunk.
+
+This finalization rule applies to the DFA recognizer and the AST-less LL(1)
+recognizer. It is the streaming equivalent of the parser cursor transition from
+`(input.length, false)` to `(input.length, true)` in the EOF prerequisite.
 
 #### Build from the data representation, not the functional one
 
@@ -199,10 +242,16 @@ Bigger automata are built from BNF pieces in two complementary ways:
       IR; new backends land as sibling modules (`fjs/bnf/recognizer`,
       `fjs/bnf/dfa`)
 - [ ] Use the existing `Scan` family as the streaming contract (no new type):
-      `Fold<I, S>` for a recognizer + a separate `λ: (S) => Verdict`,
+      `Fold<I, S>` for the physical-symbol recognizer step and
       `StateScan<I, S, O>` for a transducer; drivers `foldScan` / `stateScan` /
       `scan`. Keep it parametric in the symbol space over the same generic
       `RuleSet`. (`fjs/fsm`'s `run = foldScan(runOp)` is precedent.)
+- [ ] Add explicit end-of-stream finalization for DFA and AST-less LL(1)
+      recognizers: ordinary/chunk folds consume only physical symbols; `finish`
+      synthesizes logical EOF exactly once and then computes the verdict.
+- [ ] Prove finalization on empty and non-empty inputs and chunking independence:
+      splitting the same physical input into different chunk boundaries must not
+      change the finalized verdict or synthesize additional EOF transitions.
 - [ ] Tokenizer stage needs maximal munch (emit at the longest accepting
       prefix, then restart) — a mechanism over plain recognition
 - [ ] DFA backend: `RuleSet` (regular subset) → finite DFA, built as a sibling
@@ -222,6 +271,8 @@ Bigger automata are built from BNF pieces in two complementary ways:
 
 ### Related
 
+- [Use `-1` as the BNF EOF symbol](./eof-minus-one.md) — defines the logical EOF
+  finalization semantics that every recognizer backend must preserve.
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md) — owns Unicode and
   byte authoring helpers; this recognizer work consumes the generic rules they
   produce.
