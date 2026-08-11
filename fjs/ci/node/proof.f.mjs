@@ -1,4 +1,4 @@
-import { basicNode } from './module.f.ts'
+import { basicNode } from './module.f.mjs'
 import { test } from '../common/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 

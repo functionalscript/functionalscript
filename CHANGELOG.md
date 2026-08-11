@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/ci/node` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — no local
+  types to split. `proof.f.ts` migrates alongside it. Importers must
+  use the `.f.mjs` specifier
+  [#1493](https://github.com/functionalscript/functionalscript/pull/1493)
 - **BREAKING CHANGES:** `fjs/ci/nix` migrates from authored TypeScript
   (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting the
   `NixJob` type into a sibling `types.ts` — importers must use the

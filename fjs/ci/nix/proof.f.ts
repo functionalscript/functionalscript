@@ -8,7 +8,7 @@ import { step } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
 import { nixpkgs } from '../config/module.f.mjs'
-import { nodeNixJobs } from '../node/module.f.ts'
+import { nodeNixJobs } from '../node/module.f.mjs'
 import {
     flakePath,
     flakeText,

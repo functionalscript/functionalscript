@@ -23,7 +23,7 @@ import type {
     Os,
 } from './common/types.ts'
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.mjs'
-import { nodeMainSteps, nodeNixJobs, nodeNixVersionSteps, nodeVersionJobs } from './node/module.f.ts'
+import { nodeMainSteps, nodeNixJobs, nodeNixVersionSteps, nodeVersionJobs } from './node/module.f.mjs'
 import { nixFlakes, nixInstall } from './nix/module.f.mjs'
 import type { NixJob } from './nix/types.ts'
 import { bunSteps } from './bun/module.f.mjs'

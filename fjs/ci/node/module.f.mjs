@@ -4,51 +4,62 @@
  *
  * @module
  */
+
 import { node } from '../config/module.f.mjs'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
-import type { Job, Jobs, MetaStep } from '../common/types.ts'
+/** @import { Job, Jobs, MetaStep, Step } from '../common/types.ts' */
 import { nixInstall, nixVersionCheckStep } from '../nix/module.f.mjs'
-import type { NixJob } from '../nix/types.ts'
+/** @import { NixJob } from '../nix/types.ts' */
 
-export const major = (v: string): string => v.split('.')[0]
+/** @type {(v: string) => string} */
+export const major = v => v.split('.')[0]
 
-const jobId = (version: string): string => `node${major(version)}`
+/** @type {(version: string) => string} */
+const jobId = version => `node${major(version)}`
 
-const installNode = (version: string) =>
-    uses('actions/setup-node', { 'node-version': version })
+/** @type {(v: string) => Step} */
+const installNode = v =>
+    uses('actions/setup-node', { 'node-version': v })
 
-const nodeInstall = (v: string) => [
+/** @type {(v: string) => readonly MetaStep[]} */
+const nodeInstall = v => [
     install(installNode(v)),
     test({ run: 'npm ci' }),
 ]
 
-export const basicNode = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => [
+/** @type {(version: string) => (extra: readonly MetaStep[]) => readonly MetaStep[]} */
+export const basicNode = version => extra => [
     ...nodeInstall(version),
     ...extra,
 ]
 
-const fjsGlobalInstall = (version: string): MetaStep =>
+/** @type {(version: string) => MetaStep} */
+const fjsGlobalInstall = version =>
     install({ run: `npm install -g functionalscript@${version}` })
 
-export const platformNodeSteps = (version: string): readonly MetaStep[] => [
+/** @type {(version: string) => readonly MetaStep[]} */
+export const platformNodeSteps = version => [
     ...nodeInstall(node.default),
     fjsGlobalInstall(version),
     test({ run: 'fjs test' }),
 ]
 
-const node22Steps = (version: string): readonly MetaStep[] => [
+/** @type {(version: string) => readonly MetaStep[]} */
+const node22Steps = version => [
     ...nodeInstall(node.node22),
     fjsGlobalInstall(version),
     test({ run: 'fjs test' }),
     test({ run: 'node --test' }),
 ]
 
-const node24Steps: readonly MetaStep[] = [
+/** @type {readonly MetaStep[]} */
+const node24Steps = [
     ...nodeInstall(node.node24),
     test({ run: 'node --test' }),
 ]
 
-const node26Steps: readonly MetaStep[] = [
+/** @type {readonly MetaStep[]} */
+const node26Steps = [
     ...nodeInstall(node.default),
     test({ run: 'npm run ci-update' }),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
@@ -57,34 +68,40 @@ const node26Steps: readonly MetaStep[] = [
     test({ run: 'npm pack' }),
 ]
 
-const nodeJob = (steps: readonly MetaStep[]): Job => ubuntuArm(steps)
+/** @type {(steps: readonly MetaStep[]) => Job} */
+const nodeJob = steps => ubuntuArm(steps)
 
-export const nodeVersionJobs = (version: string): Jobs => ({
+/** @type {(version: string) => Jobs} */
+export const nodeVersionJobs = version => ({
     [jobId(node.node22)]: nodeJob(node22Steps(version)),
     [jobId(node.node24)]: nodeJob(node24Steps),
     [jobId(node.default)]: nodeJob(node26Steps),
 })
 
 // The canonical Node jobs run on the Ubuntu ARM runner.
-export const nixSystem = 'aarch64-linux' as const
+export const nixSystem = /** @type {const} */ ('aarch64-linux')
 
 // Keeps `npm install -g functionalscript` writable and puts the installed `fjs`
 // on `PATH` for the rest of the same `nix develop` invocation.
-const npmGlobalShellHook = `export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+const npmGlobalShellHook = /** @type {const} */ (`export NPM_CONFIG_PREFIX="$HOME/.npm-global"
 export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
-mkdir -p "$NPM_CONFIG_PREFIX"` as const
+mkdir -p "$NPM_CONFIG_PREFIX"`)
 
 // Versions of the canonical Node jobs, in job order.
-const nixVersions = [node.node22, node.node24, node.default] as const
+const nixVersions = /** @type {const} */ ([node.node22, node.node24, node.default])
 
-const nixJob = (version: string): NixJob => ({
+/** @type {(version: string) => NixJob} */
+const nixJob = version => ({
     id: jobId(version),
     system: nixSystem,
     packages: [`nodejs_${major(version)}`],
 })
 
-/** Generated development environments for the canonical Node jobs. */
-export const nodeNixJobs: readonly NixJob[] = [
+/** Generated development environments for the canonical Node jobs.
+ *
+ * @type {readonly NixJob[]}
+ */
+export const nodeNixJobs = [
     { ...nixJob(node.node22), shellHook: npmGlobalShellHook },
     nixJob(node.node24),
     nixJob(node.default),
@@ -93,9 +110,11 @@ export const nodeNixJobs: readonly NixJob[] = [
 /**
  * Version-check steps for the canonical Node jobs' generated flakes, one per
  * job. Collected into the shared temporary `nix-flakes` job in
- * `fjs/ci/module.f.ts`.
+ * `fjs/ci/module.f.mjs`.
+ *
+ * @type {readonly MetaStep[]}
  */
-export const nodeNixVersionSteps: readonly MetaStep[] =
+export const nodeNixVersionSteps =
     nixVersions.map(version => nixVersionCheckStep(jobId(version), version))
 
 /**
@@ -108,8 +127,10 @@ export const nodeNixVersionSteps: readonly MetaStep[] =
  * time. When the last one migrates and this job goes away, each migrated job
  * must check its own Node version inside the `nix develop` invocation, or the
  * guarantee is lost.
+ *
+ * @type {Job}
  */
-export const nodeNixFlakeJob: Job = ubuntuArm([
+export const nodeNixFlakeJob = ubuntuArm([
     nixInstall,
     ...nodeNixVersionSteps,
 ])

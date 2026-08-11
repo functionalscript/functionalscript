@@ -1,6 +1,6 @@
 import { ci, main } from './module.f.ts'
 import { functionalscript, node } from './config/module.f.mjs'
-import { nodeNixJobs } from './node/module.f.ts'
+import { nodeNixJobs } from './node/module.f.mjs'
 import { coverageInclude } from './deno/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
