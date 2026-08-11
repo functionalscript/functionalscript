@@ -1,4 +1,5 @@
-import { at, setReplace, setReduce, empty, entries, remove, fromEntries, type OrderedMap } from './module.f.ts'
+import { at, setReplace, setReduce, empty, entries, remove, fromEntries } from './module.f.mjs'
+import type { OrderedMap } from './types.ts'
 import { toArray } from '../list/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 

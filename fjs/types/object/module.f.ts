@@ -11,7 +11,8 @@ import type { List } from '../list/types.ts'
 import { iterable } from '../list/module.f.mjs'
 import type { Nullable } from '../nullable/types.ts'
 import { fromUndefined } from '../nullable/module.f.mjs'
-import { entries as mapEntries, fromEntries as mapFromEntries, type OrderedMap } from '../ordered_map/module.f.ts'
+import { entries as mapEntries, fromEntries as mapFromEntries } from '../ordered_map/module.f.mjs'
+import type { OrderedMap } from '../ordered_map/types.ts'
 
 const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
 
