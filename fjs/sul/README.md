@@ -22,7 +22,7 @@ The minimum word length is 2: one prefix symbol is required to provide a value t
 The top-level encoder accepts a stream of bits and produces a single [`Id`](id/README.md):
 
 ```ts
-import { encode, emptyEncodeState } from './module.f.ts'
+import { encode, emptyEncodeState } from './module.f.mjs'
 import type { Add } from './level/hash/types.ts'
 
 const enc = encode(add)              // add: Add<S> — called on every merge

@@ -1,23 +1,28 @@
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { compress } from './id/module.f.mjs'
-import type { Id } from './id/types.ts'
-import { encode, emptyEncodeState } from './module.f.ts'
-import type { Add } from './level/hash/types.ts'
+/** @import { Id } from './id/types.ts' */
+import { encode, emptyEncodeState } from './module.f.mjs'
+/** @import { Add } from './level/hash/types.ts' */
 
-type Merge = readonly [Id, Id, Id, boolean]
+/** @typedef {readonly [Id, Id, Id, boolean]} _Merge */
 
-const run = (bits: readonly bigint[]): readonly [Id, readonly Merge[]] => {
-    const log: Merge[] = []
-    const add: Add<null> = (l, r, m, isSymbol) => { log.push([l, r, m, isSymbol] as const); return null }
+/** @type {(bits: readonly bigint[]) => readonly [Id, readonly _Merge[]]} */
+const run = bits => {
+    /** @type {_Merge[]} */
+    const log = []
+    /** @type {Add<null>} */
+    const add = (l, r, m, isSymbol) => { log.push([l, r, m, isSymbol]); return null }
     const enc = encode(add)
-    let s = emptyEncodeState<null>(null)
+    let s = emptyEncodeState(null)
     for (const b of bits) { s = enc.push(b, s) }
     return [enc.end(s), log]
 }
 
-const id = (bits: readonly bigint[]): Id => run(bits)[0]
+/** @type {(bits: readonly bigint[]) => Id} */
+const id = bits => run(bits)[0]
 
-const zeros = (n: number): readonly bigint[] => new Array(n).fill(0n)
+/** @type {(n: number) => readonly bigint[]} */
+const zeros = n => new Array(n).fill(0n)
 
 export const proof = {
     deterministic: () => {
