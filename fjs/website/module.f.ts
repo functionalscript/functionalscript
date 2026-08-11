@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { htmlUtf8 } from '../media/html/module.f.ts'
+import { htmlUtf8 } from '../media/html/module.f.mjs'
 import { writeFile, type WriteFile } from '../effects/node/module.f.ts'
 import { pure, step, type Effect } from '../effects/module.f.ts'
 import type { Vec } from '../types/bit_vec/types.ts'

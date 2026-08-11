@@ -1,31 +1,33 @@
 /**
  * HTML serialization helpers: `Element`/`Attributes` builders, void-tag
  * handling, attribute/text escaping, and a UTF-8 emitter for full documents.
+ * See `./types.ts` for the `Element`/`Node` type-level API.
  *
  * @module
  */
-import type { List } from '../../types/list/types.ts'
+/** @import { List } from '../../types/list/types.ts' */
 import { map, flatMap, flat, concat as listConcat } from '../../types/list/module.f.mjs'
 import { concat, concat as stringConcat } from '../../types/string/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
-import type { Entry, StringMap } from '../../types/object/types.ts'
+/** @import { Entry, StringMap } from '../../types/object/types.ts' */
 import { compose } from '../../types/function/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { includes } from '../../types/array/module.f.mjs'
-import type { Vec } from '../../types/bit_vec/types.ts'
+/** @import { Vec } from '../../types/bit_vec/types.ts' */
 import { utf8 } from '../../text/module.f.mjs'
 import { quotationMark, ampersand, lessThanSign, greaterThanSign } from '../../text/ascii/module.f.mjs'
+/** @import { Element, Node } from './types.ts' */
 
 const { fromCharCode } = String
 
-type Tag = string
+/** @typedef {StringMap<string>} _Attributes */
 
 /**
  * Void Elements
  *
  * https://developer.mozilla.org/en-US/docs/Glossary/Void_element
  */
-const voidTagList = [
+const voidTagList = /** @type {const} */ ([
     'area',
     'base',
     'br',
@@ -40,67 +42,58 @@ const voidTagList = [
     'source',
     'track',
     'wbr',
-] as const
+])
 
 /**
  * https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script
  * https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/style
  */
-const rawText = [
+const rawText = /** @type {const} */ ([
     'script',
     'style'
-] as const
-
-type Element1 = readonly [Tag, ...Node[]]
-
-type Element2 = readonly [Tag, Attributes, ...Node[]]
-
-/**
- * A FunctionalScript representation of an HTML element.
- *
- * - `[tag, ...children]` for elements without attributes.
- * - `[tag, attributes, ...children]` for elements with attributes.
- */
-export type Element = Element1 | Element2
-
-type Attributes = StringMap<string>
-
-export type Node = Element | string
+])
 
 /**
  * https://stackoverflow.com/questions/7381974/which-characters-need-to-be-escaped-in-html
  */
-const escapeTable = {
+const escapeTable = /** @type {const} */ ({
     [quotationMark]: '&quot;',
     [ampersand]: '&amp;',
     [lessThanSign]: '&lt;',
     [greaterThanSign]: '&gt;',
-} as const
+})
 
-const escapeCharCode = (code: number): string =>
-    escapeTable[code] ?? fromCharCode(code)
+/** @type {(code: number) => string} */
+const escapeCharCode = code =>
+    escapeTable[/** @type {keyof typeof escapeTable} */ (code)] ?? fromCharCode(code)
 
 const escape = compose(stringToList)(map(escapeCharCode))
 
-const node = (n: Node) =>
+/** @type {(n: Node) => List<string>} */
+const node = n =>
     typeof n === 'string' ? escape(n) : element(n)
 
 const nodes = flatMap(node)
 
-const raw = (n: Node) =>
+/** @type {(n: Node) => string} */
+const raw = n =>
     typeof n === 'string' ? n : ''
 
 const mr = map(raw)
 
 // Escape closing tags in raw text elements
-const rawMap = (n: List<Node>) => concat(mr(n)).replaceAll('</', '<\\/')
+/** @type {(n: List<Node>) => string} */
+const rawMap = n => concat(mr(n)).replaceAll('</', '<\\/')
 
-const attribute = ([name, value]: Entry<string>) =>
+/** @type {(entry: Entry<string>) => List<string>} */
+const attribute = ([name, value]) =>
     flat([[' ', name, '="'], escape(value), ['"']])
 
-const attributes = (a: Attributes): List<string> => flatMap(attribute)(definedEntries(a))
+/** @type {(a: _Attributes) => List<string>} */
+const attributes = a => flatMap(attribute)(definedEntries(a))
 
-const parseElement = (e: Element): readonly[string, Attributes, readonly Node[]] => {
+/** @type {(e: Element) => readonly [string, _Attributes, readonly Node[]]} */
+const parseElement = e => {
     const [tag, item1, ...list] = e
     return item1 === undefined ?
             [tag, {}, []] :
@@ -118,8 +111,10 @@ const isRawText = includes(rawText)
  *
  * Chunks are returned instead of a single string to support composition with
  * other list/string helpers in this codebase.
+ *
+ * @type {(e: Element) => List<string>}
  */
-export const element = (e: Element): List<string> => {
+export const element = e => {
     const [tag, a, n] = parseElement(e)
     const open = flat([[`<`, tag], attributes(a), [`>`]])
     if (isVoidTag(tag)) {
@@ -130,22 +125,24 @@ export const element = (e: Element): List<string> => {
 
 /**
  * Builds a complete HTML document by prepending `<!DOCTYPE html>`.
+ *
+ * @type {(_: Element) => List<string>}
  */
 export const html
-    : (_: Element) => List<string>
     = compose(element)(listConcat(['<!DOCTYPE html>']))
 
 /**
  * Renders an HTML element tree to a final string.
+ *
+ * @type {(_: Element) => string}
  */
 export const htmlToString
-    : (_: Element) => string
     = compose(html)(stringConcat)
 
-const commonHead = [
+const commonHead = /** @type {const} */ ([
     ['meta', { charset: 'UTF-8' }],
     ['meta', { name: 'viewport', content: 'width=device-width,initial-scale=1.0' }],
-] as const
+])
 
 /**
  * Renders a complete UTF-8 encoded HTML document as a `Vec`.
@@ -155,13 +152,15 @@ const commonHead = [
  * `head` nodes, and a `<body>` containing the provided `body` nodes.
  *
  * @example
- * ```ts
+ * ```js
  * htmlUtf8(['title', 'My Page'])(['h1', 'Hello'])
  * // Vec of UTF-8 bytes for:
  * // <!DOCTYPE html><html><head><meta charset="UTF-8">...<title>My Page</title></head><body><h1>Hello</h1></body></html>
  * ```
+ *
+ * @type {(...head: readonly Node[]) => (...body: readonly Node[]) => Vec}
  */
-export const htmlUtf8 = (...head: readonly Node[]) => (...body: readonly Node[]): Vec =>
+export const htmlUtf8 = (...head) => (...body) =>
     utf8(htmlToString(['html',
         ['head', ...commonHead, ...head],
         ['body', ...body]]
