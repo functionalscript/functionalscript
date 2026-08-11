@@ -18,7 +18,7 @@ import { assert, assertEq, assertNotNullish } from '../asserts/module.f.mjs'
 
 const testDir = './test-cas-cli'
 
-/** @typedef {FileCasOperation | WriteFile | ReadFile | Rm | Mkdir} TestOp */
+/** @typedef {FileCasOperation | WriteFile | ReadFile | Rm | Mkdir} _TestOp */
 
 // Names the command a `FileCasOperation` effect stops at, so a proof can assert
 // on it and resume the continuation without reading the `Do` layout. The map
@@ -48,7 +48,7 @@ const createBigFileContent = () => {
 }
 
 // Test adding a big file and verifying the hash
-/** @type {() => Effect<TestOp, void>} */
+/** @type {() => Effect<_TestOp, void>} */
 const testAddBigFile = () => {
     const bigFilePath = `${testDir}/big-file.bin`
     const cas = fileCas(sha256)(testDir)
@@ -81,7 +81,7 @@ const testAddBigFile = () => {
 }
 
 // Test adding and retrieving a big file
-/** @type {() => Effect<TestOp, void>} */
+/** @type {() => Effect<_TestOp, void>} */
 const testAddAndGetBigFile = () => {
     const bigContent = createBigFileContent()
     const bigFilePath = `${testDir}/big-file.bin`
