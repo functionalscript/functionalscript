@@ -5,13 +5,13 @@
 
 ### Problem
 
-`shouldLoad` in `fjs/dev/module.f.ts:61` currently admits only two categories of files:
+`shouldLoad` in `fjs/dev/module.f.mjs:41` currently admits only two categories of files:
 
 1. All FunctionalScript modules — anything ending in `.f.ts` or `.f.js`.
 2. Opt-in proof files — anything ending in `proof.ts`, `proof.js`, `proof.mts`, or `proof.mjs`.
 
 ```ts
-// fjs/dev/module.f.ts:61
+// fjs/dev/module.f.mjs:41
 export const shouldLoad = (s: string): boolean =>
     s.endsWith('.f.ts')    || s.endsWith('.f.js')    ||
     s.endsWith('proof.ts') || s.endsWith('proof.js') ||
@@ -58,7 +58,7 @@ are required.
 
 ### Documentation
 
-The JSDoc comment on `shouldLoad` (`fjs/dev/module.f.ts:51–60`) and the
+The JSDoc comment on `shouldLoad` (`fjs/dev/module.f.mjs:20–37`) and the
 `fjs/emergent_testing/` module documentation must be updated to reflect the new
 loading rules, explaining that `module.*` files are loaded for white-box testing
 of non-FunctionalScript modules while the `proof.*` convention remains for
@@ -66,7 +66,7 @@ standalone black-box proof files.
 
 ### Scope of change
 
-- `fjs/dev/module.f.ts` — extend `shouldLoad`; update its JSDoc.
+- `fjs/dev/module.f.mjs` — extend `shouldLoad`; update its JSDoc.
 - `fjs/emergent_testing/` documentation — update to cover the new file-naming
   convention and its white-box testing use case.
 - Tests for `shouldLoad` (if any exist) — add cases for `module.ts`/`module.js`.

@@ -31,7 +31,7 @@ Two shapes, both the same thing:
 )
 ```
 
-Also `fjs/dev/module.f.ts`, `fjs/cas/evo/module.f.ts`,
+Also `fjs/dev/module.f.mjs`, `fjs/cas/evo/module.f.ts`,
 `fjs/mcp/evo/module.f.ts`, `fjs/cas/module.f.ts`, `fjs/mcp/cas/module.f.ts`,
 `fjs/protocol/mcp/module.f.ts`, `fjs/emergent_testing/module.f.ts`.
 

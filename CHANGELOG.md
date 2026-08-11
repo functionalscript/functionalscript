@@ -20,12 +20,18 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/dev` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting `Module`,
+  `ModuleMap`, and `LoadModuleOperations` into a sibling `types.ts` —
+  importers must use the `.f.mjs` specifier for runtime values and the
+  `types.ts` specifier for types. `proof.f.ts` migrates alongside it
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
 - **BREAKING CHANGES:** `fjs/effects/node/virtual` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
-  `Dir`, `State`, `JsModule`, and the internal `_Entity` types into a
-  sibling `types.ts` — importers must use the `.f.mjs` specifier for
-  runtime values and the `types.ts` specifier for types. `proof.f.ts`
-  migrates alongside it
+  `Dir`, `State`, and `JsModule` into a sibling `types.ts`, and narrowing
+  the previously-exported `Entity` to the internal `_Entity` — importers
+  must use the `.f.mjs` specifier for runtime values and the `types.ts`
+  specifier for types. `proof.f.ts` migrates alongside it
   [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
 - **BREAKING CHANGES:** `fjs/media/type` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting

@@ -70,7 +70,7 @@ already exempt from that rule — [`fjs/effects/node/memory/proof.ts`](../../eff
 is a live example (it isn't the shape we need here, since it captures a rejected `Promise` via
 `.then(onFulfilled, onRejected)` rather than `try`/`catch`, but it proves the file-type split
 already works and is already discovered by `fjs t` — `shouldLoad` in
-[`fjs/dev/module.f.ts`](../../dev/module.f.ts#L41) matches any `*proof.ts` filename alongside
+[`fjs/dev/module.f.mjs`](../../dev/module.f.mjs#L44) matches any `*proof.ts` filename alongside
 `*.f.ts`). AGENTS.md's `.f.ts` rule needs no change: it never applied to `proof.ts` in the first
 place. The fix for `fjs/asserts/proof.f.mjs` and `fjs/types/result/proof.f.mjs` is simply to move
 just the payload-checking cases (`assertThrowsCustomMsg`, `assertEqThrowsOnUnequal`,

@@ -3,24 +3,18 @@
  *
  * @module
  */
+
 import { all, import_, readdir } from '../effects/node/module.f.mjs'
-import type { Access, All, Env, Import, Readdir } from '../effects/node/types.ts'
+/** @import { Access, All, Env, Import, Readdir } from '../effects/node/types.ts' */
 import { cmp as strCmp } from '../types/string/module.f.mjs'
-import type { StringMap } from '../types/object/types.ts'
 import { unwrap } from '../types/result/module.f.mjs'
 import { pure, step } from '../effects/module.f.mjs'
-import type { Effect } from '../effects/types.ts'
+/** @import { Effect } from '../effects/types.ts' */
 import { join, relativize, toPosix } from '../path/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
-import type { Dir } from '../effects/node/virtual/types.ts'
-
-export type Module = {
-    readonly proof?: unknown
-    readonly [k: string]: unknown
-}
-
-export type ModuleMap = StringMap<Module>
+/** @import { Dir } from '../effects/node/virtual/types.ts' */
+/** @import { Module, ModuleMap, LoadModuleOperations } from './types.ts' */
 
 /**
  * Returns `true` if the file should be loaded for proof discovery.
@@ -41,25 +35,28 @@ export type ModuleMap = StringMap<Module>
  *
  * Whether a loaded module actually _contains_ a proof is determined at
  * runtime by checking for an exported `proof` property.
+ *
+ * @type {(s: string) => boolean}
  */
-export const shouldLoad = (s: string): boolean =>
+export const shouldLoad = s =>
     s.endsWith('.f.ts')    || s.endsWith('.f.mts')   ||
     s.endsWith('.f.js')    || s.endsWith('.f.mjs')   ||
     s.endsWith('proof.ts') || s.endsWith('proof.mts')||
     s.endsWith('proof.js') || s.endsWith('proof.mjs')
 
-const isSourceFile = (path: string): boolean =>
+/** @type {(path: string) => boolean} */
+const isSourceFile = path =>
     path.endsWith('.js') || path.endsWith('.ts') || path.endsWith('.mts') || path.endsWith('.mjs')
 
-const allFiles = (
-    s: string,
-    predicate: (path: string) => boolean,
-): Effect<Readdir | All, readonly string[]> => {
-    const load = (p: string): Effect<Readdir | All, readonly string[]> => {
+/** @type {(s: string, predicate: (path: string) => boolean) => Effect<Readdir | All, readonly string[]>} */
+const allFiles = (s, predicate) => {
+    /** @type {(p: string) => Effect<Readdir | All, readonly string[]>} */
+    const load = p => {
         const x0 = step(
             readdir(p, {}),
             d => {
-                let result: readonly Effect<Readdir | All, readonly string[]>[] = []
+                /** @type {readonly Effect<Readdir | All, readonly string[]>[]} */
+                let result = []
                 for (const i of unwrap(d)) {
                     const { name } = i
                     if (name.startsWith('.')) { continue }
@@ -82,13 +79,11 @@ const allFiles = (
     return load(s)
 }
 
-const loadFile = (f: string): Effect<Access | Import, readonly (readonly[string, Module])[]> =>
+/** @type {(f: string) => Effect<Access | Import, readonly (readonly [string, Module])[]>} */
+const loadFile = f =>
     step(
         import_(f),
-        r => pure([[f, unwrap(r)] as const]))
-
-/** The effect operations required to discover and load a module map. */
-export type LoadModuleOperations = Access | Import | All | Readdir
+        r => pure([/** @type {const} */ ([f, unwrap(r)])]))
 
 const { fromEntries } = Object
 
@@ -105,8 +100,10 @@ const { fromEntries } = Object
  *
  * The result is sorted by path key using `string.cmp` so the order is
  * deterministic regardless of filesystem traversal order.
+ *
+ * @type {(env: Env) => Effect<LoadModuleOperations, ModuleMap>}
  */
-export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap> => {
+export const loadModuleMap = env => {
     const initCwd = env['INIT_CWD']
     const s = initCwd === undefined ? '.' : toPosix(initCwd)
     const prefix = s === '.' ? '' : s
@@ -122,7 +119,7 @@ export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap>
         entries => pure(fromEntries(
             entries
                 .flat()
-                .map(([k, v]) => [relativize(prefix, k), v] as const)
+                .map(([k, v]) => /** @type {const} */ ([relativize(prefix, k), v]))
                 .toSorted(([a], [b]) => strCmp(a)(b))
         )))
 }
@@ -140,7 +137,8 @@ export const proof = {
         // Every FunctionalScript extension is discovered, so a module migrated
         // from `.f.ts` to `.f.mjs` keeps its proofs. An ordinary `.mjs` is
         // still skipped.
-        const root: Dir = {
+        /** @type {Dir} */
+        const root = {
             'a.f.ts': [],
             'b.f.mjs': [],
             'c.f.mts': [],
@@ -152,7 +150,8 @@ export const proof = {
     allFilesSkipsNodeModules: () => {
         // `node_modules` is skipped without descending into it, even though
         // it contains a file that would otherwise match the predicate.
-        const root: Dir = {
+        /** @type {Dir} */
+        const root = {
             'node_modules': { 'pkg.f.ts': [] },
             'a.f.ts': [],
         }
@@ -163,7 +162,8 @@ export const proof = {
         // With no `INIT_CWD` (e.g. `fjs t` invoked outside `npm run`), `env`
         // lookup returns `undefined` and discovery falls back to `.`, so
         // every path keeps its own `./`-prefix instead of having one stripped.
-        const root: Dir = { 'a.f.ts': () => ({}) }
+        /** @type {Dir} */
+        const root = { 'a.f.ts': () => ({}) }
         const [, result] = virtual({ ...emptyState, root })(loadModuleMap({}))
         assertEq(Object.keys(result).join(','), './a.f.ts')
     },
