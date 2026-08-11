@@ -13,7 +13,7 @@
  *
  * ## Dispatch strategy
  *
- * Schema recognition is delegated to `visit` in `../common/module.f.ts`,
+ * Schema recognition is delegated to `visit` in `../common/module.f.mjs`,
  * which routes each `Type` variant to a handler in the `Visitor` record
  * defined below. `validate` returns the original value on success — no
  * fresh allocation — which is the only behavior that distinguishes it
@@ -46,23 +46,27 @@ import {
     primitive0Validate,
     verror,
     visit,
-    type Container,
-    type IsContainer,
-    type Validate,
-    type ValidateE,
-    type Visitor,
-} from '../common/module.f.ts'
+} from '../common/module.f.mjs'
+import type {
+    Container,
+    IsContainer,
+    Validate,
+    ValidateE,
+    Visitor,
+} from '../common/types.ts'
 
 export {
     constPrimitiveValidate,
     prependPath,
     primitive0Validate,
     verror,
-    type Path,
-    type Result,
-    type Validate,
-    type ValidationError,
-} from '../common/module.f.ts'
+} from '../common/module.f.mjs'
+export type {
+    Path,
+    Result,
+    Validate,
+    ValidationError,
+} from '../common/types.ts'
 
 const { entries } = Object
 

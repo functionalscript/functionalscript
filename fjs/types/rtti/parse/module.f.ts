@@ -22,7 +22,7 @@
  *
  * The error shape, path bookkeeping, primitive checks, and schema
  * recognition (`visit`) are shared with `validate` through
- * `../common/module.f.ts`; only container construction differs.
+ * `../common/module.f.mjs`; only container construction differs.
  *
  * @module
  */
@@ -47,17 +47,19 @@ import {
     primitive0Validate,
     verror,
     visit,
-    type Container,
-    type IsContainer,
-    type Result as CommonValidateResult,
-    type Validate,
-    type ValidateE,
-    type ValidationError,
-    type Visitor,
-} from '../common/module.f.ts'
+} from '../common/module.f.mjs'
+import type {
+    Container,
+    IsContainer,
+    Result as CommonValidateResult,
+    Validate,
+    ValidateE,
+    ValidationError,
+    Visitor,
+} from '../common/types.ts'
 import type { Unknown } from '../ts/types.ts'
 
-export { type Path, type ValidationError } from '../common/module.f.ts'
+export type { Path, ValidationError } from '../common/types.ts'
 
 const { entries } = Object
 

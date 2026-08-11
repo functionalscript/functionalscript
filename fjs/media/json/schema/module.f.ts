@@ -1,14 +1,15 @@
 /**
  * Converts an rtti schema to a JSON Schema (draft 2020-12) object.
  *
- * Driven by `fjs/types/rtti/common/module.f.ts`'s `visit`, the same shared
+ * Driven by `fjs/types/rtti/common/module.f.mjs`'s `visit`, the same shared
  * `Type`-ADT walker used by `validate` and `parse`.
  *
  * @module
  */
 import { array, option, or, record, string } from '../../../types/rtti/module.f.mjs'
 import type { Struct, Tuple, Type as RttiType } from '../../../types/rtti/types.ts'
-import { visit, type Visitor } from '../../../types/rtti/common/module.f.ts'
+import { visit } from '../../../types/rtti/common/module.f.mjs'
+import type { Visitor } from '../../../types/rtti/common/types.ts'
 import type { Primitive } from '../../../djs/module.f.ts'
 import type { Ts } from '../../../types/rtti/ts/types.ts'
 import type { Phantom } from '../../../types/phantom/types.ts'

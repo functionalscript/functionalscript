@@ -27,49 +27,35 @@
  *
  * @module
  */
-import type { Primitive, Unknown } from '../ts/types.ts'
-import type {
-    Const,
-    Info0,
-    Primitive0,
-    Struct,
-    Tag1,
-    Tuple,
-    Type,
-} from '../types.ts'
-import type { Error, Result as CommonResult } from '../../result/types.ts'
+/** @import { Primitive, Unknown } from '../ts/types.ts' */
+/** @import { Const, Info0, Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts' */
+/** @import { Error, Result as CommonResult } from '../../result/types.ts' */
 import { error, ok } from '../../result/module.f.mjs'
-import type { Ts } from '../ts/types.ts'
 import { isArray as commonIsArray } from '../../array/module.f.mjs'
 import { isObject as commonIsObject } from '../../object/module.f.mjs'
-import type { StringMap } from '../../object/types.ts'
-
-/** A path to a sub-value within the validated structure. Each step is an object key or stringified array index. */
-export type Path = readonly string[]
-
-/** Detailed validation failure: the offending `path` plus a short `message`. */
-export type ValidationError = {
-    readonly path: Path
-    readonly message: string
-}
-
-/** Validation/parse result: either the typed value or a `ValidationError`. */
-export type Result<T extends Type> = CommonResult<Ts<T>, ValidationError>
-
-/** A function that checks an unknown value against schema `T`. Shared by `validate` and `parse`. */
-export type Validate<T extends Type> = (value: Unknown) => Result<T>
+/** @import { StringMap } from '../../object/types.ts' */
+/** @import { Validate, Visitor, IsContainer, Container, ResultE, ValidateE, ValidationError } from './types.ts' */
 
 /** Builds an error result with empty path and the given message. */
-export const verror = (message: string): Error<ValidationError> =>
+/** @type {(message: string) => Error<ValidationError>} */
+export const verror = message =>
     error({ path: [], message })
 
 /** Prepends `key` to the error's path, used to build the path bottom-up. */
-export const prependPath = (key: string, [,r]: Error<ValidationError>): Error<ValidationError> =>
+/** @type {(key: string, error: Error<ValidationError>) => Error<ValidationError>} */
+export const prependPath = (key, [,r]) =>
     error({ path: [key, ...r.path], message: r.message })
 
 /** Validates a `Tag0` primitive schema using `typeof`. */
-export const primitive0Validate = <K extends Primitive0, T extends Info0<K>>(tag: K): Validate<T> =>
-    value => typeof value === tag ? ok(value) as any : verror('unexpected value')
+export const primitive0Validate =
+    /**
+     * @template {Primitive0} K
+     * @template {Info0<K>} T
+     * @param {K} tag
+     * @returns {Validate<T>}
+     */
+    tag =>
+        value => typeof value === tag ? /** @type {any} */ (ok(value)) : verror('unexpected value')
 
 /**
  * Validates a primitive `Const` schema using `Object.is` (SameValue).
@@ -78,45 +64,31 @@ export const primitive0Validate = <K extends Primitive0, T extends Info0<K>>(tag
  * - `NaN` const schemas match `NaN` values (`===` would always fail because `NaN !== NaN`).
  * - `+0` and `-0` are treated as distinct const values.
  */
-export const constPrimitiveValidate = <T extends Primitive>(rtti: T): Validate<T> =>
-    value => Object.is(rtti, value)
-        ? ok(value) as any
-        : verror('unexpected value')
+export const constPrimitiveValidate =
+    /**
+     * @template {Primitive} T
+     * @param {T} rtti
+     * @returns {Validate<T>}
+     */
+    rtti =>
+        value => Object.is(rtti, value)
+            ? /** @type {any} */ (ok(value))
+            : verror('unexpected value')
 
-/**
- * One handler per `Type` variant. Both `validate` and `parse` provide a
- * `Visitor<R>` where `R` is the per-variant output (e.g. a `Validate` function).
- */
-export type Visitor<R> = {
-    readonly tuple: (rtti: Tuple) => R
-    readonly struct: (rtti: Struct) => R
-    readonly array: (item: Type) => R
-    readonly record: (item: Type) => R
-    readonly or: (variants: readonly Type[]) => R
-    readonly constPrimitive: (p: Primitive) => R
-    readonly primitive0: (tag: Primitive0) => R
-    readonly unknown: () => R
-}
-
-const visitConst = <R>(v: Visitor<R>) => (c: Const): R =>
+/** @type {<R>(v: Visitor<R>) => (c: Const) => R} */
+const visitConst = v => c =>
     typeof c === 'object' && c !== null
-        ? (commonIsArray(c) ? v.tuple(c) : v.struct(c as Struct))
-        : v.constPrimitive(c as Primitive)
-
-/** Type guard narrowing `Unknown` to a specific container type `C`. */
-export type IsContainer<C extends Unknown> = (value: Unknown) => value is C
-
-/** Maps a `Tag1` to its runtime container type. */
-export type Container<K extends Tag1> = K extends 'array'
-    ? ReadonlyArray<Unknown>
-    : StringMap<Unknown>
+        ? (commonIsArray(c) ? v.tuple(c) : v.struct(/** @type {Struct} */ (c)))
+        : v.constPrimitive(/** @type {Primitive} */ (c))
 
 /** `IsContainer` guard for arrays, shared by `validate` and `parse`. */
-export const isArray: IsContainer<ReadonlyArray<Unknown>> =
+/** @type {IsContainer<ReadonlyArray<Unknown>>} */
+export const isArray =
     value => commonIsArray(value)
 
 /** `IsContainer` guard for records/structs, shared by `validate` and `parse`. */
-export const isObject: IsContainer<StringMap<Unknown>> =
+/** @type {IsContainer<StringMap<Unknown>>} */
+export const isObject =
     value => commonIsObject(value)
 
 /**
@@ -133,28 +105,28 @@ export const isObject: IsContainer<StringMap<Unknown>> =
  * pairs, so it folds them into a `List` (see its call site) and converts to
  * an array once at the end.
  */
-export const eachEntry = <V, R, A>(
-    entries: ReadonlyArray<readonly [string, V]>,
-    item: (k: string, v: V) => CommonResult<R, ValidationError>,
-    init: A,
-    accumulate: (acc: A, k: string, value: R) => A,
-): CommonResult<A, ValidationError> => {
-    let acc = init
-    for (const [k, v] of entries) {
-        const r = item(k, v)
-        if (r[0] === 'error') {
-            return prependPath(k, r)
+export const eachEntry =
+    /**
+     * @template V
+     * @template R
+     * @template A
+     * @param {ReadonlyArray<readonly [string, V]>} entries
+     * @param {(k: string, v: V) => CommonResult<R, ValidationError>} item
+     * @param {A} init
+     * @param {(acc: A, k: string, value: R) => A} accumulate
+     * @returns {CommonResult<A, ValidationError>}
+     */
+    (entries, item, init, accumulate) => {
+        let acc = init
+        for (const [k, v] of entries) {
+            const r = item(k, v)
+            if (r[0] === 'error') {
+                return prependPath(k, r)
+            }
+            acc = accumulate(acc, k, r[1])
         }
-        acc = accumulate(acc, k, r[1])
+        return ok(acc)
     }
-    return ok(acc)
-}
-
-/** `Result` with the payload type erased; avoids instantiating `Ts<Type>`. */
-export type ResultE = CommonResult<Unknown, ValidationError>
-
-/** A `Validate`-shaped function with the payload type erased. */
-export type ValidateE = (value: Unknown) => ResultE
 
 /**
  * First variant in `variants` that `recurse` accepts, else `verror('no match')`.
@@ -165,10 +137,12 @@ export type ValidateE = (value: Unknown) => ResultE
  * is typed over the erased `ValidateE` alias — annotating it as `(t: Type) =>
  * Validate<Type>` would itself instantiate `Validate<Type>` and hit TS2589 —
  * so each caller passes its recursive function through one boundary cast.
+ *
+ * @type {(recurse: (t: Type) => ValidateE) => (variants: readonly Type[]) => (value: Unknown) => ResultE}
  */
 export const orVisit =
-    (recurse: (t: Type) => ValidateE) =>
-    (variants: readonly Type[]) => (value: Unknown): ResultE => {
+    recurse =>
+    variants => value => {
         for (const t of variants) {
             const r = recurse(t)(value)
             if (r[0] === 'ok') {
@@ -187,17 +161,23 @@ export const orVisit =
  * - `Const` schemas (primitives, tuples, structs) are routed directly to
  *   `tuple`, `struct`, or `constPrimitive`.
  */
-export const visit = <R>(v: Visitor<R>) => (rtti: Type): R => {
-    if (typeof rtti === 'function') {
-        const [tag, ...value] = rtti()
-        switch (tag) {
-            case 'const': return visitConst(v)(value[0] as Const)
-            case 'array': return v.array(value[0])
-            case 'record': return v.record(value[0])
-            case 'unknown': return v.unknown()
-            case 'or': return v.or(value)
+export const visit =
+    /**
+     * @template R
+     * @param {Visitor<R>} v
+     * @returns {(rtti: Type) => R}
+     */
+    v => rtti => {
+        if (typeof rtti === 'function') {
+            const [tag, ...value] = rtti()
+            switch (tag) {
+                case 'const': return visitConst(v)(/** @type {Const} */ (value[0]))
+                case 'array': return v.array(value[0])
+                case 'record': return v.record(value[0])
+                case 'unknown': return v.unknown()
+                case 'or': return v.or(value)
+            }
+            return v.primitive0(/** @type {Primitive0} */ (tag))
         }
-        return v.primitive0(tag as Primitive0)
+        return visitConst(v)(rtti)
     }
-    return visitConst(v)(rtti)
-}
