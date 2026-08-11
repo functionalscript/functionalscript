@@ -1,4 +1,4 @@
-import { contains, fromValues, remove, set } from './module.f.ts'
+import { contains, fromValues, remove, set } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {

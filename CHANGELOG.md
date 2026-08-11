@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/string_set` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
+  stage-1 TypeScript-to-mjs migration, splitting the `StringSet` type
+  into a sibling `types.ts` — importers must use the `.f.mjs` specifier
+  for runtime values and the `types.ts` specifier for the type
+  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
 - **BREAKING CHANGES:** `fjs/types/byte_set` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
   stage-1 TypeScript-to-mjs migration, splitting the `ByteSet` type into
