@@ -51,7 +51,7 @@ export const iterate = (n: bigint) => <T>(f: (v: T) => T) => (value: T): T => { 
 (keeping the internal `let`/`while` — a recursive form would overflow the
 stack for the large step counts VDFs use). `squareLoop`/`modSqrtLoop` call
 `iterate`; the local `repeatSeq` is deleted. Alternative home: a
-bigint-typed form next to `Unary` in `fjs/types/bigint/module.f.mjs`, but the
+bigint-typed form next to `Unary` in `fjs/types/bigint/types.ts`, but the
 combinator is not bigint-specific in `T` — only the counter is — so
 `fjs/types/function` is the natural owner.
 
