@@ -13,7 +13,7 @@ import { flat, flatMap, map, concat as listConcat } from '../../types/list/modul
 const { entries } = Object
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
-import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.ts'
+import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.mjs'
 
 const colon = [':']
 

@@ -7,11 +7,11 @@
  *
  * @module
  */
-import type { List } from '../../../types/list/types.ts'
+/** @import { List } from '../../../types/list/types.ts' */
 import { flat, map, reduce, empty } from '../../../types/list/module.f.mjs'
-import type { Reduce } from '../../../types/function/operator/types.ts'
+/** @import { Reduce } from '../../../types/function/operator/types.ts' */
 import { concat } from '../../../types/string/module.f.mjs'
-import type { CodePoint } from '../../../text/utf16/types.ts'
+/** @import { CodePoint } from '../../../text/utf16/types.ts' */
 import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { errorMask } from '../../../text/code_point/module.f.mjs'
 import {
@@ -35,7 +35,7 @@ const { fromCharCode } = String
  * The code points JSON gives a two-character escape. Every other code point
  * below `space` has no short form and goes through `unicodeEscape` instead.
  */
-const escapeTable = {
+const escapeTable = /** @type {const} */ ({
     [backspace]: '\\b',
     [ht]: '\\t',
     [lf]: '\\n',
@@ -43,15 +43,18 @@ const escapeTable = {
     [cr]: '\\r',
     [quotationMark]: '\\"',
     [reverseSolidus]: '\\\\',
-} as const
+})
 
-const hexDigit = (value: number): string =>
+/** @type {(value: number) => string} */
+const hexDigit = value =>
     fromCharCode(value < 10 ? digit0 + value : latinSmallLetterA + value - 10)
 
 /**
  * `\uXXXX` with lowercase hex digits, matching ECMAScript's `UnicodeEscape`.
+ *
+ * @type {(unit: number) => string}
  */
-const unicodeEscape = (unit: number): string =>
+const unicodeEscape = unit =>
     `\\u${hexDigit(unit >> 12 & 0xf)}${hexDigit(unit >> 8 & 0xf)}${hexDigit(unit >> 4 & 0xf)}${hexDigit(unit & 0xf)}`
 
 /**
@@ -59,25 +62,29 @@ const unicodeEscape = (unit: number): string =>
  * unpaired surrogate, which well-formed JSON stringification (ES2019) emits as
  * its `\uXXXX` escape rather than as a code unit; everything else is either a
  * named escape, a `\u00XX` control escape, or the character itself.
+ *
+ * @type {(codePoint: CodePoint) => string}
  */
-const escapeCodePoint = (codePoint: CodePoint): string =>
+const escapeCodePoint = codePoint =>
     (codePoint & errorMask) !== 0
         ? unicodeEscape(codePoint & 0xffff)
-        : escapeTable[codePoint]
+        : escapeTable[/** @type {keyof typeof escapeTable} */ (codePoint)]
             ?? (codePoint < space ? unicodeEscape(codePoint) : codePointToString(codePoint))
 
 /**
  * Serializes a string as a JSON string literal.
+ *
+ * @type {(_: string) => List<string>}
  */
 export const stringSerialize
-    : (_: string) => List<string>
     = input => [`"${concat(map(escapeCodePoint)(stringToCodePointList(input)))}"`]
 
 /**
  * Serializes a number as a JSON number literal.
+ *
+ * @type {(_: number) => List<string>}
  */
 export const numberSerialize
-    : (_: number) => List<string>
     = input => [jsonStringify(input)]
 
 /**
@@ -89,35 +96,36 @@ const trueSerialize = ['true']
 
 const falseSerialize = ['false']
 
+/** @type {(_: boolean) => List<string>} */
 export const boolSerialize
-    : (_: boolean) => List<string>
     = value => value ? trueSerialize : falseSerialize
 
 const comma = [',']
 
+/** @type {Reduce<List<string>>} */
 const joinOp
-    : Reduce<List<string>>
     = b => prior => flat([prior, comma, b])
 
+/** @type {(input: List<List<string>>) => List<string>} */
 const join
-    : (input: List<List<string>>) => List<string>
     = reduce(joinOp)(empty)
 
+/** @type {(open: string) => (close: string) => (input: List<List<string>>) => List<string>} */
 const wrap
-    : (open: string) => (close: string) => (input: List<List<string>>) => List<string>
     = open => close => {
         const seqOpen = [open]
         const seqClose = [close]
         return input => flat([seqOpen, join(input), seqClose])
     }
 
+/** @type {(input: List<List<string>>) => List<string>} */
 export const objectWrap
-    : (input: List<List<string>>) => List<string>
     = wrap('{')('}')
 
 /**
  * Wraps serialized entries into a JSON array.
+ *
+ * @type {(input: List<List<string>>) => List<string>}
  */
 export const arrayWrap
-    : (input: List<List<string>>) => List<string>
     = wrap('[')(']')

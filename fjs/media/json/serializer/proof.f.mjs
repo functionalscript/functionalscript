@@ -1,4 +1,4 @@
-import { arrayWrap, boolSerialize, numberSerialize, objectWrap, stringSerialize } from './module.f.ts'
+import { arrayWrap, boolSerialize, numberSerialize, objectWrap, stringSerialize } from './module.f.mjs'
 import * as list from '../../../types/list/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
@@ -8,7 +8,8 @@ const { toArray } = list
 // The expected literals below are what the host's `JSON.stringify` produces for
 // the same input; `stringSerialize` has to reproduce them exactly, so any
 // divergence in the FunctionalScript escaping shows up here as a failure.
-const serialized = (input: string): string => concat(stringSerialize(input))
+/** @type {(input: string) => string} */
+const serialized = input => concat(stringSerialize(input))
 
 export const proof = {
     arrayWrap: [
