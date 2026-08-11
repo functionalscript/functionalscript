@@ -7,7 +7,7 @@ import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
-import { main, syncMcp } from './module.f.ts'
+import { main, syncMcp } from './module.f.mjs'
 import { step } from '../../effects/module.f.mjs'
 
 const mcp = '{"servers":{}}' as const

@@ -4,17 +4,21 @@
  * @module
  */
 import { history, historyStep, mapStep, step } from '../../effects/module.f.mjs'
-import type { Effect } from '../../effects/types.ts'
+/** @import { Effect } from '../../effects/types.ts' */
 import { mkdir, readUtf8File, writeUtf8File } from '../../effects/node/module.f.mjs'
-import type { Mkdir, NodeProgram, ReadFile, WriteFile } from '../../effects/node/types.ts'
+/** @import { Mkdir, NodeProgram, ReadFile, WriteFile } from '../../effects/node/types.ts' */
 import { unwrap } from '../../types/result/module.f.mjs'
 
-const source = '.copilot/mcp.json' as const
-const targetDirectory = '.vscode' as const
-const target = '.vscode/mcp.json' as const
+const source = /** @type {const} */ ('.copilot/mcp.json')
+const targetDirectory = /** @type {const} */ ('.vscode')
+const target = /** @type {const} */ ('.vscode/mcp.json')
 
-/** Regenerates VS Code's local MCP configuration from the canonical Copilot configuration. */
-export const syncMcp = (): Effect<Mkdir | ReadFile | WriteFile, void> => {
+/**
+ * Regenerates VS Code's local MCP configuration from the canonical Copilot configuration.
+ *
+ * @type {() => Effect<Mkdir | ReadFile | WriteFile, void>}
+ */
+export const syncMcp = () => {
     const sourceText = history(mapStep(readUtf8File(source), unwrap))
     const targetDirectoryReady = historyStep(
         sourceText,
@@ -23,5 +27,9 @@ export const syncMcp = (): Effect<Mkdir | ReadFile | WriteFile, void> => {
     return mapStep(targetWritten, unwrap)
 }
 
-/** Runs all local development configuration generators. */
-export const main: NodeProgram = () => mapStep(syncMcp(), () => 0)
+/**
+ * Runs all local development configuration generators.
+ *
+ * @type {NodeProgram}
+ */
+export const main = () => mapStep(syncMcp(), () => 0)
