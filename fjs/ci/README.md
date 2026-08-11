@@ -23,7 +23,7 @@ canonical Node job under `nix/generated/`.
   per-version jobs, coverage, package checks, and the Node flake declarations.
 - `rust/module.f.ts` — Rust toolchain setup and `cargo` build/test steps.
 - `deno/module.f.ts` — Deno runtime steps.
-- `bun/module.f.ts` — Bun runtime steps.
+- `bun/module.f.mjs` — Bun runtime steps.
 
 ## Usage
 

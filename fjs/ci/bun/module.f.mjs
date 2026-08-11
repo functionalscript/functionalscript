@@ -6,9 +6,10 @@
  */
 import { bun } from '../config/module.f.mjs'
 import { install, test, uses } from '../common/module.f.mjs'
-import type { MetaStep } from '../common/types.ts'
+/** @import { MetaStep } from '../common/types.ts' */
 
-export const bunSteps = (version: string): readonly MetaStep[] => [
+/** @type {(version: string) => readonly MetaStep[]} */
+export const bunSteps = version => [
     install(uses('oven-sh/setup-bun', { 'bun-version': bun })),
     install({ run: `bun install -g functionalscript@${version}` }),
     test({ run: 'bun install --frozen-lockfile' }),
