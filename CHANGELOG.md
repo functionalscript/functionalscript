@@ -27,7 +27,7 @@ history.
   `SingleProperty`) into a sibling `types.ts` — importers must use the
   `.f.mjs` specifier for runtime values and the `types.ts` specifier for
   types
-  [#TBD](https://github.com/functionalscript/functionalscript/pull/TBD)
+  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
 - **BREAKING CHANGES:** every public type exported by an authored `.f.mjs`
   module moves to a sibling `types.ts` (31 modules, including `asserts`,
   `types/list`, `types/bit_vec`, `types/result`, `text`, `crypto/sha2`) —
