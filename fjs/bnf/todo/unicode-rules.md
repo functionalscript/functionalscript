@@ -60,9 +60,11 @@ constructing `','` as a string rule), change its core form to accept rules or
 symbols. A Unicode convenience wrapper may live in `fjs/bnf/unicode` if useful.
 
 EOF remains a generic BNF symbol convention rather than an alphabet-specific
-helper. The bigint-symbol task reserves the maximal 256-bit symbol value for EOF,
-so Unicode, byte, token, and future alphabets all use the same parser-level EOF
-representation without defining their own sentinel.
+helper. [The EOF task](./eof-minus-one.md) defines `EOF = -1`, outside the
+non-negative physical-symbol domain. Unicode, byte, token, and future alphabet
+adapters therefore produce only ordinary non-negative symbols and never need to
+reserve one value from their own alphabet. After the bigint migration the full
+uint256 range `0 .. 2^256 - 1` remains available for ordinary symbols.
 
 The result should allow the same core BNF API to describe grammars over any
 symbol alphabet without importing or depending on Unicode or byte-stream support.
@@ -125,6 +127,9 @@ new module boundary and final rule discriminants before implementation starts.
       `fjs/bnf/unicode/module.f.ts`.
 - [ ] Update grammars and imports to construct text terminals through the Unicode
       helpers instead of relying on raw strings as generic rules.
+- [ ] Keep EOF generic and width-independent: use `EOF = -1` from
+      [the EOF task](./eof-minus-one.md), and keep all alphabet adapters restricted
+      to ordinary non-negative symbols without reserving the maximal value.
 - [ ] Update/block `fjs/media/json/todo/bnf-grammar-single-owner.md` so its JSON
       grammar design imports Unicode helpers from `fjs/bnf/unicode/module.f.ts`
       and does not depend on raw string rules in core BNF.
@@ -156,8 +161,11 @@ new module boundary and final rule discriminants before implementation starts.
 
 ### Related
 
+- [Use `-1` as BNF EOF](./eof-minus-one.md) — defines EOF outside every physical
+  alphabet so adapters do not reserve a width-dependent value.
 - [256-bit bigint BNF symbols](./bigint-symbols.md) — after this split, the core
-  symbol-domain migration can stay independent of alphabet semantics.
+  symbol-domain migration can stay independent of alphabet semantics and retain
+  the full uint256 ordinary-symbol range.
 - [Layered parser](./layered-parser.md) — each parser layer can use the same BNF
   machinery with a different symbol alphabet.
 - [UTF-8 token symbols](./utf8-token-symbols.md) — tokenizer-output symbols are
