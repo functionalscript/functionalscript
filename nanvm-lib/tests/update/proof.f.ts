@@ -5,7 +5,7 @@
  */
 import { assert, assertEq } from '../../../fjs/asserts/module.f.mjs'
 import { step } from '../../../fjs/effects/module.f.mjs'
-import { readUtf8File } from '../../../fjs/effects/node/module.f.ts'
+import { readUtf8File } from '../../../fjs/effects/node/module.f.mjs'
 import {
     defaultNodeProgramOptions,
     emptyState,
