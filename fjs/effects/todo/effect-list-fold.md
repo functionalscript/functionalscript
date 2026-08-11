@@ -88,7 +88,7 @@ Six, all currently strict:
 
 | site | argument | after |
 | --- | --- | --- |
-| `fjs/cas/cli/module.f.ts:66` | `c.list()` | streams once `cas.list()` does |
+| `fjs/cas/cli/module.f.mjs:63` | `c.list()` | streams once `cas.list()` does |
 | `fjs/cas/evo/module.f.ts:174` | `cas.list()` | streams once `cas.list()` does |
 | `fjs/cas/evo/module.f.ts:232` | `pure(parents)` | `fromList(parents)` |
 | `fjs/cas/module.f.mjs:149` | `pure(expired)` | `fromList(expired)` |

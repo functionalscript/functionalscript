@@ -29,7 +29,7 @@ Under the plain `throw` key, `assert(false, 'oops')` throwing `'anything'` inste
 `assertEq(1, 2)` throwing the wrong tuple, or `todo()` throwing the wrong sentinel would all
 still pass. The same gap exists in `fjs/types/result/proof.f.mjs`'s `unwrapError` (dropped the
 check that `unwrap(error('oops'))` throws exactly `'oops'`, not some wrapped value) and
-`fjs/cas/cli/proof.f.ts`'s `mainListCorruptStore` (only checks *that* the storage error
+`fjs/cas/cli/proof.f.mjs`'s `mainListCorruptStore` (only checks *that* the storage error
 surfaces, which was already all it checked).
 
 **Why this is low-severity, not a correctness gap.** In FunctionalScript, `throw` is closer to

@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/cas/cli` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — no local types to
+  split. `proof.f.ts` migrates alongside it. Importers must use the
+  `.f.mjs` specifier
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
 - **BREAKING CHANGES:** `fjs/cas` migrates from authored TypeScript
   (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting `Cas`,
   `FileCas`, and `FileCasOperation` into a sibling `types.ts` —
