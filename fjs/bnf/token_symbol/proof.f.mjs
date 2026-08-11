@@ -1,7 +1,7 @@
 import { assertEq } from '../../asserts/module.f.mjs'
-import { capacity, encoding } from './module.f.ts'
+import { capacity, encoding } from './module.f.mjs'
 
-const names = ['>>', '>>>=', 'instanceof'] as const
+const names = /** @type {const} */ (['>>', '>>>=', 'instanceof'])
 
 export const proof = {
     encode: () => {
@@ -30,10 +30,10 @@ export const proof = {
         }
     },
     throw: {
-        duplicateName: () => { encoding(['a', 'b', 'a'] as const) },
-        unregisteredName: () => { encoding<string>(['a']).encode('b') },
+        duplicateName: () => { encoding(['a', 'b', 'a']) },
+        unregisteredName: () => { encoding(/** @type {readonly string[]} */ (['a'])).encode('b') },
         // `capacity` names fit, so one more is the smallest list that doesn't.
         // The array is sparse, so this costs a length, not the strings.
-        tooManyNames: () => { encoding(new Array<string>(capacity + 1)) },
+        tooManyNames: () => { encoding(new Array(capacity + 1)) },
     },
 }
