@@ -97,11 +97,11 @@ export type StructTs<T extends Struct> =
  *
  * **Recursive schemas and TS2589:** when a schema is self-referential, `StructTs` would
  * expand infinitely and TypeScript raises TS2589. Break the cycle by annotating the
- * schema value with `Phantom<typeof myThunk, MyType>` from `fjs/types/phantom/module.f.ts`.
+ * schema value with `Phantom<typeof myThunk, MyType>` from `fjs/types/phantom/types.ts`.
  * `Ts<>` detects the phantom key and returns `MyType` directly without recursing:
  *
  * ```ts
- * import { type Phantom } from '../types/phantom/module.f.ts'
+ * import { type Phantom } from '../../phantom/types.ts'
  *
  * type MyType = { readonly self?: MyType }
  * const myThunk = () => ['const', myConst] as const
