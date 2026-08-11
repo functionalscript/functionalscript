@@ -107,4 +107,4 @@ matched items rather than the nested right-recursive cons structure.
   representation assumptions used by the old dispatch example.
 - [BNF semantic actions](./207.md) — origin of the flat-list/action motivation.
 - `fjs/bnf/data/module.f.ts` — owns the data `Rule` representation and dispatch.
-- `fjs/bnf/module.f.ts` — owns BNF combinators such as `repeat0Plus`.
+- `fjs/bnf/module.f.mjs` — owns BNF combinators such as `repeat0Plus`.

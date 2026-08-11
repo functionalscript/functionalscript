@@ -9,8 +9,8 @@ import {
     isEmpty,
     oneEncode,
     repeat1Plus,
-    type Rule,
-} from './module.f.ts'
+} from './module.f.mjs'
+import type { Rule } from './types.ts'
 
 export const proof = {
     test: () => {

@@ -44,9 +44,9 @@ unary schemas (`array`, `record`) return `Info1` (a tag + inner type tuple).
 ## Example
 
 ```ts
-import { array, record, string, number } from './module.f.ts'
-import { validate } from './validate/module.f.ts'
-import type { Ts } from './ts/module.f.ts'
+import { array, record, string, number } from './module.f.mjs'
+import { validate } from './validate/module.f.mjs'
+import type { Ts } from './ts/types.ts'
 
 const person = { name: string, age: number }
 type Person = Ts<typeof person>

@@ -3,11 +3,12 @@
  *
  * The tree deliberately models syntax rather than evaluated Nix values. String
  * expressions are escaped double-quoted strings; the other supported forms are
- * represented by tagged tuples.
+ * represented by tagged tuples. See `./types.ts` for the `Expression`
+ * type-level API.
  *
  * @module
  */
-import type { List as ChunkList } from '../../types/list/types.ts'
+/** @import { List as ChunkList } from '../../types/list/types.ts' */
 import { toArray } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { includes } from '../../types/array/module.f.mjs'
@@ -18,45 +19,9 @@ import {
     range,
 } from '../../text/ascii/module.f.mjs'
 import { fromRange, get, merge } from '../../types/range_set/module.f.mjs'
+/** @import { Expression, _AttributePath, _Binding, _Reference, _AttributeSet, _NixList, _Application, _OpenSetPattern, _Lambda, _Let, _Chunks } from './types.ts' */
 
-type Identifier = string
-
-type AttributeName = string
-
-type AttributePath = readonly [AttributeName, ...AttributeName[]]
-
-type Binding = readonly ['=', AttributePath, Expression]
-
-type Reference = readonly ['ref', Identifier, ...AttributeName[]]
-
-type AttributeSet = readonly ['set', ...Binding[]]
-
-type NixList = readonly ['list', ...Reference[]]
-
-type ApplicationArgument = Reference | AttributeSet
-
-type Application = readonly ['apply', Reference, ...ApplicationArgument[]]
-
-type OpenSetPattern = readonly ['open-set-pattern', ...Identifier[]]
-
-type Lambda = readonly ['lambda', OpenSetPattern, Expression]
-
-type Let = readonly ['let', readonly Binding[], Expression]
-
-type IndentedString = readonly ['indented-string', string]
-
-/** The Nix syntax supported by the serializer. */
-export type Expression =
-    | string
-    | Reference
-    | AttributeSet
-    | NixList
-    | Application
-    | Lambda
-    | Let
-    | IndentedString
-
-const reservedWords = [
+const reservedWords = /** @type {const} */ ([
     'assert',
     'else',
     'if',
@@ -67,7 +32,7 @@ const reservedWords = [
     'rec',
     'then',
     'with',
-] as const
+])
 
 const isReservedWord = includes(reservedWords)
 
@@ -81,7 +46,8 @@ const identifierInitial = toArray(merge
 
 const getIdentifierInitial = get(identifierInitial)
 
-const isIdentifierInitial = (character: string): boolean =>
+/** @type {(character: string) => boolean} */
+const isIdentifierInitial = character =>
     getIdentifierInitial(character.charCodeAt(0))
 
 const identifierTrailing = toArray(merge
@@ -94,10 +60,12 @@ const identifierTrailing = toArray(merge
 
 const getIdentifierTrailing = get(identifierTrailing)
 
-const isIdentifierTrailing = (character: string): boolean =>
+/** @type {(character: string) => boolean} */
+const isIdentifierTrailing = character =>
     getIdentifierTrailing(character.charCodeAt(0))
 
-const isIdentifier = (value: string): boolean => {
+/** @type {(value: string) => boolean} */
+const isIdentifier = value => {
     const [initial, ...trailing] = value
     return initial !== undefined
         && isIdentifierInitial(initial)
@@ -105,9 +73,11 @@ const isIdentifier = (value: string): boolean => {
         && !isReservedWord(value)
 }
 
-const indent = (level: number): string => '    '.repeat(level)
+/** @type {(level: number) => string} */
+const indent = level => '    '.repeat(level)
 
-const escapeQuoted = (value: string): string => value
+/** @type {(value: string) => string} */
+const escapeQuoted = value => value
     .replaceAll('\\', '\\\\')
     .replaceAll('"', '\\"')
     .replaceAll('${', '\\${')
@@ -115,19 +85,24 @@ const escapeQuoted = (value: string): string => value
     .replaceAll('\r', '\\r')
     .replaceAll('\t', '\\t')
 
-const quoted = (value: string): string => `"${escapeQuoted(value)}"`
+/** @type {(value: string) => string} */
+const quoted = value => `"${escapeQuoted(value)}"`
 
-const attributeName = (value: AttributeName): string =>
+/** @type {(value: string) => string} */
+const attributeName = value =>
     isIdentifier(value) ? value : quoted(value)
 
-const attributePath = (path: AttributePath): string =>
+/** @type {(path: _AttributePath) => string} */
+const attributePath = path =>
     path.map(attributeName).join('.')
 
-const escapeIndented = (value: string): string => value
+/** @type {(value: string) => string} */
+const escapeIndented = value => value
     .replaceAll("''", "'''")
     .replaceAll('${', "''${")
 
-const protectLeadingWhitespace = (line: string): string => {
+/** @type {(line: string) => string} */
+const protectLeadingWhitespace = line => {
     const contentStart = [...line, 'x'].findIndex(character => character !== ' ' && character !== '\t')
     const leading = line.slice(0, contentStart)
         .replaceAll(' ', "''\\ ")
@@ -135,38 +110,44 @@ const protectLeadingWhitespace = (line: string): string => {
     return `${leading}${line.slice(contentStart)}`
 }
 
-type Chunks = readonly string[]
-
-const serializeReference = ([, name, ...selection]: Reference): string | undefined =>
+/** @type {(reference: _Reference) => string | undefined} */
+const serializeReference = ([, name, ...selection]) =>
     isIdentifier(name)
         ? [name, ...selection.map(attributeName)].join('.')
         : undefined
 
-const serializeReferenceChunks = (reference: Reference): Chunks | undefined => {
+/** @type {(reference: _Reference) => _Chunks | undefined} */
+const serializeReferenceChunks = reference => {
     const serialized = serializeReference(reference)
     return serialized === undefined ? undefined : [serialized]
 }
 
-const serializePattern = ([, ...names]: OpenSetPattern): string | undefined =>
+/** @type {(pattern: _OpenSetPattern) => string | undefined} */
+const serializePattern = ([, ...names]) =>
     names.every((name, index) => isIdentifier(name) && names.indexOf(name) === index)
         ? `{ ${[...names, '...'].join(', ')} }`
         : undefined
 
-const joinChunks = (chunks: readonly Chunks[], separator: string): Chunks =>
+/** @type {(chunks: readonly _Chunks[], separator: string) => _Chunks} */
+const joinChunks = (chunks, separator) =>
     chunks.flatMap((chunk, index) => index === 0 ? chunk : [separator, ...chunk])
 
-const isPathPrefix = (prefix: AttributePath, path: AttributePath): boolean =>
+/** @type {(prefix: _AttributePath, path: _AttributePath) => boolean} */
+const isPathPrefix = (prefix, path) =>
     prefix.length <= path.length
     && prefix.every((name, index) => name === path[index])
 
-const pathsConflict = (a: AttributePath, b: AttributePath): boolean =>
+/** @type {(a: _AttributePath, b: _AttributePath) => boolean} */
+const pathsConflict = (a, b) =>
     isPathPrefix(a, b) || isPathPrefix(b, a)
 
-const bindingsCompatible = (bindings: readonly Binding[]): boolean =>
+/** @type {(bindings: readonly _Binding[]) => boolean} */
+const bindingsCompatible = bindings =>
     bindings.every(([, path], index) =>
         bindings.slice(0, index).every(([, previous]) => !pathsConflict(path, previous)))
 
-const serializeBindings = (bindings: readonly Binding[], level: number): Chunks | undefined => {
+/** @type {(bindings: readonly _Binding[], level: number) => _Chunks | undefined} */
+const serializeBindings = (bindings, level) => {
     if (!bindingsCompatible(bindings)) {
         return undefined
     }
@@ -182,7 +163,8 @@ const serializeBindings = (bindings: readonly Binding[], level: number): Chunks 
         : joinChunks(defined, '\n')
 }
 
-const serializeSet = ([, ...bindings]: AttributeSet, level: number): Chunks | undefined => {
+/** @type {(set: _AttributeSet, level: number) => _Chunks | undefined} */
+const serializeSet = ([, ...bindings], level) => {
     if (bindings.length === 0) {
         return ['{}']
     }
@@ -190,7 +172,8 @@ const serializeSet = ([, ...bindings]: AttributeSet, level: number): Chunks | un
     return body === undefined ? undefined : ['{\n', ...body, '\n', indent(level), '}']
 }
 
-const serializeList = ([, ...references]: NixList): Chunks | undefined => {
+/** @type {(list: _NixList) => _Chunks | undefined} */
+const serializeList = ([, ...references]) => {
     const items = references.map(serializeReference)
     const definedItems = items.flatMap(item => item === undefined ? [] : [item])
     return items.includes(undefined)
@@ -200,7 +183,8 @@ const serializeList = ([, ...references]: NixList): Chunks | undefined => {
             : ['[ ', ...definedItems.flatMap((item, index) => index === 0 ? [item] : [' ', item]), ' ]']
 }
 
-const serializeApplication = ([, fn, ...args]: Application, level: number): Chunks | undefined => {
+/** @type {(application: _Application, level: number) => _Chunks | undefined} */
+const serializeApplication = ([, fn, ...args], level) => {
     const serializedFn = serializeReference(fn)
     const serializedArgs = args.map(argument =>
         argument[0] === 'ref'
@@ -212,7 +196,8 @@ const serializeApplication = ([, fn, ...args]: Application, level: number): Chun
         : [serializedFn, ...definedArgs.flatMap(argument => [' ', ...argument])]
 }
 
-const serializeLambda = ([, pattern, body]: Lambda, level: number): Chunks | undefined => {
+/** @type {(lambda: _Lambda, level: number) => _Chunks | undefined} */
+const serializeLambda = ([, pattern, body], level) => {
     const serializedPattern = serializePattern(pattern)
     const serializedBody = serialize(body, level)
     return serializedPattern === undefined || serializedBody === undefined
@@ -220,7 +205,8 @@ const serializeLambda = ([, pattern, body]: Lambda, level: number): Chunks | und
         : [serializedPattern, ': ', ...serializedBody]
 }
 
-const serializeLet = ([, bindings, body]: Let, level: number): Chunks | undefined => {
+/** @type {(let_: _Let, level: number) => _Chunks | undefined} */
+const serializeLet = ([, bindings, body], level) => {
     const serializedBindings = serializeBindings(bindings, level + 1)
     const serializedBody = serialize(body, level)
     return serializedBindings === undefined || serializedBody === undefined
@@ -228,7 +214,8 @@ const serializeLet = ([, bindings, body]: Let, level: number): Chunks | undefine
         : ['let\n', ...serializedBindings, '\n', indent(level), 'in\n', indent(level), ...serializedBody]
 }
 
-const serialize = (expression: Expression, level: number): Chunks | undefined => {
+/** @type {(expression: Expression, level: number) => _Chunks | undefined} */
+const serialize = (expression, level) => {
     if (typeof expression === 'string') {
         return [quoted(expression)]
     }
@@ -254,13 +241,21 @@ const serialize = (expression: Expression, level: number): Chunks | undefined =>
     }
 }
 
-/** Serializes an expression into composable chunks, or rejects an invalid identifier. */
-export const nix = (expression: Expression): ChunkList<string> | undefined => {
+/**
+ * Serializes an expression into composable chunks, or rejects an invalid identifier.
+ *
+ * @type {(expression: Expression) => ChunkList<string> | undefined}
+ */
+export const nix = expression => {
     return serialize(expression, 0)
 }
 
-/** Serializes an expression with exactly one trailing newline on success. */
-export const nixToString = (expression: Expression): string | undefined => {
+/**
+ * Serializes an expression with exactly one trailing newline on success.
+ *
+ * @type {(expression: Expression) => string | undefined}
+ */
+export const nixToString = expression => {
     const chunks = nix(expression)
     return chunks === undefined ? undefined : `${concat(chunks)}\n`
 }

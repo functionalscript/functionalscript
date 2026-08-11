@@ -4,12 +4,13 @@
  * Each `*Ts` type maps a schema (or schema fragment) to its corresponding TypeScript type.
  * The main entry point is `Ts<T>`.
  *
- * The runtime `toTs` function mirrors `Ts<T>` at value level, returning a TypeScript
- * type expression string for a given RTTI schema.
+ * The runtime `toTs` function (`printer` in `./module.f.mjs`) mirrors `Ts<T>` at value
+ * level, returning a TypeScript type expression string for a given RTTI schema.
+ *
+ * @module
  */
 import type { Equal } from '../../ts/types.ts'
-import { primitive, union, printer as tsPrinter } from '../../ts/module.f.mjs'
-import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, ConstObject } from '../module.f.ts'
+import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, ConstObject } from '../types.ts'
 import type { Assert } from '../../../asserts/types.ts'
 import type { phantomKey } from '../../phantom/types.ts'
 import type { StringMap } from '../../object/types.ts'
@@ -142,58 +143,6 @@ export type Ts<T extends Type> =
         never
     ) :
     ConstTs<T>
-
-/**
- * Creates a printer that converts an RTTI schema `Type` to its TypeScript type expression as a string.
- *
- * Mirrors the compile-time `Ts<T>` mapped type at runtime.
- * Pass `true` to emit mutable (non-`readonly`) types.
- *
- * **Note:** recursive schemas (e.g. `const list = () => ['array', list] as const`)
- * will cause infinite recursion. Only acyclic schemas are supported.
- *
- * **Note:** the `unknown` schema produces the string `'unknown'` (TypeScript's built-in),
- * whereas `Ts<>` maps it to `DjsUnknown` from `djs/module.f.ts`.
- *
- * @example
- * ```ts
- * const toTs = printer()
- * toTs(boolean)                    // 'boolean'
- * toTs(array(number))              // 'readonly(number)[]'
- * toTs(record(string))             // '{readonly[k in string]?:string}'
- * toTs(or(string, number))         // 'string|number'
- * toTs(42)                         // '42'
- * toTs('hello')                    // '"hello"'
- * toTs([boolean, number])          // 'readonly[boolean,number]'
- * toTs({ x: string })              // '{readonly"x":string}'
- *
- * const toTsMut = printer(true)
- * toTsMut(array(number))           // '(number)[]'
- * toTsMut(record(string))          // '{[k in string]?:string}'
- * ```
- */
-export const printer = (mut?: true): (rtti: Type) => string => {
-    const { tuple, struct, array, record } = tsPrinter(mut)
-
-    const constToTs = (rtti: Const): string =>
-        typeof rtti !== 'object' || rtti === null ? primitive(rtti) :
-        rtti instanceof Array ? tuple(rtti.map(toTs)) :
-        struct(Object.entries(rtti).map(([k, v]) => [k, toTs(v)]))
-
-    const toTs = (rtti: Type): string => {
-        if (typeof rtti !== 'function') { return constToTs(rtti) }
-        const [tag, ...rest] = rtti()
-        switch (tag) {
-            case 'const': return constToTs(rest[0] as Const)
-            case 'array': return array(toTs(rest[0]))
-            case 'record': return record(toTs(rest[0]))
-            case 'or': return union(rest.map(toTs))
-            default: return tag // tag0: 'boolean' | 'number' | 'string' | 'bigint' | 'unknown'
-        }
-    }
-
-    return toTs
-}
 
 // Fast-path: Ts<any> resolves to Unknown without TS2589 overflow.
 type _any = Assert<Equal<Ts<any>, Unknown>>

@@ -5,11 +5,11 @@
 
 ### Problem
 
-`fjs/crypto/sign/module.f.ts` already exposes the intended abstraction for "derive
+`fjs/crypto/sign/module.f.mjs` already exposes the intended abstraction for "derive
 the RFC6979 conversion helpers (`All`) from a `Curve`":
 
 ```ts
-// fjs/crypto/sign/module.f.ts:53
+// fjs/crypto/sign/module.f.mjs:53
 export const fromCurve = (c: Curve): All => all(c.nf.p)
 ```
 
@@ -17,7 +17,7 @@ But the module's primary in-module consumer, `sign`, ignores it and re-implement
 the same derivation by hand:
 
 ```ts
-// fjs/crypto/sign/module.f.ts:141-156
+// fjs/crypto/sign/module.f.mjs:141-156
 export const sign = (c: Curve) => (hf: Sha2) => (x: bigint) => (m: Vec): Signature => {
     const { nf: { p: q, div }, g } = c   // :143 — pulls q out of the curve manually
     const a = all(q)                      // :144 — this is exactly fromCurve(c)
@@ -37,7 +37,7 @@ Two distinct duplications here:
    reduction" step** that `all` already names internally for `bits2octets`:
 
    ```ts
-   // fjs/crypto/sign/module.f.ts:45-46
+   // fjs/crypto/sign/module.f.mjs:45-46
    // since z2 < 2*q, we can use simple mod with `z1 < q ? z1 : z1 - q`
    bits2octets: b => int2octets(bits2int(b) % q),
    ```
@@ -91,7 +91,7 @@ Two distinct duplications here:
 
    - **`all` is called with a bare subgroup order.** `all(q: bigint)` derives the
      RFC6979 helpers from `q` alone, and is invoked that way both conceptually and
-     in practice — e.g. `fjs/crypto/sign/proof.f.ts` has `all(7n)`, `all(17n)`,
+     in practice — e.g. `fjs/crypto/sign/proof.f.mjs` has `all(7n)`, `all(17n)`,
      `all(5n)`, `all(11n)`, `all(q)`. None of those callers has an `nf`/`g`/`mul`
      to supply. So the curve pieces live on `Signer`, not on the RFC6979 record.
    - **`mul` isn't on `nf` anyway.** `mul` is a field of `Curve`
@@ -121,6 +121,6 @@ co-locating the RFC rationale.
 
 ### Related
 
-- `fjs/crypto/sign/module.f.ts` — `all` (:32), `fromCurve` (:53), `sign` (:141)
+- `fjs/crypto/sign/module.f.mjs` — `all` (:32), `fromCurve` (:53), `sign` (:141)
 
 ---

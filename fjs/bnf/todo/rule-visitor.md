@@ -84,4 +84,4 @@ scheme. Each call site keeps its own recursion/accumulator structure.
   rather than introduce parallel backend dispatch edits.
 - [nullable-analysis-shared](./nullable-analysis-shared.md) — the shared
   nullability pass is a natural consumer once the visitor exists.
-- `fjs/types/rtti/common/module.f.ts` — existing `visit` precedent.
+- `fjs/types/rtti/common/module.f.mjs` — existing `visit` precedent.

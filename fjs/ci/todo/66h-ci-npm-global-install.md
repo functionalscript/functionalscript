@@ -25,7 +25,7 @@ must not resurrect that obsolete path.
 
 ### Proposed abstraction
 
-Add a small factory to `fjs/ci/common/module.f.ts`, which already centralizes
+Add a small factory to `fjs/ci/common/module.f.mjs`, which already centralizes
 `install`/`test`/`clean`/`uses`/`toSteps`:
 
 ```ts
@@ -64,7 +64,7 @@ This remains distinct from:
 
 ### Tasks
 
-- [ ] Add `npmGlobalInstall` to `fjs/ci/common/module.f.ts`.
+- [ ] Add `npmGlobalInstall` to `fjs/ci/common/module.f.mjs`.
 - [ ] Rebind `fjsGlobalInstall` in `fjs/ci/node/module.f.ts`.
 - [ ] Replace the inline `@typescript/native-preview` global-install step.
 - [ ] Confirm proof coverage for both surviving consumers and the generated step shape.

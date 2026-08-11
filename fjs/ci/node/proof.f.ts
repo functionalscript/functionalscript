@@ -1,5 +1,5 @@
 import { basicNode } from './module.f.ts'
-import { test } from '../common/module.f.ts'
+import { test } from '../common/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {

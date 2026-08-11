@@ -22,21 +22,17 @@
  *
  * The error shape, path bookkeeping, primitive checks, and schema
  * recognition (`visit`) are shared with `validate` through
- * `../common/module.f.ts`; only container construction differs.
+ * `../common/module.f.mjs`; only container construction differs.
+ *
+ * See `./types.ts` for the `Result`/`Parse` type-level API.
  *
  * @module
  */
-import {
-    type Info1,
-    type Struct,
-    type Tag1,
-    type Tuple,
-    type Type,
-} from '../module.f.ts'
-import type { Result as CommonResult } from '../../result/types.ts'
+/** @import { Info1, Struct, Tag1, Tuple, Type } from '../types.ts' */
+/** @import { Result as CommonResult } from '../../result/types.ts' */
 import { ok } from '../../result/module.f.mjs'
-import type { StringMap } from '../../object/types.ts'
-import type { List } from '../../list/types.ts'
+/** @import { StringMap } from '../../object/types.ts' */
+/** @import { List } from '../../list/types.ts' */
 import { reverse, toArray } from '../../list/module.f.mjs'
 import {
     constPrimitiveValidate,
@@ -47,44 +43,36 @@ import {
     primitive0Validate,
     verror,
     visit,
-    type Container,
-    type IsContainer,
-    type Result as CommonValidateResult,
-    type Validate,
-    type ValidateE,
-    type ValidationError,
-    type Visitor,
-} from '../common/module.f.ts'
-import type { Unknown } from '../ts/module.f.ts'
-
-export { type Path, type ValidationError } from '../common/module.f.ts'
+} from '../common/module.f.mjs'
+/** @import { Container, IsContainer, ValidateE, ValidationError, Visitor } from '../common/types.ts' */
+/** @import { Unknown } from '../ts/types.ts' */
+/** @import { Parse } from './types.ts' */
 
 const { entries } = Object
 
-/** Parse result: either the freshly constructed typed value or a `ValidationError`. */
-export type Result<T extends Type> = CommonValidateResult<T>
-
-/** A function that parses an unknown value into the schema `T`. */
-export type Parse<T extends Type> = Validate<T>
-
-type ItemResult = CommonResult<Unknown, ValidationError>
+/** @typedef {CommonResult<Unknown, ValidationError>} _ItemResult */
 
 /** Rebuilds a parsed container from its `[key, parsedValue]` entries. */
-type Rebuild = (entries: ReadonlyArray<readonly[string, Unknown]>) => Unknown
+/** @typedef {(entries: ReadonlyArray<readonly [string, Unknown]>) => Unknown} _Rebuild */
 
-const arrayRebuild: Rebuild = entries => entries.map(([, v]) => v)
+/** @type {_Rebuild} */
+const arrayRebuild = entries => entries.map(([, v]) => v)
 
-const recordRebuild: Rebuild = entries => Object.fromEntries(entries)
+/** @type {_Rebuild} */
+const recordRebuild = entries => Object.fromEntries(entries)
 
 /** `eachEntry`'s accumulator seed: entries are consed on in reverse as they parse. */
-const emptyEntries: List<readonly [string, Unknown]> = null
+/** @type {List<readonly [string, Unknown]>} */
+const emptyEntries = null
 
 /** `eachEntry`'s accumulate step: an O(1) prepend, unlike rebuilding an array on every entry. */
-const consEntry = (acc: List<readonly [string, Unknown]>, k: string, v: Unknown): List<readonly [string, Unknown]> =>
+/** @type {(acc: List<readonly [string, Unknown]>, k: string, v: Unknown) => List<readonly [string, Unknown]>} */
+const consEntry = (acc, k, v) =>
     ({ first: [k, v], tail: acc })
 
 /** Restores forward order from `consEntry`'s reverse-order list, in one linear pass. */
-const orderedEntries = (list: List<readonly [string, Unknown]>): ReadonlyArray<readonly [string, Unknown]> =>
+/** @type {(list: List<readonly [string, Unknown]>) => ReadonlyArray<readonly [string, Unknown]>} */
+const orderedEntries = list =>
     toArray(reverse(list))
 
 /**
@@ -95,27 +83,29 @@ const orderedEntries = (list: List<readonly [string, Unknown]>): ReadonlyArray<r
  * schemas don't recurse forever on empty containers.
  */
 const containerParse =
-    <K extends Tag1>(
-        isContainer: IsContainer<Container<K>>,
-        rebuild: Rebuild,
-    ) =>
-    <I extends Type>(item: I): Parse<Info1<K, I>> => value =>
-{
-    if (!isContainer(value)) {
-        return verror('unexpected value')
+    /**
+     * @template {Tag1} K
+     * @param {IsContainer<Container<K>>} isContainer
+     * @param {_Rebuild} rebuild
+     * @returns {<I extends Type>(item: I) => Parse<Info1<K, I>>}
+     */
+    (isContainer, rebuild) =>
+    item => value => {
+        if (!isContainer(value)) {
+            return verror('unexpected value')
+        }
+        const e = entries(value)
+        if (e.length === 0) {
+            return /** @type {any} */ (ok(rebuild([])))
+        }
+        const itemParse = /** @type {(v: Unknown) => _ItemResult} */ (/** @type {any} */ (parse(item)))
+        const r = eachEntry(e, (_k, v) => itemParse(v), emptyEntries, consEntry)
+        return r[0] === 'error' ? r : /** @type {any} */ (ok(rebuild(orderedEntries(r[1]))))
     }
-    const e = entries(value)
-    if (e.length === 0) {
-        return ok(rebuild([])) as any
-    }
-    const itemParse = parse(item) as (v: Unknown) => ItemResult
-    const r = eachEntry(e, (_k, v) => itemParse(v), emptyEntries, consEntry)
-    return r[0] === 'error' ? r : ok(rebuild(orderedEntries(r[1]))) as any
-}
 
-const arrayParse = containerParse<'array'>(isArray, arrayRebuild)
+const arrayParse = containerParse(isArray, arrayRebuild)
 
-const recordParse = containerParse<'record'>(isObject, recordRebuild)
+const recordParse = containerParse(isObject, recordRebuild)
 
 /**
  * Builds a parser for `Tuple` or `Struct` const schemas. Mirrors `validate`'s
@@ -124,39 +114,47 @@ const recordParse = containerParse<'record'>(isObject, recordRebuild)
  * from each parsed item.
  */
 const constContainerParse =
-    <C extends Unknown>(
-        isContainer: IsContainer<C>,
-        getItem: (value: C, k: string) => Unknown,
-        rebuild: Rebuild,
-    ) =>
-    <T extends Tuple|Struct>(rtti: T): Parse<T> => value =>
-{
-    if (!isContainer(value)) {
-        return verror('unexpected value')
+    /**
+     * @template {Unknown} C
+     * @param {IsContainer<C>} isContainer
+     * @param {(value: C, k: string) => Unknown} getItem
+     * @param {_Rebuild} rebuild
+     * @returns {<T extends Tuple | Struct>(rtti: T) => Parse<T>}
+     */
+    (isContainer, getItem, rebuild) =>
+    rtti => value => {
+        if (!isContainer(value)) {
+            return verror('unexpected value')
+        }
+        const r = eachEntry(
+            entries(rtti),
+            (k, t) => /** @type {_ItemResult} */ (/** @type {any} */ (parse(t))(getItem(value, k))),
+            emptyEntries,
+            consEntry,
+        )
+        return r[0] === 'error' ? r : /** @type {any} */ (ok(rebuild(orderedEntries(r[1]))))
     }
-    const r = eachEntry(
-        entries(rtti),
-        (k, t) => (parse(t) as any)(getItem(value, k)) as ItemResult,
-        emptyEntries,
-        consEntry,
-    )
-    return r[0] === 'error' ? r : ok(rebuild(orderedEntries(r[1]))) as any
-}
 
-const tupleParse = constContainerParse<ReadonlyArray<Unknown>>(
+const tupleParse = constContainerParse(
     isArray,
     (value, k) => value[Number(k)],
     arrayRebuild,
 )
 
-const structParse = constContainerParse<StringMap<Unknown>>(
+const structParse = constContainerParse(
     isObject,
     (value, k) => value[k],
     recordRebuild,
 )
 
-const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or', ...T]> =>
-    orVisit(parse as (t: Type) => ValidateE)(rtti) as Parse<() => readonly['or', ...T]>
+const orParse =
+    /**
+     * @template {readonly Type[]} T
+     * @param {T} rtti
+     * @returns {Parse<() => readonly ['or', ...T]>}
+     */
+    rtti =>
+        /** @type {any} */ (orVisit(/** @type {(t: Type) => ValidateE} */ (/** @type {any} */ (parse)))(rtti))
 
 /**
  * Creates a parser function for the given RTTI schema.
@@ -170,19 +168,19 @@ const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or',
  * @returns A `Parse<T>` function.
  *
  * @example
- * ```ts
+ * ```js
  * const p = parse(array(number))
  * p([1, 2, 3])         // ['ok', [1, 2, 3]]   (a new array)
  * p([1, 'two'])        // ['error', { path: ['1'], message: 'unexpected value' }]
  *
  * // tuples are closed: extra elements are dropped
- * parse([number, number] as const)([1, 2, 3]) // ['ok', [1, 2]]
+ * parse([number, number])([1, 2, 3]) // ['ok', [1, 2]]
  *
  * // structs drop undeclared keys
- * parse({ a: number } as const)({ a: 1, b: 2 }) // ['ok', { a: 1 }]
+ * parse({ a: number })({ a: 1, b: 2 }) // ['ok', { a: 1 }]
  * ```
  */
-const parseVisitor = {
+const parseVisitor = /** @type {any} */ ({
     tuple: tupleParse,
     struct: structParse,
     array: arrayParse,
@@ -191,7 +189,8 @@ const parseVisitor = {
     constPrimitive: constPrimitiveValidate,
     primitive0: primitive0Validate,
     unknown: () => ok,
-} as unknown as Visitor<(value: Unknown) => unknown>
+})
 
-export const parse = <T extends Type>(rtti: T): Parse<T> =>
-    visit(parseVisitor)(rtti) as any
+/** @type {<T extends Type>(rtti: T) => Parse<T>} */
+export const parse = rtti =>
+    /** @type {any} */ (visit(parseVisitor)(rtti))

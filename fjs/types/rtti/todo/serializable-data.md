@@ -4,7 +4,7 @@
 **Status:** open
 
 A function-free, serializable representation of `Type` in
-[`fjs/types/rtti/module.f.ts`](../module.f.ts), modeled after
+[`fjs/types/rtti/module.f.mjs`](../module.f.mjs), modeled after
 [`fjs/bnf/data`](../../../bnf/data/). The motivation is to give RTTI a clear
 two-form architecture and to move *all* schema algebra (union, subset,
 normalization, dispatch) off the thunk graph and onto a representation built for

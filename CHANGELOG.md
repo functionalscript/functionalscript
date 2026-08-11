@@ -20,6 +20,87 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/bnf/module.f.ts` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  its type-level API into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier
+  for types. `proof.f.ts` and `testlib.f.ts` stay TypeScript for now
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
+- **BREAKING CHANGES:** `fjs/media/nix` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  the `Expression` type (and its private helper types) into a sibling
+  `types.ts` — importers must use the `.f.mjs` specifier for runtime
+  values and the `types.ts` specifier for types
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
+- **BREAKING CHANGES:** `fjs/ci/rust` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — importers must use
+  the `.f.mjs` specifier
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
+- **BREAKING CHANGES:** `fjs/ci/deno` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — importers must use
+  the `.f.mjs` specifier
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
+- **BREAKING CHANGES:** `fjs/ci/bun` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — importers must use
+  the `.f.mjs` specifier
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
+- **BREAKING CHANGES:** `fjs/ci/common` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  its type-level API (`Os`, `Architecture`, `Image`, `Step`, `Job`,
+  `Jobs`, `GitHubAction`, `StepType`, `MetaStep`) into a sibling
+  `types.ts` — importers must use the `.f.mjs` specifier for runtime
+  values and the `types.ts` specifier for types
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
+- **BREAKING CHANGES:** `fjs/types/rtti/parse/module.f.ts` migrates from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  splitting its `Result`/`Parse` types into a sibling `types.ts` —
+  importers must use the `.f.mjs` specifier for runtime values and the
+  `types.ts` specifier for types. `proof.f.ts` stays TypeScript for
+  now: it has a type-only dependency on the not-yet-migrated `fjs/djs`
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
+- **BREAKING CHANGES:** `fjs/types/rtti/validate/module.f.ts` migrates
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
+  (`.f.mjs`) — importers must use the `.f.mjs` specifier for runtime
+  values and `fjs/types/rtti/common/types.ts` for the re-exported
+  types. `proof.f.ts` stays TypeScript for now: it has a type-only
+  dependency on the not-yet-migrated `fjs/djs`
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
+- **BREAKING CHANGES:** `fjs/types/rtti/common` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  its type-level API into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier
+  for types
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
+- **BREAKING CHANGES:** `fjs/types/rtti/ts` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  its `Ts<T>` type-transformer API into a sibling `types.ts` — importers
+  must use the `.f.mjs` specifier for the `printer` runtime value and
+  the `types.ts` specifier for types
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
+- **BREAKING CHANGES:** `fjs/types/rtti` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  its type-level API into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier
+  for types
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
+- **BREAKING CHANGES:** `fjs/crypto/sign` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  the `All` type into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier
+  for the type
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
+- **BREAKING CHANGES:** `fjs/media/html` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  the `Element`/`Node` types into a sibling `types.ts` — importers must
+  use the `.f.mjs` specifier for runtime values and the `types.ts`
+  specifier for types
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
+- **BREAKING CHANGES:** `fjs/sul` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting the
+  `EncodeState`/`Encode` types into a sibling `types.ts` — importers
+  must use the `.f.mjs` specifier for runtime values and the `types.ts`
+  specifier for types
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
 - **BREAKING CHANGES:** `fjs/types/object`, `fjs/sul/level/literal`,
   `fjs/sul/id`, `fjs/sul/level/hash`, `fjs/types/string_set`, and the
   `module.f.ts` of `fjs/types/sorted_set` and `fjs/types/byte_set`

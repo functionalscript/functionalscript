@@ -46,9 +46,10 @@ import { fromVec } from '../text/utf8/module.f.mjs'
 import { detectVec, type DetectMeta } from './type/module.f.ts'
 import { parse } from './json/module.f.ts'
 import { assert, assertNotNullish } from '../asserts/module.f.mjs'
-import type { Struct } from '../types/rtti/module.f.ts'
-import type { Ts, Unknown } from '../types/rtti/ts/module.f.ts'
-import { validate, type Validate } from '../types/rtti/validate/module.f.ts'
+import type { Struct } from '../types/rtti/types.ts'
+import type { Ts, Unknown } from '../types/rtti/ts/types.ts'
+import { validate } from '../types/rtti/validate/module.f.mjs'
+import type { Validate } from '../types/rtti/common/types.ts'
 
 /**
  * One registered dialect: the name it tags itself with, and a predicate

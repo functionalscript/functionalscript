@@ -2,7 +2,7 @@
 
 See [Backus-Naur form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
 
-- the functional representation [./module.f.ts](./module.f.ts),
+- the functional representation [./module.f.mjs](./module.f.mjs),
 - the serializable representation [./data/](./data/),
 - symbols for multi-character tokens [./token_symbol/](./token_symbol/),
 - parser/automaton backends built over the serializable representation:

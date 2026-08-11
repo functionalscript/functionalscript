@@ -7,22 +7,24 @@ import { mapStep, step, type Effect } from '../effects/module.f.ts'
 import { access, writeUtf8File, type NodeOp } from '../effects/node/module.f.ts'
 import { functionalscript, images } from './config/module.f.mjs'
 import {
-    type Architecture,
-    type GitHubAction,
-    type Job,
-    type Jobs,
-    type MetaStep,
-    type Os,
     architecture,
     os,
     toSteps,
     ubuntuArm
-} from './common/module.f.ts'
-import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.ts'
+} from './common/module.f.mjs'
+import type {
+    Architecture,
+    GitHubAction,
+    Job,
+    Jobs,
+    MetaStep,
+    Os,
+} from './common/types.ts'
+import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.mjs'
 import { nodeMainSteps, nodeNixJobs, nodeNixVersionSteps, nodeVersionJobs } from './node/module.f.ts'
 import { nixFlakes, nixInstall, type NixJob } from './nix/module.f.ts'
-import { bunSteps } from './bun/module.f.ts'
-import { denoSteps } from './deno/module.f.ts'
+import { bunSteps } from './bun/module.f.mjs'
+import { denoSteps } from './deno/module.f.mjs'
 
 const job = (
     rust: boolean,

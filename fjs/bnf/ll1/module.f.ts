@@ -17,11 +17,11 @@ import type { RangeMapArray } from '../../types/range_map/types.ts'
 import { rangeMap } from '../../types/range_map/module.f.mjs'
 import { contains, set } from '../../types/string_set/module.f.mjs'
 import type { StringSet } from '../../types/string_set/types.ts'
-import { rangeDecode } from '../module.f.ts'
+import { rangeDecode } from '../module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import type { StringMap } from '../../types/object/types.ts'
 import { emptyTagMap, type EmptyTag, type RuleSet, toData } from '../data/module.f.ts'
-import { type Rule as FRule } from '../module.f.ts'
+import type { Rule as FRule } from '../types.ts'
 
 type DispatchRule = {
     readonly emptyTag: EmptyTag,

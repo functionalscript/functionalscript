@@ -13,9 +13,9 @@
  *
  * @module
  */
-import { boolean, string, option, array, record, or } from '../../types/rtti/module.f.ts'
+import { boolean, string, option, array, record, or } from '../../types/rtti/module.f.mjs'
 import { unknown, type Unknown } from '../../media/json/module.f.ts'
-import type { Ts } from '../../types/rtti/ts/module.f.ts'
+import type { Ts } from '../../types/rtti/ts/types.ts'
 import { pure, type Operation, type Effect, step } from '../../effects/module.f.ts'
 import { read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
 import {
@@ -24,9 +24,9 @@ import {
     type Response, type Id, type RpcError,
     jsonrpc,
 } from '../json_rpc/module.f.ts'
-import { validate } from '../../types/rtti/validate/module.f.ts'
+import { validate } from '../../types/rtti/validate/module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.ts'
-import type { Type } from '../../types/rtti/module.f.ts'
+import type { Type } from '../../types/rtti/types.ts'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 

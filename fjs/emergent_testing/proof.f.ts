@@ -13,9 +13,9 @@ import { run as mockRun } from '../effects/mock/module.f.ts'
 import type { All, Await, Test, TestContext } from '../effects/node/module.f.ts'
 import { shouldLoad } from '../dev/module.f.ts'
 import { parse as parseJson } from '../media/json/module.f.ts'
-import { array, number as rttiNumber, or, string as rttiString } from '../types/rtti/module.f.ts'
-import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
-import type { Ts } from '../types/rtti/ts/module.f.ts'
+import { array, number as rttiNumber, or, string as rttiString } from '../types/rtti/module.f.mjs'
+import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
+import type { Ts } from '../types/rtti/ts/types.ts'
 import { unwrap } from '../types/result/module.f.mjs'
 
 /**

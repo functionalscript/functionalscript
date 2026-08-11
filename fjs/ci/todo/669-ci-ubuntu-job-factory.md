@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/ci/common/module.f.ts` defines two exported Job builders that differ only in one
+`fjs/ci/common/module.f.mjs` defines two exported Job builders that differ only in one
 image constant:
 
 ```ts
@@ -57,7 +57,7 @@ task must not add compatibility code for the deleted Playwright job.
 
 ### Tasks
 
-- [ ] Add the exported `job` factory in `fjs/ci/common/module.f.ts`.
+- [ ] Add the exported `job` factory in `fjs/ci/common/module.f.mjs`.
 - [ ] Re-express `ubuntu` and `ubuntuArm` in terms of `job`.
 - [ ] Migrate the surviving external construction in `fjs/ci/module.f.ts`.
 - [ ] Confirm `proof.f.ts` still covers `job`, `ubuntu`, and `ubuntuArm`.

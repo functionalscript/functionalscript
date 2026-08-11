@@ -5,12 +5,12 @@
 
 ### Problem
 
-`fjs/ci/rust/module.f.ts` defines a family of one-line `MetaStep` builders that
+`fjs/ci/rust/module.f.mjs` defines a family of one-line `MetaStep` builders that
 all wrap `cargoCommand(...)` and differ only by which suffixes (`--release`,
 `-- -D warnings`) they concatenate:
 
 ```ts
-// fjs/ci/rust/module.f.ts:18-39
+// fjs/ci/rust/module.f.mjs:18-39
 const cargoTest = (target?: string, config?: string): MetaStep =>
     test({ run: cargoCommand('test', target, config) })
 
@@ -96,7 +96,7 @@ factory.
 
 - [ ] Add the `cargoStep` factory and re-derive `cargoTest`,
       `cargoReleaseTest`, `cargoClippy`, `cargoReleaseClippy`, and the
-      `cargoTestPair` release arm from it in `fjs/ci/rust/module.f.ts`.
+      `cargoTestPair` release arm from it in `fjs/ci/rust/module.f.mjs`.
 - [ ] Confirm the generated CI YAML is unchanged (diff the `ci` output before
       and after — `npm run ci-update` / inspect `.github/workflows`).
 - [ ] Run `npx tsc` and `fjs t`; ensure `fjs/ci` proofs still pass with full

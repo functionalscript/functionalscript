@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/bnf/module.f.ts` currently mixes two different layers:
+`fjs/bnf/module.f.mjs` currently mixes two different layers:
 
 - generic BNF rule/range machinery over an abstract symbol alphabet;
 - Unicode-specific conveniences that interpret JavaScript strings as sequences
@@ -16,7 +16,7 @@ code point. This becomes especially important when layered parsing uses the same
 BNF machinery for different alphabets: bytes, Unicode code points, tokenizer
 output symbols, and potentially other intermediate symbol streams.
 
-The coupling is not limited to helper functions in `fjs/bnf/module.f.ts`.
+The coupling is not limited to helper functions in `fjs/bnf/module.f.mjs`.
 `DataRule` currently includes `string`, and `fjs/bnf/data/module.f.ts` recognizes
 that case and converts the string with `stringToCodePointList`. Therefore the
 serializable/core BNF conversion path itself currently has Unicode semantics.
@@ -25,7 +25,7 @@ serializable/core BNF conversion path itself currently has Unicode semantics.
 
 Split alphabet-specific rule construction from the generic BNF module:
 
-- `fjs/bnf/module.f.ts` defines generic symbols/ranges, rule types, and grammar
+- `fjs/bnf/module.f.mjs` defines generic symbols/ranges, rule types, and grammar
   combinators. It has no dependency on text/Unicode or byte-stream modules and
   does not give JavaScript `string` or byte-container values terminal meaning.
 - `fjs/bnf/unicode/module.f.ts` contains helpers for constructing generic BNF
@@ -114,9 +114,9 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Add `fjs/bnf/unicode/module.f.ts` for Unicode code-point rule helpers.
 - [ ] Add `fjs/bnf/byte/module.f.ts` for binary byte-stream rule helpers.
 - [ ] Move Unicode constants and string/code-point helper functions out of
-      `fjs/bnf/module.f.ts`.
-- [ ] Remove Unicode/text imports from `fjs/bnf/module.f.ts`.
-- [ ] Keep byte-container interpretation out of `fjs/bnf/module.f.ts` and
+      `fjs/bnf/module.f.mjs`.
+- [ ] Remove Unicode/text imports from `fjs/bnf/module.f.mjs`.
+- [ ] Keep byte-container interpretation out of `fjs/bnf/module.f.mjs` and
       `fjs/bnf/data/module.f.ts`.
 - [ ] Remove `string` as a generic BNF `DataRule` / `Rule` case.
 - [ ] Remove Unicode string expansion from `fjs/bnf/data/module.f.ts`.
@@ -180,7 +180,7 @@ new module boundary and final rule discriminants before implementation starts.
 - [Reuse `toSequence` in BNF data](./data-tosequence-reuse.md) — irrelevant because
   it is superseded by this split; generic BNF data no longer performs Unicode
   string expansion.
-- [`fjs/bnf/module.f.ts`](../module.f.ts) — currently mixes generic and Unicode
+- [`fjs/bnf/module.f.mjs`](../module.f.mjs) — currently mixes generic and Unicode
   rule construction.
 - [`fjs/bnf/data/module.f.ts`](../data/module.f.ts) — currently expands string
   rules into Unicode code-point terminals.
