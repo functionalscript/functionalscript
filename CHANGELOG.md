@@ -20,6 +20,14 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/media/json/tokenizer` migrates from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  splitting `JsonToken` and the internal `_ScanState`/`_ScanInput`
+  types into a sibling `types.ts` — importers must use the `.f.mjs`
+  specifier for runtime values and the `types.ts` specifier for types.
+  `proof.f.ts` stays TypeScript for now (it depends on
+  `djs/serializer/module.f.ts`, still unmigrated)
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
 - **BREAKING CHANGES:** `fjs/js/tokenizer/module.f.ts` migrates from
   authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
   splitting `StringToken`, `NumberToken`, `BigIntToken`, `ErrorToken`,
