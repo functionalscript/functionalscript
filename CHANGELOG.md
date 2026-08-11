@@ -43,17 +43,21 @@ history.
   into a sibling `types.ts` — importers must use the `.f.mjs` specifier
   for runtime values and the `types.ts` specifier for the type
   [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
-- **BREAKING CHANGES:** `fjs/types/byte_set` migrates from authored
-  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
-  stage-1 TypeScript-to-mjs migration, splitting the `ByteSet` type into
-  a sibling `types.ts` — importers must use the `.f.mjs` specifier for
-  runtime values and the `types.ts` specifier for the type
+- **BREAKING CHANGES:** `fjs/types/byte_set/module.f.ts` migrates from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`)
+  under the stage-1 TypeScript-to-mjs migration, splitting the
+  `ByteSet` type into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier
+  for the type. `proof.f.ts` stays TypeScript for now: it has a
+  runtime dependency on the not-yet-migrated `fjs/media/json`
   [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
-- **BREAKING CHANGES:** `fjs/types/sorted_set` migrates from authored
-  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
-  stage-1 TypeScript-to-mjs migration, splitting the `SortedSet<T>` type
-  into a sibling `types.ts` — importers must use the `.f.mjs` specifier
-  for runtime values and the `types.ts` specifier for the type
+- **BREAKING CHANGES:** `fjs/types/sorted_set/module.f.ts` migrates
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
+  (`.f.mjs`) under the stage-1 TypeScript-to-mjs migration, splitting
+  the `SortedSet<T>` type into a sibling `types.ts` — importers must
+  use the `.f.mjs` specifier for runtime values and the `types.ts`
+  specifier for the type. `proof.f.ts` stays TypeScript for now: it has
+  a runtime dependency on the not-yet-migrated `fjs/media/json`
   [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
 - **BREAKING CHANGES:** `fjs/sul/level/literal` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the

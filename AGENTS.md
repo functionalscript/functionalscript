@@ -625,7 +625,7 @@ whenever that type changes.
 
 #### `StringMap` / `RequiredMap` / `OptionalMap` for string-keyed records
 
-Use the record types from `fjs/types/object/module.f.ts` for all string-keyed
+Use the record types from `fjs/types/object/types.ts` for all string-keyed
 record types. The key set picks the type:
 
 - **Open key set:** `StringMap<T>` is `{ readonly[k in string]?: T }` — any
@@ -653,7 +653,7 @@ a property of aliasing, not of any one definition — writing the record as a
 mapped type rather than a conditional one does not lift it.
 
 When iterating all defined entries of a `StringMap<T>`, use `definedEntries`
-from `fjs/types/object/module.f.ts` instead of `Object.entries`; use
+from `fjs/types/object/module.f.mjs` instead of `Object.entries`; use
 `definedValues` instead of `Object.values`.
 
 #### `flatMap` over a filtering type predicate
