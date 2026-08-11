@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/crypto/hmac` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
+  TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier
+  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
 - **BREAKING CHANGES:** `fjs/types/object` migrates from authored TypeScript
   (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
   TypeScript-to-mjs migration, splitting its type-level API (`OptionalMap`,
