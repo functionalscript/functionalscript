@@ -14,7 +14,8 @@ import { utf8 } from '../text/module.f.mjs'
 import { fileCas, type FileCasOperation } from '../cas/module.f.ts'
 import { dialect as revisionDialect, mediaType as revisionMediaType } from '../media/revision/module.f.ts'
 import { sha256 } from '../crypto/sha2/module.f.mjs'
-import { nonEmpty, empty as elEmpty, type List } from '../effects/list/module.f.ts'
+import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
+import type { List } from '../effects/list/types.ts'
 import {
     mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
 } from '../protocol/mcp/module.f.ts'

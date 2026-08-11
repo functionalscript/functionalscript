@@ -41,7 +41,8 @@ import {
 import { toOption } from '../types/nullable/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.mjs'
 import { splitAt } from '../types/string/module.f.mjs'
-import { nonEmpty, empty as elEmpty, type List } from '../effects/list/module.f.ts'
+import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
+import type { List } from '../effects/list/types.ts'
 
 const split2 = splitAt(2)
 

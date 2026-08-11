@@ -124,7 +124,7 @@ import { collectRead, fileCas, type FileCasOperation } from '../../cas/module.f.
 import { fromVec } from '../../text/utf8/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
-import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.ts'
+import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { syncRevision, type Cache } from '../../cas/evo/module.f.ts'
 import type { Key } from '../../effects/memory/module.f.ts'
 

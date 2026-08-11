@@ -11,7 +11,7 @@ element exists in memory before the first `f` runs, and the fold cannot begin
 until the last element has been produced.
 
 That is not the shape the codebase's real sequences have.
-`fjs/effects/list/module.f.ts` already defines the streaming one:
+`fjs/effects/list/module.f.mjs` already defines the streaming one:
 
 ```ts
 export type List<O extends Operation, T> = Effect<O, Next<O, T>>
@@ -39,13 +39,13 @@ places. That is `foldStep` over a stream, plus a short-circuit.
 ### Proposal
 
 **1. Rename `List<O, T>` → `EffectList<O, T>`** in
-`fjs/effects/list/module.f.ts`. It collides with `fjs/types/list`'s `List<T>`,
+`fjs/effects/list/module.f.mjs`. It collides with `fjs/types/list`'s `List<T>`,
 and the eight importers currently alias around the clash — `elEmpty` in
 `fjs/cas`, `fjs/cas/evo`, `fjs/mcp`; `emptyList` in `fjs/media/type/proof`.
 The rename has value independent of the rest of this issue.
 
 **2. Move `foldStep` / `forEachStep`** out of `fjs/effects/module.f.mjs` and into
-`fjs/effects/list/module.f.ts`, retyped over `EffectList`:
+`fjs/effects/list/module.f.mjs`, retyped over `EffectList`:
 
 ```ts
 export const foldStep = <O extends Operation, T, Q extends Operation, S>(
@@ -76,7 +76,7 @@ export const fromList = <O extends Operation, T>(items: List<T>): EffectList<O, 
 built from `empty` / `nonEmpty`. The four `pure(...)` call sites below become
 `fromList(...)`.
 
-**Layering.** `fjs/effects/list/module.f.ts` already imports `pure` from
+**Layering.** `fjs/effects/list/module.f.mjs` already imports `pure` from
 `../module.f.mjs` and `Effect`/`Operation` from `../types.ts`; adding `step` is
 the same direction, so no cycle. After the move, `fjs/effects/module.f.mjs` drops its
 `fjs/types/list` import entirely and the core effect module no longer depends on
@@ -132,10 +132,10 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
 
 ### Tasks
 
-- [ ] Rename `List<O, T>` → `EffectList<O, T>` in `fjs/effects/list/module.f.ts`;
+- [ ] Rename `List<O, T>` → `EffectList<O, T>` in `fjs/effects/list/module.f.mjs`;
       update the eight importers and drop the `elEmpty` / `emptyList` aliases
       that existed only to dodge the name clash.
-- [ ] Add `fromList` to `fjs/effects/list/module.f.ts`.
+- [ ] Add `fromList` to `fjs/effects/list/module.f.mjs`.
 - [ ] Move `foldStep` / `forEachStep` there, retyped over `EffectList`, carrying
       their JSDoc and the step-variant rationale.
 - [ ] Remove the now-unused `fjs/types/list` import from
