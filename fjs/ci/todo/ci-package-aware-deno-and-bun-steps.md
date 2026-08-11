@@ -26,7 +26,7 @@ test commands, runner image, and generated job identifier.
 
 ### Plan
 
-- [ ] In `fjs/ci/module.f.ts`, read the repository root for `deno.lock` and `bun.lock`
+- [ ] In `fjs/ci/module.f.mjs`, read the repository root for `deno.lock` and `bun.lock`
       through `access`, analogous to how `Cargo.toml` controls Rust jobs.
 - [ ] Construct the canonical job map so the complete Deno entry is conditionally added
       only when `deno.lock` exists.

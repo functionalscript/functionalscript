@@ -43,7 +43,7 @@ Three reasons to finish the job:
 | Assertion messages | 33 | `fjs/djs/tokenizer/proof.f.ts` (31), `fjs/types/rtti/ts/proof.f.mjs:8,12` (2) | pass the value, or `fjs/djs`'s `stringify` |
 | Source-text quoting | 5 | `fjs/emergent_testing/module.f.ts:305,322,335`, `fjs/types/ts/module.f.mjs:36,48` | `stringSerialize` — already designed in `66c-emit-literals-via-owner-modules.md` |
 | JSON line framing | 2 | `fjs/emergent_testing/proof.f.ts:42`, `fjs/mcp/proof.f.ts:128` | `stringify(identity)` |
-| Pretty-printed file output | 1 | `fjs/ci/module.f.ts:81` | needs indentation support, which `serialize` does not have |
+| Pretty-printed file output | 1 | `fjs/ci/module.f.mjs:83` | needs indentation support, which `serialize` does not have |
 
 Three semantic differences to respect while migrating, none of them blocking:
 
@@ -113,7 +113,7 @@ reporter renders a failure payload with `String(v)`
 message. Either serialize with `fjs/djs`'s `stringify` (it handles the `bigint`
 token payloads) or improve the reporter's rendering first.
 
-**4. Indentation for `fjs/ci/module.f.ts:81`**, the only site asking for
+**4. Indentation for `fjs/ci/module.f.mjs:83`**, the only site asking for
 something `serialize` cannot do (`JSON.stringify(gha, null, '  ')`). Add an
 indenting variant to `fjs/media/json/serializer` — the natural shape is
 `serialize` parameterized by an indent unit, with today's behavior as the
@@ -133,7 +133,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
 - [ ] Phase 2: file the shortest-round-trip number-formatting issue under
       `fjs/types/bigfloat/todo/`, then implement `numberSerialize` on it.
 - [ ] Phase 3: migrate the write sites, row by row from the shape table.
-- [ ] Phase 4: indenting serializer; migrate `fjs/ci/module.f.ts`.
+- [ ] Phase 4: indenting serializer; migrate `fjs/ci/module.f.mjs`.
 - [ ] Per phase: `npx tsc`, `fjs t`, `npm run cov`, and a CHANGELOG entry.
 
 ### Related

@@ -43,7 +43,8 @@
  */
 import type { Vec } from '../types/bit_vec/types.ts'
 import { fromVec } from '../text/utf8/module.f.mjs'
-import { detectVec, type DetectMeta } from './type/module.f.ts'
+import { detectVec } from './type/module.f.mjs'
+import type { DetectMeta } from './type/types.ts'
 import { parse } from './json/module.f.ts'
 import { assert, assertNotNullish } from '../asserts/module.f.mjs'
 import type { Struct } from '../types/rtti/types.ts'

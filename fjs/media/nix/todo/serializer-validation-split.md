@@ -127,7 +127,7 @@ collect. Do *not* add an `allOrNothing` / `traverse` helper to
 and abstracting it would preserve the plumbing this issue removes.
 
 **3. One public entry point that carries the reason.** There is exactly one
-production importer — `fjs/ci/nix/module.f.ts` — so the contract is still cheap
+production importer — `fjs/ci/nix/module.f.mjs` — so the contract is still cheap
 to fix, but the change is no longer confined to this module's own proof:
 
 ```ts
@@ -169,7 +169,7 @@ make the reason reachable at all. One shape, decided here.
 
 The one production caller gets *simpler*, not harder. Today it launders
 `undefined` through the nullable convention to reach an assertion
-(`fjs/ci/nix/module.f.ts:93-94`):
+(`fjs/ci/nix/module.f.mjs:71-72`):
 
 ```ts
 export const flakeText = (job: NixJob): string =>
@@ -255,7 +255,7 @@ where it lands.
       `proof.f.ts:72-105` assertions must pass with only their `Result`
       wrapping changed, not their expected text.
 - [ ] Migrate the one production caller, `flakeText`
-      (`fjs/ci/nix/module.f.ts:93-94`): replace
+      (`fjs/ci/nix/module.f.mjs:71-72`): replace
       `unwrapNullable(fromUndefined(…))` with the `unwrap` from
       `fjs/types/result` that module already imports, and drop
       `fromUndefined`/`unwrapNullable` from its imports (`:15`). Land it in the

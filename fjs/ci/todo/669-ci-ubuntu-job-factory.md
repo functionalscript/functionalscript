@@ -23,7 +23,7 @@ export const ubuntuArm = (ms: readonly MetaStep[]): Job => ({
 The entire body is duplicated. The only variation is `'runs-on'`.
 
 The same `{ 'runs-on': image, steps: toSteps(result) }` shape is also constructed in
-`fjs/ci/module.f.ts`, so there are currently three surviving copies of the same Job
+`fjs/ci/module.f.mjs`, so there are currently three surviving copies of the same Job
 construction pattern.
 
 The former `fjs/ci/playwright/module.f.ts` consumer is intentionally excluded: that
@@ -44,7 +44,7 @@ export const ubuntu = job(images.ubuntu.intel)
 export const ubuntuArm = job(images.ubuntu.arm)
 ```
 
-Keep `job` exported because the surviving external construction in `fjs/ci/module.f.ts`
+Keep `job` exported because the surviving external construction in `fjs/ci/module.f.mjs`
 can become:
 
 ```ts
@@ -59,7 +59,7 @@ task must not add compatibility code for the deleted Playwright job.
 
 - [ ] Add the exported `job` factory in `fjs/ci/common/module.f.mjs`.
 - [ ] Re-express `ubuntu` and `ubuntuArm` in terms of `job`.
-- [ ] Migrate the surviving external construction in `fjs/ci/module.f.ts`.
+- [ ] Migrate the surviving external construction in `fjs/ci/module.f.mjs`.
 - [ ] Confirm `proof.f.ts` still covers `job`, `ubuntu`, and `ubuntuArm`.
 - [ ] Verify generated workflow output is unchanged.
 - [ ] Run `npx tsc` and `fjs t`.
