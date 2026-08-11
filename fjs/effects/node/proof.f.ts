@@ -3,7 +3,7 @@ import { empty, isVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match, pure, step } from "../module.f.mjs"
 import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, type IoResult, type ReadFile } from "./module.f.ts"
-import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.ts"
+import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual, type Dir } from "./virtual/module.f.ts"
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'

@@ -28,7 +28,8 @@
  */
 import { step } from '../effects/module.f.mjs'
 import type { Effect } from '../effects/types.ts'
-import { create, type MemOp } from '../effects/memory/module.f.ts'
+import { create } from '../effects/memory/module.f.mjs'
+import type { MemOp } from '../effects/memory/types.ts'
 import { type Read, type Write } from '../effects/node/module.f.ts'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.ts'
 import {
@@ -40,7 +41,7 @@ import { initEvo, evo, type Cache } from '../cas/evo/module.f.ts'
 import { sha256 } from '../crypto/sha2/module.f.mjs'
 import { casToolRegistry } from './cas/module.f.ts'
 import { evoToolRegistry } from './evo/module.f.ts'
-import type { Key } from '../effects/memory/module.f.ts'
+import type { Key } from '../effects/memory/types.ts'
 
 // ── Handlers ────────────────────────────────────────────────────────────────────
 

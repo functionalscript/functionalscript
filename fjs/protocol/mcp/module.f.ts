@@ -18,7 +18,8 @@ import { unknown, type Unknown } from '../../media/json/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/types.ts'
 import { pure, step } from '../../effects/module.f.mjs'
 import type { Operation, Effect } from '../../effects/types.ts'
-import { read, write, type Key, type MemOp } from '../../effects/memory/module.f.ts'
+import { read, write } from '../../effects/memory/module.f.mjs'
+import type { Key, MemOp } from '../../effects/memory/types.ts'
 import {
     decodeRequest,
     rpcError, invalidRequest, invalidParams, methodNotFound,

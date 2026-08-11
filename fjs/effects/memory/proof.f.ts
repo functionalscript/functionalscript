@@ -4,8 +4,8 @@ import { pure, step } from '../module.f.mjs'
 import {
     asBase, asNominal,
     create, read, write,
-    type Key, type MemOp,
-} from './module.f.ts'
+} from './module.f.mjs'
+import type { Key, MemOp } from './types.ts'
 
 type MemoryState = {
     readonly next: number

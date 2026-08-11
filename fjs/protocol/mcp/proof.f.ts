@@ -3,7 +3,8 @@ import { pure, step } from '../../effects/module.f.mjs'
 import { eff } from '../../effects/eff/module.f.ts'
 import type { Effect, Operation } from '../../effects/types.ts'
 import { run, type MemOperationMap } from '../../effects/mock/module.f.ts'
-import { asBase, asNominal, create, read, type Key, type MemOp } from '../../effects/memory/module.f.ts'
+import { asBase, asNominal, create, read } from '../../effects/memory/module.f.mjs'
+import type { Key, MemOp } from '../../effects/memory/types.ts'
 import type { Unknown } from '../../media/json/module.f.ts'
 import {
     type ToolsListParams, type ToolsListResult, type ToolsCallParams, type ToolsCallResult,
