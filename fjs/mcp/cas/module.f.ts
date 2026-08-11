@@ -105,7 +105,7 @@ import { string, option, or, boolean } from '../../types/rtti/module.f.mjs'
 import { stringify } from '../../media/json/module.f.ts'
 import { pure, step } from '../../effects/module.f.mjs'
 import type { Effect } from '../../effects/types.ts'
-import { type MemOp } from '../../effects/memory/module.f.ts'
+import type { MemOp } from '../../effects/memory/types.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
@@ -126,7 +126,7 @@ import { identity } from '../../types/function/module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { syncRevision, type Cache } from '../../cas/evo/module.f.ts'
-import type { Key } from '../../effects/memory/module.f.ts'
+import type { Key } from '../../effects/memory/types.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 

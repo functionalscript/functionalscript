@@ -9,9 +9,11 @@ import { utf8ToString } from '../../../text/module.f.mjs'
 import type { Vec } from '../../../types/bit_vec/types.ts'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
-import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
-import { asBase, asNominal, type Key } from '../../memory/module.f.ts'
-import type { Dirent, FileStat, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../module.f.ts'
+import { run } from '../../mock/module.f.mjs'
+import type { MemOperationMap, RunInstance } from '../../mock/types.ts'
+import { asBase, asNominal } from '../../memory/module.f.mjs'
+import type { Key } from '../../memory/types.ts'
+import type { Dirent, FileStat, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts'
 
 /**
  * In-memory JS module entry. When `import_` is called on the path, the

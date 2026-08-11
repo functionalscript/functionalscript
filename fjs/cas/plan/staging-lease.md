@@ -114,7 +114,7 @@ used — it fails to sort across DST transitions and offset changes.
 
 The design needs **no `FileHandle` type** and no held OS resource — the uploader's state is
 plain data (`path`, `offset`, `hash`). Every effect is stateless and path-based, like the
-existing `readBytes` / `writeFile` / `rename` effects in `fjs/effects/node/module.f.ts`.
+existing `readBytes` / `writeFile` / `rename` effects in `fjs/effects/node/module.f.mjs`.
 
 | Effect | Signature | Notes |
 |---|---|---|

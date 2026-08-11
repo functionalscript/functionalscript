@@ -8,8 +8,8 @@ import { asyncRun } from '../../module.ts'
 import {
     asNominal,
     create, read, write,
-    type Key, type MemOp,
-} from '../../memory/module.f.ts'
+} from '../../memory/module.f.mjs'
+import type { Key, MemOp } from '../../memory/types.ts'
 import { memoryOperationMap, run } from './module.ts'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { step } from '../../module.f.mjs'

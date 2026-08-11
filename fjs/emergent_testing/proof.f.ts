@@ -1,5 +1,6 @@
 import type { Effect } from '../effects/types.ts'
-import { log, type NodeProgramOptions, type Sandbox, type Write } from '../effects/node/module.f.ts'
+import { log } from '../effects/node/module.f.mjs'
+import type { NodeProgramOptions, Sandbox, Write } from '../effects/node/types.ts'
 import { defaultNodeProgramOptions, emptyState, type JsModule } from '../effects/node/virtual/module.f.ts'
 import { virtual } from '../effects/node/virtual/module.f.ts'
 import { assert, assertEq } from '../asserts/module.f.mjs'
@@ -9,8 +10,8 @@ import {
     type Reporter,
     defaultTest,
 } from './module.f.ts'
-import { run as mockRun } from '../effects/mock/module.f.ts'
-import type { All, Await, Test, TestContext } from '../effects/node/module.f.ts'
+import { run as mockRun } from '../effects/mock/module.f.mjs'
+import type { All, Await, Test, TestContext } from '../effects/node/types.ts'
 import { shouldLoad } from '../dev/module.f.ts'
 import { parse as parseJson } from '../media/json/module.f.ts'
 import { array, number as rttiNumber, or, string as rttiString } from '../types/rtti/module.f.mjs'

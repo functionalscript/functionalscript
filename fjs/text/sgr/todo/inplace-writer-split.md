@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/text/sgr/module.f.ts` bundles two unrelated concerns. Alongside the ANSI
+`fjs/text/sgr/module.f.mjs` bundles two unrelated concerns. Alongside the ANSI
 CSI/SGR machinery (`csi`, `sgr`, `reset`/`bold`/`fgRed`/`fgGreen`,
 `csiWrite`) it carries a backspace-based *in-place text rewriter*
 (`:52-78`):

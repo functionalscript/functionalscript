@@ -5,7 +5,8 @@
  */
 import { history, historyStep, mapStep, step } from '../../effects/module.f.mjs'
 import type { Effect } from '../../effects/types.ts'
-import { mkdir, type Mkdir, type NodeProgram, readUtf8File, type ReadFile, type WriteFile, writeUtf8File } from '../../effects/node/module.f.ts'
+import { mkdir, readUtf8File, writeUtf8File } from '../../effects/node/module.f.mjs'
+import type { Mkdir, NodeProgram, ReadFile, WriteFile } from '../../effects/node/types.ts'
 import { unwrap } from '../../types/result/module.f.mjs'
 
 const source = '.copilot/mcp.json' as const

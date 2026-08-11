@@ -78,7 +78,7 @@ A module intended to be run with `fjs run` must export a named `main` constant
 of type `NodeProgram`:
 
 ```ts
-import type { NodeProgram } from '../effects/node/module.f.ts'
+import type { NodeProgram } from '../effects/node/types.ts'
 
 export const main: NodeProgram = options => {
     // options.args — command-line arguments passed after the module path

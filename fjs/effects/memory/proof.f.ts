@@ -1,11 +1,12 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { run, type MemOperationMap } from '../mock/module.f.ts'
+import { run } from '../mock/module.f.mjs'
+import type { MemOperationMap } from '../mock/types.ts'
 import { pure, step } from '../module.f.mjs'
 import {
     asBase, asNominal,
     create, read, write,
-    type Key, type MemOp,
-} from './module.f.ts'
+} from './module.f.mjs'
+import type { Key, MemOp } from './types.ts'
 
 type MemoryState = {
     readonly next: number

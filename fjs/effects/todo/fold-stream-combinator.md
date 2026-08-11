@@ -41,7 +41,7 @@ const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>>
     })
 ```
 
-`writeLoop` (`fjs/effects/node/module.f.ts:205-228`) and `fileCas.write`'s
+`writeLoop` (`fjs/effects/node/module.f.mjs:149-169`) and `fileCas.write`'s
 inner `loop` (`fjs/cas/module.f.ts:184-207`) are the same skeleton with an
 *effectful* per-chunk step (`writeBytes` and `writeBytes` + hash + lease
 renewal respectively).
@@ -58,7 +58,7 @@ returns an `Effect`, so it subsumes both the pure folds (step = `pure(...)`)
 and the effectful writers.
 
 **Layering note:** `IoResult` cannot appear in this module's signature —
-it is exported by `fjs/effects/node/module.f.ts`, which already imports
+it is exported by `fjs/effects/node/module.f.mjs`, which already imports
 `List` from `fjs/effects/list/module.f.mjs`, so importing it back would be
 a cycle. But `IoResult<T>` is just an alias for `Result<T, unknown>` from
 `fjs/types/result` (a types-layer module `effects/list` can import freely),
@@ -78,7 +78,7 @@ export const foldStream =
 that is judged too specific for `effects/list`, generalize the element
 type to a parameter `I` in place of `Vec` — the combinator never inspects
 the chunks. Alternatively the helper can live in
-`fjs/effects/node/module.f.ts` next to the I/O types, but the `Result`
+`fjs/effects/node/module.f.mjs` next to the I/O types, but the `Result`
 spelling keeps it in the layer where `List` is defined, which is
 preferred.)
 

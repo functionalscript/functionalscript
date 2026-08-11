@@ -21,7 +21,7 @@ runtime. Every downstream caller (`fjs run`, bin scripts) already goes through
 `runEffect`/`run`, so no caller needs to change.
 
 ```ts
-// fjs/effects/node/module.f.ts
+// fjs/effects/node/module.f.mjs
 export type NodeMain = NodeProgram | Commands<NodeOp>
 ```
 
@@ -49,7 +49,7 @@ wrapper in `fjs/cas/module.f.ts` simplifies to `export const main = commands`.
 ### Tasks
 
 - [ ] Export `NodeMain = NodeProgram | Commands<NodeOp>` from
-      `fjs/effects/node/module.f.ts`.
+      `fjs/effects/node/module.f.mjs`.
 - [ ] Widen `runEffect` and `run` in `fjs/effects/node/module.ts` to accept
       `NodeMain`; resolve the union with `Array.isArray` before invoking.
 - [ ] Simplify `fjs/cas/module.f.ts`: `export const main = commands` (drop the

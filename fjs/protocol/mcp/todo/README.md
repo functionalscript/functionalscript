@@ -234,5 +234,5 @@ server-answers-request.
 - `fjs/protocol/json_rpc/module.f.ts` — the JSON-RPC 2.0 envelope
 - `fjs/media/json/schema/module.f.ts` — rtti → JSON Schema printer
 - `fjs/types/rtti/module.f.mjs` — schema combinators; `fjs/types/rtti/ts/` is the precedent for a printer
-- `fjs/effects/node/module.f.ts` — stdio (`write` / stdin) and HTTP (`createServer` / `listen`) for transports
+- `fjs/effects/node/module.f.mjs` — stdio (`write` / stdin) and HTTP (`createServer` / `listen`) for transports
 - [Model Context Protocol](https://modelcontextprotocol.io/) · [JSON-RPC 2.0](https://www.jsonrpc.org/specification)
