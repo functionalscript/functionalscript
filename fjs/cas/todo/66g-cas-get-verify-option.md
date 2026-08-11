@@ -6,8 +6,8 @@
 
 ### Problem
 
-`Cas.read` / `fileKvStore.read` (`fjs/cas/module.f.ts:51-57, 85-92`) and the `cas get`
-command (`fjs/cas/module.f.ts:126-146`) return the bytes stored at an address without
+`Cas.read` / `fileKvStore.read` (`fjs/cas/module.f.mjs:51-57, 85-92`) and the `cas get`
+command (`fjs/cas/module.f.mjs:126-146`) return the bytes stored at an address without
 recomputing their hash. If a blob was corrupted, truncated, or misnamed — for example by
 disk corruption or by a copy-files synchronization that has not yet been verified — a reader
 between the copy and a later scrub can consume invalid content under a hash that was signed

@@ -1,7 +1,7 @@
 # CAS
 
 Content-addressable storage: blobs on disk, addressed by content hash
-([fjs/cas/module.f.ts](module.f.ts)). The store is type-agnostic — it keeps
+([fjs/cas/module.f.mjs](module.f.mjs)). The store is type-agnostic — it keeps
 raw bytes only, sharded by cBase32 hash under `~/.cas/` — and never records a
 mutable pointer or a per-blob type tag; both are recovered at the edges that
 need them.

@@ -26,7 +26,7 @@ const loop = (s: DetectState) => (l: List<O, IoResult<Vec>>): Effect<O, IoResult
     })
 ```
 
-`collectRead` (`fjs/cas/module.f.ts:132-147`) — pure fold with an
+`collectRead` (`fjs/cas/module.f.mjs:79-95`) — pure fold with an
 overflow guard in the per-chunk step:
 
 ```ts
@@ -42,7 +42,7 @@ const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>>
 ```
 
 `writeLoop` (`fjs/effects/node/module.f.mjs:149-169`) and `fileCas.write`'s
-inner `loop` (`fjs/cas/module.f.ts:184-207`) are the same skeleton with an
+inner `loop` (`fjs/cas/module.f.mjs:201-234`) are the same skeleton with an
 *effectful* per-chunk step (`writeBytes` and `writeBytes` + hash + lease
 renewal respectively).
 

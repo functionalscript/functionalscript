@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/cas` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting `Cas`,
+  `FileCas`, and `FileCasOperation` into a sibling `types.ts` —
+  importers must use the `.f.mjs` specifier for runtime values and the
+  `types.ts` specifier for types. `proof.f.ts` migrates alongside it
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
 - **BREAKING CHANGES:** `fjs/dev` migrates from authored TypeScript
   (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting `Module`,
   `ModuleMap`, and `LoadModuleOperations` into a sibling `types.ts` —

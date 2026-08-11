@@ -6,7 +6,7 @@
 ### Problem
 
 The store's on-disk shard layout is defined by `toPath`
-(`fjs/cas/module.f.ts:47-52`): `join(prefix, a, b, c)`. But `publish`
+(`fjs/cas/module.f.mjs:59-64`): `join(prefix, a, b, c)`. But `publish`
 re-derives the *parent directory* of a shard by parsing the relative path
 back apart and dropping the last segment (`:169-171`):
 
@@ -55,7 +55,7 @@ shard path decomposes, and no second `dirname` consumer exists yet.
 
 ### Tasks
 
-- [ ] Extract `shard` in `fjs/cas/module.f.ts`; express `toPath` and
+- [ ] Extract `shard` in `fjs/cas/module.f.mjs`; express `toPath` and
       `publish`'s `dstDir` through it.
 - [ ] `npx tsc`, `fjs t`; existing CAS proofs pass unchanged.
 

@@ -11,7 +11,8 @@ import type { All, Read, Write, WriteFile } from '../../effects/node/types.ts'
 import { dispatch } from '../../cli/module.f.mjs'
 import type { Commands } from '../../cli/types.ts'
 import type { MemOp } from '../../effects/memory/types.ts'
-import { casAddFile, fileCas, type FileCasOperation } from '../module.f.ts'
+import { casAddFile, fileCas } from '../module.f.mjs'
+import type { FileCasOperation } from '../types.ts'
 
 export const commands: Commands<FileCasOperation | WriteFile | Write | All | MemOp | Read> = [
     {
