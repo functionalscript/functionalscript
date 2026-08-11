@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/rtti/ts` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  its `Ts<T>` type-transformer API into a sibling `types.ts` — importers
+  must use the `.f.mjs` specifier for the `printer` runtime value and
+  the `types.ts` specifier for types
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
 - **BREAKING CHANGES:** `fjs/types/rtti` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
   its type-level API into a sibling `types.ts` — importers must use the

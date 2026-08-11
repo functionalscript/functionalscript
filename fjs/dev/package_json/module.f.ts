@@ -8,7 +8,7 @@ import { parse as parseJsonText } from '../../media/json/module.f.ts'
 import { option, record, string } from '../../types/rtti/module.f.mjs'
 import { validate as rttiValidate } from '../../types/rtti/validate/module.f.ts'
 import type { ValidationError } from '../../types/rtti/validate/module.f.ts'
-import type { Ts } from '../../types/rtti/ts/module.f.ts'
+import type { Ts } from '../../types/rtti/ts/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import { error, ok } from '../../types/result/module.f.mjs'
 

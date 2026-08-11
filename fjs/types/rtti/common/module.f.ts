@@ -27,7 +27,7 @@
  *
  * @module
  */
-import type { Primitive, Unknown } from '../ts/module.f.ts'
+import type { Primitive, Unknown } from '../ts/types.ts'
 import type {
     Const,
     Info0,
@@ -39,7 +39,7 @@ import type {
 } from '../types.ts'
 import type { Error, Result as CommonResult } from '../../result/types.ts'
 import { error, ok } from '../../result/module.f.mjs'
-import type { Ts } from '../ts/module.f.ts'
+import type { Ts } from '../ts/types.ts'
 import { isArray as commonIsArray } from '../../array/module.f.mjs'
 import { isObject as commonIsObject } from '../../object/module.f.mjs'
 import type { StringMap } from '../../object/types.ts'

@@ -55,7 +55,7 @@ import {
     type ValidationError,
     type Visitor,
 } from '../common/module.f.ts'
-import type { Unknown } from '../ts/module.f.ts'
+import type { Unknown } from '../ts/types.ts'
 
 export { type Path, type ValidationError } from '../common/module.f.ts'
 

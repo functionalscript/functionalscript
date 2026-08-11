@@ -1,14 +1,16 @@
-import { printer } from './module.f.ts'
+import { printer } from './module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, record, or, option, never } from '../module.f.mjs'
-import type { Type } from '../types.ts'
+/** @import { Type } from '../types.ts' */
 
 const toTs = printer()
 const toTsMut = printer(true)
-const eqMut = (rtti: Type, expected: string) => {
+/** @type {(rtti: Type, expected: string) => void} */
+const eqMut = (rtti, expected) => {
     const result = toTsMut(rtti)
     if (result !== expected) { throw `expected ${JSON.stringify(expected)}, got ${JSON.stringify(result)}` }
 }
-const eq = (rtti: Type, expected: string) => {
+/** @type {(rtti: Type, expected: string) => void} */
+const eq = (rtti, expected) => {
     const result = toTs(rtti)
     if (result !== expected) { throw `expected ${JSON.stringify(expected)}, got ${JSON.stringify(result)}` }
 }

@@ -27,7 +27,7 @@
  *
  * @module
  */
-import type { Unknown } from '../ts/module.f.ts'
+import type { Unknown } from '../ts/types.ts'
 import type {
     Info1,
     Struct,

@@ -16,7 +16,7 @@
  */
 import { array, number, option, record, string } from '../../types/rtti/module.f.mjs'
 import { validate as rttiValidate, type ValidationError } from '../../types/rtti/validate/module.f.ts'
-import type { Ts } from '../../types/rtti/ts/module.f.ts'
+import type { Ts } from '../../types/rtti/ts/types.ts'
 import { parse as parseJson, type Unknown } from '../json/module.f.ts'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
 import type { Result } from '../../types/result/types.ts'

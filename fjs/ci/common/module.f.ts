@@ -7,7 +7,7 @@
  */
 import { actions, images } from '../config/module.f.mjs'
 import { option, array, record, string } from '../../types/rtti/module.f.mjs'
-import { type Ts } from '../../types/rtti/ts/module.f.ts'
+import { type Ts } from '../../types/rtti/ts/types.ts'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.ts'
 
 export const os = ['ubuntu', 'macos', 'windows'] as const
