@@ -1,121 +1,64 @@
 # Tests
 
-[`proof.f.ts`](proof.f.ts) is the JavaScript reference — it runs the same operations against a standard JS engine.
-[`test.rs`](test.rs) is the Rust counterpart — it runs the same operations against `nanvm-lib`.
+Operator behaviour is described **once**, as data, and checked twice: against a
+standard JavaScript engine and against `nanvm-lib`. Adding an operator or a case
+means editing one file.
 
-The goal is a near 1-to-1 match so that any divergence signals either a missing Rust test or an unimplemented feature.
+```text
+module.f.mjs ──> proof.f.mjs ─────────────────────────> a JS engine
+   (data)    └─> rust/module.f.mjs ──> test/generated.rs ──> nanvm-lib
+                    (printer)             (generated)
+```
 
-## Coverage map
+## Files
 
-`[x]` = present, `[ ]` = missing.
+| File | Role |
+|---|---|
+| [`types.ts`](types.ts) | The shape of the data: `Value`, `Case`, `Group`, `Eq`, `Data`. |
+| [`module.f.mjs`](module.f.mjs) | **The single source of truth** — every operator case, as data. |
+| [`proof.f.mjs`](proof.f.mjs) | Runs each case through the native JavaScript operators. |
+| [`rust/module.f.mjs`](rust/module.f.mjs) | Prints the data as Rust. Pure; proofs in [`rust/proof.f.mjs`](rust/proof.f.mjs). |
+| [`update/module.f.ts`](update/module.f.ts) | Writes the printer's output. Run by `npm run ci-update`. |
+| [`test/generated.rs`](test/generated.rs) | **Generated. Do not edit.** One statement per case. |
+| [`test/harness.rs`](test/harness.rs) | Hand-written value constructors and assertions the generated file calls. |
+| [`test/main.rs`](test/main.rs) | Hand-written tests with no JavaScript counterpart. |
 
-### `eq` / strict equality (`===` / `!==`)
+`test/main.rs` rather than `test.rs`: cargo makes every `tests/*.rs` its own test
+target, so the generated file and the harness have to live in a subdirectory to
+stay ordinary submodules, and a subdirectory's entry point is `main.rs`.
 
-| Test case              | `proof.f.ts` | `test.rs`       | Notes |
-|------------------------|:---:|:---:|-------|
-| `nullish`              | [x] | [x] | `nullish_eq` |
-| `boolean.boolean`      | [x] | [x] | `bool_eq` |
-| `boolean.nullish`      | [x] | [x] | `bool_eq` |
-| `number.number`        | [x] | [x] | `number_eq` — includes NaN, ±0, ±Inf |
-| `number.nullish`       | [x] | [x] | `number_eq` |
-| `string.string`        | [x] | [x] | `string_eq` |
-| `string.number`        | [x] | [x] | `old_eq` |
-| `bigint.bigint`        | [x] | [x] | `bigint_eq` |
-| `array.array`          | [x] | [x] | `array_eq` |
-| `object.object`        | [x] | [x] | `object_eq` |
+## Adding a case
 
-### `unary_plus` (`+n`)
+1. Add it to `data` in [`module.f.mjs`](module.f.mjs).
+2. `npm test` — the JavaScript proof now covers it, which is what makes the
+   expectation authoritative: it is JavaScript's answer, not a guess.
+3. `npm run ci-update` to regenerate, then `cargo test`.
+4. If `nanvm-lib` does not implement it yet, give the case a `rust` reason. The
+   generated file keeps it as a commented-out `TODO`, and the JavaScript proof
+   keeps running it.
 
-| Test case              | `proof.f.ts` | `test.rs` | Notes |
-|------------------------|:---:|:---:|-------|
-| `null`                 | [x] | [x] | |
-| `undefined`            | [x] | [x] | |
-| `boolean.false`        | [x] | [x] | |
-| `boolean.true`         | [x] | [x] | |
-| `number.zero`          | [x] | [x] | |
-| `number.positive`      | [x] | [x] | |
-| `number.negative`      | [x] | [x] | |
-| `string.empty`         | [x] | [x] | |
-| `string.zero`          | [x] | [x] | |
-| `string.positive`      | [x] | [x] | TS tests `"2.3"`, Rust tests `"2.3e2"` — same concept |
-| `string.nan`           | [x] | [x] | |
-| `bigint.throw`         | [x] | [x] | |
-| `array.empty`          | [x] | [x] | |
-| `array.single_number`  | [x] | [x] | |
-| `array.single_string`  | [x] | [x] | TS tests `["-2.3"]→-2.3`, Rust tests `["0.3"]→0.3` — Rust missing negative case |
-| `array.multiple`       | [x] | [x] | |
-| `object.empty`         | [x] | [x] | |
-| `function`             | [x] | [x] | |
+Never edit `test/generated.rs`: CI regenerates it on every pull request and
+fails if the committed copy differs (see [`fjs/ci/README.md`](../../fjs/ci/README.md)).
 
-### `unary_minus` (`-n`)
+## What is not shared
 
-| Test case              | `proof.f.ts` | `test.rs` | Notes |
-|------------------------|:---:|:---:|-------|
-| `null`                 | [x] | [x] | |
-| `undefined`            | [x] | [x] | |
-| `boolean.false`        | [x] | [x] | |
-| `boolean.true`         | [x] | [x] | |
-| `number.zero`          | [x] | [x] | |
-| `number.positive`      | [x] | [x] | |
-| `number.negative`      | [x] | [x] | |
-| `string.empty`         | [x] | [x] | |
-| `string.zero`          | [x] | [x] | |
-| `string.positive`      | [x] | [x] | |
-| `string.nan`           | [x] | [x] | |
-| `bigint.positive`      | [x] | [x] | |
-| `bigint.negative`      | [x] | [x] | |
-| `array.empty`          | [x] | [x] | |
-| `array.single_number`  | [x] | [x] | |
-| `array.single_string`  | [x] | [x] | |
-| `array.multiple`       | [x] | [x] | |
-| `object.empty`         | [x] | [ ] | `{}` → NaN missing in Rust |
-| `function`             | [x] | [x] | |
+Two kinds of test stay hand-written, because there is nothing on the other side
+to compare them with.
 
-### `stringCoercion` (`String(x)`)
+**JavaScript only** — `proof.f.mjs`'s `jsOnly` section: `ToPrimitive` consulting
+an object's `toString` method, and a function's string form (engine-specific
+source text). `nanvm-lib` has no object methods yet.
 
-| Test case                      | `proof.f.ts` | `test.rs`              | Notes |
-|--------------------------------|:---:|:---:|-------|
-| `number`                       | [x] | [x] | `number_coerce_to_string` |
-| `bool`                         | [x] | [ ] | `true`/`false` → `"true"`/`"false"` missing in Rust |
-| `null`                         | [x] | [ ] | `null` → `"null"` missing in Rust |
-| `undefined`                    | [x] | [ ] | `undefined` → `"undefined"` missing in Rust |
-| `bigint`                       | [x] | [ ] | `123n` → `"123"` missing in Rust |
-| `array`                        | [x] | [x] | `array_coerce_to_string` — Rust additionally tests nested arrays |
-| `func`                         | [x] | [ ] | `typeof String(fn) === "string"` missing in Rust |
-| `object.norm`                  | [x] | [ ] | `{}` → `"[object Object]"` missing in Rust |
-| `object.toString`              | [x] | [ ] | custom `toString()` method missing in Rust |
-| `object.toStringThrow`         | [x] | [ ] | throwing `toString()` missing in Rust |
-| `object.toStringNotFunc`       | [x] | [ ] | non-function `toString` missing in Rust |
-| `object.toStringNonPrimitive`  | [x] | [ ] | `toString()` returning non-primitive missing in Rust |
+**Rust only** — `test/main.rs`: `try_into` out of `Any`, `Debug` formatting,
+multi-limb bigint arithmetic, serialization round-trips, and the exact text of
+`nanvm-lib`'s own error messages. These are properties of the VM, not of
+JavaScript.
 
-### `mul` (`*`)
+## Known divergence
 
-| Test case              | `proof.f.ts` | `test.rs` | Notes |
-|------------------------|:---:|:---:|-------|
-| `mul` (all cases)      | [x] | [x] | Full table covering null, bool, number, bigint, string, array, object |
-
-### BigInt-specific — only in `test.rs`
-
-| Test case              | `proof.f.ts` | `test.rs` | Notes |
-|------------------------|:---:|:---:|-------|
-| `bigint_add`           | [ ] | [x] | Addition at `Any<A>` level |
-| `bigint_mul`           | [ ] | [x] | Multiplication with large multi-limb values |
-| `bigint_negative_zero` | [ ] | [x] | Rust normalization: `-0n === 0n` |
-
-### Infrastructure — only in `test.rs`
-
-| Test case              | `proof.f.ts` | `test.rs` | Notes |
-|------------------------|:---:|:---:|-------|
-| `serialization`        | [ ] | [x] | Round-trip serialize/deserialize for all types |
-| `format_fn`            | [ ] | [x] | Rust `Debug` formatting of `Function` |
-
-## Summary
-
-| Gap | Action needed |
-|-----|---------------|
-| `stringCoercion` for bool/null/undefined/bigint/func/object | Add Rust tests in `test.rs` |
-| `unary_minus.object.empty` | Add Rust test case |
-| `bigint_add` / `bigint_mul` | Add TS tests in `proof.f.ts` |
-| `serialization` | JS serialization is out of scope (VM-internal), keep Rust-only |
-| `format_fn` / `bigint_negative_zero` | Rust-specific, keep Rust-only |
-| `old_eq` in `test.rs` | Redundant — overlaps with `nullish_eq`/`bool_eq`/`number_eq`/etc.; consider removing |
+`String(123n)` is `"123"` in JavaScript and `"0x7Bn"` in `nanvm-lib` — see
+[bigint-decimal-string-coercion](../todo/bigint-decimal-string-coercion.md). The
+two affected cases carry a `rust` reason, so the gap is recorded in the data
+itself rather than in a coverage table here. That is the whole point of the
+arrangement: a divergence is a property of a case, and it goes stale the moment
+someone fixes it and the generated file starts including the case again.

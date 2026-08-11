@@ -1,0 +1,31 @@
+/**
+ * Proofs for the generated-Rust writer.
+ *
+ * @module
+ */
+import { assert, assertEq } from '../../../fjs/asserts/module.f.mjs'
+import { step } from '../../../fjs/effects/module.f.mjs'
+import { readUtf8File } from '../../../fjs/effects/node/module.f.ts'
+import {
+    defaultNodeProgramOptions,
+    emptyState,
+    virtual,
+} from '../../../fjs/effects/node/virtual/module.f.ts'
+import { data } from '../module.f.mjs'
+import { generate, path } from '../rust/module.f.mjs'
+import { generateRustTests, main } from './module.f.ts'
+
+export const proof = {
+    generateRustTests: () => {
+        // The target directory does not exist in `emptyState`, so this also
+        // covers the `mkdir` the writer does before the file write.
+        const written = step(generateRustTests(), () => readUtf8File(path))
+        const [, [tag, result]] = virtual(emptyState)(written)
+        assert(tag === 'ok', result)
+        assertEq(result, generate(data))
+    },
+    main: () => {
+        const [, result] = virtual(emptyState)(main(defaultNodeProgramOptions))
+        assertEq(result, 0)
+    },
+}

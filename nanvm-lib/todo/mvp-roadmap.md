@@ -286,15 +286,17 @@ as a generic `Any` facility, post-MVP.
       fixture may use `.f.mjs`; it does not define the repository extension
       contract. See
       [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
-- [ ] **Test generation for operators** — one test-data module drives both
-      the FJS proof (JS engine reference) and the generated Rust tests.
-      Implement **before** the operators task below, so every new operator is
-      tested once, not twice. Doubly important now: the shared operator layer
-      is what keeps the interpreter and the generated code in agreement. See
-      [single-source-of-truth-for-operator-tests](./single-source-of-truth-for-operator-tests.md).
+- [x] **Test generation for operators** — one test-data module drives both
+      the FJS proof (JS engine reference) and the generated Rust tests, so
+      every new operator is tested once, not twice. Doubly important now: the
+      shared operator layer is what keeps the interpreter and the generated
+      code in agreement. See
+      [`nanvm-lib/tests/README.md`](../tests/README.md).
 - [ ] **Complete all basic FunctionalScript operators** (Rust), including the
       short-circuit operators `&&`, `||`, `??` (lazy evaluation, like `?:`).
-      Preceded by the test-generation task above.
+      Each operator arrives as cases in
+      [`nanvm-lib/tests/module.f.mjs`](../tests/module.f.mjs), which is what
+      tests it on both sides.
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../todo/lang/2340-operators.md).
 - [ ] **Parser**, using [`fjs/bnf/`](../../fjs/bnf/README.md) (FJS).
@@ -388,6 +390,6 @@ compiler-compatibility migration rather than a separate rewrite.
   walking-skeleton integration: the `.rs` output target and the harness.
 - [console-program](./console-program.md) — the self-hosted `nanvm` crate
   (post-MVP).
-- [single-source-of-truth-for-operator-tests](./single-source-of-truth-for-operator-tests.md)
-  — test generation preceding the operators task.
+- [`nanvm-lib/tests/README.md`](../tests/README.md) — the shared operator test
+  data driving both the FJS proof and the generated Rust tests.
 - [fs-vm-load-save](./fs-vm-load-save.md) — load/execute/save semantics.
