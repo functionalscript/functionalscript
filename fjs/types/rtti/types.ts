@@ -17,7 +17,7 @@
  * ## Nullary schemas (no type parameter)
  *
  * `boolean`, `number`, `string`, `bigint`, `unknown` are pre-built `Thunk` values
- * that describe primitive types. Each is a `Type0<Tag0>` — a thunk returning a
+ * that describe primitive types. Each is a `_Type0<Tag0>` — a thunk returning a
  * single-element tag tuple.
  *
  * ## Unary schemas (one type parameter)
@@ -41,6 +41,7 @@
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../ts/types.ts'
 import type { StringMap } from '../object/types.ts'
+import type { tag0List } from './module.f.mjs'
 
 /** A constant schema: a primitive literal, a struct object, or a tuple. */
 export type Const =
@@ -68,7 +69,7 @@ export type Tuple = readonly Type[]
 export type Primitive0 = 'bigint' | 'boolean' | 'number' | 'string'
 
 /** Tags for nullary (zero-parameter) type schemas. */
-export type Tag0 = Primitive0 | 'unknown'
+export type Tag0 = typeof tag0List[number]
 
 /** Info tuple for a nullary tag: `readonly[tag]`. */
 export type Info0<T extends Tag0> = T extends Tag0 ? readonly[T] : never
@@ -103,22 +104,22 @@ type _AssertType = Assert<Equal<
     )>>
 
 /** The type of a nullary thunk for `Tag0`. */
-export type Type0<T extends Tag0> = () => Info0<T>
+export type _Type0<T extends Tag0> = () => Info0<T>
 
 /** Schema type for `boolean`. */
-export type Boolean = Type0<'boolean'>
+export type Boolean = _Type0<'boolean'>
 
 /** Schema type for `number`. */
-export type Number = Type0<'number'>
+export type Number = _Type0<'number'>
 
 /** Schema type for `string`. */
-export type String = Type0<'string'>
+export type String = _Type0<'string'>
 
 /** Schema type for `bigint`. */
-export type Bigint = Type0<'bigint'>
+export type Bigint = _Type0<'bigint'>
 
 /** Schema type for any DJS value (`Primitive | UnknownRecord | UnknownArray`). */
-export type Unknown = Type0<'unknown'>
+export type Unknown = _Type0<'unknown'>
 
 /** Tags for unary (one-parameter) type schemas. */
 export type Tag1 = 'array' | 'record'
@@ -129,7 +130,7 @@ export type Info1<K extends Tag1, T extends Type> = K extends Tag1 ? readonly[K,
 /** The type of a unary thunk for `Tag1` with inner type `T`. */
 export type Type1<K extends Tag1, T extends Type> = () => Info1<K, T>
 
-export type MakeType1<K extends Tag1> = <T extends Type>(t: T) => Type1<K, T>
+export type _MakeType1<K extends Tag1> = <T extends Type>(t: T) => Type1<K, T>
 
 /** Schema type for a readonly array with element type `T`. */
 export type Array<T extends Type> = Type1<'array', T>
