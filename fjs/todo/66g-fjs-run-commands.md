@@ -61,4 +61,5 @@ wrapper in `fjs/cas/module.f.ts` simplifies to `export const main = commands`.
 - `fjs/module.f.ts` — the `run` handler at line 39.
 - `fjs/cas/module.f.ts` — the `main = dispatch(commands)` boilerplate this issue
   eliminates.
-- `fjs/cli/module.f.mjs` — `dispatch` and `Commands` used by the new branch.
+- `fjs/cli/module.f.mjs` — `dispatch` used by the new branch; `Commands`
+  is defined in `fjs/cli/types.ts`.

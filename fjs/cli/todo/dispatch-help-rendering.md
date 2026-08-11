@@ -5,7 +5,7 @@
 
 ### Problem
 
-`dispatch` (`fjs/cli/module.f.mjs:18-49`) interleaves three distinct concerns —
+`dispatch` (`fjs/cli/module.f.mjs:18-50`) interleaves three distinct concerns —
 building the name→command lookup map, rendering the aligned help table, and
 routing — and computes the first two eagerly at the top of every call:
 
@@ -64,6 +64,6 @@ help rendering is the clear win.
 
 ### Related
 
-- `fjs/cli/module.f.mjs:18-49` — current `dispatch`.
+- `fjs/cli/module.f.mjs:18-50` — current `dispatch`.
 - [positional-arity-check](./positional-arity-check.md) — separate concern
   (argument validation), independent of this change.
