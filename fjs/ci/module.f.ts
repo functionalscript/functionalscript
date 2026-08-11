@@ -20,7 +20,7 @@ import type {
     MetaStep,
     Os,
 } from './common/types.ts'
-import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.ts'
+import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.mjs'
 import { nodeMainSteps, nodeNixJobs, nodeNixVersionSteps, nodeVersionJobs } from './node/module.f.ts'
 import { nixFlakes, nixInstall, type NixJob } from './nix/module.f.ts'
 import { bunSteps } from './bun/module.f.mjs'

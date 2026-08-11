@@ -21,7 +21,7 @@ canonical Node job under `nix/generated/`.
   per declared job, using the Nix eDSL in `fjs/media/nix`.
 - `node/module.f.ts` — Node.js job steps: platform smoke tests, canonical
   per-version jobs, coverage, package checks, and the Node flake declarations.
-- `rust/module.f.ts` — Rust toolchain setup and `cargo` build/test steps.
+- `rust/module.f.mjs` — Rust toolchain setup and `cargo` build/test steps.
 - `deno/module.f.mjs` — Deno runtime steps.
 - `bun/module.f.mjs` — Bun runtime steps.
 
