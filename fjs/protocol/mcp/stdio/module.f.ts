@@ -33,7 +33,7 @@ import { pure, step, type Effect, type Operation } from '../../../effects/module
 import { readLine, write, type IoResult, type Read, type Write } from '../../../effects/node/module.f.ts'
 import { tryUtf8 } from '../../../text/module.f.mjs'
 import { parse, stringify, type Unknown } from '../../../media/json/module.f.ts'
-import { sort } from '../../../types/object/module.f.ts'
+import { sort } from '../../../types/object/module.f.mjs'
 import { internalError, jsonrpc, parseError, type Response } from '../../json_rpc/module.f.ts'
 import { error, ok } from '../../../types/result/module.f.mjs'
 

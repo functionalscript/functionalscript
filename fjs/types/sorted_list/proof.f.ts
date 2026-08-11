@@ -1,6 +1,6 @@
 import { find, merge } from './module.f.mjs'
 import { stringify, type Unknown } from '../../media/json/module.f.ts'
-import { sort } from '../object/module.f.ts'
+import { sort } from '../object/module.f.mjs'
 import { toArray, countdown, length } from '../list/module.f.mjs'
 import { flip } from '../function/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'

@@ -1,4 +1,4 @@
-import type { StringMap } from '../object/module.f.ts'
+import type { StringMap } from '../object/types.ts'
 
 type Tests = StringMap<readonly unknown[]>
 

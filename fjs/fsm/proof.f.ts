@@ -1,6 +1,6 @@
 import { dfa, run, toRange, toUnion, type Grammar } from './module.f.ts'
 import { union } from '../types/byte_set/module.f.ts'
-import { sort, fromEntries } from '../types/object/module.f.ts'
+import { sort, fromEntries } from '../types/object/module.f.mjs'
 import { stringify } from '../media/json/module.f.ts'
 import { identity } from '../types/function/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'

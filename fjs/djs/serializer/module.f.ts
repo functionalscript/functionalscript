@@ -5,7 +5,7 @@
  */
 import type { Unknown, Object } from '../module.f.ts'
 import type { Fold } from '../../types/function/operator/types.ts'
-import type { Entry as ObjectEntry } from '../../types/object/module.f.ts'
+import type { Entry as ObjectEntry } from '../../types/object/types.ts'
 import { fold } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import type { List } from '../../types/list/types.ts'

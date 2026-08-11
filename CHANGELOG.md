@@ -20,6 +20,14 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/object` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
+  TypeScript-to-mjs migration, splitting its type-level API (`OptionalMap`,
+  `RequiredMap`, `StringMap`, `Entry`, `OneKey`, `NotUnion`,
+  `SingleProperty`) into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier for
+  types
+  [#TBD](https://github.com/functionalscript/functionalscript/pull/TBD)
 - **BREAKING CHANGES:** every public type exported by an authored `.f.mjs`
   module moves to a sibling `types.ts` (31 modules, including `asserts`,
   `types/list`, `types/bit_vec`, `types/result`, `text`, `crypto/sha2`) —

@@ -2,7 +2,7 @@ import { set as setSet } from './module.f.mjs'
 import type { TNode } from '../types/types.ts'
 import { cmp } from '../../string/module.f.mjs'
 import { stringify } from '../../../media/json/module.f.ts'
-import { sort } from '../../object/module.f.ts'
+import { sort } from '../../object/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
 const set = (node: TNode<string>) => (value: string): TNode<string> =>

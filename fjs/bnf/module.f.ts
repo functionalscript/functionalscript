@@ -10,7 +10,8 @@
 import type { Tuple } from '../types/array/types.ts'
 
 import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.mjs'
-import { definedValues, type StringMap } from '../types/object/module.f.ts'
+import { definedValues } from '../types/object/module.f.mjs'
+import type { StringMap } from '../types/object/types.ts'
 import { isTuple } from '../types/array/module.f.mjs'
 import { map, toArray, repeat as listRepeat } from '../types/list/module.f.mjs'
 import { contains } from '../types/range/module.f.mjs'

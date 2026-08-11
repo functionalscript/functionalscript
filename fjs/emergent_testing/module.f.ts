@@ -33,7 +33,7 @@ import { history, historyStep, pure, step, type Effect, type Operation } from '.
 import { eff } from '../effects/eff/module.f.ts'
 import { loadModuleMap, shouldLoad, type LoadModuleOperations, type ModuleMap } from '../dev/module.f.ts'
 import { invert } from '../types/result/module.f.mjs'
-import { definedEntries } from '../types/object/module.f.ts'
+import { definedEntries } from '../types/object/module.f.mjs'
 
 
 type TestState = {
