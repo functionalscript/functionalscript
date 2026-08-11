@@ -83,7 +83,7 @@ Judgement calls worth deciding explicitly rather than by accident:
   Read the other way, `IoResult` is exactly a Node-layer contract and belongs
   beside the operations it describes. The fix for a **pure** consumer is to
   spell the underlying type, not to relocate the alias:
-  `fjs/media/type/module.f.ts:40` imports `type IoResult` from
+  `fjs/media/type/module.f.mjs:45` imports `IoResult` from
   `../../effects/node/types.ts` purely to write `IoResult<Vec>` and
   `IoResult<DetectMeta>`; writing `Result<Vec, unknown>` from
   `fjs/types/result` says the same thing and drops the `effects/node` import
@@ -227,7 +227,7 @@ Judgement calls worth deciding explicitly rather than by accident:
   calls itself; that issue needs no change from this one.
 - [browser-testing](../../emergent_testing/todo/browser-testing.md) — owns the
   future Playwright adapter and browser-side test report.
-- `fjs/media/type/module.f.ts:40`, `fjs/text/sgr/module.f.mjs:13`,
+- `fjs/media/type/module.f.mjs:45`, `fjs/text/sgr/module.f.mjs:13`,
   `fjs/emergent_testing/module.f.ts:14-30` — importers that reach into the Node
   module for non-Node things.
 - [group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)

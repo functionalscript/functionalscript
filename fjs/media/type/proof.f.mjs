@@ -1,27 +1,31 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import type { Vec } from '../../types/bit_vec/types.ts'
 import { msb, u8ListToVec, vec8, repeat, empty } from '../../types/bit_vec/module.f.mjs'
+/** @import { Vec } from '../../types/bit_vec/types.ts' */
 import { runPure } from '../../effects/module.f.mjs'
 import { nonEmpty, empty as emptyList } from '../../effects/list/module.f.mjs'
-import type { List } from '../../effects/list/types.ts'
-import type { Result } from '../../types/result/types.ts'
+/** @import { List } from '../../effects/list/types.ts' */
+/** @import { Result } from '../../types/result/types.ts' */
 import { ok } from '../../types/result/module.f.mjs'
-import { detect, detectStream, detectVec, type DetectMeta } from './module.f.ts'
+import { detect, detectStream, detectVec } from './module.f.mjs'
+/** @import { DetectMeta } from './types.ts' */
 
 // Builds a big-endian `Vec` from a list of byte values — mirrors how the CAS
 // store would hold the leading bytes of a stored blob.
-const bytes = (...b: readonly number[]): Vec => u8ListToVec(msb)(b)
+/** @type {(...b: readonly number[]) => Vec} */
+const bytes = (...b) => u8ListToVec(msb)(b)
 
 // ── Streaming detector helpers ──────────────────────────────────────────────────
 
 // Builds a CAS-style read stream from a sequence of ok(chunk) items.
-const stream = (...chunks: readonly Vec[]): List<never, Result<Vec, unknown>> =>
-    chunks.reduceRight<List<never, Result<Vec, unknown>>>(
+/** @type {(...chunks: readonly Vec[]) => List<never, Result<Vec, unknown>>} */
+const stream = (...chunks) =>
+    chunks.reduceRight(
         (tail, c) => nonEmpty(ok(c), tail),
-        emptyList<never, Result<Vec, unknown>>())
+        /** @type {List<never, Result<Vec, unknown>>} */ (emptyList()))
 
 // Runs the streaming detector over the given chunks and unwraps the metadata.
-const detectChunks = (...chunks: readonly Vec[]): DetectMeta => {
+/** @type {(...chunks: readonly Vec[]) => DetectMeta} */
+const detectChunks = (...chunks) => {
     const o = runPure(detectStream(stream(...chunks)))
     assert(o.length === 1, 'effect is not pure')
     const [r] = o
@@ -228,8 +232,9 @@ export const proof = {
 
         // A read `error` item short-circuits into the IoResult error.
         readErrorSurfaces: () => {
-            const errStream: List<never, Result<Vec, unknown>> =
-                nonEmpty(['error', 'boom'] as const, emptyList<never, Result<Vec, unknown>>())
+            /** @type {List<never, Result<Vec, unknown>>} */
+            const errStream =
+                nonEmpty(/** @type {const} */ (['error', 'boom']), emptyList())
             const o = runPure(detectStream(errStream))
             assert(o.length === 1, 'effect is not pure')
             assert(o[0][0] === 'error')

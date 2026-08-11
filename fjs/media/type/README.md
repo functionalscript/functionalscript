@@ -4,7 +4,7 @@ Magic-byte MIME type detection: a pure table lookup over the leading bytes of a
 `Vec`. No I/O, no dependencies beyond [`fjs/types/bit_vec`](../../types/bit_vec/).
 
 ```ts
-import { detect } from './module.f.ts'
+import { detect } from './module.f.mjs'
 
 detect(pngBytes)   // 'image/png'
 detect(textBytes)  // null
@@ -46,7 +46,7 @@ the module also exports `detectStream` — the streaming form of the **same
 byte-accepting state machine**:
 
 ```ts
-import { detectStream, detectVec, push, finish, detectInit } from './module.f.ts'
+import { detectStream, detectVec, push, finish, detectInit } from './module.f.mjs'
 
 // fold a CAS read stream (List<O, IoResult<Vec>>) into { length, mime_type, type }
 detectStream(stream)            // Effect<O, IoResult<DetectMeta>>

@@ -30,20 +30,23 @@
  * sits between the `RIFF` and `WEBP` markers, so it is matched as a prefix plus
  * a second marker at byte offset 8 rather than a single contiguous run.
  *
+ * See `./types.ts` for the type-level API.
+ *
  * @module
  */
-import type { Vec } from '../../types/bit_vec/types.ts'
+
 import { msb, fromSentinel, length, u8List } from '../../types/bit_vec/module.f.mjs'
+/** @import { Vec } from '../../types/bit_vec/types.ts' */
 import { iterable } from '../../types/list/module.f.mjs'
-import type { Nullable } from '../../types/nullable/types.ts'
+/** @import { Nullable } from '../../types/nullable/types.ts' */
 import { pure, step } from '../../effects/module.f.mjs'
-import type { Effect, Operation } from '../../effects/types.ts'
-import type { List } from '../../effects/list/types.ts'
-import type { IoResult } from '../../effects/node/types.ts'
+/** @import { Effect, Operation } from '../../effects/types.ts' */
+/** @import { List } from '../../effects/list/types.ts' */
+/** @import { IoResult } from '../../effects/node/types.ts' */
 import { ok, error } from '../../types/result/module.f.mjs'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.mjs'
-import type { Utf8State } from '../../text/utf8/types.ts'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
+/** @import { DetectMeta, DetectState, _MagicState, _Signature, _Utf8Detect } from './types.ts' */
 
 const { startsWith, removeFront } = msb
 
@@ -55,8 +58,10 @@ const sig = fromSentinel
 /**
  * Contiguous magic-byte signatures, checked in order; the first prefix match
  * wins. Ordering is irrelevant here — no signature is a prefix of another.
+ *
+ * @type {readonly (readonly [Vec, string])[]}
  */
-const table: readonly (readonly [Vec, string])[] = [
+const table = [
     [sig(0x1_89_50_4e_47_0d_0a_1a_0an), 'image/png'],
     [sig(0x1_ff_d8_ffn), 'image/jpeg'],
     // Match the full GIF version headers ("GIF87a" / "GIF89a"), not just "GIF8",
@@ -76,7 +81,8 @@ const table: readonly (readonly [Vec, string])[] = [
 const riff = sig(0x1_52_49_46_46n)
 const webp = sig(0x1_57_45_42_50n)
 
-const isWebp = (bytes: Vec): boolean =>
+/** @type {(bytes: Vec) => boolean} */
+const isWebp = bytes =>
     length(bytes) >= 96n
         && startsWith(riff)(bytes)
         && startsWith(webp)(removeFront(64n)(bytes))
@@ -87,8 +93,10 @@ const isWebp = (bytes: Vec): boolean =>
  * @returns the MIME type string for a recognized format, or `null` when the
  *   leading bytes match no known signature (including any `Vec` shorter than
  *   the signature it might otherwise match).
+ *
+ * @type {(bytes: Vec) => Nullable<string>}
  */
-export const detect = (bytes: Vec): Nullable<string> => {
+export const detect = bytes => {
     if (isWebp(bytes)) { return 'image/webp' }
     for (const [s, m] of table) {
         if (startsWith(s)(bytes)) { return m }
@@ -107,19 +115,11 @@ export const detect = (bytes: Vec): Nullable<string> => {
 // of a large blob costs only length counting once the verdict is fixed (see
 // `isSettled`: a magic match settles it immediately, a dead magic once utf8 fails).
 
-/**
- * A magic-byte signature as a byte pattern. `null` entries are wildcards (the
- * four little-endian size bytes of WebP, between its `RIFF` and `WEBP` markers).
- */
-type Signature = {
-    readonly pattern: readonly Nullable<number>[]
-    readonly mime: string
-}
-
 // The streaming counterpart of `table`/`isWebp`: the same signatures expressed as
 // byte patterns the eliminator can consume one byte at a time. WebP's gap is the
 // only wildcard run.
-const signatures: readonly Signature[] = [
+/** @type {readonly _Signature[]} */
+const signatures = [
     { pattern: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], mime: 'image/png' },
     { pattern: [0xff, 0xd8, 0xff], mime: 'image/jpeg' },
     { pattern: [0x47, 0x49, 0x46, 0x38, 0x37, 0x61], mime: 'image/gif' },
@@ -134,19 +134,11 @@ const signatures: readonly Signature[] = [
     },
 ]
 
-/**
- * `A_magic`: signature elimination. `scan` holds the byte offset and the still-viable
- * signatures; a fully matched signature absorbs into `matched`, an empty viable set
- * into `dead`. Settles within 12 bytes — `matched`/`dead` are absorbing.
- */
-type MagicState =
-    | { readonly tag: 'scan', readonly pos: number, readonly viable: readonly Signature[] }
-    | { readonly tag: 'matched', readonly mime: string }
-    | { readonly tag: 'dead' }
+/** @type {_MagicState} */
+const magicInit = { tag: 'scan', pos: 0, viable: signatures }
 
-const magicInit: MagicState = { tag: 'scan', pos: 0, viable: signatures }
-
-const magicStep = (m: MagicState, byte: number): MagicState => {
+/** @type {(m: _MagicState, byte: number) => _MagicState} */
+const magicStep = (m, byte) => {
     if (m.tag !== 'scan') { return m }
     const { pos } = m
     const viable = m.viable.filter(s => {
@@ -159,28 +151,14 @@ const magicStep = (m: MagicState, byte: number): MagicState => {
     return viable.length === 0 ? { tag: 'dead' } : { tag: 'scan', pos: pos + 1, viable }
 }
 
-const magicMime = (m: MagicState): Nullable<string> => m.tag === 'matched' ? m.mime : null
+/** @type {(m: _MagicState) => Nullable<string>} */
+const magicMime = m => m.tag === 'matched' ? m.mime : null
 
-/**
- * `A_utf8`: a streaming UTF-8 validity-and-text check riding the shared
- * `utf8ByteToCodePointOp` decoder. `st` is the decoder's mid-sequence state;
- * `valid` is `false` once an illegal byte, surrogate, or out-of-range code point
- * is seen — `valid: false` is absorbing. A non-null `st` at EOF (a truncated
- * multi-byte sequence) is invalid. `text` is the orthogonal text-ness verdict: it
- * is `false` once a non-text (control) code point is decoded, even though that
- * code point is perfectly well-formed UTF-8 — `text: false` is absorbing too.
- * Keeping the two distinct lets a valid-but-control blob (e.g. NUL) decode
- * cleanly yet still classify as binary.
- */
-type Utf8Detect = {
-    readonly st: Utf8State
-    readonly valid: boolean
-    readonly text: boolean
-}
+/** @type {_Utf8Detect} */
+const utf8Init = { st: null, valid: true, text: true }
 
-const utf8Init: Utf8Detect = { st: null, valid: true, text: true }
-
-const utf8Step = (u: Utf8Detect, byte: number): Utf8Detect => {
+/** @type {(u: _Utf8Detect, byte: number) => _Utf8Detect} */
+const utf8Step = (u, byte) => {
     if (!u.valid) { return u }
     const [cps, st] = utf8ByteToCodePointOp(byte, u.st)
     let text = u.text
@@ -191,24 +169,19 @@ const utf8Step = (u: Utf8Detect, byte: number): Utf8Detect => {
     return { st, valid: true, text }
 }
 
-const utf8Valid = (u: Utf8Detect): boolean => u.valid && u.st === null
+/** @type {(u: _Utf8Detect) => boolean} */
+const utf8Valid = u => u.valid && u.st === null
 
 // A blob is text only when it is whole-blob-valid UTF-8 *and* every decoded code
 // point is a text code point (no NUL/other controls).
-const utf8Text = (u: Utf8Detect): boolean => utf8Valid(u) && u.text
+/** @type {(u: _Utf8Detect) => boolean} */
+const utf8Text = u => utf8Valid(u) && u.text
 
-/**
- * The product state: running bit length × magic eliminator × UTF-8 validator.
- * The factors never read each other; they meet only in {@link finish}.
+/** The initial detector state `q₀`.
+ *
+ * @type {DetectState}
  */
-export type DetectState = {
-    readonly length: bigint
-    readonly magic: MagicState
-    readonly utf8: Utf8Detect
-}
-
-/** The initial detector state `q₀`. */
-export const detectInit: DetectState = {
+export const detectInit = {
     length: 0n,
     magic: magicInit,
     utf8: utf8Init,
@@ -221,7 +194,8 @@ export const detectInit: DetectState = {
 // A magic `dead` leaves text-vs-octet open, so it settles only once utf8 can no
 // longer be text — either invalid or a control byte seen (both absorbing); `scan`
 // is never settled.
-const isSettled = (magic: MagicState, utf8: Utf8Detect): boolean => {
+/** @type {(magic: _MagicState, utf8: _Utf8Detect) => boolean} */
+const isSettled = (magic, utf8) => {
     switch (magic.tag) {
         case 'matched': return true
         case 'dead': return !utf8.valid || !utf8.text
@@ -234,8 +208,10 @@ const isSettled = (magic: MagicState, utf8: Utf8Detect): boolean => {
  * always advances by the chunk's bit length; per-byte iteration stops as soon as
  * the verdict is fixed (see {@link isSettled}), so large blobs — including large
  * magic-matched ones — cost ≈ length counting.
+ *
+ * @type {(s: DetectState) => (chunk: Vec) => DetectState}
  */
-export const push = (s: DetectState) => (chunk: Vec): DetectState => {
+export const push = s => chunk => {
     const bits = length(chunk)
     let magic = s.magic
     let utf8 = s.utf8
@@ -249,13 +225,6 @@ export const push = (s: DetectState) => (chunk: Vec): DetectState => {
     return { length: s.length + bits, magic, utf8 }
 }
 
-/** The metadata read off the detector at end-of-stream. */
-export type DetectMeta = {
-    readonly length: bigint
-    readonly mime_type: string
-    readonly type: 'text' | 'base64'
-}
-
 /**
  * Reads the answer off the final state (`λ`). Reproduces the three-way result of
  * the pure path: magic hit → `base64` + detected mime; else whole-blob-valid UTF-8
@@ -263,8 +232,10 @@ export type DetectMeta = {
  * `text/plain`; else → `base64` + `application/octet-stream`. A valid-but-control
  * blob (NUL, other controls) is well-formed UTF-8 yet falls through to the binary
  * branch.
+ *
+ * @type {(s: DetectState) => DetectMeta}
  */
-export const finish = (s: DetectState): DetectMeta => {
+export const finish = s => {
     const byteLength = s.length >> 3n
     const mime = magicMime(s.magic)
     if (mime !== null) { return { length: byteLength, mime_type: mime, type: 'base64' } }
@@ -280,25 +251,31 @@ export const finish = (s: DetectState): DetectMeta => {
  * `cas_get` `content: true` path materializes the blob anyway): both paths read
  * the three-way `{ length, mime_type, type }` verdict from one machine instead of
  * re-deriving it from `detect` + a separate UTF-8 check.
+ *
+ * @type {(bytes: Vec) => DetectMeta}
  */
-export const detectVec = (bytes: Vec): DetectMeta => finish(push(detectInit)(bytes))
+export const detectVec = bytes => finish(push(detectInit)(bytes))
 
 /**
  * Folds a CAS read stream through {@link push} and reads {@link finish} at EOF,
  * deriving `cas_get` metadata without ever materializing the blob. A read `error`
  * item short-circuits into the `IoResult` error.
+ *
+ * @template {Operation} O
+ * @param {List<O, IoResult<Vec>>} stream
+ * @returns {Effect<O, IoResult<DetectMeta>>}
  */
-export const detectStream =
-    <O extends Operation>(stream: List<O, IoResult<Vec>>): Effect<O, IoResult<DetectMeta>> => {
-        const loop = (s: DetectState) => (l: List<O, IoResult<Vec>>): Effect<O, IoResult<DetectMeta>> =>
-            step(
-                l,
-                (node): Effect<O, IoResult<DetectMeta>> => {
-                    if (node === undefined) { return pure(ok(finish(s))) }
-                    const { first, tail } = node
-                    const [t, v] = first
-                    if (t === 'error') { return pure(error(v)) }
-                    return loop(push(s)(v))(tail)
-                })
-        return loop(detectInit)(stream)
-    }
+export const detectStream = stream => {
+    /** @type {(s: DetectState) => (l: List<O, IoResult<Vec>>) => Effect<O, IoResult<DetectMeta>>} */
+    const loop = s => l =>
+        step(
+            l,
+            node => {
+                if (node === undefined) { return pure(ok(finish(s))) }
+                const { first, tail } = node
+                const [t, v] = first
+                if (t === 'error') { return pure(error(v)) }
+                return loop(push(s)(v))(tail)
+            })
+    return loop(detectInit)(stream)
+}

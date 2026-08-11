@@ -6,24 +6,24 @@
 ### Problem
 
 Every recognized signature (PNG, JPEG, 2×GIF, PDF, 3×ZIP, WebP) is declared
-twice in `fjs/media/type/module.f.ts`, in two representations that must stay in
+twice in `fjs/media/type/module.f.mjs`, in two representations that must stay in
 byte-for-byte lockstep:
 
 - sentinel-`Vec` form for the pure path — `table` at `:56-69` plus the
   WebP special case `riff`/`webp`/`isWebp` at `:73-79`, consumed by
   `detect` (`:88-94`);
-- byte-pattern form for the streaming path — `signatures` at `:119-132`
+- byte-pattern form for the streaming path — `signatures` at `:121-135`
   (WebP's gap expressed as `null` wildcards), consumed by
   `magicStep`/`detectVec`/`detectStream`.
 
-The comment at `:116` admits it: *"The streaming counterpart of
+The comment at `:118` admits it: *"The streaming counterpart of
 `table`/`isWebp`: the same signatures expressed as byte patterns…"*. Adding
 or correcting a signature means editing both lists, and WebP is
 special-cased in both (a bespoke `isWebp` here, a wildcard run there).
 
 Note the consumer situation: `detectStream` is the only export with a real
-consumer (`fjs/mcp/cas/module.f.ts:88`); `detect` and `detectVec` are
-exercised only by `fjs/media/type/proof.f.ts`.
+consumer (`fjs/mcp/cas/module.f.ts:211`); `detect` and `detectVec` are
+exercised only by `fjs/media/type/proof.f.mjs`.
 
 ### Proposal
 
@@ -50,7 +50,7 @@ wildcard-free pattern into a `fromSentinel` bigint) so the byte values still
 appear once — but the fold-through-`magicStep` variant is smaller and needs
 no new helper.
 
-Keep the doc-comment signature table (`:20-27`) as the human-readable
+Keep the doc-comment signature table (`:18-27`) as the human-readable
 overview; it is documentation, not a third implementation.
 
 ### Tasks
@@ -60,10 +60,10 @@ overview; it is documentation, not a third implementation.
 - [ ] Confirm `detect`'s "too short to match" behavior is preserved (a
       `scan`-state machine at EOF yields `null`, matching today's prefix
       semantics).
-- [ ] `npx tsc`, `fjs t`; `fjs/media/type/proof.f.ts` must pass unchanged.
+- [ ] `npx tsc`, `fjs t`; `fjs/media/type/proof.f.mjs` must pass unchanged.
 
 ### Related
 
-- `fjs/media/type/module.f.ts:116` — the comment acknowledging the duplication.
-- `fjs/mcp/cas/module.f.ts:88` — the sole external consumer
+- `fjs/media/type/module.f.mjs:118` — the comment acknowledging the duplication.
+- `fjs/mcp/cas/module.f.ts:211` — the sole external consumer
   (`detectStream`).
