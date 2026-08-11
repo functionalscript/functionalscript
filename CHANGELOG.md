@@ -20,6 +20,13 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/rtti/parse/module.f.ts` migrates from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  splitting its `Result`/`Parse` types into a sibling `types.ts` —
+  importers must use the `.f.mjs` specifier for runtime values and the
+  `types.ts` specifier for types. `proof.f.ts` stays TypeScript for
+  now: it has a type-only dependency on the not-yet-migrated `fjs/djs`
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
 - **BREAKING CHANGES:** `fjs/types/rtti/validate/module.f.ts` migrates
   from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
   (`.f.mjs`) — importers must use the `.f.mjs` specifier for runtime

@@ -1,4 +1,5 @@
-import { parse, type ValidationError } from './module.f.ts'
+import { parse } from './module.f.mjs'
+import type { ValidationError } from '../common/types.ts'
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.mjs'
 import type { Equal } from '../../ts/types.ts'
 import type { Ts } from '../ts/types.ts'
