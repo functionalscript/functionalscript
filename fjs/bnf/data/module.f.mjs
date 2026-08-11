@@ -8,6 +8,8 @@
  * {@link RuleSet} live in their own sibling modules (`fjs/bnf/ll1`,
  * `fjs/bnf/descent`, …), so the IR stays free of any one parser's machinery.
  *
+ * See `./types.ts` for the type-level API.
+ *
  * @module
  */
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
@@ -15,58 +17,22 @@ import { map, toArray } from '../../types/list/module.f.mjs'
 import {
     oneEncode,
 } from '../module.f.mjs'
-import type {
-    DataRule,
-    Rule as FRule,
-    Sequence as FSequence,
-} from '../types.ts'
+/** @import { DataRule, Rule as FRule, Sequence as FSequence } from '../types.ts' */
 import { definedEntries } from '../../types/object/module.f.mjs'
-import type { StringMap } from '../../types/object/types.ts'
+/** @import { StringMap } from '../../types/object/types.ts' */
+/** @import { EmptyTag, Rule, RuleSet, Sequence, Variant } from './types.ts' */
 
-/**
- * Encoded terminal range value used by BNF data rules.
- *
- * The same as the functional TerminalRange.
- */
-export type TerminalRange = number
+/** @typedef {StringMap<EmptyTag>} _EmptyTagMap */
 
-/**
- * Ordered list of grammar rule names.
- */
-export type Sequence = readonly string[]
-
-/** A variant of rule names. */
-export type Variant = StringMap<string>
-
-/**
- * Grammar rule definition.
- *
- * It can be one of:
- * - a tagged variant map,
- * - a sequence of referenced rule names,
- * - an encoded terminal range.
- */
-export type Rule = Variant | Sequence | TerminalRange
-
-/** The full grammar */
-export type RuleSet = Readonly<Record<string, Rule>>
-
-/**
- * Whether a rule can match empty input: `undefined` if it never can, `true`
- * if it can with no tag (a nullable sequence), or the tag of the nullable
- * variant branch.
- */
-export type EmptyTag = string | true | undefined
-
-type _EmptyTagMap = StringMap<EmptyTag>
-
-const emptyTagOf = (map: _EmptyTagMap) => (rule: Rule): EmptyTag => {
+/** @type {(map: _EmptyTagMap) => (rule: Rule) => EmptyTag} */
+const emptyTagOf = map => rule => {
     if (typeof rule === 'number') {
         return undefined
     } else if (rule instanceof Array) {
         return rule.every(item => map[item] !== undefined) ? true : undefined
     } else {
-        let tag: EmptyTag = undefined
+        /** @type {EmptyTag} */
+        let tag = undefined
         for (const [k, item] of definedEntries(rule)) {
             if (map[item] !== undefined) {
                 tag = k
@@ -76,7 +42,8 @@ const emptyTagOf = (map: _EmptyTagMap) => (rule: Rule): EmptyTag => {
     }
 }
 
-const emptyTagStep = (ruleSet: RuleSet) => (map: _EmptyTagMap): readonly [_EmptyTagMap, boolean] => {
+/** @type {(ruleSet: RuleSet) => (map: _EmptyTagMap) => readonly [_EmptyTagMap, boolean]} */
+const emptyTagStep = ruleSet => map => {
     let next = map
     let changed = false
     for (const name in ruleSet) {
@@ -101,10 +68,13 @@ const emptyTagStep = (ruleSet: RuleSet) => (map: _EmptyTagMap): readonly [_Empty
  * terminates — but a rule's tag can still change for rounds *after* its own
  * nullable/non-nullable status has already settled, while a cyclic
  * dependency's tag catches up, so a fixed round count isn't enough.
+ *
+ * @type {(ruleSet: RuleSet) => _EmptyTagMap}
  */
-export const emptyTagMap = (ruleSet: RuleSet): _EmptyTagMap => {
+export const emptyTagMap = ruleSet => {
     const step = emptyTagStep(ruleSet)
-    const relax = (map: _EmptyTagMap): _EmptyTagMap => {
+    /** @type {(map: _EmptyTagMap) => _EmptyTagMap} */
+    const relax = map => {
         const [next, changed] = step(map)
         return changed ? relax(next) : next
     }
@@ -113,11 +83,12 @@ export const emptyTagMap = (ruleSet: RuleSet): _EmptyTagMap => {
 
 //
 
-type _FRuleMap = StringMap<FRule>
+/** @typedef {StringMap<FRule>} _FRuleMap */
 
 const { entries } = Object
 
-const find = (map: _FRuleMap) => (fr: FRule): string | undefined => {
+/** @type {(map: _FRuleMap) => (fr: FRule) => string | undefined} */
+const find = map => fr => {
     for (const [k, v] of entries(map)) {
         if (v === fr) {
             return k
@@ -126,7 +97,8 @@ const find = (map: _FRuleMap) => (fr: FRule): string | undefined => {
     return undefined
 }
 
-const newName = (map: _FRuleMap, name: string) => {
+/** @type {(map: _FRuleMap, name: string) => string} */
+const newName = (map, name) => {
     let i = 0
     let result = name
     while (result in map) {
@@ -136,10 +108,13 @@ const newName = (map: _FRuleMap, name: string) => {
     return result
 }
 
-type _NewRule = (m: _FRuleMap) => readonly [_FRuleMap, RuleSet, Rule]
+/** @typedef {(m: _FRuleMap) => readonly [_FRuleMap, RuleSet, Rule]} _NewRule */
 
-const sequence = (list: FSequence): _NewRule => map => {
-    let result: Sequence = []
+/** @type {(list: FSequence) => _NewRule} */
+const sequence = list => map => {
+    /** @type {Sequence} */
+    let result = []
+    /** @type {RuleSet} */
     let set = {}
     for (const fr of list) {
         const [map1, set1, id] = toDataAdd(map)(fr)
@@ -150,9 +125,12 @@ const sequence = (list: FSequence): _NewRule => map => {
     return [map, set, result]
 }
 
-const variant = (fr: FRule): _NewRule => map => {
-    let set: RuleSet = {}
-    let rule: Variant = {}
+/** @type {(fr: FRule) => _NewRule} */
+const variant = fr => map => {
+    /** @type {RuleSet} */
+    let set = {}
+    /** @type {Variant} */
+    let rule = {}
     for (const [k, v] of entries(fr)) {
         const [m1, s, id] = toDataAdd(map)(v)
         map = m1
@@ -164,7 +142,8 @@ const variant = (fr: FRule): _NewRule => map => {
 
 const mapOneEncode = map(oneEncode)
 
-const data = (dr: DataRule): _NewRule => {
+/** @type {(dr: DataRule) => _NewRule} */
+const data = dr => {
     switch (typeof dr) {
         case 'string': {
             return sequence(toArray(mapOneEncode(stringToCodePointList(dr))))
@@ -179,14 +158,16 @@ const data = (dr: DataRule): _NewRule => {
     }
 }
 
-const toDataAdd = (map: _FRuleMap) => (fr: FRule): readonly [_FRuleMap, RuleSet, string] => {
+/** @type {(map: _FRuleMap) => (fr: FRule) => readonly [_FRuleMap, RuleSet, string]} */
+const toDataAdd = map => fr => {
     {
         const id = find(map)(fr)
         if (id !== undefined) {
             return [map, {}, id]
         }
     }
-    const [dr, tmpId]: readonly [DataRule, string] =
+    /** @type {readonly [DataRule, string]} */
+    const [dr, tmpId] =
         typeof fr === 'function' ? [fr(), fr.name] : [fr, '']
     const newRule = data(dr)
     const id = newName(map, tmpId)
@@ -198,8 +179,10 @@ const toDataAdd = (map: _FRuleMap) => (fr: FRule): readonly [_FRuleMap, RuleSet,
 /**
  * Converts a functional grammar rule into serializable BNF data and returns
  * the generated rule set with the entry rule identifier.
+ *
+ * @type {(fr: FRule) => readonly [RuleSet, string]}
  */
-export const toData = (fr: FRule): readonly [RuleSet, string] => {
+export const toData = fr => {
     const [, ruleSet, id] = toDataAdd({})(fr)
     return [ruleSet, id]
 }

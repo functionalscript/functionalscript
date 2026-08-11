@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/bnf/data/module.f.ts` carries a DRY / hoisting smell in its parser
+`fjs/bnf/data/module.f.mjs` carries a DRY / hoisting smell in its parser
 machinery, not covered by the existing fold-children work in
 [i665-bnf-data-fold-children](todo.md) (that issue is
 about the `sequence` / `variant` AST-fold helpers, a different pair of
@@ -13,7 +13,7 @@ functions).
 
 (A second smell used to be listed here — duplicated `emptyTagMapAdd` branches
 in `fjs/bnf/descent` — but that function was deleted and replaced by a single
-shared `emptyTagMap` fixpoint in `fjs/bnf/data/module.f.ts` while fixing
+shared `emptyTagMap` fixpoint in `fjs/bnf/data/module.f.mjs` while fixing
 nullable-analysis-shared, so it no longer applies.)
 
 #### 1. `mrSuccess` / `mrFail` match-result constructors

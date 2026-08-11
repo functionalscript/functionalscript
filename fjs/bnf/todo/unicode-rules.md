@@ -17,7 +17,7 @@ BNF machinery for different alphabets: bytes, Unicode code points, tokenizer
 output symbols, and potentially other intermediate symbol streams.
 
 The coupling is not limited to helper functions in `fjs/bnf/module.f.mjs`.
-`DataRule` currently includes `string`, and `fjs/bnf/data/module.f.ts` recognizes
+`DataRule` currently includes `string`, and `fjs/bnf/data/module.f.mjs` recognizes
 that case and converts the string with `stringToCodePointList`. Therefore the
 serializable/core BNF conversion path itself currently has Unicode semantics.
 
@@ -51,7 +51,7 @@ core BNF.
 
 Remove `string` from the generic `DataRule` / `Rule` representation. Unicode
 helpers should translate strings into ordinary generic rules before the grammar
-reaches `fjs/bnf/data`, so `fjs/bnf/data/module.f.ts` no longer imports
+reaches `fjs/bnf/data`, so `fjs/bnf/data/module.f.mjs` no longer imports
 `stringToCodePointList` or performs a string-specific conversion.
 
 Keep generic combinators generic. If an existing combinator currently embeds
@@ -117,9 +117,9 @@ new module boundary and final rule discriminants before implementation starts.
       `fjs/bnf/module.f.mjs`.
 - [ ] Remove Unicode/text imports from `fjs/bnf/module.f.mjs`.
 - [ ] Keep byte-container interpretation out of `fjs/bnf/module.f.mjs` and
-      `fjs/bnf/data/module.f.ts`.
+      `fjs/bnf/data/module.f.mjs`.
 - [ ] Remove `string` as a generic BNF `DataRule` / `Rule` case.
-- [ ] Remove Unicode string expansion from `fjs/bnf/data/module.f.ts`.
+- [ ] Remove Unicode string expansion from `fjs/bnf/data/module.f.mjs`.
 - [ ] Make any core combinators that currently embed string/Unicode syntax
       alphabet-agnostic; keep optional Unicode conveniences in
       `fjs/bnf/unicode/module.f.ts`.
@@ -182,5 +182,5 @@ new module boundary and final rule discriminants before implementation starts.
   string expansion.
 - [`fjs/bnf/module.f.mjs`](../module.f.mjs) — currently mixes generic and Unicode
   rule construction.
-- [`fjs/bnf/data/module.f.ts`](../data/module.f.ts) — currently expands string
+- [`fjs/bnf/data/module.f.mjs`](../data/module.f.mjs) — currently expands string
   rules into Unicode code-point terminals.

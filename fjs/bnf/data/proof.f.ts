@@ -3,7 +3,8 @@ import { identity } from '../../types/function/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { oneEncode, option, range, rangeDecode, repeat0Plus, set } from '../module.f.mjs'
 import { classic, deterministic } from '../testlib.f.ts'
-import { emptyTagMap, type RuleSet, toData } from './module.f.ts'
+import { emptyTagMap, toData } from './module.f.mjs'
+import type { RuleSet } from './types.ts'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {

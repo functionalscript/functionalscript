@@ -20,7 +20,8 @@ import type { StringSet } from '../../types/string_set/types.ts'
 import { rangeDecode } from '../module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import type { StringMap } from '../../types/object/types.ts'
-import { emptyTagMap, type EmptyTag, type RuleSet, toData } from '../data/module.f.ts'
+import { emptyTagMap, toData } from '../data/module.f.mjs'
+import type { EmptyTag, RuleSet } from '../data/types.ts'
 import type { Rule as FRule } from '../types.ts'
 
 type DispatchRule = {
