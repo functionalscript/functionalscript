@@ -38,7 +38,9 @@ const iPad = vec8(0x36n)
 /**
  * Generates an HMAC (Hash-based Message Authentication Code) using the specified hash function.
  *
- * @type {(hashFunc: Sha2) => Reduce}
+ * @param {Sha2} hashFunc - The hash function implementation to use.
+ * @returns {Reduce} A function that takes a key and returns another function
+ * that takes a message and computes the HMAC.
  */
 export const hmac = hashFunc => {
     const { blockLength } = hashFunc
