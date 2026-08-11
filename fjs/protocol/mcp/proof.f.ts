@@ -6,7 +6,7 @@ import { run } from '../../effects/mock/module.f.mjs'
 import type { MemOperationMap } from '../../effects/mock/types.ts'
 import { asBase, asNominal, create, read } from '../../effects/memory/module.f.mjs'
 import type { Key, MemOp } from '../../effects/memory/types.ts'
-import type { Unknown } from '../../media/json/module.f.ts'
+import type { Unknown } from '../../media/json/types.ts'
 import {
     type ToolsListParams, type ToolsListResult, type ToolsCallParams, type ToolsCallResult,
     type McpHandlers, type McpConfig, type McpSessionState,

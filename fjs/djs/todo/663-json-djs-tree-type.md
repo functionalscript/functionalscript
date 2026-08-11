@@ -42,7 +42,7 @@ Keep the names the modules already use and import the shared definitions through
 a namespace where useful:
 
 ```ts
-// fjs/media/json/module.f.ts
+// fjs/media/json/module.f.mjs
 import type * as Tree from './common/module.f.ts'
 export type Primitive = boolean | string | number | null
 export type Unknown = Tree.Unknown<Primitive>
@@ -53,7 +53,7 @@ export type Array = Tree.Array<Primitive>
 ```ts
 // fjs/djs/module.f.ts
 import type * as Tree from '../media/json/common/module.f.ts'
-import type { Primitive as JsonPrimitive } from '../media/json/module.f.ts'
+import type { Primitive as JsonPrimitive } from '../media/json/types.ts'
 export type Primitive = JsonPrimitive | bigint | undefined
 export type Unknown = Tree.Unknown<Primitive>
 export type Object = Tree.Object<Primitive>
@@ -109,7 +109,7 @@ serialization behavior.
 - [157](./157.md) — shares JSON/DJS parser value machinery; complementary to
   sharing the recursive value type.
 - [197](./197.md) — extracts traversal over the same `Unknown` shape.
-- `fjs/media/json/module.f.ts` — current JSON recursive type aliases.
+- `fjs/media/json/types.ts` — current JSON recursive type aliases.
 - `fjs/djs/module.f.ts` — current DJS recursive type aliases.
 - `fjs/media/json/serializer/module.f.mjs` — currently has no separate recursive
   generic value aliases and therefore is not part of this migration.

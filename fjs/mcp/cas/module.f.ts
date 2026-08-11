@@ -102,7 +102,7 @@
  * @module
  */
 import { string, option, or, boolean } from '../../types/rtti/module.f.mjs'
-import { stringify } from '../../media/json/module.f.ts'
+import { stringify } from '../../media/json/module.f.mjs'
 import { pure, step } from '../../effects/module.f.mjs'
 import type { Effect } from '../../effects/types.ts'
 import type { MemOp } from '../../effects/memory/types.ts'

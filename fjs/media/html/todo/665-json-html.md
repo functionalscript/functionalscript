@@ -87,5 +87,5 @@ Which serialises to:
 
 ### Related
 
-- `fjs/media/json/module.f.ts` — the `Unknown` type and `serialize`
+- `fjs/media/json/module.f.mjs` — the `Unknown` type and `serialize`
 - `fjs/media/json/schema/module.f.ts` — sibling JSON-dialect module
