@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { run, type MemOperationMap } from '../mock/module.f.ts'
-import { pure, step } from '../module.f.ts'
+import { pure, step } from '../module.f.mjs'
 import {
     asBase, asNominal,
     create, read, write,

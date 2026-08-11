@@ -9,7 +9,8 @@
  *
  * @module
  */
-import { forEachStep, mapStep, pure, step, type Effect } from '../../effects/module.f.ts'
+import { forEachStep, mapStep, pure, step } from '../../effects/module.f.mjs'
+import type { Effect } from '../../effects/types.ts'
 import { mkdir, writeUtf8File, type Mkdir, type WriteFile } from '../../effects/node/module.f.ts'
 import { nixToString } from '../../media/nix/module.f.mjs'
 import type { Expression } from '../../media/nix/types.ts'

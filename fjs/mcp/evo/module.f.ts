@@ -44,7 +44,8 @@
  * @module
  */
 import { string, option, array } from '../../types/rtti/module.f.mjs'
-import { pure, step, type Effect, type Operation } from '../../effects/module.f.ts'
+import { pure, step } from '../../effects/module.f.mjs'
+import type { Effect, Operation } from '../../effects/types.ts'
 import { type MemOp } from '../../effects/memory/module.f.ts'
 import {
     toolEntry, errorResult, okResult,

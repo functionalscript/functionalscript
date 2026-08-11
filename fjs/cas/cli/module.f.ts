@@ -5,7 +5,7 @@
  */
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
-import { forEachStep, pure, step } from '../../effects/module.f.ts'
+import { forEachStep, pure, step } from '../../effects/module.f.mjs'
 import {
     errorExit,
     log,

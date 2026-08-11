@@ -1,4 +1,5 @@
-import { pure, type Effect, type Operation } from "../module.f.ts"
+import { pure } from "../module.f.mjs"
+import type { Effect, Operation } from "../types.ts"
 
 export type NonEmpty<O extends Operation, T> = {
     readonly first: T

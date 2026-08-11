@@ -1,4 +1,5 @@
-import { history, historyStep, mapStep, pure, type Effect, type Operation } from '../module.f.ts'
+import { history, historyStep, mapStep, pure } from '../module.f.mjs'
+import type { Effect, Operation } from '../types.ts'
 
 /**
  * A fluent, method-chaining monad over a raw {@link Effect} that also

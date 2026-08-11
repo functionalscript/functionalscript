@@ -15,7 +15,8 @@ import { stringToList } from '../../text/utf16/module.f.mjs'
 import { concat as pathConcat } from '../../path/module.f.mjs'
 import { type ParseError, parseFromTokens } from '../parser/module.f.ts'
 import { run, type AstModule } from '../ast/module.f.ts'
-import { type Effect, foldStep, pure, step } from '../../effects/module.f.ts'
+import { foldStep, pure, step } from '../../effects/module.f.mjs'
+import type { Effect } from '../../effects/types.ts'
 import { readUtf8File, type ReadFile } from '../../effects/node/module.f.ts'
 
 /**

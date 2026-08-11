@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { pure } from '../../effects/module.f.ts'
+import { pure } from '../../effects/module.f.mjs'
 import { fileCas, type Cas } from '../module.f.ts'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.ts'

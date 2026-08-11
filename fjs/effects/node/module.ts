@@ -22,7 +22,7 @@ import { once } from 'node:events'
 import * as testContext from 'node:test'
 
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
-import { type Effect } from '../module.f.ts'
+import type { Effect } from '../types.ts'
 import { asyncRun } from '../module.ts'
 import { memoryOperationMap } from './memory/module.ts'
 import {

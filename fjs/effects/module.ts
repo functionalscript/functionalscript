@@ -1,4 +1,5 @@
-import { match, type Effect, type Operation, type ToAsyncOperationMap } from "./module.f.ts"
+import { match } from "./module.f.mjs"
+import type { Effect, Operation, ToAsyncOperationMap } from "./types.ts"
 
 export const asyncRun =
     <O extends Operation>(map: ToAsyncOperationMap<O>) =>

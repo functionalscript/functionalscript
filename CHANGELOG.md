@@ -20,6 +20,13 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/effects/module.f.ts` migrates from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  splitting its type-level API into a sibling `types.ts` — importers
+  must use the `.f.mjs` specifier for runtime values and the
+  `types.ts` specifier for types. Updates all 30+ dependents across
+  the repo; `proof.f.ts` stays TypeScript for now
+  [#1487](https://github.com/functionalscript/functionalscript/pull/1487)
 - **BREAKING CHANGES:** `fjs/bnf/descent` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
   its type-level API into a sibling `types.ts` — importers must use

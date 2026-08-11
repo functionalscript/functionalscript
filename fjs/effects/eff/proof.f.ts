@@ -1,4 +1,4 @@
-import { do_, match, pure } from '../module.f.ts'
+import { do_, match, pure } from '../module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { assertPure } from '../proof.f.ts'
 import { eff } from './module.f.ts'

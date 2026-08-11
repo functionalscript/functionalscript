@@ -1,5 +1,6 @@
 import { errorExit, log, type NodeOp, type NodeProgramOptions, type Write } from '../effects/node/module.f.ts'
-import { pure, step, type Effect } from '../effects/module.f.ts'
+import { pure, step } from '../effects/module.f.mjs'
+import type { Effect } from '../effects/types.ts'
 import { at, fromEntries } from '../types/object/module.f.mjs'
 
 type Handler<O extends NodeOp> = (options: NodeProgramOptions) => Effect<O, number>

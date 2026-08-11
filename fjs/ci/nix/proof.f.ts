@@ -4,7 +4,7 @@
  * @module
  */
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { step } from '../../effects/module.f.ts'
+import { step } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.ts'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
 import { nixpkgs } from '../config/module.f.mjs'

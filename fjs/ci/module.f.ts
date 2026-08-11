@@ -3,7 +3,8 @@
  *
  * @module
  */
-import { mapStep, step, type Effect } from '../effects/module.f.ts'
+import { mapStep, step } from '../effects/module.f.mjs'
+import type { Effect } from '../effects/types.ts'
 import { access, writeUtf8File, type NodeOp } from '../effects/node/module.f.ts'
 import { functionalscript, images } from './config/module.f.mjs'
 import {
