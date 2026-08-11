@@ -10,7 +10,7 @@ import { unwrap } from '../../types/nullable/module.f.mjs'
 import type { Ok } from '../../types/result/types.ts'
 import { ok, error } from '../../types/result/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
-import type { IoResult } from '../../effects/node/module.f.ts'
+import type { IoResult } from '../../effects/node/types.ts'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { dialect as revisionDialect } from '../../media/revision/module.f.ts'
 import {

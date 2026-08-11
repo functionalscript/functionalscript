@@ -105,7 +105,7 @@ export const proof = {
   it can call `assert`/`assertEq`, and throwing (i.e. an assertion failing) is the leaf's real
   failure signal.
 - No raw `try`/`catch` is needed in `module.f.ts` to implement this: the module already routes
-  every leaf call through the `sandbox` effect (`fjs/effects/node/module.f.ts`), which is
+  every leaf call through the `sandbox` effect (`fjs/effects/node/module.f.mjs`), which is
   implemented in the host runtime (not `.f.ts`) and already exposes the thrown value as
   `SandboxResult.result`'s `error` case. `defaultTest` can sandbox `try`, and on an `error`
   result sandbox `() => catchFn(thrownValue)` as the leaf's real verdict — two effect calls,

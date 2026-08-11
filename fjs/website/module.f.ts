@@ -4,7 +4,8 @@
  * @module
  */
 import { htmlUtf8 } from '../media/html/module.f.mjs'
-import { writeFile, type WriteFile } from '../effects/node/module.f.ts'
+import { writeFile } from '../effects/node/module.f.mjs'
+import type { WriteFile } from '../effects/node/types.ts'
 import { pure, step } from '../effects/module.f.mjs'
 import type { Effect } from '../effects/types.ts'
 import type { Vec } from '../types/bit_vec/types.ts'

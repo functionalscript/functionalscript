@@ -2,23 +2,28 @@
  * ANSI Control Sequence Introducer (CSI) and Select Graphic Rendition (SGR)
  * helpers for writing formatted terminal output and TTY-aware console streams.
  *
+ * See `./types.ts` for the type-level API.
+ *
  * @module
  */
 
 // C0 control codes
 // https://en.wikipedia.org/wiki/ANSI_escape_code#C0_control_codes
 
-import { write, type Write, type WriteConsoles, type NodeProgramOptions } from '../../effects/node/module.f.ts'
-import type { Effect } from '../../effects/types.ts'
+import { write } from '../../effects/node/module.f.mjs'
+/** @import { Write, WriteConsoles, NodeProgramOptions } from '../../effects/node/types.ts' */
+/** @import { Effect } from '../../effects/types.ts' */
 import { utf8 } from "../module.f.mjs"
+/** @import { Stdout, WriteText, CsiConsole } from './types.ts' */
 
-export const backspace: string = '\x08'
+/** @type {string} */
+export const backspace = '\x08'
 
 //
 
-type End = 'm'
+/** @typedef {'m'} _End */
 
-type Csi = (code: number | string) => string
+/** @typedef {(code: number | string) => string} _Csi */
 
 const begin = '\x1b['
 
@@ -28,71 +33,67 @@ const begin = '\x1b['
  *
  * @param end - The final character that indicates the type of sequence.
  * @returns A function that takes a code (number or string) and returns the complete ANSI escape sequence.
+ *
+ * @type {(end: _End) => _Csi}
  */
-export const csi = (end: End): Csi => code =>
+export const csi = end => code =>
     `${begin}${code.toString()}${end}`
 
 /**
  * Specialization of CSI for Select Graphic Rendition (SGR) sequences.
  * https://en.wikipedia.org/wiki/ANSI_escape_code#SGR
+ *
+ * @type {_Csi}
  */
-export const sgr: Csi = csi('m')
+export const sgr = csi('m')
 
 /** Resets all SGR styles to terminal defaults. */
-export const reset: string = sgr(0)
+export const reset = /** @type {string} */ (sgr(0))
 /** Enables bold/intense text rendering when supported by the terminal. */
-export const bold: string = sgr(1)
+export const bold = /** @type {string} */ (sgr(1))
 /** Applies red foreground color to subsequent text. */
-export const fgRed: string = sgr(31)
+export const fgRed = /** @type {string} */ (sgr(31))
 /** Applies green foreground color to subsequent text. */
-export const fgGreen: string = sgr(32)
+export const fgGreen = /** @type {string} */ (sgr(32))
 
 const { max } = Math
 
-const replace = (old: string) => (text: string) => {
+/** @type {(old: string) => (text: string) => string} */
+const replace = old => text => {
     const len = old.length
     const suffixLength = max(0, len - text.length)
     return backspace.repeat(len) + text + " ".repeat(suffixLength) + backspace.repeat(suffixLength)
 }
-
-export type Stdout = {
-    /** Writes a string to the output stream. */
-    readonly write: (s: string) => void
-}
-
-/** Stateful writer that updates previously printed text in-place. */
-export type WriteText = (text: string) => WriteText
 
 /**
  * Creates a stateful text writer that rewrites the previous value using backspaces.
  *
  * @param stdout - Destination output stream.
  * @returns A recursive writer that replaces prior text on each call.
+ *
+ * @type {(stdout: Stdout) => WriteText}
  */
-export const createConsoleText = (stdout: Stdout): WriteText => {
-    const f = (old: string) => (text: string) => {
+export const createConsoleText = stdout => {
+    /** @type {(old: string) => WriteText} */
+    const f = old => text => {
         stdout.write(replace(old)(text))
         return f(text)
     }
     return f('')
 }
 
-export type CsiConsole = (s: string) => void
-
-const str = (isTTY: boolean) => (s: string) =>
+/** @type {(isTTY: boolean) => (s: string) => string} */
+const str = isTTY => s =>
     isTTY ? s : s.replace(/\x1b\[[0-9;]*m/g, '')
 
 /**
  * Effect-based TTY-aware write. Strips ANSI SGR sequences when the target
  * stream is not a TTY, then encodes to UTF-8 and emits a `Write` effect.
  * Does NOT append `\n` — callers are responsible for line termination.
+ *
+ * @type {(options: NodeProgramOptions) => (stream: WriteConsoles) => (s: string) => Effect<Write, void>}
  */
-export const csiWrite =
-    ({ std }: NodeProgramOptions) =>
-    (stream: WriteConsoles):
-    (s: string) => Effect<Write, void> =>
-{
+export const csiWrite = ({ std }) => stream => {
     const toStr = str(std[stream].isTTY)
-    return (s: string): Effect<Write, void> =>
-        write(stream, utf8(toStr(s)))
+    return s => write(stream, utf8(toStr(s)))
 }

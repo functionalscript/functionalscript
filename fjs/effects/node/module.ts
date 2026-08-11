@@ -25,19 +25,19 @@ import { concat, normalize, toPosix } from '../../path/module.f.mjs'
 import type { Effect } from '../types.ts'
 import { asyncRun } from '../module.ts'
 import { memoryOperationMap } from './memory/module.ts'
-import {
-    type Server as EffectServer,
-    type Headers,
-    type Module,
-    type NodeOp,
-    type RequestListener as Erl,
-    type NodeProgram,
-    type NodeProgramOptions,
-    type WriteConsoles,
-    type TestContext,
-    type TestFn,
-    usesInlineTestContext,
-} from './module.f.ts'
+import { usesInlineTestContext } from './module.f.mjs'
+import type {
+    Server as EffectServer,
+    Headers,
+    Module,
+    NodeOp,
+    RequestListener as Erl,
+    NodeProgram,
+    NodeProgramOptions,
+    WriteConsoles,
+    TestContext,
+    TestFn,
+} from './types.ts'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
 import type { Result } from '../../types/result/types.ts'
 import { error, ok } from '../../types/result/module.f.mjs'

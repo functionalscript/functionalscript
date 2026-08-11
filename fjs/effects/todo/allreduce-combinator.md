@@ -28,7 +28,7 @@ export const allReduce =
 
 Note the standalone `step`: `all(...)` returns a raw `Effect`, which is plain
 data with no methods — `.step` exists only on the `Eff` wrapper
-(`fjs/effects/eff/module.f.ts`). An earlier draft of this issue wrote
+(`fjs/effects/eff/module.f.mjs`). An earlier draft of this issue wrote
 `all(...).step(...)`, which would not compile. If
 [map-step-combinator](./map-step-combinator.md) lands first, the body is
 `mapStep(all(...toArray(items).map(f)), rs => rs.reduce(...))`.

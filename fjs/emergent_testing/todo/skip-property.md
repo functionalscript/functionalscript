@@ -114,7 +114,7 @@ option on the test effect used by the surviving process-based adapters:
   change, no return-value walk).
 - **`registerModule`** — register skipped leaves with a `skip` flag instead of
   a test body; no subtest registration, no ` ...` star suffix.
-- **`TestFn` / `Test` effect (`fjs/effects/node/module.f.ts`)** — extend the
+- **`TestFn` / `Test` effect (`fjs/effects/node/module.f.mjs`)** — extend the
   options record `{ expectFailure }` with `skip`; the Node implementation
   passes `{ skip: true }` through to `node:test`, and the surviving Bun/Deno
   integrations map it to their framework behavior.
@@ -179,5 +179,5 @@ Playwright execution obtains skip results from the shared browser application.
   Playwright Test integration.
 - `todo/README.md` "Blocked by third parties" — the unskip-trigger convention
   mirrors the **Trigger** requirement of `todo/blocked/` issues.
-- `fjs/effects/node/module.f.ts` `TestFn` — the options record extended with
+- `fjs/effects/node/module.f.mjs` `TestFn` — the options record extended with
   `skip` for surviving process-based framework integrations.

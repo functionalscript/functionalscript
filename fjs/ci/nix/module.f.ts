@@ -11,7 +11,8 @@
  */
 import { forEachStep, mapStep, pure, step } from '../../effects/module.f.mjs'
 import type { Effect } from '../../effects/types.ts'
-import { mkdir, writeUtf8File, type Mkdir, type WriteFile } from '../../effects/node/module.f.ts'
+import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
+import type { Mkdir, WriteFile } from '../../effects/node/types.ts'
 import { nixToString } from '../../media/nix/module.f.mjs'
 import type { Expression } from '../../media/nix/types.ts'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'

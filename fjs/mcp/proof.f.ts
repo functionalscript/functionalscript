@@ -1,7 +1,7 @@
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { pure, step } from '../effects/module.f.mjs'
 import type { Effect, Operation } from '../effects/types.ts'
-import { create } from '../effects/memory/module.f.ts'
+import { create } from '../effects/memory/module.f.mjs'
 import { parse as parseJson, type Unknown } from '../media/json/module.f.ts'
 import { number as rttiNumber, option, string as rttiString } from '../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
@@ -26,7 +26,7 @@ import type {
     RandomInt,
     ReadBytes,
     Rename,
-} from '../effects/node/module.f.ts'
+} from '../effects/node/types.ts'
 import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
 import { ok as resultOk, unwrap } from '../types/result/module.f.mjs'
