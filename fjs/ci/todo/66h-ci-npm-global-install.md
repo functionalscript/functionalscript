@@ -9,7 +9,7 @@ Two surviving CI step sites build the same `run`-based step for globally install
 pinned npm package:
 
 ```ts
-// fjs/ci/node/module.f.ts
+// fjs/ci/node/module.f.mjs
 const fjsGlobalInstall = (version: string): MetaStep =>
     install({ run: `npm install -g functionalscript@${version}` })
 
@@ -65,7 +65,7 @@ This remains distinct from:
 ### Tasks
 
 - [ ] Add `npmGlobalInstall` to `fjs/ci/common/module.f.mjs`.
-- [ ] Rebind `fjsGlobalInstall` in `fjs/ci/node/module.f.ts`.
+- [ ] Rebind `fjsGlobalInstall` in `fjs/ci/node/module.f.mjs`.
 - [ ] Replace the inline `@typescript/native-preview` global-install step.
 - [ ] Confirm proof coverage for both surviving consumers and the generated step shape.
 - [ ] Verify generated workflow output is unchanged.

@@ -13,7 +13,7 @@ Every consumer of a `List<O, IoResult<Vec>>` re-hand-writes the same
 three-case fold: *EOF → finalize; error item → propagate; chunk → fold and
 recurse on the tail.* The skeleton currently appears four times:
 
-`detectStream` (`fjs/media/type/module.f.ts:290-299`) — pure fold:
+`detectStream` (`fjs/media/type/module.f.mjs:268-281`) — pure fold:
 
 ```ts
 const loop = (s: DetectState) => (l: List<O, IoResult<Vec>>): Effect<O, IoResult<DetectMeta>> =>

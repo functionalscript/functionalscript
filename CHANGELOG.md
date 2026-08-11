@@ -20,6 +20,30 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/media/type` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  `DetectState`, `DetectMeta`, and the internal `_Signature`/`_MagicState`/
+  `_Utf8Detect` types into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier for
+  types. `proof.f.ts` migrates alongside it
+  [#1493](https://github.com/functionalscript/functionalscript/pull/1493)
+- **BREAKING CHANGES:** `fjs/ci/module.f.ts` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  the `Setup` type into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier
+  for types. `proof.f.ts` stays TypeScript for now
+  [#1493](https://github.com/functionalscript/functionalscript/pull/1493)
+- **BREAKING CHANGES:** `fjs/ci/node` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — no local
+  types to split. `proof.f.ts` migrates alongside it. Importers must
+  use the `.f.mjs` specifier
+  [#1493](https://github.com/functionalscript/functionalscript/pull/1493)
+- **BREAKING CHANGES:** `fjs/ci/nix` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting the
+  `NixJob` type into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier
+  for types. `proof.f.ts` stays TypeScript for now
+  [#1493](https://github.com/functionalscript/functionalscript/pull/1493)
 - **BREAKING CHANGES:** `fjs/cli` migrates from authored TypeScript
   (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting its
   type-level API into a sibling `types.ts` — importers must use the

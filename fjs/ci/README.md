@@ -7,20 +7,21 @@ canonical Node job under `nix/generated/`.
 
 ## Files
 
-- `module.f.ts` — the top-level pipeline definition. Exports `ci(setup: Setup)` which
-  returns an `Effect<NodeOp, number>` that writes the workflow file. Rust support is
-  detected automatically by checking for `Cargo.toml` at the repository root via the
-  `access` effect.
+- `module.f.mjs` — the top-level pipeline definition. Exports `ci(setup: Setup)`
+  (`Setup` in `types.ts`) which returns an `Effect<NodeOp, number>` that writes
+  the workflow file. Rust support is detected automatically by checking for
+  `Cargo.toml` at the repository root via the `access` effect.
 - `proof.f.ts` — property-based proofs for the CI generator (Rust/no-Rust job presence,
   per-OS extra steps).
 - `common/module.f.ts` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
 - `config/module.f.mjs` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin.
-- `nix/module.f.ts` — writes one self-contained `nix/generated/<job>/flake.nix`
-  per declared job, using the Nix eDSL in `fjs/media/nix`.
-- `node/module.f.ts` — Node.js job steps: platform smoke tests, canonical
+- `nix/module.f.mjs` — writes one self-contained `nix/generated/<job>/flake.nix`
+  per declared job (`NixJob` in `types.ts`), using the Nix eDSL in `fjs/media/nix`.
+- `node/module.f.mjs` — Node.js job steps: platform smoke tests, canonical
   per-version jobs, coverage, package checks, and the Node flake declarations.
+  `proof.f.mjs` — its property-based proofs.
 - `rust/module.f.mjs` — Rust toolchain setup and `cargo` build/test steps.
 - `deno/module.f.mjs` — Deno runtime steps.
 - `bun/module.f.mjs` — Bun runtime steps.
@@ -42,7 +43,7 @@ plain text built from the pinned commit in `config/module.f.mjs`.
 ### Generated Nix environments
 
 Each canonical Node job declares a system and its Nixpkgs package attribute in
-`node/module.f.ts` (`nodeNixJobs`), and `nix/module.f.ts` writes it out as one
+`node/module.f.mjs` (`nodeNixJobs`), and `nix/module.f.mjs` writes it out as one
 static `flake.nix` exposing `devShells.<system>.default`. Node 22 also declares a
 job-local `shellHook` that points `npm install -g` at `$HOME/.npm-global`, so the
 installed `fjs` stays on `PATH` for the rest of the same `nix develop` invocation.
