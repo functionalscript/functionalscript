@@ -20,6 +20,13 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/ci/common` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  its type-level API (`Os`, `Architecture`, `Image`, `Step`, `Job`,
+  `Jobs`, `GitHubAction`, `StepType`, `MetaStep`) into a sibling
+  `types.ts` — importers must use the `.f.mjs` specifier for runtime
+  values and the `types.ts` specifier for types
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
 - **BREAKING CHANGES:** `fjs/types/rtti/parse/module.f.ts` migrates from
   authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
   splitting its `Result`/`Parse` types into a sibling `types.ts` —

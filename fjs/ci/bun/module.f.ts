@@ -5,7 +5,8 @@
  * @module
  */
 import { bun } from '../config/module.f.mjs'
-import { type MetaStep, install, test, uses } from '../common/module.f.ts'
+import { install, test, uses } from '../common/module.f.mjs'
+import type { MetaStep } from '../common/types.ts'
 
 export const bunSteps = (version: string): readonly MetaStep[] => [
     install(uses('oven-sh/setup-bun', { 'bun-version': bun })),

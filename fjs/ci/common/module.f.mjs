@@ -1,39 +1,35 @@
 /**
  * Shared CI types and helpers: GitHub Actions step/job RTTI schemas, the
  * `MetaStep` representation used by tool-specific modules, and assemblers like
- * `install`, `test`, `ubuntu`, and `toSteps`.
+ * `install`, `test`, `ubuntu`, and `toSteps`. See `./types.ts` for the
+ * `Os`/`Architecture`/`Image`/`Step`/`Job`/`Jobs`/`GitHubAction`/`StepType`/
+ * `MetaStep` type-level API.
  *
  * @module
  */
 import { actions, images } from '../config/module.f.mjs'
 import { option, array, record, string } from '../../types/rtti/module.f.mjs'
-import { type Ts } from '../../types/rtti/ts/types.ts'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
+/** @import { Step, Job, MetaStep, StepType } from './types.ts' */
 
-export const os = ['ubuntu', 'macos', 'windows'] as const
+export const os = /** @type {const} */ (['ubuntu', 'macos', 'windows'])
 
-export type Os = typeof os[number]
+export const architecture = /** @type {const} */ (['intel', 'arm'])
 
-export const architecture = ['intel', 'arm'] as const
-
-export type Architecture = typeof architecture[number]
-
-export type Image = typeof images[Os][Architecture]
-
-export const stepSchema = {
+export const stepSchema = /** @type {const} */ ({
     run: option(string),
     uses: option(string),
     with: option(record(string))
-} as const satisfies unknown
+})
 
-export const jobSchema = {
+export const jobSchema = /** @type {const} */ ({
     'runs-on': string,
     steps: array(stepSchema)
-} as const satisfies unknown
+})
 
 export const jobsSchema = record(jobSchema)
 
-export const gitHubActionSchema = {
+export const gitHubActionSchema = /** @type {const} */ ({
     name: string,
     on: {
         pull_request: option({}),
@@ -41,39 +37,26 @@ export const gitHubActionSchema = {
     },
     permissions: record(string),
     jobs: jobsSchema
-} as const
-
-export type Step = Ts<typeof stepSchema>
-export type Job = Ts<typeof jobSchema>
-export type Jobs = Ts<typeof jobsSchema>
-export type GitHubAction = Ts<typeof gitHubActionSchema>
+})
 
 export const parseGitHubAction = rttiParse(gitHubActionSchema)
 
-export type StepType = 'install' | 'test'
-
-export type MetaStep = {
-    readonly type: StepType
-    readonly step: Step
-} | {
-    readonly type: 'rust'
-    readonly target?: string
-} | {
-    readonly type: 'apt-get'
-    readonly package: string
-}
-
-export const uses = (name: keyof typeof actions, w?: Record<string, string>): Step => ({
+/** @type {(name: keyof typeof actions, w?: Record<string, string>) => Step} */
+export const uses = (name, w) => ({
     uses: `${name}@${actions[name]}`,
     ...(w === undefined ? {} : { with: w })
 })
 
-export const install = (step: Step): MetaStep => ({ type: 'install', step })
+/** @type {(step: Step) => MetaStep} */
+export const install = step => ({ type: 'install', step })
 
-export const test = (step: Step): MetaStep => ({ type: 'test', step })
+/** @type {(step: Step) => MetaStep} */
+export const test = step => ({ type: 'test', step })
 
-export const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
-    const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
+/** @type {(m: readonly MetaStep[]) => readonly Step[]} */
+export const toSteps = m => {
+    /** @type {(st: StepType) => Step[]} */
+    const filter = st => m.flatMap(mt => mt.type === st ? [mt.step] : [])
     const aptGet = m.flatMap(v => v.type === 'apt-get' ? [v.package] : []).join(' ')
 
     const needRust = m.find(v => v.type === 'rust') !== undefined
@@ -90,12 +73,14 @@ export const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     ]
 }
 
-export const ubuntu = (ms: readonly MetaStep[]): Job => ({
+/** @type {(ms: readonly MetaStep[]) => Job} */
+export const ubuntu = ms => ({
     'runs-on': images.ubuntu.intel,
     steps: toSteps(ms)
 })
 
-export const ubuntuArm = (ms: readonly MetaStep[]): Job => ({
+/** @type {(ms: readonly MetaStep[]) => Job} */
+export const ubuntuArm = ms => ({
     'runs-on': images.ubuntu.arm,
     steps: toSteps(ms)
 })

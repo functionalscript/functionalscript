@@ -1,5 +1,5 @@
 import { coverageInclude, denoSteps } from './module.f.ts'
-import { toSteps } from '../common/module.f.ts'
+import { toSteps } from '../common/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const coverageRuns = (version: string): readonly string[] =>

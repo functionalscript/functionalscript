@@ -14,7 +14,8 @@ import { mkdir, writeUtf8File, type Mkdir, type WriteFile } from '../../effects/
 import { nixToString, type Expression } from '../../media/nix/module.f.ts'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { install, test, uses, type MetaStep } from '../common/module.f.ts'
+import { install, test, uses } from '../common/module.f.mjs'
+import type { MetaStep } from '../common/types.ts'
 import { nixpkgs } from '../config/module.f.mjs'
 
 /** A CI job's development environment, one generated flake each. */
