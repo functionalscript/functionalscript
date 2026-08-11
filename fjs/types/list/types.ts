@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import type { Nullable } from '../nullable/types.ts'
 
 export type List<T> = NotLazy<T> | Thunk<T>

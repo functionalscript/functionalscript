@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import type { Reduce } from '../../types/function/operator/types.ts'
 
 /**

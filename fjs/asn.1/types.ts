@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import type { Vec } from '../types/bit_vec/types.ts'
 import type {
     boolean as booleanTag,

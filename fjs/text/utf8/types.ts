@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import type { Tuple } from '../../types/array/types.ts'
 
 /** An unsigned 8-bit integer, represents a single byte. */

@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import type { Equal, Reduce } from '../function/operator/types.ts'
 import type { Range } from '../range/types.ts'
 import type { SortedList } from '../sorted_list/types.ts'

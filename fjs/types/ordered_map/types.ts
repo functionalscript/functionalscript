@@ -3,7 +3,8 @@
  *
  * @module
  */
-import type { Tree } from "../btree/types/types.ts"
+
+import type { Tree } from '../btree/types/types.ts'
 
 export type Entry<T> = readonly [string, T]
 

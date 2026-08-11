@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import type { Sign } from '../function/compare/types.ts'
 import type {
     Binary,

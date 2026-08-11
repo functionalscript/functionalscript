@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import type { Index } from '../../array/types.ts'
 import type { List } from '../../list/types.ts'
 import type { Branch3, Branch5, Leaf1, Leaf2 } from '../types/types.ts'

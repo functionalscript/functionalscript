@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import type { Tuple } from '../../types/array/types.ts'
 import type { Vec } from '../../types/bit_vec/types.ts'
 import type { Fold } from '../../types/function/operator/types.ts'

@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import type { Fold, Reduce } from '../../types/function/operator/types.ts'
 import type { PrimeField } from '../../types/prime_field/types.ts'
 

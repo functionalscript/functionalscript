@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import type { Tuple } from '../../array/types.ts'
 
 export type Leaf1<T> = Tuple<1, T>
