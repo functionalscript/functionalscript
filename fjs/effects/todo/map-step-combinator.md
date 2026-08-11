@@ -44,8 +44,8 @@ return step(
     log(helpText),
     () => pure(0))
 
-// fjs/website/module.f.ts:17-19
-const program: Effect<WriteFile, number> = step(
+// fjs/website/module.f.mjs:19-21
+const program = step(
     writeFile('index.html', html),
     () => pure(0))
 ```

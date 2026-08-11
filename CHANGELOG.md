@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/website` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — importers
+  must use the `.f.mjs` specifier. `proof.f.ts` stays TypeScript for
+  now
+  [#1491](https://github.com/functionalscript/functionalscript/pull/1491)
 - **BREAKING CHANGES:** `fjs/dev/update` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — importers
   must use the `.f.mjs` specifier. `proof.f.ts` stays TypeScript for
