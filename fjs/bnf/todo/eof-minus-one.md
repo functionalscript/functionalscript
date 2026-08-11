@@ -1,7 +1,8 @@
 ## Use `-1` as the BNF EOF symbol
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
+**Blocked by:** [Investigate TerminalRange representation](./terminal-range-representation.md)
 
 ### Problem
 
@@ -16,6 +17,12 @@ mappings or alphabet adapters to avoid one special value.
 
 EOF is not a physical input symbol. Give it a width-independent semantic value
 outside the non-negative physical-symbol domain instead.
+
+`TerminalRange` is serialized/persisted BNF data. Changing EOF changes the range
+endpoint domain, so do not implement this migration through a temporary packed
+wire format. Resolve the stable
+[TerminalRange representation](./terminal-range-representation.md) first and use
+that representation directly when this task is implemented.
 
 ### Proposal
 
@@ -124,21 +131,21 @@ failure even though both publicly report index `0`; their expected sets must not
 be merged.
 
 This logical EOF behavior is part of this task, not deferred to the bigint
-migration. Otherwise changing the exported `eof` range to `-1` before bigint
-would make EOF grammars unmatchable because current physical inputs never contain
-`-1`.
+migration. Physical parser behavior and the persisted `TerminalRange` change land
+together after the representation prerequisite is resolved.
 
-#### Unsigned `TerminalRange` endpoint encoding
+#### `TerminalRange` endpoint representation
 
 Keep the semantic terminal value separate from the representation used inside a
-`TerminalRange`. Before packing/storing an endpoint, offset it by one:
+`TerminalRange`. For candidate representations that store non-negative endpoint
+values, use the order-preserving offset:
 
 ```text
 encodeTerminal(value) = value + 1
 decodeTerminal(value) = value - 1
 ```
 
-This gives a non-negative encoded endpoint domain:
+which maps:
 
 ```text
 EOF -> 0
@@ -147,29 +154,21 @@ EOF -> 0
 ...
 ```
 
-The mapping is deterministic, lossless, and order-preserving. Range operations
-should work with decoded semantic terminal values; packing/serialization details
-should apply the offset only at the `TerminalRange` representation boundary.
+After the bigint migration, the maximum encoded ordinary endpoint is `2^256`, so
+a fixed-width packed representation would require 257 bits per endpoint.
 
-This task can be implemented before switching BNF symbols to `bigint`. To preserve
-the full current 24-bit physical-symbol domain, the temporary packed-number
-representation needs 25 bits per encoded endpoint:
-
-```text
-encoded endpoint = 0 .. 2^24
-packed range     = two 25-bit endpoints
-```
-
-Two 25-bit endpoints still fit exactly within the JavaScript safe-integer range.
-The implementation may continue using `BigInt` internally for bit operations and
-return a `number`, as the current range codec does.
-
-Do not treat this temporary 25-bit packing as the final bigint `TerminalRange`
-representation. The separate
+The exact persistent representation is intentionally not selected here. The
 [TerminalRange representation investigation](./terminal-range-representation.md)
-still decides the persistent representation used with uint256 symbols. With the
-`+1` endpoint encoding, an encoded uint256 endpoint can reach `2^256`, so a naive
-fixed-width packed form would require 257 bits per endpoint rather than 256.
+compares fixed-width packing, structural ranges, and other canonical encodings.
+This task is blocked until that decision is made, then must adopt the selected
+stable representation directly. Do **not** introduce an intermediate 25-bit
+packed-number serialization merely to implement EOF before bigint; that would
+create an avoidable extra persisted/content-addressed format migration.
+
+If the chosen representation stores signed semantic endpoints directly rather
+than non-negative encoded endpoints, the `+1` mapping need not be an additional
+physical layer. The representation decision owns that detail while preserving the
+semantic ordering and full EOF/ordinary-symbol domain defined here.
 
 #### Range-map boundaries
 
@@ -183,6 +182,10 @@ boundaries may remain raw integers/bigints outside the semantic terminal domain.
 
 ### Tasks
 
+- [ ] Resolve [Investigate TerminalRange representation](./terminal-range-representation.md)
+      before changing the serialized/persisted range format; adopt its selected
+      stable representation directly and do not ship a transitional 25-bit wire
+      format.
 - [ ] Define BNF EOF semantically as `-1` instead of the maximum physical-symbol
       value.
 - [ ] Preserve the full current 24-bit ordinary-symbol domain `0 .. 2^24 - 1`.
@@ -201,15 +204,14 @@ boundaries may remain raw integers/bigints outside the semantic terminal domain.
       diagnostics at the physical end position.
 - [ ] Keep alphabet adapters/physical parser input restricted to non-negative
       ordinary symbols; callers must not append EOF.
-- [ ] Encode/decode `TerminalRange` endpoints through the `value + 1` / `value - 1`
-      mapping so the stored representation remains non-negative.
-- [ ] Update the temporary packed-number codec to use 25 bits per endpoint while
-      BNF symbols are still numbers.
+- [ ] Apply the semantic endpoint boundary required by the selected
+      `TerminalRange` representation; for non-negative endpoint encodings use the
+      order-preserving `value + 1` / `value - 1` mapping.
 - [ ] Define `eof` as the singleton `-1 .. -1` terminal range.
 - [ ] Keep `fullRange` restricted to ordinary physical symbols and ensure
       complement helpers do not include EOF.
 - [ ] Update range validation, containment, encode/decode helpers, range keys, and
-      proofs for the new semantic/encoded boundary.
+      proofs for the new semantic/representation boundary.
 - [ ] Update BNF callers and proofs that assume EOF equals the largest 24-bit
       value.
 - [ ] Update range-map documentation/tests so `-1` may be EOF as well as a cut
@@ -220,18 +222,19 @@ boundaries may remain raw integers/bigints outside the semantic terminal domain.
       alternatives after an EOF branch, restoration after a failing branch,
       failure ordering on both sides of logical EOF at the same physical index,
       failure before physical end, public position normalization,
-      minimum/maximum ordinary symbols, encode/decode round trips,
+      minimum/maximum ordinary symbols, representation round trips,
       singleton/general ranges, `fullRange`, and complements.
-- [ ] Add the required `CHANGELOG.md` breaking-change entry if the implementation
-      changes a published/serialized BNF representation.
+- [ ] Add the required `CHANGELOG.md` breaking-change entry for the final
+      published/serialized BNF representation migration.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
 
+- [Investigate TerminalRange representation](./terminal-range-representation.md)
+  — **prerequisite** that chooses the stable persisted representation used when
+  this EOF migration is implemented.
 - [256-bit bigint BNF symbols](./bigint-symbols.md) — **blocked by this task**;
   keeps `EOF = -1` and expands ordinary symbols to the full uint256 domain.
-- [Investigate TerminalRange representation](./terminal-range-representation.md)
-  — chooses the final range representation over the offset endpoint values.
 - [`fjs/bnf/module.f.mjs`](../module.f.mjs) — current 24-bit range codec and
   max-value EOF definition.
 - [`fjs/bnf/types.ts`](../types.ts) — current packed-number `TerminalRange` type.
