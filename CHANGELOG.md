@@ -20,67 +20,18 @@ history.
 
 ## Unreleased
 
-- **BREAKING CHANGES:** `fjs/sul/level/hash` migrates from authored
-  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
-  stage-1 TypeScript-to-mjs migration, splitting the `Add`/`EncodeState`
-  types into a sibling `types.ts` — importers must use the `.f.mjs`
-  specifier for runtime values and the `types.ts` specifier for types
-  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
-- **BREAKING CHANGES:** `fjs/sul/id` migrates from authored TypeScript
-  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
-  TypeScript-to-mjs migration, splitting the `Id` type into a sibling
+- **BREAKING CHANGES:** `fjs/types/object`, `fjs/sul/level/literal`,
+  `fjs/sul/id`, `fjs/sul/level/hash`, `fjs/types/string_set`, and the
+  `module.f.ts` of `fjs/types/sorted_set` and `fjs/types/byte_set`
+  migrate to `.f.mjs`, splitting their public types into a sibling
   `types.ts` — importers must use the `.f.mjs` specifier for runtime
-  values and the `types.ts` specifier for the type
+  values and the `types.ts` specifier for types
   [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
-- **BREAKING CHANGES:** `fjs/media/json/serializer` migrates from
-  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`)
-  under the stage-1 TypeScript-to-mjs migration — importers must use the
-  `.f.mjs` specifier
-  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
-- **BREAKING CHANGES:** `fjs/types/string_set` migrates from authored
-  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
-  stage-1 TypeScript-to-mjs migration, splitting the `StringSet` type
-  into a sibling `types.ts` — importers must use the `.f.mjs` specifier
-  for runtime values and the `types.ts` specifier for the type
-  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
-- **BREAKING CHANGES:** `fjs/types/byte_set/module.f.ts` migrates from
-  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`)
-  under the stage-1 TypeScript-to-mjs migration, splitting the
-  `ByteSet` type into a sibling `types.ts` — importers must use the
-  `.f.mjs` specifier for runtime values and the `types.ts` specifier
-  for the type. `proof.f.ts` stays TypeScript for now: it has a
-  runtime dependency on the not-yet-migrated `fjs/media/json`
-  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
-- **BREAKING CHANGES:** `fjs/types/sorted_set/module.f.ts` migrates
-  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
-  (`.f.mjs`) under the stage-1 TypeScript-to-mjs migration, splitting
-  the `SortedSet<T>` type into a sibling `types.ts` — importers must
-  use the `.f.mjs` specifier for runtime values and the `types.ts`
-  specifier for the type. `proof.f.ts` stays TypeScript for now: it has
-  a runtime dependency on the not-yet-migrated `fjs/media/json`
-  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
-- **BREAKING CHANGES:** `fjs/sul/level/literal` migrates from authored
-  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
-  stage-1 TypeScript-to-mjs migration, splitting its type-level API
-  (`Word`, `EncodeState`, `Level`, `PipelineState`, `LiteralToVec`) into a
-  sibling `types.ts` — importers must use the `.f.mjs` specifier for
-  runtime values and the `types.ts` specifier for types
-  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
-- **BREAKING CHANGES:** `fjs/path` migrates from authored TypeScript
+- **BREAKING CHANGES:** `fjs/crypto/hmac`, `fjs/path`, and
+  `fjs/media/json/serializer` migrate from authored TypeScript
   (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
-  TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier
-  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
-- **BREAKING CHANGES:** `fjs/crypto/hmac` migrates from authored TypeScript
-  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
-  TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier
-  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
-- **BREAKING CHANGES:** `fjs/types/object` migrates from authored TypeScript
-  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
-  TypeScript-to-mjs migration, splitting its type-level API (`OptionalMap`,
-  `RequiredMap`, `StringMap`, `Entry`, `OneKey`, `NotUnion`,
-  `SingleProperty`) into a sibling `types.ts` — importers must use the
-  `.f.mjs` specifier for runtime values and the `types.ts` specifier for
-  types
+  TypeScript-to-mjs migration — importers must use the `.f.mjs`
+  specifier
   [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
 - **BREAKING CHANGES:** every public type exported by an authored `.f.mjs`
   module moves to a sibling `types.ts` (31 modules, including `asserts`,

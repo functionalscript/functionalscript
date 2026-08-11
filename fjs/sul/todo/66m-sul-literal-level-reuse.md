@@ -5,14 +5,14 @@
 
 ### Problem
 
-`fjs/sul/level/literal/module.f.ts` states one fact — *the first three literal SUL
+`fjs/sul/level/literal/module.f.mjs` states one fact — *the first three literal SUL
 levels have exponents `0n`, `2n`, `7n`* — but states it **twice**, and builds the
 three `Level` objects **twice**.
 
 First, eagerly, for the streaming pipeline:
 
 ```ts
-// fjs/sul/level/literal/module.f.ts:88-90
+// fjs/sul/level/literal/module.f.mjs:88-90
 const l1 = level(0n)
 const l2 = level(2n)
 const l3 = level(7n)

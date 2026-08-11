@@ -12,7 +12,7 @@ the total, `Result`-returning `parse`. The writing half is still mostly the
 host's:
 
 - **115 call sites call `JSON.stringify` directly** — and one of them is
-  `fjs/media/json/serializer/module.f.ts`, so the FunctionalScript serializer
+  `fjs/media/json/serializer/module.f.mjs`, so the FunctionalScript serializer
   itself still bottoms out in the host. `numberSerialize` is `JSON.stringify`
   with a different name, and `fjs/djs/serializer/module.f.ts:15` imports it, so
   *every number* this repository serializes — JSON and DJS alike — is still
@@ -38,7 +38,7 @@ Three reasons to finish the job:
 
 | Shape | Sites | Where | Replacement |
 | --- | --- | --- | --- |
-| **Leaf serializer** | 1 | `fjs/media/json/serializer/module.f.ts` | FunctionalScript number formatting — blocks everything below |
+| **Leaf serializer** | 1 | `fjs/media/json/serializer/module.f.mjs` | FunctionalScript number formatting — blocks everything below |
 | Expected-output comparison | 73 | `fjs/bnf/ll1/proof.f.ts` (27), `fjs/bnf/descent/proof.f.ts` (22), `fjs/media/json/serializer/proof.f.ts` (10), `fjs/djs/tokenizer/proof.f.ts:795-829` (8), `fjs/bnf/data/proof.f.ts` (4), `fjs/media/revision/proof.f.ts:138`, `fjs/cas/evo/proof.f.ts:57` | `stringify(identity)` |
 | Assertion messages | 33 | `fjs/djs/tokenizer/proof.f.ts` (31), `fjs/types/rtti/ts/proof.f.ts:8,12` (2) | pass the value, or `fjs/djs`'s `stringify` |
 | Source-text quoting | 5 | `fjs/emergent_testing/module.f.ts:305,322,335`, `fjs/types/ts/module.f.mjs:36,48` | `stringSerialize` — already designed in `66c-emit-literals-via-owner-modules.md` |
@@ -138,7 +138,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
 
 ### Related
 
-- [`fjs/media/json/serializer/module.f.ts`](../serializer/module.f.ts) — the
+- [`fjs/media/json/serializer/module.f.mjs`](../serializer/module.f.mjs) — the
   leaf `JSON.stringify` phases 1 and 2 replace; only `numberSerialize` is left.
 - [`fjs/text/utf16/module.f.ts`](../../../text/utf16/module.f.ts) — where the
   escaping reads code points, and where phase 1 added `codePointToString`.

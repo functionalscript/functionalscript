@@ -6,7 +6,7 @@
 ### Problem
 
 `fjs/djs/serializer/module.f.ts` already imports the serializer atoms it
-shares with JSON from `fjs/media/json/serializer/module.f.ts` (line 15:
+shares with JSON from `fjs/media/json/serializer/module.f.mjs` (line 15:
 `objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize,
 boolSerialize`) — but two pieces of the same property-serialization
 vocabulary were left behind and re-declared instead:
@@ -39,7 +39,7 @@ rather than duplicating. Two real consumers exist for both atoms.
 
 ### Proposal
 
-In `fjs/media/json/serializer/module.f.ts`, next to `objectWrap`/`arrayWrap`:
+In `fjs/media/json/serializer/module.f.mjs`, next to `objectWrap`/`arrayWrap`:
 
 ```ts
 export const colon: List<string> = [':']

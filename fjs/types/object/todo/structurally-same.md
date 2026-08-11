@@ -39,7 +39,7 @@ arbitrary host objects. Accepting `unknown` is useful at assertion and parsing
 boundaries, but the result only describes the structural rules below.
 
 The implementation placement must also avoid an import cycle. The existing
-`fjs/types/object/module.f.ts` imports `fjs/types/nullable/module.f.mjs`, which
+`fjs/types/object/module.f.mjs` imports `fjs/types/nullable/module.f.mjs`, which
 imports `fjs/asserts/module.f.mjs`. Therefore, `asserts/module.f.mjs` cannot import
 the object module to reuse `structurallySame` without creating the runtime cycle
 `asserts -> object -> nullable -> asserts`.
@@ -54,8 +54,8 @@ export const structurallySame = (a: unknown, b: unknown): boolean => ...
 ```
 
 The leaf must not import `fjs/asserts/module.f.mjs`,
-`fjs/types/nullable/module.f.mjs`, or `fjs/types/object/module.f.ts`.
-Re-export `structurallySame` from `fjs/types/object/module.f.ts` as the public
+`fjs/types/nullable/module.f.mjs`, or `fjs/types/object/module.f.mjs`.
+Re-export `structurallySame` from `fjs/types/object/module.f.mjs` as the public
 object-helper API.
 
 Add the corresponding assertion helper to `fjs/asserts/module.f.mjs`, importing
@@ -158,7 +158,7 @@ These cases can be added later when a concrete consumer requires them.
       `fjs/types/object/structurally_same/module.f.ts`.
 - [ ] Add the co-located `fjs/types/object/structurally_same/proof.f.ts` module,
       export `proof`, and exercise every branch of `structurallySame` there.
-- [ ] Re-export `structurallySame` from `fjs/types/object/module.f.ts`.
+- [ ] Re-export `structurallySame` from `fjs/types/object/module.f.mjs`.
 - [ ] Add `assertStructurallySame` to `fjs/asserts/module.f.mjs`, importing
       `structurallySame` directly from the leaf module.
 - [ ] Verify that the change does not introduce the
@@ -191,7 +191,7 @@ These cases can be added later when a concrete consumer requires them.
 
 ## Related
 
-- [`fjs/types/object/module.f.ts`](../module.f.ts) — public object-helper module;
+- [`fjs/types/object/module.f.mjs`](../module.f.mjs) — public object-helper module;
   it currently depends on `types/nullable`.
 - [`fjs/types/nullable/module.f.mjs`](../../nullable/module.f.mjs) — imports the
   assertion module, which makes importing the public object module from assertions

@@ -111,5 +111,5 @@ serialization behavior.
 - [197](./197.md) — extracts traversal over the same `Unknown` shape.
 - `fjs/media/json/module.f.ts` — current JSON recursive type aliases.
 - `fjs/djs/module.f.ts` — current DJS recursive type aliases.
-- `fjs/media/json/serializer/module.f.ts` — currently has no separate recursive
+- `fjs/media/json/serializer/module.f.mjs` — currently has no separate recursive
   generic value aliases and therefore is not part of this migration.
