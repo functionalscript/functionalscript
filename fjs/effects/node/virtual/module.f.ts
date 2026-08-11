@@ -13,7 +13,7 @@ import { run } from '../../mock/module.f.mjs'
 import type { MemOperationMap, RunInstance } from '../../mock/types.ts'
 import { asBase, asNominal } from '../../memory/module.f.mjs'
 import type { Key } from '../../memory/types.ts'
-import type { Dirent, FileStat, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../module.f.ts'
+import type { Dirent, FileStat, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts'
 
 /**
  * In-memory JS module entry. When `import_` is called on the path, the

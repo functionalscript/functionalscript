@@ -59,7 +59,8 @@ import { at, definedEntries } from '../../types/object/module.f.mjs'
 import type { StringMap } from '../../types/object/types.ts'
 import { unwrap } from '../../types/nullable/module.f.mjs'
 import type { Vec } from '../../types/bit_vec/types.ts'
-import { isNotFound, type IoResult } from '../../effects/node/module.f.ts'
+import { isNotFound } from '../../effects/node/module.f.mjs'
+import type { IoResult } from '../../effects/node/types.ts'
 
 /** A cBase32 content hash, as accepted/returned by `Cas<O>`. */
 export type Hash = string

@@ -24,7 +24,7 @@ uses for the two-way ok/error case. The
 wrapper shape proposed earlier — `orNotFound(effect)(notFound)(onOk)` —
 recreates the nesting problem the moment two policies chain
 (`orNotFound(orNotFound(…)…)`); the adapter chains flat and leaves `Effect`
-unextended. Add it beside `isNotFound` in `fjs/effects/node/module.f.ts`:
+unextended. Add it beside `isNotFound` in `fjs/effects/node/module.f.mjs`:
 
 ```ts
 export const orNotFound =
@@ -46,7 +46,7 @@ list: () => access(storePrefix).step(orNotFound<readonly Vec[]>([])(() =>
 
 ### Tasks
 
-- [ ] Add `orNotFound` beside `isNotFound` in `fjs/effects/node/module.f.ts`
+- [ ] Add `orNotFound` beside `isNotFound` in `fjs/effects/node/module.f.mjs`
       (once a second consumer exists).
 - [ ] Rewrite `list` in `fjs/cas/module.f.ts` on top of it.
 - [ ] Cover all three branches (`ok`, `ENOENT`, non-`ENOENT` throw) in `fjs/effects/node/proof.f.ts`.

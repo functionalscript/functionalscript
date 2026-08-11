@@ -1,6 +1,6 @@
 import { fgRed, reset, createConsoleText, backspace, csiWrite } from './module.f.ts'
 import { virtual, emptyState, defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.ts'
-import type { NodeProgramOptions } from '../../effects/node/module.f.ts'
+import type { NodeProgramOptions } from '../../effects/node/types.ts'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const makeOptions = (isTTY: boolean): NodeProgramOptions =>

@@ -5,7 +5,7 @@
 **Blocked by:** [node-module-layering](./node-module-layering.md)
 
 > **Destination superseded (2026-07).** The proposal below places `allVoid` in
-> `fjs/effects/node/module.f.ts` because that is where `all`/`All` live today,
+> `fjs/effects/node/module.f.mjs` because that is where `all`/`All` live today,
 > and notes that if `All` is ever lowered out of the node module `allVoid`
 > "moves down with it". [node-module-layering](./node-module-layering.md) is
 > that lowering: `All`/`all`/`both` go to `fjs/effects/all/module.f.ts`, and
@@ -14,7 +14,7 @@
 > Land the `All` move first, then add `allVoid` to `fjs/effects/all` — writing
 > it into the node module now would only earn it a second, breaking relocation.
 > The proposal's body is otherwise unchanged and still correct; substitute
-> `fjs/effects/all/module.f.ts` wherever it says `fjs/effects/node/module.f.ts`.
+> `fjs/effects/all/module.f.ts` wherever it says `fjs/effects/node/module.f.mjs`.
 
 ### Problem
 
@@ -48,7 +48,7 @@ missing, so every call site re-spells the whole wrap-step-unwrap dance.
 
 ### Proposal
 
-Add the void sibling in `fjs/effects/node/module.f.ts`, next to `all` /
+Add the void sibling in `fjs/effects/node/module.f.mjs`, next to `all` /
 `All` / `both`. It cannot live next to `forEachStep` in the core
 `fjs/effects/module.f.mjs`: `all`/`All` are defined in the node module,
 which already imports the core module — placing `allVoid` in core would
@@ -85,7 +85,7 @@ duplicating the `all(...map)` core — whichever reads better.
 - [ ] Wait for [node-module-layering](./node-module-layering.md) to move
       `All`/`all`/`both` to `fjs/effects/all/module.f.ts`.
 - [ ] Add `allVoid` there (next to `all`/`both`) with proof coverage — **not**
-      to `fjs/effects/node/module.f.ts`, per the note at the top of this issue.
+      to `fjs/effects/node/module.f.mjs`, per the note at the top of this issue.
 - [ ] Convert the three call sites in `fjs/emergent_testing/module.f.ts`
       (lines 180-182, 189-191, 276-278), dropping their `eff(...)` / `.value`
       bracketing.

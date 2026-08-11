@@ -25,19 +25,21 @@ import {
     rm,
     stat,
     writeBytes,
-    type Access,
-    type CreateExclusive,
-    type IoResult,
-    type Mkdir,
-    type Now,
-    type RandomInt,
-    type ReadBytes,
-    type Readdir,
-    type Rename,
-    type Rm,
-    type Stat,
-    type WriteBytes,
-} from '../effects/node/module.f.ts'
+} from '../effects/node/module.f.mjs'
+import type {
+    Access,
+    CreateExclusive,
+    IoResult,
+    Mkdir,
+    Now,
+    RandomInt,
+    ReadBytes,
+    Readdir,
+    Rename,
+    Rm,
+    Stat,
+    WriteBytes,
+} from '../effects/node/types.ts'
 import { toOption } from '../types/nullable/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.mjs'
 import { splitAt } from '../types/string/module.f.mjs'

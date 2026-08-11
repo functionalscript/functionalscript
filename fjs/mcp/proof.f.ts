@@ -26,7 +26,7 @@ import type {
     RandomInt,
     ReadBytes,
     Rename,
-} from '../effects/node/module.f.ts'
+} from '../effects/node/types.ts'
 import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
 import { ok as resultOk, unwrap } from '../types/result/module.f.mjs'

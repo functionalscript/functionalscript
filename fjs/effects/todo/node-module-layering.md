@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/effects/node/module.f.ts` is 544 lines declaring ~25 operation families.
+`fjs/effects/node/module.f.mjs` (plus its `types.ts` companion) declares ~25 operation families.
 Most are genuinely Node-shaped I/O — `Fs` (`mkdir`, `readFile`, `readdir`,
 `writeFile`, `rm`, `rename`, `readBytes`, `writeBytes`, `stat`, `access`,
 `createExclusive`, `exec`), `Http` (`createServer`, `listen`), `Fetch`,
@@ -13,12 +13,12 @@ Most are genuinely Node-shaped I/O — `Fs` (`mkdir`, `readFile`, `readdir`,
 
 | Export | What it actually is |
 |---|---|
-| `All` / `all` / `both` (`:38-54`) | concurrency; runner infrastructure, no host API |
-| `Await` / `awaitIfPromise` (`:437-444`) | host promise interop — every JS runtime |
-| `Sandbox` / `SandboxResult` / `sandbox` (`:399-428`) | measured, exception-trapping invocation of a plain function |
-| `Now` (`:385`), `RandomInt` (`:152`) | ambient values, not filesystem |
-| `Test` / `TestFn` / `TestContext` (`:446-473`) | registration with an external test framework; `fjs/emergent_testing` is the only consumer |
-| `Write` / `Read` / `log` / `error` / `readLine` (`:301-381`) | console streams |
+| `All` / `all` / `both` (`types.ts:20`, `module.f.mjs:51-61`) | concurrency; runner infrastructure, no host API |
+| `Await` / `awaitIfPromise` (`types.ts:237`, `module.f.mjs:295-299`) | host promise interop — every JS runtime |
+| `Sandbox` / `SandboxResult` / `sandbox` (`types.ts:219-228`, `module.f.mjs:292`) | measured, exception-trapping invocation of a plain function |
+| `Now` (`types.ts:207`), `RandomInt` (`types.ts:78`) | ambient values, not filesystem |
+| `Test` / `TestFn` / `TestContext` (`types.ts:245-283`, `module.f.mjs:304`) | registration with an external test framework; `fjs/emergent_testing` is the only consumer |
+| `Write` / `Read` / `log` / `error` / `readLine` (`types.ts:183-200`, `module.f.mjs:206-268`) | console streams |
 
 Because they all live behind one Node-flavoured import path, modules that need
 none of Node's I/O still import from it, and the effects package cannot layer
@@ -45,7 +45,7 @@ separation-of-concerns smell stated in the documentation.
 ### Proposal
 
 Move each non-Node concern to the layer that owns it, leaving
-`fjs/effects/node/module.f.ts` to be exactly *the operations a Node-like host
+`fjs/effects/node/module.f.mjs` to be exactly *the operations a Node-like host
 provides*. Proposed destinations:
 
 | Moves to | Contents |
@@ -84,7 +84,7 @@ Judgement calls worth deciding explicitly rather than by accident:
   beside the operations it describes. The fix for a **pure** consumer is to
   spell the underlying type, not to relocate the alias:
   `fjs/media/type/module.f.ts:40` imports `type IoResult` from
-  `../../effects/node/module.f.ts` purely to write `IoResult<Vec>` and
+  `../../effects/node/types.ts` purely to write `IoResult<Vec>` and
   `IoResult<DetectMeta>`; writing `Result<Vec, unknown>` from
   `fjs/types/result` says the same thing and drops the `effects/node` import
   **entirely**, which is a better outcome than moving where it points.
@@ -100,7 +100,7 @@ Judgement calls worth deciding explicitly rather than by accident:
   `test` and the module that defines what a test *is* — but putting the
   declarations there is a cycle, not a layering. Two contracts `effects/node`
   keeps refer to them: `NodeOp` unions `Test`
-  (`fjs/effects/node/module.f.ts:492`) and `NodeProgramOptions` carries the
+  (`fjs/effects/node/types.ts:282`) and `NodeProgramOptions` carries the
   `TestContext` fields used by the surviving process-side test adapters. Those
   are runner configuration and stay in `effects/node` — so `effects/node` would
   have to import `emergent_testing`, while `emergent_testing/module.f.ts:21-24`
@@ -145,9 +145,9 @@ Judgement calls worth deciding explicitly rather than by accident:
   record types for *all* string-keyed record types, and over a finite key union
   `RequiredMap<WriteConsoles, T>` is the same required-field record the inline
   mapped type produces.
-  `NodeProgramOptions.std` (`fjs/effects/node/module.f.ts:535`) writes that
+  `NodeProgramOptions.std` (`fjs/effects/node/types.ts:316`) writes that
   inline form by hand today — a pre-existing deviation from the rule, in a
-  module that already imports the open-key-set `StringMap` at `:19` and uses it
+  module that already imports the open-key-set `StringMap` at `:12` and uses it
   for `Headers` and `Module`. Pointing `std` at the named `Std` fixes that deviation as a side
   effect and keeps the runner contract in sync with the console module by
   construction.

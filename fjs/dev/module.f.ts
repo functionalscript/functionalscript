@@ -3,16 +3,8 @@
  *
  * @module
  */
-import {
-    all,
-    import_,
-    readdir,
-    type Access,
-    type All,
-    type Env,
-    type Import,
-    type Readdir
-} from '../effects/node/module.f.ts'
+import { all, import_, readdir } from '../effects/node/module.f.mjs'
+import type { Access, All, Env, Import, Readdir } from '../effects/node/types.ts'
 import { cmp as strCmp } from '../types/string/module.f.mjs'
 import type { StringMap } from '../types/object/types.ts'
 import { unwrap } from '../types/result/module.f.mjs'

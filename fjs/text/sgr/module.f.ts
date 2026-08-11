@@ -8,7 +8,8 @@
 // C0 control codes
 // https://en.wikipedia.org/wiki/ANSI_escape_code#C0_control_codes
 
-import { write, type Write, type WriteConsoles, type NodeProgramOptions } from '../../effects/node/module.f.ts'
+import { write } from '../../effects/node/module.f.mjs'
+import type { Write, WriteConsoles, NodeProgramOptions } from '../../effects/node/types.ts'
 import type { Effect } from '../../effects/types.ts'
 import { utf8 } from "../module.f.mjs"
 

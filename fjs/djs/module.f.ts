@@ -9,12 +9,8 @@ import { stringify, stringifyAsTree } from './serializer/module.f.ts'
 import { sort } from '../types/object/module.f.mjs'
 import { pure, step } from '../effects/module.f.mjs'
 import type { Effect } from '../effects/types.ts'
-import {
-    writeUtf8File,
-    type WriteFile, type ReadFile,
-    type Write,
-    error,
-} from '../effects/node/module.f.ts'
+import { writeUtf8File, error } from '../effects/node/module.f.mjs'
+import type { WriteFile, ReadFile, Write } from '../effects/node/types.ts'
 
 export type Object = { readonly[k in string]?: Unknown }
 

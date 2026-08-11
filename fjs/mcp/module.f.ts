@@ -30,7 +30,7 @@ import { step } from '../effects/module.f.mjs'
 import type { Effect } from '../effects/types.ts'
 import { create } from '../effects/memory/module.f.mjs'
 import type { MemOp } from '../effects/memory/types.ts'
-import { type Read, type Write } from '../effects/node/module.f.ts'
+import type { Read, Write } from '../effects/node/types.ts'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.ts'
 import {
     mcpStep, uninitializedState, fromRegistry,

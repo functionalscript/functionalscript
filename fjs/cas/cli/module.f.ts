@@ -6,15 +6,8 @@
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { forEachStep, pure, step } from '../../effects/module.f.mjs'
-import {
-    errorExit,
-    log,
-    writeFromStream,
-    type All,
-    type Read,
-    type Write,
-    type WriteFile
-} from '../../effects/node/module.f.ts'
+import { errorExit, log, writeFromStream } from '../../effects/node/module.f.mjs'
+import type { All, Read, Write, WriteFile } from '../../effects/node/types.ts'
 import { dispatch, type Commands } from '../../cli/module.f.ts'
 import type { MemOp } from '../../effects/memory/types.ts'
 import { casAddFile, fileCas, type FileCasOperation } from '../module.f.ts'
