@@ -3,38 +3,47 @@
  *
  * Every case in [`module.f.mjs`](./module.f.mjs) is run through the native
  * JavaScript operators here, so the shared data is proven to describe
- * JavaScript before [`test/generated.rs`](./test/generated.rs) holds
- * `nanvm-lib` to it. This module contains no test cases of its own beyond the
- * `jsOnly` section at the end — adding a case means editing the data.
+ * JavaScript before `nanvm-lib/tests/test/generated.rs` holds `nanvm-lib` to
+ * it. This module contains no test cases of its own beyond the `jsOnly`
+ * section at the end — adding a case means editing the data.
  *
  * @module
  */
 
-/** @import { Case, EqCase, Op, Operand, Value } from './types.ts' */
-import { assert, assertEq } from '../../fjs/asserts/module.f.mjs'
+/** @import { Case, EqCase, Op, Struct, Value } from './types.ts' */
+import { assert, assertEq } from '../asserts/module.f.mjs'
 import { data } from './module.f.mjs'
 
-const { is } = Object
-const { fromEntries } = Object
+const { entries, fromEntries, hasOwn, is } = Object
 
 /**
  * Builds the JavaScript value a `Value` describes.
  *
- * @type {(v: Value) => unknown}
+ * `resolve` supplies the *already built* object a `ref` names — rebuilding it
+ * per reference would hand each side of a comparison its own object, which is
+ * exactly what a `ref` exists to avoid.
+ *
+ * @type {(resolve: (name: string) => unknown) => (v: Value) => unknown}
  */
-const build = v => {
-    switch (v[0]) {
-        case 'null': { return null }
-        case 'undefined': { return undefined }
-        case 'boolean': { return v[1] }
-        case 'number': { return v[1] }
-        case 'string': { return v[1] }
-        case 'bigint': { return v[1] }
-        case 'array': { return v[1].map(build) }
-        case 'object': { return fromEntries(v[1].map(([k, p]) => [k, build(p)])) }
-        case 'function': { return () => 5 }
+const build = resolve => v => {
+    if (v === null) { return null }
+    if (typeof v === 'function') {
+        const info = v()
+        switch (info[0]) {
+            case 'function': { return () => 5 }
+            case 'ref': { return resolve(info[1]) }
+            case 'throw': { throw ['`throws` is not a value', info] }
+        }
     }
+    if (Array.isArray(v)) { return v.map(build(resolve)) }
+    if (typeof v === 'object') {
+        return fromEntries(entries(v).map(([k, p]) => [k, build(resolve)(p)]))
+    }
+    return v
 }
+
+/** Cases outside the `eq` group share nothing, so a `ref` is a mistake there. */
+const value = build(name => { throw ['unknown shared value', name] })
 
 /**
  * Applies an operator to already-built arguments.
@@ -55,19 +64,9 @@ const apply = op => args => {
     }
 }
 
-/**
- * Runs one case and checks the result against its expectation.
- *
- * `Object.is` rather than `===`, so `NaN` matches `NaN` and `0` does not
- * match `-0`; the Rust side compares the same way.
- *
- * @type {(op: Op) => (args: readonly Value[]) => (expected: Value) => void}
- */
-const check = op => args => expected => {
-    const result = apply(op)(args.map(build))
-    const e = build(expected)
-    assert(is(result, e), [result, 'is not', e])
-}
+/** `true` when a case's `expected` is `throws` rather than a value. */
+const isThrows = (/** @type {Value} */ expected) =>
+    typeof expected === 'function' && expected()[0] === 'throw'
 
 /**
  * Every argument order a case is checked in: one, or both for a commutative
@@ -93,38 +92,40 @@ const group = op => commutative => cases => {
     const leaves = c => {
         const { expected } = c
         /** @type {(args: readonly Value[]) => () => void} */
-        const fn = expected[0] === 'throw'
-            ? args => () => { apply(op)(args.map(build)) }
-            : args => () => check(op)(args)(expected[1])
+        const fn = isThrows(expected)
+            ? args => () => { apply(op)(args.map(value)) }
+            : args => () => {
+                // `Object.is` rather than `===`, so `NaN` matches `NaN` and
+                // `0` does not match `-0`; the Rust side compares the same way.
+                const result = apply(op)(args.map(value))
+                const e = value(expected)
+                assert(is(result, e), [result, 'is not', e])
+            }
         return orders(commutative)(c).map(([name, args]) => [name, fn(args)])
     }
-    const ok = cases.filter(c => c.expected[0] !== 'throw').flatMap(leaves)
-    const bad = cases.filter(c => c.expected[0] === 'throw').flatMap(leaves)
+    const ok = cases.filter(c => !isThrows(c.expected)).flatMap(leaves)
+    const bad = cases.filter(c => isThrows(c.expected)).flatMap(leaves)
     return bad.length === 0
         ? fromEntries(ok)
         : { ...fromEntries(ok), throw: fromEntries(bad) }
 }
 
-/** @type {(shared: { readonly[k in string]?: unknown }) => (o: Operand) => unknown} */
-const operand = shared => o => {
-    if (o[0] === 'ref') {
-        const v = shared[o[1]]
-        assert(v !== undefined, ['unknown shared value', o[1]])
-        return v
-    }
-    return build(o)
-}
-
 const eqProof = (() => {
-    const shared = fromEntries(data.eq.shared.map(([k, v]) => [k, build(v)]))
+    const { shared, cases } = data.eq
+    // Built once, so two `ref`s to the same name really are the same object.
+    const built = fromEntries(entries(shared).map(([k, v]) => [k, value(v)]))
+    const operand = build(name => {
+        assert(hasOwn(built, name), ['unknown shared value', name])
+        return built[name]
+    })
     /** @type {(c: EqCase) => readonly[string, () => void]} */
     const leaf = c => [c.name, () => {
-        const a = /** @type {any} */(operand(shared)(c.a))
-        const b = /** @type {any} */(operand(shared)(c.b))
+        const a = /** @type {any} */(operand(c.a))
+        const b = /** @type {any} */(operand(c.b))
         assertEq(a === b, c.eq, [a, c.eq ? '===' : '!==', b])
         assertEq(b === a, c.eq)
     }]
-    return fromEntries(data.eq.cases.map(leaf))
+    return fromEntries(cases.map(leaf))
 })()
 
 /**
@@ -157,6 +158,9 @@ const jsOnly = {
         toStringThrows: () => String({ toString: () => { throw 'Custom error' } }),
         toStringNotAFunction: () => String(/** @type {any} */({ toString: 'hello' })),
         toStringNotPrimitive: () => String({ toString: () => [] }),
+        /** `throws` describes a case's outcome; it is not a value to build. */
+        throwsIsNotAValue: () => value(() => ['throw']),
+        unknownRef: () => value(() => ['ref', 'nope']),
     },
 }
 

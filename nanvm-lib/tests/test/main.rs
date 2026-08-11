@@ -1,7 +1,7 @@
 //! Tests with no JavaScript counterpart.
 //!
 //! Operator behaviour is *not* tested here. It is described once, as data, in
-//! `nanvm-lib/tests/module.f.mjs`, and reaches this crate as `generated.rs`
+//! `fjs/nanvm/module.f.mjs`, and reaches this crate as `generated.rs`
 //! (see `nanvm-lib/tests/README.md`). What stays hand-written is everything
 //! that has nothing to compare against in a JS engine: conversions out of
 //! `Any`, `Debug` formatting, bigint limb arithmetic, and serialization.

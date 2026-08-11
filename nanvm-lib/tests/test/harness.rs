@@ -2,7 +2,7 @@
 //!
 //! `generated.rs` contains one statement per case and nothing else; every
 //! value constructor and every assertion it uses lives here, so the printer in
-//! `../rust/module.f.mjs` only has to name them. Re-exports at the top are
+//! `fjs/nanvm/rust/module.f.mjs` only has to name them. Re-exports at the top are
 //! what the generated file's `use super::harness::*;` pulls in.
 
 pub use nanvm_lib::vm::{Any, Array, IVm, Nullish, Object, ToAny, ToArray, ToObject};

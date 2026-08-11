@@ -98,8 +98,9 @@ and `ci-update`. A typical FunctionalScript project can define them like this:
 only the workflow. `fjs ci` covers `.github/workflows/ci.yml` and the generated
 Nix flakes; a project with other generators chains them into the same script, as
 this repository does for `nanvm-lib/tests/test/generated.rs` (see
-[`nanvm-lib/tests/README.md`](../../nanvm-lib/tests/README.md)). Everything
-chained there is covered by the drift check below for free.
+[`fjs/nanvm/README.md`](../nanvm/README.md)). Everything chained there is
+covered by the drift check below for free.
+
 The Node 26 job runs it right after `npm ci` and fails via
 `git add -A && git diff --cached --exit-code` when the committed tree no longer
 matches the generator's output, so forgetting to regenerate after changing a

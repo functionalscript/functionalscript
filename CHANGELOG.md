@@ -21,7 +21,7 @@ history.
 ## Unreleased
 
 - `nanvm-lib` operator behaviour is described once, as data, in
-  `nanvm-lib/tests/module.f.mjs`: the JavaScript proof and the generated
+  `fjs/nanvm/module.f.mjs`: the JavaScript proof and the generated
   Rust tests both read it, so a case is written once instead of twice
   [#1489](https://github.com/functionalscript/functionalscript/pull/1489)
 - **BREAKING CHANGES:** `fjs/text/sgr` migrates from authored

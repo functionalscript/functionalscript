@@ -8,22 +8,12 @@
  *
  * @module
  */
-
-import { mapStep, step } from '../../../fjs/effects/module.f.mjs'
-
-import type { Effect } from '../../../fjs/effects/types.ts'
-
-import type {
-    Mkdir,
-    NodeProgram,
-    WriteFile,
-} from '../../../fjs/effects/node/types.ts'
-import { mkdir, writeUtf8File } from '../../../fjs/effects/node/module.f.mjs'
-
-import { unwrap } from '../../../fjs/types/result/module.f.mjs'
-
+import { mapStep, step } from '../../effects/module.f.mjs'
+import type { Effect } from '../../effects/types.ts'
+import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
+import type { Mkdir, NodeProgram, WriteFile } from '../../effects/node/types.ts'
+import { unwrap } from '../../types/result/module.f.mjs'
 import { data } from '../module.f.mjs'
-
 import { directory, generate, path } from '../rust/module.f.mjs'
 
 /** Regenerates `nanvm-lib/tests/test/generated.rs` from the shared test data. */

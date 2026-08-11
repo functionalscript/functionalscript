@@ -21,7 +21,7 @@ returns `"0x7Bn"` where JavaScript returns `"123"`, and `String(-456n)` returns
 unless an explicit radix is passed to `BigInt.prototype.toString`.
 
 Two cases in the shared operator test data
-([`nanvm-lib/tests/module.f.mjs`](../tests/module.f.mjs), `stringCoercion`)
+([`fjs/nanvm/module.f.mjs`](../../fjs/nanvm/module.f.mjs), `stringCoercion`)
 carry a `rust` reason pointing here and are therefore commented out in
 `tests/test/generated.rs`. Deleting those two `rust` reasons and regenerating
 is the acceptance test for this issue.

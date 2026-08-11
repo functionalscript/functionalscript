@@ -295,7 +295,7 @@ as a generic `Any` facility, post-MVP.
 - [ ] **Complete all basic FunctionalScript operators** (Rust), including the
       short-circuit operators `&&`, `||`, `??` (lazy evaluation, like `?:`).
       Each operator arrives as cases in
-      [`nanvm-lib/tests/module.f.mjs`](../tests/module.f.mjs), which is what
+      [`fjs/nanvm/module.f.mjs`](../../fjs/nanvm/module.f.mjs), which is what
       tests it on both sides.
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../todo/lang/2340-operators.md).
