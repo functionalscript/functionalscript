@@ -5,7 +5,7 @@
 
 ## Problem
 
-`fjs/crypto/vdf/module.f.ts:38-46` defines a fully generic "apply `f` to a
+`fjs/crypto/vdf/module.f.mjs:29-37` defines a fully generic "apply `f` to a
 value `n` times" combinator inside the VDF module:
 
 ```ts
@@ -20,7 +20,7 @@ const repeatSeq = (steps: bigint) => (f: Unary) => (value: bigint): bigint => {
 }
 ```
 
-It is used twice (`fjs/crypto/vdf/module.f.ts:56-60`), differing only in the
+It is used twice (`fjs/crypto/vdf/module.f.mjs:51-57`), differing only in the
 iterated function:
 
 ```ts
@@ -62,7 +62,7 @@ distinct from the module that holds it.
 ## Tasks
 
 - [ ] Add `iterate` to `fjs/types/function/module.f.mjs` with proof coverage.
-- [ ] Replace `repeatSeq` in `fjs/crypto/vdf/module.f.ts` with it.
+- [ ] Replace `repeatSeq` in `fjs/crypto/vdf/module.f.mjs` with it.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ## Related

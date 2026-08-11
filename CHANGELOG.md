@@ -20,6 +20,18 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/bnf/token_symbol` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  the `Encoding<T>` type into a sibling `types.ts` — importers must use
+  the `.f.mjs` specifier for runtime values and the `types.ts`
+  specifier for types
+  [#1486](https://github.com/functionalscript/functionalscript/pull/1486)
+- **BREAKING CHANGES:** `fjs/crypto/vdf` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  the `Sloth` type into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier
+  for types
+  [#1486](https://github.com/functionalscript/functionalscript/pull/1486)
 - **BREAKING CHANGES:** `fjs/bnf/module.f.ts` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
   its type-level API into a sibling `types.ts` — importers must use the

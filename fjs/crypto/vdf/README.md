@@ -25,6 +25,6 @@ Hex string wrappers belong in caller code, not this module.
 
 ## Test vectors
 
-Proofs in `proof.f.ts` pin `sloth.eval(steps)(x)` for several `(x, steps)` pairs on
+Proofs in `proof.f.mjs` pin `sloth.eval(steps)(x)` for several `(x, steps)` pairs on
 {@link p}. Values match the reference Sloth implementations linked above (pulsar and
 dignity.js use the same modulus and algorithm).

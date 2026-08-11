@@ -1,4 +1,4 @@
-import { sloth, p } from './module.f.ts'
+import { sloth, p } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const { eval: evalVdf, verify, modSqrt, quadRes } = sloth
