@@ -29,7 +29,7 @@ import type {
 import { history, historyStep, pure, step } from '../effects/module.f.mjs'
 import type { Effect, Operation } from '../effects/types.ts'
 import { eff } from '../effects/eff/module.f.mjs'
-import { loadModuleMap, shouldLoad } from '../dev/module.f.mjs'
+import { loadModuleMap } from '../dev/module.f.mjs'
 import type { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
 import { invert } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
