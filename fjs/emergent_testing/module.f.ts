@@ -10,7 +10,7 @@
  *
  * @module
  */
-import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.ts'
+import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { all, awaitIfPromise, sandbox, test } from '../effects/node/module.f.mjs'
 import type {
     All,
