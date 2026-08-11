@@ -13,7 +13,7 @@ import {
 } from '../../effects/node/virtual/module.f.ts'
 import { data } from '../module.f.mjs'
 import { generate, path } from '../rust/module.f.mjs'
-import { generateRustTests, main } from './module.f.ts'
+import { generateRustTests, main } from './module.f.mjs'
 
 export const proof = {
     generateRustTests: () => {

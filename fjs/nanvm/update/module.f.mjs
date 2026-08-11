@@ -8,19 +8,25 @@
  *
  * @module
  */
+
 import { mapStep, step } from '../../effects/module.f.mjs'
-import type { Effect } from '../../effects/types.ts'
+/** @import { Effect } from '../../effects/types.ts' */
 import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
-import type { Mkdir, NodeProgram, WriteFile } from '../../effects/node/types.ts'
+/** @import { Mkdir, NodeProgram, WriteFile } from '../../effects/node/types.ts' */
 import { unwrap } from '../../types/result/module.f.mjs'
 import { data } from '../module.f.mjs'
 import { directory, generate, path } from '../rust/module.f.mjs'
 
-/** Regenerates `nanvm-lib/tests/test/generated.rs` from the shared test data. */
-export const generateRustTests = (): Effect<Mkdir | WriteFile, void> => {
+/**
+ * Regenerates `nanvm-lib/tests/test/generated.rs` from the shared test data.
+ *
+ * @type {() => Effect<Mkdir | WriteFile, void>}
+ */
+export const generateRustTests = () => {
     const directoryReady = mapStep(mkdir(directory, { recursive: true }), unwrap)
     const written = step(directoryReady, () => writeUtf8File(path, generate(data)))
     return mapStep(written, unwrap)
 }
 
-export const main: NodeProgram = () => mapStep(generateRustTests(), () => 0)
+/** @type {NodeProgram} */
+export const main = () => mapStep(generateRustTests(), () => 0)

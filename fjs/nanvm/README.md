@@ -23,7 +23,7 @@ module.f.mjs ──> proof.f.mjs ───────────────�
 | [`module.f.mjs`](module.f.mjs) | **The single source of truth** — every operator case, as data. |
 | [`proof.f.mjs`](proof.f.mjs) | Runs each case through the native JavaScript operators. |
 | [`rust/module.f.mjs`](rust/module.f.mjs) | Prints the data as Rust, against the `nanvm-lib` API. |
-| [`update/module.f.ts`](update/module.f.ts) | Writes the printer's output. Run by `npm run ci-update`. |
+| [`update/module.f.mjs`](update/module.f.mjs) | Writes the printer's output. Run by `npm run ci-update`. |
 
 Rust *literal* syntax — string escaping, `f64`/`i64` spelling, `snake_case`
 identifiers — is not specific to this generator and lives in
