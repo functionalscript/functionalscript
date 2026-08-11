@@ -28,13 +28,13 @@
  * @module
  */
 import type { Unknown } from '../ts/module.f.ts'
-import {
-    type Info1,
-    type Struct,
-    type Tag1,
-    type Tuple,
-    type Type,
-} from '../module.f.ts'
+import type {
+    Info1,
+    Struct,
+    Tag1,
+    Tuple,
+    Type,
+} from '../types.ts'
 import { ok } from '../../result/module.f.mjs'
 import type { StringMap } from '../../object/types.ts'
 import {

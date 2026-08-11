@@ -1,8 +1,9 @@
-import type { StringMap } from '../object/types.ts'
+/** @import { StringMap } from '../object/types.ts' */
 
-type Tests = StringMap<readonly unknown[]>
+/** @typedef {StringMap<readonly unknown[]>} _Tests */
 
-const tests: Tests = {
+/** @type {_Tests} */
+const tests = {
     undefined: [undefined],
     boolean: [true, false],
     string: ['hello'],
@@ -13,7 +14,7 @@ const tests: Tests = {
 }
 
 export const proof = {
-    typeof: Object.fromEntries(Object.entries(tests).map(([k, a]) => [k, a!.map(v => () => {
+    typeof: Object.fromEntries(Object.entries(tests).map(([k, a]) => [k, /** @type {readonly unknown[]} */ (a).map(v => () => {
         if (typeof v !== k) { throw `typeof ${v} !== ${k}` }
     })])),
 }

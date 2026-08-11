@@ -6,7 +6,8 @@
  *
  * @module
  */
-import { type Struct, type Tuple, type Type as RttiType, array, option, or, record, string } from '../../../types/rtti/module.f.ts'
+import { array, option, or, record, string } from '../../../types/rtti/module.f.mjs'
+import type { Struct, Tuple, Type as RttiType } from '../../../types/rtti/types.ts'
 import { visit, type Visitor } from '../../../types/rtti/common/module.f.ts'
 import type { Primitive } from '../../../djs/module.f.ts'
 import type { Ts } from '../../../types/rtti/ts/module.f.ts'

@@ -9,7 +9,7 @@ import { evoToolRegistry } from './module.f.ts'
 import type { ToolEntry, ToolsCallResult } from '../../protocol/mcp/module.f.ts'
 import type { Operation } from '../../effects/module.f.ts'
 import { parse as parseJson } from '../../media/json/module.f.ts'
-import { array, string as rttiString } from '../../types/rtti/module.f.ts'
+import { array, string as rttiString } from '../../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.ts'
 import { unwrap } from '../../types/result/module.f.mjs'
 

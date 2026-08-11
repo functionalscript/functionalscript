@@ -3,7 +3,7 @@
 **Priority:** P3
 **Status:** open
 
-Introduce a structured eDSL for composing ANSI CSI/SGR sequences in `module.f.ts`, analogous to the HTML eDSL in `fjs/media/html/module.f.ts`.
+Introduce a structured eDSL for composing ANSI CSI/SGR sequences in `module.f.ts`, analogous to the HTML eDSL in `fjs/media/html/module.f.mjs`.
 
 ### Motivation
 

@@ -28,15 +28,15 @@
  * @module
  */
 import type { Primitive, Unknown } from '../ts/module.f.ts'
-import {
-    type Const,
-    type Info0,
-    type Primitive0,
-    type Struct,
-    type Tag1,
-    type Tuple,
-    type Type,
-} from '../module.f.ts'
+import type {
+    Const,
+    Info0,
+    Primitive0,
+    Struct,
+    Tag1,
+    Tuple,
+    Type,
+} from '../types.ts'
 import type { Error, Result as CommonResult } from '../../result/types.ts'
 import { error, ok } from '../../result/module.f.mjs'
 import type { Ts } from '../ts/module.f.ts'

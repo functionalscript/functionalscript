@@ -3,7 +3,7 @@ import type { Vec } from '../types/bit_vec/types.ts'
 import { msb, u8ListToVec, repeat, vec8 } from '../types/bit_vec/module.f.mjs'
 import { detect, dialectEntry, type DialectEntry } from './module.f.ts'
 import { dialect, revisionDialect } from './revision/module.f.ts'
-import { number, string } from '../types/rtti/module.f.ts'
+import { number, string } from '../types/rtti/module.f.mjs'
 
 // All test strings here are ASCII, so char code === UTF-8 byte value.
 const utf8Bytes = (s: string): Vec => u8ListToVec(msb)([...s].map(c => c.charCodeAt(0)))

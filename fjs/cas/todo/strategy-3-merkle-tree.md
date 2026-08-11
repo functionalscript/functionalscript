@@ -58,7 +58,7 @@ today.
       (sha256, sha3-512), lazily validated on lookup.
 - [ ] Decide fixed-size vs. SUL content-defined chunk boundaries. **SUL needs
       a byte-alignment design before it's usable here, not just a yes/no
-      call**: `fjs/sul/module.f.ts`'s `Encode` consumes one *bit* at a time
+      call**: `fjs/sul/module.f.mjs`'s `Encode` consumes one *bit* at a time
       and its `push` returns only the next `EncodeState` — no word-boundary
       event is exposed (only the internal `literalStep` sees the completed-word
       signal, and `push` discards it) — while Strategy 3 leaves store whole

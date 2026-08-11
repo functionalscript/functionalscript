@@ -14,7 +14,7 @@
  *
  * @module
  */
-import { array, number, option, record, string } from '../../types/rtti/module.f.ts'
+import { array, number, option, record, string } from '../../types/rtti/module.f.mjs'
 import { validate as rttiValidate, type ValidationError } from '../../types/rtti/validate/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
 import { parse as parseJson, type Unknown } from '../json/module.f.ts'

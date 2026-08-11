@@ -79,7 +79,7 @@ serializers in `fjs/media/` already do with `fjs/types/list`:
 
 - `fjs/media/json/serializer/module.f.mjs:39-52` — `join` (a `reduce` with a
   separator) and `wrap(open)(close)`, both over `List<List<string>>`;
-- `fjs/media/html/module.f.ts` — `flatMap`/`flat`/`map` over `List<string>`
+- `fjs/media/html/module.f.mjs` — `flatMap`/`flat`/`map` over `List<string>`
   end to end.
 
 The public signature already promises the shared vocabulary —

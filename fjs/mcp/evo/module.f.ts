@@ -43,7 +43,7 @@
  *
  * @module
  */
-import { string, option, array } from '../../types/rtti/module.f.ts'
+import { string, option, array } from '../../types/rtti/module.f.mjs'
 import { pure, step, type Effect, type Operation } from '../../effects/module.f.ts'
 import { type MemOp } from '../../effects/memory/module.f.ts'
 import {
