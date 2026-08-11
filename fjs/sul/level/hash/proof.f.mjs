@@ -4,16 +4,16 @@ import { compress, level3Id } from '../../id/module.f.mjs'
 import { emptyEncodeState, encode } from './module.f.mjs'
 /** @import { EncodeState } from './types.ts' */
 
-/** @typedef {readonly (readonly [Id, Id, Id, boolean])[]} NodeList */
+/** @typedef {readonly (readonly [Id, Id, Id, boolean])[]} _NodeList */
 
-/** @type {(l: Id, r: Id, m: Id, isSymbol: boolean, s: NodeList) => NodeList} */
+/** @type {(l: Id, r: Id, m: Id, isSymbol: boolean, s: _NodeList) => _NodeList} */
 const add = (l, r, m, isSymbol, s) => [...s, [l, r, m, isSymbol]]
 const enc = encode(add)
-/** @type {EncodeState<NodeList>} */
+/** @type {EncodeState<_NodeList>} */
 const initial = emptyEncodeState([])
 
 // Run a complete valid word from a clean state; throws if no output is produced.
-/** @type {(symbols: readonly Id[]) => readonly [Id, NodeList]} */
+/** @type {(symbols: readonly Id[]) => readonly [Id, _NodeList]} */
 const runWord = symbols => {
     let state = initial
     for (const s of symbols) {
@@ -25,7 +25,7 @@ const runWord = symbols => {
 }
 
 // Every stored triple must satisfy m === compress(l, r).
-/** @type {(storage: NodeList) => void} */
+/** @type {(storage: _NodeList) => void} */
 const verifyStorage = storage => {
     for (const [l, r, m] of storage) { assertEq(m, compress(l, r)) }
 }
@@ -77,7 +77,7 @@ export const proof = {
     // Output equals the merged value in the last add call
     output_is_last_add: () => {
         const [out, storage] = runWord([s1, s0, s1])
-        assertEq(out, /** @type {NodeList[number]} */ (storage.at(-1))[2])
+        assertEq(out, /** @type {_NodeList[number]} */ (storage.at(-1))[2])
     },
 
     // Stack is empty after flush; storage is preserved

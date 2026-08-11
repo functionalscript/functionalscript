@@ -28,7 +28,7 @@ Counts in the current tree:
 - ~1,623 `if (...) { throw ... }` lines across `fjs/**/proof.f.ts` —
   the dominant assertion style.
 - Only 4 files import `assertEq`: `fjs/sul/proof.f.ts`,
-  `fjs/sul/level/hash/proof.f.ts`, `fjs/sul/id/proof.f.ts`,
+  `fjs/sul/level/hash/proof.f.mjs`, `fjs/sul/id/proof.f.mjs`,
   `fjs/sul/id/module.f.mjs`.
 - ~40 of the manual sites throw bare string literals
   (`throw 'error'`, `throw 'Error'`) that carry no actual context —
@@ -137,8 +137,8 @@ it's by far the most common and the lowest-judgement case.
   load → light, cheap checks only). `assertEq` is the helper that makes that
   tier ergonomic.
 - `fjs/dev/module.f.ts:36–39` — definitions of `assert` / `assertEq`.
-- `fjs/sul/id/module.f.mjs:19`, `fjs/sul/id/proof.f.ts:1`,
-  `fjs/sul/proof.f.ts:1`, `fjs/sul/level/hash/proof.f.ts:1` — the four
+- `fjs/sul/id/module.f.mjs:19`, `fjs/sul/id/proof.f.mjs:1`,
+  `fjs/sul/proof.f.ts:1`, `fjs/sul/level/hash/proof.f.mjs:1` — the four
   existing consumers, demonstrating the desired call-site shape.
 - [i194](todo.md), [i65X-async-test-functions](./README.md) —
   parallel work on the test framework's effect surface. The helper
