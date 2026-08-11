@@ -27,16 +27,10 @@
  *
  * @module
  */
-import type { Unknown } from '../ts/types.ts'
-import type {
-    Info1,
-    Struct,
-    Tag1,
-    Tuple,
-    Type,
-} from '../types.ts'
+/** @import { Unknown } from '../ts/types.ts' */
+/** @import { Info1, Struct, Tag1, Tuple, Type } from '../types.ts' */
 import { ok } from '../../result/module.f.mjs'
-import type { StringMap } from '../../object/types.ts'
+/** @import { StringMap } from '../../object/types.ts' */
 import {
     constPrimitiveValidate,
     eachEntry,
@@ -47,13 +41,7 @@ import {
     verror,
     visit,
 } from '../common/module.f.mjs'
-import type {
-    Container,
-    IsContainer,
-    Validate,
-    ValidateE,
-    Visitor,
-} from '../common/types.ts'
+/** @import { Container, IsContainer, Validate, ValidateE, Visitor } from '../common/types.ts' */
 
 export {
     constPrimitiveValidate,
@@ -61,17 +49,11 @@ export {
     primitive0Validate,
     verror,
 } from '../common/module.f.mjs'
-export type {
-    Path,
-    Result,
-    Validate,
-    ValidationError,
-} from '../common/types.ts'
 
 const { entries } = Object
 
 /** `validate` has nothing to collect from a successful entry — only pass/fail matters. */
-const noAccumulate = (): undefined => undefined
+const noAccumulate = () => undefined
 
 /**
  * Builds a validator for `array` or `record` schemas.
@@ -79,28 +61,32 @@ const noAccumulate = (): undefined => undefined
  * non-empty) to avoid infinite recursion with recursive schemas.
  */
 const containerValidate =
-    <K extends Tag1>(isContainer: IsContainer<Container<K>>) =>
-    <I extends Type>(item: I): Validate<Info1<K, I>> => value =>
-{
-    if (!isContainer(value)) {
-        return verror('unexpected value')
+    /**
+     * @template {Tag1} K
+     * @param {IsContainer<Container<K>>} isContainer
+     * @returns {<I extends Type>(item: I) => Validate<Info1<K, I>>}
+     */
+    isContainer =>
+    item => value => {
+        if (!isContainer(value)) {
+            return verror('unexpected value')
+        }
+        const e = entries(value)
+        if (e.length === 0) {
+            return ok(value)
+        }
+        // Note: we shouldn't instantiate `itemValidate` until we make sure `entries` is not empty.
+        //       Otherwise, we can get infinite recursion on empty arrays and objects
+        const itemValidate = validate(item)
+        const r = eachEntry(e, (_k, v) => itemValidate(v), undefined, noAccumulate)
+        // `value` is Container<K>, but Ts<Info1<K,I>> = readonly Ts<I>[] | Record<string,Ts<I>>.
+        // TypeScript can't narrow the container's element types through the validation loop.
+        return r[0] === 'error' ? r : /** @type {any} */ (ok(value))
     }
-    const e = entries(value)
-    if (e.length === 0) {
-        return ok(value)
-    }
-    // Note: we shouldn't instantiate `itemValidate` until we make sure `entries` is not empty.
-    //       Otherwise, we can get infinite recursion on empty arrays and objects
-    const itemValidate = validate(item)
-    const r = eachEntry(e, (_k, v) => itemValidate(v), undefined, noAccumulate)
-    // `value` is Container<K>, but Ts<Info1<K,I>> = readonly Ts<I>[] | Record<string,Ts<I>>.
-    // TypeScript can't narrow the container's element types through the validation loop.
-    return r[0] === 'error' ? r : ok(value) as any
-}
 
-const arrayValidate = containerValidate<'array'>(isArray)
+const arrayValidate = containerValidate(isArray)
 
-const recordValidate = containerValidate<'record'>(isObject)
+const recordValidate = containerValidate(isObject)
 
 /**
  * Builds a validator for `Tuple` or `Struct` const schemas.
@@ -108,35 +94,46 @@ const recordValidate = containerValidate<'record'>(isObject)
  * element/property of the value.
  */
 const constContainerValidate =
-    <C extends Unknown>(isContainer: IsContainer<C>, getItem: (value: C, k: string) => Unknown) =>
-    <T extends Tuple|Struct>(rtti: T): Validate<T> => value =>
-{
-    if (!isContainer(value)) {
-        return verror('unexpected value')
+    /**
+     * @template {Unknown} C
+     * @param {IsContainer<C>} isContainer
+     * @param {(value: C, k: string) => Unknown} getItem
+     * @returns {<T extends Tuple | Struct>(rtti: T) => Validate<T>}
+     */
+    (isContainer, getItem) =>
+    rtti => value => {
+        if (!isContainer(value)) {
+            return verror('unexpected value')
+        }
+        const r = eachEntry(
+            Object.entries(rtti),
+            (k, v) => /** @type {any} */ (validate(v))(getItem(value, k)),
+            undefined,
+            noAccumulate,
+        )
+        // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
+        // structurally equivalent to C — TypeScript can't narrow element types through the loop.
+        return r[0] === 'error' ? r : /** @type {any} */ (ok(value))
     }
-    const r = eachEntry(
-        Object.entries(rtti),
-        (k, v) => (validate(v) as any)(getItem(value, k)) as ReturnType<Validate<T>>,
-        undefined,
-        noAccumulate,
-    )
-    // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
-    // structurally equivalent to C — TypeScript can't narrow element types through the loop.
-    return r[0] === 'error' ? r : ok(value) as any
-}
 
-const tupleValidate = constContainerValidate<ReadonlyArray<Unknown>>(
+const tupleValidate = constContainerValidate(
     isArray,
     (value, k) => value[Number(k)]
 )
 
-const structValidate = constContainerValidate<StringMap<Unknown>>(
+const structValidate = constContainerValidate(
     isObject,
     (value, k) => value[k]
 )
 
-const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly['or', ...T]> =>
-    orVisit(validate as (t: Type) => ValidateE)(rtti) as Validate<() => readonly['or', ...T]>
+const orValidate =
+    /**
+     * @template {readonly Type[]} T
+     * @param {T} rtti
+     * @returns {Validate<() => readonly ['or', ...T]>}
+     */
+    rtti =>
+        /** @type {any} */ (orVisit(/** @type {(t: Type) => ValidateE} */ (/** @type {any} */ (validate)))(rtti))
 
 /**
  * Creates a validator function for the given RTTI schema.
@@ -147,14 +144,14 @@ const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly
  *   `['ok', value]` or `['error', { path, message }]`.
  *
  * @example
- * ```ts
+ * ```js
  * const v = validate(array(number))
  * v([1, 2, 3])         // ['ok', [1, 2, 3]]
  * v([1, 'two'])        // ['error', { path: ['1'], message: 'unexpected value' }]
  * v(['a'])             // ['error', { path: ['0'], message: 'unexpected value' }]
  * ```
  */
-const validateVisitor = {
+const validateVisitor = /** @type {any} */ ({
     tuple: tupleValidate,
     struct: structValidate,
     array: arrayValidate,
@@ -163,7 +160,8 @@ const validateVisitor = {
     constPrimitive: constPrimitiveValidate,
     primitive0: primitive0Validate,
     unknown: () => ok,
-} as unknown as Visitor<(value: Unknown) => unknown>
+})
 
-export const validate = <T extends Type>(rtti: T): Validate<T> =>
-    visit(validateVisitor)(rtti) as any
+/** @type {<T extends Type>(rtti: T) => Validate<T>} */
+export const validate = rtti =>
+    /** @type {any} */ (visit(validateVisitor)(rtti))

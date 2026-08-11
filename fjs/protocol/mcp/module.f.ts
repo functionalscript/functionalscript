@@ -24,7 +24,7 @@ import {
     type Response, type Id, type RpcError,
     jsonrpc,
 } from '../json_rpc/module.f.ts'
-import { validate } from '../../types/rtti/validate/module.f.ts'
+import { validate } from '../../types/rtti/validate/module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.ts'
 import type { Type } from '../../types/rtti/types.ts'
 

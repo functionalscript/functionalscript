@@ -56,7 +56,7 @@ back to `evo_add`.
 Each tool's argument schema is an rtti struct declared once and used twice:
 [`toJsonSchema`](../../media/json/schema/module.f.ts) derives the
 `inputSchema` advertised in `tools/list`, and
-[`validate`](../../types/rtti/validate/module.f.ts) decodes the
+[`validate`](../../types/rtti/validate/module.f.mjs) decodes the
 `arguments` object in `tools/call` — the same pattern as
 [`fjs/mcp`](../).
 

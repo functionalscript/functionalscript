@@ -20,6 +20,13 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/rtti/validate/module.f.ts` migrates
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
+  (`.f.mjs`) — importers must use the `.f.mjs` specifier for runtime
+  values and `fjs/types/rtti/common/types.ts` for the re-exported
+  types. `proof.f.ts` stays TypeScript for now: it has a type-only
+  dependency on the not-yet-migrated `fjs/djs`
+  [#1485](https://github.com/functionalscript/functionalscript/pull/1485)
 - **BREAKING CHANGES:** `fjs/types/rtti/common` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
   its type-level API into a sibling `types.ts` — importers must use the
