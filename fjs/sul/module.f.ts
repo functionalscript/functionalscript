@@ -5,7 +5,8 @@
  * @module
  */
 
-import { emptyPipelineState, pipelineStep, type PipelineState } from './level/literal/module.f.ts'
+import { emptyPipelineState, pipelineStep } from './level/literal/module.f.mjs'
+import type { PipelineState } from './level/literal/types.ts'
 import { encode as hashEncode, type Add } from './level/hash/module.f.ts'
 import { level3Id, type Id } from './id/module.f.ts'
 import type { InternalState } from '../types/patricia_trie/types.ts'

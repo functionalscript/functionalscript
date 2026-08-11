@@ -20,6 +20,13 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/sul/level/literal` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
+  stage-1 TypeScript-to-mjs migration, splitting its type-level API
+  (`Word`, `EncodeState`, `Level`, `PipelineState`, `LiteralToVec`) into a
+  sibling `types.ts` — importers must use the `.f.mjs` specifier for
+  runtime values and the `types.ts` specifier for types
+  [#1484](https://github.com/functionalscript/functionalscript/pull/1484)
 - **BREAKING CHANGES:** `fjs/path` migrates from authored TypeScript
   (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the stage-1
   TypeScript-to-mjs migration — importers must use the `.f.mjs` specifier
