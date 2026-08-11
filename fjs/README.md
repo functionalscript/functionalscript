@@ -53,7 +53,7 @@ cases. See [djs/README.md](djs/README.md) for the accepted subset.
 fjs ci
 ```
 
-`fjs ci` runs the built-in CI generator from `fjs/ci/module.f.ts`, writing
+`fjs ci` runs the built-in CI generator from `fjs/ci/module.f.mjs`, writing
 `.github/workflows/ci.yml`. It is the standard entry point for projects that want
 FunctionalScript's default workflow. Projects with custom CI setup code should keep
 using `fjs run <custom-ci-module>`, so their module can call `ci(setup)` with its own

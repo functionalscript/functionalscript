@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/ci/module.f.ts` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  the `Setup` type into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for runtime values and the `types.ts` specifier
+  for types. `proof.f.ts` stays TypeScript for now
+  [#1493](https://github.com/functionalscript/functionalscript/pull/1493)
 - **BREAKING CHANGES:** `fjs/ci/node` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — no local
   types to split. `proof.f.ts` migrates alongside it. Importers must

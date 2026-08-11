@@ -1,12 +1,15 @@
 /**
  * Continuous integration helper commands for repository automation tasks.
  *
+ * See `./types.ts` for the `Setup` type-level API.
+ *
  * @module
  */
+
 import { mapStep, step } from '../effects/module.f.mjs'
-import type { Effect } from '../effects/types.ts'
+/** @import { Effect } from '../effects/types.ts' */
 import { access, writeUtf8File } from '../effects/node/module.f.mjs'
-import type { NodeOp } from '../effects/node/types.ts'
+/** @import { NodeOp } from '../effects/node/types.ts' */
 import { functionalscript, images } from './config/module.f.mjs'
 import {
     architecture,
@@ -14,25 +17,17 @@ import {
     toSteps,
     ubuntuArm
 } from './common/module.f.mjs'
-import type {
-    Architecture,
-    GitHubAction,
-    Job,
-    Jobs,
-    MetaStep,
-    Os,
-} from './common/types.ts'
+/** @import { Architecture, GitHubAction, Job, Jobs, MetaStep, Os } from './common/types.ts' */
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.mjs'
 import { nodeMainSteps, nodeNixJobs, nodeNixVersionSteps, nodeVersionJobs } from './node/module.f.mjs'
 import { nixFlakes, nixInstall } from './nix/module.f.mjs'
-import type { NixJob } from './nix/types.ts'
+/** @import { NixJob } from './nix/types.ts' */
 import { bunSteps } from './bun/module.f.mjs'
 import { denoSteps } from './deno/module.f.mjs'
+/** @import { Setup } from './types.ts' */
 
-const job = (
-    rust: boolean,
-    nodeExtra: readonly MetaStep[],
-) => (o: Os) => (a: Architecture): readonly [string, Job] => {
+/** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
+const job = (rust, nodeExtra) => o => a => {
     const id = `${o}-${a}`
     const image = images[o][a]
     const result = [
@@ -43,18 +38,17 @@ const job = (
     return [id, { 'runs-on': image, steps: toSteps(result) }]
 }
 
-export type Setup = {
-    readonly nodeExtra: (os: Os) => readonly MetaStep[],
-}
-
 // Every generated flake, across all job families that own one.
-const nixJobs: readonly NixJob[] = nodeNixJobs
+/** @type {readonly NixJob[]} */
+const nixJobs = nodeNixJobs
 
 // Temporary: proves the not-yet-migrated flakes still evaluate. Removed once
 // the canonical Node jobs check their own flake by running through it.
-const nixFlakeJob: Job = ubuntuArm([nixInstall, ...nodeNixVersionSteps])
+/** @type {Job} */
+const nixFlakeJob = ubuntuArm([nixInstall, ...nodeNixVersionSteps])
 
-const canonicalJobs = (rust: boolean): Jobs => ({
+/** @type {(rust: boolean) => Jobs} */
+const canonicalJobs = rust => ({
     ...(rust ? { wasm: ubuntuArm(rustWasmSteps) } : {}),
     deno: ubuntuArm(denoSteps(functionalscript)),
     bun: ubuntuArm(bunSteps(functionalscript)),
@@ -62,15 +56,18 @@ const canonicalJobs = (rust: boolean): Jobs => ({
     'nix-flakes': nixFlakeJob,
 })
 
-export const ci = ({ nodeExtra }: Setup): Effect<NodeOp, number> => step(
+/** @type {(setup: Setup) => Effect<NodeOp, number>} */
+export const ci = ({ nodeExtra }) => step(
     access('Cargo.toml'),
     result => {
         const rust = result[0] === 'ok'
-        const jobs: Jobs = {
+        /** @type {Jobs} */
+        const jobs = {
             ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
             ...canonicalJobs(rust),
         }
-        const gha: GitHubAction = {
+        /** @type {GitHubAction} */
+        const gha = {
             name: 'CI',
             on: {
                 pull_request: {},

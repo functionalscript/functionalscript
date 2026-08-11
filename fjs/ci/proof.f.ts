@@ -1,4 +1,4 @@
-import { ci, main } from './module.f.ts'
+import { ci, main } from './module.f.mjs'
 import { functionalscript, node } from './config/module.f.mjs'
 import { nodeNixJobs } from './node/module.f.mjs'
 import { coverageInclude } from './deno/module.f.mjs'
