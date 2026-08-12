@@ -16,7 +16,7 @@ that had to restore exactly this boilerplate after it was removed.
 
 `main` remains the single conventional entry point. Extend its type to
 `NodeProgram | Commands<NodeOp>` and resolve the union inside `runEffect` and
-`run` in `fjs/effects/node/module.ts` — the canonical entry into the Node
+`run` in `fjs/effects/node/module.mjs` — the canonical entry into the Node
 runtime. Every downstream caller (`fjs run`, bin scripts) already goes through
 `runEffect`/`run`, so no caller needs to change.
 
@@ -50,7 +50,7 @@ wrapper in `fjs/cas/module.f.mjs` simplifies to `export const main = commands`.
 
 - [ ] Export `NodeMain = NodeProgram | Commands<NodeOp>` from
       `fjs/effects/node/module.f.mjs`.
-- [ ] Widen `runEffect` and `run` in `fjs/effects/node/module.ts` to accept
+- [ ] Widen `runEffect` and `run` in `fjs/effects/node/module.mjs` to accept
       `NodeMain`; resolve the union with `Array.isArray` before invoking.
 - [ ] Simplify `fjs/cas/module.f.mjs`: `export const main = commands` (drop the
       `dispatch` wrapper).

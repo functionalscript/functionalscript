@@ -5,7 +5,7 @@
  * without shelling out to the `cas` CLI. The store itself
  * (`fjs/cas/module.f.mjs`) stays transport-agnostic; this is an additional
  * front end alongside the CLI `main`. This registry is one of the tool sets
- * `fjs/mcp/module.f.ts` composes into the FJS MCP server — see that module
+ * `fjs/mcp/module.f.mjs` composes into the FJS MCP server — see that module
  * for the full tool table (including `fjs/mcp/evo`'s `evo_*` tools) and the
  * server entry point.
  *

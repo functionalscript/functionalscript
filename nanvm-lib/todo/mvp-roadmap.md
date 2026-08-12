@@ -101,7 +101,7 @@ testing, self-hosting, and AOT embedding.
 
 The compiler CLI is pure FJS that *returns* effect descriptions
 (`Effect<NodeOp, T>`); all actual impurity lives in thin runner modules
-(e.g. [`fjs/effects/node/module.ts`](../../fjs/effects/node/module.ts)),
+(e.g. [`fjs/effects/node/module.mjs`](../../fjs/effects/node/module.mjs)),
 which are not FJS and never pass through the code generator. Stage 1 of the
 repository migration moves authored `.ts` / `.f.ts` to `.mjs` / `.f.mjs` with
 JSDoc independently of compiler support, so `.f.mjs` is **not** the compiled
@@ -124,7 +124,7 @@ It is a separate crate in the same workspace, published on crates.io:
 `nanvm-lib` stays pure (no OS dependencies — keeping a future `no_std`
 embedded profile open), and the `nanvm` binary depends on both. It serves
 any AOT-compiled effectful FJS program, not just the embedded compiler —
-it is to native FJS what `fjs/effects/node/module.ts` is to Node FJS.
+it is to native FJS what `fjs/effects/node/module.mjs` is to Node FJS.
 
 **Generated stub — the vocabulary is machine-checked.** The Rust side of
 the effect vocabulary is not written by hand: a **generated stub** (op,

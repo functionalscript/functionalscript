@@ -22,61 +22,72 @@ import { once } from 'node:events'
 import * as testContext from 'node:test'
 
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
-import type { Effect } from '../types.ts'
+/** @import { Effect } from '../types.ts' */
 import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
 import { usesInlineTestContext } from './module.f.mjs'
-import type {
-    Server as EffectServer,
-    Headers,
-    Module,
-    NodeOp,
-    RequestListener as Erl,
-    NodeProgram,
-    NodeProgramOptions,
-    WriteConsoles,
-    TestContext,
-    TestFn,
-} from './types.ts'
+/**
+ * @import {
+ *   Server as EffectServer,
+ *   Headers,
+ *   Module,
+ *   NodeOp,
+ *   RequestListener as Erl,
+ *   NodeProgram,
+ *   NodeProgramOptions,
+ *   WriteConsoles,
+ *   TestContext,
+ *   TestFn,
+ * } from './types.ts'
+ */
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
-import type { Result } from '../../types/result/types.ts'
+/** @import { Result } from '../../types/result/types.ts' */
 import { error, ok } from '../../types/result/module.f.mjs'
 import { asyncTryCatch } from '../../types/result/module.mjs'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.mjs'
-import type { StringMap } from '../../types/object/types.ts'
+/** @import { StringMap } from '../../types/object/types.ts' */
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 
-type Server = {
-    readonly listen: (port: number) => void
-}
+/** @typedef {{ readonly listen: (port: number) => void }} Server */
 
-type Readable = AsyncIterable<Uint8Array>
+/** @typedef {AsyncIterable<Uint8Array>} Readable */
 
-type IncomingMessage = Readable & {
-    readonly method: string
-    readonly url: string
-    readonly headers: Headers
-}
+/**
+ * @typedef {Readable & {
+ *   readonly method: string,
+ *   readonly url: string,
+ *   readonly headers: Headers,
+ * }} IncomingMessage
+ */
 
-type ServerResponse = {
-    readonly writeHead: (status: number, headers: StringMap<string>) => ServerResponse
-    readonly end: (body: Uint8Array) => void
-}
+/**
+ * @typedef {{
+ *   readonly writeHead: (status: number, headers: StringMap<string>) => ServerResponse,
+ *   readonly end: (body: Uint8Array) => void,
+ * }} ServerResponse
+ */
 
-type RequestListener = (req: IncomingMessage, res: ServerResponse) => Promise<void>
+/** @typedef {(req: IncomingMessage, res: ServerResponse) => Promise<void>} RequestListener */
 
 /**
  * Narrowed structural view of `node:http`'s `createServer`. The official types
  * declare `method`/`url` optional and header values as
  * `string | string[] | undefined`, while the effect-level `RequestListener`
  * requires them present; this local view keeps the narrowing in one place.
+ * @type {(listener: RequestListener) => Server}
  */
-const createServer: (listener: RequestListener) => Server = http.createServer
+const createServer = http.createServer
 
-type EffectToPromise = <T>(effect: Effect<NodeOp, T>) => Promise<T>
+/** @typedef {<T>(effect: Effect<NodeOp, T>) => Promise<T>} EffectToPromise */
 
-const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
-    let result: readonly T[] = []
+/**
+ * @template T
+ * @param {AsyncIterable<T>} v
+ * @returns {Promise<readonly T[]>}
+ */
+const collect = async v => {
+    /** @type {readonly T[]} */
+    let result = []
     for await (const a of v) {
         result = [...result, a]
     }
@@ -89,17 +100,24 @@ const { exec } = childProcess
 
 const maxFileSizeBytes = Number(maxLengthBytes)
 
-const prefix = 'file:///' as const
+const prefix = /** @type {const} */ ('file:///')
 
-const asyncImport = (v: string): Promise<Module> => {
+/** @type {(v: string) => Promise<Module>} */
+const asyncImport = v => {
     const s0 = v.includes(':') || v.startsWith('/') ? v : concat(process.cwd())(v)
     const s1 = s0.startsWith(prefix) ? s0 : `${prefix}${s0}`
     return import(s1)
 }
 
-const sandbox = async <T>(f: () => T) => {
-    let result: Result<T, unknown>
-    let after: number
+/**
+ * @template T
+ * @param {() => T} f
+ * @returns {Promise<{ readonly result: Result<T, unknown>, readonly duration: number }>}
+ */
+const sandbox = async f => {
+    /** @type {Result<T, unknown>} */
+    let result
+    let after
     const before = performance.now()
     try {
         let p = f()
@@ -108,7 +126,7 @@ const sandbox = async <T>(f: () => T) => {
             p = await p
             after = performance.now()
         }
-        result = ok(p as T)
+        result = ok(/** @type {T} */ (p))
     } catch (e) {
         after = performance.now()
         result = error(e)
@@ -116,13 +134,16 @@ const sandbox = async <T>(f: () => T) => {
     return { result, duration: after - before }
 }
 
-const awaitPromise = async (p: unknown): Promise<readonly[unknown]> =>
+/** @type {(p: unknown) => Promise<readonly [unknown]>} */
+const awaitPromise = async p =>
     [p instanceof Promise ? await p : p]
 
 const { now } = Date
 
-/** Maps `WriteConsoles` names to the corresponding Node.js writable streams. */
-const streams: { readonly [k in WriteConsoles]: NodeJS.WritableStream } = {
+/** Maps `WriteConsoles` names to the corresponding Node.js writable streams.
+ * @type {{ readonly [k in WriteConsoles]: NodeJS.WritableStream }}
+ */
+const streams = {
     stdout: process.stdout,
     stderr: process.stderr,
 }
@@ -140,8 +161,9 @@ const streams: { readonly [k in WriteConsoles]: NodeJS.WritableStream } = {
  * immediately, so large computations with occasional prints never stall.
  *
  * @see {@link https://nodejs.org/api/stream.html#writablewritechunk}
+ * @type {(stream: NodeJS.WritableStream, data: Uint8Array) => Promise<void>}
  */
-const writeAll = async (stream: NodeJS.WritableStream, data: Uint8Array): Promise<void> => {
+const writeAll = async (stream, data) => {
     if (!stream.write(data)) {
         await once(stream, 'drain')
     }
@@ -153,8 +175,9 @@ const writeAll = async (stream: NodeJS.WritableStream, data: Uint8Array): Promis
  * long-running server that idles between messages never accumulates leftover
  * `'readable'`/`'end'` listeners (which would eventually trip
  * `MaxListenersExceededWarning`).
+ * @type {(stdin: NodeJS.ReadStream) => Promise<boolean>}
  */
-const waitReadableOrEnd = (stdin: NodeJS.ReadStream): Promise<boolean> =>
+const waitReadableOrEnd = stdin =>
     new Promise(resolve => {
         const cleanup = () => {
             stdin.removeListener('readable', onReadable)
@@ -173,11 +196,12 @@ const waitReadableOrEnd = (stdin: NodeJS.ReadStream): Promise<boolean> =>
  * yet, so the two are told apart by waiting on `'readable'` (more data) vs
  * `'end'` (EOF). The line framing lives in the pure `readLine` combinator; this
  * interpreter is deliberately just "next byte".
+ * @type {() => Promise<number | null>}
  */
-const readStdinByte = async (): Promise<number | null> => {
+const readStdinByte = async () => {
     const stdin = process.stdin
     while (true) {
-        const chunk = stdin.read(1) as Uint8Array | null
+        const chunk = /** @type {Uint8Array | null} */ (stdin.read(1))
         if (chunk !== null) {
             return chunk[0]
         }
@@ -194,18 +218,19 @@ const randomMax = Number(1n << 32n)
 
 const { randomInt } = crypto
 
-const runNodeEffect: EffectToPromise = asyncRun({
+/** @type {EffectToPromise} */
+const runNodeEffect = asyncRun(/** @type {import('../types.ts').ToAsyncOperationMap<NodeOp>} */ ({
     ...memoryOperationMap(),
     all: async (...effects) => await Promise.all(effects.map(runNodeEffect)),
-    fetch: async url => asyncTryCatch(async() => {
+    fetch: async url => asyncTryCatch(async () => {
         const response = await fetch(url)
         if (!response.ok) {
             throw new Error(`Fetch error: ${response.status} ${response.statusText}`)
         }
         return toVec(new Uint8Array(await response.arrayBuffer()))
     }),
-    mkdir: (...p) => asyncTryCatch(async() => { await mkdir(...p) }),
-    readFile: path => asyncTryCatch(async() => {
+    mkdir: (path, options) => asyncTryCatch(async () => { await mkdir(path, options) }),
+    readFile: path => asyncTryCatch(async () => {
         const fileStats = await stat(path)
         // if the file is too big, toVec should fail anyway but in this case we don't want to load the file.
         if (fileStats.size > maxFileSizeBytes) {
@@ -213,7 +238,7 @@ const runNodeEffect: EffectToPromise = asyncRun({
         }
         return toVec(await readFile(path))
     }),
-    readdir: (path, r) => asyncTryCatch(async() =>
+    readdir: (path, r) => asyncTryCatch(async () =>
         (await readdir(path, { ...r, withFileTypes: true }))
         .map(v => ({
             name: v.name,
@@ -265,13 +290,14 @@ const runNodeEffect: EffectToPromise = asyncRun({
     import: path => asyncTryCatch(() => asyncImport(path)),
     exec: (command, stdin) => new Promise(resolve => {
         const child = exec(command, (e, stdout, stderr) =>
-            resolve(e !== null ? ['error', e] as const : ok({ stdout, stderr }))
+            resolve(e !== null ? /** @type {const} */ (['error', e]) : ok({ stdout, stderr }))
         )
         child.stdin?.end(stdin)
     }),
     createServer: async requestListener => {
-        const erl = requestListener as Erl<NodeOp>
-        const nodeRl: RequestListener = async(req, res) => {
+        const erl = /** @type {Erl<NodeOp>} */ (requestListener)
+        /** @type {RequestListener} */
+        const nodeRl = async (req, res) => {
             const reqBody = await collect(req)
             const { method, url, headers } = req
             const { status, headers: outHeaders, body: outBody } = await runNodeEffect(erl({
@@ -284,10 +310,10 @@ const runNodeEffect: EffectToPromise = asyncRun({
                 .writeHead(status, outHeaders)
                 .end(fromVec(outBody))
         }
-        return asNominal(createServer(nodeRl)) satisfies EffectServer
+        return /** @type {EffectServer} */ (asNominal(createServer(nodeRl)))
     },
     listen: async (server, port) => {
-        const s = asBase(server) as Server
+        const s = /** @type {Server} */ (asBase(server))
         s.listen(port)
     },
     forever: () => new Promise(() => {}),
@@ -298,9 +324,10 @@ const runNodeEffect: EffectToPromise = asyncRun({
     read: readStdinByte,
     test: async (ctx, name, expectFailure, test) =>
         ctx.test(name, { expectFailure }, async t => runNodeEffect(test(t))),
-})
+}))
 
-const inlineTest: TestFn = async (name, { expectFailure }, fn) => {
+/** @type {TestFn} */
+const inlineTest = async (name, { expectFailure }, fn) => {
     if (expectFailure) {
         try { await fn(inlineContext) } catch { return }
         throw new Error(`expected to throw: ${name}`)
@@ -309,11 +336,13 @@ const inlineTest: TestFn = async (name, { expectFailure }, fn) => {
     }
 }
 
-const inlineContext: TestContext = { test: inlineTest }
+/** @type {TestContext} */
+const inlineContext = { test: inlineTest }
 
-type FrameworkRegister = (name: string, fn: () => Promise<void>) => Promise<void>
+/** @typedef {(name: string, fn: () => Promise<void>) => Promise<void>} FrameworkRegister */
 
-const wrapInlineTest = (register: FrameworkRegister): TestContext => ({
+/** @type {(register: FrameworkRegister) => TestContext} */
+const wrapInlineTest = register => ({
     test: (name, opts, fn) => register(name, () => inlineTest(name, opts, fn))
 })
 
@@ -324,7 +353,8 @@ const engine = 'Bun' in globalThis ? 'bun' :
 const nodeVersion = engine === 'node' ? process.version : undefined
 const inlineTestContext = usesInlineTestContext(engine, nodeVersion)
 
-const options: NodeProgramOptions = {
+/** @type {NodeProgramOptions} */
+const options = {
     args: process.argv.slice(2),
     env: process.env,
     home: toPosix(os.homedir()),
@@ -344,8 +374,9 @@ const options: NodeProgramOptions = {
  * registered under an external test runner (Node `--test`, Bun, Deno) that owns
  * the process lifecycle. For a standalone CLI entry point that should exit with
  * the program's code, use {@link run} instead.
+ * @type {(p: NodeProgram) => Promise<number>}
  */
-export const runEffect: (p: NodeProgram) => Promise<number> = program =>
+export const runEffect = program =>
     runNodeEffect(program(options))
 
 /**
@@ -354,7 +385,8 @@ export const runEffect: (p: NodeProgram) => Promise<number> = program =>
  * that control never returns to the caller — the process terminates.
  *
  * A `bin` script can simply
- * `import { run } from '.../fjs/effects/node/module.js'; await run(main)`.
+ * `import { run } from '.../fjs/effects/node/module.mjs'; await run(main)`.
+ * @type {(p: NodeProgram) => Promise<never>}
  */
-export const run: (p: NodeProgram) => Promise<never> = async p =>
+export const run = async p =>
     process.exit(await runEffect(p))

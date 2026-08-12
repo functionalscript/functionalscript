@@ -820,7 +820,7 @@ satisfy the rule. The cases in this repository:
   value still *is* a `symbol` / an `S` at runtime. A named field would invent a
   wrapper that never exists.
 - **Describing an object you don't own, or a flat serialized shape.**
-  `IncomingMessage = Readable & {…}` in `fjs/effects/node/module.ts` describes
+  `IncomingMessage = Readable & {…}` in `fjs/effects/node/module.mjs` describes
   Node's object, which really does carry both member sets on one level. Nesting
   the base under a field there would describe something that isn't there — and
   for a wire format it would change the encoding, not just the type.

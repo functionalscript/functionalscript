@@ -2,7 +2,7 @@
  * stdio transport for JSON-RPC / MCP servers.
  *
  * `stdioTransport` wraps a step function — the `mcpStep`-shaped
- * `(value) => Effect<O, Response | null>` from `fjs/protocol/mcp/module.f.ts` — in the
+ * `(value) => Effect<O, Response | null>` from `fjs/protocol/mcp/module.f.mjs` — in the
  * canonical read → parse → dispatch → write loop, expressed as a recursive
  * effect so it stays in the pure effect model and is fully testable against a
  * mock stdin / stdout (see `fjs/effects/node/virtual`) with no real process.

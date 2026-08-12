@@ -58,7 +58,7 @@ provides*. Proposed destinations:
 
 `NodeOp` stays where it is and keeps unioning every family — it is the
 *runner's* op-set, which is legitimately "everything this host can do", and both
-interpreters (`fjs/effects/node/module.ts`, `fjs/effects/node/virtual`) keep a
+interpreters (`fjs/effects/node/module.mjs`, `fjs/effects/node/virtual`) keep a
 single place to enumerate. Only the *declaration* of each family moves; the
 union that names them all does not.
 
