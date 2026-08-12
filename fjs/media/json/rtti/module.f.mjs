@@ -1,3 +1,21 @@
+/**
+ * rtti schemas describing the JSON data model: `primitive`, `unknown`,
+ * `object`, and `array`.
+ *
+ * The three composite schemas are mutually recursive — `unknown` names
+ * `object` and `array`, both of which are built from `unknown` — so `unknown`
+ * carries an explicit `@type` that cross-references its neighbours through
+ * `typeof`. That spelling is deliberate: `@type {const}` also type-checks here,
+ * but leaves declaration emit no name for the recursive positions, so it
+ * inlines the structure, gives up at depth, and degrades the emitted `.d.mts`
+ * to `any`. See AGENTS.md §6.2.
+ *
+ * The TypeScript counterparts live in the sibling
+ * [`../types.ts`](../types.ts), which pins them against these schemas with
+ * `Assert<Equal<Unknown, Ts<typeof unknown>>>`.
+ *
+ * @module
+ */
 
 import {
     boolean as rttiBoolean,
