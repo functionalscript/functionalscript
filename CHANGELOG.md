@@ -20,6 +20,15 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/media/module` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), moving
+  `DialectEntry` into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for the runtime value and the `types.ts` specifier
+  for the type. Updates `fjs/media/revision/module` and
+  `fjs/mcp/cas/module` accordingly. `fjs/media/proof.f.ts` stays
+  TypeScript for now: it still depends on `fjs/media/revision`, which is
+  not yet migrated
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/fsm/module` and `proof` migrate from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — `Grammar` stays
   as a JSDoc typedef in the module (no separate `types.ts`, no external

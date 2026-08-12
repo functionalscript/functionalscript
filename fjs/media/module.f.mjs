@@ -40,48 +40,34 @@
  * classifier with no dialect awareness.
  *
  * @module
+ *
+ * @import { Vec } from '../types/bit_vec/types.ts'
+ * @import { DetectMeta } from './type/types.ts'
+ * @import { Struct } from '../types/rtti/types.ts'
+ * @import { Ts, Unknown } from '../types/rtti/ts/types.ts'
+ * @import { Validate } from '../types/rtti/common/types.ts'
+ * @import { DialectEntry } from './types.ts'
  */
-import type { Vec } from '../types/bit_vec/types.ts'
+
 import { fromVec } from '../text/utf8/module.f.mjs'
 import { detectVec } from './type/module.f.mjs'
-import type { DetectMeta } from './type/types.ts'
 import { parse } from './json/module.f.mjs'
 import { assert, assertNotNullish } from '../asserts/module.f.mjs'
-import type { Struct } from '../types/rtti/types.ts'
-import type { Ts, Unknown } from '../types/rtti/ts/types.ts'
 import { validate } from '../types/rtti/validate/module.f.mjs'
-import type { Validate } from '../types/rtti/common/types.ts'
-
-/**
- * One registered dialect: the name it tags itself with, and a predicate
- * deciding whether an already-parsed value is one of its blobs.
- *
- * `match` takes rtti's `Unknown` — the encoding-neutral one, admitting
- * `bigint` and `undefined` — not `fjs/media/json`'s JSON-only `Unknown`, so an
- * entry stays usable by a future non-JSON detector over the same dialects.
- *
- * The type is deliberately not opaque: a caller may write the struct by hand.
- * The list is that caller's own declaration of what it wants recognized,
- * passed to its own `detect` call, so a fabricated entry mislabels only that
- * caller's results — there is no trust boundary between a caller and entries it
- * writes itself. The boundary that does exist, untrusted blob content, is on
- * the other side of `match`.
- */
-export type DialectEntry = {
-    readonly dialect: string
-    readonly match: (_: Unknown) => boolean
-}
 
 /** The default refinement: structural validation alone decides the match. */
-const always = (): boolean => true
+const always = () => true
 
-/** Structural validation followed by the dialect's own refinement. */
-const matchWith = <T extends Struct>(v: Validate<T>) =>
-    (extraValidate: (_: Ts<T>) => boolean) =>
-    (u: Unknown): boolean => {
-        const [tag, value] = v(u)
-        return tag === 'ok' && extraValidate(value)
-    }
+/**
+ * Structural validation followed by the dialect's own refinement.
+ * @template {Struct} T
+ * @param {Validate<T>} v
+ * @returns {(extraValidate: (_: Ts<T>) => boolean) => (u: Unknown) => boolean}
+ */
+const matchWith = v => extraValidate => u => {
+    const [tag, value] = v(u)
+    return tag === 'ok' && extraValidate(value)
+}
 
 /**
  * Registers a dialect for detection: its rtti schema, plus whatever rtti can't
@@ -124,11 +110,13 @@ const matchWith = <T extends Struct>(v: Validate<T>) =>
  * when the entry is constructed. A thunk-form `dialect`
  * (`() => ['const', 'x']`) is a perfectly valid rtti schema, it just is not
  * registerable — write the string directly, as `revisionSchema` does.
+ *
+ * @template {Struct} T
+ * @param {T} type
+ * @param {(_: Ts<T>) => boolean} [extraValidate]
+ * @returns {DialectEntry}
  */
-export const dialectEntry = <T extends Struct>(
-    type: T,
-    extraValidate: (_: Ts<T>) => boolean = always,
-): DialectEntry => {
+export const dialectEntry = (type, extraValidate = always) => {
     const { dialect } = type
     assert(typeof dialect === 'string', 'dialectEntry: schema has no direct string `dialect` member')
     return { dialect, match: matchWith(validate(type))(extraValidate) }
@@ -142,8 +130,11 @@ export const dialectEntry = <T extends Struct>(
  * wins; entries that overlap are the registrant's own business, since matching
  * `dialect` as an exact literal already makes structural validation reject
  * every other dialect's blob.
+ *
+ * @param {readonly DialectEntry[]} dialects
+ * @returns {(bytes: Vec) => DetectMeta}
  */
-export const detect = (dialects: readonly DialectEntry[]) => (bytes: Vec): DetectMeta => {
+export const detect = dialects => bytes => {
     const base = detectVec(bytes)
     // Only whole-blob-valid UTF-8 text can possibly be JSON; a magic-byte hit
     // or binary fallback is never a dialect match.

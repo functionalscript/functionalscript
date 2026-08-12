@@ -58,7 +58,7 @@
  * approach failed on any blob larger than one chunk even when only metadata
  * was asked for; streaming detection returns correct
  * `{ length, mimeType, type[, uri] }` regardless of size. A dialect (e.g.
- * `vnd.fjs.revision`, see `fjs/media/module.f.ts`) can only be recognized by
+ * `vnd.fjs.revision`, see `fjs/media/module.f.mjs`) can only be recognized by
  * parsing the whole blob as JSON, so when the streaming verdict is
  * whole-blob-valid text within the same bounded inline cap as `content: true`
  * (`maxLengthBytes`), one extra bounded read materializes the blob purely to
@@ -70,7 +70,7 @@
  * size-independent `fjs/media/type` `detectStream` machine (to decide whether the
  * blob even fits inline), then materializes the bytes (via `collectRead`, bounded
  * by `maxLength`) and re-derives the verdict from the dialect-aware detector
- * (`fjs/media/module.f.ts` `detect`) — now that the whole blob is in hand, a
+ * (`fjs/media/module.f.mjs` `detect`) — now that the whole blob is in hand, a
  * dialect match is reflected in the result — before encoding the inline payload
  * by `type` — a `fjs/text/utf8` `fromVec` string on `text` (for `type: 'text'`),
  * base64 on `blob` (for `type: 'base64'`). A blob larger than `maxLength` (128
@@ -110,7 +110,7 @@ import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { detectStream } from '../../media/type/module.f.mjs'
-import { detect } from '../../media/module.f.ts'
+import { detect } from '../../media/module.f.mjs'
 import { revisionDialect } from '../../media/revision/module.f.ts'
 import type { Vec } from '../../types/bit_vec/types.ts'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
