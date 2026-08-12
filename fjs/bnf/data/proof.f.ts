@@ -1,4 +1,4 @@
-import { stringify } from '../../media/json/common/module.f.ts'
+import { stringify } from '../../media/json/module.f.ts'
 import { identity } from '../../types/function/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { oneEncode, option, range, rangeDecode, repeat0Plus, set } from '../module.f.mjs'

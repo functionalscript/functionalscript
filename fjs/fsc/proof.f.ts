@@ -1,6 +1,6 @@
 import { init, terminal } from './module.f.mjs'
 import { one } from '../text/ascii/module.f.mjs'
-import { stringify } from '../media/json/common/module.f.ts'
+import { stringify } from '../media/json/module.f.ts'
 import { assertEq } from '../asserts/module.f.mjs'
 
 const s = stringify(i => i)

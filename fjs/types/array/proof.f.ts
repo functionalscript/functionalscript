@@ -1,5 +1,5 @@
 import { at, first, last, head, tail, splitFirst, splitLast, empty } from './module.f.mjs'
-import { stringify as jsonStringify } from '../../media/json/common/module.f.ts'
+import { stringify as jsonStringify } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.mjs'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 

@@ -11,18 +11,18 @@
  *
  * @module
  */
-import type { List } from '../../../types/list/types.ts'
-import { next, flat, map } from '../../../types/list/module.f.mjs'
-import { concat } from '../../../types/string/module.f.mjs'
-import { stringToList } from '../../../text/utf16/module.f.mjs'
-import type { Result } from '../../../types/result/types.ts'
-import { parse as parseTokens } from '../parser/module.f.ts'
-import { tokenize } from '../tokenizer/module.f.mjs'
-import { at, definedEntries } from '../../../types/object/module.f.mjs'
-import type { Entry as ObjectEntry } from '../../../types/object/types.ts'
-import { compose, fn } from '../../../types/function/module.f.mjs'
-import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../serializer/module.f.mjs'
-import type { Object, Unknown } from '../types.ts'
+import type { List } from '../../types/list/types.ts'
+import { next, flat, map } from '../../types/list/module.f.mjs'
+import { concat } from '../../types/string/module.f.mjs'
+import { stringToList } from '../../text/utf16/module.f.mjs'
+import type { Result } from '../../types/result/types.ts'
+import { parse as parseTokens } from './parser/module.f.ts'
+import { tokenize } from './tokenizer/module.f.mjs'
+import { at, definedEntries } from '../../types/object/module.f.mjs'
+import type { Entry as ObjectEntry } from '../../types/object/types.ts'
+import { compose, fn } from '../../types/function/module.f.mjs'
+import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.mjs'
+import type { Object, Unknown } from './types.ts'
 
 // ── JSON utilities ────────────────────────────────────────────────────────────
 

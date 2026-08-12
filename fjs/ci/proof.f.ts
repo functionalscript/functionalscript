@@ -9,7 +9,7 @@ import type { MetaStep, Os, GitHubAction } from './common/types.ts'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import type { Dir, State } from '../effects/node/virtual/types.ts'
-import { parse as jsonParse } from '../media/json/common/module.f.ts'
+import { parse as jsonParse } from '../media/json/module.f.ts'
 import { unwrap } from '../types/result/module.f.mjs'
 import { definedValues } from '../types/object/module.f.mjs'
 
