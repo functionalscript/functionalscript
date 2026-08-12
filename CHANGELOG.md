@@ -20,6 +20,15 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/media/json/parser` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
+  stage-1 TypeScript-to-mjs migration, splitting `_JsonObject`,
+  `_JsonArray`, `_JsonStack`, `_StateParse`, and `_JsonState` into a
+  sibling `types.ts` — importers must use the `.f.mjs` specifier for the
+  runtime value and the `types.ts` specifier for the types. `proof.f.ts`
+  stays TypeScript for now (it depends on `fjs/media/json/module.f.ts`,
+  still unmigrated)
+  [#1499](https://github.com/functionalscript/functionalscript/pull/1499)
 - **BREAKING CHANGES:** the JSON rtti schemas `primitive`, `unknown`,
   `object`, and `array` move from `fjs/media/json/module.f.ts` to a new
   JSDoc-typed `fjs/media/json/rtti/module.f.mjs`, and the `Primitive`,

@@ -1,11 +1,13 @@
-import { stringify } from '../../media/json/module.f.ts'
+import type { RuleSet } from './types.ts'
+
 import { identity } from '../../types/function/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { oneEncode, option, range, rangeDecode, repeat0Plus, set } from '../module.f.mjs'
-import { classic, deterministic } from '../testlib.f.ts'
 import { emptyTagMap, toData } from './module.f.mjs'
-import type { RuleSet } from './types.ts'
 import { assertEq } from '../../asserts/module.f.mjs'
+
+import { stringify } from '../../media/json/module.f.ts'
+import { classic, deterministic } from '../testlib.f.ts'
 
 export const proof = {
     rangeDecode: () => {

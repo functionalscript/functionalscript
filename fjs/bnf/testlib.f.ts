@@ -1,3 +1,5 @@
+import type { Rule } from './types.ts'
+
 import {
     commaJoin0Plus,
     none,
@@ -9,7 +11,6 @@ import {
     set,
     unicodeMax,
 } from './module.f.mjs'
-import type { Rule } from './types.ts'
 
 export const classic = (): Rule => {
 

@@ -2,13 +2,12 @@
  * Content-addressable Base32 encoding and decoding helpers.
  *
  * @module
+ *
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
 import { msb, lsb, length, vec, empty } from '../../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/types.ts' */
-
-/** @import { Nullable } from '../../types/nullable/types.ts' */
-
 import { baseN } from '../module.f.mjs'
 
 //                         0123456789abcdef

@@ -14,15 +14,17 @@
  * See `./types.ts` for the type-level API.
  *
  * @module
+ *
+ * @import { TerminalRange } from '../types.ts'
+ * @import { Rule as DataRule, Sequence } from '../data/types.ts'
+ * @import { Rule as FRule } from '../types.ts'
+ * @import { AstTag, AstSequenceMeta, DescentFailure, DescentMatch, DescentMatchResult, DescentMatchRule } from './types.ts'
  */
+
 import { rangeDecode } from '../module.f.mjs'
-/** @import { TerminalRange } from '../types.ts' */
 import { contains as rangeContains } from '../../types/range/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { emptyTagMap, toData } from '../data/module.f.mjs'
-/** @import { Rule as DataRule, Sequence } from '../data/types.ts' */
-/** @import { Rule as FRule } from '../types.ts' */
-/** @import { AstTag, AstSequenceMeta, DescentFailure, DescentMatch, DescentMatchResult, DescentMatchRule } from './types.ts' */
 
 /**
  * Folds one rejected terminal into the furthest-failure record: further along

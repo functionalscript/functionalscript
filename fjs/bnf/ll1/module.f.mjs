@@ -11,19 +11,21 @@
  * See `./types.ts` for the type-level API.
  *
  * @module
+ *
+ * @import { Properties } from '../../types/range_map/types.ts'
+ * @import { StringSet } from '../../types/string_set/types.ts'
+ * @import { EmptyTag, RuleSet } from '../data/types.ts'
+ * @import { Rule as FRule } from '../types.ts'
+ * @import { AstSequence, AstTag, Match, MatchResult, MatchRule, Remainder, _Dispatch, _DispatchMap, _DispatchResult, _DispatchRule } from './types.ts'
  */
+
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { rangeMap } from '../../types/range_map/module.f.mjs'
-/** @import { Properties } from '../../types/range_map/types.ts' */
 import { contains, set } from '../../types/string_set/module.f.mjs'
-/** @import { StringSet } from '../../types/string_set/types.ts' */
 import { rangeDecode } from '../module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { emptyTagMap, toData } from '../data/module.f.mjs'
-/** @import { EmptyTag, RuleSet } from '../data/types.ts' */
-/** @import { Rule as FRule } from '../types.ts' */
-/** @import { AstSequence, AstTag, Match, MatchResult, MatchRule, Remainder, _Dispatch, _DispatchMap, _DispatchResult, _DispatchRule } from './types.ts' */
 
 /** @type {Properties<_DispatchResult>} */
 const dispatchProps = {

@@ -2,10 +2,11 @@
  * Base-128 encoding and decoding utilities over bit vectors.
  *
  * @module
+ *
+ * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
 import { vec8, msb, empty } from '../../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/types.ts' */
 
 const { concat, popFront } = msb
 

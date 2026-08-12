@@ -1,19 +1,22 @@
-/** @import { Vec } from '../types/bit_vec/types.ts' */
+/**
+ * @import { Vec } from '../types/bit_vec/types.ts'
+ * @import { FileCasOperation } from './types.ts'
+ * @import { Effect } from '../effects/types.ts'
+ * @import { ReadFile, WriteFile, Rm, Mkdir, IoResult } from '../effects/node/types.ts'
+ * @import { Ok } from '../types/result/types.ts'
+ * @import { List } from '../effects/list/types.ts'
+ */
+
 import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
 import { fileCas, casAddFile, collectRead, casUpload } from './module.f.mjs'
-/** @import { FileCasOperation } from './types.ts' */
 import { match, pure, runPure, step } from '../effects/module.f.mjs'
-/** @import { Effect } from '../effects/types.ts' */
 import { mkdir, writeFile, rm, readFile, access } from '../effects/node/module.f.mjs'
-/** @import { ReadFile, WriteFile, Rm, Mkdir, IoResult } from '../effects/node/types.ts' */
-/** @import { Ok } from '../types/result/types.ts' */
 import { error, ok } from '../types/result/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { join } from '../path/module.f.mjs'
 import { nonEmpty, empty } from '../effects/list/module.f.mjs'
-/** @import { List } from '../effects/list/types.ts' */
 import { assert, assertEq, assertNotNullish } from '../asserts/module.f.mjs'
 
 const testDir = './test-cas-cli'

@@ -2,18 +2,19 @@
  * CAS CLI command handlers.
  *
  * @module
+ *
+ * @import { All, Read, Write, WriteFile } from '../../effects/node/types.ts'
+ * @import { Commands } from '../../cli/types.ts'
+ * @import { MemOp } from '../../effects/memory/types.ts'
+ * @import { FileCasOperation } from '../types.ts'
  */
 
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { forEachStep, pure, step } from '../../effects/module.f.mjs'
 import { errorExit, log, writeFromStream } from '../../effects/node/module.f.mjs'
-/** @import { All, Read, Write, WriteFile } from '../../effects/node/types.ts' */
 import { dispatch } from '../../cli/module.f.mjs'
-/** @import { Commands } from '../../cli/types.ts' */
-/** @import { MemOp } from '../../effects/memory/types.ts' */
 import { casAddFile, fileCas } from '../module.f.mjs'
-/** @import { FileCasOperation } from '../types.ts' */
 
 /** @type {Commands<FileCasOperation | WriteFile | Write | All | MemOp | Read>} */
 export const commands = [

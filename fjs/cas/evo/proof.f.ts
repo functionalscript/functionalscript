@@ -1,18 +1,20 @@
+import type { Cas } from '../types.ts'
+import type { Vec } from '../../types/bit_vec/types.ts'
+import type { Ok } from '../../types/result/types.ts'
+import type { IoResult } from '../../effects/node/types.ts'
+
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { pure } from '../../effects/module.f.mjs'
 import { fileCas } from '../module.f.mjs'
-import type { Cas } from '../types.ts'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
-import type { Vec } from '../../types/bit_vec/types.ts'
 import { vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
-import type { Ok } from '../../types/result/types.ts'
 import { ok, error } from '../../types/result/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
-import type { IoResult } from '../../effects/node/types.ts'
 import { tryUtf8 } from '../../text/module.f.mjs'
+
 import { dialect as revisionDialect } from '../../media/revision/module.f.ts'
 import {
     buildCache, decodeRevisionBlob, initEvo, evo, emptyCache, syncRevision,
