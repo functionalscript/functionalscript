@@ -179,10 +179,16 @@ permanently.
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
 imports must target migrated `.f.mjs` modules. Type-only APIs may live in an
 authored `types.ts` companion and are referenced directly through that real
-source path. For example:
+source path. Its leading module JSDoc block may include, for example:
 
 ```js
-/** @import { Phantom } from '../phantom/types.ts' */
+/**
+ * ...
+ *
+ * @module
+ *
+ * @import { Phantom } from '../phantom/types.ts'
+ */
 ```
 
 The same path is used by TypeScript `import type`; JSDoc `@import` introduces no
@@ -251,8 +257,14 @@ normally the part of the contract that matters.
 
 ## 4. Documentation
 
-Use JSDoc for documenting TypeScript files. Every module should start with this
-header:
+Use JSDoc for module documentation in both TypeScript and JavaScript source.
+Every implementation module starts with one module JSDoc block, followed by one
+blank line before the first source-level import or declaration.
+
+For TypeScript, put type-only imports first, external or built-in runtime imports
+second, then repository-owned relative runtime imports: already-migrated
+JavaScript before remaining TypeScript. Separate the import groups with one blank
+line:
 
 ```ts
 /**
@@ -260,9 +272,51 @@ header:
  *
  * @module
  */
+
+import type ...
+import type ...
+
+import ... from 'node:...'
+import ... from 'package'
+
+import ... from '...mjs'
+import ... from '...mjs'
+
+import ... from '...ts'
+import ... from '...ts'
 ```
 
-where `<...Module documentation...>` should be documentation for the module.
+For JavaScript, put all module-level `@import` tags in the same leading JSDoc
+block as `@module`, then put one blank line before runtime imports. External or
+built-in runtime imports come first, followed by repository-owned relative
+`.mjs` runtime imports:
+
+```js
+/**
+ * <...Module documentation...>
+ *
+ * @module
+ *
+ * @import ...
+ * @import ...
+ */
+
+import ... from 'node:...'
+import ... from 'package'
+
+import ... from '...mjs'
+import ... from '...mjs'
+```
+
+Do not put module-level `@import` tags in separate JSDoc comments. The `.mjs` /
+`.ts` grouping and the Stage 1 migration restriction apply to repository-owned
+relative runtime imports, not to external or built-in modules. During Stage 1, a
+migrated JavaScript module has no remaining relative runtime `.ts` / `.f.ts`
+import group: migrated JavaScript may depend at runtime on external modules and
+migrated repository JavaScript, but not on remaining authored TypeScript
+implementations. The blank line after the module JSDoc block is required even
+when the module has no `@import` tags; it keeps the header detached from the first
+import/declaration and preserves it through declaration emit.
 
 Where each kind of documentation belongs:
 
@@ -529,11 +583,18 @@ forms such as `@template {Operation} out O`. Variance modifiers belong to type
 parameters of a JSDoc type alias (`@typedef`); do not put `in` / `out` on an
 ordinary function's `@template`, where TypeScript rejects them.
 
-When JavaScript needs a type from an authored `types.ts`, use JSDoc `@import`
-with that real source path:
+When JavaScript needs a type from an authored `types.ts`, put JSDoc `@import`
+with that real source path in the leading module JSDoc block; do not create a
+separate `@import` comment. For example:
 
 ```js
-/** @import { Types } from './types.ts' */
+/**
+ * ...
+ *
+ * @module
+ *
+ * @import { Types } from './types.ts'
+ */
 ```
 
 The TypeScript implementation uses the same path:
@@ -546,7 +607,8 @@ Both forms are type-only and introduce no runtime import. The `types.ts` file
 itself exists and is checked as ordinary TypeScript source, so this convention
 does not rely on `.d.ts` substitution and works with Deno's source resolver.
 Declaration-only `module.f.ts` files should normally become `types.ts` instead of
-acquiring an artificial JavaScript runtime representation.
+acquiring an artificial JavaScript runtime representation. See [§4](#4-documentation)
+for the complete module-header and import-order convention.
 
 Do not make migrated JavaScript point back to a remaining implementation `.ts` /
 `.f.ts` merely for a type. If that type should survive independently, split it
