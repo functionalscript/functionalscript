@@ -423,6 +423,39 @@ have the caller check the `null` result rather than a precomputed bound.
 CLI parameters are preferred over environment variables when adding new
 features.
 
+### 5.8 Embedded DSLs should reuse host-language syntax
+
+**An embedded DSL should reuse JavaScript / FunctionalScript values and syntax
+whenever their existing meaning is exactly the meaning the DSL needs.** Prefer
+ordinary numbers, strings, arrays, and objects over wrapping the same information
+in tagged syntax. For example, prefer `3.14`, `'abc'`, `[1, 2]`, and `{ x: 1 }`
+over representations such as `['number', 3.14]` or an object/array tag whose only
+purpose is to say what the host value already says.
+
+Introduce a constructor, function, tag, or other DSL-specific form only for a
+concept the host language cannot express directly and unambiguously. RTTI follows
+this pattern: constants can describe themselves, while constructions such as
+`array(number)` need DSL syntax because an array *value* and the type "array of
+numbers" are different concepts. The proposed NaNVM operator-test data eDSL applies the same principle: ordinary
+operands and expected results should be ordinary JavaScript values, while
+references, function values, and expected throws need special forms.
+
+Do not expose a tagged-union AST as the authoring API merely because it is
+convenient for the implementation. The ergonomic eDSL and its normalized
+machine-oriented representation may be different layers: a parser/compiler may
+normalize an author-friendly value into explicit tagged nodes for pattern
+matching, serialization, hashing, or code generation. Prefer the simplest representation that preserves the required semantics. Avoid
+redundant DSL syntax: less representational noise benefits people, AI systems,
+deterministic computation, hashing, serialization, storage, and code generation
+alike. Use a more explicit normalized representation only when that extra
+structure provides actual semantic or processing value.
+
+Apply this principle to new eDSLs and when improving existing ones, including the
+future FunctionalScript function AST. That AST should reuse FunctionalScript's
+own literals, arrays, objects, and other language constructions wherever their
+meaning coincides with the syntax being represented, and introduce explicit AST
+nodes only where the host-language value would be ambiguous or insufficient.
+
 ---
 
 ## 6. Coding style
