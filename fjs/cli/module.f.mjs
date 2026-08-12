@@ -4,14 +4,15 @@
  * See `./types.ts` for the type-level API.
  *
  * @module
+ *
+ * @import { NodeOp, NodeProgramOptions, Write } from '../effects/node/types.ts'
+ * @import { Effect } from '../effects/types.ts'
+ * @import { Commands } from './types.ts'
  */
 
 import { errorExit, log } from '../effects/node/module.f.mjs'
-/** @import { NodeOp, NodeProgramOptions, Write } from '../effects/node/types.ts' */
 import { pure, step } from '../effects/module.f.mjs'
-/** @import { Effect } from '../effects/types.ts' */
 import { at, fromEntries } from '../types/object/module.f.mjs'
-/** @import { Commands } from './types.ts' */
 
 const helpMeta = { names: ['help', 'h', '?'], description: 'Print this help message' }
 

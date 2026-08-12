@@ -1,3 +1,6 @@
+import type { MetaStep, Os, GitHubAction } from './common/types.ts'
+import type { Dir, State } from '../effects/node/virtual/types.ts'
+
 import { ci, main } from './module.f.mjs'
 import { functionalscript, node } from './config/module.f.mjs'
 import { nodeNixJobs } from './node/module.f.mjs'
@@ -5,13 +8,12 @@ import { coverageInclude } from './deno/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
 import { test, ubuntu, parseGitHubAction } from './common/module.f.mjs'
-import type { MetaStep, Os, GitHubAction } from './common/types.ts'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
-import type { Dir, State } from '../effects/node/virtual/types.ts'
-import { parse as jsonParse } from '../media/json/module.f.ts'
 import { unwrap } from '../types/result/module.f.mjs'
 import { definedValues } from '../types/object/module.f.mjs'
+
+import { parse as jsonParse } from '../media/json/module.f.ts'
 
 const hasRun = (cmd: string) => (gha: GitHubAction): boolean =>
     definedValues(gha.jobs).some(job => job.steps.some(step => step.run?.includes(cmd)))

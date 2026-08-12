@@ -1,5 +1,6 @@
+import type { Rule } from './types.ts'
+
 import { assert, assertEq } from '../asserts/module.f.mjs'
-import { classic, deterministic } from './testlib.f.ts'
 import {
     rangeEncode,
     str,
@@ -10,7 +11,8 @@ import {
     oneEncode,
     repeat1Plus,
 } from './module.f.mjs'
-import type { Rule } from './types.ts'
+
+import { classic, deterministic } from './testlib.f.ts'
 
 export const proof = {
     test: () => {

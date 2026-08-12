@@ -2,16 +2,27 @@
  * Content-addressable storage utilities for hashing, addressing, and path parsing.
  *
  * @module
+ *
+ * @import { Sha2, State as Sha2State } from '../crypto/sha2/types.ts'
+ * @import { Vec } from '../types/bit_vec/types.ts'
+ * @import { Effect, Operation } from '../effects/types.ts'
+ * @import {
+ *  IoResult,
+ *  Now,
+ *  RandomInt,
+ *  ReadBytes,
+ *  Readdir,
+ *  Rm,
+ * } from '../effects/node/types.ts'
+ *  @import { List } from '../effects/list/types.ts'
+ * @import { Cas, FileCas, FileCasOperation } from './types.ts'
  */
 
-/** @import { Sha2, State as Sha2State } from '../crypto/sha2/types.ts' */
 import { sha256 } from '../crypto/sha2/module.f.mjs'
 import { join, normalize, parse } from '../path/module.f.mjs'
-/** @import { Vec } from '../types/bit_vec/types.ts' */
 import { empty, length, maxLength, maxLengthBytes, msb, vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { foldStep, forEachStep, history, historyStep, okStep, pure, step } from '../effects/module.f.mjs'
-/** @import { Effect, Operation } from '../effects/types.ts' */
 import { eff } from '../effects/eff/module.f.mjs'
 import {
     access,
@@ -27,26 +38,10 @@ import {
     stat,
     writeBytes,
 } from '../effects/node/module.f.mjs'
-/** @import {
-    Access,
-    CreateExclusive,
-    IoResult,
-    Mkdir,
-    Now,
-    RandomInt,
-    ReadBytes,
-    Readdir,
-    Rename,
-    Rm,
-    Stat,
-    WriteBytes,
-} from '../effects/node/types.ts' */
 import { toOption } from '../types/nullable/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.mjs'
 import { splitAt } from '../types/string/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
-/** @import { List } from '../effects/list/types.ts' */
-/** @import { Cas, FileCas, FileCasOperation } from './types.ts' */
 
 const split2 = splitAt(2)
 

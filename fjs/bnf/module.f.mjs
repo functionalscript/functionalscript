@@ -6,9 +6,10 @@
  * See `./types.ts` for the type-level API.
  *
  * @module
+ *
+ * @import { Tuple } from '../types/array/types.ts'
+ * @import { TerminalRange, Sequence, Rule, RangeVariant, None, Option, Repeat0Plus, Repeat1Plus, Join1Plus, Repeat } from './types.ts'
  */
-
-/** @import { Tuple } from '../types/array/types.ts' */
 
 import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.mjs'
 import { definedValues } from '../types/object/module.f.mjs'
@@ -16,7 +17,6 @@ import { isTuple } from '../types/array/module.f.mjs'
 import { map, toArray, repeat as listRepeat } from '../types/list/module.f.mjs'
 import { contains } from '../types/range/module.f.mjs'
 import { assert } from '../asserts/module.f.mjs'
-/** @import { TerminalRange, Sequence, Variant, DataRule, LazyRule, Rule, RangeVariant, None, Option, Repeat0Plus, Repeat1Plus, Join1Plus, Join0Plus, Repeat } from './types.ts' */
 
 // Internals:
 

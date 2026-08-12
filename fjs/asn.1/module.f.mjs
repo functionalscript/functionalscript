@@ -3,10 +3,12 @@
  * helpers, length-prefixed payloads, and OID conversion via Base-128.
  *
  * @module
+ *
+ * @import { Unpacked, Vec } from '../types/bit_vec/types.ts'
+ * @import { ObjectIdentifier, Raw, Record, Sequence, SupportedRecord, _Tag } from './types.ts'
  */
 
 import { bitLength, divUp8 } from '../types/bigint/module.f.mjs'
-
 import {
     empty,
     isVec,
@@ -17,19 +19,8 @@ import {
     vec,
     vec8,
 } from '../types/bit_vec/module.f.mjs'
-
-/** @import { Unpacked, Vec } from '../types/bit_vec/types.ts' */
-
-/**
- * @import {
- *  ObjectIdentifier, Raw, Record, Sequence, SupportedRecord, _Tag,
- * } from './types.ts'
- */
-
 import { identity } from '../types/function/module.f.mjs'
-
 import { max } from '../types/function/compare/module.f.mjs'
-
 import { encode as b128encode, decode as b128decode } from '../basen/base128/module.f.mjs'
 
 //

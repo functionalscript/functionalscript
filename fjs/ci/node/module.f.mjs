@@ -3,13 +3,14 @@
  * per-version canonical jobs.
  *
  * @module
+ *
+ * @import { Job, Jobs, MetaStep, Step } from '../common/types.ts'
+ * @import { NixJob } from '../nix/types.ts'
  */
 
 import { node } from '../config/module.f.mjs'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
-/** @import { Job, Jobs, MetaStep, Step } from '../common/types.ts' */
 import { nixInstall, nixVersionCheckStep } from '../nix/module.f.mjs'
-/** @import { NixJob } from '../nix/types.ts' */
 
 /** @type {(v: string) => string} */
 export const major = v => v.split('.')[0]

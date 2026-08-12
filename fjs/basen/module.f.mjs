@@ -10,17 +10,15 @@
  * `vecToString` / `stringToVec`.
  *
  * @module
+ *
+ * @import { Vec } from '../types/bit_vec/types.ts'
+ * @import { List } from '../types/list/types.ts'
+ * @import { BaseN } from './types.ts'
  */
 
 import { msb, lsb, vec, chunkList, unpack } from '../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../types/bit_vec/types.ts' */
-
 import { fold } from '../types/list/module.f.mjs'
-/** @import { List } from '../types/list/types.ts' */
-
 import { compose } from '../types/function/module.f.mjs'
-
-/** @import { BaseN } from './types.ts' */
 
 const { unpackSplit } = msb
 

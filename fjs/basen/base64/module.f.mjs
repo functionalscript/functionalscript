@@ -2,13 +2,12 @@
  * Standard Base64 encoding and decoding (RFC 4648).
  *
  * @module
+ *
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
 import { msb, length, vec, maxLength } from '../../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/types.ts' */
-
-/** @import { Nullable } from '../../types/nullable/types.ts' */
-
 import { baseN } from "../module.f.mjs"
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'

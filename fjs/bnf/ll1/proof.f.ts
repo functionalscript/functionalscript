@@ -1,12 +1,14 @@
+import type { RuleSet } from '../data/types.ts'
+import type { MatchResult } from './types.ts'
+
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.mjs'
-import { deterministic } from '../testlib.f.ts'
 import { toData } from '../data/module.f.mjs'
-import type { RuleSet } from '../data/types.ts'
 import { dispatchMap, parser, parserRuleSet } from './module.f.mjs'
-import type { MatchResult } from './types.ts'
 import { assertEq } from '../../asserts/module.f.mjs'
+
+import { deterministic } from '../testlib.f.ts'
 
 export const proof = {
     dispatch: [

@@ -1,8 +1,9 @@
+/** @import { NodeProgramOptions } from '../../effects/node/types.ts' */
+
 import { commands } from './module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { maxLength, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
-/** @import { NodeProgramOptions } from '../../effects/node/types.ts' */
 import { dispatch } from '../../cli/module.f.mjs'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'

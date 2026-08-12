@@ -9,11 +9,13 @@
  * See `./types.ts` for the `Encoding<T>` type-level API.
  *
  * @module
+ *
+ * @import { Encoding } from './types.ts'
  */
+
 import { assert } from '../../asserts/module.f.mjs'
 import { fromUndefined } from '../../types/nullable/module.f.mjs'
 import { eof, rangeDecode, unicodeRange } from '../module.f.mjs'
-/** @import { Encoding } from './types.ts' */
 
 const [, unicodeLast] = rangeDecode(unicodeRange)
 
