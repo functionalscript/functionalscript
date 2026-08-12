@@ -20,6 +20,21 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/djs/ast/module` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), moving
+  `AstModule`, `AstConst`, `AstModuleRef`, `AstArray`, `AstObject`, and
+  `AstBody` into a sibling `types.ts` — importers must use the `.f.mjs`
+  specifier for the runtime value and the `types.ts` specifier for the
+  types. `fjs/djs`'s own recursive `Primitive`/`Object`/`Array`/`Unknown`
+  types move out of `fjs/djs/module.f.ts` into a new sibling
+  `fjs/djs/types.ts` (hand-authored, following the pattern
+  `fjs/media/json/types.ts` established), with `fjs/djs/module.f.ts`
+  re-exporting them — `fjs/djs/module.f.ts` itself stays TypeScript for
+  now, since it still depends on `fjs/djs/serializer` and
+  `fjs/djs/transpiler`, neither yet migrated. Updates
+  `fjs/djs/ast/proof.f.ts`, `fjs/djs/parser/module.f.ts`, and
+  `fjs/djs/transpiler/module.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/cas/evo/module` and `proof` migrate from
   authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
   moving `Hash`, `Subject`, `RevisionData`, `SubjectState`, `Cache`, and

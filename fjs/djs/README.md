@@ -9,8 +9,8 @@
 
 ## AST
 
-A DJS module parses into [ast/module.f.ts](./ast/module.f.ts); the types
-there carry the shape and its invariants.
+A DJS module parses into [ast/module.f.mjs](./ast/module.f.mjs); the types
+in [ast/types.ts](./ast/types.ts) carry the shape and its invariants.
 
 Why a flat list of constants with index references, rather than a value tree:
 a DJS module denotes a **graph**, and `import` and `const` are how it names
