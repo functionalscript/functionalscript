@@ -1,4 +1,4 @@
-import type { Unknown } from '../../media/json/types.ts'
+/** @import { Unknown } from '../../media/json/types.ts' */
 
 import { has, empty, set, setRange, unset, universe, complement, toRangeMap } from './module.f.mjs'
 import { every, countdown, map, toArray } from '../list/module.f.mjs'
@@ -6,8 +6,8 @@ import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
-const stringify: (a: readonly Unknown[]) => string
-    = jsonStringify(sort)
+/** @type {(a: readonly Unknown[]) => string} */
+const stringify = jsonStringify(sort)
 
 export const proof = {
     has: [
@@ -48,7 +48,7 @@ export const proof = {
         }
     ],
     universe: () => {
-        const x = every(map((v: any) => has(v)(universe))(countdown(256)))
+        const x = every(map((/** @type {any} */ v) => has(v)(universe))(countdown(256)))
         assert(x, x)
     },
     compliment: {
