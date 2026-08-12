@@ -1,4 +1,4 @@
-## camel-case-proof-keys. 48 `proof` test keys are snake_case
+## camel-case-proof-keys. 42 `proof` test keys are snake_case
 
 **Priority:** P4
 **Status:** open
@@ -7,13 +7,12 @@
 
 A `proof` object's keys are the test names the runner prints
 (`proof.historyStep.overDo()`), and the repository writes identifiers in
-camelCase everywhere else. 48 keys across 7 files are snake_case instead:
+camelCase everywhere else. 42 keys across 6 files are snake_case instead:
 
 | file | count |
 | --- | --- |
 | `fjs/sul/id/proof.f.mjs` | 18 |
 | `fjs/sul/level/hash/proof.f.mjs` | 11 |
-| `nanvm-lib/tests/proof.f.ts` | 6 |
 | `fjs/sul/proof.f.mjs` | 5 |
 | `fjs/types/bit_vec/proof.f.ts` | 4 |
 | `fjs/types/prime_field/proof.f.mjs` | 3 |
@@ -43,7 +42,7 @@ everywhere at once.
 
 ### Tasks
 
-- [ ] Rename the keys in the seven files above.
+- [ ] Rename the keys in the six files above.
 - [ ] Add the convention to `AGENTS.md`, noting the keyword/export exception.
 - [ ] `npx tsc` clean; `fjs t` passes (test names change, counts do not).
 
