@@ -6,7 +6,7 @@ import { oneEncode, option, range, rangeDecode, repeat0Plus, set } from '../modu
 import { emptyTagMap, toData } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
-import { stringify } from '../../media/json/module.f.ts'
+import { stringify } from '../../media/json/module.f.mjs'
 import { classic, deterministic } from '../testlib.f.ts'
 
 export const proof = {

@@ -1,7 +1,7 @@
 import { countRefs, stringify, stringifyAsTree } from './module.f.ts'
 import { sort } from '../../types/object/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
-import { setProperty } from '../../media/json/module.f.ts'
+import { setProperty } from '../../media/json/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
