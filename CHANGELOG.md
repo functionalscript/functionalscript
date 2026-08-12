@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/media/json/tokenizer/proof.f.ts` migrates
+  from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the
+  typed `tokenizeString` const becomes a JSDoc `@type` annotation, and
+  the `JsonToken` type import becomes an `@import`
+  [#1504](https://github.com/functionalscript/functionalscript/pull/1504)
 - **BREAKING CHANGES:** `fjs/media/json/proof.f.ts` migrates from
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — two nested
   `as unknown as null` double-casts become nested inline `@type` casts

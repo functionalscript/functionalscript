@@ -1,13 +1,12 @@
 import { tokenize } from './module.f.mjs'
-import type { JsonToken } from './types.ts'
+/** @import { JsonToken } from './types.ts' */
 import { toArray } from '../../../types/list/module.f.mjs'
 import { stringifyAsTree } from '../../../djs/serializer/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.mjs'
 
-const tokenizeString
-    : (s: string) => readonly JsonToken[]
-    = s => toArray(tokenize(stringToList(s)))
+/** @type {(s: string) => readonly JsonToken[]} */
+const tokenizeString = s => toArray(tokenize(stringToList(s)))
 
 const stringify = stringifyAsTree(sort)
 
