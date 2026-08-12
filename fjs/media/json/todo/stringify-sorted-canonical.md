@@ -55,7 +55,7 @@ applications once.
 ## Tasks
 
 - [ ] Add `stringifySorted` to `fjs/media/json/module.f.mjs` with proof
-      coverage in `fjs/media/json/proof.f.ts` (which itself calls
+      coverage in `fjs/media/json/proof.f.mjs` (which itself calls
       `stringify(sort)` seven times today).
 - [ ] Migrate the two source-module sites (`fjs/protocol/mcp/stdio/module.f.mjs`,
       `fjs/djs/module.f.mjs`), then the proof files.
