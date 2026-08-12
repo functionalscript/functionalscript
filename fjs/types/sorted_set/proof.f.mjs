@@ -1,4 +1,4 @@
-import type { Unknown } from '../../media/json/types.ts'
+/** @import { Unknown } from '../../media/json/types.ts' */
 
 import { has, intersect, union } from './module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
@@ -8,14 +8,14 @@ import { flip } from '../function/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
-const str: (a: readonly Unknown[]) => string
-    = a => stringify(sort)(a)
+/** @type {(a: readonly Unknown[]) => string} */
+const str = a => stringify(sort)(a)
 
 const reverseCmp = flip(cmp)
 
 export const proof = {
     example: () => {
-        const cmp = (a: number) => (b: number) => a < b ? -1 : a > b ? 1 : 0
+        const cmp = (/** @type {number} */ a) => (/** @type {number} */ b) => a < b ? -1 : a > b ? 1 : 0
 
         const setA = [1, 3, 5]
         const setB = [3, 4, 5]
