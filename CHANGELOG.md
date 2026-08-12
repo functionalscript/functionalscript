@@ -20,6 +20,16 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/emergent_testing/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the six
+  module-local type aliases become `_`-prefixed JSDoc `@typedef`s
+  (`_Event`, `_TestReporter`, `_RegisterMockState`, `_RegisterMockOps`,
+  `_RegisterRunner`, `_RegisterTestOp`), the
+  `mockRun<RegisterMockOps, RegisterMockState>(...)` instantiation
+  becomes an inline `@type` cast built from the same
+  `Parameters<typeof mockRun<...>>[0]` type the source already used, and
+  the `as const` assertions become inline `@type {const}` casts
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/effects/node/proof.f.ts` migrates from
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the
   explicit generic instantiation `match<ReadFile, IoResult<Vec>>(...)`

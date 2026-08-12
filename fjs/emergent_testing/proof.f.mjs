@@ -1,22 +1,25 @@
-import type { Effect } from '../effects/types.ts'
+/**
+ * @import { Effect } from '../effects/types.ts'
+ * @import { NodeProgramOptions, Sandbox, Write } from '../effects/node/types.ts'
+ * @import { JsModule } from '../effects/node/virtual/types.ts'
+ * @import { Reporter } from './types.ts'
+ * @import { All, Await, Test, TestContext } from '../effects/node/types.ts'
+ * @import { Ts } from '../types/rtti/ts/types.ts'
+ */
+
 import { log } from '../effects/node/module.f.mjs'
-import type { NodeProgramOptions, Sandbox, Write } from '../effects/node/types.ts'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
-import type { JsModule } from '../effects/node/virtual/types.ts'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
     defaultTest,
 } from './module.f.mjs'
-import type { Reporter } from './types.ts'
 import { run as mockRun } from '../effects/mock/module.f.mjs'
-import type { All, Await, Test, TestContext } from '../effects/node/types.ts'
 import { shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { array, number as rttiNumber, or, string as rttiString } from '../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
-import type { Ts } from '../types/rtti/ts/types.ts'
 import { unwrap } from '../types/result/module.f.mjs'
 
 /**
@@ -30,38 +33,46 @@ import { unwrap } from '../types/result/module.f.mjs'
  * JSON representation to round-trip through anyway.
  */
 const event = or(
-    ['result', rttiString, array(or(rttiString, null))] as const,
-    ['summary', rttiNumber, rttiNumber, rttiNumber] as const,
+    /** @type {const} */ (['result', rttiString, array(or(rttiString, null))]),
+    /** @type {const} */ (['summary', rttiNumber, rttiNumber, rttiNumber]),
 )
 
-type Event = Ts<typeof event>
+/** @typedef {Ts<typeof event>} _Event */
 
 const parseEvent = rttiParse(event)
 
-type TestReporter = Reporter<Sandbox | Write>
+/** @typedef {Reporter<Sandbox | Write>} _TestReporter */
 
-const writeEvent = (e: Event) => log(JSON.stringify(e))
+/** @type {(e: _Event) => ReturnType<typeof log>} */
+const writeEvent = e => log(JSON.stringify(e))
 
-const parseEvents = (stdout: string): readonly Event[] =>
+/** @type {(stdout: string) => readonly _Event[]} */
+const parseEvents = stdout =>
     stdout === '' ? [] : stdout.trimEnd().split('\n')
         .map(line => unwrap(parseEvent(unwrap(parseJson(line)))))
 
-const makeReporter = (): TestReporter => ({
+/** @type {() => _TestReporter} */
+const makeReporter = () => ({
     result: (file, path, _r, _throws) => writeEvent(['result', file, [...path]]),
     summary: (pass, fail, time) => writeEvent(['summary', pass, fail, time]),
     test: defaultTest,
 })
 
-const options = (initCwd: string, github = false): NodeProgramOptions => ({
+/** @type {(initCwd: string, github?: boolean) => NodeProgramOptions} */
+const options = (initCwd, github = false) => ({
     ...defaultNodeProgramOptions,
     env: { INIT_CWD: initCwd, ...(github ? { GITHUB_ACTIONS: 'true' } : {}) },
 })
 
-const ok0 = (): unknown => ({ result: ['ok', undefined] as const, duration: 0 })
-const fail0 = (): unknown => ({ result: ['error', 'oops'] as const, duration: 0 })
-const ok1 = (): unknown => ({ result: ['ok', undefined] as const, duration: 1 })
+/** @type {() => unknown} */
+const ok0 = () => ({ result: /** @type {const} */ (['ok', undefined]), duration: 0 })
+/** @type {() => unknown} */
+const fail0 = () => ({ result: /** @type {const} */ (['error', 'oops']), duration: 0 })
+/** @type {() => unknown} */
+const ok1 = () => ({ result: /** @type {const} */ (['ok', undefined]), duration: 1 })
 
-const run = (dir: Record<string, JsModule>, initCwd = '.'): readonly [readonly Event[], number] => {
+/** @type {(dir: Record<string, JsModule>, initCwd?: string) => readonly [readonly _Event[], number]} */
+const run = (dir, initCwd = '.') => {
     const reporter = makeReporter()
     const state = { ...emptyState, root: dir }
     const [finalState, exitCode] = virtual(state)(testAll(reporter)(options(initCwd)))
@@ -70,7 +81,8 @@ const run = (dir: Record<string, JsModule>, initCwd = '.'): readonly [readonly E
 
 // Runs the real `defaultReporter` and returns its captured stdout/stderr so the
 // terminal and GitHub output formats can be asserted directly.
-const runMain = (dir: Record<string, JsModule>, github = false): readonly [string, string, number] => {
+/** @type {(dir: Record<string, JsModule>, github?: boolean) => readonly [string, string, number]} */
+const runMain = (dir, github = false) => {
     const state = { ...emptyState, root: dir }
     const opts = options('.', github)
     const [finalState, exitCode] = virtual(state)(testAll(defaultReporter(opts))(opts))
@@ -149,14 +161,15 @@ export const mixedPassFail = () => {
 
 // return-value sub-tree: passing test's return value is walked
 export const returnValueSubTree = () => {
-    const inner: () => unknown = () => ({ result: ['ok', undefined] as const, duration: 0 })
+    /** @type {() => unknown} */
+    const inner = () => ({ result: /** @type {const} */ (['ok', undefined]), duration: 0 })
     const [events, exit] = run({
         'r.proof.f.ts': () => ({
             proof: {
-                outer: (): unknown => ({
-                    result: ['ok', { inner }] as const,
+                outer: /** @type {() => unknown} */ (() => ({
+                    result: /** @type {const} */ (['ok', { inner }]),
                     duration: 0,
-                }),
+                })),
             }
         }),
     })
@@ -286,55 +299,61 @@ export const githubReporterOutput = () => {
     )
 }
 
-type RegisterMockState = readonly string[]
+/** @typedef {readonly string[]} _RegisterMockState */
 
-type RegisterMockOps = Test | All | Await
+/** @typedef {Test | All | Await} _RegisterMockOps */
 
-type RegisterRunner =
-    (s: RegisterMockState) => <T>(e: Effect<RegisterMockOps, T>) => readonly [RegisterMockState, T]
+/**
+ * @typedef {(s: _RegisterMockState) => <T>(e: Effect<_RegisterMockOps, T>) => readonly [_RegisterMockState, T]} _RegisterRunner
+ */
 
-/** The `test` op body for a `registerModule` mock; `runner` is threaded in explicitly (rather than closed over) so it can recurse into sub-effects returned by `fn`. */
-type RegisterTestOp = (
-    runner: RegisterRunner,
-    ctx: TestContext,
-    name: string,
-    expectFailure: boolean,
-    fn: (t: TestContext) => Effect<RegisterMockOps, void>,
-) => (s: RegisterMockState) => readonly [RegisterMockState, void]
+/**
+ * The `test` op body for a `registerModule` mock; `runner` is threaded in explicitly (rather than closed over) so it can recurse into sub-effects returned by `fn`.
+ * @typedef {(
+ *     runner: _RegisterRunner,
+ *     ctx: TestContext,
+ *     name: string,
+ *     expectFailure: boolean,
+ *     fn: (t: TestContext) => Effect<_RegisterMockOps, void>,
+ * ) => (s: _RegisterMockState) => readonly [_RegisterMockState, void]} _RegisterTestOp
+ */
 
-const registerNoopCtx: TestContext = { test: (_n, _o, _f) => Promise.resolve() }
+/** @type {TestContext} */
+const registerNoopCtx = { test: (_n, _o, _f) => Promise.resolve() }
 
 /**
  * Builds a synchronous mock runner for `registerModule`'s `Test`/`All`/`Await`
  * effect operations. Only the `test` op varies between call sites (whether it
  * invokes the registered callback), so `all`/`await` are shared here.
  */
-const makeRegisterRunner = (testOp: RegisterTestOp): RegisterRunner => {
-    let runner!: RegisterRunner
-    runner = mockRun<RegisterMockOps, RegisterMockState>({
+/** @type {(testOp: _RegisterTestOp) => _RegisterRunner} */
+const makeRegisterRunner = testOp => {
+    /** @type {_RegisterRunner} */
+    let runner
+    runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
         test: (ctx, name, xf, fn) => testOp(runner, ctx, name, xf, fn),
-        all: (...effects: readonly Effect<RegisterMockOps, unknown>[]) => (s: RegisterMockState) =>
+        all: (...effects) => s =>
             effects.reduce(
-                ([st, rs]: readonly [RegisterMockState, readonly unknown[]], e) => {
+                ([st, rs], e) => {
                     const [ns, r] = runner(st)(e)
-                    return [ns, [...rs, r]] as const
+                    return /** @type {readonly [_RegisterMockState, readonly unknown[]]} */ ([ns, [...rs, r]])
                 },
-                [s, []] as readonly [RegisterMockState, readonly unknown[]],
+                /** @type {readonly [_RegisterMockState, readonly unknown[]]} */ ([s, []]),
             ),
-        await: (p: unknown) => (s: RegisterMockState) => [s, [p]] as const,
-    } as Parameters<typeof mockRun<RegisterMockOps, RegisterMockState>>[0])
+        await: p => s => /** @type {const} */ ([s, [p]]),
+    }))
     return runner
 }
 
 // registerModule appends ' ...' for inline runners (Bun).
 // This mock never invokes the registered callback; it only records names.
 export const registerSuffixes = () => {
-    const runner = makeRegisterRunner((_runner, _ctx, name, _xf, _fn) => (s: RegisterMockState) => [[...s, name], undefined])
+    const runner = makeRegisterRunner((_runner, _ctx, name, _xf, _fn) => s => [[...s, name], undefined])
 
-    const proof = {
+    const proof = /** @type {const} */ ({
         ok: () => {},
         throw: { a: () => { throw 'expected' } },
-    } as const
+    })
 
     // Node (star = ''): no suffixes
     const [nodeNames] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ''))
@@ -359,14 +378,14 @@ export const registerThrowsWithoutThrowing = () => {
     // Unlike registerSuffixes' mock, this one actually invokes the registered
     // callback so registerOne's inner `.step` body runs, and asserts the
     // callback is registered with `expectFailure: true`.
-    const runner = makeRegisterRunner((runner, ctx, name, xf, fn) => (s: RegisterMockState) => {
+    const runner = makeRegisterRunner((runner, ctx, name, xf, fn) => s => {
         assert(xf)
         const [ns] = runner(s)(fn(ctx))
         return [[...ns, name], undefined]
     })
 
     // Returns a sub-tree that would register more tests if it were walked.
-    const proof = { throw: { a: () => ({ sub: () => {} }) } } as const
+    const proof = /** @type {const} */ ({ throw: { a: () => ({ sub: () => {} }) } })
 
     const [names] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ''))
     // Only the throw-test itself is registered; `sub` is never reached.
@@ -377,7 +396,7 @@ export const registerThrowsWithoutThrowing = () => {
 // registerModule with an empty proof object registers zero tests and
 // returns without invoking the mock's `test` op at all.
 export const registerEmptyProof = () => {
-    const runner = makeRegisterRunner((_runner, _ctx, name, _xf, _fn) => (s: RegisterMockState) => [[...s, name], undefined])
+    const runner = makeRegisterRunner((_runner, _ctx, name, _xf, _fn) => s => [[...s, name], undefined])
     const [names] = runner([])(registerModule(registerNoopCtx, './a.f.ts', {}, ''))
     assertEq(names.length, 0)
 }
@@ -454,12 +473,12 @@ export const helpers = {
         nullReturnsEmpty: () => {
             const result = parseTestSet(false, null)
             assertEq(Array.isArray(result), true)
-            assertEq((result as unknown[]).length, 0)
+            assertEq((/** @type {unknown[]} */ (result)).length, 0)
         },
         functionWithParamsReturnsEmpty: () => {
-            const result = parseTestSet(false, (_x: number) => _x)
+            const result = parseTestSet(false, (/** @type {number} */ _x) => _x)
             assertEq(Array.isArray(result), true)
-            assertEq((result as unknown[]).length, 0)
+            assertEq((/** @type {unknown[]} */ (result)).length, 0)
         },
     },
 }
