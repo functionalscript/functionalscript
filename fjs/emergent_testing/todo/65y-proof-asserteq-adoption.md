@@ -51,7 +51,7 @@ message.
 A migration that proceeds folder-by-folder, not all at once:
 
 1. **Pilot** — pick one moderately-sized `proof.f.ts` (e.g.
-   `fjs/types/string/proof.f.ts` or `fjs/types/array/proof.f.ts`) and
+   `fjs/types/string/proof.f.ts` or `fjs/types/array/proof.f.mjs`) and
    rewrite every `if (x !== expected) { throw x }` to `assertEq(x, expected)`.
 2. **Validate** — run `npx tsc`, `npm test`, and `npm run fst` from
    that folder. Confirm test output is at least as useful on

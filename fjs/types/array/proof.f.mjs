@@ -88,8 +88,10 @@ export const proof = {
     ],
     empty: () => {
         const x = empty
-        const a: readonly number[] = x
-        const b: readonly string[] = x
+        /** @type {readonly number[]} */
+        const a = x
+        /** @type {readonly string[]} */
+        const b = x
         const c = [...a, ...b, ...x]
         assertEq(c.length, 0, c)
     }
