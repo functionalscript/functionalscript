@@ -11,7 +11,7 @@ places, and neither copy is owned by `fjs/media/json`:
 
 - `fjs/bnf/testlib.f.ts` contains the deterministic JSON grammar used by BNF
   proofs plus the deliberately awkward `classic()` json.org fixture;
-- `fjs/djs/tokenizer/module.f.ts` restates much of the JSON lexical grammar and
+- `fjs/djs/tokenizer/module.f.mjs` restates much of the JSON lexical grammar and
   extends it for DJS.
 
 The duplicated digit/string rules have no single owner, while `fjs/bnf` itself
@@ -112,7 +112,7 @@ Before implementing this TODO after the blocking split:
       `fjs/bnf/unicode`; do not move it back into generic BNF.
 - [ ] Point `fjs/bnf/testlib.f.ts` deterministic JSON use at this module (or remove
       that wrapper and update proof importers); document the role of `classic()`.
-- [ ] Point `fjs/djs/tokenizer/module.f.ts` at the shared digit/string rules while
+- [ ] Point `fjs/djs/tokenizer/module.f.mjs` at the shared digit/string rules while
       keeping DJS-specific number/whitespace/token rules local.
 - [ ] Handle `deno.json` registration according to the repository's exports-map
       state when this module is implemented; do not create a one-entry restrictive

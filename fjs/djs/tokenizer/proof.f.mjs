@@ -1,11 +1,11 @@
+/** @import { Unknown } from '../types.ts' */
 import { descentParser } from '../../bnf/descent/module.f.mjs'
 import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { jsGrammar, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.ts'
+import { jsGrammar, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { stringifyAsTree } from '../serializer/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
-import type { Unknown } from '../module.f.ts'
 
 // DjsTokenWithMetadata carries bigint fields (bf, bigint value) that JSON.stringify can't
 // serialize — reuse the same djs stringifyAsTree serializer tokenizeString uses internally.
@@ -881,42 +881,42 @@ export const proof = {
         () => {
             // keywords other than true/false/null/undefined become plain ids
             const result = toArray(tokenize(stringToList('break'))(''))
-            assertEq(stringify(result as Unknown), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"id","value":"break"}},{"metadata":{"column":6,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"id","value":"break"}},{"metadata":{"column":6,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
             const result = toArray(tokenize(stringToList('-10'))(''))
-            assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"bf":[-10n,0],"kind":"number","value":"-10"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"bf":[-10n,0],"kind":"number","value":"-10"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
             const result = toArray(tokenize(stringToList('-0'))(''))
-            assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"bf":[0n,0],"kind":"number","value":"-0"}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"bf":[0n,0],"kind":"number","value":"-0"}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
             const result = toArray(tokenize(stringToList('-1234567890n'))(''))
-            assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"bigint","value":-1234567890n}},{"metadata":{"column":13,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"bigint","value":-1234567890n}},{"metadata":{"column":13,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
             // '-' followed by '-': one error, stays in minus-state waiting for what follows
             const result = toArray(tokenize(stringToList('--'))(''))
-            assertEq(stringify(result as Unknown), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
             const result = toArray(tokenize(stringToList('---'))(''))
-            assertEq(stringify(result as Unknown), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
             // dangling '-' at eof
             const result = toArray(tokenize(stringToList('-'))(''))
-            assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
             const result = toArray(tokenize(stringToList('[-1234567890n]'))(''))
-            assertEq(stringify(result as Unknown), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"["}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"bigint","value":-1234567890n}},{"metadata":{"column":14,"line":1,"path":""},"token":{"kind":"]"}},{"metadata":{"column":15,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"["}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"bigint","value":-1234567890n}},{"metadata":{"column":14,"line":1,"path":""},"token":{"kind":"]"}},{"metadata":{"column":15,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
             // grammar-level tokenizer error position flows through the DJS wrapper unchanged
             const result = toArray(tokenize(stringToList('00'))(''))
-            assertEq(stringify(result as Unknown), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}}]')
+            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}}]')
         },
     ],
     // Regression coverage for large inputs: both a file with many short tokens and a

@@ -20,6 +20,14 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/djs/tokenizer/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  moving `DjsToken` and `DjsTokenWithMetadata` into a sibling `types.ts`
+  — importers must use the `.f.mjs` specifier for the runtime values and
+  the `types.ts` specifier for the types. Updates
+  `fjs/djs/parser/module.f.ts`, `fjs/djs/parser/proof.f.ts`, and
+  `fjs/djs/transpiler/module.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/djs/serializer/module` and `proof` migrate
   from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`)
   — `MapEntries`, `RefCounter`, `Refs`, `GetConstsState`, and `RefLookup`

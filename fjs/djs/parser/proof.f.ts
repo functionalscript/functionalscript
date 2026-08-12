@@ -1,5 +1,6 @@
 import { parseFromTokens } from './module.f.ts'
-import { tokenize, type DjsTokenWithMetadata } from '../tokenizer/module.f.ts'
+import { tokenize } from '../tokenizer/module.f.mjs'
+import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'

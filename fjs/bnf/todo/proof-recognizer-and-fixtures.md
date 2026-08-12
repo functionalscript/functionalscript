@@ -11,7 +11,7 @@
 `deterministic`) that four proof files import. Three smaller pieces of the same
 kind never made it there and are copy-pasted instead, across
 `fjs/bnf/descent/proof.f.ts`, `fjs/bnf/ll1/proof.f.ts`, and
-`fjs/djs/tokenizer/proof.f.ts`.
+`fjs/djs/tokenizer/proof.f.mjs`.
 
 This design predates the alphabet split. Its shared `number` fixture currently
 constructs Unicode terminals with core `range('--')` / `range('09')`, and its
@@ -48,7 +48,7 @@ differ: descent returns the record `DescentMatchResult`
 (`fjs/bnf/descent/types.ts:52-57` — `{ ast, success, idx, failure? }`),
 while ll1's `MatchResult` is still a tuple. Any adapter has to speak both.
 
-`fjs/djs/tokenizer/proof.f.ts:27` is an eighth site in the descent shape, with
+`fjs/djs/tokenizer/proof.f.mjs:31` is an eighth site in the descent shape, with
 `JSON.stringify([s, mr])` as its message instead of `mr`.
 
 The copies have drifted in exactly the ways copies do: the start-rule name is
@@ -85,7 +85,7 @@ silently folded into the shared fixture.
 #### 3. The JSON acceptance corpus — 20 cases, 3 copies
 
 `fjs/bnf/descent/proof.f.ts` and `fjs/bnf/ll1/proof.f.ts` list the same 20 inputs
-with the same verdicts; `fjs/djs/tokenizer/proof.f.ts` repeats them plus DJS-token
+with the same verdicts; `fjs/djs/tokenizer/proof.f.mjs` repeats them plus DJS-token
 specific cases. Six JSON-rejecting rows are intentionally accepted by the JS
 /DJS token stream because tokenization leaves document structure to the parser.
 That divergence should be an explicit override table rather than a copied corpus.
