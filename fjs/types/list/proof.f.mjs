@@ -1,15 +1,14 @@
-import type { Unknown } from '../../media/json/types.ts'
+/** @import { Unknown } from '../../media/json/types.ts' */
 
-import type { List } from './types.ts'
+/** @import { List } from './types.ts' */
 import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, take, takeWhile, toArray, zip, first, filterMap, isEmpty, equal, tryFold } from './module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { addition, strictEqual, reduceToScan } from '../function/operator/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 
-const str
-    : (sequence: List<Unknown>) => string
-    = sequence => stringify(sort)(toArray(sequence))
+/** @type {(sequence: List<Unknown>) => string} */
+const str = sequence => stringify(sort)(toArray(sequence))
 
 const stringifyTest = () => {
     const s = str([1, 2, 3])
@@ -44,7 +43,7 @@ const concatTest = () => {
 }
 
 const flatMapTest = () => {
-    const result = str(flatMap((x: number) => [x, x * 2, x * 3])([0, 1, 2, 3]))
+    const result = str(flatMap((/** @type {number} */ x) => [x, x * 2, x * 3])([0, 1, 2, 3]))
     assertEq(result, '[0,0,0,1,2,3,2,4,6,3,6,9]')
 }
 
@@ -65,28 +64,28 @@ const takeTest = [
 
 const findTest = [
     () => {
-        const result = find(null)((x: number) => x % 2 === 0)([1, 3, 5, 7])
+        const result = find(null)((/** @type {number} */ x) => x % 2 === 0)([1, 3, 5, 7])
         assertEq(result, null)
     },
     () => {
-        const result = find(null)((x: number) => x % 2 === 0)([1, 2, 3, 4])
+        const result = find(null)((/** @type {number} */ x) => x % 2 === 0)([1, 2, 3, 4])
         assertEq(result, 2)
     }
 ]
 
 const takeWhileTest = [
     () => {
-        const result = str(takeWhile((x: number) => x < 10)([1, 2, 3, 4, 5, 10, 11]))
+        const result = str(takeWhile((/** @type {number} */ x) => x < 10)([1, 2, 3, 4, 5, 10, 11]))
         assertEq(result, '[1,2,3,4,5]')
     },
     () => {
-        const result = str(takeWhile((x: number) => x < 6)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        const result = str(takeWhile((/** @type {number} */ x) => x < 6)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
         assertEq(result, '[1,2,3,4,5]')
     }
 ]
 
 const dropWhileTest = () => {
-    const result = str(dropWhile((x: number) => x < 10)([1, 2, 3, 4, 5, 10, 11]))
+    const result = str(dropWhile((/** @type {number} */ x) => x < 10)([1, 2, 3, 4, 5, 10, 11]))
     assertEq(result, '[10,11]')
 }
 
@@ -132,16 +131,16 @@ const entriesTest = [
     }
 ]
 
-const sumUpTo = (limit: number) => ({
+const sumUpTo = (/** @type {number} */ limit) => ({
     init: 0,
-    update: (i: number, state: number) => {
+    update: (/** @type {number} */ i, /** @type {number} */ state) => {
         const next = state + i
         return next > limit ? null : next
     },
-    end: (state: number) => state * 10,
+    end: (/** @type {number} */ state) => state * 10,
 })
 
-const tryFoldTest = [
+const tryFoldTest = /** @type {const} */ ([
     () => {
         const result = tryFold(sumUpTo(100))([1, 2, 3])
         assertEq(result, 60)
@@ -154,7 +153,7 @@ const tryFoldTest = [
         const result = tryFold(sumUpTo(100))([])
         assertEq(result, 0)
     },
-] as const
+])
 
 const reverseTest = [
     () => {
@@ -179,7 +178,7 @@ const zipTest = [
 ]
 
 const logic = () => {
-    const map5 = map((x: number) => x > 5)
+    const map5 = map((/** @type {number} */ x) => x > 5)
 
     return [
         () => {
@@ -217,7 +216,7 @@ const stress = () => ({
         const n = 100_000_000
         const result = toArray(countdown(n))
         assertEq(result.length, n)
-        const len = length(filter((x: number) => x > n)(result))
+        const len = length(filter((/** @type {number} */ x) => x > n)(result))
         assertEq(len, 0)
     },
     first: () => {
@@ -229,9 +228,8 @@ const stress = () => ({
         assertEq(f, n - 1)
     },
     concatBack: () => {
-        let sequence
-            : List<number>
-            = []
+        /** @type {List<number>} */
+        let sequence = []
         // 20_000_000 is too much
         // 10_000_000 is too much for Deno 1
         for (let i = 0; i < 5_000_000; ++i) {
@@ -240,9 +238,8 @@ const stress = () => ({
         const r = toArray(sequence)
     },
     flatToArray: () => {
-        let sequence
-            : List<number>
-            = []
+        /** @type {List<number>} */
+        let sequence = []
         // 4_000_000 is too much
         for (let i = 0; i < 2_000_000; ++i) {
             sequence = flat([sequence, [i]])
@@ -250,9 +247,8 @@ const stress = () => ({
         const r = toArray(sequence)
     },
     flatNext: () => {
-        let sequence
-            : List<number>
-            = []
+        /** @type {List<number>} */
+        let sequence = []
         // 4_000_000 is too much
         for (let i = 0; i < 2_000_000; ++i) {
             sequence = flat([sequence, [i]])
@@ -260,9 +256,8 @@ const stress = () => ({
         const a = next(sequence)
     },
     concatFront: () => {
-        let sequence
-            : List<number>
-            = []
+        /** @type {List<number>} */
+        let sequence = []
         // 20_000_000 is too much
         for (let i = 0; i < 10_000_000; ++i) {
             sequence = concat([i])(sequence)
@@ -270,9 +265,8 @@ const stress = () => ({
         const a = next(sequence)
     },
     flatFront: () => {
-        let sequence
-            : List<number>
-            = []
+        /** @type {List<number>} */
+        let sequence = []
         // 10_000_000 is too much
         for (let i = 0; i < 5_000_000; ++i) {
             sequence = flat([[i], sequence])
@@ -357,11 +351,11 @@ export const proof = {
     },
     filterMap: [
         () => {
-            const result = str(filterMap((x: number) => x % 2 === 0 ? x * 10 : null)([1, 2, 3, 4, 5]))
+            const result = str(filterMap((/** @type {number} */ x) => x % 2 === 0 ? x * 10 : null)([1, 2, 3, 4, 5]))
             assertEq(result, '[20,40]')
         },
         () => {
-            const result = str(filterMap((x: number) => x > 3 ? x : null)([1, 2, 3]))
+            const result = str(filterMap((/** @type {number} */ x) => x > 3 ? x : null)([1, 2, 3]))
             assertEq(result, '[]')
         },
     ],
