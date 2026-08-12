@@ -20,6 +20,14 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/rtti/validate/proof.f.ts` migrates
+  from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the 23
+  function-local `Assert<Equal<...>>` round-trips stay function-local as
+  JSDoc `@typedef`s, the local generic aliases and generic `func` in
+  `funcParam`/`funcObj` become `@template` typedefs and a
+  `@template`/`@param`/`@returns` block, and the `as const`/`as number`
+  assertions become inline `@type` casts
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/types/rtti/parse/proof.f.ts` migrates from
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the
   function-local `Assert<Equal<...>>` round-trips stay function-local as
