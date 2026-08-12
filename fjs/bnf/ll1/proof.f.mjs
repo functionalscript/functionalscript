@@ -1,5 +1,9 @@
-import type { RuleSet } from '../data/types.ts'
-import type { MatchResult } from './types.ts'
+/**
+ * @module
+ *
+ * @import { RuleSet } from '../data/types.ts'
+ * @import { MatchResult } from './types.ts'
+ */
 
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
@@ -7,7 +11,6 @@ import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.mjs
 import { toData } from '../data/module.f.mjs'
 import { dispatchMap, parser, parserRuleSet } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
-
 import { deterministic } from '../testlib.f.mjs'
 
 export const proof = {
@@ -198,8 +201,9 @@ export const proof = {
         () => {
             const m = parser(option('a'))
 
-            const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
-            const expect = (s: string, success: boolean) => {
+            const isSuccess = (/** @type {MatchResult} */mr) => mr[1] && mr[2]?.length === 0
+            /** @type {(s: string, success: boolean) => void} */
+            const expect = (s, success) => {
                 const mr = m('', toArray(stringToCodePointList(s)))
                 assertEq(isSuccess(mr), success, mr)
             }
@@ -223,8 +227,10 @@ export const proof = {
 
             const m = parser(value)
 
-            const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
-            const expect = (s: string, success: boolean) => {
+            /** @type {(mr: MatchResult) => boolean} */
+            const isSuccess = mr => mr[1] && mr[2]?.length === 0
+            /** @type {(s: string, success: boolean) => void} */
+            const expect = (s, success) => {
                 const mr = m('value', toArray(stringToCodePointList(s)))
                 assertEq(isSuccess(mr), success, mr)
             }
@@ -238,8 +244,10 @@ export const proof = {
         () => {
             const m = parser(deterministic())
 
-            const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
-            const expect = (s: string, success: boolean) => {
+            /** @type {(mr: MatchResult) => boolean} */
+            const isSuccess = (mr) => mr[1] && mr[2]?.length === 0
+            /** @type {(s: string, success: boolean) => void} */
+            const expect = (s, success) => {
                 const mr = m('', toArray(stringToCodePointList(s)))
                 assertEq(isSuccess(mr), success, mr)
             }
@@ -268,7 +276,8 @@ export const proof = {
     ],
     repeat: [
         () => {
-            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            /** @type {readonly [RuleSet, string]} */
+            const repeatData = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
             const dm = dispatchMap(repeatData[0])
             const result = JSON.stringify(dm)
             if (result !== '{"ws":{"emptyTag":true,"rangeMap":[]},"a":{"rangeMap":[[null,64],[{"rules":[]},65]]},"repa":{"rangeMap":[[null,64],[{"rules":[""]},65]]},"":{"rangeMap":[[null,64],[{"rules":[""]},65]]}}') { throw result }
@@ -276,28 +285,32 @@ export const proof = {
     ],
     repeatParser: [
         () => {
-            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            /** @type {readonly [RuleSet, string]} */
+            const repeatData = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
             const m = parserRuleSet(repeatData[0])
             const mr = m("", [])
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[]},true,null]') { throw result }
         },
         () => {
-            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            /** @type {readonly [RuleSet, string]} */
+            const repeatData = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
             const m = parserRuleSet(repeatData[0])
             const mr = m("", [65])
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[65,{"sequence":[]}]},true,null]') { throw result }
         },
         () => {
-            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            /** @type {readonly [RuleSet, string]} */
+            const repeatData = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
             const m = parserRuleSet(repeatData[0])
             const mr = m("", [65,65,65])
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[65,{"sequence":[65,{"sequence":[65,{"sequence":[]}]}]}]},true,null]') { throw result }
         },
         () => {
-            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            /** @type {readonly [RuleSet, string]} */
+            const repeatData = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
             const m = parserRuleSet(repeatData[0])
             const mr = m("", [66])
             const result = JSON.stringify(mr)
@@ -323,7 +336,8 @@ export const proof = {
         const value = () => ({ array: ['[', value, ']'], leaf: 'a' })
         const m = parser([ws, value, ws]) // must not throw 'can not merge'
 
-        const expect = (s: string, success: boolean) => {
+        /** @type {(s: string, success: boolean) => void} */
+        const expect = (s, success) => {
             const mr = m('', toArray(stringToCodePointList(s)))
             assertEq(mr[1] && mr[2]?.length === 0, success, mr)
         }
