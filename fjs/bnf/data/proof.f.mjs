@@ -1,4 +1,6 @@
-import type { RuleSet } from './types.ts'
+/**
+ *  @import { RuleSet } from './types.ts'
+ */
 
 import { identity } from '../../types/function/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -137,7 +139,8 @@ export const proof = {
             // 1-item sequence over A) only becomes nullable once A does, and
             // once B is nullable, A's true winning branch is 'y' (A -> B) —
             // reachable only by iterating to an actual fixpoint.
-            const rs: RuleSet = { A: { x: 'E', y: 'B' }, B: ['A'], E: [] }
+            /** @type {RuleSet} */
+            const rs = { A: { x: 'E', y: 'B' }, B: ['A'], E: [] }
             assertEq(emptyTagMap(rs).A, 'y')
         },
     ],
