@@ -1,3 +1,10 @@
+/**
+ * Type-level API for `fjs/cas/evo/module.f.mjs`: the Evo cache shape and the
+ * `Evo<O>` API surface it builds.
+ *
+ * @module
+ */
+
 import type { Operation, Effect } from '../../effects/types.ts'
 import type { MemOp } from '../../effects/memory/types.ts'
 import type { Result } from '../../types/result/types.ts'

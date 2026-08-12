@@ -25,7 +25,7 @@ import { unknown } from '../../media/json/rtti/module.f.mjs'
 export const jsonrpc = /** @type {const} */ ('2.0')
 
 /** Request/response identifier: a string, a number, or `null`. */
-export const id = or(string, number, null)
+export const _id = or(string, number, null)
 
 /**
  * A request or notification envelope. `id` present → request (a response is
@@ -37,7 +37,7 @@ export const request = /** @type {const} */ ({
     jsonrpc,
     method: string,
     params: option(unknown),
-    id: option(id),
+    id: option(_id),
 })
 
 /** The JSON-RPC error object. */
@@ -47,8 +47,8 @@ export const error = /** @type {const} */ ({
     data: option(unknown),
 })
 
-export const successResponse = /** @type {const} */ ({ jsonrpc, result: unknown, id })
-export const errorResponse = /** @type {const} */ ({ jsonrpc, error, id })
+export const successResponse = /** @type {const} */ ({ jsonrpc, result: unknown, id: _id })
+export const errorResponse = /** @type {const} */ ({ jsonrpc, error, id: _id })
 
 /**
  * A response envelope: either a success (`result`) or an error (`error`).

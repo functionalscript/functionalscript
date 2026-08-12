@@ -20,6 +20,22 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/protocol/json_rpc/module`'s `id` schema const
+  is renamed to `_id` — it crosses into the sibling `types.ts` (as
+  `typeof _id`) but was never meant to be a public runtime export, so the
+  `_` prefix marks it private-by-convention like the equivalent case in
+  `fjs/media/revision/module`'s `_lock`. `fjs/media/module`'s CHANGELOG
+  entry below is corrected: it no longer claims `fjs/media/proof.f.ts`
+  stays TypeScript, since this PR migrates it (see the next entry). Also
+  adds the required `@module` header to four `types.ts` files added
+  earlier in this PR that were missing one (`fjs/cas/evo/types.ts`,
+  `fjs/media/types.ts`, `fjs/media/revision/types.ts`,
+  `fjs/protocol/json_rpc/types.ts`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/media/proof.f.ts` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — no local
+  types to split
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/djs/ast/module` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), moving
   `AstModule`, `AstConst`, `AstModuleRef`, `AstArray`, `AstObject`, and
@@ -71,9 +87,7 @@ history.
   `DialectEntry` into a sibling `types.ts` — importers must use the
   `.f.mjs` specifier for the runtime value and the `types.ts` specifier
   for the type. Updates `fjs/media/revision/module` and
-  `fjs/mcp/cas/module` accordingly. `fjs/media/proof.f.ts` stays
-  TypeScript for now: it still depends on `fjs/media/revision`, which is
-  not yet migrated
+  `fjs/mcp/cas/module` accordingly
   [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/fsm/module` and `proof` migrate from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — `Grammar` stays

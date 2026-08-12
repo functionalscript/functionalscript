@@ -1,17 +1,21 @@
+/**
+ * @import { Vec } from '../types/bit_vec/types.ts'
+ * @import { DialectEntry } from './types.ts'
+ */
 import { assertEq } from '../asserts/module.f.mjs'
-import type { Vec } from '../types/bit_vec/types.ts'
 import { msb, u8ListToVec, repeat, vec8 } from '../types/bit_vec/module.f.mjs'
 import { detect, dialectEntry } from './module.f.mjs'
-import type { DialectEntry } from './types.ts'
 import { dialect, revisionDialect } from './revision/module.f.mjs'
 import { number, string } from '../types/rtti/module.f.mjs'
 
 // All test strings here are ASCII, so char code === UTF-8 byte value.
-const utf8Bytes = (s: string): Vec => u8ListToVec(msb)([...s].map(c => c.charCodeAt(0)))
+/** @type {(s: string) => Vec} */
+const utf8Bytes = s => u8ListToVec(msb)([...s].map(c => c.charCodeAt(0)))
 
 const revisionJson = `{"dialect":"${dialect}","subject":"8","parents":[],"snapshot":"8","generation":0}`
 
-const dialects: readonly DialectEntry[] = [revisionDialect]
+/** @type {readonly DialectEntry[]} */
+const dialects = [revisionDialect]
 
 const detectRevision = detect(dialects)
 
@@ -19,26 +23,29 @@ const detectRevision = detect(dialects)
  * A second dialect following the same `vnd.fjs.<name>` convention, registered
  * with no refinement: structure alone decides the match.
  */
-const noteSchema = {
+const noteSchema = /** @type {const} */ ({
     dialect: 'vnd.fjs.note',
     text: string,
-} as const
+})
 
-const noteDialect: DialectEntry = dialectEntry(noteSchema)
+/** @type {DialectEntry} */
+const noteDialect = dialectEntry(noteSchema)
 
 /** A dialect name outside `vnd.fjs.*` — registerable, and detected as itself. */
-const gadgetSchema = {
+const gadgetSchema = /** @type {const} */ ({
     dialect: 'application.gadget',
     size: number,
-} as const
+})
 
-const gadgetDialect: DialectEntry = dialectEntry(gadgetSchema)
+/** @type {DialectEntry} */
+const gadgetDialect = dialectEntry(gadgetSchema)
 
 /**
  * `DialectEntry` is deliberately not opaque, so overlapping entries — which a
  * self-discriminating schema can't produce on its own — can be stated directly.
+ * @type {(name: string) => DialectEntry}
  */
-const anyEntry = (name: string): DialectEntry => ({ dialect: name, match: () => true })
+const anyEntry = name => ({ dialect: name, match: () => true })
 
 export const proof = {
     // A valid revision blob is recognized and reported under its derived media type.

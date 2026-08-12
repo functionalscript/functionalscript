@@ -1,3 +1,11 @@
+/**
+ * Type-level API for `fjs/media/revision/module.f.mjs`: `LockMap`,
+ * `Revision`, and `RevisionError`, derived from the module's own rtti
+ * schemas.
+ *
+ * @module
+ */
+
 import type { Ts } from '../../types/rtti/ts/types.ts'
 import type { ValidationError } from '../../types/rtti/common/types.ts'
 import type { _lock, revisionSchema } from './module.f.mjs'
