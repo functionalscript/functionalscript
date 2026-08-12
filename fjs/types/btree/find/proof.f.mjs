@@ -1,31 +1,29 @@
-import type { Unknown } from '../../../media/json/types.ts'
+/** @import { Unknown } from '../../../media/json/types.ts' */
 
-import type { Result } from './types.ts'
+/** @import { Result } from './types.ts' */
 import { find as btreeFind } from './module.f.mjs'
 import { map, toArray } from '../../list/module.f.mjs'
 import { stringify } from '../../../media/json/module.f.mjs'
 import { sort } from '../../object/module.f.mjs'
-import type { TNode } from '../types/types.ts'
+/** @import { TNode } from '../types/types.ts' */
 import { cmp } from '../../string/module.f.mjs'
 import { set as setSet } from '../set/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
 const jsonStr = stringify(sort)
 
-const set
-    : (node: TNode<string>) => (value: string) => TNode<string>
-    = node => value => setSet(cmp(value))(() => value)(node)
+/** @type {(node: TNode<string>) => (value: string) => TNode<string>} */
+const set = node => value => setSet(cmp(value))(() => value)(node)
 
-const str
-    : (r: Result<Unknown>) => string
-    = r => jsonStr(toArray(map((x: any) => x[0])(r)))
+/** @type {(r: Result<Unknown>) => string} */
+const str = r => jsonStr(toArray(map((/** @type {any} */ x) => x[0])(r)))
 
-const find
-    : (i: string) => (m: TNode<string>) => string
-    = i => m => str(btreeFind(cmp(i))(m))
+/** @type {(i: string) => (m: TNode<string>) => string} */
+const find = i => m => str(btreeFind(cmp(i))(m))
 
 const test = () => {
-    let _map: TNode<string> = ['1']
+    /** @type {TNode<string>} */
+    let _map = ['1']
     for (let i = 2; i <= 10; i++) {
         _map = set(_map)((i * i).toString())
     }

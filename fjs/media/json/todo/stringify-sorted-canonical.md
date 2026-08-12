@@ -17,7 +17,7 @@ Source modules:
 Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
 `stringifyJson`):
 
-- `fjs/types/btree/proof.f.mjs:11`, `fjs/types/btree/find/proof.f.ts:10`,
+- `fjs/types/btree/proof.f.mjs:11`, `fjs/types/btree/find/proof.f.mjs:10`,
   `fjs/types/btree/set/proof.f.ts:11`, `fjs/types/btree/remove/proof.f.ts:16`
 - `fjs/types/array/proof.f.mjs:6`, `fjs/types/byte_set/proof.f.mjs:8`,
   `fjs/types/range_map/proof.f.ts:12`, `fjs/types/sorted_list/proof.f.mjs:10`,

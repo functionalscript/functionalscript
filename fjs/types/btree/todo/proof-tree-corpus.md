@@ -48,7 +48,7 @@ sequence because it is interleaved with 174 lines of boilerplate.
 #### 2. The fixture helpers are re-declared in all four proofs
 
 ```ts
-// fjs/types/btree/proof.f.mjs:17-19, find/proof.f.ts:12-14,
+// fjs/types/btree/proof.f.mjs:17-19, find/proof.f.mjs:12-14,
 // set/proof.f.ts:8-9, remove/proof.f.ts:9-10 — four copies
 const set = (node: TNode<string>) => (value: string) =>
     setSet(cmp(value))(() => value)(node)
@@ -57,7 +57,7 @@ const set = (node: TNode<string>) => (value: string) =>
 Each also binds its own `jsonStr = stringify(sort)`, and **all four** open-code
 the squares loop `_map = set(_map)((i * i).toString())` — `set/proof.f.ts` 31
 times, `remove/proof.f.ts:20` (`n = 38`) and `:376` (`n = 10`),
-`find/proof.f.ts:26` (`n = 10`), and `proof.f.ts:33-35` (`valuesTest2`,
+`find/proof.f.mjs:26` (`n = 10`), and `proof.f.ts:33-35` (`valuesTest2`,
 `n = 10`).
 
 **`remove/proof.f.ts:444-461` (`test3`) is not one of them.** Its loop inserts
@@ -196,11 +196,11 @@ are.
       the single `jsonStr` alias.
 - [ ] Convert `fjs/types/btree/set/proof.f.ts` to `expectedSquares.map`; keep
       the two `replace` cases hand-written, sourced from `squares`.
-- [ ] Convert `fjs/types/btree/remove/proof.f.ts`, `find/proof.f.ts`, and
+- [ ] Convert `fjs/types/btree/remove/proof.f.ts`, `find/proof.f.mjs`, and
       `proof.f.ts` to import the fixture; delete the four local `set` helpers
       and `remove/proof.f.ts`'s duplicate `n = 38` literal (`:23-30`).
 - [ ] Replace every squares loop with `squares(n)`, not just the local `set`
-      helpers — `remove/proof.f.ts:20` and `:376`, `find/proof.f.ts:26`, and
+      helpers — `remove/proof.f.ts:20` and `:376`, `find/proof.f.mjs:26`, and
       `proof.f.ts:33-35` (`valuesTest2`). Importing `set` while leaving the
       loop in place would satisfy the previous task and still leave the corpus
       with four owners.
