@@ -18,7 +18,8 @@ import {
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { min } from '../function/compare/module.f.mjs'
 
-const oldLog2 = (v: bigint): bigint => {
+/** @type {(v: bigint) => bigint} */
+const oldLog2 = v => {
     if (v <= 0n) { return -1n }
     let result = 0n
     let i = 1n
@@ -45,19 +46,23 @@ const oldLog2 = (v: bigint): bigint => {
     return result
 }
 
-const strBinLog2 = (v: bigint): bigint => BigInt(v.toString(2).length) - 1n
+/** @type {(v: bigint) => bigint} */
+const strBinLog2 = v => BigInt(v.toString(2).length) - 1n
 
-const strHexLog2 = (v: bigint): bigint => {
+/** @type {(v: bigint) => bigint} */
+const strHexLog2 = v => {
     const len = (BigInt(v.toString(16).length) - 1n) << 2n
     return len + 31n - BigInt(Math.clz32(Number(v >> len)))
 }
 
-const str32Log2 = (v: bigint): bigint => {
+/** @type {(v: bigint) => bigint} */
+const str32Log2 = v => {
     const len = (BigInt(v.toString(32).length) - 1n) * 5n
     return len + 31n - BigInt(Math.clz32(Number(v >> len)))
 }
 
-export const clz32Log2 = (v: bigint): bigint => {
+/** @type {(v: bigint) => bigint} */
+export const clz32Log2 = v => {
     if (v <= 0n) { return -1n }
     let result = 31n
     let i = 32n
@@ -84,7 +89,8 @@ export const clz32Log2 = (v: bigint): bigint => {
     return result - BigInt(Math.clz32(Number(v)))
 }
 
-const m1023log2 = (v: bigint): bigint => {
+/** @type {(v: bigint) => bigint} */
+const m1023log2 = v => {
     if (v <= 0n) { return -1n }
 
     //
@@ -133,9 +139,10 @@ const m1023log2 = (v: bigint): bigint => {
     return result + rem + (v >> rem)
 }
 
-type Benchmark = (f: (_: bigint) => bigint) => () => void
+/** @typedef {(f: (_: bigint) => bigint) => () => void} Benchmark */
 
-const benchmark: Benchmark = f => () => {
+/** @type {Benchmark} */
+const benchmark = f => () => {
     let e = 1_048_575n
     let c = 1n << e
     for (let i = 0n; i < 1_100; ++i) {
@@ -153,7 +160,8 @@ const benchmark: Benchmark = f => () => {
 }
 
 
-const benchmarkSmall: Benchmark = f => () => {
+/** @type {Benchmark} */
+const benchmarkSmall = f => () => {
     let e = 2_000n
     let c = 1n << e
     do {
@@ -203,7 +211,7 @@ export const proof = {
             // m1023log2,
             log2,
         }
-        const transform = (b: Benchmark) =>
+        const transform = (/** @type {Benchmark} */ b) =>
             Object.fromEntries(Object.entries(list).map(([k, f]) => [k, b(f)]))
         return {
             big: transform(benchmark),
