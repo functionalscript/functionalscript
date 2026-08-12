@@ -20,6 +20,13 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/djs/transpiler/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`)
+  — `ParseContext` and `djsResult` stay as JSDoc typedefs in the module
+  (no separate `types.ts`, no external importers of the types). Importers
+  must use the `.f.mjs` specifier. Updates `fjs/djs/module.f.ts`
+  accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/djs/parser/module` and `proof` migrate from
   authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
   moving `ParseError` into a sibling `types.ts` — importers must use the

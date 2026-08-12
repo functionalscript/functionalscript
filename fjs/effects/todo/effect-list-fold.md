@@ -93,7 +93,7 @@ Six, all currently strict:
 | `fjs/cas/evo/module.f.mjs:280` | `pure(parents)` | `fromList(parents)` |
 | `fjs/cas/module.f.mjs:149` | `pure(expired)` | `fromList(expired)` |
 | `fjs/cas/module.f.mjs:310` | `pure([0…7])` | `fromList([0…7])` |
-| `fjs/djs/transpiler/module.f.ts:67` | `pure(pathsArray)` | `fromList(pathsArray)` |
+| `fjs/djs/transpiler/module.f.mjs:73` | `pure(pathsArray)` | `fromList(pathsArray)` |
 
 The two `cas.list()` sites are the ones this exists for; converting them is a
 follow-up in `fjs/cas` (see *Related*), not part of this issue.

@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { transpile } from './transpiler/module.f.ts'
+import { transpile } from './transpiler/module.f.mjs'
 import { stringify, stringifyAsTree } from './serializer/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
 import { pure, step } from '../effects/module.f.mjs'

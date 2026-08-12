@@ -1,13 +1,14 @@
+/** @import { Dir } from '../../effects/node/virtual/types.ts' */
 import { sort } from '../../types/object/module.f.mjs'
-import { transpile } from './module.f.ts'
+import { transpile } from './module.f.mjs'
 import { stringifyAsTree } from '../serializer/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
-import type { Dir } from '../../effects/node/virtual/types.ts'
 import { utf8 } from '../../text/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
-const run = (root: Dir) => (path: string) => {
-    const [_, result] = virtual({ ...emptyState, root })(transpile(path))
+/** @type {(root: Dir) => (path: string) => unknown} */
+const run = root => path => {
+    const [, result] = virtual({ ...emptyState, root })(transpile(path))
     return result
 }
 
