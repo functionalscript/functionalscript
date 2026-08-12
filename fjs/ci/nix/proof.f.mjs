@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { NixJob } from './types.ts'
+/** @import { NixJob } from './types.ts' */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { step } from '../../effects/module.f.mjs'
@@ -24,13 +24,15 @@ import {
 
 const { commit } = nixpkgs
 
-const plain: NixJob = {
+/** @type {NixJob} */
+const plain = {
     id: 'node24',
     system: 'aarch64-linux',
     packages: ['nodejs_24'],
 }
 
-const withShellHook: NixJob = {
+/** @type {NixJob} */
+const withShellHook = {
     ...plain,
     id: 'node22',
     packages: ['nodejs_22'],
@@ -70,7 +72,8 @@ const shellHookFlake = `{
 }
 `
 
-const generated = (jobs: readonly NixJob[], id: string): string => {
+/** @type {(jobs: readonly NixJob[], id: string) => string} */
+const generated = (jobs, id) => {
     const written = step(
         nixFlakes(jobs),
         () => readUtf8File(`${generatedDirectory}/${id}/flake.nix`))
