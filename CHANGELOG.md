@@ -20,6 +20,14 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/nominal/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`). Its two
+  `declare const … : unique symbol` brands and the two types built on
+  them move to the sibling `fjs/types/nominal/types.ts`, exported as
+  `_SymbolKeyBranded` and `_SymbolIntersectionBranded` (`_`-prefixed:
+  private by contract) so the proof can keep the expressions that
+  demonstrate which comparisons TypeScript rejects
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/types/ts/proof.f.ts` migrates from authored
   TypeScript to JSDoc-typed JavaScript (`.f.mjs`). Its trailing
   index-signature guidance block uses `declare const`, which has no
