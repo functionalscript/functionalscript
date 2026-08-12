@@ -785,7 +785,12 @@ blocking, plus the prose sweep. The remaining items are listed under
       a `_` name as an ordinary breaking API change with its own changelog entry
       and importer updates, not as a visibility cleanup.
 - [x] Continue upward through the runtime dependency graph in reviewable groups
-      until no authored TypeScript implementation/proof source remains.
+      until no authored TypeScript implementation/proof source remains. Done for
+      every module in the migration group: no `.f.ts` is left anywhere. The
+      `fjs/emergent_testing/scenarios/*.pass.ts` fixtures are still authored
+      TypeScript that `run.sh` hard-links to `_scenario.proof.ts`, but their
+      extension is the thing under test rather than an unmigrated module — see
+      the scenario item under [Remaining after stage 1](#remaining-after-stage-1).
 - [x] Translate `.ts` to `.mjs` and `.f.ts` to `.f.mjs`, moving static type
       information either to JSDoc or to an intentionally separate `types.ts`
       without weakening public type semantics.
@@ -815,14 +820,32 @@ Each item below is stated with the measurement that produced it, so the next
 person can re-check rather than re-derive. Counts are as of
 [#1505](https://github.com/functionalscript/functionalscript/pull/1505).
 
-- [ ] **Fix the `cov` coverage globs, which currently match nothing.**
-      `package.json`'s `cov` script still passes
-      `--test-coverage-include=**/module.f.ts`. No such file exists any more, so
-      the run reports a vacuous `100.00` over 0 tests and coverage has been
-      unverifiable in review for several PRs. Replace the `.f.ts` glob with the
-      `.mjs` forms actually in the tree (`**/module.f.mjs`, `**/module.mjs`) and
-      confirm the report becomes non-empty. This is a one-line change and it
-      restores a signal every later item wants.
+- [ ] **Make `npm run cov` report real coverage.** It has been vacuous for
+      several PRs — reviewers keep reporting `100.00` over 0 tests and having to
+      exclude coverage from their verification — but *not* because of the
+      include globs, so do not start there. The script already passes
+      `--test-coverage-include=**/module.f.mjs` alongside the now-dead
+      `**/module.f.ts` (the `.mjs` glob was added in #1422). Dropping the dead
+      glob is worth doing but changes nothing measurable:
+      `--test-coverage-include` only filters which files appear in the report,
+      so it cannot make a run that executed nothing report something.
+
+      The cause is test *discovery*. With no path arguments `node --test` looks
+      for its own default patterns (`*.test.*`, `test.*`, `*-test.*`,
+      `*_test.*`, `test/**`); the repo's proofs are `proof.f.mjs` /
+      `module.f.mjs` and match none of them. The only file in the tree that does
+      match is `fjs/emergent_testing/all.test.ts`, and what happens then is
+      Node-version-dependent — on v23 the run reports 0 tests, while on v22.22.2
+      it discovers that file and executes the suite through it. The real suite
+      runs via the repo's own runner (`npm test` -> `node ./fjs/module.mjs t`,
+      2495 tests). `scenarios/run.sh` corroborates the discovery problem: it
+      hard-links `all.ts` to `_all.test.ts` precisely so `node --test` will find
+      it.
+
+      So restoring the signal means giving `node --test` entrypoints it actually
+      runs, or collecting coverage through `fjs`'s runner — not editing globs.
+      Whichever route, pin the Node version the number is measured on, since the
+      two disagree.
 - [ ] **Settle whether generated `types.js` is required for portable
       resolution.** This gates the two items after it and is the one open
       correctness risk for published consumers. The emitted declarations contain
