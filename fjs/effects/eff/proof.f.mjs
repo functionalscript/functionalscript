@@ -1,11 +1,15 @@
 import { do_, match, pure } from '../module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { assertPure } from '../proof.f.ts'
+import { assertPure } from '../proof.f.mjs'
 import { eff } from './module.f.mjs'
+/** @import { Effect, OperationMap } from '../types.ts' */
 
-type AddOp = readonly['add', (a: number, b: number) => number]
+/** @typedef {readonly['add', (a: number, b: number) => number]} AddOp */
 
-const next = match<AddOp, number>({ add: (a, b) => a + b })
+/** @type {(command: 'add') => (a: number, b: number) => Effect<AddOp, number>} */
+const doAdd = do_
+
+const next = match(/** @type {OperationMap<AddOp, number>} */ ({ add: (a, b) => a + b }))
 
 export const proof = {
     value: () => {
@@ -22,7 +26,7 @@ export const proof = {
         assertPure(x, 12)
     },
     overDo: () => {
-        const e = eff(do_<AddOp>('add')(2, 3))
+        const e = eff(doAdd('add')(2, 3))
             .step(r => pure(r + 1))
             .value
         const r = next(e)
@@ -50,7 +54,7 @@ export const proof = {
             assertPure(x, '56')
         },
         overDo: () => {
-            const e = eff(do_<AddOp>('add')(2, 3))
+            const e = eff(doAdd('add')(2, 3))
                 .map(r => r + 1)
                 .value
             const r = next(e)

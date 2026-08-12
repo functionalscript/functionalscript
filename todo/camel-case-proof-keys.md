@@ -32,7 +32,7 @@ next to the other proof-writing rules so it is checkable in review rather
 than inferred from neighbours.
 
 A key that names a language keyword or an export it exercises stays as it is
-spelled — `do_` in `fjs/effects/proof.f.ts` names the `do_` export, and
+spelled — `do_` in `fjs/effects/proof.f.mjs` names the `do_` export, and
 `throw` is the runner's structural marker (see `AGENTS.md`), not a word to
 re-case.
 

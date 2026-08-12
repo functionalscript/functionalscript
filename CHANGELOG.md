@@ -20,6 +20,16 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/effects/proof.f.ts` and
+  `fjs/effects/eff/proof.f.ts` migrate from authored TypeScript to
+  JSDoc-typed JavaScript (`.f.mjs`) — explicit generic instantiations
+  (`match<AddOp, number>(...)`, `do_<AddOp>('add')`, `pure<readonly
+  number[]>([])`, `okStep<number, string, never, number>(...)`,
+  `error<string>(...)`) become inline `@type` casts, per convention;
+  `assertPure`'s generic function becomes a `@template`/`@param` block.
+  `fjs/effects/eff/proof.f.mjs` updates its import of `assertPure`
+  accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/text/utf8/proof.f.ts` migrates from
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — no type
   annotations to convert
