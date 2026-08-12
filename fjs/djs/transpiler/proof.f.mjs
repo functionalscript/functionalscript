@@ -1,4 +1,9 @@
-/** @import { Dir } from '../../effects/node/virtual/types.ts' */
+/**
+ * @import { Dir } from '../../effects/node/virtual/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { Unknown } from '../types.ts'
+ * @import { ParseError } from '../parser/types.ts'
+ */
 import { sort } from '../../types/object/module.f.mjs'
 import { transpile } from './module.f.mjs'
 import { stringifyAsTree } from '../serializer/module.f.mjs'
@@ -6,7 +11,7 @@ import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
-/** @type {(root: Dir) => (path: string) => unknown} */
+/** @type {(root: Dir) => (path: string) => Result<Unknown, ParseError>} */
 const run = root => path => {
     const [, result] = virtual({ ...emptyState, root })(transpile(path))
     return result

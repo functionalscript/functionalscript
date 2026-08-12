@@ -119,7 +119,8 @@ const foldNextModuleOp = path => context => {
  */
 export const transpile = path => step(
     foldNextModuleOp(path)({ stack: null, complete: null, error: null }),
-    context => {
+    /** @type {(context: ParseContext) => Effect<ReadFile, Result<Unknown, ParseError>>} */
+    (context) => {
         if (context.error !== null) {
             return pure(error(context.error))
         }
