@@ -13,7 +13,7 @@ import type { Visitor } from '../../../types/rtti/common/types.ts'
 import type { Primitive } from '../../../djs/module.f.ts'
 import type { Ts } from '../../../types/rtti/ts/types.ts'
 import type { Phantom } from '../../../types/phantom/types.ts'
-import { unknown as jsonUnknown } from '../module.f.ts'
+import { unknown as jsonUnknown } from '../rtti/module.f.ts'
 
 const unknownThunk = () => ['const', unknownConst] as const
 

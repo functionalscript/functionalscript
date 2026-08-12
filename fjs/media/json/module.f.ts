@@ -22,34 +22,10 @@ import { at, definedEntries } from '../../types/object/module.f.mjs'
 import type { Entry as ObjectEntry } from '../../types/object/types.ts'
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.mjs'
-import { boolean as rttiBoolean, number as rttiNumber, string as rttiString, or, record, array as rttiArray } from '../../types/rtti/module.f.mjs'
 import type { Ts } from '../../types/rtti/ts/types.ts'
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
-
-// ── rtti schemas ──────────────────────────────────────────────────────────────
-
-/** rtti schema matching any JSON primitive: `null`, `boolean`, `number`, or `string`. */
-export const primitive = or(null, rttiBoolean, rttiNumber, rttiString)
-
-/**
- * rtti schema matching any JSON value: a primitive, an array of JSON values,
- * or an object whose values are JSON values. Self-referential via a thunk;
- * rtti instantiates array/record item validators lazily so recursion terminates
- * on acyclic input.
- *
- * A struct field typed `unknown` is **required when present** — unlike rtti
- * core's `unknown`, the JSON `unknown` excludes `undefined`.
- */
-export const unknown = () => ['or', primitive, object, array] as const
-
-/**
- * rtti schema matching a JSON object: `{ readonly [k: string]?: Unknown }`.
- */
-export const object = record(unknown)
-
-/** rtti schema matching a JSON array: `readonly Unknown[]`. */
-export const array = rttiArray(unknown)
+import type { primitive, unknown } from './rtti/module.f.ts'
 
 // ── TypeScript types (derived from schemas — single source of truth) ──────────
 
