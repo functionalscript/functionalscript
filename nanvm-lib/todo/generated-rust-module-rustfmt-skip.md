@@ -5,43 +5,65 @@
 
 ### Problem
 
-`fjs/nanvm/rust/module.f.mjs` currently emits `#[rustfmt::skip]` before every
-generated function in `nanvm-lib/tests/test/generated.rs`.
+`fjs/nanvm/rust/module.f.mjs` currently emits `#[rustfmt::skip]` before `eq`
+and each generated per-operation function in
+`nanvm-lib/tests/test/generated.rs`. The final `all` function is not currently
+annotated.
 
-The whole file is generated and intentionally uses one statement per test case.
-Formatting individual functions is therefore not useful, and repeating the
-attribute for every function adds generated noise and requires the printer to
-remember the same policy at each function-emission site.
+The whole module is generated and intentionally uses one statement per test
+case. Formatting those generated functions is therefore not useful, and
+repeating the attribute at every function-emission site adds generated noise.
+
+The per-function skips are still necessary today: removing them without a
+replacement causes `cargo fmt` to rewrap generated assertions and destroys the
+one-statement-per-case layout.
 
 This follows the post-merge review comment on #1489 to make the formatting skip
 global for the generated module.
 
 ### Proposal
 
-Emit one inner attribute at the top of the generated Rust module:
+Do not use an inner `#![rustfmt::skip]` attribute inside `generated.rs`.
+Custom tool attributes in inner position are unstable on stable Rust and make
+`cargo check --tests` fail.
+
+Instead, annotate the generated module declaration in the hand-written
+`nanvm-lib/tests/test/main.rs`:
 
 ```rust
-#![rustfmt::skip]
+#[rustfmt::skip]
+mod generated;
 ```
 
-Then remove the repeated outer `#[rustfmt::skip]` attributes from `eq` and the
-per-operation generated functions.
+Then stop emitting the repeated `#[rustfmt::skip]` attributes from
+`fjs/nanvm/rust/module.f.mjs`.
 
-The generated file should remain readable and deterministic, with one statement
-per case, while `cargo fmt -- --check` continues to accept the repository.
+This keeps one formatting-policy declaration for the whole generated module
+while remaining valid on stable Rust. The attribute belongs to `main.rs`, not
+to the generated file, so the generator should only stop emitting its
+per-function attributes; it should not try to emit a replacement inner
+attribute.
+
+A module-wide skip also covers `generated::all`, which is currently the one
+generated function without a `#[rustfmt::skip]` attribute. That broader skip is
+intentional: the entire module is generated and should be left byte-for-byte in
+the layout chosen by the generator.
 
 ### Tasks
 
-- [ ] Emit `#![rustfmt::skip]` once near the top of
-      `nanvm-lib/tests/test/generated.rs`.
-- [ ] Stop emitting `#[rustfmt::skip]` before individual generated functions.
+- [ ] Add `#[rustfmt::skip]` to the `mod generated;` declaration in
+      `nanvm-lib/tests/test/main.rs`.
+- [ ] Stop emitting `#[rustfmt::skip]` before `eq` and individual generated
+      operation functions.
+- [ ] Do not emit `#![rustfmt::skip]` inside `generated.rs`.
 - [ ] Update comments/documentation in `fjs/nanvm/rust/module.f.mjs` to describe
-      the module-wide formatting policy.
+      the module-level formatting policy owned by `main.rs`.
 - [ ] Update the Rust generator proof if its expected output covers these
       attributes.
 - [ ] Regenerate `nanvm-lib/tests/test/generated.rs` with `npm run ci-update`.
 - [ ] Verify a second `npm run ci-update` leaves the tree unchanged.
-- [ ] Run `fjs test`, `cargo test`, and `cargo fmt -- --check`.
+- [ ] Run `fjs test`, `cargo check --tests`, `cargo test`, and
+      `cargo fmt -- --check`.
 
 ### Related
 
