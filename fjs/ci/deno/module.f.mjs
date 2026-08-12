@@ -3,10 +3,12 @@
  * FunctionalScript package smoke test plus Deno coverage in one canonical job.
  *
  * @module
+ *
+ * @import { MetaStep } from '../common/types.ts'
  */
+
 import { deno } from '../config/module.f.mjs'
 import { install, test, uses } from '../common/module.f.mjs'
-/** @import { MetaStep } from '../common/types.ts' */
 
 const denoTest = 'deno test --allow-read --allow-env --allow-sys'
 

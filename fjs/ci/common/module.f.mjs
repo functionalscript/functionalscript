@@ -6,11 +6,12 @@
  * `MetaStep` type-level API.
  *
  * @module
+ *
+ * @import { Step, Job, MetaStep, StepType } from './types.ts'
  */
 import { actions, images } from '../config/module.f.mjs'
 import { option, array, record, string } from '../../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
-/** @import { Step, Job, MetaStep, StepType } from './types.ts' */
 
 export const os = /** @type {const} */ (['ubuntu', 'macos', 'windows'])
 

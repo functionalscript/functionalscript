@@ -4,12 +4,16 @@
  * See `./types.ts` for the `Setup` type-level API.
  *
  * @module
+ *
+ * @import { Effect } from '../effects/types.ts'
+ * @import { NodeOp } from '../effects/node/types.ts'
+ * @import { Architecture, GitHubAction, Job, Jobs, MetaStep, Os } from './common/types.ts'
+ * @import { NixJob } from './nix/types.ts'
+ * @import { Setup } from './types.ts'
  */
 
 import { mapStep, step } from '../effects/module.f.mjs'
-/** @import { Effect } from '../effects/types.ts' */
 import { access, writeUtf8File } from '../effects/node/module.f.mjs'
-/** @import { NodeOp } from '../effects/node/types.ts' */
 import { functionalscript, images } from './config/module.f.mjs'
 import {
     architecture,
@@ -17,14 +21,11 @@ import {
     toSteps,
     ubuntuArm
 } from './common/module.f.mjs'
-/** @import { Architecture, GitHubAction, Job, Jobs, MetaStep, Os } from './common/types.ts' */
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.mjs'
 import { nodeMainSteps, nodeNixJobs, nodeNixVersionSteps, nodeVersionJobs } from './node/module.f.mjs'
 import { nixFlakes, nixInstall } from './nix/module.f.mjs'
-/** @import { NixJob } from './nix/types.ts' */
 import { bunSteps } from './bun/module.f.mjs'
 import { denoSteps } from './deno/module.f.mjs'
-/** @import { Setup } from './types.ts' */
 
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
 const job = (rust, nodeExtra) => o => a => {

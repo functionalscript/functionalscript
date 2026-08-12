@@ -3,10 +3,12 @@
  * FunctionalScript package smoke test plus Bun coverage in one canonical job.
  *
  * @module
+ *
+ * @import { MetaStep } from '../common/types.ts'
  */
+
 import { bun } from '../config/module.f.mjs'
 import { install, test, uses } from '../common/module.f.mjs'
-/** @import { MetaStep } from '../common/types.ts' */
 
 /** @type {(version: string) => readonly MetaStep[]} */
 export const bunSteps = version => [

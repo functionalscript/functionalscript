@@ -1,8 +1,9 @@
-import { pure } from '../effects/module.f.mjs'
 import type { NodeOp, NodeProgramOptions } from '../effects/node/types.ts'
+import type { Commands } from './types.ts'
+
+import { pure } from '../effects/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { dispatch } from './module.f.mjs'
-import type { Commands } from './types.ts'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 
 const makeOptions = (args: readonly string[]): NodeProgramOptions =>
