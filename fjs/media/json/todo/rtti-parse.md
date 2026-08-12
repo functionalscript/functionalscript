@@ -234,7 +234,7 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
   lossless tokenizer/structural parse path and extended runtime materialization.
 - [Standard JSON transformer](./standard-transform.md) — runtime value conversion
   between already-materialized extended and ordinary JSON trees.
-- [`fjs/media/json/tokenizer/module.f.ts`](../tokenizer/module.f.ts) — JSON token
+- [`fjs/media/json/tokenizer/module.f.mjs`](../tokenizer/module.f.mjs) — JSON token
   production must preserve the numeric lexeme before any unrepresentable derived
   numeric construction.
 - [`fjs/types/rtti/parse`](../../../types/rtti/parse/module.f.mjs) — existing strict

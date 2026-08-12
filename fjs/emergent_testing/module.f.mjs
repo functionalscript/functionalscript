@@ -10,9 +10,10 @@
  *
  * @module
  */
+
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { all, awaitIfPromise, sandbox, test } from '../effects/node/module.f.mjs'
-import type {
+/** @import {
     All,
     Await,
     Env,
@@ -25,28 +26,26 @@ import type {
     TestContext,
     Write,
     WriteConsoles
-} from '../effects/node/types.ts'
+} from '../effects/node/types.ts' */
 import { history, historyStep, pure, step } from '../effects/module.f.mjs'
-import type { Effect, Operation } from '../effects/types.ts'
+/** @import { Effect, Operation } from '../effects/types.ts' */
 import { eff } from '../effects/eff/module.f.mjs'
-import { loadModuleMap, shouldLoad, type LoadModuleOperations, type ModuleMap } from '../dev/module.f.ts'
+import { loadModuleMap } from '../dev/module.f.mjs'
+/** @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts' */
 import { invert } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
+/** @import { TestFn, TestEntry, TestSet, Path, Reporter, _TestState, _TestAndPath } from './types.ts' */
 
-
-type TestState = {
-    readonly time: number,
-    readonly pass: number,
-    readonly fail: number,
-}
-
-const addPass = (delta: number) => (ts: TestState): TestState =>
+/** @type {(delta: number) => (ts: _TestState) => _TestState} */
+const addPass = delta => ts =>
     ({ ...ts, time: ts.time + delta, pass: ts.pass + 1 })
 
-const addFail = (delta: number) => (ts: TestState): TestState =>
+/** @type {(delta: number) => (ts: _TestState) => _TestState} */
+const addFail = delta => ts =>
     ({ ...ts, time: ts.time + delta, fail: ts.fail + 1 })
 
-const timeFormat = (a: number) => {
+/** @type {(a: number) => string} */
+const timeFormat = a => {
     const y = Math.round(a * 10_000).toString()
     const yl = 5 - y.length
     const x = '0'.repeat(yl > 0 ? yl : 0) + y
@@ -55,28 +54,6 @@ const timeFormat = (a: number) => {
     const e = x.substring(s)
     return `${b}.${e} ms`
 }
-
-/** A zero-argument test function whose return value may contain sub-tests. */
-export type TestFn = () => unknown
-
-/**
- * A leaf test bundled with its throw expectation.
- *
- * `throws: true` means the test is expected to throw; the runner inverts the
- * `sandbox` result so a caught error becomes a pass and a clean return becomes
- * a failure. Using a record instead of a wrapper function avoids a double
- * `sandbox` call and gives accurate per-test timing.
- */
-export type TestEntry = {
-    readonly fn: TestFn
-    readonly throws: boolean
-}
-
-/**
- * Either a leaf `TestEntry` (function + throw flag) or a named sub-tree of
- * `[key, value]` pairs to recurse into. Discriminate with `Array.isArray`.
- */
-export type TestSet = TestEntry | readonly (readonly [string, unknown])[]
 
 /**
  * Converts an arbitrary JS value into a `TestSet`.
@@ -90,12 +67,14 @@ export type TestSet = TestEntry | readonly (readonly [string, unknown])[]
  *   Bun) and is not a supported authoring style.
  * - Non-null objects become an array of `[key, value]` pairs to recurse into.
  * - All other values (including functions with parameters) produce an empty array.
+ *
+ * @type {(throws: boolean, x: unknown) => TestSet}
  */
-export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
+export const parseTestSet = (throws, x) => {
     switch (typeof x) {
         case 'function': {
             if (x.length === 0) {
-                const fn = x as TestFn
+                const fn = /** @type {TestFn} */ (x)
                 return { fn, throws: throws || fn.name === 'throw' }
             }
             break
@@ -110,19 +89,15 @@ export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
     return []
 }
 
-type TestAndPath =readonly [Path, TestEntry]
-
 /**
  * Recursively collects all leaf tests reachable from `v` as `[path, entry]`
  * pairs, without running anything. Return-value sub-trees are not walked
  * (that requires execution); only the static object/array/function structure
  * is traversed.
+ *
+ * @type {(path: Path, throws: boolean, v: unknown) => readonly _TestAndPath[]}
  */
-export const collectTests = (
-    path: Path,
-    throws: boolean,
-    v: unknown,
-): readonly TestAndPath[] => {
+export const collectTests = (path, throws, v) => {
     const set = parseTestSet(throws, v)
     if (set instanceof Array) {
         return set.flatMap(([ck, cv]) =>
@@ -130,20 +105,6 @@ export const collectTests = (
         )
     }
     return [[path, set]]
-}
-
-/**
- * Receives semantic test-run events. Each method is the runner's notification
- * of an event; the reporter decides how to render it (terminal, GitHub
- * annotations, JSON, node `--test`, etc.). `path` is the chain of object keys
- * leading to the current location; `null` marks a function-call boundary, e.g.
- * `['outer', null, 'inner']` means `outer` was invoked and its return value
- * contained `inner`.
- */
-export type Reporter<O extends Operation> = {
-    readonly result: (file: string, path: Path, r: SandboxResult<unknown>, throws: boolean) => Effect<O, void>
-    readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
-    readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
 
 /**
@@ -155,51 +116,57 @@ export type Reporter<O extends Operation> = {
  * calls `fn`, then recursively registers any sub-trees returned by the function.
  * This is the correct model for Node `--test`, Bun, and Deno, where tests must
  * be declared upfront and the framework drives execution.
+ *
+ * @type {(ctx: TestContext, k: string, v: unknown, star: string) => Effect<Test | All | Await, void>}
  */
-export const registerModule =
-    (ctx: TestContext, k: string, v: unknown, star: string): Effect<Test | All | Await, void> => {
-        const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) => {
-            // ' *' (non-empty only for Bun) signals that all sub-tests run
-            // inline inside this single registration. Not appended to throw-tests since
-            // those never produce sub-tests. The path already contains '.throw' when a
-            // test is expected to throw, so no extra suffix is needed.
-            const base = fmtImport(k, path)
-            const name = throws ? base : `${base}${star}`
-            return test(ctx, name, throws, (t): Effect<Test | All | Await, void> =>
-                eff(awaitIfPromise(fn()))
-                    .step(resolved => {
-                        if (throws) {
-                            return pure(undefined)
-                        }
-                        const sub = collectTests([...path, null], false, resolved)
-                        if (sub.length === 0) {
-                            return pure(undefined)
-                        }
-                        return eff(all(...sub.map(e => registerOne(t, e))))
-                            .step(() => pure(undefined))
-                            .value
-                    })
-                    .value
-            )
-        }
-        const tests = collectTests([], false, v)
-        if (tests.length === 0) { return pure(undefined) }
-        return eff(all(...tests.map(e => registerOne(ctx, e))))
-            .step(() => pure(undefined))
-            .value
+export const registerModule = (ctx, k, v, star) => {
+    /** @type {(ctx: TestContext, entry: _TestAndPath) => Effect<Test | All | Await, void>} */
+    const registerOne = (ctx, [path, { fn, throws }]) => {
+        // ' *' (non-empty only for Bun) signals that all sub-tests run
+        // inline inside this single registration. Not appended to throw-tests since
+        // those never produce sub-tests. The path already contains '.throw' when a
+        // test is expected to throw, so no extra suffix is needed.
+        const base = fmtImport(k, path)
+        const name = throws ? base : `${base}${star}`
+        return test(ctx, name, throws, (/** @type {TestContext} */ t) =>
+            eff(awaitIfPromise(fn()))
+                .step(resolved => {
+                    if (throws) {
+                        return pure(undefined)
+                    }
+                    const sub = collectTests([...path, null], false, resolved)
+                    if (sub.length === 0) {
+                        return pure(undefined)
+                    }
+                    return eff(all(...sub.map(e => registerOne(t, e))))
+                        .step(() => pure(undefined))
+                        .value
+                })
+                .value
+        )
     }
+    const tests = collectTests([], false, v)
+    if (tests.length === 0) { return pure(undefined) }
+    return eff(all(...tests.map(e => registerOne(ctx, e))))
+        .step(() => pure(undefined))
+        .value
+}
 
-const mergeState = (a: TestState, b: TestState): TestState =>
+/** @type {(a: _TestState, b: _TestState) => _TestState} */
+const mergeState = (a, b) =>
     ({ time: a.time + b.time, pass: a.pass + b.pass, fail: a.fail + b.fail })
 
-const zero: TestState = { time: 0, pass: 0, fail: 0 }
+/** @type {_TestState} */
+const zero = { time: 0, pass: 0, fail: 0 }
 
-const runModule =
-    <O extends Operation>({ result, test }: Reporter<O>) =>
-    (k: string, v: unknown) =>
-    (ts: TestState): Effect<O | All, TestState> =>
-{
-    const one = ([testPath, set]: TestAndPath): Effect<O | All, TestState> => {
+/**
+ * @template {Operation} O
+ * @param {Reporter<O>} reporter
+ * @returns {(k: string, v: unknown) => (ts: _TestState) => Effect<O | All, _TestState>}
+ */
+const runModule = ({ result, test }) => (k, v) => ts => {
+    /** @type {(entry: _TestAndPath) => Effect<O | All, _TestState>} */
+    const one = ([testPath, set]) => {
         // The sandbox result is still needed after it has been reported, so the
         // reporting call is captured rather than nested inside its own step.
         const reported = historyStep(
@@ -207,7 +174,7 @@ const runModule =
             sr => result(k, testPath, sr, set.throws))
         return step(
             reported,
-            ([,sr]): Effect<O | All, TestState> => {
+            ([, sr]) => {
                 const { result: [s, r], duration } = sr
                 if (s !== 'ok') {
                     return pure(addFail(duration)(zero))
@@ -222,7 +189,8 @@ const runModule =
                     sub => pure(mergeState(addPass(duration)(zero), sub)))
             })
     }
-    const walk = (path: Path, throws: boolean, v: unknown): Effect<O | All, TestState> => {
+    /** @type {(path: Path, throws: boolean, v: unknown) => Effect<O | All, _TestState>} */
+    const walk = (path, throws, v) => {
         const effects = collectTests(path, throws, v).map(one)
         return eff(all(...effects))
             .step(states => pure(states.reduce(mergeState, zero)))
@@ -233,16 +201,21 @@ const runModule =
         .value
 }
 
-const proofEntries = (moduleMap: ModuleMap): readonly (readonly [string, unknown])[] =>
+/** @type {(moduleMap: ModuleMap) => readonly (readonly [string, unknown])[]} */
+const proofEntries = moduleMap =>
     definedEntries(moduleMap)
-        .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
+        .flatMap(([k, v]) => v.proof !== undefined ? [/** @type {const} */ ([k, v.proof])] : [])
 
 /**
  * Runs all test modules in `moduleMap` whose names pass `isTest`, accumulates
  * pass/fail/time via `reporter`, and returns an exit code (0 = all passed,
  * 1 = at least one failure).
+ *
+ * @template {Operation} O
+ * @param {Reporter<O>} reporter
+ * @returns {(moduleMap: ModuleMap) => Effect<O | All, number>}
  */
-export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | All, number> => {
+export const runModuleMap = reporter => moduleMap => {
     const { summary } = reporter
     const modules = proofEntries(moduleMap)
     return eff(all(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero))))
@@ -256,8 +229,12 @@ export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (mod
  * Discovers all test modules via `loadModuleMap`, then runs them through
  * `runModuleMap`. The composed effect is a `NodeProgram` entry point for the
  * `fjs t` test runner.
+ *
+ * @template {Operation} O
+ * @param {Reporter<O>} reporter
+ * @returns {Program<O | All | LoadModuleOperations>}
  */
-export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O | All | LoadModuleOperations> => options =>
+export const testAll = reporter => options =>
     eff(loadModuleMap(options.env))
         .step(runModuleMap(reporter))
         .value
@@ -265,10 +242,10 @@ export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O |
 /**
  * Registers all modules in `moduleMap` that export a `proof` property with
  * `ctx`. Delegates to `registerModule` for each matching entry.
+ *
+ * @type {(ctx: TestContext, star: string) => (moduleMap: ModuleMap) => Effect<Test | All | Await, void>}
  */
-const registerModuleMap =
-    (ctx: TestContext, star: string) => (moduleMap: ModuleMap): Effect<Test | All | Await, void> =>
-{
+const registerModuleMap = (ctx, star) => moduleMap => {
     const modules = proofEntries(moduleMap)
     if (modules.length === 0) { return pure(undefined) }
     return eff(all(...modules.map(([k, v]) => registerModule(ctx, k, v, star))))
@@ -276,27 +253,29 @@ const registerModuleMap =
         .value
 }
 
-/**
- * A chain of property-access keys leading to a test location. String entries
- * are object/array keys; `null` marks a function-call boundary (the return
- * value was walked as a sub-tree).
- */
-export type Path = readonly (string | null)[]
-
-const isAlpha = (c: string): boolean =>
+/** @type {(c: string) => boolean} */
+const isAlpha = c =>
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c === '_' || c === '$'
 
-const isDigit = (c: string): boolean => c >= '0' && c <= '9'
+/** @type {(c: string) => boolean} */
+const isDigit = c => c >= '0' && c <= '9'
 
-/** Returns `true` if `s` is a non-negative decimal integer without a leading zero. */
-export const isInteger = (s: string): boolean =>
+/** Returns `true` if `s` is a non-negative decimal integer without a leading zero.
+ *
+ * @type {(s: string) => boolean}
+ */
+export const isInteger = s =>
     s.length > 0 && [...s].every(isDigit) && (s === '0' || s[0] !== '0')
 
-/** Returns `true` if `s` is a valid JS identifier (ASCII subset: `[A-Za-z_$][A-Za-z0-9_$]*`). */
-export const isIdentifier = (s: string): boolean =>
+/** Returns `true` if `s` is a valid JS identifier (ASCII subset: `[A-Za-z_$][A-Za-z0-9_$]*`).
+ *
+ * @type {(s: string) => boolean}
+ */
+export const isIdentifier = s =>
     s.length > 0 && isAlpha(s[0]) && [...s.slice(1)].every(c => isAlpha(c) || isDigit(c))
 
-const fmtKey = (k: string | null): string =>
+/** @type {(k: string | null) => string} */
+const fmtKey = k =>
     k === null ? '()'
     : isInteger(k) ? `[${k}]`
     : isIdentifier(k) ? `.${k}`
@@ -307,16 +286,20 @@ const fmtKey = (k: string | null): string =>
  * dot notation, integer keys use `[N]`, other strings use `["key"]`, and `null`
  * emits `()` to mark a function-call boundary.
  * E.g. `['math', 'add']` → `.math.add`, `['outer', null, 'inner']` → `.outer().inner`.
+ *
+ * @type {(path: Path) => string}
  */
-export const fmtPath = (path: Path): string =>
-    path.reduce((acc: string, k) => acc + fmtKey(k), '')
+export const fmtPath = path =>
+    path.reduce((/** @type {string} */ acc, k) => acc + fmtKey(k), '')
 
 /**
  * Formats a fully-qualified test identifier as a JS-like expression, e.g.
  * `import("./math.proof.f.ts").add()` or `import("./a.proof.f.ts").users[3].name()`.
  * Self-contained per line — suitable for parallel output and as a CLI filter argument.
+ *
+ * @type {(file: string, path: Path) => string}
  */
-export const fmtImport = (file: string, path: Path): string =>
+export const fmtImport = (file, path) =>
     `import(${JSON.stringify(file)}).proof${fmtPath(path)}()`
 
 /**
@@ -324,8 +307,10 @@ export const fmtImport = (file: string, path: Path): string =>
  * by the last segment formatted as a bare integer, a bare identifier, or a
  * JSON-quoted string. E.g. `['math', 'add']` → `| | add`,
  * `['a', '0']` → `| | 0`, `['x', 'hello world']` → `| | "hello world"`.
+ *
+ * @type {(path: Path) => string}
  */
-export const fmtTerm = (path: Path): string => {
+export const fmtTerm = path => {
     const keys = path.flatMap(k => k !== null ? [k] : [])
     const indent = '| '.repeat(keys.length)
     if (keys.length === 0) { return `${indent}()` }
@@ -337,8 +322,10 @@ export const fmtTerm = (path: Path): string => {
  * Percent-encodes characters that GitHub workflow-command property values
  * treat as separators (`%`, `:`, `,`) plus newlines.
  * https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
+ *
+ * @type {(s: string) => string}
  */
-export const ghEscape = (s: string): string =>
+export const ghEscape = s =>
     s.replaceAll('%', '%25')
         .replaceAll(':', '%3A')
         .replaceAll(',', '%2C')
@@ -348,13 +335,16 @@ export const ghEscape = (s: string): string =>
 /**
  * Default `Reporter.test` implementation: sandboxes `fn` once and inverts the
  * result when `throws` is `true` (caught error → pass, clean return → fail).
+ *
+ * @type {(file: string, path: Path, entry: TestEntry) => Effect<Sandbox, SandboxResult<unknown>>}
  */
-export const defaultTest = (file: string, path: Path, { fn, throws }: TestEntry): Effect<Sandbox, SandboxResult<unknown>> =>
+export const defaultTest = (file, path, { fn, throws }) =>
     eff(sandbox(fn))
         .step(r => pure(throws ? { ...r, result: invert(r.result) } : r))
         .value
 
-const fmtResultLine = (file: string, path: Path, color: string, label: string, duration: number): string =>
+/** @type {(file: string, path: Path, color: string, label: string, duration: number) => string} */
+const fmtResultLine = (file, path, color, label, duration) =>
     `${fmtImport(file, path)}: ${color}${label}${reset}, ${timeFormat(duration)}`
 
 /**
@@ -363,12 +353,15 @@ const fmtResultLine = (file: string, path: Path, color: string, label: string, d
  * `GITHUB_ACTIONS` is set, failures are emitted as `::error` workflow
  * annotations instead of colored lines. Exported as a factory so the
  * GitHub format path can be exercised directly from tests.
+ *
+ * @type {(options: NodeProgramOptions) => Reporter<Write | Sandbox>}
  */
-export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|Sandbox> => {
+export const defaultReporter = options => {
     const write = csiWrite(options)
-    const line = (w: WriteConsoles) => {
+    /** @type {(w: WriteConsoles) => (s: string) => Effect<Write, void>} */
+    const line = w => {
         const x = write(w)
-        return (s: string) => x(s + '\n')
+        return s => x(s + '\n')
     }
     const csiLog = line('stdout')
     const csiError = line('stderr')
@@ -393,8 +386,11 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
     }
 }
 
-/** The `fjs t` entry point: runs all tests using `defaultReporter`. */
-export const main: NodeProgram =
+/** The `fjs t` entry point: runs all tests using `defaultReporter`.
+ *
+ * @type {NodeProgram}
+ */
+export const main =
     options => testAll(defaultReporter(options))(options)
 
 /**
@@ -403,8 +399,10 @@ export const main: NodeProgram =
  * Discovers test modules via `loadModuleMap`, then registers each with the
  * framework-appropriate `TestContext` selected from `NodeProgramOptions`
  * based on the detected `engine`.
+ *
+ * @type {NodeProgram}
  */
-export const register: NodeProgram = o => {
+export const register = o => {
     const star = o.inlineTestContext ? ' ...' : ''
     const ctx = o.engine === 'bun' ? o.bunTestContext : o.testContext
     return eff(loadModuleMap(o.env))

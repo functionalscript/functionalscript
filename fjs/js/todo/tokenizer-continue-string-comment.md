@@ -11,7 +11,7 @@ and for the token-boundary *flush*
 ([tokenizer-flush-redispatch](./tokenizer-flush-redispatch.md)), but the
 third continuing-emit shape — "append the input code point to the current
 string/comment value and stay in the same accumulating state" — is
-copy-pasted and unnamed in `fjs/js/tokenizer/module.f.ts`:
+copy-pasted and unnamed in `fjs/js/tokenizer/module.f.mjs`:
 
 ```ts
 // parseStringStateOp default (:703)

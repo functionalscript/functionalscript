@@ -4,8 +4,8 @@
  * @module
  */
 import { compile } from './djs/module.f.ts'
-import { main as testMain } from './emergent_testing/module.f.ts'
-import { commands as casCommands } from './cas/cli/module.f.ts'
+import { main as testMain } from './emergent_testing/module.f.mjs'
+import { commands as casCommands } from './cas/cli/module.f.mjs'
 import { main as ciMain } from './ci/module.f.mjs'
 import { import_ } from './effects/node/module.f.mjs'
 import type { NodeOp, NodeProgram } from './effects/node/types.ts'

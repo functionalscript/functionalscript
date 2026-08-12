@@ -1,5 +1,5 @@
 import { main } from './module.f.mjs'
-import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
+import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { assertEq, assertNotNullish } from '../asserts/module.f.mjs'
 
 export const proof = {

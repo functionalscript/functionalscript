@@ -6,7 +6,7 @@
 ### Problem
 
 An error token carries one `TokenMetadata` (`{ path, line, column }`,
-`fjs/js/tokenizer/module.f.ts:158`) — a single point. For errors whose whole
+`fjs/js/tokenizer/types.ts:99-103`) — a single point. For errors whose whole
 meaning is a span, one point cannot say what the reader needs.
 
 Unterminated tokens are the clear case. The grammar *matches* an unterminated

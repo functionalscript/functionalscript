@@ -31,9 +31,9 @@ Two shapes, both the same thing:
 )
 ```
 
-Also `fjs/dev/module.f.ts`, `fjs/cas/evo/module.f.ts`,
-`fjs/mcp/evo/module.f.ts`, `fjs/cas/module.f.ts`, `fjs/mcp/cas/module.f.ts`,
-`fjs/protocol/mcp/module.f.ts`, `fjs/emergent_testing/module.f.ts`.
+Also `fjs/dev/module.f.mjs`, `fjs/cas/evo/module.f.ts`,
+`fjs/mcp/evo/module.f.ts`, `fjs/cas/module.f.mjs`, `fjs/mcp/cas/module.f.ts`,
+`fjs/protocol/mcp/module.f.ts`, `fjs/emergent_testing/module.f.mjs`.
 
 *Constant projection* (`() => pure(v)`), overwhelmingly the "do the work, then
 yield an exit code" shape of a `NodeProgram`:
@@ -51,9 +51,9 @@ const program = step(
 ```
 
 Also `fjs/djs/module.f.ts`, `fjs/module.f.ts`, `fjs/ci/module.f.mjs`,
-`fjs/cas/evo/module.f.ts`, `fjs/cas/module.f.ts`, `fjs/cas/cli/module.f.ts`,
+`fjs/cas/evo/module.f.ts`, `fjs/cas/module.f.mjs`, `fjs/cas/cli/module.f.mjs`,
 `fjs/mcp/cas/module.f.ts`, `fjs/protocol/mcp/module.f.ts`, `fjs/protocol/mcp/stdio/module.f.ts`,
-`fjs/emergent_testing/module.f.ts`.
+`fjs/emergent_testing/module.f.mjs`.
 
 Beyond the repetition, the old spelling **misreports the shape of the chain**.
 A `step` whose continuation returns `pure` is not a link in a sequence of

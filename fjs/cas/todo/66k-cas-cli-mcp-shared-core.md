@@ -14,7 +14,7 @@
 
 ### Problem
 
-The CAS CLI (`fjs/cas/module.f.ts` `commands`) and the CAS MCP server
+The CAS CLI (`fjs/cas/module.f.mjs` `commands`) and the CAS MCP server
 (`fjs/mcp/cas/module.f.ts`) both implement the same three operations — add,
 get, list — but with duplicated logic:
 
@@ -89,7 +89,7 @@ accepted as-is, the same as `cp`.
       streams and stages under `.cas/_stage`) — no new `KvStore.move` or
       `./cas/stage/` pipeline (both obsolete; see architecture note above).
 - [ ] Define a shared `casOps` (or similar) module/functions in
-      `fjs/cas/ops/module.f.ts` (or inline in `fjs/cas/module.f.ts`) that
+      `fjs/cas/ops/module.f.ts` (or inline in `fjs/cas/module.f.mjs`) that
       expose typed operations independent of transport. The inline
       (`text`/`base64`) `add` and the hash/store/error plumbing are shared; the
       file-path `add` is a CLI-only entry point, not part of the MCP surface.
@@ -105,5 +105,5 @@ accepted as-is, the same as `cp`.
 - `remove-local-file-urls-mcp` (implemented, todo file deleted) — removed the
   MCP file-path (`url`) source; this issue's shared `add` must keep the
   file-path source CLI-only
-- `fjs/cas/module.f.ts` — CLI commands and core types
+- `fjs/cas/module.f.mjs` — CLI commands and core types
 - `fjs/mcp/cas/module.f.ts` — MCP tool registry and server

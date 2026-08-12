@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/dev/module.f.ts` exports two test helpers:
+`fjs/dev/module.f.mjs` exports two test helpers:
 
 ```ts
 export const assert: (v: boolean, msg?: unknown) => asserts v =
@@ -64,7 +64,7 @@ A migration that proceeds folder-by-folder, not all at once:
 Optional second helper for the remaining shapes:
 
 ```ts
-// fjs/dev/module.f.ts — adds nothing if you also have `assertEq`,
+// fjs/dev/module.f.mjs — adds nothing if you also have `assertEq`,
 // but makes intent obvious at the call site for non-`===` comparisons.
 export const assertNot = (a: unknown, b: unknown): void => assert(a !== b, ['equal', a, b])
 ```
@@ -112,7 +112,7 @@ it's by far the most common and the lowest-judgement case.
   and AGENTS.md: keep helpers minimal until a second consumer needs
   more.
 - **Import edge.** `proof.f.ts` files in `fjs/types/` currently avoid
-  importing from `fjs/dev/module.f.ts` (only `fjs/types/patricia_trie/proof.f.mjs`
+  importing from `fjs/dev/module.f.mjs` (only `fjs/types/patricia_trie/proof.f.mjs`
   pulls `assert` from there today). Verify there is no module-cycle
   problem before mass-importing from `fjs/dev` into the `fjs/types`
   subtree. If there is, hoist `assert`/`assertEq` into a small
@@ -136,7 +136,7 @@ it's by far the most common and the lowest-judgement case.
   `proof`; defines module-level asserts as the "light proof" tier (runs on every
   load → light, cheap checks only). `assertEq` is the helper that makes that
   tier ergonomic.
-- `fjs/dev/module.f.ts:36–39` — definitions of `assert` / `assertEq`.
+- `fjs/dev/module.f.mjs` — no longer defines `assert`/`assertEq` itself; both come from `fjs/asserts/module.f.mjs`.
 - `fjs/sul/id/module.f.mjs:19`, `fjs/sul/id/proof.f.mjs:1`,
   `fjs/sul/proof.f.mjs:1`, `fjs/sul/level/hash/proof.f.mjs:1` — the four
   existing consumers, demonstrating the desired call-site shape.

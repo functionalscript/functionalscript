@@ -1,5 +1,6 @@
 import { parse } from './module.f.ts'
-import { tokenize, type JsonToken } from '../tokenizer/module.f.ts'
+import { tokenize } from '../tokenizer/module.f.mjs'
+import type { JsonToken } from '../tokenizer/types.ts'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { stringify as jsonStringify } from '../module.f.ts'
 import { sort } from '../../../types/object/module.f.mjs'

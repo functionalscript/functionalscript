@@ -1,0 +1,368 @@
+/**
+ * Content-addressable storage utilities for hashing, addressing, and path parsing.
+ *
+ * @module
+ */
+
+/** @import { Sha2, State as Sha2State } from '../crypto/sha2/types.ts' */
+import { sha256 } from '../crypto/sha2/module.f.mjs'
+import { join, normalize, parse } from '../path/module.f.mjs'
+/** @import { Vec } from '../types/bit_vec/types.ts' */
+import { empty, length, maxLength, maxLengthBytes, msb, vec } from '../types/bit_vec/module.f.mjs'
+import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
+import { foldStep, forEachStep, history, historyStep, okStep, pure, step } from '../effects/module.f.mjs'
+/** @import { Effect, Operation } from '../effects/types.ts' */
+import { eff } from '../effects/eff/module.f.mjs'
+import {
+    access,
+    createExclusive,
+    isNotFound,
+    mkdir,
+    now,
+    randomInt,
+    readBytes,
+    readdir,
+    rename,
+    rm,
+    stat,
+    writeBytes,
+} from '../effects/node/module.f.mjs'
+/** @import {
+    Access,
+    CreateExclusive,
+    IoResult,
+    Mkdir,
+    Now,
+    RandomInt,
+    ReadBytes,
+    Readdir,
+    Rename,
+    Rm,
+    Stat,
+    WriteBytes,
+} from '../effects/node/types.ts' */
+import { toOption } from '../types/nullable/module.f.mjs'
+import { error, ok, unwrap } from '../types/result/module.f.mjs'
+import { splitAt } from '../types/string/module.f.mjs'
+import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
+/** @import { List } from '../effects/list/types.ts' */
+/** @import { Cas, FileCas, FileCasOperation } from './types.ts' */
+
+const split2 = splitAt(2)
+
+const prefix = '.cas'
+
+/** Converts a content key to its sharded relative CAS file path.
+ *
+ * @type {(key: Vec) => string}
+ */
+export const toPath = key => {
+    const s = vecToCBase32(key)
+    const [a, bc] = split2(s)
+    const [b, c] = split2(bc)
+    return join(prefix, a, b, c)
+}
+
+/**
+ * Drains a `Cas<O>.read` chunk stream into a single `Vec`. Used by any caller
+ * that needs the whole blob at once (an MCP `content: true` fetch, an Evo
+ * revision decode): the chunk stream is concatenated and an error item is
+ * surfaced as the result. A single `Vec` cannot exceed `maxLength` bits;
+ * concatenating past it would overflow the runtime's `bigint` constraint, so
+ * that case is surfaced as an error item too, rather than crashing the
+ * process.
+ *
+ * @template {Operation} O
+ * @param {List<O, IoResult<Vec>>} stream
+ * @returns {Effect<O, IoResult<Vec>>}
+ */
+export const collectRead = stream => {
+    /** @type {(acc: Vec) => (s: List<O, IoResult<Vec>>) => Effect<O, IoResult<Vec>>} */
+    const loop = acc => s =>
+        eff(s)
+            .step((/** @type {*} */ node) => {
+                if (node === undefined) { return pure(ok(acc)) }
+                const { first, tail } = node
+                const [t, v] = first
+                if (t === 'error') { return pure(first) }
+                if (length(acc) + length(v) > maxLength) {
+                    return pure(error(`cas blob exceeds maximum vector length of ${maxLength} bits`))
+                }
+                return loop(msb.concat(acc)(v))(tail)
+            })
+            .value
+    return loop(empty)(stream)
+}
+
+/** Maximum chunk size for streaming reads: the largest `Vec` the runtime allows. */
+const chunkBytes = Number(maxLengthBytes)
+
+/** Staging directory under the store root; GC and every uploader share it. */
+const stageRel = '_stage'
+
+/**
+ * Lease duration in ms: a staging file's deadline is `now() + leaseDelta`.
+ * Renewed after every chunk, so it only has to cover the gap between two
+ * consecutive chunks (see [staging-lease.md](./plan/staging-lease.md)).
+ */
+const leaseDelta = 30_000
+
+/**
+ * Fixed width for the zero-padded epoch-ms deadline embedded in a staging name,
+ * so names sort lexically exactly as they sort chronologically. 19 digits keeps
+ * epoch-ms (13 digits today) padded with headroom well past year 2286.
+ */
+const deadlineWidth = 19
+
+/** Builds a `<deadline>-<random256>` staging file name.
+ *
+ * @type {(deadline: number, rnd: string) => string}
+ */
+const stageName = (deadline, rnd) =>
+    `${String(deadline).padStart(deadlineWidth, '0')}-${rnd}`
+
+/** Recovers the deadline (epoch ms) from a `<deadline>-<random256>` name.
+ *
+ * @type {(name: string) => number}
+ */
+const deadlineOf = name => Number(name.slice(0, name.indexOf('-')))
+
+/**
+ * Reclaims expired staging files: any `_stage/<deadline>-<rand>` whose deadline
+ * is already in the past. Lazy and piggy-backed on `write`. Best-effort — a
+ * missing `_stage/` (fresh store) or any `readdir`/`rm` error is ignored, and a
+ * still-live lease is left alone; the fencing rename keeps even a misjudged
+ * reclaim fail-safe (worst case: that upload restarts).
+ *
+ * @template {Now | Readdir | Rm} O
+ * @param {string} stageDir
+ * @returns {Effect<O, void>}
+ */
+const gcStage = stageDir =>
+    eff(now())
+        .step(() => readdir(stageDir, {}))
+        .step(([k, v], t) => {
+            if (k === 'error') { return pure(undefined) }
+            const expired = v.flatMap(d =>
+                d.isFile && deadlineOf(d.name) < t ? [d.name] : [])
+            return forEachStep(
+                pure(expired),
+                name =>
+                    eff(rm(join(stageDir, name)))
+                        .step(() => pure(undefined))
+                        .value)
+        })
+        .value
+
+// Lock-free staging upload (plan/staging-lease.md): stream each chunk straight
+// to a `_stage/<deadline>-<rand>` file via `writeBytes` while folding it into the
+// running SHA-2 state — the payload never lives in memory as a whole. The lease is
+// renewed (rename to a fresh deadline) after every chunk; any error deletes the
+// partial file and fails. On end-of-stream the file is published to its hash-derived
+// shard path by a replace-`rename` (which also dedups/repairs a same-content shard),
+// and success is confirmed by a `stat` size check. GC of expired staging files is
+// piggy-backed at the start.
+/**
+ * @template {Operation} O1
+ * @param {Sha2} sha2
+ * @param {string} path
+ * @param {string} stageDir
+ * @param {List<O1, IoResult<Vec>>} payload
+ * @returns {Effect<O1 | FileCasOperation, IoResult<Vec>>}
+ */
+const writeImpl = (sha2, path, stageDir, payload) => {
+    // Publish the finished staging file to its content-addressed shard. The three
+    // filesystem steps run best-effort with their results ignored; success is decided
+    // afterward by observing the target's size (see staging-lease.md "Publish ignores
+    // results and checks the end state").
+    /** @type {(state: Sha2State, offset: number, curPath: string) => Effect<FileCasOperation, IoResult<Vec>>} */
+    const publish = (state, offset, curPath) => {
+        const hash = sha2.end(state)
+        const rel = toPath(hash)
+        const dst = join(path, rel)
+        const dstDir = join(path, ...parse(rel).slice(0, -1))
+        return eff(mkdir(dstDir, { recursive: true }))
+            .step(() => rename(curPath, dst))
+            .step(() => rm(curPath))
+            .step(() => stat(dst))
+            .step(st => pure(st[0] === 'ok' && st[1].size === offset ? ok(hash) : error('publish size mismatch')))
+            .value
+    }
+    // Any streaming error fails closed: delete the partial file, return the error.
+    /** @type {(curPath: string, e: unknown) => Effect<FileCasOperation, IoResult<Vec>>} */
+    const fail = (curPath, e) =>
+        eff(rm(curPath))
+            .step(() => pure(error(e)))
+            .value
+    return eff(gcStage(stageDir)).step(() =>
+        eff(random256).step(rnd => {
+            const rndStr = vecToCBase32(rnd)
+            /** @type {(state: Sha2State, offset: number, curPath: string) => (stream: List<O1, IoResult<Vec>>) => Effect<O1 | FileCasOperation, IoResult<Vec>>} */
+            const loop = (state, offset, curPath) =>
+                stream =>
+                    eff(stream)
+                        .step((node) => {
+                            if (node === undefined) {
+                                return publish(state, offset, curPath)
+                            }
+                            const { first, tail } = node
+                            if (first[0] === 'error') {
+                                return fail(curPath, first[1])
+                            }
+                            const chunk = first[1]
+                            return eff(writeBytes(curPath, offset, chunk))
+                                .step(wb => {
+                                    if (wb[0] === 'error') { return fail(curPath, wb[1]) }
+                                    const newState = sha2.append(chunk)(state)
+                                    const newOffset = offset + Number(length(chunk) / 8n)
+                                    // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
+                                    // The new path is still needed after the rename, to recurse with,
+                                    // so the rename captures it rather than closing over it.
+                                    const nextPath = step(
+                                        now(),
+                                        t => pure(join(stageDir, stageName(t + leaseDelta, rndStr))))
+                                    const renamed = historyStep(
+                                        history(nextPath),
+                                        next => rename(curPath, next))
+                                    return step(
+                                        renamed,
+                                        ([[rt, v], next]) =>
+                                            rt === 'error'
+                                                ? fail(curPath, v)
+                                                : loop(newState, newOffset, next)(tail))
+                                })
+                                .value
+                        })
+                        .value
+            return eff(mkdir(stageDir, { recursive: true }))
+                .step(() => now())
+                .step(t0 => {
+                    const path0 = join(stageDir, stageName(t0 + leaseDelta, rndStr))
+                    return eff(createExclusive(path0))
+                        .step(okStep(() => loop(sha2.init, 0, path0)(payload)))
+                        .value
+                })
+                .value
+        }).value).value
+}
+
+/**
+ * Builds a content-addressable storage facade from a SHA-2 implementation.
+ *
+ * @type {(sha2: Sha2) => (path: string) => FileCas}
+ */
+export const fileCas = sha2 => path => {
+    const storePrefix = join(path, prefix)
+    const normalizedStorePrefix = normalize(storePrefix)
+    const stageDir = join(storePrefix, stageRel)
+    return {
+        read: hash => {
+            const p = join(path, toPath(hash))
+            /** @type {(offset: number) => List<FileCasOperation, IoResult<Vec>>} */
+            const loop = offset =>
+                eff(readBytes(p, offset, chunkBytes))
+                    .step(/** @type {(result: IoResult<Vec>) => List<FileCasOperation, IoResult<Vec>>} */ (result) => {
+                        const [t, v] = result
+                        // A missing shard or read error is an explicit error item, never EOF.
+                        if (t === 'error') {
+                            return nonEmpty(result, elEmpty())
+                        }
+                        // End the stream only on an empty read; every non-empty read — including a
+                        // final short (`< CHUNK_BYTES`) chunk — is emitted as an `ok` item.
+                        return length(v) === 0n
+                            ? elEmpty()
+                            : nonEmpty(ok(v), loop(offset + chunkBytes))
+                    })
+                    .value
+            return loop(0)
+        },
+        write: payload => writeImpl(sha2, path, stageDir, payload),
+        list: () =>
+            // A fresh store has no `.cas` directory yet. Treat *only* that case as an
+            // empty store, mirroring how `read` maps a missing shard to an error item.
+            // A `.cas` that exists but cannot be read (permissions, corruption) is a
+            // genuine storage error and is surfaced, not masked as "no hashes".
+            eff(access(storePrefix))
+                .step(a => {
+                    if (a[0] === 'error') {
+                        if (isNotFound(a[1])) { return pure(/** @type {readonly Vec[]} */ ([])) }
+                        throw a[1]
+                    }
+                    return eff(readdir(storePrefix, { recursive: true }))
+                        .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
+                            toOption(isFile
+                                ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
+                                : null))))
+                        .value
+                })
+                .value,
+        url: hash =>
+            join(path, toPath(hash))
+    }
+}
+
+/** 256-bit random `Vec` built from 8 sequential `randomInt` (32-bit) calls.
+ *
+ * @type {Effect<RandomInt, Vec>}
+ */
+const random256 =
+    foldStep(
+        pure([0, 1, 2, 3, 4, 5, 6, 7]),
+        empty,
+        () => (/** @type {Vec} */ acc) =>
+            eff(randomInt())
+                .step(r => pure(msb.concat(acc)(vec(32n)(BigInt(r)))))
+                .value)
+
+/** Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of `ok` items.
+ *
+ * @type {(filePath: string) => List<ReadBytes, IoResult<Vec>>}
+ */
+const streamFile = filePath => {
+    /** @type {(offset: number) => List<ReadBytes, IoResult<Vec>>} */
+    const loop = offset =>
+        eff(readBytes(filePath, offset, chunkBytes))
+            .step(/** @type {(result: IoResult<Vec>) => List<ReadBytes, IoResult<Vec>>} */ (result) => {
+                if (result[0] === 'error') {
+                    return nonEmpty(result, elEmpty())
+                }
+                const chunk = result[1]
+                return length(chunk) === 0n
+                    ? elEmpty()
+                    : nonEmpty(ok(chunk), loop(offset + chunkBytes))
+            })
+            .value
+    return loop(0)
+}
+
+/**
+ * Streams the file at `path` through `cas.write`, returning the content hash.
+ * Both the CLI `cas add` and the MCP `add` delegate to this; the MCP layer
+ * additionally deletes the source file on success.
+ *
+ * @template {Operation} O
+ * @param {Cas<O>} cas
+ * @returns {(path: string) => Effect<O | ReadBytes, IoResult<Vec>>}
+ */
+export const casAddFile = cas => path =>
+    // streamFile produces only ReadBytes effects. TypeScript can't prove ListEffect<ReadBytes,T>
+    // ≤ ListEffect<O,T> for generic O (recursive type), but the cast is sound: every concrete
+    // caller passes a Cas<O> where ReadBytes ⊆ O (e.g. FileCasOperation).
+    cas.write(streamFile(path))
+
+/**
+ * Upload pipeline: streams `fileName` from `~/cas_upload/` through `casAddFile`,
+ * then deletes the source on success. On failure the source is left in place so
+ * the upload can be retried; `write` already cleans up its own partial staging file.
+ *
+ * @type {(home: string) => (fileName: string) => Effect<FileCasOperation, IoResult<Vec>>}
+ */
+export const casUpload = home => fileName => {
+    const src = join(home, 'cas_upload', fileName)
+    const c = fileCas(sha256)(home)
+    return eff(casAddFile(c)(src))
+        .step(okStep(/** @type {(v: Vec) => Effect<Rm, IoResult<Vec>>} */ (v => eff(rm(src))
+            .step(() => pure(ok(v)))
+            .value)))
+        .value
+}

@@ -5,14 +5,14 @@
 
 ### Problem
 
-`fjs/emergent_testing/module.f.ts` already factors out the static collection step into
+`fjs/emergent_testing/module.f.mjs` already factors out the static collection step into
 `collectTests` (lines 116-128), which walks the export tree and returns a flat
 list of `[path, TestEntry]` pairs. Both downstream consumers — `runModule` and
 `registerModule` — then independently re-implement the *dynamic* walk of each
 test's return value:
 
 ```ts
-// registerModule (./fjs/emergent_testing/module.f.ts:154)
+// registerModule (./fjs/emergent_testing/module.f.mjs:122)
 const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
     test(ctx, fmtImport(k, path), throws, (t): Effect<Test | All | Await, void> =>
         awaitIfPromise(fn())
@@ -23,7 +23,7 @@ const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
             return all(...sub.map(e => registerOne(t, e))).step(() => pure(undefined))
         }))
 
-// runModule (./fjs/emergent_testing/module.f.ts:175)
+// runModule (./fjs/emergent_testing/module.f.mjs:167)
 const one = ([testPath, set]: TestAndPath): Effect<O | All, TestState> =>
     test(k, testPath, set)
     .step(sr => {
@@ -70,7 +70,7 @@ Lift the traversal into a single `walkTests` combinator parameterized over the
 per-leaf action and the accumulator merge:
 
 ```ts
-// ./fjs/emergent_testing/module.f.ts (sketch)
+// ./fjs/emergent_testing/module.f.mjs (sketch)
 
 type Walker<O extends Operation, S> = {
     /** What to do at a single leaf. May return a sub-tree value to recurse into. */

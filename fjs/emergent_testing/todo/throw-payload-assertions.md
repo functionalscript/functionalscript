@@ -11,7 +11,7 @@ marker, and [AGENTS.md](../../../AGENTS.md) now flatly bans `try`/`catch` in `.f
 (FunctionalScript itself has no `try`/`catch` and isn't planning one soon). Codex flagged the
 regression this causes on that PR
 ([`fjs/asserts/proof.f.mjs:17`](../../asserts/proof.f.mjs#L17)): `defaultTest` in
-[`module.f.ts`](../module.f.ts) treats *any* caught exception under `throw` as a pass — it
+[`module.f.mjs`](../module.f.mjs) treats *any* caught exception under `throw` as a pass — it
 never inspects *what* was thrown. The `try`/`catch` versions it replaced did:
 
 ```ts
@@ -29,7 +29,7 @@ Under the plain `throw` key, `assert(false, 'oops')` throwing `'anything'` inste
 `assertEq(1, 2)` throwing the wrong tuple, or `todo()` throwing the wrong sentinel would all
 still pass. The same gap exists in `fjs/types/result/proof.f.mjs`'s `unwrapError` (dropped the
 check that `unwrap(error('oops'))` throws exactly `'oops'`, not some wrapped value) and
-`fjs/cas/cli/proof.f.ts`'s `mainListCorruptStore` (only checks *that* the storage error
+`fjs/cas/cli/proof.f.mjs`'s `mainListCorruptStore` (only checks *that* the storage error
 surfaces, which was already all it checked).
 
 **Why this is low-severity, not a correctness gap.** In FunctionalScript, `throw` is closer to
@@ -70,7 +70,7 @@ already exempt from that rule — [`fjs/effects/node/memory/proof.ts`](../../eff
 is a live example (it isn't the shape we need here, since it captures a rejected `Promise` via
 `.then(onFulfilled, onRejected)` rather than `try`/`catch`, but it proves the file-type split
 already works and is already discovered by `fjs t` — `shouldLoad` in
-[`fjs/dev/module.f.ts`](../../dev/module.f.ts#L41) matches any `*proof.ts` filename alongside
+[`fjs/dev/module.f.mjs`](../../dev/module.f.mjs#L44) matches any `*proof.ts` filename alongside
 `*.f.ts`). AGENTS.md's `.f.ts` rule needs no change: it never applied to `proof.ts` in the first
 place. The fix for `fjs/asserts/proof.f.mjs` and `fjs/types/result/proof.f.mjs` is simply to move
 just the payload-checking cases (`assertThrowsCustomMsg`, `assertEqThrowsOnUnequal`,

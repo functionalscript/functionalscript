@@ -5,7 +5,7 @@
 
 ### Problem
 
-`allFiles` (`fjs/dev/module.f.ts:53-71`) builds its effect array with an
+`allFiles` (`fjs/dev/module.f.mjs:52-80`) builds its effect array with an
 imperative `for` loop, a reassigned accumulator, and three `continue`s:
 
 ```ts
@@ -31,7 +31,7 @@ spread) over loop-and-reassign accumulators. Each directory entry yields
 zero or one effect, which is exactly the `flatMap` shape. The repeated
 `result = [...result, x]` is also O(n²) in entry count.
 
-Secondary: line 82 destructures `const { fromEntries } = Object` while
+Secondary: line 88 destructures `const { fromEntries } = Object` while
 `AGENTS.md` mandates the typed helpers from `fjs/types/object/module.f.mjs`
 for string-keyed maps (`fjs/cli` already imports from there).
 

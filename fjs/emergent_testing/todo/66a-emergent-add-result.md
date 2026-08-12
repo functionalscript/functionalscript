@@ -5,11 +5,11 @@
 
 ### Problem
 
-`fjs/emergent_testing/module.f.ts` defines two `TestState` updaters that are
+`fjs/emergent_testing/module.f.mjs` defines two `TestState` updaters that are
 identical except for the counter field they increment:
 
 ```ts
-// fjs/emergent_testing/module.f.ts:43-47
+// fjs/emergent_testing/module.f.mjs:40-46
 const addPass = (delta: number) => (ts: TestState): TestState =>
     ({ ...ts, time: ts.time + delta, pass: ts.pass + 1 })
 
@@ -36,7 +36,7 @@ copy would multiply.
 
 Both helpers are real, exercised code: `addPass(duration)(zero)` /
 `addFail(duration)(zero)` feed the `runModule` walk
-(`fjs/emergent_testing/module.f.ts:199-205`).
+(`fjs/emergent_testing/module.f.mjs:180-190`).
 
 ### Proposal
 
@@ -66,7 +66,7 @@ a prerequisite if a third counter is introduced, but not on its own.
 ### Tasks
 
 - [ ] Replace `addPass` / `addFail` with the `addResult` factory + two
-      derivations in `fjs/emergent_testing/module.f.ts`.
+      derivations in `fjs/emergent_testing/module.f.mjs`.
 - [ ] Confirm `fjs/emergent_testing` proofs still pass (`fjs t`) with full
       branch coverage and `npx tsc` is clean.
 

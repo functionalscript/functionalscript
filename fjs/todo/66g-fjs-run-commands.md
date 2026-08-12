@@ -7,7 +7,7 @@
 
 `fjs run <module>` imports the target module and calls `v.main` as a
 `NodeProgram`. When a module naturally expresses its interface as a `Commands`
-array (as `fjs/cas/module.f.ts` now does), it must also export a redundant
+array (as `fjs/cas/module.f.mjs` now does), it must also export a redundant
 `export const main = dispatch(commands)` solely to satisfy `fjs run` — see the
 fix in [#1093](https://github.com/functionalscript/functionalscript/pull/1093)
 that had to restore exactly this boilerplate after it was removed.
@@ -44,7 +44,7 @@ export const runEffect = (p: NodeMain): Promise<number> =>
 
 `fjs run` in `fjs/module.f.ts` passes `v.main` straight to the effect
 runner and needs no change. The `export const main = dispatch(commands)`
-wrapper in `fjs/cas/module.f.ts` simplifies to `export const main = commands`.
+wrapper in `fjs/cas/module.f.mjs` simplifies to `export const main = commands`.
 
 ### Tasks
 
@@ -52,14 +52,14 @@ wrapper in `fjs/cas/module.f.ts` simplifies to `export const main = commands`.
       `fjs/effects/node/module.f.mjs`.
 - [ ] Widen `runEffect` and `run` in `fjs/effects/node/module.ts` to accept
       `NodeMain`; resolve the union with `Array.isArray` before invoking.
-- [ ] Simplify `fjs/cas/module.f.ts`: `export const main = commands` (drop the
+- [ ] Simplify `fjs/cas/module.f.mjs`: `export const main = commands` (drop the
       `dispatch` wrapper).
 - [ ] Add a proof in `fjs/proof.f.ts` covering the `Commands`-as-`main` path.
 
 ### Related
 
 - `fjs/module.f.ts` — the `run` handler at line 39.
-- `fjs/cas/module.f.ts` — the `main = dispatch(commands)` boilerplate this issue
+- `fjs/cas/module.f.mjs` — the `main = dispatch(commands)` boilerplate this issue
   eliminates.
 - `fjs/cli/module.f.mjs` — `dispatch` used by the new branch; `Commands`
   is defined in `fjs/cli/types.ts`.
