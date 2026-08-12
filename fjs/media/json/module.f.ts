@@ -1,13 +1,13 @@
 /**
- * JSON value types, rtti schemas, and utilities: `serialize`, `stringify`,
- * `parse`, and `setProperty` for immutable nested updates.
+ * JSON utilities: `serialize`, `stringify`, `parse`, and `setProperty` for
+ * immutable nested updates.
  *
  * `parse` is the total, `Result`-returning `text → Unknown` entry point built
  * on this module's own tokenizer and parser.
  *
- * The JSON value types (`Unknown`, `Primitive`) are derived from the rtti
- * schemas defined here, so the schema is the single source of truth — no
- * hand-written types to keep in sync.
+ * The JSON value types (`Unknown`, `Primitive`, `Object`, `Array`) live in
+ * [`./types.ts`](./types.ts), and the rtti schemas they are pinned against in
+ * [`./rtti/module.f.mjs`](./rtti/module.f.mjs).
  *
  * @module
  */
