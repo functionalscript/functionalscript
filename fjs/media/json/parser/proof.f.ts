@@ -1,4 +1,4 @@
-import { parse } from './module.f.ts'
+import { parse } from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import type { JsonToken } from '../tokenizer/types.ts'
 import { toArray } from '../../../types/list/module.f.mjs'
