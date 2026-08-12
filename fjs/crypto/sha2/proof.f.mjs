@@ -1,4 +1,4 @@
-import type { Sha2 } from './types.ts'
+/** @import { Sha2 } from './types.ts' */
 
 import { utf8 } from '../../text/module.f.mjs'
 import { repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'
@@ -7,7 +7,8 @@ import { assertEq } from '../../asserts/module.f.mjs'
 import { map } from '../../types/list/module.f.mjs'
 import { base32, base64, computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
 
-const checkEmpty = ({ init, end, hashLength }: Sha2) => (x: bigint) => {
+/** @type {(sha2: Sha2) => (x: bigint) => void} */
+const checkEmpty = ({ init, end, hashLength }) => x => {
     const result = end(init)
     assertEq(result, vec(hashLength)(x), [result, x])
 }
