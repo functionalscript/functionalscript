@@ -15,7 +15,7 @@ vocabulary were left behind and re-declared instead:
 `stringSerialize(k), colon, f(v)` property fragment:
 
 ```ts
-// fjs/media/json/module.f.mjs:69
+// fjs/media/json/module.f.ts:70
 const colon = [':']
 // fjs/djs/serializer/module.f.ts:17
 const colon = [':']
@@ -25,7 +25,7 @@ const colon = [':']
 `Unknown` the entries carry:
 
 ```ts
-// fjs/media/json/module.f.mjs:75-77
+// fjs/media/json/module.f.ts:74-76
 type Entries = List<Entry>
 type MapEntries = (entries: Entries) => Entries
 // fjs/djs/serializer/module.f.ts:23
@@ -47,7 +47,7 @@ export const colon: List<string> = [':']
 export type MapEntries<P> = (entries: List<ObjectEntry<P>>) => List<ObjectEntry<P>>
 ```
 
-`fjs/media/json/module.f.mjs` imports `colon` and instantiates
+`fjs/media/json/module.f.ts` imports `colon` and instantiates
 `MapEntries<Unknown>` (json's `Unknown`); `fjs/djs/serializer` imports both
 and instantiates `MapEntries<Unknown>` (djs's `Unknown`). The two local
 declarations are deleted. The leaf parameterization composes with
@@ -57,7 +57,7 @@ unifies the value types the same way but does not cover `MapEntries`.
 ### Tasks
 
 - [ ] Export `colon` and `MapEntries<P>` from `fjs/media/json/serializer`.
-- [ ] Delete the local copies in `fjs/media/json/module.f.mjs` and
+- [ ] Delete the local copies in `fjs/media/json/module.f.ts` and
       `fjs/djs/serializer/module.f.ts`; import instead.
 - [ ] Run `npx tsc` and `fjs t`.
 

@@ -51,7 +51,7 @@ Use the existing recursive JSON serializer with lexicographically sorted object
 entries:
 
 ```ts
-import { stringify } from '../json/module.f.mjs'
+import { stringify } from '../json/module.f.ts'
 import { sort } from '../../types/object/module.f.mjs'
 
 const toJson = stringify(sort)

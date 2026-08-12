@@ -14,8 +14,7 @@
  * @module
  */
 import { boolean, string, option, array, record, or } from '../../types/rtti/module.f.mjs'
-import { unknown } from '../../media/json/module.f.mjs'
-import type { Unknown } from '../../media/json/types.ts'
+import { unknown, type Unknown } from '../../media/json/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/types.ts'
 import { pure, step } from '../../effects/module.f.mjs'
 import type { Operation, Effect } from '../../effects/types.ts'

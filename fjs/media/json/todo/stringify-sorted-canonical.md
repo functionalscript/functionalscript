@@ -24,7 +24,7 @@ Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
   `fjs/types/sorted_set/proof.f.ts:10`, `fjs/types/list/proof.f.ts:37`
 - `fjs/text/ascii/proof.f.ts:6`, `fjs/text/utf8/proof.f.ts:8`,
   `fjs/text/utf16/proof.f.ts:15`
-- `fjs/media/json/parser/proof.f.mjs:13`, `fjs/protocol/mcp/stdio/proof.f.ts:13`
+- `fjs/media/json/parser/proof.f.ts:13`, `fjs/protocol/mcp/stdio/proof.f.ts:13`
 - `fjs/bnf/data/proof.f.ts` (10 inline calls), `fjs/djs/parser/proof.f.ts:306`,
   `fjs/djs/serializer/proof.f.ts:47`
 
@@ -37,7 +37,7 @@ no single point of definition.
 
 ## Proposal
 
-Export the composition once from `fjs/media/json/module.f.mjs`, which already
+Export the composition once from `fjs/media/json/module.f.ts`, which already
 imports from `fjs/types/object` (so the `sort` dependency adds nothing new):
 
 ```ts
@@ -54,8 +54,8 @@ applications once.
 
 ## Tasks
 
-- [ ] Add `stringifySorted` to `fjs/media/json/module.f.mjs` with proof
-      coverage in `fjs/media/json/proof.f.mjs` (which itself calls
+- [ ] Add `stringifySorted` to `fjs/media/json/module.f.ts` with proof
+      coverage in `fjs/media/json/proof.f.ts` (which itself calls
       `stringify(sort)` seven times today).
 - [ ] Migrate the two source-module sites (`fjs/protocol/mcp/stdio/module.f.ts`,
       `fjs/djs/module.f.ts`), then the proof files.

@@ -2,7 +2,7 @@ import { nodeRemove } from './module.f.mjs'
 import type { TNode } from '../types/types.ts'
 import { set as setSet } from '../set/module.f.mjs'
 import { cmp } from '../../string/module.f.mjs'
-import { stringify } from '../../../media/json/module.f.mjs'
+import { stringify } from '../../../media/json/module.f.ts'
 import { sort } from '../../object/module.f.mjs'
 import { assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
 

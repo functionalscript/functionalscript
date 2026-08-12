@@ -51,7 +51,7 @@ import {
     toolEntry, errorResult, okResult,
     type ToolEntry, type ToolsCallResult,
 } from '../../protocol/mcp/module.f.ts'
-import { stringify } from '../../media/json/module.f.mjs'
+import { stringify } from '../../media/json/module.f.ts'
 import { identity } from '../../types/function/module.f.mjs'
 import { type Evo } from '../../cas/evo/module.f.ts'
 

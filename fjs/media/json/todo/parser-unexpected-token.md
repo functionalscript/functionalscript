@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/media/json/parser/module.f.mjs` builds `{ status: 'error', message:
+`fjs/media/json/parser/module.f.ts` builds `{ status: 'error', message:
 'unexpected token' }` inline at nine sites (lines 146, 151, 162, 170, 178,
 185, 193, 202, 212), plus a stray `{ status: 'error', message: 'error' }`
 at line 68 (the `pushKey` fallthrough). Example:

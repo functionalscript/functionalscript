@@ -4,7 +4,7 @@
  *
  * @module
  */
-import { parse as parseJsonText } from '../../media/json/module.f.mjs'
+import { parse as parseJsonText } from '../../media/json/module.f.ts'
 import { option, record, string } from '../../types/rtti/module.f.mjs'
 import { validate as rttiValidate } from '../../types/rtti/validate/module.f.mjs'
 import type { ValidationError } from '../../types/rtti/common/types.ts'

@@ -175,6 +175,6 @@ exactly the path `cas_get` uses.
 - `fjs/media/type/module.f.mjs:157-178` — the UTF-8 factor whose decoded code points feed the JSON factor.
 - `fjs/media/json/todo/streaming-recognizer.md` — **blocks this**; the payload-free, O(depth) validity recognizer `A_json` wraps.
 - `fjs/js/tokenizer/module.f.mjs` — `parseStringStateOp`; already rejects raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
-- `fjs/media/json/parser/module.f.mjs:206-240` — `foldOp` / `parse`, the grammar the recognizer reuses value-free.
+- `fjs/media/json/parser/module.f.ts:205-238` — `foldOp` / `parse`, the grammar the recognizer reuses value-free.
 - `fjs/mcp/cas/module.f.ts:196-204` — `cas_get`, the consumer that gains `application/json` for free.
 - `fjs/media/type/todo/single-signature-table.md` — the sibling "one source of truth" cleanup; same single-classifier principle.

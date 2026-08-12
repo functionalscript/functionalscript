@@ -1,7 +1,6 @@
 import type { TNode } from './types/types.ts'
 import { values } from './module.f.mjs'
-import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
-import type { Unknown } from '../../media/json/types.ts'
+import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
 import { sort } from '../object/module.f.mjs'
 import { cmp } from '../string/module.f.mjs'
 import type { List, Result } from '../list/types.ts'

@@ -20,19 +20,6 @@ history.
 
 ## Unreleased
 
-- **BREAKING CHANGES:** `fjs/media/json` and `fjs/media/json/parser`
-  migrate together from authored TypeScript (`.f.ts`) to JSDoc-typed
-  JavaScript (`.f.mjs`), splitting `Primitive`, `Unknown`, `Object`,
-  `Array`, and `Entry` into a sibling `fjs/media/json/types.ts` —
-  importers must use the `.f.mjs` specifier for runtime values and the
-  `types.ts` specifier for types. This breaks a type-only cycle
-  between the two modules (`parser` only needed `Unknown`, now served
-  from `types.ts` instead of `module.f.ts`), unlocking migration for
-  both. Both `proof.f.ts` files migrate alongside their modules.
-  Updates all consuming modules across the tree (`fjs/djs`,
-  `fjs/protocol`, `fjs/mcp`, `fjs/cas`, `fjs/fsm`, `fjs/media/revision`,
-  and about a dozen `fjs/types/*` proofs)
-  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
 - **BREAKING CHANGES:** `fjs/media/json/tokenizer` migrates from
   authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
   splitting `JsonToken` and the internal `_ScanState`/`_ScanInput`

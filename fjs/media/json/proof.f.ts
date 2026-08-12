@@ -1,4 +1,4 @@
-import { parse, setProperty, stringify } from './module.f.mjs'
+import { parse, setProperty, stringify } from './module.f.ts'
 import { sort } from '../../types/object/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
@@ -15,12 +15,12 @@ export const proof = {
         },
         () => {
             // typeof src !== 'object': primitive src treated as empty object
-            const x = stringify(sort)(setProperty("Hello")(['a'])(/** @type {null} */ (/** @type {unknown} */ (42))))
+            const x = stringify(sort)(setProperty("Hello")(['a'])(42 as unknown as null))
             if (x !== '{"a":"Hello"}') { throw x }
         },
         () => {
             // src instanceof Array: array src treated as empty object
-            const x = stringify(sort)(setProperty("Hello")(['a'])(/** @type {null} */ (/** @type {unknown} */ ([1, 2]))))
+            const x = stringify(sort)(setProperty("Hello")(['a'])([1, 2] as unknown as null))
             if (x !== '{"a":"Hello"}') { throw x }
         },
     ],
