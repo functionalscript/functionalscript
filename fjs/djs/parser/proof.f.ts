@@ -4,7 +4,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { stringifyAsTree } from '../serializer/module.f.ts'
-import { stringify } from '../../media/json/module.f.ts'
+import { stringify } from '../../media/json/sede/module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const tokenizeString

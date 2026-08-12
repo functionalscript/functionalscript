@@ -1,7 +1,7 @@
-import type { Object as JsonObject } from '../json/types.ts'
+import type { Object as JsonObject } from '../types.ts'
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { dialect, mediaType, isHash, validate, decodeText, encodeText, type LockMap } from './module.f.ts'
+import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { dialect, mediaType, isHash, validate, decodeText, encodeText, type LockMap } from '../../revision/module.f.ts'
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single
 // cbase32 symbols, cheap to write inline here.

@@ -2,7 +2,7 @@ import type { Unknown } from '../../media/json/types.ts'
 
 import type { List } from './types.ts'
 import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, take, takeWhile, toArray, zip, first, filterMap, isEmpty, equal, tryFold } from './module.f.mjs'
-import { stringify } from '../../media/json/module.f.ts'
+import { stringify } from '../../media/json/sede/module.f.ts'
 import { sort } from '../object/module.f.mjs'
 import { addition, strictEqual, reduceToScan } from '../function/operator/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
