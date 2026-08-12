@@ -41,15 +41,17 @@
  * {@link RevisionData} vocabulary.
  *
  * @module
+ *
+ * @import { Effect, Operation } from '../../effects/types.ts'
+ * @import { Key, MemOp } from '../../effects/memory/types.ts'
+ * @import { Cas } from '../types.ts'
+ * @import { Ok, Result } from '../../types/result/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { IoResult } from '../../effects/node/types.ts'
+ * @import { List } from '../../effects/list/types.ts'
+ * @import { LockMap, Revision } from '../../media/revision/types.ts'
+ * @import { Hash, Subject, RevisionData, SubjectState, Cache, Evo } from './types.ts'
  */
-
-import type { Effect, Operation } from '../../effects/types.ts'
-import type { Key, MemOp } from '../../effects/memory/types.ts'
-import type { Cas } from '../types.ts'
-import type { Ok, Result } from '../../types/result/types.ts'
-import type { StringMap } from '../../types/object/types.ts'
-import type { Vec } from '../../types/bit_vec/types.ts'
-import type { IoResult } from '../../effects/node/types.ts'
 
 import { pure, foldStep } from '../../effects/module.f.mjs'
 import { eff } from '../../effects/eff/module.f.mjs'
@@ -63,96 +65,19 @@ import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { at, definedEntries } from '../../types/object/module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
 import { isNotFound } from '../../effects/node/module.f.mjs'
-
 import { decodeText, encodeText, dialect, checkReferences, isHash } from '../../media/revision/module.f.mjs'
-import type { LockMap, Revision } from '../../media/revision/types.ts'
-
-/** A cBase32 content hash, as accepted/returned by `Cas<O>`. */
-export type Hash = string
-
-/** The identity of a mutable object whose revisions are being evolved. */
-export type Subject = string
-
-/**
- * The semantic content of a revision: the media-level `Revision`
- * (`fjs/media/revision`) minus `dialect`, which is a serialization tag
- * carrying no information once decoding has validated it. One structure is
- * the vocabulary of both directions — {@link addRevision} takes it,
- * {@link readRevision} returns it — so what you add is what you get back, and
- * a value read back can be fed to `add` unchanged, without stripping fields.
- * Every direction-specific field is therefore optional, with the guarantees
- * documented per field rather than typed:
- *
- * - `parents` — required in both directions; index 0 is the mainline parent.
- *   On output the entries are canonical cBase32 spellings
- *   ({@link canonicalHash}), so they compare directly against {@link Evo.head}
- *   output.
- * - `subject` — input: absent means "inherit from my single parent" (see
- *   {@link resolveSubject}); output: always present.
- * - `snapshot` — input: absent is a write-boundary convenience resolved from
- *   the parents (see {@link resolveSnapshot}), because the stored blob
- *   requires it explicitly; output: always present, canonical, and exactly
- *   what the stored blob names.
- * - `archived` — genuinely optional in both directions; the only field that
- *   can be absent from a read.
- * - `generation` — input: **ignored**, {@link computeGeneration} derives the
- *   authoritative value from the parents; output: always present. It exists as
- *   an input field only so a read value round-trips into `add` as-is.
- *
- * Relaxing what the format requires is the point, not an oversight. The stored
- * `vnd.fjs.revision` blob requires `subject`, `snapshot` and `generation`, and
- * {@link readRevision} does return all three — but this is not that blob's
- * type. It is the type of the API that *reads and constructs* revisions, and
- * its purpose is to make both easy: `add` asks only for what a caller can
- * actually know, resolving or computing the rest at the write boundary, and a
- * read hands back a value that goes straight into `add` again. A separate
- * output type with `subject`/`snapshot`/`generation` required would state that
- * one direction more precisely, at the cost of splitting the one vocabulary
- * into two — the trade this API declines, deliberately and not by omission.
- * `fjs/media/revision`'s `Revision` remains the all-required type of the
- * stored blob for anyone who wants it.
- */
-export type RevisionData = {
-    readonly parents: readonly Hash[]
-    readonly snapshot?: Hash | undefined
-    readonly subject?: Subject | undefined
-    readonly archived?: true | undefined
-    readonly generation?: number | undefined
-    readonly lock?: LockMap | undefined
-}
-
-/**
- * Per-subject bookkeeping: every revision hash seen for the subject, every
- * hash any of those revisions names as a parent, and which of the seen
- * revisions are `archived`. See the module doc for why the first two sets are
- * kept (rather than a running head list), {@link headsOf} for how heads are
- * derived from them, and {@link subjectListed} for how `archived` classifies a
- * subject once its heads are known.
- *
- * `archived` is keyed by revision hash, not by subject, for the same reason
- * heads are computed at read time: which revisions are heads is only known
- * once the whole store has been folded in, so a per-subject archived flag
- * would have to be revised every time a later fold changes the head set.
- */
-export type SubjectState = {
-    readonly hashes: readonly Hash[]
-    readonly parents: readonly Hash[]
-    readonly archived: readonly Hash[]
-}
-
-/** In-memory index: subject → its {@link SubjectState}. */
-export type Cache = {
-    readonly bySubject: StringMap<SubjectState>
-}
 
 /** A cache with no known subjects yet — the starting point for {@link buildCache}. */
-export const emptyCache: Cache = { bySubject: {} }
+export const emptyCache = /** @type {Cache} */ ({ bySubject: {} })
 
-const emptySubjectState: SubjectState = { hashes: [], parents: [], archived: [] }
+/** @type {SubjectState} */
+const emptySubjectState = { hashes: [], parents: [], archived: [] }
 
-/** Adds every item of `items` to `set` that isn't already there, preserving `set`'s existing order. */
-const union = (set: readonly Hash[]) => (items: readonly Hash[]): readonly Hash[] =>
-    items.reduce((acc: readonly Hash[], h) => acc.includes(h) ? acc : [...acc, h], set)
+/** Adds every item of `items` to `set` that isn't already there, preserving `set`'s existing order.
+ * @type {(set: readonly Hash[]) => (items: readonly Hash[]) => readonly Hash[]}
+ */
+const union = set => items =>
+    items.reduce((/** @type {readonly Hash[]} */ acc, h) => acc.includes(h) ? acc : [...acc, h], set)
 
 /**
  * Re-encodes `h` in its canonical cBase32 spelling. `cBase32ToVec` accepts
@@ -165,15 +90,20 @@ const union = (set: readonly Hash[]) => (items: readonly Hash[]): readonly Hash[
  * Every caller of this module reaches {@link addRevisionToCache} only with a
  * `revision` whose `parents` already passed `isHash`
  * (`fjs/media/revision` `checkReferences`), so decoding here cannot fail.
+ * @type {(h: Hash) => Hash}
  */
-const canonicalHash = (h: Hash): Hash => vecToCBase32(unwrap(cBase32ToVec(h)))
+const canonicalHash = h => vecToCBase32(unwrap(cBase32ToVec(h)))
 
-/** Canonicalizes every direct hash in a structurally validated flat lock map. */
-const canonicalLock = (lock: LockMap): LockMap =>
+/** Canonicalizes every direct hash in a structurally validated flat lock map.
+ * @type {(lock: LockMap) => LockMap}
+ */
+const canonicalLock = lock =>
     Object.fromEntries(definedEntries(lock).map(([subject, hash]) => [subject, canonicalHash(hash)]))
 
-/** A subject's current heads: revision hashes seen that no other revision of the same subject names as a parent. */
-const headsOf = (state: SubjectState): readonly Hash[] =>
+/** A subject's current heads: revision hashes seen that no other revision of the same subject names as a parent.
+ * @type {(state: SubjectState) => readonly Hash[]}
+ */
+const headsOf = state =>
     state.hashes.filter(h => !state.parents.includes(h))
 
 /**
@@ -193,8 +123,9 @@ const headsOf = (state: SubjectState): readonly Hash[] =>
  * status is a statement about heads, and there is nothing to state. That case
  * needs the explicit `heads.length` test only in the archived branch, since
  * "every head is archived" is vacuously true of no heads at all.
+ * @type {(archived: true | undefined) => (state: SubjectState) => boolean}
  */
-const subjectListed = (archived: true | undefined) => (state: SubjectState): boolean => {
+const subjectListed = archived => state => {
     const heads = headsOf(state)
     const unarchived = heads.filter(h => !state.archived.includes(h))
     return archived === undefined
@@ -216,10 +147,12 @@ const subjectListed = (archived: true | undefined) => (state: SubjectState): boo
  * `constructor`, …) — bracket indexing would then return that inherited
  * value instead of "no entry yet" and crash on the (non-array) `.hashes`
  * access below.
+ * @type {(hash: Hash, revision: Revision) => (cache: Cache) => Cache}
  */
-const addRevisionToCache = (hash: Hash, revision: Revision) => (cache: Cache): Cache => {
+const addRevisionToCache = (hash, revision) => cache => {
     const existing = at(revision.subject)(cache.bySubject) ?? emptySubjectState
-    const state: SubjectState = {
+    /** @type {SubjectState} */
+    const state = {
         hashes: union(existing.hashes)([hash]),
         parents: union(existing.parents)(revision.parents.map(canonicalHash)),
         archived: union(existing.archived)(revision.archived === undefined ? [] : [hash]),
@@ -231,8 +164,9 @@ const addRevisionToCache = (hash: Hash, revision: Revision) => (cache: Cache): C
  * Decodes already-read bytes as a `vnd.fjs.revision`. Returns `null` for
  * anything that is not a valid revision — bytes that are not valid UTF-8, or
  * text that does not parse/validate as the dialect.
+ * @type {(value: Vec) => Revision | null}
  */
-export const decodeRevisionVec = (value: Vec): Revision | null => {
+export const decodeRevisionVec = value => {
     const text = fromVec(value)
     if (text === null) { return null }
     const [decodeTag, revision] = decodeText(text)
@@ -245,8 +179,12 @@ export const decodeRevisionVec = (value: Vec): Revision | null => {
  * {@link decodeRevisionVec}) bytes that are not valid UTF-8 or do not
  * parse/validate as the dialect — so a store containing arbitrary other
  * content can be scanned without failing the whole cache build.
+ *
+ * @template {Operation} O
+ * @param {Cas<O>} cas
+ * @returns {(hash: Vec) => Effect<O, Revision | null>}
  */
-export const decodeRevisionBlob = <O extends Operation>(cas: Cas<O>) => (hash: Vec): Effect<O, Revision | null> =>
+export const decodeRevisionBlob = cas => hash =>
     eff(collectRead(cas.read(hash)))
         .map(([tag, value]) => tag === 'error' ? null : decodeRevisionVec(value))
         .value
@@ -254,8 +192,12 @@ export const decodeRevisionBlob = <O extends Operation>(cas: Cas<O>) => (hash: V
 /**
  * Scans every hash in `cas` and builds a fresh {@link Cache} from the
  * `vnd.fjs.revision` blobs found among them. Non-revision blobs are ignored.
+ *
+ * @template {Operation} O
+ * @param {Cas<O>} cas
+ * @returns {Effect<O, Cache>}
  */
-export const buildCache = <O extends Operation>(cas: Cas<O>): Effect<O, Cache> =>
+export const buildCache = cas =>
     foldStep(
         cas.list(),
         emptyCache,
@@ -266,14 +208,22 @@ export const buildCache = <O extends Operation>(cas: Cas<O>): Effect<O, Cache> =
                 )
                 .value)
 
-/** Scans `cas` once and allocates a memory slot holding the resulting {@link Cache}. */
-export const initEvo = <O extends Operation>(cas: Cas<O>): Effect<O | MemOp, Key<Cache>> =>
+/**
+ * Scans `cas` once and allocates a memory slot holding the resulting {@link Cache}.
+ *
+ * @template {Operation} O
+ * @param {Cas<O>} cas
+ * @returns {Effect<O | MemOp, Key<Cache>>}
+ */
+export const initEvo = cas =>
     eff(buildCache(cas))
         .step(cache => create(cache))
         .value
 
-/** Reads, then rewrites, the cache at `cacheKey` with `revision` folded in at `hash`. */
-const foldIntoCache = (cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revision): Effect<MemOp, void> =>
+/** Reads, then rewrites, the cache at `cacheKey` with `revision` folded in at `hash`.
+ * @type {(cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revision) => Effect<MemOp, void>}
+ */
+const foldIntoCache = cacheKey => hash => revision =>
     eff(read(cacheKey))
         .step(cache => write(cacheKey, addRevisionToCache(hash, revision)(cache)))
         .value
@@ -286,8 +236,9 @@ const foldIntoCache = (cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revis
  * call can store a revision blob without going through {@link addRevision},
  * and this is what keeps the cache honest about it without rescanning the
  * whole store.
+ * @type {(cacheKey: Key<Cache>) => (hash: Vec) => (value: Vec) => Effect<MemOp, void>}
  */
-export const syncRevision = (cacheKey: Key<Cache>) => (hash: Vec) => (value: Vec): Effect<MemOp, void> => {
+export const syncRevision = cacheKey => hash => value => {
     const revision = decodeRevisionVec(value)
     return revision === null ? pure(undefined) : foldIntoCache(cacheKey)(vecToCBase32(hash))(revision)
 }
@@ -298,8 +249,12 @@ export const syncRevision = (cacheKey: Key<Cache>) => (hash: Vec) => (value: Vec
  * unconditionally for every parent — even when `subject` is given explicitly
  * — so `add` never stores a revision whose declared parent is missing or not
  * a revision.
+ *
+ * @template {Operation} O
+ * @param {Cas<O>} cas
+ * @returns {(parentRef: Hash) => Effect<O, Result<Revision, string>>}
  */
-const resolveParent = <O extends Operation>(cas: Cas<O>) => (parentRef: Hash): Effect<O, Result<Revision, string>> => {
+const resolveParent = cas => parentRef => {
     const parentHash = cBase32ToVec(parentRef)
     if (parentHash === null) {
         return pure(error(`invalid parent hash: ${parentRef}`))
@@ -311,17 +266,25 @@ const resolveParent = <O extends Operation>(cas: Cas<O>) => (parentRef: Hash): E
         .value
 }
 
-/** Resolves and validates every entry of `parents`, in order, short-circuiting on the first failure. */
-const resolveParents = <O extends Operation>(cas: Cas<O>) => (parents: readonly Hash[]): Effect<O, Result<readonly Revision[], string>> => {
-    const init: Result<readonly Revision[], string> = ok([])
+/**
+ * Resolves and validates every entry of `parents`, in order, short-circuiting on the first failure.
+ *
+ * @template {Operation} O
+ * @param {Cas<O>} cas
+ * @returns {(parents: readonly Hash[]) => Effect<O, Result<readonly Revision[], string>>}
+ */
+const resolveParents = cas => parents => {
+    /** @type {Result<readonly Revision[], string>} */
+    const init = ok([])
     return foldStep(
         pure(parents),
         init,
-        parentRef => (acc: Result<readonly Revision[], string>) => {
+        parentRef => (/** @type {Result<readonly Revision[], string>} */ acc) => {
             if (acc[0] === 'error') { return pure(acc) }
             return eff(resolveParent(cas)(parentRef))
-                .step((parentResult): Effect<never, Result<readonly Revision[], string>> =>
-                    pure(parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]]))
+                .step((/** @type {Result<Revision, string>} */ parentResult) =>
+                    /** @type {Effect<never, Result<readonly Revision[], string>>} */
+                    (pure(parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]])))
                 )
                 .value
         })
@@ -334,8 +297,9 @@ const resolveParents = <O extends Operation>(cas: Cas<O>) => (parents: readonly 
  * subject-inheritance rule the way `snapshot` does, so this is derived
  * explicitly). More or fewer than one parent without an explicit `subject`
  * cannot be resolved.
+ * @type {(input: RevisionData) => (parents: readonly Revision[]) => Result<Subject, string>}
  */
-const resolveSubject = (input: RevisionData) => (parents: readonly Revision[]): Result<Subject, string> => {
+const resolveSubject = input => parents => {
     if (input.subject !== undefined) { return ok(input.subject) }
     if (parents.length !== 1) {
         return error('subject is required unless there is exactly one parent to inherit it from')
@@ -351,8 +315,9 @@ const resolveSubject = (input: RevisionData) => (parents: readonly Revision[]): 
  * also scoped to `revision.subject` ({@link addRevisionToCache}), so a
  * cross-subject parent would never even leave its own subject's head set —
  * this must be rejected rather than merely producing a head mismatch later.
+ * @type {(subject: Subject) => (parents: readonly Revision[]) => Result<void, string>}
  */
-const validateParentSubjects = (subject: Subject) => (parents: readonly Revision[]): Result<void, string> => {
+const validateParentSubjects = subject => parents => {
     const mismatch = parents.find(p => p.subject !== subject)
     return mismatch === undefined
         ? ok(undefined)
@@ -370,8 +335,9 @@ const validateParentSubjects = (subject: Subject) => (parents: readonly Revision
  * one parent without an explicit `snapshot` cannot be resolved — there is no
  * single parent snapshot to inherit, and falling back to `subject` would
  * silently lose the merge result.
+ * @type {(input: RevisionData) => (subject: Subject) => (parents: readonly Revision[]) => Result<Hash, string>}
  */
-const resolveSnapshot = (input: RevisionData) => (subject: Subject) => (parents: readonly Revision[]): Result<Hash, string> => {
+const resolveSnapshot = input => subject => parents => {
     if (input.snapshot !== undefined) { return ok(input.snapshot) }
     if (parents.length === 0) {
         return isHash(subject)
@@ -394,8 +360,9 @@ const resolveSnapshot = (input: RevisionData) => (subject: Subject) => (parents:
  * caller-sized (the direct API or the `evo_add` MCP tool), and argument-spread
  * of a large array overflows the JS call stack with a `RangeError` before the
  * documented `Result` error path can run — a `reduce` has no such limit.
+ * @type {(parents: readonly Revision[]) => number}
  */
-const computeGeneration = (parents: readonly Revision[]): number =>
+const computeGeneration = parents =>
     parents.length === 0 ? 0 : 1 + parents.reduce((max, p) => Math.max(max, p.generation), 0)
 
 /**
@@ -419,13 +386,14 @@ const computeGeneration = (parents: readonly Revision[]): number =>
  * value read back by {@link readRevision} round-trips into `add` unchanged,
  * and {@link computeGeneration} always derives the stored value from the
  * resolved parents.
+ *
+ * @template {Operation} O
+ * @param {Cas<O>} cas
+ * @returns {(cacheKey: Key<Cache>) => (input: RevisionData) => Effect<O | MemOp, Result<Hash, string>>}
  */
-export const addRevision =
-    <O extends Operation>(cas: Cas<O>) =>
-    (cacheKey: Key<Cache>) =>
-    (input: RevisionData): Effect<O | MemOp, Result<Hash, string>> =>
+export const addRevision = cas => cacheKey => input =>
     eff(resolveParents(cas)(input.parents))
-        .step((parentsResult): Effect<O | MemOp, Result<Hash, string>> => {
+        .step((/** @type {Result<readonly Revision[], string>} */ parentsResult) => {
             if (parentsResult[0] === 'error') { return pure(parentsResult) }
             const subjectResult = resolveSubject(input)(parentsResult[1])
             if (subjectResult[0] === 'error') { return pure(subjectResult) }
@@ -433,7 +401,8 @@ export const addRevision =
             if (parentSubjectsResult[0] === 'error') { return pure(parentSubjectsResult) }
             const snapshotResult = resolveSnapshot(input)(subjectResult[1])(parentsResult[1])
             if (snapshotResult[0] === 'error') { return pure(snapshotResult) }
-            const revision: Revision = {
+            /** @type {Revision} */
+            const revision = {
                 dialect,
                 subject: subjectResult[1],
                 parents: input.parents,
@@ -451,7 +420,8 @@ export const addRevision =
             // or they'd produce two distinct CAS blobs that both remain heads —
             // the point of `canonicalHash` (see the module doc) is defeated if
             // this module itself writes non-canonical spellings.
-            const canonicalRevision: Revision = {
+            /** @type {Revision} */
+            const canonicalRevision = {
                 ...revision,
                 parents: revision.parents.map(canonicalHash),
                 snapshot: canonicalHash(revision.snapshot),
@@ -461,8 +431,8 @@ export const addRevision =
             if (bytes === null) {
                 return pure(error('revision too large to encode'))
             }
-            return eff(cas.write(nonEmpty(ok(bytes), elEmpty<never, Ok<Vec>>())))
-                .step((writeResult): Effect<MemOp, Result<Hash, string>> => {
+            return eff(cas.write(nonEmpty(ok(bytes), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))))
+                .step((/** @type {IoResult<Vec>} */ writeResult) => {
                     if (writeResult[0] === 'error') {
                         return pure(error('failed to write revision to CAS'))
                     }
@@ -485,8 +455,9 @@ export const addRevision =
  * `parents` entry and the `snapshot` are known to decode and the `unwrap`
  * inside `canonicalHash` is safe. Field order follows the stored blob's
  * (minus `dialect`), which is what a JSON encoding of the result shows.
+ * @type {(revision: Revision) => RevisionData}
  */
-const toRevisionData = ({ subject, parents, snapshot, generation, archived, lock }: Revision): RevisionData => ({
+const toRevisionData = ({ subject, parents, snapshot, generation, archived, lock }) => ({
     subject,
     parents: parents.map(canonicalHash),
     snapshot: canonicalHash(snapshot),
@@ -519,8 +490,9 @@ const toRevisionData = ({ subject, parents, snapshot, generation, archived, lock
  * how far it got; recovering that difference would mean folding the chunk
  * stream here instead of reusing `collectRead`, for a distinction no client
  * can act on differently.
+ * @type {(hash: Hash) => (result: IoResult<Vec>) => Result<RevisionData, string>}
  */
-const decodeReadRevision = (hash: Hash) => ([tag, value]: IoResult<Vec>): Result<RevisionData, string> => {
+const decodeReadRevision = hash => ([tag, value]) => {
     if (tag === 'error') {
         return error(isNotFound(value)
             ? `revision not found: ${hash}`
@@ -544,8 +516,12 @@ const decodeReadRevision = (hash: Hash) => ([tag, value]: IoResult<Vec>): Result
  * Every way to fail is its own message: `hash` is not cBase32, the store has
  * nothing under it, the store has it but could not deliver it, or what it
  * holds is not a `vnd.fjs.revision` (see {@link decodeReadRevision}).
+ *
+ * @template {Operation} O
+ * @param {Cas<O>} cas
+ * @returns {(hash: Hash) => Effect<O, Result<RevisionData, string>>}
  */
-export const readRevision = <O extends Operation>(cas: Cas<O>) => (hash: Hash): Effect<O, Result<RevisionData, string>> => {
+export const readRevision = cas => hash => {
     const hashVec = cBase32ToVec(hash)
     return hashVec === null
         ? pure(error(`invalid hash: ${hash}`))
@@ -554,36 +530,14 @@ export const readRevision = <O extends Operation>(cas: Cas<O>) => (hash: Hash): 
             .value
 }
 
-/** The Evo API described in `fjs/cas/evo/README.md`, bound to a `Cas<O>` and its cache slot. */
-export type Evo<O extends Operation> = {
-    /**
-     * Returns the subjects matching a status filter: the active ones by
-     * default, the archived ones when `archived` is `true`. A subject's status
-     * is derived from its current heads — see {@link subjectListed}, which
-     * also explains why a subject with no current heads is in neither result.
-     *
-     * There is deliberately no all-subjects mode: nothing needs one yet, and
-     * adding it later is a compatible extension of this parameter, while
-     * removing it would not be.
-     */
-    readonly list: (archived?: true) => Effect<MemOp, readonly Subject[]>
-    /** Returns the current head hashes of `subject` (empty if unknown). */
-    readonly head: (subject: Subject) => Effect<MemOp, readonly Hash[]>
-    /** Adds a new head; see {@link addRevision}. */
-    readonly add: (input: RevisionData) => Effect<O | MemOp, Result<Hash, string>>
-    /**
-     * The revision at `hash`, decoded, validated, and canonicalized; see
-     * {@link readRevision}. Served from the store today, so the `MemOp` in the
-     * declared operation set is unused — it is there because a revision is
-     * immutable and therefore memoizable in the same cache slot the other
-     * operations read, which must not become a breaking change to this type
-     * when it happens.
-     */
-    readonly revision: (hash: Hash) => Effect<O | MemOp, Result<RevisionData, string>>
-}
-
-/** Builds the {@link Evo} API over `cas`, backed by the cache at `cacheKey` (see {@link initEvo}). */
-export const evo = <O extends Operation>(cas: Cas<O>) => (cacheKey: Key<Cache>): Evo<O> => ({
+/**
+ * Builds the {@link Evo} API over `cas`, backed by the cache at `cacheKey` (see {@link initEvo}).
+ *
+ * @template {Operation} O
+ * @param {Cas<O>} cas
+ * @returns {(cacheKey: Key<Cache>) => Evo<O>}
+ */
+export const evo = cas => cacheKey => ({
     list: archived => {
         const listed = subjectListed(archived)
         return eff(read(cacheKey))

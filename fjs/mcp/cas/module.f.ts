@@ -126,7 +126,8 @@ import { fromVec } from '../../text/utf8/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
-import { syncRevision, type Cache } from '../../cas/evo/module.f.ts'
+import { syncRevision } from '../../cas/evo/module.f.mjs'
+import type { Cache } from '../../cas/evo/types.ts'
 import type { Key } from '../../effects/memory/types.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────

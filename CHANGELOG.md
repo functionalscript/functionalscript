@@ -20,6 +20,15 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/cas/evo/module` and `proof` migrate from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  moving `Hash`, `Subject`, `RevisionData`, `SubjectState`, `Cache`, and
+  `Evo` into a sibling `types.ts` — importers must use the `.f.mjs`
+  specifier for the runtime values and the `types.ts` specifier for the
+  types. Updates `fjs/mcp/evo/module`, `fjs/mcp/evo/proof.f.ts`,
+  `fjs/mcp/module`, `fjs/mcp/cas/module`, and `fjs/mcp/proof.f.ts`
+  accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/protocol/mcp/stdio/module` and `proof` migrate
   from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) —
   `Step` stays as a JSDoc typedef in the module (no separate `types.ts`, no

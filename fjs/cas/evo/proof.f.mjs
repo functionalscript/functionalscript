@@ -1,7 +1,11 @@
-import type { Cas } from '../types.ts'
-import type { Vec } from '../../types/bit_vec/types.ts'
-import type { Ok } from '../../types/result/types.ts'
-import type { IoResult } from '../../effects/node/types.ts'
+/**
+ * @import { Cas } from '../types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Ok } from '../../types/result/types.ts'
+ * @import { IoResult } from '../../effects/node/types.ts'
+ * @import { List } from '../../effects/list/types.ts'
+ * @import { RevisionData } from './types.ts'
+ */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { pure } from '../../effects/module.f.mjs'
@@ -18,14 +22,14 @@ import { tryUtf8 } from '../../text/module.f.mjs'
 import { dialect as revisionDialect } from '../../media/revision/module.f.mjs'
 import {
     buildCache, decodeRevisionBlob, initEvo, evo, emptyCache, syncRevision,
-    type RevisionData,
-} from './module.f.ts'
+} from './module.f.mjs'
 
 const home = '.'
 
 // A `Cas<never>` whose `write` always fails — used to reach `addRevision`'s
 // store-write-failure branch, which real `fileCas` has no easy way to trigger.
-const writeFailingCas: Cas<never> = {
+/** @type {Cas<never>} */
+const writeFailingCas = {
     read: () => elEmpty(),
     write: () => pure(error('boom')),
     list: () => pure([]),
@@ -34,8 +38,9 @@ const writeFailingCas: Cas<never> = {
 // A `Cas<never>` whose `read` yields an error item that is *not* a missing
 // shard — what a permission error, a mid-stream I/O failure, or a blob too
 // large for `collectRead` to buffer looks like to a caller.
-const readFailingCas: Cas<never> = {
-    read: () => nonEmpty<never, IoResult<Vec>>(error('boom'), elEmpty()),
+/** @type {Cas<never>} */
+const readFailingCas = {
+    read: () => nonEmpty(/** @type {IoResult<Vec>} */ (error('boom')), elEmpty()),
     write: () => pure(error('write not supported')),
     list: () => pure([]),
 }
@@ -44,12 +49,13 @@ const readFailingCas: Cas<never> = {
 // from `list()` in exactly the given order — used to control the order
 // `buildCache` sees hashes in, independent of any real filesystem's
 // (hash-lexical, not causal) directory-listing order.
-const fixedCas = (entries: readonly (readonly [Vec, Vec])[]): Cas<never> => ({
+/** @type {(entries: readonly (readonly [Vec, Vec])[]) => Cas<never>} */
+const fixedCas = entries => ({
     read: hash => {
         const found = entries.find(([h]) => vecToCBase32(h) === vecToCBase32(hash))
         return found === undefined
-            ? nonEmpty<never, IoResult<Vec>>(error('not found'), elEmpty())
-            : nonEmpty<never, IoResult<Vec>>(ok(found[1]), elEmpty())
+            ? nonEmpty(/** @type {IoResult<Vec>} */ (error('not found')), elEmpty())
+            : nonEmpty(/** @type {IoResult<Vec>} */ (ok(found[1])), elEmpty())
     },
     write: () => pure(error('write not supported')),
     list: () => pure(entries.map(([h]) => h)),
@@ -64,7 +70,7 @@ export const proof = {
     buildCacheSkipsNonRevisionBlob: () => {
         const c = fileCas(sha256)(home)
         const content = vec8(0x41n) // 'A' — valid UTF-8, not revision JSON
-        const [state1] = virtual(emptyState)(c.write(nonEmpty(ok(content), elEmpty<never, Ok<Vec>>())))
+        const [state1] = virtual(emptyState)(c.write(nonEmpty(ok(content), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))))
         const [, cache] = virtual(state1)(buildCache(c))
         assertEq(Object.keys(cache.bySubject).length, 0)
     },
@@ -76,7 +82,7 @@ export const proof = {
     decodeRevisionBlobNonUtf8IsNull: () => {
         const c = fileCas(sha256)(home)
         const oddVec = vec(5n)(0b10101n) // not a whole number of bytes
-        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(ok(oddVec), elEmpty<never, Ok<Vec>>())))
+        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(ok(oddVec), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, revision] = virtual(state1)(decodeRevisionBlob(c)(w[1]))
         assertEq(revision, null)
@@ -84,7 +90,7 @@ export const proof = {
     decodeRevisionBlobInvalidJsonIsNull: () => {
         const c = fileCas(sha256)(home)
         const content = vec8(0x7bn) // '{' alone: valid UTF-8, not parseable JSON
-        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(ok(content), elEmpty<never, Ok<Vec>>())))
+        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(ok(content), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, revision] = virtual(state1)(decodeRevisionBlob(c)(w[1]))
         assertEq(revision, null)
@@ -95,7 +101,7 @@ export const proof = {
         const text = `{"dialect":"${revisionDialect}","subject":"${subjectHash}","parents":[],"snapshot":"${subjectHash}","generation":0}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
-        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(ok(bytes), elEmpty<never, Ok<Vec>>())))
+        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(ok(bytes), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, revision] = virtual(state1)(decodeRevisionBlob(c)(w[1]))
         assert(revision !== null, 'expected a decoded revision')
@@ -111,7 +117,7 @@ export const proof = {
         const text = `{"dialect":"${revisionDialect}","subject":"${subjectHash}","parents":[],"snapshot":"${subjectHash}","generation":0}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
-        const [state1, w] = virtual(emptyState)(fileCas(sha256)(home).write(nonEmpty(ok(bytes), elEmpty<never, Ok<Vec>>())))
+        const [state1, w] = virtual(emptyState)(fileCas(sha256)(home).write(nonEmpty(ok(bytes), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, cache] = virtual(state1)(buildCache(c))
         assertEq(cache.bySubject[subjectHash]?.hashes.length, 1)
@@ -174,7 +180,8 @@ export const proof = {
         const e = evo(c)(cacheKey)
         const snapshotHash = vecToCBase32(vec8(0x22n))
 
-        const rev0: RevisionData = { parents: [], subject: 'doc', snapshot: snapshotHash }
+        /** @type {RevisionData} */
+        const rev0 = { parents: [], subject: 'doc', snapshot: snapshotHash }
         const [state1, rev0Result] = virtual(state0)(e.add(rev0))
         assert(rev0Result[0] === 'ok', ['expected rev0 ok', rev0Result])
         const rev0Hash = rev0Result[1]
@@ -182,12 +189,14 @@ export const proof = {
         // rev1 inherits rev0's snapshot; rev2 states a different one — so the
         // two concurrent children are genuinely distinct blobs (both children
         // of rev0, same generation), not one deduplicated revision.
-        const rev1: RevisionData = { parents: [rev0Hash], subject: 'doc' }
+        /** @type {RevisionData} */
+        const rev1 = { parents: [rev0Hash], subject: 'doc' }
         const [state2, rev1Result] = virtual(state1)(e.add(rev1))
         assert(rev1Result[0] === 'ok', ['expected rev1 ok', rev1Result])
         const rev1Hash = rev1Result[1]
 
-        const rev2: RevisionData = { parents: [rev0Hash], subject: 'doc', snapshot: vecToCBase32(vec8(0x23n)) }
+        /** @type {RevisionData} */
+        const rev2 = { parents: [rev0Hash], subject: 'doc', snapshot: vecToCBase32(vec8(0x23n)) }
         const [state3, rev2Result] = virtual(state2)(e.add(rev2))
         assert(rev2Result[0] === 'ok', ['expected rev2 ok', rev2Result])
         const rev2Hash = rev2Result[1]
@@ -289,7 +298,8 @@ export const proof = {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
         const e = evo(c)(cacheKey)
-        const input: RevisionData = { parents: [], subject: 'x', snapshot: vecToCBase32(vec8(0x33n)) }
+        /** @type {RevisionData} */
+        const input = { parents: [], subject: 'x', snapshot: vecToCBase32(vec8(0x33n)) }
         const [state1, r1] = virtual(state0)(e.add(input))
         assert(r1[0] === 'ok', ['expected first add ok', r1])
         const [state2, r2] = virtual(state1)(e.add(input))
@@ -307,15 +317,18 @@ export const proof = {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
         const e = evo(c)(cacheKey)
-        const root: RevisionData = { parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x2en)) }
+        /** @type {RevisionData} */
+        const root = { parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x2en)) }
         const [state1, rootResult] = virtual(state0)(e.add(root))
         assert(rootResult[0] === 'ok', ['expected root ok', rootResult])
         const rootHash = rootResult[1]
         assert(rootHash !== rootHash.toUpperCase(), 'expected the sample hash to contain letters')
-        const child1: RevisionData = { parents: [rootHash], subject: 'doc' }
+        /** @type {RevisionData} */
+        const child1 = { parents: [rootHash], subject: 'doc' }
         const [state2, child1Result] = virtual(state1)(e.add(child1))
         assert(child1Result[0] === 'ok', ['expected child1 ok', child1Result])
-        const child2: RevisionData = { parents: [rootHash.toUpperCase()], subject: 'doc' }
+        /** @type {RevisionData} */
+        const child2 = { parents: [rootHash.toUpperCase()], subject: 'doc' }
         const [state3, child2Result] = virtual(state2)(e.add(child2))
         assert(child2Result[0] === 'ok', ['expected child2 ok', child2Result])
         assertEq(child1Result[1], child2Result[1])
@@ -329,11 +342,13 @@ export const proof = {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
         const e = evo(c)(cacheKey)
-        const root: RevisionData = { parents: [], subject: 'inherit-me', snapshot: vecToCBase32(vec8(0x44n)) }
+        /** @type {RevisionData} */
+        const root = { parents: [], subject: 'inherit-me', snapshot: vecToCBase32(vec8(0x44n)) }
         const [state1, rootResult] = virtual(state0)(e.add(root))
         assert(rootResult[0] === 'ok', ['expected root ok', rootResult])
         const rootHash = rootResult[1]
-        const child: RevisionData = { parents: [rootHash] }
+        /** @type {RevisionData} */
+        const child = { parents: [rootHash] }
         const [state2, childResult] = virtual(state1)(e.add(child))
         assert(childResult[0] === 'ok', ['expected child ok', childResult])
         const childHash = childResult[1]
@@ -469,7 +484,8 @@ export const proof = {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
         const e = evo(c)(cacheKey)
-        const rootA: RevisionData = { parents: [], subject: 'A', snapshot: vecToCBase32(vec8(0x67n)) }
+        /** @type {RevisionData} */
+        const rootA = { parents: [], subject: 'A', snapshot: vecToCBase32(vec8(0x67n)) }
         const [state1, rootAResult] = virtual(state0)(e.add(rootA))
         assert(rootAResult[0] === 'ok', ['expected rootA ok', rootAResult])
         const [, result] = virtual(state1)(e.add({ parents: [rootAResult[1]], subject: 'B' }))
@@ -496,10 +512,12 @@ export const proof = {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
         const e = evo(c)(cacheKey)
-        const rootA: RevisionData = { parents: [], subject: 'merge', snapshot: vecToCBase32(vec8(0x77n)) }
+        /** @type {RevisionData} */
+        const rootA = { parents: [], subject: 'merge', snapshot: vecToCBase32(vec8(0x77n)) }
         const [state1, rootAResult] = virtual(state0)(e.add(rootA))
         assert(rootAResult[0] === 'ok', ['expected rootA ok', rootAResult])
-        const rootB: RevisionData = { parents: [], subject: 'merge', snapshot: vecToCBase32(vec8(0x88n)) }
+        /** @type {RevisionData} */
+        const rootB = { parents: [], subject: 'merge', snapshot: vecToCBase32(vec8(0x88n)) }
         const [state2, rootBResult] = virtual(state1)(e.add(rootB))
         assert(rootBResult[0] === 'ok', ['expected rootB ok', rootBResult])
         const [, result] = virtual(state2)(e.add({ parents: [rootAResult[1], rootBResult[1]], subject: 'merge' }))
@@ -511,7 +529,8 @@ export const proof = {
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
         const e = evo(c)(cacheKey)
         const hugeSubject = 'x'.repeat(200_000)
-        const input: RevisionData = { parents: [], subject: hugeSubject, snapshot: vecToCBase32(vec8(0x88n)) }
+        /** @type {RevisionData} */
+        const input = { parents: [], subject: hugeSubject, snapshot: vecToCBase32(vec8(0x88n)) }
         const [, result] = virtual(state0)(e.add(input))
         assertEq(result[0], 'error')
         assert(result[0] === 'error' && result[1] === 'revision too large to encode', ['unexpected message', result])
@@ -560,7 +579,7 @@ export const proof = {
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
         const e = evo(c)(cacheKey)
         const content = vec8(0x41n) // 'A' — valid UTF-8, not revision JSON
-        const [state1, w] = virtual(state0)(c.write(nonEmpty(ok(content), elEmpty<never, Ok<Vec>>())))
+        const [state1, w] = virtual(state0)(c.write(nonEmpty(ok(content), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, result] = virtual(state1)(e.revision(vecToCBase32(w[1])))
         assertEq(result[0], 'error')
@@ -584,7 +603,7 @@ export const proof = {
         const text = `{"dialect":"${revisionDialect}","subject":"doc","parents":["${parentAlias}"],"snapshot":"${snapshotAlias}","generation":1}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
-        const [state1, w] = virtual(state0)(c.write(nonEmpty(ok(bytes), elEmpty<never, Ok<Vec>>())))
+        const [state1, w] = virtual(state0)(c.write(nonEmpty(ok(bytes), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, result] = virtual(state1)(e.revision(vecToCBase32(w[1])))
         assert(result[0] === 'ok', ['expected revision ok', result])
@@ -719,7 +738,8 @@ export const proof = {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
         const e = evo(c)(cacheKey)
-        const input: RevisionData = { parents: [], subject: 'toString', snapshot: vecToCBase32(vec8(0x16n)) }
+        /** @type {RevisionData} */
+        const input = { parents: [], subject: 'toString', snapshot: vecToCBase32(vec8(0x16n)) }
         const [state1, result] = virtual(state0)(e.add(input))
         assert(result[0] === 'ok', ['expected add ok', result])
         const [, heads] = virtual(state1)(e.head('toString'))

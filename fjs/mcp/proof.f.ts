@@ -36,7 +36,7 @@ import { casConfig, casMcpHandlers } from './module.f.ts'
 import { ok as resultOk, unwrap } from '../types/result/module.f.mjs'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import { fromVec } from '../types/uint8array/module.f.mjs'
-import { initEvo } from '../cas/evo/module.f.ts'
+import { initEvo } from '../cas/evo/module.f.mjs'
 
 // `cas_get`'s result JSON. As an rtti schema it both describes the shape and
 // checks it, so reading a field needs neither a hand-written type nor an `as`

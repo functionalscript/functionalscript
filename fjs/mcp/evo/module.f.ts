@@ -1,5 +1,5 @@
 /**
- * MCP tool definitions for the Evo API (`fjs/cas/evo/module.f.ts`): subjects,
+ * MCP tool definitions for the Evo API (`fjs/cas/evo/module.f.mjs`): subjects,
  * revision heads, and the typed read of a single revision over the
  * content-addressable store, backed by the in-memory cache the core module
  * maintains.
@@ -53,7 +53,7 @@ import {
 } from '../../protocol/mcp/module.f.ts'
 import { stringify } from '../../media/json/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
-import { type Evo } from '../../cas/evo/module.f.ts'
+import type { Evo } from '../../cas/evo/types.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 

@@ -7,7 +7,7 @@
 > `Eff.map` in `fjs/effects/eff/module.f.mjs`, each with proof coverage and with
 > its first real consumers converted in the same change — `readUtf8File`,
 > `awaitIfPromise` and `errorExit` (`fjs/effects/node/module.f.mjs`),
-> `decodeRevisionBlob` (`fjs/cas/evo/module.f.ts`), and `Eff`'s own `.step`,
+> `decodeRevisionBlob` (`fjs/cas/evo/module.f.mjs`), and `Eff`'s own `.step`,
 > whose history projection is now a `mapStep`. What remains is the mechanical
 > part: the other call sites, module by module.
 
@@ -31,7 +31,7 @@ Two shapes, both the same thing:
 )
 ```
 
-Also `fjs/dev/module.f.mjs`, `fjs/cas/evo/module.f.ts`,
+Also `fjs/dev/module.f.mjs`, `fjs/cas/evo/module.f.mjs`,
 `fjs/mcp/evo/module.f.ts`, `fjs/cas/module.f.mjs`, `fjs/mcp/cas/module.f.ts`,
 `fjs/protocol/mcp/module.f.ts`, `fjs/emergent_testing/module.f.mjs`.
 
@@ -51,7 +51,7 @@ const program = step(
 ```
 
 Also `fjs/djs/module.f.ts`, `fjs/module.f.ts`, `fjs/ci/module.f.mjs`,
-`fjs/cas/evo/module.f.ts`, `fjs/cas/module.f.mjs`, `fjs/cas/cli/module.f.mjs`,
+`fjs/cas/evo/module.f.mjs`, `fjs/cas/module.f.mjs`, `fjs/cas/cli/module.f.mjs`,
 `fjs/mcp/cas/module.f.ts`, `fjs/protocol/mcp/module.f.ts`, `fjs/protocol/mcp/stdio/module.f.mjs`,
 `fjs/emergent_testing/module.f.mjs`.
 
