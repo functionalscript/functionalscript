@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `todo/proof.f.ts` migrates from authored
+  TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the `at`/`utf8`
+  typed consts become JSDoc `@type` annotations, and the
+  `TemplateType` template-literal type becomes a JSDoc `@typedef`
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/media/json/tokenizer/proof.f.ts` migrates
   from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the
   typed `tokenizeString` const becomes a JSDoc `@type` annotation, and

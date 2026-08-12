@@ -1,15 +1,15 @@
-const at
-: (a: unknown) => (i: any) =>unknown
-= a => i => Object.getOwnPropertyDescriptor(a, i)?.value
+/** @typedef {`<html>${string}</html>`} TemplateType */
 
-const utf8 = (...x: [readonly string[]]) => x
+/** @type {(a: unknown) => (i: any) => unknown} */
+const at = a => i => Object.getOwnPropertyDescriptor(a, i)?.value
 
-type TemplateType = `<html>${string}</html>`
+/** @type {(...x: [readonly string[]]) => readonly string[]} */
+const utf8 = (...x) => x
 
 export const proof = {
     literal: () => {
         const x = utf8`17`
-        const m: TemplateType = '<html>Hello</html>'
+        const m = /** @type {TemplateType} */ ('<html>Hello</html>')
     },
     ownProperty: {
         null: {
