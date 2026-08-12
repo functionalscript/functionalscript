@@ -20,6 +20,19 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/protocol/mcp/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  moving `Implementation`, `ServerCapabilities`, `InitializeParams`,
+  `InitializeResult`, `TextContent`, `BlobResource`, `EmbeddedResource`,
+  `ContentItem`, `Tool`, `ToolsListParams`, `ToolsListResult`,
+  `ToolsCallParams`, `ToolsCallResult`, `McpHandlers`, `ToolEntry`,
+  `Handle`, `Uninitialized`, `Initializing`, `InitializedState`,
+  `McpSessionState`, and `McpConfig` into a sibling `types.ts` —
+  importers must use the `.f.mjs` specifier for the runtime values and
+  the `types.ts` specifier for the types. Updates `fjs/mcp/evo/module.f.ts`,
+  `fjs/mcp/evo/proof.f.ts`, `fjs/mcp/module.f.ts`, `fjs/mcp/cas/module.f.ts`,
+  and `fjs/mcp/proof.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/media/json/schema/module` and `proof`
   migrate from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
   (`.f.mjs`) — `Unknown` stays as a JSDoc typedef in the module (no

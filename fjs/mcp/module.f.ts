@@ -34,8 +34,8 @@ import type { Read, Write } from '../effects/node/types.ts'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import {
     mcpStep, uninitializedState, fromRegistry,
-    type McpConfig, type McpHandlers,
-} from '../protocol/mcp/module.f.ts'
+} from '../protocol/mcp/module.f.mjs'
+import type { McpConfig, McpHandlers } from '../protocol/mcp/types.ts'
 import { fileCas } from '../cas/module.f.mjs'
 import type { FileCasOperation } from '../cas/types.ts'
 import { initEvo, evo } from '../cas/evo/module.f.mjs'

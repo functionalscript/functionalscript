@@ -49,8 +49,8 @@ import type { Effect, Operation } from '../../effects/types.ts'
 import type { MemOp } from '../../effects/memory/types.ts'
 import {
     toolEntry, errorResult, okResult,
-    type ToolEntry, type ToolsCallResult,
-} from '../../protocol/mcp/module.f.ts'
+} from '../../protocol/mcp/module.f.mjs'
+import type { ToolEntry, ToolsCallResult } from '../../protocol/mcp/types.ts'
 import { stringify } from '../../media/json/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
 import type { Evo } from '../../cas/evo/types.ts'

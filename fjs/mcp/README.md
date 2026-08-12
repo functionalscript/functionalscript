@@ -205,7 +205,7 @@ Content encoding is determined at read time as described above.
 MCP draws a line the dispatcher already respects:
 
 - **Protocol failures** — unknown method, malformed JSON-RPC params — are
-  JSON-RPC errors. [`mcpStep`](../protocol/mcp/module.f.ts) handles those.
+  JSON-RPC errors. [`mcpStep`](../protocol/mcp/module.f.mjs) handles those.
 - **Tool failures** come back as a normal `tools/call` result with
   `isError: true` and a text explanation. This adapter returns `isError` for:
   - invalid arguments to any tool (`validate` rejects the argument object);

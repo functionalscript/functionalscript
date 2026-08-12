@@ -24,7 +24,7 @@ Two shapes, both the same thing:
 *Projection* (`x => pure(f(x))`):
 
 ```ts
-// fjs/protocol/mcp/module.f.ts:394-396
+// fjs/protocol/mcp/module.f.mjs:347-350
 : step(
     handlers.toolsList(pr),
     r => pure(_okResponse(id)(r)),
@@ -33,7 +33,7 @@ Two shapes, both the same thing:
 
 Also `fjs/dev/module.f.mjs`, `fjs/cas/evo/module.f.mjs`,
 `fjs/mcp/evo/module.f.ts`, `fjs/cas/module.f.mjs`, `fjs/mcp/cas/module.f.ts`,
-`fjs/protocol/mcp/module.f.ts`, `fjs/emergent_testing/module.f.mjs`.
+`fjs/protocol/mcp/module.f.mjs`, `fjs/emergent_testing/module.f.mjs`.
 
 *Constant projection* (`() => pure(v)`), overwhelmingly the "do the work, then
 yield an exit code" shape of a `NodeProgram`:
@@ -52,7 +52,7 @@ const program = step(
 
 Also `fjs/djs/module.f.mjs`, `fjs/module.f.ts`, `fjs/ci/module.f.mjs`,
 `fjs/cas/evo/module.f.mjs`, `fjs/cas/module.f.mjs`, `fjs/cas/cli/module.f.mjs`,
-`fjs/mcp/cas/module.f.ts`, `fjs/protocol/mcp/module.f.ts`, `fjs/protocol/mcp/stdio/module.f.mjs`,
+`fjs/mcp/cas/module.f.ts`, `fjs/protocol/mcp/module.f.mjs`, `fjs/protocol/mcp/stdio/module.f.mjs`,
 `fjs/emergent_testing/module.f.mjs`.
 
 Beyond the repetition, the old spelling **misreports the shape of the chain**.

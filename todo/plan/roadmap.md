@@ -43,7 +43,7 @@
 - Detection via magic bytes: PNG, JPEG, GIF, WebP, PDF, ZIP → `null` for unrecognized bytes ✓
 - Pure logic in `fjs/media/type/module.f.mjs` ✓
 - `cas_get`: when type is detected → returns `EmbeddedResource` with `mimeType`; when `null` → falls back to existing `textContent` response for backward compatibility ✓
-- `fjs/protocol/mcp/module.f.ts` gained `blobResource` / `embeddedResource` schemas and a `contentItem` union ✓
+- `fjs/protocol/mcp/module.f.mjs` gained `blobResource` / `embeddedResource` schemas and a `contentItem` union ✓
 - A separate on-demand `cas_type` tool is a possible extension; needs its own design issue before implementation
 
 ---

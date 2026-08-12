@@ -12,69 +12,70 @@
  * JSON-RPC dispatcher are in `fjs/protocol/json_rpc/module.f.mjs`.
  *
  * @module
+ *
+ * @import { Unknown } from '../../media/json/types.ts'
+ * @import { Ts } from '../../types/rtti/ts/types.ts'
+ * @import { Operation, Effect } from '../../effects/types.ts'
+ * @import { Key, MemOp } from '../../effects/memory/types.ts'
+ * @import { Response, Id, RpcError } from '../json_rpc/types.ts'
+ * @import { Type } from '../../types/rtti/types.ts'
+ * @import {
+ *   Implementation, ServerCapabilities, InitializeResult, Tool,
+ *   ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry,
+ *   InitializedState, McpSessionState, McpConfig,
+ * } from './types.ts'
  */
-import type { Unknown } from '../../media/json/types.ts'
 
 import { boolean, string, option, array, record, or } from '../../types/rtti/module.f.mjs'
-import type { Ts } from '../../types/rtti/ts/types.ts'
 import { pure, step } from '../../effects/module.f.mjs'
-import type { Operation, Effect } from '../../effects/types.ts'
 import { read, write } from '../../effects/memory/module.f.mjs'
-import type { Key, MemOp } from '../../effects/memory/types.ts'
 import {
     decodeRequest,
     rpcError, invalidRequest, invalidParams, methodNotFound,
     jsonrpc,
 } from '../json_rpc/module.f.mjs'
-import type { Response, Id, RpcError } from '../json_rpc/types.ts'
 import { validate } from '../../types/rtti/validate/module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
-import type { Type } from '../../types/rtti/types.ts'
 import { unknown } from '../../media/json/rtti/module.f.mjs'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 
 /** Name + version pair sent in `initialize` requests and responses. */
-export const implementation = {
+export const implementation = /** @type {const} */ ({
     name: string,
     version: string,
-} as const
-export type Implementation = Ts<typeof implementation>
+})
 
 // ── Capabilities ───────────────────────────────────────────────────────────────
 
-const toolsCapability = { listChanged: option(boolean) } as const
+const toolsCapability = /** @type {const} */ ({ listChanged: option(boolean) })
 
 /** Server capabilities advertised in the `initialize` response. */
-export const serverCapabilities = {
+export const serverCapabilities = /** @type {const} */ ({
     tools: option(toolsCapability),
-} as const
-export type ServerCapabilities = Ts<typeof serverCapabilities>
+})
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────────
 
 /** Params for the `initialize` request. */
-export const initializeParams = {
+export const initializeParams = /** @type {const} */ ({
     protocolVersion: string,
     capabilities: unknown,
     clientInfo: implementation,
-} as const
-export type InitializeParams = Ts<typeof initializeParams>
+})
 
 /** Result for the `initialize` request. */
-export const initializeResult = {
+export const initializeResult = /** @type {const} */ ({
     protocolVersion: string,
     capabilities: serverCapabilities,
     serverInfo: implementation,
     instructions: option(string),
-} as const
-export type InitializeResult = Ts<typeof initializeResult>
+})
 
 // ── Content ────────────────────────────────────────────────────────────────────
 
 /** Plain-text content item returned by a tool call. */
-export const textContent = { type: 'text', text: string } as const
-export type TextContent = Ts<typeof textContent>
+export const textContent = /** @type {const} */ ({ type: 'text', text: string })
 
 /**
  * A binary resource carried inside an {@link embeddedResource}: a base64
@@ -82,19 +83,17 @@ export type TextContent = Ts<typeof textContent>
  * `BlobResource` shape — the idiomatic way to return typed binary content so a
  * `mimeType` travels alongside the bytes and clients know how to route them.
  */
-export const blobResource = {
+export const blobResource = /** @type {const} */ ({
     uri: string,
     mimeType: option(string),
     blob: string,
-} as const
-export type BlobResource = Ts<typeof blobResource>
+})
 
 /** An `EmbeddedResource` content item wrapping a {@link blobResource}. */
-export const embeddedResource = {
+export const embeddedResource = /** @type {const} */ ({
     type: 'resource',
     resource: blobResource,
-} as const
-export type EmbeddedResource = Ts<typeof embeddedResource>
+})
 
 /**
  * A single item in a `tools/call` result's `content` array: either plain
@@ -102,7 +101,6 @@ export type EmbeddedResource = Ts<typeof embeddedResource>
  * `image` and `audio` variants are not modelled yet.
  */
 export const contentItem = or(textContent, embeddedResource)
-export type ContentItem = Ts<typeof contentItem>
 
 // ── Tools ──────────────────────────────────────────────────────────────────────
 
@@ -111,60 +109,36 @@ export type ContentItem = Ts<typeof contentItem>
  * `inputSchema` is a JSON Schema object — use `toJsonSchema` to derive it from
  * an rtti schema.
  */
-export const tool = {
+export const tool = /** @type {const} */ ({
     name: string,
     description: option(string),
     inputSchema: unknown,
-} as const
-export type Tool = Ts<typeof tool>
+})
 
 /**
  * Params for the `tools/list` request. `cursor` is an opaque pagination token
  * from a previous `ToolsListResult.nextCursor`.
  */
-export const toolsListParams = {
+export const toolsListParams = /** @type {const} */ ({
     cursor: option(string),
-} as const
-export type ToolsListParams = Ts<typeof toolsListParams>
+})
 
-export const toolsListResult = {
+export const toolsListResult = /** @type {const} */ ({
     tools: array(tool),
     nextCursor: option(string),
-} as const
-export type ToolsListResult = Ts<typeof toolsListResult>
+})
 
-export const toolsCallParams = {
+export const toolsCallParams = /** @type {const} */ ({
     name: string,
     arguments: option(record(unknown)),
-} as const
-export type ToolsCallParams = Ts<typeof toolsCallParams>
+})
 
-export const toolsCallResult = {
+export const toolsCallResult = /** @type {const} */ ({
     content: array(contentItem),
     isError: option(boolean),
-} as const
-export type ToolsCallResult = Ts<typeof toolsCallResult>
+})
 
 // ── Dispatch ───────────────────────────────────────────────────────────────────
-
-/** Per-method handlers for a hello-world MCP tool server. */
-export type McpHandlers<O extends Operation> = {
-    readonly toolsList: (params: ToolsListParams) => Effect<O, ToolsListResult>
-    readonly toolsCall: (params: ToolsCallParams) => Effect<O, ToolsCallResult>
-}
-
-/**
- * A single declarative tool entry combining metadata, input schema, and type-safe handler.
- *
- * The handler receives pre-validated arguments of type `Ts<inputRtti>`, eliminating the need
- * for manual validation or type casting. All validation is encapsulated in the entry.
- */
-export type ToolEntry<O extends Operation> = {
-    readonly name: string
-    readonly description: string
-    readonly inputRtti: Type
-    readonly handle: (args: Unknown) => Effect<O, ToolsCallResult>
-}
 
 /**
  * Creates a type-safe tool entry that binds an RTTI schema with a handler.
@@ -173,45 +147,43 @@ export type ToolEntry<O extends Operation> = {
  * arguments (typed as `Ts<T>`) to the handler. This eliminates manual validation
  * boilerplate and type assertions.
  *
- * @param name - The tool name (used in `tools/call` requests)
- * @param description - Human-readable description for `tools/list`
- * @param inputRtti - Runtime type info for input validation
- * @param handle - Handler receiving validated arguments of type `Ts<inputRtti>`
- * @returns A `ToolEntry` ready to be added to a registry
+ * @template {Type} T
+ * @template {Operation} O
+ * @param {string} name - The tool name (used in `tools/call` requests)
+ * @param {string} description - Human-readable description for `tools/list`
+ * @param {T} inputRtti - Runtime type info for input validation
+ * @param {(args: Ts<T>) => Effect<O, ToolsCallResult>} handle - Handler receiving validated arguments of type `Ts<inputRtti>`
+ * @returns {ToolEntry<O>} A `ToolEntry` ready to be added to a registry
  */
-export const toolEntry = <T extends Type, O extends Operation>(
-    name: string,
-    description: string,
-    inputRtti: T,
-    handle: (args: Ts<T>) => Effect<O, ToolsCallResult>
-): ToolEntry<O> => ({
+export const toolEntry = (name, description, inputRtti, handle) => ({
     name,
     description,
     inputRtti,
-    handle: (a: Unknown) => {
-        const [t, r] = validate(inputRtti as any)(a)
+    /** @type {(a: Unknown) => Effect<O, ToolsCallResult>} */
+    handle: a => {
+        const [t, r] = validate(/** @type {any} */ (inputRtti))(a)
         return t === 'error'
             ? pure(errorResult(`invalid arguments: ${r.message}`))
-            : handle(r as Ts<T>)
+            : handle(/** @type {Ts<T>} */ (r))
     }
 })
 
 /**
  * Helper to create a successful single-text-block tool result.
  *
- * @param text - The text to return to the client
- * @returns A `ToolsCallResult` with the text content
+ * @param {string} text - The text to return to the client
+ * @returns {ToolsCallResult} A `ToolsCallResult` with the text content
  */
-export const okResult = (text: string): ToolsCallResult =>
+export const okResult = text =>
     ({ content: [{ type: 'text', text }] })
 
 /**
  * Helper to create a tool-level error result with plain text explanation.
  *
- * @param text - The error message to return to the client
- * @returns A `ToolsCallResult` with `isError: true` and the text explanation
+ * @param {string} text - The error message to return to the client
+ * @returns {ToolsCallResult} A `ToolsCallResult` with `isError: true` and the text explanation
  */
-export const errorResult = (text: string): ToolsCallResult =>
+export const errorResult = text =>
     ({ ...okResult(text), isError: true })
 
 /**
@@ -222,14 +194,14 @@ export const errorResult = (text: string): ToolsCallResult =>
  * entries into MCP `Tool` descriptors, and `toolsCall` dispatches by name and
  * delegates to the appropriate handler.
  *
- * @param registry - Array of tool entries
- * @returns Complete `McpHandlers` ready for use with `mcpStep`
+ * @template {Operation} O
+ * @param {readonly ToolEntry<O>[]} registry - Array of tool entries
+ * @returns {McpHandlers<O>} Complete `McpHandlers` ready for use with `mcpStep`
  */
-export const fromRegistry = <O extends Operation>(
-    registry: readonly ToolEntry<O>[],
-): McpHandlers<O> => ({
+export const fromRegistry = registry => ({
     toolsList: () => {
-        const tools: Tool[] = registry.map(entry => ({
+        /** @type {Tool[]} */
+        const tools = registry.map(entry => ({
             name: entry.name,
             description: entry.description,
             inputSchema: toJsonSchema(entry.inputRtti),
@@ -244,16 +216,13 @@ export const fromRegistry = <O extends Operation>(
     },
 })
 
-/** Top-level handler: maps a raw JSON value to a JSON-RPC response (or `null` for notifications). */
-export type Handle<O extends Operation> = (value: Unknown) => Effect<O, Response | null>
-
 // ── Lifecycle / capability state machine ───────────────────────────────────────
 
-const _errResponse = (id: Id) => (error: RpcError): Response =>
-    ({ jsonrpc, error, id })
+/** @type {(id: Id) => (error: RpcError) => Response} */
+const _errResponse = id => error => ({ jsonrpc, error, id })
 
-const _okResponse = (id: Id) => (result: Unknown): Response =>
-    ({ jsonrpc, result, id })
+/** @type {(id: Id) => (result: Unknown) => Response} */
+const _okResponse = id => result => ({ jsonrpc, result, id })
 
 /** MCP error -32002: the client called a method before `initialize`. */
 export const notInitialized = rpcError(-32002)('Server not initialized')
@@ -262,30 +231,8 @@ export const notInitialized = rpcError(-32002)('Server not initialized')
 // absent, or an object (which may carry `_meta`).
 const _noParams = option(record(unknown))
 
-/** State carried before the peer sends `initialize`. */
-export type Uninitialized = readonly ['uninitialized']
-
-/** State after `initialize` response was sent but before `notifications/initialized` arrives. */
-export type Initializing = readonly ['initializing']
-
-/** State carried after a successful `initialize` exchange. */
-export type InitializedState = true
-
-/** The three phases of an MCP session. */
-export type McpSessionState =
-    | Uninitialized
-    | Initializing
-    | readonly ['initialized', InitializedState]
-
 /** Initial session state — always start here. */
-export const uninitializedState: McpSessionState = ['uninitialized']
-
-/** Static configuration supplied by the server implementer. */
-export type McpConfig = {
-    readonly serverInfo: Implementation
-    readonly capabilities: ServerCapabilities
-    readonly protocolVersion: string
-}
+export const uninitializedState = /** @type {McpSessionState} */ (['uninitialized'])
 
 /**
  * State-machine step for an MCP session using memory effects.
@@ -306,16 +253,18 @@ export type McpConfig = {
  *   is absent.
  * - `tools/list` params (an optional pagination `cursor`) are validated and passed
  *   to the handler; invalid params → -32602.
+ *
+ * @param {McpConfig} config
+ * @returns {<O extends Operation>(handlers: McpHandlers<O>) => (stateKey: Key<McpSessionState>) => (value: Unknown) => Effect<MemOp | O, Response | null>}
  */
-export const mcpStep =
-    ({
+export const mcpStep = ({
         protocolVersion,
         capabilities,
         serverInfo,
-    }: McpConfig) =>
-    <O extends Operation>(handlers: McpHandlers<O>) =>
-    (stateKey: Key<McpSessionState>) =>
-    (value: Unknown): Effect<MemOp | O, Response | null> => {
+    }) =>
+    handlers =>
+    stateKey =>
+    value => {
         const [t, message] = decodeRequest(value)
         if (t === 'error') {
             return pure(_errResponse(null)(invalidRequest))
@@ -335,7 +284,7 @@ export const mcpStep =
                     read(stateKey),
                     ([t]) => t === 'initializing'
                         ? step(
-                            write(stateKey, ['initialized', true as InitializedState]),
+                            write(stateKey, ['initialized', /** @type {InitializedState} */ (true)]),
                             () => pure(null),
                         )
                         : pure(null),
@@ -365,7 +314,8 @@ export const mcpStep =
                     if (pr === 'error') {
                         return pure(_errResponse(id)(invalidParams))
                     }
-                    const result: InitializeResult = {
+                    /** @type {InitializeResult} */
+                    const result = {
                         protocolVersion,
                         capabilities,
                         serverInfo,

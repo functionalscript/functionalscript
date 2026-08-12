@@ -20,8 +20,9 @@ import { sha256 } from '../crypto/sha2/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
 import type { List } from '../effects/list/types.ts'
 import {
-    mcpStep, uninitializedState, type McpSessionState, type ToolsCallResult,
-} from '../protocol/mcp/module.f.ts'
+    mcpStep, uninitializedState,
+} from '../protocol/mcp/module.f.mjs'
+import type { McpSessionState, ToolsCallResult } from '../protocol/mcp/types.ts'
 import type {
     IoResult,
     Mkdir,

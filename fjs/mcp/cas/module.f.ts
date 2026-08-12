@@ -118,8 +118,8 @@ import type { Ok } from '../../types/result/types.ts'
 import { ok } from '../../types/result/module.f.mjs'
 import {
     toolEntry, errorResult, okResult,
-    type ToolEntry, type ToolsCallResult,
-} from '../../protocol/mcp/module.f.ts'
+} from '../../protocol/mcp/module.f.mjs'
+import type { ToolEntry, ToolsCallResult } from '../../protocol/mcp/types.ts'
 import { collectRead, fileCas } from '../../cas/module.f.mjs'
 import type { FileCasOperation } from '../../cas/types.ts'
 import { fromVec } from '../../text/utf8/module.f.mjs'

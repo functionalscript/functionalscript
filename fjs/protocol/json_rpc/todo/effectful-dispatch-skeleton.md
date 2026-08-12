@@ -20,7 +20,7 @@ const handler: Handler | undefined = handlers[method]
 if (handler === undefined) { return errorResponseOf(id)(methodNotFound) }
 ```
 
-Effectful `mcpStep` (`fjs/protocol/mcp/module.f.ts:315-338`):
+Effectful `mcpStep` (`fjs/protocol/mcp/module.f.mjs:264-287`):
 
 ```ts
 const [t, message] = decodeRequest(value)

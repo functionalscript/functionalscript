@@ -18,7 +18,7 @@ const errorResponseOf = (id: Id) => (error: RpcError): Response =>
 // fjs/protocol/json_rpc/module.f.mjs:110 — success shape inlined in dispatch
     ? { jsonrpc, result, id }
 
-// fjs/protocol/mcp/module.f.ts:240-244 — the same two constructors, rebuilt
+// fjs/protocol/mcp/module.f.mjs:220-224 — the same two constructors, rebuilt
 const _errResponse = (id: Id) => (error: RpcError): Response =>
     ({ jsonrpc, error, id })
 const _okResponse = (id: Id) => (result: Unknown): Response =>
@@ -69,7 +69,7 @@ export const successResponseOf = (id: Id) => (result: Unknown): Response =>
   uses. Keep the pair's names parallel.
 - `dispatch` replaces its inline `{ jsonrpc, result, id }` with
   `successResponseOf(id)(result)`.
-- `fjs/protocol/mcp/module.f.ts` deletes `_errResponse`/`_okResponse` and imports the
+- `fjs/protocol/mcp/module.f.mjs` deletes `_errResponse`/`_okResponse` and imports the
   exported pair; no behavior change.
 - Future JSON-RPC-based servers (the `resources/*`, `prompts/*`, `logging/*`
   methods from [i665-mcp](../../mcp/todo/README.md)) get the constructors
@@ -84,18 +84,18 @@ after this change it builds on the imported one.
 
 - [ ] Export `errorResponseOf`; add and export `successResponseOf` in
       `fjs/protocol/json_rpc/module.f.mjs`; use it in `dispatch`.
-- [ ] Replace `_errResponse`/`_okResponse` in `fjs/protocol/mcp/module.f.ts` with the
+- [ ] Replace `_errResponse`/`_okResponse` in `fjs/protocol/mcp/module.f.mjs` with the
       imported constructors.
 - [ ] Rebuild `parseErrorResponse`/`internalErrorResponse` in
       `fjs/protocol/mcp/stdio/module.f.mjs` on the imported `errorResponseOf`.
 - [ ] `npx tsc` clean; `fjs t` passes (`fjs/protocol/json_rpc/proof.f.mjs`,
-      `fjs/protocol/mcp/proof.f.ts`).
+      `fjs/protocol/mcp/proof.f.mjs`).
 
 ### Related
 
 - `fjs/protocol/json_rpc/module.f.mjs` — owner of the `Response` envelope.
-- `fjs/protocol/mcp/module.f.ts:240-244` — the duplicated private constructors.
-- `fjs/protocol/mcp/module.f.ts` `okResult`/`errorResult` — the same
+- `fjs/protocol/mcp/module.f.mjs:220-224` — the duplicated private constructors.
+- `fjs/protocol/mcp/module.f.mjs` `okResult`/`errorResult` — the same
   owner-exports-the-pair pattern, already applied to `ToolsCallResult`.
 - [66D-mcp-validate-response-envelope](../../mcp/todo/README.md) — builds
   its `validated` helper on top of these constructors.

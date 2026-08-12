@@ -7,7 +7,7 @@
 
 ### Problem
 
-`fjs/protocol/mcp/module.f.ts`'s `mcpStep` request handler repeats the same
+`fjs/protocol/mcp/module.f.mjs`'s `mcpStep` request handler repeats the same
 "validate the params, branch to an error or success response" envelope in
 every method arm. The shape is always:
 
@@ -18,7 +18,7 @@ return t === 'error'
     : <success using pr>
 ```
 
-It appears four times in `mcpStep` (in `fjs/protocol/mcp/module.f.ts`):
+It appears four times in `mcpStep` (in `fjs/protocol/mcp/module.f.mjs`):
 
 - `ping` — `validate(_noParams)(params)`, success is `pure(_okResponse(id)({}))`.
 - `initialize` — `validate(initializeParams)(params)`, success builds an
@@ -115,7 +115,7 @@ handler from accreting a dozen copies of the same ternary.
 - [ ] Add a module-scope (or `mcpStep`-local) `validated` helper threading `id`;
       rewrite `ping`, `initialize`, `tools/list`, `tools/call` to use it.
 - [ ] Add `toolMethod` for the capability-gated `tools/*` pair.
-- [ ] Confirm `fjs/protocol/mcp/proof.f.ts` still passes (`fjs t`) with full branch
+- [ ] Confirm `fjs/protocol/mcp/proof.f.mjs` still passes (`fjs t`) with full branch
       coverage (both `error` and `ok` sides of each method) and `npx tsc` is clean.
 
 ### Related
