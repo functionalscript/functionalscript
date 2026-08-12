@@ -636,6 +636,41 @@ inline-cast position gives it the special const-assertion meaning. This is
 unlike every other `@type` cast, which works in both positions — don't
 "clean up" a `@type {const}` inline cast into the declaration form.
 
+#### Mutually recursive constants: cross-reference with `typeof`
+
+When exported constants refer to each other in a cycle — the usual shape for a
+recursive rtti schema, where `unknown` names `object` and `array` and both are
+built from `unknown` — pin them with an explicit `@type` whose element types are
+`typeof` references to the other constants, **not** with `@type {const}`:
+
+```js
+/** @type {() => readonly['or', typeof primitive, typeof object, typeof array]} */
+export const unknown = () => ['or', primitive, object, array]
+
+export const object = record(unknown)
+export const array = rttiArray(unknown)
+```
+
+Forward references are fine: `unknown` is annotated in terms of `object` and
+`array`, declared below it.
+
+`@type {const}` is wrong here even though it compiles. It pins the tuple, so
+`npx tsc` and `fjs t` both pass — but it gives declaration emit no *name* for
+the recursive positions, so the emitter inlines the structure, gives up at
+depth, and writes `/*elided*/ any`. On `fjs/media/json/rtti/module.f.mjs` the
+const cast emitted 4 `any` and 2 `/*elided*/`; the `typeof` form emitted
+neither. Only a consumer type-checking against the published `.d.mts` sees the
+difference, which is why this needs to be a rule rather than something review
+catches. Omitting the annotation entirely is a third, louder failure: the array
+literal widens to `(string | …)[]` and fails `TS2345` outright (see "Pin literal
+`const`s" above).
+
+Pair the annotation with a round-trip assert so it stays checked rather than
+merely claimed — `fjs/media/json/types.ts` holds
+`Assert<Equal<Unknown, Ts<typeof unknown>>>`. An explicit `@type` on a constant
+whose type the compiler would otherwise infer is only as trustworthy as what
+verifies it.
+
 #### Avoid type predicates
 
 Avoid TypeScript type predicates (`(x: T): x is U`). They are error-prone: the
