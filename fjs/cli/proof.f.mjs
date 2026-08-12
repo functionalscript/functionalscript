@@ -1,15 +1,17 @@
-import type { NodeOp, NodeProgramOptions } from '../effects/node/types.ts'
-import type { Commands } from './types.ts'
+/** @import { NodeOp, NodeProgramOptions } from '../effects/node/types.ts' */
+/** @import { Commands } from './types.ts' */
 
 import { pure } from '../effects/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { dispatch } from './module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 
-const makeOptions = (args: readonly string[]): NodeProgramOptions =>
+/** @type {(args: readonly string[]) => NodeProgramOptions} */
+const makeOptions = args =>
     ({ ...defaultNodeProgramOptions, args })
 
-const echoCommands: Commands<NodeOp> = [
+/** @type {Commands<NodeOp>} */
+const echoCommands = [
     {
         names: ['echo', 'e'],
         description: 'Print the first argument',
@@ -17,7 +19,7 @@ const echoCommands: Commands<NodeOp> = [
     },
 ]
 
-const run = (commands: Commands<NodeOp>) => (args: readonly string[]) =>
+const run = (/** @type {Commands<NodeOp>} */ commands) => (/** @type {readonly string[]} */ args) =>
     virtual(emptyState)(dispatch(commands)(makeOptions(args)))
 
 export const proof = {
@@ -50,11 +52,13 @@ export const proof = {
         assert(state.stderr.includes('echo'), 'expected available commands in error')
     },
     handlerReceivesRemainingArgs: () => {
-        const captured: string[] = []
-        const commands: Commands<NodeOp> = [{
+        /** @type {string[]} */
+        const captured = []
+        /** @type {Commands<NodeOp>} */
+        const commands = [{
             names: ['grab'],
             description: 'Capture args',
-            handler: ({ args }): import('../effects/types.ts').Effect<NodeOp, number> => {
+            handler: (/** @type {{ args: readonly string[] }} */ { args }) => {
                 captured.push(...args)
                 return pure(0)
             },
@@ -63,12 +67,14 @@ export const proof = {
         assertEq(captured.join(','), 'a,b,c', ['unexpected args', captured])
     },
     nestedCommands: () => {
-        const inner: Commands<NodeOp> = [{
+        /** @type {Commands<NodeOp>} */
+        const inner = [{
             names: ['ping'],
             description: 'Inner ping',
             handler: () => pure(42),
         }]
-        const outer: Commands<NodeOp> = [{
+        /** @type {Commands<NodeOp>} */
+        const outer = [{
             names: ['sub'],
             description: 'Subcommand group',
             handler: inner,
@@ -77,12 +83,14 @@ export const proof = {
         assertEq(code, 42, ['expected 42', code])
     },
     nestedHelp: () => {
-        const inner: Commands<NodeOp> = [{
+        /** @type {Commands<NodeOp>} */
+        const inner = [{
             names: ['ping'],
             description: 'Inner ping',
             handler: () => pure(0),
         }]
-        const outer: Commands<NodeOp> = [{
+        /** @type {Commands<NodeOp>} */
+        const outer = [{
             names: ['sub'],
             description: 'Subcommand group',
             handler: inner,
@@ -102,12 +110,14 @@ export const proof = {
         assert(state.stdout.includes('echo'), 'expected top-level help for unknown target')
     },
     helpWithTarget: () => {
-        const inner: Commands<NodeOp> = [{
+        /** @type {Commands<NodeOp>} */
+        const inner = [{
             names: ['ping'],
             description: 'Inner ping',
             handler: () => pure(0),
         }]
-        const outer: Commands<NodeOp> = [{
+        /** @type {Commands<NodeOp>} */
+        const outer = [{
             names: ['sub'],
             description: 'Subcommand group',
             handler: inner,
