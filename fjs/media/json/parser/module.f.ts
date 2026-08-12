@@ -9,7 +9,7 @@ import type { Result } from '../../../types/result/types.ts'
 import type { List } from '../../../types/list/types.ts'
 import type { Fold } from '../../../types/function/operator/types.ts'
 import type { JsonToken } from '../tokenizer/types.ts'
-import type { OrderedMap } from '../../../types/ordered_map/types.ts'
+import type { _JsonObject, _JsonArray, _StateParse, _JsonState, _JsonStack } from './types.ts'
 
 import { error, ok } from '../../../types/result/module.f.mjs'
 import { fold, next, toArray, concat } from '../../../types/list/module.f.mjs'
@@ -17,65 +17,27 @@ import { setReplace } from '../../../types/ordered_map/module.f.mjs'
 import { fromMap } from '../../../types/object/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
-type JsonObject = {
-    readonly kind: 'object'
-    readonly values: OrderedMap<Unknown>
-    readonly key: string
-}
-
-type JsonArray = {
-    readonly kind: 'array'
-    readonly values: List<Unknown>
-}
-
-type JsonStackElement = |
-    JsonObject |
-    JsonArray
-
-type JsonStack = List<JsonStackElement>
-
-type StateParse = {
-    readonly status: '' | '[' | '[v' | '[,' | '{' | '{k' | '{:' | '{v' | '{,'
-    readonly top: JsonStackElement | null
-    readonly stack: JsonStack
-}
-
-type StateResult = {
-    readonly status: 'result'
-    readonly value: Unknown
-}
-
-type StateError = {
-    readonly status: 'error'
-    readonly message: string
-}
-
-type JsonState = |
-    StateParse |
-    StateResult |
-    StateError
-
 const addKeyToObject
-    : (obj: JsonObject) => (key: string) => JsonObject
+    : (obj: _JsonObject) => (key: string) => _JsonObject
     = obj => key => ({ kind: 'object', values: obj.values, key: key })
 
 const addValueToObject
-    : (obj: JsonObject) => (value: Unknown) => JsonObject
+    : (obj: _JsonObject) => (value: Unknown) => _JsonObject
     = obj => value => ({ kind: 'object', values: setReplace(obj.key)(value)(obj.values), key: '' })
 
 const addToArray
-    : (array: JsonArray) => (value: Unknown) => JsonArray
+    : (array: _JsonArray) => (value: Unknown) => _JsonArray
     = array => value => ({ kind: 'array', values: concat(array.values)([value]) })
 
 const pushKey
-    : (state: StateParse) => (key: string) => JsonState
+    : (state: _StateParse) => (key: string) => _JsonState
     = state => value => {
         if (state.top?.kind === 'object') { return { status: '{k', top: addKeyToObject(state.top)(value), stack: state.stack } }
         return { status: 'error', message: 'error' }
     }
 
 const pushValue
-    : (state: StateParse) => (value: Unknown) => JsonState
+    : (state: _StateParse) => (value: Unknown) => _JsonState
     = state => value => {
         if (state.top === null) { return { status: 'result', value: value } }
         if (state.top.kind === 'array') { return { status: '[v', top: addToArray(state.top)(value), stack: state.stack } }
@@ -83,7 +45,7 @@ const pushValue
     }
 
 const startArray
-    : (state: StateParse) => JsonState
+    : (state: _StateParse) => _JsonState
     = state => {
         const newStack = state.top === null ? null : { first: state.top, tail: state.stack }
         return { status: '[', top: { kind: 'array', values: null }, stack: newStack }
@@ -94,7 +56,7 @@ const startArray
 // always as a literal cons, and a lazy pop would leave one unforced thunk per
 // closed container — a chain that overflows the stack when it is finally forced.
 const popStack
-    : (stack: JsonStack) => StateParse
+    : (stack: _JsonStack) => _StateParse
     = stack => {
         const ne = next(stack)
         return ne === null
@@ -103,7 +65,7 @@ const popStack
     }
 
 const endArray
-    : (state: StateParse) => JsonState
+    : (state: _StateParse) => _JsonState
     = state => {
         const array = state.top !== null ? toArray(state.top.values) : null
         const newState = popStack(state.stack)
@@ -111,14 +73,14 @@ const endArray
     }
 
 const startObject
-    : (state: StateParse) => JsonState
+    : (state: _StateParse) => _JsonState
     = state => {
         const newStack = state.top === null ? null : { first: state.top, tail: state.stack }
         return { status: '{', top: { kind: 'object', values: null, key: '' }, stack: newStack }
     }
 
 const endObject
-    : (state: StateParse) => JsonState
+    : (state: _StateParse) => _JsonState
     = state => {
         const obj = state.top?.kind === 'object' ? fromMap(state.top.values) : null
         const newState = popStack(state.stack)
@@ -152,7 +114,7 @@ const isValueToken
     }
 
 const parseValueOp
-    : (token: JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: _StateParse) => _JsonState
     = token => state => {
         switch (token.kind) {
             // A value is required here (top level, after `[`+`,`, or after `:`),
@@ -168,7 +130,7 @@ const parseValueOp
     }
 
 const parseArrayStartOp
-    : (token: JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: _StateParse) => _JsonState
     = token => state => {
         if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
         if (token.kind === '[') { return startArray(state) }
@@ -178,7 +140,7 @@ const parseArrayStartOp
     }
 
 const parseArrayValueOp
-    : (token: JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: _StateParse) => _JsonState
     = token => state => {
         if (token.kind === ']') { return endArray(state) }
         if (token.kind === ',') { return { status: '[,', top: state.top, stack: state.stack } }
@@ -186,7 +148,7 @@ const parseArrayValueOp
     }
 
 const parseObjectStartOp
-    : (token: JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: _StateParse) => _JsonState
     = token => state => {
         if (token.kind === 'string') { return pushKey(state)(token.value) }
         if (token.kind === '}') { return endObject(state) }
@@ -194,14 +156,14 @@ const parseObjectStartOp
     }
 
 const parseObjectKeyOp
-    : (token: JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: _StateParse) => _JsonState
     = token => state => {
         if (token.kind === ':') { return { status: '{:', top: state.top, stack: state.stack } }
         return { status: 'error', message: 'unexpected token' }
     }
 
 const parseObjectNextOp
-    : (token: JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: _StateParse) => _JsonState
     = token => state => {
         if (token.kind === '}') { return endObject(state) }
         if (token.kind === ',') { return { status: '{,', top: state.top, stack: state.stack } }
@@ -209,7 +171,7 @@ const parseObjectNextOp
     }
 
 const parseObjectCommaOp
-    : (token: JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: _StateParse) => _JsonState
     = token => state => {
         // After a `,` a member (string key) is required — `}` here would be a
         // trailing comma, which strict JSON rejects.
@@ -218,7 +180,7 @@ const parseObjectCommaOp
     }
 
 const foldOp
-    : Fold<JsonToken, JsonState>
+    : Fold<JsonToken, _JsonState>
     = token => state => {
         if (token.kind === 'eof')
             return state
@@ -262,7 +224,7 @@ export const proof = {
         // non-object guard is a defensive branch unreachable through `parse`.
         // Call it directly to cover that branch.
         nonObjectTop: () => {
-            const state: StateParse = { status: '[', top: { kind: 'array', values: null }, stack: null }
+            const state: _StateParse = { status: '[', top: { kind: 'array', values: null }, stack: null }
             const result = pushKey(state)('key')
             assertEq(result.status, 'error')
         },
