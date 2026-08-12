@@ -48,8 +48,10 @@ history.
 - **BREAKING CHANGES:** `fjs/media/json/schema/module` and `proof`
   migrate from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
   (`.f.mjs`) — `Unknown` stays as a JSDoc typedef in the module (no
-  separate `types.ts`, no external importers of the type). Importers
-  must use the `.f.mjs` specifier. Updates `fjs/protocol/mcp/module.f.ts`
+  separate `types.ts`, no external importers of the type); the local
+  `UnknownConst` type is renamed `_UnknownConst` (it was never exported,
+  but a JSDoc `@typedef` has no non-exported form). Importers must use
+  the `.f.mjs` specifier. Updates `fjs/protocol/mcp/module.f.ts`
   accordingly
   [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/djs/module` and `proof` migrate from

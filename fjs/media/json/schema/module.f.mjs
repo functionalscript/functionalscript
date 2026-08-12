@@ -21,7 +21,7 @@ const unknownThunk = () => /** @type {const} */ (['const', unknownConst])
 
 /**
  * rtti schema for a JSON Schema (draft 2020-12) document.
- * @type {Phantom<typeof unknownThunk, UnknownConst>}
+ * @type {Phantom<typeof unknownThunk, _UnknownConst>}
  */
 export const unknown = unknownThunk
 
@@ -44,7 +44,7 @@ const unknownConst = /** @type {const} */ ({
  * Hand-written base type used as the `$out` annotation on `unknown`.
  *
  * The `?` markers are required even though `Ts<>` already includes `undefined`
- * in each field type. Without `?`, `Unknown = UnknownConst` would require all
+ * in each field type. Without `?`, `Unknown = _UnknownConst` would require all
  * 9 fields to be present in every object literal returned by `toJsonSchema`,
  * because TypeScript distinguishes "field absent" (`?`) from "field present but
  * undefined" (`T | undefined`). JSON Schema objects only include the fields
@@ -59,7 +59,7 @@ const unknownConst = /** @type {const} */ ({
  *   readonly properties?: Ts<typeof unknownConst.properties>
  *   readonly required?: Ts<typeof unknownConst.required>
  *   readonly additionalProperties?: Ts<typeof unknownConst.additionalProperties>
- * }} UnknownConst
+ * }} _UnknownConst
  */
 
 /** Returns true if the rtti schema admits the value `undefined`.

@@ -1,39 +1,41 @@
-import type { Unknown } from '../media/json/types.ts'
+/** @import { Unknown } from '../media/json/types.ts' */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { pure, step } from '../effects/module.f.mjs'
-import type { Effect, Operation } from '../effects/types.ts'
+/** @import { Effect, Operation } from '../effects/types.ts' */
 import { create } from '../effects/memory/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, option, string as rttiString } from '../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
-import type { Response } from '../protocol/json_rpc/types.ts'
-import type { Vec } from '../types/bit_vec/types.ts'
+/** @import { Response } from '../protocol/json_rpc/types.ts' */
+/** @import { Vec } from '../types/bit_vec/types.ts' */
 import { msb, u8ListToVec, vec8, repeat, length, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 import { vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { encode as base64Encode } from '../basen/base64/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { fileCas } from '../cas/module.f.mjs'
-import type { FileCasOperation } from '../cas/types.ts'
+/** @import { FileCasOperation } from '../cas/types.ts' */
 import { dialect as revisionDialect, mediaType as revisionMediaType } from '../media/revision/module.f.mjs'
 import { sha256 } from '../crypto/sha2/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
-import type { List } from '../effects/list/types.ts'
+/** @import { List } from '../effects/list/types.ts' */
 import {
     mcpStep, uninitializedState,
 } from '../protocol/mcp/module.f.mjs'
-import type { McpSessionState, ToolsCallResult } from '../protocol/mcp/types.ts'
-import type {
-    IoResult,
-    Mkdir,
-    Now,
-    RandomInt,
-    ReadBytes,
-    Rename,
-} from '../effects/node/types.ts'
+/** @import { McpSessionState, ToolsCallResult } from '../protocol/mcp/types.ts' */
+/**
+ * @import {
+ *   IoResult,
+ *   Mkdir,
+ *   Now,
+ *   RandomInt,
+ *   ReadBytes,
+ *   Rename,
+ * } from '../effects/node/types.ts'
+ */
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
-import type { Dir } from '../effects/node/virtual/types.ts'
-import { casConfig, casMcpHandlers } from './module.f.ts'
+/** @import { Dir } from '../effects/node/virtual/types.ts' */
+import { casConfig, casMcpHandlers } from './module.f.mjs'
 import { ok as resultOk, unwrap } from '../types/result/module.f.mjs'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import { fromVec } from '../types/uint8array/module.f.mjs'
@@ -44,39 +46,44 @@ import { initEvo } from '../cas/evo/module.f.mjs'
 // cast — a response that drifts from this fails the test at the parse, not
 // silently at the assertion. `uri` is always emitted; only the payload
 // (`text` for `type: 'text'`, `blob` for `type: 'base64'`) is conditional.
-const casGetResult = {
+const casGetResult = /** @type {const} */ ({
     length: rttiNumber,
     mimeType: rttiString,
     type: rttiString,
     uri: rttiString,
     text: option(rttiString),
     blob: option(rttiString),
-} as const
+})
 
 const parseCasGetResult = rttiParse(casGetResult)
 
 // ── Session driver ──────────────────────────────────────────────────────────────
 
 // Feeds each message to `handler` in order, collecting every response.
-const feed = <O extends Operation>(
-    handler: (v: Unknown) => Effect<O, Response | null>,
-) => (msgs: readonly unknown[]): Effect<O, readonly unknown[]> => {
-    const go = (i: number, acc: readonly unknown[]): Effect<O, readonly unknown[]> =>
+/**
+ * @template {Operation} O
+ * @param {(v: Unknown) => Effect<O, Response | null>} handler
+ * @returns {(msgs: readonly unknown[]) => Effect<O, readonly unknown[]>}
+ */
+const feed = handler => msgs => {
+    /** @type {(i: number, acc: readonly unknown[]) => Effect<O, readonly unknown[]>} */
+    const go = (i, acc) => (
         i === msgs.length
             ? pure(acc)
             : step(
-                handler(msgs[i] as Unknown),
+                handler(/** @type {Unknown} */ (msgs[i])),
                 r => go(i + 1, [...acc, r]))
+    )
     return go(0, [])
 }
 
 // Runs a session backed by the virtual node runner (for cas_upload which uses
 // Rename/ReadBytes/RandomInt/Mkdir). Uses fileKvStore so upload and get share
 // the same filesystem-backed CAS.
+/** @type {(root: Dir, home?: string) => (msgs: readonly unknown[]) => readonly unknown[]} */
 const runSessionVirtual =
-    (root: Dir, home = '/home/user') =>
-    (msgs: readonly unknown[]): readonly unknown[] => {
-        type UploadOp = FileCasOperation | Rename | RandomInt | ReadBytes
+    (root, home = '/home/user') =>
+    msgs => {
         const effect = step(
             initEvo(fileCas(sha256)(home)),
             cacheKey => step(
@@ -94,11 +101,12 @@ const runSessionVirtual =
 // longer available to stage one through MCP. Returns the resulting root
 // `Dir` (with the new shard written) and the blob's cBase32 hash so a
 // subsequent `runSessionVirtual` call can read it back via `cas_get`.
-const seedBlob = (root: Dir, home = '/home/user') => (chunks: readonly Vec[]): readonly [Dir, string] => {
+/** @type {(root: Dir, home?: string) => (chunks: readonly Vec[]) => readonly [Dir, string]} */
+const seedBlob = (root, home = '/home/user') => chunks => {
     const c = fileCas(sha256)(home)
-    const stream: List<never, IoResult<Vec>> =
-        chunks.reduceRight<List<never, IoResult<Vec>>>(
-            (tail, chunk) => nonEmpty(resultOk(chunk), tail), elEmpty())
+    const stream = chunks.reduceRight(
+        (/** @type {List<never, IoResult<Vec>>} */ tail, chunk) => nonEmpty(resultOk(chunk), tail),
+        /** @type {List<never, IoResult<Vec>>} */ (elEmpty()))
     const [state, result] = virtual({ ...emptyState, root })(c.write(stream))
     assert(result[0] === 'ok', result)
     return [state.root, vecToCBase32(result[1])]
@@ -111,17 +119,21 @@ const init = { jsonrpc: '2.0', method: 'initialize', id: 1,
 
 const initialized = { jsonrpc: '2.0', method: 'notifications/initialized' }
 
-const call = (id: number, name: string, args: unknown) =>
+/** @type {(id: number, name: string, args: unknown) => unknown} */
+const call = (id, name, args) =>
     ({ jsonrpc: '2.0', method: 'tools/call', id, params: { name, arguments: args } })
 
-const list = (id: number) => ({ jsonrpc: '2.0', method: 'tools/list', id })
+/** @type {(id: number) => unknown} */
+const list = id => ({ jsonrpc: '2.0', method: 'tools/list', id })
 
 // Runs `init`, `notifications/initialized`, then `msgs`; returns the tool responses.
-const session = (...msgs: readonly unknown[]): readonly unknown[] =>
+/** @type {(...msgs: readonly unknown[]) => readonly unknown[]} */
+const session = (...msgs) =>
     runSessionVirtual({}, '/home/user')([init, initialized, ...msgs]).slice(2)
 
 // UTF-8 bytes of `s` as a plain array — the virtual stdin byte stream.
-const toBytes = (s: string): readonly number[] => [...fromVec(utf8(s))]
+/** @type {(s: string) => readonly number[]} */
+const toBytes = s => [...fromVec(utf8(s))]
 
 // Runs `init`, `notifications/initialized`, then `msgs` through the *real*
 // stdio pipeline — `mcpStep` wrapped in `stdioTransport`, driving
@@ -130,14 +142,15 @@ const toBytes = (s: string): readonly number[] => [...fromVec(utf8(s))]
 // as plain JS objects and never serialize/encode them, this is the only
 // helper that can observe the transport's oversized-response fallback (see
 // `fjs/protocol/mcp/stdio/module.f.mjs` `writeResponse`).
+/** @type {(root: Dir, home?: string) => (msgs: readonly unknown[]) => readonly unknown[]} */
 const runStdio =
-    (root: Dir, home = '/home/user') =>
-    (msgs: readonly unknown[]): readonly unknown[] => {
+    (root, home = '/home/user') =>
+    msgs => {
         const input = [init, initialized, ...msgs].map(m => JSON.stringify(m)).join('\n') + '\n'
         const effect = step(
             initEvo(fileCas(sha256)(home)),
             cacheKey => step(
-                create(uninitializedState as McpSessionState),
+                create(/** @type {McpSessionState} */ (uninitializedState)),
                 sessionKey =>
                     stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))
             )
@@ -148,15 +161,18 @@ const runStdio =
         return stdout.split('\n').filter(line => line.length > 0).slice(1).map(line => unwrap(parseJson(line)))
     }
 
-const resultOf = (resp: unknown): ToolsCallResult =>
-    (resp as { readonly result: ToolsCallResult }).result
+/** @type {(resp: unknown) => ToolsCallResult} */
+const resultOf = resp =>
+    /** @type {{ readonly result: ToolsCallResult }} */ (resp).result
 
-const item0 = (resp: unknown): unknown => resultOf(resp).content[0]
+/** @type {(resp: unknown) => unknown} */
+const item0 = resp => resultOf(resp).content[0]
 
-const textOf = (resp: unknown): string => (item0(resp) as { readonly text: string }).text
+/** @type {(resp: unknown) => string} */
+const textOf = resp => (/** @type {{ readonly text: string }} */ (item0(resp))).text
 
 /** The `text` payload of a `cas_get` response, parsed and checked against {@link casGetResult}. */
-const casGetResultOf = (resp: unknown) =>
+const casGetResultOf = (/** @type {unknown} */ resp) =>
     unwrap(parseCasGetResult(unwrap(parseJson(textOf(resp)))))
 
 // A plain text sample for text add→get round-trips.
@@ -167,19 +183,20 @@ const textSample = 'hello, world!'
 const revisionSample = `{"dialect":"${revisionDialect}","subject":"8","parents":[],"snapshot":"8","generation":0}`
 
 // A base64-encoded binary payload for binary add→get round-trips.
-const binarySample = base64Encode(vec8(0x2An)) as string
+const binarySample = /** @type {string} */ (base64Encode(vec8(0x2An)))
 
 // A base64 blob whose leading bytes are the PNG magic-byte signature, so
 // `cas_get` detects its type and returns base64 with mimeType image/png.
-const pngSample = base64Encode(
-    u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])) as string
+const pngSample = /** @type {string} */ (base64Encode(
+    u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])))
 
 // Returns the RFC 4648 base64 encoding of `n` zero bytes, computed directly
 // without bigint arithmetic — independent of `base64.encode` so these tests
 // don't rely on the correctness of the function they're indirectly exercising
 // (`cas_add` decodes the string via `base64.decode`). Handles every n%3
 // residue: rem=0 → no padding, rem=1 → 'AA==', rem=2 → 'AAA='.
-const base64OfA = (n: bigint): string => {
+/** @type {(n: bigint) => string} */
+const base64OfA = n => {
     const groups = Number(n / 3n)
     const rem = Number(n % 3n)
     const body = 'AAAA'.repeat(groups)
@@ -196,12 +213,13 @@ const base64OfA = (n: bigint): string => {
 // exactly `maxLengthBytes` (the largest single `Vec` the runtime allows), so the
 // two-chunk blob spans two read chunks without any one `Vec` exceeding the cap.
 const largeMultiChunkBlobMeta =
-    (chunk0: Vec, chunk1: Vec, expectedType: string, expectedMime: string) => () => {
+    (/** @type {Vec} */ chunk0, /** @type {Vec} */ chunk1, /** @type {string} */ expectedType,
+        /** @type {string} */ expectedMime) => () => {
         const [root, hash] = seedBlob({})([chunk0, chunk1])
-        const [metaResp] = runSessionVirtual(root)([
+        const [metaResp] = /** @type {readonly unknown[]} */ (runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_get', { hash }),
-        ]).slice(2) as readonly unknown[]
+        ]).slice(2))
         assert(!resultOf(metaResp).isError)
         const meta = casGetResultOf(metaResp)
         assertEq(meta.type, expectedType)
@@ -254,10 +272,10 @@ export const proof = {
     // buffered inline. The metadata-only path (above) still returns its size/type.
     getContentLargeBlobTooLargeError: () => {
         const [root, hash] = seedBlob({})([asciiChunk, asciiChunk])
-        const [getResp] = runSessionVirtual(root)([
+        const [getResp] = /** @type {readonly unknown[]} */ (runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_get', { hash, content: true }),
-        ]).slice(2) as readonly unknown[]
+        ]).slice(2))
         assertEq(resultOf(getResp).isError, true)
         const text = textOf(getResp)
         assert(text.includes('too large'))
@@ -291,7 +309,7 @@ export const proof = {
         const [getResp] = runStdio(root)([
             call(2, 'cas_get', { hash, content: true }),
         ])
-        const err = getResp as { readonly error?: { readonly code: number }, readonly id: unknown }
+        const err = /** @type {{ readonly error?: { readonly code: number }, readonly id: unknown }} */ (getResp)
         assertEq(err.error?.code, -32603)
         assertEq(err.id, 2)
     },
@@ -326,17 +344,18 @@ export const proof = {
         const [getResp] = runStdio(root)([
             call(2, 'cas_get', { hash, content: true }),
         ])
-        const err = getResp as { readonly error?: { readonly code: number }, readonly id: unknown }
+        const err = /** @type {{ readonly error?: { readonly code: number }, readonly id: unknown }} */ (getResp)
         assertEq(err.error?.code, -32603)
         assertEq(err.id, 2)
     },
 
     toolsListAdvertisesSevenTools: () => {
         const [resp] = runSessionVirtual({})([init, initialized, list(2)]).slice(2)
-        const tools = (resp as { result: { tools: readonly { name: string }[] } }).result.tools
+        const tools = (/** @type {{ result: { tools: readonly { name: string }[] } }} */ (resp)).result.tools
         assertEq(tools.length, 7)
         assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list,evo_list,evo_head,evo_revision,evo_add')
-        const add = (resp as { result: { tools: readonly { inputSchema: { type?: string } }[] } }).result.tools[0]
+        const add = (/** @type {{ result: { tools: readonly { inputSchema: { type?: string } }[] } }} */ (resp))
+            .result.tools[0]
         assertEq(add.inputSchema.type, 'object')
     },
 
@@ -464,7 +483,7 @@ export const proof = {
             call(2, 'cas_add', { content: textSample }),
             call(3, 'cas_get', { hash, content: true }),
         )
-        assertEq(item0(getResp) === null ? null : (item0(getResp) as { type: string }).type, 'text')
+        assertEq(item0(getResp) === null ? null : (/** @type {{ type: string }} */ (item0(getResp))).type, 'text')
         const result = casGetResultOf(getResp)
         assertEq(result.type, 'text')
         assertEq(result.mimeType, 'text/plain')
@@ -479,7 +498,7 @@ export const proof = {
             call(3, 'cas_get', { hash, content: true }),
         )
         assert(!resultOf(getResp).isError)
-        assertEq((item0(getResp) as { type: string }).type, 'text')
+        assertEq((/** @type {{ type: string }} */ (item0(getResp))).type, 'text')
         const result = casGetResultOf(getResp)
         assertEq(result.type, 'base64')
         assertEq(result.mimeType, 'image/png')
@@ -608,8 +627,8 @@ export const proof = {
 
     toolErrorIsNotJsonRpcError: () => {
         const [resp] = session(call(2, 'cas_add', { content: 'not valid!', type: 'base64' }))
-        assert(!('error' in (resp as object)))
-        assert('result' in (resp as object))
+        assert(!('error' in /** @type {object} */ (resp)))
+        assert('result' in /** @type {object} */ (resp))
     },
 
     // cas_get without content:true returns only metadata.
@@ -645,7 +664,7 @@ export const proof = {
 
     getMetaOctetStreamForUnknownBinary: () => {
         const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
-        const binaryB64 = base64Encode(binaryContent) as string
+        const binaryB64 = /** @type {string} */ (base64Encode(binaryContent))
         const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
         const hash = textOf(addResp)
         const [, metaResp] = session(
@@ -663,7 +682,7 @@ export const proof = {
     // base64/octet-stream, not text/plain.
     getMetaOctetStreamForNulBlob: () => {
         const nulContent = u8ListToVec(msb)([0x00, 0x00, 0x00])
-        const nulB64 = base64Encode(nulContent) as string
+        const nulB64 = /** @type {string} */ (base64Encode(nulContent))
         const [addResp] = session(call(2, 'cas_add', { content: nulB64, type: 'base64' }))
         const hash = textOf(addResp)
         const [, metaResp] = session(
@@ -690,7 +709,7 @@ export const proof = {
     // cas_get with content:true on octet-stream (no magic bytes, not UTF-8) returns inline base64.
     getOctetStreamWithContentIncludesBase64: () => {
         const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
-        const binaryB64 = base64Encode(binaryContent) as string
+        const binaryB64 = /** @type {string} */ (base64Encode(binaryContent))
         const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
         const hash = textOf(addResp)
         const [, getResp] = session(

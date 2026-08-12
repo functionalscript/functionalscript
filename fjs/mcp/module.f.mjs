@@ -27,23 +27,23 @@
  * @module
  */
 import { step } from '../effects/module.f.mjs'
-import type { Effect } from '../effects/types.ts'
+/** @import { Effect } from '../effects/types.ts' */
 import { create } from '../effects/memory/module.f.mjs'
-import type { MemOp } from '../effects/memory/types.ts'
-import type { Read, Write } from '../effects/node/types.ts'
+/** @import { MemOp } from '../effects/memory/types.ts' */
+/** @import { Read, Write } from '../effects/node/types.ts' */
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import {
     mcpStep, uninitializedState, fromRegistry,
 } from '../protocol/mcp/module.f.mjs'
-import type { McpConfig, McpHandlers } from '../protocol/mcp/types.ts'
+/** @import { McpConfig, McpHandlers } from '../protocol/mcp/types.ts' */
 import { fileCas } from '../cas/module.f.mjs'
-import type { FileCasOperation } from '../cas/types.ts'
+/** @import { FileCasOperation } from '../cas/types.ts' */
 import { initEvo, evo } from '../cas/evo/module.f.mjs'
-import type { Cache } from '../cas/evo/types.ts'
+/** @import { Cache } from '../cas/evo/types.ts' */
 import { sha256 } from '../crypto/sha2/module.f.mjs'
 import { casToolRegistry } from './cas/module.f.mjs'
 import { evoToolRegistry } from './evo/module.f.mjs'
-import type { Key } from '../effects/memory/types.ts'
+/** @import { Key } from '../effects/memory/types.ts' */
 
 // ── Handlers ────────────────────────────────────────────────────────────────────
 
@@ -51,8 +51,9 @@ import type { Key } from '../effects/memory/types.ts'
  * MCP handlers for `FileCas` (`fjs/mcp/cas`) plus the Evo API (`fjs/mcp/evo`)
  * layered on it, bound to `home` and an already-built Evo cache slot (see
  * `initEvo`).
+ * @type {(home: string) => (cacheKey: Key<Cache>) => McpHandlers<FileCasOperation | MemOp>}
  */
-export const casMcpHandlers = (home: string) => (cacheKey: Key<Cache>): McpHandlers<FileCasOperation | MemOp> =>
+export const casMcpHandlers = home => cacheKey =>
     fromRegistry([...casToolRegistry(home)(cacheKey), ...evoToolRegistry(evo(fileCas(sha256)(home))(cacheKey))])
 
 // ── Session configuration ───────────────────────────────────────────────────────
@@ -60,8 +61,9 @@ export const casMcpHandlers = (home: string) => (cacheKey: Key<Cache>): McpHandl
 /**
  * Static MCP configuration for the CAS server: advertises the `tools`
  * capability, identifies the server, and pins the protocol version.
+ * @type {McpConfig}
  */
-export const casConfig: McpConfig = {
+export const casConfig = {
     serverInfo: { name: 'functionalscript-cas', version: '0.30.0' },
     capabilities: { tools: {} },
     protocolVersion: '2024-11-05',
@@ -74,10 +76,9 @@ export const casConfig: McpConfig = {
  * build the Evo subject/head cache (`initEvo`), allocates the session-state
  * slot, builds the `mcpStep` for the merged tool registry, and drives the
  * read → parse → dispatch → write loop until stdin EOF.
+ * @type {(home: string) => Effect<Read | Write | MemOp | FileCasOperation, void>}
  */
-export const casMcpServer = (
-    home: string,
-): Effect<Read | Write | MemOp | FileCasOperation, void> => step(
+export const casMcpServer = home => step(
     initEvo(fileCas(sha256)(home)),
     cacheKey => step(
         create(uninitializedState),
