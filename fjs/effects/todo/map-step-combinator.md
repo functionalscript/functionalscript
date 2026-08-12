@@ -50,7 +50,7 @@ const program = step(
     () => pure(0))
 ```
 
-Also `fjs/djs/module.f.ts`, `fjs/module.f.ts`, `fjs/ci/module.f.mjs`,
+Also `fjs/djs/module.f.mjs`, `fjs/module.f.ts`, `fjs/ci/module.f.mjs`,
 `fjs/cas/evo/module.f.mjs`, `fjs/cas/module.f.mjs`, `fjs/cas/cli/module.f.mjs`,
 `fjs/mcp/cas/module.f.ts`, `fjs/protocol/mcp/module.f.ts`, `fjs/protocol/mcp/stdio/module.f.mjs`,
 `fjs/emergent_testing/module.f.mjs`.

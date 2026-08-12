@@ -85,7 +85,7 @@ Invariants:
 #### Rust code generation: an output target of `fjs compile` (decided)
 
 `fjs compile <input> <output>` already dispatches on the output extension
-(`.json` vs. DJS — see [`fjs/djs/module.f.ts`](../../fjs/djs/module.f.ts));
+(`.json` vs. DJS — see [`fjs/djs/module.f.mjs`](../../fjs/djs/module.f.mjs));
 Rust code generation is a third branch, selected by the `.rs` extension. No
 new CLI surface: the previously proposed `fjs vm build` / `fjs vm run`
 command group is dropped.

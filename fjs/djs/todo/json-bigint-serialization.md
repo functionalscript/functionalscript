@@ -9,7 +9,7 @@
 `fjs/djs` supports `bigint`, but its native serialization uses JavaScript bigint
 literal syntax such as `123n`, which is not valid JSON.
 
-This already affects `fjs/djs/module.f.ts`'s `.json` output path: it uses the DJS
+This already affects `fjs/djs/module.f.mjs`'s `.json` output path: it uses the DJS
 tree serializer, so a DJS value containing a bigint can be written as `123n` to
 a file whose extension is `.json`. The current proof only covers a plain
 `number`, so this case is not caught.

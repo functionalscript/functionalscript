@@ -51,7 +51,7 @@ export type Array = Tree.Array<Primitive>
 ```
 
 ```ts
-// fjs/djs/module.f.ts
+// fjs/djs/module.f.mjs
 import type * as Tree from '../media/json/common/module.f.ts'
 import type { Primitive as JsonPrimitive } from '../media/json/types.ts'
 export type Primitive = JsonPrimitive | bigint | undefined
@@ -113,6 +113,6 @@ serialization behavior.
   sharing the recursive value type.
 - [197](./197.md) — extracts traversal over the same `Unknown` shape.
 - `fjs/media/json/types.ts` — current JSON recursive type aliases.
-- `fjs/djs/module.f.ts` — current DJS recursive type aliases.
+- `fjs/djs/types.ts` — current DJS recursive type aliases.
 - `fjs/media/json/serializer/module.f.mjs` — currently has no separate recursive
   generic value aliases and therefore is not part of this migration.

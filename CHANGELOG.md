@@ -20,6 +20,15 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/djs/module` and `proof` migrate from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) —
+  `Object`, `Array`, `Primitive`, and `Unknown` no longer re-export from
+  the module; importers must use `fjs/djs/types.ts` directly (this
+  completes the extraction started when those types moved out of
+  `fjs/djs/module.f.ts` earlier in this PR). Updates
+  `fjs/types/rtti/validate/proof.f.ts`, `fjs/types/rtti/parse/proof.f.ts`,
+  `fjs/media/json/schema/module.f.ts`, and `fjs/module.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/djs/transpiler/module` and `proof` migrate
   from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`)
   — `ParseContext` and `djsResult` stay as JSDoc typedefs in the module

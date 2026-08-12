@@ -12,7 +12,7 @@ re-named at every use site instead of existing once under one name.
 Source modules:
 
 - `fjs/protocol/mcp/stdio/module.f.mjs:53` — `const stringifyJson = stringify(sort)`
-- `fjs/djs/module.f.ts:44` — `stringify(sort)(result[1])` inline
+- `fjs/djs/module.f.mjs:42` — `stringify(sort)(result[1])` inline
 
 Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
 `stringifyJson`):
@@ -58,7 +58,7 @@ applications once.
       coverage in `fjs/media/json/proof.f.ts` (which itself calls
       `stringify(sort)` seven times today).
 - [ ] Migrate the two source-module sites (`fjs/protocol/mcp/stdio/module.f.mjs`,
-      `fjs/djs/module.f.ts`), then the proof files.
+      `fjs/djs/module.f.mjs`), then the proof files.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ## Related

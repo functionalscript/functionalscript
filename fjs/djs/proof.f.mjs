@@ -1,13 +1,14 @@
-import { compile } from './module.f.ts'
+/** @import { Vec } from '../types/bit_vec/types.ts' */
+import { compile } from './module.f.mjs'
 import { virtual, emptyState } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
-import type { Vec } from '../types/bit_vec/types.ts'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 
-const readOutput = (root: typeof emptyState.root, path: string): string => {
+/** @type {(root: typeof emptyState.root, path: string) => string} */
+const readOutput = (root, path) => {
     const file = root[path]
     if (!Array.isArray(file) || file.length === 0) { throw `${path} is not a file` }
-    return utf8ToString((file as readonly Vec[])[0])
+    return utf8ToString(/** @type {readonly Vec[]} */ (file)[0])
 }
 
 export const proof = {
