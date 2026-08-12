@@ -100,52 +100,57 @@
  * - unknown tool `name` → `isError`
  *
  * @module
+ *
+ * @import { Effect } from '../../effects/types.ts'
+ * @import { MemOp } from '../../effects/memory/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Ok } from '../../types/result/types.ts'
+ * @import { ToolEntry, ToolsCallResult } from '../../protocol/mcp/types.ts'
+ * @import { FileCasOperation } from '../../cas/types.ts'
+ * @import { Cache } from '../../cas/evo/types.ts'
+ * @import { Key } from '../../effects/memory/types.ts'
+ * @import { Ts } from '../../types/rtti/ts/types.ts'
+ * @import { List } from '../../effects/list/types.ts'
+ * @import { IoResult } from '../../effects/node/types.ts'
  */
+
 import { string, option, or, boolean } from '../../types/rtti/module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { pure, step } from '../../effects/module.f.mjs'
-import type { Effect } from '../../effects/types.ts'
-import type { MemOp } from '../../effects/memory/types.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { detectStream } from '../../media/type/module.f.mjs'
 import { detect } from '../../media/module.f.mjs'
 import { revisionDialect } from '../../media/revision/module.f.mjs'
-import type { Vec } from '../../types/bit_vec/types.ts'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
-import type { Ok } from '../../types/result/types.ts'
 import { ok } from '../../types/result/module.f.mjs'
 import {
     toolEntry, errorResult, okResult,
 } from '../../protocol/mcp/module.f.mjs'
-import type { ToolEntry, ToolsCallResult } from '../../protocol/mcp/types.ts'
 import { collectRead, fileCas } from '../../cas/module.f.mjs'
-import type { FileCasOperation } from '../../cas/types.ts'
 import { fromVec } from '../../text/utf8/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { syncRevision } from '../../cas/evo/module.f.mjs'
-import type { Cache } from '../../cas/evo/types.ts'
-import type { Key } from '../../effects/memory/types.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
 /** Arguments for `cas_add`: content to store, with optional encoding type. */
-export const casAddArgs = {
+export const casAddArgs = /** @type {const} */ ({
     content: string,
-    type: or('text' as const, 'base64' as const, undefined)
-} as const
+    type: or(/** @type {const} */ ('text'), /** @type {const} */ ('base64'), undefined)
+})
 
 /** Arguments for `cas_get`: the cBase32 hash to look up; optionally request inline content. */
-export const casGetArgs = {
+export const casGetArgs = /** @type {const} */ ({
     hash: string,
     content: option(boolean)
-} as const
+})
 
 /** Arguments for `cas_list`: none. */
-export const casListArgs = {} as const
+export const casListArgs = /** @type {const} */ ({})
 
 // ── Tool registry ──────────────────────────────────────────────────────────────
 
@@ -154,12 +159,12 @@ const toJson = stringify(identity)
 /** The dialect-aware classifier, bound to the dialects this server recognizes. */
 const detectDialect = detect([revisionDialect])
 
-type Meta = {
-    readonly length: number
-    readonly mimeType: string
-    readonly type: 'text' | 'base64'
-    readonly uri: string
-}
+/** @typedef {{
+ *   readonly length: number
+ *   readonly mimeType: string
+ *   readonly type: 'text' | 'base64'
+ *   readonly uri: string
+ * }} _Meta */
 
 /**
  * Registry of all CAS tools, bound to `home` and the Evo cache at
@@ -169,41 +174,46 @@ type Meta = {
  * plain `cas_add` and `evo_add` are two ways to reach the same store, and
  * this keeps `evo_list`/`evo_head` honest about either one without a
  * rescan.
+ *
+ * @type {(home: string) => (cacheKey: Key<Cache>) => readonly ToolEntry<FileCasOperation | MemOp>[]}
  */
-export const casToolRegistry =
-(home: string) => (cacheKey: Key<Cache>): readonly ToolEntry<FileCasOperation | MemOp>[] => {
+export const casToolRegistry = home => cacheKey => {
     const c = fileCas(sha256)(home)
     return [
         toolEntry(
             'cas_add',
             'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, store the file with the `cas` CLI instead: run `npx functionalscript cas add <path>` yourself if you have shell access, or give the user that exact command to run — it prints the resulting hash on stdout.',
             casAddArgs,
-            ({ type, content }): Effect<FileCasOperation | MemOp, ToolsCallResult> => {
+            /** @type {(args: Ts<typeof casAddArgs>) => Effect<FileCasOperation | MemOp, ToolsCallResult>} */
+            (({ type, content }) => {
                 // type:'text' or 'base64' — resolve content to Vec, store via c.write()
-                let x: Vec|null = type === 'base64'
+                /** @type {Vec | null} */
+                let x = type === 'base64'
                     ? base64Decode(content)
                     : tryUtf8(content)
                 return x === null
                     ? pure(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
                     // The resolved content fits in one chunk; feed it as a single-item stream.
                     : step(
-                        c.write(nonEmpty(ok(x), elEmpty<never, Ok<Vec>>())),
-                        (writeResult): Effect<MemOp, ToolsCallResult> => {
+                        c.write(nonEmpty(ok(x), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))),
+                        /** @type {(writeResult: IoResult<Vec>) => Effect<MemOp, ToolsCallResult>} */
+                        (writeResult => {
                             if (writeResult[0] === 'error') { return pure(errorResult('write')) }
                             const hash = writeResult[1]
                             return step(
-                                syncRevision(cacheKey)(hash)(x),
+                                syncRevision(cacheKey)(hash)(/** @type {Vec} */ (x)),
                                 () => pure(okResult(vecToCBase32(hash)))
                             )
-                        },
+                        }),
                     )
-            },
+            }),
         ),
         toolEntry(
             'cas_get',
             'Inspect a blob by hash. Always returns JSON {length,mimeType,type[,uri]} where type is "text" or "base64". Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To download a blob, prefer the uri field returned in the result instead of requesting inline content.',
             casGetArgs,
-            r => {
+            /** @type {(args: Ts<typeof casGetArgs>) => Effect<FileCasOperation, ToolsCallResult>} */
+            (r => {
                 const key = cBase32ToVec(r.hash)
                 if (key === null) {
                     return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
@@ -216,7 +226,8 @@ export const casToolRegistry =
                             return pure(errorResult(`no such hash: ${r.hash}`))
                         }
                         const { length, mime_type: mimeType, type } = detected
-                        const meta: Meta = { length: Number(length), mimeType, type, uri }
+                        /** @type {_Meta} */
+                        const meta = { length: Number(length), mimeType, type, uri }
                         if (r.content !== true) {
                             // A dialect match can only be decided from the whole parsed blob;
                             // only attempt the extra bounded read when it stands a chance
@@ -255,7 +266,8 @@ export const casToolRegistry =
                                 // hand — is reflected in the inline result too, not just the
                                 // streaming guess.
                                 const refined = detectDialect(value)
-                                const refinedMeta: Meta = { length: Number(refined.length), mimeType: refined.mime_type, type: refined.type, uri }
+                                /** @type {_Meta} */
+                                const refinedMeta = { length: Number(refined.length), mimeType: refined.mime_type, type: refined.type, uri }
                                 if (refined.type === 'text') {
                                     // `type: 'text'` means the detector validated `value` as UTF-8,
                                     // so `fromVec` is non-null here; guard defensively regardless.
@@ -274,16 +286,17 @@ export const casToolRegistry =
                         )
                     },
                 )
-            },
+            }),
         ),
         toolEntry(
             'cas_list',
             'List all stored content hashes (cBase32), one per line.',
             casListArgs,
-            () => step(
+            /** @type {() => Effect<FileCasOperation, ToolsCallResult>} */
+            (() => step(
                 c.list(),
                 hashes => pure(okResult(hashes.map(vecToCBase32).join('\n')))
-            ),
+            )),
         ),
     ]
 }

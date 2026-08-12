@@ -33,7 +33,7 @@ in a way that makes this **worse**, not just "the same bug elsewhere":
       "decode the last character separately" approach not directly
       applicable, so this needs its own design pass before implementing.
 - [ ] In practice cbase32 only decodes short, fixed-length CAS hashes
-      (`fjs/mcp/cas/module.f.ts`), never `maxLength`-scale payloads, so this
+      (`fjs/mcp/cas/module.f.mjs`), never `maxLength`-scale payloads, so this
       is lower priority than the base64 case was — downgrade further or
       close as irrelevant if no real call site can hit the boundary.
 

@@ -1,4 +1,4 @@
-## 66N-cas-get-response-shape. Dedup `cas_get`'s verdict→`Meta` mapping and buffered-refine arms
+## 66N-cas-get-response-shape. Dedup `cas_get`'s verdict→`_Meta` mapping and buffered-refine arms
 
 **Priority:** P4
 **Status:** open
@@ -12,25 +12,25 @@
 
 ### Problem
 
-The `cas_get` handler in `fjs/mcp/cas/module.f.ts` builds a `Meta` record from
+The `cas_get` handler in `fjs/mcp/cas/module.f.mjs` builds a `_Meta` record from
 a `fjs/media/type` detector verdict (`{ length, mime_type, type }`) plus `uri`
 in two places:
 
 ```ts
-// streaming verdict (:218-219)
+// streaming verdict (:228-230)
 const { length, mime_type: mimeType, type } = detected
-const meta: Meta = { length: Number(length), mimeType, type, uri }
+const meta: _Meta = { length: Number(length), mimeType, type, uri }
 
-// dialect-refined verdict (:252-253)
+// dialect-refined verdict (:268-270)
 const refined = detectDialect(value)
-const refinedMeta: Meta = { length: Number(refined.length), mimeType: refined.mime_type, type: refined.type, uri }
+const refinedMeta: _Meta = { length: Number(refined.length), mimeType: refined.mime_type, type: refined.type, uri }
 ```
 
 Both perform the identical verdict→wire renaming (`mime_type → mimeType`,
 `Number(length)`, carry `type`, attach `uri`). In addition, the
 "buffer the whole blob, then re-run `detectDialect(value)`" step is written
 twice — `collectRead(c.read(key)).step(([tag, value]) => { … detectDialect(value) … })`
-at `:227-234` (metadata-only refinement) and `:244-268` (inline content) —
+at `:238-248` (metadata-only refinement) and `:258-286` (inline content) —
 differing only in the error fallback and what is done with the refined
 verdict.
 
@@ -42,9 +42,9 @@ hoisting rule — don't keep a named helper nested just because it captures a
 local):
 
 ```ts
-/** Maps a `fjs/media/type` detector verdict to the `cas_get` wire `Meta` record. */
+/** Maps a `fjs/media/type` detector verdict to the `cas_get` wire `_Meta` record. */
 const toMeta = (uri: string) =>
-    (d: { readonly length: bigint, readonly mime_type: string, readonly type: 'text' | 'base64' }): Meta =>
+    (d: { readonly length: bigint, readonly mime_type: string, readonly type: 'text' | 'base64' }): _Meta =>
     ({ length: Number(d.length), mimeType: d.mime_type, type: d.type, uri })
 ```
 
@@ -57,7 +57,7 @@ only the two genuinely different tail actions remain at the call sites.
 ### Tasks
 
 - [ ] Add the module-scope curried `toMeta`; apply `toMeta(uri)` once in the
-      `cas_get` handler and route both `Meta` constructions through it.
+      `cas_get` handler and route both `_Meta` constructions through it.
 - [ ] Evaluate folding the two `collectRead` + `detectDialect` arms into a
       shared refine step; apply if it stays readable.
 - [ ] `npx tsc`, `fjs t`; `fjs/mcp/proof.f.ts` passes with full coverage

@@ -41,7 +41,7 @@ import type { FileCasOperation } from '../cas/types.ts'
 import { initEvo, evo } from '../cas/evo/module.f.mjs'
 import type { Cache } from '../cas/evo/types.ts'
 import { sha256 } from '../crypto/sha2/module.f.mjs'
-import { casToolRegistry } from './cas/module.f.ts'
+import { casToolRegistry } from './cas/module.f.mjs'
 import { evoToolRegistry } from './evo/module.f.mjs'
 import type { Key } from '../effects/memory/types.ts'
 
