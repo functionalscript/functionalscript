@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import { assertEq } from '../../asserts/module.f.mjs'
 import { f64Literal, i64Literal, snakeCase, stringLiteral } from './module.f.mjs'
 

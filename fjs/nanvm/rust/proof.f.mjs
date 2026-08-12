@@ -6,9 +6,10 @@
  * layout is a visible diff here and not only in the generated file.
  *
  * @module
+ *
+ * @import { Data } from '../types.ts'
  */
 
-/** @import { Data } from '../types.ts' */
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { data, functionValue, ref, throws } from '../module.f.mjs'
 import { call, directory, generate, path, valueExpr } from './module.f.mjs'

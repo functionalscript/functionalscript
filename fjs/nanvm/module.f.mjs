@@ -17,6 +17,8 @@
  *
  * @module
  *
+ * @import { Case, Data, Special, Value } from './types.ts'
+ *
  * @example
  *
  * ```js
@@ -25,8 +27,6 @@
  * data.groups.length // 4
  * ```
  */
-
-/** @import { Case, Data, Special, Value } from './types.ts' */
 
 /**
  * A function value.

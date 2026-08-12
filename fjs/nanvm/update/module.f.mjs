@@ -7,12 +7,13 @@
  * when the committed copy is stale.
  *
  * @module
+ *
+ * @import { Effect } from '../../effects/types.ts'
+ * @import { Mkdir, NodeProgram, WriteFile } from '../../effects/node/types.ts'
  */
 
 import { mapStep, step } from '../../effects/module.f.mjs'
-/** @import { Effect } from '../../effects/types.ts' */
 import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
-/** @import { Mkdir, NodeProgram, WriteFile } from '../../effects/node/types.ts' */
 import { unwrap } from '../../types/result/module.f.mjs'
 import { data } from '../module.f.mjs'
 import { directory, generate, path } from '../rust/module.f.mjs'

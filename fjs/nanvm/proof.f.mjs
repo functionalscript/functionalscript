@@ -8,9 +8,10 @@
  * section at the end — adding a case means editing the data.
  *
  * @module
+ *
+ * @import { Case, EqCase, Op, Struct, Value } from './types.ts'
  */
 
-/** @import { Case, EqCase, Op, Struct, Value } from './types.ts' */
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { data } from './module.f.mjs'
 

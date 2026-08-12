@@ -16,6 +16,8 @@
  *
  * @module
  *
+ * @import { Case, Data, Eq, Group, Op, Value } from '../types.ts'
+ *
  * @example
  *
  * ```js
@@ -26,7 +28,6 @@
  * ```
  */
 
-/** @import { Case, Data, Eq, Group, Op, Value } from '../types.ts' */
 import {
     f64Literal,
     i64Literal,
