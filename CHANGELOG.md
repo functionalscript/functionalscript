@@ -21,83 +21,46 @@ history.
 ## Unreleased
 
 - **BREAKING CHANGES:** `fjs/djs/examples/input.f.ts` and
-  `fjs/djs/examples/m.f.ts` migrate from authored TypeScript to
-  JavaScript (`.f.mjs`) — no type annotations to convert; `input`'s
-  import specifier updates to `./m.f.mjs`. Being `.mjs`, they are now
-  covered by `package.json`'s `files` and ship in the tarball, which
-  `.f.ts` did not
+  `fjs/djs/examples/m.f.ts` migrate to `.f.mjs`. Being `.mjs` they now
+  ship in the tarball, which `.f.ts` did not
   [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
-- **BREAKING CHANGES:** `fjs/types/nominal/proof.f.ts` migrates from
-  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`). Its two
-  `declare const … : unique symbol` brands and the two types built on
-  them move to the sibling `fjs/types/nominal/types.ts`, exported as
-  `_SymbolKeyBranded` and `_SymbolIntersectionBranded` (`_`-prefixed:
-  private by contract) so the proof can keep the expressions that
-  demonstrate which comparisons TypeScript rejects
+- **BREAKING CHANGES:** `fjs/types/nominal/proof.f.ts` migrates to
+  `.f.mjs`. Its two `unique symbol` brands move to `types.ts`, exported
+  as `_SymbolKeyBranded` and `_SymbolIntersectionBranded`
   [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
-- **BREAKING CHANGES:** `fjs/types/ts/proof.f.ts` migrates from authored
-  TypeScript to JSDoc-typed JavaScript (`.f.mjs`). Its trailing
-  index-signature guidance block uses `declare const`, which has no
-  JavaScript form, so those type-level aliases move to the sibling
-  `fjs/types/ts/types.ts` as non-exported `_`-prefixed declarations —
-  the same shape `fjs/media/json/types.ts` already uses for its
-  `Assert<Equal<...>>` pin. No public type is added or removed
+- **BREAKING CHANGES:** `fjs/types/ts/proof.f.ts` migrates to `.f.mjs`.
+  Its `declare const` index-signature block moves to `types.ts`,
+  non-exported, so no public type changes
   [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/emergent_testing/example.f.ts` migrates
   from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the
   four typed consts become JSDoc `@type` annotations
   [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
-- **BREAKING CHANGES:** `fjs/types/rtti/validate/proof.f.ts` migrates
-  from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the 23
-  function-local `Assert<Equal<...>>` round-trips stay function-local as
-  JSDoc `@typedef`s, the local generic aliases and generic `func` in
-  `funcParam`/`funcObj` become `@template` typedefs and a
-  `@template`/`@param`/`@returns` block, and the `as const`/`as number`
-  assertions become inline `@type` casts
+- **BREAKING CHANGES:** `fjs/types/rtti/validate/proof.f.ts` migrates to
+  `.f.mjs` — 23 compile-time round-trips stay function-local as JSDoc
+  `@typedef`s and are not emitted
   [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
-- **BREAKING CHANGES:** `fjs/types/rtti/parse/proof.f.ts` migrates from
-  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the
-  function-local `Assert<Equal<...>>` round-trips stay function-local as
-  JSDoc `@typedef`s (which are function-scoped and are not emitted into
-  declarations), `unwrap<T>(...)` instantiations become checked `@type`
-  declarations, and the 30 `as const`/`as number` assertions become
-  inline `@type` casts
+- **BREAKING CHANGES:** `fjs/types/rtti/parse/proof.f.ts` migrates to
+  `.f.mjs` — compile-time round-trips stay function-local as JSDoc
+  `@typedef`s and are not emitted
   [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
-- **BREAKING CHANGES:** `fjs/emergent_testing/proof.f.ts` migrates from
-  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the six
-  module-local type aliases become `_`-prefixed JSDoc `@typedef`s
-  (`_Event`, `_TestReporter`, `_RegisterMockState`, `_RegisterMockOps`,
-  `_RegisterRunner`, `_RegisterTestOp`), the
-  `mockRun<RegisterMockOps, RegisterMockState>(...)` instantiation
-  becomes an inline `@type` cast built from the same
-  `Parameters<typeof mockRun<...>>[0]` type the source already used, and
-  the `as const` assertions become inline `@type {const}` casts
+- **BREAKING CHANGES:** `fjs/emergent_testing/proof.f.ts` migrates to
+  `.f.mjs`. Six module-local types become `_`-prefixed `@typedef`s, as a
+  JSDoc `@typedef` has no non-exported form
   [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
-- **BREAKING CHANGES:** `fjs/effects/node/proof.f.ts` migrates from
-  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the
-  explicit generic instantiation `match<ReadFile, IoResult<Vec>>(...)`
-  becomes an inline `@type` cast on the operation map, the
-  `list.empty`/`list.nonEmpty` instantiations become checked
-  `@type {List<never, IoResult<Vec>>}` declarations, and the seven `as`
-  assertions become inline `@type` casts
+- **BREAKING CHANGES:** `fjs/effects/node/proof.f.ts` migrates to
+  `.f.mjs` — explicit generic instantiations become `@type` casts or
+  checked `@type` declarations, as JSDoc has no call-site form
   [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
-- **BREAKING CHANGES:** `fjs/js/tokenizer/proof.f.ts` migrates from
-  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the typed
-  `tokenizeString`, `tokenizeStringWithMetadata` and `withoutMetada`
-  consts become JSDoc `@type` annotations, and the `JsToken` /
-  `JsTokenWithMetadata` type imports become an `@import`
+- **BREAKING CHANGES:** `fjs/js/tokenizer/proof.f.ts` migrates to
+  `.f.mjs` — typed consts become JSDoc `@type` annotations
   [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
-- **BREAKING CHANGES:** `fjs/media/json/parser/proof.f.ts` migrates from
-  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the typed
-  `tokenizeString` const becomes a JSDoc `@type` annotation, and the
-  `JsonToken` type import becomes an `@import`
+- **BREAKING CHANGES:** `fjs/media/json/parser/proof.f.ts` migrates to
+  `.f.mjs` — the typed const becomes a JSDoc `@type` annotation
   [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
-- **BREAKING CHANGES:** `todo/proof.f.ts` migrates from authored
-  TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the `at`/`utf8`
-  typed consts become JSDoc `@type` annotations, and the
-  `TemplateType` template-literal type becomes a JSDoc `@typedef`
-  renamed `_TemplateType` (it was never exported, but a JSDoc
-  `@typedef` has no non-exported form)
+- **BREAKING CHANGES:** `todo/proof.f.ts` migrates to `.f.mjs`. The
+  `TemplateType` alias is renamed `_TemplateType`: it was never exported,
+  but a JSDoc `@typedef` has no non-exported form
   [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/media/json/tokenizer/proof.f.ts` migrates
   from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the

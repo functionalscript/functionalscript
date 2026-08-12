@@ -140,7 +140,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
 
 - [`fjs/media/json/serializer/module.f.mjs`](../serializer/module.f.mjs) — the
   leaf `JSON.stringify` phases 1 and 2 replace; only `numberSerialize` is left.
-- [`fjs/text/utf16/module.f.ts`](../../../text/utf16/module.f.ts) — where the
+- [`fjs/text/utf16/module.f.mjs`](../../../text/utf16/module.f.mjs) — where the
   escaping reads code points, and where phase 1 added `codePointToString`.
 - [`fjs/fsc/todo/66c-emit-literals-via-owner-modules.md`](../../../fsc/todo/66c-emit-literals-via-owner-modules.md)
   — already owns the source-text-quoting sites (`fjs/types/ts`,

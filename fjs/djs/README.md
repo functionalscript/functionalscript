@@ -19,7 +19,7 @@ holding the same reference must yield the same object, not two equal copies —
 so the AST keeps the constants addressable and refers to them by index
 instead of inlining them. That is also what makes serialization a real
 choice: a value referenced more than once is emitted as a `const` and reused.
-See [examples/input.f.ts](./examples/input.f.ts).
+See [examples/input.f.mjs](./examples/input.f.mjs).
 
 ## Next steps
 
