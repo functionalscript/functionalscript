@@ -26,11 +26,11 @@ exports it:
 export const serialize = (a: bigint): string => `${a}n`
 ```
 
-`fjs/djs/serializer/module.f.ts` is a good citizen — it imports the owner rather
+`fjs/djs/serializer/module.f.mjs` is a good citizen — it imports the owner rather
 than re-spelling the template:
 
 ```ts
-// fjs/djs/serializer/module.f.ts:14
+// fjs/djs/serializer/module.f.mjs:14
 import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
 // :113
 case 'bigint': { return [bigintSerialize(value)] }

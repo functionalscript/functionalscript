@@ -3,7 +3,7 @@ import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.m
 import { toArray } from '../../types/list/module.f.mjs'
 import { jsGrammar, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.ts'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { stringifyAsTree } from '../serializer/module.f.ts'
+import { stringifyAsTree } from '../serializer/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import type { Unknown } from '../module.f.ts'
 

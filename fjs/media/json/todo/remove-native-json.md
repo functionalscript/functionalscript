@@ -14,7 +14,7 @@ host's:
 - **115 call sites call `JSON.stringify` directly** — and one of them is
   `fjs/media/json/serializer/module.f.mjs`, so the FunctionalScript serializer
   itself still bottoms out in the host. `numberSerialize` is `JSON.stringify`
-  with a different name, and `fjs/djs/serializer/module.f.ts:15` imports it, so
+  with a different name, and `fjs/djs/serializer/module.f.mjs:15` imports it, so
   *every number* this repository serializes — JSON and DJS alike — is still
   formatted by the host. `stringSerialize` no longer is: phase 1 below has
   shipped.

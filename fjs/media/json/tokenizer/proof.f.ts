@@ -1,7 +1,7 @@
 import { tokenize } from './module.f.mjs'
 import type { JsonToken } from './types.ts'
 import { toArray } from '../../../types/list/module.f.mjs'
-import { stringifyAsTree } from '../../../djs/serializer/module.f.ts'
+import { stringifyAsTree } from '../../../djs/serializer/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.mjs'
 

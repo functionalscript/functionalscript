@@ -60,7 +60,7 @@ import type { StateScan } from "../../types/function/operator/types.ts"
 import { contains } from "../../types/range/module.f.mjs"
 import type { List } from "../../types/list/types.ts"
 import { concat, empty, filter, flat, flatMap, fold, map, stateScan, toArray } from "../../types/list/module.f.mjs"
-import { stringifyAsTree } from "../serializer/module.f.ts"
+import { stringifyAsTree } from "../serializer/module.f.mjs"
 import { sort } from "../../types/object/module.f.mjs"
 import type { Unknown } from "../module.f.ts"
 

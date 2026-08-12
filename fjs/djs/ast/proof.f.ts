@@ -1,6 +1,6 @@
 import { sort } from '../../types/object/module.f.mjs'
 import { run } from './module.f.mjs'
-import { stringifyAsTree } from '../serializer/module.f.ts'
+import { stringifyAsTree } from '../serializer/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {

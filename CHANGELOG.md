@@ -20,6 +20,14 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/djs/serializer/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`)
+  — `MapEntries`, `RefCounter`, `Refs`, `GetConstsState`, and `RefLookup`
+  stay as `_`-prefixed JSDoc typedefs in the module (no separate
+  `types.ts`, no external importers of the types). Importers must use the
+  `.f.mjs` specifier. Updates `fjs/djs/module.f.ts`,
+  `fjs/djs/tokenizer/module.f.ts`, and five proof files accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/protocol/json_rpc/module`'s `id` schema const
   is renamed to `_id` — it crosses into the sibling `types.ts` (as
   `typeof _id`) but was never meant to be a public runtime export, so the

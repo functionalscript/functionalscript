@@ -1,4 +1,4 @@
-import { countRefs, stringify, stringifyAsTree } from './module.f.ts'
+import { countRefs, stringify, stringifyAsTree } from './module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
 import { setProperty } from '../../media/json/module.f.mjs'

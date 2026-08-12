@@ -3,7 +3,7 @@ import { tokenize, type DjsTokenWithMetadata } from '../tokenizer/module.f.ts'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
-import { stringifyAsTree } from '../serializer/module.f.ts'
+import { stringifyAsTree } from '../serializer/module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
