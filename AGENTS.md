@@ -423,6 +423,30 @@ have the caller check the `null` result rather than a precomputed bound.
 CLI parameters are preferred over environment variables when adding new
 features.
 
+### 5.8 Reuse JavaScript syntax in embedded DSLs
+
+**An embedded DSL should reuse ordinary JavaScript values and constructions when
+their JavaScript meaning already matches the DSL meaning.** Prefer a number,
+string, boolean, `null`, array, or object literal directly over wrapping the same
+value in a tagged representation such as `['number', 3.14]` or
+`['array', [...]]`. The host language already supplies syntax, tooling, type
+inference, and reader intuition for those concepts; duplicating that vocabulary
+adds ceremony without adding semantics.
+
+Introduce a constructor, function, or tagged union only when the DSL needs a
+concept that JavaScript cannot express directly or when the ordinary JavaScript
+shape would be ambiguous. The authoring eDSL and its internal normalized form do
+not need to be identical: a convenient JavaScript-facing representation may
+normalize to a tagged AST when that is useful for parsing, hashing, compilation,
+or pattern matching.
+
+Apply this principle to existing and future FunctionalScript eDSLs, including
+HTML, BNF, RTTI, generated-code/test descriptions, and especially the future
+FunctionalScript function AST. The function AST should preserve ordinary
+JavaScript/FunctionalScript literals and structures wherever they already carry
+the intended meaning, and add explicit AST constructors or tags only for syntax
+or semantics that require discrimination.
+
 ---
 
 ## 6. Coding style
