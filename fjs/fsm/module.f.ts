@@ -14,7 +14,7 @@ import type { RangeMap, Properties, RangeMapArray, Entry } from '../types/range_
 import { merge, get as rangeMapGet } from '../types/range_map/module.f.mjs'
 import type { Fold, Scan } from '../types/function/operator/types.ts'
 import { strictEqual } from '../types/function/operator/module.f.mjs'
-import { stringify } from '../media/json/sede/module.f.ts'
+import { stringify } from '../media/json/common/module.f.ts'
 import { identity } from '../types/function/module.f.mjs'
 import { stringToList } from '../text/utf16/module.f.mjs'
 import { cmp } from '../types/string/module.f.mjs'

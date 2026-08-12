@@ -1,4 +1,4 @@
-import { parse, setProperty, stringify } from './sede/module.f.ts'
+import { parse, setProperty, stringify } from './common/module.f.ts'
 import { sort } from '../../types/object/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'

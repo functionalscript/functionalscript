@@ -2,7 +2,7 @@ import type { Unknown } from '../../media/json/types.ts'
 
 import type { TNode } from './types/types.ts'
 import { values } from './module.f.mjs'
-import { stringify as jsonStringify } from '../../media/json/sede/module.f.ts'
+import { stringify as jsonStringify } from '../../media/json/common/module.f.ts'
 import { sort } from '../object/module.f.mjs'
 import { cmp } from '../string/module.f.mjs'
 import type { List, Result } from '../list/types.ts'
