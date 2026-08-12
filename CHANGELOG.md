@@ -20,6 +20,9 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/crypto/pow/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/text/code_point/proof.f.ts` migrates from
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
   [#1503](https://github.com/functionalscript/functionalscript/pull/1503)

@@ -23,7 +23,8 @@ const sha256EmptyHash =
 const block0Hash =
     0x000000000019d6689c085ae165831e934ff763ae46a2a6cffb388491c27dc990n
 
-const expectNull = (nBits: bigint) => {
+/** @type {(nBits: bigint) => void} */
+const expectNull = nBits => {
     assertEq(targetFromNBits(nBits), null, nBits)
 }
 
