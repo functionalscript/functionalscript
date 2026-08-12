@@ -5,10 +5,12 @@
  * target.
  *
  * @module
+ *
+ * @import { Architecture, MetaStep, Os } from '../common/types.ts'
  */
+
 import { wasmer, wasmtime } from '../config/module.f.mjs'
 import { install, test, uses } from '../common/module.f.mjs'
-/** @import { Architecture, MetaStep, Os } from '../common/types.ts' */
 
 /** @type {(tool: 'clippy' | 'test', target?: string, config?: string) => string} */
 const cargoCommand = (tool, target, config) => {

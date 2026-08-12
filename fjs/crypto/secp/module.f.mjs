@@ -4,12 +4,13 @@
  * `secp`-family curve from its `(p, a, g, n)` parameters.
  *
  * @module
+ *
+ * @import { Equal, Reduce } from '../../types/function/operator/types.ts'
+ * @import { Curve, Init, Point } from './types.ts'
  */
 
-/** @import { Equal, Fold, Reduce } from '../../types/function/operator/types.ts' */
 import { prime_field, sqrt } from '../../types/prime_field/module.f.mjs'
 import { repeat } from '../../common/monoid/module.f.mjs'
-/** @import { Curve, Init, Point, Point2D } from './types.ts' */
 
 /**
  * Constructs an elliptic curve with the given initialization parameters.

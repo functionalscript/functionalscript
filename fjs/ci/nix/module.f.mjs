@@ -10,20 +10,21 @@
  * See `./types.ts` for the `NixJob` type-level API.
  *
  * @module
+ *
+ * @import { Effect } from '../../effects/types.ts'
+ * @import { Mkdir, WriteFile } from '../../effects/node/types.ts'
+ * @import { Expression } from '../../media/nix/types.ts'
+ * @import { MetaStep } from '../common/types.ts'
+ * @import { NixJob } from './types.ts'
  */
 
 import { forEachStep, mapStep, pure, step } from '../../effects/module.f.mjs'
-/** @import { Effect } from '../../effects/types.ts' */
 import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
-/** @import { Mkdir, WriteFile } from '../../effects/node/types.ts' */
 import { nixToString } from '../../media/nix/module.f.mjs'
-/** @import { Expression } from '../../media/nix/types.ts' */
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { install, test, uses } from '../common/module.f.mjs'
-/** @import { MetaStep } from '../common/types.ts' */
 import { nixpkgs } from '../config/module.f.mjs'
-/** @import { NixJob } from './types.ts' */
 
 /** Directory owned by this generator. */
 export const generatedDirectory = /** @type {const} */ ('nix/generated')

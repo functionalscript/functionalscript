@@ -5,12 +5,14 @@
  * of a list.
  *
  * @module
+ *
+ * @import { Fold } from '../../types/function/operator/types.ts'
+ * @import { List } from  '../../types/list/types.ts'
+ * @import { Monoid } from './types.ts'
  */
-/** @import { Fold } from '../../types/function/operator/types.ts' */
+
 import { reduce } from '../../types/list/module.f.mjs'
-/** @import { List } from  '../../types/list/types.ts' */
 import { flip } from '../../types/function/module.f.mjs'
-/** @import { Monoid } from './types.ts' */
 
 /**
  * Repeats a monoid operation `n` times on the given element `a`.

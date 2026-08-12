@@ -3,6 +3,9 @@
  *
  * @module
  */
+
+import type { NixJob } from './types.ts'
+
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { step } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
@@ -18,7 +21,6 @@ import {
     nixFlakes,
     nixInstall,
 } from './module.f.mjs'
-import type { NixJob } from './types.ts'
 
 const { commit } = nixpkgs
 
