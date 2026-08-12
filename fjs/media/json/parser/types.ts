@@ -1,3 +1,9 @@
+/**
+ * Internal state types for the JSON parser.
+ *
+ * @module
+ */
+
 import type { Unknown } from '../types.ts'
 import type { OrderedMap } from '../../../types/ordered_map/types.ts'
 import type { List } from '../../../types/list/types.ts'
