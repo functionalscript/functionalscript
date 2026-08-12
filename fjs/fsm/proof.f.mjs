@@ -1,4 +1,5 @@
-import { dfa, run, toRange, toUnion, type Grammar } from './module.f.ts'
+/** @import { Grammar } from './module.f.mjs' */
+import { dfa, run, toRange, toUnion } from './module.f.mjs'
 import { union } from '../types/byte_set/module.f.mjs'
 import { sort, fromEntries } from '../types/object/module.f.mjs'
 import { stringify } from '../media/json/module.f.mjs'
@@ -19,9 +20,8 @@ const buildDfa = () => {
     const idNext = union(idBegin)(digit)
     const dot = toUnion('.')
 
-    const grammar
-        : Grammar
-        = [
+    /** @type {Grammar} */
+    const grammar = [
         ['', digit, 'int'],
         ['int', digit, 'int'],
         ['', digit, 'floatBegin'],

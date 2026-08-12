@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/fsm/module` and `proof` migrate from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — `Grammar` stays
+  as a JSDoc typedef in the module (no separate `types.ts`, no external
+  importers of the type). Importers must use the `.f.mjs` specifier
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/dev/package_json/module` and `proof` migrate
   from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) —
   `PackageJson` and `JsonTextError` stay as JSDoc typedefs in the module
