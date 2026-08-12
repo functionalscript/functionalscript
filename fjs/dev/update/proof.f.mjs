@@ -10,15 +10,15 @@ import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/no
 import { main, syncMcp } from './module.f.mjs'
 import { step } from '../../effects/module.f.mjs'
 
-const mcp = '{"servers":{}}' as const
-const initial = {
+const mcp = /** @type {const} */ ('{"servers":{}}')
+const initial = /** @type {const} */ ({
     ...emptyState,
     root: {
         '.copilot': {
             'mcp.json': [utf8(mcp)],
         },
     },
-} as const
+})
 export const proof = {
     syncMcp: () => {
         const generatedMcp = step(syncMcp(), () => readUtf8File('.vscode/mcp.json'))
