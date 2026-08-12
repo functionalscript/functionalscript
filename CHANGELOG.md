@@ -20,6 +20,15 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/effects/module.ts` (`asyncRun`) and
+  `fjs/types/result/module.ts` (`tryCatch`, `asyncTryCatch`) migrate
+  from authored TypeScript to JSDoc-typed JavaScript, per the
+  `module.ts -> module.mjs` stage-1 mapping (these are plain `.ts`
+  implementation modules, not `.f.ts`). Importers must use the `.mjs`
+  specifier. Updates `fjs/effects/node/module.ts`,
+  `fjs/effects/node/memory/module.ts`, and
+  `fjs/effects/node/memory/proof.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/module` and `proof` (the top-level
   FunctionalScript compiler entry point and command dispatcher) migrate
   from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript

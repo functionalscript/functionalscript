@@ -4,7 +4,7 @@
  * @module
  */
 
-import { asyncRun } from '../../module.ts'
+import { asyncRun } from '../../module.mjs'
 import {
     asNominal,
     create, read, write,

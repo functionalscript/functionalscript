@@ -23,7 +23,7 @@ import * as testContext from 'node:test'
 
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
 import type { Effect } from '../types.ts'
-import { asyncRun } from '../module.ts'
+import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.ts'
 import { usesInlineTestContext } from './module.f.mjs'
 import type {
@@ -41,7 +41,7 @@ import type {
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
 import type { Result } from '../../types/result/types.ts'
 import { error, ok } from '../../types/result/module.f.mjs'
-import { asyncTryCatch } from '../../types/result/module.ts'
+import { asyncTryCatch } from '../../types/result/module.mjs'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.mjs'
 import type { StringMap } from '../../types/object/types.ts'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
