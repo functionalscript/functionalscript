@@ -14,7 +14,7 @@ camelCase everywhere else. 42 keys across 6 files are snake_case instead:
 | `fjs/sul/id/proof.f.mjs` | 18 |
 | `fjs/sul/level/hash/proof.f.mjs` | 11 |
 | `fjs/sul/proof.f.mjs` | 5 |
-| `fjs/types/bit_vec/proof.f.ts` | 4 |
+| `fjs/types/bit_vec/proof.f.mjs` | 4 |
 | `fjs/types/prime_field/proof.f.mjs` | 3 |
 | `fjs/fsc/proof.f.mjs` | 1 |
 

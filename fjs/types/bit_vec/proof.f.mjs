@@ -1,13 +1,14 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { mask } from '../bigint/module.f.mjs'
-import type { Sign } from '../function/compare/types.ts'
+/** @import { Sign } from '../function/compare/types.ts' */
 import { asBase, asNominal } from '../nominal/module.f.mjs'
-import type { Vec, BitOrder } from './types.ts'
+/** @import { Vec, BitOrder } from './types.ts' */
 import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, u8ListToVec, tryU8ListToVec, u8List, chunkList, fromSentinel } from './module.f.mjs'
-import type { List } from '../list/types.ts'
+/** @import { List } from '../list/types.ts' */
 import { repeat as listRepeat, toArray } from '../list/module.f.mjs'
 
-const unsafeVec = (a: bigint): Vec => asNominal(a)
+/** @type {(a: bigint) => Vec} */
+const unsafeVec = a => asNominal(a)
 
 // 0x8 = 0b1000 = 0 + 8
 // 0x9 = 0b1001 = 1 + 8
@@ -18,12 +19,18 @@ const unsafeVec = (a: bigint): Vec => asNominal(a)
 // 0xE = 0b1110 = 6 + 8
 // 0xF = 0b1111 = 7 + 8
 
-const assertEq2 = <T>([a0, a1]: readonly[bigint, T], [b0, b1]: readonly[bigint, T]) => {
+/**
+ * @template T
+ * @param {readonly [bigint, T]} a
+ * @param {readonly [bigint, T]} b
+ */
+const assertEq2 = ([a0, a1], [b0, b1]) => {
     assertEq(a0, b0)
     assertEq(a1, b1)
 }
 
-const frontTest = (e: BitOrder) => (r0: bigint) => (r1: bigint) => () => {
+/** @type {(e: BitOrder) => (r0: bigint) => (r1: bigint) => () => void} */
+const frontTest = e => r0 => r1 => () => {
     const vector = vec(8n)(0xF5n) // 0xF5n
     assertEq(vector, unsafeVec(0xF5n))
     const result = e.front(4n)(vector)
@@ -32,7 +39,8 @@ const frontTest = (e: BitOrder) => (r0: bigint) => (r1: bigint) => () => {
     assertEq(result2, r1)
 }
 
-const popFront = (e: BitOrder) => ([r00, r01]: readonly [bigint, bigint]) => ([r10, r11]: readonly [bigint, bigint]) => () => {
+/** @type {(e: BitOrder) => (r0: readonly [bigint, bigint]) => (r1: readonly [bigint, bigint]) => () => void} */
+const popFront = e => ([r00, r01]) => ([r10, r11]) => () => {
     const vector = vec(8n)(0xF5n) // 0xF5n
     const [result, rest] = e.popFront(4n)(vector)
     assertEq(result, r00)
@@ -42,7 +50,8 @@ const popFront = (e: BitOrder) => ([r00, r01]: readonly [bigint, bigint]) => ([r
     assertEq(rest2, unsafeVec(r11))
 }
 
-const removeFront = (e: BitOrder) => (r0: Vec) => (r1: Vec) => () => {
+/** @type {(e: BitOrder) => (r0: Vec) => (r1: Vec) => () => void} */
+const removeFront = e => r0 => r1 => () => {
     const v = vec(16n)(0x3456n) // -0xB456n
     assertEq(v, unsafeVec(-0xB456n))
     const r = e.removeFront(4n)(v)
@@ -51,7 +60,8 @@ const removeFront = (e: BitOrder) => (r0: Vec) => (r1: Vec) => () => {
     assertEq(r2, r1)
 }
 
-const concat = (e: BitOrder) => (r: Vec) => () => {
+/** @type {(e: BitOrder) => (r: Vec) => () => void} */
+const concat = e => r => () => {
     const u8 = vec(8n)
     const a = u8(0x45n) // -0xC5n
     assertEq(a, unsafeVec(-0xC5n))
@@ -141,13 +151,15 @@ export const proof = {
         msbm: concat(msb)(asNominal(-0xC589n)),
     },
     uintLsb: () => {
-        const vector: Vec = asNominal(0b110101n)
+        /** @type {Vec} */
+        const vector = asNominal(0b110101n)
         const extract3Bits = lsb.front(3n)
         const result = extract3Bits(vector) // result is 0b101n (5n)
         assertEq(result, 0b101n)
     },
     uintSmall: () => {
-        const vector: Vec = asNominal(0b1n)
+        /** @type {Vec} */
+        const vector = asNominal(0b1n)
         const extract3Bits = lsb.front(3n)(vector)
         assertEq(extract3Bits, 0b1n)
     },
@@ -178,9 +190,9 @@ export const proof = {
     },
     removeBack: () => {
         const v = vec(17n)(0x12345n)
-        assertEq(v, unsafeVec(0x12345n), (asBase(v) as bigint).toString(16))
+        assertEq(v, unsafeVec(0x12345n), (/** @type {bigint} */ (asBase(v))).toString(16))
         const r = lsb.removeFront(9n)(v)
-        assertEq(r, unsafeVec(0x91n), (asBase(r) as bigint).toString(16))
+        assertEq(r, unsafeVec(0x91n), (/** @type {bigint} */ (asBase(r))).toString(16))
     },
     uint: [
         // 0
@@ -190,7 +202,8 @@ export const proof = {
         },
         // 1
         () => {
-            const v: Vec = asNominal(1n)
+            /** @type {Vec} */
+            const v = asNominal(1n)
             const x = uint(v)
             assertEq(x, 1n)
             const len = length(v)
@@ -198,7 +211,8 @@ export const proof = {
         },
         // 2
         () => {
-            const v: Vec = asNominal(0b10n)
+            /** @type {Vec} */
+            const v = asNominal(0b10n)
             const x = uint(v)
             assertEq(x, 0b10n)
             const len = length(v)
@@ -206,7 +220,8 @@ export const proof = {
         },
         // 3
         () => {
-            const v: Vec = asNominal(0b11n)
+            /** @type {Vec} */
+            const v = asNominal(0b11n)
             const x = uint(v)
             assertEq(x, 0b11n)
             const len = length(v)
@@ -214,21 +229,24 @@ export const proof = {
         },
         // 4
         () => {
-            const v: Vec = asNominal(-1n)
+            /** @type {Vec} */
+            const v = asNominal(-1n)
             const x = uint(v)
             assertEq(x, 0n)
             const len = length(v)
             assertEq(len, 1n)
         },
         () => {
-            const v: Vec = asNominal(-0b10n)
+            /** @type {Vec} */
+            const v = asNominal(-0b10n)
             const x = uint(v)
             assertEq(x, 0n)
             const len = length(v)
             assertEq(len, 2n)
         },
         () => {
-            const v: Vec = asNominal(-0b11n)
+            /** @type {Vec} */
+            const v = asNominal(-0b11n)
             const x = uint(v)
             assertEq(x, 1n)
             const len = length(v)
@@ -272,7 +290,7 @@ export const proof = {
         }
     ],
     both: () => {
-        const c = (len: bigint) => (ui: bigint) => (raw: bigint) => {
+        const c = (/** @type {bigint} */ len) => (/** @type {bigint} */ ui) => (/** @type {bigint} */ raw) => {
             const v = vec(len)(ui)
             const x = asBase(v)
             if (x !== raw) { throw `x: ${x}, raw: ${raw}` }
@@ -308,7 +326,7 @@ export const proof = {
         ]
     },
     concat2: () => {
-        const c = (a: Vec) => (b: Vec) => (abx: Vec) => {
+        const c = (/** @type {Vec} */ a) => (/** @type {Vec} */ b) => (/** @type {Vec} */ abx) => {
             const ab = msb.concat(a)(b)
             const abLen = length(ab)
             const abxLen = length(abx)
@@ -323,14 +341,14 @@ export const proof = {
         c(vec(4n)(0x5n))(vec(8n)(0x79n))(vec(12n)(0x579n))
     },
     lsbXor: () => {
-        const c = (a: Vec) => (b: Vec) => (e: Vec) => {
+        const c = (/** @type {Vec} */ a) => (/** @type {Vec} */ b) => (/** @type {Vec} */ e) => {
             const r = lsb.xor(a)(b)
             assertEq(r, e)
         }
         c(vec(4n)(0x7n))(vec(8n)(0x12n))(vec(8n)(0x7n ^ 0x12n))
     },
     msbXor: () => {
-        const c = (a: Vec) => (b: Vec) => (e: Vec) => {
+        const c = (/** @type {Vec} */ a) => (/** @type {Vec} */ b) => (/** @type {Vec} */ e) => {
             const r = msb.xor(a)(b)
             assertEq(r, e)
         }
@@ -341,7 +359,7 @@ export const proof = {
         assertEq(repeat(7n)(vec(5n)(0x13n)), vec(35n)(0b10011_10011_10011_10011_10011_10011_10011n), 'repeat failed')
     },
     lsbCmp: () => {
-        const c = (a: Vec) => (b: Vec) => (r: Sign) => {
+        const c = (/** @type {Vec} */ a) => (/** @type {Vec} */ b) => (/** @type {Sign} */ r) => {
             const result = lsb.cmp(a)(b)
             if (result !== r) { throw `result: ${result}, expected: ${r}` }
         }
@@ -353,7 +371,7 @@ export const proof = {
         c(vec(4n)(0x5n))(vec(5n)(0xAn))(1)   // bit0: 1 > 0
     },
     msbCmp: () => {
-        const c = (a: Vec) => (b: Vec) => (r: Sign) => {
+        const c = (/** @type {Vec} */ a) => (/** @type {Vec} */ b) => (/** @type {Sign} */ r) => {
             const result = msb.cmp(a)(b)
             if (result !== r) { throw `result: ${result}, expected: ${r}` }
         }
@@ -399,14 +417,16 @@ export const proof = {
         }
     },
     tryListToVecOverflow: () => {
-        const list: List<Vec> = [vec(maxLength)(1n), vec(1n)(1n)]
+        /** @type {List<Vec>} */
+        const list = [vec(maxLength)(1n), vec(1n)(1n)]
         assertEq(lsb.tryListToVec(list), null)
         assertEq(msb.tryListToVec(list), null)
     },
     listToVecOverflow: {
         // Same oversized input, but through the throwing `listToVec` wrapper.
         throw: () => {
-            const list: List<Vec> = { first: vec(maxLength + 1n)(1n), tail: null }
+            /** @type {List<Vec>} */
+            const list = { first: vec(maxLength + 1n)(1n), tail: null }
             lsb.listToVec(list)
         },
     },
