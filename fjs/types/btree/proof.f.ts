@@ -1,9 +1,11 @@
 import type { TNode } from './types/types.ts'
+import type { List, Result } from '../list/types.ts'
+import type { Unknown } from '../../media/json/types.ts'
+
 import { values } from './module.f.mjs'
-import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
+import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { cmp } from '../string/module.f.mjs'
-import type { List, Result } from '../list/types.ts'
 import { next, toArray } from '../list/module.f.mjs'
 import { set as setSet } from './set/module.f.mjs'
 import { value, find as findFind } from './find/module.f.mjs'

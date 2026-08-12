@@ -1,9 +1,11 @@
 import type { RangeMapArray, Properties, RangeMap } from './types.ts'
+import type { SortedSet } from '../sorted_set/types.ts'
+import type { Unknown } from '../../media/json/types.ts'
+
 import { get, merge, fromRange, rangeMap } from './module.f.mjs'
-import { stringify, type Unknown } from '../../media/json/module.f.ts'
+import { stringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { union } from '../sorted_set/module.f.mjs'
-import type { SortedSet } from '../sorted_set/types.ts'
 import { equal, toArray } from '../list/module.f.mjs'
 import { strictEqual } from '../function/operator/module.f.mjs'
 import { cmp } from '../string/module.f.mjs'

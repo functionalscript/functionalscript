@@ -1,3 +1,5 @@
+import type { Unknown } from '../../media/json/types.ts'
+
 import {
     toCodePointList,
     fromCodePointList,
@@ -7,7 +9,7 @@ import {
     codePointListToString,
     codePointToString
 } from './module.f.mjs'
-import { stringify as jsonStringify, type Unknown } from '../../media/json/module.f.ts'
+import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'

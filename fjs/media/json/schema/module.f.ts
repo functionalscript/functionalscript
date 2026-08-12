@@ -6,14 +6,15 @@
  *
  * @module
  */
-import { array, option, or, record, string } from '../../../types/rtti/module.f.mjs'
 import type { Struct, Tuple, Type as RttiType } from '../../../types/rtti/types.ts'
-import { visit } from '../../../types/rtti/common/module.f.mjs'
 import type { Visitor } from '../../../types/rtti/common/types.ts'
 import type { Primitive } from '../../../djs/module.f.ts'
 import type { Ts } from '../../../types/rtti/ts/types.ts'
 import type { Phantom } from '../../../types/phantom/types.ts'
-import { unknown as jsonUnknown } from '../module.f.ts'
+
+import { array, option, or, record, string } from '../../../types/rtti/module.f.mjs'
+import { visit } from '../../../types/rtti/common/module.f.mjs'
+import { unknown as jsonUnknown } from '../rtti.f.mjs'
 
 const unknownThunk = () => ['const', unknownConst] as const
 

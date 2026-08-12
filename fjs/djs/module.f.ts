@@ -3,14 +3,16 @@
  *
  * @module
  */
-import type { Primitive as JsonPrimitive } from '../media/json/module.f.ts'
+
+import type { Primitive as JsonPrimitive } from '../media/json/types.ts'
+import type { Effect } from '../effects/types.ts'
+import type { WriteFile, ReadFile, Write } from '../effects/node/types.ts'
+
 import { transpile } from './transpiler/module.f.ts'
 import { stringify, stringifyAsTree } from './serializer/module.f.ts'
 import { sort } from '../types/object/module.f.mjs'
 import { pure, step } from '../effects/module.f.mjs'
-import type { Effect } from '../effects/types.ts'
 import { writeUtf8File, error } from '../effects/node/module.f.mjs'
-import type { WriteFile, ReadFile, Write } from '../effects/node/types.ts'
 
 export type Object = { readonly[k in string]?: Unknown }
 

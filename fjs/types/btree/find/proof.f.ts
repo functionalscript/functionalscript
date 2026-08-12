@@ -1,9 +1,11 @@
 import type { Result } from './types.ts'
+import type { Unknown } from '../../../media/json/types.ts'
+import type { TNode } from '../types/types.ts'
+
 import { find as btreeFind } from './module.f.mjs'
 import { map, toArray } from '../../list/module.f.mjs'
-import { stringify, type Unknown } from '../../../media/json/module.f.ts'
+import { stringify } from '../../../media/json/module.f.mjs'
 import { sort } from '../../object/module.f.mjs'
-import type { TNode } from '../types/types.ts'
 import { cmp } from '../../string/module.f.mjs'
 import { set as setSet } from '../set/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
