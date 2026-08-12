@@ -18,7 +18,8 @@ given two arguments, or a binary operation one argument, without a type error.
 
 The shared corpus should describe the JavaScript operation itself rather than
 the identifier chosen by a particular proof or code generator. Consumer-specific
-names such as a Rust function name belong in the consumer.
+names such as Rust function names and diagnostic case labels belong in the
+consumer.
 
 This follows the post-merge review discussion on #1489:
 
@@ -55,12 +56,17 @@ number of arguments:
 
 ```ts
 export type Case<N extends number> = {
-    readonly name: string
     readonly args: Tuple<N, Value>
     readonly expected: Value
     readonly rust?: string
 }
 ```
+
+Do not store a `name` on each case. Case names are diagnostic metadata and can
+be generated deterministically by the proof and Rust test generator from the
+case position (and argument order where needed). The shared corpus should contain
+only the inputs, expected result, and any representation override needed to
+construct the value.
 
 Groups must preserve the operation's literal arity so their cases are typed as
 `Case<O[1]>`, where element `1` is the operation's `argsN`. The exact TypeScript
@@ -78,22 +84,26 @@ when needed, generated function name.
 
 Do not broaden this task into making strict equality (`===`) use the generic
 `Group` representation. `Eq` has shared-reference requirements today; it can be
-unified later if doing so becomes clearly useful.
+unified later if doing so becomes clearly useful. Its existing case representation
+is therefore outside this task as well.
 
 ### Tasks
 
 - [ ] Replace the current string-union `Op` model with `readonly [name, argsN]`
       operations carrying a semantic name and literal argument count.
-- [ ] Make `Case` generic over argument count and type `args` as a fixed-length
-      tuple.
+- [ ] Make `Case` generic over argument count, remove its stored `name`, and
+      type `args` as a fixed-length tuple.
+- [ ] Generate diagnostic case names in consumers instead of storing them in
+      the shared operator corpus.
 - [ ] Make each group's cases derive their argument count from `operation[1]`.
 - [ ] Restrict `commutative` to binary groups.
-- [ ] Update `fjs/nanvm/module.f.mjs` to use semantic operation descriptions.
+- [ ] Update `fjs/nanvm/module.f.mjs` to use semantic operation descriptions and
+      unnamed cases.
 - [ ] Update `fjs/nanvm/proof.f.mjs` to dispatch on the semantic operation and
-      arity.
+      arity and generate its own leaf names.
 - [ ] Update `fjs/nanvm/rust/module.f.mjs` to map semantic operations to Rust
-      syntax and generated identifiers without leaking those identifiers into
-      the shared data.
+      syntax, generated identifiers, and case diagnostics without leaking those
+      identifiers into the shared data.
 - [ ] Add type-level coverage proving that wrong argument counts are rejected.
 - [ ] Regenerate `nanvm-lib/tests/test/generated.rs` and keep the generated test
       behavior unchanged.
