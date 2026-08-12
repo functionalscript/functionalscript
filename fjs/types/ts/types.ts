@@ -5,6 +5,8 @@
  * @module
  */
 
+import type { Assert } from '../../asserts/types.ts'
+
 export type Equal<A, B> =
     (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2)
         ? true
@@ -24,8 +26,6 @@ export type Printer = {
 // `proof.f.ts` when that file migrated to `.f.mjs`: `declare const` has no
 // JavaScript form, and these aliases are type-level only. Non-exported, so
 // they add nothing to the emitted declaration.
-
-import type { Assert } from '../../asserts/types.ts'
 
 // Don't use!
 
