@@ -696,6 +696,19 @@ this rename.
       hoisted to a leading declaration annotation — the declaration-level
       form fails with `TS2304` because TypeScript resolves `const` as an
       ordinary type name there, unlike every other `@type` cast.
+- [ ] Translate a source-level `expr satisfies T` to `/** @satisfies {T} */
+      (expr)`, not `/** @type {T} */ (expr)` — `@satisfies` checks
+      assignability while keeping the expression's inferred type, `@type`
+      discards it, and the two silently diverge on a mismatch. More broadly,
+      don't wrap a value handed to a generic call in an enclosing `@type` cast
+      just to pin its type: that cast makes the argument no longer
+      contextually typed by the call site, so TypeScript stops checking it
+      against the callee's per-key contract (seen with a large object literal
+      passed to a `ToAsyncOperationMap<O>`-shaped parameter — cast the whole
+      literal and every operation's implementation goes unchecked against
+      `O`). Let the callee's own parameter type check the literal instead;
+      reach for `@satisfies` only where a real check-without-adopting is
+      wanted (e.g. `asNominal(x) satisfies T`).
 - [ ] Annotate mutually recursive exported constants (rtti schema groups above
       all) with an explicit `@type` that cross-references its neighbours by
       `typeof`, not with `/** @type {const} */`. The const cast type-checks but

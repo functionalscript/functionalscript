@@ -698,6 +698,31 @@ inline-cast position gives it the special const-assertion meaning. This is
 unlike every other `@type` cast, which works in both positions — don't
 "clean up" a `@type {const}` inline cast into the declaration form.
 
+#### Prefer `@satisfies` over `@type` when checking, not overriding
+
+When the goal is to *verify* that an expression matches a shape — not to
+*declare* what the compiler should treat it as — use an inline
+`/** @satisfies {T} */ (expr)` cast instead of `/** @type {T} */ (expr)`.
+`@satisfies` (mirroring TypeScript's `expr satisfies T`) checks assignability
+against `T` while keeping the expression's own inferred type; `@type` discards
+the inferred type and substitutes `T`, silently absorbing any mismatch instead
+of reporting it. If the original TypeScript source used `satisfies`, migrate it
+to `@satisfies`, not `@type` — the two are not interchangeable, and swapping one
+for the other changes what gets checked.
+
+This matters most for an expression handed to a generic function, where an
+enclosing `@type` cast can strip the very context the function relies on to
+check its argument. A cast around a big object literal passed to a
+`ToAsyncOperationMap<O>`-shaped parameter, for example, blocks TypeScript from
+checking each operation's implementation against `O` — the object literal is no
+longer contextually typed by the call site, so a drifted handler shape is
+absorbed by the cast instead of flagged. Prefer no cast at all when the callee
+already supplies enough context (as `asyncRun(map)` does here) so the object
+literal is checked structurally on its own; reach for `@satisfies` only where a
+check without adopting the target type is actually wanted, e.g. a value that
+must additionally be nominal-branded — `asNominal(x) satisfies T` becomes
+`/** @satisfies {T} */ (asNominal(x))`, not `@type`.
+
 #### Mutually recursive constants: cross-reference with `typeof`
 
 When exported constants refer to each other in a cycle — the usual shape for a
