@@ -3,7 +3,7 @@
 /** @type {(a: unknown) => (i: any) => unknown} */
 const at = a => i => Object.getOwnPropertyDescriptor(a, i)?.value
 
-/** @type {(...x: [readonly string[]]) => readonly string[]} */
+/** @type {(...x: [readonly string[]]) => [readonly string[]]} */
 const utf8 = (...x) => x
 
 export const proof = {
