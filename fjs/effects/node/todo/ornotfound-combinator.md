@@ -49,7 +49,7 @@ list: () => access(storePrefix).step(orNotFound<readonly Vec[]>([])(() =>
 - [ ] Add `orNotFound` beside `isNotFound` in `fjs/effects/node/module.f.mjs`
       (once a second consumer exists).
 - [ ] Rewrite `list` in `fjs/cas/module.f.ts` on top of it.
-- [ ] Cover all three branches (`ok`, `ENOENT`, non-`ENOENT` throw) in `fjs/effects/node/proof.f.ts`.
+- [ ] Cover all three branches (`ok`, `ENOENT`, non-`ENOENT` throw) in `fjs/effects/node/proof.f.mjs`.
 
 ### Related
 

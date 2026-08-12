@@ -20,6 +20,14 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/effects/node/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the
+  explicit generic instantiation `match<ReadFile, IoResult<Vec>>(...)`
+  becomes an inline `@type` cast on the operation map, the
+  `list.empty`/`list.nonEmpty` instantiations become checked
+  `@type {List<never, IoResult<Vec>>}` declarations, and the seven `as`
+  assertions become inline `@type` casts
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/js/tokenizer/proof.f.ts` migrates from
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the typed
   `tokenizeString`, `tokenizeStringWithMetadata` and `withoutMetada`
