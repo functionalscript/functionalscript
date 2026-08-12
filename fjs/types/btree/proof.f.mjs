@@ -1,11 +1,11 @@
-import type { Unknown } from '../../media/json/types.ts'
+/** @import { Unknown } from '../../media/json/types.ts' */
 
-import type { TNode } from './types/types.ts'
+/** @import { TNode } from './types/types.ts' */
 import { values } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { cmp } from '../string/module.f.mjs'
-import type { List, Result } from '../list/types.ts'
+/** @import { List, Result } from '../list/types.ts' */
 import { next, toArray } from '../list/module.f.mjs'
 import { set as setSet } from './set/module.f.mjs'
 import { value, find as findFind } from './find/module.f.mjs'
@@ -13,16 +13,15 @@ import { assertEq } from '../../asserts/module.f.mjs'
 
 const jsonStr = jsonStringify(sort)
 
-const stringify
-    : (sequence: List<Unknown>) => string
-    = sequence => jsonStr(toArray(sequence))
+/** @type {(sequence: List<Unknown>) => string} */
+const stringify = sequence => jsonStr(toArray(sequence))
 
-const set
-    : (node: TNode<string>) => (value: string) => TNode<string>
-    = node => value => setSet(cmp(value))(() => value)(node)
+/** @type {(node: TNode<string>) => (value: string) => TNode<string>} */
+const set = node => value => setSet(cmp(value))(() => value)(node)
 
 const valueTest1 =() => {
-    let _map: TNode<string> = ['a']
+    /** @type {TNode<string>} */
+    let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
     _map = set(_map)('d')
@@ -33,7 +32,8 @@ const valueTest1 =() => {
 }
 
 const valuesTest2 = () => {
-    let _map: TNode<string> = ['1']
+    /** @type {TNode<string>} */
+    let _map = ['1']
     for(let i = 2; i <= 10; i++)
         _map = set(_map)((i*i).toString())
     const result = stringify(values(_map))
@@ -41,7 +41,8 @@ const valuesTest2 = () => {
 }
 
 const findTrue = () => {
-    let _map: TNode<string> = ['a']
+    /** @type {TNode<string>} */
+    let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
     const result = value(findFind(cmp('b'))(_map).first)
@@ -49,7 +50,8 @@ const findTrue = () => {
 }
 
 const find = () => {
-    let _map: TNode<string> = ['a']
+    /** @type {TNode<string>} */
+    let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
     const result = value(findFind(cmp('e'))(_map).first)
@@ -57,7 +59,8 @@ const find = () => {
 }
 
 const test = () => {
-    let _map: TNode<string> = ['a']
+    /** @type {TNode<string>} */
+    let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
     _map = set(_map)('d')
@@ -65,7 +68,8 @@ const test = () => {
     _map = set(_map)('f')
     //
     {
-        let _item: Result<string> = next(values(_map))
+        /** @type {Result<string>} */
+        let _item = next(values(_map))
         while (_item !== null) {
             _item = next(_item.tail)
         }

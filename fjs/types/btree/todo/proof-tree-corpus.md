@@ -48,7 +48,7 @@ sequence because it is interleaved with 174 lines of boilerplate.
 #### 2. The fixture helpers are re-declared in all four proofs
 
 ```ts
-// fjs/types/btree/proof.f.ts:17-19, find/proof.f.ts:12-14,
+// fjs/types/btree/proof.f.mjs:17-19, find/proof.f.ts:12-14,
 // set/proof.f.ts:8-9, remove/proof.f.ts:9-10 — four copies
 const set = (node: TNode<string>) => (value: string) =>
     setSet(cmp(value))(() => value)(node)
