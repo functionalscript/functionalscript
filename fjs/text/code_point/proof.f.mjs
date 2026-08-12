@@ -7,7 +7,8 @@ import {
     isValidCodePoint,
 } from './module.f.mjs'
 
-const check = (actual: boolean, expected: boolean) => {
+/** @type {(actual: boolean, expected: boolean) => void} */
+const check = (actual, expected) => {
     if (actual !== expected) { throw `${actual} !== ${expected}` }
 }
 
