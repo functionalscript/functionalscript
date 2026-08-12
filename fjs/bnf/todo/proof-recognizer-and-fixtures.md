@@ -48,7 +48,7 @@ differ: descent returns the record `DescentMatchResult`
 (`fjs/bnf/descent/types.ts:52-57` — `{ ast, success, idx, failure? }`),
 while ll1's `MatchResult` is still a tuple. Any adapter has to speak both.
 
-`fjs/djs/tokenizer/proof.f.mjs:31` is an eighth site in the descent shape, with
+`fjs/djs/tokenizer/proof.f.mjs:33` is an eighth site in the descent shape, with
 `JSON.stringify([s, mr])` as its message instead of `mr`.
 
 The copies have drifted in exactly the ways copies do: the start-rule name is

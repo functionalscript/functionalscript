@@ -14,7 +14,8 @@ const stringify = stringifyAsTree(sort)
 // 'line:column' of the error token `s` tokenizes to, or 'no error'. Collapsing the
 // position to one string keeps an expectation readable as the caret a reader would
 // draw, instead of two separate assertions per case.
-const errorAt = (s: string): string => {
+/** @type {(s: string) => string} */
+const errorAt = s => {
     const found = toArray(tokenizeJs(stringToList(s))('a.js'))
         .find(t => t.token.kind === 'error')
     return found === undefined ? 'no error' : `${found.metadata.line}:${found.metadata.column}`
@@ -24,7 +25,8 @@ export const proof = {
     isValid: [() => {
             const m = descentParser(jsGrammar())
 
-            const expect = (s: string, expected: boolean) => {
+            /** @type {(s: string, expected: boolean) => void} */
+            const expect = (s, expected) => {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, '', cp)
                 const success = mr.success && mr.idx === cp.length
