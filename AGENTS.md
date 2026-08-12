@@ -436,17 +436,19 @@ Introduce a constructor, function, tag, or other DSL-specific form only for a
 concept the host language cannot express directly and unambiguously. RTTI follows
 this pattern: constants can describe themselves, while constructions such as
 `array(number)` need DSL syntax because an array *value* and the type "array of
-numbers" are different concepts. The NaNVM operator-test data follows the same
-principle: ordinary operands and expected results are ordinary JavaScript values,
-while references, function values, and expected throws need special forms.
+numbers" are different concepts. The proposed NaNVM operator-test data eDSL applies the same principle: ordinary
+operands and expected results should be ordinary JavaScript values, while
+references, function values, and expected throws need special forms.
 
 Do not expose a tagged-union AST as the authoring API merely because it is
 convenient for the implementation. The ergonomic eDSL and its normalized
 machine-oriented representation may be different layers: a parser/compiler may
 normalize an author-friendly value into explicit tagged nodes for pattern
-matching, serialization, hashing, or code generation. Optimize the public eDSL
-for the person writing and reading it; optimize the normalized representation for
-the consumers that process it.
+matching, serialization, hashing, or code generation. Prefer the simplest representation that preserves the required semantics. Avoid
+redundant DSL syntax: less representational noise benefits people, AI systems,
+deterministic computation, hashing, serialization, storage, and code generation
+alike. Use a more explicit normalized representation only when that extra
+structure provides actual semantic or processing value.
 
 Apply this principle to new eDSLs and when improving existing ones, including the
 future FunctionalScript function AST. That AST should reuse FunctionalScript's
