@@ -24,7 +24,7 @@ import * as testContext from 'node:test'
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
 import type { Effect } from '../types.ts'
 import { asyncRun } from '../module.mjs'
-import { memoryOperationMap } from './memory/module.ts'
+import { memoryOperationMap } from './memory/module.mjs'
 import { usesInlineTestContext } from './module.f.mjs'
 import type {
     Server as EffectServer,

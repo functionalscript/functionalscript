@@ -20,6 +20,13 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/effects/node/memory/module.ts` and `proof`
+  migrate from authored TypeScript to JSDoc-typed JavaScript, per the
+  `module.ts -> module.mjs` stage-1 mapping — no local complex types to
+  split (`MemoryOperationMap`/`Uuid` are only used internally).
+  Importers must use the `.mjs` specifier. Updates
+  `fjs/effects/node/module.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/effects/module.ts` (`asyncRun`) and
   `fjs/types/result/module.ts` (`tryCatch`, `asyncTryCatch`) migrate
   from authored TypeScript to JSDoc-typed JavaScript, per the
