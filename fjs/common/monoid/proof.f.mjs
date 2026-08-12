@@ -1,11 +1,12 @@
-import type { Monoid } from './types.ts'
+/** @import { Monoid } from './types.ts' */
 
 import { repeat, fold } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
     numberAdd: () => {
-        const add: Monoid<number> = {
+        /** @type {Monoid<number>} */
+        const add = {
              identity: 0,
              operation: a => b => a + b,
         };
@@ -16,7 +17,8 @@ export const proof = {
         assertEq(id, 0)
     },
     stringConcat: () => {
-        const concat: Monoid<string> = {
+        /** @type {Monoid<string>} */
+        const concat = {
              identity: '',
              operation: a => b => a + b,
         };
@@ -26,7 +28,8 @@ export const proof = {
     },
     fold: {
         nonEmpty: () => {
-            const add: Monoid<number> = {
+            /** @type {Monoid<number>} */
+            const add = {
                 identity: 0,
                 operation: a => b => a + b,
             };
@@ -35,14 +38,16 @@ export const proof = {
         order: () => {
             // a non-commutative monoid: `fold` must preserve left-to-right order
             // (`((('' + 'a') + 'b') + 'c')`), not reverse it to `'cba'`.
-            const concat: Monoid<string> = {
+            /** @type {Monoid<string>} */
+            const concat = {
                 identity: '',
                 operation: a => b => a + b,
             };
             assertEq(fold(concat)(['a', 'b', 'c']), 'abc')
         },
         empty: () => {
-            const concat: Monoid<string> = {
+            /** @type {Monoid<string>} */
+            const concat = {
                 identity: '',
                 operation: a => b => a + b,
             };
