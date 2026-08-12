@@ -38,7 +38,8 @@ import type { IoResult, Read, Write } from '../../../effects/node/types.ts'
 import { tryUtf8 } from '../../../text/module.f.mjs'
 import { parse, stringify } from '../../../media/json/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
-import { internalError, jsonrpc, parseError, type Response } from '../../json_rpc/module.f.ts'
+import { internalError, jsonrpc, parseError } from '../../json_rpc/module.f.mjs'
+import type { Response } from '../../json_rpc/types.ts'
 import { error, ok } from '../../../types/result/module.f.mjs'
 
 /**

@@ -10,7 +10,8 @@ import { utf8 } from '../../../text/module.f.mjs'
 import { fromVec } from '../../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../../types/bit_vec/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
-import { internalError, jsonrpc, parseError, type Id, type Response } from '../../json_rpc/module.f.ts'
+import { internalError, jsonrpc, parseError } from '../../json_rpc/module.f.mjs'
+import type { Id, Response } from '../../json_rpc/types.ts'
 import { stdioTransport, type Step } from './module.f.ts'
 
 const stringifyJson = stringify(sort)

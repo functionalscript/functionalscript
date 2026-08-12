@@ -13,20 +13,19 @@
  * https://www.jsonrpc.org/specification
  *
  * @module
+ *
+ * @import { Unknown } from '../../media/json/types.ts'
+ * @import { Id, RpcError, Handler, Handlers, Response } from './types.ts'
  */
 
-import type { Unknown } from '../../media/json/types.ts'
-
 import { number, string, or, option } from '../../types/rtti/module.f.mjs'
-import type { Ts } from '../../types/rtti/ts/types.ts'
 import { validate } from '../../types/rtti/validate/module.f.mjs'
-import type { Result } from '../../types/result/types.ts'
 import { unknown } from '../../media/json/rtti/module.f.mjs'
 
-export const jsonrpc = '2.0' as const
+export const jsonrpc = /** @type {const} */ ('2.0')
 
 /** Request/response identifier: a string, a number, or `null`. */
-const id = or(string, number, null)
+export const id = or(string, number, null)
 
 /**
  * A request or notification envelope. `id` present → request (a response is
@@ -34,26 +33,22 @@ const id = or(string, number, null)
  *
  * https://www.jsonrpc.org/specification#request_object
  */
-export const request = {
+export const request = /** @type {const} */ ({
     jsonrpc,
     method: string,
     params: option(unknown),
     id: option(id),
-} as const
+})
 
 /** The JSON-RPC error object. */
-export const error = {
+export const error = /** @type {const} */ ({
     code: number,
     message: string,
     data: option(unknown),
-} as const
+})
 
-export type Id = Ts<typeof id>
-export type Request = Ts<typeof request>
-export type RpcError = Ts<typeof error>
-
-export const successResponse = { jsonrpc, result: unknown, id } as const
-export const errorResponse = { jsonrpc, error, id } as const
+export const successResponse = /** @type {const} */ ({ jsonrpc, result: unknown, id })
+export const errorResponse = /** @type {const} */ ({ jsonrpc, error, id })
 
 /**
  * A response envelope: either a success (`result`) or an error (`error`).
@@ -65,20 +60,15 @@ export const errorResponse = { jsonrpc, error, id } as const
  * https://www.jsonrpc.org/specification#response_object
  */
 export const response = or(successResponse, errorResponse)
-export type Response = Ts<typeof response>
 
 /** Decodes an untrusted value as a JSON-RPC request / notification. */
 export const decodeRequest = validate(request)
 
-/** A method implementation: maps `params` to a result or an `RpcError`. */
-export type Handler = (params: Unknown | undefined) => Result<Unknown, RpcError>
-
-/** A `method` name → `Handler` map. */
-export type Handlers = { readonly [method: string]: Handler }
-
-/** Builds an `RpcError` with the given `code` and `message` (no `data`). */
-export const rpcError = (code: number) => (message: string): RpcError =>
-    ({ code, message })
+/**
+ * Builds an `RpcError` with the given `code` and `message` (no `data`).
+ * @type {(code: number) => (message: string) => RpcError}
+ */
+export const rpcError = code => message => ({ code, message })
 
 // The standard JSON-RPC 2.0 errors.
 export const parseError = rpcError(-32700)('Parse error')
@@ -87,8 +77,8 @@ export const methodNotFound = rpcError(-32601)('Method not found')
 export const invalidParams = rpcError(-32602)('Invalid params')
 export const internalError = rpcError(-32603)('Internal error')
 
-const errorResponseOf = (id: Id) => (error: RpcError): Response =>
-    ({ jsonrpc, error, id })
+/** @type {(id: Id) => (error: RpcError) => Response} */
+const errorResponseOf = id => error => ({ jsonrpc, error, id })
 
 /**
  * Dispatches an already-parsed JSON-RPC value against `handlers`.
@@ -97,11 +87,11 @@ const errorResponseOf = (id: Id) => (error: RpcError): Response =>
  * - notification (no `id`) → `null` (never a response)
  * - unknown method → `Method not found` (`-32601`)
  * - otherwise the handler's `ok` / `error` result becomes a success / error response
+ *
+ * @param {Handlers} handlers
+ * @returns {(value: Unknown) => Response | null}
  */
-export const dispatch =
-    (handlers: Handlers) =>
-    (value: Unknown): Response | null =>
-{
+export const dispatch = handlers => value => {
     const [t, message] = decodeRequest(value)
     if (t === 'error') {
         return errorResponseOf(null)(invalidRequest)
@@ -110,7 +100,8 @@ export const dispatch =
     if (id === undefined) {
         return null
     }
-    const handler: Handler | undefined = handlers[method]
+    /** @type {Handler | undefined} */
+    const handler = handlers[method]
     if (handler === undefined) {
         return errorResponseOf(id)(methodNotFound)
     }

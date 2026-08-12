@@ -1,3 +1,4 @@
+/** @import { Handlers } from './types.ts' */
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { ok, error } from '../../types/result/module.f.mjs'
 import { validate } from '../../types/rtti/validate/module.f.mjs'
@@ -11,12 +12,13 @@ import {
     methodNotFound,
     invalidParams,
     internalError,
-    type Handlers,
-} from './module.f.ts'
+} from './module.f.mjs'
 
-const isOk = (r: readonly [string, unknown]): boolean => r[0] === 'ok'
+/** @type {(r: readonly [string, unknown]) => boolean} */
+const isOk = r => r[0] === 'ok'
 
-const handlers: Handlers = {
+/** @type {Handlers} */
+const handlers = {
     ping: () => ok('pong'),
     echo: params => ok(params ?? null),
     boom: () => error(invalidParams),

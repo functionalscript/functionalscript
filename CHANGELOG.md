@@ -20,6 +20,14 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/protocol/json_rpc/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  moving `Id`, `Request`, `RpcError`, `Response`, `Handler`, and `Handlers`
+  into a sibling `types.ts` — importers must use the `.f.mjs` specifier for
+  the runtime values and the `types.ts` specifier for the types. Updates
+  `fjs/protocol/mcp/module`, `fjs/protocol/mcp/stdio/module`,
+  `fjs/protocol/mcp/stdio/proof.f.ts`, and `fjs/mcp/proof.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/media/module` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), moving
   `DialectEntry` into a sibling `types.ts` — importers must use the

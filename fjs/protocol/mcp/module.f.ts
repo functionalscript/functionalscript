@@ -9,7 +9,7 @@
  *
  * Each schema is both a runtime decoder (`validate(schema)`) and a static
  * TypeScript type (`Ts<typeof schema>`). Transport framing (stdio) and the
- * JSON-RPC dispatcher are in `fjs/protocol/json_rpc/module.f.ts`.
+ * JSON-RPC dispatcher are in `fjs/protocol/json_rpc/module.f.mjs`.
  *
  * @module
  */
@@ -24,9 +24,9 @@ import type { Key, MemOp } from '../../effects/memory/types.ts'
 import {
     decodeRequest,
     rpcError, invalidRequest, invalidParams, methodNotFound,
-    type Response, type Id, type RpcError,
     jsonrpc,
-} from '../json_rpc/module.f.ts'
+} from '../json_rpc/module.f.mjs'
+import type { Response, Id, RpcError } from '../json_rpc/types.ts'
 import { validate } from '../../types/rtti/validate/module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.ts'
 import type { Type } from '../../types/rtti/types.ts'

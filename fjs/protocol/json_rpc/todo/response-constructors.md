@@ -12,10 +12,10 @@ for those two shapes exist in **two modules**, once privately here and once
 re-rolled downstream:
 
 ```ts
-// fjs/protocol/json_rpc/module.f.ts:87 — private
+// fjs/protocol/json_rpc/module.f.mjs:81 — private
 const errorResponseOf = (id: Id) => (error: RpcError): Response =>
     ({ jsonrpc, error, id })
-// fjs/protocol/json_rpc/module.f.ts:116 — success shape inlined in dispatch
+// fjs/protocol/json_rpc/module.f.mjs:110 — success shape inlined in dispatch
     ? { jsonrpc, result, id }
 
 // fjs/protocol/mcp/module.f.ts:240-244 — the same two constructors, rebuilt
@@ -52,11 +52,11 @@ itself and `mcpStep`), so the extraction is past the second-consumer bar.
 
 ### Proposal
 
-Export both constructors from `fjs/protocol/json_rpc/module.f.ts` and consume them in
+Export both constructors from `fjs/protocol/json_rpc/module.f.mjs` and consume them in
 `dispatch` and `mcp`:
 
 ```ts
-// fjs/protocol/json_rpc/module.f.ts
+// fjs/protocol/json_rpc/module.f.mjs
 export const errorResponseOf = (id: Id) => (error: RpcError): Response =>
     ({ jsonrpc, error, id })
 
@@ -83,17 +83,17 @@ after this change it builds on the imported one.
 ### Tasks
 
 - [ ] Export `errorResponseOf`; add and export `successResponseOf` in
-      `fjs/protocol/json_rpc/module.f.ts`; use it in `dispatch`.
+      `fjs/protocol/json_rpc/module.f.mjs`; use it in `dispatch`.
 - [ ] Replace `_errResponse`/`_okResponse` in `fjs/protocol/mcp/module.f.ts` with the
       imported constructors.
 - [ ] Rebuild `parseErrorResponse`/`internalErrorResponse` in
       `fjs/protocol/mcp/stdio/module.f.ts` on the imported `errorResponseOf`.
-- [ ] `npx tsc` clean; `fjs t` passes (`fjs/protocol/json_rpc/proof.f.ts`,
+- [ ] `npx tsc` clean; `fjs t` passes (`fjs/protocol/json_rpc/proof.f.mjs`,
       `fjs/protocol/mcp/proof.f.ts`).
 
 ### Related
 
-- `fjs/protocol/json_rpc/module.f.ts` — owner of the `Response` envelope.
+- `fjs/protocol/json_rpc/module.f.mjs` — owner of the `Response` envelope.
 - `fjs/protocol/mcp/module.f.ts:240-244` — the duplicated private constructors.
 - `fjs/protocol/mcp/module.f.ts` `okResult`/`errorResult` — the same
   owner-exports-the-pair pattern, already applied to `ToolsCallResult`.

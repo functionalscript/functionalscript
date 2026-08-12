@@ -145,7 +145,7 @@ on top."
 
 ### Building blocks
 
-#### 1. JSON-RPC 2.0 layer — landed in `fjs/protocol/json_rpc/module.f.ts`
+#### 1. JSON-RPC 2.0 layer — landed in `fjs/protocol/json_rpc/module.f.mjs`
 
 The envelope: request / notification / response / error schemas, decoders, and the
 pure dispatcher. MCP rides directly on this.
@@ -231,7 +231,7 @@ server-answers-request.
 
 ### Related
 
-- `fjs/protocol/json_rpc/module.f.ts` — the JSON-RPC 2.0 envelope
+- `fjs/protocol/json_rpc/module.f.mjs` — the JSON-RPC 2.0 envelope
 - `fjs/media/json/schema/module.f.ts` — rtti → JSON Schema printer
 - `fjs/types/rtti/module.f.mjs` — schema combinators; `fjs/types/rtti/ts/` is the precedent for a printer
 - `fjs/effects/node/module.f.mjs` — stdio (`write` / stdin) and HTTP (`createServer` / `listen`) for transports
