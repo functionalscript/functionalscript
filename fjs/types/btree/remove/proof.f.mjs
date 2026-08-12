@@ -1,22 +1,24 @@
 import { nodeRemove } from './module.f.mjs'
-import type { TNode } from '../types/types.ts'
+/** @import { TNode } from '../types/types.ts' */
 import { set as setSet } from '../set/module.f.mjs'
 import { cmp } from '../../string/module.f.mjs'
 import { stringify } from '../../../media/json/module.f.mjs'
 import { sort } from '../../object/module.f.mjs'
 import { assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
 
-const set = (node: TNode<string>) => (value: string) =>
+/** @type {(node: TNode<string>) => (value: string) => TNode<string>} */
+const set = node => value =>
     setSet(cmp(value))(() => value)(node)
 
-const remove
-    = (node: TNode<string>) => (value: string): TNode<string> | null =>
-        nodeRemove(cmp(value))(node)
+/** @type {(node: TNode<string>) => (value: string) => TNode<string> | null} */
+const remove = node => value =>
+    nodeRemove(cmp(value))(node)
 
 const jsonStr = stringify(sort)
 
 const test = () => {
-    let _map: TNode<string> | null = ['1']
+    /** @type {TNode<string> | null} */
+    let _map = ['1']
     for (let i = 2; i <= 38; i++)
         _map = set(_map)((i * i).toString())
     {
@@ -372,7 +374,8 @@ const test = () => {
 }
 
 const test2 = () => {
-    let _map: TNode<string>|null = ['1']
+    /** @type {TNode<string> | null} */
+    let _map = ['1']
     for (let i = 2; i <= 10; i++)
         _map = set(_map)((i * i).toString())
     assertEq(_map.length, 3, _map)
@@ -442,7 +445,8 @@ const test2 = () => {
 // Exercises the branch-merge-into-Branch5-sibling path in reduceValue0
 // (removing an underflowed left leaf merges into a 5-wide right branch).
 const test3 = () => {
-    let _map: TNode<string> | null = ['1']
+    /** @type {TNode<string> | null} */
+    let _map = ['1']
     for (let i = 2; i <= 50; i++)
         _map = set(_map)(i.toString())
 
