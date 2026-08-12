@@ -5,15 +5,15 @@
  */
 
 import type { Unknown } from '../types.ts'
-
 import type { Result } from '../../../types/result/types.ts'
-import { error, ok } from '../../../types/result/module.f.mjs'
 import type { List } from '../../../types/list/types.ts'
-import { fold, next, toArray, concat } from '../../../types/list/module.f.mjs'
 import type { Fold } from '../../../types/function/operator/types.ts'
 import type { JsonToken } from '../tokenizer/types.ts'
-import { setReplace } from '../../../types/ordered_map/module.f.mjs'
 import type { OrderedMap } from '../../../types/ordered_map/types.ts'
+
+import { error, ok } from '../../../types/result/module.f.mjs'
+import { fold, next, toArray, concat } from '../../../types/list/module.f.mjs'
+import { setReplace } from '../../../types/ordered_map/module.f.mjs'
 import { fromMap } from '../../../types/object/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
