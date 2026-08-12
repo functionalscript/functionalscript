@@ -61,7 +61,7 @@ same `toDjs(state)` transformation; only the disguise is removed.
 
 - [ ] Replace the object branch with the `map`; delete `FoldObjectState` and
       `foldAstObjectOp`; hoist `mapEntryValue`.
-- [ ] `npx tsc` clean; `fjs t` passes (`fjs/djs/ast/proof.f.ts` and the djs
+- [ ] `npx tsc` clean; `fjs t` passes (`fjs/djs/ast/proof.f.mjs` and the djs
       suite).
 
 ### Related
