@@ -19,3 +19,44 @@ export type Printer = {
     readonly array: (type: string) => string
     readonly record: (type: string) => string
 }
+
+// Index-signature guidance, checked at compile time. Moved here from
+// `proof.f.ts` when that file migrated to `.f.mjs`: `declare const` has no
+// JavaScript form, and these aliases are type-level only. Non-exported, so
+// they add nothing to the emitted declaration.
+
+import type { Assert } from '../../asserts/types.ts'
+
+// Don't use!
+
+type _T0 = {[k:string]: bigint}
+
+declare const x0: _T0
+
+type _X0 = Assert<Equal<typeof x0['hello'], bigint>>
+
+// Use for finite sets
+
+type _T1 = {[k in 'hello']: bigint}
+
+declare const x1: _T1
+
+type _X1 = Assert<Equal<typeof x1['hello'], bigint>>
+
+// Don't use it
+
+type _T2 = {[k in string]: bigint}
+
+declare const x2: _T2
+
+type _X2 = Assert<Equal<typeof x2['hello'], bigint>>
+
+// Use it for infinite sets
+
+type _T3 = {[k in string]?: bigint}
+
+declare const x3: _T3
+
+type _X3 = Assert<Equal<typeof x3['hello'], bigint | undefined>>
+
+// type T4 = {[k:string]?: bigint} //< compilation error.

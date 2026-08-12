@@ -51,7 +51,7 @@ touched anyway, not on its own.
 ### Tasks
 
 - [ ] Replace the `tuple` ternary with `complex(\`${ro}[\`, ']')`.
-- [ ] Confirm `fjs/types/ts/proof.f.ts` still passes (`fjs t`) with both the
+- [ ] Confirm `fjs/types/ts/proof.f.mjs` still passes (`fjs t`) with both the
       mutable and readonly tuple paths covered and `npx tsc` is clean.
 
 ### Related

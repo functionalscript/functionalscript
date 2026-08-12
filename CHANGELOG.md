@@ -20,6 +20,14 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/ts/proof.f.ts` migrates from authored
+  TypeScript to JSDoc-typed JavaScript (`.f.mjs`). Its trailing
+  index-signature guidance block uses `declare const`, which has no
+  JavaScript form, so those type-level aliases move to the sibling
+  `fjs/types/ts/types.ts` as non-exported `_`-prefixed declarations —
+  the same shape `fjs/media/json/types.ts` already uses for its
+  `Assert<Equal<...>>` pin. No public type is added or removed
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/emergent_testing/example.f.ts` migrates
   from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the
   four typed consts become JSDoc `@type` annotations
