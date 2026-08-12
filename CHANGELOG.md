@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/dev/package_json/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) —
+  `PackageJson` and `JsonTextError` stay as JSDoc typedefs in the module
+  (no separate `types.ts`, no external importers of the types). Importers
+  must use the `.f.mjs` specifier
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/bnf/proof` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — no local
   types to split. Importers must use the `.f.mjs` specifier

@@ -3,7 +3,7 @@ import { unwrap } from '../../types/result/module.f.mjs'
 import {
     validatePackageJson,
     validatePackageJsonText,
-} from './module.f.ts'
+} from './module.f.mjs'
 
 export const proof = {
     parseMetadata: () => {
@@ -22,7 +22,7 @@ export const proof = {
         assert(result[0] === 'error', result)
     },
     validatePreservesOriginalObject: () => {
-        const object = { name: 'x', version: '1.0.0', private: true } as const
+        const object = /** @type {const} */ ({ name: 'x', version: '1.0.0', private: true })
         const metadata = unwrap(validatePackageJson(object))
         assertEq(metadata.name, 'x', metadata)
         assertEq(metadata.version, '1.0.0', metadata)
