@@ -8,7 +8,7 @@ import { toData } from '../data/module.f.mjs'
 import { dispatchMap, parser, parserRuleSet } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
-import { deterministic } from '../testlib.f.ts'
+import { deterministic } from '../testlib.f.mjs'
 
 export const proof = {
     dispatch: [

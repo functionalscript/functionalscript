@@ -8,7 +8,7 @@ import { emptyTagMap, toData } from '../data/module.f.mjs'
 import { descentParser } from './module.f.mjs'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 
-import { deterministic } from '../testlib.f.ts'
+import { deterministic } from '../testlib.f.mjs'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
 

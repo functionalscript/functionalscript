@@ -12,7 +12,7 @@ import {
     repeat1Plus,
 } from './module.f.mjs'
 
-import { classic, deterministic } from './testlib.f.ts'
+import { classic, deterministic } from './testlib.f.mjs'
 
 export const proof = {
     test: () => {
