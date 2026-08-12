@@ -4,12 +4,12 @@ import { assertPure } from '../proof.f.mjs'
 import { eff } from './module.f.mjs'
 /** @import { Effect, OperationMap } from '../types.ts' */
 
-/** @typedef {readonly['add', (a: number, b: number) => number]} AddOp */
+/** @typedef {readonly['add', (a: number, b: number) => number]} _AddOp */
 
-/** @type {(command: 'add') => (a: number, b: number) => Effect<AddOp, number>} */
+/** @type {(command: 'add') => (a: number, b: number) => Effect<_AddOp, number>} */
 const doAdd = do_
 
-const next = match(/** @type {OperationMap<AddOp, number>} */ ({ add: (a, b) => a + b }))
+const next = match(/** @type {OperationMap<_AddOp, number>} */ ({ add: (a, b) => a + b }))
 
 export const proof = {
     value: () => {

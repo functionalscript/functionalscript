@@ -21,12 +21,12 @@ export const assertPure = (e, expected) => {
     assertEq(o[0], expected)
 }
 
-/** @typedef {readonly['add', (a: number, b: number) => number]} AddOp */
+/** @typedef {readonly['add', (a: number, b: number) => number]} _AddOp */
 
-/** @type {(command: 'add') => (a: number, b: number) => Effect<AddOp, number>} */
+/** @type {(command: 'add') => (a: number, b: number) => Effect<_AddOp, number>} */
 const doAdd = do_
 
-const next = match(/** @type {OperationMap<AddOp, number>} */ ({ add: (a, b) => a + b }))
+const next = match(/** @type {OperationMap<_AddOp, number>} */ ({ add: (a, b) => a + b }))
 
 /**
  * An operation set whose command is any `string`, which is what a `Do` node
@@ -34,13 +34,13 @@ const next = match(/** @type {OperationMap<AddOp, number>} */ ({ add: (a, b) => 
  * nothing stops it naming a member `map` inherits from `Object.prototype`
  * rather than an own handler. `match` must refuse those, and this type is how a
  * proof says so without an `as` cast.
- * @typedef {readonly[string, (a: number) => number]} AnyOp
+ * @typedef {readonly[string, (a: number) => number]} _AnyOp
  */
 
-/** @type {(command: string) => (a: number) => Effect<AnyOp, number>} */
+/** @type {(command: string) => (a: number) => Effect<_AnyOp, number>} */
 const doAny = do_
 
-const anyNext = match(/** @type {OperationMap<AnyOp, number>} */ ({ add: a => a + 1 }))
+const anyNext = match(/** @type {OperationMap<_AnyOp, number>} */ ({ add: a => a + 1 }))
 
 export const proof = {
     foldStep: {

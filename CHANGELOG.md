@@ -26,9 +26,11 @@ history.
   (`match<AddOp, number>(...)`, `do_<AddOp>('add')`, `pure<readonly
   number[]>([])`, `okStep<number, string, never, number>(...)`,
   `error<string>(...)`) become inline `@type` casts, per convention;
-  `assertPure`'s generic function becomes a `@template`/`@param` block.
-  `fjs/effects/eff/proof.f.mjs` updates its import of `assertPure`
-  accordingly
+  `assertPure`'s generic function becomes a `@template`/`@param` block;
+  the local `AddOp`/`AnyOp` types are renamed `_AddOp`/`_AnyOp` (neither
+  was previously exported, but a JSDoc `@typedef` has no non-exported
+  form). `fjs/effects/eff/proof.f.mjs` updates its import of
+  `assertPure` accordingly
   [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/text/utf8/proof.f.ts` migrates from
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — no type
