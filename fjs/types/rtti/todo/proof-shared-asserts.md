@@ -6,7 +6,7 @@
 ## Problem
 
 `fjs/types/rtti/validate/proof.f.ts:9-20` and
-`fjs/types/rtti/parse/proof.f.ts:9-25` define byte-identical helpers:
+`fjs/types/rtti/parse/proof.f.mjs:13-38` define byte-identical helpers:
 
 ```ts
 const assertOk = ([k]: readonly [string, unknown]) => { assertEq(k, 'ok', 'expected ok') }

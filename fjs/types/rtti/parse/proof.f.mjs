@@ -1,31 +1,44 @@
+/**
+ * @import { ValidationError } from '../common/types.ts'
+ * @import { Equal } from '../../ts/types.ts'
+ * @import { Ts } from '../ts/types.ts'
+ * @import { Unknown as DjsUnknown } from '../../../djs/types.ts'
+ * @import { Assert } from '../../../asserts/types.ts'
+ */
+
 import { parse } from './module.f.mjs'
-import type { ValidationError } from '../common/types.ts'
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.mjs'
-import type { Equal } from '../../ts/types.ts'
-import type { Ts } from '../ts/types.ts'
-import type { Unknown as DjsUnknown } from '../../../djs/types.ts'
-import type { Assert } from '../../../asserts/types.ts'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
-const assertOk = ([k]: readonly [string, unknown]) => { assertEq(k, 'ok', 'expected ok') }
-const assertError = ([k]: readonly [string, unknown]) => { assertEq(k, 'error', 'expected error') }
+/** @type {(r: readonly [string, unknown]) => void} */
+const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
 
-const unwrap = <T>(r: readonly [string, unknown]): T => {
+/** @type {(r: readonly [string, unknown]) => void} */
+const assertError = ([k]) => { assertEq(k, 'error', 'expected error') }
+
+/**
+ * @template T
+ * @param {readonly [string, unknown]} r
+ * @returns {T}
+ */
+const unwrap = r => {
     assert(r[0] === 'ok', 'expected ok')
-    return r[1] as T
+    return /** @type {T} */ (r[1])
 }
 
-const assertErrorPath = (expected: readonly string[]) =>
-    (r: readonly [string, unknown]) => {
+/** @type {(expected: readonly string[]) => (r: readonly [string, unknown]) => void} */
+const assertErrorPath = expected =>
+    r => {
         assert(r[0] === 'error', 'expected error')
-        const e = r[1] as ValidationError
+        const e = /** @type {ValidationError} */ (r[1])
         if (e.path.length !== expected.length) { throw `path length ${e.path.length} != ${expected.length}` }
         for (let i = 0; i < expected.length; i++) {
             if (e.path[i] !== expected[i]) { throw `path[${i}] ${e.path[i]} != ${expected[i]}` }
         }
     }
 
-const assertDeepEqual = (a: unknown, b: unknown): void => {
+/** @type {(a: unknown, b: unknown) => void} */
+const assertDeepEqual = (a, b) => {
     if (a === b) { return }
     if (a instanceof Array && b instanceof Array) {
         if (a.length !== b.length) { throw `array length ${a.length} != ${b.length}` }
@@ -38,7 +51,7 @@ const assertDeepEqual = (a: unknown, b: unknown): void => {
         if (ka.length !== kb.length) { throw `key count ${ka.length} != ${kb.length}` }
         for (let i = 0; i < ka.length; i++) {
             if (ka[i] !== kb[i]) { throw `key ${ka[i]} != ${kb[i]}` }
-            assertDeepEqual((a as any)[ka[i]], (b as any)[kb[i]])
+            assertDeepEqual((/** @type {any} */ (a))[ka[i]], (/** @type {any} */ (b))[kb[i]])
         }
         return
     }
@@ -48,7 +61,7 @@ const assertDeepEqual = (a: unknown, b: unknown): void => {
 export const proof = {
     boolean: {
         ok: () => {
-            type _ = Assert<Equal<Ts<typeof boolean>, boolean>>
+            /** @typedef {Assert<Equal<Ts<typeof boolean>, boolean>>} _RoundTrip */
             assertOk(parse(boolean)(true))
             assertOk(parse(boolean)(false))
         },
@@ -60,7 +73,7 @@ export const proof = {
     },
     number: {
         ok: () => {
-            type _ = Assert<Equal<Ts<typeof number>, number>>
+            /** @typedef {Assert<Equal<Ts<typeof number>, number>>} _RoundTrip */
             assertOk(parse(number)(42))
         },
         error: () => {
@@ -70,7 +83,7 @@ export const proof = {
     },
     string: {
         ok: () => {
-            type _ = Assert<Equal<Ts<typeof string>, string>>
+            /** @typedef {Assert<Equal<Ts<typeof string>, string>>} _RoundTrip */
             assertOk(parse(string)('hello'))
         },
         error: () => {
@@ -80,7 +93,7 @@ export const proof = {
     },
     bigint: {
         ok: () => {
-            type _ = Assert<Equal<Ts<typeof bigint>, bigint>>
+            /** @typedef {Assert<Equal<Ts<typeof bigint>, bigint>>} _RoundTrip */
             assertOk(parse(bigint)(4n))
         },
         error: () => {
@@ -90,7 +103,7 @@ export const proof = {
     },
     unknown: {
         ok: () => {
-            type _ = Assert<Equal<Ts<typeof unknown>, DjsUnknown>>
+            /** @typedef {Assert<Equal<Ts<typeof unknown>, DjsUnknown>>} _RoundTrip */
             assertOk(parse(unknown)(null))
             assertOk(parse(unknown)(42))
             assertOk(parse(unknown)('hello'))
@@ -112,80 +125,80 @@ export const proof = {
             error: () => assertError(parse(undefined)(null)),
         },
         number: {
-            ok: () => assertOk(parse(42 as const)(42)),
-            error: () => assertError(parse(42 as const)(43)),
+            ok: () => assertOk(parse(/** @type {const} */ (42))(42)),
+            error: () => assertError(parse(/** @type {const} */ (42))(43)),
         },
         nan: {
-            ok: () => assertOk(parse(NaN as number)(NaN)),
+            ok: () => assertOk(parse(/** @type {number} */ (NaN))(NaN)),
             error: () => {
-                assertError(parse(NaN as number)(0))
-                assertError(parse(0 as const)(NaN))
-                assertError(parse(42 as const)(NaN))
+                assertError(parse(/** @type {number} */ (NaN))(0))
+                assertError(parse(/** @type {const} */ (0))(NaN))
+                assertError(parse(/** @type {const} */ (42))(NaN))
             },
         },
         infinity: {
             ok: () => {
-                assertOk(parse(Infinity as number)(Infinity))
-                assertOk(parse(-Infinity as number)(-Infinity))
+                assertOk(parse(/** @type {number} */ (Infinity))(Infinity))
+                assertOk(parse(/** @type {number} */ (-Infinity))(-Infinity))
             },
             error: () => {
-                assertError(parse(Infinity as number)(-Infinity))
-                assertError(parse(Infinity as number)(0))
+                assertError(parse(/** @type {number} */ (Infinity))(-Infinity))
+                assertError(parse(/** @type {number} */ (Infinity))(0))
             },
         },
         signedZero: {
             // `Object.is` distinguishes +0 and -0; `===` treats them equal.
             distinct: () => {
-                assertError(parse(0 as const)(-0))
-                assertError(parse(-0 as number)(0))
+                assertError(parse(/** @type {const} */ (0))(-0))
+                assertError(parse(/** @type {number} */ (-0))(0))
             },
             self: () => {
-                assertOk(parse(0 as const)(0))
-                assertOk(parse(-0 as number)(-0))
+                assertOk(parse(/** @type {const} */ (0))(0))
+                assertOk(parse(/** @type {number} */ (-0))(-0))
             },
         },
         string: {
-            ok: () => assertOk(parse('hello' as const)('hello')),
-            error: () => assertError(parse('hello' as const)('world')),
+            ok: () => assertOk(parse(/** @type {const} */ ('hello'))('hello')),
+            error: () => assertError(parse(/** @type {const} */ ('hello'))('world')),
         },
         bigint: {
-            ok: () => assertOk(parse(7n as const)(7n)),
-            error: () => assertError(parse(7n as const)(8n)),
+            ok: () => assertOk(parse(/** @type {const} */ (7n))(7n)),
+            error: () => assertError(parse(/** @type {const} */ (7n))(8n)),
         },
         boolean: {
-            ok: () => assertOk(parse(true as const)(true)),
-            error: () => assertError(parse(true as const)(false)),
+            ok: () => assertOk(parse(/** @type {const} */ (true))(true)),
+            error: () => assertError(parse(/** @type {const} */ (true))(false)),
         },
         tuple: {
             ok: () => {
-                const t = [42, 'hello'] as const
+                const t = /** @type {const} */ ([42, 'hello'])
                 const r = parse(t)([42, 'hello'])
                 assertDeepEqual(unwrap(r), [42, 'hello'])
             },
             // The key behavior change vs `validate`: extra tuple elements are dropped.
             extraItemsDropped: () => {
-                const r = parse([42] as const)([42, 'extra'])
+                const r = parse(/** @type {const} */ ([42]))([42, 'extra'])
                 assertDeepEqual(unwrap(r), [42])
             },
             error: () => {
-                assertError(parse([42] as const)([99]))
-                assertError(parse([42] as const)({}))
+                assertError(parse(/** @type {const} */ ([42]))([99]))
+                assertError(parse(/** @type {const} */ ([42]))({}))
             },
         },
         struct: {
             ok: () => {
-                const t = { a: 42, b: 'hello' } as const
+                const t = /** @type {const} */ ({ a: 42, b: 'hello' })
                 const r = parse(t)({ a: 42, b: 'hello' })
                 assertDeepEqual(unwrap(r), { a: 42, b: 'hello' })
             },
             // Undeclared properties are dropped from the constructed value.
             extraKeysDropped: () => {
-                const r = parse({ a: 42 as const } as const)({ a: 42, b: 'extra' })
+                const r = parse(/** @type {const} */ ({ a: /** @type {const} */ (42) }))({ a: 42, b: 'extra' })
                 assertDeepEqual(unwrap(r), { a: 42 })
             },
             error: () => {
-                assertError(parse({ a: 42 } as const)({ a: 99 }))
-                assertError(parse({ a: 42 } as const)([]))
+                assertError(parse(/** @type {const} */ ({ a: 42 }))({ a: 99 }))
+                assertError(parse(/** @type {const} */ ({ a: 42 }))([]))
             },
         },
     },
@@ -201,8 +214,9 @@ export const proof = {
         // `parse` always constructs a new array, even when the inner type is a primitive.
         freshArray: () => {
             const input = [1, 2, 3]
-            const out = unwrap<readonly number[]>(parse(array(number))(input))
-            assert(out !== input as unknown, 'expected a fresh array')
+            /** @type {readonly number[]} */
+            const out = unwrap(parse(array(number))(input))
+            assert(out !== /** @type {unknown} */ (input), 'expected a fresh array')
             assertDeepEqual(out, [1, 2, 3])
         },
         error: () => {
@@ -228,8 +242,9 @@ export const proof = {
         // `parse` always constructs a new record.
         freshRecord: () => {
             const input = { a: 1, b: 2 }
-            const out = unwrap<Record<string, number>>(parse(record(number))(input))
-            assert(out !== input as unknown, 'expected a fresh record')
+            /** @type {Record<string, number>} */
+            const out = unwrap(parse(record(number))(input))
+            assert(out !== /** @type {unknown} */ (input), 'expected a fresh record')
             assertDeepEqual(out, { a: 1, b: 2 })
         },
         error: () => {
@@ -240,7 +255,7 @@ export const proof = {
     },
     constThunk: {
         primitive: () => {
-            const t = () => ['const', 7n] as const
+            const t = () => /** @type {const} */ (['const', 7n])
             assertOk(parse(t)(7n))
             assertError(parse(t)(8n))
         },
@@ -248,13 +263,13 @@ export const proof = {
     or: {
         consts: {
             ok: () => {
-                const t = or(...[false, 42, 'hello'] as const)
+                const t = or(.../** @type {const} */ ([false, 42, 'hello']))
                 assertOk(parse(t)(false))
                 assertOk(parse(t)(42))
                 assertOk(parse(t)('hello'))
             },
             error: () => {
-                const t = or(...[false, 42, 'hello'] as const)
+                const t = or(.../** @type {const} */ ([false, 42, 'hello']))
                 assertError(parse(t)(true))
                 assertError(parse(t)(43))
                 assertError(parse(t)('world'))
@@ -275,8 +290,9 @@ export const proof = {
         },
         // First matching variant wins; the freshly-constructed value comes from that variant.
         firstMatchWins: () => {
-            const t = or([number] as const, array(number))
-            const out = unwrap<readonly number[]>(parse(t)([1, 2, 3]))
+            const t = or(/** @type {const} */ ([number]), array(number))
+            /** @type {readonly number[]} */
+            const out = unwrap(parse(t)([1, 2, 3]))
             // The const tuple `[number]` matches first and returns a length-1 result.
             assertDeepEqual(out, [1])
         },
@@ -304,29 +320,29 @@ export const proof = {
             parse(array(array(number)))([[1, 'x'], [2, 3]])
         ),
         tupleIndex: () => assertErrorPath(['1'])(
-            parse([number, number] as const)([1, 'two'])
+            parse(/** @type {const} */ ([number, number]))([1, 'two'])
         ),
         structKey: () => assertErrorPath(['b'])(
-            parse({ a: number, b: number } as const)({ a: 1, b: 'two' })
+            parse(/** @type {const} */ ({ a: number, b: number }))({ a: 1, b: 'two' })
         ),
         deepStruct: () => {
-            const schema = { user: { name: string, age: number } } as const
+            const schema = /** @type {const} */ ({ user: { name: string, age: number } })
             const r = parse(schema)({ user: { name: 'A', age: 'old' } })
             assertErrorPath(['user', 'age'])(r)
         },
         recursiveSchema: () => {
-            type A = readonly A[]
-            const list = () => ['array', list] as const
-            const r = parse(list)([[[42]] as unknown as A])
+            /** @typedef {readonly _A[]} _A */
+            const list = () => /** @type {const} */ (['array', list])
+            const r = parse(list)([/** @type {_A} */ (/** @type {unknown} */ ([[42]]))])
             assertErrorPath(['0', '0', '0'])(r)
         },
         orRoot: () => assertErrorPath([])(parse(or(number, string))(true)),
     },
     recursive: {
         arrayOfArrays: () => {
-            type A = readonly A[]
-            const list = () => ['array', list] as const
-            type _A = Assert<Equal<A, Ts<typeof list>>>
+            /** @typedef {readonly _A[]} _A */
+            const list = () => /** @type {const} */ (['array', list])
+            /** @typedef {Assert<Equal<_A, Ts<typeof list>>>} _ListRoundTrip */
             const v = parse(list)
             assertOk(v([]))
             assertOk(v([[], []]))
@@ -335,9 +351,9 @@ export const proof = {
             assertError(v(null))
         },
         recordOfRecords: () => {
-            const tree = () => ['record', tree] as const
-            type A = { readonly[K in string]?: A }
-            type _ = Assert<Equal<A, Ts<typeof tree>>>
+            const tree = () => /** @type {const} */ (['record', tree])
+            /** @typedef {{ readonly[K in string]?: _A }} _A */
+            /** @typedef {Assert<Equal<_A, Ts<typeof tree>>>} _TreeRoundTrip */
             const v = parse(tree)
             assertOk(v({}))
             assertOk(v({ a: {}, b: { c: {} } }))
