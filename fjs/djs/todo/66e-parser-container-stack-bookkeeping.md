@@ -165,7 +165,7 @@ one and can land independently of 157.
 - [ ] Apply the same shape to `fjs/djs/parser/module.f.mjs`, preserving the
       `{ ...state }` spread and the `endArray` non-array fallback inside the
       `build` callback.
-- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/media/json/parser/proof.f.ts` and
+- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/media/json/parser/proof.f.mjs` and
       `fjs/djs/parser/proof.f.mjs` still pass with full line/branch coverage
       (behaviour is unchanged — this is a pure refactor).
 
