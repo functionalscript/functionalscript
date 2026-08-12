@@ -1,3 +1,9 @@
+/**
+ * @import { Evo } from '../../cas/evo/types.ts'
+ * @import { ToolEntry, ToolsCallResult } from '../../protocol/mcp/types.ts'
+ * @import { Operation } from '../../effects/types.ts'
+ */
+
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { fileCas } from '../../cas/module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
@@ -5,10 +11,7 @@ import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { vec8 } from '../../types/bit_vec/module.f.mjs'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { initEvo, evo } from '../../cas/evo/module.f.mjs'
-import type { Evo } from '../../cas/evo/types.ts'
-import { evoToolRegistry } from './module.f.ts'
-import type { ToolEntry, ToolsCallResult } from '../../protocol/mcp/types.ts'
-import type { Operation } from '../../effects/types.ts'
+import { evoToolRegistry } from './module.f.mjs'
 import { parse as parseJson } from '../../media/json/module.f.mjs'
 import { array, string as rttiString } from '../../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
@@ -18,21 +21,29 @@ const home = '/home/user'
 
 const parseSubjects = rttiParse(array(rttiString))
 
-const findEntry = <O extends Operation>(registry: readonly ToolEntry<O>[], name: string): ToolEntry<O> => {
+/**
+ * @template {Operation} O
+ * @param {readonly ToolEntry<O>[]} registry
+ * @param {string} name
+ * @returns {ToolEntry<O>}
+ */
+const findEntry = (registry, name) => {
     const entry = registry.find(e => e.name === name)
     assert(entry !== undefined, ['missing tool entry', name])
-    return entry
+    return /** @type {ToolEntry<O>} */ (entry)
 }
 
-const textOf = (result: ToolsCallResult): string => {
+/** @type {(result: ToolsCallResult) => string} */
+const textOf = result => {
     const [item] = result.content
     assert(item.type === 'text', ['expected a text content item', item])
-    return item.text
+    return /** @type {{ text: string }} */ (item).text
 }
 
 export const proof = {
     toolNamesMatchTheDesign: () => {
-        const e: Evo<never> = {
+        /** @type {Evo<never>} */
+        const e = {
             list: () => { throw 'unused' },
             head: () => { throw 'unused' },
             add: () => { throw 'unused' },

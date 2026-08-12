@@ -42,18 +42,21 @@
  * store, one Evo cache, one server.
  *
  * @module
+ *
+ * @import { Effect, Operation } from '../../effects/types.ts'
+ * @import { MemOp } from '../../effects/memory/types.ts'
+ * @import { ToolEntry, ToolsCallResult } from '../../protocol/mcp/types.ts'
+ * @import { Evo } from '../../cas/evo/types.ts'
+ * @import { Ts } from '../../types/rtti/ts/types.ts'
  */
+
 import { string, option, array } from '../../types/rtti/module.f.mjs'
 import { pure, step } from '../../effects/module.f.mjs'
-import type { Effect, Operation } from '../../effects/types.ts'
-import type { MemOp } from '../../effects/memory/types.ts'
 import {
     toolEntry, errorResult, okResult,
 } from '../../protocol/mcp/module.f.mjs'
-import type { ToolEntry, ToolsCallResult } from '../../protocol/mcp/types.ts'
 import { stringify } from '../../media/json/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
-import type { Evo } from '../../cas/evo/types.ts'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
@@ -61,40 +64,44 @@ import type { Evo } from '../../cas/evo/types.ts'
  * Arguments for `evo_list`: an optional status filter, forwarded unchanged to
  * `Evo.list` — omitted lists the active subjects, `true` the archived ones.
  */
-export const evoListArgs = {
+export const evoListArgs = /** @type {const} */ ({
     archived: option(true),
-} as const
+})
 
 /** Arguments for `evo_head`: the subject whose current heads are requested. */
-export const evoHeadArgs = {
+export const evoHeadArgs = /** @type {const} */ ({
     subject: string,
-} as const
+})
 
 /** Arguments for `evo_revision`: the hash of the revision to read. */
-export const evoRevisionArgs = {
+export const evoRevisionArgs = /** @type {const} */ ({
     hash: string,
-} as const
+})
 
 /**
  * Arguments for `evo_add`: a new revision, per `fjs/cas/evo`'s
  * `RevisionData` — every field of it the caller supplies, i.e. all but
  * `generation`, which the server computes.
  */
-export const evoAddArgs = {
+export const evoAddArgs = /** @type {const} */ ({
     parents: array(string),
     snapshot: option(string),
     subject: option(string),
     archived: option(true),
-} as const
+})
 
 // ── Tool registry ────────────────────────────────────────────────────────────────
 
 /** Canonical JSON encoder for the `evo_list` and `evo_revision` results. */
 const toJson = stringify(identity)
 
-/** Registry of all Evo tools, bound to an `Evo<O>`. */
-export const evoToolRegistry =
-    <O extends Operation>(e: Evo<O>): readonly ToolEntry<O | MemOp>[] => [
+/**
+ * Registry of all Evo tools, bound to an `Evo<O>`.
+ * @template {Operation} O
+ * @param {Evo<O>} e
+ * @returns {readonly ToolEntry<O | MemOp>[]}
+ */
+export const evoToolRegistry = e => [
     toolEntry(
         'evo_list',
         'List subjects, as a JSON array of strings. By default only the active ones: a subject is active while at least one of its current heads is not archived. Pass `archived: true` to list the archived subjects instead — those with at least one current head, all of them archived. A subject with no current heads is in neither list.',
@@ -103,19 +110,21 @@ export const evoToolRegistry =
         // constrained to a newline-free alphabet), so a `join('\n')` line
         // format could not represent an empty subject or one containing a
         // newline without ambiguity — JSON encoding can.
-        ({ archived }): Effect<MemOp, ToolsCallResult> => step(
+        /** @type {(args: Ts<typeof evoListArgs>) => Effect<MemOp, ToolsCallResult>} */
+        (({ archived }) => step(
             e.list(archived),
             subjects => pure(okResult(toJson(subjects)))
-        ),
+        )),
     ),
     toolEntry(
         'evo_head',
         'List the current head hashes (cBase32) of a subject, one per line. Empty when the subject is unknown.',
         evoHeadArgs,
-        ({ subject }): Effect<MemOp, ToolsCallResult> => step(
+        /** @type {(args: Ts<typeof evoHeadArgs>) => Effect<MemOp, ToolsCallResult>} */
+        (({ subject }) => step(
             e.head(subject),
             heads => pure(okResult(heads.join('\n'))),
-        )
+        )),
     ),
     toolEntry(
         'evo_revision',
@@ -125,18 +134,20 @@ export const evoToolRegistry =
         // `evo_list`'s. An encoded response that outgrows the transport cap is
         // the transport's `-32603`, not a tool-level error — see "Result size"
         // in the module doc.
-        ({ hash }): Effect<O | MemOp, ToolsCallResult> => step(
+        /** @type {(args: Ts<typeof evoRevisionArgs>) => Effect<O | MemOp, ToolsCallResult>} */
+        (({ hash }) => step(
             e.revision(hash),
             result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(toJson(result[1])))
-        ),
+        )),
     ),
     toolEntry(
         'evo_add',
         'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot`, when omitted, is resolved from the parents (zero parents → `subject`, one parent → the parent\'s snapshot; a merge requires an explicit `snapshot`) and written explicitly. `generation` is computed by the server.',
         evoAddArgs,
-        (input): Effect<O | MemOp, ToolsCallResult> => step(
+        /** @type {(input: Ts<typeof evoAddArgs>) => Effect<O | MemOp, ToolsCallResult>} */
+        (input => step(
             e.add(input),
             result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(result[1]))
-        ),
+        )),
     ),
 ]

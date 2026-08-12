@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/mcp/evo/module` and `proof` migrate from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) —
+  no local types to split (`evoToolRegistry` is the only export beyond
+  the four rtti schema consts). Importers must use the `.f.mjs`
+  specifier. Updates `fjs/mcp/module.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/protocol/mcp/module` and `proof` migrate
   from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
   moving `Implementation`, `ServerCapabilities`, `InitializeParams`,

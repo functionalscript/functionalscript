@@ -32,7 +32,7 @@ Two shapes, both the same thing:
 ```
 
 Also `fjs/dev/module.f.mjs`, `fjs/cas/evo/module.f.mjs`,
-`fjs/mcp/evo/module.f.ts`, `fjs/cas/module.f.mjs`, `fjs/mcp/cas/module.f.ts`,
+`fjs/mcp/evo/module.f.mjs`, `fjs/cas/module.f.mjs`, `fjs/mcp/cas/module.f.ts`,
 `fjs/protocol/mcp/module.f.mjs`, `fjs/emergent_testing/module.f.mjs`.
 
 *Constant projection* (`() => pure(v)`), overwhelmingly the "do the work, then

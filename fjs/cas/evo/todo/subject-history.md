@@ -98,7 +98,7 @@ readonly history: (start: Hash) => Effect<O | MemOp, Result<readonly Hash[], str
 - **Staleness.** Same cache-staleness concern as
   [todo/cache-staleness.md](cache-staleness.md) — history is served from
   the in-memory cache like everything else in `Evo<O>`.
-- **MCP surface.** A new `evo_history` tool (`fjs/mcp/evo/module.f.ts`)
+- **MCP surface.** A new `evo_history` tool (`fjs/mcp/evo/module.f.mjs`)
   alongside `evo_list`/`evo_head`/`evo_add`, taking `start` (hash) and
   returning the hash array. Evo-specific, so a dedicated tool name is fine
   (unlike the generic refresh tool in `cache-staleness.md`).
