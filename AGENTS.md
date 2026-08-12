@@ -261,9 +261,10 @@ Use JSDoc for module documentation in both TypeScript and JavaScript source.
 Every implementation module starts with one module JSDoc block, followed by one
 blank line before the first source-level import or declaration.
 
-For TypeScript, put type-only imports first, then already-migrated JavaScript
-runtime imports, then remaining TypeScript runtime imports. Separate the import
-groups with one blank line:
+For TypeScript, put type-only imports first, external or built-in runtime imports
+second, then repository-owned relative runtime imports: already-migrated
+JavaScript before remaining TypeScript. Separate the import groups with one blank
+line:
 
 ```ts
 /**
@@ -275,6 +276,9 @@ groups with one blank line:
 import type ...
 import type ...
 
+import ... from 'node:...'
+import ... from 'package'
+
 import ... from '...mjs'
 import ... from '...mjs'
 
@@ -283,7 +287,9 @@ import ... from '...ts'
 ```
 
 For JavaScript, put all module-level `@import` tags in the same leading JSDoc
-block as `@module`, then put one blank line before runtime imports:
+block as `@module`, then put one blank line before runtime imports. External or
+built-in runtime imports come first, followed by repository-owned relative
+`.mjs` runtime imports:
 
 ```js
 /**
@@ -295,16 +301,22 @@ block as `@module`, then put one blank line before runtime imports:
  * @import ...
  */
 
+import ... from 'node:...'
+import ... from 'package'
+
 import ... from '...mjs'
 import ... from '...mjs'
 ```
 
-Do not put module-level `@import` tags in separate JSDoc comments. During Stage 1,
-a migrated JavaScript module has no remaining runtime `.ts` / `.f.ts` import
-group: migrated JavaScript may import only migrated JavaScript at runtime. The
-blank line after the module JSDoc block is required even when the module has no
-`@import` tags; it keeps the header detached from the first import/declaration
-and preserves it through declaration emit.
+Do not put module-level `@import` tags in separate JSDoc comments. The `.mjs` /
+`.ts` grouping and the Stage 1 migration restriction apply to repository-owned
+relative runtime imports, not to external or built-in modules. During Stage 1, a
+migrated JavaScript module has no remaining relative runtime `.ts` / `.f.ts`
+import group: migrated JavaScript may depend at runtime on external modules and
+migrated repository JavaScript, but not on remaining authored TypeScript
+implementations. The blank line after the module JSDoc block is required even
+when the module has no `@import` tags; it keeps the header detached from the first
+import/declaration and preserves it through declaration emit.
 
 Where each kind of documentation belongs:
 
