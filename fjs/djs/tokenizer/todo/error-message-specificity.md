@@ -38,7 +38,7 @@ quote vs. bad number vs. bad escape, etc.), and nothing after the first
 problem gets checked.
 
 No current test depends on this (confirmed during the tokenizer-swap
-research: `fjs/djs/parser/proof.f.ts` had zero tests exercising an actual
+research: `fjs/djs/parser/proof.f.mjs` had zero tests exercising an actual
 tokenizer-emitted error token), so there's no urgency — this is tracked so
 it doesn't get silently forgotten, not because something is broken today.
 

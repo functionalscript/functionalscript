@@ -1,6 +1,6 @@
-import { parseFromTokens } from './module.f.ts'
+import { parseFromTokens } from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
-import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
+/** @import { DjsTokenWithMetadata } from '../tokenizer/types.ts' */
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
@@ -8,9 +8,8 @@ import { stringifyAsTree } from '../serializer/module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
-const tokenizeString
-    : (s: string) => readonly DjsTokenWithMetadata[]
-    = s => toArray(tokenize(stringToList(s))(''))
+/** @type {(s: string) => readonly DjsTokenWithMetadata[]} */
+const tokenizeString = s => toArray(tokenize(stringToList(s))(''))
 
 const stringifyDjsModule = stringifyAsTree(sort)
 

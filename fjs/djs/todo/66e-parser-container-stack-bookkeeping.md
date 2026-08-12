@@ -5,7 +5,7 @@
 
 ### Problem
 
-Both `fjs/media/json/parser/module.f.ts` and `fjs/djs/parser/module.f.ts` build the
+Both `fjs/media/json/parser/module.f.ts` and `fjs/djs/parser/module.f.mjs` build the
 container state machine out of four helpers — `startArray`, `startObject`,
 `endArray`, `endObject` — and within each module the two `start*` helpers and
 the two `end*` helpers share their *entire* stack-bookkeeping body. The only
@@ -60,7 +60,7 @@ const endObject
     }
 ```
 
-#### DJS (`fjs/djs/parser/module.f.ts:283-322`)
+#### DJS (`fjs/djs/parser/module.f.mjs:262-303`)
 
 The same shape recurs, with `{ ...state, ... }` spread instead of a fresh record
 and tuple containers instead of `kind`-tagged objects:
@@ -162,11 +162,11 @@ one and can land independently of 157.
 - [ ] In `fjs/media/json/parser/module.f.ts`, add `pushStack` / `popState` (or
       equivalently named) and `startContainer` / `endContainer`; derive
       `startArray` / `startObject` / `endArray` / `endObject` from them.
-- [ ] Apply the same shape to `fjs/djs/parser/module.f.ts`, preserving the
+- [ ] Apply the same shape to `fjs/djs/parser/module.f.mjs`, preserving the
       `{ ...state }` spread and the `endArray` non-array fallback inside the
       `build` callback.
 - [ ] Run `npx tsc` and `fjs t`; confirm `fjs/media/json/parser/proof.f.ts` and
-      `fjs/djs/parser/proof.f.ts` still pass with full line/branch coverage
+      `fjs/djs/parser/proof.f.mjs` still pass with full line/branch coverage
       (behaviour is unchanged — this is a pure refactor).
 
 ### Related

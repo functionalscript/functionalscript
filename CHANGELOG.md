@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/djs/parser/module` and `proof` migrate from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  moving `ParseError` into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for the runtime value and the `types.ts` specifier
+  for the type. Updates `fjs/djs/transpiler/module.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/djs/tokenizer/module` and `proof` migrate
   from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
   moving `DjsToken` and `DjsTokenWithMetadata` into a sibling `types.ts`
