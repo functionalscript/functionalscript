@@ -13,7 +13,7 @@ went wrong — `'invalid number'`,
 exact position of the failing character, and it kept tokenizing afterward,
 so the parser still saw whatever valid tokens came later.
 
-`fjs/djs/tokenizer/module.f.ts`'s grammar (`descentParser`) has no
+`fjs/djs/tokenizer/module.f.mjs`'s grammar (`descentParser`) has no
 cut/commit mechanism — it either parses the whole input as tokens or fails
 as one unit. This is why `numError`/`unterminated` exist at all (see
 `multilineContent`'s comment in `module.f.ts`): they turn what would be a
@@ -21,7 +21,7 @@ hard grammar failure into an always-succeeding, specially-tagged match, so
 the descent parser doesn't fall back to matching stray characters as
 unrelated operator tokens.
 
-As a result, `tokenizeJs`/`tokenize` in `fjs/djs/tokenizer/module.f.ts`
+As a result, `tokenizeJs`/`tokenize` in `fjs/djs/tokenizer/module.f.mjs`
 collapse every failure mode — malformed numbers, unterminated strings,
 unterminated comments, unrecognized characters, anything the grammar can't
 fully parse — into a single `{kind: 'error', message: 'invalid token'}`,
@@ -38,7 +38,7 @@ quote vs. bad number vs. bad escape, etc.), and nothing after the first
 problem gets checked.
 
 No current test depends on this (confirmed during the tokenizer-swap
-research: `fjs/djs/parser/proof.f.ts` had zero tests exercising an actual
+research: `fjs/djs/parser/proof.f.mjs` had zero tests exercising an actual
 tokenizer-emitted error token), so there's no urgency — this is tracked so
 it doesn't get silently forgotten, not because something is broken today.
 
@@ -83,5 +83,5 @@ diagnostics per file) shows up.
 
 ### Related
 
-- `fjs/djs/tokenizer/module.f.ts` — `numError`/`unterminated` tagging,
+- `fjs/djs/tokenizer/module.f.mjs` — `numError`/`unterminated` tagging,
   `tokenizeJs`'s error branch.

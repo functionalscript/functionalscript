@@ -14,7 +14,7 @@ host's:
 - **115 call sites call `JSON.stringify` directly** — and one of them is
   `fjs/media/json/serializer/module.f.mjs`, so the FunctionalScript serializer
   itself still bottoms out in the host. `numberSerialize` is `JSON.stringify`
-  with a different name, and `fjs/djs/serializer/module.f.ts:15` imports it, so
+  with a different name, and `fjs/djs/serializer/module.f.mjs:15` imports it, so
   *every number* this repository serializes — JSON and DJS alike — is still
   formatted by the host. `stringSerialize` no longer is: phase 1 below has
   shipped.
@@ -39,10 +39,10 @@ Three reasons to finish the job:
 | Shape | Sites | Where | Replacement |
 | --- | --- | --- | --- |
 | **Leaf serializer** | 1 | `fjs/media/json/serializer/module.f.mjs` | FunctionalScript number formatting — blocks everything below |
-| Expected-output comparison | 73 | `fjs/bnf/ll1/proof.f.ts` (27), `fjs/bnf/descent/proof.f.ts` (22), `fjs/media/json/serializer/proof.f.mjs` (10), `fjs/djs/tokenizer/proof.f.ts:795-829` (8), `fjs/bnf/data/proof.f.ts` (4), `fjs/media/revision/proof.f.ts:138`, `fjs/cas/evo/proof.f.ts:57` | `stringify(identity)` |
-| Assertion messages | 33 | `fjs/djs/tokenizer/proof.f.ts` (31), `fjs/types/rtti/ts/proof.f.mjs:8,12` (2) | pass the value, or `fjs/djs`'s `stringify` |
+| Expected-output comparison | 73 | `fjs/bnf/ll1/proof.f.ts` (27), `fjs/bnf/descent/proof.f.ts` (22), `fjs/media/json/serializer/proof.f.mjs` (10), `fjs/djs/tokenizer/proof.f.mjs:886-921` (8), `fjs/bnf/data/proof.f.ts` (4), `fjs/media/revision/proof.f.mjs:177`, `fjs/cas/evo/proof.f.mjs:68` | `stringify(identity)` |
+| Assertion messages | 33 | `fjs/djs/tokenizer/proof.f.mjs` (31), `fjs/types/rtti/ts/proof.f.mjs:8,12` (2) | pass the value, or `fjs/djs`'s `stringify` |
 | Source-text quoting | 5 | `fjs/emergent_testing/module.f.mjs:282,303,318`, `fjs/types/ts/module.f.mjs:36,48` | `stringSerialize` — already designed in `66c-emit-literals-via-owner-modules.md` |
-| JSON line framing | 2 | `fjs/emergent_testing/proof.f.ts:42`, `fjs/mcp/proof.f.ts:128` | `stringify(identity)` |
+| JSON line framing | 2 | `fjs/emergent_testing/proof.f.ts:42`, `fjs/mcp/proof.f.mjs:128` | `stringify(identity)` |
 | Pretty-printed file output | 1 | `fjs/ci/module.f.mjs:83` | needs indentation support, which `serialize` does not have |
 
 Three semantic differences to respect while migrating, none of them blocking:
@@ -54,7 +54,7 @@ Three semantic differences to respect while migrating, none of them blocking:
 - **`undefined` and `bigint`.** Native drops `undefined` object fields, turns
   them into `null` inside arrays, and throws on `bigint`. `serialize` takes
   `Unknown`, which excludes `undefined` outright, and `definedEntries` does the
-  dropping — so `fjs/protocol/mcp/stdio/proof.f.ts:102`'s omission test keeps
+  dropping — so `fjs/protocol/mcp/stdio/proof.f.mjs:119`'s omission test keeps
   its meaning. `bigint` values (the DJS token payloads behind the 31 message
   sites) need `fjs/djs`'s serializer, which already handles them.
 - **Types.** `serialize` demands `Unknown`; the proof sites pass domain types
@@ -146,7 +146,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
   — already owns the source-text-quoting sites (`fjs/types/ts`,
   `fjs/emergent_testing`); phase 3 defers to it rather than re-deciding.
 - [`fjs/types/object/todo/structurally-same.md`](../../../types/object/todo/structurally-same.md)
-  — `fjs/cas/evo/proof.f.ts:57` stringifies two values only to compare them;
+  — `fjs/cas/evo/proof.f.mjs:68` stringifies two values only to compare them;
   `structurallySame` is the better fix for that one site.
 - [`fjs/effects/node/todo/readjsonfile-writejsonfile-helpers.md`](../../../effects/node/todo/readjsonfile-writejsonfile-helpers.md)
   — an on-hold design whose `writeJsonFile` half waits on phase 4.

@@ -20,6 +20,325 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/effects/proof.f.ts` and
+  `fjs/effects/eff/proof.f.ts` migrate from authored TypeScript to
+  JSDoc-typed JavaScript (`.f.mjs`) — explicit generic instantiations
+  (`match<AddOp, number>(...)`, `do_<AddOp>('add')`, `pure<readonly
+  number[]>([])`, `okStep<number, string, never, number>(...)`,
+  `error<string>(...)`) become inline `@type` casts, per convention;
+  `assertPure`'s generic function becomes a `@template`/`@param` block;
+  the local `AddOp`/`AnyOp` types are renamed `_AddOp`/`_AnyOp` (neither
+  was previously exported, but a JSDoc `@typedef` has no non-exported
+  form). `fjs/effects/eff/proof.f.mjs` updates its import of
+  `assertPure` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/text/utf8/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — no type
+  annotations to convert
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/text/utf16/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/ci/proof.f.ts` migrates from authored
+  TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/types/btree/remove/proof.f.ts` migrates
+  from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/types/btree/set/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/cli/proof.f.ts` migrates from authored
+  TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/ci/nix/proof.f.ts` migrates from authored
+  TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/types/range_map/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/types/list/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/types/btree/find/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/types/btree/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/types/byte_set/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/effects/memory/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the local
+  `MemoryState` type is renamed `_MemoryState` (it was never exported, but
+  a JSDoc `@typedef` has no non-exported form)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/types/sorted_set/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/text/proof.f.ts` migrates from authored
+  TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/types/sorted_list/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/website/proof.f.ts` migrates from authored
+  TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — no type annotations
+  to convert
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/types/bit_vec/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/types/bigint/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the local
+  `Benchmark` type is renamed `_Benchmark` (it was never exported, but
+  a JSDoc `@typedef` has no non-exported form)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/fsc/proof.f.ts` migrates from authored
+  TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/dev/update/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/djs/ast/proof.f.ts` migrates from authored
+  TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — no type annotations
+  to convert
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/crypto/sha2/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/crypto/pow/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/text/code_point/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/types/array/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/types/function/operator/proof.f.ts` migrates
+  from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/common/monoid/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/text/sgr/proof.f.ts` migrates from authored
+  TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/text/ascii/proof.f.ts` migrates from authored
+  TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — no type annotations to
+  convert
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/module.ts` (the `fjs` CLI entry point) migrates
+  to `fjs/module.mjs`, per the `module.ts -> module.mjs` stage-1 mapping.
+  `package.json`'s `bin.fjs` now points directly at the authored `.mjs`
+  (dropping the compiled-`.js` indirection, since `.mjs` already ships in
+  the npm package) and its `test`/`start`/`ci-update`/`dev-update`/
+  `index-html` scripts, and `deno.json`'s `fjs` task, are updated
+  accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/effects/node/module.ts` (the Node.js effect
+  runner — `runEffect`, `run`) migrates from authored TypeScript to
+  JSDoc-typed JavaScript, per the `module.ts -> module.mjs` stage-1
+  mapping — the local `Server`, `Readable`, `IncomingMessage`,
+  `ServerResponse`, `RequestListener`, `EffectToPromise`, and
+  `FrameworkRegister` types are renamed `_Server`, `_Readable`,
+  `_IncomingMessage`, `_ServerResponse`, `_RequestListener`,
+  `_EffectToPromise`, `_FrameworkRegister` (none were previously
+  exported, but a JSDoc `@typedef` has no non-exported form; the
+  `_`-prefix also avoids a same-name collision with the differently-shaped
+  public `Server`/`IncomingMessage`/`ServerResponse`/`RequestListener`
+  types in the sibling `fjs/effects/node/types.ts`).
+  Importers must use the `.mjs` specifier. Updates `fjs/module.ts` and
+  `fjs/emergent_testing/all.test.ts` accordingly. Also fixes two stale
+  `fjs/mcp/module.f.ts` / `fjs/protocol/mcp/module.f.ts` doc-comment
+  references (left over from earlier commits in this PR) to their
+  current `.f.mjs` paths
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/effects/node/memory/module.ts` and `proof`
+  migrate from authored TypeScript to JSDoc-typed JavaScript, per the
+  `module.ts -> module.mjs` stage-1 mapping — no local complex types to
+  split (`MemoryOperationMap`/`Uuid` are only used internally).
+  Importers must use the `.mjs` specifier. Updates
+  `fjs/effects/node/module.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/effects/module.ts` (`asyncRun`) and
+  `fjs/types/result/module.ts` (`tryCatch`, `asyncTryCatch`) migrate
+  from authored TypeScript to JSDoc-typed JavaScript, per the
+  `module.ts -> module.mjs` stage-1 mapping (these are plain `.ts`
+  implementation modules, not `.f.ts`). Importers must use the `.mjs`
+  specifier. Updates `fjs/effects/node/module.ts`,
+  `fjs/effects/node/memory/module.ts`, and
+  `fjs/effects/node/memory/proof.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/module` and `proof` (the top-level
+  FunctionalScript compiler entry point and command dispatcher) migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
+  (`.f.mjs`) — no local complex types to split. Importers must use the
+  `.f.mjs` specifier. Updates `fjs/module.ts`'s import accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/mcp/cas/module` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — the local
+  `Meta` type is renamed `_Meta` (it was never exported, but a JSDoc
+  `@typedef` has no non-exported form). Importers must use the `.f.mjs`
+  specifier. Updates `fjs/mcp/module.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/mcp/evo/module` and `proof` migrate from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) —
+  no local types to split (`evoToolRegistry` is the only export beyond
+  the four rtti schema consts). Importers must use the `.f.mjs`
+  specifier. Updates `fjs/mcp/module.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/protocol/mcp/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  moving `Implementation`, `ServerCapabilities`, `InitializeParams`,
+  `InitializeResult`, `TextContent`, `BlobResource`, `EmbeddedResource`,
+  `ContentItem`, `Tool`, `ToolsListParams`, `ToolsListResult`,
+  `ToolsCallParams`, `ToolsCallResult`, `McpHandlers`, `ToolEntry`,
+  `Handle`, `Uninitialized`, `Initializing`, `InitializedState`,
+  `McpSessionState`, and `McpConfig` into a sibling `types.ts` —
+  importers must use the `.f.mjs` specifier for the runtime values and
+  the `types.ts` specifier for the types. Updates `fjs/mcp/evo/module.f.ts`,
+  `fjs/mcp/evo/proof.f.ts`, `fjs/mcp/module.f.ts`, `fjs/mcp/cas/module.f.ts`,
+  and `fjs/mcp/proof.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/media/json/schema/module` and `proof`
+  migrate from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
+  (`.f.mjs`) — `Unknown` stays as a JSDoc typedef in the module (no
+  separate `types.ts`, no external importers of the type); the local
+  `UnknownConst` type is renamed `_UnknownConst` (it was never exported,
+  but a JSDoc `@typedef` has no non-exported form). Importers must use
+  the `.f.mjs` specifier. Updates `fjs/protocol/mcp/module.f.ts`
+  accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/mcp/module` and `proof` migrate from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) —
+  no local complex types to split (`casMcpHandlers`, `casConfig`, and
+  `casMcpServer` are the only exports). Importers must use the `.f.mjs`
+  specifier. Updates `fjs/module.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/djs/module` and `proof` migrate from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) —
+  `Object`, `Array`, `Primitive`, and `Unknown` no longer re-export from
+  the module; importers must use `fjs/djs/types.ts` directly (this
+  completes the extraction started when those types moved out of
+  `fjs/djs/module.f.ts` earlier in this PR). Updates
+  `fjs/types/rtti/validate/proof.f.ts`, `fjs/types/rtti/parse/proof.f.ts`,
+  `fjs/media/json/schema/module.f.ts`, and `fjs/module.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/djs/transpiler/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`)
+  — `ParseContext` and `djsResult` stay as JSDoc typedefs in the module
+  (no separate `types.ts`, no external importers of the types). Importers
+  must use the `.f.mjs` specifier. Updates `fjs/djs/module.f.ts`
+  accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/djs/parser/module` and `proof` migrate from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  moving `ParseError` into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for the runtime value and the `types.ts` specifier
+  for the type. Updates `fjs/djs/transpiler/module.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/djs/tokenizer/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  moving `DjsToken` and `DjsTokenWithMetadata` into a sibling `types.ts`
+  — importers must use the `.f.mjs` specifier for the runtime values and
+  the `types.ts` specifier for the types. Updates
+  `fjs/djs/parser/module.f.ts`, `fjs/djs/parser/proof.f.ts`, and
+  `fjs/djs/transpiler/module.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/djs/serializer/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`)
+  — `MapEntries`, `RefCounter`, `Refs`, `GetConstsState`, and `RefLookup`
+  stay as `_`-prefixed JSDoc typedefs in the module (no separate
+  `types.ts`, no external importers of the types). Importers must use the
+  `.f.mjs` specifier. Updates `fjs/djs/module.f.ts`,
+  `fjs/djs/tokenizer/module.f.ts`, and six proof files
+  (`fjs/djs/ast`, `fjs/djs/parser`, `fjs/djs/tokenizer`,
+  `fjs/djs/transpiler`, `fjs/js/tokenizer`, `fjs/media/json/tokenizer`)
+  accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/protocol/json_rpc/module`'s `id` schema const
+  is renamed to `_id` — it crosses into the sibling `types.ts` (as
+  `typeof _id`) but was never meant to be a public runtime export, so the
+  `_` prefix marks it private-by-convention like the equivalent case in
+  `fjs/media/revision/module`'s `_lock`. `fjs/media/module`'s CHANGELOG
+  entry below is corrected: it no longer claims `fjs/media/proof.f.ts`
+  stays TypeScript, since this PR migrates it (see the next entry). Also
+  adds the required `@module` header to four `types.ts` files added
+  earlier in this PR that were missing one (`fjs/cas/evo/types.ts`,
+  `fjs/media/types.ts`, `fjs/media/revision/types.ts`,
+  `fjs/protocol/json_rpc/types.ts`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/media/proof.f.ts` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — no local
+  types to split
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/djs/ast/module` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), moving
+  `AstModule`, `AstConst`, `AstModuleRef`, `AstArray`, `AstObject`, and
+  `AstBody` into a sibling `types.ts` — importers must use the `.f.mjs`
+  specifier for the runtime value and the `types.ts` specifier for the
+  types. `fjs/djs`'s own recursive `Primitive`/`Object`/`Array`/`Unknown`
+  types move out of `fjs/djs/module.f.ts` into a new sibling
+  `fjs/djs/types.ts` (hand-authored, following the pattern
+  `fjs/media/json/types.ts` established), with `fjs/djs/module.f.ts`
+  re-exporting them — `fjs/djs/module.f.ts` itself stays TypeScript for
+  now, since it still depends on `fjs/djs/serializer` and
+  `fjs/djs/transpiler`, neither yet migrated. Updates
+  `fjs/djs/ast/proof.f.ts`, `fjs/djs/parser/module.f.ts`, and
+  `fjs/djs/transpiler/module.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/cas/evo/module` and `proof` migrate from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  moving `Hash`, `Subject`, `RevisionData`, `SubjectState`, `Cache`, and
+  `Evo` into a sibling `types.ts` — importers must use the `.f.mjs`
+  specifier for the runtime values and the `types.ts` specifier for the
+  types. Updates `fjs/mcp/evo/module`, `fjs/mcp/evo/proof.f.ts`,
+  `fjs/mcp/module`, `fjs/mcp/cas/module`, and `fjs/mcp/proof.f.ts`
+  accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/protocol/mcp/stdio/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) —
+  `Step` stays as a JSDoc typedef in the module (no separate `types.ts`, no
+  external importers of the type). Importers must use the `.f.mjs`
+  specifier. Updates `fjs/mcp/module` and `fjs/mcp/proof.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/media/revision/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  moving `LockMap`, `Revision`, and `RevisionError` into a sibling
+  `types.ts` — importers must use the `.f.mjs` specifier for the runtime
+  values and the `types.ts` specifier for the types. Updates
+  `fjs/cas/evo/module`, `fjs/cas/evo/proof.f.ts`, `fjs/mcp/cas/module`,
+  `fjs/mcp/proof.f.ts`, and `fjs/media/proof.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/protocol/json_rpc/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  moving `Id`, `Request`, `RpcError`, `Response`, `Handler`, and `Handlers`
+  into a sibling `types.ts` — importers must use the `.f.mjs` specifier for
+  the runtime values and the `types.ts` specifier for the types. Updates
+  `fjs/protocol/mcp/module`, `fjs/protocol/mcp/stdio/module`,
+  `fjs/protocol/mcp/stdio/proof.f.ts`, and `fjs/mcp/proof.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/media/module` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), moving
+  `DialectEntry` into a sibling `types.ts` — importers must use the
+  `.f.mjs` specifier for the runtime value and the `types.ts` specifier
+  for the type. Updates `fjs/media/revision/module` and
+  `fjs/mcp/cas/module` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/fsm/module` and `proof` migrate from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — `Grammar` stays
+  as a JSDoc typedef in the module (no separate `types.ts`, no external
+  importers of the type). Importers must use the `.f.mjs` specifier
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/dev/package_json/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) —
+  `PackageJson` and `JsonTextError` stay as JSDoc typedefs in the module
+  (no separate `types.ts`, no external importers of the types). Importers
+  must use the `.f.mjs` specifier
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - `nanvm-lib` operator behaviour is described once, as data, in
   `fjs/nanvm/module.f.mjs`: the JavaScript proof and the generated
   Rust tests both read it, so a case is written once instead of twice

@@ -52,7 +52,7 @@ live once in the `code_point` contract and be obeyed by both encoders.
    encode→decode of an invalid input is stable.
 
 No new abstraction is required; this aligns one module to the shared contract
-module. **Verify first** against `fjs/text/utf16/proof.f.ts` expectations — this
+module. **Verify first** against `fjs/text/utf16/proof.f.mjs` expectations — this
 borders on a behavior change, so confirm the intended round-trip semantics before
 editing (it may turn out the current truncation is deliberate, in which case the
 resolution is to document *that* divergence in `code_point` instead).

@@ -7,7 +7,7 @@ rescanning the store on every query.
 A `Cas<O>` stores `vnd.fjs.revision` blobs like any other content: immutable
 bytes under a hash. Resolving "what are the current heads of subject X"
 means walking every stored revision and reversing the `parents` links — too
-expensive to redo per request. `fjs/cas/evo/module.f.ts` scans the whole store
+expensive to redo per request. `fjs/cas/evo/module.f.mjs` scans the whole store
 once into an in-memory `Cache` (keyed with
 [`fjs/effects/memory`](../../effects/memory/module.f.mjs)) mapping subject →
 head hashes, then keeps that cache current as new revisions are `add`ed

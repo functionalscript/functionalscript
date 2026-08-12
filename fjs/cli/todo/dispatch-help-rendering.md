@@ -60,7 +60,7 @@ help rendering is the clear win.
 
 - [ ] Hoist the help-table rendering into `renderHelp`; call it lazily in the
       three help/error branches.
-- [ ] `npx tsc` clean; `fjs t` passes (`fjs/cli/proof.f.ts`).
+- [ ] `npx tsc` clean; `fjs t` passes (`fjs/cli/proof.f.mjs`).
 
 ### Related
 

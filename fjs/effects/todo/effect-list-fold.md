@@ -89,11 +89,11 @@ Six, all currently strict:
 | site | argument | after |
 | --- | --- | --- |
 | `fjs/cas/cli/module.f.mjs:63` | `c.list()` | streams once `cas.list()` does |
-| `fjs/cas/evo/module.f.ts:174` | `cas.list()` | streams once `cas.list()` does |
-| `fjs/cas/evo/module.f.ts:232` | `pure(parents)` | `fromList(parents)` |
+| `fjs/cas/evo/module.f.mjs:202` | `cas.list()` | streams once `cas.list()` does |
+| `fjs/cas/evo/module.f.mjs:280` | `pure(parents)` | `fromList(parents)` |
 | `fjs/cas/module.f.mjs:149` | `pure(expired)` | `fromList(expired)` |
 | `fjs/cas/module.f.mjs:310` | `pure([0…7])` | `fromList([0…7])` |
-| `fjs/djs/transpiler/module.f.ts:67` | `pure(pathsArray)` | `fromList(pathsArray)` |
+| `fjs/djs/transpiler/module.f.mjs:73` | `pure(pathsArray)` | `fromList(pathsArray)` |
 
 The two `cas.list()` sites are the ones this exists for; converting them is a
 follow-up in `fjs/cas` (see *Related*), not part of this issue.
@@ -118,7 +118,7 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
   confirm it with a large-`n` proof before relying on it. If it bites, the
   answer is for producers to yield `Do` nodes, not to change the combinator.
 - **`S` inference.** `init` sitting before `f` already forces one annotation, at
-  `fjs/cas/evo/module.f.ts:235` (`acc: Result<readonly Revision[], string>`);
+  `fjs/cas/evo/module.f.mjs:282` (`acc: Result<readonly Revision[], string>`);
   without it TypeScript fixes `S` to `Ok<…>` from `init` and the `'error'`
   branch goes dead. The retype should not change this, but re-check.
 - **Proof coverage.** `fjs/effects/list/` has no `proof.f.ts` at all today.

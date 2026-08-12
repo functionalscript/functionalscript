@@ -25,11 +25,11 @@ A module whose `export default` is a `NodeProgram` (`Program<NodeOp>`). The `.f.
 
 ```ts
 import app from './node.app.f.ts'
-import { run } from '../effects/node/module.ts'
+import { run } from '../effects/node/module.mjs'
 await run(app)
 ```
 
 ### Open questions
 
-- Should existing entry points (`fjs/module.ts`) be migrated to the `node.app.f.ts` convention, or only new entry points?
+- Should existing entry points (`fjs/module.mjs`) be migrated to the `node.app.f.ts` convention, or only new entry points?
 - Canonical doc location: top-level `README.md`, `fjs/README.md`, or `CONVENTIONS.md`?

@@ -57,7 +57,7 @@ grammar size, not input size — it does not need to change.
 - [ ] Add a `longInput` proof group mirroring
       `fjs/bnf/descent/proof.f.ts` — long `repeat0Plus` repetition (10,000+
       code points) and deep bracket nesting via `deterministic()`.
-- [ ] `npx tsc`, `node ./fjs/module.ts t`.
+- [ ] `npx tsc`, `node ./fjs/module.mjs t`.
 
 ### Related
 

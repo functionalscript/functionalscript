@@ -64,7 +64,7 @@ environment.
 | `npm run cov`                           | Node 22+ | no             | `node --test` plus coverage.             |
 | `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |
 | `deno task test` / `deno task cov`      | Deno     | no             | Deno's native test runner / coverage.    |
-| `bun fjs/module.ts test`                | Bun      | no             | The repo's runner under Bun.             |
+| `bun fjs/module.mjs test`                | Bun      | no             | The repo's runner under Bun.             |
 | `bun test`                              | Bun      | no             | Bun's native test runner.                |
 | `fjs test`                              | Node 22+ | to install     | After `npm install -g functionalscript`. |
 | `npx functionalscript test`             | Node 22+ | yes            | No install step.                         |
@@ -698,6 +698,31 @@ inline-cast position gives it the special const-assertion meaning. This is
 unlike every other `@type` cast, which works in both positions — don't
 "clean up" a `@type {const}` inline cast into the declaration form.
 
+#### Prefer `@satisfies` over `@type` when checking, not overriding
+
+When the goal is to *verify* that an expression matches a shape — not to
+*declare* what the compiler should treat it as — use an inline
+`/** @satisfies {T} */ (expr)` cast instead of `/** @type {T} */ (expr)`.
+`@satisfies` (mirroring TypeScript's `expr satisfies T`) checks assignability
+against `T` while keeping the expression's own inferred type; `@type` discards
+the inferred type and substitutes `T`, silently absorbing any mismatch instead
+of reporting it. If the original TypeScript source used `satisfies`, migrate it
+to `@satisfies`, not `@type` — the two are not interchangeable, and swapping one
+for the other changes what gets checked.
+
+This matters most for an expression handed to a generic function, where an
+enclosing `@type` cast can strip the very context the function relies on to
+check its argument. A cast around a big object literal passed to a
+`ToAsyncOperationMap<O>`-shaped parameter, for example, blocks TypeScript from
+checking each operation's implementation against `O` — the object literal is no
+longer contextually typed by the call site, so a drifted handler shape is
+absorbed by the cast instead of flagged. Prefer no cast at all when the callee
+already supplies enough context (as `asyncRun(map)` does here) so the object
+literal is checked structurally on its own; reach for `@satisfies` only where a
+check without adopting the target type is actually wanted, e.g. a value that
+must additionally be nominal-branded — `asNominal(x) satisfies T` becomes
+`/** @satisfies {T} */ (asNominal(x))`, not `@type`.
+
 #### Mutually recursive constants: cross-reference with `typeof`
 
 When exported constants refer to each other in a cycle — the usual shape for a
@@ -820,7 +845,7 @@ satisfy the rule. The cases in this repository:
   value still *is* a `symbol` / an `S` at runtime. A named field would invent a
   wrapper that never exists.
 - **Describing an object you don't own, or a flat serialized shape.**
-  `IncomingMessage = Readable & {…}` in `fjs/effects/node/module.ts` describes
+  `IncomingMessage = Readable & {…}` in `fjs/effects/node/module.mjs` describes
   Node's object, which really does carry both member sets on one level. Nesting
   the base under a field there would describe something that isn't there — and
   for a wire format it would change the encoding, not just the type.

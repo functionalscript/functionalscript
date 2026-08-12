@@ -7,7 +7,7 @@
 
 Two of fsm's stream transforms are written as self-referential `Scan`
 operators although they carry no state — each ignores the scan state and
-returns itself (`fjs/fsm/module.f.ts:59-67`):
+returns itself (`fjs/fsm/module.f.mjs:60-67`):
 
 ```ts
 const stringifyOp: Scan<Entry<SortedSet<string>>, Entry<string>>
@@ -57,11 +57,11 @@ behavior are unchanged; verify with the existing proof.
 - [ ] Replace `stringifyOp`/`scanStringify` and `fetchOp`/`scanFetch` with
       `map` projections; drop the now-unused `scan` import if nothing else
       uses it.
-- [ ] `npx tsc` clean; `fjs t` passes (`fjs/fsm/proof.f.ts`).
+- [ ] `npx tsc` clean; `fjs t` passes (`fjs/fsm/proof.f.mjs`).
 
 ### Related
 
-- `fjs/fsm/module.f.ts:59-67` — the two operators; consumers at `:74-78`.
+- `fjs/fsm/module.f.mjs:60-67` — the two operators; consumers at `:74-78`.
 - `fjs/types/list/module.f.mjs` — `map` (`:117`), `scan` (`:232`).
 - `fjs/bnf/todo/recognizer-backend.md` — reuses fsm's scan *drivers*; does not
   touch these internal helpers.

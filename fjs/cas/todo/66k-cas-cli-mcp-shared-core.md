@@ -15,7 +15,7 @@
 ### Problem
 
 The CAS CLI (`fjs/cas/module.f.mjs` `commands`) and the CAS MCP server
-(`fjs/mcp/cas/module.f.ts`) both implement the same three operations — add,
+(`fjs/mcp/cas/module.f.mjs`) both implement the same three operations — add,
 get, list — but with duplicated logic:
 
 - Both construct `fileCas(sha256)(home)` independently.
@@ -106,4 +106,4 @@ accepted as-is, the same as `cp`.
   MCP file-path (`url`) source; this issue's shared `add` must keep the
   file-path source CLI-only
 - `fjs/cas/module.f.mjs` — CLI commands and core types
-- `fjs/mcp/cas/module.f.ts` — MCP tool registry and server
+- `fjs/mcp/cas/module.f.mjs` — MCP tool registry and server

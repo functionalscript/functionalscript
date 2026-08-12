@@ -33,7 +33,7 @@ test commands, runner image, and generated job identifier.
 - [ ] Construct the canonical job map so the complete Bun entry is conditionally added
       only when `bun.lock` exists.
 - [ ] Do not call a job builder with `[]` for an absent runtime.
-- [ ] Update `fjs/ci/proof.f.ts` to assert that each job key is absent without its
+- [ ] Update `fjs/ci/proof.f.mjs` to assert that each job key is absent without its
       lockfile and present with its lockfile.
 - [ ] Verify the present-job proofs still cover the existing Deno and Bun steps and
       commands.

@@ -11,7 +11,7 @@ meaning is a span, one point cannot say what the reader needs.
 
 Unterminated tokens are the clear case. The grammar *matches* an unterminated
 string and tags it `unterminated`, so `tokenizeJs` takes the structural-error
-path and `metadataAfterTag` (`fjs/djs/tokenizer/module.f.ts:512`) reports the
+path and `metadataAfterTag` (`fjs/djs/tokenizer/module.f.mjs:515`) reports the
 position of the token's **start**:
 
 | Input | Reported | Where the input ran out |
@@ -27,7 +27,7 @@ starting at 1:1" and "expected `\"` before end of input at 1:14" are both worth
 saying, and a caret-and-underline renderer needs both to draw anything.
 
 The inconsistency this creates is visible in the current expectations
-(`fjs/djs/tokenizer/proof.f.ts`, `errorPosition` group): `'"value'` reports the
+(`fjs/djs/tokenizer/proof.f.mjs`, `errorPosition` group): `'"value'` reports the
 token start at 1:1, while `'/* c'` — also unterminated — reports 1:5, the end of
 input, because the comment's content is consumed before the tag is emitted. Two
 unterminated constructs, two different conventions, and neither can express what

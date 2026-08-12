@@ -30,7 +30,7 @@ cross-checkable.
 
 **Caution:** this borders the open `666-utf16-encode-errormask` contract
 work and any change must be proven byte-identical against
-`fjs/text/utf8/proof.f.ts` before landing. It is a naming/single-source
+`fjs/text/utf8/proof.f.mjs` before landing. It is a naming/single-source
 cleanup, not a behavior change — if the layout itself is revisited by the
 utf16 work, land that first and fold this in.
 

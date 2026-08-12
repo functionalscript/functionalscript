@@ -12,19 +12,19 @@ for those two shapes exist in **two modules**, once privately here and once
 re-rolled downstream:
 
 ```ts
-// fjs/protocol/json_rpc/module.f.ts:87 — private
+// fjs/protocol/json_rpc/module.f.mjs:81 — private
 const errorResponseOf = (id: Id) => (error: RpcError): Response =>
     ({ jsonrpc, error, id })
-// fjs/protocol/json_rpc/module.f.ts:116 — success shape inlined in dispatch
+// fjs/protocol/json_rpc/module.f.mjs:110 — success shape inlined in dispatch
     ? { jsonrpc, result, id }
 
-// fjs/protocol/mcp/module.f.ts:240-244 — the same two constructors, rebuilt
+// fjs/protocol/mcp/module.f.mjs:220-224 — the same two constructors, rebuilt
 const _errResponse = (id: Id) => (error: RpcError): Response =>
     ({ jsonrpc, error, id })
 const _okResponse = (id: Id) => (result: Unknown): Response =>
     ({ jsonrpc, result, id })
 
-// fjs/protocol/mcp/stdio/module.f.ts:52,55 — third and fourth copies of the error envelope
+// fjs/protocol/mcp/stdio/module.f.mjs:57,62 — third and fourth copies of the error envelope
 const parseErrorResponse: Response = { jsonrpc, error: parseError, id: null }
 const internalErrorResponse = (id: Response['id']): Response => ({ jsonrpc, error: internalError, id })
 ```
@@ -52,11 +52,11 @@ itself and `mcpStep`), so the extraction is past the second-consumer bar.
 
 ### Proposal
 
-Export both constructors from `fjs/protocol/json_rpc/module.f.ts` and consume them in
+Export both constructors from `fjs/protocol/json_rpc/module.f.mjs` and consume them in
 `dispatch` and `mcp`:
 
 ```ts
-// fjs/protocol/json_rpc/module.f.ts
+// fjs/protocol/json_rpc/module.f.mjs
 export const errorResponseOf = (id: Id) => (error: RpcError): Response =>
     ({ jsonrpc, error, id })
 
@@ -69,7 +69,7 @@ export const successResponseOf = (id: Id) => (result: Unknown): Response =>
   uses. Keep the pair's names parallel.
 - `dispatch` replaces its inline `{ jsonrpc, result, id }` with
   `successResponseOf(id)(result)`.
-- `fjs/protocol/mcp/module.f.ts` deletes `_errResponse`/`_okResponse` and imports the
+- `fjs/protocol/mcp/module.f.mjs` deletes `_errResponse`/`_okResponse` and imports the
   exported pair; no behavior change.
 - Future JSON-RPC-based servers (the `resources/*`, `prompts/*`, `logging/*`
   methods from [i665-mcp](../../mcp/todo/README.md)) get the constructors
@@ -83,19 +83,19 @@ after this change it builds on the imported one.
 ### Tasks
 
 - [ ] Export `errorResponseOf`; add and export `successResponseOf` in
-      `fjs/protocol/json_rpc/module.f.ts`; use it in `dispatch`.
-- [ ] Replace `_errResponse`/`_okResponse` in `fjs/protocol/mcp/module.f.ts` with the
+      `fjs/protocol/json_rpc/module.f.mjs`; use it in `dispatch`.
+- [ ] Replace `_errResponse`/`_okResponse` in `fjs/protocol/mcp/module.f.mjs` with the
       imported constructors.
 - [ ] Rebuild `parseErrorResponse`/`internalErrorResponse` in
-      `fjs/protocol/mcp/stdio/module.f.ts` on the imported `errorResponseOf`.
-- [ ] `npx tsc` clean; `fjs t` passes (`fjs/protocol/json_rpc/proof.f.ts`,
-      `fjs/protocol/mcp/proof.f.ts`).
+      `fjs/protocol/mcp/stdio/module.f.mjs` on the imported `errorResponseOf`.
+- [ ] `npx tsc` clean; `fjs t` passes (`fjs/protocol/json_rpc/proof.f.mjs`,
+      `fjs/protocol/mcp/proof.f.mjs`).
 
 ### Related
 
-- `fjs/protocol/json_rpc/module.f.ts` — owner of the `Response` envelope.
-- `fjs/protocol/mcp/module.f.ts:240-244` — the duplicated private constructors.
-- `fjs/protocol/mcp/module.f.ts` `okResult`/`errorResult` — the same
+- `fjs/protocol/json_rpc/module.f.mjs` — owner of the `Response` envelope.
+- `fjs/protocol/mcp/module.f.mjs:220-224` — the duplicated private constructors.
+- `fjs/protocol/mcp/module.f.mjs` `okResult`/`errorResult` — the same
   owner-exports-the-pair pattern, already applied to `ToolsCallResult`.
 - [66D-mcp-validate-response-envelope](../../mcp/todo/README.md) — builds
   its `validated` helper on top of these constructors.

@@ -26,7 +26,7 @@ Create `fjs/common/` for cross-cutting reusable algorithms, starting by moving `
 
 ### 3. Promote `fjs` bin to `fjs/` root
 
-`fjs/fjs/module.f.ts` is the top-level CLI dispatcher — nothing imports it as a library. Move `fjs/fjs/{module.ts, module.f.ts, proof.f.ts, README.md}` to `fjs/`. Update `package.json` (`bin.fjs`, scripts) and `deno.json` (`fjs` task). Fix relative imports (drop one `../`).
+`fjs/fjs/module.f.mjs` is the top-level CLI dispatcher — nothing imports it as a library. Move `fjs/fjs/{module.ts, module.f.mjs, proof.f.mjs, README.md}` to `fjs/`. Update `package.json` (`bin.fjs`, scripts) and `deno.json` (`fjs` task). Fix relative imports (drop one `../`).
 
 ### Later candidates
 

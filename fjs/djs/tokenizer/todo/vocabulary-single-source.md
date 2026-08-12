@@ -6,14 +6,14 @@
 ## Problem
 
 The operator vocabulary is declared twice in
-`fjs/djs/tokenizer/module.f.ts`, and the two copies have already drifted.
+`fjs/djs/tokenizer/module.f.mjs`, and the two copies have already drifted.
 
 The grammar's `operator` variant lists every operator as an object key
-(`fjs/djs/tokenizer/module.f.ts:135-193`); the descent parser emits the
+(`fjs/djs/tokenizer/module.f.mjs:147-203`); the descent parser emits the
 matched branch's **key** as the `AstTag`. Then `operatorTags`
-(`fjs/djs/tokenizer/module.f.ts:266-275`) re-lists the same strings by hand
+(`fjs/djs/tokenizer/module.f.mjs:306-315`) re-lists the same strings by hand
 as a `Set`, whose only consumer is `filterFunc`
-(`fjs/djs/tokenizer/module.f.ts:277-295`): a grammar tag survives as a token
+(`fjs/djs/tokenizer/module.f.mjs:318-333`): a grammar tag survives as a token
 only if `operatorTags.has(tk)`.
 
 The drift is live, and both copies are wrong in different ways. JavaScript

@@ -1,0 +1,77 @@
+/** @import { Unknown } from '../../media/json/types.ts' */
+
+import { has, intersect, union } from './module.f.mjs'
+import { stringify } from '../../media/json/module.f.mjs'
+import { sort } from '../object/module.f.mjs'
+import { toArray, countdown, length } from '../list/module.f.mjs'
+import { flip } from '../function/module.f.mjs'
+import { cmp } from '../number/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
+
+/** @type {(a: readonly Unknown[]) => string} */
+const str = a => stringify(sort)(a)
+
+const reverseCmp = flip(cmp)
+
+export const proof = {
+    example: () => {
+        const cmp = (/** @type {number} */ a) => (/** @type {number} */ b) => a < b ? -1 : a > b ? 1 : 0
+
+        const setA = [1, 3, 5]
+        const setB = [3, 4, 5]
+
+        const unionSet = union(cmp)(setA)(setB) // [1, 3, 4, 5]
+        assertEq(str(unionSet), '[1,3,4,5]', 0)
+
+        const intersectionSet = intersect(cmp)(setA)(setB) // [3, 5]
+        assertEq(str(intersectionSet), '[3,5]', 1)
+
+        assert(has(cmp)(3)(setA), 2)
+        assert(!(has(cmp)(2)(setA)), 3)
+    },
+    union: [
+        () => {
+            const result = str(toArray(union(cmp)([2, 3, 4])([1, 3, 5])))
+            assertEq(result, '[1,2,3,4,5]')
+        },
+        () => {
+            const result = str(toArray(union(cmp)([1, 2, 3])([])))
+            assertEq(result, '[1,2,3]')
+        },
+        () => {
+            const n = 10_000
+            const sortedSet = toArray(countdown(n))
+            const result = union(reverseCmp)(sortedSet)(sortedSet)
+            const len = length(result)
+            assert(len == n, result)
+        }
+    ],
+    intersect: [
+        () => {
+            const result = str(toArray(intersect(cmp)([2, 3, 4])([1, 3, 5])))
+            assertEq(result, '[3]')
+        },
+        () => {
+            const result = str(toArray(intersect(cmp)([1, 2, 3])([])))
+            assertEq(result, '[]')
+        }
+    ],
+    has: [
+        () => {
+            const result = has(cmp)(0)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+            assert(result, result)
+        },
+        () => {
+            const result = has(cmp)(3)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+            assert(!(result), result)
+        },
+        () => {
+            const result = has(cmp)(77)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+            assert(!(result), result)
+        },
+        () => {
+            const result = has(cmp)(80)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+            assert(result, result)
+        }
+    ]
+}

@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/djs/serializer/module.f.ts` already imports the serializer atoms it
+`fjs/djs/serializer/module.f.mjs` already imports the serializer atoms it
 shares with JSON from `fjs/media/json/serializer/module.f.mjs` (line 15:
 `objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize,
 boolSerialize`) — but two pieces of the same property-serialization
@@ -17,7 +17,7 @@ vocabulary were left behind and re-declared instead:
 ```ts
 // fjs/media/json/module.f.ts:70
 const colon = [':']
-// fjs/djs/serializer/module.f.ts:17
+// fjs/djs/serializer/module.f.mjs:17
 const colon = [':']
 ```
 
@@ -28,7 +28,7 @@ const colon = [':']
 // fjs/media/json/module.f.ts:74-76
 type Entries = List<Entry>
 type MapEntries = (entries: Entries) => Entries
-// fjs/djs/serializer/module.f.ts:23
+// fjs/djs/serializer/module.f.mjs:23
 type MapEntries = (entries: List<ObjectEntry<Unknown>>) => List<ObjectEntry<Unknown>>
 ```
 
@@ -58,7 +58,7 @@ unifies the value types the same way but does not cover `MapEntries`.
 
 - [ ] Export `colon` and `MapEntries<P>` from `fjs/media/json/serializer`.
 - [ ] Delete the local copies in `fjs/media/json/module.f.ts` and
-      `fjs/djs/serializer/module.f.ts`; import instead.
+      `fjs/djs/serializer/module.f.mjs`; import instead.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related

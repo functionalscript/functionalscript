@@ -74,7 +74,7 @@ const greetArgs = { name: string, greeting: option(string) } as const
 Create tool entries with type-safe handlers:
 
 ```ts
-import { toolEntry, errorResult } from './module.f.ts'
+import { toolEntry, errorResult } from './module.f.mjs'
 
 const addTool = toolEntry(
     'add',
@@ -97,7 +97,8 @@ const greetTool = toolEntry(
 Compose into a registry and build handlers:
 
 ```ts
-import { fromRegistry, mcpStep, type McpHandlers } from './module.f.ts'
+import { fromRegistry, mcpStep } from './module.f.mjs'
+import type { McpHandlers } from './types.ts'
 
 const myHandlers = fromRegistry([addTool, greetTool])
 
@@ -109,7 +110,7 @@ const myHandlers = fromRegistry([addTool, greetTool])
 Tool-level errors are returned in-band via `isError: true`. Use the `errorResult` helper:
 
 ```ts
-import { errorResult } from './module.f.ts'
+import { errorResult } from './module.f.mjs'
 
 const safeTool = toolEntry(
     'example',
@@ -126,7 +127,7 @@ const safeTool = toolEntry(
 
 ## The CAS MCP Server: A Real-World Example
 
-The content-addressable store MCP adapter (`fjs/mcp/cas/module.f.ts`) demonstrates the pattern in production:
+The content-addressable store MCP adapter (`fjs/mcp/cas/module.f.mjs`) demonstrates the pattern in production:
 
 1. Define argument schemas (`casAddArgs`, `casGetArgs`, `casListArgs`)
 2. Build a registry with `toolEntry` and type-safe handlers

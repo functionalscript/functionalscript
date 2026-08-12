@@ -24,7 +24,7 @@ export const createConsoleText = (stdout: Stdout): WriteText => { … }
 `replace`/`createConsoleText`/`WriteText`/`Stdout` use only `backspace` (a C0
 control), never an SGR/CSI escape — it is a generic "overwrite the previously
 printed text" progress writer. It is also `export`ed with no non-proof
-consumer (only `fjs/text/sgr/proof.f.ts:17` calls `createConsoleText`), which
+consumer (only `fjs/text/sgr/proof.f.mjs:17` calls `createConsoleText`), which
 the AGENTS.md export rule ("only `export` when at least one external consumer
 exists") discourages.
 

@@ -28,7 +28,7 @@ export type Scan<I, O> = (input: I) => readonly [O, Scan<I, O>]
  * not a finite set, so a `StateScan` is strictly more expressive than a Mealy
  * machine — its power is the power of `S`:
  * - a finite `S`/`I`/`O` recovers the classical finite-state machine (e.g. the
- *   DFA states in `../../../fsm/module.f.ts`);
+ *   DFA states in `../../../fsm/module.f.mjs`);
  * - an `S` that is a stack makes it a
  *   [pushdown / stack machine](https://en.wikipedia.org/wiki/Pushdown_automaton)
  *   (context-free power — balanced brackets, nested structure, the AST tier);

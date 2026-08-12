@@ -18,7 +18,7 @@ records, but it is ad hoc and cannot be reused by other proofs:
   FunctionalScript data.
 
 Proofs also commonly serialize values only to compare their structure. For
-example, `fjs/cas/evo/proof.f.ts` compares a computed cache with `emptyCache` by
+example, `fjs/cas/evo/proof.f.mjs` compares a computed cache with `emptyCache` by
 calling `JSON.stringify` on both values. The BNF proofs contain many similar
 candidates where parser or dispatch results are converted to JSON strings and
 compared with serialized expected values.
@@ -169,7 +169,7 @@ These cases can be added later when a concrete consumer requires them.
       `assertDeepEqual`: remove or mark that subtask complete while preserving
       its remaining result-helper and shared-suite work.
 - [ ] Replace proof comparisons that serialize both actual and expected values
-      only to compare structure, starting with `fjs/cas/evo/proof.f.ts`.
+      only to compare structure, starting with `fjs/cas/evo/proof.f.mjs`.
 - [ ] Audit proof files that compare a computed value with a JSON string, including
       the BNF proofs; replace cases where serialized text is not the contract with
       direct expected values and `assertStructurallySame`.
@@ -198,7 +198,7 @@ These cases can be added later when a concrete consumer requires them.
   cyclic.
 - [`fjs/types/rtti/parse/proof.f.ts`](../../rtti/parse/proof.f.ts) — contains the
   private `assertDeepEqual` that is the first direct consumer.
-- [`fjs/cas/evo/proof.f.ts`](../../../cas/evo/proof.f.ts) — compares independently
+- [`fjs/cas/evo/proof.f.mjs`](../../../cas/evo/proof.f.mjs) — compares independently
   constructed cache values through `JSON.stringify`.
 - [`fjs/bnf/ll1/proof.f.mjs`](../../../bnf/ll1/proof.f.mjs) and
   [`fjs/bnf/descent/proof.f.mjs`](../../../bnf/descent/proof.f.mjs) — contain serialized

@@ -11,7 +11,7 @@ it from scratch.
 
 #### 1. 29 copies of one test case
 
-`fjs/types/btree/set/proof.f.ts` is 394 lines, of which 57 carry expected
+`fjs/types/btree/set/proof.f.mjs` is 394 lines, of which 57 carry expected
 values and almost all the rest is the same six lines repeated for
 `n = 10 … 38` (`:17-352`):
 
@@ -48,19 +48,19 @@ sequence because it is interleaved with 174 lines of boilerplate.
 #### 2. The fixture helpers are re-declared in all four proofs
 
 ```ts
-// fjs/types/btree/proof.f.ts:17-19, find/proof.f.ts:12-14,
-// set/proof.f.ts:8-9, remove/proof.f.ts:9-10 — four copies
+// fjs/types/btree/proof.f.mjs:17-19, find/proof.f.mjs:12-14,
+// set/proof.f.mjs:8-10, remove/proof.f.mjs:9-11 — four copies
 const set = (node: TNode<string>) => (value: string) =>
     setSet(cmp(value))(() => value)(node)
 ```
 
 Each also binds its own `jsonStr = stringify(sort)`, and **all four** open-code
-the squares loop `_map = set(_map)((i * i).toString())` — `set/proof.f.ts` 31
-times, `remove/proof.f.ts:20` (`n = 38`) and `:376` (`n = 10`),
-`find/proof.f.ts:26` (`n = 10`), and `proof.f.ts:33-35` (`valuesTest2`,
+the squares loop `_map = set(_map)((i * i).toString())` — `set/proof.f.mjs` 31
+times, `remove/proof.f.mjs:22` (`n = 38`) and `:379` (`n = 10`),
+`find/proof.f.mjs:26` (`n = 10`), and `proof.f.ts:33-35` (`valuesTest2`,
 `n = 10`).
 
-**`remove/proof.f.ts:444-461` (`test3`) is not one of them.** Its loop inserts
+**`remove/proof.f.mjs:447-465` (`test3`) is not one of them.** Its loop inserts
 `i.toString()` — the *sequential* integers `2 … 50`, not their squares — and it
 then removes `'40'` and `'10'`, neither of which exists in the squares corpus.
 It is a separate fixture built for a separate purpose, stated in its own
@@ -74,9 +74,9 @@ where it should live instead.
 
 #### 3. The corpus itself is shared but unstated
 
-`set/proof.f.ts` and `remove/proof.f.ts` build the *same* tree at `n = 38` and
+`set/proof.f.mjs` and `remove/proof.f.mjs` build the *same* tree at `n = 38` and
 assert the *same* expected string for it (`set:343-352`, `remove:20-31`), each
-with its own copy of the seven-line literal. `remove/proof.f.ts` then walks
+with its own copy of the seven-line literal. `remove/proof.f.mjs` then walks
 that tree down through 39 removals. Nothing connects the two files, so the
 shared starting state has to be verified by eye.
 
@@ -93,7 +93,7 @@ export const set = (node: TNode<string>) => (value: string): TNode<string> =>
 /** `['1']` with the squares of `2..n` inserted, the shared corpus. */
 export const squares = (n: number): TNode<string> => …
 
-/** `jsonStr(squares(38))` — the tree `remove/proof.f.ts` starts its removals from. */
+/** `jsonStr(squares(38))` — the tree `remove/proof.f.mjs` starts its removals from. */
 export const expectedSquares38: string =
     '[[[["1"],"100",["1024"]],"1089",[["1156"],"121",["1225"]]],' +
     …
@@ -107,8 +107,8 @@ export const expectedSquares: readonly (readonly [number, string])[] = [
 ]
 ```
 
-The expectation table belongs in the testlib, **not** in `set/proof.f.ts`:
-`remove/proof.f.ts` asserts the same `n = 38` string (`:23-30`), and a table
+The expectation table belongs in the testlib, **not** in `set/proof.f.mjs`:
+`remove/proof.f.mjs` asserts the same `n = 38` string (`:25-32`), and a table
 private to one proof would leave that copy in place — the deduplication in
 item 3 below would not actually be reachable.
 
@@ -139,7 +139,7 @@ alias once *in the testlib* — that already replaces four scattered aliases wit
 one — and swap the body for the import when `stringifySorted` lands. Either
 ordering works and neither issue has to wait for the other.
 
-**2. Table-drive `set/proof.f.ts`.** The 29 cases become one generator over the
+**2. Table-drive `set/proof.f.mjs`.** The 29 cases become one generator over the
 shared table:
 
 ```ts
@@ -159,12 +159,12 @@ they assert two things each and carry comments explaining which `x.length`
 arms they reach — but they get their trees from `squares(10)` / `squares(13)`
 instead of rebuilding.
 
-**3. Point `remove/proof.f.ts` at the same fixture.** Its starting tree becomes
+**3. Point `remove/proof.f.mjs` at the same fixture.** Its starting tree becomes
 `squares(38)` and its opening assertion `expectedSquares38`, so both files read
 the *same values* rather than holding two copies of a seven-line literal.
 
-(An alternative is to drop that opening assertion from `remove/proof.f.ts`
-altogether — the shape of `squares(38)` is `set`'s contract and `set/proof.f.ts`
+(An alternative is to drop that opening assertion from `remove/proof.f.mjs`
+altogether — the shape of `squares(38)` is `set`'s contract and `set/proof.f.mjs`
 already pins it. Keeping it as a sanity anchor for the 39-step removal chain is
 defensible; what is not defensible is keeping it as a second literal. Either
 resolution closes this point.)
@@ -180,7 +180,7 @@ differently-shaped tree and the branch-merge-into-`Branch5`-sibling path in
 Do **not** add a `sequential(n)` helper to the testlib for it. One consumer does
 not need an export, and a second corpus builder sitting next to `squares` with
 the same shape is precisely the confusion that produced this hazard. Give the
-loop a local name in `remove/proof.f.ts` and a comment saying it is deliberately
+loop a local name in `remove/proof.f.mjs` and a comment saying it is deliberately
 *not* the shared corpus — the same treatment `ll1:68-74`'s grammar variant gets
 in [proof-recognizer-and-fixtures](../../../bnf/todo/proof-recognizer-and-fixtures.md).
 Move it to the testlib only if a second consumer ever appears.
@@ -194,17 +194,17 @@ are.
 - [ ] Add `fjs/types/btree/testlib.f.ts` with `set`, `squares`,
       `expectedSquares`/`expectedSquares38`, and — until `stringifySorted` exists —
       the single `jsonStr` alias.
-- [ ] Convert `fjs/types/btree/set/proof.f.ts` to `expectedSquares.map`; keep
+- [ ] Convert `fjs/types/btree/set/proof.f.mjs` to `expectedSquares.map`; keep
       the two `replace` cases hand-written, sourced from `squares`.
-- [ ] Convert `fjs/types/btree/remove/proof.f.ts`, `find/proof.f.ts`, and
+- [ ] Convert `fjs/types/btree/remove/proof.f.mjs`, `find/proof.f.mjs`, and
       `proof.f.ts` to import the fixture; delete the four local `set` helpers
-      and `remove/proof.f.ts`'s duplicate `n = 38` literal (`:23-30`).
+      and `remove/proof.f.mjs`'s duplicate `n = 38` literal (`:25-32`).
 - [ ] Replace every squares loop with `squares(n)`, not just the local `set`
-      helpers — `remove/proof.f.ts:20` and `:376`, `find/proof.f.ts:26`, and
+      helpers — `remove/proof.f.mjs:22` and `:379`, `find/proof.f.mjs:26`, and
       `proof.f.ts:33-35` (`valuesTest2`). Importing `set` while leaving the
       loop in place would satisfy the previous task and still leave the corpus
       with four owners.
-- [ ] Leave `remove/proof.f.ts`'s `test3` loop (`:444-461`) alone — it builds
+- [ ] Leave `remove/proof.f.mjs`'s `test3` loop (`:447-465`) alone — it builds
       the sequential-integer corpus, not the squares one. Name it locally and
       comment why; do not call `squares(50)` and do not add a `sequential`
       helper to the testlib.
@@ -226,7 +226,7 @@ are.
   ~20 it lists, and it should land first so the testlib imports rather than
   re-aliases.
 - [65Y-proof-assertEq-adoption](../../../emergent_testing/todo/65y-proof-asserteq-adoption.md)
-  — `fjs/types/btree/remove/proof.f.ts` still uses `if (r !== …) { throw r }`
+  — `fjs/types/btree/remove/proof.f.mjs` still uses `if (r !== …) { throw r }`
   at 39 sites while its three siblings have moved to `assertEq`. Orthogonal to
   the fixture work, but the same file, so do them in either order rather than
   at once.

@@ -66,7 +66,7 @@ checks turn out to come up often enough to justify the framework work.
 No new rule or framework change needed — the distinction already exists and is documented in
 [fjs/todo/document-file-type-naming-conventions.md](../../todo/document-file-type-naming-conventions.md#proof--a-module-that-proves-other-modules):
 `proof.f.ts` is FunctionalScript (no `try`/`catch`, ever), `proof.ts` is vanilla TS and is
-already exempt from that rule — [`fjs/effects/node/memory/proof.ts`](../../effects/node/memory/proof.ts)
+already exempt from that rule — [`fjs/effects/node/memory/proof.mjs`](../../effects/node/memory/proof.mjs)
 is a live example (it isn't the shape we need here, since it captures a rejected `Promise` via
 `.then(onFulfilled, onRejected)` rather than `try`/`catch`, but it proves the file-type split
 already works and is already discovered by `fjs t` — `shouldLoad` in

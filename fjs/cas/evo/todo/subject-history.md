@@ -5,7 +5,7 @@
 
 ### Problem
 
-`Evo<O>` (`fjs/cas/evo/module.f.ts`) only exposes `head(subject)` — the
+`Evo<O>` (`fjs/cas/evo/module.f.mjs`) only exposes `head(subject)` — the
 current head hashes — and `list()` — all known subjects. There is no way to
 retrieve a subject's *history*: the revisions that led up to its current
 head(s). A client that wants to render history, walk past merges, or
@@ -80,7 +80,7 @@ readonly history: (start: Hash) => Effect<O | MemOp, Result<readonly Hash[], str
 ### Implementation notes
 
 - **The cache can't serve the walk yet.** `SubjectState`
-  (`fjs/cas/evo/module.f.ts`) deliberately stores `hashes` and `parents` as
+  (`fjs/cas/evo/module.f.mjs`) deliberately stores `hashes` and `parents` as
   flat, order-independent sets — enough for `headsOf`, not enough to follow
   a first-parent chain. Preferred fix: extend the cache with a per-revision
   `hash → ordered parents` map. Revision blobs are immutable, so that
@@ -98,7 +98,7 @@ readonly history: (start: Hash) => Effect<O | MemOp, Result<readonly Hash[], str
 - **Staleness.** Same cache-staleness concern as
   [todo/cache-staleness.md](cache-staleness.md) — history is served from
   the in-memory cache like everything else in `Evo<O>`.
-- **MCP surface.** A new `evo_history` tool (`fjs/mcp/evo/module.f.ts`)
+- **MCP surface.** A new `evo_history` tool (`fjs/mcp/evo/module.f.mjs`)
   alongside `evo_list`/`evo_head`/`evo_add`, taking `start` (hash) and
   returning the hash array. Evo-specific, so a dedicated tool name is fine
   (unlike the generic refresh tool in `cache-staleness.md`).

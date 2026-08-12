@@ -7,7 +7,7 @@
 > `Eff.map` in `fjs/effects/eff/module.f.mjs`, each with proof coverage and with
 > its first real consumers converted in the same change — `readUtf8File`,
 > `awaitIfPromise` and `errorExit` (`fjs/effects/node/module.f.mjs`),
-> `decodeRevisionBlob` (`fjs/cas/evo/module.f.ts`), and `Eff`'s own `.step`,
+> `decodeRevisionBlob` (`fjs/cas/evo/module.f.mjs`), and `Eff`'s own `.step`,
 > whose history projection is now a `mapStep`. What remains is the mechanical
 > part: the other call sites, module by module.
 
@@ -24,16 +24,16 @@ Two shapes, both the same thing:
 *Projection* (`x => pure(f(x))`):
 
 ```ts
-// fjs/protocol/mcp/module.f.ts:394-396
+// fjs/protocol/mcp/module.f.mjs:347-350
 : step(
     handlers.toolsList(pr),
     r => pure(_okResponse(id)(r)),
 )
 ```
 
-Also `fjs/dev/module.f.mjs`, `fjs/cas/evo/module.f.ts`,
-`fjs/mcp/evo/module.f.ts`, `fjs/cas/module.f.mjs`, `fjs/mcp/cas/module.f.ts`,
-`fjs/protocol/mcp/module.f.ts`, `fjs/emergent_testing/module.f.mjs`.
+Also `fjs/dev/module.f.mjs`, `fjs/cas/evo/module.f.mjs`,
+`fjs/mcp/evo/module.f.mjs`, `fjs/cas/module.f.mjs`, `fjs/mcp/cas/module.f.mjs`,
+`fjs/protocol/mcp/module.f.mjs`, `fjs/emergent_testing/module.f.mjs`.
 
 *Constant projection* (`() => pure(v)`), overwhelmingly the "do the work, then
 yield an exit code" shape of a `NodeProgram`:
@@ -50,9 +50,9 @@ const program = step(
     () => pure(0))
 ```
 
-Also `fjs/djs/module.f.ts`, `fjs/module.f.ts`, `fjs/ci/module.f.mjs`,
-`fjs/cas/evo/module.f.ts`, `fjs/cas/module.f.mjs`, `fjs/cas/cli/module.f.mjs`,
-`fjs/mcp/cas/module.f.ts`, `fjs/protocol/mcp/module.f.ts`, `fjs/protocol/mcp/stdio/module.f.ts`,
+Also `fjs/djs/module.f.mjs`, `fjs/module.f.mjs`, `fjs/ci/module.f.mjs`,
+`fjs/cas/evo/module.f.mjs`, `fjs/cas/module.f.mjs`, `fjs/cas/cli/module.f.mjs`,
+`fjs/mcp/cas/module.f.mjs`, `fjs/protocol/mcp/module.f.mjs`, `fjs/protocol/mcp/stdio/module.f.mjs`,
 `fjs/emergent_testing/module.f.mjs`.
 
 Beyond the repetition, the old spelling **misreports the shape of the chain**.
@@ -106,7 +106,7 @@ conversion as one 14-module diff.
 
 ### Tasks
 
-- [ ] The `NodeProgram` exit-code sites (`fjs/module.f.ts`, `fjs/cli`, `fjs/ci`,
+- [ ] The `NodeProgram` exit-code sites (`fjs/module.f.mjs`, `fjs/cli`, `fjs/ci`,
       `fjs/djs`, `fjs/website`, `fjs/cas/cli`).
 - [ ] `fjs/protocol/mcp` + `fjs/protocol/mcp/stdio`.
 - [ ] `fjs/cas` + `fjs/cas/evo` + `fjs/mcp/evo` + `fjs/mcp`.
