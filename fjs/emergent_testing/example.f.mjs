@@ -1,12 +1,16 @@
-export const add = (a: number, b: number): number => a + b
+/** @type {(a: number, b: number) => number} */
+export const add = (a, b) => a + b
 
-export const mul = (a: number, b: number): number => a * b
+/** @type {(a: number, b: number) => number} */
+export const mul = (a, b) => a * b
 
-export const sqr = (a: number) => mul(a, a)
+/** @type {(a: number) => number} */
+export const sqr = a => mul(a, a)
 
 export const todo = () => { throw "not implemented" }
 
-const checkMul = (a: number, b: number, r: number) => {
+/** @type {(a: number, b: number, r: number) => void} */
+const checkMul = (a, b, r) => {
     if (mul(a, b) !== r) { throw `mul(${a}, ${b}) !== ${r}` } 
 }
 

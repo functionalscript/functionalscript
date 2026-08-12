@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/emergent_testing/example.f.ts` migrates
+  from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the
+  four typed consts become JSDoc `@type` annotations
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/types/rtti/validate/proof.f.ts` migrates
   from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the 23
   function-local `Assert<Equal<...>>` round-trips stay function-local as
