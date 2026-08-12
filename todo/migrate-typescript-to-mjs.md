@@ -239,9 +239,10 @@ Use `@template out T`, `@template in T`, or constrained forms such as
 
 A JavaScript implementation must not gain a real JavaScript import just because
 it uses a separately declared type. Use JSDoc `@import` with the same real source
-path used by `import type`. All module-level `@import` tags belong in the leading
-module JSDoc block together with `@module`; do not create separate `@import`
-comment blocks.
+path used by `import type`. All module-level `@import` tags belong in one
+leading JSDoc block — sharing it with `@module` in a `module.*` file, or
+standing alone at the top of a `proof.*` or other non-`module.*` file, which
+does not carry `@module`; do not create separate `@import` comment blocks.
 
 The corresponding TypeScript implementation uses `import type` with the same
 specifier:
@@ -250,7 +251,7 @@ specifier:
 import type { Types } from './types.ts'
 ```
 
-JavaScript uses:
+JavaScript in a `module.*` file uses:
 
 ```js
 /**
@@ -258,6 +259,15 @@ JavaScript uses:
  *
  * @module
  *
+ * @import { Types } from './types.ts'
+ */
+```
+
+JavaScript in a `proof.*` file (or any other non-`module.*` file, which has no
+`@module` tag) groups the same `@import` tags without one:
+
+```js
+/**
  * @import { Types } from './types.ts'
  */
 ```
@@ -379,8 +389,11 @@ rediscovered by each migration.
 
 #### Module header and import ordering
 
-Every implementation module starts with one module JSDoc block. Always put one
-blank line after that block before the first source-level import or declaration.
+The `@module` tag belongs only to a package's entry-point file — `module.f.ts` /
+`module.f.mjs` / `module.ts` / `module.mjs`. It is not required on `proof.f.ts` /
+`proof.f.mjs`, `types.ts`, or any other file. A `module.*` file starts with one
+leading JSDoc block carrying `@module`; always put one blank line after that
+block before the first source-level import or declaration.
 
 For TypeScript, put type-only imports first, external or built-in runtime imports
 second, then repository-owned relative runtime imports: already-migrated
@@ -407,10 +420,14 @@ import ... from '...ts'
 import ... from '...ts'
 ```
 
-For JavaScript, put all module-level `@import` tags in the same leading JSDoc
-block as `@module`, then put one blank line before runtime imports. External or
-built-in runtime imports come first, followed by repository-owned relative
-`.mjs` runtime imports:
+For JavaScript, group all module-level `@import` tags into one leading JSDoc
+block — sharing that block with `@module` in a `module.*` file, or standing
+alone at the top of a `proof.*` or other non-`module.*` file — then put one
+blank line before runtime imports. Never scatter `@import` tags as separate
+comments interleaved with individual `import` statements. External or built-in
+runtime imports come first, followed by repository-owned relative `.mjs`
+runtime imports, matching the same order as TypeScript: type imports, then
+`.mjs` imports, then remaining `.ts` imports:
 
 ```js
 /**
@@ -418,6 +435,22 @@ built-in runtime imports come first, followed by repository-owned relative
  *
  * @module
  *
+ * @import ...
+ * @import ...
+ */
+
+import ... from 'node:...'
+import ... from 'package'
+
+import ... from '...mjs'
+import ... from '...mjs'
+```
+
+A `proof.*` or other non-`module.*` file with `@import` tags uses the same
+grouping without a `@module` tag:
+
+```js
+/**
  * @import ...
  * @import ...
  */
@@ -724,13 +757,15 @@ this rename.
       than by what the `.f.ts` happened to export or by what a pending refactor
       plans to delete. Types intentionally moved to `types.ts` use normal
       TypeScript source visibility instead.
-- [ ] Apply the module-header/import convention: keep module-level JavaScript
-      `@import` tags in the same JSDoc block as `@module`, always put one blank
-      line after that block, group external/built-in runtime imports separately,
-      and order repository-owned relative runtime imports as migrated `.mjs`
-      before remaining `.ts`; fix the modules that already lose their header
-      (`fjs/common/monoid`, `fjs/types/btree/remove`, `fjs/types/btree/set`,
-      `fjs/types/list`, `fjs/types/nullable`).
+- [ ] Apply the module-header/import convention: `@module` belongs only to
+      `module.*` entry-point files, never to `proof.*` or other files; group
+      module-level JavaScript `@import` tags into one leading JSDoc block —
+      sharing it with `@module` in a `module.*` file, standing alone otherwise —
+      always put one blank line after that block, group external/built-in
+      runtime imports separately, and order repository-owned relative runtime
+      imports as migrated `.mjs` before remaining `.ts`; fix the modules that
+      already lose their header (`fjs/common/monoid`, `fjs/types/btree/remove`,
+      `fjs/types/btree/set`, `fjs/types/list`, `fjs/types/nullable`).
 - [ ] File an upstream issue for JSDoc typedef documentation being dropped from
       declaration emit, and keep writing type documentation in the source
       meanwhile; substantial type APIs may instead live directly in `types.ts`
@@ -803,11 +838,13 @@ this rename.
   JSDoc `@typedef` is recorded as a known upstream gap; an intentionally separate
   `types.ts` may preserve declaration documentation through normal TypeScript
   emit.
-- Every implementation module follows the module-header/import convention:
-  JavaScript keeps module-level `@import` tags in the same JSDoc block as
-  `@module`, one blank line follows that block, external/built-in runtime imports
-  form their own group, and repository-owned relative runtime imports are ordered
-  as migrated `.mjs` before remaining `.ts`. The `@module` header survives
+- Every module-level import follows the module-header/import convention:
+  `@module` appears only on `module.*` entry-point files, never on `proof.*` or
+  other files; JavaScript groups module-level `@import` tags into one leading
+  JSDoc block — shared with `@module` where present, standing alone otherwise —
+  one blank line follows that block, external/built-in runtime imports form
+  their own group, and repository-owned relative runtime imports are ordered as
+  migrated `.mjs` before remaining `.ts`. The `@module` header survives
   declaration emit.
 - Every exported function's return type survives into its emitted declaration as
   a named type, not `any` or `/*elided*/`; curried generic exports carry an

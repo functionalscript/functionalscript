@@ -258,8 +258,13 @@ normally the part of the contract that matters.
 ## 4. Documentation
 
 Use JSDoc for module documentation in both TypeScript and JavaScript source.
-Every implementation module starts with one module JSDoc block, followed by one
-blank line before the first source-level import or declaration.
+The `@module` tag belongs only to a package's entry-point file — `module.f.ts` /
+`module.f.mjs` / `module.ts` / `module.mjs` — not to `proof.f.ts` / `proof.f.mjs`,
+`types.ts`, or any other file. A `module.*` file starts with one module JSDoc
+block carrying `@module`, followed by one blank line before the first
+source-level import or declaration. A `proof.*` or other non-`module.*` file has
+no `@module` tag and no required leading documentation block; one is still
+needed if the file has `@import` tags to hold, per below.
 
 For TypeScript, put type-only imports first, external or built-in runtime imports
 second, then repository-owned relative runtime imports: already-migrated
@@ -286,10 +291,14 @@ import ... from '...ts'
 import ... from '...ts'
 ```
 
-For JavaScript, put all module-level `@import` tags in the same leading JSDoc
-block as `@module`, then put one blank line before runtime imports. External or
-built-in runtime imports come first, followed by repository-owned relative
-`.mjs` runtime imports:
+For JavaScript, group all module-level `@import` tags into one leading JSDoc
+comment block — the same block as `@module` in a `module.*` file, or a
+standalone block at the top of the file otherwise — then put one blank line
+before runtime imports. Do not scatter `@import` tags as separate comments
+between or after individual `import` statements. External or built-in runtime
+imports come first, followed by repository-owned relative `.mjs` runtime
+imports, matching the TypeScript order of type imports, then `.mjs` imports,
+then remaining `.ts` imports:
 
 ```js
 /**
@@ -308,15 +317,31 @@ import ... from '...mjs'
 import ... from '...mjs'
 ```
 
-Do not put module-level `@import` tags in separate JSDoc comments. The `.mjs` /
-`.ts` grouping and the Stage 1 migration restriction apply to repository-owned
-relative runtime imports, not to external or built-in modules. During Stage 1, a
-migrated JavaScript module has no remaining relative runtime `.ts` / `.f.ts`
-import group: migrated JavaScript may depend at runtime on external modules and
-migrated repository JavaScript, but not on remaining authored TypeScript
-implementations. The blank line after the module JSDoc block is required even
-when the module has no `@import` tags; it keeps the header detached from the first
-import/declaration and preserves it through declaration emit.
+A non-`module.*` file (e.g. `proof.f.mjs`) with `@import` tags but no `@module`
+uses the same grouping without the tag:
+
+```js
+/**
+ * @import ...
+ * @import ...
+ */
+
+import ... from 'node:...'
+import ... from 'package'
+
+import ... from '...mjs'
+import ... from '...mjs'
+```
+
+The `.mjs` / `.ts` grouping and the Stage 1 migration restriction apply to
+repository-owned relative runtime imports, not to external or built-in modules.
+During Stage 1, a migrated JavaScript module has no remaining relative runtime
+`.ts` / `.f.ts` import group: migrated JavaScript may depend at runtime on
+external modules and migrated repository JavaScript, but not on remaining
+authored TypeScript implementations. In a `module.*` file, the blank line after
+the leading JSDoc block is required even when the module has no `@import` tags;
+it keeps the `@module` header detached from the first import/declaration and
+preserves it through declaration emit.
 
 Where each kind of documentation belongs:
 
