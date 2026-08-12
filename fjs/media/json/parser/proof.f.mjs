@@ -1,15 +1,17 @@
+/**
+ * @import { JsonToken } from '../tokenizer/types.ts'
+ */
+
 import { parse } from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
-import type { JsonToken } from '../tokenizer/types.ts'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { stringify as jsonStringify } from '../module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
-const tokenizeString
-    : (s: string) => readonly JsonToken[]
-    = s => toArray(tokenize(stringToList(s)))
+/** @type {(s: string) => readonly JsonToken[]} */
+const tokenizeString = s => toArray(tokenize(stringToList(s)))
 
 const stringify = jsonStringify(sort)
 
@@ -278,7 +280,7 @@ export const proof = {
     // unforced thunk per closed container. The chain was forced only at the end,
     // costing a call-stack frame per container and overflowing at roughly 5000 of
     // them — nested or flat siblings alike — while primitives were unbounded,
-    // since they never push or pop. `popStack` in `module.f.ts` forces the pop
+    // since they never push or pop. `popStack` in `module.f.mjs` forces the pop
     // instead, which is why these sizes are safe now.
     siblingContainers: [
         () => {

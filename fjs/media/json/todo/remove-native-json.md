@@ -42,7 +42,7 @@ Three reasons to finish the job:
 | Expected-output comparison | 73 | `fjs/bnf/ll1/proof.f.ts` (27), `fjs/bnf/descent/proof.f.ts` (22), `fjs/media/json/serializer/proof.f.mjs` (10), `fjs/djs/tokenizer/proof.f.mjs:886-921` (8), `fjs/bnf/data/proof.f.ts` (4), `fjs/media/revision/proof.f.mjs:177`, `fjs/cas/evo/proof.f.mjs:68` | `stringify(identity)` |
 | Assertion messages | 33 | `fjs/djs/tokenizer/proof.f.mjs` (31), `fjs/types/rtti/ts/proof.f.mjs:8,12` (2) | pass the value, or `fjs/djs`'s `stringify` |
 | Source-text quoting | 5 | `fjs/emergent_testing/module.f.mjs:282,303,318`, `fjs/types/ts/module.f.mjs:36,48` | `stringSerialize` — already designed in `66c-emit-literals-via-owner-modules.md` |
-| JSON line framing | 2 | `fjs/emergent_testing/proof.f.ts:42`, `fjs/mcp/proof.f.mjs:128` | `stringify(identity)` |
+| JSON line framing | 2 | `fjs/emergent_testing/proof.f.mjs:47`, `fjs/mcp/proof.f.mjs:128` | `stringify(identity)` |
 | Pretty-printed file output | 1 | `fjs/ci/module.f.mjs:83` | needs indentation support, which `serialize` does not have |
 
 Three semantic differences to respect while migrating, none of them blocking:
@@ -140,7 +140,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
 
 - [`fjs/media/json/serializer/module.f.mjs`](../serializer/module.f.mjs) — the
   leaf `JSON.stringify` phases 1 and 2 replace; only `numberSerialize` is left.
-- [`fjs/text/utf16/module.f.ts`](../../../text/utf16/module.f.ts) — where the
+- [`fjs/text/utf16/module.f.mjs`](../../../text/utf16/module.f.mjs) — where the
   escaping reads code points, and where phase 1 added `codePointToString`.
 - [`fjs/fsc/todo/66c-emit-literals-via-owner-modules.md`](../../../fsc/todo/66c-emit-literals-via-owner-modules.md)
   — already owns the source-text-quoting sites (`fjs/types/ts`,

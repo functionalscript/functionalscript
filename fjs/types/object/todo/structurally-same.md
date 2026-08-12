@@ -5,7 +5,7 @@
 
 ## Problem
 
-`fjs/types/rtti/parse/proof.f.ts` contains a private `assertDeepEqual` helper for
+`fjs/types/rtti/parse/proof.f.mjs` contains a private `assertDeepEqual` helper for
 checking parsed FunctionalScript data. It recursively compares arrays and plain
 records, but it is ad hoc and cannot be reused by other proofs:
 
@@ -164,7 +164,7 @@ These cases can be added later when a concrete consumer requires them.
 - [ ] Verify that the change does not introduce the
       `asserts -> object -> nullable -> asserts` import cycle.
 - [ ] Replace the private `assertDeepEqual` in
-      `fjs/types/rtti/parse/proof.f.ts` with `assertStructurallySame`.
+      `fjs/types/rtti/parse/proof.f.mjs` with `assertStructurallySame`.
 - [ ] Update `fjs/types/rtti/todo/proof-shared-asserts.md` when removing
       `assertDeepEqual`: remove or mark that subtask complete while preserving
       its remaining result-helper and shared-suite work.
@@ -196,7 +196,7 @@ These cases can be added later when a concrete consumer requires them.
 - [`fjs/types/nullable/module.f.mjs`](../../nullable/module.f.mjs) — imports the
   assertion module, which makes importing the public object module from assertions
   cyclic.
-- [`fjs/types/rtti/parse/proof.f.ts`](../../rtti/parse/proof.f.ts) — contains the
+- [`fjs/types/rtti/parse/proof.f.mjs`](../../rtti/parse/proof.f.mjs) — contains the
   private `assertDeepEqual` that is the first direct consumer.
 - [`fjs/cas/evo/proof.f.mjs`](../../../cas/evo/proof.f.mjs) — compares independently
   constructed cache values through `JSON.stringify`.

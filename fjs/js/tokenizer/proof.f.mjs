@@ -1,23 +1,23 @@
+/**
+ * @import { JsToken, JsTokenWithMetadata } from './types.ts'
+ */
+
 import { tokenize } from './module.f.mjs'
-import type { JsToken, JsTokenWithMetadata } from './types.ts'
 import { map, toArray } from '../../types/list/module.f.mjs'
 import { stringifyAsTree } from '../../djs/serializer/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 
-const tokenizeString
-    : (s: string) => readonly JsToken[]
-    = s => toArray(map(withoutMetada)(tokenize(stringToList(s))('')))
+/** @type {(s: string) => readonly JsToken[]} */
+const tokenizeString = s => toArray(map(withoutMetada)(tokenize(stringToList(s))('')))
 
-const tokenizeStringWithMetadata
-    : (s: string) => readonly JsTokenWithMetadata[]
-    = s => toArray(tokenize(stringToList(s))(''))
+/** @type {(s: string) => readonly JsTokenWithMetadata[]} */
+const tokenizeStringWithMetadata = s => toArray(tokenize(stringToList(s))(''))
 
 const stringify = stringifyAsTree(sort)
 
-const withoutMetada
-    : (tokenWithMetada: JsTokenWithMetadata) => JsToken
-    = tokenWithMetada => tokenWithMetada.token
+/** @type {(tokenWithMetada: JsTokenWithMetadata) => JsToken} */
+const withoutMetada = tokenWithMetada => tokenWithMetada.token
 
 export const proof = {
     djs: [

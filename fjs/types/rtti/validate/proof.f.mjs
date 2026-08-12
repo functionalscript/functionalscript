@@ -1,19 +1,26 @@
+/**
+ * @import { ValidationError } from '../common/types.ts'
+ * @import { Equal } from '../../ts/types.ts'
+ * @import { Ts } from '../ts/types.ts'
+ * @import { Unknown as DjsUnknown } from '../../../djs/types.ts'
+ * @import { Assert } from '../../../asserts/types.ts'
+ */
+
 import { validate } from './module.f.mjs'
-import type { ValidationError } from '../common/types.ts'
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.mjs'
-import type { Equal } from '../../ts/types.ts'
-import type { Ts } from '../ts/types.ts'
-import type { Unknown as DjsUnknown } from '../../../djs/types.ts'
-import type { Assert } from '../../../asserts/types.ts'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
-const assertOk = ([k]: readonly [string, unknown]) => { assertEq(k, 'ok', 'expected ok') }
-const assertError = ([k]: readonly [string, unknown]) => { assertEq(k, 'error', 'expected error') }
+/** @type {(r: readonly [string, unknown]) => void} */
+const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
 
-const assertErrorPath = (expected: readonly string[]) =>
-    (r: readonly [string, unknown]) => {
+/** @type {(r: readonly [string, unknown]) => void} */
+const assertError = ([k]) => { assertEq(k, 'error', 'expected error') }
+
+/** @type {(expected: readonly string[]) => (r: readonly [string, unknown]) => void} */
+const assertErrorPath = expected =>
+    r => {
         assert(r[0] === 'error', 'expected error')
-        const e = r[1] as ValidationError
+        const e = /** @type {ValidationError} */ (r[1])
         if (e.path.length !== expected.length) { throw `path length ${e.path.length} != ${expected.length}` }
         for (let i = 0; i < expected.length; i++) {
             if (e.path[i] !== expected[i]) { throw `path[${i}] ${e.path[i]} != ${expected[i]}` }
@@ -23,7 +30,7 @@ const assertErrorPath = (expected: readonly string[]) =>
 export const proof = {
     boolean: {
         ok: () => {
-            type _ = Assert<Equal<Ts<typeof boolean>, boolean>>
+            /** @typedef {Assert<Equal<Ts<typeof boolean>, boolean>>} _RoundTrip */
             assertOk(validate(boolean)(true))
             assertOk(validate(boolean)(false))
         },
@@ -35,7 +42,7 @@ export const proof = {
     },
     number: {
         ok: () => {
-            type _ = Assert<Equal<Ts<typeof number>, number>>
+            /** @typedef {Assert<Equal<Ts<typeof number>, number>>} _RoundTrip */
             assertOk(validate(number)(42))
         },
         error: () => {
@@ -45,7 +52,7 @@ export const proof = {
     },
     string: {
         ok: () => {
-            type _ = Assert<Equal<Ts<typeof string>, string>>
+            /** @typedef {Assert<Equal<Ts<typeof string>, string>>} _RoundTrip */
             assertOk(validate(string)('hello'))
         },
         error: () => {
@@ -55,7 +62,7 @@ export const proof = {
     },
     bigint: {
         ok: () => {
-            type _ = Assert<Equal<Ts<typeof bigint>, bigint>>
+            /** @typedef {Assert<Equal<Ts<typeof bigint>, bigint>>} _RoundTrip */
             assertOk(validate(bigint)(4n))
         },
         error: () => {
@@ -65,7 +72,7 @@ export const proof = {
     },
     unknown: {
         ok: () => {
-            type _ = Assert<Equal<Ts<typeof unknown>, DjsUnknown>>
+            /** @typedef {Assert<Equal<Ts<typeof unknown>, DjsUnknown>>} _RoundTrip */
             assertOk(validate(unknown)(null))
             assertOk(validate(unknown)(42))
             assertOk(validate(unknown)('hello'))
@@ -77,7 +84,7 @@ export const proof = {
     const: {
         null: {
             ok: () => {
-                type _ = Assert<Equal<Ts<null>, null>>
+                /** @typedef {Assert<Equal<Ts<null>, null>>} _RoundTrip */
                 assertOk(validate(null)(null))
             },
             error: () => {
@@ -87,90 +94,90 @@ export const proof = {
         },
         undefined: {
             ok: () => {
-                type _ = Assert<Equal<Ts<undefined>, undefined>>
+                /** @typedef {Assert<Equal<Ts<undefined>, undefined>>} _RoundTrip */
                 assertOk(validate(undefined)(undefined))
             },
             error: () => assertError(validate(undefined)(null)),
         },
         number: {
             ok: () => {
-                type _ = Assert<Equal<Ts<42>, 42>>
-                assertOk(validate(42 as const)(42))
+                /** @typedef {Assert<Equal<Ts<42>, 42>>} _RoundTrip */
+                assertOk(validate(/** @type {const} */ (42))(42))
             },
-            error: () => assertError(validate(42 as const)(43)),
+            error: () => assertError(validate(/** @type {const} */ (42))(43)),
         },
         nan: {
-            ok: () => assertOk(validate(NaN as number)(NaN)),
+            ok: () => assertOk(validate(/** @type {number} */ (NaN))(NaN)),
             error: () => {
-                assertError(validate(NaN as number)(0))
-                assertError(validate(0 as const)(NaN))
-                assertError(validate(42 as const)(NaN))
+                assertError(validate(/** @type {number} */ (NaN))(0))
+                assertError(validate(/** @type {const} */ (0))(NaN))
+                assertError(validate(/** @type {const} */ (42))(NaN))
             },
         },
         infinity: {
             ok: () => {
-                assertOk(validate(Infinity as number)(Infinity))
-                assertOk(validate(-Infinity as number)(-Infinity))
+                assertOk(validate(/** @type {number} */ (Infinity))(Infinity))
+                assertOk(validate(/** @type {number} */ (-Infinity))(-Infinity))
             },
             error: () => {
-                assertError(validate(Infinity as number)(-Infinity))
-                assertError(validate(Infinity as number)(0))
+                assertError(validate(/** @type {number} */ (Infinity))(-Infinity))
+                assertError(validate(/** @type {number} */ (Infinity))(0))
             },
         },
         signedZero: {
             // `Object.is` distinguishes +0 and -0; `===` treats them equal.
             distinct: () => {
-                assertError(validate(0 as const)(-0))
-                assertError(validate(-0 as number)(0))
+                assertError(validate(/** @type {const} */ (0))(-0))
+                assertError(validate(/** @type {number} */ (-0))(0))
             },
             self: () => {
-                assertOk(validate(0 as const)(0))
-                assertOk(validate(-0 as number)(-0))
+                assertOk(validate(/** @type {const} */ (0))(0))
+                assertOk(validate(/** @type {number} */ (-0))(-0))
             },
         },
         string: {
             ok: () => {
-                type _ = Assert<Equal<Ts<'hello'>, 'hello'>>
-                assertOk(validate('hello' as const)('hello'))
+                /** @typedef {Assert<Equal<Ts<'hello'>, 'hello'>>} _RoundTrip */
+                assertOk(validate(/** @type {const} */ ('hello'))('hello'))
             },
-            error: () => assertError(validate('hello' as const)('world')),
+            error: () => assertError(validate(/** @type {const} */ ('hello'))('world')),
         },
         bigint: {
             ok: () => {
-                type _ = Assert<Equal<Ts<7n>, 7n>>
-                assertOk(validate(7n as const)(7n))
+                /** @typedef {Assert<Equal<Ts<7n>, 7n>>} _RoundTrip */
+                assertOk(validate(/** @type {const} */ (7n))(7n))
             },
-            error: () => assertError(validate(7n as const)(8n)),
+            error: () => assertError(validate(/** @type {const} */ (7n))(8n)),
         },
         boolean: {
             ok: () => {
-                type _ = Assert<Equal<Ts<true>, true>>
-                assertOk(validate(true as const)(true))
+                /** @typedef {Assert<Equal<Ts<true>, true>>} _RoundTrip */
+                assertOk(validate(/** @type {const} */ (true))(true))
             },
-            error: () => assertError(validate(true as const)(false)),
+            error: () => assertError(validate(/** @type {const} */ (true))(false)),
         },
         tuple: {
             ok: () => {
-                const t = [42, 'hello'] as const
-                type _ = Assert<Equal<Ts<typeof t>, readonly[42, 'hello']>>
+                const t = /** @type {const} */ ([42, 'hello'])
+                /** @typedef {Assert<Equal<Ts<typeof t>, readonly[42, 'hello']>>} _RoundTrip */
                 assertOk(validate(t)([42, 'hello']))
             },
-            extraItems: () => assertOk(validate([42] as const)([42, 'extra'])),
+            extraItems: () => assertOk(validate(/** @type {const} */ ([42]))([42, 'extra'])),
             error: () => {
-                assertError(validate([42] as const)([99]))
-                assertError(validate([42] as const)({}))
+                assertError(validate(/** @type {const} */ ([42]))([99]))
+                assertError(validate(/** @type {const} */ ([42]))({}))
             },
         },
         struct: {
             ok: () => {
-                const t = { a: 42, b: 'hello' } as const
-                type _ = Assert<Equal<Ts<typeof t>, { readonly a: 42, readonly b: 'hello' }>>
+                const t = /** @type {const} */ ({ a: 42, b: 'hello' })
+                /** @typedef {Assert<Equal<Ts<typeof t>, { readonly a: 42, readonly b: 'hello' }>>} _RoundTrip */
                 assertOk(validate(t)({ a: 42, b: 'hello' }))
             },
-            extraKeys: () => assertOk(validate({ a: 42 as const } as const)({ a: 42, b: 'extra' })),
+            extraKeys: () => assertOk(validate(/** @type {const} */ ({ a: /** @type {const} */ (42) }))({ a: 42, b: 'extra' })),
             error: () => {
-                assertError(validate({ a: 42 } as const)({ a: 99 }))
-                assertError(validate({ a: 42 } as const)([]))
+                assertError(validate(/** @type {const} */ ({ a: 42 }))({ a: 99 }))
+                assertError(validate(/** @type {const} */ ({ a: 42 }))([]))
             },
         },
     },
@@ -178,7 +185,7 @@ export const proof = {
         empty: () => assertOk(validate(array(number))([])),
         ok: () => {
             const t = array(number)
-            type _ = Assert<Equal<Ts<typeof t>, readonly number[]>>
+            /** @typedef {Assert<Equal<Ts<typeof t>, readonly number[]>>} _RoundTrip */
             assertOk(validate(array(number))([1, 2, 3]))
         },
         error: () => {
@@ -188,7 +195,7 @@ export const proof = {
         },
         nested: () => {
             const t = array(array(boolean))
-            type _ = Assert<Equal<Ts<typeof t>, readonly (readonly boolean[])[]>>
+            /** @typedef {Assert<Equal<Ts<typeof t>, readonly (readonly boolean[])[]>>} _RoundTrip */
             assertOk(validate(array(array(boolean)))([[true, false], [false]]))
             assertError(validate(array(array(boolean)))([[true, 42]]))
         },
@@ -197,7 +204,7 @@ export const proof = {
         empty: () => assertOk(validate(record(number))({})),
         ok: () => {
             const t = record(string)
-            type _ = Assert<Equal<Ts<typeof t>, { readonly[K in string]?: string }>>
+            /** @typedef {Assert<Equal<Ts<typeof t>, { readonly[K in string]?: string }>>} _RoundTrip */
             assertOk(validate(t)({ a: 'hello', b: 'world' }))
         },
         error: () => {
@@ -208,8 +215,8 @@ export const proof = {
     },
     constThunk: {
         primitive: () => {
-            const t = () => ['const', 7n] as const
-            type _ = Assert<Equal<Ts<typeof t>, 7n>>
+            const t = () => /** @type {const} */ (['const', 7n])
+            /** @typedef {Assert<Equal<Ts<typeof t>, 7n>>} _RoundTrip */
             assertOk(validate(t)(7n))
             assertError(validate(t)(8n))
         },
@@ -217,14 +224,14 @@ export const proof = {
     or: {
         consts: {
             ok: () => {
-                const t = or(...[false,42, 'hello'] as const)
-                type _ = Assert<Equal<Ts<typeof t>, false | 42 | 'hello'>>
+                const t = or(.../** @type {const} */ ([false,42, 'hello']))
+                /** @typedef {Assert<Equal<Ts<typeof t>, false | 42 | 'hello'>>} _RoundTrip */
                 assertOk(validate(t)(false))
                 assertOk(validate(t)(42))
                 assertOk(validate(t)('hello'))
             },
             error: () => {
-                const t = or(...[false, 42, 'hello'] as const)
+                const t = or(.../** @type {const} */ ([false, 42, 'hello']))
                 assertError(validate(t)(true))
                 assertError(validate(t)(43))
                 assertError(validate(t)('world'))
@@ -234,7 +241,7 @@ export const proof = {
         thunks: {
             ok: () => {
                 const t = or(number, string)
-                type _ = Assert<Equal<Ts<typeof t>, number | string>>
+                /** @typedef {Assert<Equal<Ts<typeof t>, number | string>>} _RoundTrip */
                 assertOk(validate(t)(42))
                 assertOk(validate(t)('hello'))
             },
@@ -246,13 +253,13 @@ export const proof = {
         },
         mixed: {
             ok: () => {
-                const t = or(42 as const, string)
-                type _ = Assert<Equal<Ts<typeof t>, 42 | string>>
+                const t = or(/** @type {const} */ (42), string)
+                /** @typedef {Assert<Equal<Ts<typeof t>, 42 | string>>} _RoundTrip */
                 assertOk(validate(t)(42))
                 assertOk(validate(t)('hello'))
             },
             error: () => {
-                const t = or(42 as const, string)
+                const t = or(/** @type {const} */ (42), string)
                 assertError(validate(t)(43))
                 assertError(validate(t)(null))
             },
@@ -261,7 +268,7 @@ export const proof = {
     option: {
         ok: () => {
             const t = option(number)
-            type _ = Assert<Equal<Ts<typeof t>, number | undefined>>
+            /** @typedef {Assert<Equal<Ts<typeof t>, number | undefined>>} _RoundTrip */
             assertOk(validate(t)(42))
             assertOk(validate(t)(undefined))
         },
@@ -283,31 +290,31 @@ export const proof = {
             validate(array(array(number)))([[1, 'x'], [2, 3]])
         ),
         tupleIndex: () => assertErrorPath(['1'])(
-            validate([number, number] as const)([1, 'two'])
+            validate(/** @type {const} */ ([number, number]))([1, 'two'])
         ),
         structKey: () => assertErrorPath(['b'])(
-            validate({ a: number, b: number } as const)({ a: 1, b: 'two' })
+            validate(/** @type {const} */ ({ a: number, b: number }))({ a: 1, b: 'two' })
         ),
         deepStruct: () => {
-            const schema = { user: { name: string, age: number } } as const
+            const schema = /** @type {const} */ ({ user: { name: string, age: number } })
             const r = validate(schema)({ user: { name: 'A', age: 'old' } })
             assertErrorPath(['user', 'age'])(r)
         },
         recursiveSchema: () => {
-            type A = readonly A[]
-            const list = () => ['array', list] as const
+            /** @typedef {readonly _A[]} _A */
+            const list = () => /** @type {const} */ (['array', list])
             // [[[42]]] — innermost element 42 is a number, not an array
-            const r = validate(list)([[[42]] as unknown as A])
+            const r = validate(list)([/** @type {_A} */ (/** @type {unknown} */ ([[42]]))])
             assertErrorPath(['0', '0', '0'])(r)
         },
         orRoot: () => assertErrorPath([])(validate(or(number, string))(true)),
     },
     recursive: {
         arrayOfArrays: () => {
-            type A = readonly A[]
+            /** @typedef {readonly _A[]} _A */
             // self-referential schema: an array whose elements are also arrays of the same type
-            const list = () => ['array', list] as const
-            type _A = Assert<Equal<A, Ts<typeof list>>>
+            const list = () => /** @type {const} */ (['array', list])
+            /** @typedef {Assert<Equal<_A, Ts<typeof list>>>} _RoundTripA */
             const v = validate(list)
             assertOk(v([]))
             assertOk(v([[], []]))
@@ -316,9 +323,9 @@ export const proof = {
             assertError(v(null))
         },
         recordOfRecords: () => {
-            const tree = () => ['record', tree] as const
-            type A = { readonly[K in string]?: A }
-            type _ = Assert<Equal<A, Ts<typeof tree>>>
+            const tree = () => /** @type {const} */ (['record', tree])
+            /** @typedef {{ readonly[K in string]?: _A }} _A */
+            /** @typedef {Assert<Equal<_A, Ts<typeof tree>>>} _RoundTrip */
             const v = validate(tree)
             assertOk(v({}))
             assertOk(v({ a: {}, b: { c: {} } }))
@@ -326,22 +333,28 @@ export const proof = {
         },
     },
     funcParam: () => {
-        const paramSet0 = ['hello', bigint] as const
-        const paramSet1 = ['goodbye', string, 43] as const
+        const paramSet0 = /** @type {const} */ (['hello', bigint])
+        const paramSet1 = /** @type {const} */ (['goodbye', string, 43])
 
         const paramSet01 = or(paramSet0, paramSet1)
 
-        type Param0 = Ts<typeof paramSet0>
-        type Param1 = Ts<typeof paramSet1>
-        type Param01 = Ts<typeof paramSet01>
+        /** @typedef {Ts<typeof paramSet0>} _Param0 */
+        /** @typedef {Ts<typeof paramSet1>} _Param1 */
+        /** @typedef {Ts<typeof paramSet01>} _Param01 */
 
         const v0 = validate(paramSet0)
         const v1 = validate(paramSet1)
 
-        type F0<T> = (...args: Param0) => T
-        type F1<T> = (...args: Param1) => T
+        /** @template T @typedef {(...args: _Param0) => T} _F0 */
+        /** @template T @typedef {(...args: _Param1) => T} _F1 */
 
-        const func = <T>(f0: F0<T>, f1: F1<T>) => (...args: Param01): T => {
+        /**
+         * @template T
+         * @param {_F0<T>} f0
+         * @param {_F1<T>} f1
+         * @returns {(...args: _Param01) => T}
+         */
+        const func = (f0, f1) => (...args) => {
             {
                 const [t, r] = v0(args)
                 if (t === 'ok') {
@@ -357,10 +370,13 @@ export const proof = {
             throw 'unreachable: args did not match any parameter set'
         }
 
-        const f0 = (a: 'hello', b: bigint): number => 42
-        const f1 = (a: 'goodbye', b: string, c: 43): number => 13
+        /** @type {(a: 'hello', b: bigint) => number} */
+        const f0 = (a, b) => 42
+        /** @type {(a: 'goodbye', b: string, c: 43) => number} */
+        const f1 = (a, b, c) => 13
 
-        const x: (...args: Param01) => number = func(f0, f1)
+        /** @type {(...args: _Param01) => number} */
+        const x = func(f0, f1)
 
         return () => {
             assertEq(x('hello', 42n), 42)
@@ -373,17 +389,23 @@ export const proof = {
 
         const param01 = or(param0, param1)
 
-        type Param0 = Ts<typeof param0>
-        type Param1 = Ts<typeof param1>
-        type Param01 = Ts<typeof param01>
+        /** @typedef {Ts<typeof param0>} _Param0 */
+        /** @typedef {Ts<typeof param1>} _Param1 */
+        /** @typedef {Ts<typeof param01>} _Param01 */
 
         const v0 = validate(param0)
         const v1 = validate(param1)
 
-        type F0<T> = (args: Param0) => T
-        type F1<T> = (args: Param1) => T
+        /** @template T @typedef {(args: _Param0) => T} _F0 */
+        /** @template T @typedef {(args: _Param1) => T} _F1 */
 
-        const func = <T>(f0: F0<T>, f1: F1<T>) => (args: Param01): T => {
+        /**
+         * @template T
+         * @param {_F0<T>} f0
+         * @param {_F1<T>} f1
+         * @returns {(args: _Param01) => T}
+         */
+        const func = (f0, f1) => args => {
             {
                 const [t, r] = v0(args)
                 if (t === 'ok') {
@@ -399,10 +421,13 @@ export const proof = {
             throw 'unreachable: args did not match any parameter set'
         }
 
-        const f0 = (args: Param0): number => Number(args.b) + args.a.length
-        const f1 = (args: Param1): number => args.c
+        /** @type {(args: _Param0) => number} */
+        const f0 = args => Number(args.b) + args.a.length
+        /** @type {(args: _Param1) => number} */
+        const f1 = args => args.c
 
-        const x: (args: Param01) => number = func(f0, f1)
+        /** @type {(args: _Param01) => number} */
+        const x = func(f0, f1)
 
         return () => {
             assertEq(x({ a: 'hello', b: 42n }), 47)

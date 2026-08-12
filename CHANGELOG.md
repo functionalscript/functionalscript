@@ -20,6 +20,48 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/djs/examples/input.f.ts` and
+  `fjs/djs/examples/m.f.ts` migrate to `.f.mjs`. Being `.mjs` they now
+  ship in the tarball, which `.f.ts` did not
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
+- **BREAKING CHANGES:** `fjs/types/nominal/proof.f.ts` migrates to
+  `.f.mjs`. Its two `unique symbol` brands move to `types.ts`, exported
+  as `_SymbolKeyBranded` and `_SymbolIntersectionBranded`
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
+- **BREAKING CHANGES:** `fjs/types/ts/proof.f.ts` migrates to `.f.mjs`.
+  Its `declare const` index-signature block moves to `types.ts`,
+  non-exported, so no public type changes
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
+- **BREAKING CHANGES:** `fjs/emergent_testing/example.f.ts` migrates
+  from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the
+  four typed consts become JSDoc `@type` annotations
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
+- **BREAKING CHANGES:** `fjs/types/rtti/validate/proof.f.ts` migrates to
+  `.f.mjs` — 23 compile-time round-trips stay function-local as JSDoc
+  `@typedef`s and are not emitted
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
+- **BREAKING CHANGES:** `fjs/types/rtti/parse/proof.f.ts` migrates to
+  `.f.mjs` — compile-time round-trips stay function-local as JSDoc
+  `@typedef`s and are not emitted
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
+- **BREAKING CHANGES:** `fjs/emergent_testing/proof.f.ts` migrates to
+  `.f.mjs`. Six module-local types become `_`-prefixed `@typedef`s, as a
+  JSDoc `@typedef` has no non-exported form
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
+- **BREAKING CHANGES:** `fjs/effects/node/proof.f.ts` migrates to
+  `.f.mjs` — explicit generic instantiations become checked `@type`
+  declarations, as JSDoc has no call-site form
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
+- **BREAKING CHANGES:** `fjs/js/tokenizer/proof.f.ts` migrates to
+  `.f.mjs` — typed consts become JSDoc `@type` annotations
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
+- **BREAKING CHANGES:** `fjs/media/json/parser/proof.f.ts` migrates to
+  `.f.mjs` — the typed const becomes a JSDoc `@type` annotation
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
+- **BREAKING CHANGES:** `todo/proof.f.ts` migrates to `.f.mjs`. The
+  `TemplateType` alias is renamed `_TemplateType`: it was never exported,
+  but a JSDoc `@typedef` has no non-exported form
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/media/json/tokenizer/proof.f.ts` migrates
   from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the
   typed `tokenizeString` const becomes a JSDoc `@type` annotation, and

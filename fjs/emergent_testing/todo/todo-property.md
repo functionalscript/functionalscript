@@ -197,7 +197,7 @@ docs, mirroring the existing `throws` plumbing:
 
 ### Migration
 
-This rule reinterprets existing `fjs/emergent_testing/example.f.ts`:
+This rule reinterprets existing `fjs/emergent_testing/example.f.mjs`:
 
 ```ts
 export const todo = () => { throw "not implemented" }
@@ -231,8 +231,8 @@ out from under `throw`) as part of landing this change.
 - [ ] Add a `todo` counter to `TestState`/`Reporter.summary` and print
       `pass / fail / todo` in `defaultReporter` (`fjs t` only; `register`
       unchanged).
-- [ ] Migrate `fjs/emergent_testing/example.f.ts` off `throw: { todo }`.
-- [ ] Add proofs in `fjs/emergent_testing/proof.f.ts` for: `todo` green on throw,
+- [ ] Migrate `fjs/emergent_testing/example.f.mjs` off `throw: { todo }`.
+- [ ] Add proofs in `fjs/emergent_testing/proof.f.mjs` for: `todo` green on throw,
       `todo` red when it returns, `throw.todo` green on return / red on throw, the
       never-walk-subtests rule, and the static guard rejecting a non-function
       `todo`.

@@ -1,25 +1,33 @@
-import type { Vec } from "../../types/bit_vec/types.ts"
+/**
+ * @import { Vec } from "../../types/bit_vec/types.ts"
+ * @import { IoResult, ReadFile } from "./types.ts"
+ * @import { Dir } from "./virtual/types.ts"
+ * @import { List } from "../list/types.ts"
+ * @import { OperationMap } from "../types.ts"
+ */
+
 import { empty, isVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match, pure, step } from "../module.f.mjs"
 import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
-import type { IoResult, ReadFile } from "./types.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
-import type { Dir } from "./virtual/types.ts"
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 
 // Answers the one command the `map` proof below drives. Routing the loop
 // through `match` keeps the `Pure`/`Do` layout out of this module: the map key
 // is the command assertion, and `MatchResult` types the continuation.
-const readHello = match<ReadFile, IoResult<Vec>>({
+/** @type {OperationMap<ReadFile, IoResult<Vec>>} */
+const readHelloMap = {
     readFile: path => {
         assertEq(path, 'hello')
         return ok(vec8(0x15n))
     },
-})
+}
+
+const readHello = match(readHelloMap)
 
 export const proof = {
     externalTestContext: () => {
@@ -74,7 +82,7 @@ export const proof = {
             assert(t === 'ok', result)
             const tmp = state.root.tmp
             assert(!(typeof tmp !== 'object' || Array.isArray(tmp)), state.root)
-            const cache = (tmp as Dir).cache
+            const cache = (/** @type {Dir} */ (tmp)).cache
             assert(!(typeof cache !== 'object' || Array.isArray(cache)), tmp)
         },
         nonRec: () => {
@@ -114,7 +122,7 @@ export const proof = {
         nestedPath: () => {
             const [_, [t, result]] = virtual(emptyState)(readFile('tmp/cache'))
             assert(t === 'error', result)
-            if ((result as { code?: unknown }).code !== 'ENOENT') { throw result }
+            if ((/** @type {{ code?: unknown }} */ (result)).code !== 'ENOENT') { throw result }
         },
         withinLimit: () => {
             // Test with a small file well within the 131,072 byte limit
@@ -265,7 +273,7 @@ export const proof = {
             assert(t === 'ok', result)
             const tmp = state.root.tmp
             assert(!(typeof tmp !== 'object' || Array.isArray(tmp)), state.root)
-            assertEq((tmp as Dir).cache, undefined, tmp)
+            assertEq((/** @type {Dir} */ (tmp)).cache, undefined, tmp)
         },
         noSuchFile: () => {
             const [_, [t, result]] = virtual(emptyState)(rm('hello'))
@@ -305,7 +313,7 @@ export const proof = {
         // (and `duration`) instead of the runner measuring.
         ok: () => {
             const [_, { result, duration }] = virtual(emptyState)(
-                sandbox(() => ({ result: ['ok', 42], duration: 0 }) as never))
+                sandbox(() => /** @type {never} */ ({ result: ['ok', 42], duration: 0 })))
             assert(result[0] === 'ok', result)
             assertEq(result[1], 42)
             assertEq(duration, 0)
@@ -313,7 +321,7 @@ export const proof = {
         error: () => {
             const err = new Error('fail')
             const [_, { result }] = virtual(emptyState)(
-                sandbox(() => ({ result: ['error', err], duration: 0 }) as never))
+                sandbox(() => /** @type {never} */ ({ result: ['error', err], duration: 0 })))
             assert(result[0] === 'error', result)
             assertEq(result[1], err)
         },
@@ -343,7 +351,7 @@ export const proof = {
             assert(t === 'ok', result)
             assertEq(state.root.src, undefined, state.root)
             assert(Array.isArray(state.root.dst), state.root)
-            assertEq(uint((state.root.dst as readonly Vec[])[0]), 0x2An, state.root)
+            assertEq(uint((/** @type {readonly Vec[]} */ (state.root.dst))[0]), 0x2An, state.root)
         },
         nestedRename: () => {
             const [state, [t, result]] = virtual({
@@ -353,7 +361,7 @@ export const proof = {
             assert(t === 'ok', result)
             const tmp = state.root.tmp
             assert(!(typeof tmp !== 'object' || Array.isArray(tmp)), state.root)
-            assertEq((tmp as Dir).src, undefined, tmp)
+            assertEq((/** @type {Dir} */ (tmp)).src, undefined, tmp)
         },
         dirOverFile: () => {
             const [state, [t, result]] = virtual({
@@ -411,10 +419,12 @@ export const proof = {
         createExclusiveFails: () => {
             // The destination already exists, so `createExclusive` fails (EEXIST) and
             // the error propagates without ever touching `writeBytes`.
+            /** @type {List<never, IoResult<Vec>>} */
+            const chunks = listEmpty()
             const [state, [t, result]] = virtual({
                 ...emptyState,
                 root: { hello: [vec8(0x2An)] },
-            })(writeFromStream('hello', listEmpty<never, IoResult<Vec>>()))
+            })(writeFromStream('hello', chunks))
             assert(t === 'error', result)
             const file = state.root.hello
             assert(!(!Array.isArray(file) || uint(file[0]) !== 0x2An), file)
@@ -422,8 +432,10 @@ export const proof = {
         invalidBufferSize: () => {
             // A chunk whose bit length isn't a multiple of 8 trips the
             // byte-alignment guard before `writeBytes` is ever called.
+            /** @type {List<never, IoResult<Vec>>} */
+            const chunks = listNonEmpty(['ok', vec(4n)(0b1010n)], listEmpty())
             const [_, [t, result]] = virtual(emptyState)(
-                writeFromStream('hello', listNonEmpty<never, IoResult<Vec>>(['ok', vec(4n)(0b1010n)], listEmpty()))
+                writeFromStream('hello', chunks)
             )
             assert(t === 'error', result)
             assertEq(result, 'invalid buffer size')
