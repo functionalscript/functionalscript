@@ -22,13 +22,7 @@ import { at, definedEntries } from '../../types/object/module.f.mjs'
 import type { Entry as ObjectEntry } from '../../types/object/types.ts'
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.mjs'
-import type { Ts } from '../../types/rtti/ts/types.ts'
-import type { Assert } from '../../asserts/types.ts'
-import type { Equal } from '../../types/ts/types.ts'
-import type { primitive, unknown } from './rtti/module.f.mjs'
 import type { Object, Unknown } from './types.ts'
-
-type _Unknown = Assert<Equal<Unknown, Ts<typeof unknown>>>
 
 // ── JSON utilities ────────────────────────────────────────────────────────────
 
