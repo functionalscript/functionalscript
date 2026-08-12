@@ -5,19 +5,20 @@ import { assertEq } from '../asserts/module.f.mjs'
 
 const s = stringify(i => i)
 
-const f
-    : (v: string) => string
-    = v => {
+/** @type {(v: string) => string} */
+const f = v => {
     const n = one(v)
     return s(init(n)[0])
 }
 
 // this doesn't change a name of the function
-const fn = (f: () => undefined, name: string) => ({[name]: f}[name])
+/** @type {(f: () => undefined, name: string) => (() => undefined)} */
+const fn = (f, name) => ({[name]: f}[name])
 
-const withName = (name: string): () => undefined =>
+/** @type {(name: string) => () => undefined} */
+const withName = name =>
     // translated into one command: define a `function [name]() { return undefined }`
-    (Object.getOwnPropertyDescriptor({[name]: () => undefined}, name) as any).value
+    /** @type {any} */ (Object.getOwnPropertyDescriptor({[name]: () => undefined}, name)).value
 
 export const proof = {
     a: () => {
@@ -67,14 +68,21 @@ export const proof = {
     },
     //
     f3: () => {
-        const m2: any = true ? () => undefined : () => undefined
+        /** @type {any} */
+        const m2 = true ? () => undefined : () => undefined
         // for `bun` it is `m2`:
         // assertEq(m2.name, "")
         // see also https://github.com/oven-sh/bun/issues/20398
     },
     f4: () => {
-        const id = <T>(i: T): T => i
-        const f: any = id(() => undefined)
+        /**
+         * @template T
+         * @param {T} i
+         * @returns {T}
+         */
+        const id = i => i
+        /** @type {any} */
+        const f = id(() => undefined)
         // for `bun` it is `m2`:
         assertEq(f.name, "")
     },

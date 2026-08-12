@@ -16,7 +16,7 @@ camelCase everywhere else. 42 keys across 6 files are snake_case instead:
 | `fjs/sul/proof.f.mjs` | 5 |
 | `fjs/types/bit_vec/proof.f.ts` | 4 |
 | `fjs/types/prime_field/proof.f.mjs` | 3 |
-| `fjs/fsc/proof.f.ts` | 1 |
+| `fjs/fsc/proof.f.mjs` | 1 |
 
 They are only names, so nothing is broken — but the split means a new proof
 has no single convention to copy from, which is how the inconsistency keeps
