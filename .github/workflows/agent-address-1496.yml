@@ -1,0 +1,45 @@
+name: Temporary PR 1496 edit
+on:
+  push:
+    branches: [agent/edsl-host-syntax]
+permissions:
+  contents: write
+jobs:
+  edit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/edsl-host-syntax
+      - name: Address review feedback
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('AGENTS.md')
+          s = p.read_text()
+          old = '''The NaNVM operator-test data follows the same
+          principle: ordinary operands and expected results are ordinary JavaScript values,
+          while references, function values, and expected throws need special forms.'''
+          new = '''The proposed NaNVM operator-test data eDSL applies the same principle: ordinary
+          operands and expected results should be ordinary JavaScript values, while
+          references, function values, and expected throws need special forms.'''
+          old2 = '''Optimize the public eDSL
+          for the person writing and reading it; optimize the normalized representation for
+          the consumers that process it.'''
+          new2 = '''Prefer the simplest representation that preserves the required semantics. Avoid
+          redundant DSL syntax: less representational noise benefits people, AI systems,
+          deterministic computation, hashing, serialization, storage, and code generation
+          alike. Use a more explicit normalized representation only when that extra
+          structure provides actual semantic or processing value.'''
+          assert old in s
+          assert old2 in s
+          p.write_text(s.replace(old, new, 1).replace(old2, new2, 1))
+          PY
+      - name: Commit change
+        run: |
+          rm .github/workflows/agent-address-1496.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add AGENTS.md .github/workflows/agent-address-1496.yml
+          git commit -m "Address eDSL guidance review"
+          git push origin HEAD:agent/edsl-host-syntax
