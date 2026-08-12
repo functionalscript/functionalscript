@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/bnf/proof` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — no local
+  types to split. Importers must use the `.f.mjs` specifier
+  [#1501](https://github.com/functionalscript/functionalscript/pull/1501)
 - **BREAKING CHANGES:** `fjs/media/json/module` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), moving
   `Entry`, `_Entries`, and `_MapEntries` into the sibling `types.ts` —
