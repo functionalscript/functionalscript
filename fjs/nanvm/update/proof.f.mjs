@@ -10,7 +10,7 @@ import {
     defaultNodeProgramOptions,
     emptyState,
     virtual,
-} from '../../effects/node/virtual/module.f.ts'
+} from '../../effects/node/virtual/module.f.mjs'
 import { data } from '../module.f.mjs'
 import { generate, path } from '../rust/module.f.mjs'
 import { generateRustTests, main } from './module.f.mjs'
