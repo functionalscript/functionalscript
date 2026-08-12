@@ -22,7 +22,7 @@ Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
 - `fjs/types/array/proof.f.ts:6`, `fjs/types/byte_set/proof.f.ts:8`,
   `fjs/types/range_map/proof.f.ts:12`, `fjs/types/sorted_list/proof.f.ts:10`,
   `fjs/types/sorted_set/proof.f.ts:10`, `fjs/types/list/proof.f.ts:37`
-- `fjs/text/ascii/proof.f.ts:6`, `fjs/text/utf8/proof.f.ts:8`,
+- `fjs/text/ascii/proof.f.mjs:6`, `fjs/text/utf8/proof.f.ts:8`,
   `fjs/text/utf16/proof.f.ts:15`
 - `fjs/media/json/parser/proof.f.ts:13`, `fjs/protocol/mcp/stdio/proof.f.mjs:20`
 - `fjs/bnf/data/proof.f.ts` (10 inline calls), `fjs/djs/parser/proof.f.mjs:309`,

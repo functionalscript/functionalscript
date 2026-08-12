@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/text/ascii/proof.f.ts` migrates from authored
+  TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — no type annotations to
+  convert
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/module.ts` (the `fjs` CLI entry point) migrates
   to `fjs/module.mjs`, per the `module.ts -> module.mjs` stage-1 mapping.
   `package.json`'s `bin.fjs` now points directly at the authored `.mjs`
