@@ -1,13 +1,18 @@
-import { type Unknown as JsonValue } from '../types.ts'
+/**
+ * @import { Unknown as JsonValue } from '../types.ts'
+ * @import { Unknown } from './module.f.mjs'
+ */
 
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../../../types/rtti/module.f.mjs'
 import { stringify } from '../module.f.mjs'
-import { toJsonSchema, type Unknown, unknown as schemaUnknown } from './module.f.ts'
+import { toJsonSchema, unknown as schemaUnknown } from './module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
-const serialize = (v: Unknown) => stringify(e => e)(v as unknown as JsonValue)
+/** @type {(v: Unknown) => string} */
+const serialize = v => stringify(e => e)(/** @type {JsonValue} */ (/** @type {unknown} */ (v)))
 
-const eq = (rtti: Parameters<typeof toJsonSchema>[0], expected: Unknown) => () => {
+/** @type {(rtti: Parameters<typeof toJsonSchema>[0], expected: Unknown) => () => void} */
+const eq = (rtti, expected) => () => {
     const result = serialize(toJsonSchema(rtti))
     const exp = serialize(expected)
     assertEq(result, exp, [result, exp])
@@ -25,40 +30,40 @@ export const proof = {
         null: eq(null, { const: null }),
         true: eq(true, { const: true }),
         false: eq(false, { const: false }),
-        number: eq(42 as const, { const: 42 }),
-        string: eq('hello' as const, { const: 'hello' }),
+        number: eq(/** @type {const} */ (42), { const: 42 }),
+        string: eq(/** @type {const} */ ('hello'), { const: 'hello' }),
         undefined: eq(undefined, { not: {} }),
-        bigint: eq(7n as const, { const: 7 }),
+        bigint: eq(/** @type {const} */ (7n), { const: 7 }),
     },
     array: eq(array(number), { type: 'array', items: { type: 'number' } }),
     record: eq(record(string), { type: 'object', additionalProperties: { type: 'string' } }),
-    or: eq(or(string, number), { anyOf: [{ type: 'string' }, { type: 'number' } ] }),
-    tuple: eq([number, string] as const, {
+    or: eq(or(string, number), { anyOf: [{ type: 'string' }, { type: 'number' }] }),
+    tuple: eq(/** @type {const} */ ([number, string]), {
         type: 'array',
         prefixItems: [{ type: 'number' }, { type: 'string' }],
         items: false,
     }),
     struct: {
-        allRequired: eq({ x: number, y: string } as const, {
+        allRequired: eq(/** @type {const} */ ({ x: number, y: string }), {
             type: 'object',
             properties: { x: { type: 'number' }, y: { type: 'string' } },
             required: ['x', 'y'],
         }),
-        withOptional: eq({ x: number, y: option(string) } as const, {
+        withOptional: eq(/** @type {const} */ ({ x: number, y: option(string) }), {
             type: 'object',
             properties: { x: { type: 'number' }, y: { type: 'string' } },
             required: ['x'],
         }),
-        allOptional: eq({ x: option(number) } as const, {
+        allOptional: eq(/** @type {const} */ ({ x: option(number) }), {
             type: 'object',
             properties: { x: { type: 'number' } },
         }),
-        empty: eq({} as const, { type: 'object', properties: {} }),
-        orOptional: eq({ x: or(string, number, undefined) } as const, {
+        empty: eq(/** @type {const} */ ({}), { type: 'object', properties: {} }),
+        orOptional: eq(/** @type {const} */ ({ x: or(string, number, undefined) }), {
             type: 'object',
             properties: { x: { anyOf: [{ type: 'string' }, { type: 'number' }] } },
         }),
-        withConst: eq({ x: null, y: string } as const, {
+        withConst: eq(/** @type {const} */ ({ x: null, y: string }), {
             type: 'object',
             properties: { x: { const: null }, y: { type: 'string' } },
             required: ['x', 'y'],
@@ -73,10 +78,10 @@ export const proof = {
             type: 'array',
             items: { type: 'object', additionalProperties: { type: 'boolean' } },
         }),
-        orWithConst: eq(or(null, string, 42 as const), {
+        orWithConst: eq(or(null, string, /** @type {const} */ (42)), {
             anyOf: [{ const: null }, { type: 'string' }, { const: 42 }],
         }),
-        structWithOr: eq({ id: or(string, number), name: option(string) } as const, {
+        structWithOr: eq(/** @type {const} */ ({ id: or(string, number), name: option(string) }), {
             type: 'object',
             properties: {
                 id: { anyOf: [{ type: 'string' }, { type: 'number' }] },

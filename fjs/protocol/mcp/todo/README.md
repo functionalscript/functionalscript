@@ -174,7 +174,7 @@ decoder via `validate` + static type via `Ts<>`). A representative subset:
 - **Content types:** the union used in tool/prompt/resource results —
   `text`, `image`, `audio`, embedded `resource` (and resource links).
 
-#### 3. rtti → JSON Schema printer — landed in `fjs/media/json/schema/module.f.ts`
+#### 3. rtti → JSON Schema printer — landed in `fjs/media/json/schema/module.f.mjs`
 
 MCP declares each tool's `inputSchema` as **JSON Schema**, not TypeScript. rtti
 today only prints to TypeScript (`fjs/types/rtti/ts/`, `toTs`). To describe a tool
@@ -232,7 +232,7 @@ server-answers-request.
 ### Related
 
 - `fjs/protocol/json_rpc/module.f.mjs` — the JSON-RPC 2.0 envelope
-- `fjs/media/json/schema/module.f.ts` — rtti → JSON Schema printer
+- `fjs/media/json/schema/module.f.mjs` — rtti → JSON Schema printer
 - `fjs/types/rtti/module.f.mjs` — schema combinators; `fjs/types/rtti/ts/` is the precedent for a printer
 - `fjs/effects/node/module.f.mjs` — stdio (`write` / stdin) and HTTP (`createServer` / `listen`) for transports
 - [Model Context Protocol](https://modelcontextprotocol.io/) · [JSON-RPC 2.0](https://www.jsonrpc.org/specification)
