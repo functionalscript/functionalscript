@@ -1,4 +1,4 @@
-/** @typedef {`<html>${string}</html>`} TemplateType */
+/** @typedef {`<html>${string}</html>`} _TemplateType */
 
 /** @type {(a: unknown) => (i: any) => unknown} */
 const at = a => i => Object.getOwnPropertyDescriptor(a, i)?.value
@@ -9,7 +9,7 @@ const utf8 = (...x) => x
 export const proof = {
     literal: () => {
         const x = utf8`17`
-        /** @type {TemplateType} */
+        /** @type {_TemplateType} */
         const m = '<html>Hello</html>'
     },
     ownProperty: {
