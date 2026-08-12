@@ -28,26 +28,26 @@ This follows the post-merge review discussion on #1489:
 
 ### Proposal
 
-Represent an operation with its semantic name and argument count. For example:
+Represent an operation as a small immutable tuple containing its semantic name
+and argument count:
 
 ```ts
-export type Operation<N extends number = number> = {
-    readonly name: string
-    readonly argsN: N
-}
+export type Operation<N extends number = number> =
+    readonly [name: string, argsN: N]
 ```
 
 The corpus can then describe operations along these lines:
 
 ```ts
-{ name: '+', argsN: 1 }
-{ name: '-', argsN: 1 }
-{ name: '*', argsN: 2 }
-{ name: 'String', argsN: 1 }
+['+', 1]
+['-', 1]
+['*', 2]
+['String', 1]
 ```
 
 The arity disambiguates operations that share syntax, such as unary `+` and a
-future binary `+`.
+future binary `+`. The tuple also keeps the shared data compact: an operation is
+just a semantic descriptor, not an object with independently mutable fields.
 
 Make `Case` generic over the argument count and use the existing fixed-length
 array machinery (`Tuple<N, T>`) so an operation's cases have exactly the right
@@ -63,9 +63,9 @@ export type Case<N extends number> = {
 ```
 
 Groups must preserve the operation's literal arity so their cases are typed as
-`Case<O['argsN']>`. The exact TypeScript shape may use generic groups or separate
-unary/binary group types; the important invariant is that invalid case arity is
-rejected statically.
+`Case<O[1]>`, where element `1` is the operation's `argsN`. The exact TypeScript
+shape may use generic groups or separate unary/binary group types; the important
+invariant is that invalid case arity is rejected statically.
 
 `commutative` only makes sense for binary operations. Prefer a type shape where
 it is available only for binary groups rather than a general optional property.
@@ -82,11 +82,11 @@ unified later if doing so becomes clearly useful.
 
 ### Tasks
 
-- [ ] Replace the current string-union `Op` model with operations that carry a
-      semantic name and literal argument count.
+- [ ] Replace the current string-union `Op` model with `readonly [name, argsN]`
+      operations carrying a semantic name and literal argument count.
 - [ ] Make `Case` generic over argument count and type `args` as a fixed-length
       tuple.
-- [ ] Make each group's cases derive their argument count from its operation.
+- [ ] Make each group's cases derive their argument count from `operation[1]`.
 - [ ] Restrict `commutative` to binary groups.
 - [ ] Update `fjs/nanvm/module.f.mjs` to use semantic operation descriptions.
 - [ ] Update `fjs/nanvm/proof.f.mjs` to dispatch on the semantic operation and
