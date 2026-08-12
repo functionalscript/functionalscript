@@ -64,7 +64,8 @@ const counterTest = () => {
 }
 
 const stateScanToScanTest = () => {
-    const op = (input: number, state: number) => [input + state, input + state] as const
+    const op = (/** @type {number} */ input, /** @type {number} */ state) =>
+        /** @type {const} */ ([input + state, input + state])
     const scan = stateScanToScan(op)(0)
     const [v1, scan2] = scan(3)
     assertEq(v1, 3)
