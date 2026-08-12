@@ -20,7 +20,7 @@ export const primitive = or(null, rttiBoolean, rttiNumber, rttiString)
  * A struct field typed `unknown` is **required when present** — unlike rtti
  * core's `unknown`, the JSON `unknown` excludes `undefined`.
  *
- * @type {() => ['or', typeof primitive, typeof object, typeof array]}
+ * @type {() => readonly['or', typeof primitive, typeof object, typeof array]}
  */
 export const unknown = () => ['or', primitive, object, array]
 
