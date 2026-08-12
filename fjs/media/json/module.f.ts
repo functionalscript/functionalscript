@@ -26,13 +26,7 @@ import type { Ts } from '../../types/rtti/ts/types.ts'
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { primitive, unknown } from './rtti/module.f.mjs'
-import type { Primitive } from './types.ts'
-
-export type Unknown = Object | Array | Primitive
-
-export type Object = { readonly[k in string]?: Unknown }
-
-export type Array = readonly Unknown[]
+import type { Object, Unknown } from './types.ts'
 
 type _Unknown = Assert<Equal<Unknown, Ts<typeof unknown>>>
 

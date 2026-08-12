@@ -14,11 +14,14 @@
  *
  * @module
  */
+
+import type { Unknown } from '../json/types.ts'
+
 import { array, number, option, record, string } from '../../types/rtti/module.f.mjs'
 import { validate as rttiValidate } from '../../types/rtti/validate/module.f.mjs'
 import type { ValidationError } from '../../types/rtti/common/types.ts'
 import type { Ts } from '../../types/rtti/ts/types.ts'
-import { parse as parseJson, type Unknown } from '../json/module.f.ts'
+import { parse as parseJson } from '../json/module.f.ts'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
 import type { Result } from '../../types/result/types.ts'
 import { error, ok } from '../../types/result/module.f.mjs'

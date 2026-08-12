@@ -1,9 +1,10 @@
+import type { Unknown } from '../../../media/json/types.ts'
+
 import { assertEq } from '../../../asserts/module.f.mjs'
 import { pure } from '../../../effects/module.f.mjs'
 import type { Effect } from '../../../effects/types.ts'
 import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
 import type { State } from '../../../effects/node/virtual/types.ts'
-import type { Unknown } from '../../../media/json/module.f.ts'
 import { stringify } from '../../../media/json/module.f.ts'
 import { utf8 } from '../../../text/module.f.mjs'
 import { fromVec } from '../../../types/uint8array/module.f.mjs'
