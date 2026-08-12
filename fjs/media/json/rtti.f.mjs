@@ -1,4 +1,11 @@
-import { boolean, number, or, record, string, array as rttiArray } from "../../types/rtti/module.f.mjs"
+/**
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Ts } from '../../types/rtti/ts/types.ts'
+ * @import { Equal } from '../../types/ts/types.ts'
+ * @import { Unknown } from './types.ts'
+ */
+
+import { boolean, number, or, record, string, array as rttiArray } from '../../types/rtti/module.f.mjs'
 
 /** rtti schema matching any JSON primitive: `null`, `boolean`, `number`, or `string`. */
 export const primitive = or(null, boolean, number, string)
@@ -21,3 +28,5 @@ export const object = record(unknown)
 
 /** rtti schema matching a JSON array: `readonly Unknown[]`. */
 export const array = rttiArray(unknown)
+
+/** @typedef {Assert<Equal<Unknown, Ts<typeof unknown>>>} _Unknown */
