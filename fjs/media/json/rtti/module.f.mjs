@@ -11,7 +11,7 @@ import {
 /** rtti schema matching any JSON primitive: `null`, `boolean`, `number`, or `string`. */
 export const primitive = or(null, rttiBoolean, rttiNumber, rttiString)
 
-export type Unknown = () => ['or', typeof primitive, typeof object, typeof array]
+/** @typedef {() => ['or', typeof primitive, typeof object, typeof array]} Unknown */
 
 /**
  * rtti schema matching any JSON value: a primitive, an array of JSON values,
@@ -21,8 +21,10 @@ export type Unknown = () => ['or', typeof primitive, typeof object, typeof array
  *
  * A struct field typed `unknown` is **required when present** — unlike rtti
  * core's `unknown`, the JSON `unknown` excludes `undefined`.
+ *
+ * @type {Unknown}
  */
-export const unknown: Unknown = () => ['or', primitive, object, array] as const
+export const unknown = () => ['or', primitive, object, array]
 
 /**
  * rtti schema matching a JSON object: `{ readonly [k: string]?: Unknown }`.

@@ -29,7 +29,7 @@ import {
 import { validate } from '../../types/rtti/validate/module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.ts'
 import type { Type } from '../../types/rtti/types.ts'
-import { unknown } from '../../media/json/rtti/module.f.ts'
+import { unknown } from '../../media/json/rtti/module.f.mjs'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 

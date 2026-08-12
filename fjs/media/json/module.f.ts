@@ -25,7 +25,7 @@ import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize,
 import type { Ts } from '../../types/rtti/ts/types.ts'
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
-import type { primitive, unknown } from './rtti/module.f.ts'
+import type { primitive, unknown } from './rtti/module.f.mjs'
 
 // ── TypeScript types (derived from schemas — single source of truth) ──────────
 
