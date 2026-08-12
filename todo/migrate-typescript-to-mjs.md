@@ -448,6 +448,57 @@ non-composing generics already do) when a generic function does not call
 other independently-generic functions in its body; switch to the per-arrow
 style once composition breaks inference.
 
+#### Mutually recursive constants need `typeof`, not `@type {const}`
+
+rtti schemas are values, not types, so a recursive schema is a cycle in the
+*value* graph: `unknown` names `object` and `array`, and both are built from
+`unknown`. TypeScript source closed that cycle with inference plus `as const`,
+which has no declaration-level JSDoc equivalent. The replacement is an explicit
+`@type` whose element types are `typeof` references to the other constants:
+
+```js
+/** @type {() => readonly['or', typeof primitive, typeof object, typeof array]} */
+export const unknown = () => ['or', primitive, object, array]
+
+export const object = record(unknown)
+export const array = rttiArray(unknown)
+```
+
+Forward references are fine — `unknown` is annotated in terms of `object` and
+`array`, which are declared below it.
+
+The failure this avoids is **declaration emit**, not type checking, and the
+three candidate spellings fail in different places. Measured on
+`fjs/media/json/rtti/module.f.mjs` ([#1498](https://github.com/functionalscript/functionalscript/pull/1498)):
+
+| form | `npx tsc` | emitted `.d.mts` |
+| ---- | --------- | ---------------- |
+| no annotation | **TS2345** — literal widens to `(string \| …)[]`, not a `Type` | — |
+| `/** @type {const} */(…)` inline cast | clean | 4 `any` + 2 `/*elided*/` |
+| `@type {() => readonly[…typeof…]}` | clean | 0 `any`, 0 `elided` |
+
+The bare form is just the "pin literal `const`s" rule. The interesting case
+is the middle one: it type-checks, `fjs t` is green, and the damage is visible
+only to a consumer of the published package — the same invisible-in-repository
+failure mode as [curried generic exports](#curried-generic-exports-need-an-explicit-returns).
+`@type {const}` pins the tuple but gives the emitter no *name* for the
+recursive positions, so it inlines the structure and gives up at depth,
+collapsing to `/*elided*/ any`. `typeof primitive` / `typeof object` /
+`typeof array` are names the emitter can print, so each node of the cycle
+refers to its neighbours by name and the emitted declaration stays finite and
+exact (it also stays smaller: 1392 vs 2248 characters).
+
+Keep the round-trip proven rather than asserted. `fjs/media/json/types.ts`
+carries `Assert<Equal<Unknown, Ts<typeof unknown>>>`, so the hand-written type
+and the schema-derived one are checked against each other; without such an
+assert the explicit `@type` is an unverified claim about a schema the compiler
+would otherwise have inferred.
+
+This generalizes beyond JSON. Any mutually recursive group of exported rtti
+schemas needs the same treatment, and more of them are expected as rtti use
+grows — reach for `typeof` cross-references first, and check the emitted
+`.d.mts` for `any` / `elided` before considering the group migrated.
+
 #### Declaration-only TypeScript is not a migration hard case
 
 Do not require the migration plan to pre-design a JavaScript/JSDoc
@@ -580,6 +631,15 @@ this rename.
       hoisted to a leading declaration annotation — the declaration-level
       form fails with `TS2304` because TypeScript resolves `const` as an
       ordinary type name there, unlike every other `@type` cast.
+- [ ] Annotate mutually recursive exported constants (rtti schema groups above
+      all) with an explicit `@type` that cross-references its neighbours by
+      `typeof`, not with `/** @type {const} */`. The const cast type-checks but
+      leaves the emitter no name for the recursive positions, so it inlines the
+      structure and collapses it to `/*elided*/ any` in the `.d.mts` while the
+      repository stays green. Expect more of these as rtti spreads; check the
+      emitted declaration for `any` / `elided` before calling such a group
+      migrated, and keep an `Assert<Equal<…, Ts<typeof …>>>` beside the schema
+      so the explicit annotation stays verified rather than asserted.
 - [ ] Decide each JSDoc typedef's visibility at the migration boundary: prefix
       implementation-only typedefs with `_` and leave publicly useful ones
       unprefixed, judged by what the module should offer its consumers rather
@@ -673,6 +733,10 @@ this rename.
   composes other independently-generic functions in its body.
 - `/** @type {const} */` stays an inline cast on the expression it types, never a
   leading declaration-level annotation.
+- Mutually recursive exported constants carry an explicit `@type` that names its
+  neighbours through `typeof`, and their emitted declarations contain no `any` or
+  `/*elided*/`; a `Ts<typeof …>` round-trip assert keeps each such annotation
+  verified against the schema it describes.
 - Renaming or removing an emitted `_`-prefixed alias is not breaking solely due
   to that alias being emitted; any resulting change to a public declaration's
   assignability is still a breaking change.
