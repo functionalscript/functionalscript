@@ -5,7 +5,7 @@
 
 ### Problem
 
-`handleLine` (`fjs/protocol/mcp/stdio/module.f.ts:84-98`) hand-nests the same
+`handleLine` (`fjs/protocol/mcp/stdio/module.f.mjs:100-111`) hand-nests the same
 *"write a response; if it didn't fit, try the next smaller one"* structure
 three levels deep:
 
@@ -65,6 +65,6 @@ attach it to the list literal.
 
 ### Related
 
-- `fjs/protocol/mcp/stdio/module.f.ts` — `internalErrorResponse`, `writeResponse`
+- `fjs/protocol/mcp/stdio/module.f.mjs` — `internalErrorResponse`, `writeResponse`
   (the `maxLength`-bounded encoder whose `error` result drives the
   fallback).

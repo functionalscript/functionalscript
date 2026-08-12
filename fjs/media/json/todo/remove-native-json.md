@@ -54,7 +54,7 @@ Three semantic differences to respect while migrating, none of them blocking:
 - **`undefined` and `bigint`.** Native drops `undefined` object fields, turns
   them into `null` inside arrays, and throws on `bigint`. `serialize` takes
   `Unknown`, which excludes `undefined` outright, and `definedEntries` does the
-  dropping — so `fjs/protocol/mcp/stdio/proof.f.ts:102`'s omission test keeps
+  dropping — so `fjs/protocol/mcp/stdio/proof.f.mjs:119`'s omission test keeps
   its meaning. `bigint` values (the DJS token payloads behind the 31 message
   sites) need `fjs/djs`'s serializer, which already handles them.
 - **Types.** `serialize` demands `Unknown`; the proof sites pass domain types

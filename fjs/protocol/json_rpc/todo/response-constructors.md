@@ -24,7 +24,7 @@ const _errResponse = (id: Id) => (error: RpcError): Response =>
 const _okResponse = (id: Id) => (result: Unknown): Response =>
     ({ jsonrpc, result, id })
 
-// fjs/protocol/mcp/stdio/module.f.ts:52,55 — third and fourth copies of the error envelope
+// fjs/protocol/mcp/stdio/module.f.mjs:57,62 — third and fourth copies of the error envelope
 const parseErrorResponse: Response = { jsonrpc, error: parseError, id: null }
 const internalErrorResponse = (id: Response['id']): Response => ({ jsonrpc, error: internalError, id })
 ```
@@ -87,7 +87,7 @@ after this change it builds on the imported one.
 - [ ] Replace `_errResponse`/`_okResponse` in `fjs/protocol/mcp/module.f.ts` with the
       imported constructors.
 - [ ] Rebuild `parseErrorResponse`/`internalErrorResponse` in
-      `fjs/protocol/mcp/stdio/module.f.ts` on the imported `errorResponseOf`.
+      `fjs/protocol/mcp/stdio/module.f.mjs` on the imported `errorResponseOf`.
 - [ ] `npx tsc` clean; `fjs t` passes (`fjs/protocol/json_rpc/proof.f.mjs`,
       `fjs/protocol/mcp/proof.f.ts`).
 

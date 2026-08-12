@@ -31,7 +31,7 @@ import type { Effect } from '../effects/types.ts'
 import { create } from '../effects/memory/module.f.mjs'
 import type { MemOp } from '../effects/memory/types.ts'
 import type { Read, Write } from '../effects/node/types.ts'
-import { stdioTransport } from '../protocol/mcp/stdio/module.f.ts'
+import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import {
     mcpStep, uninitializedState, fromRegistry,
     type McpConfig, type McpHandlers,

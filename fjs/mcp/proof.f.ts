@@ -34,7 +34,7 @@ import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import type { Dir } from '../effects/node/virtual/types.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
 import { ok as resultOk, unwrap } from '../types/result/module.f.mjs'
-import { stdioTransport } from '../protocol/mcp/stdio/module.f.ts'
+import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import { fromVec } from '../types/uint8array/module.f.mjs'
 import { initEvo } from '../cas/evo/module.f.ts'
 
@@ -128,7 +128,7 @@ const toBytes = (s: string): readonly number[] => [...fromVec(utf8(s))]
 // `session`/`runSessionVirtual`, which collect `mcpStep`'s `Response` values
 // as plain JS objects and never serialize/encode them, this is the only
 // helper that can observe the transport's oversized-response fallback (see
-// `fjs/protocol/mcp/stdio/module.f.ts` `writeResponse`).
+// `fjs/protocol/mcp/stdio/module.f.mjs` `writeResponse`).
 const runStdio =
     (root: Dir, home = '/home/user') =>
     (msgs: readonly unknown[]): readonly unknown[] => {
@@ -278,7 +278,7 @@ export const proof = {
     // the JSON-RPC envelope is even added. The transport's `writeResponse`
     // (`tryUtf8`) must catch this and write a JSON-RPC internal-error response —
     // carrying the *original request's* `id` — instead of crashing the process.
-    // See `fjs/protocol/mcp/stdio/module.f.ts` `writeResponse`.
+    // See `fjs/protocol/mcp/stdio/module.f.mjs` `writeResponse`.
     //
     // This test originally timed out under `bun test`'s native 5s per-test
     // limit (12-14s observed in CI on PR #1201) — the cost was in

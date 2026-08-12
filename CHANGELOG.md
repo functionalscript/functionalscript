@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/protocol/mcp/stdio/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) —
+  `Step` stays as a JSDoc typedef in the module (no separate `types.ts`, no
+  external importers of the type). Importers must use the `.f.mjs`
+  specifier. Updates `fjs/mcp/module` and `fjs/mcp/proof.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/media/revision/module` and `proof` migrate
   from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
   moving `LockMap`, `Revision`, and `RevisionError` into a sibling

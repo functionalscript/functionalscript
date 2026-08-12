@@ -28,36 +28,43 @@
  *   crashed process.
  *
  * @module
+ *
+ * @import { Unknown } from '../../../media/json/types.ts'
+ * @import { Effect, Operation } from '../../../effects/types.ts'
+ * @import { IoResult, Read, Write } from '../../../effects/node/types.ts'
+ * @import { Response } from '../../json_rpc/types.ts'
  */
-import type { Unknown } from '../../../media/json/types.ts'
 
 import { pure, step } from '../../../effects/module.f.mjs'
-import type { Effect, Operation } from '../../../effects/types.ts'
 import { readLine, write } from '../../../effects/node/module.f.mjs'
-import type { IoResult, Read, Write } from '../../../effects/node/types.ts'
 import { tryUtf8 } from '../../../text/module.f.mjs'
 import { parse, stringify } from '../../../media/json/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
 import { internalError, jsonrpc, parseError } from '../../json_rpc/module.f.mjs'
-import type { Response } from '../../json_rpc/types.ts'
 import { error, ok } from '../../../types/result/module.f.mjs'
 
 /**
  * A transport step: maps one parsed JSON-RPC message to a response, or `null`
  * for a notification that needs no reply. The shape of `mcpStep(config)(handlers)(key)`.
+ * @template {Operation} O
+ * @typedef {(value: Unknown) => Effect<O, Response | null>} Step
  */
-export type Step<O extends Operation> = (value: Unknown) => Effect<O, Response | null>
 
 const stringifyJson = stringify(sort)
 
 /** The parse-error response (`-32700`, `id: null`) for a malformed input line. */
-const parseErrorResponse: Response = { jsonrpc, error: parseError, id: null }
+/** @type {Response} */
+const parseErrorResponse = { jsonrpc, error: parseError, id: null }
 
-/** An internal-error response (`-32603`) carrying `id`. */
-const internalErrorResponse = (id: Response['id']): Response => ({ jsonrpc, error: internalError, id })
+/** An internal-error response (`-32603`) carrying `id`.
+ * @type {(id: Response['id']) => Response}
+ */
+const internalErrorResponse = id => ({ jsonrpc, error: internalError, id })
 
-/** Encodes a response as a newline-terminated UTF-8 line and writes it to `stdout`. */
-const writeResponse = (resp: Response): Effect<Write, IoResult<void>> => {
+/** Encodes a response as a newline-terminated UTF-8 line and writes it to `stdout`.
+ * @type {(resp: Response) => Effect<Write, IoResult<void>>}
+ */
+const writeResponse = resp => {
     const v = tryUtf8(stringifyJson(resp) + '\n')
     return v === null
         ? pure(error(undefined))
@@ -72,9 +79,12 @@ const writeResponse = (resp: Response): Effect<Write, IoResult<void>> => {
  *
  * Recurses after each handled line; terminates (resolving to `void`) when
  * `readLine` reports EOF.
+ *
+ * @template {Operation} O
+ * @param {Step<O>} handler
+ * @returns {Effect<Read | Write | O, void>}
  */
-export const stdioTransport =
-    <O extends Operation>(handler: Step<O>): Effect<Read | Write | O, void> =>
+export const stdioTransport = handler =>
     step(
         readLine('stdin'),
         line => line === null
@@ -82,38 +92,41 @@ export const stdioTransport =
             : handleLine(handler)(line),
     )
 
-const handleLine =
-    <O extends Operation>(handler: Step<O>) =>
-    (line: string): Effect<Read | Write | O, void> => {
-        const [t, value] = parse(line)
-        return step(
-            t === 'error'
-                ? writeResponse(parseErrorResponse)
-                : step(
-                    handler(value),
-                    resp => resp === null
-                        ? pure(undefined)
-                        : step(
-                            writeResponse(resp),
-                            ([t2]) => t2 === 'error'
-                                // The real response didn't fit. Retry with a fixed, small
-                                // internal-error body carrying `resp.id` — but a
-                                // caller-controlled `id` (e.g. a very large string) can
-                                // itself push even this fallback over `maxLength`, so
-                                // that retry is bounded by one more: an `id: null`
-                                // internal-error, whose fully-constant shape is the only
-                                // line in this transport guaranteed to always encode.
-                                ? step(
-                                    writeResponse(internalErrorResponse(resp.id)),
-                                    ([t3]) => t3 === 'error'
-                                        ? step(
-                                            writeResponse(internalErrorResponse(null)),
-                                            () => pure(undefined),
-                                        )
-                                        : pure(undefined)
-                                )
-                                : pure(undefined)),
-                ),
-            () => stdioTransport(handler),
-        )
-    }
+/**
+ * @template {Operation} O
+ * @param {Step<O>} handler
+ * @returns {(line: string) => Effect<Read | Write | O, void>}
+ */
+const handleLine = handler => line => {
+    const [t, value] = parse(line)
+    return step(
+        t === 'error'
+            ? writeResponse(parseErrorResponse)
+            : step(
+                handler(value),
+                resp => resp === null
+                    ? pure(undefined)
+                    : step(
+                        writeResponse(resp),
+                        ([t2]) => t2 === 'error'
+                            // The real response didn't fit. Retry with a fixed, small
+                            // internal-error body carrying `resp.id` — but a
+                            // caller-controlled `id` (e.g. a very large string) can
+                            // itself push even this fallback over `maxLength`, so
+                            // that retry is bounded by one more: an `id: null`
+                            // internal-error, whose fully-constant shape is the only
+                            // line in this transport guaranteed to always encode.
+                            ? step(
+                                writeResponse(internalErrorResponse(resp.id)),
+                                ([t3]) => t3 === 'error'
+                                    ? step(
+                                        writeResponse(internalErrorResponse(null)),
+                                        () => pure(undefined),
+                                    )
+                                    : pure(undefined)
+                            )
+                            : pure(undefined)),
+            ),
+        () => stdioTransport(handler),
+    )
+}

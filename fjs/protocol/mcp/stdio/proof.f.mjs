@@ -1,31 +1,36 @@
-import type { Unknown } from '../../../media/json/types.ts'
+/**
+ * @import { Unknown } from '../../../media/json/types.ts'
+ * @import { Effect } from '../../../effects/types.ts'
+ * @import { State } from '../../../effects/node/virtual/types.ts'
+ * @import { Id, Response } from '../../json_rpc/types.ts'
+ * @import { Step } from './module.f.mjs'
+ */
 
 import { assertEq } from '../../../asserts/module.f.mjs'
 import { pure } from '../../../effects/module.f.mjs'
-import type { Effect } from '../../../effects/types.ts'
 import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
-import type { State } from '../../../effects/node/virtual/types.ts'
 import { stringify } from '../../../media/json/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { fromVec } from '../../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../../types/bit_vec/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
 import { internalError, jsonrpc, parseError } from '../../json_rpc/module.f.mjs'
-import type { Id, Response } from '../../json_rpc/types.ts'
-import { stdioTransport, type Step } from './module.f.ts'
+import { stdioTransport } from './module.f.mjs'
 
 const stringifyJson = stringify(sort)
 
 // Extracts the request `id` (a request has one; a notification does not).
-const idOf = (value: Unknown): Id | undefined =>
+/** @type {(value: Unknown) => Id | undefined} */
+const idOf = value =>
     value !== null && typeof value === 'object' && !(value instanceof Array)
-        ? (value as { readonly id?: Unknown }).id as Id | undefined
+        ? /** @type {{ readonly id?: Id }} */ (value).id
         : undefined
 
 // A step that mirrors the mcpStep contract closely enough to drive the loop:
 // a message carrying an `id` (a request) gets an echo success response; a
 // message without an `id` (a notification) yields `null` — no reply.
-const echoStep: Step<never> = (value: Unknown): Effect<never, Response | null> => {
+/** @type {Step<never>} */
+const echoStep = value => {
     const id = idOf(value)
     return pure(id === undefined
         ? null
@@ -33,25 +38,31 @@ const echoStep: Step<never> = (value: Unknown): Effect<never, Response | null> =
 }
 
 // UTF-8 bytes of `s` as a plain array — the virtual stdin byte stream.
-const toBytes = (s: string): readonly number[] => [...fromVec(utf8(s))]
+/** @type {(s: string) => readonly number[]} */
+const toBytes = s => [...fromVec(utf8(s))]
 
 // Run the transport with `step` over `input` fed to stdin one byte at a time;
 // return the final state. `input` is raw text so tests control newline framing.
-const runStep = (step: Step<never>) => (input: string): State =>
+/** @type {(step: Step<never>) => (input: string) => State} */
+const runStep = step => input =>
     virtual({ ...emptyState, stdin: toBytes(input) })(stdioTransport(step))[0]
 
 const run = runStep(echoStep)
 
-const okResponse = (id: Id): string =>
-    stringifyJson({ jsonrpc, result: { ok: true }, id } as Unknown) + '\n'
+/** @type {(id: Id) => string} */
+const okResponse = id =>
+    stringifyJson(/** @type {Unknown} */ ({ jsonrpc, result: { ok: true }, id })) + '\n'
 
-const parseErrorLine: string =
-    stringifyJson({ jsonrpc, error: parseError, id: null } as Unknown) + '\n'
+/** @type {string} */
+const parseErrorLine =
+    stringifyJson(/** @type {Unknown} */ ({ jsonrpc, error: parseError, id: null })) + '\n'
 
-const internalErrorLine = (id: Id): string =>
-    stringifyJson({ jsonrpc, error: internalError, id } as Unknown) + '\n'
+/** @type {(id: Id) => string} */
+const internalErrorLine = id =>
+    stringifyJson(/** @type {Unknown} */ ({ jsonrpc, error: internalError, id })) + '\n'
 
-const ping = (id: number): string => `{"jsonrpc":"2.0","method":"ping","id":${id}}`
+/** @type {(id: number) => string} */
+const ping = id => `{"jsonrpc":"2.0","method":"ping","id":${id}}`
 
 // One byte past `maxLengthBytes` on its own; embedded in a response envelope
 // it stays comfortably over the limit despite the surrounding JSON overhead.
@@ -106,11 +117,12 @@ export const proof = {
     // JSON.stringify — the field is omitted, not a thrown TypeError that would
     // abort the loop.
     undefinedFieldOmitted: () => {
-        const step: Step<never> = (value: Unknown): Effect<never, Response | null> => {
+        /** @type {Step<never>} */
+        const step = value => {
             const id = idOf(value)
             return pure(id === undefined
                 ? null
-                : { jsonrpc, result: { ok: true, nextCursor: undefined }, id } as unknown as Response)
+                : /** @type {Response} */ (/** @type {unknown} */ ({ jsonrpc, result: { ok: true, nextCursor: undefined }, id })))
         }
         const state = runStep(step)(ping(1) + '\n')
         assertEq(state.stdout, okResponse(1))
@@ -122,7 +134,8 @@ export const proof = {
     // request's `id`, not `null` — instead of throwing or silently dropping
     // the reply.
     oversizedResponseWritesInternalError: () => {
-        const step: Step<never> = (value: Unknown): Effect<never, Response | null> => {
+        /** @type {Step<never>} */
+        const step = value => {
             const id = idOf(value)
             return pure(id === undefined
                 ? null
@@ -135,7 +148,8 @@ export const proof = {
     // stdin: a well-behaved request on the next line still gets its normal
     // reply.
     loopContinuesAfterOversizedResponse: () => {
-        const step: Step<never> = (value: Unknown): Effect<never, Response | null> => {
+        /** @type {Step<never>} */
+        const step = value => {
             const id = idOf(value)
             return pure(id === undefined
                 ? null
@@ -154,7 +168,8 @@ export const proof = {
     // shape in this transport guaranteed to always fit. Without this second
     // fallback tier the request would get no response line at all.
     oversizedIdFallsBackToNullId: () => {
-        const step: Step<never> = (value: Unknown): Effect<never, Response | null> => {
+        /** @type {Step<never>} */
+        const step = value => {
             const id = idOf(value)
             return pure(id === undefined
                 ? null

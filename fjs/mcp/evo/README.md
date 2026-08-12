@@ -78,7 +78,7 @@ Each tool's argument schema is an rtti struct declared once and used twice:
   error. `evo_list` and `evo_revision` carry JSON as MCP text content, so the
   JSON-RPC serializer escapes it again and an encoded line can outgrow the cap
   even when the value itself is small (a subject of quote characters is the
-  worst case). [`fjs/protocol/mcp/stdio`](../../protocol/mcp/stdio/module.f.ts) then retries
+  worst case). [`fjs/protocol/mcp/stdio`](../../protocol/mcp/stdio/module.f.mjs) then retries
   with a small internal-error body that keeps the request's `id` — the same
   envelope every tool has, `cas_get` included. A tool cannot turn this into a
   descriptive error of its own: whether the encoded response fits is known

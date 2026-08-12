@@ -15,7 +15,7 @@ additional front end alongside the CLI `main`.
 subject/head cache (`initEvo`, [`fjs/cas/evo`](../cas/evo/)), allocates the
 session-state slot, builds the `mcpStep` for the combined `cas_*`/`evo_*`
 tool registry, and drives the stdio read → parse → dispatch → write loop
-([`fjs/protocol/mcp/stdio`](../protocol/mcp/stdio/module.f.ts)) until stdin EOF. `evo_add` is
+([`fjs/protocol/mcp/stdio`](../protocol/mcp/stdio/module.f.mjs)) until stdin EOF. `evo_add` is
 the only tool that writes: it updates both the store and the cache in one
 step, so `evo_list`/`evo_head` never rescan.
 
