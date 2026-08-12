@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/fsc/json.f.ts` and `fjs/fsc/bnf.f.ts` migrate
+  from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — no
+  local types to split, both use only `Rule`/`TerminalRange` from
+  `fjs/bnf/types.ts`. Importers must use the `.f.mjs` specifier
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
 - **BREAKING CHANGES:** `fjs/media/json/tokenizer` migrates from
   authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
   splitting `JsonToken` and the internal `_ScanState`/`_ScanInput`
