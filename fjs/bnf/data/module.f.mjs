@@ -11,16 +11,16 @@
  * See `./types.ts` for the type-level API.
  *
  * @module
+ *
+ * @import { DataRule, Rule as FRule, Sequence as FSequence } from '../types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
+ * @import { EmptyTag, Rule, RuleSet, Sequence, Variant } from './types.ts'
  */
+
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
-import {
-    oneEncode,
-} from '../module.f.mjs'
-/** @import { DataRule, Rule as FRule, Sequence as FSequence } from '../types.ts' */
+import { oneEncode } from '../module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
-/** @import { StringMap } from '../../types/object/types.ts' */
-/** @import { EmptyTag, Rule, RuleSet, Sequence, Variant } from './types.ts' */
 
 /** @typedef {StringMap<EmptyTag>} _EmptyTagMap */
 

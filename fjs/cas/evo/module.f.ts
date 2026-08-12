@@ -42,26 +42,29 @@
  *
  * @module
  */
-import { pure, foldStep } from '../../effects/module.f.mjs'
+
 import type { Effect, Operation } from '../../effects/types.ts'
+import type { Key, MemOp } from '../../effects/memory/types.ts'
+import type { Cas } from '../types.ts'
+import type { Ok, Result } from '../../types/result/types.ts'
+import type { StringMap } from '../../types/object/types.ts'
+import type { Vec } from '../../types/bit_vec/types.ts'
+import type { IoResult } from '../../effects/node/types.ts'
+
+import { pure, foldStep } from '../../effects/module.f.mjs'
 import { eff } from '../../effects/eff/module.f.mjs'
 import { create, read, write } from '../../effects/memory/module.f.mjs'
-import type { Key, MemOp } from '../../effects/memory/types.ts'
 import { collectRead } from '../module.f.mjs'
-import type { Cas } from '../types.ts'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
-import { decodeText, encodeText, dialect, checkReferences, isHash, type LockMap, type Revision } from '../../media/revision/module.f.ts'
-import type { Ok, Result } from '../../types/result/types.ts'
 import { ok, error } from '../../types/result/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { at, definedEntries } from '../../types/object/module.f.mjs'
-import type { StringMap } from '../../types/object/types.ts'
 import { unwrap } from '../../types/nullable/module.f.mjs'
-import type { Vec } from '../../types/bit_vec/types.ts'
 import { isNotFound } from '../../effects/node/module.f.mjs'
-import type { IoResult } from '../../effects/node/types.ts'
+
+import { decodeText, encodeText, dialect, checkReferences, isHash, type LockMap, type Revision } from '../../media/revision/module.f.ts'
 
 /** A cBase32 content hash, as accepted/returned by `Cas<O>`. */
 export type Hash = string
