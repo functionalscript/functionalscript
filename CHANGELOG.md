@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- `nanvm-lib` operator behaviour is described once, as data, in
+  `fjs/nanvm/module.f.mjs`: the JavaScript proof and the generated
+  Rust tests both read it, so a case is written once instead of twice
+  [#1489](https://github.com/functionalscript/functionalscript/pull/1489)
 - **BREAKING CHANGES:** `fjs/bnf/proof` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — no local
   types to split. Importers must use the `.f.mjs` specifier

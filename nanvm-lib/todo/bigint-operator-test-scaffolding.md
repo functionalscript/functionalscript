@@ -54,6 +54,7 @@ Either way, delete the per-file comment clones.
 
 ### Related
 
-- [single-source-of-truth-for-operator-tests.md](./single-source-of-truth-for-operator-tests.md)
-  — cross-language (JS proof vs Rust test) duplication; this issue is the
-  intra-Rust helper duplication, a different site and mechanism.
+- [`nanvm-lib/tests/README.md`](../tests/README.md) — the shared operator test
+  data, which removed the cross-language (JS proof vs Rust test) duplication;
+  this issue is the intra-Rust helper duplication, a different site and
+  mechanism.
