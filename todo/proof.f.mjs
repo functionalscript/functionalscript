@@ -9,7 +9,8 @@ const utf8 = (...x) => x
 export const proof = {
     literal: () => {
         const x = utf8`17`
-        const m = /** @type {TemplateType} */ ('<html>Hello</html>')
+        /** @type {TemplateType} */
+        const m = '<html>Hello</html>'
     },
     ownProperty: {
         null: {
