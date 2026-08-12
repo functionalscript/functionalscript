@@ -1,5 +1,9 @@
-import type { CodePoint } from '../../text/utf16/types.ts'
-import type { DescentMatch, CodePointMeta, DescentMatchResult } from './types.ts'
+/**
+ * @module
+ *
+ * @import { CodePoint } from '../../text/utf16/types.ts'
+ * @import { DescentMatch, CodePointMeta, DescentMatchResult } from './types.ts'
+ */
 
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
@@ -7,17 +11,22 @@ import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.mjs
 import { emptyTagMap, toData } from '../data/module.f.mjs'
 import { descentParser } from './module.f.mjs'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { deterministic } from '../testlib.f.mjs'
 
-import { deterministic } from '../testlib.f.ts'
+/** @type {(cp: CodePoint) => CodePointMeta<unknown>} */
+const mapCodePoint = cp => [cp, undefined]
 
-const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
+/**
+ * The code point of a one-character string, for expectations that would
+ * otherwise spell it as a bare number. Goes through the module's own
+ * conversion, the same one that builds the parser's input.
+ *
+ * @type {(s: string) => CodePoint}
+ */
+const cp1 = s => toArray(stringToCodePointList(s))[0]
 
-// The code point of a one-character string, for expectations that would
-// otherwise spell it as a bare number. Goes through the module's own
-// conversion, the same one that builds the parser's input.
-const cp1 = (s: string): CodePoint => toArray(stringToCodePointList(s))[0]
-
-const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: readonly CodePoint[]): DescentMatchResult<unknown> => {
+/** @type {(m: DescentMatch<unknown>, name: string, cp: readonly CodePoint[]) => DescentMatchResult<unknown>} */
+const descentParserCpOnly = (m, name, cp) => {
     const cpm = toArray(map(mapCodePoint)(cp))
     return m(name, cpm)
 }
@@ -203,7 +212,7 @@ export const proof = {
         () => {
             const m = descentParser(option('a'))
 
-            const expect = (s: string, expected: boolean) => {
+            const expect = (/** @type {string} */s, /** @type {Boolean} */expected) => {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, '', cp)
                 const success = mr.success && mr.idx === cp.length
@@ -229,7 +238,7 @@ export const proof = {
 
             const m = descentParser(value)
 
-            const expect = (s: string, expected: boolean) => {
+            const expect = (/** @type {string} */s, /** @type {boolean} */expected) => {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, 'value', cp)
                 const success = mr.success && mr.idx === cp.length
@@ -245,7 +254,7 @@ export const proof = {
         () => {
             const m = descentParser(deterministic())
 
-            const expect = (s: string, expected: boolean) => {
+            const expect = (/** @type {string} */s, /** @type {boolean} */expected) => {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, '', cp)
                 const success = mr.success && mr.idx === cp.length

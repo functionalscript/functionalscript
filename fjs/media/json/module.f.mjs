@@ -10,24 +10,30 @@
  * [`./rtti/module.f.mjs`](./rtti/module.f.mjs).
  *
  * @module
+ *
+ * @import { StringMap } from '../../types/object/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { _MapEntries, Object, Unknown, } from './types.ts'
+ * @import { List } from '../../types/list/types.ts'
  */
-import type { List } from '../../types/list/types.ts'
+
 import { next, flat, map } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
-import type { Result } from '../../types/result/types.ts'
 import { parse as parseTokens } from './parser/module.f.mjs'
 import { tokenize } from './tokenizer/module.f.mjs'
 import { at, definedEntries } from '../../types/object/module.f.mjs'
-import type { Entry as ObjectEntry } from '../../types/object/types.ts'
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.mjs'
-import type { Object, Unknown } from './types.ts'
 
 // ── JSON utilities ────────────────────────────────────────────────────────────
 
-export const setProperty = (value: Unknown) => {
-    const f = (path: List<string>) => (src: Unknown): Unknown =>{
+/**
+ * @param {Unknown} value
+ */
+export const setProperty = value => {
+    /** @type {(path: List<string>) => (src: Unknown) => Unknown} */
+    const f = path => src =>{
         const result = next(path)
         if (result === null) { return value }
         const srcObject = (src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
@@ -39,31 +45,26 @@ export const setProperty = (value: Unknown) => {
 
 const colon = [':']
 
-export type Entry = ObjectEntry<Unknown>
+/** @type {(cmd: StringMap<Unknown>) => readonly (readonly [string, Unknown])[]} */
+const df = definedEntries
 
-type Entries = List<Entry>
-
-type MapEntries = (entries: Entries) => Entries
-
-export const serialize
-    : (mapEntries: MapEntries) => (value: Unknown) => List<string>
-    = sort => {
-        const propertySerialize
-            : (kv: readonly[string, Unknown]) => List<string>
-            = ([k, v]) => flat([
+/** @type {(mapEntries: _MapEntries) => (value: Unknown) => List<string>} */
+export const serialize = sort => {
+        /** @type {(kv: readonly[string, Unknown]) => List<string>} */
+        const propertySerialize = ([k, v]) => flat([
             stringSerialize(k),
             colon,
             f(v)
         ])
         const mapPropertySerialize = map(propertySerialize)
-        const objectSerialize
-            : (object: Object) => List<string>
-            = fn(definedEntries<Unknown>)
+        /** @type {(object: Object) => List<string>} */
+        const objectSerialize = fn(df)
             .map(sort)
             .map(mapPropertySerialize)
             .map(objectWrap)
             .result
-        const f = (value: Unknown): List<string> => {
+        /** @type {(value: Unknown) => List<string>} */
+        const f = value => {
             switch (typeof value) {
                 case 'boolean': { return boolSerialize(value) }
                 case 'number': { return numberSerialize(value) }
@@ -83,10 +84,10 @@ export const serialize
  * The standard `JSON.stringify` rules determined by
  * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
  * https://tc39.es/ecma262/#sec-serializejsonproperty
+ *
+ * @type {(mapEntries: _MapEntries) => (value: Unknown) => string}
  */
-export const stringify
-    : (mapEntries: MapEntries) => (value: Unknown) => string
-    = sort => compose(serialize(sort))(concat)
+export const stringify = sort => compose(serialize(sort))(concat)
 
 /**
  * Parses `text` as JSON with this module's own pure tokenizer and parser,
@@ -97,7 +98,7 @@ export const stringify
  *
  * The result is an untyped {@link Unknown}; narrow it to a domain type with an
  * rtti schema (`fjs/types/rtti/parse`) rather than with an `as` cast.
+ *
+ * @type {(text: string) => Result<Unknown, string>}
  */
-export const parse
-    : (text: string) => Result<Unknown, string>
-    = text => parseTokens(tokenize(stringToList(text)))
+export const parse = text => parseTokens(tokenize(stringToList(text)))

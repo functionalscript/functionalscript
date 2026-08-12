@@ -1,4 +1,8 @@
-import type { Rule } from './types.ts'
+/**
+ * @module
+ *
+ * @import { Rule } from './types.ts'
+ */
 
 import {
     commaJoin0Plus,
@@ -12,7 +16,8 @@ import {
     unicodeMax,
 } from './module.f.mjs'
 
-export const classic = (): Rule => {
+/** @type {() => Rule} */
+export const classic = () => {
 
     // https://www.json.org/json-en.html
 
@@ -59,7 +64,8 @@ export const classic = (): Rule => {
         characters: [character, characters],
     })
 
-    const character: Rule = () => ({
+    /** @type {Rule} */
+    const character = () => ({
         0: 0x20_000021,
         1: 0x23_00005B,
         2: 0x5D_10FFFF,
@@ -91,7 +97,8 @@ export const classic = (): Rule => {
         digits: [digit, digits],
     })
 
-    const digit: Rule = () => ({
+    /** @type {Rule} */
+    const digit = () => ({
         '0': '0',
         onenine,
     })
@@ -125,11 +132,13 @@ export const classic = (): Rule => {
     return json
 }
 
-export const deterministic = (): Rule => {
+/** @type {() => Rule} */
+export const deterministic = () => {
 
     const onenine = range('19')
 
-    const digit: Rule = range('09')
+    /** @type {Rule} */
+    const digit = range('09')
 
     const string = [
         '"',

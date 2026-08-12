@@ -200,8 +200,8 @@ These cases can be added later when a concrete consumer requires them.
   private `assertDeepEqual` that is the first direct consumer.
 - [`fjs/cas/evo/proof.f.ts`](../../../cas/evo/proof.f.ts) — compares independently
   constructed cache values through `JSON.stringify`.
-- [`fjs/bnf/ll1/proof.f.ts`](../../../bnf/ll1/proof.f.ts) and
-  [`fjs/bnf/descent/proof.f.ts`](../../../bnf/descent/proof.f.ts) — contain serialized
+- [`fjs/bnf/ll1/proof.f.mjs`](../../../bnf/ll1/proof.f.mjs) and
+  [`fjs/bnf/descent/proof.f.mjs`](../../../bnf/descent/proof.f.mjs) — contain serialized
   expected-value comparisons to audit and replace where serialization is incidental.
 - [`proof-shared-asserts.md`](../../rtti/todo/proof-shared-asserts.md) — also
   tracks replacing the RTTI proof's local deep-comparison helper; update that
