@@ -1,5 +1,7 @@
 /**
- *  @import { RuleSet } from './types.ts'
+ * @module
+ *
+ * @import { RuleSet } from './types.ts'
  */
 
 import { identity } from '../../types/function/module.f.mjs'
