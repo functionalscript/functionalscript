@@ -13,20 +13,19 @@
  * See `README.md` for the full spec.
  *
  * @module
+ *
+ * @import { Unknown } from '../json/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { DialectEntry } from '../types.ts'
+ * @import { Revision, RevisionError } from './types.ts'
  */
-
-import type { Unknown } from '../json/types.ts'
 
 import { array, number, option, record, string } from '../../types/rtti/module.f.mjs'
 import { validate as rttiValidate } from '../../types/rtti/validate/module.f.mjs'
-import type { ValidationError } from '../../types/rtti/common/types.ts'
-import type { Ts } from '../../types/rtti/ts/types.ts'
 import { parse as parseJson } from '../json/module.f.mjs'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
-import type { Result } from '../../types/result/types.ts'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { dialectEntry } from '../module.f.mjs'
-import type { DialectEntry } from '../types.ts'
 import { definedEntries, sort } from '../../types/object/module.f.mjs'
 import { stringify } from '../json/module.f.mjs'
 
@@ -34,10 +33,10 @@ import { stringify } from '../json/module.f.mjs'
  * Format tag: names the dialect of this BLOB. The media type it is served
  * with is derived mechanically: `application/` + `dialect` + `+json`.
  */
-export const dialect = 'vnd.fjs.revision' as const
+export const dialect = /** @type {const} */ ('vnd.fjs.revision')
 
 /** The media type derived from {@link dialect}: `application/vnd.fjs.revision+json`. */
-export const mediaType = `application/${dialect}+json` as const
+export const mediaType = /** @type {const} */ (`application/${dialect}+json`)
 
 /**
  * rtti schema for the snapshot-reference type: a cbase32 CAS hash string.
@@ -51,40 +50,35 @@ export const mediaType = `application/${dialect}+json` as const
 export const hash = string
 
 /** Structural schema for a Stage 1 flat lock map. */
-const lock = record(string)
-
-/** A flat set of subject-to-snapshot bindings supplied to dependency resolvers. */
-export type LockMap = Ts<typeof lock>
+export const _lock = record(string)
 
 /**
  * rtti schema for a `revision` BLOB. See the README for the full semantics of
  * each field; `dialect` is the type discriminant, matched here as an exact
  * literal so structural validation alone rejects any other dialect's blob.
  */
-export const revisionSchema = {
+export const revisionSchema = /** @type {const} */ ({
     dialect,
     subject: string,
     parents: array(hash),
     snapshot: hash,
     generation: number,
     archived: option(true),
-    lock: option(lock),
-} as const
+    lock: option(_lock),
+})
 
-/** The TypeScript type derived from {@link revisionSchema} — the single source of truth. */
-export type Revision = Ts<typeof revisionSchema>
-
-/** Serializes a revision canonically, recursively sorting every object's property names. */
-export const encodeText: (revision: Revision) => string = stringify(sort)
+/** Serializes a revision canonically, recursively sorting every object's property names.
+ * @type {(revision: Revision) => string}
+ */
+export const encodeText = stringify(sort)
 
 /** Structural-only validator: checks the shape, not the hash / generation semantics. */
 const validateShape = rttiValidate(revisionSchema)
 
-/** True when `s` decodes as a cbase32 CAS hash (rejects `https://` and any other non-cbase32 string). */
-export const isHash = (s: string): boolean => cBase32ToVec(s) !== null
-
-/** Either a structural validation error or a semantic (hash / generation) error message. */
-export type RevisionError = ValidationError | string
+/** True when `s` decodes as a cbase32 CAS hash (rejects `https://` and any other non-cbase32 string).
+ * @type {(s: string) => boolean}
+ */
+export const isHash = s => cBase32ToVec(s) !== null
 
 /**
  * Checks the semantic refinements the structural schema can't express on an
@@ -111,8 +105,10 @@ export type RevisionError = ValidationError | string
  * these semantic (string-only error) checks are worth re-running — routing
  * through the combined structural-plus-semantic `validate` would add an
  * unreachable structural-error branch on the caller's side.
+ *
+ * @type {(r: Revision) => Result<Revision, string>}
  */
-export const checkReferences = (r: Revision): Result<Revision, string> => {
+export const checkReferences = r => {
     for (const p of r.parents) {
         if (!isHash(p)) { return error(`parent is not a valid hash: ${p}`) }
     }
@@ -129,8 +125,10 @@ export const checkReferences = (r: Revision): Result<Revision, string> => {
 /**
  * Validates an already-parsed JSON value as a `revision` BLOB: structural
  * (rtti) validation followed by the hash / generation semantic checks.
+ *
+ * @type {(value: Unknown) => Result<Revision, RevisionError>}
  */
-export const validate = (value: Unknown): Result<Revision, RevisionError> => {
+export const validate = value => {
     const [t, v] = validateShape(value)
     if (t === 'error') { return error(v) }
     return checkReferences(v)
@@ -140,15 +138,19 @@ export const validate = (value: Unknown): Result<Revision, RevisionError> => {
  * Decodes `text` as a `revision` BLOB: JSON-parses it, then validates it per
  * {@link validate}. Detection is semantic, not syntactic — any JSON that
  * satisfies the schema is a revision, regardless of key order or whitespace.
+ *
+ * @type {(text: string) => Result<Revision, RevisionError>}
  */
-export const decodeText = (text: string): Result<Revision, RevisionError> => {
+export const decodeText = text => {
     const [t, v] = parseJson(text)
     if (t === 'error') { return error(v) }
     return validate(v)
 }
 
-/** {@link checkReferences} as the `boolean` refinement a {@link DialectEntry} takes. */
-const isValidRevision = (r: Revision): boolean => {
+/** {@link checkReferences} as the `boolean` refinement a {@link DialectEntry} takes.
+ * @type {(r: Revision) => boolean}
+ */
+const isValidRevision = r => {
     const [tag] = checkReferences(r)
     return tag === 'ok'
 }
@@ -158,5 +160,7 @@ const isValidRevision = (r: Revision): boolean => {
  * semantic checks too, so a blob is detected as `vnd.fjs.revision` exactly when
  * {@link decodeText} would accept it — a structurally valid revision whose
  * `snapshot` is not a cbase32 hash is not one.
+ *
+ * @type {DialectEntry}
  */
-export const revisionDialect: DialectEntry = dialectEntry(revisionSchema, isValidRevision)
+export const revisionDialect = dialectEntry(revisionSchema, isValidRevision)

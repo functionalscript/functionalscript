@@ -20,6 +20,14 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/media/revision/module` and `proof` migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  moving `LockMap`, `Revision`, and `RevisionError` into a sibling
+  `types.ts` — importers must use the `.f.mjs` specifier for the runtime
+  values and the `types.ts` specifier for the types. Updates
+  `fjs/cas/evo/module`, `fjs/cas/evo/proof.f.ts`, `fjs/mcp/cas/module`,
+  `fjs/mcp/proof.f.ts`, and `fjs/media/proof.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/protocol/json_rpc/module` and `proof` migrate
   from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
   moving `Id`, `Request`, `RpcError`, `Response`, `Handler`, and `Handlers`

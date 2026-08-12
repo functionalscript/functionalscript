@@ -111,7 +111,7 @@ import { decode as base64Decode, encode as base64Encode } from '../../basen/base
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { detectStream } from '../../media/type/module.f.mjs'
 import { detect } from '../../media/module.f.mjs'
-import { revisionDialect } from '../../media/revision/module.f.ts'
+import { revisionDialect } from '../../media/revision/module.f.mjs'
 import type { Vec } from '../../types/bit_vec/types.ts'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import type { Ok } from '../../types/result/types.ts'

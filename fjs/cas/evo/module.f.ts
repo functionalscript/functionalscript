@@ -2,7 +2,7 @@
  * Evo API: subjects and revision heads, cached in memory over an immutable
  * content-addressable store.
  *
- * A `Cas<O>` stores `vnd.fjs.revision` blobs ([`fjs/media/revision`](../../media/revision/module.f.ts))
+ * A `Cas<O>` stores `vnd.fjs.revision` blobs ([`fjs/media/revision`](../../media/revision/module.f.mjs))
  * like any other content: as immutable bytes under a hash. Resolving "what
  * are the current heads of subject X" from that store means walking every
  * stored revision and reversing the parent links — too expensive to redo on
@@ -64,7 +64,8 @@ import { at, definedEntries } from '../../types/object/module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
 import { isNotFound } from '../../effects/node/module.f.mjs'
 
-import { decodeText, encodeText, dialect, checkReferences, isHash, type LockMap, type Revision } from '../../media/revision/module.f.ts'
+import { decodeText, encodeText, dialect, checkReferences, isHash } from '../../media/revision/module.f.mjs'
+import type { LockMap, Revision } from '../../media/revision/types.ts'
 
 /** A cBase32 content hash, as accepted/returned by `Cas<O>`. */
 export type Hash = string

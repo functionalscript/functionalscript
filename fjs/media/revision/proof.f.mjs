@@ -1,20 +1,22 @@
-import type { Object as JsonObject } from '../json/types.ts'
-
+/** @import { Object as JsonObject } from '../json/types.ts' */
+/** @import { LockMap } from './types.ts' */
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { dialect, mediaType, isHash, validate, decodeText, encodeText, type LockMap } from './module.f.ts'
+import { dialect, mediaType, isHash, validate, decodeText, encodeText } from './module.f.mjs'
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single
 // cbase32 symbols, cheap to write inline here.
 const h1 = '8'
 const h2 = 'r'
 // `I` is accepted as an alias spelling of canonical cBase32 `1`.
-const alias = 'I' as const
+const alias = /** @type {const} */ ('I')
 
-const _lockMapAllowsMissingSubjects: LockMap = {}
+/** @type {LockMap} */
+const _lockMapAllowsMissingSubjects = {}
 
 // A shape-valid revision: every required field present (`snapshot` and
 // `generation` included), with `extra` overriding or adding fields per test.
-const revisionOf = (extra: JsonObject): JsonObject => ({
+/** @type {(extra: JsonObject) => JsonObject} */
+const revisionOf = extra => ({
     dialect,
     subject: h1,
     parents: [],

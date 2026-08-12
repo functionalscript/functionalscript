@@ -15,7 +15,7 @@ import { ok, error } from '../../types/result/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 
-import { dialect as revisionDialect } from '../../media/revision/module.f.ts'
+import { dialect as revisionDialect } from '../../media/revision/module.f.mjs'
 import {
     buildCache, decodeRevisionBlob, initEvo, evo, emptyCache, syncRevision,
     type RevisionData,

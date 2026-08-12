@@ -9,7 +9,7 @@ updates to one logical mutable object a shared shape, without any mutable
 pointer anywhere in the store itself.
 
 ```ts
-import { revisionSchema, dialect, mediaType, validate, decodeText, encodeText } from './module.f.ts'
+import { revisionSchema, dialect, mediaType, validate, decodeText, encodeText } from './module.f.mjs'
 ```
 
 ## Shape
