@@ -434,7 +434,7 @@ export const addRevision = cas => cacheKey => input =>
             return eff(cas.write(nonEmpty(ok(bytes), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))))
                 .step((/** @type {IoResult<Vec>} */ writeResult) => {
                     if (writeResult[0] === 'error') {
-                        return pure(error('failed to write revision to CAS'))
+                        return /** @type {Effect<MemOp, Result<Hash, string>>} */ (pure(error('failed to write revision to CAS')))
                     }
                     const hash = vecToCBase32(writeResult[1])
                     return eff(foldIntoCache(cacheKey)(hash)(canonicalRevision))
