@@ -140,6 +140,6 @@ This keeps parser/serializer policy separate from generic runtime conversion.
 - [RTTI-aware extended JSON parser](./rtti-parse.md) — another materializer over
   the same lossless number-token tree.
 - [Remove native JSON](./remove-native-json.md) — self-hosts serialization.
-- [`fjs/media/json/module.f.ts`](../module.f.ts) — current ordinary JSON
+- [`fjs/media/json/module.f.mjs`](../module.f.mjs) — current ordinary JSON
   `parse` / `stringify` surface.
 - [`fjs/media/json/types.ts`](../types.ts) — current ordinary JSON value types.

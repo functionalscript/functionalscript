@@ -21,13 +21,13 @@ import { array, number, option, record, string } from '../../types/rtti/module.f
 import { validate as rttiValidate } from '../../types/rtti/validate/module.f.mjs'
 import type { ValidationError } from '../../types/rtti/common/types.ts'
 import type { Ts } from '../../types/rtti/ts/types.ts'
-import { parse as parseJson } from '../json/module.f.ts'
+import { parse as parseJson } from '../json/module.f.mjs'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
 import type { Result } from '../../types/result/types.ts'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { dialectEntry, type DialectEntry } from '../module.f.ts'
 import { definedEntries, sort } from '../../types/object/module.f.mjs'
-import { stringify } from '../json/module.f.ts'
+import { stringify } from '../json/module.f.mjs'
 
 /**
  * Format tag: names the dialect of this BLOB. The media type it is served

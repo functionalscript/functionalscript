@@ -20,6 +20,19 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/bnf/proof` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — no local
+  types to split. Importers must use the `.f.mjs` specifier
+  [#1501](https://github.com/functionalscript/functionalscript/pull/1501)
+- **BREAKING CHANGES:** `fjs/media/json/module` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), moving
+  `Entry`, `_Entries`, and `_MapEntries` into the sibling `types.ts` —
+  importers must use the `.f.mjs` specifier for the runtime value and
+  the `types.ts` specifier for the types. This pulls in four more
+  files that depend on it directly or transitively: `fjs/bnf/testlib`,
+  `fjs/bnf/data/proof`, `fjs/bnf/descent/proof`, and `fjs/bnf/ll1/proof`
+  all migrate to `.f.mjs` as well, with no local types to split
+  [#1501](https://github.com/functionalscript/functionalscript/pull/1501)
 - **BREAKING CHANGES:** `fjs/media/json/parser` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) under the
   stage-1 TypeScript-to-mjs migration, splitting `_JsonObject`,

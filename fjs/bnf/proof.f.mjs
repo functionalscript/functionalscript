@@ -1,4 +1,8 @@
-import type { Rule } from './types.ts'
+/**
+ * @module
+ *
+ * @import { Rule } from './types.ts'
+ */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import {
@@ -11,8 +15,7 @@ import {
     oneEncode,
     repeat1Plus,
 } from './module.f.mjs'
-
-import { classic, deterministic } from './testlib.f.ts'
+import { classic, deterministic } from './testlib.f.mjs'
 
 export const proof = {
     test: () => {
@@ -39,7 +42,7 @@ export const proof = {
         () => {
             const result = str('ab')
             assert(Array.isArray(result), result)
-            assertEq((result as readonly number[]).length, 2, result)
+            assertEq(result.length, 2, result)
         },
     ],
     set: () => {
@@ -50,8 +53,10 @@ export const proof = {
         assert('c' in result, result)
     },
     commaJoin0Plus: () => {
-        const ws: Rule = ''
-        const item: Rule = 'x'
+        /** @type {Rule} */
+        const ws = ''
+        /** @type {Rule} */
+        const item = 'x'
         const result = commaJoin0Plus(ws)('[]', item)
         assert(Array.isArray(result), result)
         assert(result[0] === '[', result)
@@ -61,7 +66,8 @@ export const proof = {
         () => { assert(isEmpty([]), 'empty array should be empty') },
         () => { assert(!(isEmpty('a')), 'non-empty string should not be empty') },
         () => {
-            const f: Rule = () => ''
+            /** @type {Rule} */
+            const f = () => ''
             assert(isEmpty(f), 'function returning empty string should be empty')
         },
     ],
@@ -72,7 +78,8 @@ export const proof = {
             assertEq(typeof result[1], 'function', 'expected repeat0Plus function')
         },
         () => {
-            const rule: Rule = 'ab'
+            /** @type {Rule} */
+            const rule = 'ab'
             const result = repeat1Plus(rule)
             assertEq(result[0], rule)
             const inner = result[1]()

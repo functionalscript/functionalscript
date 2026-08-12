@@ -1,7 +1,7 @@
 import { type Unknown as JsonValue } from '../types.ts'
 
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../../../types/rtti/module.f.mjs'
-import { stringify } from '../module.f.ts'
+import { stringify } from '../module.f.mjs'
 import { toJsonSchema, type Unknown, unknown as schemaUnknown } from './module.f.ts'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
