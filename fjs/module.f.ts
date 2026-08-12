@@ -11,7 +11,7 @@ import { import_ } from './effects/node/module.f.mjs'
 import type { NodeOp, NodeProgram } from './effects/node/types.ts'
 import { dispatch } from './cli/module.f.mjs'
 import type { Commands } from './cli/types.ts'
-import { casMcpServer } from './mcp/module.f.ts'
+import { casMcpServer } from './mcp/module.f.mjs'
 import { pure, step } from './effects/module.f.mjs'
 import { unwrap } from './types/result/module.f.mjs'
 

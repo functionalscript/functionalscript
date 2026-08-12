@@ -98,7 +98,7 @@ TS2589), but they move to construction scope where they run once.
       `fromRegistry`'s construction scope.
 - [ ] Add a comment on the remaining casts citing TS2589, mirroring
       `fjs/types/rtti/parse/module.f.mjs:164`.
-- [ ] `npx tsc` clean; `fjs t` passes (`fjs/protocol/mcp/proof.f.mjs`, `fjs/mcp/proof.f.ts`).
+- [ ] `npx tsc` clean; `fjs t` passes (`fjs/protocol/mcp/proof.f.mjs`, `fjs/mcp/proof.f.mjs`).
 
 ### Related
 

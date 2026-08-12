@@ -48,4 +48,4 @@ trimming. No intermediate `Vec` built while decoding is ever wider than the
 final, post-trim result, so an exactly-`maxLength`-sized payload now decodes
 instead of being rejected. See `decodeAtMaxLengthSucceeds` in
 `fjs/basen/base64/proof.f.mjs` and `addBase64AtLimitSucceeds` in
-`fjs/mcp/proof.f.ts` (flipped from `addBase64AtLimitIsError`).
+`fjs/mcp/proof.f.mjs` (flipped from `addBase64AtLimitIsError`).

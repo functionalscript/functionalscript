@@ -67,7 +67,7 @@ one-element change; doing this one first is fine too.
       first retry as a `-32603` internal-error body.
 - [ ] Extend `fjs/protocol/mcp/stdio/proof.f.mjs` to assert the message on the
       oversized-response path, keeping the existing oversized-`id` coverage.
-- [ ] Check the `cas_get` overflow proofs in `fjs/mcp/proof.f.ts`, which
+- [ ] Check the `cas_get` overflow proofs in `fjs/mcp/proof.f.mjs`, which
       assert `code` (not `message`), still pass unchanged.
 
 ### Related

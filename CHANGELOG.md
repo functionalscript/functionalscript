@@ -54,6 +54,12 @@ history.
   the `.f.mjs` specifier. Updates `fjs/protocol/mcp/module.f.ts`
   accordingly
   [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
+- **BREAKING CHANGES:** `fjs/mcp/module` and `proof` migrate from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) —
+  no local complex types to split (`casMcpHandlers`, `casConfig`, and
+  `casMcpServer` are the only exports). Importers must use the `.f.mjs`
+  specifier. Updates `fjs/module.f.ts` accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/djs/module` and `proof` migrate from
   authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) —
   `Object`, `Array`, `Primitive`, and `Unknown` no longer re-export from
