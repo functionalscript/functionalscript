@@ -20,6 +20,9 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/types/range_map/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/types/list/proof.f.ts` migrates from
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
   [#1503](https://github.com/functionalscript/functionalscript/pull/1503)

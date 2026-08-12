@@ -1,26 +1,25 @@
-import type { Unknown } from '../../media/json/types.ts'
+/** @import { Unknown } from '../../media/json/types.ts' */
 
-import type { RangeMapArray, Properties, RangeMap } from './types.ts'
+/** @import { RangeMapArray, Properties, RangeMap } from './types.ts' */
 import { get, merge, fromRange, rangeMap } from './module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { union } from '../sorted_set/module.f.mjs'
-import type { SortedSet } from '../sorted_set/types.ts'
+/** @import { SortedSet } from '../sorted_set/types.ts' */
 import { equal, toArray } from '../list/module.f.mjs'
 import { strictEqual } from '../function/operator/module.f.mjs'
 import { cmp } from '../string/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
-const str
-    : (a: readonly Unknown[]) => string
-    = stringify(sort)
+/** @type {(a: readonly Unknown[]) => string} */
+const str = stringify(sort)
 
-const op: Properties<SortedSet<string>>
-    = {
-        union: union(cmp),
-        equal: equal(strictEqual),
-        def: []
-    }
+/** @type {Properties<SortedSet<string>>} */
+const op = {
+    union: union(cmp),
+    equal: equal(strictEqual),
+    def: []
+}
 
 export const proof = {
     example: () => {
@@ -54,118 +53,119 @@ export const proof = {
     },
     merge: [
         () => {
-            const a: RangeMap<SortedSet<string>>
-                = [[['a'], 1], [['b'], 2]]
-            const b: RangeMap<SortedSet<string>>
-                = null
+            /** @type {RangeMap<SortedSet<string>>} */
+            const a = [[['a'], 1], [['b'], 2]]
+            /** @type {RangeMap<SortedSet<string>>} */
+            const b = null
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
             assertEq(result, '[[["a"],1],[["b"],2]]')
         },
         () => {
-            const a: RangeMap<SortedSet<string>>
-                = null
-            const b: RangeMap<SortedSet<string>>
-                = [[['a'], 1], [['b'], 2]]
+            /** @type {RangeMap<SortedSet<string>>} */
+            const a = null
+            /** @type {RangeMap<SortedSet<string>>} */
+            const b = [[['a'], 1], [['b'], 2]]
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
             assertEq(result, '[[["a"],1],[["b"],2]]')
         },
         () => {
-            const a: RangeMap<SortedSet<string>>
-                = [[['a'], 1], [['b'], 2]]
-            const b: RangeMap<SortedSet<string>>
-                = [[['a'], 1], [['b'], 2]]
+            /** @type {RangeMap<SortedSet<string>>} */
+            const a = [[['a'], 1], [['b'], 2]]
+            /** @type {RangeMap<SortedSet<string>>} */
+            const b = [[['a'], 1], [['b'], 2]]
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
             assertEq(result, '[[["a"],1],[["b"],2]]')
         },
         () => {
-            const a: RangeMap<SortedSet<string>>
-                = [[['a'], 1], [['c'], 3]]
-            const b: RangeMap<SortedSet<string>>
-                = [[['b'], 2], [['d'], 4]]
+            /** @type {RangeMap<SortedSet<string>>} */
+            const a = [[['a'], 1], [['c'], 3]]
+            /** @type {RangeMap<SortedSet<string>>} */
+            const b = [[['b'], 2], [['d'], 4]]
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
             assertEq(result, '[[["a","b"],1],[["b","c"],2],[["c","d"],3],[["d"],4]]')
         },
         () => {
-            const a: RangeMap<SortedSet<string>>
-                = [[['a'], 1], [['d'], 4]]
-            const b: RangeMap<SortedSet<string>>
-                = [[['b'], 2], [['c'], 3]]
+            /** @type {RangeMap<SortedSet<string>>} */
+            const a = [[['a'], 1], [['d'], 4]]
+            /** @type {RangeMap<SortedSet<string>>} */
+            const b = [[['b'], 2], [['c'], 3]]
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
             assertEq(result, '[[["a","b"],1],[["b","d"],2],[["c","d"],3],[["d"],4]]')
         },
         () => {
-            const a: RangeMap<SortedSet<string>>
-                = [[['a'], 1], [['b'], 2]]
-            const b: RangeMap<SortedSet<string>>
-                = [[['b'], 1], [['a'], 2]]
+            /** @type {RangeMap<SortedSet<string>>} */
+            const a = [[['a'], 1], [['b'], 2]]
+            /** @type {RangeMap<SortedSet<string>>} */
+            const b = [[['b'], 1], [['a'], 2]]
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
             assertEq(result, '[[["a","b"],2]]')
         },
         () => {
-            const a: RangeMap<SortedSet<string>>
-                = [[['a'], 1], [['b'], 2], [['a'], 3]]
-            const b: RangeMap<SortedSet<string>>
-                = [[['a'], 5]]
+            /** @type {RangeMap<SortedSet<string>>} */
+            const a = [[['a'], 1], [['b'], 2], [['a'], 3]]
+            /** @type {RangeMap<SortedSet<string>>} */
+            const b = [[['a'], 5]]
             const merged = merge(op)(a)(b)
             const result = str(toArray(merged))
             assertEq(result, '[[["a"],1],[["a","b"],2],[["a"],5]]')
         }
     ],
     get: () => {
-        const sortedSetEmpty: SortedSet<string> = []
+        /** @type {SortedSet<string>} */
+        const sortedSetEmpty = []
         const at = get(sortedSetEmpty)
         return [
             () => {
-                const rm: RangeMapArray<SortedSet<string>>
-                    = [[['a'], 10], [['b'], 20], [['c'], 30]]
+                /** @type {RangeMapArray<SortedSet<string>>} */
+                const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(rm)(5))
                 assertEq(result, '["a"]')
             },
             () => {
-                const rm: RangeMapArray<SortedSet<string>>
-                    = [[['a'], 10], [['b'], 20], [['c'], 30]]
+                /** @type {RangeMapArray<SortedSet<string>>} */
+                const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(rm)(10))
                 assertEq(result, '["a"]')
             },
             () => {
-                const rm: RangeMapArray<SortedSet<string>>
-                    = [[['a'], 10], [['b'], 20], [['c'], 30]]
+                /** @type {RangeMapArray<SortedSet<string>>} */
+                const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(rm)(15))
                 assertEq(result, '["b"]')
             },
             () => {
-                const rm: RangeMapArray<SortedSet<string>>
-                    = [[['a'], 10], [['b'], 20], [['c'], 30]]
+                /** @type {RangeMapArray<SortedSet<string>>} */
+                const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(rm)(20))
                 assertEq(result, '["b"]')
             },
             () => {
-                const rm: RangeMapArray<SortedSet<string>>
-                    = [[['a'], 10], [['b'], 20], [['c'], 30]]
+                /** @type {RangeMapArray<SortedSet<string>>} */
+                const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(rm)(25))
                 assertEq(result, '["c"]')
             },
             () => {
-                const rm: RangeMapArray<SortedSet<string>>
-                    = [[['a'], 10], [['b'], 20], [['c'], 30]]
+                /** @type {RangeMapArray<SortedSet<string>>} */
+                const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(rm)(30))
                 assertEq(result, '["c"]')
             },
             () => {
-                const rm: RangeMapArray<SortedSet<string>>
-                    = [[['a'], 10], [['b'], 20], [['c'], 30]]
+                /** @type {RangeMapArray<SortedSet<string>>} */
+                const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
                 const result = str(at(rm)(35))
                 assertEq(result, '[]')
             },
             () => {
-                const rm: RangeMapArray<SortedSet<string>>
-                    = []
+                /** @type {RangeMapArray<SortedSet<string>>} */
+                const rm = []
                 const result = str(at(rm)(10))
                 assertEq(result, '[]')
             }

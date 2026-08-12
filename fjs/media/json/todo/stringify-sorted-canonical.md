@@ -20,7 +20,7 @@ Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
 - `fjs/types/btree/proof.f.mjs:11`, `fjs/types/btree/find/proof.f.mjs:10`,
   `fjs/types/btree/set/proof.f.ts:11`, `fjs/types/btree/remove/proof.f.ts:16`
 - `fjs/types/array/proof.f.mjs:6`, `fjs/types/byte_set/proof.f.mjs:8`,
-  `fjs/types/range_map/proof.f.ts:12`, `fjs/types/sorted_list/proof.f.mjs:10`,
+  `fjs/types/range_map/proof.f.mjs:12`, `fjs/types/sorted_list/proof.f.mjs:10`,
   `fjs/types/sorted_set/proof.f.mjs:10`, `fjs/types/list/proof.f.mjs:37`
 - `fjs/text/ascii/proof.f.mjs:6`, `fjs/text/utf8/proof.f.ts:8`,
   `fjs/text/utf16/proof.f.ts:15`
