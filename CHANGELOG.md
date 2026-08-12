@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/text/utf8/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — no type
+  annotations to convert
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/text/utf16/proof.f.ts` migrates from
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
   [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
