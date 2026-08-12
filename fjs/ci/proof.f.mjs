@@ -1,5 +1,5 @@
-import type { MetaStep, Os, GitHubAction } from './common/types.ts'
-import type { Dir, State } from '../effects/node/virtual/types.ts'
+/** @import { MetaStep, Os, GitHubAction } from './common/types.ts' */
+/** @import { Dir, State } from '../effects/node/virtual/types.ts' */
 
 import { ci, main } from './module.f.mjs'
 import { functionalscript, node } from './config/module.f.mjs'
@@ -15,16 +15,19 @@ import { definedValues } from '../types/object/module.f.mjs'
 
 import { parse as jsonParse } from '../media/json/module.f.mjs'
 
-const hasRun = (cmd: string) => (gha: GitHubAction): boolean =>
+/** @type {(cmd: string) => (gha: GitHubAction) => boolean} */
+const hasRun = cmd => gha =>
     definedValues(gha.jobs).some(job => job.steps.some(step => step.run?.includes(cmd)))
 
-const hasRunInJob = (jobId: string, cmd: string) => (gha: GitHubAction): boolean =>
+/** @type {(jobId: string, cmd: string) => (gha: GitHubAction) => boolean} */
+const hasRunInJob = (jobId, cmd) => gha =>
     gha.jobs[jobId]?.steps.some(step => step.run?.includes(cmd)) ?? false
 
-const hasExactRunInJob = (jobId: string, cmd: string) => (gha: GitHubAction): boolean =>
+/** @type {(jobId: string, cmd: string) => (gha: GitHubAction) => boolean} */
+const hasExactRunInJob = (jobId, cmd) => gha =>
     gha.jobs[jobId]?.steps.some(step => step.run === cmd) ?? false
 
-const makeState = (rust: boolean, packageJson?: string) => ({
+const makeState = (/** @type {boolean} */ rust, /** @type {string | undefined} */ packageJson) => ({
     ...emptyState,
     root: {
         '.github': { workflows: {} },
@@ -33,35 +36,42 @@ const makeState = (rust: boolean, packageJson?: string) => ({
     },
 })
 
-const subDir = (dir: Dir, name: string): Dir => {
+/** @type {(dir: Dir, name: string) => Dir} */
+const subDir = (dir, name) => {
     const entity = dir[name]
     assert(typeof entity === 'object' && !Array.isArray(entity), entity)
-    return entity as Dir
+    return /** @type {Dir} */ (entity)
 }
 
-const text = (dir: Dir, name: string): string => {
+/** @type {(dir: Dir, name: string) => string} */
+const text = (dir, name) => {
     const file = dir[name]
     assert(!(!Array.isArray(file) || file.length === 0), file)
     return utf8ToString(file[0])
 }
 
-const path = (dir: Dir, names: readonly string[]): Dir => names.reduce(subDir, dir)
+/** @type {(dir: Dir, names: readonly string[]) => Dir} */
+const path = (dir, names) => names.reduce(subDir, dir)
 
-const workflow = (state: State): GitHubAction => {
+/** @type {(state: State) => GitHubAction} */
+const workflow = state => {
     const workflows = path(state.root, ['.github', 'workflows'])
     return unwrap(parseGitHubAction(unwrap(jsonParse(text(workflows, 'ci.yml')))))
 }
 
-const flake = (state: State, id: string): string =>
+/** @type {(state: State, id: string) => string} */
+const flake = (state, id) =>
     text(path(state.root, ['nix', 'generated', id]), 'flake.nix')
 
-const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): GitHubAction => {
-    const [state, result] = virtual(makeState(rust))(ci({ nodeExtra }))
+/** @type {(rust: boolean, nodeExtra?: (o: Os) => readonly MetaStep[]) => GitHubAction} */
+const run = (rust, nodeExtra = () => []) => {
+    const [state, result] = virtual(makeState(rust, undefined))(ci({ nodeExtra }))
     assertEq(result, 0)
     return workflow(state)
 }
 
-const runDefault = (packageJson?: string): GitHubAction => {
+/** @type {(packageJson?: string) => GitHubAction} */
+const runDefault = packageJson => {
     const [state, result] = virtual(makeState(false, packageJson))(main())
     assertEq(result, 0)
     return workflow(state)
@@ -94,7 +104,7 @@ export const proof = {
         assert(hasRunInJob('node26', 'npm run ci-update')(gha), 'expected Node 26 workflow regeneration')
         assert(hasRunInJob('node26', 'git add -A && git diff --cached --exit-code')(gha), 'expected Node 26 generated-file drift check')
         assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')
-        for (const id of [
+        for (const id of /** @type {const} */ ([
             'ubuntu-intel',
             'ubuntu-arm',
             'macos-intel',
@@ -104,7 +114,7 @@ export const proof = {
             'node22',
             'node24',
             'node26',
-        ] as const) {
+        ])) {
             assert(hasRunInJob(id, 'npm ci')(gha), `expected npm ci in ${id}`)
         }
         assert(!hasRunInJob('deno', 'npm ci')(gha), 'unexpected npm ci in deno job')
@@ -120,15 +130,15 @@ export const proof = {
         allOs: () => {
             const cmd = 'echo hello'
             const gha = run(false, () => [test({ run: cmd })])
-            for (const o of ['ubuntu', 'macos', 'windows'] as const) {
-                for (const a of ['intel', 'arm'] as const) {
+            for (const o of /** @type {const} */ (['ubuntu', 'macos', 'windows'])) {
+                for (const a of /** @type {const} */ (['intel', 'arm'])) {
                     assert(hasRunInJob(`${o}-${a}`, cmd)(gha), `missing extra step in ${o}-${a}`)
                 }
             }
         },
         osSpecific: () => {
             const gha = run(false, o => o === 'ubuntu' ? [test({ run: 'echo ubuntu-only' })] : [])
-            for (const a of ['intel', 'arm'] as const) {
+            for (const a of /** @type {const} */ (['intel', 'arm'])) {
                 assert(hasRunInJob(`ubuntu-${a}`, 'echo ubuntu-only')(gha), `missing step in ubuntu-${a}`)
                 assert(!hasRunInJob(`macos-${a}`, 'echo ubuntu-only')(gha), `unexpected step in macos-${a}`)
                 assert(!hasRunInJob(`windows-${a}`, 'echo ubuntu-only')(gha), `unexpected step in windows-${a}`)
@@ -164,7 +174,7 @@ export const proof = {
         },
     },
     nixFlakes: () => {
-        const [state, result] = virtual(makeState(false))(main())
+        const [state, result] = virtual(makeState(false, undefined))(main())
         assertEq(result, 0)
         for (const { id, packages } of nodeNixJobs) {
             const [nodePackage] = packages
