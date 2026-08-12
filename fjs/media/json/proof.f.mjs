@@ -15,12 +15,12 @@ export const proof = {
         },
         () => {
             // typeof src !== 'object': primitive src treated as empty object
-            const x = stringify(sort)(setProperty("Hello")(['a'])(42 as unknown as null))
+            const x = stringify(sort)(setProperty("Hello")(['a'])(/** @type {null} */ (/** @type {unknown} */ (42))))
             if (x !== '{"a":"Hello"}') { throw x }
         },
         () => {
             // src instanceof Array: array src treated as empty object
-            const x = stringify(sort)(setProperty("Hello")(['a'])([1, 2] as unknown as null))
+            const x = stringify(sort)(setProperty("Hello")(['a'])(/** @type {null} */ (/** @type {unknown} */ ([1, 2]))))
             if (x !== '{"a":"Hello"}') { throw x }
         },
     ],

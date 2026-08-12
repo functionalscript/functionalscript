@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/media/json/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — two nested
+  `as unknown as null` double-casts become nested inline `@type` casts
+  [#1504](https://github.com/functionalscript/functionalscript/pull/1504)
 - **BREAKING CHANGES:** `fjs/effects/proof.f.ts` and
   `fjs/effects/eff/proof.f.ts` migrate from authored TypeScript to
   JSDoc-typed JavaScript (`.f.mjs`) — explicit generic instantiations
