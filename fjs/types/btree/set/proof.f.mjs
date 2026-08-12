@@ -1,21 +1,24 @@
 import { set as setSet } from './module.f.mjs'
-import type { TNode } from '../types/types.ts'
+/** @import { TNode } from '../types/types.ts' */
 import { cmp } from '../../string/module.f.mjs'
 import { stringify } from '../../../media/json/module.f.mjs'
 import { sort } from '../../object/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
-const set = (node: TNode<string>) => (value: string): TNode<string> =>
+/** @type {(node: TNode<string>) => (value: string) => TNode<string>} */
+const set = node => value =>
     setSet(cmp(value))(() => value)(node)
 
-const replace = (node: TNode<string>) => (value: string) => (g: (v: string | null) => string): TNode<string> =>
+/** @type {(node: TNode<string>) => (value: string) => (g: (v: string | null) => string) => TNode<string>} */
+const replace = node => value => g =>
     setSet(cmp(value))(g)(node)
 
 const jsonStr = stringify(sort)
 
 const test = [
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 10; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -23,7 +26,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 11; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -31,7 +35,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 12; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -39,7 +44,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 13; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -47,7 +53,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 14; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -55,7 +62,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 15; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -63,7 +71,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 16; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -71,7 +80,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 17; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -79,7 +89,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 18; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -89,7 +100,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 19; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -99,7 +111,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 20; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -111,7 +124,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 21; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -123,7 +137,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 22; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -135,7 +150,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 23; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -147,7 +163,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 24; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -159,7 +176,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 25; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -171,7 +189,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 26; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -185,7 +204,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 27; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -199,7 +219,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 28; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -213,7 +234,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 29; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -227,7 +249,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 30; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -241,7 +264,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 31; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -255,7 +279,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 32; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -269,7 +294,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 33; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -283,7 +309,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 34; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -297,7 +324,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 35; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -311,7 +339,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 36; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -325,7 +354,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 37; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -339,7 +369,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 38; i++)
             _map = set(_map)((i * i).toString())
         const r = jsonStr(_map)
@@ -358,7 +389,8 @@ const test = [
     // leaf) exercises the `x.length === 3` and `x.length === 5` arms of the
     // "replace" case, which plain sequential inserts never reach.
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 10; i++)
             _map = set(_map)((i * i).toString())
         // top level is a Branch3 with "4" as its separator (x.length === 3)
@@ -368,7 +400,8 @@ const test = [
     },
 
     () => {
-        let _map: TNode<string> = ['1']
+        /** @type {TNode<string>} */
+        let _map = ['1']
         for (let i = 2; i <= 13; i++)
             _map = set(_map)((i * i).toString())
         // top level is a Branch5 with "16" as its first separator (i === 1) and

@@ -11,7 +11,7 @@ it from scratch.
 
 #### 1. 29 copies of one test case
 
-`fjs/types/btree/set/proof.f.ts` is 394 lines, of which 57 carry expected
+`fjs/types/btree/set/proof.f.mjs` is 394 lines, of which 57 carry expected
 values and almost all the rest is the same six lines repeated for
 `n = 10 … 38` (`:17-352`):
 
@@ -194,7 +194,7 @@ are.
 - [ ] Add `fjs/types/btree/testlib.f.ts` with `set`, `squares`,
       `expectedSquares`/`expectedSquares38`, and — until `stringifySorted` exists —
       the single `jsonStr` alias.
-- [ ] Convert `fjs/types/btree/set/proof.f.ts` to `expectedSquares.map`; keep
+- [ ] Convert `fjs/types/btree/set/proof.f.mjs` to `expectedSquares.map`; keep
       the two `replace` cases hand-written, sourced from `squares`.
 - [ ] Convert `fjs/types/btree/remove/proof.f.ts`, `find/proof.f.mjs`, and
       `proof.f.ts` to import the fixture; delete the four local `set` helpers
