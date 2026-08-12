@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/js/tokenizer/proof.f.ts` migrates from
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the typed
+  `tokenizeString`, `tokenizeStringWithMetadata` and `withoutMetada`
+  consts become JSDoc `@type` annotations, and the `JsToken` /
+  `JsTokenWithMetadata` type imports become an `@import`
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/media/json/parser/proof.f.ts` migrates from
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the typed
   `tokenizeString` const becomes a JSDoc `@type` annotation, and the
