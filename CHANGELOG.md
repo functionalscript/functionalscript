@@ -20,6 +20,13 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/djs/examples/input.f.ts` and
+  `fjs/djs/examples/m.f.ts` migrate from authored TypeScript to
+  JavaScript (`.f.mjs`) — no type annotations to convert; `input`'s
+  import specifier updates to `./m.f.mjs`. Being `.mjs`, they are now
+  covered by `package.json`'s `files` and ship in the tarball, which
+  `.f.ts` did not
+  [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/types/nominal/proof.f.ts` migrates from
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`). Its two
   `declare const … : unique symbol` brands and the two types built on
