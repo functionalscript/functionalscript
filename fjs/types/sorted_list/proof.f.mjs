@@ -1,4 +1,4 @@
-import type { Unknown } from '../../media/json/types.ts'
+/** @import { Unknown } from '../../media/json/types.ts' */
 
 import { find, merge } from './module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
@@ -8,8 +8,8 @@ import { flip } from '../function/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
-const str: (a: readonly Unknown[]) => string
-    = stringify(sort)
+/** @type {(a: readonly Unknown[]) => string} */
+const str = stringify(sort)
 
 const reverseCmp = flip(cmp)
 

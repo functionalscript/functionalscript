@@ -74,7 +74,7 @@ sign-driven merge reducer is added (e.g. set difference), but not on its own.
 ### Tasks
 
 - [ ] Add `cmpReduceBy` and derive `cmpReduce` / `intersectReduce` from it.
-- [ ] Confirm `fjs/types/sorted_list/proof.f.ts` still passes (`fjs t`) with full
+- [ ] Confirm `fjs/types/sorted_list/proof.f.mjs` still passes (`fjs t`) with full
       branch coverage and `npx tsc` is clean.
 
 ### Related
