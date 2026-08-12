@@ -101,14 +101,22 @@ language, including constructs that cannot be represented faithfully or
 conveniently in JSDoc.
 
 Both TypeScript and JavaScript implementations reference the same real source
-file:
+file. TypeScript uses a normal type-only import:
 
 ```ts
 import type { Phantom } from './types.ts'
 ```
 
+JavaScript puts the corresponding `@import` in its leading module JSDoc block:
+
 ```js
-/** @import { Phantom } from './types.ts' */
+/**
+ * ...
+ *
+ * @module
+ *
+ * @import { Phantom } from './types.ts'
+ */
 ```
 
 Both forms are type-only, and the referenced `types.ts` physically exists. This
@@ -227,17 +235,27 @@ Use `@template out T`, `@template in T`, or constrained forms such as
 
 A JavaScript implementation must not gain a real JavaScript import just because
 it uses a separately declared type. Use JSDoc `@import` with the same real source
-path used by `import type`:
+path used by `import type`. All module-level `@import` tags belong in the leading
+module JSDoc block together with `@module`; do not create separate `@import`
+comment blocks.
 
-```js
-/** @import { Types } from './types.ts' */
-```
-
-This introduces no runtime dependency. The corresponding TypeScript
-implementation uses `import type` with the same specifier:
+The corresponding TypeScript implementation uses `import type` with the same
+specifier:
 
 ```ts
 import type { Types } from './types.ts'
+```
+
+JavaScript uses:
+
+```js
+/**
+ * ...
+ *
+ * @module
+ *
+ * @import { Types } from './types.ts'
+ */
 ```
 
 Do not point migrated JavaScript back at a remaining implementation `.ts` /
@@ -355,25 +373,56 @@ regression, not a type-contract one. Record it, keep writing the documentation i
 the source, and file an upstream issue so the gap is tracked rather than
 rediscovered by each migration.
 
-#### Separate the `@module` header from the first import with a blank line
+#### Module header and import ordering
 
-A module's `@module` header can disappear from the emitted declaration too, but
-that one is **not** an upstream gap — it is a source-formatting requirement, and
-a blank line fixes it:
+Every implementation module starts with one module JSDoc block. Always put one
+blank line after that block before the first source-level import or declaration.
+
+For TypeScript, put type-only imports first, then already-migrated JavaScript
+runtime imports, then remaining TypeScript runtime imports. Separate these groups
+with one blank line:
+
+```ts
+/**
+ * <Module documentation>
+ *
+ * @module
+ */
+
+import type ...
+import type ...
+
+import ... from '...mjs'
+import ... from '...mjs'
+
+import ... from '...ts'
+import ... from '...ts'
+```
+
+For JavaScript, put all module-level `@import` tags in the same leading JSDoc
+block as `@module`, then put one blank line before runtime imports:
 
 ```js
 /**
- * ...
+ * <Module documentation>
+ *
  * @module
+ *
+ * @import ...
+ * @import ...
  */
-                                    // <- this blank line is load-bearing
-/** @import { Tuple } from './types.ts' */
-import { mask } from '...'
+
+import ... from '...mjs'
+import ... from '...mjs'
 ```
 
-Without the blank line, the header is the leading comment of the first `import`
-*statement* (an `@import` tag is a comment, not a statement, so it does not
-separate them). Declaration emit rewrites the import list — dropping
+A migrated JavaScript implementation has no remaining runtime `.ts` / `.f.ts`
+import group: Stage 1 forbids JavaScript runtime dependencies on remaining
+TypeScript implementations.
+
+The blank line after the module JSDoc block is load-bearing for declaration
+emit. Without it, the header can become the leading comment of the first
+`import` statement. Declaration emit rewrites the import list — dropping
 runtime-only imports and synthesizing `import type` for what the declarations
 actually reference — and when the statement carrying the header is not among the
 survivors, the header goes with it. With the blank line the header detaches from
@@ -646,11 +695,12 @@ this rename.
       than by what the `.f.ts` happened to export or by what a pending refactor
       plans to delete. Types intentionally moved to `types.ts` use normal
       TypeScript source visibility instead.
-- [ ] Keep a blank line between a module's `@module` header and its first
-      `import` statement so the header survives declaration emit; fix the
-      modules that already lost theirs (`fjs/common/monoid`,
-      `fjs/types/btree/remove`, `fjs/types/btree/set`, `fjs/types/list`,
-      `fjs/types/nullable`).
+- [ ] Apply the module-header/import convention: keep module-level JavaScript
+      `@import` tags in the same JSDoc block as `@module`, always put one blank
+      line after that block, and group TypeScript imports as type-only, migrated
+      `.mjs`, then remaining `.ts`; fix the modules that already lose their
+      header (`fjs/common/monoid`, `fjs/types/btree/remove`,
+      `fjs/types/btree/set`, `fjs/types/list`, `fjs/types/nullable`).
 - [ ] File an upstream issue for JSDoc typedef documentation being dropped from
       declaration emit, and keep writing type documentation in the source
       meanwhile; substantial type APIs may instead live directly in `types.ts`
@@ -723,9 +773,11 @@ this rename.
   JSDoc `@typedef` is recorded as a known upstream gap; an intentionally separate
   `types.ts` may preserve declaration documentation through normal TypeScript
   emit.
-- Every migrated module's `@module` header survives into its emitted
-  declaration, which requires a blank line between that header and the first
-  `import` statement.
+- Every implementation module follows the module-header/import convention:
+  JavaScript keeps module-level `@import` tags in the same JSDoc block as
+  `@module`, one blank line follows that block, and TypeScript groups type-only,
+  migrated `.mjs`, then remaining `.ts` imports. The `@module` header survives
+  declaration emit.
 - Every exported function's return type survives into its emitted declaration as
   a named type, not `any` or `/*elided*/`; curried generic exports carry an
   explicit `@returns` rather than relying on inference, and the per-arrow
