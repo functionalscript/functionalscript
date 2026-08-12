@@ -1,24 +1,29 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { run } from '../mock/module.f.mjs'
-import type { MemOperationMap } from '../mock/types.ts'
+/** @import { MemOperationMap } from '../mock/types.ts' */
 import { pure, step } from '../module.f.mjs'
 import {
     asBase, asNominal,
     create, read, write,
 } from './module.f.mjs'
-import type { Key, MemOp } from './types.ts'
+/** @import { Key, MemOp } from './types.ts' */
 
-type MemoryState = {
-    readonly next: number
-    readonly values: { readonly [key: string]: unknown }
-}
+/**
+ * @typedef {{
+ *   readonly next: number,
+ *   readonly values: { readonly [key: string]: unknown },
+ * }} MemoryState
+ */
 
-const initial: MemoryState = { next: 0, values: {} }
+/** @type {MemoryState} */
+const initial = { next: 0, values: {} }
 
-const mock: MemOperationMap<MemOp, MemoryState> = {
+/** @type {MemOperationMap<MemOp, MemoryState>} */
+const mock = {
     memCreate: value => state => {
         const id = `k${state.next}`
-        const key: Key<unknown> = asNominal(id)
+        /** @type {Key<unknown>} */
+        const key = asNominal(id)
         return [{
             next: state.next + 1,
             values: { ...state.values, [id]: value },
@@ -58,7 +63,7 @@ export const proof = {
             create('a'),
             a => step(
                 create('b'),
-                b => pure([asBase(a), asBase(b)] as const)))
+                b => pure(/** @type {const} */ ([asBase(a), asBase(b)]))))
         const [state, [a, b]] = run(mock)(initial)(effect)
         assertEq(a, 'k0')
         assertEq(b, 'k1')
@@ -71,7 +76,8 @@ export const proof = {
             k => step(write(k, 5), () => read(k)))
     },
     throw: () => {
-        const key: Key<number> = asNominal('missing')
+        /** @type {Key<number>} */
+        const key = asNominal('missing')
         run(mock)(initial)(write(key, 1))
     },
 }
