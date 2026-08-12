@@ -42,7 +42,7 @@ export const runEffect = (p: NodeMain): Promise<number> =>
     runNodeEffect(dispatch(p)(options))
 ```
 
-`fjs run` in `fjs/module.f.ts` passes `v.main` straight to the effect
+`fjs run` in `fjs/module.f.mjs` passes `v.main` straight to the effect
 runner and needs no change. The `export const main = dispatch(commands)`
 wrapper in `fjs/cas/module.f.mjs` simplifies to `export const main = commands`.
 
@@ -54,11 +54,11 @@ wrapper in `fjs/cas/module.f.mjs` simplifies to `export const main = commands`.
       `NodeMain`; resolve the union with `Array.isArray` before invoking.
 - [ ] Simplify `fjs/cas/module.f.mjs`: `export const main = commands` (drop the
       `dispatch` wrapper).
-- [ ] Add a proof in `fjs/proof.f.ts` covering the `Commands`-as-`main` path.
+- [ ] Add a proof in `fjs/proof.f.mjs` covering the `Commands`-as-`main` path.
 
 ### Related
 
-- `fjs/module.f.ts` — the `run` handler at line 39.
+- `fjs/module.f.mjs` — the `run` handler at line 39.
 - `fjs/cas/module.f.mjs` — the `main = dispatch(commands)` boilerplate this issue
   eliminates.
 - `fjs/cli/module.f.mjs` — `dispatch` used by the new branch; `Commands`

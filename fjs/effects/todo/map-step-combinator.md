@@ -50,7 +50,7 @@ const program = step(
     () => pure(0))
 ```
 
-Also `fjs/djs/module.f.mjs`, `fjs/module.f.ts`, `fjs/ci/module.f.mjs`,
+Also `fjs/djs/module.f.mjs`, `fjs/module.f.mjs`, `fjs/ci/module.f.mjs`,
 `fjs/cas/evo/module.f.mjs`, `fjs/cas/module.f.mjs`, `fjs/cas/cli/module.f.mjs`,
 `fjs/mcp/cas/module.f.mjs`, `fjs/protocol/mcp/module.f.mjs`, `fjs/protocol/mcp/stdio/module.f.mjs`,
 `fjs/emergent_testing/module.f.mjs`.
@@ -106,7 +106,7 @@ conversion as one 14-module diff.
 
 ### Tasks
 
-- [ ] The `NodeProgram` exit-code sites (`fjs/module.f.ts`, `fjs/cli`, `fjs/ci`,
+- [ ] The `NodeProgram` exit-code sites (`fjs/module.f.mjs`, `fjs/cli`, `fjs/ci`,
       `fjs/djs`, `fjs/website`, `fjs/cas/cli`).
 - [ ] `fjs/protocol/mcp` + `fjs/protocol/mcp/stdio`.
 - [ ] `fjs/cas` + `fjs/cas/evo` + `fjs/mcp/evo` + `fjs/mcp`.

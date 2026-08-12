@@ -1,17 +1,18 @@
 import { assert, assertEq } from './asserts/module.f.mjs'
 import { pure } from './effects/module.f.mjs'
-import type { NodeProgram, NodeProgramOptions } from './effects/node/types.ts'
+/** @import { NodeProgram, NodeProgramOptions } from './effects/node/types.ts' */
 import { defaultNodeProgramOptions, emptyState, virtual } from './effects/node/virtual/module.f.mjs'
-import type { Dir } from './effects/node/virtual/types.ts'
-import { main } from './module.f.ts'
+/** @import { Dir } from './effects/node/virtual/types.ts' */
+import { main } from './module.f.mjs'
 
-const makeOptions = (args: readonly string[]): NodeProgramOptions =>
-    ({ ...defaultNodeProgramOptions, args })
+/** @type {(args: readonly string[]) => NodeProgramOptions} */
+const makeOptions = args => ({ ...defaultNodeProgramOptions, args })
 
-const run = (root: Dir) => (args: readonly string[]) =>
+const run = (/** @type {Dir} */ root) => (/** @type {readonly string[]} */ args) =>
     virtual({ ...emptyState, root })(main(makeOptions(args)))
 
-const appMain: NodeProgram = ({ args }) => pure(args.length)
+/** @type {NodeProgram} */
+const appMain = ({ args }) => pure(args.length)
 
 export const proof = {
     help: () => {
@@ -25,7 +26,8 @@ export const proof = {
         assert(state.stderr.length !== 0, 'expected error in stderr')
     },
     runModule: () => {
-        const root: Dir = { 'app.f.ts': () => ({ main: appMain }) }
+        /** @type {Dir} */
+        const root = { 'app.f.ts': () => ({ main: appMain }) }
         const [, code] = run(root)(['run', 'app.f.ts', 'x', 'y'])
         // `run` strips the command and file name, so `main` sees two arguments
         assertEq(code, 2)

@@ -8,14 +8,15 @@ import { main as testMain } from './emergent_testing/module.f.mjs'
 import { commands as casCommands } from './cas/cli/module.f.mjs'
 import { main as ciMain } from './ci/module.f.mjs'
 import { import_ } from './effects/node/module.f.mjs'
-import type { NodeOp, NodeProgram } from './effects/node/types.ts'
+/** @import { NodeOp, NodeProgram } from './effects/node/types.ts' */
 import { dispatch } from './cli/module.f.mjs'
-import type { Commands } from './cli/types.ts'
+/** @import { Commands } from './cli/types.ts' */
 import { casMcpServer } from './mcp/module.f.mjs'
 import { pure, step } from './effects/module.f.mjs'
 import { unwrap } from './types/result/module.f.mjs'
 
-const commands: Commands<NodeOp> = [
+/** @type {Commands<NodeOp>} */
+const commands = [
     {
         names: ['test', 't'],
         description: 'Run the FunctionalScript test suite',
@@ -50,9 +51,10 @@ const commands: Commands<NodeOp> = [
             const [file, ...args] = options.args
             return step(
                 import_(file),
-                x => (unwrap(x).main as NodeProgram)({ ...options, args }))
+                x => (/** @type {NodeProgram} */ (unwrap(x).main))({ ...options, args }))
         },
     },
 ]
 
-export const main: NodeProgram = dispatch(commands)
+/** @type {NodeProgram} */
+export const main = dispatch(commands)

@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/module` and `proof` (the top-level
+  FunctionalScript compiler entry point and command dispatcher) migrate
+  from authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript
+  (`.f.mjs`) — no local complex types to split. Importers must use the
+  `.f.mjs` specifier. Updates `fjs/module.ts`'s import accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/mcp/cas/module` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — the local
   `Meta` type is renamed `_Meta` (it was never exported, but a JSDoc
