@@ -14,11 +14,14 @@
  *
  * @module
  */
+
+import type { Unknown } from '../../media/json/types.ts'
+
 import { number, string, or, option } from '../../types/rtti/module.f.mjs'
 import type { Ts } from '../../types/rtti/ts/types.ts'
 import { validate } from '../../types/rtti/validate/module.f.mjs'
 import type { Result } from '../../types/result/types.ts'
-import { unknown, type Unknown } from '../../media/json/module.f.ts'
+import { unknown } from '../../media/json/rtti/module.f.mjs'
 
 export const jsonrpc = '2.0' as const
 

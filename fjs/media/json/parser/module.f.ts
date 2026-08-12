@@ -3,6 +3,9 @@
  *
  * @module
  */
+
+import type { Unknown } from '../types.ts'
+
 import type { Result } from '../../../types/result/types.ts'
 import { error, ok } from '../../../types/result/module.f.mjs'
 import type { List } from '../../../types/list/types.ts'
@@ -11,7 +14,6 @@ import type { Fold } from '../../../types/function/operator/types.ts'
 import type { JsonToken } from '../tokenizer/types.ts'
 import { setReplace } from '../../../types/ordered_map/module.f.mjs'
 import type { OrderedMap } from '../../../types/ordered_map/types.ts'
-import { type Unknown } from '../module.f.ts'
 import { fromMap } from '../../../types/object/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
