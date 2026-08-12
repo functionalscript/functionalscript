@@ -3,17 +3,19 @@
  * for the `All` type.
  *
  * @module
+ *
+ * @import { Tuple } from '../../types/array/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Curve } from '../secp/types.ts'
+ * @import { Sha2 } from '../sha2/types.ts'
+ * @import { All } from './types.ts'
  */
+
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-/** @import { Tuple } from '../../types/array/types.ts' */
 import { bitLength, divUp8, roundUp8 } from '../../types/bigint/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/types.ts' */
 import { empty, length, msb, repeat, unpack, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'
-/** @import { Curve } from '../secp/types.ts' */
-/** @import { Sha2 } from '../sha2/types.ts' */
 import { computeSync } from '../sha2/module.f.mjs'
-/** @import { All } from './types.ts' */
 
 /**
  * Builds RFC6979 helper conversions for a subgroup order.

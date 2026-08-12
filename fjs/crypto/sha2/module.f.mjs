@@ -2,11 +2,16 @@
  * See https://www.rfc-editor.org/rfc/rfc6234
  *
  * @module
+ *
+ * @import { Tuple } from '../../types/array/types.ts'
+ * @import { Reduce } from '../../types/bigint/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Fold } from '../../types/function/operator/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Base, Sha2, State, V16, V8 } from './types.ts'
  */
 
-/** @import { Tuple } from '../../types/array/types.ts' */
 import { mask } from '../../types/bigint/module.f.mjs'
-/** @import { Reduce } from '../../types/bigint/types.ts' */
 import {
     vec,
     length,
@@ -15,11 +20,7 @@ import {
     chunkList,
     uint,
 } from '../../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/types.ts' */
-/** @import { Fold } from '../../types/function/operator/types.ts' */
 import { fold } from '../../types/list/module.f.mjs'
-/** @import { List } from '../../types/list/types.ts' */
-/** @import { Base, Sha2, State, V16, V8 } from './types.ts' */
 
 const { concat, front } = msb
 
