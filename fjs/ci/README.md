@@ -110,7 +110,7 @@ generator breaks the build instead of silently using stale files. Staging with
 generated files, not just modified ones — a plain `git diff` never reports
 untracked files. Because the job runs `npm ci` first, `fjs ci` resolves the
 project's own `functionalscript` devDependency; this repository instead uses
-its checked-in sources (`node ./fjs/module.ts ci`), so the check always reflects
+its checked-in sources (`node ./fjs/module.mjs ci`), so the check always reflects
 the generator being reviewed, not the pinned published release.
 
 Keep `npx tsc` passing independently because the generated CI runs it as its own

@@ -31,5 +31,5 @@ await run(app)
 
 ### Open questions
 
-- Should existing entry points (`fjs/module.ts`) be migrated to the `node.app.f.ts` convention, or only new entry points?
+- Should existing entry points (`fjs/module.mjs`) be migrated to the `node.app.f.ts` convention, or only new entry points?
 - Canonical doc location: top-level `README.md`, `fjs/README.md`, or `CONVENTIONS.md`?

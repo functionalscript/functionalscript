@@ -3,7 +3,7 @@
 `fjs` is the FunctionalScript command-line tool. It is invoked directly via Node:
 
 ```sh
-node ./fjs/module.ts <command> [args]
+node ./fjs/module.mjs <command> [args]
 ```
 
 or via `npx` without a global install:
@@ -104,7 +104,7 @@ fjs run ./my-tool.f.ts foo bar   # options.args === ['foo', 'bar']
 ## Architecture
 
 ```
-fjs/module.ts          — Node.js entry point (runs main via the node runner)
+fjs/module.mjs         — Node.js entry point (runs main via the node runner)
 fjs/module.f.mjs       — FunctionalScript command dispatcher (Commands list + dispatch)
 fjs/cli/module.f.mjs   — generic dispatch primitive (Command/Commands types in fjs/cli/types.ts)
 ```

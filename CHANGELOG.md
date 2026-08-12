@@ -20,6 +20,14 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/module.ts` (the `fjs` CLI entry point) migrates
+  to `fjs/module.mjs`, per the `module.ts -> module.mjs` stage-1 mapping.
+  `package.json`'s `bin.fjs` now points directly at the authored `.mjs`
+  (dropping the compiled-`.js` indirection, since `.mjs` already ships in
+  the npm package) and its `test`/`start`/`ci-update`/`dev-update`/
+  `index-html` scripts, and `deno.json`'s `fjs` task, are updated
+  accordingly
+  [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/effects/node/module.ts` (the Node.js effect
   runner — `runEffect`, `run`) migrates from authored TypeScript to
   JSDoc-typed JavaScript, per the `module.ts -> module.mjs` stage-1

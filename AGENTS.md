@@ -64,7 +64,7 @@ environment.
 | `npm run cov`                           | Node 22+ | no             | `node --test` plus coverage.             |
 | `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |
 | `deno task test` / `deno task cov`      | Deno     | no             | Deno's native test runner / coverage.    |
-| `bun fjs/module.ts test`                | Bun      | no             | The repo's runner under Bun.             |
+| `bun fjs/module.mjs test`                | Bun      | no             | The repo's runner under Bun.             |
 | `bun test`                              | Bun      | no             | Bun's native test runner.                |
 | `fjs test`                              | Node 22+ | to install     | After `npm install -g functionalscript`. |
 | `npx functionalscript test`             | Node 22+ | yes            | No install step.                         |
