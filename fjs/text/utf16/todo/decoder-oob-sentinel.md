@@ -45,7 +45,7 @@ a small helper next to `decoder` in `fjs/text/code_point/module.f.mjs`:
 export const outOfRange = <S>(state: S): readonly [readonly number[], S] => [[errorMask], state]
 ```
 
-Check `fjs/text/utf16/proof.f.ts` for assertions pinning `0xffffffff` and
+Check `fjs/text/utf16/proof.f.mjs` for assertions pinning `0xffffffff` and
 update them with the fix.
 
 ### Tasks

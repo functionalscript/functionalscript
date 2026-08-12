@@ -23,7 +23,7 @@ Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
   `fjs/types/range_map/proof.f.mjs:12`, `fjs/types/sorted_list/proof.f.mjs:10`,
   `fjs/types/sorted_set/proof.f.mjs:10`, `fjs/types/list/proof.f.mjs:37`
 - `fjs/text/ascii/proof.f.mjs:6`, `fjs/text/utf8/proof.f.ts:8`,
-  `fjs/text/utf16/proof.f.ts:15`
+  `fjs/text/utf16/proof.f.mjs:15`
 - `fjs/media/json/parser/proof.f.ts:13`, `fjs/protocol/mcp/stdio/proof.f.mjs:20`
 - `fjs/bnf/data/proof.f.ts` (10 inline calls), `fjs/djs/parser/proof.f.mjs:309`,
   `fjs/djs/serializer/proof.f.mjs:47`
@@ -47,7 +47,7 @@ export const stringifySorted: (value: Unknown) => string = stringify(sort)
 
 Then replace the local bindings at the sites above with an import. Sites
 that wrap it further (`fjs/types/list/proof.f.mjs`'s `toArray` composition,
-`fjs/text/utf16/proof.f.ts`) keep their wrapper but call `stringifySorted`
+`fjs/text/utf16/proof.f.mjs`) keep their wrapper but call `stringifySorted`
 inside. Hoisting the composition to module scope at each consumer also
 aligns with the `AGENTS.md` rule on binding call-invariant partial
 applications once.

@@ -1,4 +1,4 @@
-import type { Unknown } from '../../media/json/types.ts'
+/** @import { Unknown } from '../../media/json/types.ts' */
 
 import {
     toCodePointList,
@@ -14,7 +14,8 @@ import { sort } from '../../types/object/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
-const stringify = (a: readonly Unknown[]) =>
+/** @type {(a: readonly Unknown[]) => string} */
+const stringify = a =>
     jsonStringify(sort)(a)
 
 export const proof = {
