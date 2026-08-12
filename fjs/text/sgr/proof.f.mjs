@@ -1,9 +1,10 @@
 import { fgRed, reset, createConsoleText, backspace, csiWrite } from './module.f.mjs'
 import { virtual, emptyState, defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
-import type { NodeProgramOptions } from '../../effects/node/types.ts'
+/** @import { NodeProgramOptions } from '../../effects/node/types.ts' */
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
-const makeOptions = (isTTY: boolean): NodeProgramOptions =>
+/** @type {(isTTY: boolean) => NodeProgramOptions} */
+const makeOptions = isTTY =>
     ({ ...defaultNodeProgramOptions, std: { stdout: { isTTY }, stderr: { isTTY } } })
 
 export const proof = [
@@ -11,8 +12,9 @@ export const proof = [
         assertEq(fgRed, '\x1b[31m', new Error('Test failed: sgr(0)'))
     },
     () => {
-        const output: string[] = []
-        const stdout = { write: (s: string) => { output.push(s) } }
+        /** @type {string[]} */
+        const output = []
+        const stdout = { write: (/** @type {string} */ s) => { output.push(s) } }
         const writer1 = createConsoleText(stdout)
         const writer2 = writer1('hello')
         assert(output[0] === 'hello')
