@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/cas/module.f.ts` currently implements only Strategy 1 (stream through a
+`fjs/cas/module.f.mjs` currently implements only Strategy 1 (stream through a
 staging file, rename to the hash-addressed path on commit): `write` streams
 an arbitrarily large input into **one** shard via the lock-free lease
 protocol, and `read` streams that one shard back in `<=128 KiB` chunks. There
@@ -30,7 +30,7 @@ it into code.
 **API cutover needed first.** The design doc predates the current `Cas<O>`
 API: it describes reusing a whole-blob `write(Vec) => hash` / `read(hash) =>
 Vec` small-object primitive and `fileKvStore.list`-based directory
-filtering, but `fjs/cas/module.f.ts` today has neither — `Cas<O>.read` /
+filtering, but `fjs/cas/module.f.mjs` today has neither — `Cas<O>.read` /
 `.write` are streaming-only (`List<O, IoResult<Vec>>`), `fileKvStore` is
 gone, and `write` always publishes to the single hash-derived shard path
 with no `_parts/` layout. Implementing this design against current code
@@ -80,4 +80,4 @@ today.
   recommended progression).
 - [`fjs/cas/plan/scrub.md`](../plan/scrub.md) — the committed-store integrity
   backstop this strategy still needs, independent of write path.
-- `fjs/cas/module.f.ts` — current Strategy 1 implementation this builds on.
+- `fjs/cas/module.f.mjs` — current Strategy 1 implementation this builds on.

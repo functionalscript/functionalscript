@@ -8,7 +8,7 @@ stored — without shelling out to the `cas` CLI — and it exposes Evo's
 subject/head API (`evo_list`/`evo_head`/`evo_revision`/`evo_add`,
 [`fjs/mcp/evo`](evo/)) from the same process.
 
-The store (`fjs/cas/module.f.ts`) stays transport-agnostic; this adapter is an
+The store (`fjs/cas/module.f.mjs`) stays transport-agnostic; this adapter is an
 additional front end alongside the CLI `main`.
 
 `casMcpServer(home)` scans `~/.cas/` once at startup to build the Evo

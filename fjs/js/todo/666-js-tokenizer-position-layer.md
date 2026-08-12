@@ -5,11 +5,11 @@
 
 ### Problem
 
-`fjs/js/tokenizer/module.f.ts` already factors its character-to-token state machine
+`fjs/js/tokenizer/module.f.mjs` already factors its character-to-token state machine
 cleanly into a pure core that produces bare tokens:
 
 ```ts
-// fjs/js/tokenizer/module.f.ts:887-889
+// fjs/js/tokenizer/module.f.mjs:749-750
 const tokenizeOp
     : StateScan<CharCodeOrEof, TokenizerState, List<JsToken>>
     = (input, state) => input === null ? tokenizeEofOp(state) : tokenizeCharCodeOp(input, state)
@@ -19,7 +19,7 @@ But the **line/column/path metadata** concern is interleaved on top of that core
 and hard-wired into the only public entry point:
 
 ```ts
-// fjs/js/tokenizer/module.f.ts:895-908
+// fjs/js/tokenizer/module.f.mjs:755-766
 const tokenizeWithPositionOp
     : StateScan<CharCodeOrEof, TokenizerStateWithMetadata, List<JsTokenWithMetadata>>
     = (input, {state, metadata}) => {
@@ -36,7 +36,7 @@ export const tokenize  // :912 — the ONLY public entry point; always emits met
 Because the metadata layer is fused into `tokenize`, a consumer that doesn't want
 positions cannot get bare tokens. This is the source of friction downstream: the
 JSON tokenizer passes an empty path purely to *discard* the position info it never
-wanted (`fjs/media/json/tokenizer/module.f.ts` calls `jsTokenize(input)('')`), while the
+wanted (`fjs/media/json/tokenizer/module.f.mjs` calls `jsTokenize(input)('')`), while the
 DJS tokenizer threads metadata everywhere. Both build on the same core but each
 fights the single metadata-coupled entry point.
 
@@ -67,6 +67,6 @@ tokenizer's dummy-path workaround.
 
 ### Related
 
-- `fjs/js/tokenizer/module.f.ts` — pure core `tokenizeOp` (:887), position layer (:895)
+- `fjs/js/tokenizer/module.f.mjs` — pure core `tokenizeOp` (:750), position layer (:756)
 - [i157](../djs/todo.md) — JSON/DJS value-layer sharing; the dummy-path
   workaround in `json/tokenizer` is downstream of this coupling

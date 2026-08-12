@@ -6,7 +6,7 @@
 ### Problem
 
 `fileCas.write` derives "a fresh staging path whose embedded deadline is
-`now() + leaseDelta`" in two places in `fjs/cas/module.f.ts` — once before the
+`now() + leaseDelta`" in two places in `fjs/cas/module.f.mjs` — once before the
 chunk loop (initial `createExclusive`) and once inside it (per-chunk lease
 renewal):
 
@@ -49,7 +49,7 @@ lease-deadline path rule then exists once, next to its inverse.
 
 ### Tasks
 
-- [ ] Add the `freshStagePath` helper to `fjs/cas/module.f.ts` and rewrite both
+- [ ] Add the `freshStagePath` helper to `fjs/cas/module.f.mjs` and rewrite both
       sites through it.
 - [ ] `npx tsc`, `fjs t`; existing CAS proofs pass unchanged.
 

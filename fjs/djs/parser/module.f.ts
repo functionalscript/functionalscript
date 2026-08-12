@@ -13,7 +13,7 @@ import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import { fromMap } from '../../types/object/module.f.mjs'
 import type { AstArray, AstConst, AstModule, AstModuleRef } from '../ast/module.f.ts'
-import type { TokenMetadata } from '../../js/tokenizer/module.f.ts'
+import type { TokenMetadata } from '../../js/tokenizer/types.ts'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export type ParseError = {

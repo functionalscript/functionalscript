@@ -1,5 +1,5 @@
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
-import { shouldLoad } from './module.f.ts'
+import { shouldLoad } from './module.f.mjs'
 
 export const proof = {
     shouldLoad: () => {

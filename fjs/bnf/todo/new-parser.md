@@ -117,7 +117,7 @@ position in a file. Errors instead use metadata:
 
 For matched spans, every ordinary matched symbol arrives with
 `DjsTokenWithMetadata`, so a rule's span has a first and last token and each
-`TokenMetadata` (`{ path, line, column }`, `fjs/js/tokenizer/module.f.ts:158`)
+`TokenMetadata` (`{ path, line, column }`, `fjs/js/tokenizer/types.ts:99-103`)
 gives a real position. `ParseError` (`{ message, metadata: TokenMetadata | null }`,
 `fjs/djs/parser/module.f.ts:16`) widens from a single point to the required range
 where applicable.

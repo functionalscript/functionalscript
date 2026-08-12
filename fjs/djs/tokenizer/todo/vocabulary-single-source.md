@@ -18,7 +18,7 @@ only if `operatorTags.has(tk)`.
 
 The drift is live, and both copies are wrong in different ways. JavaScript
 has no `<<<` / `<<<=` operators — the old tokenizer's `OperatorToken` union
-(`fjs/js/tokenizer/module.f.ts:126-127`) includes `<<`, `<<=`, `>>`, `>>=`,
+(`fjs/js/tokenizer/types.ts:67-68`) includes `<<`, `<<=`, `>>`, `>>=`,
 `>>>`, `>>>=` but nothing with three `<`. Yet the grammar declares both
 entries. **Update:** at the time this was written the key was typo'd
 (`'<<<<=': '<<<='`), so `operatorTags`' hand-copy of `'<<<='` never actually

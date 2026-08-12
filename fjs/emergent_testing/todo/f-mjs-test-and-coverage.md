@@ -7,7 +7,7 @@
 ### Problem
 
 Tooling recognition of `.f.mjs` has landed: `shouldLoad` in
-`fjs/dev/module.f.ts` matches `.f.mjs`, `npm run cov` and `deno task cov`
+`fjs/dev/module.f.mjs` matches `.f.mjs`, `npm run cov` and `deno task cov`
 include `module.f.mjs`, and the canonical Deno CI generator
 (`fjs/ci/deno/module.f.mjs`) exports `coverageInclude` with a regression proof.
 

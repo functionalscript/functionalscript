@@ -29,21 +29,21 @@ import type {
     DataRule,
     Rule
 } from "../../bnf/types.ts"
-import {
-    isKeywordToken,
-    type BigIntToken,
-    type CommentToken,
-    type EofToken,
-    type ErrorToken,
-    type IdToken,
-    type JsToken,
-    type JsTokenWithMetadata,
-    type NewLineToken,
-    type NumberToken,
-    type StringToken,
-    type TokenMetadata,
-    type WhitespaceToken,
-} from "../../js/tokenizer/module.f.ts"
+import { isKeywordToken } from "../../js/tokenizer/module.f.mjs"
+import type {
+    BigIntToken,
+    CommentToken,
+    EofToken,
+    ErrorToken,
+    IdToken,
+    JsToken,
+    JsTokenWithMetadata,
+    NewLineToken,
+    NumberToken,
+    StringToken,
+    TokenMetadata,
+    WhitespaceToken,
+} from "../../js/tokenizer/types.ts"
 import { multiply } from "../../types/bigfloat/module.f.mjs"
 import {
     asterisk, backspace, ht, lf, ff, cr,

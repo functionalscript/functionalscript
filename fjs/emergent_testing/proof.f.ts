@@ -1,18 +1,18 @@
 import type { Effect } from '../effects/types.ts'
 import { log } from '../effects/node/module.f.mjs'
 import type { NodeProgramOptions, Sandbox, Write } from '../effects/node/types.ts'
-import { defaultNodeProgramOptions, emptyState, type JsModule } from '../effects/node/virtual/module.f.ts'
-import { virtual } from '../effects/node/virtual/module.f.ts'
+import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import type { JsModule } from '../effects/node/virtual/types.ts'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
-    type Reporter,
     defaultTest,
-} from './module.f.ts'
+} from './module.f.mjs'
+import type { Reporter } from './types.ts'
 import { run as mockRun } from '../effects/mock/module.f.mjs'
 import type { All, Await, Test, TestContext } from '../effects/node/types.ts'
-import { shouldLoad } from '../dev/module.f.ts'
+import { shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.ts'
 import { array, number as rttiNumber, or, string as rttiString } from '../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'

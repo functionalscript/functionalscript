@@ -1,4 +1,5 @@
-import { tokenize, type JsToken, type JsTokenWithMetadata } from './module.f.ts'
+import { tokenize } from './module.f.mjs'
+import type { JsToken, JsTokenWithMetadata } from './types.ts'
 import { map, toArray } from '../../types/list/module.f.mjs'
 import { stringifyAsTree } from '../../djs/serializer/module.f.ts'
 import { sort } from '../../types/object/module.f.mjs'

@@ -8,7 +8,7 @@ hoisting can proceed independently at any time.
 
 ### Problem
 
-`fileCas.write` (`fjs/cas/module.f.ts:162-220`) defines its helpers nested:
+`fileCas.write` (`fjs/cas/module.f.mjs:173-247`) defines its helpers nested:
 `publish` (`:167-177`), `fail` (`:179-180`), and the chunk `loop`
 (`:184-207`), capturing `sha2`, `path`, `stageDir`, `rndStr`, and `payload`
 from the enclosing scopes.

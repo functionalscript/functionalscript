@@ -20,6 +20,61 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/fsc/json.f.ts` and `fjs/fsc/bnf.f.ts` migrate
+  from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — no
+  local types to split, both use only `Rule`/`TerminalRange` from
+  `fjs/bnf/types.ts`. Importers must use the `.f.mjs` specifier
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
+- **BREAKING CHANGES:** `fjs/media/json/tokenizer` migrates from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  splitting `JsonToken` and the internal `_ScanState`/`_ScanInput`
+  types into a sibling `types.ts` — importers must use the `.f.mjs`
+  specifier for runtime values and the `types.ts` specifier for types.
+  `proof.f.ts` stays TypeScript for now (it depends on
+  `djs/serializer/module.f.ts`, still unmigrated)
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
+- **BREAKING CHANGES:** `fjs/js/tokenizer/module.f.ts` migrates from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  splitting `StringToken`, `NumberToken`, `BigIntToken`, `ErrorToken`,
+  `WhitespaceToken`, `NewLineToken`, `IdToken`, `CommentToken`,
+  `EofToken`, `JsToken`, `TokenMetadata`, `JsTokenWithMetadata`, and a
+  large set of internal state-machine types into a sibling `types.ts` —
+  importers must use the `.f.mjs` specifier for runtime values and the
+  `types.ts` specifier for types. `proof.f.ts` stays TypeScript for now
+  (it depends on `djs/serializer/module.f.ts`, still unmigrated)
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
+- **BREAKING CHANGES:** `fjs/emergent_testing/module.f.ts` migrates from
+  authored TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`),
+  splitting `TestFn`, `TestEntry`, `TestSet`, `Path`, `Reporter`, and the
+  internal `_TestState`/`_TestAndPath` types into a sibling `types.ts` —
+  importers must use the `.f.mjs` specifier for runtime values and the
+  `types.ts` specifier for types. `proof.f.ts` stays TypeScript for now
+  (it depends on `media/json/module.f.ts`, still unmigrated)
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
+- **BREAKING CHANGES:** `fjs/cas/cli` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — no local types to
+  split. `proof.f.ts` migrates alongside it. Importers must use the
+  `.f.mjs` specifier
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
+- **BREAKING CHANGES:** `fjs/cas` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting `Cas`,
+  `FileCas`, and `FileCasOperation` into a sibling `types.ts` —
+  importers must use the `.f.mjs` specifier for runtime values and the
+  `types.ts` specifier for types. `proof.f.ts` migrates alongside it
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
+- **BREAKING CHANGES:** `fjs/dev` migrates from authored TypeScript
+  (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting `Module`,
+  `ModuleMap`, and `LoadModuleOperations` into a sibling `types.ts` —
+  importers must use the `.f.mjs` specifier for runtime values and the
+  `types.ts` specifier for types. `proof.f.ts` migrates alongside it
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
+- **BREAKING CHANGES:** `fjs/effects/node/virtual` migrates from authored
+  TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
+  `Dir`, `State`, and `JsModule` into a sibling `types.ts`, and narrowing
+  the previously-exported `Entity` to the internal `_Entity` — importers
+  must use the `.f.mjs` specifier for runtime values and the `types.ts`
+  specifier for types. `proof.f.ts` migrates alongside it
+  [#1494](https://github.com/functionalscript/functionalscript/pull/1494)
 - **BREAKING CHANGES:** `fjs/media/type` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`), splitting
   `DetectState`, `DetectMeta`, and the internal `_Signature`/`_MagicState`/

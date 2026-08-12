@@ -11,7 +11,8 @@ import { msb, u8ListToVec, vec8, repeat, length, maxLengthBytes } from '../types
 import { vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { encode as base64Encode } from '../basen/base64/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
-import { fileCas, type FileCasOperation } from '../cas/module.f.ts'
+import { fileCas } from '../cas/module.f.mjs'
+import type { FileCasOperation } from '../cas/types.ts'
 import { dialect as revisionDialect, mediaType as revisionMediaType } from '../media/revision/module.f.ts'
 import { sha256 } from '../crypto/sha2/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
@@ -27,7 +28,8 @@ import type {
     ReadBytes,
     Rename,
 } from '../effects/node/types.ts'
-import { emptyState, virtual, type Dir } from '../effects/node/virtual/module.f.ts'
+import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import type { Dir } from '../effects/node/virtual/types.ts'
 import { casConfig, casMcpHandlers } from './module.f.ts'
 import { ok as resultOk, unwrap } from '../types/result/module.f.mjs'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.ts'

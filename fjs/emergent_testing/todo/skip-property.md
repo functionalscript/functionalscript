@@ -101,7 +101,7 @@ triggers prove too weak in practice.
 
 ### Implementation
 
-Mirrors the `throws` plumbing in `fjs/emergent_testing/module.f.ts` plus one
+Mirrors the `throws` plumbing in `fjs/emergent_testing/module.f.mjs` plus one
 option on the test effect used by the surviving process-based adapters:
 
 - **`TestEntry`** — add `readonly skip: boolean` next to `throws`.

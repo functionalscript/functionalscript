@@ -6,7 +6,8 @@ import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, 
 import type { IoResult, ReadFile } from "./types.ts"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
-import { emptyState, virtual, type Dir } from "./virtual/module.f.ts"
+import { emptyState, virtual } from "./virtual/module.f.mjs"
+import type { Dir } from "./virtual/types.ts"
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 

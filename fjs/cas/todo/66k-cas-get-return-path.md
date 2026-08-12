@@ -55,6 +55,6 @@ after the final `rename` in the upload pipeline. This:
 
 ### Related
 
-- `fileCas.write` / `casAddFile` (`fjs/cas/module.f.ts`) — streaming upload
+- `fileCas.write` / `casAddFile` (`fjs/cas/module.f.mjs`) — streaming upload
   pipeline that stores files `cas get` cannot currently read back (design
   formerly tracked as `66j-cas-large-file-support`, now implemented and deleted)
