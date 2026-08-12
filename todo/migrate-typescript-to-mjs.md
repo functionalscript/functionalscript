@@ -680,6 +680,13 @@ this rename.
 
 ### Tasks
 
+**Stage 1 source migration is complete.** No authored `.f.ts` remains
+(`find . -name '*.f.ts'` returns 0 outside `node_modules`); the last twelve
+migrated in [#1505](https://github.com/functionalscript/functionalscript/pull/1505).
+What is left is the packaging and cleanup work the source migration was
+blocking, plus the prose sweep. The remaining items are listed under
+[Remaining after stage 1](#remaining-after-stage-1) below.
+
 - [ ] Complete
       [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
       including `allowJs` / `checkJs`, authored `types.ts`, Deno validation, and
@@ -693,15 +700,15 @@ this rename.
 - [ ] Identify type-only `.ts` / `.f.ts` files and convert them directly to
       `types.ts`; identify truly runtime-empty declaration-only `.f.mjs` files
       that should become `types.ts` as well when that is the cleaner design.
-- [ ] Rename `fjs/types/phantom/module.f.ts` to
+- [x] Rename `fjs/types/phantom/module.f.ts` to
       `fjs/types/phantom/types.ts` and update its type-only consumers to use the
       real `types.ts` source path; do not introduce a runtime phantom value.
-- [ ] For mixed modules where a type-level API should stay in TypeScript, split
+- [x] For mixed modules where a type-level API should stay in TypeScript, split
       that API into sibling `types.ts` before migrating JavaScript consumers.
-- [ ] Identify runtime-dependency-leaf `.ts` / `.f.ts` implementation files and
+- [x] Identify runtime-dependency-leaf `.ts` / `.f.ts` implementation files and
       migrate those first; `types.ts` companions do not participate in that
       runtime ordering.
-- [ ] Migrate `proof.f.ts` to `proof.f.mjs` when the proof is JavaScript/JSDoc
+- [x] Migrate `proof.f.ts` to `proof.f.mjs` when the proof is JavaScript/JSDoc
       ready and its authored runtime dependencies are migrated; allow stable
       type-only imports from `types.ts` and do not gate this on compiler support.
 - [ ] Validate a migrated `.mjs` / `.f.mjs` fixture with an authored `types.ts`,
@@ -709,7 +716,7 @@ this rename.
       TypeScript, Deno, Bun, package emit, and clean consumers.
 - [ ] Verify emitted declarations reference package paths that actually exist and
       determine whether generated `types.js` is required for portable consumers.
-- [ ] Keep migrated JavaScript free of runtime **and type-only source**
+- [x] Keep migrated JavaScript free of runtime **and type-only source**
       dependencies on remaining implementation `.ts` / `.f.ts`; split required
       declarations into `types.ts` first.
 - [ ] Translate TypeScript generic constraints and `in` / `out` variance that
@@ -764,8 +771,9 @@ this rename.
       always put one blank line after that block, group external/built-in
       runtime imports separately, and order repository-owned relative runtime
       imports as migrated `.mjs` before remaining `.ts`; fix the modules that
-      already lose their header (`fjs/common/monoid`, `fjs/types/btree/remove`,
-      `fjs/types/btree/set`, `fjs/types/list`, `fjs/types/nullable`).
+      already lose their header. `fjs/common/monoid` is now fixed; four remain
+      (`fjs/types/btree/remove`, `fjs/types/btree/set`, `fjs/types/list`,
+      `fjs/types/nullable`), each emitting a declaration with no `@module`.
 - [ ] File an upstream issue for JSDoc typedef documentation being dropped from
       declaration emit, and keep writing type documentation in the source
       meanwhile; substantial type APIs may instead live directly in `types.ts`
@@ -776,9 +784,9 @@ this rename.
 - [ ] Once a module is `.mjs`, treat any later move of a public JSDoc typedef to
       a `_` name as an ordinary breaking API change with its own changelog entry
       and importer updates, not as a visibility cleanup.
-- [ ] Continue upward through the runtime dependency graph in reviewable groups
+- [x] Continue upward through the runtime dependency graph in reviewable groups
       until no authored TypeScript implementation/proof source remains.
-- [ ] Translate `.ts` to `.mjs` and `.f.ts` to `.f.mjs`, moving static type
+- [x] Translate `.ts` to `.mjs` and `.f.ts` to `.f.mjs`, moving static type
       information either to JSDoc or to an intentionally separate `types.ts`
       without weakening public type semantics.
 - [ ] Update imports, proofs, tests, coverage globs, scripts, generated CI, and
@@ -800,6 +808,71 @@ this rename.
       JavaScript no longer needs the blanket ignore.
 - [ ] Keep the compiler-compatibility migration explicitly **blocked by** this
       task.
+
+#### Remaining after stage 1
+
+Each item below is stated with the measurement that produced it, so the next
+person can re-check rather than re-derive. Counts are as of
+[#1505](https://github.com/functionalscript/functionalscript/pull/1505).
+
+- [ ] **Fix the `cov` coverage globs, which currently match nothing.**
+      `package.json`'s `cov` script still passes
+      `--test-coverage-include=**/module.f.ts`. No such file exists any more, so
+      the run reports a vacuous `100.00` over 0 tests and coverage has been
+      unverifiable in review for several PRs. Replace the `.f.ts` glob with the
+      `.mjs` forms actually in the tree (`**/module.f.mjs`, `**/module.mjs`) and
+      confirm the report becomes non-empty. This is a one-line change and it
+      restores a signal every later item wants.
+- [ ] **Settle whether generated `types.js` is required for portable
+      resolution.** This gates the two items after it and is the one open
+      correctness risk for published consumers. The emitted declarations contain
+      ~800 imports written `from '…/types.ts'`, and `types.ts` is *not* in the
+      tarball: `package.json`'s `files` lists `**/*.d.ts` but no `**/*.ts`, so a
+      consumer resolves those specifiers only if its toolchain substitutes
+      `.ts` -> `.d.ts`. TypeScript does; per the `types.ts` section above, Deno
+      does not. Verify against real clean consumers on Node, Deno and Bun, and
+      record whether `types.js`, `types.d.ts`, or both must ship. Not introduced
+      by the source migration — `origin/main` at `3859e7d4` already emitted 777
+      such specifiers — but it is now the last thing standing between stage 1
+      and a release. Tracked in
+      [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md).
+- [ ] **Then remove the JavaScript-emitting `tsc` pass, if the experiment
+      allows.** `prepack`'s second pass (`tsc --noEmit false --declaration
+      false`) now emits exactly 96 files: 85 `types.js`, one per authored
+      `types.ts`, and 11 from `fjs/emergent_testing/scenarios` plus
+      `all.test.ts`. It therefore cannot simply be deleted — its remaining
+      output is the `types.js` whose necessity the item above decides, and the
+      scenario fixtures the item below decides. Sequence it after both.
+- [ ] **Then drop the blanket `.gitignore` rule** for generated JavaScript
+      (`.gitignore` line 131). Blocked on the
+      same two: while the emit pass runs, 96 generated `.js` land in the tree
+      and need the blanket ignore.
+- [ ] **Decide what happens to the `emergent_testing` scenario fixtures.**
+      `fjs/emergent_testing/scenarios/*.ts`, `scenarios/all.ts` and
+      `all.test.ts` are the only authored non-`types.ts` TypeScript left. Their
+      extension is load-bearing: `run.sh` dispatches on `*.pass.ts` /
+      `*.fail.ts` and hard-links the scenario to `_scenario.proof.ts` and
+      `all.ts` to `_all.test.ts`, so what they exercise is `node --test`,
+      `bun test` and `deno test` executing a **TypeScript** proof natively.
+      Porting them to `.mjs` would delete that coverage rather than move it, so
+      this is a decision about whether native-TypeScript execution should still
+      be tested — keep them, replace the coverage some other way, or drop it.
+- [ ] **Sweep the remaining stale prose.** 88 mentions across 42 `.md` files
+      name an `X.f.ts` whose `X.f.mjs` now exists (measured by resolving each
+      mention against the tree, excluding `CHANGELOG.md`, whose history is
+      correctly left alone). The largest are
+      `fjs/bnf/todo/proof-recognizer-and-fixtures.md` (11), `fjs/fsc/README.md`
+      (5) and `fjs/types/rtti/README.md` (5); this file itself has 6. Snippets
+      copied out of these produce broken imports. Separately, `AGENTS.md` has 24
+      `.f.ts` mentions and 5 `import type` references whose guidance should now
+      lead with the JavaScript/JSDoc form and keep the TypeScript form only
+      where it still applies (`types.ts`). This subsumes the existing sweep task
+      above; the numbers are here so progress is measurable.
+- [ ] **Fix the one broken doc link that is not a rename artifact.**
+      `fjs/types/rtti/todo/serializable-data.md` links to `../data/module.f.ts`;
+      `fjs/types/rtti/data/` has never existed, so this needs an author decision
+      rather than an extension change. It is the only broken relative link to a
+      source file left in the tree.
 
 ### Acceptance criteria
 
