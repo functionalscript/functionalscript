@@ -139,9 +139,9 @@ const m1023log2 = v => {
     return result + rem + (v >> rem)
 }
 
-/** @typedef {(f: (_: bigint) => bigint) => () => void} Benchmark */
+/** @typedef {(f: (_: bigint) => bigint) => () => void} _Benchmark */
 
-/** @type {Benchmark} */
+/** @type {_Benchmark} */
 const benchmark = f => () => {
     let e = 1_048_575n
     let c = 1n << e
@@ -160,7 +160,7 @@ const benchmark = f => () => {
 }
 
 
-/** @type {Benchmark} */
+/** @type {_Benchmark} */
 const benchmarkSmall = f => () => {
     let e = 2_000n
     let c = 1n << e
@@ -211,7 +211,7 @@ export const proof = {
             // m1023log2,
             log2,
         }
-        const transform = (/** @type {Benchmark} */ b) =>
+        const transform = (/** @type {_Benchmark} */ b) =>
             Object.fromEntries(Object.entries(list).map(([k, f]) => [k, b(f)]))
         return {
             big: transform(benchmark),

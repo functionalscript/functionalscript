@@ -12,13 +12,13 @@ import {
  * @typedef {{
  *   readonly next: number,
  *   readonly values: { readonly [key: string]: unknown },
- * }} MemoryState
+ * }} _MemoryState
  */
 
-/** @type {MemoryState} */
+/** @type {_MemoryState} */
 const initial = { next: 0, values: {} }
 
-/** @type {MemOperationMap<MemOp, MemoryState>} */
+/** @type {MemOperationMap<MemOp, _MemoryState>} */
 const mock = {
     memCreate: value => state => {
         const id = `k${state.next}`

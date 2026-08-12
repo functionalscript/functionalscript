@@ -36,7 +36,9 @@ history.
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
   [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/effects/memory/proof.f.ts` migrates from
-  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the local
+  `MemoryState` type is renamed `_MemoryState` (it was never exported, but
+  a JSDoc `@typedef` has no non-exported form)
   [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/types/sorted_set/proof.f.ts` migrates from
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
@@ -55,7 +57,9 @@ history.
   authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
   [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/types/bigint/proof.f.ts` migrates from
-  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
+  authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — the local
+  `Benchmark` type is renamed `_Benchmark` (it was never exported, but
+  a JSDoc `@typedef` has no non-exported form)
   [#1503](https://github.com/functionalscript/functionalscript/pull/1503)
 - **BREAKING CHANGES:** `fjs/fsc/proof.f.ts` migrates from authored
   TypeScript to JSDoc-typed JavaScript (`.f.mjs`)
