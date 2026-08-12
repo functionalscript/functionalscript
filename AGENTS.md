@@ -168,7 +168,7 @@ TypeScript-to-JavaScript migration:
 
 Renaming an implementation to `.f.mjs` therefore never requires renaming its
 proof in the same change, and never removes it from proof discovery or from Node
-and Deno coverage: `shouldLoad` in [`fjs/dev/module.f.ts`](./fjs/dev/module.f.ts)
+and Deno coverage: `shouldLoad` in [`fjs/dev/module.f.mjs`](./fjs/dev/module.f.mjs)
 matches both authored extensions, and both `npm run cov` and `deno task cov`
 include `module.f.ts` and `module.f.mjs`. Ordinary (non-FunctionalScript) `.mjs`
 files stay opt-in through the `proof.mjs` filename convention. Stage 1 ends with

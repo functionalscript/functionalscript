@@ -1,7 +1,8 @@
 import { sort } from '../../types/object/module.f.mjs'
 import { transpile } from './module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
-import { virtual, emptyState, type Dir } from '../../effects/node/virtual/module.f.ts'
+import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
+import type { Dir } from '../../effects/node/virtual/types.ts'
 import { utf8 } from '../../text/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 

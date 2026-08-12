@@ -7,7 +7,7 @@
 
 ### Problem
 
-`fileCas.list` (`fjs/cas/module.f.ts:226-236`) spells out the three-way
+`fileCas.list` (`fjs/cas/module.f.mjs:280-298`) spells out the three-way
 `IoResult` policy inline: `ok → continue`, `ENOENT → benign default`,
 `other error → throw`.
 

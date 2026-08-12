@@ -6,11 +6,11 @@
 ## Problem
 
 The shard layout's forward direction is owned by `toPath`
-(`fjs/cas/module.f.ts:47-52`): a cBase32 key string splits `2 / 2 / rest`
+(`fjs/cas/module.f.mjs:59-64`): a cBase32 key string splits `2 / 2 / rest`
 into `a/b/c` path segments under the `.cas` prefix.
 
 The inverse — recover a key from an on-disk shard path — is open-coded
-inside `fileCas.list` (`fjs/cas/module.f.ts:228-232`):
+inside `fileCas.list` (`fjs/cas/module.f.mjs:280-298`):
 
 ```ts
 return readdir(storePrefix, { recursive: true })

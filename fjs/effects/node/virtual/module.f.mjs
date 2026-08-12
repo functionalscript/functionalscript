@@ -3,51 +3,22 @@
  *
  * @module
  */
+
 import { todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, parse } from '../../../path/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
-import type { Vec } from '../../../types/bit_vec/types.ts'
+/** @import { Vec } from '../../../types/bit_vec/types.ts' */
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
 import { run } from '../../mock/module.f.mjs'
-import type { MemOperationMap, RunInstance } from '../../mock/types.ts'
+/** @import { MemOperationMap, RunInstance } from '../../mock/types.ts' */
 import { asBase, asNominal } from '../../memory/module.f.mjs'
-import type { Key } from '../../memory/types.ts'
-import type { Dirent, FileStat, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts'
+/** @import { Key } from '../../memory/types.ts' */
+/** @import { Dirent, FileStat, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts' */
+/** @import { Dir, State, _Entity } from './types.ts' */
 
-/**
- * In-memory JS module entry. When `import_` is called on the path, the
- * function is invoked and its return value is the module value (with a
- * `default` export and optional named exports). Using a function (not a
- * plain value) lets the entry be distinguished from `Vec`/`Dir` at runtime
- * via `typeof === 'function'`, and lets the fixture compute the module on
- * each import for closures/state.
- */
-export type JsModule = () => Module
-
-export type Entity = readonly Vec[] | Dir | JsModule
-
-export type Dir = {
-    readonly[name in string]?: Entity
-}
-
-export type State = {
-    stdout: string
-    stderr: string
-    /** Remaining stdin bytes; each `read` pops the first, `null` at EOF. */
-    stdin: readonly number[]
-    root: Dir
-    internet: {
-        readonly[url: string]: Vec
-    }
-    epochNs: number
-    memoryNext: number
-    memoryValues: { readonly [key: string]: unknown }
-    /** Monotonically increasing counter returned by `randomInt`; starts at 0. */
-    randomNext: number
-}
-
-export const emptyState: State = {
+/** @type {State} */
+export const emptyState = {
     stdout: '',
     stderr: '',
     stdin: [],
@@ -59,11 +30,14 @@ export const emptyState: State = {
     randomNext: 0,
 }
 
-const operation =
-<T>(op: (dir: Dir, path: readonly string[]) => readonly[Dir, T]) =>
-{
-    const f = (dir: Dir, path: readonly string[]): readonly[Dir, T] =>
-    {
+/**
+ * @template T
+ * @param {(dir: Dir, path: readonly string[]) => readonly [Dir, T]} op
+ * @returns {(path: string) => (state: State) => readonly [State, T]}
+ */
+const operation = op => {
+    /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, T]} */
+    const f = (dir, path) => {
         if (path.length === 0) {
             return op(dir, path)
         }
@@ -72,22 +46,26 @@ const operation =
         if (typeof subDir !== 'object' || Array.isArray(subDir)) {
             return op(dir, path)
         }
-        const [newSubDir, r] = f(subDir as Dir, rest)
+        const [newSubDir, r] = f(/** @type {Dir} */ (subDir), rest)
         return [{ ...dir, [first]: newSubDir }, r]
     }
-    return (path: string) => (state: State) => {
+    return path => state => {
         const [root, result] = f(state.root, parse(path))
-        return [{ ...state, root }, result] as const
+        return [{ ...state, root }, result]
     }
 }
 
-const readOperation = <T>(op: (dir: Dir, path: readonly string[]) => T) => operation(
-    (dir, path) => [dir, op(dir, path)]
-)
+/**
+ * @template T
+ * @param {(dir: Dir, path: readonly string[]) => T} op
+ * @returns {(path: string) => (state: State) => readonly [State, T]}
+ */
+const readOperation = op => operation((dir, path) => [dir, op(dir, path)])
 
 const okVoid = ok(undefined)
 
-const mkdir = (recursive: boolean) => operation((dir, path): readonly[Dir, IoResult<void>] => {
+/** @type {(recursive: boolean) => (dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
+const mkdirOp = recursive => (dir, path) => {
     let d = {}
     let i = path.length
     if (i > 1 && !recursive) {
@@ -99,18 +77,22 @@ const mkdir = (recursive: boolean) => operation((dir, path): readonly[Dir, IoRes
     }
     dir = { ...dir, ...d }
     return [dir, okVoid]
-})
+}
+
+/** @type {(recursive: boolean) => (path: string) => (state: State) => readonly [State, IoResult<void>]} */
+const mkdir = recursive => operation(mkdirOp(recursive))
 
 /** Absent-path error mirroring Node's `ENOENT`, so `isNotFound` recognizes it. */
 const enoent = error({ code: 'ENOENT' })
 
-const readFile = readOperation((dir, path): IoResult<Vec> => {
+/** @type {(path: string) => (state: State) => readonly [State, IoResult<Vec>]} */
+const readFile = readOperation((dir, path) => {
     if (path.length !== 1) { return enoent }
     const file = dir[path[0]]
     if (typeof file === 'function') { throw new Error(`'${path[0]}' is a JsModule; readFile not supported`) }
     if (file === undefined) { return enoent }
     if (!Array.isArray(file)) { return error(`'${path[0]}' is not a file`) }
-    const chunks = file as readonly Vec[]
+    const chunks = /** @type {readonly Vec[]} */ (file)
     const capBits = maxLengthBytes * 8n
     let result = empty
     for (const chunk of chunks) {
@@ -124,7 +106,8 @@ const readFile = readOperation((dir, path): IoResult<Vec> => {
     return ok(result)
 })
 
-const import_ = readOperation((dir, path): IoResult<Module> => {
+/** @type {(path: string) => (state: State) => readonly [State, IoResult<Module>]} */
+const import_ = readOperation((dir, path) => {
     if (path.length !== 1) { return error('no such file') }
     const entry = dir[path[0]]
     if (typeof entry !== 'function') { return error(`'${path[0]}' is not a JsModule`) }
@@ -133,29 +116,36 @@ const import_ = readOperation((dir, path): IoResult<Module> => {
 
 const writeFileError = error('invalid file')
 
-const writeFile = (payload: Vec) => operation((dir, path): readonly[Dir, IoResult<void>] => {
+/** @type {(payload: Vec) => (dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
+const writeFileOp = payload => (dir, path) => {
     if (path.length !== 1) { return [dir, writeFileError] }
     const [name] = path
     const file = dir[name]
     if (file !== undefined && !Array.isArray(file)) { return [dir, writeFileError] }
     dir = { ...dir, [name]: [payload] }
     return [dir, okVoid]
-})
+}
+
+/** @type {(payload: Vec) => (path: string) => (state: State) => readonly [State, IoResult<void>]} */
+const writeFile = payload => operation(writeFileOp(payload))
 
 const invalidPath = error('invalid path')
 
 const { entries } = Object
 
-const readdir = (base: string, recursive: boolean) => readOperation((dir, path): IoResult<readonly Dirent[]> => {
+/** @type {(base: string, recursive: boolean) => (path: string) => (state: State) => readonly [State, IoResult<readonly Dirent[]>]} */
+const readdir = (base, recursive) => readOperation((dir, path) => {
     if (path.length !== 0) { return invalidPath }
-    const f = (parentPath: string, d: Dir) => {
-        let result: readonly Dirent[] = []
+    /** @type {(parentPath: string, d: Dir) => readonly Dirent[]} */
+    const f = (parentPath, d) => {
+        /** @type {readonly Dirent[]} */
+        let result = []
         for (const [name, content] of entries(d)) {
             if (content === undefined) { continue }
             const isFile = Array.isArray(content) || typeof content !== 'object'
             result = [...result, { name, parentPath, isFile }]
             if (!isFile && recursive) {
-                result = [...result, ...f(join(parentPath, name), content as Dir)]
+                result = [...result, ...f(join(parentPath, name), /** @type {Dir} */ (content))]
             }
         }
         return result
@@ -163,40 +153,47 @@ const readdir = (base: string, recursive: boolean) => readOperation((dir, path):
     return ok(f(base, dir))
 })
 
-const access = readOperation((dir, path): IoResult<void> => {
+/** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
+const access = readOperation((dir, path) => {
     if (path.length === 0) { return okVoid }
     if (path.length !== 1) { return enoent }
     return dir[path[0]] !== undefined ? okVoid : enoent
 })
 
-const rm = operation((dir, path): readonly[Dir, IoResult<void>] => {
+/** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
+const rmOp = (dir, path) => {
     if (path.length !== 1) { return [dir, error('invalid path')] }
     const [name] = path
     const entry = dir[name]
     if (entry === undefined) { return [dir, error('no such file')] }
     if (!Array.isArray(entry) && typeof entry === 'object') { return [dir, error('is a directory')] }
     const { [name]: _, ...rest } = dir
-    return [rest as Dir, okVoid]
-})
+    return [rest, okVoid]
+}
 
-const extractEntity = (dir: Dir, path: readonly string[]): readonly[Dir, IoResult<Entity>] => {
+/** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
+const rm = operation(rmOp)
+
+/** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<_Entity>]} */
+const extractEntity = (dir, path) => {
     if (path.length === 0) { return [dir, error('cannot extract root')] }
     if (path.length === 1) {
         const [name] = path
         const entry = dir[name]
         if (entry === undefined) { return [dir, enoent] }
         const { [name]: _, ...rest } = dir
-        return [rest as Dir, ok(entry)]
+        return [rest, ok(entry)]
     }
     const [first, ...rest] = path
     const sub = dir[first]
     if (sub === undefined || Array.isArray(sub) || typeof sub === 'function') { return [dir, enoent] }
-    const [newSub, result] = extractEntity(sub as Dir, rest)
+    const [newSub, result] = extractEntity(/** @type {Dir} */ (sub), rest)
     if (result[0] === 'error') { return [dir, result] }
     return [{ ...dir, [first]: newSub }, result]
 }
 
-const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): readonly[Dir, IoResult<void>] => {
+/** @type {(dir: Dir, path: readonly string[], entity: _Entity) => readonly [Dir, IoResult<void>]} */
+const insertEntityAt = (dir, path, entity) => {
     if (path.length === 0) { return [dir, error('cannot insert at root')] }
     if (path.length === 1) {
         const [name] = path
@@ -211,7 +208,7 @@ const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): read
                 return [dir, error(`'${name}' is a directory`)]
             }
             if (entityIsDir && existingIsDir) {
-                const existingDir = existing as Dir
+                const existingDir = /** @type {Dir} */ (existing)
                 const hasContent = Object.values(existingDir).some(v => v !== undefined)
                 if (hasContent) {
                     return [dir, error(`cannot overwrite non-empty directory '${name}'`)]
@@ -224,12 +221,13 @@ const insertEntityAt = (dir: Dir, path: readonly string[], entity: Entity): read
     const sub = dir[first]
     if (sub === undefined) { return [dir, enoent] }
     if (Array.isArray(sub) || typeof sub === 'function') { return [dir, error('not a directory')] }
-    const [newSub, result] = insertEntityAt(sub as Dir, rest, entity)
+    const [newSub, result] = insertEntityAt(/** @type {Dir} */ (sub), rest, entity)
     if (result[0] === 'error') { return [dir, result] }
     return [{ ...dir, [first]: newSub }, result]
 }
 
-const rename = (src: string, dst: string) => (state: State): readonly[State, IoResult<void>] => {
+/** @type {(src: string, dst: string) => (state: State) => readonly [State, IoResult<void>]} */
+const rename = (src, dst) => state => {
     const srcParsed = parse(src)
     const dstParsed = parse(dst)
     // extract source first to report ENOENT if it's missing, before checking subtree guards
@@ -245,7 +243,8 @@ const rename = (src: string, dst: string) => (state: State): readonly[State, IoR
     return [{ ...state, root: dstRoot }, okVoid]
 }
 
-const readBytesOp = (path: string, offset: number, size: number) => readOperation((dir, p): IoResult<Vec> => {
+/** @type {(path: string, offset: number, size: number) => (state: State) => readonly [State, IoResult<Vec>]} */
+const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
     if (p.length !== 1) { return enoent }
     const file = dir[p[0]]
     if (typeof file === 'function') { throw new Error(`'${p[0]}' is a JsModule; readBytes not supported`) }
@@ -256,7 +255,7 @@ const readBytesOp = (path: string, offset: number, size: number) => readOperatio
     if (offset < 0) { return error(`Offset ${offset} is negative`) }
     if (size < 0) { return error(`Chunk size ${size} is negative`) }
     if (BigInt(size) > maxLengthBytes) { return error(`Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes`) }
-    const chunks = file as readonly Vec[]
+    const chunks = /** @type {readonly Vec[]} */ (file)
     let toSkip = BigInt(offset) * 8n
     let toRead = BigInt(size) * 8n
     let result = empty
@@ -275,51 +274,65 @@ const readBytesOp = (path: string, offset: number, size: number) => readOperatio
     return ok(result)
 })(path)
 
-/** Total byte size of a chunk-list file (each chunk is byte-aligned). */
-const fileSizeBytes = (chunks: readonly Vec[]): number =>
+/** Total byte size of a chunk-list file (each chunk is byte-aligned).
+ *
+ * @type {(chunks: readonly Vec[]) => number}
+ */
+const fileSizeBytes = chunks =>
     chunks.reduce((acc, c) => acc + Number(length(c) / 8n), 0)
 
 /** Absent-path error for an already-existing exclusive create, mirroring `EEXIST`. */
 const eexist = error({ code: 'EEXIST' })
 
-const createExclusive = operation((dir, path): readonly[Dir, IoResult<void>] => {
+/** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
+const createExclusiveOp = (dir, path) => {
     if (path.length !== 1) { return [dir, invalidPath] }
     const [name] = path
     // O_EXCL: fail if the name is already taken; otherwise create an empty file.
     if (dir[name] !== undefined) { return [dir, eexist] }
     return [{ ...dir, [name]: [] }, okVoid]
-})
+}
+
+/** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
+const createExclusive = operation(createExclusiveOp)
 
 // The lock-free upload only ever writes sequentially at the current end of the
 // staging file (`offset === size`), so the virtual model implements that append
 // case exactly: it never creates (a missing file is `ENOENT`), never overwrites
 // existing bytes, and never leaves a hole — matching the effect's contract for
 // the one access pattern its callers use.
-const writeBytesOp = (path: string, offset: number, data: Vec) => operation((dir, p): readonly[Dir, IoResult<void>] => {
+/** @type {(offset: number, data: Vec) => (dir: Dir, p: readonly string[]) => readonly [Dir, IoResult<void>]} */
+const writeBytesRawOp = (offset, data) => (dir, p) => {
     if (p.length !== 1) { return [dir, enoent] }
     const [name] = p
     const file = dir[name]
     if (file === undefined) { return [dir, enoent] }              // writeBytes never creates
     if (!Array.isArray(file)) { return [dir, error(`'${name}' is not a file`)] }
     if (!Number.isInteger(offset) || offset < 0) { return [dir, error(`Offset ${offset} is invalid`)] }
-    const chunks = file as readonly Vec[]
+    const chunks = /** @type {readonly Vec[]} */ (file)
     if (offset !== fileSizeBytes(chunks)) {
         return [dir, error(`writeBytes offset ${offset} must equal the file size (append-only)`)]
     }
     return [{ ...dir, [name]: [...chunks, data] }, okVoid]
-})(path)
+}
 
-const statOp = readOperation((dir, path): IoResult<FileStat> => {
+/** @type {(path: string, offset: number, data: Vec) => (state: State) => readonly [State, IoResult<void>]} */
+const writeBytesOp = (path, offset, data) => operation(writeBytesRawOp(offset, data))(path)
+
+/** @type {(path: string) => (state: State) => readonly [State, IoResult<FileStat>]} */
+const statOp = readOperation((dir, path) => {
     if (path.length !== 1) { return enoent }
     const file = dir[path[0]]
     if (file === undefined) { return enoent }
     if (!Array.isArray(file)) { return error(`'${path[0]}' is not a file`) }
-    return ok({ size: fileSizeBytes(file as readonly Vec[]) })
+    return ok({ size: fileSizeBytes(/** @type {readonly Vec[]} */ (file)) })
 })
 
-const map: MemOperationMap<NodeOp, State> = {
+/** @type {MemOperationMap<NodeOp, State>} */
+const map = {
     all: (...a) => state => {
-        let e: readonly unknown[] = []
+        /** @type {readonly unknown[]} */
+        let e = []
         for (const i of a) {
             const [ns, ei] = virtual(state)(i)
             state = ns
@@ -329,7 +342,7 @@ const map: MemOperationMap<NodeOp, State> = {
     },
     memCreate: value => state => {
         const id = `mem${state.memoryNext}`
-        const key: Key<unknown> = asNominal(id)
+        const key = /** @type {Key<unknown>} */ (asNominal(id))
         return [{
             ...state,
             memoryNext: state.memoryNext + 1,
@@ -374,12 +387,12 @@ const map: MemOperationMap<NodeOp, State> = {
     // result instead of the runner measuring real execution. A genuine
     // exception in a fixture propagates loudly as a bug in the fixture.
     // See: issues/156-tf-virtual-tests.md
-    sandbox: f => state => [state, f() as SandboxResult<unknown>],
+    sandbox: f => state => [state, /** @type {SandboxResult<unknown>} */ (f())],
     await: p => state => [state, [p]],
     test: todo,
     write: (stream, data) => state => {
         const s = utf8ToString(data)
-        return [{ ...state, [stream]: `${state[stream]}${s}` }, undefined] as const
+        return [{ ...state, [stream]: `${state[stream]}${s}` }, undefined]
     },
     read: () => state => {
         const [first, ...rest] = state.stdin
@@ -389,7 +402,8 @@ const map: MemOperationMap<NodeOp, State> = {
     },
 }
 
-export const virtual: RunInstance<NodeOp, State> = run(map)
+/** @type {RunInstance<NodeOp, State>} */
+export const virtual = run(map)
 
 const testContext = { test: todo }
 
@@ -405,8 +419,10 @@ const testContext = { test: todo }
  *
  * Future additions to `NodeProgramOptions` only need a default added here,
  * keeping unrelated proof files from churning.
+ *
+ * @type {NodeProgramOptions}
  */
-export const defaultNodeProgramOptions: NodeProgramOptions = {
+export const defaultNodeProgramOptions = {
     args: [],
     env: {},
     home: '.',

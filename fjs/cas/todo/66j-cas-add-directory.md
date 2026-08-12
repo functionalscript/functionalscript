@@ -92,7 +92,7 @@ Notes for the implementer:
 - `remove-local-file-urls-mcp` (implemented, todo file deleted) — removed MCP
   local-path upload, making filesystem ingestion (including directories) a
   CLI-only concern
-- `casAddFile` / `fileCas.write` (`fjs/cas/module.f.ts`) — the streaming pipeline
+- `casAddFile` / `fileCas.write` (`fjs/cas/module.f.mjs`) — the streaming pipeline
   every stored file rides on (formerly tracked as `66j-cas-large-file-support`,
   now implemented and deleted)
 - [blockset](https://github.com/datablockset/blockset) — prior art for the

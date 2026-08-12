@@ -36,7 +36,8 @@ import {
     mcpStep, uninitializedState, fromRegistry,
     type McpConfig, type McpHandlers,
 } from '../protocol/mcp/module.f.ts'
-import { fileCas, type FileCasOperation } from '../cas/module.f.ts'
+import { fileCas } from '../cas/module.f.mjs'
+import type { FileCasOperation } from '../cas/types.ts'
 import { initEvo, evo, type Cache } from '../cas/evo/module.f.ts'
 import { sha256 } from '../crypto/sha2/module.f.mjs'
 import { casToolRegistry } from './cas/module.f.ts'

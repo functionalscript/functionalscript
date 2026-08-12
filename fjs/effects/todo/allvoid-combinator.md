@@ -19,7 +19,7 @@
 ### Problem
 
 The *fan out in parallel, then discard the results* idiom is spelled out
-verbatim three times in `fjs/emergent_testing/module.f.ts` (lines 180-182,
+verbatim three times in `fjs/emergent_testing/module.f.mjs` (lines 141-143,
 189-191, 276-278):
 
 ```ts
@@ -86,8 +86,8 @@ duplicating the `all(...map)` core — whichever reads better.
       `All`/`all`/`both` to `fjs/effects/all/module.f.ts`.
 - [ ] Add `allVoid` there (next to `all`/`both`) with proof coverage — **not**
       to `fjs/effects/node/module.f.mjs`, per the note at the top of this issue.
-- [ ] Convert the three call sites in `fjs/emergent_testing/module.f.ts`
-      (lines 180-182, 189-191, 276-278), dropping their `eff(...)` / `.value`
+- [ ] Convert the three call sites in `fjs/emergent_testing/module.f.mjs`
+      (lines 141-143, 150-152, 251-253), dropping their `eff(...)` / `.value`
       bracketing.
 - [ ] Run `npx tsc` and `fjs t`.
 

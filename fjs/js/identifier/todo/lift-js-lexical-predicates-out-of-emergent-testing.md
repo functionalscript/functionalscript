@@ -3,7 +3,7 @@
 **Priority:** P4
 **Status:** open
 
-`fjs/emergent_testing/module.f.ts` carries four predicates (`isAlpha`, `isDigit`, `isInteger`, `isIdentifier`) that encode JavaScript lexical rules, not test logic. They are even exported from the test module, polluting its public surface.
+`fjs/emergent_testing/module.f.mjs` carries four predicates (`isAlpha`, `isDigit`, `isInteger`, `isIdentifier`) that encode JavaScript lexical rules, not test logic. They are even exported from the test module, polluting its public surface.
 
 Create `fjs/js/identifier/module.f.ts` with `isInteger` and `isIdentifier` (private `isAlpha`/`isDigit`), and have `emergent_testing` import them instead.
 
@@ -30,7 +30,7 @@ A future consumer: the DJS serializer currently quotes every object key; with `i
 - [ ] Create `fjs/js/identifier/module.f.ts` with the two exports.
 - [ ] Add co-located `proof.f.ts` with 100% coverage (reuse cases from `fjs/emergent_testing/proof.f.ts:313-328`).
 - [ ] Register in `deno.json` `exports` map.
-- [ ] Remove the four definitions from `fjs/emergent_testing/module.f.ts`; repoint `emergent_testing/proof.f.ts` at the new module.
+- [ ] Remove the four definitions from `fjs/emergent_testing/module.f.mjs`; repoint `emergent_testing/proof.f.ts` at the new module.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related

@@ -5,14 +5,14 @@
 
 ### Problem
 
-Four operation handlers in `fjs/effects/node/virtual/module.f.ts` open-code
+Four operation handlers in `fjs/effects/node/virtual/module.f.mjs` open-code
 the identical preamble "this is a 1-segment path resolving to a chunk-list
 file, otherwise produce the right `IoResult` error":
 
-- `readFile` — `:105-110`
-- `readBytesOp` — `:249-253, 259`
-- `writeBytesOp` — `:299-303, 305` (tuple-wrapped in `[dir, …]`)
-- `statOp` — `:313-317`
+- `readFile` — `:90-94`
+- `readBytesOp` — `:248-252, 258`
+- `writeBytesOp` (now `writeBytesRawOp`) — `:306-310, 312` (tuple-wrapped in `[dir, …]`)
+- `statOp` — `:324-328`
 
 ```ts
 if (path.length !== 1) { return enoent }

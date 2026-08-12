@@ -5,12 +5,12 @@
 
 ### Problem
 
-The keyword and operator vocabularies in `fjs/js/tokenizer/module.f.ts` are each
+The keyword and operator vocabularies in `fjs/js/tokenizer/module.f.mjs` are each
 written out **twice** — once as a TypeScript union type and once as a runtime
 entry table — so adding or removing a token requires editing two places that
 nothing keeps in sync:
 
-1. **Keywords.** `KeywordToken` (`fjs/js/tokenizer/module.f.ts:106-112`) spells
+1. **Keywords.** `KeywordToken` (`fjs/js/tokenizer/types.ts:46-51`) spells
    out 45 keyword kinds; `keywordEntries` (`:418-468`) repeats every one of
    them as `['catch', { kind: 'catch' }]` rows (plus `true`/`false`/`null`/
    `undefined`, which have their own token types but sit in the same table).

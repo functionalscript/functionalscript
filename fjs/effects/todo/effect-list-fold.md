@@ -88,11 +88,11 @@ Six, all currently strict:
 
 | site | argument | after |
 | --- | --- | --- |
-| `fjs/cas/cli/module.f.ts:66` | `c.list()` | streams once `cas.list()` does |
+| `fjs/cas/cli/module.f.mjs:63` | `c.list()` | streams once `cas.list()` does |
 | `fjs/cas/evo/module.f.ts:174` | `cas.list()` | streams once `cas.list()` does |
 | `fjs/cas/evo/module.f.ts:232` | `pure(parents)` | `fromList(parents)` |
-| `fjs/cas/module.f.ts:150` | `pure(expired)` | `fromList(expired)` |
-| `fjs/cas/module.f.ts:296` | `pure([0…7])` | `fromList([0…7])` |
+| `fjs/cas/module.f.mjs:149` | `pure(expired)` | `fromList(expired)` |
+| `fjs/cas/module.f.mjs:310` | `pure([0…7])` | `fromList([0…7])` |
 | `fjs/djs/transpiler/module.f.ts:67` | `pure(pathsArray)` | `fromList(pathsArray)` |
 
 The two `cas.list()` sites are the ones this exists for; converting them is a

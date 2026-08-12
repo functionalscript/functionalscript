@@ -5,12 +5,12 @@
 
 ### Problem
 
-`fjs/cas/module.f.ts` contains two near-identical recursive chunk-reader loops
+`fjs/cas/module.f.mjs` contains two near-identical recursive chunk-reader loops
 with the same control flow: read a `chunkBytes` chunk at `offset`; on `error`
 emit a single error item and stop; on an empty read `elEmpty()`; otherwise emit
 the chunk as `ok` and recurse at `offset + chunkBytes`.
 
-`fileCas.read`'s inner `loop` (`fjs/cas/module.f.ts:140-153`):
+`fileCas.read`'s inner `loop` (`fjs/cas/module.f.mjs:262-276`):
 
 ```ts
 const loop = (offset: number): List<FileCasOperation, IoResult<Vec>> =>
@@ -22,7 +22,7 @@ const loop = (offset: number): List<FileCasOperation, IoResult<Vec>> =>
     })
 ```
 
-`streamFile`'s inner `loop` (`fjs/cas/module.f.ts:251-259`):
+`streamFile`'s inner `loop` (`fjs/cas/module.f.mjs:323-333`):
 
 ```ts
 const loop = (offset: number): List<ReadBytes, IoResult<Vec>> =>
@@ -49,7 +49,7 @@ read: (hash: Vec): List<FileCasOperation, IoResult<Vec>> =>
     streamFile(join(path, toPath(hash))),
 ```
 
-**Caveat on the type.** `casAddFile` (`fjs/cas/module.f.ts:267-271`) is *not* a
+**Caveat on the type.** `casAddFile` (`fjs/cas/module.f.mjs:347-351`) is *not* a
 reusable precedent here: it does not perform an `as` cast — it declares its
 return type as the union `Effect<O | ReadBytes, …>` and lets `cas.write`'s
 generic absorb `ReadBytes` (the word "cast" appears only in its comment). `read`
@@ -70,11 +70,11 @@ ordering).
       `List<ReadBytes,…>` → `List<FileCasOperation,…>` conversion.
 - [ ] Confirm definition ordering compiles; keep the `read` JSDoc about
       "missing shard / read error is an explicit error item, never EOF".
-- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/cas/proof.f.ts` still passes,
+- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/cas/proof.f.mjs` still passes,
       including the short-final-chunk and read-error paths.
 
 ### Related
 
-- `fjs/cas/module.f.ts:267-271` — `casAddFile`, which absorbs `ReadBytes` via a
+- `fjs/cas/module.f.mjs:347-351` — `casAddFile`, which absorbs `ReadBytes` via a
   union return type (not an `as` cast); noted here because `read` cannot reuse
   that mechanism.

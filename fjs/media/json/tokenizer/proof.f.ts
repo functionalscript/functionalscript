@@ -1,4 +1,5 @@
-import { tokenize, type JsonToken } from './module.f.ts'
+import { tokenize } from './module.f.mjs'
+import type { JsonToken } from './types.ts'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { stringifyAsTree } from '../../../djs/serializer/module.f.ts'
 import { sort } from '../../../types/object/module.f.mjs'

@@ -3,17 +3,20 @@
  *
  * @module
  */
+
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { forEachStep, pure, step } from '../../effects/module.f.mjs'
 import { errorExit, log, writeFromStream } from '../../effects/node/module.f.mjs'
-import type { All, Read, Write, WriteFile } from '../../effects/node/types.ts'
+/** @import { All, Read, Write, WriteFile } from '../../effects/node/types.ts' */
 import { dispatch } from '../../cli/module.f.mjs'
-import type { Commands } from '../../cli/types.ts'
-import type { MemOp } from '../../effects/memory/types.ts'
-import { casAddFile, fileCas, type FileCasOperation } from '../module.f.ts'
+/** @import { Commands } from '../../cli/types.ts' */
+/** @import { MemOp } from '../../effects/memory/types.ts' */
+import { casAddFile, fileCas } from '../module.f.mjs'
+/** @import { FileCasOperation } from '../types.ts' */
 
-export const commands: Commands<FileCasOperation | WriteFile | Write | All | MemOp | Read> = [
+/** @type {Commands<FileCasOperation | WriteFile | Write | All | MemOp | Read>} */
+export const commands = [
     {
         names: ['add'],
         description: 'Store file content and print its hash',

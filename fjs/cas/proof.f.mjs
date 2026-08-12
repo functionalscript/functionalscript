@@ -1,29 +1,30 @@
-import type { Vec } from '../types/bit_vec/types.ts'
+/** @import { Vec } from '../types/bit_vec/types.ts' */
 import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
-import { fileCas, casAddFile, collectRead, type FileCasOperation, casUpload } from './module.f.ts'
+import { fileCas, casAddFile, collectRead, casUpload } from './module.f.mjs'
+/** @import { FileCasOperation } from './types.ts' */
 import { match, pure, runPure, step } from '../effects/module.f.mjs'
-import type { Effect } from '../effects/types.ts'
+/** @import { Effect } from '../effects/types.ts' */
 import { mkdir, writeFile, rm, readFile, access } from '../effects/node/module.f.mjs'
-import type { ReadFile, WriteFile, Rm, Mkdir, IoResult } from '../effects/node/types.ts'
-import type { Ok } from '../types/result/types.ts'
+/** @import { ReadFile, WriteFile, Rm, Mkdir, IoResult } from '../effects/node/types.ts' */
+/** @import { Ok } from '../types/result/types.ts' */
 import { error, ok } from '../types/result/module.f.mjs'
-import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
+import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { join } from '../path/module.f.mjs'
 import { nonEmpty, empty } from '../effects/list/module.f.mjs'
-import type { List } from '../effects/list/types.ts'
+/** @import { List } from '../effects/list/types.ts' */
 import { assert, assertEq, assertNotNullish } from '../asserts/module.f.mjs'
 
 const testDir = './test-cas-cli'
 
-type TestOp = FileCasOperation | WriteFile | ReadFile | Rm | Mkdir
+/** @typedef {FileCasOperation | WriteFile | ReadFile | Rm | Mkdir} _TestOp */
 
 // Names the command a `FileCasOperation` effect stops at, so a proof can assert
 // on it and resume the continuation without reading the `Do` layout. The map
 // has to list every operation the CAS can perform — that is what makes it total,
 // and what makes a new operation a compile error here rather than a silent gap.
-const casCommand = match<FileCasOperation, FileCasOperation[0]>({
+const casCommand = match({
     access: () => 'access',
     createExclusive: () => 'createExclusive',
     mkdir: () => 'mkdir',
@@ -39,14 +40,16 @@ const casCommand = match<FileCasOperation, FileCasOperation[0]>({
 
 // Create a 128 KiB big file content (at the max Vec size limit)
 // This tests the boundary where files are at the chunk size limit
-const createBigFileContent = (): Vec => {
+/** @type {() => Vec} */
+const createBigFileContent = () => {
     const byteCount = 128n * 1024n // 128 KiB
     // Create a repeating pattern: 0x42 repeated across the file
     return vec(byteCount * 8n)(0x42424242n)
 }
 
 // Test adding a big file and verifying the hash
-const testAddBigFile = (): Effect<TestOp, void> => {
+/** @type {() => Effect<_TestOp, void>} */
+const testAddBigFile = () => {
     const bigFilePath = `${testDir}/big-file.bin`
     const cas = fileCas(sha256)(testDir)
     const x0 = step(
@@ -78,7 +81,8 @@ const testAddBigFile = (): Effect<TestOp, void> => {
 }
 
 // Test adding and retrieving a big file
-const testAddAndGetBigFile = (): Effect<TestOp, void> => {
+/** @type {() => Effect<_TestOp, void>} */
+const testAddAndGetBigFile = () => {
     const bigContent = createBigFileContent()
     const bigFilePath = `${testDir}/big-file.bin`
     const cas = fileCas(sha256)(testDir)
@@ -127,18 +131,19 @@ export const proof = {
         // the content hash, and `read` streams the same bytes back as `ok` chunk items.
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const payload: List<FileCasOperation, IoResult<Vec>> =
-            nonEmpty(ok(content), empty())
+        /** @type {List<FileCasOperation, IoResult<Vec>>} */
+        const payload = nonEmpty(ok(content), empty())
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         assert(writeResult[0] === 'ok', ['expected write ok', writeResult])
         const hash = writeResult[1]
         assertEq(length(hash), 256n, ['expected 256-bit hash', length(hash)])
         assertEq(msb.cmp(hash)(computeSync(sha256)([content])), 0, 'write hash mismatch')
-        const drain = (acc: readonly Vec[]) =>
-            (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<readonly Vec[]>> =>
+        /** @type {(acc: readonly Vec[]) => (stream: List<FileCasOperation, IoResult<Vec>>) => Effect<FileCasOperation, IoResult<readonly Vec[]>>} */
+        const drain = acc =>
+            stream =>
                 step(
                     stream,
-                    (node): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
+                    (node) => {
                         if (node === undefined) { return pure(ok(acc)) }
                         const { first, tail } = node
                         if (first[0] === 'error') { return pure(first) }
@@ -161,20 +166,22 @@ export const proof = {
         // A multi-chunk payload streams through `writeBytes` chunk-by-chunk (the lease is
         // renewed between chunks); the hash equals the SHA-256 of the concatenated bytes,
         // and read streams the same content back.
-        const chunks = [vec8(0x11n), vec8(0x22n), vec8(0x33n)] as const
+        const chunks = /** @type {const} */ ([vec8(0x11n), vec8(0x22n), vec8(0x33n)])
         const c = fileCas(sha256)('.')
-        const payload: List<FileCasOperation, IoResult<Vec>> =
-            chunks.reduceRight<List<FileCasOperation, IoResult<Vec>>>(
-                (tail, chunk) => nonEmpty(ok(chunk), tail), empty())
+        /** @type {List<FileCasOperation, IoResult<Vec>>} */
+        const payload = chunks.reduceRight(
+            (tail, chunk) => nonEmpty(ok(chunk), tail),
+            /** @type {List<FileCasOperation, IoResult<Vec>>} */ (empty()))
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         assert(writeResult[0] === 'ok', ['expected write ok', writeResult])
         const hash = writeResult[1]
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'multi-chunk write hash mismatch')
-        const drain = (acc: readonly Vec[]) =>
-            (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<readonly Vec[]>> =>
+        /** @type {(acc: readonly Vec[]) => (stream: List<FileCasOperation, IoResult<Vec>>) => Effect<FileCasOperation, IoResult<readonly Vec[]>>} */
+        const drain = acc =>
+            stream =>
                 step(
                     stream,
-                    (node): Effect<FileCasOperation, IoResult<readonly Vec[]>> => {
+                    (node) => {
                         if (node === undefined) { return pure(ok(acc)) }
                         const { first, tail } = node
                         if (first[0] === 'error') { return pure(first) }
@@ -191,8 +198,8 @@ export const proof = {
         // first, leaving exactly one shard in the store.
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const payload = (): List<FileCasOperation, IoResult<Vec>> =>
-            nonEmpty(ok(content), empty())
+        /** @type {() => List<FileCasOperation, IoResult<Vec>>} */
+        const payload = () => nonEmpty(ok(content), empty())
         const [state1, w1] = virtual(emptyState)(c.write(payload()))
         const [state2, w2] = virtual(state1)(c.write(payload()))
         assert(!(w1[0] !== 'ok' || w2[0] !== 'ok'), ['expected both writes ok', w1, w2])
@@ -204,11 +211,12 @@ export const proof = {
         // An error item mid-stream deletes the partial staging file and fails; nothing is
         // published, so the store stays empty.
         const c = fileCas(sha256)('.')
-        const okItem: IoResult<Vec> = ok(vec8(0x11n))
-        const errItem: IoResult<Vec> = error({ code: 'BOOM' })
-        const payload: List<FileCasOperation, IoResult<Vec>> =
-            nonEmpty<FileCasOperation, IoResult<Vec>>(okItem,
-                nonEmpty<FileCasOperation, IoResult<Vec>>(errItem, empty()))
+        /** @type {IoResult<Vec>} */
+        const okItem = ok(vec8(0x11n))
+        /** @type {IoResult<Vec>} */
+        const errItem = error({ code: 'BOOM' })
+        /** @type {List<FileCasOperation, IoResult<Vec>>} */
+        const payload = nonEmpty(okItem, nonEmpty(errItem, /** @type {List<FileCasOperation, IoResult<Vec>>} */ (empty())))
         const [state1, result] = virtual(emptyState)(c.write(payload))
         assert(result[0] === 'error', ['expected write error', result])
         const [, hashes] = virtual(state1)(c.list())
@@ -222,21 +230,23 @@ export const proof = {
         // concatenating it (which would itself overflow `maxLength`).
         const big = vec(maxLength)(0xABn)   // one full-size chunk: exactly maxLength bits
         const tail = vec8(0x2An)            // one more byte ⇒ total > maxLength
-        const chunks = [big, tail] as const
+        const chunks = /** @type {const} */ ([big, tail])
         const c = fileCas(sha256)('.')
-        const payload: List<FileCasOperation, IoResult<Vec>> =
-            chunks.reduceRight<List<FileCasOperation, IoResult<Vec>>>(
-                (tl, chunk) => nonEmpty(ok(chunk), tl), empty())
+        /** @type {List<FileCasOperation, IoResult<Vec>>} */
+        const payload = chunks.reduceRight(
+            (tl, chunk) => nonEmpty(ok(chunk), tl),
+            /** @type {List<FileCasOperation, IoResult<Vec>>} */ (empty()))
         const [state1, w] = virtual(emptyState)(c.write(payload))
         assert(w[0] === 'ok', ['expected write ok', w])
         const hash = w[1]
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'oversized write hash mismatch')
         // Fold the read stream straight into a fresh SHA-2 state — never one `Vec`.
-        const rehash = (state: typeof sha256.init) =>
-            (stream: List<FileCasOperation, IoResult<Vec>>): Effect<FileCasOperation, IoResult<Vec>> =>
+        /** @type {(state: typeof sha256.init) => (stream: List<FileCasOperation, IoResult<Vec>>) => Effect<FileCasOperation, IoResult<Vec>>} */
+        const rehash = state =>
+            stream =>
                 step(
                     stream,
-                    (node): Effect<FileCasOperation, IoResult<Vec>> => {
+                    (node) => {
                         if (node === undefined) { return pure(ok(sha256.end(state))) }
                         const { first, tail } = node
                         if (first[0] === 'error') { return pure(first) }
@@ -258,7 +268,7 @@ export const proof = {
         }
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const x = c.write(nonEmpty(ok(content), empty<never, Ok<Vec>>()))
+        const x = c.write(nonEmpty(ok(content), /** @type {List<never, Ok<Vec>>} */ (empty())))
         const [state1, w] = virtual(state0)(x)
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, present] = virtual(state1)(access(stalePath))
@@ -275,7 +285,7 @@ export const proof = {
         }
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const x = c.write(nonEmpty(ok(content), empty<never, Ok<Vec>>()))
+        const x = c.write(nonEmpty(ok(content), /** @type {List<never, Ok<Vec>>} */ (empty())))
         const [state1, w] = virtual(state0)(x)
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, present] = virtual(state1)(access(livePath))
@@ -307,17 +317,18 @@ export const proof = {
     collectReadDrainsChunks: () => {
         // The common path: every chunk is `ok`, so collectRead concatenates them all
         // and returns the whole blob as one `Vec`.
-        const stream: List<never, IoResult<Vec>> =
-            nonEmpty<never, IoResult<Vec>>(ok(vec8(0x11n)), nonEmpty<never, IoResult<Vec>>(ok(vec8(0x22n)), empty()))
+        /** @type {List<never, IoResult<Vec>>} */
+        const stream = nonEmpty(ok(vec8(0x11n)), nonEmpty(ok(vec8(0x22n)), empty()))
         const o = runPure(collectRead(stream))
         assert(o.length === 1, 'expected collectRead to finish without issuing a command')
         assertEq(o[0][0], 'ok')
     },
     collectReadPropagatesErrorItem: () => {
         // An error item mid-stream short-circuits collectRead with that same error.
-        const boom: IoResult<Vec> = error('boom')
-        const stream: List<never, IoResult<Vec>> =
-            nonEmpty<never, IoResult<Vec>>(ok(vec8(0x11n)), nonEmpty<never, IoResult<Vec>>(boom, empty()))
+        /** @type {IoResult<Vec>} */
+        const boom = error('boom')
+        /** @type {List<never, IoResult<Vec>>} */
+        const stream = nonEmpty(ok(vec8(0x11n)), nonEmpty(boom, /** @type {List<never, IoResult<Vec>>} */ (empty())))
         const o = runPure(collectRead(stream))
         assert(o.length === 1, 'expected collectRead to finish without issuing a command')
         const [r] = o
@@ -331,8 +342,8 @@ export const proof = {
         const half = maxLength / 2n
         const v1 = vec(half)(0n)
         const v2 = vec(half + 1n)(0n)
-        const stream: List<never, IoResult<Vec>> =
-            nonEmpty<never, IoResult<Vec>>(ok(v1), nonEmpty<never, IoResult<Vec>>(ok(v2), empty()))
+        /** @type {List<never, IoResult<Vec>>} */
+        const stream = nonEmpty(ok(v1), nonEmpty(ok(v2), empty()))
         const o = runPure(collectRead(stream))
         assert(o.length === 1, 'expected collectRead to finish without issuing a command')
         assertEq(o[0][0], 'error')
@@ -345,7 +356,8 @@ export const proof = {
         const r = casCommand(c.list())
         assert(r[0] === 'cont', 'expected list() to issue an access command first')
         assertEq(r[1], 'access')
-        let threw: unknown
+        /** @type {unknown} */
+        let threw
         try {
             r[2](error(boom))
         } catch (e) {
