@@ -12,6 +12,7 @@
  *
  * @module
  */
+
 import http from 'node:http'
 import childProcess from 'node:child_process'
 import crypto from 'node:crypto'
@@ -48,37 +49,37 @@ import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.mjs'
 /** @import { StringMap } from '../../types/object/types.ts' */
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 
-/** @typedef {{ readonly listen: (port: number) => void }} Server */
+/** @typedef {{ readonly listen: (port: number) => void }} _Server */
 
-/** @typedef {AsyncIterable<Uint8Array>} Readable */
+/** @typedef {AsyncIterable<Uint8Array>} _Readable */
 
 /**
- * @typedef {Readable & {
+ * @typedef {_Readable & {
  *   readonly method: string,
  *   readonly url: string,
  *   readonly headers: Headers,
- * }} IncomingMessage
+ * }} _IncomingMessage
  */
 
 /**
  * @typedef {{
- *   readonly writeHead: (status: number, headers: StringMap<string>) => ServerResponse,
+ *   readonly writeHead: (status: number, headers: StringMap<string>) => _ServerResponse,
  *   readonly end: (body: Uint8Array) => void,
- * }} ServerResponse
+ * }} _ServerResponse
  */
 
-/** @typedef {(req: IncomingMessage, res: ServerResponse) => Promise<void>} RequestListener */
+/** @typedef {(req: _IncomingMessage, res: _ServerResponse) => Promise<void>} _RequestListener */
 
 /**
  * Narrowed structural view of `node:http`'s `createServer`. The official types
  * declare `method`/`url` optional and header values as
- * `string | string[] | undefined`, while the effect-level `RequestListener`
+ * `string | string[] | undefined`, while the effect-level `_RequestListener`
  * requires them present; this local view keeps the narrowing in one place.
- * @type {(listener: RequestListener) => Server}
+ * @type {(listener: _RequestListener) => _Server}
  */
 const createServer = http.createServer
 
-/** @typedef {<T>(effect: Effect<NodeOp, T>) => Promise<T>} EffectToPromise */
+/** @typedef {<T>(effect: Effect<NodeOp, T>) => Promise<T>} _EffectToPromise */
 
 /**
  * @template T
@@ -218,8 +219,8 @@ const randomMax = Number(1n << 32n)
 
 const { randomInt } = crypto
 
-/** @type {EffectToPromise} */
-const runNodeEffect = asyncRun(/** @type {import('../types.ts').ToAsyncOperationMap<NodeOp>} */ ({
+/** @type {_EffectToPromise} */
+const runNodeEffect = asyncRun({
     ...memoryOperationMap(),
     all: async (...effects) => await Promise.all(effects.map(runNodeEffect)),
     fetch: async url => asyncTryCatch(async () => {
@@ -296,7 +297,7 @@ const runNodeEffect = asyncRun(/** @type {import('../types.ts').ToAsyncOperation
     }),
     createServer: async requestListener => {
         const erl = /** @type {Erl<NodeOp>} */ (requestListener)
-        /** @type {RequestListener} */
+        /** @type {_RequestListener} */
         const nodeRl = async (req, res) => {
             const reqBody = await collect(req)
             const { method, url, headers } = req
@@ -310,10 +311,10 @@ const runNodeEffect = asyncRun(/** @type {import('../types.ts').ToAsyncOperation
                 .writeHead(status, outHeaders)
                 .end(fromVec(outBody))
         }
-        return /** @type {EffectServer} */ (asNominal(createServer(nodeRl)))
+        return /** @satisfies {EffectServer} */ (asNominal(createServer(nodeRl)))
     },
     listen: async (server, port) => {
-        const s = /** @type {Server} */ (asBase(server))
+        const s = /** @type {_Server} */ (asBase(server))
         s.listen(port)
     },
     forever: () => new Promise(() => {}),
@@ -324,7 +325,7 @@ const runNodeEffect = asyncRun(/** @type {import('../types.ts').ToAsyncOperation
     read: readStdinByte,
     test: async (ctx, name, expectFailure, test) =>
         ctx.test(name, { expectFailure }, async t => runNodeEffect(test(t))),
-}))
+})
 
 /** @type {TestFn} */
 const inlineTest = async (name, { expectFailure }, fn) => {
@@ -339,9 +340,9 @@ const inlineTest = async (name, { expectFailure }, fn) => {
 /** @type {TestContext} */
 const inlineContext = { test: inlineTest }
 
-/** @typedef {(name: string, fn: () => Promise<void>) => Promise<void>} FrameworkRegister */
+/** @typedef {(name: string, fn: () => Promise<void>) => Promise<void>} _FrameworkRegister */
 
-/** @type {(register: FrameworkRegister) => TestContext} */
+/** @type {(register: _FrameworkRegister) => TestContext} */
 const wrapInlineTest = register => ({
     test: (name, opts, fn) => register(name, () => inlineTest(name, opts, fn))
 })

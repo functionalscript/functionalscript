@@ -72,9 +72,15 @@ history.
 - **BREAKING CHANGES:** `fjs/effects/node/module.ts` (the Node.js effect
   runner — `runEffect`, `run`) migrates from authored TypeScript to
   JSDoc-typed JavaScript, per the `module.ts -> module.mjs` stage-1
-  mapping — no local complex types to split (`Server`, `Readable`,
-  `IncomingMessage`, `ServerResponse`, `RequestListener`,
-  `EffectToPromise`, `FrameworkRegister` are all internal-only).
+  mapping — the local `Server`, `Readable`, `IncomingMessage`,
+  `ServerResponse`, `RequestListener`, `EffectToPromise`, and
+  `FrameworkRegister` types are renamed `_Server`, `_Readable`,
+  `_IncomingMessage`, `_ServerResponse`, `_RequestListener`,
+  `_EffectToPromise`, `_FrameworkRegister` (none were previously
+  exported, but a JSDoc `@typedef` has no non-exported form; the
+  `_`-prefix also avoids a same-name collision with the differently-shaped
+  public `Server`/`IncomingMessage`/`ServerResponse`/`RequestListener`
+  types in the sibling `fjs/effects/node/types.ts`).
   Importers must use the `.mjs` specifier. Updates `fjs/module.ts` and
   `fjs/emergent_testing/all.test.ts` accordingly. Also fixes two stale
   `fjs/mcp/module.f.ts` / `fjs/protocol/mcp/module.f.ts` doc-comment
