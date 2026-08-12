@@ -196,6 +196,10 @@ The transition is intentionally asymmetric for runtime dependencies:
   `.f.ts`, split that type into `types.ts` before migrating the JavaScript
   consumer rather than retaining a JavaScript-to-TypeScript implementation edge.
 
+These migration restrictions classify repository-owned authored source
+relationships. External or built-in runtime imports such as `node:http` are not
+migration edges and may remain where the module design requires them.
+
 FunctionalScript parser support is not an eligibility condition. A `.f.ts`
 implementation may move to `.f.mjs` even if the current FunctionalScript
 compiler does not yet support all syntax in that file.
@@ -378,9 +382,10 @@ rediscovered by each migration.
 Every implementation module starts with one module JSDoc block. Always put one
 blank line after that block before the first source-level import or declaration.
 
-For TypeScript, put type-only imports first, then already-migrated JavaScript
-runtime imports, then remaining TypeScript runtime imports. Separate these groups
-with one blank line:
+For TypeScript, put type-only imports first, external or built-in runtime imports
+second, then repository-owned relative runtime imports: already-migrated
+JavaScript before remaining TypeScript. Separate these groups with one blank
+line:
 
 ```ts
 /**
@@ -392,6 +397,9 @@ with one blank line:
 import type ...
 import type ...
 
+import ... from 'node:...'
+import ... from 'package'
+
 import ... from '...mjs'
 import ... from '...mjs'
 
@@ -400,7 +408,9 @@ import ... from '...ts'
 ```
 
 For JavaScript, put all module-level `@import` tags in the same leading JSDoc
-block as `@module`, then put one blank line before runtime imports:
+block as `@module`, then put one blank line before runtime imports. External or
+built-in runtime imports come first, followed by repository-owned relative
+`.mjs` runtime imports:
 
 ```js
 /**
@@ -412,13 +422,19 @@ block as `@module`, then put one blank line before runtime imports:
  * @import ...
  */
 
+import ... from 'node:...'
+import ... from 'package'
+
 import ... from '...mjs'
 import ... from '...mjs'
 ```
 
-A migrated JavaScript implementation has no remaining runtime `.ts` / `.f.ts`
-import group: Stage 1 forbids JavaScript runtime dependencies on remaining
-TypeScript implementations.
+The `.mjs` / `.ts` grouping and the Stage 1 migration restriction apply only to
+repository-owned relative runtime imports. External or built-in imports are not
+migration edges and may remain where the module design requires them. A migrated
+JavaScript implementation has no remaining relative runtime `.ts` / `.f.ts`
+import group: Stage 1 still forbids JavaScript runtime dependencies on remaining
+authored TypeScript implementations.
 
 The blank line after the module JSDoc block is load-bearing for declaration
 emit. Without it, the header can become the leading comment of the first
@@ -697,10 +713,11 @@ this rename.
       TypeScript source visibility instead.
 - [ ] Apply the module-header/import convention: keep module-level JavaScript
       `@import` tags in the same JSDoc block as `@module`, always put one blank
-      line after that block, and group TypeScript imports as type-only, migrated
-      `.mjs`, then remaining `.ts`; fix the modules that already lose their
-      header (`fjs/common/monoid`, `fjs/types/btree/remove`,
-      `fjs/types/btree/set`, `fjs/types/list`, `fjs/types/nullable`).
+      line after that block, group external/built-in runtime imports separately,
+      and order repository-owned relative runtime imports as migrated `.mjs`
+      before remaining `.ts`; fix the modules that already lose their header
+      (`fjs/common/monoid`, `fjs/types/btree/remove`, `fjs/types/btree/set`,
+      `fjs/types/list`, `fjs/types/nullable`).
 - [ ] File an upstream issue for JSDoc typedef documentation being dropped from
       declaration emit, and keep writing type documentation in the source
       meanwhile; substantial type APIs may instead live directly in `types.ts`
@@ -775,8 +792,9 @@ this rename.
   emit.
 - Every implementation module follows the module-header/import convention:
   JavaScript keeps module-level `@import` tags in the same JSDoc block as
-  `@module`, one blank line follows that block, and TypeScript groups type-only,
-  migrated `.mjs`, then remaining `.ts` imports. The `@module` header survives
+  `@module`, one blank line follows that block, external/built-in runtime imports
+  form their own group, and repository-owned relative runtime imports are ordered
+  as migrated `.mjs` before remaining `.ts`. The `@module` header survives
   declaration emit.
 - Every exported function's return type survives into its emitted declaration as
   a named type, not `any` or `/*elided*/`; curried generic exports carry an
