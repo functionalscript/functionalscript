@@ -19,12 +19,15 @@ import { ok } from '../../types/result/module.f.mjs'
 // Answers the one command the `map` proof below drives. Routing the loop
 // through `match` keeps the `Pure`/`Do` layout out of this module: the map key
 // is the command assertion, and `MatchResult` types the continuation.
-const readHello = match(/** @type {OperationMap<ReadFile, IoResult<Vec>>} */ ({
+/** @type {OperationMap<ReadFile, IoResult<Vec>>} */
+const readHelloMap = {
     readFile: path => {
         assertEq(path, 'hello')
         return ok(vec8(0x15n))
     },
-}))
+}
+
+const readHello = match(readHelloMap)
 
 export const proof = {
     externalTestContext: () => {

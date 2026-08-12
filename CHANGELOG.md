@@ -49,8 +49,8 @@ history.
   JSDoc `@typedef` has no non-exported form
   [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/effects/node/proof.f.ts` migrates to
-  `.f.mjs` — explicit generic instantiations become `@type` casts or
-  checked `@type` declarations, as JSDoc has no call-site form
+  `.f.mjs` — explicit generic instantiations become checked `@type`
+  declarations, as JSDoc has no call-site form
   [#1505](https://github.com/functionalscript/functionalscript/pull/1505)
 - **BREAKING CHANGES:** `fjs/js/tokenizer/proof.f.ts` migrates to
   `.f.mjs` — typed consts become JSDoc `@type` annotations
