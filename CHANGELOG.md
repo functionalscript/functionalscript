@@ -24,6 +24,15 @@ history.
   `fjs/nanvm/module.f.mjs`: the JavaScript proof and the generated
   Rust tests both read it, so a case is written once instead of twice
   [#1489](https://github.com/functionalscript/functionalscript/pull/1489)
+- **BREAKING CHANGES:** the JSON rtti schemas `primitive`, `unknown`,
+  `object`, and `array` move from `fjs/media/json/module.f.ts` to a new
+  JSDoc-typed `fjs/media/json/rtti/module.f.mjs`, and the `Primitive`,
+  `Unknown`, `Object`, and `Array` types to a sibling
+  `fjs/media/json/types.ts` — importers must use the `rtti/module.f.mjs`
+  specifier for the schemas and the `types.ts` specifier for the types.
+  `fjs/media/json/module.f.ts` stays TypeScript and no longer re-exports
+  either
+  [#1498](https://github.com/functionalscript/functionalscript/pull/1498)
 - **BREAKING CHANGES:** `fjs/fsc/json.f.ts` and `fjs/fsc/bnf.f.ts` migrate
   from authored TypeScript to JSDoc-typed JavaScript (`.f.mjs`) — no
   local types to split, both use only `Rule`/`TerminalRange` from

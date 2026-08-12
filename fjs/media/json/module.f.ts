@@ -1,13 +1,13 @@
 /**
- * JSON value types, rtti schemas, and utilities: `serialize`, `stringify`,
- * `parse`, and `setProperty` for immutable nested updates.
+ * JSON utilities: `serialize`, `stringify`, `parse`, and `setProperty` for
+ * immutable nested updates.
  *
  * `parse` is the total, `Result`-returning `text → Unknown` entry point built
  * on this module's own tokenizer and parser.
  *
- * The JSON value types (`Unknown`, `Primitive`) are derived from the rtti
- * schemas defined here, so the schema is the single source of truth — no
- * hand-written types to keep in sync.
+ * The JSON value types (`Unknown`, `Primitive`, `Object`, `Array`) live in
+ * [`./types.ts`](./types.ts), and the rtti schemas they are pinned against in
+ * [`./rtti/module.f.mjs`](./rtti/module.f.mjs).
  *
  * @module
  */
@@ -22,46 +22,7 @@ import { at, definedEntries } from '../../types/object/module.f.mjs'
 import type { Entry as ObjectEntry } from '../../types/object/types.ts'
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.mjs'
-import { boolean as rttiBoolean, number as rttiNumber, string as rttiString, or, record, array as rttiArray } from '../../types/rtti/module.f.mjs'
-import type { Ts } from '../../types/rtti/ts/types.ts'
-import type { Assert } from '../../asserts/types.ts'
-import type { Equal } from '../../types/ts/types.ts'
-
-// ── rtti schemas ──────────────────────────────────────────────────────────────
-
-/** rtti schema matching any JSON primitive: `null`, `boolean`, `number`, or `string`. */
-export const primitive = or(null, rttiBoolean, rttiNumber, rttiString)
-
-/**
- * rtti schema matching any JSON value: a primitive, an array of JSON values,
- * or an object whose values are JSON values. Self-referential via a thunk;
- * rtti instantiates array/record item validators lazily so recursion terminates
- * on acyclic input.
- *
- * A struct field typed `unknown` is **required when present** — unlike rtti
- * core's `unknown`, the JSON `unknown` excludes `undefined`.
- */
-export const unknown = () => ['or', primitive, object, array] as const
-
-/**
- * rtti schema matching a JSON object: `{ readonly [k: string]?: Unknown }`.
- */
-export const object = record(unknown)
-
-/** rtti schema matching a JSON array: `readonly Unknown[]`. */
-export const array = rttiArray(unknown)
-
-// ── TypeScript types (derived from schemas — single source of truth) ──────────
-
-export type Primitive = Ts<typeof primitive>
-
-export type Unknown = Object | Array | Primitive
-
-export type Object = { readonly[k in string]?: Unknown }
-
-export type Array = readonly Unknown[]
-
-type _Unknown = Assert<Equal<Unknown, Ts<typeof unknown>>>
+import type { Object, Unknown } from './types.ts'
 
 // ── JSON utilities ────────────────────────────────────────────────────────────
 
