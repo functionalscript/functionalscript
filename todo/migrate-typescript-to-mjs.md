@@ -832,7 +832,7 @@ person can re-check rather than re-derive. Counts are as of
 
       The cause is test *discovery*. With no path arguments `node --test` looks
       for its own default patterns (`*.test.*`, `test.*`, `*-test.*`,
-      `*_test.*`, `test/**`); the repo's proofs are `proof.f.mjs` /
+      `test-*.*`, `*_test.*`, `test/**`); the repo's proofs are `proof.f.mjs` /
       `module.f.mjs` and match none of them. The only file in the tree that does
       match is `fjs/emergent_testing/all.test.ts`, and what happens then is
       Node-version-dependent — on v23 the run reports 0 tests, while on v22.22.2
@@ -844,20 +844,30 @@ person can re-check rather than re-derive. Counts are as of
 
       So restoring the signal means giving `node --test` entrypoints it actually
       runs, or collecting coverage through `fjs`'s runner — not editing globs.
-      Whichever route, pin the Node version the number is measured on, since the
-      two disagree.
+      The cheapest candidate is naming the entrypoint in the script, which is
+      measured to work on both versions: adding
+      `fjs/emergent_testing/all.test.ts` as a path argument to `cov` yields
+      `tests 2431 / pass 2431 / fail 0` and a real per-file report on v22.22.2,
+      and the same file named explicitly also runs on v23. Confirm it reports on
+      whichever Node CI uses before adopting it, and pin that version — the
+      2431 here against 2495 from `npm test` is a second discrepancy worth
+      understanding rather than papering over.
 - [ ] **Settle whether generated `types.js` is required for portable
       resolution.** This gates the two items after it and is the one open
-      correctness risk for published consumers. The emitted declarations contain
-      ~800 imports written `from '…/types.ts'`, and `types.ts` is *not* in the
+      correctness risk for published consumers. After `npm run prepack`,
+      `grep -rhoE "from '[^']*\.ts'" --include='*.d.ts' --include='*.d.mts' .`
+      (minus `node_modules` and `.d.ts` specifiers) counts **801** imports
+      written `from '…/types.ts'`, and `types.ts` is *not* in the
       tarball: `package.json`'s `files` lists `**/*.d.ts` but no `**/*.ts`, so a
       consumer resolves those specifiers only if its toolchain substitutes
       `.ts` -> `.d.ts`. TypeScript does; per the `types.ts` section above, Deno
       does not. Verify against real clean consumers on Node, Deno and Bun, and
       record whether `types.js`, `types.d.ts`, or both must ship. Not introduced
-      by the source migration — `origin/main` at `3859e7d4` already emitted 777
-      such specifiers — but it is now the last thing standing between stage 1
-      and a release. Tracked in
+      by the source migration — the same command at `3859e7d4`, the commit
+      before stage 1 finished, counts **778** — but it is now the last thing
+      standing between stage 1 and a release. Quote the command with any count:
+      narrower scopes and regexes give figures a few apart, which has already
+      caused two rounds of harmless disagreement. Tracked in
       [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md).
 - [ ] **Then remove the JavaScript-emitting `tsc` pass, if the experiment
       allows.** `prepack`'s second pass (`tsc --noEmit false --declaration
