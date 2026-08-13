@@ -43,5 +43,7 @@ module already has the type you need, import it" instead of duplicating.
 
 ### Related
 
-- `fjs/bnf/todo/669-bnf-data-shared-helpers.md` — other `bnf/data` DRY cleanups
-  (different functions; this type duplication is not covered there).
+- [669-bnf-matcher-shared-core](./669-bnf-matcher-shared-core.md) — the same
+  one-owner move for the matcher backends' cursor, AST, and result
+  constructors (different declarations; this type duplication is not covered
+  there).

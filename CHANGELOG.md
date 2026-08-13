@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/bnf/ll1`'s matcher runs as an explicit-stack
+  machine over a cursor into the shared input, so long or deeply nested input
+  no longer overflows the JS call stack and matching is no longer quadratic.
+  The `MatchRule` type described the recursive matcher and is removed; match
+  results are unchanged
+  [#1531](https://github.com/functionalscript/functionalscript/pull/1531)
 - `types/bigfloat`: `decToBin` no longer returns a 54-bit mantissa when
   rounding carries out of the top bit; the result is always the 53-bit
   IEEE-754 significand
