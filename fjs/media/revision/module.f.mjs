@@ -24,7 +24,7 @@ import { array, number, option, record, string } from '../../types/rtti/module.f
 import { validate as rttiValidate } from '../../types/rtti/validate/module.f.mjs'
 import { parse as parseJson } from '../json/module.f.mjs'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok, okThen } from '../../types/result/module.f.mjs'
 import { dialectEntry } from '../module.f.mjs'
 import { definedEntries, sort } from '../../types/object/module.f.mjs'
 import { stringify } from '../json/module.f.mjs'
@@ -126,13 +126,14 @@ export const checkReferences = r => {
  * Validates an already-parsed JSON value as a `revision` BLOB: structural
  * (rtti) validation followed by the hash / generation semantic checks.
  *
+ * `RevisionError` is the union of the two stages' own error types, so each
+ * failure reaches the caller as it was raised — `ValidationError` from the
+ * schema, `string` from {@link checkReferences} — which is exactly what
+ * `okThen` produces here.
+ *
  * @type {(value: Unknown) => Result<Revision, RevisionError>}
  */
-export const validate = value => {
-    const [t, v] = validateShape(value)
-    if (t === 'error') { return error(v) }
-    return checkReferences(v)
-}
+export const validate = value => okThen(checkReferences)(validateShape(value))
 
 /**
  * Decodes `text` as a `revision` BLOB: JSON-parses it, then validates it per
@@ -141,11 +142,7 @@ export const validate = value => {
  *
  * @type {(text: string) => Result<Revision, RevisionError>}
  */
-export const decodeText = text => {
-    const [t, v] = parseJson(text)
-    if (t === 'error') { return error(v) }
-    return validate(v)
-}
+export const decodeText = text => okThen(validate)(parseJson(text))
 
 /** {@link checkReferences} as the `boolean` refinement a {@link DialectEntry} takes.
  * @type {(r: Revision) => boolean}
