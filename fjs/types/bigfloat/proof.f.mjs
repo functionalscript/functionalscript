@@ -1,5 +1,25 @@
 import { decToBin } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
+import { bitLength } from '../bigint/module.f.mjs'
+
+/**
+ * Checks `decToBin`'s postcondition on a non-zero result: the mantissa holds
+ * exactly 53 significant bits, and `m * 2^e` is the value it should be.
+ * `bitLength` measures the magnitude, so a negative mantissa is checked as
+ * strictly as a positive one. The value is recovered with a shift, so every
+ * `dec` passed here must round to a whole number (a non-negative `e`).
+ *
+ * @type {(dec: readonly [bigint, number]) => (value: bigint) => void}
+ */
+const assertRounded = dec => value => {
+    const [m, e] = decToBin(dec)
+    assertEq(bitLength(m), 53n, m.toString(2))
+    assertEq(m << BigInt(e), value, m.toString(2))
+}
+
+const twoPow54 = 1n << 54n
+
+const twoPow55 = 1n << 55n
 
 export const proof = {
     decToBin: [
@@ -214,5 +234,20 @@ export const proof = {
             assertEq(result[0], -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1100n, result[0].toString(2))
             assertEq(result[1], 2)
         }
+    ],
+    // Rounding up a mantissa of all ones carries into a 54th bit; the result
+    // has to come back as 53 bits without changing the value.
+    roundingCarry: [
+        // 2^54 - 1: an exact tie (nothing below the dropped bit, remainder 0)
+        // whose round-to-even goes up because 2^53 - 1 is odd.
+        () => assertRounded([twoPow54 - 1n, 0])(twoPow54),
+        () => assertRounded([1n - twoPow54, 0])(-twoPow54),
+        // 2^55 - 1: not a tie — the dropped bits are 11 — so the carry comes
+        // from the plain round-up path instead.
+        () => assertRounded([twoPow55 - 1n, 0])(twoPow55),
+        () => assertRounded([1n - twoPow55, 0])(-twoPow55),
+        // A neighbour that doesn't carry: also a tie, but 2^53 - 2 is even, so
+        // round-to-even goes down and the mantissa stays inside 53 bits.
+        () => assertRounded([twoPow54 - 3n, 0])(twoPow54 - 4n),
     ]
 }
