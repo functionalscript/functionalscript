@@ -153,6 +153,6 @@ Rust steps are included automatically when `Cargo.toml` is present; no flag is n
 
 ## Related
 
-- [`packed-consumer-validation.md`](./packed-consumer-validation.md) — manual
-  validation of the packed npm package against clean Node, Deno, and Bun
-  consumers, until a CI fixture covers it.
+- [`PACKAGE_VALIDATION.md`](../../PACKAGE_VALIDATION.md) — manual validation of
+  the packed npm package against clean Node, Deno, and Bun consumers, until a
+  CI fixture covers it.

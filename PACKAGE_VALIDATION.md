@@ -3,7 +3,8 @@
 This is the manual method used by
 [#1520](https://github.com/functionalscript/functionalscript/pull/1520),
 reusable until a committed CI fixture from
-[`todo/f-mjs-package-support.md`](./todo/f-mjs-package-support.md) replaces it.
+[`fjs/ci/todo/f-mjs-package-support.md`](./fjs/ci/todo/f-mjs-package-support.md)
+replaces it.
 
 The package ships `.mjs` runtime, `.d.mts` / `types.d.ts` declarations, and no
 `.js` files. The emitted declarations reference `…/types.ts` specifiers that name
