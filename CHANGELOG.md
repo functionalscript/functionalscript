@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- `types/bigfloat`: `decToBin` no longer returns a 54-bit mantissa when
+  rounding carries out of the top bit; the result is always the 53-bit
+  IEEE-754 significand
+  [#1527](https://github.com/functionalscript/functionalscript/pull/1527)
 - **BREAKING CHANGES:** the npm package ships no `.js` files: the empty
   `types.js` stubs and compiled test files are gone. Import types only with
   fully erased `import type`, and use `fjs/emergent_testing/all.test.mjs` as
