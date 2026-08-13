@@ -709,14 +709,24 @@ What is left is the packaging and cleanup work the source migration was
 blocking, plus the prose sweep. The remaining items are listed under
 [Remaining after stage 1](#remaining-after-stage-1) below.
 
-- [ ] Complete
+- [x] Complete
       [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
       including `allowJs` / `checkJs`, authored `types.ts`, Deno validation, and
-      clean-consumer validation.
-- [ ] Then complete
+      clean-consumer validation. De-scoped as a gate in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
+      everything the *migration* needs from it — the validation itself — was
+      performed one-time and recorded in
+      [`packed-consumer-validation.md`](../fjs/ci/packed-consumer-validation.md);
+      the committed CI fixture remains tracked in that file as future
+      regression work, not a blocker for this task.
+- [x] Then complete
       [`f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
       before the first real repository `.f.ts` -> `.f.mjs` implementation
-      conversion.
+      conversion. Moot as a gate: every conversion already happened, and the
+      whole repository — every `module.f.mjs` loaded through its proof under
+      Node and Deno coverage — now provides the evidence the synthetic fixture
+      was designed to give in advance. The fixture file remains as future
+      regression work, not a blocker for this task.
 - [ ] Update contributor, compiler, language, package, test, and roadmap
       documentation to the stage-1 extension meanings and `types.ts` convention.
 - [ ] Identify type-only `.ts` / `.f.ts` files and convert them directly to
@@ -733,17 +743,18 @@ blocking, plus the prose sweep. The remaining items are listed under
 - [x] Migrate `proof.f.ts` to `proof.f.mjs` when the proof is JavaScript/JSDoc
       ready and its authored runtime dependencies are migrated; allow stable
       type-only imports from `types.ts` and do not gate this on compiler support.
-- [ ] Validate a migrated `.mjs` / `.f.mjs` fixture with an authored `types.ts`,
+- [x] Validate a migrated `.mjs` / `.f.mjs` fixture with an authored `types.ts`,
       using the same real `types.ts` path from `.ts` and `.mjs`, including
-      TypeScript, Deno, Bun, package emit, and clean consumers. The clean-consumer
-      and package-emit half was measured manually in
-      [#1520](https://github.com/functionalscript/functionalscript/pull/1520);
-      a committed, CI-run fixture is still tracked in
+      TypeScript, Deno, Bun, package emit, and clean consumers. Done as a
+      one-time measured validation in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520),
+      recorded with sources and per-runtime commands in
+      [`packed-consumer-validation.md`](../fjs/ci/packed-consumer-validation.md);
+      that is sufficient for the migration. A committed, CI-run fixture —
+      scoped to the supported fully erased `import type` form — remains future
+      work in
       [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
-      scoped to the supported fully erased `import type` form — the forbidden
-      `import {` forms are a documented one-time measurement in
-      [`packed-consumer-validation.md`](../fjs/ci/packed-consumer-validation.md)
-      and are not re-tested per CI run.
+      not a blocker for this task.
 - [x] Verify emitted declarations reference package paths that actually exist and
       determine whether generated `types.js` is required for portable consumers.
       Done in [#1520](https://github.com/functionalscript/functionalscript/pull/1520):

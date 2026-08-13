@@ -1,8 +1,15 @@
 ## Add the `.f.mjs` runtime fixtures for test and coverage
 
-**Priority:** P1
+**Priority:** P2
 **Status:** blocked
 **Blocked by:** [authored `.f.mjs` package support](../../ci/todo/f-mjs-package-support.md)
+
+**No longer a migration gate**
+([#1520](https://github.com/functionalscript/functionalscript/pull/1520)): the
+source migration completed, and the whole repository — every `module.f.mjs`
+loaded through its proof under Node and Deno coverage — now provides the
+evidence this synthetic fixture was designed to give in advance. What remains
+is future regression infrastructure on its own schedule.
 
 ### Problem
 

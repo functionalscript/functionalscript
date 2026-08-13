@@ -298,8 +298,15 @@ emission, `npm pack`, and a clean consumer.
 
 ### Ordering
 
-Complete this task before the first package-owned implementation `.ts` / `.f.ts`
--> `.mjs` / `.f.mjs` conversion in
+This task is **no longer a migration gate**
+([#1520](https://github.com/functionalscript/functionalscript/pull/1520)): the
+migration completed with the one-time measured validation recorded in
+[`packed-consumer-validation.md`](../packed-consumer-validation.md), which is
+sufficient for it. What remains here — the committed, CI-run fixture — is
+future regression infrastructure on its own schedule.
+
+The original ordering, kept for history: complete this task before the first
+package-owned implementation `.ts` / `.f.ts` -> `.mjs` / `.f.mjs` conversion in
 [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md).
 The migration then proceeds gradually from runtime dependency leaves, with
 `types.ts` companions split out where useful before their JavaScript consumers
