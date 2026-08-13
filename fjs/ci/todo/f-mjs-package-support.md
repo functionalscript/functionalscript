@@ -96,7 +96,7 @@ sources without overwriting authored `.mjs`. (The mixed layout no longer
 requires it: with only `types.ts` and test-fixture TypeScript left, the second
 pass emitted nothing any consumer resolves, and
 [#1520](https://github.com/functionalscript/functionalscript/pull/1520) replaced
-it with `tsc --noEmit` — review found the pass also served as the
+it with a plain `tsc` check — review found the pass also served as the
 declaration-emit round-trip check, a property the no-emit re-check keeps.)
 
 This exact `.ts` + `.mjs` configuration is already exercised by
@@ -115,7 +115,7 @@ direct measurement against the packed tarball: declaration emit keeps
 `./types.ts` verbatim, only `types.d.ts` is required, `types.js` is not, and
 TypeScript 5.9.3/7.0.2, Node v22, Deno 2.9.5, and Bun 1.3.11 all resolve the
 result. The JavaScript emit is removed; `prepack` is
-`tsc --noEmit false --emitDeclarationOnly && tsc --noEmit` — the second
+`tsc --noEmit false --emitDeclarationOnly && tsc` — the second
 invocation keeps the old pass's declaration-emit round-trip check without its
 output — and the package file list is unchanged.
 
@@ -191,7 +191,8 @@ alongside `**/*.js`/`**/*.d.ts`. `prepack` was the two-pass `tsc` command
 proposed here until
 [#1520](https://github.com/functionalscript/functionalscript/pull/1520) proved
 the JavaScript output unnecessary and replaced the second pass with a no-emit
-re-check (`tsc --noEmit`), keeping its declaration-emit round-trip property. That PR
+re-check (plain `tsc`; `noEmit` is set in `tsconfig.json`), keeping its
+declaration-emit round-trip property. That PR
 also performed the clean packed-consumer validation manually (tsc 5.9.3/7.0.2,
 Node v22, Deno 2.9.5, Bun 1.3.11 — measurements recorded in
 [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)).
@@ -269,8 +270,8 @@ emission, `npm pack`, and a clean consumer.
       generated `types.js` is part of the permanent package layout. Decided in
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
       `types.js` is not part of the layout, and the pass's JavaScript emission
-      is removed while its declaration round-trip check survives as
-      `tsc --noEmit`.
+      is removed while its declaration round-trip check survives as a plain
+      `tsc` invocation with declarations present.
 
 ### Acceptance criteria
 

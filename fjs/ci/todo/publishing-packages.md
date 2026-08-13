@@ -91,13 +91,18 @@ public API. Such files can be removed later when no longer useful.
 ### Stage-1 emission
 
 Keep packaging simple and keep emission as an implementation detail of the NPM
-lifecycle. Use the two ordered TypeScript passes directly in `prepack` while any
-`.ts` / `.f.ts` source remains:
+lifecycle. While implementation `.ts` / `.f.ts` source remained, `prepack` was
+two ordered TypeScript passes — declarations first, then JavaScript emission.
+With only `types.ts` and test-fixture TypeScript left,
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520) measured
+that no generated `.js` is required and replaced the second pass with a plain
+check, which re-resolves the tree through the just-emitted declarations and so
+keeps the declaration round-trip property:
 
 ```json
 {
   "scripts": {
-    "prepack": "tsc --noEmit false --emitDeclarationOnly && tsc --noEmit false --declaration false"
+    "prepack": "tsc --noEmit false --emitDeclarationOnly && tsc"
   }
 }
 ```

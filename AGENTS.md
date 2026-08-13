@@ -618,6 +618,7 @@ well as repository code. The published package ships `types.d.ts` but no
 `import { type X } from '…/types.js'` compiles to a retained `import {}`, as do
 `import * as` and bare side-effect imports, and fails at runtime with
 `ERR_MODULE_NOT_FOUND`.
+
 A declaration-only module belongs in `types.ts` rather than acquiring an
 artificial JavaScript runtime representation. See [§4](#4-documentation)
 for the complete module-header and import-order convention.

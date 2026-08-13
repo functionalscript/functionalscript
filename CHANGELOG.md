@@ -20,14 +20,14 @@ history.
 
 ## Unreleased
 
-- The npm package no longer ships `.js` files compiled from the type-only
-  `types.ts` modules (empty `export {}` stubs) or from test files: `prepack`
-  emits declarations only, then re-checks the tree with those declarations
-  present so declaration-emit degradation still fails packaging. Types resolve
-  through the shipped `.d.ts` files; import them only in fully erased form —
-  `import type { X } from '…/types.js'` — never `import { type X }`,
-  `import * as`, or a bare side-effect import, which retain a runtime import of
-  a module that no longer exists
+- **BREAKING CHANGES:** the npm package no longer ships `.js` files compiled
+  from the type-only `types.ts` modules (empty `export {}` stubs) or from test
+  files: `prepack` emits declarations only, then re-checks the tree with those
+  declarations present so declaration-emit degradation still fails packaging.
+  Types resolve through the shipped `.d.ts` files; import them only in fully
+  erased form — `import type { X } from '…/types.js'` — never
+  `import { type X }`, `import * as`, or a bare side-effect import, which
+  retain a runtime import of a module that no longer exists
   [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
 - `fjs/text/ascii` owns the hex-digit codec: `hexDigitValue`,
   `hexDigitCodePoint`, and the `a-f` / `A-F` ranges. The JSON serializer and

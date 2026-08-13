@@ -683,7 +683,8 @@ second, no-emit `tsc` invocation: review found that the old pass 2 doubled as
 the repository's only declaration-emit round-trip check (with `.d.mts` present,
 `tsc` resolves `.mjs` imports through the emitted declarations, so the
 `Assert<Equal<…, Ts<typeof …>>>` pins evaluate against what consumers see), and
-`tsc --noEmit` preserves that property without emitting anything.
+a plain `tsc` check (`noEmit` is set in `tsconfig.json`) preserves that
+property without emitting anything.
 
 Generated declaration ignores remain unchanged.
 
@@ -948,7 +949,7 @@ person can re-check rather than re-derive. Counts are as of
       made the `Assert<Equal<…>>` round-trip pins bite — seeding the
       AGENTS.md §6.2 counter-example fails the two-pass `prepack` and passes a
       naive one-pass one. `prepack` is therefore
-      `tsc --noEmit false --emitDeclarationOnly && tsc --noEmit`: declaration
+      `tsc --noEmit false --emitDeclarationOnly && tsc`: declaration
       emit, then the same round-trip check with nothing emitted.
 - [ ] **Then drop the blanket `.gitignore` rule** for generated JavaScript
       (`.gitignore` line 131). Unblocked by
