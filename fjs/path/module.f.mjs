@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 /** @import { Fold, Reduce, Unary } from '../types/function/operator/types.ts' */
 /** @import { List } from '../types/list/types.ts' */
 import { fold, last, take, length, concat as listConcat, toArray } from '../types/list/module.f.mjs'

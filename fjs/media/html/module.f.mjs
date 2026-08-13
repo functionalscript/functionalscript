@@ -5,6 +5,7 @@
  *
  * @module
  */
+
 /** @import { List } from '../../types/list/types.ts' */
 import { map, flatMap, flat, concat as listConcat } from '../../types/list/module.f.mjs'
 import { concat, concat as stringConcat } from '../../types/string/module.f.mjs'

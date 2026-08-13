@@ -7,6 +7,7 @@
  *
  * @module
  */
+
 /** @import { List } from '../../../types/list/types.ts' */
 import { flat, map, reduce, empty } from '../../../types/list/module.f.mjs'
 /** @import { Reduce } from '../../../types/function/operator/types.ts' */

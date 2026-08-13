@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import type { Type } from '../types.ts'
 import type { Result as CommonValidateResult, Validate } from '../common/types.ts'
 

@@ -24,6 +24,15 @@ history.
   rounding carries out of the top bit; the result is always the 53-bit
   IEEE-754 significand
   [#1527](https://github.com/functionalscript/functionalscript/pull/1527)
+- Emitted declarations keep their documentation headers: 24 modules lost
+  `@module` to declaration emit and 4 never had one; all 127 module
+  declarations now carry it, and every `types.ts` / `proof.*` prose header
+  now leads its emitted declaration
+  [#1526](https://github.com/functionalscript/functionalscript/pull/1526)
+- `fjs/media/json/schema`'s emitted declaration is exact: an explicit `@type`
+  naming the recursive schema by `typeof` replaces the `@type {const}` cast
+  that collapsed `not` to `/*elided*/ any` and five sibling fields to `any`
+  [#1526](https://github.com/functionalscript/functionalscript/pull/1526)
 - **BREAKING CHANGES:** the npm package ships no `.js` files: the empty
   `types.js` stubs and compiled test files are gone. Import types only with
   fully erased `import type`, and use `fjs/emergent_testing/all.test.mjs` as

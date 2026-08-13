@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import type { Primitive, Unknown } from '../ts/types.ts'
 import type { Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts'
 import type { Result as CommonResult } from '../../result/types.ts'

@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 /** @import { Index, Tuple } from '../../array/types.ts' */
 /** @import { Cmp1, Cmp2, Compare, Sign } from './types.ts' */
 
