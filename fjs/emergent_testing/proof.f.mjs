@@ -11,9 +11,9 @@ import { log } from '../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import {
-    testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
+    testAll, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
-    defaultTest,
+    defaultTest, main,
 } from './module.f.mjs'
 import { run as mockRun } from '../effects/mock/module.f.mjs'
 import { shouldLoad } from '../dev/module.f.mjs'
@@ -79,13 +79,13 @@ const run = (dir, initCwd = '.') => {
     return [parseEvents(finalState.stdout), exitCode]
 }
 
-// Runs the real `defaultReporter` and returns its captured stdout/stderr so the
-// terminal and GitHub output formats can be asserted directly.
+// Runs the `fjs t` entry point (`main`) and returns its captured stdout/stderr
+// so the terminal and GitHub output formats can be asserted directly.
 /** @type {(dir: Record<string, JsModule>, github?: boolean) => readonly [string, string, number]} */
 const runMain = (dir, github = false) => {
     const state = { ...emptyState, root: dir }
     const opts = options('.', github)
-    const [finalState, exitCode] = virtual(state)(testAll(defaultReporter(opts))(opts))
+    const [finalState, exitCode] = virtual(state)(main(opts))
     return [finalState.stdout, finalState.stderr, exitCode]
 }
 
