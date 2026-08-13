@@ -86,10 +86,18 @@ const round53 = ([[m, e], r]) =>
  * Converts a decimal big-float `m * 10^e` into the nearest binary big-float,
  * rounding ties to even.
  *
- * The result is normalized to the IEEE-754 binary64 significand width: a zero
- * input returns `[0n, 0]`, and every other input returns a mantissa of exactly
- * 53 significant bits, `2^52 <= abs(m) < 2^53`. The upper bound holds even when
- * rounding carries out of the top bit (`decToBin([2n ** 54n - 1n, 0])`).
+ * A zero input returns `[0n, 0]`; every other input returns a mantissa of
+ * exactly 53 significant bits, `2^52 <= abs(m) < 2^53`. The upper bound holds
+ * even when rounding carries out of the top bit.
+ *
+ * The **exponent is unbounded**: this is the correctly-rounded 53-bit value,
+ * not a `number`. Nothing here knows binary64's exponent range, so a result
+ * is neither turned into an infinity when it is too large for a `double` nor
+ * cut down to the fewer-than-53 bits a subnormal actually carries. A consumer
+ * that rounds one of these results onto the subnormal grid therefore rounds
+ * twice and can land an ulp away from the correctly-rounded `double`: reaching
+ * the subnormal range needs a single rounding to a precision chosen from the
+ * target exponent, which this function does not offer yet.
  *
  * @type {(dec: BigFloat) => BigFloat}
  */

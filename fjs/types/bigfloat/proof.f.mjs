@@ -17,10 +17,6 @@ const assertRounded = dec => value => {
     assertEq(m << BigInt(e), value, m.toString(2))
 }
 
-const twoPow54 = 1n << 54n
-
-const twoPow55 = 1n << 55n
-
 export const proof = {
     decToBin: [
         () => {
@@ -238,16 +234,31 @@ export const proof = {
     // Rounding up a mantissa of all ones carries into a 54th bit; the result
     // has to come back as 53 bits without changing the value.
     roundingCarry: [
-        // 2^54 - 1: an exact tie (nothing below the dropped bit, remainder 0)
-        // whose round-to-even goes up because 2^53 - 1 is odd.
-        () => assertRounded([twoPow54 - 1n, 0])(twoPow54),
-        () => assertRounded([1n - twoPow54, 0])(-twoPow54),
-        // 2^55 - 1: not a tie — the dropped bits are 11 — so the carry comes
-        // from the plain round-up path instead.
-        () => assertRounded([twoPow55 - 1n, 0])(twoPow55),
-        () => assertRounded([1n - twoPow55, 0])(-twoPow55),
-        // A neighbour that doesn't carry: also a tie, but 2^53 - 2 is even, so
-        // round-to-even goes down and the mantissa stays inside 53 bits.
-        () => assertRounded([twoPow54 - 3n, 0])(twoPow54 - 4n),
+        () => {
+            // 54 ones: an exact tie (nothing below the dropped bit, remainder
+            // 0) whose round-to-even goes up because 2^53 - 1 is odd.
+            assertRounded([0b11_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111n, 0])(
+                0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n) // 2^54
+        },
+        () => {
+            assertRounded([-0b11_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111n, 0])(
+                -0b100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n) // -2^54
+        },
+        () => {
+            // 55 ones: not a tie — the dropped bits are 11 — so the carry comes
+            // from the plain round-up path instead.
+            assertRounded([0b111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111n, 0])(
+                0b1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n) // 2^55
+        },
+        () => {
+            assertRounded([-0b111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111n, 0])(
+                -0b1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n) // -2^55
+        },
+        () => {
+            // A neighbour that doesn't carry: also a tie, but 2^53 - 2 is even,
+            // so round-to-even goes down and the mantissa stays 53 bits wide.
+            assertRounded([0b11_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1101n, 0])(
+                0b11_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1100n)
+        },
     ]
 }
