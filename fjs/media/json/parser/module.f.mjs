@@ -8,7 +8,7 @@
  * @import { List } from '../../../types/list/types.ts'
  * @import { Fold } from '../../../types/function/operator/types.ts'
  * @import { JsonToken } from '../tokenizer/types.ts'
- * @import { _JsonObject, _JsonArray, _StateParse, _JsonState, _JsonStack } from './types.ts'
+ * @import { _JsonObject, _JsonArray, _StateParse, _JsonState, _JsonStack, _ValueToken } from './types.ts'
  */
 
 import { error, ok } from '../../../types/result/module.f.mjs'
@@ -63,9 +63,14 @@ const popStack = stack => {
         : { status: '', top: ne.first, stack: ne.tail }
 }
 
-/** @type {(state: _StateParse) => _JsonState} */
+/**
+ * `endArray` only ever runs while parsing the array `startArray` opened
+ * (status `'['`/`'[v'`), so `state.top` is always that array here.
+ *
+ * @type {(state: _StateParse) => _JsonState}
+ */
 const endArray = state => {
-    const array = state.top !== null ? toArray(state.top.values) : null
+    const array = toArray(/** @type {_JsonArray} */ (state.top).values)
     const newState = popStack(state.stack)
     return pushValue(newState)(array)
 }
@@ -76,14 +81,24 @@ const startObject = state => {
     return { status: '{', top: { kind: 'object', values: null, key: '' }, stack: newStack }
 }
 
-/** @type {(state: _StateParse) => _JsonState} */
+/**
+ * `endObject` only ever runs while parsing the object `startObject` opened
+ * (status `'{'`/`'{v'`), so `state.top` is always that object here.
+ *
+ * @type {(state: _StateParse) => _JsonState}
+ */
 const endObject = state => {
-    const obj = state.top?.kind === 'object' ? fromMap(state.top.values) : null
+    const obj = fromMap(/** @type {_JsonObject} */ (state.top).values)
     const newState = popStack(state.stack)
     return pushValue(newState)(obj)
 }
 
-/** @type {(token: JsonToken) => Unknown} */
+/**
+ * Only ever called on a token `isValueToken` has already confirmed carries a
+ * value, so the switch covers every `_ValueToken` case with no fallback arm.
+ *
+ * @type {(token: _ValueToken) => Unknown}
+ */
 const tokenToValue = token => {
     switch (token.kind) {
         case 'null': return null
@@ -91,11 +106,13 @@ const tokenToValue = token => {
         case 'true': return true
         case 'number': return parseFloat(token.value)
         case 'string': return token.value
-        default: return null
     }
 }
 
-/** @type {(token: JsonToken) => boolean} */
+/**
+ * @param {JsonToken} token
+ * @returns {token is _ValueToken}
+ */
 const isValueToken = token => {
     switch (token.kind) {
         case 'null':
@@ -214,39 +231,6 @@ export const proof = {
             const state = { status: '[', top: { kind: 'array', values: null }, stack: null }
             const result = pushKey(state)('key')
             assertEq(result.status, 'error')
-        },
-    },
-    endArray: {
-        // `endArray` is only ever invoked while `state.top` is the array
-        // being closed (set by `startArray`), so `top === null` is a
-        // defensive branch unreachable through `parse`. Call it directly.
-        nullTop: () => {
-            /** @type {_StateParse} */
-            const state = { status: '[', top: null, stack: null }
-            const result = endArray(state)
-            assertEq(result.status, 'result')
-            assertEq(/** @type {{ value: unknown }} */ (result).value, null)
-        },
-    },
-    endObject: {
-        // `endObject` is only ever invoked while `state.top` is the object
-        // being closed (set by `startObject`), so a non-object `top` is a
-        // defensive branch unreachable through `parse`. Call it directly.
-        nonObjectTop: () => {
-            /** @type {_StateParse} */
-            const state = { status: '{', top: { kind: 'array', values: null }, stack: null }
-            const result = endObject(state)
-            assertEq(result.status, 'result')
-            assertEq(/** @type {{ value: unknown }} */ (result).value, null)
-        },
-    },
-    tokenToValue: {
-        // `tokenToValue` is only ever invoked after `isValueToken` confirms
-        // the token is one of `null`/`false`/`true`/`number`/`string`, so its
-        // `default` arm is a defensive branch unreachable through `parse`.
-        // Call it directly to cover that branch.
-        nonValueToken: () => {
-            assertEq(tokenToValue({ kind: 'eof' }), null)
         },
     },
 }
