@@ -820,38 +820,48 @@ Each item below is stated with the measurement that produced it, so the next
 person can re-check rather than re-derive. Counts are as of
 [#1505](https://github.com/functionalscript/functionalscript/pull/1505).
 
-- [ ] **Make `npm run cov` report real coverage.** It has been vacuous for
-      several PRs — reviewers keep reporting `100.00` over 0 tests and having to
-      exclude coverage from their verification — but *not* because of the
-      include globs, so do not start there. The script already passes
-      `--test-coverage-include=**/module.f.mjs` alongside the now-dead
-      `**/module.f.ts` (the `.mjs` glob was added in #1422). Dropping the dead
-      glob is worth doing but changes nothing measurable:
-      `--test-coverage-include` only filters which files appear in the report,
-      so it cannot make a run that executed nothing report something.
+- [x] **Make `npm run cov` report real coverage.** Done: `cov` now names its
+      entrypoint (`fjs/emergent_testing/all.test.ts`) instead of relying on
+      `node --test` default discovery, and the dead `**/module.f.ts` glob is
+      gone.
 
-      The cause is test *discovery*. With no path arguments `node --test` looks
-      for its own default patterns (`*.test.*`, `test.*`, `*-test.*`,
-      `test-*.*`, `*_test.*`, `test/**`); the repo's proofs are `proof.f.mjs` /
-      `module.f.mjs` and match none of them. The only file in the tree that does
-      match is `fjs/emergent_testing/all.test.ts`, and what happens then is
-      Node-version-dependent — on v23 the run reports 0 tests, while on v22.22.2
-      it discovers that file and executes the suite through it. The real suite
-      runs via the repo's own runner (`npm test` -> `node ./fjs/module.mjs t`,
-      2495 tests). `scenarios/run.sh` corroborates the discovery problem: it
-      hard-links `all.ts` to `_all.test.ts` precisely so `node --test` will find
-      it.
+      The diagnosis above was right and the "vacuous for several PRs" framing
+      was wrong, so both are recorded here rather than deleted. The cause was
+      test *discovery*: with no path arguments `node --test` looks for its own
+      default patterns (`*.test.*`, `test.*`, `*-test.*`, `test-*.*`,
+      `*_test.*`, `test/**`); the repo's proofs are `proof.f.mjs` /
+      `module.f.mjs` and match none of them, and the only file in the tree that
+      does is `fjs/emergent_testing/all.test.ts`. Whether that file is picked up
+      is Node-version-dependent, because it is TypeScript. Measured with the
+      pre-fix command
+      (`node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts --test-coverage-include=**/module.f.mjs`):
 
-      So restoring the signal means giving `node --test` entrypoints it actually
-      runs, or collecting coverage through `fjs`'s runner — not editing globs.
-      The cheapest candidate is naming the entrypoint in the script, which is
-      measured to work on both versions: adding
-      `fjs/emergent_testing/all.test.ts` as a path argument to `cov` yields
-      `tests 2431 / pass 2431 / fail 0` and a real per-file report on v22.22.2,
-      and the same file named explicitly also runs on v23. Confirm it reports on
-      whichever Node CI uses before adopting it, and pin that version — the
-      2431 here against 2495 from `npm test` is a second discrepancy worth
-      understanding rather than papering over.
+      | Node | tests | coverage report |
+      |---|---|---|
+      | 22.22.2 | 2431 | yes, `all files 99.93` |
+      | 23.11.1 | **0** | **none** |
+      | 24.18.1 | 2431 | yes, `all files 99.93` |
+      | 26.7.0 | 2495 | yes, `all files 99.93` |
+
+      So every Node version CI actually runs (`22.23.2`, `24.18.1`, `26.7.0` in
+      the `node22` / `node24` / `node26` jobs) already reported real coverage;
+      v23 — released, EOL, not in CI — is the version that reports nothing. The
+      fix removes the dependency on default discovery altogether: naming the
+      entrypoint yields the same counts and the same `99.93` report on 22, 24
+      and 26, and turns v23's `tests 0` into `tests 2431` with a full report.
+
+      The 2431-vs-2495 gap is **not** a second defect. It is exactly the 64
+      sub-tests — those reachable only through a test function's *return value*.
+      `usesInlineTestContext` (`fjs/effects/node/module.f.mjs`) selects the
+      flattened registration strategy below the Node 26 baseline, where
+      `inlineContext` runs sub-tests inside their parent registration instead of
+      declaring them to the framework, so the framework counts the parent only.
+      Node 26 uses native `expectFailure` and nested registration, and counts
+      all 2495, matching `npm test` (`node ./fjs/module.mjs t`). Measured on
+      26.7.0: 2431 top-level plus 64 nested `✔` lines; on 24.18.1: 2431
+      top-level, 0 nested, of which 2376 carry the ` ...` inline marker (the
+      remaining 55 are throw-tests, which never produce sub-tests). Same work
+      executed either way — only the reported count differs.
 - [ ] **Settle whether generated `types.js` is required for portable
       resolution.** This gates the two items after it and is the one open
       correctness risk for published consumers. After `npm run prepack`,

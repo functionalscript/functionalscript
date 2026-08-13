@@ -14,12 +14,11 @@ const denoTest = 'deno test --allow-read --allow-env --allow-sys'
 
 /**
  * The regular expression selecting FunctionalScript implementation modules for
- * Deno coverage. Both authored extensions are included so a module migrated
- * from `.f.ts` to `.f.mjs` stays in the report. Keep it semantically equal to
- * the `--test-coverage-include` list in `package.json` and to the `cov` task in
- * `deno.json`.
+ * Deno coverage. `.f.ts` is no longer an authored extension, so only `.f.mjs`
+ * is matched. Keep it semantically equal to the `--test-coverage-include` list
+ * in `package.json` and to the `cov` task in `deno.json`.
  */
-export const coverageInclude = '.*module\\.f\\.(ts|mjs)'
+export const coverageInclude = '.*module\\.f\\.mjs'
 
 /** @type {(version: string) => readonly MetaStep[]} */
 export const denoSteps = version => [

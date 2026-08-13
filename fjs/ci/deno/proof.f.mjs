@@ -8,11 +8,11 @@ const coverageRuns = version =>
         .flatMap(s => s.run !== undefined && s.run.includes('deno coverage') ? [s.run] : [])
 
 export const proof = {
-    // A regression guard: dropping either authored implementation extension
-    // from the Deno coverage filter silently removes those modules from the
-    // CI coverage report while CI still passes.
+    // A regression guard: dropping the authored implementation extension from
+    // the Deno coverage filter silently removes those modules from the CI
+    // coverage report while CI still passes.
     coverageInclude: () => {
-        assertEq(coverageInclude, '.*module\\.f\\.(ts|mjs)')
+        assertEq(coverageInclude, '.*module\\.f\\.mjs')
     },
     coverageStep: () => {
         const runs = coverageRuns('0.0.0')

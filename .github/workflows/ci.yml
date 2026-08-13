@@ -401,7 +401,7 @@
           "run": "deno install --frozen"
         },
         {
-          "run": "deno test --allow-read --allow-env --allow-sys --coverage && deno coverage --include='.*module\\.f\\.(ts|mjs)'"
+          "run": "deno test --allow-read --allow-env --allow-sys --coverage && deno coverage --include='.*module\\.f\\.mjs'"
         }
       ]
     },
