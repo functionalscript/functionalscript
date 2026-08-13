@@ -897,31 +897,60 @@ person can re-check rather than re-derive. Counts are as of
       whose history is correctly left alone); that measurement now returns **9**,
       and all 9 are the rename arrows (`module.f.ts -> module.f.mjs`) and
       completed `[x]` items in this file and `fjs/fsc/README.md`, where the
-      `.f.ts` spelling *is* the subject. Across the whole tree the same sweep
-      took non-`CHANGELOG.md` `.f.ts` mentions from 294 to 51. `AGENTS.md` went
-      from 24 mentions to 1 — the sentence recording that stage 1 is complete —
-      and its guidance now leads with the JavaScript/JSDoc form, keeping
-      `import type` only for `types.ts`.
+      `.f.ts` spelling *is* the subject.
+
+      Two other rulers get quoted for this and are easy to mix up, so name the
+      one you mean. A **path-like mention** is one module-path token ending in
+      the old extension; a **line** may hold several. Whole tree, `CHANGELOG.md`
+      excluded:
+
+      | ruler | `main` | after the sweep |
+      | --- | --- | --- |
+      | path-like mentions | 294 | 52 |
+      | lines containing `.f.ts` | 398 | 145 |
+
+      `AGENTS.md` went from 10 mentions on 24 lines to 0 on 1 — the one
+      line left records that stage 1 is complete — and its guidance now leads
+      with the JavaScript/JSDoc form, keeping `import type` for `types.ts` and
+      for the scenario fixtures whose `.ts` extension is load-bearing.
 
       Beyond renaming references to files that moved, the sweep also fixed
       forward-looking plans that told a contributor to *create* a `.f.ts`
       (`fjs/bnf/todo/unicode-rules.md`, `fjs/effects/todo/node-module-layering.md`
       and ~40 others), since no such file may be authored any more.
 
-      The 51 that remain are deliberate and should stay: this file,
-      [`fjs/fsc/README.md`](../fjs/fsc/README.md), the package-support and
-      publishing plans, `todo/plan/roadmap.md`,
-      `nanvm-lib/todo/mvp-roadmap.md` and
+      All 22 files that still contain the old extension anywhere are listed
+      below, and each one is deliberate. Describing the migration or the
+      extension itself: this file, `AGENTS.md`,
+      [`fjs/fsc/README.md`](../fjs/fsc/README.md),
+      [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
+      [`f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md),
+      [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md),
+      [`f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md),
+      [`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md),
+      [`plan/roadmap.md`](./plan/roadmap.md), [`lang/README.md`](./lang/README.md),
+      [`demo/README.md`](./demo/README.md),
+      [`nanvm-lib/todo/mvp-roadmap.md`](../nanvm-lib/todo/mvp-roadmap.md),
       [`blocked/js-extension-type-annotations.md`](./blocked/js-extension-type-annotations.md)
-      describe the migration or the extension itself;
-      `fjs/emergent_testing/todo/664-emergent-testing-module-files.md`,
-      `todo/205.md` and `todo/skip-property.md` quote `shouldLoad`, which still
-      matches `.f.ts`; and `fjs/types/rtti/todo/serializable-data.md` is the
-      separate broken-link item below. Re-measure with the same resolve-against-
-      the-tree method before claiming a number.
+      and [`formatter-for-f-js-and-f-ts-files.md`](../fjs/todo/formatter-for-f-js-and-f-ts-files.md).
+      Quoting `shouldLoad`, which still matches `.f.ts`:
+      [`664-emergent-testing-module-files.md`](../fjs/emergent_testing/todo/664-emergent-testing-module-files.md),
+      [`205.md`](../fjs/emergent_testing/todo/205.md) and
+      [`skip-property.md`](../fjs/emergent_testing/todo/skip-property.md).
+      Recording a superseded convention or a completed move:
+      [`028-unit-test-examples-api.md`](../fjs/emergent_testing/todo/028-unit-test-examples-api.md),
+      [`throw-payload-assertions.md`](../fjs/emergent_testing/todo/throw-payload-assertions.md)
+      and [`group-fs-subdirectories-by-concern.md`](../fjs/todo/group-fs-subdirectories-by-concern.md).
+      Plus [`browser-testing.md`](../fjs/emergent_testing/todo/browser-testing.md)
+      and [`serializable-data.md`](../fjs/types/rtti/todo/serializable-data.md),
+      each its own item below. Re-measure with the same resolve-against-the-tree
+      method, at the final commit, before claiming a number — prose that
+      enumerates survivors can itself add mentions, which is how a stale count
+      got published the first time.
 - [ ] **Redesign or retire `browser-testing.md`.**
       [`fjs/emergent_testing/todo/browser-testing.md`](../fjs/emergent_testing/todo/browser-testing.md)
-      holds 23 of the 51 surviving `.f.ts` mentions, and they were left alone on
+      holds 10 of the surviving path-like mentions on 23 lines — the largest
+      single concentration — and they were left alone on
       purpose: its whole design is a transpile step from `.f.ts` to `.f.js`
       because browsers cannot load TypeScript. Authored source is now `.f.mjs`,
       which a browser loads directly, so the premise is gone and a sweep would

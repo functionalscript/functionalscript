@@ -4,7 +4,7 @@ This repository is a monorepo with two code bases:
 
 | Directory    | Language                                | Notes                                       |
 | ------------ | --------------------------------------- | ------------------------------------------- |
-| `fjs/`       | FunctionalScript (`.f.mjs`) / TypeScript (`types.ts`) | The language, its standard modules, and the `fjs` CLI |
+| `fjs/`       | FunctionalScript (`.f.mjs`) / TypeScript (`types.ts`, plus the `emergent_testing` scenario fixtures) | The language, its standard modules, and the `fjs` CLI |
 | `nanvm-lib/` | Rust                                    | NaNVM, the native FunctionalScript VM       |
 
 Issues live in `todo/` directories, **not** on GitHub. Check them for existing
@@ -297,14 +297,21 @@ import ... from '...mjs'
 import ... from '...mjs'
 ```
 
-Authored TypeScript is limited to `types.ts`, whose imports are all type-only, so
-it needs no grouping: `import type` names the same real source paths, whether the
+Authored TypeScript you write is `types.ts`. Its imports are all type-only, so it
+needs no grouping: `import type` names the same real source paths, whether the
 type comes from another `types.ts` or from a `.f.mjs` module.
 
 ```ts
 import type ... from '../other/types.ts'
 import type ... from './module.f.mjs'
 ```
+
+The one exception is `fjs/emergent_testing/scenarios/*.ts`, `scenarios/all.ts`
+and `all.test.ts`, which do have runtime imports. Their `.ts` extension is
+load-bearing — `run.sh` dispatches on it to prove that Node, Bun and Deno execute
+a **TypeScript** proof natively — so they are deliberately not `types.ts` and
+must not be ported to `.mjs`. See the scenario-fixture item in
+[`todo/migrate-typescript-to-mjs.md`](./todo/migrate-typescript-to-mjs.md).
 
 The runtime-import grouping applies to repository-owned relative imports, not to
 external or built-in modules: a FunctionalScript module may depend at runtime on
