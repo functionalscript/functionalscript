@@ -397,10 +397,11 @@ keeping documentation. Neither tracks this loss directly.
 
 Re-measured in
 [#1530](https://github.com/functionalscript/functionalscript/pull/1530), the
-loss is *shape-dependent* on tsc 7.0.2: a standalone typedef block keeps its
-documentation verbatim, while a block directly followed by a declaration or
-declaring two typedefs loses it — a regression relative to strada 5.9.3,
-which kept trimmed prose in every shape. The minimal reproduction and a
+loss is *shape-dependent* on tsc 7.0.2: a typedef block keeps its
+documentation verbatim only when another comment block follows it, and loses
+it when it directly precedes a declaration, declares two typedefs, or is the
+final comment block in the file (that last shape caught in review) — a
+regression relative to strada 5.9.3, which kept trimmed prose in every shape. The minimal reproduction and a
 paste-ready upstream body (targeting `microsoft/typescript-go`) live in
 [`blocked/jsdoc-typedef-doc-declaration-emit.md`](./blocked/jsdoc-typedef-doc-declaration-emit.md);
 filing it is that issue's first task.
@@ -1038,12 +1039,16 @@ person can re-check rather than re-derive. Counts are as of
       (`fjs/bnf/todo/unicode-rules.md`, `fjs/effects/todo/node-module-layering.md`
       and ~40 others), since no such file may be authored any more.
 
-      All 20 files that still contain the old extension anywhere (22 before
+      All 21 files that still contain the old extension anywhere are listed
+      below, and each one is deliberate. (History of the count: `205.md` left
+      the set when
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
-      deleted `205.md` and
+      deleted it, the formatter issue left when
       [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
-      retitled the formatter issue out of the set) are listed
-      below, and each one is deliberate. Describing the migration or the
+      retitled it, and earlier revisions of this paragraph ran one short —
+      `fjs/emergent_testing/scenarios.md`, which quotes the deleted `run.sh`
+      verbatim, was in the measured set but never enumerated. Review on #1530
+      caught it.) Describing the migration or the
       extension itself: this file, `AGENTS.md`,
       [`fjs/fsc/README.md`](../fjs/fsc/README.md),
       [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
@@ -1068,8 +1073,10 @@ person can re-check rather than re-derive. Counts are as of
       deleted it with the scenario suite it described).
       Recording a superseded convention or a completed move:
       [`028-unit-test-examples-api.md`](../fjs/emergent_testing/todo/028-unit-test-examples-api.md),
-      [`throw-payload-assertions.md`](../fjs/emergent_testing/todo/throw-payload-assertions.md)
-      and [`group-fs-subdirectories-by-concern.md`](../fjs/todo/group-fs-subdirectories-by-concern.md).
+      [`throw-payload-assertions.md`](../fjs/emergent_testing/todo/throw-payload-assertions.md),
+      [`group-fs-subdirectories-by-concern.md`](../fjs/todo/group-fs-subdirectories-by-concern.md)
+      and [`scenarios.md`](../fjs/emergent_testing/scenarios.md), which quotes
+      the deleted scenario harness verbatim.
       Plus [`browser-testing.md`](../fjs/emergent_testing/todo/browser-testing.md)
       and [`serializable-data.md`](../fjs/types/rtti/todo/serializable-data.md),
       each its own item below. Re-measure with the same resolve-against-the-tree

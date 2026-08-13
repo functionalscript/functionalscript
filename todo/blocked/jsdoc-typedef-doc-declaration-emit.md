@@ -25,16 +25,20 @@ which the earlier record did not know:
 
 | typedef block shape | tsc 5.9.3 (strada) | tsc 7.0.2 (tsgo) |
 | --- | --- | --- |
-| standalone — next line is another comment block or EOF | prose kept on `export type` (tags such as `@example` stripped from the attached copy; original block also emitted, duplicated and misplaced) | **full block kept, verbatim** |
+| standalone — next line is another comment block | prose kept on `export type` (tags such as `@example` stripped from the attached copy; original block also emitted, duplicated and misplaced) | **full block kept, verbatim** |
+| standalone — last comment block in the file | prose kept on `export type`, trimmed | **`export type` emitted bare; the block dangles *after* it** |
 | block directly followed by a declaration | prose kept on `export type`, trimmed | **`export type` emitted bare; the doc attaches to the *following* declaration** |
 | one block declaring two `@typedef`s | prose kept on both `export type`s, trimmed | **both emitted bare; the block dangles after them** |
 
-So on tsgo — this repository's compiler — the documentation is lost whenever
-the typedef block touches a following statement or declares more than one
-type, and that is a regression relative to strada, which kept the prose in
-every shape. (Strada's own tag-stripping and duplication are the older,
-adjacent bugs: microsoft/TypeScript#43534, fixed for the services layer only,
-and microsoft/TypeScript#61664.)
+The rule that fits every measured case on tsgo: **the final comment block in
+the file never attaches, and a typedef block attaches to its emitted type only
+when another comment block follows it**. So on tsgo — this repository's
+compiler — the documentation is lost whenever the typedef block touches a
+following statement, declares more than one type, or ends the file, and that
+is a regression relative to strada, which kept the prose in every shape.
+(Strada's own tag-stripping and duplication are the older, adjacent bugs:
+microsoft/TypeScript#43534, fixed for the services layer only, and
+microsoft/TypeScript#61664.)
 
 ## Reproduction
 
@@ -88,6 +92,20 @@ export {};
 `width` instead. strada 5.9.3 on the same input keeps (trimmed) prose on all
 three `export type`s.
 
+The smallest reproduction is a file containing nothing but one documented
+typedef block:
+
+```js
+/**
+ * Only block, then EOF.
+ *
+ * @typedef {8} Only
+ */
+```
+
+tsgo 7.0.2 emits `export type Only = 8;` bare, with the block dangling after
+it; strada 5.9.3 attaches the (trimmed) prose to the type.
+
 ## Ready-to-file upstream issue
 
 Title: **Declaration emit loses JSDoc `@typedef` documentation when the block
@@ -101,11 +119,15 @@ Body:
 > **Expected:** each emitted `export type` carries the documentation written
 > on its `@typedef`, as TypeScript 5.9.3 does (modulo #43534-style tag
 > stripping), and as tsgo itself already does when the typedef block is
-> standalone.
+> followed by another comment block.
 >
 > **Actual (tsgo 7.0.2):** `export type Width = 8 | 16;` is emitted with no
 > documentation and the block attaches to the following `export declare const
-> width`; a block declaring two typedefs loses its documentation on both.
+> width`; a block declaring two typedefs loses its documentation on both; a
+> file whose only content is one documented typedef block emits the type bare
+> with the block dangling after it. The pattern across all cases: the final
+> comment block in the file never attaches, and a typedef block attaches only
+> when another comment block follows it.
 >
 > **Impact:** for JavaScript-authored packages (JSDoc types, `declaration:
 > true`), the published `.d.mts` silently loses its type documentation; the
