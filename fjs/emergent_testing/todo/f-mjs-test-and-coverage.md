@@ -9,7 +9,8 @@
 Tooling recognition of `.f.mjs` has landed: `shouldLoad` in
 `fjs/dev/module.f.mjs` matches `.f.mjs`, `npm run cov` and `deno task cov`
 include `module.f.mjs`, and the canonical Deno CI generator
-(`fjs/ci/deno/module.f.mjs`) exports `coverageInclude` with a regression proof.
+(`fjs/ci/deno/module.f.mjs`) delegates to `deno task cov` with a regression
+proof, so `deno.json` is the only owner of the Deno coverage filter.
 
 What is still missing is end-to-end evidence from an actual `.f.mjs` runtime
 fixture. No repository fixture currently proves that a migrated

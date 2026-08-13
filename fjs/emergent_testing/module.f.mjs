@@ -122,10 +122,12 @@ export const collectTests = (path, throws, v) => {
 export const registerModule = (ctx, k, v, star) => {
     /** @type {(ctx: TestContext, entry: _TestAndPath) => Effect<Test | All | Await, void>} */
     const registerOne = (ctx, [path, { fn, throws }]) => {
-        // ' *' (non-empty only for Bun) signals that all sub-tests run
-        // inline inside this single registration. Not appended to throw-tests since
-        // those never produce sub-tests. The path already contains '.throw' when a
-        // test is expected to throw, so no extra suffix is needed.
+        // `star` (non-empty for Bun and for Node below the 26 baseline) signals
+        // that all sub-tests run inline inside this single registration, so an
+        // external runner reports fewer tests than `fjs t` for the same suite.
+        // Not appended to throw-tests since those never produce sub-tests. The
+        // path already contains '.throw' when a test is expected to throw, so no
+        // extra suffix is needed.
         const base = fmtImport(k, path)
         const name = throws ? base : `${base}${star}`
         return test(ctx, name, throws, (/** @type {TestContext} */ t) =>
