@@ -439,6 +439,15 @@ export const proof = {
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'duplicate id', obj)
         },
+        () => {
+            // No newline after the const's value: the parser hits `eof` while
+            // still in the newline-required state, instead of the following
+            // `nl` token every other `const` test provides.
+            const tokenList = tokenizeString('const a = 1')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end', obj)
+        },
     ],
     validWithArgs:[
         () => {

@@ -60,7 +60,7 @@ import { collectRead } from '../module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
-import { ok, error } from '../../types/result/module.f.mjs'
+import { ok, error, okThen } from '../../types/result/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { at, definedEntries } from '../../types/object/module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
@@ -366,21 +366,73 @@ const computeGeneration = parents =>
     parents.length === 0 ? 0 : 1 + parents.reduce((max, p) => Math.max(max, p.generation), 0)
 
 /**
+ * The pure half of {@link addRevision}: turns already-resolved `parents` into
+ * the exact `Revision` that will be stored, or the first reason it cannot be.
+ *
+ * Resolves `subject` ({@link resolveSubject}) and checks every parent belongs
+ * to it ({@link validateParentSubjects}), resolves `snapshot`
+ * ({@link resolveSnapshot}) and computes `generation`
+ * ({@link computeGeneration}), assembles the `Revision` and checks its hash /
+ * generation semantics (`fjs/media/revision` `checkReferences` — the same rule
+ * a reader applies; the shape itself is already guaranteed by the field types
+ * here), then canonicalizes it.
+ *
+ * Canonicalizing parent/snapshot spellings is only safe once `checkReferences`
+ * has confirmed they decode, which makes the `unwrap` inside
+ * {@link canonicalHash} safe. It is not optional: two `add` calls describing
+ * the same logical revision but spelled differently (case, `i`/`l`/`o`
+ * aliases) must serialize identically, or they would produce two distinct CAS
+ * blobs that both remain heads — the point of `canonicalHash` (see the module
+ * doc) is defeated if this module itself writes non-canonical spellings.
+ *
+ * Separate from {@link addRevision} because none of it touches the store:
+ * everything up to the bytes is a plain `Result` pipeline, so `addRevision` is
+ * left holding only the encode, the write, and the cache fold. Each step also
+ * reads values resolved by earlier ones, which is why the guards are a flat
+ * sequence rather than an `okThen` chain — see `okThen`'s own note in
+ * [`fjs/types/result`](../../types/result/module.f.mjs).
+ *
+ * @param {RevisionData} input
+ * @returns {(parents: readonly Revision[]) => Result<Revision, string>}
+ */
+const buildRevision = input => parents => {
+    const subjectResult = resolveSubject(input)(parents)
+    if (subjectResult[0] === 'error') { return subjectResult }
+    const subject = subjectResult[1]
+    const parentSubjectsResult = validateParentSubjects(subject)(parents)
+    if (parentSubjectsResult[0] === 'error') { return parentSubjectsResult }
+    const snapshotResult = resolveSnapshot(input)(subject)(parents)
+    if (snapshotResult[0] === 'error') { return snapshotResult }
+    /** @type {Revision} */
+    const revision = {
+        dialect,
+        subject,
+        parents: input.parents,
+        snapshot: snapshotResult[1],
+        generation: computeGeneration(parents),
+        archived: input.archived,
+        lock: input.lock,
+    }
+    const referencesResult = checkReferences(revision)
+    if (referencesResult[0] === 'error') { return referencesResult }
+    return ok({
+        ...revision,
+        parents: revision.parents.map(canonicalHash),
+        snapshot: canonicalHash(revision.snapshot),
+        lock: revision.lock === undefined ? undefined : canonicalLock(revision.lock),
+    })
+}
+
+/**
  * Adds a new revision to `cas` and folds it into the cache at `cacheKey`.
  *
- * Steps: resolve and validate every parent ({@link resolveParents}), resolve
- * `subject` from them ({@link resolveSubject}) and check every parent
- * actually belongs to it ({@link validateParentSubjects}), resolve `snapshot`
- * ({@link resolveSnapshot}) and compute `generation`
- * ({@link computeGeneration}), assemble a `Revision` and check its hash /
- * generation semantics (`fjs/media/revision` `checkReferences` — the same rule
- * a reader applies; the shape itself is already guaranteed by this function's
- * own field types), encode and write it to `cas`, then fold the new revision
- * into the cache. Every failure — an invalid or missing parent, a
- * cross-subject parent, an unresolvable subject or snapshot, an invalid
- * revision, a blob too large to encode, or a store write failure — is
- * reported as `error(message)` rather than thrown, so a caller (e.g. an MCP
- * tool handler) can surface it without a `throw`/`catch`.
+ * Steps: resolve and validate every parent ({@link resolveParents}), derive
+ * the revision to store from them ({@link buildRevision}), then encode it,
+ * write it to `cas`, and fold it into the cache. Every failure — an invalid
+ * or missing parent, a cross-subject parent, an unresolvable subject or
+ * snapshot, an invalid revision, a blob too large to encode, or a store write
+ * failure — is reported as `error(message)` rather than thrown, so a caller
+ * (e.g. an MCP tool handler) can surface it without a `throw`/`catch`.
  *
  * `input.generation` is ignored: it exists on {@link RevisionData} only so a
  * value read back by {@link readRevision} round-trips into `add` unchanged,
@@ -394,39 +446,9 @@ const computeGeneration = parents =>
 export const addRevision = cas => cacheKey => input =>
     eff(resolveParents(cas)(input.parents))
         .step((/** @type {Result<readonly Revision[], string>} */ parentsResult) => {
-            if (parentsResult[0] === 'error') { return pure(parentsResult) }
-            const subjectResult = resolveSubject(input)(parentsResult[1])
-            if (subjectResult[0] === 'error') { return pure(subjectResult) }
-            const parentSubjectsResult = validateParentSubjects(subjectResult[1])(parentsResult[1])
-            if (parentSubjectsResult[0] === 'error') { return pure(parentSubjectsResult) }
-            const snapshotResult = resolveSnapshot(input)(subjectResult[1])(parentsResult[1])
-            if (snapshotResult[0] === 'error') { return pure(snapshotResult) }
-            /** @type {Revision} */
-            const revision = {
-                dialect,
-                subject: subjectResult[1],
-                parents: input.parents,
-                snapshot: snapshotResult[1],
-                generation: computeGeneration(parentsResult[1]),
-                archived: input.archived,
-                lock: input.lock,
-            }
-            const referencesResult = checkReferences(revision)
-            if (referencesResult[0] === 'error') { return pure(referencesResult) }
-            // Canonicalize parent/snapshot spellings now that checkReferences has
-            // confirmed they decode (`unwrap` inside `canonicalHash` is safe):
-            // two `add` calls describing the same logical revision but spelled
-            // differently (case, `i`/`l`/`o` aliases) must serialize identically,
-            // or they'd produce two distinct CAS blobs that both remain heads —
-            // the point of `canonicalHash` (see the module doc) is defeated if
-            // this module itself writes non-canonical spellings.
-            /** @type {Revision} */
-            const canonicalRevision = {
-                ...revision,
-                parents: revision.parents.map(canonicalHash),
-                snapshot: canonicalHash(revision.snapshot),
-                lock: revision.lock === undefined ? undefined : canonicalLock(revision.lock),
-            }
+            const revisionResult = okThen(buildRevision(input))(parentsResult)
+            if (revisionResult[0] === 'error') { return pure(revisionResult) }
+            const canonicalRevision = revisionResult[1]
             const bytes = tryUtf8(encodeText(canonicalRevision))
             if (bytes === null) {
                 return pure(error('revision too large to encode'))

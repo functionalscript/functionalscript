@@ -25,6 +25,10 @@ history.
   emits declarations only. Types still resolve through the shipped `.d.ts`
   files, and nothing imports those modules at runtime
   [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
+- `fjs/types/result` exports `okThen`, the pure `Result` bind — `mapOk`'s
+  monad sibling and the pure twin of `fjs/effects`' `okStep`. Its two error
+  types are unioned, so a chain that widens its error needs no rewrapping
+  [#1519](https://github.com/functionalscript/functionalscript/pull/1519)
 - **BREAKING CHANGES:** BNF EOF is the semantic symbol `-1`, not `2^24 - 1`:
   `fullRange` is `0 .. 2^24 - 2`, and the parser backends synthesize one
   logical EOF after the physical input. Serialized ranges that ended at the
