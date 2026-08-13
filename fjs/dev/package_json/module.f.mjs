@@ -12,7 +12,7 @@
 import { parse as parseJsonText } from '../../media/json/module.f.mjs'
 import { option, record, string } from '../../types/rtti/module.f.mjs'
 import { validate as rttiValidate } from '../../types/rtti/validate/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { okThen } from '../../types/result/module.f.mjs'
 
 export const packageJsonSchema = /** @type {const} */ ({
     name: option(string),
@@ -26,12 +26,15 @@ export const packageJsonSchema = /** @type {const} */ ({
 export const validatePackageJson = rttiValidate(packageJsonSchema)
 
 /**
+ * Parses `text` as JSON and validates it against {@link packageJsonSchema}.
+ *
+ * Both failures reach the caller as they were raised: a parse failure is a
+ * `string`, a schema failure a `ValidationError`, and `JsonTextError` is
+ * exactly that union — which is what `okThen` produces from the two steps'
+ * own error types, with no rewrapping to widen either one.
+ *
  * @param {string} text
  * @returns {Result<PackageJson, JsonTextError>}
  */
-export const validatePackageJsonText = text => {
-    const [t, v] = parseJsonText(text)
-    if (t === 'error') { return error(v) }
-    const [t2, v2] = validatePackageJson(v)
-    return t2 === 'ok' ? ok(v2) : error(v2)
-}
+export const validatePackageJsonText = text =>
+    okThen(validatePackageJson)(parseJsonText(text))
