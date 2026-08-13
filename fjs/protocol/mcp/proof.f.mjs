@@ -11,8 +11,7 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { pure, step, runPure } from '../../effects/module.f.mjs'
-import { eff } from '../../effects/eff/module.f.mjs'
+import { history, historyStep, mapStep, pure, step, runPure } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { asBase, asNominal, create, read } from '../../effects/memory/module.f.mjs'
 import {
@@ -81,40 +80,44 @@ const runMem = effect =>
 /** @type {<T>(e: Effect<Operation, T>) => Effect<MemOp, T>} */
 const asMemEffect = e => /** @type {Effect<MemOp, any>} */ (/** @type {unknown} */ (e))
 
+// Pairs the last step's response with the session state read back afterwards.
+// The response is still needed after the read, so it is carried forward in a
+// history rather than closed over by a nested continuation.
+/** @type {(key: Key<McpSessionState>) => (e: Effect<Operation, unknown>) => Effect<Operation, _StepResult>} */
+const withState = key => e => {
+    const read0 = historyStep(history(e), () => read(key))
+    return mapStep(read0, ([state, resp]) => /** @type {const} */ ([resp, state]))
+}
+
 // Run one step from uninitializedState, return [response, newState].
 /** @type {(cfg: McpConfig) => (msg: unknown) => _StepResult} */
 const step1 = cfg => msg =>
     runMem(asMemEffect(step(
         create(/** @type {McpSessionState} */ (uninitializedState)),
-        key => step(
-            mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg)),
-            resp => step(
-                read(key),
-                state => pure(/** @type {const} */ ([resp, state])),
-            ),
-        ),
-    )))
+        key => withState(key)(mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg))))))
 
 // Run initialize then a second step, return [response, newState] of the second.
 /** @type {(cfg: McpConfig) => (msg1: unknown) => (msg2: unknown) => _StepResult} */
 const step2 = cfg => msg1 => msg2 =>
-    runMem(asMemEffect(eff(create(/** @type {McpSessionState} */ (uninitializedState))).step(key =>
-        eff(mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg1))).step(() =>
-            eff(mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg2))).step(resp =>
-                step(
-                    read(key),
-                    state => pure(/** @type {const} */ ([resp, state])),
-                )
-            ).value).value).value))
+    runMem(asMemEffect(step(
+        create(/** @type {McpSessionState} */ (uninitializedState)),
+        key => {
+            const r1 = mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg1))
+            const r2 = step(r1, () => mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg2)))
+            return withState(key)(r2)
+        })))
 
 // Run initialize, notifications/initialized, then a third step; return [response, newState] of the third.
 /** @type {(cfg: McpConfig) => (msg1: unknown) => (msg2: unknown) => (msg3: unknown) => _StepResult} */
 const step3 = cfg => msg1 => msg2 => msg3 =>
-    runMem(asMemEffect(eff(create(/** @type {McpSessionState} */ (uninitializedState))).step(key =>
-        eff(mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg1))).step(() =>
-            eff(mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg2))).step(() =>
-                eff(mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg3))).step(resp =>
-                    eff(read(key)).step(state => pure(/** @type {const} */ ([/** @type {unknown} */ (resp), state]))).value).value).value).value).value))
+    runMem(asMemEffect(step(
+        create(/** @type {McpSessionState} */ (uninitializedState)),
+        key => {
+            const r1 = mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg1))
+            const r2 = step(r1, () => mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg2)))
+            const r3 = step(r2, () => mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg3)))
+            return withState(key)(r3)
+        })))
 
 // ── Test messages ─────────────────────────────────────────────────────────────
 

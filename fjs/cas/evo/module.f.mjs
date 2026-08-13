@@ -53,8 +53,7 @@
  * @import { Hash, Subject, RevisionData, SubjectState, Cache, Evo } from './types.ts'
  */
 
-import { pure, foldStep } from '../../effects/module.f.mjs'
-import { eff } from '../../effects/eff/module.f.mjs'
+import { pure, foldStep, mapStep, step } from '../../effects/module.f.mjs'
 import { create, read, write } from '../../effects/memory/module.f.mjs'
 import { collectRead } from '../module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
@@ -185,9 +184,9 @@ export const decodeRevisionVec = value => {
  * @returns {(hash: Vec) => Effect<O, Revision | null>}
  */
 export const decodeRevisionBlob = cas => hash =>
-    eff(collectRead(cas.read(hash)))
-        .map(([tag, value]) => tag === 'error' ? null : decodeRevisionVec(value))
-        .value
+    mapStep(
+        collectRead(cas.read(hash)),
+        ([tag, value]) => tag === 'error' ? null : decodeRevisionVec(value))
 
 /**
  * Scans every hash in `cas` and builds a fresh {@link Cache} from the
@@ -202,11 +201,10 @@ export const buildCache = cas =>
         cas.list(),
         emptyCache,
         hash => cache =>
-            eff(decodeRevisionBlob(cas)(hash))
-                .step(revision =>
-                    pure(revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache))
-                )
-                .value)
+            mapStep(
+                decodeRevisionBlob(cas)(hash),
+                revision =>
+                    revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache)))
 
 /**
  * Scans `cas` once and allocates a memory slot holding the resulting {@link Cache}.
@@ -216,17 +214,13 @@ export const buildCache = cas =>
  * @returns {Effect<O | MemOp, Key<Cache>>}
  */
 export const initEvo = cas =>
-    eff(buildCache(cas))
-        .step(cache => create(cache))
-        .value
+    step(buildCache(cas), cache => create(cache))
 
 /** Reads, then rewrites, the cache at `cacheKey` with `revision` folded in at `hash`.
  * @type {(cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revision) => Effect<MemOp, void>}
  */
 const foldIntoCache = cacheKey => hash => revision =>
-    eff(read(cacheKey))
-        .step(cache => write(cacheKey, addRevisionToCache(hash, revision)(cache)))
-        .value
+    step(read(cacheKey), cache => write(cacheKey, addRevisionToCache(hash, revision)(cache)))
 
 /**
  * Folds `value` — bytes already written to a `Cas` at `hash` by some other
@@ -259,11 +253,9 @@ const resolveParent = cas => parentRef => {
     if (parentHash === null) {
         return pure(error(`invalid parent hash: ${parentRef}`))
     }
-    return eff(decodeRevisionBlob(cas)(parentHash))
-        .step(parent =>
-            pure(parent === null ? error(`parent is not a revision blob: ${parentRef}`) : ok(parent))
-        )
-        .value
+    return mapStep(
+        decodeRevisionBlob(cas)(parentHash),
+        parent => parent === null ? error(`parent is not a revision blob: ${parentRef}`) : ok(parent))
 }
 
 /**
@@ -281,12 +273,11 @@ const resolveParents = cas => parents => {
         init,
         parentRef => (/** @type {Result<readonly Revision[], string>} */ acc) => {
             if (acc[0] === 'error') { return pure(acc) }
-            return eff(resolveParent(cas)(parentRef))
-                .step((/** @type {Result<Revision, string>} */ parentResult) =>
-                    /** @type {Effect<never, Result<readonly Revision[], string>>} */
-                    (pure(parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]])))
-                )
-                .value
+            return mapStep(
+                resolveParent(cas)(parentRef),
+                (/** @type {Result<Revision, string>} */ parentResult) =>
+                    /** @type {Result<readonly Revision[], string>} */
+                    (parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]])))
         })
 }
 
@@ -444,8 +435,9 @@ const buildRevision = input => parents => {
  * @returns {(cacheKey: Key<Cache>) => (input: RevisionData) => Effect<O | MemOp, Result<Hash, string>>}
  */
 export const addRevision = cas => cacheKey => input =>
-    eff(resolveParents(cas)(input.parents))
-        .step((/** @type {Result<readonly Revision[], string>} */ parentsResult) => {
+    step(
+        resolveParents(cas)(input.parents),
+        (/** @type {Result<readonly Revision[], string>} */ parentsResult) => {
             const revisionResult = okThen(buildRevision(input))(parentsResult)
             if (revisionResult[0] === 'error') { return pure(revisionResult) }
             const canonicalRevision = revisionResult[1]
@@ -453,19 +445,16 @@ export const addRevision = cas => cacheKey => input =>
             if (bytes === null) {
                 return pure(error('revision too large to encode'))
             }
-            return eff(cas.write(nonEmpty(ok(bytes), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))))
-                .step((/** @type {IoResult<Vec>} */ writeResult) => {
+            return step(
+                cas.write(nonEmpty(ok(bytes), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))),
+                (/** @type {IoResult<Vec>} */ writeResult) => {
                     if (writeResult[0] === 'error') {
                         return /** @type {Effect<MemOp, Result<Hash, string>>} */ (pure(error('failed to write revision to CAS')))
                     }
                     const hash = vecToCBase32(writeResult[1])
-                    return eff(foldIntoCache(cacheKey)(hash)(canonicalRevision))
-                        .step(() => pure(ok(hash)))
-                        .value
+                    return mapStep(foldIntoCache(cacheKey)(hash)(canonicalRevision), () => ok(hash))
                 })
-                .value
         })
-        .value
 
 /**
  * Projects a decoded `Revision` into the shared {@link RevisionData}
@@ -547,9 +536,7 @@ export const readRevision = cas => hash => {
     const hashVec = cBase32ToVec(hash)
     return hashVec === null
         ? pure(error(`invalid hash: ${hash}`))
-        : eff(collectRead(cas.read(hashVec)))
-            .map(decodeReadRevision(hash))
-            .value
+        : mapStep(collectRead(cas.read(hashVec)), decodeReadRevision(hash))
 }
 
 /**
@@ -562,17 +549,15 @@ export const readRevision = cas => hash => {
 export const evo = cas => cacheKey => ({
     list: archived => {
         const listed = subjectListed(archived)
-        return eff(read(cacheKey))
-            .step(cache => pure(definedEntries(cache.bySubject)
-                .flatMap(([subject, state]) => listed(state) ? [subject] : [])))
-            .value
+        return mapStep(
+            read(cacheKey),
+            cache => definedEntries(cache.bySubject)
+                .flatMap(([subject, state]) => listed(state) ? [subject] : []))
     },
-    head: subject => eff(read(cacheKey))
-        .step(cache => {
-            const state = at(subject)(cache.bySubject)
-            return pure(state === null ? [] : headsOf(state))
-        })
-        .value,
+    head: subject => mapStep(read(cacheKey), cache => {
+        const state = at(subject)(cache.bySubject)
+        return state === null ? [] : headsOf(state)
+    }),
     add: input => addRevision(cas)(cacheKey)(input),
     revision: readRevision(cas),
 })
