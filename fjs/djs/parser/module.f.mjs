@@ -544,4 +544,22 @@ export const proof = {
             assertEq(result.state, 'result')
         },
     },
+    endObject: {
+        // `endObject` is only ever invoked while `state.top` is an object
+        // (the `'{'`/`'{k'`/`'{:'`/`'{v'`/`'{,'` value-states guarantee it),
+        // so its non-object guard is a defensive branch unreachable through
+        // `parseFromTokens`. Call it directly to cover that branch.
+        nonObjectTop: () => {
+            /** @type {_ParseValueState} */
+            const state = {
+                state: 'exportValue',
+                module: { refs: null, modules: null, consts: null },
+                valueState: '{,',
+                top: null,
+                stack: null,
+            }
+            const result = endObject(state)
+            assertEq(result.state, 'result')
+        },
+    },
 }
