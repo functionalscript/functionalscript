@@ -216,4 +216,37 @@ export const proof = {
             assertEq(result.status, 'error')
         },
     },
+    endArray: {
+        // `endArray` is only ever invoked while `state.top` is the array
+        // being closed (set by `startArray`), so `top === null` is a
+        // defensive branch unreachable through `parse`. Call it directly.
+        nullTop: () => {
+            /** @type {_StateParse} */
+            const state = { status: '[', top: null, stack: null }
+            const result = endArray(state)
+            assertEq(result.status, 'result')
+            assertEq(/** @type {{ value: unknown }} */ (result).value, null)
+        },
+    },
+    endObject: {
+        // `endObject` is only ever invoked while `state.top` is the object
+        // being closed (set by `startObject`), so a non-object `top` is a
+        // defensive branch unreachable through `parse`. Call it directly.
+        nonObjectTop: () => {
+            /** @type {_StateParse} */
+            const state = { status: '{', top: { kind: 'array', values: null }, stack: null }
+            const result = endObject(state)
+            assertEq(result.status, 'result')
+            assertEq(/** @type {{ value: unknown }} */ (result).value, null)
+        },
+    },
+    tokenToValue: {
+        // `tokenToValue` is only ever invoked after `isValueToken` confirms
+        // the token is one of `null`/`false`/`true`/`number`/`string`, so its
+        // `default` arm is a defensive branch unreachable through `parse`.
+        // Call it directly to cover that branch.
+        nonValueToken: () => {
+            assertEq(tokenToValue({ kind: 'eof' }), null)
+        },
+    },
 }
