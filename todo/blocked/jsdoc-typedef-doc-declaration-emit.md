@@ -33,10 +33,14 @@ which the earlier record did not know:
 | typedef block shape | tsc 5.9.3 (strada) | tsc 7.0.2 (tsgo) |
 | --- | --- | --- |
 | standalone — separated by a blank line from a following comment block | prose kept on `export type`, trimmed (tags such as `@example` stripped from the attached copy) | **full block kept, verbatim** |
-| standalone — last comment block in the file | prose kept on `export type`, trimmed | **`export type` emitted bare; the block dangles *after* it** |
+| standalone — last comment block in the file | prose kept on `export type`, trimmed | **`export type` emitted bare; the block dangles detached** |
 | two comment blocks with no blank line between them | prose kept on both `export type`s, trimmed | **both emitted bare; the adjacent blocks form one trivia run and neither attaches** |
 | block directly followed by a declaration | prose kept on `export type`, trimmed; the original block also emitted in full on the declaration, duplicated | **`export type` emitted bare; the doc attaches to the *following* declaration** |
-| one block declaring two `@typedef`s | prose kept on both `export type`s, trimmed | **both emitted bare; the block dangles after them** |
+| one block declaring two `@typedef`s | prose kept on both `export type`s, trimmed | **both emitted bare; the block dangles detached** |
+
+(Where a detached block lands is position-dependent — after the bare types in
+the reproductions below, before them when the block is the first thing in the
+file. "Emitted bare" is the invariant.)
 
 The rule that fits every measured case on tsgo: **the final comment block in
 the file never attaches, and a typedef block attaches to its emitted type only

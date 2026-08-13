@@ -20,10 +20,11 @@ history.
 
 ## Unreleased
 
-- The last documented public typedefs authored in `.mjs` moved to sibling
-  `types.ts` files — `ParseContext`/`djsResult` to `fjs/djs/transpiler/types.ts`
-  and `Step` to `fjs/protocol/mcp/stdio/types.ts` — so their documentation
-  survives declaration emit
+- **BREAKING CHANGES:** the last documented public typedefs authored in `.mjs`
+  move to sibling `types.ts` files — `ParseContext`/`djsResult` to
+  `fjs/djs/transpiler/types.ts` and `Step` to
+  `fjs/protocol/mcp/stdio/types.ts` — so their documentation survives
+  declaration emit; importers must use the `types.ts` specifier for these types
   [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
 - `fjs/cas`, `fjs/cas/evo` and `fjs/emergent_testing` compose through the raw
   `step` / `mapStep` / `historyStep` combinators instead of the fluent `Eff`
