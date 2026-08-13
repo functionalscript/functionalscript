@@ -4,6 +4,7 @@
  *
  * @module
  */
+
 import type { Ts } from '../../types/rtti/ts/types.ts'
 import type { images } from '../config/module.f.mjs'
 import type { os, architecture, stepSchema, jobSchema, jobsSchema, gitHubActionSchema } from './module.f.mjs'

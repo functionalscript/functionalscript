@@ -809,7 +809,7 @@ blocking, plus the prose sweep. The remaining items are listed under
       migrated, and keep an `Assert<Equal<…, Ts<typeof …>>>` beside the schema
       so the explicit annotation stays verified rather than asserted. The last
       known instance — `fjs/media/json/schema`'s `unknownThunk`, whose
-      `@type {const}` cast collapsed `not` to `/*elided*/ any` and four
+      `@type {const}` cast collapsed `not` to `/*elided*/ any` and five
       sibling fields to bare `any` — was fixed with the `typeof` annotation in
       [#1526](https://github.com/functionalscript/functionalscript/pull/1526);
       emitted declarations measure zero `elided` repo-wide after it. (Its
