@@ -7,11 +7,18 @@
 import type { StringMap } from '../types/object/types.ts'
 
 /**
- * A range of symbols. Two 24-bit numbers are stored in one JS number (48 bits).
+ * A range of symbols. Two 24-bit endpoint codes are stored in one JS number
+ * (48 bits).
  *
  * For example: 0xBBBBBB_EEEEEE
- * - 0xBBBBBB is the first symbol (24 bits)
- * - 0xEEEEEE is the last symbol (24 bits)
+ * - 0xBBBBBB is the first endpoint's stored code (24 bits)
+ * - 0xEEEEEE is the last endpoint's stored code (24 bits)
+ *
+ * A stored code is not the semantic terminal value: the semantic domain is
+ * `[-1] | [0, 2 ** 24 - 2]` — EOF plus every ordinary symbol — and EOF's code
+ * is `0xFFFFFF`, the top of the stored space. `rangeEncode` / `rangeDecode` in
+ * `./module.f.mjs` convert between the two, and everything that compares
+ * terminals compares decoded values.
  *
  * 24 bits per half, not 26 (the most `float64`'s 52-bit safe-integer mantissa
  * could fit two of): 24 is divisible by 4, so each half is exactly 6 hex

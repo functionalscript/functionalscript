@@ -67,8 +67,8 @@ optimization.
 
 ### Related
 
-- [Use `-1` as the BNF EOF symbol](./eof-minus-one.md) — keeps the existing
-  24-bit stored representation while changing EOF's semantic value.
+- [`fjs/bnf/README.md`](../README.md#terminals-and-eof) — the shipped `EOF = -1`
+  semantics over the existing 24-bit stored representation.
 - [256-bit bigint BNF symbols](./bigint-symbols.md) — expands the terminal domain
   and consumes the representation selected here.
 - [`fjs/bnf/module.f.mjs`](../module.f.mjs) — current 24-bit packed range codec.
