@@ -13,7 +13,7 @@ The alphabet-specific BNF split intentionally removes that architecture instead:
 
 - `string` is removed from the generic `DataRule` / `Rule` representation;
 - `fjs/bnf/data/module.f.mjs` no longer interprets strings as Unicode code points;
-- `toSequence` moves to `fjs/bnf/unicode/module.f.ts` as an alphabet-specific
+- `toSequence` moves to `fjs/bnf/unicode/module.f.mjs` as an alphabet-specific
   construction helper;
 - Unicode helpers lower strings to ordinary generic rules before they reach
   `bnf/data`.

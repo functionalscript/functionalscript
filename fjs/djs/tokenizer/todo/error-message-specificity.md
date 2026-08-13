@@ -16,7 +16,7 @@ so the parser still saw whatever valid tokens came later.
 `fjs/djs/tokenizer/module.f.mjs`'s grammar (`descentParser`) has no
 cut/commit mechanism — it either parses the whole input as tokens or fails
 as one unit. This is why `numError`/`unterminated` exist at all (see
-`multilineContent`'s comment in `module.f.ts`): they turn what would be a
+`multilineContent`'s comment in `module.f.mjs`): they turn what would be a
 hard grammar failure into an always-succeeding, specially-tagged match, so
 the descent parser doesn't fall back to matching stray characters as
 unrelated operator tokens.
@@ -50,7 +50,7 @@ Two separable improvements, either could land independently:
    tagging to distinguish *why* a token is invalid — e.g. separate tags for
    "digits expected after `.`" vs. "digits expected after `e`" vs. "disallowed
    trailing char" (the `fracPart`/`expPart`/trailing-check branches in
-   `module.f.ts`'s `number` rule already structurally know which case fired;
+   `module.f.mjs`'s `number` rule already structurally know which case fired;
    right now they're all folded into one `numError` tag). Do the same for
    `string` (currently a hard grammar failure, not a tagged one — would need
    the same always-succeeds-but-tagged treatment `multilineContent` uses) and

@@ -26,7 +26,7 @@ Use these conventions:
 - **Executable proofs** use `export const proof = ...`.
   - Co-located `proof` values are white-box unit proofs and may test private
     implementation details.
-  - Separate `proof.f.ts` modules are black-box/API proofs and should import
+  - Separate `proof.f.mjs` modules are black-box/API proofs and should import
     only the public API.
 - **Examples** use `export const examples = ...` in the module that defines the
   public API.
@@ -36,7 +36,7 @@ simple invariant: every top-level example group describes a real public export,
 and renaming an export forces the matching example name to change too.
 
 ```ts
-import { assertEq } from '../asserts/module.f.ts'
+import { assertEq } from '../asserts/module.f.mjs'
 
 const normalizeRoot = (s: string): string => s === '' ? '.' : s
 

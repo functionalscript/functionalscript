@@ -24,7 +24,7 @@ is therefore unsound for generic consumers: `object[key]` is typed as
 ### Proposal
 
 Define the recursive container once, parameterized over the leaf type, in
-`fjs/media/json/common/module.f.ts`:
+`fjs/media/json/common/module.f.mjs`:
 
 ```ts
 /** A recursive JSON-shaped tree over a leaf/primitive type `P`. */
@@ -43,7 +43,7 @@ a namespace where useful:
 
 ```ts
 // fjs/media/json/types.ts
-import type * as Tree from './common/module.f.ts'
+import type * as Tree from './common/module.f.mjs'
 export type Primitive = boolean | string | number | null
 export type Unknown = Tree.Unknown<Primitive>
 export type Object = Tree.Object<Primitive>
@@ -52,7 +52,7 @@ export type Array = Tree.Array<Primitive>
 
 ```ts
 // fjs/djs/module.f.mjs
-import type * as Tree from '../media/json/common/module.f.ts'
+import type * as Tree from '../media/json/common/module.f.mjs'
 import type { Primitive as JsonPrimitive } from '../media/json/types.ts'
 export type Primitive = JsonPrimitive | bigint | undefined
 export type Unknown = Tree.Unknown<Primitive>
@@ -90,7 +90,7 @@ serialization behavior.
 
 ### Tasks
 
-- [ ] Add `fjs/media/json/common/module.f.ts` with `Unknown<P>`, `Object<P>`, and
+- [ ] Add `fjs/media/json/common/module.f.mjs` with `Unknown<P>`, `Object<P>`, and
       `Array<P>`.
 - [ ] Define `Object<P>` with the optional recursive index signature
       `{ readonly [k in string]?: Unknown<P> }`.

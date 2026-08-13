@@ -89,7 +89,7 @@ accepted as-is, the same as `cp`.
       streams and stages under `.cas/_stage`) — no new `KvStore.move` or
       `./cas/stage/` pipeline (both obsolete; see architecture note above).
 - [ ] Define a shared `casOps` (or similar) module/functions in
-      `fjs/cas/ops/module.f.ts` (or inline in `fjs/cas/module.f.mjs`) that
+      `fjs/cas/ops/module.f.mjs` (or inline in `fjs/cas/module.f.mjs`) that
       expose typed operations independent of transport. The inline
       (`text`/`base64`) `add` and the hash/store/error plumbing are shared; the
       file-path `add` is a CLI-only entry point, not part of the MCP surface.

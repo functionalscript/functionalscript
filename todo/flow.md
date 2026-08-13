@@ -36,7 +36,7 @@ are checked by TypeScript.
 
 ### Module
 
-`fjs/flow/module.f.ts` defines `Flow<E, O>`: a node of the graph, describing
+`fjs/flow/module.f.mjs` defines `Flow<E, O>`: a node of the graph, describing
 a sequence of `O` computed from an environment of type `E`. A `Flow` is
 *cold* — an immutable description, not a running computation (cf. Kotlin's
 `Flow`, which is also a cold, later-bound stream description). The
@@ -222,10 +222,10 @@ Planned engine work, each a separate change:
 
 ## Tasks
 
-- [ ] `fjs/flow/module.f.ts` — `Flow<E, O>`, `Transducer`/`Step`/`Terminal`,
+- [ ] `fjs/flow/module.f.mjs` — `Flow<E, O>`, `Transducer`/`Step`/`Terminal`,
   primitives `input` and `transduce`, derived operations, naive `run`
   engine over `types/list`
-- [ ] `fjs/flow/proof.f.ts` — full proof coverage, including early
+- [ ] `fjs/flow/proof.f.mjs` — full proof coverage, including early
   termination, pre-pull termination (`take(0)` pulls nothing), `end`
   flush, and a fallible stage using `A = Result`
 - [ ] memoizing engine (shared node evaluated once per run)

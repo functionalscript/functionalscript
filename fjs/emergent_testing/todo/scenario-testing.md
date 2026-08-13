@@ -36,11 +36,11 @@ The mock interpreter must be faithful to the real one. If they drift (e.g. file 
 
 ### Migration path
 
-Existing proof tests that use the virtual filesystem interpreter are already implicit scenarios — they have a state (`emptyState + root: dir`), an effect (`testAll(reporter)(options(...))`), and an expected result (exit code + events). Once the formal `Scenario` type is defined, these tests can be lifted into it directly, replacing the ad-hoc `run()` / `runMain()` helpers in `proof.f.ts` with typed scenario declarations.
+Existing proof tests that use the virtual filesystem interpreter are already implicit scenarios — they have a state (`emptyState + root: dir`), an effect (`testAll(reporter)(options(...))`), and an expected result (exit code + events). Once the formal `Scenario` type is defined, these tests can be lifted into it directly, replacing the ad-hoc `run()` / `runMain()` helpers in `proof.f.mjs` with typed scenario declarations.
 
 ### Plan
 
-- [ ] Define the `Scenario` type and `InitialState` effect in `fjs/testing/scenario/module.f.ts`.
+- [ ] Define the `Scenario` type and `InitialState` effect in `fjs/testing/scenario/module.f.mjs`.
 - [ ] Implement a mock interpreter for the scenario effect system.
 - [ ] Integrate scenarios with the existing unit test runner (`node --test`).
 - [ ] Define how CI integration jobs consume scenario modules (see [669-ci-integration-tests.md](669-ci-integration-tests.md)).

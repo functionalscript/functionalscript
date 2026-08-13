@@ -265,6 +265,6 @@ remaining characters of the cBase32 hash. The `uri` field returned by
 ### Testing without a live process
 
 Because the adapter is generic in `O`, the same handlers run over an
-in-memory `Cas<MemOp>` in `proof.f.ts`, driven through a full
+in-memory `Cas<MemOp>` in `proof.f.mjs`, driven through a full
 `initialize` → `notifications/initialized` → `tools/call` sequence with no live
 process.

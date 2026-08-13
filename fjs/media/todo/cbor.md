@@ -27,8 +27,8 @@ sibling of `media/json/` — same bucket, same reasons, different encoding.
 ### Proposal
 
 Create `fjs/media/cbor/` following the `fjs/media/json/` layout: a root
-`module.f.ts` re-exporting the pieces, `serializer/` (value → bytes) and
-`parser/` (bytes → value) submodules with their `proof.f.ts` tests, and a
+`module.f.mjs` re-exporting the pieces, `serializer/` (value → bytes) and
+`parser/` (bytes → value) submodules with their `proof.f.mjs` tests, and a
 README specifying the data-model mapping. Pure functions only, no store access,
 no effects; errors as result values, not exceptions — matching the sibling
 modules. (No `tokenizer/`: CBOR items are self-delimiting binary, so the
@@ -96,17 +96,17 @@ identity function, so encoding options would silently fork identities.
 
 - [ ] Create `fjs/media/cbor/README.md` — the data-model mapping table, the
       canonical-form rules (§4.2 deterministic encoding), and the strictness rules
-- [ ] `fjs/media/cbor/serializer/module.f.ts` — canonical encoder over the
+- [ ] `fjs/media/cbor/serializer/module.f.mjs` — canonical encoder over the
       data-model subset, `bigint` included; proof cases against the RFC 8949
       Appendix A test vectors that fall inside the model
-- [ ] `fjs/media/cbor/parser/module.f.ts` — strict decoder (well-formedness,
+- [ ] `fjs/media/cbor/parser/module.f.mjs` — strict decoder (well-formedness,
       single item, no duplicate keys, UTF-8-valid text, depth cap), result-typed
       errors; proof cases including truncated items, trailing bytes, duplicate
       keys, indefinite lengths (rejected), a tag-55799-wrapped item (accepted,
       unwrapped, reported non-canonical), and round trips through the serializer
 - [ ] `isCanonical` predicate (or a decode flag reporting canonicity) for
       consumers that require byte-identity
-- [ ] Root `fjs/media/cbor/module.f.ts` re-exporting serializer/parser and the
+- [ ] Root `fjs/media/cbor/module.f.mjs` re-exporting serializer/parser and the
       `application/cbor` constant; reference the module from `fjs/media` docs
 - [ ] Unblock [detect-cbor](detect-cbor.md) tier 2: the strict parser's full
       decode of a size-bounded (128 KiB) blob is the detection primitive — tier 2

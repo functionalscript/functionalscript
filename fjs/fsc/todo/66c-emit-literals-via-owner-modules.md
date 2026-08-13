@@ -128,7 +128,7 @@ but isn't exposed in a reusable (bare-string) form.
 
 ### Tasks
 
-- [ ] `fjs/types/ts`: import `serialize` from `../bigint/module.f.ts`; replace
+- [ ] `fjs/types/ts`: import `serialize` from `../bigint/module.f.mjs`; replace
       `case 'bigint': return \`${c}n\`` with `bigintSerialize(c)`.
 - [ ] `fjs/media/json/serializer`: export `stringLiteral`; redefine `stringSerialize`
       in terms of it (no behavior change).

@@ -19,7 +19,7 @@ install({ run: `npm install -g @typescript/native-preview@${tsgo}` })
 The shape `install({ run: `npm install -g ${pkg}@${version}` })` is duplicated; only the
 package name and version differ.
 
-The former `fjs/ci/playwright/module.f.ts` call site is intentionally not a consumer of
+The former `fjs/ci/playwright/module.f.mjs` call site is intentionally not a consumer of
 this proposal. That job and its global install have already been deleted, and this task
 must not resurrect that obsolete path.
 

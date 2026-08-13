@@ -4,7 +4,7 @@ This repository is a monorepo with two code bases:
 
 | Directory    | Language                                | Notes                                       |
 | ------------ | --------------------------------------- | ------------------------------------------- |
-| `fjs/`       | FunctionalScript (`.f.ts`) / TypeScript | The language, its standard modules, and the `fjs` CLI |
+| `fjs/`       | FunctionalScript (`.f.mjs`) / TypeScript (`types.ts`) | The language, its standard modules, and the `fjs` CLI |
 | `nanvm-lib/` | Rust                                    | NaNVM, the native FunctionalScript VM       |
 
 Issues live in `todo/` directories, **not** on GitHub. Check them for existing
@@ -118,8 +118,8 @@ cargo fmt -- --check     # verify formatting
 
 1. Find or file the issue in `todo/` ([§7](#7-issues-todo)). For anything
    non-trivial, make sure it contains a concrete design first.
-2. Write the code, plus a co-located proof for every new `.f.ts` or `.f.mjs`
-   module ([§3](#3-testing-and-proof-coverage)).
+2. Write the code, plus a co-located proof for every new `.f.mjs` module
+   ([§3](#3-testing-and-proof-coverage)).
 3. Run `npm run update` after changing source code.
 4. Run the full check set before submitting:
    ```bash
@@ -142,44 +142,36 @@ cargo fmt -- --check     # verify formatting
 
 - `npx tsc` — type-check using the repository's version of TypeScript.
 - `fjs test` (or any equivalent from [§1.4](#14-ways-to-run-the-functionalscript-test-suite))
-  — test FunctionalScript (`.f.ts` / `.f.mjs`) files.
+  — test FunctionalScript (`.f.mjs`) files.
 - `cargo test`, `cargo clippy`, `cargo fmt -- --check` — the Rust crate.
 
 ### 3.2 Proof coverage is mandatory
 
 New FunctionalScript modules and functions must have **100% proof coverage**
 across every dimension: every exported function called, every line executed, and
-every branch (both sides of each conditional) taken. This applies to both
-authored FunctionalScript extensions, `.f.ts` and `.f.mjs`
-([`fjs/fsc/README.md`](./fjs/fsc/README.md) defines them). A new implementation
-module ships with a co-located proof (its `proof` export) that exercises all of
-its exports along all code paths — partial coverage of new code is not
-acceptable. If a line or branch genuinely cannot be reached, restructure the code
-so it isn't there rather than leaving it uncovered.
+every branch (both sides of each conditional) taken. This applies to authored
+FunctionalScript source, `.f.mjs`
+([`fjs/fsc/README.md`](./fjs/fsc/README.md) defines the extensions). A new
+implementation module ships with a co-located proof (its `proof` export) that
+exercises all of its exports along all code paths — partial coverage of new code
+is not acceptable. If a line or branch genuinely cannot be reached, restructure
+the code so it isn't there rather than leaving it uncovered.
 
-The implementation and proof extensions are independent during the incremental
-TypeScript-to-JavaScript migration:
+An implementation is `module.f.mjs` and its proof is `proof.f.mjs`. Stage 1 of
+the TypeScript-to-JavaScript migration is complete: no authored implementation or
+proof `.f.ts` remains, so write both files as JavaScript with JSDoc. Authored
+`types.ts` companions may remain permanently and hold the type-level API.
 
-| Implementation | Proof | When |
-|---|---|---|
-| `module.f.ts` | `proof.f.ts` | Both files are still authored TypeScript implementations/proofs. |
-| `module.f.mjs` | `proof.f.ts` | The implementation has migrated, while the proof temporarily remains TypeScript. |
-| `module.f.mjs` | `proof.f.mjs` | The proof is valid JavaScript/JSDoc and all authored runtime dependencies outside the migration group are already `.f.mjs`. Type-only APIs may remain in authored `types.ts` companions. Compiler readiness is not required. |
-
-Renaming an implementation to `.f.mjs` therefore never requires renaming its
-proof in the same change, and never removes it from proof discovery or from Node
-and Deno coverage: `shouldLoad` in [`fjs/dev/module.f.mjs`](./fjs/dev/module.f.mjs)
-matches both authored extensions, and both `npm run cov` and `deno task cov`
-include `module.f.ts` and `module.f.mjs`. Ordinary (non-FunctionalScript) `.mjs`
-files stay opt-in through the `proof.mjs` filename convention. Stage 1 ends with
-no authored implementation/proof `.f.ts`, so every remaining `proof.f.ts` must
-eventually migrate to `proof.f.mjs`; authored `types.ts` files may remain
-permanently.
+Proof discovery and coverage follow the same extension: `shouldLoad` in
+[`fjs/dev/module.f.mjs`](./fjs/dev/module.f.mjs) matches authored
+FunctionalScript source, and both `npm run cov` and `deno task cov` include
+`module.f.mjs`. Ordinary (non-FunctionalScript) `.mjs` files stay opt-in through
+the `proof.mjs` filename convention.
 
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
-imports must target migrated `.f.mjs` modules. Type-only APIs may live in an
-authored `types.ts` companion and are referenced directly through that real
-source path. Its leading module JSDoc block may include, for example:
+imports must target `.f.mjs` modules. Type-only APIs may live in an authored
+`types.ts` companion and are referenced directly through that real source path.
+Its leading module JSDoc block may include, for example:
 
 ```js
 /**
@@ -191,21 +183,20 @@ source path. Its leading module JSDoc block may include, for example:
  */
 ```
 
-The same path is used by TypeScript `import type`; JSDoc `@import` introduces no
-runtime dependency. If a type needed by migrated JavaScript still lives only
-inside a remaining implementation `.f.ts`, split the type into `types.ts` before
-migrating the consumer instead of retaining a type-only edge to the implementation
-module. Never add a runtime value for a TypeScript-only declaration such as
-`declare const`. Compiler support remains independent of this JavaScript/JSDoc
-migration rule. See [`fjs/fsc/README.md`](./fjs/fsc/README.md) for the migration
-order and module policy.
+JSDoc `@import` introduces no runtime dependency; a `types.ts` file naming the
+same path from TypeScript uses `import type` instead. A type that several modules
+need independently of one implementation belongs in `types.ts`, not in a JSDoc
+typedef that consumers would have to reach into the implementation for. Never add
+a runtime value for a TypeScript-only declaration such as `declare const`.
+Compiler support remains independent of this JavaScript/JSDoc rule. See
+[`fjs/fsc/README.md`](./fjs/fsc/README.md) for the extension contract and module
+policy.
 
 ### 3.3 Use `assert` / `assertEq`, never a hand-written `if`/`throw`
 
-Assert results in `proof` code with `assert`/`assertEq` from the current authored
-`fjs/asserts/module.f.*` source, not a hand-written `if (cond) { throw ... }`.
-That helper has already migrated, so the current source is
-`fjs/asserts/module.f.mjs` and a `proof.f.mjs` may import it directly.
+Assert results in `proof` code with `assert`/`assertEq` from
+[`fjs/asserts/module.f.mjs`](./fjs/asserts/module.f.mjs), not a hand-written
+`if (cond) { throw ... }`.
 
 A local `if`/`throw` in a test is itself a new branch for the coverage tool to
 track, and its failure side is normally never exercised (the test is expected to
@@ -232,12 +223,12 @@ never counted as a test either.
 
 ### 3.5 Never use `try`/`catch`; test throwing with the `throw` key
 
-Never use `try`/`catch` in `.f.ts` files — FunctionalScript itself has no
+Never use `try`/`catch` in `.f.mjs` files — FunctionalScript itself has no
 `try`/`catch` and isn't planning to add it soon. To test that a call throws,
 nest the test function under a `throw` property key instead of wrapping it in
 `try`/`catch` (see `fjs/asserts/proof.f.mjs`).
 
-The test runner (`fjs/emergent_testing/module.f.ts`) treats `throw` as a
+The test runner (`fjs/emergent_testing/module.f.mjs`) treats `throw` as a
 structural marker: any function reachable under a `throw` key gets
 `throws: true`, and the runner inverts the sandboxed result so a thrown error
 counts as a pass — with no manual `caught`/`threw` flag or `assert` needed.
@@ -257,48 +248,21 @@ normally the part of the contract that matters.
 
 ## 4. Documentation
 
-Use JSDoc for module documentation in both TypeScript and JavaScript source.
-The `@module` tag belongs only to a package's entry-point file — `module.f.ts` /
-`module.f.mjs` / `module.ts` / `module.mjs` — not to `proof.f.ts` / `proof.f.mjs`,
-`types.ts`, or any other file. A `module.*` file starts with one module JSDoc
-block carrying `@module`, followed by one blank line before the first
-source-level import or declaration. A `proof.*` or other non-`module.*` file has
-no `@module` tag and no required leading documentation block; one is still
-needed if the file has `@import` tags to hold, per below.
+Use JSDoc for module documentation in both JavaScript and TypeScript source.
+The `@module` tag belongs only to a package's entry-point file — `module.f.mjs` /
+`module.mjs` — not to `proof.f.mjs`, `types.ts`, or any other file. A `module.*`
+file starts with one module JSDoc block carrying `@module`, followed by one blank
+line before the first source-level import or declaration. A `proof.*` or other
+non-`module.*` file has no `@module` tag and no required leading documentation
+block; one is still needed if the file has `@import` tags to hold, per below.
 
-For TypeScript, put type-only imports first, external or built-in runtime imports
-second, then repository-owned relative runtime imports: already-migrated
-JavaScript before remaining TypeScript. Separate the import groups with one blank
-line:
-
-```ts
-/**
- * <...Module documentation...>
- *
- * @module
- */
-
-import type ...
-import type ...
-
-import ... from 'node:...'
-import ... from 'package'
-
-import ... from '...mjs'
-import ... from '...mjs'
-
-import ... from '...ts'
-import ... from '...ts'
-```
-
-For JavaScript, group all module-level `@import` tags into one leading JSDoc
-comment block — the same block as `@module` in a `module.*` file, or a
-standalone block at the top of the file otherwise — then put one blank line
-before runtime imports. Do not scatter `@import` tags as separate comments
-between or after individual `import` statements. External or built-in runtime
-imports come first, followed by repository-owned relative `.mjs` runtime
-imports, matching the TypeScript order of type imports, then `.mjs` imports,
-then remaining `.ts` imports:
+Group all module-level `@import` tags into one leading JSDoc comment block — the
+same block as `@module` in a `module.*` file, or a standalone block at the top of
+the file otherwise — then put one blank line before runtime imports. Do not
+scatter `@import` tags as separate comments between or after individual `import`
+statements. External or built-in runtime imports come first, followed by
+repository-owned relative `.mjs` runtime imports, with one blank line between the
+groups:
 
 ```js
 /**
@@ -333,15 +297,22 @@ import ... from '...mjs'
 import ... from '...mjs'
 ```
 
-The `.mjs` / `.ts` grouping and the Stage 1 migration restriction apply to
-repository-owned relative runtime imports, not to external or built-in modules.
-During Stage 1, a migrated JavaScript module has no remaining relative runtime
-`.ts` / `.f.ts` import group: migrated JavaScript may depend at runtime on
-external modules and migrated repository JavaScript, but not on remaining
-authored TypeScript implementations. In a `module.*` file, the blank line after
-the leading JSDoc block is required even when the module has no `@import` tags;
-it keeps the `@module` header detached from the first import/declaration and
-preserves it through declaration emit.
+Authored TypeScript is limited to `types.ts`, whose imports are all type-only, so
+it needs no grouping: `import type` names the same real source paths, whether the
+type comes from another `types.ts` or from a `.f.mjs` module.
+
+```ts
+import type ... from '../other/types.ts'
+import type ... from './module.f.mjs'
+```
+
+The runtime-import grouping applies to repository-owned relative imports, not to
+external or built-in modules: a FunctionalScript module may depend at runtime on
+external modules and on repository `.mjs`, and there is no relative runtime `.ts`
+import group at all. In a `module.*` file, the blank line after the leading JSDoc
+block is required even when the module has no `@import` tags; it keeps the
+`@module` header detached from the first import/declaration and preserves it
+through declaration emit.
 
 Where each kind of documentation belongs:
 
@@ -559,11 +530,11 @@ cases remain explicit and independently testable.
 #### JavaScript/JSDoc type declarations
 
 Authored `.mjs` / `.f.mjs` files must remain valid JavaScript. Put named and
-generic static types in JSDoc rather than TypeScript syntax, and preserve the
-same public assignability and declaration-emission behavior when translating a
-`.ts` / `.f.ts` implementation file. A separately useful type-level API may live
-in an authored sibling `types.ts`; that file remains TypeScript type source and
-is outside the runtime implementation migration.
+generic static types in JSDoc rather than TypeScript syntax, and keep public
+assignability and declaration-emission behavior intact when a type's spelling
+changes. A separately useful type-level API may live in an authored sibling
+`types.ts`; that file remains TypeScript type source and holds no runtime
+implementation.
 
 Name implementation-only JSDoc typedefs with a leading `_`
 (`/** @typedef {number} _Type */`). Declaration emit cannot strip them yet, so
@@ -622,7 +593,8 @@ separate `@import` comment. For example:
  */
 ```
 
-The TypeScript implementation uses the same path:
+Another `types.ts` referring to the same file uses `import type` with that same
+path:
 
 ```ts
 import type { Types } from './types.ts'
@@ -631,22 +603,21 @@ import type { Types } from './types.ts'
 Both forms are type-only and introduce no runtime import. The `types.ts` file
 itself exists and is checked as ordinary TypeScript source, so this convention
 does not rely on `.d.ts` substitution and works with Deno's source resolver.
-Declaration-only `module.f.ts` files should normally become `types.ts` instead of
-acquiring an artificial JavaScript runtime representation. See [§4](#4-documentation)
+A declaration-only module belongs in `types.ts` rather than acquiring an
+artificial JavaScript runtime representation. See [§4](#4-documentation)
 for the complete module-header and import-order convention.
 
-Do not make migrated JavaScript point back to a remaining implementation `.ts` /
-`.f.ts` merely for a type. If that type should survive independently, split it
-into `types.ts` first; if it is naturally implementation-local and expressible in
-JSDoc, migrate it with the implementation. Never invent a runtime import,
-export, `Symbol()`, or other value solely to represent a TypeScript-only
-declaration such as `declare const`.
+Decide where a type lives by who needs it: one that must survive independently of
+a single implementation goes in `types.ts`, while one that is naturally
+implementation-local and expressible in JSDoc stays beside the code it describes.
+Never invent a runtime import, export, `Symbol()`, or other value solely to
+represent a TypeScript-only declaration such as `declare const`.
 
-When translating a public type that remains in JSDoc, verify both normal type
-checking and emitted `.d.ts` / `.d.mts` declarations. The JSDoc spelling may
-differ, but the public type contract must not become weaker just because the
-source moved to JavaScript. Types intentionally authored in `types.ts` use
-ordinary TypeScript syntax and declaration emit.
+When a public type is written in JSDoc, verify both normal type checking and the
+emitted `.d.ts` / `.d.mts` declarations. The JSDoc spelling may differ from the
+TypeScript one, but the public type contract must not become weaker for being
+written in JavaScript. Types authored in `types.ts` use ordinary TypeScript
+syntax and declaration emit.
 
 #### Prefer inference
 
@@ -707,10 +678,9 @@ mapSet(/** @type {ReadonlyMap<string, number>} */ (new Map()), 'a', 1)
 — because the declaration form documents the variable's intended type and lets
 the compiler check the initializer against it (closer to `satisfies`), while the
 inline form silently overrides whatever the compiler inferred, exactly like `as`.
-An exception applies when the original TypeScript source used `as`: a mechanical
-`.f.ts` → `.f.mjs` migration may carry the assertion over as an inline
-`@type`-cast rather than block on a redesign, but should still prefer the
-declaration form when it is a straightforward rewrite.
+Inline `@type` casts carried over from `as` assertions during the
+TypeScript-to-JavaScript migration still exist in the tree; converting one to the
+declaration form is a welcome cleanup wherever the rewrite is straightforward.
 
 `@type {const}` (the JSDoc equivalent of `as const`, see "Pin literal
 `const`s" above) is the one case where this preference inverts: it **must**
@@ -1116,28 +1086,22 @@ anywhere else as the rule being broken.
 
 ### 6.5 FunctionalScript module rules
 
-During Stage 1 of the TypeScript-to-JavaScript implementation migration,
-relative authored FunctionalScript **runtime** dependencies follow the asymmetric
-source rule:
+Authored FunctionalScript source is JavaScript with JSDoc. Relative
+repository-owned dependencies follow these source rules:
 
-- `.f.ts` is remaining authored TypeScript implementation/proof source and may
-  import `.f.ts` or already migrated `.f.mjs` at runtime;
-- `.f.mjs` runtime imports may target only migrated `.f.mjs` authored
-  FunctionalScript dependencies;
-- `types.ts` is authored type-only TypeScript source and does not participate in
-  the runtime implementation migration;
-- `.f.ts`, `.f.mjs`, and later `.f.js` may consume `types.ts` through `import type`
-  or JSDoc `@import`, always naming the real `types.ts` file;
-- migrated JavaScript must not retain a type-only reference to remaining
-  implementation `.ts` / `.f.ts`; split independently needed declarations into
-  `types.ts` first;
-- declaration-only `.f.ts` should normally become `types.ts` rather than
-  acquiring an artificial runtime representation;
+- `.f.mjs` is authored FunctionalScript implementation/proof source, and its
+  relative runtime imports target `.f.mjs`;
+- `types.ts` is authored type-only TypeScript source and carries no runtime
+  implementation;
+- `.f.mjs` — and later `.f.js` — consumes `types.ts` through JSDoc `@import`,
+  and TypeScript consumes it through `import type`, both always naming the real
+  `types.ts` file;
+- a declaration-only module belongs in `types.ts` rather than acquiring an
+  artificial runtime representation;
 - never add a runtime import/export or runtime value solely to represent a
   TypeScript-only type declaration;
-- compiler support does not gate an `.f.ts` / `proof.f.ts` -> `.f.mjs` /
-  `proof.f.mjs` rename; JavaScript/JSDoc validity and runtime dependency closure
-  do.
+- compiler support does not gate the later `.f.mjs` -> `.f.js` rename;
+  FunctionalScript parser coverage and package support do.
 
 Avoid references to built-in or external Node modules such as `node:path` in
 FunctionalScript source. No `try`/`catch` — see

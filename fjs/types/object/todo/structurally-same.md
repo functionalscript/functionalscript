@@ -49,7 +49,7 @@ the object module to reuse `structurallySame` without creating the runtime cycle
 Define the recursive comparison in a cycle-free leaf module:
 
 ```ts
-// fjs/types/object/structurally_same/module.f.ts
+// fjs/types/object/structurally_same/module.f.mjs
 export const structurallySame = (a: unknown, b: unknown): boolean => ...
 ```
 
@@ -155,8 +155,8 @@ These cases can be added later when a concrete consumer requires them.
 ## Tasks
 
 - [ ] Add the dependency-free implementation to
-      `fjs/types/object/structurally_same/module.f.ts`.
-- [ ] Add the co-located `fjs/types/object/structurally_same/proof.f.ts` module,
+      `fjs/types/object/structurally_same/module.f.mjs`.
+- [ ] Add the co-located `fjs/types/object/structurally_same/proof.f.mjs` module,
       export `proof`, and exercise every branch of `structurallySame` there.
 - [ ] Re-export `structurallySame` from `fjs/types/object/module.f.mjs`.
 - [ ] Add `assertStructurallySame` to `fjs/asserts/module.f.mjs`, importing

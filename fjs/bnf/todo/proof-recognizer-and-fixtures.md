@@ -7,17 +7,17 @@
 ### Problem
 
 `fjs/bnf` already has the right home for shared proof material —
-`fjs/bnf/testlib.f.ts`, which owns the two JSON grammars (`classic`,
+`fjs/bnf/testlib.f.mjs`, which owns the two JSON grammars (`classic`,
 `deterministic`) that four proof files import. Three smaller pieces of the same
 kind never made it there and are copy-pasted instead, across
-`fjs/bnf/descent/proof.f.ts`, `fjs/bnf/ll1/proof.f.ts`, and
+`fjs/bnf/descent/proof.f.mjs`, `fjs/bnf/ll1/proof.f.mjs`, and
 `fjs/djs/tokenizer/proof.f.mjs`.
 
 This design predates the alphabet split. Its shared `number` fixture currently
 constructs Unicode terminals with core `range('--')` / `range('09')`, and its
-import analysis assumes `fjs/bnf/testlib.f.ts` obtains text helpers from
-`./module.f.ts`. After the split, text/range construction belongs to
-`fjs/bnf/unicode/module.f.ts`. Do not implement the fixture extraction against
+import analysis assumes `fjs/bnf/testlib.f.mjs` obtains text helpers from
+`./module.f.mjs`. After the split, text/range construction belongs to
+`fjs/bnf/unicode/module.f.mjs`. Do not implement the fixture extraction against
 the old core API: rebase the fixture imports on `bnf/unicode` first while keeping
 the recognizer backends themselves generic.
 
@@ -28,7 +28,7 @@ and consume all of the input?* It is spelled out inline eight times, in two
 backend-specific shapes:
 
 ```ts
-// descent shape — fjs/bnf/descent/proof.f.ts:202, :228, :244
+// descent shape — fjs/bnf/descent/proof.f.mjs:202, :228, :244
 const expect = (s: string, expected: boolean) => {
     const cp = toArray(stringToCodePointList(s))
     const mr = descentParserCpOnly(m, '', cp)
@@ -36,7 +36,7 @@ const expect = (s: string, expected: boolean) => {
     assertEq(success, expected, mr)
 }
 
-// ll1 shape — fjs/bnf/ll1/proof.f.ts:198, :223, :238, :322
+// ll1 shape — fjs/bnf/ll1/proof.f.mjs:198, :223, :238, :322
 const expect = (s: string, success: boolean) => {
     const mr = m('', toArray(stringToCodePointList(s)))
     assertEq(mr[1] && mr[2]?.length === 0, success, mr)
@@ -74,7 +74,7 @@ const numberRule = [optionalMinusRule, digitRule]
 ```
 
 The fixture remains a Unicode/text fixture, so after the alphabet split the
-`range` used here must come from `fjs/bnf/unicode/module.f.ts` (or the equivalent
+`range` used here must come from `fjs/bnf/unicode/module.f.mjs` (or the equivalent
 final Unicode adapter API), **not** from core `fjs/bnf/module.f.mjs`. The produced
 rules are still ordinary generic BNF rules consumed by descent/LL1.
 
@@ -84,7 +84,7 @@ silently folded into the shared fixture.
 
 #### 3. The JSON acceptance corpus — 20 cases, 3 copies
 
-`fjs/bnf/descent/proof.f.ts` and `fjs/bnf/ll1/proof.f.ts` list the same 20 inputs
+`fjs/bnf/descent/proof.f.mjs` and `fjs/bnf/ll1/proof.f.mjs` list the same 20 inputs
 with the same verdicts; `fjs/djs/tokenizer/proof.f.mjs` repeats them plus DJS-token
 specific cases. Six JSON-rejecting rows are intentionally accepted by the JS
 /DJS token stream because tokenization leaves document structure to the parser.
@@ -92,7 +92,7 @@ That divergence should be an explicit override table rather than a copied corpus
 
 ### Proposal
 
-Move the shared harness and fixtures into `fjs/bnf/testlib.f.ts`, next to
+Move the shared harness and fixtures into `fjs/bnf/testlib.f.mjs`, next to
 `classic()` and `deterministic()`, after rebasing text construction on the Unicode
 adapter.
 
@@ -147,10 +147,10 @@ explicit named override list for the rows where token-stream acceptance differs.
 ### Tasks
 
 - [ ] Wait for [the alphabet split](./unicode-rules.md), then rebase
-      `fjs/bnf/testlib.f.ts` text/range imports on `fjs/bnf/unicode/module.f.ts`;
-      do not import Unicode `range` from core `./module.f.ts`.
+      `fjs/bnf/testlib.f.mjs` text/range imports on `fjs/bnf/unicode/module.f.mjs`;
+      do not import Unicode `range` from core `./module.f.mjs`.
 - [ ] Add `Case`, `Recognition`, `assertRecognizes`, and the two recognizer
-      adapters to `fjs/bnf/testlib.f.ts` (or per-backend testlibs if the import
+      adapters to `fjs/bnf/testlib.f.mjs` (or per-backend testlibs if the import
       direction argues for it); confirm no import cycle.
 - [ ] Carry each backend's `MatchResult` through as `Recognition.diagnostic` and
       report `[input, diagnostic]` from `assertRecognizes`.

@@ -121,7 +121,7 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
   `fjs/cas/evo/module.f.mjs:282` (`acc: Result<readonly Revision[], string>`);
   without it TypeScript fixes `S` to `Ok<…>` from `init` and the `'error'`
   branch goes dead. The retype should not change this, but re-check.
-- **Proof coverage.** `fjs/effects/list/` has no `proof.f.ts` at all today.
+- **Proof coverage.** `fjs/effects/list/` has no `proof.f.mjs` at all today.
   AGENTS.md requires 100% proof coverage across every dimension, so the move
   needs one created — covering `empty` and `nonEmpty` as well as the moved
   combinators and `fromList`.
@@ -141,7 +141,7 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
 - [ ] Remove the now-unused `fjs/types/list` import from
       `fjs/effects/module.f.mjs`.
 - [ ] Migrate the six call sites; the four strict ones go through `fromList`.
-- [ ] Create `fjs/effects/list/proof.f.ts` with full coverage.
+- [ ] Create `fjs/effects/list/proof.f.mjs` with full coverage.
 - [ ] Re-scope or close [fold-stream-combinator](./fold-stream-combinator.md).
 - [ ] Run `npx tsc` and `fjs t`.
 

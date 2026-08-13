@@ -4,7 +4,7 @@ Bun has a `bigint` size limitation. It's `1_048_575` bits (`1024 ** 2`) or `131_
 
 ## Size Constraints
 
-The `module.f.ts` exports two constants documenting this limit:
+The `module.f.mjs` exports two constants documenting this limit:
 - `maxBits` = `1,048,575n` — the maximum number of bits in a bigint value
 - `maxBytes` = `131,072n` — the maximum file size in bytes (equivalent to maxBits ÷ 8)
 

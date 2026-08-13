@@ -55,14 +55,14 @@ grammar size, not input size — it does not need to change.
 - [ ] Replace per-step rest-spread with an index into the input array;
       materialize the `Remainder` slice only at the boundary.
 - [ ] Add a `longInput` proof group mirroring
-      `fjs/bnf/descent/proof.f.ts` — long `repeat0Plus` repetition (10,000+
+      `fjs/bnf/descent/proof.f.mjs` — long `repeat0Plus` repetition (10,000+
       code points) and deep bracket nesting via `deterministic()`.
 - [ ] `npx tsc`, `node ./fjs/module.mjs t`.
 
 ### Related
 
 - `fjs/bnf/descent/module.f.mjs` — the ported fix to mirror (explicit frame
-  stack; see the `longInput` proof group in its `proof.f.ts`), landed in PR
+  stack; see the `longInput` proof group in its `proof.f.mjs`), landed in PR
   [#1303](https://github.com/functionalscript/functionalscript/pull/1303),
   whose CHANGELOG entry records the history of the same bug in the descent
   backend and why the fix belongs in the matcher, not the grammar.

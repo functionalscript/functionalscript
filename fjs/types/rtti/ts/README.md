@@ -1,6 +1,6 @@
 # `rtti/ts` — TypeScript type inference for RTTI schemas
 
-`Ts<T>` (`module.f.ts`) maps an RTTI schema `Type` to its TypeScript type at
+`Ts<T>` (`module.f.mjs`) maps an RTTI schema `Type` to its TypeScript type at
 compile time. It works by walking the schema's structural shape with a chain of
 conditional types and `infer`.
 
@@ -100,7 +100,7 @@ schema structure. Option 2 was reverted.
 
 ## Remaining open problems
 
-Three `as any` casts in `validate/module.f.ts` and `parse/module.f.ts` cannot
+Three `as any` casts in `validate/module.f.mjs` and `parse/module.f.mjs` cannot
 be removed without language features TypeScript does not yet have:
 
 **Problem A — visitor rank-2 erasure.** `Visitor<R>` requires a uniform `R`

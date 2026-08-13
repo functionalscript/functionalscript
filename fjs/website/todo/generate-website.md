@@ -8,5 +8,5 @@
 - [ ] Convert `README.md` files into HTML and publish them
 - [ ] Source code highlighting
 - [ ] One `main.css`
-- [ ] Convention for `page.f.ts` — generates a demo webpage for the module in the same directory
+- [ ] Convention for `page.f.mjs` — generates a demo webpage for the module in the same directory
 - [ ] Browser test runner (requires switching test framework to Effects first)

@@ -128,5 +128,5 @@ finishing a walk over an already-doomed list.
   in-repo binary-counter accumulator this generalises.
 - `fjs/types/number/module.f.mjs` — `sum`, the reduction whose accuracy improves
   and whose output changes.
-- `fjs/types/bigint/module.f.mjs`, `fjs/types/string/module.f.ts` — `product` /
+- `fjs/types/bigint/module.f.mjs`, `fjs/types/string/module.f.mjs` — `product` /
   `sum` / `concat`, the reductions that gain the O(n log n) speedup.

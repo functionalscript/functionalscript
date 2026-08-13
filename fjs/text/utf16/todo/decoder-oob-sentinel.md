@@ -17,7 +17,7 @@ export const utf8ByteToCodePointOp = (byte, state) => {
         return [[errorMask], state]
     }
 
-// fjs/text/utf16/module.f.ts:189-193 — bare magic literal
+// fjs/text/utf16/module.f.mjs:189-193 — bare magic literal
 const utf16ByteToCodePointOp: StateScan<U16, Utf16State, List<CodePoint>>
     = (word, state) => {
         if (!u16(word)) {

@@ -5,7 +5,7 @@
 
 ### Problem
 
-`utf16ByteToCodePointOp` (`fjs/text/utf16/module.f.ts:188-207`) contains the
+`utf16ByteToCodePointOp` (`fjs/text/utf16/module.f.mjs:188-207`) contains the
 same three-way word classifier twice — once for the fresh-state dispatch and
 once for error recovery after an unpaired high surrogate:
 

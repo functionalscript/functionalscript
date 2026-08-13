@@ -88,5 +88,5 @@ Each tool's argument schema is an rtti struct declared once and used twice:
 ## Testing without a live process
 
 `evoToolRegistry` is generic in the store's operation type `O` and takes a
-plain `Evo<O>`, so `proof.f.ts` exercises each tool entry's `handle` directly
+plain `Evo<O>`, so `proof.f.mjs` exercises each tool entry's `handle` directly
 against an in-memory `Evo` — no MCP session or live process required.

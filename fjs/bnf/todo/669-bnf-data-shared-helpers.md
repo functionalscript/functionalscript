@@ -64,7 +64,7 @@ This is a local, single-module refactor with no cross-module coordination.
 ### Tasks
 
 - [ ] Hoist the shared `mr` constructor to module scope; update both `f` bodies.
-- [ ] Run `npx tsc`, `fjs t`, and confirm `fjs/bnf/data/proof.f.ts` still passes
+- [ ] Run `npx tsc`, `fjs t`, and confirm `fjs/bnf/data/proof.f.mjs` still passes
       with full coverage.
 
 ### Related

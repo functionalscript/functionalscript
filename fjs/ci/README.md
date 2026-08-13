@@ -11,9 +11,9 @@ canonical Node job under `nix/generated/`.
   (`Setup` in `types.ts`) which returns an `Effect<NodeOp, number>` that writes
   the workflow file. Rust support is detected automatically by checking for
   `Cargo.toml` at the repository root via the `access` effect.
-- `proof.f.ts` — property-based proofs for the CI generator (Rust/no-Rust job presence,
+- `proof.f.mjs` — property-based proofs for the CI generator (Rust/no-Rust job presence,
   per-OS extra steps).
-- `common/module.f.ts` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
+- `common/module.f.mjs` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
 - `config/module.f.mjs` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin.
@@ -89,7 +89,7 @@ and `ci-update`. A typical FunctionalScript project can define them like this:
 {
   "scripts": {
     "test": "tsc && fjs test",
-    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts",
+    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.mjs",
     "ci-update": "fjs ci"
   }
 }

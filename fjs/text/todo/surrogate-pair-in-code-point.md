@@ -18,7 +18,7 @@ const maxCodePoint = 0x10_ffff as const
 
 with the stated intent that "the surrogate bounds and the maximum appear
 exactly once". But the surrogate-pair *arithmetic* — the inverse of those
-predicates — re-hardcodes the same numbers in `fjs/text/utf16/module.f.ts`:
+predicates — re-hardcodes the same numbers in `fjs/text/utf16/module.f.mjs`:
 
 Encode (`:90-93`):
 
@@ -65,7 +65,7 @@ export const fromSurrogatePair = (high: number) => (low: number): number =>
     ((high - surrogateMin) << 10) + (low - lowSurrogateMin) + supplementaryBase
 ```
 
-`codePointToUtf16` (`fjs/text/utf16/module.f.ts:87-96`) and
+`codePointToUtf16` (`fjs/text/utf16/module.f.mjs:87-96`) and
 `utf16ByteToCodePointOp`'s low-surrogate branch (`:199-203`) then call these
 instead of re-deriving the constants. Every surrogate number then appears in
 exactly one module, and a future consumer (e.g. a WTF-8/CESU-8 codec or a JS
