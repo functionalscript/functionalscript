@@ -61,6 +61,16 @@ const divide = ([m, e]) => div => [[m / div, e], m % div]
  */
 const withSign = (m, e) => f => multiply(f([abs(m), e]))(BigInt(sign(m)))
 
+/**
+ * Re-normalizes a magnitude that rounding carried out of 53 bits: rounding
+ * `2^53 - 1` up yields exactly `2^53`, one bit wider than `round53` promises.
+ * The bit shifted out is always 0 there, so the value is unchanged and no
+ * second rounding decision is needed.
+ *
+ * @type {(magnitude: BigFloat) => BigFloat}
+ */
+const renormalize53 = ([m, e]) => m === twoPow53 ? [m >> 1n, e + 1] : [m, e]
+
 /** @type {(_: _BigFloatWithRemainder) => BigFloat} */
 const round53 = ([[m, e], r]) =>
     withSign(m, e)(([mAbs]) => {
@@ -68,14 +78,29 @@ const round53 = ([[m, e], r]) =>
         const o54 = m54 & 1n
         const m53 = m54 >> 1n
         const e53 = e54 + 1
-        if (o54 === 1n && r === 0n && mAbs === m54 >> BigInt(e - e54)) {
-            const odd = m53 & 1n
-            return [m53 + odd, e53]
-        }
-        return [m53 + o54, e53]
+        const tie = o54 === 1n && r === 0n && mAbs === m54 >> BigInt(e - e54)
+        return renormalize53([m53 + (tie ? m53 & 1n : o54), e53])
     })
 
-/** @type {(dec: BigFloat) => BigFloat} */
+/**
+ * Converts a decimal big-float `m * 10^e` into the nearest binary big-float,
+ * rounding ties to even.
+ *
+ * A zero input returns `[0n, 0]`; every other input returns a mantissa of
+ * exactly 53 significant bits, `2^52 <= abs(m) < 2^53`. The upper bound holds
+ * even when rounding carries out of the top bit.
+ *
+ * The **exponent is unbounded**: this is the correctly-rounded 53-bit value,
+ * not a `number`. Nothing here knows binary64's exponent range, so a result
+ * is neither turned into an infinity when it is too large for a `double` nor
+ * cut down to the fewer-than-53 bits a subnormal actually carries. A consumer
+ * that rounds one of these results onto the subnormal grid therefore rounds
+ * twice and can land an ulp away from the correctly-rounded `double`: reaching
+ * the subnormal range needs a single rounding to a precision chosen from the
+ * target exponent, which this function does not offer yet.
+ *
+ * @type {(dec: BigFloat) => BigFloat}
+ */
 export const decToBin = dec => {
     if (dec[0] === 0n) {
         return [0n, 0]
