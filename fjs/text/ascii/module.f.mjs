@@ -1,10 +1,17 @@
 /**
  * Provides ASCII code point constants and helpers for creating numeric code points and inclusive ranges.
  *
+ * It also owns the hexadecimal digit codec (`hexDigitValue` /
+ * `hexDigitCodePoint`), so no consumer has to rederive the `'0'`, `'a' - 10`
+ * and `'A' - 10` offsets for itself.
+ *
  * @module
+ *
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Range } from '../../types/range/types.ts'
  */
 
-/** @import { Range } from '../../types/range/types.ts' */
+import { contains } from '../../types/range/module.f.mjs'
 
 /** @type {(s: string) => (i: number) => number} */
 const at = s => i => {
@@ -161,6 +168,9 @@ export const latinCapitalLetterE = one('E')
 /** 0x46 */
 export const latinCapitalLetterF = one('F')
 
+/** 0x41..0x46, the uppercase hexadecimal digits. */
+export const latinCapitalLetterAFRange = range('AF')
+
 /** 0x5B */
 export const leftSquareBracket = one('[')
 
@@ -196,6 +206,9 @@ export const latinSmallLetterE = one('e')
 /** 0x66 */
 export const latinSmallLetterF = one('f')
 
+/** 0x61..0x66, the lowercase hexadecimal digits. */
+export const latinSmallLetterAFRange = range('af')
+
 /** 0x6E */
 export const latinSmallLetterN = one('n')
 
@@ -222,3 +235,38 @@ export const rightCurlyBracket = one('}')
 
 /** 0x7E */
 export const tilde = one('~')
+
+// hexadecimal digits
+
+const isDigit = contains(...digitRange)
+
+const isLatinSmallLetterAF = contains(...latinSmallLetterAFRange)
+
+const isLatinCapitalLetterAF = contains(...latinCapitalLetterAFRange)
+
+/** The distance from a lowercase hexadecimal letter to the value it denotes. */
+const latinSmallLetterAFOffset = latinSmallLetterA - 10
+
+/** The distance from an uppercase hexadecimal letter to the value it denotes. */
+const latinCapitalLetterAFOffset = latinCapitalLetterA - 10
+
+/**
+ * The value `0..15` denoted by a hexadecimal digit code point, or `null` when
+ * the code point is not one of `0-9`, `a-f`, `A-F`.
+ *
+ * @type {(codePoint: number) => Nullable<number>}
+ */
+export const hexDigitValue = codePoint =>
+    isDigit(codePoint) ? codePoint - digit0
+        : isLatinSmallLetterAF(codePoint) ? codePoint - latinSmallLetterAFOffset
+            : isLatinCapitalLetterAF(codePoint) ? codePoint - latinCapitalLetterAFOffset
+                : null
+
+/**
+ * The lowercase hexadecimal digit code point denoting a value in `0..15`.
+ * `hexDigitValue(hexDigitCodePoint(v))` is `v` for every such value.
+ *
+ * @type {(value: number) => number}
+ */
+export const hexDigitCodePoint = value =>
+    value < 10 ? digit0 + value : latinSmallLetterAFOffset + value

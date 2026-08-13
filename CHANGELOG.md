@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- `fjs/text/ascii` owns the hex-digit codec: `hexDigitValue`,
+  `hexDigitCodePoint`, and the `a-f` / `A-F` ranges. The JSON serializer and
+  both tokenizers use it instead of rederiving the offsets; the DJS tokenizer
+  no longer decodes a non-hex code point to a garbage digit
+  [#1522](https://github.com/functionalscript/functionalscript/pull/1522)
 - `fjs/types/result` exports `okThen`, the pure `Result` bind — `mapOk`'s
   monad sibling and the pure twin of `fjs/effects`' `okStep`. Its two error
   types are unioned, so a chain that widens its error needs no rewrapping

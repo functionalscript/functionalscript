@@ -17,10 +17,9 @@ import { errorMask } from '../../../text/code_point/module.f.mjs'
 import {
     backspace,
     cr,
-    digit0,
     ff,
+    hexDigitCodePoint,
     ht,
-    latinSmallLetterA,
     lf,
     quotationMark,
     reverseSolidus,
@@ -46,8 +45,7 @@ const escapeTable = /** @type {const} */ ({
 })
 
 /** @type {(value: number) => string} */
-const hexDigit = value =>
-    fromCharCode(value < 10 ? digit0 + value : latinSmallLetterA + value - 10)
+const hexDigit = value => fromCharCode(hexDigitCodePoint(value))
 
 /**
  * `\uXXXX` with lowercase hex digits, matching ECMAScript's `UnicodeEscape`.
