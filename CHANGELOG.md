@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- RTTI: new `fjs/types/rtti/data` module — a function-free, serializable,
+  canonical data form for schemas with `toData`, `cmp`, `equal`, `subset`, and a
+  data-driven `validate`
+  [#1539](https://github.com/functionalscript/functionalscript/pull/1539).
 - `fjs/cas`, `fjs/cas/evo` and `fjs/emergent_testing` compose through the raw
   `step` / `mapStep` / `historyStep` combinators instead of the fluent `Eff`
   wrapper, which keeps its module but now has no consumers. Behavior is
