@@ -29,6 +29,7 @@
  *
  * @module
  */
+
 /** @import { Unknown } from '../ts/types.ts' */
 /** @import { Info1, Struct, Tag1, Tuple, Type } from '../types.ts' */
 import { ok } from '../../result/module.f.mjs'

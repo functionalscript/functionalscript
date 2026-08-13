@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 /** @import { TNode } from '../types/types.ts' */
 
 import { index3, index5 } from '../../function/compare/module.f.mjs'

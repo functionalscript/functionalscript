@@ -318,10 +318,12 @@ and the test entry is authored `all.test.mjs`.
 The runtime-import grouping applies to repository-owned relative imports, not to
 external or built-in modules: a FunctionalScript module may depend at runtime on
 external modules and on repository `.mjs`, and there is no relative runtime `.ts`
-import group at all. In a `module.*` file, the blank line after the leading JSDoc
-block is required even when the module has no `@import` tags; it keeps the
-`@module` header detached from the first import/declaration and preserves it
-through declaration emit.
+import group at all. The blank line after the leading JSDoc block is required
+in every file that has one — `module.*` (even with no `@import` tags),
+`types.ts`, and `proof.*` alike; it keeps the header detached from the first
+import/declaration and preserves it through declaration emit. `types.ts` is
+the most easily missed case, since its emitted `types.d.ts` is the published
+documentation for the whole type-level API.
 
 Where each kind of documentation belongs:
 
