@@ -38,9 +38,9 @@ which the earlier record did not know:
 | block directly followed by a declaration | prose kept on `export type`, trimmed; the original block also emitted in full on the declaration, duplicated | **`export type` emitted bare; the doc attaches to the *following* declaration** |
 | one block declaring two `@typedef`s | prose kept on both `export type`s, trimmed | **both emitted bare; the block dangles detached** |
 
-(Where a detached block lands is position-dependent — after the bare types in
-the reproductions below, before them when the block is the first thing in the
-file. "Emitted bare" is the invariant.)
+(Where a detached block lands varies with the surrounding statements; the
+per-reproduction statements below are each measured. "Emitted bare" is the
+invariant.)
 
 The rule that fits every measured case on tsgo: **the final comment block in
 the file never attaches, and a typedef block attaches to its emitted type only
