@@ -7,7 +7,7 @@
 
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
-import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.mjs'
+import { commaJoin0Plus, eof, option, range, repeat0Plus, set } from '../module.f.mjs'
 import { emptyTagMap, toData } from '../data/module.f.mjs'
 import { descentParser } from './module.f.mjs'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
@@ -321,6 +321,82 @@ export const proof = {
             const mr = m("", [[cp1('-'), 'minus'], [cp1('2'), 'two']])
             const result = JSON.stringify(mr)
             if (result !== `{"ast":{"sequence":[{"tag":"minus","sequence":[[${cp1('-')},"minus"]]},{"sequence":[[${cp1('2')},"two"]]}]},"success":true,"idx":2}`) { throw result }
+        },
+    ],
+    logicalEof: [
+        () => {
+            // The matcher synthesizes one EOF after the physical input, so the
+            // `eof` terminal matches empty input. It contributes no AST leaf,
+            // and the public index stays physical.
+            const m = descentParser(eof)
+            const mr = m('', [])
+            assertEq(JSON.stringify(mr), '{"ast":{"sequence":[]},"success":true,"idx":0}')
+        },
+        () => {
+            // Callers pass physical symbols only, so EOF is not available
+            // before the end of the input.
+            const m = descentParser(eof)
+            const mr = descentParserCpOnly(m, '', toArray(stringToCodePointList('A')))
+            assertEq(mr.success, false)
+            const f = assertNotNullish(mr.failure)
+            assertEq(f.idx, 0)
+            assertEq(f.expected.length, 1)
+            assertEq(f.expected[0], eof)
+        },
+        () => {
+            // Non-empty input: the terminal consumes the synthesized EOF after
+            // the last code point, and `idx` still reports `input.length`.
+            const m = descentParser([range('AA'), eof])
+            const cp = toArray(stringToCodePointList('A'))
+            const mr = descentParserCpOnly(m, '', cp)
+            assertEq(mr.success, true)
+            assertEq(mr.idx, cp.length)
+            assertEq(JSON.stringify(mr.ast), `{"sequence":[{"sequence":[[${cp1('A')},null]]},{"sequence":[]}]}`)
+        },
+        () => {
+            // Exactly one EOF is synthesized: a second `eof` terminal has
+            // nothing left to consume, and its failure points at `input.length`.
+            const m = descentParser([eof, eof])
+            const mr = m('', [])
+            assertEq(mr.success, false)
+            const f = assertNotNullish(mr.failure)
+            assertEq(f.idx, 0)
+            assertEq(f.expected.length, 1)
+            assertEq(f.expected[0], eof)
+        },
+        () => {
+            // EOF as one alternative among ordinary terminals.
+            const m = descentParser({ a: range('AA'), e: eof })
+            assertEq(JSON.stringify(m('', [])), '{"ast":{"tag":"e","sequence":[]},"success":true,"idx":0}')
+            const mr = descentParserCpOnly(m, '', toArray(stringToCodePointList('A')))
+            assertEq(mr.success, true)
+            assertEq(mr.idx, 1)
+        },
+        () => {
+            // Repetition terminates on EOF: consuming it moves the complete
+            // cursor, so the repeat makes exactly one round and then takes its
+            // empty branch — with `idx` alone this would never stop.
+            const m = descentParser(repeat0Plus(eof))
+            const mr = m('', [])
+            assertEq(JSON.stringify(mr), '{"ast":{"sequence":[{"sequence":[]},{"tag":"none","sequence":[]}]},"success":true,"idx":0}')
+        },
+        () => {
+            // Backtracking restores the complete cursor: `x` consumes EOF and
+            // then fails, so `y` must still find EOF available.
+            const m = descentParser({ x: [eof, range('AA')], y: eof })
+            assertEq(JSON.stringify(m('', [])), '{"ast":{"tag":"y","sequence":[]},"success":true,"idx":0}')
+        },
+        () => {
+            // Diagnostic ordering by the complete cursor: `y` got further than
+            // `x` — the same physical index, but past the EOF it consumed — so
+            // only its expectation is reported, and at the physical end.
+            const m = descentParser({ x: range('AA'), y: [eof, range('BB')] })
+            const mr = m('', [])
+            assertEq(mr.success, false)
+            const f = assertNotNullish(mr.failure)
+            assertEq(f.idx, 0)
+            assertEq(f.expected.length, 1)
+            assertEq(f.expected[0], range('BB'))
         },
     ],
     furthestFailure: [

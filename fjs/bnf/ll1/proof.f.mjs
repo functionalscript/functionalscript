@@ -7,7 +7,7 @@
 
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { commaJoin0Plus, option, range, repeat0Plus, set } from '../module.f.mjs'
+import { commaJoin0Plus, eof, option, range, repeat0Plus, set } from '../module.f.mjs'
 import { toData } from '../data/module.f.mjs'
 import { dispatchMap, parser, parserRuleSet } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
@@ -273,6 +273,46 @@ export const proof = {
             expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
             expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
         }
+    ],
+    logicalEof: [
+        () => {
+            // EOF dispatches below every ordinary symbol, so its cut point is
+            // `-2` — the stored endpoint codes never reach the dispatch map.
+            const dm = dispatchMap(toData(eof)[0])
+            assertEq(JSON.stringify(dm), '{"":{"rangeMap":[[null,-2],[{"rules":[]},-1]]}}')
+        },
+        () => {
+            // The matcher synthesizes one EOF after the physical input, so an
+            // `eof` terminal matches empty input. It adds no AST leaf, and the
+            // remainder stays physical: empty, not `null`.
+            const m = parser(eof)
+            assertEq(JSON.stringify(m('', [])), '[{"sequence":[]},true,[]]')
+        },
+        () => {
+            // Callers pass physical symbols only, so EOF is not available
+            // before the end of the input.
+            const m = parser(eof)
+            assertEq(JSON.stringify(m('', [65])), '[{"sequence":[]},false,[65]]')
+        },
+        () => {
+            // Non-empty input: the terminal consumes the synthesized EOF after
+            // the last code point.
+            const m = parser([range('AA'), eof])
+            assertEq(JSON.stringify(m('', [65])), '[{"sequence":[65,{"sequence":[]}]},true,[]]')
+        },
+        () => {
+            // Exactly one EOF is synthesized: the second `eof` terminal has
+            // nothing to consume, so the match runs out of input — the `null`
+            // remainder this backend reports for that.
+            const m = parser([eof, eof])
+            assertEq(JSON.stringify(m('', [])), '[{"sequence":[{"sequence":[]}]},true,null]')
+        },
+        () => {
+            // EOF as one alternative among ordinary terminals.
+            const m = parser({ a: range('AA'), e: eof })
+            assertEq(JSON.stringify(m('', [])), '[{"tag":"e","sequence":[]},true,[]]')
+            assertEq(JSON.stringify(m('', [65])), '[{"tag":"a","sequence":[65]},true,[]]')
+        },
     ],
     repeat: [
         () => {

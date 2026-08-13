@@ -191,8 +191,8 @@ tokens or calls `token_symbol.encoding()` for multi-character names.
 
 - [256-bit bigint BNF symbols](./bigint-symbols.md) — provides the full uint256
   ordinary-symbol space used by this mapping; BNF EOF remains `-1`.
-- [Use `-1` as BNF EOF](./eof-minus-one.md) — defines EOF outside the physical
-  symbol domain.
+- [`fjs/bnf/README.md`](../README.md#terminals-and-eof) — EOF is outside the
+  physical symbol domain.
 - [New parser](./new-parser.md) — consumes a validated finite token-name alphabet
   through this mapping rather than the current 24-bit registration API.
 - [Layered parser](./layered-parser.md) — tokenizer output feeds the next BNF

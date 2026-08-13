@@ -8,22 +8,27 @@
  * grammar is not LL(1) — a first/first conflict. Nullability is looked up from
  * {@link emptyTagMap} in `fjs/bnf/data` rather than re-derived here.
  *
+ * The caller passes physical symbols only; the matcher synthesizes the one
+ * logical EOF ({@link eofSymbol}) after them, so a grammar can dispatch on the
+ * end of input with the `eof` terminal.
+ *
  * See `./types.ts` for the type-level API.
  *
  * @module
  *
+ * @import { CodePoint } from '../../text/utf16/types.ts'
  * @import { Properties } from '../../types/range_map/types.ts'
  * @import { StringSet } from '../../types/string_set/types.ts'
  * @import { EmptyTag, RuleSet } from '../data/types.ts'
  * @import { Rule as FRule } from '../types.ts'
- * @import { AstSequence, AstTag, Match, MatchResult, MatchRule, Remainder, _Dispatch, _DispatchMap, _DispatchResult, _DispatchRule } from './types.ts'
+ * @import { AstSequence, AstTag, Match, MatchResult, MatchRule, Remainder, _Dispatch, _DispatchMap, _DispatchResult, _DispatchRule, _DispatchRuleCollection, _MatchResultEof } from './types.ts'
  */
 
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { rangeMap } from '../../types/range_map/module.f.mjs'
 import { contains, set } from '../../types/string_set/module.f.mjs'
-import { rangeDecode } from '../module.f.mjs'
+import { eofSymbol, rangeDecode } from '../module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { emptyTagMap, toData } from '../data/module.f.mjs'
 
@@ -161,39 +166,57 @@ const mrFail = (tag, sequence, r) =>
 export const parserRuleSet = ruleSet => {
     const map = dispatchMap(ruleSet)
 
+    // Matches the rules the dispatched symbol selected, one after another,
+    // starting from `seq0` — the AST of that symbol, empty when it was the
+    // synthesized EOF.
+    /** @type {(d: _DispatchRuleCollection, seq0: AstSequence, cp: readonly CodePoint[], eofConsumed: boolean) => _MatchResultEof} */
+    const items = ({tag, rules}, seq0, cp, eofConsumed) => {
+        let seq = seq0
+        let r = cp
+        let eofDone = eofConsumed
+        for (const i of rules) {
+            const rule = typeof i === 'string' ? /** @type {_DispatchRule} */ (map[i]) : i
+            const [res, itemEof] = f(rule, r, eofDone)
+            const [astRule, success, newR] = res
+            if (success === false) {
+                return [res, itemEof]
+            }
+            seq = [...seq, astRule]
+            eofDone = itemEof
+            if (newR === null) {
+                return [mrSuccess(tag, seq, null), eofDone]
+            }
+            r = newR
+        }
+        return [mrSuccess(tag, seq, r), eofDone]
+    }
+
     /** @type {MatchRule} */
-    const f = ({emptyTag, rangeMap}, cp) => {
+    const f = ({emptyTag, rangeMap}, cp, eofConsumed) => {
         if (cp.length === 0) {
-            return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
+            // The one logical EOF is available at the physical end, and only
+            // there: a rule that dispatches on it consumes it, once.
+            const eofDr = eofConsumed ? null : dispatchOp.get(rangeMap)(eofSymbol)
+            if (eofDr === null) {
+                return [mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp), eofConsumed]
+            }
+            // The synthesized EOF has no physical source element, so it adds no
+            // AST leaf, and the remainder stays physical — already empty here.
+            return items(eofDr, [], cp, true)
         }
         const [cp0] = cp
         const dr = dispatchOp.get(rangeMap)(cp0)
         if (dr === null) {
-            return emptyTag === undefined
-                ? mrFail(emptyTag, [], cp)
-                : mrSuccess(emptyTag, [], cp)
+            return [
+                emptyTag === undefined
+                    ? mrFail(emptyTag, [], cp)
+                    : mrSuccess(emptyTag, [], cp),
+                eofConsumed,
+            ]
         }
-        /** @type {AstSequence} */
-        let seq = [cp0]
         const [, ...restCp] = cp
-        /** @type {readonly number[]} */
-        let r = restCp
-        const {tag, rules} = dr
-        for (const i of rules) {
-            const rule = typeof i === 'string' ? /** @type {_DispatchRule} */ (map[i]) : i
-            const res = f(rule, r)
-            const [astRule, success, newR] = res
-            if (success === false) {
-                return res
-            }
-            seq = [...seq, astRule]
-            if (newR === null) {
-                return mrSuccess(tag, seq, null)
-            }
-            r = newR
-        }
-        return mrSuccess(tag, seq, r)
+        return items(dr, [cp0], restCp, eofConsumed)
     }
 
-    return (name, cp) => f(/** @type {_DispatchRule} */ (map[name]), cp)
+    return (name, cp) => f(/** @type {_DispatchRule} */ (map[name]), cp, false)[0]
 }

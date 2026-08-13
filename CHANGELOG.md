@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** BNF EOF is the semantic symbol `-1`, not `2^24 - 1`:
+  `fullRange` is `0 .. 2^24 - 2`, and the parser backends synthesize one
+  logical EOF after the physical input. Serialized ranges that ended at the
+  old EOF must be regenerated
+  [#1516](https://github.com/functionalscript/functionalscript/pull/1516)
 - `fjs/protocol/json_rpc` `dispatch` looks up handlers by own property.
   An `Object.prototype` method name arriving as `method` no longer throws
   or emits a malformed response; it answers `-32601` like any other

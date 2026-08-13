@@ -10,9 +10,11 @@ import type { TerminalRange } from '../types.ts'
 export type AstTag = string|true|undefined
 
 /**
- * Recursive descent matcher for a single named rule.
+ * Recursive descent matcher for a single named rule, starting from `startPos` —
+ * a position that counts the synthesized end-of-input symbol, unlike the public
+ * `idx` of the result.
  */
-export type DescentMatchRule<T> = (name: string, tag: AstTag, s: readonly CodePointMeta<T>[], idx: number) => DescentMatchResult<T>
+export type DescentMatchRule<T> = (name: string, tag: AstTag, s: readonly CodePointMeta<T>[], startPos: number) => DescentMatchResult<T>
 
 /**
  * Where a match ran out of road, for diagnostics.
@@ -28,6 +30,11 @@ export type DescentMatchRule<T> = (name: string, tag: AstTag, s: readonly CodePo
  *
  * `idx` is `0` with an empty `expected` when the match failed without ever
  * rejecting a terminal, as an empty variant does.
+ *
+ * `idx` is physical, so a terminal rejected at — or past — the synthesized
+ * end-of-input symbol reports `input.length`. The high-water mark itself is
+ * kept on the complete cursor, so those two are still ordered against each
+ * other and their expected terminals do not merge.
  */
 export type DescentFailure = {
     readonly idx: number
@@ -46,8 +53,9 @@ export type DescentFailure = {
  * On failure `idx` has rewound to the start of the enclosing sequence and
  * locates nothing; read `failure.idx` instead.
  *
- * The same type describes a match in progress, where `failure` is likewise
- * absent until the match ends.
+ * `idx` is physical — `0 <= idx <= input.length` — so a match that consumed the
+ * synthesized end-of-input symbol reports `input.length`, the same as one that
+ * stopped just before it.
  */
 export type DescentMatchResult<T> = {
     readonly ast: AstRuleMeta<T>
