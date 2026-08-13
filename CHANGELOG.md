@@ -20,6 +20,8 @@ history.
 
 ## Unreleased
 
+0.44.0
+
 - **BREAKING CHANGES:** `fjs/ci/deno` no longer exports `coverageInclude`.
   The Deno CI job runs `deno task cov`, so `deno.json` owns the coverage
   filter, matching how the Node jobs leave `npm run cov` to `package.json`
