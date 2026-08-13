@@ -224,6 +224,10 @@ const runNodeEffect = asyncRun({
     ...memoryOperationMap(),
     all: async (...effects) => await Promise.all(effects.map(runNodeEffect)),
     fetch: async url => asyncTryCatch(async () => {
+        const parsed = new URL(url)
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+            throw new Error(`Fetch error: unsupported protocol ${parsed.protocol}`)
+        }
         const response = await fetch(url)
         if (!response.ok) {
             throw new Error(`Fetch error: ${response.status} ${response.statusText}`)
