@@ -19,11 +19,8 @@ Four files in an empty directory. `test.ts` exercises runtime and types;
 `bad.ts` is the negative control proving type resolution is real — it must
 **fail** with TS2322 under every checker.
 
-The `import type` form in `test.ts` is load-bearing, not stylistic: the package
-ships no `types.js` runtime module, and only the fully erased `import type
-{ X }` compiles to nothing. The inline `import { type X }` form, `import * as`,
-and bare side-effect imports all retain a runtime import that fails with
-`ERR_MODULE_NOT_FOUND` — see the consumer rule in AGENTS.md §6.2.
+The `import type` form in `test.ts` is load-bearing, not stylistic; see
+[`types.js` is not a real module](#typesjs-is-not-a-real-module) below.
 
 `package.json`:
 
@@ -99,6 +96,42 @@ deno check test.ts                    # and: deno check bad.ts must fail TS2322
 `#1520` itself extracted the tarball manually
 (`tar xzf … && mv package node_modules/functionalscript`, dependency declared as
 `"functionalscript": "*"`), which produces the same layout as the installers.
+
+## `types.js` is not a real module
+
+A `…/types.js` specifier resolves to the shipped `types.d.ts` for type
+checking, but names no runtime module — the package ships no `types.js` files.
+The only supported import is therefore the fully erased `import type { X }`
+(or JSDoc `@import`); the rule is stated in AGENTS.md §6.2. The inline form
+must not be used:
+
+`inline.ts`:
+
+```ts
+import { type List } from 'functionalscript/fjs/types/list/types.js'
+const l: List<number> = [1, 2, 3]
+console.log(l)
+```
+
+What makes this form dangerous is that every type checker accepts it — the
+failure is runtime-only, and whether it hits depends on whether the toolchain
+*elides* an import statement left without value bindings or merely *strips*
+the type syntax and keeps the statement. Measured against the packed tarball:
+
+| toolchain | type check | runtime |
+| --- | --- | --- |
+| tsc, `verbatimModuleSyntax: true` | passes | emits retained `import {}` -> `ERR_MODULE_NOT_FOUND` |
+| tsc, default elision | passes | import elided, runs |
+| Node `--experimental-strip-types` | — | `ERR_MODULE_NOT_FOUND` |
+| Bun 1.3.11 `bun run` | — | import elided, runs |
+| Deno 2.9.5 | `deno check` passes | `deno run` -> `ERR_MODULE_NOT_FOUND` |
+
+The repository's own `tsconfig.json` sets `verbatimModuleSyntax: true`, which
+is the first failing row — a consumer copying the repository's settings gets
+the failure, and one relying on default elision writes code that breaks the
+moment a colleague runs it under Node or Deno. `import * as` and bare
+side-effect imports of a `…/types.js` path fail the same way under every
+toolchain, since no elision applies to them.
 
 ## Deno caveats measured on 2.9.5
 
