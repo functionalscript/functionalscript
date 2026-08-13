@@ -1,25 +1,21 @@
-import { coverageInclude, denoSteps } from './module.f.mjs'
+import { denoSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 /** @type {(version: string) => readonly string[]} */
 const coverageRuns = version =>
     toSteps(denoSteps(version))
-        .flatMap(s => s.run !== undefined && s.run.includes('deno coverage') ? [s.run] : [])
+        .flatMap(s => s.run !== undefined && s.run.includes('cov') ? [s.run] : [])
 
 export const proof = {
-    // A regression guard: dropping the authored implementation extension from
-    // the Deno coverage filter silently removes those modules from the CI
-    // coverage report while CI still passes.
-    coverageInclude: () => {
-        assertEq(coverageInclude, '.*module\\.f\\.mjs')
-    },
+    // A regression guard: the job must delegate coverage to `deno.json`'s `cov`
+    // task. Inlining the command here instead would give the coverage filter a
+    // second owner that can silently drift from `deno.json`.
     coverageStep: () => {
         const runs = coverageRuns('0.0.0')
         assertEq(runs.length, 1)
         const [run] = runs
-        assert(run !== undefined)
-        assert(run.includes(`deno coverage --include='${coverageInclude}'`))
+        assertEq(run, 'deno task cov')
     },
     installsPinnedVersion: () => {
         const runs = toSteps(denoSteps('1.2.3'))

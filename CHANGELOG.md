@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** `fjs/ci/deno` no longer exports `coverageInclude`.
+  The Deno CI job runs `deno task cov`, so `deno.json` owns the coverage
+  filter, matching how the Node jobs leave `npm run cov` to `package.json`
+  [#1512](https://github.com/functionalscript/functionalscript/pull/1512)
 - `npm run cov` names its test entrypoint instead of relying on
   `node --test` default discovery, which silently reported no tests on some
   Node versions. The dead `.f.ts` extension is dropped from the Node and

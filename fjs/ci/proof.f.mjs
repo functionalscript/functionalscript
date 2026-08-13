@@ -4,7 +4,6 @@
 import { ci, main } from './module.f.mjs'
 import { functionalscript, node } from './config/module.f.mjs'
 import { nodeNixJobs } from './node/module.f.mjs'
-import { coverageInclude } from './deno/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
 import { test, ubuntu, parseGitHubAction } from './common/module.f.mjs'
@@ -163,7 +162,7 @@ export const proof = {
             assert(hasRun(`deno install -g -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript}`)(gha), 'expected configured-version deno install cache')
             assert(hasRun('deno install --frozen')(gha), 'expected deno lock install')
             assert(hasRun(`deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} test`)(gha), 'expected configured-version deno install')
-            assert(hasRun(`deno test --allow-read --allow-env --allow-sys --coverage && deno coverage --include='${coverageInclude}'`)(gha), 'expected limited-permission deno coverage')
+            assert(hasRun('deno task cov')(gha), 'expected deno coverage task')
             assert(hasRun(`bun install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version bun cache')
             assert(hasRun('bun install --frozen-lockfile')(gha), 'expected bun lock install')
             assert(hasRun(`bunx functionalscript@${functionalscript} test`)(gha), 'expected configured-version bun install')

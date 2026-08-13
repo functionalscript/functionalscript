@@ -2,6 +2,11 @@
  * CI step builder for Deno: installs the pinned Deno version and runs the
  * FunctionalScript package smoke test plus Deno coverage in one canonical job.
  *
+ * Coverage runs through `deno task cov`, so `deno.json` owns the permission set
+ * and the coverage filter, exactly as `npm run cov` leaves them to
+ * `package.json` for the Node jobs. The two `cov` definitions select the same
+ * modules and should stay semantically equal.
+ *
  * @module
  *
  * @import { MetaStep } from '../common/types.ts'
@@ -9,16 +14,6 @@
 
 import { deno } from '../config/module.f.mjs'
 import { install, test, uses } from '../common/module.f.mjs'
-
-const denoTest = 'deno test --allow-read --allow-env --allow-sys'
-
-/**
- * The regular expression selecting FunctionalScript implementation modules for
- * Deno coverage. `.f.ts` is no longer an authored extension, so only `.f.mjs`
- * is matched. Keep it semantically equal to the `--test-coverage-include` list
- * in `package.json` and to the `cov` task in `deno.json`.
- */
-export const coverageInclude = '.*module\\.f\\.mjs'
 
 /** @type {(version: string) => readonly MetaStep[]} */
 export const denoSteps = version => [
@@ -30,5 +25,5 @@ export const denoSteps = version => [
     install({ run: `deno install -g -A --minimum-dependency-age=0 npm:functionalscript@${version}` }),
     test({ run: `deno run -A --minimum-dependency-age=0 npm:functionalscript@${version} test` }),
     test({ run: 'deno install --frozen' }),
-    test({ run: `${denoTest} --coverage && deno coverage --include='${coverageInclude}'` }),
+    test({ run: 'deno task cov' }),
 ]
