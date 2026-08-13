@@ -91,8 +91,11 @@ IoEffect<ReadFile, Vec, NotImplemented | IoError>
 ```
 
 `NotImplemented` means the runner cannot dispatch the operation and has not
-started it. The program receives control back and may recover or choose a
-fallback operation.
+started it. The program receives control back and decides what an
+incompatible runner means for it: recover, choose a fallback operation, or
+treat it as fatal and panic itself (`throw`, e.g. via `unwrap`). Escalation
+belongs to the program — a runner never panics over a missing operation on
+the program's behalf.
 
 ### Where the `Result` envelope lives
 
@@ -331,7 +334,8 @@ current runners remain total over their declared operation maps.
 - `NotImplemented` is ordinary recoverable effect data, not a fatal runner
   condition.
 - The `Result` envelope lives in the operation's declared return type.
-- The program owns fallback policy.
+- The program owns fallback policy — including the choice to panic (`throw`)
+  instead of recovering.
 - Each stage should be independently mergeable.
 
 ### Related
