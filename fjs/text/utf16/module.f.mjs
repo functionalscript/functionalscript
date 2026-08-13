@@ -191,9 +191,11 @@ const utf16ByteToCodePointOp = (word, state) => {
         const low = word - 0xdc00
         return [[(high << 10) + low + 0x10000], null]
     }
+    // `isLowSurrogate`, `isBmpCodePoint`, and `isHighSurrogate` partition the
+    // full `u16` range with no gap, and `isLowSurrogate` was already ruled out
+    // above, so a non-BMP `word` here is always a high surrogate.
     if (isBmpCodePoint(word)) { return [[state | errorMask, word], null] }
-    if (isHighSurrogate(word)) { return [[state | errorMask], word] }
-    return [[state | errorMask, word | errorMask], null]
+    return [[state | errorMask], word]
 }
 
 
