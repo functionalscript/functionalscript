@@ -25,7 +25,7 @@ export const images = /** @type {const} */({
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = /** @type {const} */ '0.43.1'
+export const functionalscript = /** @type {const} */ '0.44.0'
 
 // https://bun.sh/
 export const bun = '1.3.14'
