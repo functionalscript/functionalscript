@@ -31,6 +31,10 @@ history.
   test-runner entry `fjs/emergent_testing/all.test.js` is among the removed
   files: import the authored `fjs/emergent_testing/register.mjs` instead
   [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
+- `fjs/djs/parser`'s `proof` covers `endObject`'s defensive non-object-top
+  guard directly, the same way it already covers `pushKey` and `endArray`'s
+  equivalent unreachable branches
+  [#1525](https://github.com/functionalscript/functionalscript/pull/1525)
 - `fjs/text/ascii` owns the hex-digit codec: `hexDigitValue`,
   `hexDigitCodePoint`, and the `a-f` / `A-F` ranges. The JSON serializer and
   both tokenizers use it instead of rederiving the offsets; the DJS tokenizer
