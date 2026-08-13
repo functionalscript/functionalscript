@@ -95,8 +95,8 @@ needed.
 
 ### Related
 
-- [Use `-1` as the BNF EOF symbol](./eof-minus-one.md) — establishes the EOF
-  semantics used by this migration.
+- [`fjs/bnf/README.md`](../README.md#terminals-and-eof) — the shipped EOF
+  semantics this migration keeps.
 - [Investigate TerminalRange representation](./terminal-range-representation.md)
   — selects a representation for the expanded bigint terminal domain.
 - [Bigint-aware JSON parse/serialize](../../media/json/todo/bigint-parse-serialize.md)

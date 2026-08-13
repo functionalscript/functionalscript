@@ -52,6 +52,9 @@ export type AstTag = string|true|undefined
 
 /**
  * Represents the remaining input after a match attempt, or `null` if no match is possible.
+ *
+ * The remainder is physical: consuming the synthesized end-of-input symbol
+ * leaves it empty rather than making it `null`.
  */
 export type Remainder = readonly CodePoint[] | null
 
@@ -64,10 +67,22 @@ export type MatchResult = readonly[_AstRule, boolean, Remainder]
 
 /**
  * LL(1) parser function for matching by rule name.
+ *
+ * `s` holds physical symbols only; the matcher synthesizes the one logical
+ * end-of-input symbol after them.
  */
 export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
 
 /**
+ * A {@link MatchResult} paired with the matcher's own progress past the
+ * physical input: `true` once a rule has consumed the synthesized end-of-input
+ * symbol, so no later rule can consume it a second time.
+ *
+ * @internal
+ */
+export type _MatchResultEof = readonly[MatchResult, boolean]
+
+/**
  * Internal match function signature used by compiled dispatch rules.
  */
-export type MatchRule = (dr: _DispatchRule, s: readonly CodePoint[]) => MatchResult
+export type MatchRule = (dr: _DispatchRule, s: readonly CodePoint[], eofConsumed: boolean) => _MatchResultEof

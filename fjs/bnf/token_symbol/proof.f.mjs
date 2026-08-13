@@ -1,4 +1,5 @@
 import { assertEq } from '../../asserts/module.f.mjs'
+import { eofSymbol } from '../module.f.mjs'
 import { capacity, encoding } from './module.f.mjs'
 
 const names = /** @type {const} */ (['>>', '>>>=', 'instanceof'])
@@ -17,10 +18,12 @@ export const proof = {
         },
         () => {
             const { decode } = encoding(names)
-            // past the end of the alphabet, a code point, and `eof`
+            // past the end of the alphabet, a code point, the last ordinary
+            // symbol, and `eof`
             assertEq(decode(0x110003), null)
             assertEq(decode(0x10FFFF), null)
-            assertEq(decode(0xFFFFFF), null)
+            assertEq(decode(0xFFFFFE), null)
+            assertEq(decode(eofSymbol), null)
         },
     ],
     roundTrip: () => {

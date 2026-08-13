@@ -8,6 +8,25 @@ per-code-point metadata, producing a metadata-aware AST. Nullability (whether
 each rule can match empty input) is computed once by `emptyTagMap()` in
 [`../data`](../data).
 
+## Logical EOF and the complete cursor
+
+The caller passes physical code points only; the matcher synthesizes the one
+logical EOF after them ([`../README.md`](../README.md#logical-eof-in-parser-input)).
+Internally a position is therefore a cursor over `0 .. cp.length + 1`, where
+`cp.length + 1` means the synthesized EOF has been consumed — the
+`(idx, eofConsumed)` pair of the shared design, written as one number because
+`eofConsumed` can only be true at the physical end. One number is enough to make
+every ordering the matcher needs a plain `<`: progress inside a variant,
+backtracking to a frame's start, and the furthest-failure high-water mark.
+
+The public `idx` clamps that cursor back to `input.length`, so consuming EOF
+never moves a reported position, and the EOF leaf never reaches the AST.
+
+Treating EOF consumption as progress is load-bearing, not bookkeeping: a variant
+counts a zero-consumption success as its empty result and keeps trying later
+branches, so if EOF matched "without moving", `repeat0Plus` over a rule that can
+match EOF would take that branch forever.
+
 ## Failure reporting
 
 A failed match's own index is not where matching stopped: a failing sequence

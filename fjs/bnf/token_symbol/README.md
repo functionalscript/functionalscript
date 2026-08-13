@@ -10,7 +10,8 @@ to themselves, but multi-character operators (`>>>=`) and keywords
 ## Symbol range
 
 `0x110000`–`0xFFFFFE`, about 15.6M symbols: above the last Unicode scalar value
-(`0x10FFFF`) and below `eof` (`0xFFFFFF`, the top of the 24-bit symbol space).
+(`0x10FFFF`) and up to the last ordinary symbol (`0xFFFFFE`, the top of
+`fullRange`). `eof` is `-1` and needs no symbol out of this space.
 Token symbols are numerically disjoint from code points even though the two
 alphabets belong to different parser layers — the layers meet in error messages
 and debugging output, where one number space is worth more than 1.1M extra

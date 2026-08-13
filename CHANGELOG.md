@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** BNF EOF is the semantic symbol `-1`, not `2^24 - 1`:
+  `fullRange` is `0 .. 2^24 - 2`, and the parser backends synthesize one
+  logical EOF after the physical input. Serialized ranges that ended at the
+  old EOF must be regenerated.
 - **BREAKING CHANGES:** `fjs/ci/deno` no longer exports `coverageInclude`.
   The Deno CI job runs `deno task cov`, so `deno.json` owns the coverage
   filter, matching how the Node jobs leave `npm run cov` to `package.json`

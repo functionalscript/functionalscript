@@ -9,6 +9,54 @@ See [Backus-Naur form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
   - LL(1) dispatch/matcher [./ll1/](./ll1/),
   - recursive descent matcher [./descent/](./descent/).
 
+## Terminals and EOF
+
+A terminal is a semantic symbol. The domain is
+
+```text
+EOF              = -1
+ordinary symbols = 0 .. 2^24 - 2
+```
+
+`-1` is outside the non-negative physical-symbol domain, so EOF does not depend
+on how wide a physical symbol is, and no alphabet — Unicode code points, bytes,
+[token symbols](./token_symbol/) — has to give up one of its own values for it.
+`eof` is the singleton range `[-1, -1]`; `fullRange` is `[0, 2^24 - 2]` and holds
+ordinary symbols only, so `not()` / `notSet()` never produce EOF.
+
+### Stored codes are not semantic values
+
+A `TerminalRange` still packs two **24-bit stored endpoint codes** into one JS
+number, and the codes are unchanged: EOF is stored as `2^24 - 1`, every ordinary
+symbol is stored as itself. `rangeEncode` / `rangeDecode` convert between the two
+with a branchless wrap (`(value + 2^24) & mask` and its inverse), so the domain
+still holds exactly `2^24` terminals — one per code — and a packed literal such
+as `0x000030_000039` still reads as its endpoints.
+
+The consequence is that stored order is not semantic order: `2^24 - 1` is the
+largest code but the smallest terminal. Anything that compares terminals —
+containment, complements, dispatch ranges — compares **decoded** values.
+
+Moving EOF to `-1` was a breaking change to serialized BNF ranges rather than a
+representation change: a range whose endpoint used to be the ordinary symbol
+`2^24 - 1` now decodes as EOF. There is no compatibility layer for grammar data
+written against the old semantics; regenerate it instead.
+
+### Logical EOF in parser input
+
+Callers and alphabet adapters supply physical ordinary symbols only and never
+append `-1`. Each parser backend synthesizes exactly one logical EOF after the
+physical input, so a grammar can require the end of input with the `eof`
+terminal, and a grammar that does not mention `eof` is unaffected.
+
+Public positions and remainders stay physical (`0 <= idx <= input.length`).
+Internally a backend tracks the complete cursor `(idx, eofConsumed)`, because
+consuming EOF is progress even though `idx` does not move — sequencing,
+alternatives, repetition, backtracking, and failure ordering all use the complete
+cursor, and `(idx, true)` is further than `(idx, false)`. The synthesized EOF has
+no physical source element, so it contributes no leaf to the AST, and diagnostics
+about it point at `input.length`.
+
 ## Functional Representation
 
 Define grammar using this representation.

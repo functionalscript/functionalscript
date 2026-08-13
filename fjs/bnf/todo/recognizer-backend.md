@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [Use `-1` as the BNF EOF symbol](./eof-minus-one.md), [Separate alphabet-specific BNF helpers](./unicode-rules.md)
+**Blocked by:** [Separate alphabet-specific BNF helpers](./unicode-rules.md)
 
 ### Problem
 
@@ -34,10 +34,11 @@ alphabet split first so the recognizer can consume those helpers instead of
 creating a second byte-helper API or restoring alphabet-specific syntax in core
 BNF.
 
-The recognizer must also preserve the logical EOF contract from
-[Use `-1` as the BNF EOF symbol](./eof-minus-one.md). Incremental chunk boundaries
-are not end-of-input; EOF is synthesized only when the complete stream is
-explicitly finalized.
+The recognizer must also preserve the logical EOF contract that core BNF already
+ships ([`fjs/bnf/README.md`](../README.md#logical-eof-in-parser-input)): `EOF = -1`,
+synthesized once by the backend rather than appended by the caller. Incremental
+chunk boundaries are not end-of-input; EOF is synthesized only when the complete
+stream is explicitly finalized.
 
 ### Proposal
 
@@ -301,8 +302,8 @@ Bigger automata are built from BNF pieces in two complementary ways:
 
 ### Related
 
-- [Use `-1` as the BNF EOF symbol](./eof-minus-one.md) — defines the logical EOF
-  finalization semantics that every recognizer backend must preserve.
+- [`fjs/bnf/README.md`](../README.md#logical-eof-in-parser-input) — the logical
+  EOF semantics every recognizer backend must preserve.
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md) — owns Unicode and
   byte authoring helpers; this recognizer work consumes the generic rules they
   produce.
