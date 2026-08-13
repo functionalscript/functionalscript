@@ -73,7 +73,11 @@ source tree never depends on specifier substitution. (For the *packed* package
 the substitution concern was measured and retired in
 [#1520](https://github.com/functionalscript/functionalscript/pull/1520): Deno
 2.9.5 does apply `.ts` -> `.d.ts` substitution to the `./types.ts` specifiers
-inside shipped `.d.mts` files, as do TypeScript 5.9.3/7.0.2 and Bun 1.3.11.)
+inside shipped `.d.mts` files, as do TypeScript 5.9.3/7.0.2 and Bun 1.3.11 —
+but only for packages resolved as npm packages through `node_modules`, not for
+`file:`-linked directories, which Deno treats as first-party source. Method and
+caveats:
+[`todo/1520-packed-consumer-validation.md`](../../../todo/1520-packed-consumer-validation.md).)
 
 Enable `allowJs` and `checkJs` before the first implementation source conversion
 so TypeScript validates both authored implementation extensions. No

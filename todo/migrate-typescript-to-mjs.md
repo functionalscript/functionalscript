@@ -128,7 +128,11 @@ measured and found wrong in
 [#1520](https://github.com/functionalscript/functionalscript/pull/1520): Deno
 2.9.5 (TypeScript 6.0.3) resolves the `./types.ts` specifiers inside shipped
 `.d.mts` files to `types.d.ts`, verified by a deliberate misuse being rejected
-with TS2322 rather than falling back to `any`.)
+with TS2322 rather than falling back to `any`. The claim does still hold at one
+boundary — Deno substitutes only for packages resolved as npm packages through
+`node_modules`, not for `file:`-linked directories, which it treats as
+first-party source; method and caveats in
+[`1520-packed-consumer-validation.md`](./1520-packed-consumer-validation.md).)
 
 This split is a normal module-organization option, not only an escape hatch. A
 runtime module may keep simple, implementation-local types in TypeScript/JSDoc
