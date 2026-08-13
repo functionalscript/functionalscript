@@ -25,6 +25,11 @@ history.
   and `Step` to `fjs/protocol/mcp/stdio/types.ts` — so their documentation
   survives declaration emit
   [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
+- `fjs/cas`, `fjs/cas/evo` and `fjs/emergent_testing` compose through the raw
+  `step` / `mapStep` / `historyStep` combinators instead of the fluent `Eff`
+  wrapper, which keeps its module but now has no consumers. Behavior is
+  unchanged
+  [#1534](https://github.com/functionalscript/functionalscript/pull/1534)
 - **BREAKING CHANGES:** `fjs/bnf/ll1`'s matcher runs as an explicit-stack
   machine over a cursor into the shared input, so long or deeply nested input
   no longer overflows the JS call stack and matching is no longer quadratic.
