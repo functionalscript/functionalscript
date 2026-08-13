@@ -22,7 +22,8 @@ history.
 
 - `media/type`: the magic-byte signatures are declared once. `detect` now folds
   its bytes through the same eliminator the streaming detector uses, instead of
-  matching a second, hand-mirrored copy of the same table
+  matching a second, hand-mirrored copy of the same table, so a `Vec` of
+  sub-byte length reads the way `detectStream` already read it
   [#1533](https://github.com/functionalscript/functionalscript/pull/1533)
 - **BREAKING CHANGES:** `fjs/bnf/ll1`'s matcher runs as an explicit-stack
   machine over a cursor into the shared input, so long or deeply nested input
