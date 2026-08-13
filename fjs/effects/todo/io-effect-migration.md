@@ -93,18 +93,21 @@ IoEffect<ReadFile, Vec, NotImplemented | IoError>
 `NotImplemented` means the runner cannot dispatch the operation and has not
 started it. The program receives control back and decides what an
 incompatible runner means for it: recover, choose a fallback operation, or
-treat it as fatal and panic itself (`throw`, e.g. via `unwrap`). Escalation
-belongs to the program — a runner never panics over a missing operation on
-the program's behalf.
+treat it as fatal and panic itself (`throw`, e.g. via `unwrap`). Within the
+error channel, escalation belongs to the program: the missing-handler path
+answers with `error(NotImplemented)`, not with a panic on the program's
+behalf.
 
-That said, runners keep their authority over execution itself. A runner may
-still interrupt or terminate a program — one attempting something malicious,
-exceeding a resource budget, or violating host policy. Interruption is a
-different mechanism from `NotImplemented`: `NotImplemented` is recoverable
-data for a capability the runner lacks, while interruption is the runner
-refusing to continue at all, and nothing in the error channel obliges it to
-hand control back. `NotImplemented` is therefore not a promise that the
-program always regains control, and it is not a security boundary.
+Runners nevertheless keep their authority over execution itself, through a
+**separate mechanism, out of band of the error channel**: a runner may
+interrupt or terminate a program attempting something malicious, exceeding a
+resource budget, or violating host policy. The two mechanisms must not be
+conflated in either direction. A capability the runner merely lacks is
+answered with `NotImplemented`, never by killing the program; a refusal to
+continue is an interruption, never dressed up as `NotImplemented` — nothing
+in the error channel obliges the runner to hand control back. `NotImplemented`
+is therefore not a promise that the program always regains control, and it is
+not a security boundary.
 
 ### Where the `Result` envelope lives
 
