@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- `text/code_point`: new `eofFlush` factory builds the end-of-input step
+  `decoder` takes. The UTF-8 and UTF-16 decoders derive their eof ops from it
+  instead of each writing the flush out, so "leftover state becomes exactly one
+  error unit" is stated once
+  [#1537](https://github.com/functionalscript/functionalscript/pull/1537)
 - `media/type`: the magic-byte signatures are declared once. `detect` now folds
   its bytes through the same eliminator the streaming detector uses, instead of
   matching a second, hand-mirrored copy of the same table, so a `Vec` of

@@ -1,4 +1,7 @@
+import { assertEq } from '../../asserts/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
 import {
+    eofFlush,
     isBmpCodePoint,
     isHighSurrogate,
     isLowSurrogate,
@@ -12,7 +15,32 @@ const check = (actual, expected) => {
     if (actual !== expected) { throw `${actual} !== ${expected}` }
 }
 
+/**
+ * A stand-in for a codec's state-to-error function.
+ *
+ * @type {(state: number) => number}
+ */
+const negate = state => -state
+
+const flush = eofFlush(negate)
+
 export const proof = {
+    eofFlush: [
+        // no leftover state: nothing is flushed, the state stays empty
+        () => {
+            const [out, next] = flush(null)
+            assertEq(toArray(out).length, 0)
+            assertEq(next, null)
+        },
+        // leftover state: exactly one error unit, then the state resets
+        () => {
+            const [out, next] = flush(42)
+            const [first, ...rest] = toArray(out)
+            assertEq(first, -42)
+            assertEq(rest.length, 0)
+            assertEq(next, null)
+        },
+    ],
     isHighSurrogate: [
         () => check(isHighSurrogate(0xd800), true),
         () => check(isHighSurrogate(0xdbff), true),
