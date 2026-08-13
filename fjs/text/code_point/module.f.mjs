@@ -2,14 +2,14 @@
  * Shared Unicode code-point contract for the UTF-8 and UTF-16 decoders: the
  * error-tag mask used to flag invalid sequences, the streaming `decoder`
  * factory that wraps a per-unit step and an end-of-input step into a single
- * `List`-to-`List` conversion, and the code-point classification predicates
- * (BMP / surrogate / supplementary-plane / overall validity) that both codecs
- * share.
+ * `List`-to-`List` conversion, the `eofFlush` factory that builds that
+ * end-of-input step, and the code-point classification predicates (BMP /
+ * surrogate / supplementary-plane / overall validity) that both codecs share.
  *
  * @module
  */
 
-import { flat, stateScan } from '../../types/list/module.f.mjs'
+import { empty, flat, stateScan } from '../../types/list/module.f.mjs'
 /** @import { List } from '../../types/list/types.ts' */
 
 /** @import { StateScan } from '../../types/function/operator/types.ts' */
@@ -49,6 +49,23 @@ export const decoder = (
     const run = stateScan(op)(null)
     return input => flat(run(flat(/** @type {List<List<Unit|null>>} */([input, [null]]))))
 }
+
+/**
+ * Builds the end-of-input step {@link decoder} needs, from the one function
+ * that differs between codecs.
+ *
+ * The flush contract is the same for every decoder: leftover state at the end
+ * of the input becomes **exactly one** error unit and the state resets to
+ * empty (`null`); with no leftover state nothing is emitted. Only the mapping
+ * from a non-empty state to its error unit is codec-specific.
+ *
+ * @template S
+ * @template Cp
+ * @param {(state: S) => Cp} toError - Turns a non-empty leftover state into a single error unit.
+ * @returns {(state: S | null) => readonly [List<Cp>, S | null]} The end-of-input step.
+ */
+export const eofFlush = toError => state =>
+    [state === null ? empty : [toError(state)], null]
 
 /**
  * Unicode code-point classification boundaries. The surrogate block
