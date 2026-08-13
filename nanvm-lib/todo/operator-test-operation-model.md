@@ -18,8 +18,7 @@ given two arguments, or a binary operation one argument, without a type error.
 
 The shared corpus should describe the JavaScript operation itself rather than
 the identifier chosen by a particular proof or code generator. Consumer-specific
-names such as Rust function names and diagnostic case labels belong in the
-consumer.
+names such as Rust function names belong in the consumer.
 
 This follows the post-merge review discussion on #1489:
 
@@ -47,8 +46,8 @@ The corpus can then describe operations along these lines:
 ```
 
 The arity disambiguates operations that share syntax, such as unary `+` and a
-future binary `+`. The tuple also keeps the shared data compact: an operation is
-just a semantic descriptor, not an object with independently mutable fields.
+future binary `+`. The tuple keeps the shared data compact and makes the arity
+available directly as `O[1]` for types such as `Case<O[1]>`.
 
 Make `Case` generic over the argument count and use the existing fixed-length
 array machinery (`Tuple<N, T>`) so an operation's cases have exactly the right
@@ -56,37 +55,27 @@ number of arguments:
 
 ```ts
 export type Case<N extends number> = {
+    readonly name: string
     readonly args: Tuple<N, Value>
     readonly expected: Value
     readonly rust?: string
 }
 ```
 
-Do not store a `name` on each case. The inputs, operation, and expected result
-already contain enough information to generate a useful semantic diagnostic.
-For example, an ordinary binary case can be rendered as:
+Keep the case `name`. It is diagnostic metadata and a stable proof key, not part
+of the operation semantics. The arguments and expected result are not sufficient
+as a unique key: for a commutative operation, a case with equal arguments is
+identical to its swapped form, so an expression such as `2 * 2 === 4` cannot
+distinguish the two entries. The current proof uses the case name and derives a
+`Swapped` suffix for the reversed order; preserve that explicit disambiguation
+rather than relying on `fromEntries` to silently collapse duplicate keys.
 
-```text
-2 + 2 === 4
-```
-
-Prefer such semantic expressions over positional labels such as `case17`.
-The renderer must still describe the comparison truthfully for special values:
-when the proof relies on `Object.is` semantics (for example `NaN` or `-0`), use
-an explicit `Object.is(...)` form rather than a misleading `===` expression.
-Throwing cases should likewise get an explicit generated form such as
+Semantic expressions may still be generated as supplemental diagnostics. When
+doing so, render operands as faithful source literals so distinct values remain
+distinct (`123` versus `123n`, `0` versus `-0`, quoted strings, and so on), and
+use an explicit `Object.is(...)` form when `===` would describe the comparison
+incorrectly. Throwing cases should likewise use an explicit form such as
 `+0n throws`.
-
-FunctionalScript can use this generated expression directly as the emergent-test
-proof key. The Rust generator should reuse the same semantic expression in
-assertion diagnostics so a failure identifies the exact case without a stored
-name. Under the current Rust test layout, generated cases are statements inside
-generic group functions rather than individual `#[test]` functions, and Rust
-function identifiers cannot literally be expressions such as `2 + 2 === 4`.
-Do not restructure the Rust harness solely to turn each expression into a test
-function name; keep the exact expression in the assertion diagnostic. A future
-test-layout change may additionally derive a valid Rust identifier from it if
-that becomes useful.
 
 Groups must preserve the operation's literal arity so their cases are typed as
 `Case<O[1]>`, where element `1` is the operation's `argsN`. The exact TypeScript
@@ -111,22 +100,22 @@ is therefore outside this task as well.
 
 - [ ] Replace the current string-union `Op` model with `readonly [name, argsN]`
       operations carrying a semantic name and literal argument count.
-- [ ] Make `Case` generic over argument count, remove its stored `name`, and
-      type `args` as a fixed-length tuple.
-- [ ] Generate semantic case expressions from the operation, arguments, and
-      expected result instead of storing case names in the shared corpus.
-- [ ] Use generated semantic expressions as FunctionalScript proof keys and in
-      Rust assertion diagnostics; handle `Object.is`-sensitive and throwing
+- [ ] Make `Case` generic over argument count while keeping its stable `name`,
+      and type `args` as a fixed-length tuple.
+- [ ] Keep case names as FunctionalScript proof keys and Rust assertion
+      diagnostics; keep the explicit `Swapped` disambiguation for reversed
+      commutative cases.
+- [ ] If semantic expressions are generated for diagnostics, render values as
+      faithful source literals and handle `Object.is`-sensitive and throwing
       cases explicitly.
 - [ ] Make each group's cases derive their argument count from `operation[1]`.
 - [ ] Restrict `commutative` to binary groups.
-- [ ] Update `fjs/nanvm/module.f.mjs` to use semantic operation descriptions and
-      unnamed cases.
+- [ ] Update `fjs/nanvm/module.f.mjs` to use semantic operation descriptions.
 - [ ] Update `fjs/nanvm/proof.f.mjs` to dispatch on the semantic operation and
-      arity and generate semantic leaf names.
+      arity while preserving unique case proof keys.
 - [ ] Update `fjs/nanvm/rust/module.f.mjs` to map semantic operations to Rust
-      syntax, generated identifiers, and assertion diagnostics without leaking
-      those identifiers into the shared data.
+      syntax and generated identifiers without leaking those identifiers into
+      the shared data.
 - [ ] Add type-level coverage proving that wrong argument counts are rejected.
 - [ ] Regenerate `nanvm-lib/tests/test/generated.rs` and keep the generated test
       behavior unchanged.
