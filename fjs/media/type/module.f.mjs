@@ -1,15 +1,16 @@
 /**
  * Magic-byte MIME type detection.
  *
- * `detect` is a pure table lookup over the leading bytes of a `Vec`: it returns a
- * MIME type string for the container formats whose signatures it knows, or `null`
- * for anything else — text, unknown binary, or a `Vec` too short to match.
+ * One list — `signatures` — declares every recognized magic-byte pattern, and
+ * both detectors read it through the same eliminator (`magicStep`): `detect`
+ * folds a whole `Vec` and returns a MIME type string or `null`, while
+ * `detectStream` folds a read stream one chunk at a time.
  *
- * Beside it, `detectStream` is the **streaming counterpart**: a byte-accepting
- * state machine (length × magic-byte eliminator × UTF-8 validity DFA) that derives
- * `{ length, mime_type, type }` by folding a CAS read stream in O(1) space, without
- * ever buffering the blob into a single `maxLength`-bounded `Vec`. See the README
- * for the factored design.
+ * Beside `detect`, `detectStream` is the **streaming counterpart**: a
+ * byte-accepting state machine (length × magic-byte eliminator × UTF-8 validity
+ * DFA) that derives `{ length, mime_type, type }` by folding a CAS read stream in
+ * O(1) space, without ever buffering the blob into a single `maxLength`-bounded
+ * `Vec`. See the README for the factored design.
  *
  * The CAS store is type-agnostic and keeps raw bytes only, so type is never
  * stored; it is recovered on read by sniffing the content. Callers decide what
@@ -27,15 +28,15 @@
  * | `application/zip` | `50 4B 03 04` / `05 06` / `07 08` (`"PK"` entry, empty, or spanned) |
  *
  * WebP is the one signature with a gap: the four-byte little-endian file size
- * sits between the `RIFF` and `WEBP` markers, so it is matched as a prefix plus
- * a second marker at byte offset 8 rather than a single contiguous run.
+ * sits between the `RIFF` and `WEBP` markers, so its pattern carries four
+ * wildcard bytes rather than being one contiguous run.
  *
  * See `./types.ts` for the type-level API.
  *
  * @module
  */
 
-import { msb, fromSentinel, length, u8List } from '../../types/bit_vec/module.f.mjs'
+import { msb, length, u8List } from '../../types/bit_vec/module.f.mjs'
 /** @import { Vec } from '../../types/bit_vec/types.ts' */
 import { iterable } from '../../types/list/module.f.mjs'
 /** @import { Nullable } from '../../types/nullable/types.ts' */
@@ -48,86 +49,29 @@ import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
 /** @import { DetectMeta, DetectState, _MagicState, _Signature, _Utf8Detect } from './types.ts' */
 
-const { startsWith, removeFront } = msb
-
-// Each signature is written as a hex literal whose leading `1` nibble is a
-// sentinel marking the start of the byte run (so leading zero bytes survive)
-// and fixing the length — see `bit_vec` `fromSentinel`.
-const sig = fromSentinel
-
-/**
- * Contiguous magic-byte signatures, checked in order; the first prefix match
- * wins. Ordering is irrelevant here — no signature is a prefix of another.
- *
- * @type {readonly (readonly [Vec, string])[]}
- */
-const table = [
-    [sig(0x1_89_50_4e_47_0d_0a_1a_0an), 'image/png'],
-    [sig(0x1_ff_d8_ffn), 'image/jpeg'],
-    // Match the full GIF version headers ("GIF87a" / "GIF89a"), not just "GIF8",
-    // so opaque bytes that merely start with "GIF8" are not mistyped.
-    [sig(0x1_47_49_46_38_37_61n), 'image/gif'],
-    [sig(0x1_47_49_46_38_39_61n), 'image/gif'],
-    [sig(0x1_25_50_44_46_2dn), 'application/pdf'],
-    // ZIP has three "PK" local-header variants: a normal entry, an empty
-    // archive (end-of-central-directory only), and a spanned archive.
-    [sig(0x1_50_4b_03_04n), 'application/zip'],
-    [sig(0x1_50_4b_05_06n), 'application/zip'],
-    [sig(0x1_50_4b_07_08n), 'application/zip'],
-]
-
-// WebP: "RIFF" at offset 0, "WEBP" at offset 8 (the 4 bytes between are the
-// file size). 12 bytes = 96 bits is the minimum to carry both markers.
-const riff = sig(0x1_52_49_46_46n)
-const webp = sig(0x1_57_45_42_50n)
-
-/** @type {(bytes: Vec) => boolean} */
-const isWebp = bytes =>
-    length(bytes) >= 96n
-        && startsWith(riff)(bytes)
-        && startsWith(webp)(removeFront(64n)(bytes))
-
-/**
- * Detects the MIME type of `bytes` from its leading magic-byte signature.
- *
- * @returns the MIME type string for a recognized format, or `null` when the
- *   leading bytes match no known signature (including any `Vec` shorter than
- *   the signature it might otherwise match).
- *
- * @type {(bytes: Vec) => Nullable<string>}
- */
-export const detect = bytes => {
-    if (isWebp(bytes)) { return 'image/webp' }
-    for (const [s, m] of table) {
-        if (startsWith(s)(bytes)) { return m }
-    }
-    return null
-}
-
-// ── Streaming detector ────────────────────────────────────────────────────────────
+// ── Magic-byte signatures ─────────────────────────────────────────────────────────
 //
-// A byte-accepting state machine that derives the same `{ length, mime_type, type }`
-// metadata as the pure `detect` + UTF-8 path, but **without buffering the blob**.
-// It is the product of three independent folds over the byte stream — length,
-// magic-byte signature elimination, and a UTF-8 validity DFA — read off at
-// end-of-stream by `finish`. This lets `cas_get` inspect arbitrarily large blobs
-// (where a single `Vec` would overflow `maxLength`) in O(1) space, since the bulk
-// of a large blob costs only length counting once the verdict is fixed (see
-// `isSettled`: a magic match settles it immediately, a dead magic once utf8 fails).
+// The single declaration of what a signature is: a byte pattern the eliminator can
+// consume one byte at a time, with `null` for a wildcard byte. Both `detect` and
+// the streaming detector below eliminate against this one list, so a signature is
+// added or corrected in exactly one place.
 
-// The streaming counterpart of `table`/`isWebp`: the same signatures expressed as
-// byte patterns the eliminator can consume one byte at a time. WebP's gap is the
-// only wildcard run.
 /** @type {readonly _Signature[]} */
 const signatures = [
     { pattern: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], mime: 'image/png' },
     { pattern: [0xff, 0xd8, 0xff], mime: 'image/jpeg' },
+    // Match the full GIF version headers ("GIF87a" / "GIF89a"), not just "GIF8",
+    // so opaque bytes that merely start with "GIF8" are not mistyped.
     { pattern: [0x47, 0x49, 0x46, 0x38, 0x37, 0x61], mime: 'image/gif' },
     { pattern: [0x47, 0x49, 0x46, 0x38, 0x39, 0x61], mime: 'image/gif' },
     { pattern: [0x25, 0x50, 0x44, 0x46, 0x2d], mime: 'application/pdf' },
+    // ZIP has three "PK" local-header variants: a normal entry, an empty
+    // archive (end-of-central-directory only), and a spanned archive.
     { pattern: [0x50, 0x4b, 0x03, 0x04], mime: 'application/zip' },
     { pattern: [0x50, 0x4b, 0x05, 0x06], mime: 'application/zip' },
     { pattern: [0x50, 0x4b, 0x07, 0x08], mime: 'application/zip' },
+    // WebP: "RIFF" at offset 0, "WEBP" at offset 8; the four bytes between are
+    // the little-endian file size, matched as wildcards.
     {
         pattern: [0x52, 0x49, 0x46, 0x46, null, null, null, null, 0x57, 0x45, 0x42, 0x50],
         mime: 'image/webp',
@@ -153,6 +97,45 @@ const magicStep = (m, byte) => {
 
 /** @type {(m: _MagicState) => Nullable<string>} */
 const magicMime = m => m.tag === 'matched' ? m.mime : null
+
+/**
+ * Detects the MIME type of `bytes` from its leading magic-byte signature by
+ * folding them through the same eliminator the streaming detector uses. Both
+ * absorbing states end the fold: a `matched` signature is the answer, and a
+ * `dead` eliminator can no longer produce one. Bytes still in `scan` at the end
+ * of the `Vec` — a prefix too short to complete any signature — leave the
+ * eliminator unsettled, which reads as `null`.
+ *
+ * The bytes come from `u8List`, so a `Vec` whose length is not a whole number of
+ * bytes has its trailing partial byte zero-padded — the same reading of a ragged
+ * `Vec` the streaming detector already uses.
+ *
+ * @returns the MIME type string for a recognized format, or `null` when the
+ *   leading bytes match no known signature (including any `Vec` shorter than
+ *   the signature it might otherwise match).
+ *
+ * @type {(bytes: Vec) => Nullable<string>}
+ */
+export const detect = bytes => {
+    /** @type {_MagicState} */
+    let magic = magicInit
+    for (const byte of iterable(u8List(msb)(bytes))) {
+        magic = magicStep(magic, byte)
+        if (magic.tag !== 'scan') { break }
+    }
+    return magicMime(magic)
+}
+
+// ── Streaming detector ────────────────────────────────────────────────────────────
+//
+// A byte-accepting state machine that derives the same `{ length, mime_type, type }`
+// metadata as the pure `detect` + UTF-8 path, but **without buffering the blob**.
+// It is the product of three independent folds over the byte stream — length,
+// magic-byte signature elimination, and a UTF-8 validity DFA — read off at
+// end-of-stream by `finish`. This lets `cas_get` inspect arbitrarily large blobs
+// (where a single `Vec` would overflow `maxLength`) in O(1) space, since the bulk
+// of a large blob costs only length counting once the verdict is fixed (see
+// `isSettled`: a magic match settles it immediately, a dead magic once utf8 fails).
 
 /** @type {_Utf8Detect} */
 const utf8Init = { st: null, valid: true, text: true }
