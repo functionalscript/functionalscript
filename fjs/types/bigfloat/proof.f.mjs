@@ -1,5 +1,26 @@
+/**
+ * @import { BigFloat } from './types.ts'
+ */
+
 import { decToBin } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { abs } from '../bigint/module.f.mjs'
+
+const twoPow53 = 0b0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
+
+/**
+ * Asserts that `decToBin(dec)` equals `expected` and that its mantissa is a
+ * binary64 significand — `abs(m) < 2^53`. The width check is on the
+ * magnitude: `m < 2^53` is vacuous for a negative mantissa.
+ *
+ * @type {(dec: BigFloat) => (expected: BigFloat) => void}
+ */
+const assertDecToBin = dec => ([em, ee]) => {
+    const [m, e] = decToBin(dec)
+    assert(abs(m) < twoPow53, m.toString(2))
+    assertEq(m, em, m.toString(2))
+    assertEq(e, ee)
+}
 
 export const proof = {
     decToBin: [
@@ -214,5 +235,31 @@ export const proof = {
             assertEq(result[0], -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1100n, result[0].toString(2))
             assertEq(result[1], 2)
         }
+    ],
+    // Rounding up out of 53 bits: the mantissa reaches exactly 2^53 before
+    // re-normalization. The value is unchanged, only the representation moves
+    // one bit right.
+    roundingCarry: [
+        () => {
+            // 2^54 - 1 (54 bits, exact): a tie, and 2^53 - 1 is odd, so
+            // half-to-even rounds up to 2^54 = 2^52 * 2^2.
+            assertDecToBin([0b11_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111n, 0])(
+                [0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, 2])
+        },
+        () => {
+            assertDecToBin([-0b11_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111n, 0])(
+                [-0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, 2])
+        },
+        () => {
+            // 2^55 - 1 (55 bits): the reduction to 54 bits drops a `1`, so this
+            // is not a tie; the plain round-up carries just the same, to
+            // 2^55 = 2^52 * 2^3.
+            assertDecToBin([0b111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111n, 0])(
+                [0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, 3])
+        },
+        () => {
+            assertDecToBin([-0b111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111n, 0])(
+                [-0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, 3])
+        },
     ]
 }

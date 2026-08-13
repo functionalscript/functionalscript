@@ -61,21 +61,41 @@ const divide = ([m, e]) => div => [[m / div, e], m % div]
  */
 const withSign = (m, e) => f => multiply(f([abs(m), e]))(BigInt(sign(m)))
 
-/** @type {(_: _BigFloatWithRemainder) => BigFloat} */
+/**
+ * Rounds a magnitude and its division remainder to a 53-bit mantissa,
+ * half-to-even, restoring the sign of `m` on the result.
+ *
+ * Rounding up can carry out of 53 bits: when the reduced mantissa is
+ * `2^53 - 1`, adding the dropped bit back gives exactly `2^53`, one bit wider
+ * than this function is named for. `decreaseMantissa` re-normalizes that case
+ * back into range; the carried value is exactly `2^53`, whose dropped bit is
+ * `0`, so shifting it needs no second rounding decision and the value is
+ * unchanged.
+ *
+ * @type {(_: _BigFloatWithRemainder) => BigFloat}
+ */
 const round53 = ([[m, e], r]) =>
     withSign(m, e)(([mAbs]) => {
         const [m54, e54] = decreaseMantissa([mAbs, e])(twoPow54)
         const o54 = m54 & 1n
         const m53 = m54 >> 1n
         const e53 = e54 + 1
-        if (o54 === 1n && r === 0n && mAbs === m54 >> BigInt(e - e54)) {
-            const odd = m53 & 1n
-            return [m53 + odd, e53]
-        }
-        return [m53 + o54, e53]
+        const up = o54 === 1n && r === 0n && mAbs === m54 >> BigInt(e - e54)
+            ? m53 & 1n
+            : o54
+        return decreaseMantissa([m53 + up, e53])(twoPow53)
     })
 
-/** @type {(dec: BigFloat) => BigFloat} */
+/**
+ * Converts a decimal `BigFloat` to a binary one, rounding the mantissa
+ * half-to-even.
+ *
+ * The result is the IEEE-754 binary64 significand of the input: the mantissa
+ * magnitude is always strictly below `2^53`, including when rounding carries
+ * (see `round53`). A zero input maps to `[0n, 0]`.
+ *
+ * @type {(dec: BigFloat) => BigFloat}
+ */
 export const decToBin = dec => {
     if (dec[0] === 0n) {
         return [0n, 0]
