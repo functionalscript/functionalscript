@@ -22,8 +22,8 @@ history.
 
 - `npm run cov` names its test entrypoint instead of relying on
   `node --test` default discovery, which silently reported no tests on some
-  Node versions. The dead `.f.ts` extension leaves the Node and Deno
-  coverage filters
+  Node versions. The dead `.f.ts` extension is dropped from the Node and
+  Deno coverage filters
   [#1512](https://github.com/functionalscript/functionalscript/pull/1512)
 - **BREAKING CHANGES:** `fjs/djs/examples/input.f.ts` and
   `fjs/djs/examples/m.f.ts` migrate to `.f.mjs`. Being `.mjs` they now
