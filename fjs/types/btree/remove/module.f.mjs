@@ -177,6 +177,9 @@ export const proof = {
         reduceValue0DefaultBranch: () => {
             reduceValue0([['leaf']])([['x'], 's', ['y']])
         },
+        reduceValue2DefaultBranch: () => {
+            reduceValue2([['leaf']])([['x'], 's', ['y']])
+        },
         initValue1DefaultBranch: () => {
             initValue1(null)([[['a'], 'b', ['c']], 'd', ['e']])
         },
