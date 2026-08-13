@@ -20,22 +20,14 @@ history.
 
 ## Unreleased
 
-- **BREAKING CHANGES:** the npm package no longer ships `.js` files compiled
-  from the type-only `types.ts` modules (empty `export {}` stubs) or from test
-  files: `prepack` emits declarations only, then re-checks the tree with those
-  declarations present so declaration-emit degradation still fails packaging.
-  Types resolve through the shipped `.d.ts` files; import them only in fully
-  erased form — `import type { X } from '…/types.js'` — never
-  `import { type X }`, `import * as`, or a bare side-effect import, which
-  retain a runtime import of a module that no longer exists. The external
-  test-runner entry `fjs/emergent_testing/all.test.js` is among the removed
-  files: import the authored `fjs/emergent_testing/all.test.mjs` instead
+- **BREAKING CHANGES:** the npm package ships no `.js` files: the empty
+  `types.js` stubs and compiled test files are gone. Import types only with
+  fully erased `import type`, and use `fjs/emergent_testing/all.test.mjs` as
+  the external-runner entry
   [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
-- The `fjs/emergent_testing/scenarios` native-TypeScript-execution fixtures,
-  which never ran in CI, are deleted;
-  `fjs/emergent_testing/scenarios.md` records their sources and how to
-  recreate them. With the test entry renamed `all.test.ts` ->
-  `all.test.mjs`, the repository's only authored TypeScript is `types.ts`
+- The `fjs/emergent_testing/scenarios` fixtures, which never ran in CI, are
+  deleted; `fjs/emergent_testing/scenarios.md` records how to recreate them.
+  `types.ts` is now the only authored TypeScript
   [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
 - `fjs/djs/parser`'s `proof` covers `endObject`'s defensive non-object-top
   guard directly, the same way it already covers `pushKey` and `endArray`'s

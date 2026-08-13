@@ -1010,7 +1010,9 @@ person can re-check rather than re-derive. Counts are as of
       (`fjs/bnf/todo/unicode-rules.md`, `fjs/effects/todo/node-module-layering.md`
       and ~40 others), since no such file may be authored any more.
 
-      All 22 files that still contain the old extension anywhere are listed
+      All 21 files that still contain the old extension anywhere (22 before
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
+      deleted `205.md`) are listed
       below, and each one is deliberate. Describing the migration or the
       extension itself: this file, `AGENTS.md`,
       [`fjs/fsc/README.md`](../fjs/fsc/README.md),
@@ -1025,9 +1027,11 @@ person can re-check rather than re-derive. Counts are as of
       [`blocked/js-extension-type-annotations.md`](./blocked/js-extension-type-annotations.md)
       and [`formatter-for-f-js-and-f-ts-files.md`](../fjs/todo/formatter-for-f-js-and-f-ts-files.md).
       Quoting `shouldLoad`, which still matches `.f.ts`:
-      [`664-emergent-testing-module-files.md`](../fjs/emergent_testing/todo/664-emergent-testing-module-files.md),
-      [`205.md`](../fjs/emergent_testing/todo/205.md) and
-      [`skip-property.md`](../fjs/emergent_testing/todo/skip-property.md).
+      [`664-emergent-testing-module-files.md`](../fjs/emergent_testing/todo/664-emergent-testing-module-files.md)
+      and [`skip-property.md`](../fjs/emergent_testing/todo/skip-property.md)
+      (`205.md` was also on this list until
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
+      deleted it with the scenario suite it described).
       Recording a superseded convention or a completed move:
       [`028-unit-test-examples-api.md`](../fjs/emergent_testing/todo/028-unit-test-examples-api.md),
       [`throw-payload-assertions.md`](../fjs/emergent_testing/todo/throw-payload-assertions.md)
