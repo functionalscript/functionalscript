@@ -20,6 +20,8 @@ history.
 
 ## Unreleased
 
+0.44.0
+
 - **BREAKING CHANGES:** `fjs/bnf/proof` migrates from authored
   TypeScript (`.f.ts`) to JSDoc-typed JavaScript (`.f.mjs`) — no local
   types to split. Importers must use the `.f.mjs` specifier
