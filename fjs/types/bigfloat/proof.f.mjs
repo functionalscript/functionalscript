@@ -261,5 +261,18 @@ export const proof = {
             assertDecToBin([-0b111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111n, 0])(
                 [-0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n, 3])
         },
+    ],
+    // The mantissa width holds at every scale, not just where binary64 has a
+    // normal exponent. These two land where binary64 would encode a subnormal
+    // (biased exponent 0x000, at most 52 significand bits) and an infinity
+    // (0x7ff); `decToBin` clamps neither, and still returns 53 bits. Hex, not
+    // binary: these mantissas have no bit pattern worth reading.
+    farExponent: [
+        () => {
+            assertDecToBin([1n, -320])([0x1f_a017_12e8_f047n, -1116])
+        },
+        () => {
+            assertDecToBin([1n, 400])([0x1b_4ec7_f919_73ffn, 1276])
+        },
     ]
 }

@@ -90,9 +90,17 @@ const round53 = ([[m, e], r]) =>
  * Converts a decimal `BigFloat` to a binary one, rounding the mantissa
  * half-to-even.
  *
- * The result is the IEEE-754 binary64 significand of the input: the mantissa
- * magnitude is always strictly below `2^53`, including when rounding carries
- * (see `round53`). A zero input maps to `[0n, 0]`.
+ * The mantissa magnitude is always strictly below `2^53`, including when
+ * rounding carries (see `round53`), so it fits an IEEE-754 binary64
+ * significand. A zero input maps to `[0n, 0]`.
+ *
+ * The *exponent* is not clamped to binary64's range: nothing here overflows to
+ * infinity, underflows to zero, or denormalizes. The pair is therefore the
+ * encodable significand only for the normal range (biased exponent
+ * `0x001`..`0x7fe`). In the `0x000` range the mantissa is still normalized to
+ * 53 bits where the encoded value keeps at most 52, so re-rounding this result
+ * onto the subnormal grid rounds a second time and can land one ulp off the
+ * correctly-rounded double.
  *
  * @type {(dec: BigFloat) => BigFloat}
  */
