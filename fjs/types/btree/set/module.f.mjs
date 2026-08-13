@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import { collapseRoot } from '../types/module.f.mjs'
 /** @import { Branch1, Branch3, Branch5, Branch7, TNode, Tree } from '../types/types.ts' */
 

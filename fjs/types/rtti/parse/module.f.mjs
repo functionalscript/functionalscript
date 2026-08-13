@@ -28,6 +28,7 @@
  *
  * @module
  */
+
 /** @import { Info1, Struct, Tag1, Tuple, Type } from '../types.ts' */
 /** @import { Result as CommonResult } from '../../result/types.ts' */
 import { ok } from '../../result/module.f.mjs'

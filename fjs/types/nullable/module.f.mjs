@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import { assert } from '../../asserts/module.f.mjs'
 import { fn } from '../function/module.f.mjs'
 /** @import { Option } from '../option/types.ts' */

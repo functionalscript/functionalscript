@@ -1,4 +1,11 @@
-/** @import { Func, Fn } from './types.ts' */
+/**
+ * Function combinators: composition, identity, argument flipping, and the
+ * chainable `Fn` wrapper.
+ *
+ * @module
+ *
+ * @import { Func, Fn } from './types.ts'
+ */
 
 /**
  * A postfix compose function.
