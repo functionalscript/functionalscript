@@ -26,6 +26,11 @@ history.
   `fjs/protocol/mcp/stdio/types.ts` — so their documentation survives
   declaration emit; importers must use the `types.ts` specifier for these types
   [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
+- `media/type`: the magic-byte signatures are declared once. `detect` now folds
+  its bytes through the same eliminator the streaming detector uses, instead of
+  matching a second, hand-mirrored copy of the same table, so a `Vec` of
+  sub-byte length reads the way `detectStream` already read it
+  [#1533](https://github.com/functionalscript/functionalscript/pull/1533)
 - `fjs/cas`, `fjs/cas/evo` and `fjs/emergent_testing` compose through the raw
   `step` / `mapStep` / `historyStep` combinators instead of the fluent `Eff`
   wrapper, which keeps its module but now has no consumers. Behavior is
