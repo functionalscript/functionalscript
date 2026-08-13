@@ -99,16 +99,42 @@ than of this implementation.
 
 By conversion and comparison, over multiple pull requests.
 
-Usage is currently split cleanly by file rather than mixed within one: `fjs/cas`,
-`fjs/cas/evo`, and `fjs/emergent_testing` use `Eff`; most other effect code uses
-raw `step`. That split is historical — those three simply were not converted
-when `eff` was removed elsewhere — but it is useful anyway, because they are the
-most effect-dense modules in the repository. Converting them is where the
-wrapper should pay off most, and so is where the evidence will be clearest.
+**Nothing in the repository uses `Eff` today.** The last consumers — `fjs/cas`,
+`fjs/cas/evo`, `fjs/emergent_testing`, and `fjs/protocol/mcp`'s proof — have
+been converted to raw `step` / `mapStep` / `historyStep`, so this module and its
+proof are all that remain. Those were the most effect-dense modules in the
+repository, which is why they were where the wrapper should have paid off most
+and where the evidence is clearest.
 
-What is worth recording for each conversion: how many call sites changed, what
-happened to nesting depth and indentation, whether intermediate names had to be
-invented, and whether the value history was actually used or merely carried.
+That is a pause, not a verdict. The wrapper stays available and stays cheap to
+keep, for the reason given above: nothing in the primitive layer depends on it.
+
+What the conversion recorded, in the terms this section asked for:
+
+- **Call sites.** Every `eff(e).step(f).value` had a mechanical raw
+  equivalent, so nothing had to be redesigned to lose the wrapper. A chain
+  whose last link was a pure projection collapsed to a single `mapStep`,
+  shorter than the fluent form it replaced.
+- **Nesting and indentation.** Flat chains came out *less* indented: the
+  `eff(…)` / `.value` bracketing costs a level the raw form does not pay. The
+  chains that genuinely nested — `writeImpl` in `fjs/cas` — nested identically
+  either way, because that nesting is forced by locals computed inside a
+  continuation rather than by the spelling.
+- **Intermediate names.** A handful had to be invented, and they read as
+  documentation rather than ceremony (`listed`, `reported`, `total`). The raw
+  form asks for one name per link; that is the SSA cost described above, and it
+  bites only where a link has nothing worth calling it — `publish`'s
+  `created` / `removed` / `stated` are three such names for what the fluent
+  chain wrote as three anonymous `.step`s.
+- **The history.** Mostly carried, not used. Only three chains read a prior
+  value at all — `gcStage` (`fjs/cas`), `runModuleMap`
+  (`fjs/emergent_testing`), and the state read-back in the MCP proof — and each
+  became an explicit `historyStep` that says so where it happens. The fluent
+  `.step` was paying for the history tuple on every link regardless.
+
+What conversion cannot supply is the other half of the trade: what the wrapper
+actually costs when a chain is long and hot. That needs a measurement, not
+another rewrite.
 
 ## Related open questions
 

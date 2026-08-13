@@ -272,11 +272,12 @@ represented as a pair of effects.
 - [ ] Use `catchStep` only for intentional recovery/fallback, including
       `NotImplemented` handling.
 - [ ] Use `resultStep` where both branches genuinely matter.
-- [ ] **Decide `Eff`'s fate before the first fluent consumer migrates.**
-      `fjs/cas/module.f.mjs` composes via `eff(...).step(okStep(...))`; either
-      `Eff` (`fjs/effects/eff/module.f.mjs`) grows an Io-aware `.step`, or
-      those consumers migrate off `Eff` onto the flat IoEffect combinators.
-      Pick one; do not leave cas half-fluent.
+- [ ] No fluent consumer is left to decide about: every module now composes
+      through the flat combinators, and `Eff`
+      (`fjs/effects/eff/module.f.mjs`) is kept only as the experiment its
+      [README](../eff/README.md) describes. If it gains a consumer again
+      before this stage lands, it needs an Io-aware `.step` — otherwise
+      nothing here depends on it.
 - [ ] Update the flat-step / "do not nest steps" guidance for the new
       semantics.
 - [ ] Add IoEffect variants of other combinators only when real consumers
@@ -376,7 +377,6 @@ current runners remain total over their declared operation maps.
 - [`../../../todo/044-error-handling-pattern.md`](../../../todo/044-error-handling-pattern.md)
 - `fjs/effects/module.f.mjs` — raw `step`, `okStep`, `match` (whose
   missing-handler `assert` Stage 6 reworks).
-- `fjs/effects/eff/module.f.mjs` — the fluent wrapper whose fate Stage 4
-  decides.
+- `fjs/effects/eff/module.f.mjs` — the fluent wrapper, currently consumer-free.
 - `fjs/types/result/module.f.mjs` — `okThen`, the union-not-unify precedent
   for the signatures above.

@@ -1,15 +1,14 @@
-## map-step-combinator. Convert the remaining `step(e, x => pure(f(x)))` sites to `mapStep` / `Eff.map`
+## map-step-combinator. Convert the remaining `step(e, x => pure(f(x)))` sites to `mapStep`
 
 **Priority:** P3
 **Status:** open
 
-> **The APIs have landed.** `mapStep` is in `fjs/effects/module.f.mjs` and
-> `Eff.map` in `fjs/effects/eff/module.f.mjs`, each with proof coverage and with
-> its first real consumers converted in the same change — `readUtf8File`,
-> `awaitIfPromise` and `errorExit` (`fjs/effects/node/module.f.mjs`),
-> `decodeRevisionBlob` (`fjs/cas/evo/module.f.mjs`), and `Eff`'s own `.step`,
-> whose history projection is now a `mapStep`. What remains is the mechanical
-> part: the other call sites, module by module.
+> **The API has landed.** `mapStep` is in `fjs/effects/module.f.mjs` with proof
+> coverage, and its first real consumers were converted in the same change —
+> `readUtf8File`, `awaitIfPromise` and `errorExit`
+> (`fjs/effects/node/module.f.mjs`) and `decodeRevisionBlob`
+> (`fjs/cas/evo/module.f.mjs`). What remains is the mechanical part: the other
+> call sites, module by module.
 
 ### Problem
 
@@ -69,12 +68,8 @@ step(a, x => step(f(x), y => pure(g(x, y))))
 
 ### Proposal
 
-Rewrite each remaining site with the combinator that already exists:
-
-```ts
-mapStep(e, f)                       // raw Effect
-eff(e).map(f).value                 // fluent Eff
-```
+Rewrite each remaining site with the combinator that already exists —
+`mapStep(e, f)`.
 
 `mapStep` does **not** widen the operation set (`Effect<O, R>`, not
 `Effect<O | Q, R>`) — a pure projection adds no commands. That is a small typing
@@ -88,17 +83,11 @@ construction rather than inside the continuation), which is invisible for the
 cheap pure values used today but is a semantic difference not worth introducing
 for brevity. The rationale is recorded in `mapStep`'s JSDoc.
 
-**Conversion hazard: callback arity.** `Eff`'s docs warn that the history is
-positional, so "every parameter a callback declares is meaningful … a defaulted
-or rest parameter after the current value is a bug, not a convenience." A
-conversion from `.step(y => pure(f(y)))` to `.map(f)` is only safe when `f` is
-genuinely unary — the explicit lambda pins arity at one, while passing `f`
-point-free exposes it to the prior values. This is `["1","2","3"].map(parseInt)`
-with a longer history tuple. When converting, either keep the lambda or confirm
-the callee takes exactly one argument; `mapOk(utf8ToString)` and `vecToCBase32`
-qualify, and anything with optional parameters does not. `mapStep` is not exposed
-to this — it applies `f` to exactly one argument — so only the fluent sites need
-the check.
+**No callback-arity hazard here.** `mapStep` applies `f` to exactly one
+argument, so passing a callee point-free cannot expose it to extra arguments the
+way `["1","2","3"].map(parseInt)` does. (`Eff.map` *is* exposed to that, because
+its history is positional — but no module uses `Eff` any more, so no site in
+this conversion needs the check.)
 
 **Scope.** `AGENTS.md` asks one improvement per PR. Take one module or one
 closely related group per PR; what must **not** happen is landing the whole
@@ -111,8 +100,6 @@ conversion as one 14-module diff.
 - [ ] `fjs/protocol/mcp` + `fjs/protocol/mcp/stdio`.
 - [ ] `fjs/cas` + `fjs/cas/evo` + `fjs/mcp/evo` + `fjs/mcp`.
 - [ ] `fjs/emergent_testing`, `fjs/dev`.
-- [ ] When converting fluent sites, check callback arity (see the hazard note
-      above) rather than mechanically dropping the lambda.
 - [ ] `npx tsc` clean; `fjs t` passes after each PR.
 
 ### Related
