@@ -51,8 +51,9 @@ import {
     digit0,
     colon,
     //
+    hexDigitValue,
+    //
     latinCapitalLetterRange,
-    latinCapitalLetterA,
     latinCapitalLetterE,
     //
     leftSquareBracket,
@@ -61,7 +62,6 @@ import {
     lowLine,
     //
     latinSmallLetterRange,
-    latinSmallLetterA,
     latinSmallLetterB,
     latinSmallLetterE,
     latinSmallLetterF,
@@ -149,9 +149,6 @@ const rangeSetTerminalForNumber = [
     one(rightCurlyBracket),
     one(tilde),
 ]
-
-const rangeSmallAF = range('af')
-const rangeCapitalAF = range('AF')
 
 const rangeIdStart = [
     latinSmallLetterRange,
@@ -596,21 +593,21 @@ const parseUnicodeCharDefault = state => input => {
     return [{ first: { kind: 'error', message: 'invalid hex value' }, tail: next[0] }, next[1]]
 }
 
-/** @type {(offset: number) => _CreateToToken<_ParseUnicodeCharState>} */
-const parseUnicodeCharHex = offset => state => input => {
-    const hexValue = input - offset
+/**
+ * `hexDigitValue` classifies the code point and decodes it in one step, so this
+ * state needs no range-map dispatch: a `null` value is exactly the non-hex
+ * input the default handler rejects.
+ *
+ * @type {(state: _ParseUnicodeCharState) => (input: number) => readonly [List<JsToken>, _TokenizerState]}
+ */
+const parseUnicodeCharStateOp = state => input => {
+    const hexValue = hexDigitValue(input)
+    if (hexValue === null) { return parseUnicodeCharDefault(state)(input) }
     const newUnicode = state.unicode | (hexValue << (3 - state.hexIndex) * 4)
     return [empty, state.hexIndex === 3 ?
         { kind: 'string', value: appendChar(state.value)(newUnicode) } :
         { kind: 'unicodeChar', value: state.value, unicode: newUnicode, hexIndex: state.hexIndex + 1 }]
 }
-
-/** @type {(state: _ParseUnicodeCharState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const parseUnicodeCharStateOp = create(parseUnicodeCharDefault)([
-    rangeFunc(digitRange)(parseUnicodeCharHex(digit0)),
-    rangeFunc(rangeSmallAF)(parseUnicodeCharHex(latinSmallLetterA - 10)),
-    rangeFunc(rangeCapitalAF)(parseUnicodeCharHex(latinCapitalLetterA - 10))
-])
 
 /** @type {(s: string) => JsToken} */
 const idToToken = s => at(s)(keywordMap) ?? { kind: 'id', value: s }

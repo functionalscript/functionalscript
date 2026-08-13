@@ -52,14 +52,12 @@ import { multiply } from '../../types/bigfloat/module.f.mjs'
 import {
     asterisk, backspace, ht, lf, ff, cr,
     quotationMark, solidus, reverseSolidus,
-    digitRange, digit0,
-    latinCapitalLetterA,
-    latinSmallLetterA, latinSmallLetterB, latinSmallLetterF,
+    hexDigitValue,
+    latinSmallLetterB, latinSmallLetterF,
     latinSmallLetterN, latinSmallLetterR, latinSmallLetterT, latinSmallLetterU,
-    range as asciiRange,
 } from '../../text/ascii/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { contains } from '../../types/range/module.f.mjs'
+import { mapUnwrap } from '../../types/nullable/module.f.mjs'
 import { concat, empty, filter, flat, flatMap, fold, map, stateScan, toArray } from '../../types/list/module.f.mjs'
 import { stringifyAsTree } from '../serializer/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -333,7 +331,13 @@ const filterFunc = tk => {
     }
 }
 
-const rangeCapitalAF = asciiRange('AF')
+/**
+ * A `\uXXXX` escape reaches the `unicode` state only after the grammar has
+ * accepted its four hex digits, so a non-hex code point here is a tokenizer
+ * bug rather than bad input — assert instead of decoding it to a garbage
+ * value, which is what the hand-rolled ternary chain used to do.
+ */
+const unwrapHexDigitValue = mapUnwrap(hexDigitValue)
 
 /** @typedef {
  *   | { readonly kind: 'normal' }
@@ -358,11 +362,7 @@ const stringDecodeScan = (cp, state) => {
                 default:  return [[cp], { kind: 'normal' }]
             }
         case 'unicode': {
-            // convert hex digit char to its numeric value: '0'-'9', 'A'-'F', 'a'-'f'
-            const digit = contains(...digitRange)(cp) ? cp - digit0
-                : contains(...rangeCapitalAF)(cp) ? cp - (latinCapitalLetterA - 10)
-                : cp - (latinSmallLetterA - 10)
-            const acc = (state.acc << 4) | digit
+            const acc = (state.acc << 4) | unwrapHexDigitValue(cp)
             return state.count === 3 ? [[acc], { kind: 'normal' }] : [null, { kind: 'unicode', acc, count: state.count + 1 }]
         }
         default:
