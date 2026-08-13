@@ -25,6 +25,11 @@ history.
   gains `assertStructurallySame` — the assertion to use instead of comparing
   `JSON.stringify` output
   [#1538](https://github.com/functionalscript/functionalscript/pull/1538)
+- `media/json/parser`: `endArray`/`endObject` no longer branch on `state.top`
+  and `tokenToValue` drops its defensive default arm — the parser's state
+  machine already guarantees these invariants, so the dead branches are gone
+  instead of tested
+  [#1536](https://github.com/functionalscript/functionalscript/pull/1536)
 - `text/code_point`: new `eofFlush` factory builds the end-of-input step
   `decoder` takes. The UTF-8 and UTF-16 decoders derive their eof ops from it
   instead of each writing the flush out, so "leftover state becomes exactly one
