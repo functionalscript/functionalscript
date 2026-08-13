@@ -6,7 +6,7 @@
 ### Problem
 
 CAS functionality is exposed through two transports — the CLI
-(`fjs/cas/cli/module.f.mjs`) and the MCP server (`fjs/mcp/module.f.ts`) —
+(`fjs/cas/cli/module.f.mjs`) and the MCP server (`fjs/mcp/module.f.mjs`) —
 and each wires its own logic directly onto the store primitives in
 `fjs/cas/module.f.mjs`. There is no defined notion of a *CAS command*: no
 shared command set, no typed input/output contracts, no common error

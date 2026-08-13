@@ -25,7 +25,7 @@ directory and lose the failures reported elsewhere.
 Let `fjs t` take positional arguments that select what to run. Two
 independent axes, both derived from the path the walker already builds
 (`fmtImport(moduleKey, testPath)` — module key plus the export path of the
-test case, e.g. `fjs/types/list/proof.f.ts` → `proof.map.empty`):
+test case, e.g. `fjs/types/list/proof.f.mjs` → `proof.map.empty`):
 
 - **module selection** — restrict which modules `loadModuleMap` loads, by
   passing a caller-supplied predicate into `allFiles`

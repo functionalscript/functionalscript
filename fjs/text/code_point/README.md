@@ -20,7 +20,7 @@ distinct: a control byte such as NUL is perfectly valid UTF-8 yet not text, whic
 is exactly what `fjs/media/type` needs to split text from binary. `isValidCodePoint`
 gates decoding (`fromVec`); `isTextCodePoint` gates classification.
 
-`isValidCodePoint` was previously exported from `utf8/module.f.ts`; it now lives
+`isValidCodePoint` was previously exported from `utf8/module.f.mjs`; it now lives
 solely on `code_point`. Importers — `fjs/media/type` and `utf8`'s own `fromVec` — take
 it from `code_point` directly. This was a deliberate breaking change rather than
 a re-export, on the principle that the predicate's canonical home is the shared

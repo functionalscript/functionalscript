@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/djs/serializer/module.f.ts` already imports the serializer atoms it
+`fjs/djs/serializer/module.f.mjs` already imports the serializer atoms it
 shares with JSON from `fjs/media/json/serializer/module.f.mjs` (line 15:
 `objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize,
 boolSerialize`) — but two pieces of the same property-serialization
@@ -15,9 +15,9 @@ vocabulary were left behind and re-declared instead:
 `stringSerialize(k), colon, f(v)` property fragment:
 
 ```ts
-// fjs/media/json/module.f.ts:70
+// fjs/media/json/module.f.mjs:70
 const colon = [':']
-// fjs/djs/serializer/module.f.ts:17
+// fjs/djs/serializer/module.f.mjs:17
 const colon = [':']
 ```
 
@@ -25,10 +25,10 @@ const colon = [':']
 `Unknown` the entries carry:
 
 ```ts
-// fjs/media/json/module.f.ts:74-76
+// fjs/media/json/module.f.mjs:74-76
 type Entries = List<Entry>
 type MapEntries = (entries: Entries) => Entries
-// fjs/djs/serializer/module.f.ts:23
+// fjs/djs/serializer/module.f.mjs:23
 type MapEntries = (entries: List<ObjectEntry<Unknown>>) => List<ObjectEntry<Unknown>>
 ```
 
@@ -47,7 +47,7 @@ export const colon: List<string> = [':']
 export type MapEntries<P> = (entries: List<ObjectEntry<P>>) => List<ObjectEntry<P>>
 ```
 
-`fjs/media/json/module.f.ts` imports `colon` and instantiates
+`fjs/media/json/module.f.mjs` imports `colon` and instantiates
 `MapEntries<Unknown>` (json's `Unknown`); `fjs/djs/serializer` imports both
 and instantiates `MapEntries<Unknown>` (djs's `Unknown`). The two local
 declarations are deleted. The leaf parameterization composes with
@@ -57,8 +57,8 @@ unifies the value types the same way but does not cover `MapEntries`.
 ### Tasks
 
 - [ ] Export `colon` and `MapEntries<P>` from `fjs/media/json/serializer`.
-- [ ] Delete the local copies in `fjs/media/json/module.f.ts` and
-      `fjs/djs/serializer/module.f.ts`; import instead.
+- [ ] Delete the local copies in `fjs/media/json/module.f.mjs` and
+      `fjs/djs/serializer/module.f.mjs`; import instead.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related

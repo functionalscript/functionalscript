@@ -1,8 +1,8 @@
 {
   "tasks": {
-    "fjs": "deno run --allow-read --allow-write --allow-env --allow-net --allow-sys ./fjs/module.ts",
+    "fjs": "deno run --allow-read --allow-write --allow-env --allow-net --allow-sys ./fjs/module.mjs",
     "test": "deno test --allow-read --allow-env --allow-sys",
-    "cov": "deno test --allow-read --allow-env --allow-sys --coverage && deno coverage --include='.*module\\.f\\.(ts|mjs)'"
+    "cov": "deno test --allow-read --allow-env --allow-sys --coverage && deno coverage --include='.*module\\.f\\.mjs'"
   },
   "fmt": {
     "indentWidth": 4,

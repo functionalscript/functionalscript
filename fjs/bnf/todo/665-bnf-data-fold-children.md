@@ -103,7 +103,7 @@ removing the four mutated `let`s.
 
 - [ ] Add `foldChildren` (private) to `fjs/bnf/data/module.f.mjs`.
 - [ ] Rewrite `sequence` and `variant` as instantiations of it.
-- [ ] Confirm `fjs/bnf/data/proof.f.ts` coverage still exercises both result
+- [ ] Confirm `fjs/bnf/data/proof.f.mjs` coverage still exercises both result
       shapes (array and keyed) and the multi-child map-threading path.
 - [ ] `npm test` + `npx tsc` green.
 

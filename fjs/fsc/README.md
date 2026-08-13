@@ -8,10 +8,10 @@ FunctionalScript compiler.
 
 | Extension | Meaning |
 |---|---|
-| `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source that has not yet completed the repository TypeScript-to-JavaScript migration. |
+| `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
 | `.f.js` | During stage 1, generated JavaScript emitted from `.f.ts` and never authored. After stage 1 and authored-`.f.js` package support are complete, authored FunctionalScript that the current parser/compiler must accept. |
-| `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.ts`, `.f.mjs`, or `.f.js` and is outside the runtime implementation migration. |
+| `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 
 The migration is deliberately split into two implementation stages. The
@@ -21,6 +21,11 @@ and the package conventions are documented in
 [`fjs/ci/todo/publishing-packages.md`](../ci/todo/publishing-packages.md).
 
 ### Stage 1: remove authored TypeScript implementations
+
+**Stage 1 source conversion is complete** — no authored implementation or proof
+`.f.ts` remains, so every rename described in this section has already happened.
+It is kept as the record of what the extensions mean and why; write new source as
+`.f.mjs` plus, where a type-level API is separately useful, `types.ts`.
 
 Before the first real repository implementation conversion, complete both
 prerequisites in order:
@@ -113,11 +118,10 @@ files are required, and that TypeScript, Node, Deno, and Bun can consume the
 packed result. Do not simplify the TypeScript runtime-emission pass until that
 experiment establishes whether generated `types.js` remains necessary.
 
-Proofs follow the same runtime source-language rule. `proof.f.ts` may remain
-temporarily beside a migrated `module.f.mjs`, but it may move to `proof.f.mjs` as
-soon as the proof itself is valid JavaScript with JSDoc and its authored runtime
-dependencies are already `.f.mjs`. Type-only APIs may remain in `types.ts`.
-Current FunctionalScript compiler support is not a condition for that rename.
+Proofs followed the same runtime source-language rule and completed the same
+move, so a `module.f.mjs` is accompanied by a `proof.f.mjs`. Type-only APIs may
+remain in `types.ts`. Current FunctionalScript compiler support was never a
+condition for that rename.
 
 #### Private JSDoc typedefs
 

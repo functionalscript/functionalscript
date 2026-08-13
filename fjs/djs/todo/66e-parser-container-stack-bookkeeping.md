@@ -5,7 +5,7 @@
 
 ### Problem
 
-Both `fjs/media/json/parser/module.f.ts` and `fjs/djs/parser/module.f.ts` build the
+Both `fjs/media/json/parser/module.f.mjs` and `fjs/djs/parser/module.f.mjs` build the
 container state machine out of four helpers — `startArray`, `startObject`,
 `endArray`, `endObject` — and within each module the two `start*` helpers and
 the two `end*` helpers share their *entire* stack-bookkeeping body. The only
@@ -15,7 +15,7 @@ finished container's value is extracted on the way out. Everything around that �
 pushing the current `top` onto the stack, popping it back off, and threading the
 result through `pushValue` — is repeated verbatim.
 
-#### JSON (`fjs/media/json/parser/module.f.ts:79-111`)
+#### JSON (`fjs/media/json/parser/module.f.mjs:79-111`)
 
 The stack-push line is byte-identical in both `start*` helpers:
 
@@ -60,7 +60,7 @@ const endObject
     }
 ```
 
-#### DJS (`fjs/djs/parser/module.f.ts:283-322`)
+#### DJS (`fjs/djs/parser/module.f.mjs:262-303`)
 
 The same shape recurs, with `{ ...state, ... }` spread instead of a fresh record
 and tuple containers instead of `kind`-tagged objects:
@@ -159,14 +159,14 @@ one and can land independently of 157.
 
 ### Tasks
 
-- [ ] In `fjs/media/json/parser/module.f.ts`, add `pushStack` / `popState` (or
+- [ ] In `fjs/media/json/parser/module.f.mjs`, add `pushStack` / `popState` (or
       equivalently named) and `startContainer` / `endContainer`; derive
       `startArray` / `startObject` / `endArray` / `endObject` from them.
-- [ ] Apply the same shape to `fjs/djs/parser/module.f.ts`, preserving the
+- [ ] Apply the same shape to `fjs/djs/parser/module.f.mjs`, preserving the
       `{ ...state }` spread and the `endArray` non-array fallback inside the
       `build` callback.
-- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/media/json/parser/proof.f.ts` and
-      `fjs/djs/parser/proof.f.ts` still pass with full line/branch coverage
+- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/media/json/parser/proof.f.mjs` and
+      `fjs/djs/parser/proof.f.mjs` still pass with full line/branch coverage
       (behaviour is unchanged — this is a pure refactor).
 
 ### Related

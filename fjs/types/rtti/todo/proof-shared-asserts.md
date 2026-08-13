@@ -5,8 +5,8 @@
 
 ## Problem
 
-`fjs/types/rtti/validate/proof.f.ts:9-20` and
-`fjs/types/rtti/parse/proof.f.ts:9-25` define byte-identical helpers:
+`fjs/types/rtti/validate/proof.f.mjs:13-29` and
+`fjs/types/rtti/parse/proof.f.mjs:13-38` define byte-identical helpers:
 
 ```ts
 const assertOk = ([k]: readonly [string, unknown]) => { assertEq(k, 'ok', 'expected ok') }
@@ -20,18 +20,18 @@ const assertErrorPath = (expected: readonly string[]) =>
     }
 ```
 
-In addition, `parse/proof.f.ts:12-15` hand-rolls an `unwrap` that duplicates
+In addition, `parse/proof.f.mjs:19-27` hand-rolls an `unwrap` that duplicates
 `unwrap` from `fjs/types/result/module.f.mjs:59` (assert `'ok'`, return the
 payload), and `assertErrorPath`/`assertDeepEqual`
-(`parse/proof.f.ts:17-45`) still use raw `if`/`throw` instead of
+(`parse/proof.f.mjs:29-59`) still use raw `if`/`throw` instead of
 `assert`/`assertEq`, contrary to the proof-assertion rule in `AGENTS.md`
 (each local `if`/`throw` is a permanently-uncovered branch).
 
 Beyond the helpers, roughly 80% of the two proof trees are copy-pasted
 verbatim modulo the checker name (`validate` vs `parse`): the `boolean` /
 `number` / `string` / `bigint` / `unknown` / `const` / `or` / `option` /
-`path` / `recursive` suites (`validate/proof.f.ts:22-75,273-326` vs
-`parse/proof.f.ts:47-100,295-345`). Only the container *success* cases
+`path` / `recursive` suites (`validate/proof.f.mjs:29-83,280-334` vs
+`parse/proof.f.mjs:60-113,311-362`). Only the container *success* cases
 legitimately differ (validate asserts identity of the returned value; parse
 asserts fresh construction and dropped extras via `assertDeepEqual`).
 
@@ -45,14 +45,14 @@ Two steps; the first is the high-confidence part:
      `fjs/asserts/module.f.mjs` (type-only import of `Result` from
      `fjs/types/result`, or structural `readonly [string, unknown]` to keep
      `fjs/asserts` dependency-free).
-   - Replace `parse/proof.f.ts`'s local `unwrap` with `unwrap` from
+   - Replace `parse/proof.f.mjs`'s local `unwrap` with `unwrap` from
      `fjs/types/result/module.f.mjs`.
    - Rewrite `assertErrorPath` with `assertEq` (compare `e.path.length` and
      each element, or compare the joined path string), export it from one
      place both proofs can import — since `ValidationError` is owned by
      `validate` (parse already reuses it per `AGENTS.md`), exporting the
      helper from a small shared rtti proof-helper module (or from
-     `validate/proof.f.ts`) keeps it next to the type it inspects.
+     `validate/proof.f.mjs`) keeps it next to the type it inspects.
 
 2. **Suite factory (optional, larger).** Extract a
    `commonSuite(check: <T>(rtti: T) => (input: unknown) => Result<…>)`

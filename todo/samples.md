@@ -56,7 +56,7 @@ Candidate samples, from #233:
 - consuming a FunctionalScript module from an existing TypeScript project;
 - consuming a FunctionalScript module from an existing JavaScript project.
 
-The last two are the ones that answer #485 directly — the claim that `.f.ts`
+The last two are the ones that answer #485 directly — the claim that `.f.mjs`
 modules import into ordinary TS/JS with no build step is the project's main
 selling point and is currently unillustrated.
 
@@ -85,6 +85,6 @@ delete it.
 - [GitHub issue #485](https://github.com/functionalscript/functionalscript/issues/485)
   — README does not explain how the library is used.
 - [fjs/website/todo/generate-website.md](../fjs/website/todo/generate-website.md)
-  — the `page.f.ts` convention and README→HTML publishing; samples should
+  — the `page.f.mjs` convention and README→HTML publishing; samples should
   feed the website rather than duplicate it.
 - [demo/README.md](./demo/README.md) — existing examples to salvage.

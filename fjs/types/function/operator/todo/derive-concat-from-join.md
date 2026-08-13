@@ -18,4 +18,4 @@ Worth doing if the file is touched anyway, not on its own.
 ### Tasks
 
 - [ ] Replace `concat`'s body with `join('')`.
-- [ ] Confirm `proof.f.ts` still passes and `npx tsc` is clean.
+- [ ] Confirm `proof.f.mjs` still passes and `npx tsc` is clean.

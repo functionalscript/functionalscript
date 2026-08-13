@@ -28,13 +28,13 @@ Split alphabet-specific rule construction from the generic BNF module:
 - `fjs/bnf/module.f.mjs` defines generic symbols/ranges, rule types, and grammar
   combinators. It has no dependency on text/Unicode or byte-stream modules and
   does not give JavaScript `string` or byte-container values terminal meaning.
-- `fjs/bnf/unicode/module.f.ts` contains helpers for constructing generic BNF
+- `fjs/bnf/unicode/module.f.mjs` contains helpers for constructing generic BNF
   rules from Unicode code points and JavaScript strings.
-- `fjs/bnf/byte/module.f.ts` contains helpers for constructing generic BNF rules
+- `fjs/bnf/byte/module.f.mjs` contains helpers for constructing generic BNF rules
   over binary byte streams, including the byte range `0..255` and convenient
   byte sequence/set/range construction where useful.
 
-Move Unicode-specific APIs such as these to `fjs/bnf/unicode/module.f.ts`:
+Move Unicode-specific APIs such as these to `fjs/bnf/unicode/module.f.mjs`:
 
 - `unicodeRange`
 - `unicodeMax`
@@ -75,7 +75,7 @@ This split changes the public design assumptions used by older open TODOs:
 
 - [`fjs/media/json/todo/bnf-grammar-single-owner.md`](../../media/json/todo/bnf-grammar-single-owner.md)
   is blocked by this task. Its implementation must import Unicode-specific
-  construction from `fjs/bnf/unicode/module.f.ts` and lower text literals to
+  construction from `fjs/bnf/unicode/module.f.mjs` and lower text literals to
   generic rules before they reach core BNF.
 - [`fjs/bnf/todo/207.md`](./207.md) is blocked by this task. Its planned
   split/revision must remove `string` as a generic rule kind. Unicode text helpers
@@ -97,8 +97,8 @@ This split changes the public design assumptions used by older open TODOs:
   recognizer/DFA backends consume the generic rules produced by that adapter.
 - [`fjs/bnf/todo/proof-recognizer-and-fixtures.md`](./proof-recognizer-and-fixtures.md)
   is blocked by this task. Its shared `number` fixture currently constructs text
-  terminals with core `range('--')` / `range('09')` and assumes `testlib.f.ts`
-  obtains those helpers from `./module.f.ts`; after the split, fixture construction
+  terminals with core `range('--')` / `range('09')` and assumes `testlib.f.mjs`
+  obtains those helpers from `./module.f.mjs`; after the split, fixture construction
   must import the Unicode adapter while descent/LL1 remain generic consumers.
 - [`fjs/bnf/todo/data-tosequence-reuse.md`](./data-tosequence-reuse.md) is
   **irrelevant because it is superseded by this task**. It proposed preserving
@@ -113,8 +113,8 @@ new module boundary and final rule discriminants before implementation starts.
 
 ### Tasks
 
-- [ ] Add `fjs/bnf/unicode/module.f.ts` for Unicode code-point rule helpers.
-- [ ] Add `fjs/bnf/byte/module.f.ts` for binary byte-stream rule helpers.
+- [ ] Add `fjs/bnf/unicode/module.f.mjs` for Unicode code-point rule helpers.
+- [ ] Add `fjs/bnf/byte/module.f.mjs` for binary byte-stream rule helpers.
 - [ ] Move Unicode constants and string/code-point helper functions out of
       `fjs/bnf/module.f.mjs`.
 - [ ] Remove Unicode/text imports from `fjs/bnf/module.f.mjs`.
@@ -124,14 +124,14 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Remove Unicode string expansion from `fjs/bnf/data/module.f.mjs`.
 - [ ] Make any core combinators that currently embed string/Unicode syntax
       alphabet-agnostic; keep optional Unicode conveniences in
-      `fjs/bnf/unicode/module.f.ts`.
+      `fjs/bnf/unicode/module.f.mjs`.
 - [ ] Update grammars and imports to construct text terminals through the Unicode
       helpers instead of relying on raw strings as generic rules.
 - [ ] Keep EOF generic and width-independent: use `EOF = -1` from
       [the EOF task](./eof-minus-one.md), and keep all alphabet adapters restricted
       to ordinary non-negative symbols without reserving the maximal value.
 - [ ] Update/block `fjs/media/json/todo/bnf-grammar-single-owner.md` so its JSON
-      grammar design imports Unicode helpers from `fjs/bnf/unicode/module.f.ts`
+      grammar design imports Unicode helpers from `fjs/bnf/unicode/module.f.mjs`
       and does not depend on raw string rules in core BNF.
 - [ ] Keep `fjs/bnf/todo/207.md` blocked until it is rebased/split so `string` is
       no longer described as a generic rule kind; Unicode text constructors lower
@@ -144,11 +144,11 @@ new module boundary and final rule discriminants before implementation starts.
       post-bigint `Rule` discriminants are settled; define its visitor against
       those semantic cases rather than the obsolete raw-string/number tests.
 - [ ] Keep `fjs/bnf/todo/recognizer-backend.md` blocked on this split and have it
-      consume byte helpers from `fjs/bnf/byte/module.f.ts` rather than defining
+      consume byte helpers from `fjs/bnf/byte/module.f.mjs` rather than defining
       another binary-helper family.
 - [ ] Keep `fjs/bnf/todo/proof-recognizer-and-fixtures.md` blocked on this split;
       rebase its shared text fixtures/testlib imports on
-      `fjs/bnf/unicode/module.f.ts` before implementing the extraction.
+      `fjs/bnf/unicode/module.f.mjs` before implementing the extraction.
 - [ ] Keep `fjs/bnf/todo/data-tosequence-reuse.md` irrelevant/superseded; do not
       implement its old generic-string reuse proposal.
 - [ ] Add byte helper proofs for byte boundaries and representative binary

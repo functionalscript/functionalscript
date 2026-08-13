@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`toJsonSchema`](../schema/module.f.ts) currently walks thunk-based RTTI directly.
+[`toJsonSchema`](../schema/module.f.mjs) currently walks thunk-based RTTI directly.
 That works for finite trees, but recursive RTTI values are graphs:
 
 ```ts
@@ -185,5 +185,5 @@ Update proofs and MCP schema snapshots for intentional output-shape changes.
 
 - [RTTI serializable data representation](../../../types/rtti/todo/serializable-data.md)
 - [`fjs/bnf/data`](../../../bnf/data/)
-- [`fjs/media/json/schema/module.f.ts`](../schema/module.f.ts)
+- [`fjs/media/json/schema/module.f.mjs`](../schema/module.f.mjs)
 - [`fjs/protocol/mcp`](../../../protocol/mcp/)

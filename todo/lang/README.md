@@ -14,19 +14,19 @@ File Types:
 |File Type|Extension|Notes|
 |---------|---------|-----|
 |JSON|`.json`|Tree.|
-|FJS source|`.f.ts`, `.f.mjs`, `.f.js`|Graph with functions; extension meaning follows the repository migration stage below.|
+|FJS source|`.f.mjs`, `.f.js`|Graph with functions; extension meaning follows the repository migration stage below.|
 
 Repository source migration has two separate stages:
 
-1. `.f.ts -> .f.mjs` removes authored TypeScript. `.f.mjs` is authored ESM
-   JavaScript with JSDoc types and does **not** imply that the current
-   FunctionalScript parser/compiler accepts the module.
+1. `.f.ts -> .f.mjs` removed authored TypeScript, and is complete. `.f.mjs` is
+   authored ESM JavaScript with JSDoc types and does **not** imply that the
+   current FunctionalScript parser/compiler accepts the module.
 2. After authored TypeScript is gone and authored `.f.js` package support is
    complete, compiler-supported `.f.mjs` modules may move to authored `.f.js`.
    `.f.js` is then the compiler-compatibility marker.
 
-During Stage 1, `.f.js` remains generated output from `.f.ts` and must not be
-authored. Stage 1 is independent of parser coverage; Stage 2 grows incrementally
+Until Stage 2 begins, `.f.js` remains generated output and must not be authored.
+Stage 1 was independent of parser coverage; Stage 2 grows incrementally
 as compiler support grows. See [`fjs/fsc/README.md`](../../fjs/fsc/README.md) for
 the authoritative extension contract and
 [`todo/migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md) for the

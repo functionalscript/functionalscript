@@ -126,7 +126,7 @@ then show only the generated parameter values:
 
 ```
 seed: 42
-import("./fjs/math/proof.f.ts").proof.commutativity(3879392, 39002): error, 0.12 ms
+import("./fjs/math/proof.f.mjs").proof.commutativity(3879392, 39002): error, 0.12 ms
 ```
 
 Running with `--seed 42`, or opening the browser application with seed `42`,
@@ -148,7 +148,7 @@ adapter controls registration, an environment variable may provide the same
 escape hatch:
 
 ```
-FJS_TEST_ARGS='import("./fjs/math/proof.f.ts").proof.commutativity(3879392, 39002)'
+FJS_TEST_ARGS='import("./fjs/math/proof.f.mjs").proof.commutativity(3879392, 39002)'
 ```
 
 The adapter parses the path and arguments from the string and calls the function
@@ -176,7 +176,7 @@ the runner starts. One option is to register a synthetic always-passing test nam
 
 ```
 ✔ seed: 42 (0.00ms)
-✔ import("./fjs/math/proof.f.ts").proof.commutativity(3879392, 39002) (0.12ms)
+✔ import("./fjs/math/proof.f.mjs").proof.commutativity(3879392, 39002) (0.12ms)
 ```
 
 This appears in the external runner's own output and requires no special stdout

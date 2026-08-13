@@ -3,7 +3,7 @@
 **Priority:** P3
 **Status:** open
 
-`module.f.ts` models filesystem nodes as `Entity = readonly Vec[] | Dir | JsModule`, but the three-way discrimination is re-derived inline at twelve call sites in at least four non-identical spellings. Define three predicate helpers next to the `Entity` type:
+`module.f.mjs` models filesystem nodes as `Entity = readonly Vec[] | Dir | JsModule`, but the three-way discrimination is re-derived inline at twelve call sites in at least four non-identical spellings. Define three predicate helpers next to the `Entity` type:
 
 ```ts
 const isBinFile  = (e: Entity): e is readonly Vec[] => e instanceof Array
@@ -17,7 +17,7 @@ These narrowing predicates are safe (each body is the exact structural check def
 
 - [ ] Add `isBinFile`, `isJsModule`, `isDir` next to the `Entity` type.
 - [ ] Rewrite the twelve inline kind-tests to use them; remove all `as Dir` / `as readonly Vec[]` casts.
-- [ ] Run `npx tsc` and `fjs t`; confirm `proof.f.ts` still passes.
+- [ ] Run `npx tsc` and `fjs t`; confirm `proof.f.mjs` still passes.
 
 ### Related
 

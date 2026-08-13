@@ -54,7 +54,7 @@ schema does not name, so a whole `evo_revision` result can be passed straight
 back to `evo_add`.
 
 Each tool's argument schema is an rtti struct declared once and used twice:
-[`toJsonSchema`](../../media/json/schema/module.f.ts) derives the
+[`toJsonSchema`](../../media/json/schema/module.f.mjs) derives the
 `inputSchema` advertised in `tools/list`, and
 [`validate`](../../types/rtti/validate/module.f.mjs) decodes the
 `arguments` object in `tools/call` — the same pattern as
@@ -78,7 +78,7 @@ Each tool's argument schema is an rtti struct declared once and used twice:
   error. `evo_list` and `evo_revision` carry JSON as MCP text content, so the
   JSON-RPC serializer escapes it again and an encoded line can outgrow the cap
   even when the value itself is small (a subject of quote characters is the
-  worst case). [`fjs/protocol/mcp/stdio`](../../protocol/mcp/stdio/module.f.ts) then retries
+  worst case). [`fjs/protocol/mcp/stdio`](../../protocol/mcp/stdio/module.f.mjs) then retries
   with a small internal-error body that keeps the request's `id` — the same
   envelope every tool has, `cas_get` included. A tool cannot turn this into a
   descriptive error of its own: whether the encoded response fits is known
@@ -88,5 +88,5 @@ Each tool's argument schema is an rtti struct declared once and used twice:
 ## Testing without a live process
 
 `evoToolRegistry` is generic in the store's operation type `O` and takes a
-plain `Evo<O>`, so `proof.f.ts` exercises each tool entry's `handle` directly
+plain `Evo<O>`, so `proof.f.mjs` exercises each tool entry's `handle` directly
 against an in-memory `Evo` — no MCP session or live process required.

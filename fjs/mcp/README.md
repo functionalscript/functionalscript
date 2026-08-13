@@ -15,7 +15,7 @@ additional front end alongside the CLI `main`.
 subject/head cache (`initEvo`, [`fjs/cas/evo`](../cas/evo/)), allocates the
 session-state slot, builds the `mcpStep` for the combined `cas_*`/`evo_*`
 tool registry, and drives the stdio read → parse → dispatch → write loop
-([`fjs/protocol/mcp/stdio`](../protocol/mcp/stdio/module.f.ts)) until stdin EOF. `evo_add` is
+([`fjs/protocol/mcp/stdio`](../protocol/mcp/stdio/module.f.mjs)) until stdin EOF. `evo_add` is
 the only tool that writes: it updates both the store and the cache in one
 step, so `evo_list`/`evo_head` never rescan.
 
@@ -66,7 +66,7 @@ with your CAS instance, and the `evo_list`, `evo_head`, `evo_revision`, and
 covers `cas_add`/`cas_get`/`cas_list`.
 
 Each tool's argument schema is an rtti struct declared once and used twice:
-[`toJsonSchema`](../media/json/schema/module.f.ts) derives the `inputSchema`
+[`toJsonSchema`](../media/json/schema/module.f.mjs) derives the `inputSchema`
 advertised in `tools/list`, and [`validate`](../types/rtti/validate/module.f.mjs)
 decodes the `arguments` object in `tools/call`. There is no drift between what we
 advertise and what we accept.
@@ -205,7 +205,7 @@ Content encoding is determined at read time as described above.
 MCP draws a line the dispatcher already respects:
 
 - **Protocol failures** — unknown method, malformed JSON-RPC params — are
-  JSON-RPC errors. [`mcpStep`](../protocol/mcp/module.f.ts) handles those.
+  JSON-RPC errors. [`mcpStep`](../protocol/mcp/module.f.mjs) handles those.
 - **Tool failures** come back as a normal `tools/call` result with
   `isError: true` and a text explanation. This adapter returns `isError` for:
   - invalid arguments to any tool (`validate` rejects the argument object);
@@ -265,6 +265,6 @@ remaining characters of the cBase32 hash. The `uri` field returned by
 ### Testing without a live process
 
 Because the adapter is generic in `O`, the same handlers run over an
-in-memory `Cas<MemOp>` in `proof.f.ts`, driven through a full
+in-memory `Cas<MemOp>` in `proof.f.mjs`, driven through a full
 `initialize` → `notifications/initialized` → `tools/call` sequence with no live
 process.

@@ -29,7 +29,7 @@ base-N codecs with a parameterized factory.
 
 ### Proposal
 
-Introduce a factory, e.g. `fjs/types/bit_set/module.f.ts`:
+Introduce a factory, e.g. `fjs/types/bit_set/module.f.mjs`:
 
 ```ts
 export type BitSetOps<T> = {
@@ -63,7 +63,7 @@ generic `has`.
 
 ### Tasks
 
-- [ ] Add `fjs/types/bit_set/module.f.ts` (+ `proof.f.ts`, register in
+- [ ] Add `fjs/types/bit_set/module.f.mjs` (+ `proof.f.mjs`, register in
       `deno.json` exports) with the parameterized algebra.
 - [ ] Rewrite `byte_set` and `nibble_set` as instantiations, preserving
       their public APIs and JSDoc (including nibble_set's

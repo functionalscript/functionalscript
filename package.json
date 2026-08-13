@@ -11,20 +11,20 @@
   "description": "FunctionalScript is a purely functional subset of JavaScript",
   "scripts": {
     "prepack": "tsc --noEmit false --emitDeclarationOnly && tsc --noEmit false --declaration false",
-    "test": "tsc && node ./fjs/module.ts t",
-    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts --test-coverage-include=**/module.f.mjs",
-    "start": "node ./fjs/module.ts",
-    "ci-update": "node ./fjs/module.ts ci",
-    "dev-update": "node ./fjs/module.ts r ./fjs/dev/update/module.f.mjs",
+    "test": "tsc && node ./fjs/module.mjs t",
+    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.mjs fjs/emergent_testing/all.test.ts",
+    "start": "node ./fjs/module.mjs",
+    "ci-update": "node ./fjs/module.mjs ci && node ./fjs/module.mjs r ./fjs/nanvm/update/module.f.mjs",
+    "dev-update": "node ./fjs/module.mjs r ./fjs/dev/update/module.f.mjs",
     "update": "npm run ci-update && npm install && deno install && bun install",
-    "index-html": "node ./fjs/module.ts r ./fjs/website/module.f.mjs",
+    "index-html": "node ./fjs/module.mjs r ./fjs/website/module.f.mjs",
     "website": "npm run prepack && npm run index-html"
   },
   "engines": {
     "node": ">=22"
   },
   "bin": {
-    "fjs": "fjs/module.js"
+    "fjs": "fjs/module.mjs"
   },
   "repository": {
     "type": "git",

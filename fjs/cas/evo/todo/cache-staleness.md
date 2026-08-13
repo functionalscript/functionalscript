@@ -5,7 +5,7 @@
 
 ### Problem
 
-The Evo cache (`fjs/cas/evo/module.f.ts`) is built once at server startup
+The Evo cache (`fjs/cas/evo/module.f.mjs`) is built once at server startup
 (`initEvo` → `buildCache`) and afterwards is only ever updated by writes that
 go *through this same running process*: `evo_add` (`addRevision`) and a
 `cas_add` that happens to store a `vnd.fjs.revision` blob (`syncRevision`,

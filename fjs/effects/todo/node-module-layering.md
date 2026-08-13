@@ -50,15 +50,15 @@ provides*. Proposed destinations:
 
 | Moves to | Contents |
 |---|---|
-| `fjs/effects/all/module.f.ts` | `All`, `all`, `both`, and `allVoid`/`allReduce` when they land |
-| `fjs/effects/sandbox/module.f.ts` | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise` — the "run foreign code and observe what happened" pair |
-| `fjs/effects/console/module.f.ts` | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
-| `fjs/effects/test/module.f.ts` | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
+| `fjs/effects/all/module.f.mjs` | `All`, `all`, `both`, and `allVoid`/`allReduce` when they land |
+| `fjs/effects/sandbox/module.f.mjs` | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise` — the "run foreign code and observe what happened" pair |
+| `fjs/effects/console/module.f.mjs` | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
+| `fjs/effects/test/module.f.mjs` | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
 | stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Fetch`, `Import`, `Forever`, `Now`, `RandomInt`, `IoResult`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
 
 `NodeOp` stays where it is and keeps unioning every family — it is the
 *runner's* op-set, which is legitimately "everything this host can do", and both
-interpreters (`fjs/effects/node/module.ts`, `fjs/effects/node/virtual`) keep a
+interpreters (`fjs/effects/node/module.mjs`, `fjs/effects/node/virtual`) keep a
 single place to enumerate. Only the *declaration* of each family moves; the
 union that names them all does not.
 
@@ -105,7 +105,7 @@ Judgement calls worth deciding explicitly rather than by accident:
   are runner configuration and stay in `effects/node` — so `effects/node` would
   have to import `emergent_testing`, while `emergent_testing/module.f.mjs:21-24`
   keeps importing `NodeProgram`, `NodeProgramOptions` and `Program` back from
-  `effects/node`. `fjs/effects/test/module.f.ts` sits below both, so both may
+  `effects/node`. `fjs/effects/test/module.f.mjs` sits below both, so both may
   import it and the dependency stays a DAG. (The alternative — moving
   `NodeProgramOptions`' surviving test contexts up as well — would drag the
   whole program contract along and is not worth it.)
@@ -132,7 +132,7 @@ Judgement calls worth deciding explicitly rather than by accident:
   module and have `csiWrite` take *that*:
 
   ```ts
-  // fjs/effects/console/module.f.ts
+  // fjs/effects/console/module.f.mjs
   import type { RequiredMap } from '../../types/object/types.ts'
 
   export type Std = RequiredMap<WriteConsoles, { readonly isTTY: boolean }>
@@ -194,16 +194,16 @@ Judgement calls worth deciding explicitly rather than by accident:
 - [ ] Independent of the moves: replace `fjs/media/type`'s `IoResult` import
       with `Result<T, unknown>` from `fjs/types/result`, dropping its
       `effects/node` import. `IoResult` itself does **not** move.
-- [ ] Move `All` / `all` / `both` to `fjs/effects/all/module.f.ts`.
-- [ ] Move `Sandbox` / `Await` and helpers to `fjs/effects/sandbox/module.f.ts`.
-- [ ] Move the console family to `fjs/effects/console/module.f.ts`, add the
+- [ ] Move `All` / `all` / `both` to `fjs/effects/all/module.f.mjs`.
+- [ ] Move `Sandbox` / `Await` and helpers to `fjs/effects/sandbox/module.f.mjs`.
+- [ ] Move the console family to `fjs/effects/console/module.f.mjs`, add the
       named `Std` type there as `RequiredMap<WriteConsoles, …>`, point
       `NodeProgramOptions.std` at it, and narrow `csiWrite` to take `Std`
       (updating its one caller, `fjs/emergent_testing/module.f.mjs:360`). Verify
       `fjs/text/sgr` no longer imports `effects/node` at all — that is the test
       for this step.
 - [ ] Move `Test` / `TestFn` / `TestContext` / `test` to
-      `fjs/effects/test/module.f.ts` — **not** into `fjs/emergent_testing`, which
+      `fjs/effects/test/module.f.mjs` — **not** into `fjs/emergent_testing`, which
       would be a cycle (see the judgement call above). Confirm `effects/node`
       still compiles with `NodeOp` and `NodeProgramOptions` importing only the
       surviving process-runner test contexts from there; no Playwright context
@@ -215,7 +215,7 @@ Judgement calls worth deciding explicitly rather than by accident:
       restrict a currently unrestricted package. Whichever change introduces the
       complete map
       ([group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md))
-      must enumerate these modules along with every other `module.f.ts`.
+      must enumerate these modules along with every other `module.f.mjs`.
 - [ ] `npx tsc` and `fjs t` after each move; one PR per concern.
 
 ### Related

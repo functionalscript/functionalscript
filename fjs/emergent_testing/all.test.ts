@@ -1,4 +1,4 @@
-import { runEffect } from '../effects/node/module.ts'
+import { runEffect } from '../effects/node/module.mjs'
 import { register } from './module.f.mjs'
 
 // Top-level `await`: every proof must be registered before the runner starts

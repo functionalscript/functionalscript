@@ -145,7 +145,7 @@ using `fjs/types/result`. Two details the shape has to respect:
 
 - **The trailing newline is part of the contract**, not incidental
   formatting: `nixToString` guarantees "exactly one trailing newline on
-  success" (`:261`) and ten proof cases assert it (`proof.f.ts:72-105`). A bare
+  success" (`:261`) and ten proof cases assert it (`proof.f.mjs:72-105`). A bare
   `mapOk(concat)` would silently turn `'{}\n'` into `'{}'`. The `ok` branch
   must append it, exactly as today.
 - **Do not route the branch through `nullable`'s `match`.** Its signature is
@@ -191,7 +191,7 @@ check", and `Result`'s `unwrap` throws the *reason* rather than a bare
 assertion failure — so if the totality claim is ever wrong, the failure says
 which identifier broke it.
 
-No expected values move in `fjs/ci/nix/proof.f.ts`: it has no
+No expected values move in `fjs/ci/nix/proof.f.mjs`: it has no
 rejection case (its `quotedPackage` case at `:107-110` documents the opposite —
 job data only reaches quotable positions, so `flakeText` never fails today).
 
@@ -252,7 +252,7 @@ where it lands.
       `Nullable`" above; the caller migration below assumes `Result`'s
       `unwrap`.
 - [ ] Keep `nixToString`'s single trailing newline: the ten
-      `proof.f.ts:72-105` assertions must pass with only their `Result`
+      `proof.f.mjs:72-105` assertions must pass with only their `Result`
       wrapping changed, not their expected text.
 - [ ] Migrate the one production caller, `flakeText`
       (`fjs/ci/nix/module.f.mjs:71-72`): replace
@@ -260,9 +260,9 @@ where it lands.
       `fjs/types/result` that module already imports, and drop
       `fromUndefined`/`unwrapNullable` from its imports (`:15`). Land it in the
       same PR as the signature change — it is the only thing that breaks.
-- [ ] Confirm the generated-flake proofs pass unchanged — `fjs/ci/nix/proof.f.ts`
+- [ ] Confirm the generated-flake proofs pass unchanged — `fjs/ci/nix/proof.f.mjs`
       (`:86-96`, round-tripping `flakeText` through the writer) and
-      `fjs/ci/proof.f.ts` (`:52-53`, reading `nix/generated/<id>/flake.nix`).
+      `fjs/ci/proof.f.mjs` (`:52-53`, reading `nix/generated/<id>/flake.nix`).
       Every committed flake file must come out byte-identical: this changes how
       a failure is reported, never the text produced on success.
 - [ ] Replace `Chunks` / `joinChunks` with `fjs/types/list` chunk building,

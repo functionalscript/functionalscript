@@ -65,13 +65,12 @@ cargo fmt -- --check
 Bun, and published-CLI equivalents are listed in
 [AGENTS.md §1.4](./AGENTS.md#14-ways-to-run-the-functionalscript-test-suite).
 
-New `.f.ts` and `.f.mjs` modules need a co-located proof with 100% proof
-coverage — see [AGENTS.md §3](./AGENTS.md#3-testing-and-proof-coverage). During
-the TypeScript-to-JavaScript migration, a `module.f.mjs` may keep a
-`proof.f.ts`, or the proof may migrate to `proof.f.mjs` as soon as the proof
-itself is valid JavaScript/JSDoc and its authored FunctionalScript dependencies
-are already `.f.mjs`. Current FunctionalScript compiler support is not required
-for that proof rename.
+New `.f.mjs` modules need a co-located proof with 100% proof coverage — see
+[AGENTS.md §3](./AGENTS.md#3-testing-and-proof-coverage). Authored
+FunctionalScript is JavaScript with JSDoc: a `module.f.mjs` is accompanied by a
+`proof.f.mjs`, and a separately useful type-level API may live in a sibling
+`types.ts`. Current FunctionalScript compiler support is not required for either
+file.
 
 ### Updating dependencies
 

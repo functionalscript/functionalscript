@@ -1,4 +1,4 @@
-## 65Y-proof-assertEq-adoption. Adopt `assert`/`assertEq` across `proof.f.ts` files
+## 65Y-proof-assertEq-adoption. Adopt `assert`/`assertEq` across `proof.f.mjs` files
 
 **Priority:** P4
 **Status:** open
@@ -14,7 +14,7 @@ export const assert: (v: boolean, msg?: unknown) => asserts v =
 export const assertEq = <T>(a: T, b: T): void => assert(a === b, [a, b])
 ```
 
-…but the codebase's `proof.f.ts` files mostly do not use them. The
+…but the codebase's `proof.f.mjs` files mostly do not use them. The
 prevailing pattern is hand-rolled per-line:
 
 ```ts
@@ -25,7 +25,7 @@ if (uint(s) !== 0x68656C6C_6F20776F_726C64n) { throw s }
 
 Counts in the current tree:
 
-- ~1,623 `if (...) { throw ... }` lines across `fjs/**/proof.f.ts` —
+- ~1,623 `if (...) { throw ... }` lines across `fjs/**/proof.f.mjs` —
   the dominant assertion style.
 - Only 4 files import `assertEq`: `fjs/sul/proof.f.mjs`,
   `fjs/sul/level/hash/proof.f.mjs`, `fjs/sul/id/proof.f.mjs`,
@@ -50,8 +50,8 @@ message.
 
 A migration that proceeds folder-by-folder, not all at once:
 
-1. **Pilot** — pick one moderately-sized `proof.f.ts` (e.g.
-   `fjs/types/string/proof.f.ts` or `fjs/types/array/proof.f.ts`) and
+1. **Pilot** — pick one moderately-sized `proof.f.mjs` (e.g.
+   `fjs/types/string/proof.f.mjs` or `fjs/types/array/proof.f.mjs`) and
    rewrite every `if (x !== expected) { throw x }` to `assertEq(x, expected)`.
 2. **Validate** — run `npx tsc`, `npm test`, and `npm run fst` from
    that folder. Confirm test output is at least as useful on
@@ -90,7 +90,7 @@ it's by far the most common and the lowest-judgement case.
   decision and lives in one helper. Today each proof file re-makes
   that decision on every line. The helper already exists — it's just
   under-adopted.
-- **Lower bar for new contributors.** A new `proof.f.ts` writer
+- **Lower bar for new contributors.** A new `proof.f.mjs` writer
   copying the local style today copies the hand-rolled pattern; if
   the surrounding file uses `assertEq`, they pick that up by example.
   Adoption is self-reinforcing in either direction, so the first
@@ -111,12 +111,12 @@ it's by far the most common and the lowest-judgement case.
   tempted to add deep-equal support — see [i65X-async-test-functions](./README.md)
   and AGENTS.md: keep helpers minimal until a second consumer needs
   more.
-- **Import edge.** `proof.f.ts` files in `fjs/types/` currently avoid
+- **Import edge.** `proof.f.mjs` files in `fjs/types/` currently avoid
   importing from `fjs/dev/module.f.mjs` (only `fjs/types/patricia_trie/proof.f.mjs`
   pulls `assert` from there today). Verify there is no module-cycle
   problem before mass-importing from `fjs/dev` into the `fjs/types`
   subtree. If there is, hoist `assert`/`assertEq` into a small
-  `fjs/types/proof/module.f.ts` (or co-located leaf) that `fjs/dev` can
+  `fjs/types/proof/module.f.mjs` (or co-located leaf) that `fjs/dev` can
   re-export. The 4 existing `assertEq` consumers in `fjs/sul/` are a
   good existence proof that the import edge works from outside
   `fjs/types`.

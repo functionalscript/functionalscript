@@ -45,14 +45,14 @@ stdioTransport(step)             ← local, current
 httpTransport(step, port)        ← remote, future
 ```
 
-Planned refactor: extract `casMcpStep` from `casMcpServer` in `fjs/mcp/module.f.ts`. Currently `casMcpServer` wires stdio directly; once extracted, the stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
+Planned refactor: extract `casMcpStep` from `casMcpServer` in `fjs/mcp/module.f.mjs`. Currently `casMcpServer` wires stdio directly; once extracted, the stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
 
 The HTTP effect infrastructure (`CreateServer`, `Listen`, `Fetch`) already exists in `fjs/effects/node/module.f.mjs` — only the transport wrapper is missing.
 
 ## Content encoding
 
 **Current:** content crosses the MCP wire as **cBase32** (same encoding as hashes).
-**Target (Layer 2):** switch content to **base64** (MCP-idiomatic for binary data); hashes stay as cBase32. The base64 codec (`fjs/base64/module.f.ts`) is already implemented — only the MCP wiring remains.
+**Target (Layer 2):** switch content to **base64** (MCP-idiomatic for binary data); hashes stay as cBase32. The base64 codec (`fjs/base64/module.f.mjs`) is already implemented — only the MCP wiring remains.
 
 ## Addressing
 

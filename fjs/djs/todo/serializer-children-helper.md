@@ -5,7 +5,7 @@
 
 ### Problem
 
-Two walkers in `fjs/djs/serializer/module.f.ts` spell out the same
+Two walkers in `fjs/djs/serializer/module.f.mjs` spell out the same
 *"array → the values themselves / object → the values of its entries"*
 child-extraction, each inside twin branches whose remaining bodies are
 identical.
@@ -68,11 +68,11 @@ No behavior change: the same child lists flow into the same folds.
 
 - [ ] Add `children`; collapse the twin arms in `countRefsOp` and
       `getConstants`'s `op`.
-- [ ] `npx tsc` clean; `fjs t` passes (`fjs/djs/serializer/proof.f.ts`).
+- [ ] `npx tsc` clean; `fjs t` passes (`fjs/djs/serializer/proof.f.mjs`).
 
 ### Related
 
-- `fjs/djs/serializer/module.f.ts:66-73`, `:149-175`, `:80-82` (`entryValue`).
+- `fjs/djs/serializer/module.f.mjs:66-73`, `:149-175`, `:80-82` (`entryValue`).
 - [66e](./66e-parser-container-stack-bookkeeping.md) — the same container-kind merge on the parser side.
 - [197](./197.md) — the eventual cross-function `Visitor` factory would
   supersede this, but it is deferred (blocked by [157](./157.md)); this

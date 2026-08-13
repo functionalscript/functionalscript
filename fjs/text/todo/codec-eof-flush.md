@@ -17,7 +17,7 @@ export const utf8EofToCodePointOp = state => [
 ]
 ```
 
-`fjs/text/utf16/module.f.ts:234-235`:
+`fjs/text/utf16/module.f.mjs:234-235`:
 
 ```ts
 const utf16EofToCodePointOp = (state: Utf16State): readonly[List<CodePoint>, Utf16State] =>

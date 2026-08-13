@@ -9,7 +9,7 @@ The JSON-RPC request preamble — decode the envelope, answer a malformed one
 with `Invalid Request` (`id: null`), and split notifications
 (`id === undefined`) from requests — is spelled out twice.
 
-Pure `dispatch` (`fjs/protocol/json_rpc/module.f.ts:98-113`):
+Pure `dispatch` (`fjs/protocol/json_rpc/module.f.mjs:94-112`):
 
 ```ts
 const [t, message] = decodeRequest(value)
@@ -20,7 +20,7 @@ const handler: Handler | undefined = handlers[method]
 if (handler === undefined) { return errorResponseOf(id)(methodNotFound) }
 ```
 
-Effectful `mcpStep` (`fjs/protocol/mcp/module.f.ts:315-338`):
+Effectful `mcpStep` (`fjs/protocol/mcp/module.f.mjs:264-287`):
 
 ```ts
 const [t, message] = decodeRequest(value)

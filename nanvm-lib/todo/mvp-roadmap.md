@@ -85,7 +85,7 @@ Invariants:
 #### Rust code generation: an output target of `fjs compile` (decided)
 
 `fjs compile <input> <output>` already dispatches on the output extension
-(`.json` vs. DJS — see [`fjs/djs/module.f.ts`](../../fjs/djs/module.f.ts));
+(`.json` vs. DJS — see [`fjs/djs/module.f.mjs`](../../fjs/djs/module.f.mjs));
 Rust code generation is a third branch, selected by the `.rs` extension. No
 new CLI surface: the previously proposed `fjs vm build` / `fjs vm run`
 command group is dropped.
@@ -101,7 +101,7 @@ testing, self-hosting, and AOT embedding.
 
 The compiler CLI is pure FJS that *returns* effect descriptions
 (`Effect<NodeOp, T>`); all actual impurity lives in thin runner modules
-(e.g. [`fjs/effects/node/module.ts`](../../fjs/effects/node/module.ts)),
+(e.g. [`fjs/effects/node/module.mjs`](../../fjs/effects/node/module.mjs)),
 which are not FJS and never pass through the code generator. Stage 1 of the
 repository migration moves authored `.ts` / `.f.ts` to `.mjs` / `.f.mjs` with
 JSDoc independently of compiler support, so `.f.mjs` is **not** the compiled
@@ -124,7 +124,7 @@ It is a separate crate in the same workspace, published on crates.io:
 `nanvm-lib` stays pure (no OS dependencies — keeping a future `no_std`
 embedded profile open), and the `nanvm` binary depends on both. It serves
 any AOT-compiled effectful FJS program, not just the embedded compiler —
-it is to native FJS what `fjs/effects/node/module.ts` is to Node FJS.
+it is to native FJS what `fjs/effects/node/module.mjs` is to Node FJS.
 
 **Generated stub — the vocabulary is machine-checked.** The Rust side of
 the effect vocabulary is not written by hand: a **generated stub** (op,
@@ -286,15 +286,17 @@ as a generic `Any` facility, post-MVP.
       fixture may use `.f.mjs`; it does not define the repository extension
       contract. See
       [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
-- [ ] **Test generation for operators** — one test-data module drives both
-      the FJS proof (JS engine reference) and the generated Rust tests.
-      Implement **before** the operators task below, so every new operator is
-      tested once, not twice. Doubly important now: the shared operator layer
-      is what keeps the interpreter and the generated code in agreement. See
-      [single-source-of-truth-for-operator-tests](./single-source-of-truth-for-operator-tests.md).
+- [x] **Test generation for operators** — one test-data module drives both
+      the FJS proof (JS engine reference) and the generated Rust tests, so
+      every new operator is tested once, not twice. Doubly important now: the
+      shared operator layer is what keeps the interpreter and the generated
+      code in agreement. See
+      [`nanvm-lib/tests/README.md`](../tests/README.md).
 - [ ] **Complete all basic FunctionalScript operators** (Rust), including the
       short-circuit operators `&&`, `||`, `??` (lazy evaluation, like `?:`).
-      Preceded by the test-generation task above.
+      Each operator arrives as cases in
+      [`fjs/nanvm/module.f.mjs`](../../fjs/nanvm/module.f.mjs), which is what
+      tests it on both sides.
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../todo/lang/2340-operators.md).
 - [ ] **Parser**, using [`fjs/bnf/`](../../fjs/bnf/README.md) (FJS).
@@ -388,6 +390,6 @@ compiler-compatibility migration rather than a separate rewrite.
   walking-skeleton integration: the `.rs` output target and the harness.
 - [console-program](./console-program.md) — the self-hosted `nanvm` crate
   (post-MVP).
-- [single-source-of-truth-for-operator-tests](./single-source-of-truth-for-operator-tests.md)
-  — test generation preceding the operators task.
+- [`nanvm-lib/tests/README.md`](../tests/README.md) — the shared operator test
+  data driving both the FJS proof and the generated Rust tests.
 - [fs-vm-load-save](./fs-vm-load-save.md) — load/execute/save semantics.

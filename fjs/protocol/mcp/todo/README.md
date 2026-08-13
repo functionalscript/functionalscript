@@ -7,7 +7,7 @@
 
 ### Problem
 
-`fjs/protocol/mcp/module.f.ts`'s `mcpStep` request handler repeats the same
+`fjs/protocol/mcp/module.f.mjs`'s `mcpStep` request handler repeats the same
 "validate the params, branch to an error or success response" envelope in
 every method arm. The shape is always:
 
@@ -18,7 +18,7 @@ return t === 'error'
     : <success using pr>
 ```
 
-It appears four times in `mcpStep` (in `fjs/protocol/mcp/module.f.ts`):
+It appears four times in `mcpStep` (in `fjs/protocol/mcp/module.f.mjs`):
 
 - `ping` — `validate(_noParams)(params)`, success is `pure(_okResponse(id)({}))`.
 - `initialize` — `validate(initializeParams)(params)`, success builds an
@@ -115,7 +115,7 @@ handler from accreting a dozen copies of the same ternary.
 - [ ] Add a module-scope (or `mcpStep`-local) `validated` helper threading `id`;
       rewrite `ping`, `initialize`, `tools/list`, `tools/call` to use it.
 - [ ] Add `toolMethod` for the capability-gated `tools/*` pair.
-- [ ] Confirm `fjs/protocol/mcp/proof.f.ts` still passes (`fjs t`) with full branch
+- [ ] Confirm `fjs/protocol/mcp/proof.f.mjs` still passes (`fjs t`) with full branch
       coverage (both `error` and `ok` sides of each method) and `npx tsc` is clean.
 
 ### Related
@@ -145,7 +145,7 @@ on top."
 
 ### Building blocks
 
-#### 1. JSON-RPC 2.0 layer — landed in `fjs/protocol/json_rpc/module.f.ts`
+#### 1. JSON-RPC 2.0 layer — landed in `fjs/protocol/json_rpc/module.f.mjs`
 
 The envelope: request / notification / response / error schemas, decoders, and the
 pure dispatcher. MCP rides directly on this.
@@ -174,7 +174,7 @@ decoder via `validate` + static type via `Ts<>`). A representative subset:
 - **Content types:** the union used in tool/prompt/resource results —
   `text`, `image`, `audio`, embedded `resource` (and resource links).
 
-#### 3. rtti → JSON Schema printer — landed in `fjs/media/json/schema/module.f.ts`
+#### 3. rtti → JSON Schema printer — landed in `fjs/media/json/schema/module.f.mjs`
 
 MCP declares each tool's `inputSchema` as **JSON Schema**, not TypeScript. rtti
 today only prints to TypeScript (`fjs/types/rtti/ts/`, `toTs`). To describe a tool
@@ -231,8 +231,8 @@ server-answers-request.
 
 ### Related
 
-- `fjs/protocol/json_rpc/module.f.ts` — the JSON-RPC 2.0 envelope
-- `fjs/media/json/schema/module.f.ts` — rtti → JSON Schema printer
+- `fjs/protocol/json_rpc/module.f.mjs` — the JSON-RPC 2.0 envelope
+- `fjs/media/json/schema/module.f.mjs` — rtti → JSON Schema printer
 - `fjs/types/rtti/module.f.mjs` — schema combinators; `fjs/types/rtti/ts/` is the precedent for a printer
 - `fjs/effects/node/module.f.mjs` — stdio (`write` / stdin) and HTTP (`createServer` / `listen`) for transports
 - [Model Context Protocol](https://modelcontextprotocol.io/) · [JSON-RPC 2.0](https://www.jsonrpc.org/specification)

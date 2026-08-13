@@ -9,7 +9,7 @@ Three modules independently open-code "read a file, UTF-8 decode it, JSON-parse 
 
 ### Proposed abstraction
 
-A small shared module (e.g. `fjs/effects/node/json/module.f.ts`) over the existing effects:
+A small shared module (e.g. `fjs/effects/node/json/module.f.mjs`) over the existing effects:
 
 Both sides go through `fjs/media/json`, not through the host's `JSON`: `parse`
 is total, so a malformed file is an `error` the caller destructures rather than

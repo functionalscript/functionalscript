@@ -56,7 +56,7 @@ A module **must not** export a zero-argument (or one-or-two-argument) function n
 export const then = () => { ... }
 ```
 
-When a module namespace object has a callable `.then` property, JavaScript's `await` (and `Promise.resolve()`) treats the entire namespace as a *thenable*. A dynamic import `await import('./module.f.ts')` would call `.then()` on the namespace instead of resolving to it — causing the import to hang, resolve to an unexpected value, or never complete, depending on what `then` does.
+When a module namespace object has a callable `.then` property, JavaScript's `await` (and `Promise.resolve()`) treats the entire namespace as a *thenable*. A dynamic import `await import('./module.f.mjs')` would call `.then()` on the namespace instead of resolving to it — causing the import to hang, resolve to an unexpected value, or never complete, depending on what `then` does.
 
 Since FunctionalScript modules are loaded via dynamic import in the test framework and the runtime, this would silently corrupt module loading. The FunctionalScript compiler/validator must reject any module that exports a function named `then`.
 

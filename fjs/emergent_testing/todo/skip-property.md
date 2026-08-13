@@ -157,7 +157,7 @@ Playwright execution obtains skip results from the shared browser application.
       browser-side runner, independently of the Playwright Test adapter.
 - [ ] Print `# SKIP` per leaf and `pass / fail / todo / skip` in
       `defaultReporter` (`fjs t`).
-- [ ] Add proofs in `fjs/emergent_testing/proof.f.ts`: skipped leaf not
+- [ ] Add proofs in `fjs/emergent_testing/proof.f.mjs`: skipped leaf not
       executed, skipped subtree collected as individual paths, skipped
       generator reported as one leaf, `skip` dominating `throw`/`todo`,
       counters unaffected by skips.

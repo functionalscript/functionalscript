@@ -6,7 +6,7 @@
 
 ### Problem
 
-`parseFromTokens` (`fjs/djs/parser/module.f.ts:526`) folds a
+`parseFromTokens` (`fjs/djs/parser/module.f.mjs:501`) folds a
 `List<DjsTokenWithMetadata>` into an `AstModule` with a hand-written state
 machine: a nine-state value alphabet (`'' | '[' | '[v' | '[,' | '{' | '{k' |
 '{:' | '{v' | '{,'`) plus module framing, about 570 lines with its helpers. The
@@ -40,7 +40,7 @@ would lose the source position needed for failures exactly at physical end.
 
 Replace the hand-written implementation behind the existing `parseFromTokens`
 API with a BNF/descent implementation. During development, keep a private second
-implementation in `fjs/djs/parser/module.f.ts` only long enough to run parity
+implementation in `fjs/djs/parser/module.f.mjs` only long enough to run parity
 proofs against the current state machine. Do not introduce a permanent
 `new_parser` public surface or a new published parser module.
 
@@ -119,7 +119,7 @@ For matched spans, every ordinary matched symbol arrives with
 `DjsTokenWithMetadata`, so a rule's span has a first and last token and each
 `TokenMetadata` (`{ path, line, column }`, `fjs/js/tokenizer/types.ts:99-103`)
 gives a real position. `ParseError` (`{ message, metadata: TokenMetadata | null }`,
-`fjs/djs/parser/module.f.ts:16`) widens from a single point to the required range
+`fjs/djs/parser/types.ts:10`) widens from a single point to the required range
 where applicable.
 
 **The backend side of failure reporting is already available.** A failed match
@@ -139,7 +139,7 @@ The transition is intentionally temporary and has a concrete completion
 boundary.
 
 - **Location:** keep both implementations in the existing
-  `fjs/djs/parser/module.f.ts` during parity work. The BNF implementation may use
+  `fjs/djs/parser/module.f.mjs` during parity work. The BNF implementation may use
   private helpers there, but this task does not add a temporary published
   `new_parser` module or API.
 - **Scope:** the BNF implementation parses the complete token stream currently
@@ -186,7 +186,7 @@ The serializer and other independent parts of TODO 157 are unaffected.
       descent metadata; never feed the tokenizer's physical `eof` token to the
       BNF symbol stream.
 - [ ] Implement the complete DJS module grammar, including module framing, in the
-      existing `fjs/djs/parser/module.f.ts`; do not create a temporary public
+      existing `fjs/djs/parser/module.f.mjs`; do not create a temporary public
       parser module/API.
 - [ ] Fold `AstRuleMeta` into `AstModule`.
 - [ ] Report errors as metadata position ranges; widen `ParseError.metadata`
@@ -205,7 +205,7 @@ The serializer and other independent parts of TODO 157 are unaffected.
 - [ ] Rebase [157](../../djs/todo/157.md) §1 according to which parser work lands
       first; do not recreate a shared DJS hand-written value machine after the BNF
       cutover.
-- [ ] `proof.f.ts` with full coverage; `npx tsc`, `fjs t`.
+- [ ] `proof.f.mjs` with full coverage; `npx tsc`, `fjs t`.
 
 ### Related
 

@@ -11,9 +11,9 @@ canonical Node job under `nix/generated/`.
   (`Setup` in `types.ts`) which returns an `Effect<NodeOp, number>` that writes
   the workflow file. Rust support is detected automatically by checking for
   `Cargo.toml` at the repository root via the `access` effect.
-- `proof.f.ts` — property-based proofs for the CI generator (Rust/no-Rust job presence,
+- `proof.f.mjs` — property-based proofs for the CI generator (Rust/no-Rust job presence,
   per-OS extra steps).
-- `common/module.f.ts` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
+- `common/module.f.mjs` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
 - `config/module.f.mjs` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin.
@@ -89,15 +89,20 @@ and `ci-update`. A typical FunctionalScript project can define them like this:
 {
   "scripts": {
     "test": "tsc && fjs test",
-    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts",
+    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.mjs",
     "ci-update": "fjs ci"
   }
 }
 ```
 
-`ci-update` must regenerate every generated file the project keeps in Git —
-today `.github/workflows/ci.yml`, with more (e.g. generated Rust sources)
-planned. The Node 26 job runs it right after `npm ci` and fails via
+`ci-update` must regenerate every generated file the project keeps in Git, not
+only the workflow. `fjs ci` covers `.github/workflows/ci.yml` and the generated
+Nix flakes; a project with other generators chains them into the same script, as
+this repository does for `nanvm-lib/tests/test/generated.rs` (see
+[`fjs/nanvm/README.md`](../nanvm/README.md)). Everything chained there is
+covered by the drift check below for free.
+
+The Node 26 job runs it right after `npm ci` and fails via
 `git add -A && git diff --cached --exit-code` when the committed tree no longer
 matches the generator's output, so forgetting to regenerate after changing a
 generator breaks the build instead of silently using stale files. Staging with
@@ -105,7 +110,7 @@ generator breaks the build instead of silently using stale files. Staging with
 generated files, not just modified ones — a plain `git diff` never reports
 untracked files. Because the job runs `npm ci` first, `fjs ci` resolves the
 project's own `functionalscript` devDependency; this repository instead uses
-its checked-in sources (`node ./fjs/module.ts ci`), so the check always reflects
+its checked-in sources (`node ./fjs/module.mjs ci`), so the check always reflects
 the generator being reviewed, not the pinned published release.
 
 Keep `npx tsc` passing independently because the generated CI runs it as its own

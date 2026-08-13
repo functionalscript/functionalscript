@@ -69,7 +69,7 @@ once and its exports are shared by all importers that resolve to the same URL.
 A dedicated registry module can exploit this:
 
 ```ts
-// ./fjs/emergent_testing/registry.f.ts
+// ./fjs/emergent_testing/registry.f.mjs
 export const seen = new Set<string>()
 ```
 
@@ -80,7 +80,7 @@ copies). No `globalThis` pollution needed.
 
 ```ts
 // all.ts
-import { seen } from './registry.f.ts'
+import { seen } from './registry.f.mjs'
 import { run } from './module.ts'
 
 if (!seen.has('all')) {
@@ -90,7 +90,7 @@ if (!seen.has('all')) {
 ```
 
 This is the simplest approach and requires no new effect type. The trade-off
-is that it only works when all copies share the same `registry.f.ts` URL —
+is that it only works when all copies share the same `registry.f.mjs` URL —
 which holds for hard links in the same directory tree, but not for copies in
 entirely separate trees.
 
