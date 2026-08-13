@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- The last documented public typedefs authored in `.mjs` moved to sibling
+  `types.ts` files — `ParseContext`/`djsResult` to `fjs/djs/transpiler/types.ts`
+  and `Step` to `fjs/protocol/mcp/stdio/types.ts` — so their documentation
+  survives declaration emit
+  [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
 - **BREAKING CHANGES:** `fjs/bnf/ll1`'s matcher runs as an explicit-stack
   machine over a cursor into the shared input, so long or deeply nested input
   no longer overflows the JS call stack and matching is no longer quadratic.
