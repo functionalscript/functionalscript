@@ -610,6 +610,14 @@ import type { Types } from './types.ts'
 Both forms are type-only and introduce no runtime import. The `types.ts` file
 itself exists and is checked as ordinary TypeScript source, so this convention
 does not rely on `.d.ts` substitution and works with Deno's source resolver.
+
+The fully erased forms are the only permitted ones — for package consumers as
+well as repository code. The published package ships `types.d.ts` but no
+`types.js` runtime module, and under `verbatimModuleSyntax` only `import type
+{ X }` (and JSDoc `@import`) erase the whole statement: the inline form
+`import { type X } from '…/types.js'` compiles to a retained `import {}`, as do
+`import * as` and bare side-effect imports, and fails at runtime with
+`ERR_MODULE_NOT_FOUND`.
 A declaration-only module belongs in `types.ts` rather than acquiring an
 artificial JavaScript runtime representation. See [§4](#4-documentation)
 for the complete module-header and import-order convention.

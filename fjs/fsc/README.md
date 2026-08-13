@@ -115,8 +115,11 @@ real migration. In particular, with `rewriteRelativeImportExtensions: true`, the
 package fixture must verify how references to `./types.ts` from both `.ts` and
 `.mjs` appear in emitted declarations, which generated `types.js` / `types.d.ts`
 files are required, and that TypeScript, Node, Deno, and Bun can consume the
-packed result. Do not simplify the TypeScript runtime-emission pass until that
-experiment establishes whether generated `types.js` remains necessary.
+packed result. That experiment ran in
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520): only
+`types.d.ts` is required, generated `types.js` is not, and the runtime-emission
+pass is gone — `prepack` emits declarations and then re-checks the tree with
+them present, so declaration-emit degradation still fails packaging.
 
 Proofs followed the same runtime source-language rule and completed the same
 move, so a `module.f.mjs` is accompanied by a `proof.f.mjs`. Type-only APIs may
@@ -187,11 +190,12 @@ cleanup is tracked by
 [`todo/blocked/jsdoc-typedef-strip-internal.md`](../../todo/blocked/jsdoc-typedef-strip-internal.md).
 
 When the last authored implementation/proof `.ts` / `.f.ts` file is gone,
-authored `types.ts` files may remain. Remove obsolete generated runtime outputs
-only as allowed by the package-support fixture; do not assume the TypeScript
-runtime-emission pass can disappear while package resolution may still require a
-generated `types.js`. Remove the blanket `**/*.js` rule from `.gitignore` only
-when generated implementation `.js` no longer conflicts with authored `.js`.
+authored `types.ts` files may remain. The TypeScript runtime-emission pass is
+removed ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)
+measured that package resolution does not require a generated `types.js`), while
+`prepack` keeps a no-emit re-check with declarations present. Remove the blanket
+`**/*.js` rule from `.gitignore` only when generated implementation `.js` no
+longer conflicts with authored `.js`.
 
 ### Stage 2: mark compiler-compatible FunctionalScript
 

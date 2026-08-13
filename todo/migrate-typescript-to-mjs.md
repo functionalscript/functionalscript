@@ -185,7 +185,7 @@ experiment was run in
 declarations keep the `./types.ts` specifier verbatim, only `types.d.ts` is
 required in the package, and generated `types.js` is not — the minimal portable
 layout is `.mjs` + `.d.mts` + `types.d.ts`, and `prepack` was simplified to
-declaration-only emit accordingly.
+declaration emit plus a no-emit re-check accordingly.
 
 #### Migrate gradually from runtime dependency leaves
 
@@ -678,8 +678,12 @@ determine whether generated `types.js` is required for portable package
 resolution. Simplify `prepack` only to the minimal layout proven by that test.
 **Resolved:** the experiment ran in
 [#1520](https://github.com/functionalscript/functionalscript/pull/1520) —
-`types.js` is not required, the second pass is removed, and `prepack` is
-declaration-only.
+`types.js` is not required and the JavaScript emit is removed. `prepack` keeps a
+second, no-emit `tsc` invocation: review found that the old pass 2 doubled as
+the repository's only declaration-emit round-trip check (with `.d.mts` present,
+`tsc` resolves `.mjs` imports through the emitted declarations, so the
+`Assert<Equal<…, Ts<typeof …>>>` pins evaluate against what consumers see), and
+`tsc --noEmit` preserves that property without emitting anything.
 
 Generated declaration ignores remain unchanged.
 
@@ -837,7 +841,8 @@ blocking, plus the prose sweep. The remaining items are listed under
       simplify the package emit path only as allowed by the validated `types.ts`
       package layout. Authored `types.ts` remains. Done in
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
-      `prepack` is declaration-only.
+      `prepack` emits declarations only, then re-checks against them without
+      emitting.
 - [ ] Then remove `**/*.js` from `.gitignore` when generated implementation
       JavaScript no longer needs the blanket ignore.
 - [ ] Keep the compiler-compatibility migration explicitly **blocked by** this
@@ -921,8 +926,15 @@ person can re-check rather than re-derive. Counts are as of
       the `types.js` half is settled above, and the scenario half never gated
       it — the compiled scenario `.js` shipped in the tarball but nothing
       imported it; `run.sh` consumes the authored `.ts` fixtures directly, so
-      the scenario decision below is unaffected. `prepack` is now
-      `tsc --noEmit false --emitDeclarationOnly`.
+      the scenario decision below is unaffected. The pass's *output* was dead,
+      but review caught that the pass itself was not: running `tsc` with
+      declarations already in the tree re-checks every `.mjs` import through
+      the emitted `.d.mts` (which outranks `.mjs` in resolution), which is what
+      made the `Assert<Equal<…>>` round-trip pins bite — seeding the
+      AGENTS.md §6.2 counter-example fails the two-pass `prepack` and passes a
+      naive one-pass one. `prepack` is therefore
+      `tsc --noEmit false --emitDeclarationOnly && tsc --noEmit`: declaration
+      emit, then the same round-trip check with nothing emitted.
 - [ ] **Then drop the blanket `.gitignore` rule** for generated JavaScript
       (`.gitignore` line 131). Unblocked by
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520):

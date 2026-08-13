@@ -94,9 +94,10 @@ The first pass emits declarations for `.ts` and `.mjs`. With those declarations
 present, the second TypeScript invocation emits runtime JavaScript for `.ts`
 sources without overwriting authored `.mjs`. (The mixed layout no longer
 requires it: with only `types.ts` and test-fixture TypeScript left, the second
-pass produced nothing any consumer resolves, and
-[#1520](https://github.com/functionalscript/functionalscript/pull/1520) reduced
-`prepack` to the first pass alone.)
+pass emitted nothing any consumer resolves, and
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520) replaced
+it with `tsc --noEmit` — review found the pass also served as the
+declaration-emit round-trip check, a property the no-emit re-check keeps.)
 
 This exact `.ts` + `.mjs` configuration is already exercised by
 [PR #1451](https://github.com/functionalscript/functionalscript/pull/1451): it
@@ -113,9 +114,10 @@ packed result. **Answered in
 direct measurement against the packed tarball: declaration emit keeps
 `./types.ts` verbatim, only `types.d.ts` is required, `types.js` is not, and
 TypeScript 5.9.3/7.0.2, Node v22, Deno 2.9.5, and Bun 1.3.11 all resolve the
-result. The second emit pass is removed; `prepack` is
-`tsc --noEmit false --emitDeclarationOnly` and the package file list is
-unchanged.
+result. The JavaScript emit is removed; `prepack` is
+`tsc --noEmit false --emitDeclarationOnly && tsc --noEmit` — the second
+invocation keeps the old pass's declaration-emit round-trip check without its
+output — and the package file list is unchanged.
 
 Keep both passes inline in `prepack`; do not add public `emit:*` scripts for
 users to run independently. Normal development should type-check and test the
@@ -188,7 +190,8 @@ The core `.ts` + `.mjs` pipeline support is in place: `tsconfig.json` has
 alongside `**/*.js`/`**/*.d.ts`. `prepack` was the two-pass `tsc` command
 proposed here until
 [#1520](https://github.com/functionalscript/functionalscript/pull/1520) proved
-the second pass unnecessary and reduced it to declaration-only emit. That PR
+the JavaScript output unnecessary and replaced the second pass with a no-emit
+re-check (`tsc --noEmit`), keeping its declaration-emit round-trip property. That PR
 also performed the clean packed-consumer validation manually (tsc 5.9.3/7.0.2,
 Node v22, Deno 2.9.5, Bun 1.3.11 — measurements recorded in
 [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)).
@@ -210,8 +213,9 @@ emission, `npm pack`, and a clean consumer.
       Superseded by
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
       once only `types.ts` and test-fixture TypeScript remained, the JavaScript
-      pass was measured to emit nothing consumers resolve, and `prepack` is
-      declaration-only again.
+      pass was measured to emit nothing consumers resolve, and its emission was
+      dropped while its declaration round-trip check survives as a second
+      no-emit `tsc` invocation.
 - [x] Do not expose separate `emit:*` package scripts; packaging owns generated
       outputs.
 - [ ] Keep package/publish jobs on a clean CI checkout; do not add generated
@@ -258,7 +262,9 @@ emission, `npm pack`, and a clean consumer.
       pass can ever be removed while authored `types.ts` files remain, or whether
       generated `types.js` is part of the permanent package layout. Decided in
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
-      the pass is removed and `types.js` is not part of the layout.
+      `types.js` is not part of the layout, and the pass's JavaScript emission
+      is removed while its declaration round-trip check survives as
+      `tsc --noEmit`.
 
 ### Acceptance criteria
 

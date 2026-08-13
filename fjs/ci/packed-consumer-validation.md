@@ -19,6 +19,12 @@ Four files in an empty directory. `test.ts` exercises runtime and types;
 `bad.ts` is the negative control proving type resolution is real — it must
 **fail** with TS2322 under every checker.
 
+The `import type` form in `test.ts` is load-bearing, not stylistic: the package
+ships no `types.js` runtime module, and only the fully erased `import type
+{ X }` compiles to nothing. The inline `import { type X }` form, `import * as`,
+and bare side-effect imports all retain a runtime import that fails with
+`ERR_MODULE_NOT_FOUND` — see the consumer rule in AGENTS.md §6.2.
+
 `package.json`:
 
 ```json

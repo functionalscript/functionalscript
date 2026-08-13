@@ -45,7 +45,8 @@ During stage 1, `.f.mjs` means authored FunctionalScript-intent JavaScript; it
 does not promise current compiler support. The stage also removes the
 TypeScript-to-JavaScript emit path after the last TypeScript source is gone
 (done in [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
-`prepack` is declaration-only), cleans obsolete generated `.js`, and removes the
+`prepack` emits declarations only, then re-checks against them without
+emitting), cleans obsolete generated `.js`, and removes the
 blanket `**/*.js` ignore so `.js` becomes authorable and trackable again (the
 ignore removal is still an open decision, tracked in
 [`migrate-typescript-to-mjs.md`](./migrate-typescript-to-mjs.md)).
