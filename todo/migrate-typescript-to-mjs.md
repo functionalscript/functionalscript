@@ -1051,9 +1051,8 @@ person can re-check rather than re-derive. Counts are as of
       [`028-unit-test-examples-api.md`](../fjs/emergent_testing/todo/028-unit-test-examples-api.md),
       [`throw-payload-assertions.md`](../fjs/emergent_testing/todo/throw-payload-assertions.md)
       and [`group-fs-subdirectories-by-concern.md`](../fjs/todo/group-fs-subdirectories-by-concern.md).
-      Plus [`browser-testing.md`](../fjs/emergent_testing/todo/browser-testing.md)
-      and [`serializable-data.md`](../fjs/types/rtti/todo/serializable-data.md),
-      each its own item below. Re-measure with the same resolve-against-the-tree
+      Plus [`browser-testing.md`](../fjs/emergent_testing/todo/browser-testing.md),
+      its own item below. Re-measure with the same resolve-against-the-tree
       method, at the final commit, before claiming a number — prose that
       enumerates survivors can itself add mentions, which is how a stale count
       got published the first time.
@@ -1072,11 +1071,12 @@ person can re-check rather than re-derive. Counts are as of
       names `.f.ts` in its filename and title. A formatter no longer needs to
       handle that extension; renaming the file is a trivial follow-up left out of
       the prose sweep because it changes a path rather than prose.
-- [ ] **Fix the one broken doc link that is not a rename artifact.**
-      `fjs/types/rtti/todo/serializable-data.md` links to `../data/module.f.ts`;
-      `fjs/types/rtti/data/` has never existed, so this needs an author decision
-      rather than an extension change. It is the only broken relative link to a
-      source file left in the tree.
+- [x] **Fix the one broken doc link that is not a rename artifact.**
+      `fjs/types/rtti/todo/serializable-data.md` linked to `../data/module.f.ts`
+      before `fjs/types/rtti/data/` existed. Resolved by implementing that
+      issue: the module landed as authored `.f.mjs` source
+      ([`fjs/types/rtti/data/module.f.mjs`](../fjs/types/rtti/data/module.f.mjs))
+      and the issue file was deleted.
 
 ### Acceptance criteria
 
