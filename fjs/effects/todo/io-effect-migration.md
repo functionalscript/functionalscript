@@ -90,6 +90,10 @@ their own failures extend that channel, for example:
 IoEffect<ReadFile, Vec, NotImplemented | IoError>
 ```
 
+`IoError` does not exist yet — it names the normalized host-error type this
+migration introduces. Today the fallible operations carry bare `unknown`
+(`IoResult`); replacing that is Stage 3 work.
+
 `NotImplemented` means the runner cannot dispatch the operation and has not
 started it. The program receives control back and decides what an
 incompatible runner means for it: recover, choose a fallback operation, or
@@ -128,9 +132,9 @@ inject `NotImplemented`, and everything would be rewired a second time.
 Two consequences follow, and both are Stage 3 work:
 
 - **Runners change in Stage 3, mechanically.** Every runner handler for a
-  currently-infallible operation starts wrapping its output in `ok(...)`.
-  The already-fallible operations (`Fs`, `Fetch`, `Exec`, `Import`) need only
-  their error type refined.
+  currently-infallible operation starts wrapping its output in `ok(...)`;
+  operations that already return `IoResult` need only their error type
+  refined.
 - Until Stage 6 lands, runners remain **total** over their declared operation
   maps: `NotImplemented` exists in the type model but no runner produces it
   yet.
@@ -161,9 +165,15 @@ resultStep: (e: IoEffect<O, T, E>, f: (r: Result<T, E>) => IoEffect<Q, R, F>)
 its mirror — it unions the success channel and replaces the error type;
 `resultStep` consumes both branches and replaces both.
 
-Do not add `finallyStep` initially; it is derivable from `resultStep` and does
-not add expressive power until real consumers demonstrate a repeated policy
-worth naming.
+Expanded through the alias, `resultStep` is raw `step` at the Io
+instantiation — it adds no branch behavior of its own. It still earns its
+name: the three operations are the canonical vocabulary, and from Stage 5,
+when the raw representation goes private, `resultStep` is the public spelling
+of that instantiation. Declining `finallyStep` is the same principle — a
+derivable form earns a name only by being canonical vocabulary, and
+`finallyStep` has not shown it is; it is derivable from `resultStep` and adds
+no expressive power until real consumers demonstrate a repeated policy worth
+naming.
 
 The new `step` conflicts with today's raw-effect `step`. During migration, keep
 the existing raw API intact and expose the IoEffect operations from a separate
@@ -225,18 +235,21 @@ represented as a pair of effects.
 - [ ] Update every runner handler in the same change as its operation:
       infallible handlers wrap their output in `ok(...)`; fallible handlers
       keep their behavior with a refined error type.
-- [ ] **Migrate operation by operation, fallible operations first.** For the
-      already-fallible operations this stage is a pure type refinement
-      (`unknown` → structured error). For currently-infallible operations
-      (`Write`, `Read`, `Now`, `RandomInt`, `Sandbox`, `CreateServer`,
-      `Listen`) it changes the value consumers receive: continuations that use
-      the value break loudly at `tsc`, while continuations that discard it
-      (`() => next`) keep compiling and silently ignore the new error channel —
-      the very hazard motivating this migration. Convert those operations only
-      together with a sweep of their value-discarding call sites, and
-      consciously decide whether the trivially-total operations (`now`,
-      `randomInt`) are worth the churn before Stage 6 gives their
-      `NotImplemented` a consumer.
+- [ ] **Every operation converts; the sweep is total.** There is no list of
+      operations worth converting and no exemption for trivially-total ones —
+      an operation left on the raw contract is a hole in the error channel,
+      and Stage 6's "a runner may omit any handler" applies to all operations
+      equally. "Fallible first" is an ordering, not a scoping: operations
+      already returning `IoResult` need only a type refinement (`unknown` →
+      structured error), while converting a currently-infallible operation
+      changes the value its consumers receive. Degenerate shapes convert on
+      the same principle — `Result<never, NotImplemented>` simply has only
+      its error branch inhabited.
+- [ ] Convert each operation together with a sweep of its value-discarding
+      call sites: continuations that use the value break loudly at `tsc`,
+      while continuations that discard it (`() => next`) keep compiling and
+      silently ignore the new error channel — the very hazard motivating this
+      migration.
 - [ ] Even operations without domain-specific failures include
       `NotImplemented`.
 - [ ] Fallible operations extend the error channel with their own errors, e.g.
