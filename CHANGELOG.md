@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- `types/object`: new `structurallySame` compares two values by shape and
+  leaves (`Object.is` leaves, order-independent properties), and `fjs/asserts`
+  gains `assertStructurallySame` — the assertion to use instead of comparing
+  `JSON.stringify` output
+  [#1538](https://github.com/functionalscript/functionalscript/pull/1538)
 - `text/code_point`: new `eofFlush` factory builds the end-of-input step
   `decoder` takes. The UTF-8 and UTF-16 decoders derive their eof ops from it
   instead of each writing the flush out, so "leftover state becomes exactly one
