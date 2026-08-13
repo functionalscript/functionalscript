@@ -26,6 +26,11 @@ history.
   `fjs/protocol/mcp/stdio/types.ts` — so their documentation survives
   declaration emit; importers must use the `types.ts` specifier for these types
   [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
+- `media/json/parser`: `endArray`/`endObject` no longer branch on `state.top`
+  and `tokenToValue` drops its defensive default arm — the parser's state
+  machine already guarantees these invariants, so the dead branches are gone
+  instead of tested
+  [#1536](https://github.com/functionalscript/functionalscript/pull/1536)
 - `text/code_point`: new `eofFlush` factory builds the end-of-input step
   `decoder` takes. The UTF-8 and UTF-16 decoders derive their eof ops from it
   instead of each writing the flush out, so "leftover state becomes exactly one
