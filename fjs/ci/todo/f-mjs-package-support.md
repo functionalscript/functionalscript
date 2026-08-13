@@ -76,7 +76,7 @@ the substitution concern was measured and retired in
 inside shipped `.d.mts` files, as do TypeScript 5.9.3/7.0.2 and Bun 1.3.11 —
 but only for packages resolved as npm packages through `node_modules`, not for
 `file:`-linked directories, which Deno treats as first-party source. Method and
-caveats: [`PACKAGE_VALIDATION.md`](../../../PACKAGE_VALIDATION.md).)
+caveats: [`packed-consumer-validation.md`](../packed-consumer-validation.md).)
 
 Enable `allowJs` and `checkJs` before the first implementation source conversion
 so TypeScript validates both authored implementation extensions. No

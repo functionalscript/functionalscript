@@ -68,7 +68,7 @@ Bun, and published-CLI equivalents are listed in
 To validate the packed npm package itself against clean Node, Deno, and Bun
 consumers — for example after changing `prepack`, `files`, or anything that
 affects emitted declarations — follow
-[PACKAGE_VALIDATION.md](./PACKAGE_VALIDATION.md).
+[`fjs/ci/packed-consumer-validation.md`](./fjs/ci/packed-consumer-validation.md).
 
 New `.f.mjs` modules need a co-located proof with 100% proof coverage — see
 [AGENTS.md §3](./AGENTS.md#3-testing-and-proof-coverage). Authored
