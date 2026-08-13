@@ -20,7 +20,13 @@ history.
 
 ## Unreleased
 
-0.44.0
+- `fjs/protocol/json_rpc` `dispatch` looks up handlers by own property.
+  An `Object.prototype` method name arriving as `method` no longer throws
+  or emits a malformed response; it answers `-32601` like any other
+  unknown method
+  [#1514](https://github.com/functionalscript/functionalscript/pull/1514)
+
+## 0.44.0
 
 - **BREAKING CHANGES:** `fjs/ci/deno` no longer exports `coverageInclude`.
   The Deno CI job runs `deno task cov`, so `deno.json` owns the coverage
