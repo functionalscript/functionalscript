@@ -29,7 +29,13 @@ history.
   `import { type X }`, `import * as`, or a bare side-effect import, which
   retain a runtime import of a module that no longer exists. The external
   test-runner entry `fjs/emergent_testing/all.test.js` is among the removed
-  files: import the authored `fjs/emergent_testing/register.mjs` instead
+  files: import the authored `fjs/emergent_testing/all.test.mjs` instead
+  [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
+- The `fjs/emergent_testing/scenarios` native-TypeScript-execution fixtures,
+  which never ran in CI, are deleted;
+  `fjs/emergent_testing/scenarios.md` records their sources and how to
+  recreate them. With the test entry renamed `all.test.ts` ->
+  `all.test.mjs`, the repository's only authored TypeScript is `types.ts`
   [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
 - `fjs/djs/parser`'s `proof` covers `endObject`'s defensive non-object-top
   guard directly, the same way it already covers `pushKey` and `endArray`'s

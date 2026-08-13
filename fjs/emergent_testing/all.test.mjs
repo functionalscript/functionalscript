@@ -1,8 +1,9 @@
 /**
  * External-runner entry point: importing this module discovers every proof
- * module and registers each test case with the active test runner. Projects
- * using Node, Bun, or Deno test runners re-export it from their own entry
- * file with a bare side-effect import; see `README.md`.
+ * module and registers each test case with the active test runner. In this
+ * repository `node --test`, `bun test`, and `deno test` discover it by its
+ * `.test.` name; projects consuming the package re-export it from their own
+ * entry file with a bare side-effect import — see `README.md`.
  */
 
 import { runEffect } from '../effects/node/module.mjs'

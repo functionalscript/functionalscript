@@ -871,7 +871,9 @@ person can re-check rather than re-derive. Counts are as of
 [#1505](https://github.com/functionalscript/functionalscript/pull/1505).
 
 - [x] **Make `npm run cov` report real coverage.** Done: `cov` now names its
-      entrypoint (`fjs/emergent_testing/all.test.ts`) instead of relying on
+      entrypoint (`fjs/emergent_testing/all.test.ts`; authored `all.test.mjs`
+      since [#1520](https://github.com/functionalscript/functionalscript/pull/1520))
+      instead of relying on
       `node --test` default discovery, and the dead `**/module.f.ts` glob is
       gone.
 
@@ -942,11 +944,11 @@ person can re-check rather than re-derive. Counts are as of
       the `types.js` half is settled above, and the scenario half never gated
       it — the compiled scenario `.js` shipped in the tarball but nothing
       imported it; `run.sh` consumes the authored `.ts` fixtures directly, so
-      the scenario decision below is unaffected. One of the 11 was not dead,
-      caught in review: `all.test.js` was the documented external-runner entry
-      for package consumers, so the authored
-      `fjs/emergent_testing/register.mjs` now ships in its place and
-      `all.test.ts` delegates to it. The pass's *output* was dead,
+      the scenario decision below is settled separately. One of the 11 was not
+      dead, caught in review: `all.test.js` was the documented external-runner
+      entry for package consumers, so the entry is now authored
+      `fjs/emergent_testing/all.test.mjs` — shipped in the package and
+      discovered by the repository's own runners. The pass's *output* was dead,
       but review caught that the pass itself was not: running `tsc` with
       declarations already in the tree re-checks every `.mjs` import through
       the emitted `.d.mts` (which outranks `.mjs` in resolution), which is what
@@ -964,21 +966,22 @@ person can re-check rather than re-derive. Counts are as of
       `package.json` `files` because the extension may be used for other
       purposes later, so a publish must keep coming from a clean checkout
       either way.
-- [ ] **Decide what happens to the `emergent_testing` scenario fixtures.**
+- [x] **Decide what happens to the `emergent_testing` scenario fixtures.**
       `fjs/emergent_testing/scenarios/*.ts`, `scenarios/all.ts` and
-      `all.test.ts` are the only authored non-`types.ts` TypeScript left. Their
-      extension is load-bearing: `run.sh` dispatches on `*.pass.ts` /
-      `*.fail.ts` and hard-links the scenario to `_scenario.proof.ts` and
-      `all.ts` to `_all.test.ts`, so what they exercise is `node --test`,
+      `all.test.ts` were the only authored non-`types.ts` TypeScript left. Their
+      extension was load-bearing: `run.sh` dispatched on `*.pass.ts` /
+      `*.fail.ts` and hard-linked the scenario to `_scenario.proof.ts` and
+      `all.ts` to `_all.test.ts`, so what they exercised was `node --test`,
       `bun test` and `deno test` executing a **TypeScript** proof natively.
-      Porting them to `.mjs` would delete that coverage rather than move it, so
-      this is a decision about whether native-TypeScript execution should still
-      be tested — keep them, replace the coverage some other way, or drop it.
-      Unaffected by
+      Decided in
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
-      the compiled scenario `.js` that used to ship in the tarball was dead
-      weight (nothing imported it), and its removal changes nothing about how
-      the fixtures run.
+      the suite never ran in CI, so it is deleted rather than kept —
+      [`fjs/emergent_testing/scenarios.md`](../fjs/emergent_testing/scenarios.md)
+      records the sources verbatim and how to recreate them. `all.test.ts` is
+      renamed to authored `all.test.mjs` (which the package also ships as the
+      external-runner entry), and the repository's only authored TypeScript is
+      now `types.ts`. The obsolete rename issue
+      `fjs/emergent_testing/todo/205.md` is deleted with the suite.
 - [x] **Sweep the remaining stale prose.** Done. The measured set was 88
       mentions across 42 `.md` files naming an `X.f.ts` whose `X.f.mjs` now
       exists (resolving each mention against the tree, excluding `CHANGELOG.md`,
