@@ -25,6 +25,9 @@ const handlers = {
 }
 const d = dispatch(handlers)
 
+/** A handler table that does own the `Object.prototype` name `toString`. */
+const dOwnPrototypeName = dispatch({ toString: () => ok('own') })
+
 export const proof = {
     schema: {
         request: {
@@ -71,6 +74,21 @@ export const proof = {
         methodNotFound: () => {
             const r = d({ jsonrpc: '2.0', method: 'nope', id: 4 })
             assert(r !== null && 'error' in r && r.error.code === -32601)
+        },
+        // `method` is untrusted wire data: an inherited `Object.prototype`
+        // name must not resolve to a callable.
+        inheritedToString: () => {
+            const r = d({ jsonrpc: '2.0', method: 'toString', id: 4 })
+            assert(r !== null && 'error' in r && r.error.code === -32601)
+        },
+        inheritedConstructor: () => {
+            const r = d({ jsonrpc: '2.0', method: 'constructor', id: 4 })
+            assert(r !== null && 'error' in r && r.error.code === -32601)
+        },
+        // ... while an *own* property of that name is an ordinary method.
+        ownPrototypeName: () => {
+            const r = dOwnPrototypeName({ jsonrpc: '2.0', method: 'toString', id: 4 })
+            assert(r !== null && 'result' in r && r.result === 'own')
         },
         invalidRequest: () => {
             const r = d({ jsonrpc: '1.0', method: 'ping', id: 5 })

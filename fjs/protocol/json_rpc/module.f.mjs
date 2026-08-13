@@ -15,9 +15,10 @@
  * @module
  *
  * @import { Unknown } from '../../media/json/types.ts'
- * @import { Id, RpcError, Handler, Handlers, Response } from './types.ts'
+ * @import { Id, RpcError, Handlers, Response } from './types.ts'
  */
 
+import { at } from '../../types/object/module.f.mjs'
 import { number, string, or, option } from '../../types/rtti/module.f.mjs'
 import { validate } from '../../types/rtti/validate/module.f.mjs'
 import { unknown } from '../../media/json/rtti/module.f.mjs'
@@ -100,9 +101,11 @@ export const dispatch = handlers => value => {
     if (id === undefined) {
         return null
     }
-    /** @type {Handler | undefined} */
-    const handler = handlers[method]
-    if (handler === undefined) {
+    // `at`, not `handlers[method]`: `method` is untrusted wire data, and a
+    // bracket lookup on a plain object resolves inherited `Object.prototype`
+    // names (`constructor`, `toString`, …) to callables.
+    const handler = at(method)(handlers)
+    if (handler === null) {
         return errorResponseOf(id)(methodNotFound)
     }
     const [t2, result] = handler(params)
