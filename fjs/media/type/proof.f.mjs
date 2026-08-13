@@ -61,6 +61,11 @@ export const proof = {
     emptyZip: () =>
         assertEq(detect(bytes(0x50, 0x4b, 0x05, 0x06, 0x00, 0x00)), 'application/zip'),
 
+    // A spanned ZIP archive — the third "PK" variant, so every entry of the
+    // signature list has a case that fails if it is dropped.
+    spannedZip: () =>
+        assertEq(detect(bytes(0x50, 0x4b, 0x07, 0x08, 0x00, 0x00)), 'application/zip'),
+
     webp: () =>
         // "RIFF" + 4-byte size + "WEBP"
         assertEq(
@@ -85,6 +90,38 @@ export const proof = {
 
     emptyIsNull: () =>
         assertEq(detect(empty), null),
+
+    // Every signature, one byte short of complete. A signature is only ever
+    // recognized on its *last* byte, so each of these must still be null — an
+    // off-by-one in the eliminator's terminal-position test would report the
+    // format here, and would fire the "GIF8"-prefix trap `gif8NotGif` guards.
+    truncated: {
+        png: () =>
+            assertEq(detect(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a)), null),
+
+        jpeg: () =>
+            assertEq(detect(bytes(0xff, 0xd8)), null),
+
+        gif87a: () =>
+            assertEq(detect(bytes(0x47, 0x49, 0x46, 0x38, 0x37)), null),
+
+        gif89a: () =>
+            assertEq(detect(bytes(0x47, 0x49, 0x46, 0x38, 0x39)), null),
+
+        pdf: () =>
+            assertEq(detect(bytes(0x25, 0x50, 0x44, 0x46)), null),
+
+        zip: () =>
+            assertEq(detect(bytes(0x50, 0x4b, 0x03)), null),
+
+        // 11 bytes: "RIFF", the size wildcards, and all but the last byte of
+        // "WEBP" — the wildcard run must not shorten the pattern either.
+        webp: () =>
+            assertEq(
+                detect(bytes(
+                    0x52, 0x49, 0x46, 0x46, 0x1a, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42)),
+                null),
+    },
 
     // ── Streaming detector (detectStream) ───────────────────────────────────────
 

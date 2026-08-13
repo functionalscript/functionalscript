@@ -23,6 +23,7 @@ import { fn } from '../../types/function/module.f.mjs'
 
 import {
     decoder,
+    eofFlush,
     errorMask,
     isBmpCodePoint,
     isHighSurrogate,
@@ -197,31 +198,25 @@ const utf16ByteToCodePointOp = (word, state) => {
 
 
 /**
+ * Converts a pending UTF-16 decoding state — an unpaired high surrogate
+ * (0xD800–0xDBFF) left from an earlier input — to an error code.
+ *
+ * @type {(state: number) => CodePoint}
+ */
+const utf16StateToError = state => state | errorMask
+
+/**
  * Handles the EOF (end-of-file) condition during UTF-16 decoding.
  *
- * If there is no pending state (`state === null`), it simply returns an empty list
- * of code points, indicating no further input to process. If there is a pending state,
- * it is treated as an unpaired surrogate, and the `errorMask` is applied to flag
- * the invalid sequence.
+ * If there is no pending state (`state === null`), it returns an empty list of
+ * code points, indicating no further input to process. If there is a pending
+ * state, it is treated as an unpaired surrogate and the `errorMask` is applied
+ * to flag the invalid sequence. The flush itself is `eofFlush` from
+ * `code_point`, shared with UTF-8.
  *
- * @param {_Utf16State} state - The current UTF-16 decoding state. This can be:
- *   - `null`: No pending surrogate to process.
- *   - A high surrogate (0xD800–0xDBFF) left from an earlier input, waiting for a low surrogate.
- * @returns {readonly[List<CodePoint>, _Utf16State]} A tuple:
- *   - The first element is a list of code points. If there’s a pending state, it is returned
- *     with the `errorMask` applied.
- *   - The second element is the next state, which will always be `null` because EOF means no
- *     further processing.
- *
- * @example
- *
- * ```js
- * const eofState = utf16EofToCodePointOp(0xD800) // Unpaired high surrogate
- * const validState = utf16EofToCodePointOp(null) // No pending state
- * ```
+ * @type {(state: _Utf16State) => readonly[List<CodePoint>, _Utf16State]}
  */
-const utf16EofToCodePointOp = state =>
-    [state === null ? empty : [state | errorMask],  null]
+const utf16EofToCodePointOp = eofFlush(utf16StateToError)
 
 
 /**

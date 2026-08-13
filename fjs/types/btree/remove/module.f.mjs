@@ -181,6 +181,9 @@ export const proof = {
         reduceValue2DefaultBranch: () => {
             reduceValue2([['leaf']])([['x'], 's', ['y']])
         },
+        initValue0DefaultBranch: () => {
+            initValue0(null)([['x'], 's', [['a'], 'b', ['c']]])
+        },
         initValue1DefaultBranch: () => {
             initValue1(null)([[['a'], 'b', ['c']], 'd', ['e']])
         },

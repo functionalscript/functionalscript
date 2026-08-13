@@ -7,6 +7,10 @@
 import type { Unknown } from '../types.ts'
 import type { OrderedMap } from '../../../types/ordered_map/types.ts'
 import type { List } from '../../../types/list/types.ts'
+import type { JsonToken } from '../tokenizer/types.ts'
+
+/** JSON tokens that carry a directly-usable value. */
+export type _ValueToken = Extract<JsonToken, { readonly kind: 'null' | 'false' | 'true' | 'string' | 'number' }>
 
 export type _JsonObject = {
     readonly kind: 'object'
