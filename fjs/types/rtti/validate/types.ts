@@ -3,4 +3,5 @@
  *
  * @module
  */
+
 export type { Path, Result, Validate, ValidationError } from '../common/types.ts'

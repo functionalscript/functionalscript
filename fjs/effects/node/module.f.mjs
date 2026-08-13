@@ -10,6 +10,7 @@
  *
  * @module
  */
+
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'

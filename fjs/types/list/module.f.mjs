@@ -3,6 +3,7 @@
  *
  * @module
  */
+
 import { identity, fn, compose } from '../function/module.f.mjs'
 /** @import { Nullable } from '../nullable/types.ts' */
 import {

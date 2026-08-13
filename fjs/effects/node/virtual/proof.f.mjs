@@ -33,6 +33,15 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(writeFile('mydir', vec8(0x42n)))
         assert(result[0] === 'error')
     },
+    writeFileOverJsModule: () => {
+        // writeFile onto a path currently holding a JsModule (function) covers the
+        // `!Array.isArray(file)` branch of writeFileOp: the entry exists but is
+        // neither undefined nor an array.
+        /** @type {Dir} */
+        const root = { 'a.f.ts': /** @type {JsModule} */ (() => ({})) }
+        const [, result] = virtual({ ...emptyState, root })(writeFile('a.f.ts', vec8(0x42n)))
+        assert(result[0] === 'error')
+    },
     readdirRecursive: () => {
         const file = /** @type {const} */ ([vec8(0x42n)])
         /** @type {Dir} */

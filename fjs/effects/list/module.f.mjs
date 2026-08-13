@@ -5,6 +5,7 @@
  *
  * @module
  */
+
 import { pure } from "../module.f.mjs"
 /** @import { Effect, Operation } from "../types.ts" */
 /** @import { List, Next } from "./types.ts" */
