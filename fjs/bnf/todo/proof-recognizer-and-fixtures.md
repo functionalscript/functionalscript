@@ -177,8 +177,8 @@ explicit named override list for the rows where token-stream acceptance differs.
   moves the grammars themselves; this issue moves the proof harness/fixtures.
 - [65Y-proof-assertEq-adoption](../../emergent_testing/todo/65y-proof-asserteq-adoption.md)
   — orthogonal assertion cleanup.
-- [stack-recursive-matching](../ll1/todo/stack-recursive-matching.md) — separate
-  long-input regression corpus.
+- `fjs/bnf/ll1/proof.f.mjs` / `fjs/bnf/descent/proof.f.mjs` `longInput` — the
+  separate long-input regression corpus both matchers already carry.
 - [new-parser](./new-parser.md) — token-symbol alphabet needs its own recognizer
   adapter, but can share `Case` / `assertRecognizes`.
 - `fjs/bnf/descent/types.ts` `DescentFailure` — failure diagnostics compose
