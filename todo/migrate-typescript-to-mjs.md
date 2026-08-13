@@ -507,8 +507,12 @@ migrated modules are in one of the two safe categories by accident, not by
 intent.
 
 `fjs/common/monoid`, `fjs/types/btree/remove`, `fjs/types/btree/set`,
-`fjs/types/list` and `fjs/types/nullable` are the five that currently lose their
-header and want the same one-line fix.
+`fjs/types/list` and `fjs/types/nullable` were the five known to lose their
+header and want the same one-line fix. That count was stale: re-measured in
+[#1526](https://github.com/functionalscript/functionalscript/pull/1526), 24
+modules lost the header this way and another 4 had no `@module` block in
+source at all. All are fixed there — every one of the 127 emitted
+`module.f.d.mts` / `module.d.mts` files now carries `@module`.
 
 #### Curried generic exports need an explicit `@returns`
 
@@ -817,9 +821,13 @@ blocking, plus the prose sweep. The remaining items are listed under
       always put one blank line after that block, group external/built-in
       runtime imports separately, and order repository-owned relative runtime
       imports as migrated `.mjs` before remaining `.ts`; fix the modules that
-      already lose their header. `fjs/common/monoid` is now fixed; four remain
-      (`fjs/types/btree/remove`, `fjs/types/btree/set`, `fjs/types/list`,
-      `fjs/types/nullable`), each emitting a declaration with no `@module`.
+      already lose their header. The header half is done: the "four remain"
+      count was stale, and
+      [#1526](https://github.com/functionalscript/functionalscript/pull/1526)
+      fixed the measured 24 emit losses plus 4 sources with no `@module`
+      block, so all 127 emitted module declarations carry the header. Still
+      open in this item: sweeping scattered `@import` comments into the
+      leading block and the import-group ordering.
 - [ ] File an upstream issue for JSDoc typedef documentation being dropped from
       declaration emit, and keep writing type documentation in the source
       meanwhile; substantial type APIs may instead live directly in `types.ts`

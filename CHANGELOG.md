@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- Emitted declarations keep their `@module` documentation header: 24 modules
+  lost it to declaration emit and 4 never had one; all 127 module
+  declarations now carry it
+  [#1526](https://github.com/functionalscript/functionalscript/pull/1526)
+
 - **BREAKING CHANGES:** the npm package ships no `.js` files: the empty
   `types.js` stubs and compiled test files are gone. Import types only with
   fully erased `import type`, and use `fjs/emergent_testing/all.test.mjs` as
