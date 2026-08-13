@@ -120,6 +120,8 @@ const codePointToUtf16 = codePoint => {
 export const fromCodePointList
     = flatMap(codePointToUtf16)
 
+const isInU16Range = contains(0x0000, 0xFFFF)
+
 /**
  * Validates whether a given 16-bit unsigned integer (U16) falls within the valid range for UTF-16 code units.
  *
@@ -142,7 +144,7 @@ export const fromCodePointList
  *
  * @type {(i: U16) => boolean}
  */
-const u16 = i => Number.isInteger(i) && contains(0x0000, 0xFFFF)(i)
+const u16 = i => Number.isInteger(i) && isInU16Range(i)
 
 
 /**
