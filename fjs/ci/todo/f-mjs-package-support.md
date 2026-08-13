@@ -68,9 +68,12 @@ import type { Phantom } from './types.ts'
 /** @import { Phantom } from './types.ts' */
 ```
 
-No resolver alias is involved: `types.ts` exists in the repository. This is
-important for Deno, which does not apply TypeScript's sibling-declaration
-substitution rules to missing `types.ts` or `types.js` paths.
+No resolver alias is involved: `types.ts` exists in the repository, so the
+source tree never depends on specifier substitution. (For the *packed* package
+the substitution concern was measured and retired in
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520): Deno
+2.9.5 does apply `.ts` -> `.d.ts` substitution to the `./types.ts` specifiers
+inside shipped `.d.mts` files, as do TypeScript 5.9.3/7.0.2 and Bun 1.3.11.)
 
 Enable `allowJs` and `checkJs` before the first implementation source conversion
 so TypeScript validates both authored implementation extensions. No
@@ -86,7 +89,11 @@ current mixed source layout requires it:
 
 The first pass emits declarations for `.ts` and `.mjs`. With those declarations
 present, the second TypeScript invocation emits runtime JavaScript for `.ts`
-sources without overwriting authored `.mjs`.
+sources without overwriting authored `.mjs`. (The mixed layout no longer
+requires it: with only `types.ts` and test-fixture TypeScript left, the second
+pass produced nothing any consumer resolves, and
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520) reduced
+`prepack` to the first pass alone.)
 
 This exact `.ts` + `.mjs` configuration is already exercised by
 [PR #1451](https://github.com/functionalscript/functionalscript/pull/1451): it
@@ -98,8 +105,14 @@ fixture rather than assumed. With `rewriteRelativeImportExtensions: true`, verif
 what TypeScript emits for references to `./types.ts` from both `.ts` and `.mjs`,
 which generated `types.js` / `types.d.ts` artifacts are required in the package,
 and whether Node, Deno, Bun, and a clean TypeScript consumer all resolve the
-packed result. Do not simplify the second emit pass or package file list until
-that experiment establishes the minimal portable layout.
+packed result. **Answered in
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520)** by
+direct measurement against the packed tarball: declaration emit keeps
+`./types.ts` verbatim, only `types.d.ts` is required, `types.js` is not, and
+TypeScript 5.9.3/7.0.2, Node v22, Deno 2.9.5, and Bun 1.3.11 all resolve the
+result. The second emit pass is removed; `prepack` is
+`tsc --noEmit false --emitDeclarationOnly` and the package file list is
+unchanged.
 
 Keep both passes inline in `prepack`; do not add public `emit:*` scripts for
 users to run independently. Normal development should type-check and test the
@@ -168,12 +181,17 @@ They can be removed separately when no longer useful.
 ### Progress
 
 The core `.ts` + `.mjs` pipeline support is in place: `tsconfig.json` has
-`allowJs`/`checkJs` enabled, `package.json`'s `prepack` is the two-pass `tsc`
-command proposed here, and `files` already lists `**/*.mjs`/`**/*.d.mts`
-alongside `**/*.js`/`**/*.d.ts`. What remains open is the validation half: no
-fixture yet exercises a real authored `types.ts` from both TypeScript and JSDoc,
-Deno source checking, declaration/runtime emission, `npm pack`, and a clean
-consumer.
+`allowJs`/`checkJs` enabled, and `files` lists `**/*.mjs`/`**/*.d.mts`
+alongside `**/*.js`/`**/*.d.ts`. `prepack` was the two-pass `tsc` command
+proposed here until
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520) proved
+the second pass unnecessary and reduced it to declaration-only emit. That PR
+also performed the clean packed-consumer validation manually (tsc 5.9.3/7.0.2,
+Node v22, Deno 2.9.5, Bun 1.3.11 — measurements recorded in
+[`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)).
+What remains open is a committed, CI-run fixture exercising a real authored
+`types.ts` from both TypeScript and JSDoc, Deno source checking, declaration
+emission, `npm pack`, and a clean consumer.
 
 ### Tasks
 
@@ -186,6 +204,11 @@ consumer.
       Do not add special exclusions merely for non-public authored `.mjs` files.
 - [x] Replace one-pass package emission with the two ordered `tsc` commands
       directly in `prepack`: declarations first, then JavaScript emission.
+      Superseded by
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
+      once only `types.ts` and test-fixture TypeScript remained, the JavaScript
+      pass was measured to emit nothing consumers resolve, and `prepack` is
+      declaration-only again.
 - [x] Do not expose separate `emit:*` package scripts; packaging owns generated
       outputs.
 - [ ] Keep package/publish jobs on a clean CI checkout; do not add generated
@@ -197,11 +220,20 @@ consumer.
 - [ ] Verify the source fixture under `npx tsc`, Deno, and Bun; Deno must resolve
       the real `types.ts` without `@ts-types`, `@ts-self-types`, or a dummy
       `types.js` source file.
-- [ ] Verify declaration emit from both `.ts` and `.mjs` rewrites/preserves the
+- [x] Verify declaration emit from both `.ts` and `.mjs` rewrites/preserves the
       type-module specifier into a path that exists in the packed artifact.
-- [ ] Verify which artifacts current `prepack` generates from `types.ts`
+      Measured in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
+      with the premise corrected: declaration emit preserves `./types.ts`
+      verbatim, a path that is *not* in the packed artifact — and that is fine,
+      because TypeScript, Deno, and Bun all substitute it with the shipped
+      `types.d.ts` (proved by a deliberate type error being rejected, not
+      silently accepted).
+- [x] Verify which artifacts current `prepack` generates from `types.ts`
       (including `types.js` and `types.d.ts`) and keep only the package behavior
-      required for portable resolution.
+      required for portable resolution. Done in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
+      only `types.d.ts` is required; `types.js` is no longer generated.
 - [ ] Include an implementation-only `_`-prefixed JSDoc typedef in the `.mjs`
       fixture; tolerate its current exported declaration form without treating it
       as clean-consumer public API.
@@ -210,14 +242,20 @@ consumer.
 - [ ] Reject authored `.mjs` runtime imports to remaining relative implementation
       `.ts` / `.f.ts`; type-only imports to intentional `types.ts` companions are
       allowed.
-- [ ] Type-check and run a clean packed-package consumer under TypeScript, Node,
-      Deno, and Bun using the `types.ts`-backed API.
+- [x] Type-check and run a clean packed-package consumer under TypeScript, Node,
+      Deno, and Bun using the `types.ts`-backed API. Measured manually in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
+      (tsc 5.9.3 and 7.0.2 under `nodenext`/`strict`, Node v22, Deno 2.9.5
+      `run`+`check`, Bun 1.3.11 `run`+`build`); turning this into a committed
+      CI fixture is the remaining fixture work above.
 - [ ] Verify the CI-built archive contains exactly the generated/runtime/type
       artifacts needed for the `types.ts` convention during stage 1.
 - [x] Update `AGENTS.md` to the asymmetric `.f.ts` / `.f.mjs` migration policy.
-- [ ] Decide, based on the fixture, whether the second TypeScript runtime-emission
+- [x] Decide, based on the fixture, whether the second TypeScript runtime-emission
       pass can ever be removed while authored `types.ts` files remain, or whether
-      generated `types.js` is part of the permanent package layout.
+      generated `types.js` is part of the permanent package layout. Decided in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
+      the pass is removed and `types.js` is not part of the layout.
 
 ### Acceptance criteria
 
@@ -254,7 +292,10 @@ migrate.
 
 Do not simplify the package emit pipeline merely because no implementation/proof
 `.ts` remains. First establish whether authored `types.ts` requires generated
-JavaScript for package resolution; the fixture in this task decides that.
+JavaScript for package resolution. That question is settled: measured directly
+against the packed tarball in
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520), it does
+not, and the pipeline is simplified accordingly.
 
 ### Related
 

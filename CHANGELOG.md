@@ -23,7 +23,8 @@ history.
 - The npm package no longer ships `.js` files compiled from the type-only
   `types.ts` modules (empty `export {}` stubs) or from test files: `prepack`
   emits declarations only. Types still resolve through the shipped `.d.ts`
-  files, and nothing imports those modules at runtime.
+  files, and nothing imports those modules at runtime
+  [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
 - **BREAKING CHANGES:** BNF EOF is the semantic symbol `-1`, not `2^24 - 1`:
   `fullRange` is `0 .. 2^24 - 2`, and the parser backends synthesize one
   logical EOF after the physical input. Serialized ranges that ended at the
