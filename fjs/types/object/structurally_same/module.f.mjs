@@ -26,7 +26,8 @@ const { entries, is } = Object
  *   an object is trivially the same as itself.
  * - Anything else that is not a non-null object differs.
  * - Arrays match arrays of the same length whose elements match pairwise; an
- *   array never matches a non-array.
+ *   array never matches a non-array. Arrays are assumed dense — FunctionalScript
+ *   cannot build a sparse one; see the README.
  * - Other objects match when their own enumerable string properties form the
  *   same set — order is irrelevant — and every property's value matches. A
  *   property whose value is `undefined` is a property: `{ a: undefined }` and

@@ -41,6 +41,16 @@ There is no cycle detection: a self-referential value recurses until the stack
 runs out. FunctionalScript data is acyclic, so a seen-set would tax every real
 comparison to catch a case that cannot occur.
 
+Array comparison likewise assumes **dense** arrays. `Array.prototype.every`
+skips a sparse array's holes, so a hole-bearing first operand would compare
+vacuously equal in one direction and not the other. That asymmetry is
+unreachable rather than handled: FunctionalScript has no way to build a sparse
+array — `new Array(n)` is not part of the language — so the input cannot occur,
+and spreading every array into a dense copy to defend against it would cost an
+allocation per comparison for a value that cannot exist. Callers reaching this
+from plain JavaScript with a hand-built sparse array are outside the contract,
+like the host objects above.
+
 ## Why proofs should prefer it to `JSON.stringify`
 
 Proofs reached for `assertEq(JSON.stringify(a), JSON.stringify(b))` because no

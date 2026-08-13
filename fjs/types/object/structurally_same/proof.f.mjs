@@ -42,6 +42,9 @@ export const proof = {
         // an array is never the same as a non-array, in either position
         () => differ([], {}),
         () => differ({}, []),
+        // an explicitly `undefined` element is an ordinary element
+        () => same([undefined], [undefined]),
+        () => differ([undefined], [1]),
     ],
     objects: [
         () => same({}, {}),
