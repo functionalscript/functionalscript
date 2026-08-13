@@ -135,9 +135,14 @@ export const fromCodePointList
  * const edgeCaseHigh = u16(0xFFFF)  // true: Maximum valid value for UTF-16
  * ```
  *
+ * `U16` is just `number`, so this also rejects non-integers — `isBmpCodePoint`,
+ * `isHighSurrogate`, and `isLowSurrogate` only partition the *integers* in
+ * `0x0000`–`0xFFFF` with no gap; a fractional value would fall between two of
+ * those ranges and be misclassified downstream if it were let through here.
+ *
  * @type {(i: U16) => boolean}
  */
-const u16 = contains(0x0000, 0xFFFF)
+const u16 = i => Number.isInteger(i) && contains(0x0000, 0xFFFF)(i)
 
 
 /**
