@@ -17,7 +17,8 @@ import { array, option, or, record, string } from '../../../types/rtti/module.f.
 import { visit } from '../../../types/rtti/common/module.f.mjs'
 import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
 
-const unknownThunk = () => /** @type {const} */ (['const', unknownConst])
+/** @type {() => readonly ['const', typeof unknownConst]} */
+const unknownThunk = () => ['const', unknownConst]
 
 /**
  * rtti schema for a JSON Schema (draft 2020-12) document.

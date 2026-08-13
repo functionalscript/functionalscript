@@ -24,6 +24,10 @@ history.
   lost it to declaration emit and 4 never had one; all 127 module
   declarations now carry it
   [#1526](https://github.com/functionalscript/functionalscript/pull/1526)
+- `fjs/media/json/schema`'s emitted declaration is exact: an explicit `@type`
+  naming the recursive schema by `typeof` replaces the `@type {const}` cast
+  that collapsed `not` to `/*elided*/ any` and four sibling fields to `any`
+  [#1526](https://github.com/functionalscript/functionalscript/pull/1526)
 
 - **BREAKING CHANGES:** the npm package ships no `.js` files: the empty
   `types.js` stubs and compiled test files are gone. Import types only with

@@ -807,7 +807,14 @@ blocking, plus the prose sweep. The remaining items are listed under
       repository stays green. Expect more of these as rtti spreads; check the
       emitted declaration for `any` / `elided` before calling such a group
       migrated, and keep an `Assert<Equal<…, Ts<typeof …>>>` beside the schema
-      so the explicit annotation stays verified rather than asserted.
+      so the explicit annotation stays verified rather than asserted. The last
+      known instance — `fjs/media/json/schema`'s `unknownThunk`, whose
+      `@type {const}` cast collapsed `not` to `/*elided*/ any` and four
+      sibling fields to bare `any` — was fixed with the `typeof` annotation in
+      [#1526](https://github.com/functionalscript/functionalscript/pull/1526);
+      emitted declarations measure zero `elided` repo-wide after it. (Its
+      Phantom `$out` intentionally differs from `Ts<typeof unknownThunk>` in
+      field optionality, so no exact `Equal` round-trip assert applies there.)
 - [ ] Decide each JSDoc typedef's visibility at the migration boundary: prefix
       implementation-only typedefs with `_` and leave publicly useful ones
       unprefixed, judged by what the module should offer its consumers rather
