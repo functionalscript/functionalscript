@@ -1,4 +1,12 @@
-/** @import { Effect, Operation, ToAsyncOperationMap } from './types.ts' */
+/**
+ * Impure effect interpretation: runs an `Effect` step by step against an
+ * asynchronous operation map.
+ *
+ * @module
+ *
+ * @import { Effect, Operation, ToAsyncOperationMap } from './types.ts'
+ */
+
 import { match } from './module.f.mjs'
 
 /**

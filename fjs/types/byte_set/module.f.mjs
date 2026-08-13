@@ -4,6 +4,7 @@
  *
  * @module
  */
+
 import { compose } from '../function/module.f.mjs'
 /** @import { RangeMap } from '../range_map/types.ts' */
 /** @import { SortedSet } from '../sorted_set/types.ts' */

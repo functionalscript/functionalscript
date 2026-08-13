@@ -1,4 +1,12 @@
-/** @import { Result } from './types.ts' */
+/**
+ * Impure `Result` companions: capture thrown exceptions as `Result` values,
+ * since `try`/`catch` is not allowed in FunctionalScript itself.
+ *
+ * @module
+ *
+ * @import { Result } from './types.ts'
+ */
+
 import { ok, error } from './module.f.mjs'
 
 /** @type {<T>(f: () => T) => Result<T, unknown>} */
