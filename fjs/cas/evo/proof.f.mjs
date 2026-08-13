@@ -7,7 +7,11 @@
  * @import { RevisionData } from './types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import {
+    assert,
+    assertEq,
+    assertStructurallySame,
+} from '../../asserts/module.f.mjs'
 import { pure } from '../../effects/module.f.mjs'
 import { fileCas } from '../module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
@@ -65,7 +69,7 @@ export const proof = {
     buildCacheEmptyStoreYieldsEmptyCache: () => {
         const c = fileCas(sha256)(home)
         const [, cache] = virtual(emptyState)(buildCache(c))
-        assertEq(JSON.stringify(cache), JSON.stringify(emptyCache))
+        assertStructurallySame(cache, emptyCache)
     },
     buildCacheSkipsNonRevisionBlob: () => {
         const c = fileCas(sha256)(home)

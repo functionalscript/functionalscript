@@ -1,6 +1,7 @@
 /**
- * Plain-object helpers: safe property lookup via `at`, and conversions
- * between entries and `OrderedMap`. See `./types.ts` for the
+ * Plain-object helpers: safe property lookup via `at`, structural comparison
+ * via `structurallySame`, and conversions between entries and `OrderedMap`.
+ * See `./types.ts` for the
  * `OptionalMap`/`RequiredMap`/`StringMap`/`Entry`/`OneKey`/`SingleProperty`/
  * `NotUnion` type-level API.
  *
@@ -15,6 +16,13 @@ import { fromUndefined } from '../nullable/module.f.mjs'
 import { entries as mapEntries, fromEntries as mapFromEntries } from '../ordered_map/module.f.mjs'
 /** @import { OrderedMap } from '../ordered_map/types.ts' */
 /** @import { StringMap, Entry } from './types.ts' */
+
+/**
+ * `structurallySame` is implemented in a dependency-free leaf so `fjs/asserts`
+ * can use it without the cycle `asserts -> object -> nullable -> asserts`; see
+ * `./structurally_same/README.md`. This module is its public home.
+ */
+export { structurallySame } from './structurally_same/module.f.mjs'
 
 const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
 
