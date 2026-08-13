@@ -221,7 +221,13 @@ emission, `npm pack`, and a clean consumer.
 - [ ] Keep package/publish jobs on a clean CI checkout; do not add generated
       output tracking or cleanup for artifacts from previous revisions.
 - [ ] Add a mixed `module.f.ts` / `module.f.mjs` plus authored `types.ts` package
-      fixture.
+      fixture. Scope: the fixture exercises the supported, fully erased
+      `import type` form only. The forbidden inline `import { type X }` /
+      `import * as` / side-effect forms are a documented one-time measurement
+      ([`packed-consumer-validation.md`](../packed-consumer-validation.md),
+      "`types.js` is not a real module") — their behavior belongs to consumer
+      toolchains, not to this package, so re-testing it every CI run adds no
+      information.
 - [ ] Import a type from that fixture through the real `./types.ts` path from both
       TypeScript (`import type`) and JavaScript (JSDoc `@import`).
 - [ ] Verify the source fixture under `npx tsc`, Deno, and Bun; Deno must resolve

@@ -739,7 +739,11 @@ blocking, plus the prose sweep. The remaining items are listed under
       and package-emit half was measured manually in
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520);
       a committed, CI-run fixture is still tracked in
-      [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md).
+      [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
+      scoped to the supported fully erased `import type` form — the forbidden
+      `import {` forms are a documented one-time measurement in
+      [`packed-consumer-validation.md`](../fjs/ci/packed-consumer-validation.md)
+      and are not re-tested per CI run.
 - [x] Verify emitted declarations reference package paths that actually exist and
       determine whether generated `types.js` is required for portable consumers.
       Done in [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
