@@ -15,6 +15,7 @@ import {
     octetString,
     boolean,
     constructedSet,
+    objectIdentifier,
     encodeObjectIdentifier,
     decodeObjectIdentifier,
 } from './module.f.mjs'
@@ -251,6 +252,15 @@ export const proof = {
                     encode([integer, 2n])
                 ])
             )
+        },
+        objectIdentifier: () => {
+            // exercises the objectIdentifier case in recordToRaw/rawToRecord
+            // via the generic encode/decode dispatch (the objectIdentifier
+            // tests below only call encodeObjectIdentifier/decodeObjectIdentifier
+            // directly, never through decode()).
+            /** @type {SupportedRecord} */
+            const r = [objectIdentifier, [1n, 2n, 840n, 113549n]]
+            ch0(r, encode(r), empty)
         },
     },
     objectIdentifier: {
