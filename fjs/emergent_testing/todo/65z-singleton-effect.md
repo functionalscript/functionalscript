@@ -12,6 +12,11 @@ time and can produce confusing duplicate output.
 
 #### Concrete example: scenario runner
 
+(The scenario runner was deleted in
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520) —
+recreation documented in [`../scenarios.md`](../scenarios.md) — but the
+double-load mechanism it illustrates is general, so the example is kept.)
+
 `run.sh` hard-links `all.ts` → `_all.test.ts` and a scenario file →
 `_scenario.proof.ts`, then runs a test framework (node, bun, deno)
 in the `scenarios/` directory. If the framework scans the directory it may

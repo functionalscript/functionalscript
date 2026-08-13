@@ -20,6 +20,15 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** the npm package ships no `.js` files: the empty
+  `types.js` stubs and compiled test files are gone. Import types only with
+  fully erased `import type`, and use `fjs/emergent_testing/all.test.mjs` as
+  the external-runner entry
+  [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
+- The `fjs/emergent_testing/scenarios` fixtures, which never ran in CI, are
+  deleted; `fjs/emergent_testing/scenarios.md` records how to recreate them.
+  `types.ts` is now the only authored TypeScript
+  [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
 - `fjs/djs/parser`'s `proof` covers `endObject`'s defensive non-object-top
   guard directly, the same way it already covers `pushKey` and `endArray`'s
   equivalent unreachable branches

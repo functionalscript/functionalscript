@@ -91,13 +91,18 @@ public API. Such files can be removed later when no longer useful.
 ### Stage-1 emission
 
 Keep packaging simple and keep emission as an implementation detail of the NPM
-lifecycle. Use the two ordered TypeScript passes directly in `prepack` while any
-`.ts` / `.f.ts` source remains:
+lifecycle. While implementation `.ts` / `.f.ts` source remained, `prepack` was
+two ordered TypeScript passes — declarations first, then JavaScript emission.
+With only `types.ts` and test-fixture TypeScript left,
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520) measured
+that no generated `.js` is required and replaced the second pass with a plain
+check, which re-resolves the tree through the just-emitted declarations and so
+keeps the declaration round-trip property:
 
 ```json
 {
   "scripts": {
-    "prepack": "tsc --noEmit false --emitDeclarationOnly && tsc --noEmit false --declaration false"
+    "prepack": "tsc --noEmit false --emitDeclarationOnly && tsc"
   }
 }
 ```
@@ -115,19 +120,21 @@ source.mjs -> source.d.mts
 
 The generated declarations are then present for the second invocation. For the
 repository configuration, TypeScript resolves those `.d.mts` declarations for
-the authored `.mjs` modules, so the second pass emits the remaining TypeScript
-runtime JavaScript without trying to overwrite the authored `.mjs` files:
+the authored `.mjs` modules — `.d.mts` outranks `.mjs` in resolution — so the
+second invocation type-checks every import through the just-emitted
+declarations. That is the declaration round-trip check: a type that survives
+source checking but degrades in declaration emit fails here. The invocation
+emits nothing (`tsconfig.json` sets `noEmit: true`); while implementation
+`.ts` / `.f.ts` source remained, this second step was
+`tsc --noEmit false --declaration false` and additionally emitted
+`source.ts -> source.js`, an output retired by
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520).
 
-```text
-source.ts -> source.js
-```
-
-This exact setup is validated by
+The historical two-pass setup was validated by
 [PR #1451](https://github.com/functionalscript/functionalscript/pull/1451),
-which enables `allowJs` / `checkJs`, keeps an authored `benchmark.mjs`, uses this
-`prepack`, and passes the Node 26 CI `npm pack` step. A separate runtime-emission
-configuration is therefore unnecessary unless a real repository case shows the
-simple two-pass command is insufficient.
+which enables `allowJs` / `checkJs`, keeps an authored `benchmark.mjs`, and
+passes the Node 26 CI `npm pack` step. A separate runtime-emission
+configuration was never needed.
 
 No generated-output cleanup is needed before packaging because the CI package
 job starts from a clean checkout. In particular, after `source.ts` is renamed
@@ -140,17 +147,14 @@ asymmetric and dependency-first: authored `.ts` may import already migrated
 `.mjs`, while authored `.mjs` must not retain relative runtime or declaration
 references to remaining `.ts` or generated `.js`.
 
-As soon as the last authored `.ts` / `.f.ts` source is removed, the runtime
-JavaScript emission pass has no purpose and should be removed from
-`package.json`. `prepack` then becomes declaration-only:
-
-```json
-{
-  "scripts": {
-    "prepack": "tsc --noEmit false --emitDeclarationOnly"
-  }
-}
-```
+With the last authored implementation `.ts` / `.f.ts` source removed, the
+runtime JavaScript *emission* lost its purpose and was retired in
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520). Do
+**not** reduce `prepack` to the bare `--emitDeclarationOnly` invocation: the
+second `tsc` stays, as a check, because it is the only gate that catches
+declaration-emit degradation (the class behind #1497) — dropping it lets a
+declaration that collapses to `/*elided*/ any` reach a release with every other
+check green.
 
 ### Stage-2 authored `.f.js`
 
@@ -169,10 +173,18 @@ must cover both runtime and declarations. These requirements are owned by
 
 ### Tasks
 
-- [ ] Complete [`f-mjs-package-support.md`](./f-mjs-package-support.md) before
-      the first stage-1 source conversion.
-- [ ] After the last `.ts` / `.f.ts` source is removed, simplify `prepack` to the
-      declaration-only `tsc --noEmit false --emitDeclarationOnly` command.
+- [x] Complete [`f-mjs-package-support.md`](./f-mjs-package-support.md) before
+      the first stage-1 source conversion. Moot as a gate: every conversion
+      already happened, validated one-time in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520);
+      the committed CI fixture remains future work in that file.
+- [x] After the last `.ts` / `.f.ts` source is removed, simplify `prepack` to
+      declaration emit. Done in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520) —
+      but not to the bare `--emitDeclarationOnly` command this item originally
+      prescribed: the second `tsc` invocation survives as a no-emit check
+      because it is the declaration round-trip gate (see Stage-1 emission
+      above).
 - [ ] Complete [`f-js-package-support.md`](./f-js-package-support.md) after
       stage 1 and before the first authored `.f.js` compiler-compatibility
       conversion.

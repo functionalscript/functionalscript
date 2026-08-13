@@ -43,9 +43,13 @@ module.f.ts -> module.f.mjs
 
 During stage 1, `.f.mjs` means authored FunctionalScript-intent JavaScript; it
 does not promise current compiler support. The stage also removes the
-TypeScript-to-JavaScript emit path after the last TypeScript source is gone,
-cleans obsolete generated `.js`, and removes the blanket `**/*.js` ignore so
-`.js` becomes authorable and trackable again.
+TypeScript-to-JavaScript emit path after the last TypeScript source is gone
+(done in [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
+`prepack` emits declarations only, then re-checks against them without
+emitting), cleans obsolete generated `.js`, and removes the
+blanket `**/*.js` ignore so `.js` becomes authorable and trackable again (the
+ignore removal is still an open decision, tracked in
+[`migrate-typescript-to-mjs.md`](./migrate-typescript-to-mjs.md)).
 
 Before stage 2 renames any repository source, complete the focused
 [`f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md) prerequisite.

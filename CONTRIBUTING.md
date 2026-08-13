@@ -65,6 +65,11 @@ cargo fmt -- --check
 Bun, and published-CLI equivalents are listed in
 [AGENTS.md §1.4](./AGENTS.md#14-ways-to-run-the-functionalscript-test-suite).
 
+To validate the packed npm package itself against clean Node, Deno, and Bun
+consumers — for example after changing `prepack`, `files`, or anything that
+affects emitted declarations — follow
+[`fjs/ci/packed-consumer-validation.md`](./fjs/ci/packed-consumer-validation.md).
+
 New `.f.mjs` modules need a co-located proof with 100% proof coverage — see
 [AGENTS.md §3](./AGENTS.md#3-testing-and-proof-coverage). Authored
 FunctionalScript is JavaScript with JSDoc: a `module.f.mjs` is accompanied by a

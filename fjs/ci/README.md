@@ -121,7 +121,7 @@ For `node --test` and `npm run cov` to execute FunctionalScript proofs, the
 repository must include a Node test entry file, conventionally `all.test.ts`:
 
 ```ts
-import 'functionalscript/fjs/emergent_testing/all.test.js'
+import 'functionalscript/fjs/emergent_testing/all.test.mjs'
 ```
 
 Without that file, third-party test runners discover no FunctionalScript proofs
@@ -150,3 +150,9 @@ export type Setup = {
 
 `nodeExtra` receives the target OS so callers can conditionally add OS-specific steps.
 Rust steps are included automatically when `Cargo.toml` is present; no flag is needed.
+
+## Related
+
+- [`packed-consumer-validation.md`](./packed-consumer-validation.md) — manual
+  validation of the packed npm package against clean Node, Deno, and Bun
+  consumers, until a CI fixture covers it.

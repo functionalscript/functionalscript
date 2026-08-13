@@ -119,10 +119,20 @@ JavaScript puts the corresponding `@import` in its leading module JSDoc block:
  */
 ```
 
-Both forms are type-only, and the referenced `types.ts` physically exists. This
-avoids relying on TypeScript-specific substitution from a missing `.ts` / `.js`
-specifier to an authored `.d.ts`, which Deno does not perform. The source
-specifier does not change when `module.f.ts -> module.f.mjs -> module.f.js`.
+Both forms are type-only, and the referenced `types.ts` physically exists, so
+the source tree never depends on specifier substitution. The source specifier
+does not change when `module.f.ts -> module.f.mjs -> module.f.js`. (An earlier
+revision of this document also claimed Deno does not substitute a missing `.ts`
+specifier with an authored `.d.ts`. For the *published package* that claim was
+measured and found wrong in
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520): Deno
+2.9.5 (TypeScript 6.0.3) resolves the `./types.ts` specifiers inside shipped
+`.d.mts` files to `types.d.ts`, verified by a deliberate misuse being rejected
+with TS2322 rather than falling back to `any`. The claim does still hold at one
+boundary — Deno substitutes only for packages resolved as npm packages through
+`node_modules`, not for `file:`-linked directories, which it treats as
+first-party source; method and caveats in
+[`packed-consumer-validation.md`](../fjs/ci/packed-consumer-validation.md).)
 
 This split is a normal module-organization option, not only an escape hatch. A
 runtime module may keep simple, implementation-local types in TypeScript/JSDoc
@@ -169,9 +179,13 @@ The `types.ts` source convention must also be validated outside `tsc`. With
 `rewriteRelativeImportExtensions: true`, the package fixture must establish how
 `./types.ts` references from `.ts` and `.mjs` appear in emitted declarations,
 which generated `types.js` / `types.d.ts` artifacts are required in the packed
-package, and that TypeScript, Node, Deno, and Bun can consume the result. Do not
-simplify the package emit pipeline until that experiment establishes the minimal
-portable layout.
+package, and that TypeScript, Node, Deno, and Bun can consume the result. That
+experiment was run in
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520): emitted
+declarations keep the `./types.ts` specifier verbatim, only `types.d.ts` is
+required in the package, and generated `types.js` is not — the minimal portable
+layout is `.mjs` + `.d.mts` + `types.d.ts`, and `prepack` was simplified to
+declaration emit plus a no-emit re-check accordingly.
 
 #### Migrate gradually from runtime dependency leaves
 
@@ -662,6 +676,15 @@ Do **not** assume the second TypeScript runtime-emission pass can be removed jus
 because only `types.ts` source remains. The package-support experiment must first
 determine whether generated `types.js` is required for portable package
 resolution. Simplify `prepack` only to the minimal layout proven by that test.
+**Resolved:** the experiment ran in
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520) —
+`types.js` is not required and the JavaScript emit is removed. `prepack` keeps a
+second, no-emit `tsc` invocation: review found that the old pass 2 doubled as
+the repository's only declaration-emit round-trip check (with `.d.mts` present,
+`tsc` resolves `.mjs` imports through the emitted declarations, so the
+`Assert<Equal<…, Ts<typeof …>>>` pins evaluate against what consumers see), and
+a plain `tsc` check (`noEmit` is set in `tsconfig.json`) preserves that
+property without emitting anything.
 
 Generated declaration ignores remain unchanged.
 
@@ -687,14 +710,24 @@ What is left is the packaging and cleanup work the source migration was
 blocking, plus the prose sweep. The remaining items are listed under
 [Remaining after stage 1](#remaining-after-stage-1) below.
 
-- [ ] Complete
+- [x] Complete
       [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
       including `allowJs` / `checkJs`, authored `types.ts`, Deno validation, and
-      clean-consumer validation.
-- [ ] Then complete
+      clean-consumer validation. De-scoped as a gate in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
+      everything the *migration* needs from it — the validation itself — was
+      performed one-time and recorded in
+      [`packed-consumer-validation.md`](../fjs/ci/packed-consumer-validation.md);
+      the committed CI fixture remains tracked in that file as future
+      regression work, not a blocker for this task.
+- [x] Then complete
       [`f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
       before the first real repository `.f.ts` -> `.f.mjs` implementation
-      conversion.
+      conversion. Moot as a gate: every conversion already happened, and the
+      whole repository — every `module.f.mjs` loaded through its proof under
+      Node and Deno coverage — now provides the evidence the synthetic fixture
+      was designed to give in advance. The fixture file remains as future
+      regression work, not a blocker for this task.
 - [ ] Update contributor, compiler, language, package, test, and roadmap
       documentation to the stage-1 extension meanings and `types.ts` convention.
 - [ ] Identify type-only `.ts` / `.f.ts` files and convert them directly to
@@ -711,11 +744,24 @@ blocking, plus the prose sweep. The remaining items are listed under
 - [x] Migrate `proof.f.ts` to `proof.f.mjs` when the proof is JavaScript/JSDoc
       ready and its authored runtime dependencies are migrated; allow stable
       type-only imports from `types.ts` and do not gate this on compiler support.
-- [ ] Validate a migrated `.mjs` / `.f.mjs` fixture with an authored `types.ts`,
+- [x] Validate a migrated `.mjs` / `.f.mjs` fixture with an authored `types.ts`,
       using the same real `types.ts` path from `.ts` and `.mjs`, including
-      TypeScript, Deno, Bun, package emit, and clean consumers.
-- [ ] Verify emitted declarations reference package paths that actually exist and
+      TypeScript, Deno, Bun, package emit, and clean consumers. Done as a
+      one-time measured validation in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520),
+      recorded with sources and per-runtime commands in
+      [`packed-consumer-validation.md`](../fjs/ci/packed-consumer-validation.md);
+      that is sufficient for the migration. A committed, CI-run fixture —
+      scoped to the supported fully erased `import type` form — remains future
+      work in
+      [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
+      not a blocker for this task.
+- [x] Verify emitted declarations reference package paths that actually exist and
       determine whether generated `types.js` is required for portable consumers.
+      Done in [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
+      the emitted `./types.ts` specifiers do **not** name a shipped file, yet
+      TypeScript 5.9.3/7.0.2, Deno 2.9.5, and Bun 1.3.11 all substitute them with
+      the shipped `types.d.ts`; generated `types.js` is not required.
 - [x] Keep migrated JavaScript free of runtime **and type-only source**
       dependencies on remaining implementation `.ts` / `.f.ts`; split required
       declarations into `types.ts` first.
@@ -807,9 +853,12 @@ blocking, plus the prose sweep. The remaining items are listed under
 - [ ] Add required `**BREAKING CHANGES:**` changelog entries for every public
       runtime or type-contract change; direct changes to an emitted `_` alias
       are exempt only when the expanded public contract is unchanged.
-- [ ] After the last authored TypeScript implementation/proof file is gone,
+- [x] After the last authored TypeScript implementation/proof file is gone,
       simplify the package emit path only as allowed by the validated `types.ts`
-      package layout. Authored `types.ts` remains.
+      package layout. Authored `types.ts` remains. Done in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
+      `prepack` emits declarations only, then re-checks against them without
+      emitting.
 - [ ] Then remove `**/*.js` from `.gitignore` when generated implementation
       JavaScript no longer needs the blanket ignore.
 - [ ] Keep the compiler-compatibility migration explicitly **blocked by** this
@@ -822,7 +871,9 @@ person can re-check rather than re-derive. Counts are as of
 [#1505](https://github.com/functionalscript/functionalscript/pull/1505).
 
 - [x] **Make `npm run cov` report real coverage.** Done: `cov` now names its
-      entrypoint (`fjs/emergent_testing/all.test.ts`) instead of relying on
+      entrypoint (`fjs/emergent_testing/all.test.ts`; authored `all.test.mjs`
+      since [#1520](https://github.com/functionalscript/functionalscript/pull/1520))
+      instead of relying on
       `node --test` default discovery, and the dead `**/module.f.ts` glob is
       gone.
 
@@ -863,44 +914,74 @@ person can re-check rather than re-derive. Counts are as of
       top-level, 0 nested, of which 2376 carry the ` ...` inline marker (the
       remaining 55 are throw-tests, which never produce sub-tests). Same work
       executed either way — only the reported count differs.
-- [ ] **Settle whether generated `types.js` is required for portable
-      resolution.** This gates the two items after it and is the one open
+- [x] **Settle whether generated `types.js` is required for portable
+      resolution.** This gated the two items after it and was the one open
       correctness risk for published consumers. After `npm run prepack`,
       `grep -rhoE "from '[^']*\.ts'" --include='*.d.ts' --include='*.d.mts' .`
       (minus `node_modules` and `.d.ts` specifiers) counts **801** imports
       written `from '…/types.ts'`, and `types.ts` is *not* in the
       tarball: `package.json`'s `files` lists `**/*.d.ts` but no `**/*.ts`, so a
       consumer resolves those specifiers only if its toolchain substitutes
-      `.ts` -> `.d.ts`. TypeScript does; per the `types.ts` section above, Deno
-      does not. Verify against real clean consumers on Node, Deno and Bun, and
-      record whether `types.js`, `types.d.ts`, or both must ship. Not introduced
-      by the source migration — the same command at `3859e7d4`, the commit
-      before stage 1 finished, counts **778** — but it is now the last thing
-      standing between stage 1 and a release. Quote the command with any count:
-      narrower scopes and regexes give figures a few apart, which has already
-      caused two rounds of harmless disagreement. Tracked in
-      [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md).
-- [ ] **Then remove the JavaScript-emitting `tsc` pass, if the experiment
+      `.ts` -> `.d.ts`. Not introduced by the source migration — the same
+      command at `3859e7d4`, the commit before stage 1 finished, counts **778**.
+      **Settled in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520):**
+      only `types.d.ts` must ship; neither `types.js` nor `types.ts` is
+      required. A clean consumer against the packed tarball (importing
+      `module.f.mjs` at runtime and a `types.js`-specifier type) type-checks
+      under tsc 5.9.3 and 7.0.2 (`nodenext`, `strict`, defaults) and runs under
+      Node v22, Bun 1.3.11 (`bun run` and `bun build`), and Deno 2.9.5
+      (`deno run` and `deno check`, node_modules resolution) — with **zero**
+      `.js` files in the package. The "Deno does not substitute" premise this
+      item inherited was measured and found wrong; a deliberate misuse is
+      rejected with TS2322, so the resolution is real, not an `any` fallback.
+- [x] **Then remove the JavaScript-emitting `tsc` pass, if the experiment
       allows.** `prepack`'s second pass (`tsc --noEmit false --declaration
-      false`) now emits exactly 96 files: 85 `types.js`, one per authored
+      false`) emitted exactly 96 files: 85 `types.js`, one per authored
       `types.ts`, and 11 from `fjs/emergent_testing/scenarios` plus
-      `all.test.ts`. It therefore cannot simply be deleted — its remaining
-      output is the `types.js` whose necessity the item above decides, and the
-      scenario fixtures the item below decides. Sequence it after both.
+      `all.test.ts`. Removed in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
+      the `types.js` half is settled above, and the scenario half never gated
+      it — the compiled scenario `.js` shipped in the tarball but nothing
+      imported it; `run.sh` consumes the authored `.ts` fixtures directly, so
+      the scenario decision below is settled separately. One of the 11 was not
+      dead, caught in review: `all.test.js` was the documented external-runner
+      entry for package consumers, so the entry is now authored
+      `fjs/emergent_testing/all.test.mjs` — shipped in the package and
+      discovered by the repository's own runners. The pass's *output* was dead,
+      but review caught that the pass itself was not: running `tsc` with
+      declarations already in the tree re-checks every `.mjs` import through
+      the emitted `.d.mts` (which outranks `.mjs` in resolution), which is what
+      made the `Assert<Equal<…>>` round-trip pins bite — seeding the
+      AGENTS.md §6.2 counter-example fails the two-pass `prepack` and passes a
+      naive one-pass one. `prepack` is therefore
+      `tsc --noEmit false --emitDeclarationOnly && tsc`: declaration
+      emit, then the same round-trip check with nothing emitted.
 - [ ] **Then drop the blanket `.gitignore` rule** for generated JavaScript
-      (`.gitignore` line 131). Blocked on the
-      same two: while the emit pass runs, 96 generated `.js` land in the tree
-      and need the blanket ignore.
-- [ ] **Decide what happens to the `emergent_testing` scenario fixtures.**
+      (`.gitignore` line 131). Unblocked by
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
+      no repository command generates `.js` any more, so the rule now guards
+      only stale artifacts in pre-existing working trees. Dropping it is a
+      policy decision, not a sequencing one — `**/*.js` deliberately stays in
+      `package.json` `files` because the extension may be used for other
+      purposes later, so a publish must keep coming from a clean checkout
+      either way.
+- [x] **Decide what happens to the `emergent_testing` scenario fixtures.**
       `fjs/emergent_testing/scenarios/*.ts`, `scenarios/all.ts` and
-      `all.test.ts` are the only authored non-`types.ts` TypeScript left. Their
-      extension is load-bearing: `run.sh` dispatches on `*.pass.ts` /
-      `*.fail.ts` and hard-links the scenario to `_scenario.proof.ts` and
-      `all.ts` to `_all.test.ts`, so what they exercise is `node --test`,
+      `all.test.ts` were the only authored non-`types.ts` TypeScript left. Their
+      extension was load-bearing: `run.sh` dispatched on `*.pass.ts` /
+      `*.fail.ts` and hard-linked the scenario to `_scenario.proof.ts` and
+      `all.ts` to `_all.test.ts`, so what they exercised was `node --test`,
       `bun test` and `deno test` executing a **TypeScript** proof natively.
-      Porting them to `.mjs` would delete that coverage rather than move it, so
-      this is a decision about whether native-TypeScript execution should still
-      be tested — keep them, replace the coverage some other way, or drop it.
+      Decided in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
+      the suite never ran in CI, so it is deleted rather than kept —
+      [`fjs/emergent_testing/scenarios.md`](../fjs/emergent_testing/scenarios.md)
+      records the sources verbatim and how to recreate them. `all.test.ts` is
+      renamed to authored `all.test.mjs` (which the package also ships as the
+      external-runner entry), and the repository's only authored TypeScript is
+      now `types.ts`. The obsolete rename issue
+      `fjs/emergent_testing/todo/205.md` is deleted with the suite.
 - [x] **Sweep the remaining stale prose.** Done. The measured set was 88
       mentions across 42 `.md` files naming an `X.f.ts` whose `X.f.mjs` now
       exists (resolving each mention against the tree, excluding `CHANGELOG.md`,
@@ -929,7 +1010,9 @@ person can re-check rather than re-derive. Counts are as of
       (`fjs/bnf/todo/unicode-rules.md`, `fjs/effects/todo/node-module-layering.md`
       and ~40 others), since no such file may be authored any more.
 
-      All 22 files that still contain the old extension anywhere are listed
+      All 21 files that still contain the old extension anywhere (22 before
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
+      deleted `205.md`) are listed
       below, and each one is deliberate. Describing the migration or the
       extension itself: this file, `AGENTS.md`,
       [`fjs/fsc/README.md`](../fjs/fsc/README.md),
@@ -944,9 +1027,11 @@ person can re-check rather than re-derive. Counts are as of
       [`blocked/js-extension-type-annotations.md`](./blocked/js-extension-type-annotations.md)
       and [`formatter-for-f-js-and-f-ts-files.md`](../fjs/todo/formatter-for-f-js-and-f-ts-files.md).
       Quoting `shouldLoad`, which still matches `.f.ts`:
-      [`664-emergent-testing-module-files.md`](../fjs/emergent_testing/todo/664-emergent-testing-module-files.md),
-      [`205.md`](../fjs/emergent_testing/todo/205.md) and
-      [`skip-property.md`](../fjs/emergent_testing/todo/skip-property.md).
+      [`664-emergent-testing-module-files.md`](../fjs/emergent_testing/todo/664-emergent-testing-module-files.md)
+      and [`skip-property.md`](../fjs/emergent_testing/todo/skip-property.md)
+      (`205.md` was also on this list until
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
+      deleted it with the scenario suite it described).
       Recording a superseded convention or a completed move:
       [`028-unit-test-examples-api.md`](../fjs/emergent_testing/todo/028-unit-test-examples-api.md),
       [`throw-payload-assertions.md`](../fjs/emergent_testing/todo/throw-payload-assertions.md)
