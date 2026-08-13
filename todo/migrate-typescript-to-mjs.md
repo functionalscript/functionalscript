@@ -132,7 +132,7 @@ with TS2322 rather than falling back to `any`. The claim does still hold at one
 boundary — Deno substitutes only for packages resolved as npm packages through
 `node_modules`, not for `file:`-linked directories, which it treats as
 first-party source; method and caveats in
-[`1520-packed-consumer-validation.md`](./1520-packed-consumer-validation.md).)
+[`packed-consumer-validation.md`](../fjs/ci/packed-consumer-validation.md).)
 
 This split is a normal module-organization option, not only an escape hatch. A
 runtime module may keep simple, implementation-local types in TypeScript/JSDoc

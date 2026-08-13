@@ -1,9 +1,9 @@
 # Validating the packed npm package against clean consumers
 
-**Status:** reference (method used by
-[#1520](https://github.com/functionalscript/functionalscript/pull/1520); reusable
-until a committed CI fixture from
-[`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md) replaces it)
+This is the manual method used by
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520),
+reusable until a committed CI fixture from
+[`todo/f-mjs-package-support.md`](./todo/f-mjs-package-support.md) replaces it.
 
 The package ships `.mjs` runtime, `.d.mts` / `types.d.ts` declarations, and no
 `.js` files. The emitted declarations reference `…/types.ts` specifiers that name
