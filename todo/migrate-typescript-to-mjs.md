@@ -942,7 +942,11 @@ person can re-check rather than re-derive. Counts are as of
       the `types.js` half is settled above, and the scenario half never gated
       it — the compiled scenario `.js` shipped in the tarball but nothing
       imported it; `run.sh` consumes the authored `.ts` fixtures directly, so
-      the scenario decision below is unaffected. The pass's *output* was dead,
+      the scenario decision below is unaffected. One of the 11 was not dead,
+      caught in review: `all.test.js` was the documented external-runner entry
+      for package consumers, so the authored
+      `fjs/emergent_testing/register.mjs` now ships in its place and
+      `all.test.ts` delegates to it. The pass's *output* was dead,
       but review caught that the pass itself was not: running `tsc` with
       declarations already in the tree re-checks every `.mjs` import through
       the emitted `.d.mts` (which outranks `.mjs` in resolution), which is what

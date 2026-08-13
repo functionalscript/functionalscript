@@ -27,7 +27,9 @@ history.
   Types resolve through the shipped `.d.ts` files; import them only in fully
   erased form — `import type { X } from '…/types.js'` — never
   `import { type X }`, `import * as`, or a bare side-effect import, which
-  retain a runtime import of a module that no longer exists
+  retain a runtime import of a module that no longer exists. The external
+  test-runner entry `fjs/emergent_testing/all.test.js` is among the removed
+  files: import the authored `fjs/emergent_testing/register.mjs` instead
   [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
 - `fjs/text/ascii` owns the hex-digit codec: `hexDigitValue`,
   `hexDigitCodePoint`, and the `a-f` / `A-F` ranges. The JSON serializer and

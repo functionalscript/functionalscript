@@ -121,7 +121,7 @@ For `node --test` and `npm run cov` to execute FunctionalScript proofs, the
 repository must include a Node test entry file, conventionally `all.test.ts`:
 
 ```ts
-import 'functionalscript/fjs/emergent_testing/all.test.js'
+import 'functionalscript/fjs/emergent_testing/register.mjs'
 ```
 
 Without that file, third-party test runners discover no FunctionalScript proofs

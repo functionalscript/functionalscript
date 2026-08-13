@@ -129,9 +129,12 @@ the type syntax and keeps the statement. Measured against the packed tarball:
 The repository's own `tsconfig.json` sets `verbatimModuleSyntax: true`, which
 is the first failing row — a consumer copying the repository's settings gets
 the failure, and one relying on default elision writes code that breaks the
-moment a colleague runs it under Node or Deno. `import * as` and bare
-side-effect imports of a `…/types.js` path fail the same way under every
-toolchain, since no elision applies to them.
+moment a colleague runs it under Node or Deno. `import * as` behaves exactly
+like the inline form: default tsc elision drops a namespace import used only
+in type positions (measured: `import * as T from '…/types.js'` with a
+`T.List<number>` annotation compiles to no import and runs), while
+`verbatimModuleSyntax` and type stripping keep it and fail. Bare side-effect
+imports are never elided by any toolchain, so those fail everywhere.
 
 ## Deno caveats measured on 2.9.5
 

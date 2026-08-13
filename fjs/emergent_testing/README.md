@@ -35,7 +35,7 @@ Pin a specific package version by adding it after the package name, for example
 
 This only applies to the built-in runner. External runners still need
 FunctionalScript installed so `all.test.ts` can import
-`functionalscript/fjs/emergent_testing/all.test.js`.
+`functionalscript/fjs/emergent_testing/register.mjs`.
 
 ## Installation
 
@@ -71,7 +71,7 @@ ready-made one — re-export it with a bare side-effect import:
 
 ```ts
 // all.test.ts
-import 'functionalscript/fjs/emergent_testing/all.test.js'
+import 'functionalscript/fjs/emergent_testing/register.mjs'
 ```
 
 `all.test.ts` is the recommended name, but any name works as long as the runner

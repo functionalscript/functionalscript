@@ -1,6 +1,3 @@
-import { runEffect } from '../effects/node/module.mjs'
-import { register } from './module.f.mjs'
-
-// Top-level `await`: every proof must be registered before the runner starts
-// collecting tests.
-await runEffect(register)
+// The repository's own external-runner entry file; the registration itself
+// lives in `register.mjs`, which the published package also ships.
+import './register.mjs'
