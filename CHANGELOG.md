@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- `types/bigfloat`: `decToBin` no longer returns a 54-bit mantissa when
+  rounding carries out of the top bit; the result is always the 53-bit
+  IEEE-754 significand
+  [#1527](https://github.com/functionalscript/functionalscript/pull/1527)
 - Emitted declarations keep their documentation headers: 24 modules lost
   `@module` to declaration emit and 4 never had one; all 127 module
   declarations now carry it, and every `types.ts` / `proof.*` prose header
