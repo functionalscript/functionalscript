@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- `text/utf16`: `utf16ByteToCodePointOp` drops its trailing fallback arm —
+  after ruling out a low surrogate, a non-BMP word is always a high
+  surrogate, so the `isHighSurrogate` recheck and its `errorMask` fallback
+  were dead code
+  [#1540](https://github.com/functionalscript/functionalscript/pull/1540)
 - `media/json/parser`: `endArray`/`endObject` no longer branch on `state.top`
   and `tokenToValue` drops its defensive default arm — the parser's state
   machine already guarantees these invariants, so the dead branches are gone
