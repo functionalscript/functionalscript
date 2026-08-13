@@ -22,8 +22,8 @@ export type Encoding<T extends string> = {
     readonly encode: (name: T) => number
     /**
      * The name a symbol stands for, or `null` when the symbol belongs to no
-     * registered name — a code point, `eof`, or a symbol past the end of the
-     * alphabet.
+     * registered name — a code point, the `eof` symbol, or a symbol past the
+     * end of the alphabet.
      */
     readonly decode: (symbol: number) => Nullable<T>
 }

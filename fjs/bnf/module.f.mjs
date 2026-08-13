@@ -31,12 +31,52 @@ const offset = 24
 
 const mask = (1 << offset) - 1
 
-const isValid = contains(0, mask)
+/**
+ * How many stored endpoint codes one 24-bit half holds: `2 ** 24`.
+ */
+const terminalSize = mask + 1
+
+/**
+ * The logical end-of-input symbol.
+ *
+ * `-1` is outside the non-negative physical-symbol domain, so no alphabet
+ * adapter can produce it and no ordinary symbol has to be reserved for it.
+ * Parser backends synthesize it exactly once, after the physical input.
+ */
+export const eofSymbol = -1
+
+/**
+ * The largest ordinary symbol, `2 ** 24 - 2`: the semantic domain is
+ * `[-1] | [0, 2 ** 24 - 2]`, exactly `2 ** 24` terminals, one per stored code.
+ */
+const maxSymbol = mask - 1
+
+const isValid = contains(eofSymbol, maxSymbol)
+
+/**
+ * Semantic terminal to its stored 24-bit endpoint code. Branchless: EOF wraps
+ * to `2 ** 24 - 1` (the top of the stored space) and every ordinary symbol
+ * keeps its own value as its code.
+ *
+ * @type {(value: number) => number}
+ */
+const encodeTerminal = value => (value + terminalSize) & mask
+
+/**
+ * The inverse of `encodeTerminal`, also branchless.
+ *
+ * Stored codes are an implementation representation, not semantic terminal
+ * ordering — `2 ** 24 - 1` is the largest code but the smallest terminal — so
+ * range operations that care about ordering must compare decoded values.
+ *
+ * @type {(value: number) => number}
+ */
+const decodeTerminal = value => ((value + 1) & mask) - 1
 
 /** @type {(a: number, b: number) => TerminalRange} */
 export const rangeEncode = (a, b) => {
     assert(isValid(a) && isValid(b) && a <= b)
-    return Number((BigInt(a) << BigInt(offset)) | BigInt(b))
+    return Number((BigInt(encodeTerminal(a)) << BigInt(offset)) | BigInt(encodeTerminal(b)))
 }
 
 /**
@@ -47,20 +87,21 @@ export const rangeEncode = (a, b) => {
 export const oneEncode = a => rangeEncode(a, a)
 
 /**
- * End-of-file marker: `mask`, the single largest value the 24-bit symbol
- * space can hold (the top of `fullRange`). Deliberately outside Unicode
- * (`unicodeRange` tops out at `0x10FFFF`) so it can never collide with a
- * real code point.
+ * End-of-file marker: the singleton range of {@link eofSymbol}. Deliberately
+ * outside the ordinary symbol domain — and so outside Unicode — so it can
+ * never collide with a real code point.
  *
  * @type {TerminalRange}
  */
-export const eof = oneEncode(mask)
+export const eof = oneEncode(eofSymbol)
 
 /**
- * Full 24-bit symbol range packed into a single {@link TerminalRange}.
+ * Every ordinary symbol packed into a single {@link TerminalRange}. EOF is not
+ * one of them, so complements over this range never include it.
+ *
  * @type {TerminalRange}
  */
-export const fullRange = 0x000000_FFFFFF
+export const fullRange = rangeEncode(0, maxSymbol)
 
 /**
  * Unicode scalar value range packed into a single {@link TerminalRange}.
@@ -74,12 +115,12 @@ export const unicodeRange = 0x000000_10FFFF
 export const unicodeMax = codePointListToString([0x10FFFF])
 
 /**
- * Decodes a packed range into `[start, end]` symbols.
+ * Decodes a packed range into `[start, end]` semantic symbols.
  *
  * @type {(r: number) => Tuple<2, number>}
  */
 export const rangeDecode = r =>
-    [Number(BigInt(r) >> BigInt(offset)), r & mask]
+    [decodeTerminal(Number(BigInt(r) >> BigInt(offset))), decodeTerminal(r & mask)]
 
 const mapOneEncode = map(oneEncode)
 
