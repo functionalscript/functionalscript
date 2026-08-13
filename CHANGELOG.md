@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- `fjs/types/bigfloat`: `decToBin` no longer returns a 54-bit mantissa when
+  rounding carries out of 53 bits; the result is always a binary64 significand
+  (`abs(m) < 2^53`)
+  [#1524](https://github.com/functionalscript/functionalscript/pull/1524)
 - `fjs/text/ascii` owns the hex-digit codec: `hexDigitValue`,
   `hexDigitCodePoint`, and the `a-f` / `A-F` ranges. The JSON serializer and
   both tokenizers use it instead of rederiving the offsets; the DJS tokenizer
