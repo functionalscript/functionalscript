@@ -1,7 +1,7 @@
 ## 65Z-singleton-effect. Singleton effect to prevent duplicate proof execution
 
 **Priority:** P3
-**Status:** open
+**Status:** on-hold
 
 ### Problem
 
@@ -10,18 +10,23 @@ copies, or a test runner discovering both the original and a generated alias —
 its `proof` export is executed multiple times in the same process. This wastes
 time and can produce confusing duplicate output.
 
-#### Concrete example: scenario runner
+**On hold: nothing in the tree loads a module under two paths today.** The
+motivating case was the scenario runner, since deleted — see
+[`../scenarios.md`](../scenarios.md). This becomes live again the moment that
+harness is rebuilt, or any other multi-path loading appears.
 
-`run.sh` hard-links `all.ts` → `_all.test.ts` and a scenario file →
-`_scenario.proof.ts`, then runs a test framework (node, bun, deno)
+#### Historical example: scenario runner
+
+`run.sh` hard-linked `all.ts` → `_all.test.ts` and a scenario file →
+`_scenario.proof.ts`, then ran a test framework (node, bun, deno)
 in the `scenarios/` directory. If the framework scans the directory it may
-discover **both** `all.ts` and `_all.test.ts` (both end in `.ts` and both
-export a `run()` call). Each discovered file loads and executes the module
-independently under its own resolved path — Node.js caches by resolved URL,
-not by inode — so the proof suite runs twice.
+discover **both** the at-rest shim and the `_all.test.ts` link. Each discovered
+file loads and executes the module independently under its own resolved path —
+Node.js caches by resolved URL, not by inode — so the proof suite runs twice.
+That is why the shim was named `all.ts` rather than `all.test.ts`.
 
-The same issue would arise if `all.ts` were copied to multiple locations for
-use in different test environments.
+The same issue would arise if an entry point were copied to multiple locations
+for use in different test environments.
 
 ### Proposal: a `singleton` effect
 
@@ -101,12 +106,12 @@ importing them. This requires a `stat()` call per file and is specific to
 Unix; it does not generalise to copied files or other runtimes (Deno, Bun,
 browsers).
 
-#### Alternative: avoid the problem in run.sh
+#### Alternative: avoid the problem in the harness
 
-Instead of hard-linking `all.ts` → `_all.test.ts`, `run.sh` could use a
-wrapper file that only imports `_scenario.proof.ts` and does not re-export
-`all.ts`. This avoids the duplication for the scenario case but does not
-address the general problem.
+A rebuilt scenario harness could sidestep this entirely: a symlink resolves to
+its realpath, so no second discoverable file exists, and the shim is not needed
+either. That avoids the duplication for the scenario case but does not address
+the general problem.
 
 ### Related
 

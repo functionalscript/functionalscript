@@ -787,10 +787,10 @@ blocking, plus the prose sweep. The remaining items are listed under
 - [x] Continue upward through the runtime dependency graph in reviewable groups
       until no authored TypeScript implementation/proof source remains. Done for
       every module in the migration group: no `.f.ts` is left anywhere. The
-      `fjs/emergent_testing/scenarios/*.pass.ts` fixtures are still authored
-      TypeScript that `run.sh` hard-links to `_scenario.proof.ts`, but their
-      extension is the thing under test rather than an unmigrated module — see
-      the scenario item under [Remaining after stage 1](#remaining-after-stage-1).
+      `fjs/emergent_testing/scenarios/*.pass.ts` fixtures were the last authored
+      TypeScript outside `types.ts` besides `all.test.ts`; they have since been
+      deleted — see the scenario item under
+      [Remaining after stage 1](#remaining-after-stage-1).
 - [x] Translate `.ts` to `.mjs` and `.f.ts` to `.f.mjs`, moving static type
       information either to JSDoc or to an intentionally separate `types.ts`
       without weakening public type semantics.
@@ -885,22 +885,30 @@ person can re-check rather than re-derive. Counts are as of
       false`) now emits exactly 96 files: 85 `types.js`, one per authored
       `types.ts`, and 11 from `fjs/emergent_testing/scenarios` plus
       `all.test.ts`. It therefore cannot simply be deleted — its remaining
-      output is the `types.js` whose necessity the item above decides, and the
-      scenario fixtures the item below decides. Sequence it after both.
+      output is the `types.js` whose necessity the item above decides, plus
+      `all.test.js` — the entry point consumers are documented to import. The 11
+      scenario-derived files are gone with the fixtures, so the count is now 86.
+      Sequence it after the `types.js` decision.
 - [ ] **Then drop the blanket `.gitignore` rule** for generated JavaScript
       (`.gitignore` line 131). Blocked on the
       same two: while the emit pass runs, 96 generated `.js` land in the tree
       and need the blanket ignore.
-- [ ] **Decide what happens to the `emergent_testing` scenario fixtures.**
-      `fjs/emergent_testing/scenarios/*.ts`, `scenarios/all.ts` and
-      `all.test.ts` are the only authored non-`types.ts` TypeScript left. Their
-      extension is load-bearing: `run.sh` dispatches on `*.pass.ts` /
-      `*.fail.ts` and hard-links the scenario to `_scenario.proof.ts` and
-      `all.ts` to `_all.test.ts`, so what they exercise is `node --test`,
-      `bun test` and `deno test` executing a **TypeScript** proof natively.
-      Porting them to `.mjs` would delete that coverage rather than move it, so
-      this is a decision about whether native-TypeScript execution should still
-      be tested — keep them, replace the coverage some other way, or drop it.
+- [x] **Decide what happens to the `emergent_testing` scenario fixtures.**
+      Decided: **dropped**. `fjs/emergent_testing/scenarios/` — the nine
+      fixtures, the `all.ts` shim and `run.sh` — is deleted. Nothing ran it: no
+      CI job or generated workflow invoked `run.sh`, and its `fjs` branch called
+      `npm run fst`, a script that no longer exists, so that quarter of the
+      matrix reported `FAIL` for every fixture. The coverage it provided —
+      external runners executing a **TypeScript** proof natively — is genuinely
+      lost rather than moved, which is why the decision is recorded with the
+      recipe to rebuild it:
+      [`fjs/emergent_testing/scenarios.md`](../fjs/emergent_testing/scenarios.md).
+
+      That leaves `all.test.ts` as the only authored non-`types.ts` TypeScript
+      in the repository. It contains no TypeScript syntax, so it could become
+      `all.test.mjs`; the cost is that consumers are documented to import the
+      generated `functionalscript/fjs/emergent_testing/all.test.js`, so the
+      rename is a breaking change to a published entry point. Left open.
 - [x] **Sweep the remaining stale prose.** Done. The measured set was 88
       mentions across 42 `.md` files naming an `X.f.ts` whose `X.f.mjs` now
       exists (resolving each mention against the tree, excluding `CHANGELOG.md`,
@@ -944,9 +952,9 @@ person can re-check rather than re-derive. Counts are as of
       [`blocked/js-extension-type-annotations.md`](./blocked/js-extension-type-annotations.md)
       and [`formatter-for-f-js-and-f-ts-files.md`](../fjs/todo/formatter-for-f-js-and-f-ts-files.md).
       Quoting `shouldLoad`, which still matches `.f.ts`:
-      [`664-emergent-testing-module-files.md`](../fjs/emergent_testing/todo/664-emergent-testing-module-files.md),
-      [`205.md`](../fjs/emergent_testing/todo/205.md) and
-      [`skip-property.md`](../fjs/emergent_testing/todo/skip-property.md).
+      [`664-emergent-testing-module-files.md`](../fjs/emergent_testing/todo/664-emergent-testing-module-files.md)
+      and [`skip-property.md`](../fjs/emergent_testing/todo/skip-property.md)
+      (`205.md`, a third, went with the scenario fixtures).
       Recording a superseded convention or a completed move:
       [`028-unit-test-examples-api.md`](../fjs/emergent_testing/todo/028-unit-test-examples-api.md),
       [`throw-payload-assertions.md`](../fjs/emergent_testing/todo/throw-payload-assertions.md)

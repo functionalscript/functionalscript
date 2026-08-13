@@ -86,6 +86,10 @@ Then invoke the runner:
 You can also implement your own runner, as long as it follows the proof-tree
 conventions described below.
 
+This repository used to check the external runners against fixtures with known
+pass/fail outcomes. That harness has been removed;
+[scenarios.md](./scenarios.md) records what it covered and how to rebuild it.
+
 ## Design: dependency-free proofs
 
 Unlike most test frameworks (Jest, Mocha, Vitest, …), a proof does **not** import
