@@ -3,6 +3,7 @@
  * @import { Effect, Operation } from '../../effects/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
+ * @import { Ts } from '../../types/rtti/ts/types.ts'
  * @import {
  *   ToolsListParams, ToolsListResult, ToolsCallParams, ToolsCallResult,
  *   McpHandlers, McpConfig, McpSessionState,
@@ -10,12 +11,12 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { pure, step } from '../../effects/module.f.mjs'
+import { pure, step, runPure } from '../../effects/module.f.mjs'
 import { eff } from '../../effects/eff/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { asBase, asNominal, create, read } from '../../effects/memory/module.f.mjs'
 import {
-    uninitializedState, mcpStep, notInitialized,
+    uninitializedState, mcpStep, notInitialized, fromRegistry, toolEntry, okResult,
 } from './module.f.mjs'
 
 // ── Memory mock ────────────────────────────────────────────────────────────────
@@ -307,6 +308,25 @@ export const proof = {
             const msg = { jsonrpc: '2.0', method: 'resources/list', id: 10 }
             const [resp] = step3(config)(initMsg)(initNotif)(msg)
             assertEq(/** @type {{ error: { code: number } }} */ (resp).error.code, -32601)
+        },
+    },
+
+    registry: {
+        // `fromRegistry`'s `toolsCall` defaults a missing `arguments` field to
+        // `{}` before dispatching to the matched entry's `handle`. Exercised
+        // here directly (bypassing `mcpStep`) so the default reaches
+        // `toolEntry`'s own validation: if it were left `undefined` instead,
+        // validating it against the empty-object schema below would fail and
+        // this would observe an error result instead of `ok`.
+        toolsCallAbsentArgumentsDefaultsToEmptyObject: () => {
+            const echoArgs = /** @type {const} */ ({})
+            const entry = toolEntry('echo', 'echoes', echoArgs,
+                /** @type {(a: Ts<typeof echoArgs>) => Effect<never, ToolsCallResult>} */
+                (() => pure(okResult('ok'))))
+            const handlers = fromRegistry([entry])
+            const [result] = runPure(handlers.toolsCall({ name: 'echo' }))
+            assert(result !== undefined)
+            assertEq(/** @type {{ readonly text: string }} */ (result.content[0]).text, 'ok')
         },
     },
 }
