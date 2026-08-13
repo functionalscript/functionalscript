@@ -83,7 +83,7 @@ preferred because both consumers exist today.
 - CHANGELOG PR #1258 — the utf8 half (`leadMin`/`leadMax`/`isLeadByte` +
   local `restart`); this issue is its utf16 counterpart plus the
   two-consumer generalization.
-- `fjs/text/code_point/module.f.mjs:33-41` — `decoder` (i168), the existing
-  shared half of the streaming skeleton.
-- [codec-eof-flush](../../todo/codec-eof-flush.md) — the companion
-  end-of-input extraction.
+- `fjs/text/code_point/module.f.mjs` — `decoder` (i168) and `eofFlush`, the
+  already-shared halves of the streaming skeleton. `eofFlush` is the precedent
+  this issue follows: the companion end-of-input extraction, landed the same
+  way (one factory beside `decoder`, both codecs' ops derived from it).

@@ -7,7 +7,12 @@
 import { flatMap, toArray } from '../../types/list/module.f.mjs'
 /** @import { List, Thunk } from '../../types/list/types.ts' */
 /** @import { StateScan } from '../../types/function/operator/types.ts' */
-import { decoder, errorMask, isValidCodePoint } from '../code_point/module.f.mjs'
+import {
+    decoder,
+    eofFlush,
+    errorMask,
+    isValidCodePoint,
+} from '../code_point/module.f.mjs'
 import { msb, u8List, length } from '../../types/bit_vec/module.f.mjs'
 /** @import { Vec } from '../../types/bit_vec/types.ts' */
 import { codePointListToString } from '../utf16/module.f.mjs'
@@ -240,17 +245,13 @@ export const utf8ByteToCodePointOp = (byte, state) => {
 }
 
 /**
- * Handles the end-of-file (EOF) case for UTF-8 decoding.
+ * Handles the end-of-file (EOF) case for UTF-8 decoding: a leftover incomplete
+ * sequence is flushed as a single error code and the state resets to `null`.
+ * The flush itself is `eofFlush` from `code_point`, shared with UTF-16.
  *
- * @param {Utf8State} state The current UTF-8 decoding state.
- * @returns {readonly [List<I32>, Utf8State]} A tuple containing:
- *   - A list of decoded Unicode code points or error codes.
- *   - The reset UTF-8 state (`null`).
+ * @type {(state: Utf8State) => readonly [List<I32>, Utf8State]}
  */
-export const utf8EofToCodePointOp = state => [
-    state === null ? null : [utf8StateToError(state)],
-    null,
-]
+export const utf8EofToCodePointOp = eofFlush(utf8StateToError)
 
 /**
  * Converts a list of UTF-8 bytes into a list of Unicode code points.
