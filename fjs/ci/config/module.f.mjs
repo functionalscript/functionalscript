@@ -53,7 +53,7 @@ export const node = /** @type {const} */({
 // https://channels.nixos.org/nixos-26.05/git-revision
 export const nixpkgs = /** @type {const} */({
     ref: 'nixos-26.05',
-    commit: 'fcb8fcd6bf2d0adecae5bd491afaaaf8311b758d',
+    commit: '9f78f44a87948854445dae0b6bf82b2e87e4efb5',
 })
 
 // https://github.com/bytecodealliance/wasmtime/releases
