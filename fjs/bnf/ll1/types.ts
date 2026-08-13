@@ -21,13 +21,16 @@ export type _Dispatch = RangeMapArray<_DispatchResult>
 /** @internal */
 export type _DispatchResult = _DispatchRuleCollection | null
 
-/** @internal */
-export type _DispatchRuleOrName = _DispatchRule | string
-
-/** @internal */
+/**
+ * The rules a dispatched symbol selects, to be matched one after another. They
+ * are names into the {@link _DispatchMap}: the builder only ever appends rule
+ * names, so the matcher resolves each one there.
+ *
+ * @internal
+ */
 export type _DispatchRuleCollection = {
     readonly tag: string | undefined,
-    readonly rules: _DispatchRuleOrName[]
+    readonly rules: readonly string[]
 }
 
 /** @internal */
@@ -72,17 +75,3 @@ export type MatchResult = readonly[_AstRule, boolean, Remainder]
  * end-of-input symbol after them.
  */
 export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
-
-/**
- * A {@link MatchResult} paired with the matcher's own progress past the
- * physical input: `true` once a rule has consumed the synthesized end-of-input
- * symbol, so no later rule can consume it a second time.
- *
- * @internal
- */
-export type _MatchResultEof = readonly[MatchResult, boolean]
-
-/**
- * Internal match function signature used by compiled dispatch rules.
- */
-export type MatchRule = (dr: _DispatchRule, s: readonly CodePoint[], eofConsumed: boolean) => _MatchResultEof

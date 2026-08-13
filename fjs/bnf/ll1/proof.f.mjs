@@ -274,6 +274,27 @@ export const proof = {
             expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
         }
     ],
+    longInput: [
+        () => {
+            // Long right-recursive repetition: one `repeat0Plus` chain across the
+            // whole input. This is the shape that overflowed the JS call stack
+            // when the matcher recursed once per consumed code point.
+            const m = parser(repeat0Plus(set(' \n\r\t')))
+            const [, success, remainder] = m('', toArray(stringToCodePointList(' '.repeat(10000))))
+            assertEq(success, true)
+            assertEq(remainder?.length, 0)
+        },
+        () => {
+            // Deep non-repetition nesting: 5000 bracket levels in the JSON-like
+            // test grammar — a shape a repetition-specific fix would not cover.
+            const m = parser(deterministic())
+            const n = 5000
+            const cp = toArray(stringToCodePointList('['.repeat(n) + ']'.repeat(n)))
+            const [, success, remainder] = m('', cp)
+            assertEq(success, true)
+            assertEq(remainder?.length, 0)
+        },
+    ],
     logicalEof: [
         () => {
             // EOF dispatches below every ordinary symbol, so its cut point is
