@@ -97,7 +97,7 @@ This mirrors:
 Any arguments after `<module>` are forwarded to `main` via `options.args`:
 
 ```sh
-fjs run ./my-tool.f.ts foo bar   # options.args === ['foo', 'bar']
+fjs run ./my-tool.f.mjs foo bar   # options.args === ['foo', 'bar']
 ```
 
 

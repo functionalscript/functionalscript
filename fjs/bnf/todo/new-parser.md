@@ -205,7 +205,7 @@ The serializer and other independent parts of TODO 157 are unaffected.
 - [ ] Rebase [157](../../djs/todo/157.md) §1 according to which parser work lands
       first; do not recreate a shared DJS hand-written value machine after the BNF
       cutover.
-- [ ] `proof.f.ts` with full coverage; `npx tsc`, `fjs t`.
+- [ ] `proof.f.mjs` with full coverage; `npx tsc`, `fjs t`.
 
 ### Related
 

@@ -20,7 +20,7 @@ UTF-16 *encoder* does the opposite — it silently truncates to 16 bits, losing 
 error tag:
 
 ```ts
-// fjs/text/utf16/module.f.ts:109-118
+// fjs/text/utf16/module.f.mjs:109-118
 const codePointToUtf16 = (codePoint: CodePoint): List<U16> => {
     if (isBmpCodePoint(codePoint)) { return [codePoint] }
     if (isSupplementaryPlane(codePoint)) {
@@ -35,9 +35,9 @@ const codePointToUtf16 = (codePoint: CodePoint): List<U16> => {
 
 So two encoders that share one `errorMask` contract handle the invalid case with
 opposite philosophies: UTF-8 preserves+tags, UTF-16 discards. The UTF-16
-*decoder* (`fjs/text/utf16/module.f.ts:153` onward) does set `errorMask` on bad
+*decoder* (`fjs/text/utf16/module.f.mjs:153` onward) does set `errorMask` on bad
 input per its own JSDoc, so the encoder is the asymmetric side. `codePointToUtf16`
-is used internally at `fjs/text/utf16/module.f.ts:153` via `flatMap`.
+is used internally at `fjs/text/utf16/module.f.mjs:153` via `flatMap`.
 
 This is a separation-of-concerns / contract-consistency gap rather than code
 duplication: the rule for "what an encoder does with an invalid code point" should
@@ -61,7 +61,7 @@ resolution is to document *that* divergence in `code_point` instead).
 
 - [ ] decide and document the invalid-code-point encoder contract in `code_point`
 - [ ] align `codePointToUtf16`'s invalid branch (or document the deliberate divergence)
-- [ ] add/adjust a `utf16/proof.f.ts` case for an invalid (error-tagged) input round-trip
+- [ ] add/adjust a `utf16/proof.f.mjs` case for an invalid (error-tagged) input round-trip
 
 ### Related
 

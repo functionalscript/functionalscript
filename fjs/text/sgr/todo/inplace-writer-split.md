@@ -31,7 +31,7 @@ exists") discourages.
 ### Proposal
 
 When a real consumer appears, move the in-place rewriter to its own module
-(e.g. `fjs/text/console/module.f.ts`), leaving `sgr` focused on
+(e.g. `fjs/text/console/module.f.mjs`), leaving `sgr` focused on
 escape-sequence construction. Until then, at minimum stop exporting
 `createConsoleText`/`WriteText`/`Stdout` — or, if the writer has no planned
 consumer at all, delete it with its proof (speculative code per AGENTS.md).

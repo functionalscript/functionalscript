@@ -27,7 +27,7 @@ Three reasons to finish the job:
    deleted, and it is what the write side still looks like.
 2. **`JSON` is a host global with no FunctionalScript definition.** Nothing in
    `fjs/` defines it and NaNVM (`nanvm-lib/src`) has no `JSON` object, so a
-   `.f.ts` module reaching for it depends on the JS host rather than on
+   `.f.mjs` module reaching for it depends on the JS host rather than on
    FunctionalScript — and a "FunctionalScript JSON serializer" that calls the
    host to format its strings and numbers is not one.
 3. **It is the last host dependency in the pipeline.** With reading migrated,
@@ -39,7 +39,7 @@ Three reasons to finish the job:
 | Shape | Sites | Where | Replacement |
 | --- | --- | --- | --- |
 | **Leaf serializer** | 1 | `fjs/media/json/serializer/module.f.mjs` | FunctionalScript number formatting — blocks everything below |
-| Expected-output comparison | 73 | `fjs/bnf/ll1/proof.f.ts` (27), `fjs/bnf/descent/proof.f.ts` (22), `fjs/media/json/serializer/proof.f.mjs` (10), `fjs/djs/tokenizer/proof.f.mjs:886-921` (8), `fjs/bnf/data/proof.f.ts` (4), `fjs/media/revision/proof.f.mjs:177`, `fjs/cas/evo/proof.f.mjs:68` | `stringify(identity)` |
+| Expected-output comparison | 73 | `fjs/bnf/ll1/proof.f.mjs` (27), `fjs/bnf/descent/proof.f.mjs` (22), `fjs/media/json/serializer/proof.f.mjs` (10), `fjs/djs/tokenizer/proof.f.mjs:886-921` (8), `fjs/bnf/data/proof.f.mjs` (4), `fjs/media/revision/proof.f.mjs:177`, `fjs/cas/evo/proof.f.mjs:68` | `stringify(identity)` |
 | Assertion messages | 33 | `fjs/djs/tokenizer/proof.f.mjs` (31), `fjs/types/rtti/ts/proof.f.mjs:8,12` (2) | pass the value, or `fjs/djs`'s `stringify` |
 | Source-text quoting | 5 | `fjs/emergent_testing/module.f.mjs:282,303,318`, `fjs/types/ts/module.f.mjs:36,48` | `stringSerialize` — already designed in `66c-emit-literals-via-owner-modules.md` |
 | JSON line framing | 2 | `fjs/emergent_testing/proof.f.mjs:47`, `fjs/mcp/proof.f.mjs:128` | `stringify(identity)` |

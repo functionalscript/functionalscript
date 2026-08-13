@@ -17,8 +17,8 @@ export const concat = (...x: readonly Vec[]): Vec => listToVec(x)
 Nothing about it is signing-specific — it is the variadic sibling of the
 binary `msb.concat`, pure `bit_vec` logic living in (and widening the
 public API of) the ECDSA module. It has no external consumer besides the
-module's own `proof.f.ts`, which awkwardly imports this `concat` *and*
-separately reaches for the binary `msb.concat` (`proof.f.ts:7,72`).
+module's own `proof.f.mjs`, which awkwardly imports this `concat` *and*
+separately reaches for the binary `msb.concat` (`proof.f.mjs:7,72`).
 `AGENTS.md`: path-style logic belongs in its natural module even with a
 single consumer, and a declaration should only be `export`ed for a real
 external consumer.
@@ -48,7 +48,7 @@ readonly Vec[]): Vec => listToVec(x)` kept **private** in `crypto/sign`
 - [ ] Add `concatAll` to `BitOrder` in `fjs/types/bit_vec/module.f.mjs` with
       proof coverage (0, 1, n arguments; both bit orders).
 - [ ] Replace `concat` uses in `fjs/crypto/sign/module.f.mjs` and
-      `proof.f.ts`; delete the local export.
+      `proof.f.mjs`; delete the local export.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related

@@ -145,7 +145,7 @@ using `fjs/types/result`. Two details the shape has to respect:
 
 - **The trailing newline is part of the contract**, not incidental
   formatting: `nixToString` guarantees "exactly one trailing newline on
-  success" (`:261`) and ten proof cases assert it (`proof.f.ts:72-105`). A bare
+  success" (`:261`) and ten proof cases assert it (`proof.f.mjs:72-105`). A bare
   `mapOk(concat)` would silently turn `'{}\n'` into `'{}'`. The `ok` branch
   must append it, exactly as today.
 - **Do not route the branch through `nullable`'s `match`.** Its signature is
@@ -252,7 +252,7 @@ where it lands.
       `Nullable`" above; the caller migration below assumes `Result`'s
       `unwrap`.
 - [ ] Keep `nixToString`'s single trailing newline: the ten
-      `proof.f.ts:72-105` assertions must pass with only their `Result`
+      `proof.f.mjs:72-105` assertions must pass with only their `Result`
       wrapping changed, not their expected text.
 - [ ] Migrate the one production caller, `flakeText`
       (`fjs/ci/nix/module.f.mjs:71-72`): replace

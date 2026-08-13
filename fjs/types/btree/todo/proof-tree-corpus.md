@@ -57,7 +57,7 @@ const set = (node: TNode<string>) => (value: string) =>
 Each also binds its own `jsonStr = stringify(sort)`, and **all four** open-code
 the squares loop `_map = set(_map)((i * i).toString())` — `set/proof.f.mjs` 31
 times, `remove/proof.f.mjs:22` (`n = 38`) and `:379` (`n = 10`),
-`find/proof.f.mjs:26` (`n = 10`), and `proof.f.ts:33-35` (`valuesTest2`,
+`find/proof.f.mjs:26` (`n = 10`), and `proof.f.mjs:33-35` (`valuesTest2`,
 `n = 10`).
 
 **`remove/proof.f.mjs:447-465` (`test3`) is not one of them.** Its loop inserts
@@ -69,7 +69,7 @@ comment: reaching the branch-merge-into-`Branch5`-sibling path in
 
 So "a string B-tree keyed by `cmp`", "serialize canonically", and "the squares
 corpus" — one fixture, shared by every proof in the directory — is stated four
-times with no single definition. `fjs/bnf/testlib.f.ts` is the precedent for
+times with no single definition. `fjs/bnf/testlib.f.mjs` is the precedent for
 where it should live instead.
 
 #### 3. The corpus itself is shared but unstated
@@ -82,7 +82,7 @@ shared starting state has to be verified by eye.
 
 ### Proposal
 
-**1. A `fjs/types/btree/testlib.f.ts`** — mirroring `fjs/bnf/testlib.f.ts` —
+**1. A `fjs/types/btree/testlib.f.mjs`** — mirroring `fjs/bnf/testlib.f.mjs` —
 holding the fixture the four proofs share:
 
 ```ts
@@ -191,17 +191,17 @@ are.
 
 ### Tasks
 
-- [ ] Add `fjs/types/btree/testlib.f.ts` with `set`, `squares`,
+- [ ] Add `fjs/types/btree/testlib.f.mjs` with `set`, `squares`,
       `expectedSquares`/`expectedSquares38`, and — until `stringifySorted` exists —
       the single `jsonStr` alias.
 - [ ] Convert `fjs/types/btree/set/proof.f.mjs` to `expectedSquares.map`; keep
       the two `replace` cases hand-written, sourced from `squares`.
 - [ ] Convert `fjs/types/btree/remove/proof.f.mjs`, `find/proof.f.mjs`, and
-      `proof.f.ts` to import the fixture; delete the four local `set` helpers
+      `proof.f.mjs` to import the fixture; delete the four local `set` helpers
       and `remove/proof.f.mjs`'s duplicate `n = 38` literal (`:25-32`).
 - [ ] Replace every squares loop with `squares(n)`, not just the local `set`
       helpers — `remove/proof.f.mjs:22` and `:379`, `find/proof.f.mjs:26`, and
-      `proof.f.ts:33-35` (`valuesTest2`). Importing `set` while leaving the
+      `proof.f.mjs:33-35` (`valuesTest2`). Importing `set` while leaving the
       loop in place would satisfy the previous task and still leave the corpus
       with four owners.
 - [ ] Leave `remove/proof.f.mjs`'s `test3` loop (`:447-465`) alone — it builds
@@ -214,8 +214,8 @@ are.
       exercise, and a corpus swap there would keep the proof green while
       silently dropping it.
 - [ ] Add a CHANGELOG entry (`AGENTS.md` §8.3). The documentation-only
-      exemption does not apply: this adds `testlib.f.ts` and rewrites four
-      `proof.f.ts` files, which are code changes even though nothing in
+      exemption does not apply: this adds `testlib.f.mjs` and rewrites four
+      `proof.f.mjs` files, which are code changes even though nothing in
       production moves.
 - [ ] Run `npx tsc` and `fjs t`.
 
@@ -234,7 +234,7 @@ are.
   — a `btree/remove` *implementation* refactor; it would be reviewed against
   these proofs, so landing the fixture first makes that diff readable.
 - [proof-recognizer-and-fixtures](../../../bnf/todo/proof-recognizer-and-fixtures.md)
-  — the same "shared harness and fixtures belong in a `testlib.f.ts`" move for
+  — the same "shared harness and fixtures belong in a `testlib.f.mjs`" move for
   the bnf proofs.
-- `fjs/bnf/testlib.f.ts` — the existing precedent for a proof-only fixture
+- `fjs/bnf/testlib.f.mjs` — the existing precedent for a proof-only fixture
   module living beside the code it exercises.

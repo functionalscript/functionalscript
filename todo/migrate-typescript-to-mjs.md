@@ -389,11 +389,11 @@ rediscovered by each migration.
 
 #### Module header and import ordering
 
-The `@module` tag belongs only to a package's entry-point file — `module.f.ts` /
-`module.f.mjs` / `module.ts` / `module.mjs`. It is not required on `proof.f.ts` /
-`proof.f.mjs`, `types.ts`, or any other file. A `module.*` file starts with one
-leading JSDoc block carrying `@module`; always put one blank line after that
-block before the first source-level import or declaration.
+The `@module` tag belongs only to a package's entry-point file — `module.f.mjs` /
+`module.mjs`. It is not required on `proof.f.mjs`, `types.ts`, or any other file.
+A `module.*` file starts with one leading JSDoc block carrying `@module`; always
+put one blank line after that block before the first source-level import or
+declaration.
 
 For TypeScript, put type-only imports first, external or built-in runtime imports
 second, then repository-owned relative runtime imports: already-migrated
@@ -796,11 +796,12 @@ blocking, plus the prose sweep. The remaining items are listed under
       without weakening public type semantics.
 - [ ] Update imports, proofs, tests, coverage globs, scripts, generated CI, and
       documentation for every migrated group.
-- [ ] Sweep prose references to already-migrated modules: `AGENTS.md`, README
+- [x] Sweep prose references to already-migrated modules: `AGENTS.md`, README
       files, and `todo/*.md` still name `.f.ts` paths that no longer exist, so
       snippets copied from them produce broken imports and links. Include
       type-only renames such as `module.f.ts -> types.ts` and any typedef renames
-      in this sweep.
+      in this sweep. Done together with the measured sweep under
+      [Remaining after stage 1](#remaining-after-stage-1).
 - [ ] Preserve Node, Deno, Bun, proof, coverage, type-checking, declaration, and
       CI package behavior throughout the migration.
 - [ ] Add required `**BREAKING CHANGES:**` changelog entries for every public
@@ -900,17 +901,77 @@ person can re-check rather than re-derive. Counts are as of
       Porting them to `.mjs` would delete that coverage rather than move it, so
       this is a decision about whether native-TypeScript execution should still
       be tested — keep them, replace the coverage some other way, or drop it.
-- [ ] **Sweep the remaining stale prose.** 88 mentions across 42 `.md` files
-      name an `X.f.ts` whose `X.f.mjs` now exists (measured by resolving each
-      mention against the tree, excluding `CHANGELOG.md`, whose history is
-      correctly left alone). The largest are
-      `fjs/bnf/todo/proof-recognizer-and-fixtures.md` (11), `fjs/fsc/README.md`
-      (5) and `fjs/types/rtti/README.md` (5); this file itself has 6. Snippets
-      copied out of these produce broken imports. Separately, `AGENTS.md` has 24
-      `.f.ts` mentions and 5 `import type` references whose guidance should now
-      lead with the JavaScript/JSDoc form and keep the TypeScript form only
-      where it still applies (`types.ts`). This subsumes the existing sweep task
-      above; the numbers are here so progress is measurable.
+- [x] **Sweep the remaining stale prose.** Done. The measured set was 88
+      mentions across 42 `.md` files naming an `X.f.ts` whose `X.f.mjs` now
+      exists (resolving each mention against the tree, excluding `CHANGELOG.md`,
+      whose history is correctly left alone); that measurement now returns **9**,
+      and all 9 are the rename arrows (`module.f.ts -> module.f.mjs`) and
+      completed `[x]` items in this file and `fjs/fsc/README.md`, where the
+      `.f.ts` spelling *is* the subject.
+
+      Two other rulers get quoted for this and are easy to mix up, so name the
+      one you mean. A **path-like mention** is one module-path token ending in
+      the old extension; a **line** may hold several. Whole tree, `CHANGELOG.md`
+      excluded:
+
+      | ruler | `main` | after the sweep |
+      | --- | --- | --- |
+      | path-like mentions | 294 | 52 |
+      | lines containing `.f.ts` | 398 | 145 |
+
+      `AGENTS.md` went from 10 mentions on 24 lines to 0 on 1 — the one
+      line left records that stage 1 is complete — and its guidance now leads
+      with the JavaScript/JSDoc form, keeping `import type` for `types.ts` and
+      for the scenario fixtures whose `.ts` extension is load-bearing.
+
+      Beyond renaming references to files that moved, the sweep also fixed
+      forward-looking plans that told a contributor to *create* a `.f.ts`
+      (`fjs/bnf/todo/unicode-rules.md`, `fjs/effects/todo/node-module-layering.md`
+      and ~40 others), since no such file may be authored any more.
+
+      All 22 files that still contain the old extension anywhere are listed
+      below, and each one is deliberate. Describing the migration or the
+      extension itself: this file, `AGENTS.md`,
+      [`fjs/fsc/README.md`](../fjs/fsc/README.md),
+      [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
+      [`f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md),
+      [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md),
+      [`f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md),
+      [`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md),
+      [`plan/roadmap.md`](./plan/roadmap.md), [`lang/README.md`](./lang/README.md),
+      [`demo/README.md`](./demo/README.md),
+      [`nanvm-lib/todo/mvp-roadmap.md`](../nanvm-lib/todo/mvp-roadmap.md),
+      [`blocked/js-extension-type-annotations.md`](./blocked/js-extension-type-annotations.md)
+      and [`formatter-for-f-js-and-f-ts-files.md`](../fjs/todo/formatter-for-f-js-and-f-ts-files.md).
+      Quoting `shouldLoad`, which still matches `.f.ts`:
+      [`664-emergent-testing-module-files.md`](../fjs/emergent_testing/todo/664-emergent-testing-module-files.md),
+      [`205.md`](../fjs/emergent_testing/todo/205.md) and
+      [`skip-property.md`](../fjs/emergent_testing/todo/skip-property.md).
+      Recording a superseded convention or a completed move:
+      [`028-unit-test-examples-api.md`](../fjs/emergent_testing/todo/028-unit-test-examples-api.md),
+      [`throw-payload-assertions.md`](../fjs/emergent_testing/todo/throw-payload-assertions.md)
+      and [`group-fs-subdirectories-by-concern.md`](../fjs/todo/group-fs-subdirectories-by-concern.md).
+      Plus [`browser-testing.md`](../fjs/emergent_testing/todo/browser-testing.md)
+      and [`serializable-data.md`](../fjs/types/rtti/todo/serializable-data.md),
+      each its own item below. Re-measure with the same resolve-against-the-tree
+      method, at the final commit, before claiming a number — prose that
+      enumerates survivors can itself add mentions, which is how a stale count
+      got published the first time.
+- [ ] **Redesign or retire `browser-testing.md`.**
+      [`fjs/emergent_testing/todo/browser-testing.md`](../fjs/emergent_testing/todo/browser-testing.md)
+      holds 10 of the surviving path-like mentions on 23 lines — the largest
+      single concentration — and they were left alone on
+      purpose: its whole design is a transpile step from `.f.ts` to `.f.js`
+      because browsers cannot load TypeScript. Authored source is now `.f.mjs`,
+      which a browser loads directly, so the premise is gone and a sweep would
+      have produced a plan that no longer describes anything. Decide whether the
+      transpile step survives for `types.ts`-only reasons, shrinks to a bundling
+      concern, or goes away — then rewrite the document to match.
+- [ ] **Retitle `formatter-for-f-js-and-f-ts-files.md`.**
+      [`fjs/todo/formatter-for-f-js-and-f-ts-files.md`](../fjs/todo/formatter-for-f-js-and-f-ts-files.md)
+      names `.f.ts` in its filename and title. A formatter no longer needs to
+      handle that extension; renaming the file is a trivial follow-up left out of
+      the prose sweep because it changes a path rather than prose.
 - [ ] **Fix the one broken doc link that is not a rename artifact.**
       `fjs/types/rtti/todo/serializable-data.md` links to `../data/module.f.ts`;
       `fjs/types/rtti/data/` has never existed, so this needs an author decision

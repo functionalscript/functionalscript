@@ -75,7 +75,7 @@ keys vs. downstream filter set), so it is tracked separately.
       `'<<<='`/`'<<<'` set entries; add a proof case showing `<<<`-containing
       input tokenizes old-tokenizer-compatibly (as `<<` + `<`, never as one
       token). Done — verified `<<<` → `<<`+`<` and `<<<=` → `<<`+`<=` via a
-      new `tokenizer/proof.f.ts` case.
+      new `tokenizer/proof.f.mjs` case.
 - [ ] Hoist `operator` to module scope; derive `operatorTags` from
       `Object.keys(operator)`.
 - [ ] Single-source the ws/newline character lists shared by the grammar rules,

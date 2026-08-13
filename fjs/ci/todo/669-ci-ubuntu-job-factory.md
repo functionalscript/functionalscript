@@ -26,7 +26,7 @@ The same `{ 'runs-on': image, steps: toSteps(result) }` shape is also constructe
 `fjs/ci/module.f.mjs`, so there are currently three surviving copies of the same Job
 construction pattern.
 
-The former `fjs/ci/playwright/module.f.ts` consumer is intentionally excluded: that
+The former `fjs/ci/playwright/module.f.mjs` consumer is intentionally excluded: that
 module has already been deleted, and this refactoring must not resurrect it.
 
 ### Proposal
@@ -60,7 +60,7 @@ task must not add compatibility code for the deleted Playwright job.
 - [ ] Add the exported `job` factory in `fjs/ci/common/module.f.mjs`.
 - [ ] Re-express `ubuntu` and `ubuntuArm` in terms of `job`.
 - [ ] Migrate the surviving external construction in `fjs/ci/module.f.mjs`.
-- [ ] Confirm `proof.f.ts` still covers `job`, `ubuntu`, and `ubuntuArm`.
+- [ ] Confirm `proof.f.mjs` still covers `job`, `ubuntu`, and `ubuntuArm`.
 - [ ] Verify generated workflow output is unchanged.
 - [ ] Run `npx tsc` and `fjs t`.
 

@@ -117,7 +117,7 @@ co-locating the RFC rationale.
 - [ ] `sign` reads only from `fromCurve(c)` — no direct `c.nf`/`c.mul`/`c.g` access
 - [ ] add `bits2intModQ` to the RFC6979 record; express `bits2octets` and `sign`'s `h` through it
 - [ ] (optional) rename `All` → `Rfc6979` for clarity; split out if it churns proofjs/imports
-- [ ] confirm `proof.f.ts` still covers all of `all`/`fromCurve`/`sign`
+- [ ] confirm `proof.f.mjs` still covers all of `all`/`fromCurve`/`sign`
 
 ### Related
 
