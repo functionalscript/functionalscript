@@ -97,6 +97,15 @@ treat it as fatal and panic itself (`throw`, e.g. via `unwrap`). Escalation
 belongs to the program — a runner never panics over a missing operation on
 the program's behalf.
 
+That said, runners keep their authority over execution itself. A runner may
+still interrupt or terminate a program — one attempting something malicious,
+exceeding a resource budget, or violating host policy. Interruption is a
+different mechanism from `NotImplemented`: `NotImplemented` is recoverable
+data for a capability the runner lacks, while interruption is the runner
+refusing to continue at all, and nothing in the error channel obliges it to
+hand control back. `NotImplemented` is therefore not a promise that the
+program always regains control, and it is not a security boundary.
+
 ### Where the `Result` envelope lives
 
 **Decision: the `Result` is part of the operation's declared return type**, not
@@ -333,6 +342,9 @@ current runners remain total over their declared operation maps.
   panics.
 - `NotImplemented` is ordinary recoverable effect data, not a fatal runner
   condition.
+- `NotImplemented` is not a security boundary: a runner may still interrupt
+  or terminate a program (malice, policy, resource abuse) without handing
+  control back.
 - The `Result` envelope lives in the operation's declared return type.
 - The program owns fallback policy — including the choice to panic (`throw`)
   instead of recovering.
