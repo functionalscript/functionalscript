@@ -30,6 +30,7 @@ export const proof = {
             assertEq(hexDigitValue(one(':')), null)
             assertEq(hexDigitValue(one('@')), null)
             assertEq(hexDigitValue(one('G')), null)
+            assertEq(hexDigitValue(one('`')), null)
             assertEq(hexDigitValue(one('g')), null)
         },
     },
