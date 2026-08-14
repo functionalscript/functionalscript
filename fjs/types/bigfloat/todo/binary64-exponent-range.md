@@ -65,7 +65,7 @@ const binary64 = { precision: 53, minExp: -1074, maxExp: 971 }
   i.e. full precision above `minExp + precision`, shrinking to zero at the
   bottom of the subnormal range. Round to *that* many bits, once.
 - Above `maxExp`, report overflow. `Nullable<BigFloat>` (a `try*`-shaped
-  result per AGENTS.md §5.6) is the likely shape, leaving the caller to
+  result per DESIGN.md §6) is the likely shape, leaving the caller to
   produce an infinity — `BigFloat` has no encoding for one.
 - `decToBin` stays as the unbounded-exponent entry point (it is the honest
   answer when the target is not a `double`) and becomes the `precision: 53`,

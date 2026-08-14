@@ -54,7 +54,7 @@ sibling of `fromVec` — mirroring how the encode direction already pairs
 `tryUtf8`/`utf8` in one place. If it moves, migrate it as a breaking change
 with every importer updated in the same PR; a re-export left in
 `fjs/text/module.f.mjs` for existing importers is the stale-re-export case
-`AGENTS.md` §8.4 rules out.
+`changelog/README.md` rules out.
 
 ### Tasks
 

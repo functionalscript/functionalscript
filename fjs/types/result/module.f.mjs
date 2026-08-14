@@ -88,7 +88,7 @@ export const mapOk = f => r => r[0] === 'ok' ? ok(f(r[1])) : r
  *
  * Reach for it when the step needs **only** the value it is handed. A chain
  * whose later steps also read an earlier one's value would have to nest a
- * closure per link to keep those values in scope, which AGENTS.md §6.4 rules
+ * closure per link to keep those values in scope, which `fjs/AGENTS.md` §3.4 rules
  * out for the same reason it rules out nested `step`; write those as a flat
  * sequence of guards.
  *

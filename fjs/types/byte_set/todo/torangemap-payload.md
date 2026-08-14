@@ -19,7 +19,7 @@ That is a DFA-construction concept: its only caller is `fsm`'s `foldOp`
 (`fjs/fsm/module.f.mjs:55`), which merges the result into a
 `RangeMap<SortedSet<string>>` keyed by rule name. A `types` leaf naming
 `string` and `SortedSet` for one higher-level consumer is a layering
-inversion (AGENTS.md §5.4: move logic to its natural module even with a
+inversion (DESIGN.md §4: move logic to its natural module even with a
 single consumer when it is conceptually distinct).
 
 [bit-set-factory](../../todo/bit-set-factory.md) already decided `toRangeMap`

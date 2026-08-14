@@ -5,10 +5,13 @@ language, its standard modules, and the `fjs` CLI) and `nanvm-lib/` (NaNVM, the
 native FunctionalScript VM, in Rust).
 
 **Coding style, testing rules, design principles, and pull request requirements
-all live in [AGENTS.md](./AGENTS.md).** Read it before opening a pull request —
-it applies to human and AI contributors alike. This file covers only getting a
-working environment; it links to `AGENTS.md` rather than restating it, so the two
-cannot drift apart.
+start in [AGENTS.md](./AGENTS.md).** Read it before opening a pull request — it
+applies to human and AI contributors alike. That file is a map: the
+repository-wide design principles are in [DESIGN.md](./DESIGN.md), the
+FunctionalScript and TypeScript rules in [fjs/AGENTS.md](./fjs/AGENTS.md), and
+the Rust ones in [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md). This file covers
+getting a working environment and opening a pull request; every document links
+to the others rather than restating them, so they cannot drift apart.
 
 ## Issues
 
@@ -18,7 +21,7 @@ start, and for the format to use when filing a new one.
 
 To **file** an issue yourself, add its `todo/` file in a pull request. Note that
 a pull request that **fixes** an issue does the opposite — it deletes that
-issue's `todo/` file; see [AGENTS.md §2](./AGENTS.md#2-everyday-workflow).
+issue's `todo/` file; see [AGENTS.md §1](./AGENTS.md#1-workflow).
 
 To report a bug, request a feature, or ask a question without opening a pull
 request — the normal case for an external contributor, who cannot add a `todo/`
@@ -40,9 +43,12 @@ work is tracked from then on.
 You may also use the [Dockerfile](./docker/Dockerfile), which sets all of this up
 and is the easiest way to get a known-good environment.
 
-Node 22 also supports `node --test` and `npm run cov`: external test
-registration automatically uses an inline compatibility strategy below Node
-`26.0.0`.
+### Node test-runner compatibility
+
+External test registration automatically uses an inline compatibility strategy
+below Node `26.0.0`, so `node --test` and `npm run cov` correctly handle
+`throw`-tagged tests on Node 22. Node `26.0.0` and later use the native
+`expectFailure` strategy and remain the fully supported native baseline.
 
 ### Installing dependencies
 
@@ -61,9 +67,44 @@ cargo clippy
 cargo fmt -- --check
 ```
 
-`npm test` is one of several ways to run the FunctionalScript suite; the Deno,
-Bun, and published-CLI equivalents are listed in
-[AGENTS.md §1.4](./AGENTS.md#14-ways-to-run-the-functionalscript-test-suite).
+#### Ways to run the FunctionalScript test suite
+
+Every row below runs the same suite; pick the first one that fits your
+environment.
+
+| Command                                 | Runtime  | Needs internet | Notes                                    |
+| --------------------------------------- | -------- | -------------- | ---------------------------------------- |
+| `npm test`                              | Node 22+ | no             | `tsc` + the repo's runner.               |
+| `npm start test`                        | Node 22+ | no             | The repo's runner, no type-check step.   |
+| `node --test`                           | Node 22+ | no             | Node's native test runner.               |
+| `npm run cov`                           | Node 22+ | no             | `node --test` plus coverage.             |
+| `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |
+| `deno task test` / `deno task cov`      | Deno     | no             | Deno's native test runner / coverage.    |
+| `bun fjs/module.mjs test`                | Bun      | no             | The repo's runner under Bun.             |
+| `bun test`                              | Bun      | no             | Bun's native test runner.                |
+| `fjs test`                              | Node 22+ | to install     | After `npm install -g functionalscript`. |
+| `npx functionalscript test`             | Node 22+ | yes            | No install step.                         |
+| `deno run -A npm:functionalscript test` | Deno     | yes            | No install step.                         |
+| `bunx functionalscript test`            | Bun      | yes            | No install step.                         |
+
+The last four rows run a **published** FunctionalScript rather than this working
+tree's version. `npx`, `deno run`, and `bunx` resolve the latest release each
+time; `fjs` runs whatever you installed globally, which goes stale as new
+versions ship — re-run `npm install -g functionalscript` to update it.
+
+Deno needs explicit permissions: `-A` is the short form, or pass the same set as
+the `fjs` task in [deno.json](./deno.json) (`--allow-read --allow-write
+--allow-env --allow-net --allow-sys`). Deno also holds back very recently
+published versions; add `--minimum-dependency-age=0` to force the newest.
+
+CI exercises these same combinations — see the `node22`, `node24`, `node26`,
+`deno`, and `bun` jobs in
+[.github/workflows/ci.yml](./.github/workflows/ci.yml) for the exact commands
+and pinned runtime versions.
+
+To run only the tests under a subtree, `cd` into that directory and run the
+runner from there (e.g. `cd fjs/base64 && fjs test`). Module discovery starts at
+the current working directory, and results are reported per test.
 
 To validate the packed npm package itself against clean Node, Deno, and Bun
 consumers — for example after changing `prepack`, `files`, or anything that
@@ -71,7 +112,7 @@ affects emitted declarations — follow
 [`fjs/ci/packed-consumer-validation.md`](./fjs/ci/packed-consumer-validation.md).
 
 New `.f.mjs` modules need a co-located proof with 100% proof coverage — see
-[AGENTS.md §3](./AGENTS.md#3-testing-and-proof-coverage). Authored
+[fjs/AGENTS.md §1](./fjs/AGENTS.md#1-testing-and-proof-coverage). Authored
 FunctionalScript is JavaScript with JSDoc: a `module.f.mjs` is accompanied by a
 `proof.f.mjs`, and a separately useful type-level API may live in a sibling
 `types.ts`. Current FunctionalScript compiler support is not required for either
@@ -117,21 +158,58 @@ For tool details and package-consumer setup for Claude and Codex, see
 
 ## Opening a pull request
 
-The full workflow is in [AGENTS.md §2](./AGENTS.md#2-everyday-workflow) and
-[AGENTS.md §8](./AGENTS.md#8-pull-requests). In short: one feature or improvement
-per pull request, every check above passing, the `todo/` issue deleted in the
-same pull request, and — for code changes — a changelog entry added as
-`changelog/unreleased/<PR>.md`, named by the real pull request number once the
-pull request exists (see [changelog/README.md](./changelog/README.md)).
+A pull request implements only one feature or improvement, with minimal code
+changes. Before submitting, ensure every check above passes, delete the `todo/`
+issue file in the same pull request, and — for code changes — add a changelog
+entry as `changelog/unreleased/<PR>.md`, named by the real pull request number
+once the pull request exists (see
+[changelog/README.md](./changelog/README.md)). The everyday workflow around
+this is [AGENTS.md §1](./AGENTS.md#1-workflow).
 
-The pull request lands on `main` as a single squash commit titled
-`<pull request title> (#NNN)` with the pull request description as its body, so
-both are written as that commit message
-([AGENTS.md §8.5](./AGENTS.md#85-commit-messages)): a
-`<topic>: <short description>` title within 72 characters including the
-` (#NNN)` GitHub appends, and a description ending in a `Changelog:` section
-that repeats the changelog entry — or `Changelog: none` when the change needs
-no entry.
+### Commit messages
+
+`main` takes exactly one commit per pull request: the squash merge, titled
+`<PR title> (#NNN)` with the pull request description as its body. Both halves
+are reviewed text that outlives the pull request page, and a changelog generated
+from Git history could read nothing else, so write the title and the description
+as the commit message they become. Commits on the branch are discarded by the
+squash, so their messages are working notes.
+
+- **Title.** `<topic>: <short description>` — `<topic>` is the module path
+  (`types/bit_vec`, `djs/tokenizer`) or an area (`ci`, `docs`, `changelog`,
+  `AGENTS.md`), the same topic the CHANGELOG entry starts with; the
+  description is imperative, lower-case after the colon, and has no trailing
+  period. Keep it within 72 characters **including** the ` (#NNN)` GitHub
+  appends, and never write a `(#NNN)` of your own. A release pull request's
+  title is the bare version: `0.45.0`.
+- **Description.** Free prose — motivation, design, measurements, alternatives
+  considered — then a `Changelog:` section, the last section before an optional
+  trailer block (`Co-Authored-By:`, generated-with lines, session links):
+
+  ```
+  <free prose>
+
+  Changelog:
+  - `types/bit_vec`: `tryListToVec` reuses the shared balanced fold, at the
+    same cost as the accumulator it replaces
+  ```
+
+  The section holds exactly the list items of `changelog/unreleased/<PR>.md` —
+  same Markdown subset, same `**BREAKING CHANGES:**` prefix where it applies,
+  no PR link ([changelog/README.md](./changelog/README.md#entries)). A pull
+  request that needs no entry writes `Changelog: none`. The section is
+  **mandatory** either way, so a forgotten entry is a visible omission rather
+  than a silent one.
+
+  It duplicates the entry file on purpose: the file is what today's release
+  process reads, the section is what a generator reading Git history would
+  read. Neither is derived from the other, so keep them identical.
+- **How it lands.** Squash and merge, always. The merge box offers the reviewed
+  title and description as the default message — don't edit it there, where
+  nobody reviews the result. A rebase merge would replay the branch's commits
+  with their working-note messages and no `(#NNN)`; a merge commit would bury
+  the pull request in a two-parent graph. Nothing lands on `main` outside a
+  pull request.
 
 ## OpenAI Codex environment
 
