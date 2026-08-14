@@ -2,17 +2,17 @@
  * Monoids: the `Monoid<T>` algebraic structure (identity plus associative
  * binary operation), `repeat`, which applies the operation `n` times using
  * exponentiation by squaring, and `fold`, which applies it across every element
- * of a list.
+ * of a list as a balanced binary tree.
  *
  * @module
  *
- * @import { Fold } from '../../types/function/operator/types.ts'
+ * @import { Fold, Reduce } from '../../types/function/operator/types.ts'
  * @import { List } from  '../../types/list/types.ts'
  * @import { Monoid } from './types.ts'
  */
 
-import { reduce } from '../../types/list/module.f.mjs'
-import { flip } from '../../types/function/module.f.mjs'
+import { fold as listFold } from '../../types/list/module.f.mjs'
+import { compose } from '../../types/function/module.f.mjs'
 
 /**
  * Repeats a monoid operation `n` times on the given element `a`.
@@ -60,6 +60,46 @@ export const repeat = ({ identity, operation }) => n => a => {
 }
 
 /**
+ * A run of `size` already-combined elements. Runs live on a stack whose top is
+ * the most recent — and smallest — run, so `rest` holds everything to the left
+ * of `value`.
+ *
+ * @template T
+ * @typedef {{
+ *  readonly size: number
+ *  readonly value: T
+ *  readonly rest: _Stack<T>
+ * } | null} _Stack
+ */
+
+/**
+ * Pushes a run of `size` combined elements onto the stack, merging while the
+ * top run has the same size — exactly the carry of incrementing a binary
+ * counter, so every merge joins two runs of equal size and the stack never
+ * holds more than `log2(n)` runs.
+ *
+ * The merge keeps the earlier run on the left (`operation(stack.value)(value)`),
+ * so re-associating never re-orders.
+ *
+ * @type {<T>(operation: Reduce<T>) => (size: number) => (value: T) => (stack: _Stack<T>) => _Stack<T>}
+ */
+const push = operation => size => value => stack =>
+    stack === null || stack.size !== size
+        ? { size, value, rest: stack }
+        : push(operation)(size * 2)(operation(stack.value)(value))(stack.rest)
+
+/**
+ * Combines the stack's runs into one value, earliest (bottom, largest) first,
+ * seeded at `identity`.
+ *
+ * @type {<T>(monoid: Monoid<T>) => (stack: _Stack<T>) => T}
+ */
+const combine = monoid => stack =>
+    stack === null
+        ? monoid.identity
+        : monoid.operation(combine(monoid)(stack.rest))(stack.value)
+
+/**
  * Reduces a `List<T>` with the monoid's associative `operation`, seeded at its
  * `identity`. An empty list folds to `identity`.
  *
@@ -70,12 +110,26 @@ export const repeat = ({ identity, operation }) => n => a => {
  * so the identity paired with each operation is stated once at the call site
  * instead of hand-seeding a raw `reduce`.
  *
- * Like `repeat`, `fold` applies the operation **accumulator-first**:
- * `operation(accumulator)(element)`, seeded at `identity`, so
- * `[a, b, c]` folds to `((identity op a) op b) op c`. Left-to-right order is
- * therefore preserved and `fold` is correct for non-commutative monoids (e.g.
- * string concatenation as `a => b => a + b`). `list.reduce` calls its reducer
- * element-first, so the operation is `flip`ped before it is handed over.
+ * The reduction is **balanced**, not a left fold: `[a, b, c, d]` folds to
+ * `(a op b) op (c op d)`, not `((a op b) op c) op d`. A `Monoid`'s
+ * associativity is what licenses the re-grouping — `list.reduce` takes an
+ * arbitrary operation with no such contract and therefore stays strictly
+ * left-to-right. Balancing matters for size-growing exact operations
+ * (`bigint.product`, `string`/`bit_vec` concatenation): a left fold grows the
+ * accumulator while every new operand stays small, so step *k* costs work
+ * proportional to *k* and the total is O(n²), while merging runs of comparable
+ * size costs O(n log n). It is the list-shaped sibling of {@link repeat}'s
+ * exponentiation by squaring.
+ *
+ * Only the grouping changes, never the order: each merge keeps the earlier
+ * operand on the left, so `fold` stays correct for non-commutative monoids
+ * (e.g. string concatenation as `a => b => a + b`).
+ *
+ * Re-grouping does move the rounding of an inexact operation. IEEE-754 addition
+ * is not truly associative, so `number.sum` returns a (marginally more
+ * accurate — O(log n · ε) instead of O(n · ε)) different value than a left fold
+ * for some inputs. That is a consequence of the uniform treatment, not a goal:
+ * a `Monoid` promises associativity, and every monoid folds the same way.
  *
  * @template T The type of the elements in the monoid.
  * @param {Monoid<T>} monoid The monoid structure, including the identity and binary operation.
@@ -100,5 +154,5 @@ export const repeat = ({ identity, operation }) => n => a => {
  * fold(concat)(['a', 'b', 'c']) // 'abc' — order preserved
  * ```
  */
-export const fold = ({ identity, operation }) =>
-    reduce(flip(operation))(identity)
+export const fold = monoid =>
+    compose(listFold(push(monoid.operation)(1))(null))(combine(monoid))

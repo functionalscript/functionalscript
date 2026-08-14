@@ -421,6 +421,13 @@ export const proof = {
         const list = [vec(maxLength)(1n), vec(1n)(1n)]
         assertEq(lsb.tryListToVec(list), null)
         assertEq(msb.tryListToVec(list), null)
+        // Overflow is an absorbing element, so it survives every later
+        // combination: here the failed pair ends up on the left of the last
+        // one, and on the right in the two-element case above.
+        /** @type {List<Vec>} */
+        const longer = [vec(maxLength)(1n), vec(1n)(1n), vec(1n)(1n)]
+        assertEq(lsb.tryListToVec(longer), null)
+        assertEq(msb.tryListToVec(longer), null)
     },
     listToVecOverflow: {
         // Same oversized input, but through the throwing `listToVec` wrapper.

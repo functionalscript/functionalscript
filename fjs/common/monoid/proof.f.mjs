@@ -54,5 +54,28 @@ export const proof = {
             // an empty list folds to the identity
             assertEq(fold(concat)([]), '')
         },
+        balanced: () => {
+            // `operation` brackets each combination so the *grouping* `fold`
+            // chose is visible in the result. It is deliberately **not**
+            // associative — a lawful monoid could not observe the grouping at
+            // all, which is exactly why re-associating is allowed. The identity
+            // still behaves as one (both branches return the other operand
+            // unchanged), so `fold`'s contract is respected.
+            /** @type {Monoid<string>} */
+            const bracket = {
+                identity: '',
+                operation: a => b => a === '' ? b : b === '' ? a : `(${a}${b})`,
+            }
+            const f = fold(bracket)
+            assertEq(f(['a']), 'a')
+            assertEq(f(['a', 'b']), '(ab)')
+            // three elements keep the trailing run separate: `c` merges with
+            // nothing, so it combines against `(ab)` only at the end.
+            assertEq(f(['a', 'b', 'c']), '((ab)c)')
+            // four is where balancing separates from a left fold, which would
+            // give `(((ab)c)d)`.
+            assertEq(f(['a', 'b', 'c', 'd']), '((ab)(cd))')
+            assertEq(f(['a', 'b', 'c', 'd', 'e']), '(((ab)(cd))e)')
+        },
     }
 }
