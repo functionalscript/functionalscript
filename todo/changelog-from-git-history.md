@@ -42,6 +42,9 @@ versioning comes from.
 
 ## Related
 
+- [commit-message-standard.md](./commit-message-standard.md) — the commit
+  message format that must be in force before the history this would read
+  accumulates; its `Changelog:` section is design 1's input
 - [changelog/README.md](../changelog/README.md) — the structure this would
   replace
 - [changelog-website.md](./changelog-website.md) — the consumer that must not
