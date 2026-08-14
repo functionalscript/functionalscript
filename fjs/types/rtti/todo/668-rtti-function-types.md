@@ -62,5 +62,5 @@ trusted.
 
 - [i668-emergent-testing-proof-type](../emergent_testing/todo.md) —
   proof leaves need function-valued schemas if `Proof` is derived from RTTI.
-- [i143-rtti-data](todo.md) — serializable/function-free RTTI data
+- [`../data`](../data/README.md) — serializable/function-free RTTI data
   form; extern function schemas may need to remain outside that core form.

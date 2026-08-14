@@ -23,6 +23,10 @@ history.
 - `types/object`: new `structurallySame`, plus `assertStructurallySame` in
   `fjs/asserts` — structural comparison for proofs
   [#1538](https://github.com/functionalscript/functionalscript/pull/1538)
+- RTTI: new `fjs/types/rtti/data` module — a function-free, serializable,
+  canonical data form for schemas with `toData`, `cmp`, `equal`, `subset`, and a
+  data-driven `validate`
+  [#1539](https://github.com/functionalscript/functionalscript/pull/1539).
 - **BREAKING CHANGES:** the last documented public typedefs authored in `.mjs`
   move to sibling `types.ts` files — `ParseContext`/`djsResult` to
   `fjs/djs/transpiler/types.ts` and `Step` to
