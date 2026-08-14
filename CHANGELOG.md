@@ -20,6 +20,11 @@ history.
 
 ## Unreleased
 
+- Every module-level `@import` tag lives in its module's leading JSDoc block
+  (125 files swept), so emitted declaration headers list their type imports
+  in one place
+  [#1545](https://github.com/functionalscript/functionalscript/pull/1545)
+
 - `types/uint8array`: `toVec` attempts the conversion instead of precomputing a
   byte-count bound; behavior and error message unchanged
   [#1543](https://github.com/functionalscript/functionalscript/pull/1543)
