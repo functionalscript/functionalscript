@@ -558,7 +558,7 @@ data.
 
 A related mechanical finding from the same review round: composing multiple
 independently-generic helper functions inside another generic function's body
-(e.g. `genericMerge` calling `cmpReduce` calling into `mergeTail`, all
+(e.g. `genericMerge` calling `cmpReduce` calling into `keepTail`, all
 separately `<T>`-generic) loses type inference when each is annotated with a
 single `@type {<T, S>(...) => ...}` on the whole arrow chain — TypeScript
 cannot always unify the type parameters across the nested generic-value calls,
