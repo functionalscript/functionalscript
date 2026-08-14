@@ -396,12 +396,13 @@ proposes stripping redundant JSDoc type directives from declaration emit while
 keeping documentation. Neither tracks this loss directly.
 
 Re-measured in
-[#1530](https://github.com/functionalscript/functionalscript/pull/1530), the
-loss is *shape-dependent* on tsc 7.0.2: a typedef block keeps its
-documentation verbatim only when another comment block follows it, and loses
-it when it directly precedes a declaration, declares two typedefs, or is the
-final comment block in the file (that last shape caught in review) — a
-regression relative to strada 5.9.3, which kept trimmed prose in every shape. The minimal reproduction and a
+[#1530](https://github.com/functionalscript/functionalscript/pull/1530)
+across three review rounds, the rule on tsc 7.0.2 is: a typedef block keeps
+its documentation only when it is the first thing in the file *and* a blank
+line separates it from whatever follows — so in a real module, whose header
+comment comes first, typedef documentation never attaches at all. A
+regression relative to strada 5.9.3, which kept trimmed prose in every
+measured shape. The minimal reproduction and a
 paste-ready upstream body (targeting `microsoft/typescript-go`) live in
 [`blocked/jsdoc-typedef-doc-declaration-emit.md`](./blocked/jsdoc-typedef-doc-declaration-emit.md);
 filing it is that issue's first task.

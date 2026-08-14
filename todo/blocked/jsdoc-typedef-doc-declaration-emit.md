@@ -32,7 +32,7 @@ which the earlier record did not know:
 
 | typedef block shape | tsc 5.9.3 (strada) | tsc 7.0.2 (tsgo) |
 | --- | --- | --- |
-| standalone — separated by a blank line from a following comment block | prose kept on `export type`, trimmed (tags such as `@example` stripped from the attached copy) | **full block kept, verbatim** |
+| first thing in the file, blank line before what follows (comment block or statement) | prose kept on `export type`, trimmed (tags such as `@example` stripped from the attached copy) | **full block kept, verbatim** |
 | standalone — last comment block in the file | prose kept on `export type`, trimmed | **`export type` emitted bare; the block dangles detached** |
 | two comment blocks with no blank line between them | prose kept on both `export type`s, trimmed | **both emitted bare; the adjacent blocks form one trivia run and neither attaches** |
 | block directly followed by a declaration | prose kept on `export type`, trimmed; the original block also emitted in full on the declaration, duplicated | **`export type` emitted bare; the doc attaches to the *following* declaration** |
@@ -42,14 +42,19 @@ which the earlier record did not know:
 per-reproduction statements below are each measured. "Emitted bare" is the
 invariant.)
 
-The rule that fits every measured case on tsgo: **the final comment block in
-the file never attaches, and a typedef block attaches to its emitted type only
-when a *blank-line-separated* comment block follows it** — adjacent blocks
-merge into one trivia run and neither attaches. So on tsgo — this
-repository's compiler — the documentation is lost whenever the typedef block
-touches a following statement or comment block, declares more than one type,
-or ends the file, and that is a regression relative to strada, which kept the
-prose in every shape.
+The rule that fits every measured case on tsgo (review's 2×5 matrix of
+{file-start, statement-preceded} × {EOF, adjacent statement, blank+statement,
+adjacent comment, blank+comment}, plus the header-preceded case below): **a
+typedef block attaches to its emitted `export type` only when it is the first
+thing in the file *and* a blank line separates it from whatever follows** —
+statement or comment block alike; both conditions are necessary, and in every
+other measured shape the type is emitted bare. Since a real module starts
+with its header comment, no typedef block in one is the first thing in the
+file, so in practice a module's typedef documentation never attaches on tsgo
+(measured: with a header block preceding, the header rides above the bare
+`export type` while the typedef's own block mis-attaches to the following
+declaration). All of it is a regression relative to strada, which kept the
+prose in every measured shape.
 (Strada's own tag-stripping and duplication are the older, adjacent bugs:
 microsoft/TypeScript#43534, fixed for the services layer only, and
 microsoft/TypeScript#61664.)
@@ -120,6 +125,43 @@ typedef block:
 tsgo 7.0.2 emits `export type Only = 8;` bare, with the block dangling after
 it; strada 5.9.3 attaches the (trimmed) prose to the type.
 
+The practically important case is a file that begins with a module header —
+the shape of every real module:
+
+```js
+/**
+ * Module header.
+ */
+
+/**
+ * doc
+ *
+ * @typedef {8} T
+ */
+
+export const post = 1
+```
+
+tsgo 7.0.2 emits:
+
+```ts
+/**
+ * Module header.
+ */
+export type T = 8;
+/**
+ * doc
+ *
+ * @typedef {8} T
+ */
+export declare const post = 1;
+```
+
+`T`'s own documentation never attaches — the header rides above the bare
+type, and the doc block lands on `post`. Delete the header block (making the
+typedef block the first thing in the file) and the same input attaches the
+doc to `export type T` in full.
+
 ## Ready-to-file upstream issue
 
 Title: **Declaration emit loses JSDoc `@typedef` documentation when the block
@@ -140,9 +182,12 @@ Body:
 > width`; a block declaring two typedefs loses its documentation on both; a
 > file whose only content is one documented typedef block emits the type bare
 > with the block dangling after it. The rule that fits every case measured so
-> far: the final comment block in the file never attaches, and a typedef
-> block attaches only when a blank-line-separated comment block follows it
-> (two adjacent blocks merge into one trivia run and neither attaches).
+> far: a typedef block attaches to its emitted type only when it is the first
+> thing in the file *and* a blank line separates it from whatever follows —
+> both conditions necessary. In particular, in a file that begins with a
+> module header comment, no typedef documentation ever attaches: the header
+> rides above the bare `export type` while the typedef's own block
+> mis-attaches to the following declaration.
 >
 > **Impact:** for JavaScript-authored packages (JSDoc types, `declaration:
 > true`), the published `.d.mts` silently loses its type documentation; the
