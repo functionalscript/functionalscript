@@ -1219,17 +1219,20 @@ Ensure all of the checks in [§2](#2-everyday-workflow) pass.
 
 ### 8.3 CHANGELOG
 
-The changelog is the [./changelog/](./changelog/) directory, one file per
-released version plus [./changelog/unreleased/](./changelog/unreleased/) holding
-one file per unreleased PR — see
+The changelog is the [./changelog/](./changelog/) directory: a directory per
+released version (a single file per version through `0.44.0`) plus
+`changelog/unreleased/` holding one file per unreleased PR — see
 [changelog/README.md](./changelog/README.md) for the layout.
 
 To add a CHANGELOG entry, first open the PR to obtain its number, then create
-`changelog/unreleased/<PR>.md` named by that number. A PR never edits another
-PR's file, so two PRs can never conflict. Follow the same
-`Topic: short description [#NNN](url)` style as existing entries. A PR with
-several entries puts them all in its one file, most important first. CHANGELOG
-entries are created after the PR exists because they reference the PR number.
+`changelog/unreleased/<PR>.md` named by that number — recreating
+`changelog/unreleased/` if a release just consumed it (Git does not track
+empty directories). A PR never edits another PR's file, so two PRs can never
+conflict. Write entries in the `Topic: short description` style, with no PR
+number or link inside the file — the file name already carries the number, and
+a renderer derives the link from it. A PR with several entries puts them all
+in its one file, most important first. CHANGELOG entries are created after the
+PR exists because the file is named by the PR number.
 
 Only add CHANGELOG entries for code changes — PRs that only touch `todo/`,
 `AGENTS.md`, or other documentation files do not need one.
@@ -1239,21 +1242,23 @@ Only add CHANGELOG entries for code changes — PRs that only touch `todo/`,
   release note for users of the package, not a design document. Rationale,
   migration walkthroughs, measurements, and alternatives-considered belong in the
   PR description, the relevant `README.md`, or JSDoc on the affected exports; the
-  CHANGELOG links to the PR so a reader can go there for the full story.
-- **Link the PR, and nothing else.** The single link in an entry must point to
-  the pull request (`/pull/NNN`). Do not link to — or name in plain text — an
-  issue or `todo/` file: issue files are deleted when the work is done, so those
+  entry's file name identifies the PR, so a reader can go there for the full
+  story.
+- **No links.** The file name is the PR number, so an entry neither repeats it
+  nor links to the PR. Do not link to — or name in plain text — an issue or
+  `todo/` file either: issue files are deleted when the work is done, so those
   references rot and mean nothing to a reader of the published package.
 - **A file holds list items only.** No heading — the version or PR number is the
-  file name — and no Markdown beyond paragraphs, list items, inline code, bold,
-  and links, so the website can render entries with a small self-hosted parser.
-- These rules govern **new** entries. Don't rewrite a released version's file as
-  a side effect of an unrelated PR — a feature PR touches its own file and
-  nothing else. A deliberate cleanup pass over past releases is a legitimate PR
-  of its own (this convention arrived as one), and no released text is lost when
-  it happens: each entry keeps its PR link, and the full prior wording stays in
-  the PR and in git history. Where an entry predates the convention and its PR
-  cannot be identified, leave it unlinked rather than guessing one.
+  file name — and no Markdown beyond paragraphs, list items, inline code, and
+  bold, so the website can render entries with a small self-hosted parser.
+- These rules govern **new** entries. Don't rewrite a released entry as a side
+  effect of an unrelated PR — a feature PR touches its own file and nothing
+  else. Entries written before this convention end with an inline
+  `[#NNN](url)` PR link (and the oldest have none); they are published history,
+  so leave them as they are. A deliberate cleanup pass over past releases is a
+  legitimate PR of its own (this convention arrived as one), and no released
+  text is lost when it happens: the full prior wording stays in the PR and in
+  git history.
 
 ### 8.4 Breaking changes and versioning
 
@@ -1295,7 +1300,8 @@ Only add CHANGELOG entries for code changes — PRs that only touch `todo/`,
   predate this convention and took a minor bump for feature-only releases too
   (`0.35.0`, `0.33.0`); they are published, so leave their numbers alone.
 - Releasing is its own commit: the version lives in `package.json` (`"version"`)
-  — `deno.json` holds tasks and formatting only. When it's bumped, concatenate
-  every `changelog/unreleased/*.md` in descending PR-number order into a new
-  `changelog/X.Y.Z.md` and delete the entry files, leaving
-  `changelog/unreleased/` with only its `.gitkeep`.
+  — `deno.json` holds tasks and formatting only. When it's bumped, rename
+  `changelog/unreleased/` to `changelog/X.Y.Z/`, keeping the entry files
+  exactly as they are. The next PR that adds an entry recreates
+  `changelog/unreleased/`. Releases through `0.44.0` are single
+  `changelog/X.Y.Z.md` files; leave them as they are.
