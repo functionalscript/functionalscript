@@ -8,7 +8,11 @@
 
 import { parse } from './module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.mjs'
-import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import {
+    assert,
+    assertEq,
+    assertStructurallySame,
+} from '../../../asserts/module.f.mjs'
 
 /** @type {(r: readonly [string, unknown]) => void} */
 const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
@@ -31,32 +35,8 @@ const assertErrorPath = expected =>
     r => {
         assert(r[0] === 'error', 'expected error')
         const e = /** @type {ValidationError} */ (r[1])
-        if (e.path.length !== expected.length) { throw `path length ${e.path.length} != ${expected.length}` }
-        for (let i = 0; i < expected.length; i++) {
-            if (e.path[i] !== expected[i]) { throw `path[${i}] ${e.path[i]} != ${expected[i]}` }
-        }
+        assertStructurallySame(e.path, expected, 'unexpected error path')
     }
-
-/** @type {(a: unknown, b: unknown) => void} */
-const assertDeepEqual = (a, b) => {
-    if (a === b) { return }
-    if (a instanceof Array && b instanceof Array) {
-        if (a.length !== b.length) { throw `array length ${a.length} != ${b.length}` }
-        for (let i = 0; i < a.length; i++) { assertDeepEqual(a[i], b[i]) }
-        return
-    }
-    if (typeof a === 'object' && a !== null && typeof b === 'object' && b !== null) {
-        const ka = Object.keys(a).sort()
-        const kb = Object.keys(b).sort()
-        if (ka.length !== kb.length) { throw `key count ${ka.length} != ${kb.length}` }
-        for (let i = 0; i < ka.length; i++) {
-            if (ka[i] !== kb[i]) { throw `key ${ka[i]} != ${kb[i]}` }
-            assertDeepEqual((/** @type {any} */ (a))[ka[i]], (/** @type {any} */ (b))[kb[i]])
-        }
-        return
-    }
-    throw `not deep-equal: ${String(a)} vs ${String(b)}`
-}
 
 export const proof = {
     boolean: {
@@ -173,12 +153,12 @@ export const proof = {
             ok: () => {
                 const t = /** @type {const} */ ([42, 'hello'])
                 const r = parse(t)([42, 'hello'])
-                assertDeepEqual(unwrap(r), [42, 'hello'])
+                assertStructurallySame(unwrap(r), [42, 'hello'])
             },
             // The key behavior change vs `validate`: extra tuple elements are dropped.
             extraItemsDropped: () => {
                 const r = parse(/** @type {const} */ ([42]))([42, 'extra'])
-                assertDeepEqual(unwrap(r), [42])
+                assertStructurallySame(unwrap(r), [42])
             },
             error: () => {
                 assertError(parse(/** @type {const} */ ([42]))([99]))
@@ -189,12 +169,12 @@ export const proof = {
             ok: () => {
                 const t = /** @type {const} */ ({ a: 42, b: 'hello' })
                 const r = parse(t)({ a: 42, b: 'hello' })
-                assertDeepEqual(unwrap(r), { a: 42, b: 'hello' })
+                assertStructurallySame(unwrap(r), { a: 42, b: 'hello' })
             },
             // Undeclared properties are dropped from the constructed value.
             extraKeysDropped: () => {
                 const r = parse(/** @type {const} */ ({ a: /** @type {const} */ (42) }))({ a: 42, b: 'extra' })
-                assertDeepEqual(unwrap(r), { a: 42 })
+                assertStructurallySame(unwrap(r), { a: 42 })
             },
             error: () => {
                 assertError(parse(/** @type {const} */ ({ a: 42 }))({ a: 99 }))
@@ -205,11 +185,11 @@ export const proof = {
     array: {
         empty: () => {
             const r = parse(array(number))([])
-            assertDeepEqual(unwrap(r), [])
+            assertStructurallySame(unwrap(r), [])
         },
         ok: () => {
             const r = parse(array(number))([1, 2, 3])
-            assertDeepEqual(unwrap(r), [1, 2, 3])
+            assertStructurallySame(unwrap(r), [1, 2, 3])
         },
         // `parse` always constructs a new array, even when the inner type is a primitive.
         freshArray: () => {
@@ -217,7 +197,7 @@ export const proof = {
             /** @type {readonly number[]} */
             const out = unwrap(parse(array(number))(input))
             assert(out !== /** @type {unknown} */ (input), 'expected a fresh array')
-            assertDeepEqual(out, [1, 2, 3])
+            assertStructurallySame(out, [1, 2, 3])
         },
         error: () => {
             assertError(parse(array(number))([1, 'two', 3]))
@@ -226,18 +206,18 @@ export const proof = {
         },
         nested: () => {
             const r = parse(array(array(boolean)))([[true, false], [false]])
-            assertDeepEqual(unwrap(r), [[true, false], [false]])
+            assertStructurallySame(unwrap(r), [[true, false], [false]])
             assertError(parse(array(array(boolean)))([[true, 42]]))
         },
     },
     record: {
         empty: () => {
             const r = parse(record(number))({})
-            assertDeepEqual(unwrap(r), {})
+            assertStructurallySame(unwrap(r), {})
         },
         ok: () => {
             const r = parse(record(string))({ a: 'hello', b: 'world' })
-            assertDeepEqual(unwrap(r), { a: 'hello', b: 'world' })
+            assertStructurallySame(unwrap(r), { a: 'hello', b: 'world' })
         },
         // `parse` always constructs a new record.
         freshRecord: () => {
@@ -245,7 +225,7 @@ export const proof = {
             /** @type {Record<string, number>} */
             const out = unwrap(parse(record(number))(input))
             assert(out !== /** @type {unknown} */ (input), 'expected a fresh record')
-            assertDeepEqual(out, { a: 1, b: 2 })
+            assertStructurallySame(out, { a: 1, b: 2 })
         },
         error: () => {
             assertError(parse(record(number))({ a: 1, b: 'two' }))
@@ -294,7 +274,7 @@ export const proof = {
             /** @type {readonly number[]} */
             const out = unwrap(parse(t)([1, 2, 3]))
             // The const tuple `[number]` matches first and returns a length-1 result.
-            assertDeepEqual(out, [1])
+            assertStructurallySame(out, [1])
         },
     },
     option: {

@@ -4,6 +4,8 @@
  * @module
  */
 
+import { structurallySame } from '../types/object/structurally_same/module.f.mjs'
+
 /**
  * Marks a code path as unimplemented. Always throws.
  * @type {() => never}
@@ -31,6 +33,24 @@ export const assert = (v, msg = 'assertion failed') => {
 export const assertEq = (...x) => {
     const [a, b] = x
     assert(a === b, x)
+}
+
+/**
+ * Asserts that `a` and `b` are structurally the same — equal leaves under the
+ * same shape, property order irrelevant — throwing `x` (the `[a, b]` pair, plus
+ * an optional third element used as an extra message) if they differ.
+ *
+ * This is the assertion to reach for when comparing two independently
+ * constructed values. `assertEq` is `===`, so it only ever answers "the same
+ * reference?" for objects, which is why proofs fell back to comparing
+ * `JSON.stringify` output; see `types/object/structurally_same/README.md` for
+ * why that is the wrong question and what this one does *not* cover.
+ *
+ * @type {(...x: readonly[unknown, unknown, unknown?]) => void}
+ */
+export const assertStructurallySame = (...x) => {
+    const [a, b] = x
+    assert(structurallySame(a, b), x)
 }
 
 /**

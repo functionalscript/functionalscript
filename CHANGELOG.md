@@ -25,7 +25,9 @@ history.
   largest value `stringToVec` can return without overflowing already lands
   at or under `maxLength` once the trimmed last chunk is added back
   [#1541](https://github.com/functionalscript/functionalscript/pull/1541)
-
+- `types/object`: new `structurallySame`, plus `assertStructurallySame` in
+  `fjs/asserts` — structural comparison for proofs
+  [#1538](https://github.com/functionalscript/functionalscript/pull/1538)
 - RTTI: new `fjs/types/rtti/data` module — a function-free, serializable,
   canonical data form for schemas with `toData`, `cmp`, `equal`, `subset`, and a
   data-driven `validate`
