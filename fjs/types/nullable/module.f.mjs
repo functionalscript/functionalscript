@@ -11,14 +11,31 @@ import { assert } from '../../asserts/module.f.mjs'
 import { fn } from '../function/module.f.mjs'
 
 /**
- * @type {<T, R>(f: (value: T) => R) => (value: Nullable<T>) => Nullable<R>}
- */
-export const map = f => value => value === null ? null : f(value)
-
-/**
- * @type {<T, R>(f: (_: T) => R) => (none: () => R) => (_: Nullable<T>) => Nullable<R>}
+ * Folds a `Nullable<T>` into a single value: `f` for a present value, `none`
+ * for `null`.
+ *
+ * The two branches carry independent result types, and `R2` lives on its own
+ * curry step on purpose. With `T`, `R1` and `R2` all on the outer generic they
+ * are instantiated together at `match(f)` — before `none` exists — so `R2` has
+ * nothing to infer from and collapses to `unknown`. Inferring it at the second
+ * call instead is what lets {@link map} be derived below.
+ *
+ * @type {<T, R1>(f: (_: T) => R1) => <R2>(none: () => R2) => (_: Nullable<T>) => R1 | R2}
  */
 export const match = f => none => value => value === null ? none() : f(value)
+
+/** The absent branch `map` fixes `match`'s `none` to. */
+const noneIsNull = () => null
+
+/**
+ * Projects the present value of a `Nullable<T>`, passing `null` through.
+ *
+ * `map` is `match` with the absent branch fixed to `null`, so the
+ * `value === null` guard is written once, in `match`.
+ *
+ * @type {<T, R>(f: (value: T) => R) => (value: Nullable<T>) => Nullable<R>}
+ */
+export const map = f => match(f)(noneIsNull)
 
 /**
  * @type {<T>(value: Nullable<T>) => Option<T>}
