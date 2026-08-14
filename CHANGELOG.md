@@ -20,9 +20,13 @@ history.
 
 ## Unreleased
 
-- `common/monoid`: `fold` reduces as a balanced tree instead of a left fold,
-  taking `bigint.product` and `string`/`bit_vec` concatenation from O(n²) to
-  O(n log n). Order is preserved; `number.sum` may round differently
+- `types/bit_vec`: `tryListToVec`/`tryU8ListToVec` reuse the shared balanced
+  `fold`, at the same cost as the accumulator they replace. They no longer stop
+  at the first overflow, so an unbounded lazy list past `maxLength` never returns
+  [#1548](https://github.com/functionalscript/functionalscript/pull/1548)
+- `common/monoid`: `fold` reduces as a balanced tree instead of a left fold.
+  `bigint.product` drops from O(n²) to O(n log n); `string.concat` pays a little
+  for the one combinator; `number.sum` may round differently. Order is preserved
   [#1548](https://github.com/functionalscript/functionalscript/pull/1548)
 - `djs/serializer`: `stringify`'s `constSerialize` drops a defensive throw for
   a `refs` lookup that can never miss — `consts` only ever holds values

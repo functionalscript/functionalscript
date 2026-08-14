@@ -213,8 +213,14 @@ const unpackEmpty = /** @type {const} */{ length: 0n, uint: 0n }
  * (AGENTS.md §5.6).
  *
  * Overflow is reported at the end rather than short-circuiting the walk: `null`
- * propagates through the rest of the fold, so an already-doomed list is still
- * walked to completion. Reusing one generic `fold` is worth that.
+ * propagates through the rest of the fold instead of abandoning the list. For a
+ * **finite** list that costs one completed walk over an already-doomed input,
+ * which is worth reusing one generic `fold`. For an **unbounded lazy** list
+ * (`List<T>` includes `Thunk<T>`) it is stronger than a cost: `tryListToVec` and
+ * `tryU8ListToVec` keep pulling elements forever and never return, where a
+ * short-circuiting fold answered `null` at the element that crossed the cap.
+ * Hand them a finite list — see `todo/` in this directory for restoring the
+ * early exit.
  *
  * @type {(unpackConcat: _UnpackConcat) => Monoid<Nullable<Unpacked>>}
  */
