@@ -51,6 +51,21 @@ export const proof = {
         () => {
             const result = stringify(toArray(toCodePointList([56320, 0])))
             assertEq(result, '[-2147427328,0]')
+        },
+        // `U16` is just `number`, so a non-integer in [0x0000, 0xFFFF] is a
+        // possible (if malformed) input. It must be rejected as invalid, not
+        // misclassified by the surrogate/BMP range checks, which only
+        // partition the integers in that range.
+        () => {
+            const result = stringify(toArray(toCodePointList([56319.5])))
+            assertEq(result, '[4294967295]')
+        },
+        // A non-integer word doesn't disturb a pending high surrogate: it is
+        // reported invalid on its own, and the surrogate is still flagged
+        // unpaired at EOF.
+        () => {
+            const result = stringify(toArray(toCodePointList([55296, 56319.5])))
+            assertEq(result, '[4294967295,-2147428352]')
         }
     ],
     fromCodePointList: [
