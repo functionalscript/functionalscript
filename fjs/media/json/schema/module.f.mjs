@@ -1,20 +1,32 @@
 /**
  * Converts an rtti schema to a JSON Schema (draft 2020-12) object.
  *
- * Driven by `fjs/types/rtti/common/module.f.mjs`'s `visit`, the same shared
- * `Type`-ADT walker used by `validate` and `parse`.
+ * {@link toJsonSchema} routes through the serializable RTTI data form
+ * (`fjs/types/rtti/data`): `thunk RTTI → toData → dataToJsonSchema`. The data
+ * form is a finite graph, so recursive schemas — which the thunk graph
+ * represents as self-referencing functions with no leaves — terminate:
+ * every named rule is emitted exactly once under `$defs` and every graph
+ * edge becomes a local `$ref`.
+ *
+ * Graph discovery, canonical identity, and definition naming belong to the
+ * RTTI data layer; this module only translates the finite graph, so the
+ * output is deterministic for equal canonical data: `anyOf` members follow
+ * the data form's kind order (`null`, `undefined`, booleans, numbers,
+ * strings, bigints, arrays, objects), and `properties`/`required` follow
+ * its sorted key order.
  *
  * @module
  *
- * @import { Struct, Tuple, Type as RttiType } from '../../../types/rtti/types.ts'
- * @import { Visitor } from '../../../types/rtti/common/types.ts'
- * @import { Primitive } from '../../../djs/types.ts'
+ * @import { Type as RttiType } from '../../../types/rtti/types.ts'
+ * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../../../types/rtti/data/types.ts'
  * @import { Ts } from '../../../types/rtti/ts/types.ts'
  * @import { Phantom } from '../../../types/phantom/types.ts'
  */
 
+import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { definedEntries } from '../../../types/object/module.f.mjs'
 import { array, option, or, record, string } from '../../../types/rtti/module.f.mjs'
-import { visit } from '../../../types/rtti/common/module.f.mjs'
+import { cmp, toData, unitBit, unknown as top } from '../../../types/rtti/data/module.f.mjs'
 import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
 
 /** @type {() => readonly ['const', typeof unknownConst]} */
@@ -30,6 +42,9 @@ export const unknown = unknownThunk
 /** @typedef {Ts<typeof unknown>} Unknown */
 
 const unknownConst = /** @type {const} */ ({
+    $schema: option(string),
+    $ref: option(string),
+    $defs: option(record(unknown)),
     type: or('boolean', 'number', 'string', 'integer', 'array', 'object', undefined),
     const: option(jsonUnknown),
     not: option(unknown),
@@ -46,11 +61,16 @@ const unknownConst = /** @type {const} */ ({
  *
  * The `?` markers are required even though `Ts<>` already includes `undefined`
  * in each field type. Without `?`, `Unknown = _UnknownConst` would require all
- * 9 fields to be present in every object literal returned by `toJsonSchema`,
+ * 12 fields to be present in every object literal returned by `toJsonSchema`,
  * because TypeScript distinguishes "field absent" (`?`) from "field present but
  * undefined" (`T | undefined`). JSON Schema objects only include the fields
- * they need, so all fields must be optional.
+ * they need, so all fields must be optional. `$defs` is an *open* map — an
+ * absent entry types as `undefined`, so missing-reference handling cannot be
+ * skipped.
  * @typedef {{
+ *   readonly $schema?: Ts<typeof unknownConst.$schema>
+ *   readonly $ref?: Ts<typeof unknownConst.$ref>
+ *   readonly $defs?: Ts<typeof unknownConst.$defs>
  *   readonly type?: Ts<typeof unknownConst.type>
  *   readonly const?: Ts<typeof unknownConst.const>
  *   readonly not?: Ts<typeof unknownConst.not>
@@ -63,83 +83,218 @@ const unknownConst = /** @type {const} */ ({
  * }} _UnknownConst
  */
 
-/** Returns true if the rtti schema admits the value `undefined`.
- * @type {(rtti: RttiType) => boolean}
- */
-const admitsUndefined = rtti => {
-    if (rtti === undefined) { return true }
-    if (typeof rtti !== 'function') { return false }
-    const [t, ...r] = rtti()
-    return t === 'or' ? r.some(admitsUndefined) : false
-}
+const nullBit = unitBit(null)
+const undefinedBit = unitBit(undefined)
+const falseBit = unitBit(false)
+const trueBit = unitBit(true)
+const booleanBits = falseBit | trueBit
 
-/** Returns the schema with `undefined` removed from any top-level `or`.
- * @type {(rtti: RttiType) => RttiType}
+/**
+ * Encodes a definition name for use inside a local `$ref` URI fragment:
+ * JSON Pointer escaping first (`~` → `~0`, `/` → `~1`), then
+ * percent-encoding of the remaining code points for the URI-fragment path
+ * segment. The order matters: a literal name `%2F` must encode to `%252F`,
+ * so URI decoding restores the literal `%2F` segment instead of a `/` that
+ * JSON Pointer evaluation would then misread as a separator.
+ *
+ * @type {(name: string) => string}
  */
-const stripUndefined = rtti => {
-    if (typeof rtti !== 'function') { return rtti }
-    const [t, ...r] = rtti()
-    if (t !== 'or') { return rtti }
-    const rest = r.flatMap(t => t !== undefined ? [t] : [])
-    return rest.length === 1 ? rest[0] : or(...rest)
-}
-
-// Struct: keys not admitting undefined go into `required`; optional keys have
-// undefined stripped from their property schema. additionalProperties is omitted
-// (lenient), matching rtti's open-struct validation semantics.
-/** @type {(rtti: Struct) => Unknown} */
-const structSchema = rtti => {
-    const ents = Object.entries(rtti)
-    const properties = Object.fromEntries(
-        ents.map(([k, v]) => [k, toJsonSchema(stripUndefined(v))])
-    )
-    const required = ents
-        .filter(([, v]) => !admitsUndefined(v))
-        .map(([k]) => k)
-    return {
-        type: 'object',
-        properties,
-        ...(required.length > 0 ? { required } : {}),
+const refEncode = name => {
+    let result = ''
+    for (const c of name) {
+        result += c === '~' ? '~0' : c === '/' ? '~1' : encodeURIComponent(c)
     }
-}
-
-/** @type {(rtti: Primitive) => Unknown} */
-const constPrimitiveSchema = rtti =>
-    rtti === undefined
-        ? { not: {} }
-        // bigint consts are represented as numbers (lossy for |value| > MAX_SAFE_INTEGER)
-        : { const: typeof rtti === 'bigint' ? Number(rtti) : rtti }
-
-/** @type {Visitor<Unknown>} */
-const visitor = {
-    tuple: (/** @type {Tuple} */ t) => ({ type: 'array', prefixItems: t.map(toJsonSchema), items: false }),
-    struct: structSchema,
-    array: item => ({ type: 'array', items: toJsonSchema(item) }),
-    record: item => ({ type: 'object', additionalProperties: toJsonSchema(item) }),
-    or: variants => ({ anyOf: variants.map(toJsonSchema) }),
-    constPrimitive: constPrimitiveSchema,
-    // bigint is not representable in JSON Schema; 'integer' is the closest approximation
-    primitive0: tag => ({ type: tag === 'bigint' ? 'integer' : tag }),
-    unknown: () => ({}),
+    return result
 }
 
 /**
- * Converts an rtti `Type` to a JSON Schema (draft 2020-12) object.
+ * A local `$ref` to a named definition. A reference must name an existing
+ * definition — a dangling name is malformed data and panics.
+ *
+ * @type {(rules: RuleSet) => (name: string) => Unknown}
+ */
+const refSchema = rules => name => {
+    assert(rules[name] !== undefined, `missing definition: ${name}`)
+    return { $ref: `#/$defs/${refEncode(name)}` }
+}
+
+/** @type {(rules: RuleSet) => (n: Node) => Unknown} */
+const nodeSchema = rules => n =>
+    typeof n === 'string' ? refSchema(rules)(n) : unionSchema(rules)(n)
+
+/**
+ * The schemas of one kind component: nothing when absent, the whole kind
+ * when `true`, one schema per member otherwise.
+ *
+ * @template T
+ * @param {KindSet<T> | undefined} k
+ * @param {Unknown} whole
+ * @param {(v: T) => Unknown} item
+ * @returns {readonly Unknown[]}
+ */
+const kindSchemas = (k, whole, item) =>
+    k === undefined ? [] :
+    k === true ? [whole] :
+    k.map(item)
+
+/** @type {(v: boolean | number | string | null) => Unknown} */
+const constSchema = v => ({ const: v })
+
+/** bigint consts are represented as numbers (lossy for |value| > MAX_SAFE_INTEGER) */
+/** @type {(v: bigint) => Unknown} */
+const bigintConstSchema = v => ({ const: Number(v) })
+
+/**
+ * The unit kind: `null` and `undefined` are their own singletons — no JSON
+ * value is `undefined`, hence `{ "not": {} }` — and both boolean bits
+ * together are the `boolean` type with no special-case rule.
+ *
+ * @type {(bits: number) => readonly Unknown[]}
+ */
+const unitSchemas = bits => [
+    ...((bits & nullBit) === 0 ? [] : [constSchema(null)]),
+    ...((bits & undefinedBit) === 0 ? [] : [{ not: {} }]),
+    ...((bits & booleanBits) === booleanBits ? [{ type: /** @type {const} */ ('boolean') }]
+        : (bits & falseBit) !== 0 ? [constSchema(false)]
+        : (bits & trueBit) !== 0 ? [constSchema(true)]
+        : []),
+]
+
+/**
+ * A set of arrays: `prefixItems` for the tuple prefix, `items` for the
+ * elements past it — `false` when the length is exact, so a tuple admits
+ * nothing beyond its prefix and the empty tuple is `{ "items": false }`.
+ *
+ * @type {(rules: RuleSet) => (p: ArraySet) => Unknown}
+ */
+const arraySetSchema = rules => p => ({
+    type: 'array',
+    ...(p.prefix.length === 0 ? {} : { prefixItems: p.prefix.map(nodeSchema(rules)) }),
+    items: p.rest === undefined ? false : nodeSchema(rules)(p.rest),
+})
+
+/** Whether the node's value set admits `undefined` — its unit bit, read
+ * through a reference if needed.
+ * @type {(rules: RuleSet) => (n: Node) => boolean}
+ */
+const admitsUndefined = rules => n => {
+    const u = typeof n === 'string' ? assertNotNullish(rules[n]) : n
+    return ((u.unit ?? 0) & undefinedBit) !== 0
+}
+
+/**
+ * The node with `undefined` removed — for an optional property's schema,
+ * where absence is already expressed by the key not being `required`. A
+ * reference is kept as-is: its definition is shared, and the extra
+ * `{ "not": {} }` member it may carry matches no JSON value anyway.
+ *
+ * @type {(n: Node) => Node}
+ */
+const stripUndefined = n => {
+    if (typeof n === 'string') { return n }
+    const unit = (n.unit ?? 0) & ~undefinedBit
+    return {
+        ...(unit === 0 ? {} : { unit }),
+        ...(n.number === undefined ? {} : { number: n.number }),
+        ...(n.string === undefined ? {} : { string: n.string }),
+        ...(n.bigint === undefined ? {} : { bigint: n.bigint }),
+        ...(n.array === undefined ? {} : { array: n.array }),
+        ...(n.object === undefined ? {} : { object: n.object }),
+    }
+}
+
+/**
+ * A set of objects: `properties` for the declared keys — a key admitting
+ * `undefined` is optional and has `undefined` stripped from its schema,
+ * every other key is `required` — and `additionalProperties` for the rest.
+ * No `rest` leaves the other keys unconstrained (lenient), matching rtti's
+ * open-struct validation semantics.
+ *
+ * @type {(rules: RuleSet) => (p: ObjectSet) => Unknown}
+ */
+const objectSetSchema = rules => p => {
+    const ents = definedEntries(p.props)
+    const required = ents.filter(([, n]) => !admitsUndefined(rules)(n)).map(([k]) => k)
+    return {
+        type: 'object',
+        ...(ents.length === 0 ? {} : {
+            properties: Object.fromEntries(ents.map(
+                ([k, n]) => /** @type {const} */ ([k, nodeSchema(rules)(stripUndefined(n))]))),
+        }),
+        ...(required.length === 0 ? {} : { required }),
+        ...(p.rest === undefined ? {} : { additionalProperties: nodeSchema(rules)(p.rest) }),
+    }
+}
+
+/** @type {(u: UnionSet) => boolean} */
+const isTop = u => cmp([{}, u])([{}, top]) === 0
+
+/** @type {(rules: RuleSet) => (u: UnionSet) => Unknown} */
+const unionSchema = rules => u => {
+    if (isTop(u)) { return {} }
+    const members = [
+        ...unitSchemas(u.unit ?? 0),
+        ...kindSchemas(u.number, { type: 'number' }, constSchema),
+        ...kindSchemas(u.string, { type: 'string' }, constSchema),
+        ...kindSchemas(u.bigint, { type: 'integer' }, bigintConstSchema),
+        ...kindSchemas(u.array, { type: 'array' }, arraySetSchema(rules)),
+        ...kindSchemas(u.object, { type: 'object' }, objectSetSchema(rules)),
+    ]
+    return members.length === 0 ? { not: {} }
+        : members.length === 1 ? members[0]
+        : { anyOf: members }
+}
+
+/**
+ * Converts a serializable RTTI {@link Data} (from `toData`) to a JSON Schema
+ * (draft 2020-12) object.
+ *
+ * Every named rule is emitted exactly once under `$defs` and each reference
+ * becomes a local `$ref` — self- and mutual recursion terminate, and the
+ * root itself is a `$ref` when the entry is a named definition. Definition
+ * names come from the data form (deterministic for equal canonical data)
+ * and are JSON Pointer-escaped, then percent-encoded, for the `$ref`
+ * fragment. A reference naming a missing definition panics.
+ *
+ * @type {(data: Data) => Unknown}
+ */
+export const dataToJsonSchema = ([rules, entry]) => {
+    const ruleEntries = definedEntries(rules)
+    const root = nodeSchema(rules)(entry)
+    return ruleEntries.length === 0 ? root : {
+        ...root,
+        $defs: Object.fromEntries(ruleEntries.map(
+            ([name, u]) => /** @type {const} */ ([name, unionSchema(rules)(u)]))),
+    }
+}
+
+/**
+ * Converts an rtti `Type` to a JSON Schema (draft 2020-12) object, through
+ * the canonical data form: `toData` first, then {@link dataToJsonSchema}.
  *
  * | rtti                                          | JSON Schema                                                                         |
  * |-----------------------------------------------|-------------------------------------------------------------------------------------|
  * | `boolean` / `number` / `string`               | `{ "type": "..." }`                                                                 |
  * | `bigint`                                      | `{ "type": "integer" }` (lossy; JSON integers are IEEE-754 doubles)                 |
  * | `unknown`                                     | `{}` (always-true schema)                                                           |
- * | primitive const (`42`, `'x'`, `true`, `null`) | `{ "const": <value> }`                                                              |
+ * | `never` / `or()`                              | `{ "not": {} }` (no JSON value satisfies this)                                      |
+ * | primitive const (`42`, `'x'`, `null`)         | `{ "const": <value> }`                                                              |
+ * | `or(true, false)`                             | `{ "type": "boolean" }` (the union normalizes to the whole kind)                    |
  * | `bigint` const                                | `{ "const": Number(value) }` (lossy for \|value\| > MAX_SAFE_INTEGER)               |
- * | `undefined` const                             | `{ "not": {} }` (no JSON value satisfies this)                                      |
+ * | `undefined` const                             | `{ "not": {} }`                                                                     |
  * | struct `{ a: T, … }`                          | `{ "type": "object", "properties": { "a": …T… }, "required": [non-optional keys] }` |
  * | tuple `[A, B]`                                | `{ "type": "array", "prefixItems": […A…, …B…], "items": false }`                    |
  * | `array(T)`                                    | `{ "type": "array", "items": …T… }`                                                 |
  * | `record(T)`                                   | `{ "type": "object", "additionalProperties": …T… }`                                 |
- * | `or(...types)`                                | `{ "anyOf": […each…] }`                                                             |
+ * | `or(...types)`                                | `{ "anyOf": […each…] }`, normalized and in canonical kind order                     |
+ * | recursive schema                              | `{ "$ref": "#/$defs/<name>", "$defs": { "<name>": … } }`                            |
+ *
+ * The union rows follow the data form's normalization: operands are merged
+ * kind-wise, literals covered by their whole kind are absorbed
+ * (`or(42, number)` is all numbers), subsumed patterns are dropped, and
+ * duplicates collapse — so structurally different but equivalent thunk
+ * schemas produce the same JSON Schema.
  *
  * @type {(rtti: RttiType) => Unknown}
  */
-export const toJsonSchema = visit(visitor)
+export const toJsonSchema = rtti => dataToJsonSchema(toData(rtti))
