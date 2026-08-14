@@ -393,13 +393,23 @@ comment attached to the *following* declaration instead
 fixed for the services layer), and
 [microsoft/TypeScript#61664](https://github.com/microsoft/TypeScript/issues/61664)
 proposes stripping redundant JSDoc type directives from declaration emit while
-keeping documentation. Neither tracks this loss directly; no upstream issue for
-it has been identified yet.
+keeping documentation. Neither tracks this loss directly.
+
+Re-measured in
+[#1530](https://github.com/functionalscript/functionalscript/pull/1530)
+across three review rounds, the rule on tsc 7.0.2 is: a typedef block keeps
+its documentation only when it is the first thing in the file *and* a blank
+line separates it from whatever follows — so in a real module, whose header
+comment comes first, typedef documentation never attaches at all. A
+regression relative to strada 5.9.3, which kept trimmed prose in every
+measured shape. The minimal reproduction and a
+paste-ready upstream body (targeting `microsoft/typescript-go`) live in
+[`blocked/jsdoc-typedef-doc-declaration-emit.md`](./blocked/jsdoc-typedef-doc-declaration-emit.md);
+filing it is that issue's first task.
 
 This does not block any migration group — it is a documentation-fidelity
-regression, not a type-contract one. Record it, keep writing the documentation in
-the source, and file an upstream issue so the gap is tracked rather than
-rediscovered by each migration.
+regression, not a type-contract one. Keep writing the documentation in the
+source meanwhile.
 
 #### Module header and import ordering
 
@@ -835,10 +845,15 @@ blocking, plus the prose sweep. The remaining items are listed under
       block, so all 127 emitted module declarations carry the header. Still
       open in this item: sweeping scattered `@import` comments into the
       leading block and the import-group ordering.
-- [ ] File an upstream issue for JSDoc typedef documentation being dropped from
+- [x] File an upstream issue for JSDoc typedef documentation being dropped from
       declaration emit, and keep writing type documentation in the source
       meanwhile; substantial type APIs may instead live directly in `types.ts`
-      when that is the cleaner module design.
+      when that is the cleaner module design. Spun out in
+      [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
+      into
+      [`blocked/jsdoc-typedef-doc-declaration-emit.md`](./blocked/jsdoc-typedef-doc-declaration-emit.md)
+      with a measured reproduction and a paste-ready upstream body; the filing
+      itself, an external action, is that issue's first task.
 - [ ] Treat `_`-prefixed JSDoc typedef names as private even when declarations
       emit them as exports, but still require `**BREAKING CHANGES:**` whenever a
       change to one alters the assignability of a public declaration.
@@ -1025,10 +1040,16 @@ person can re-check rather than re-derive. Counts are as of
       (`fjs/bnf/todo/unicode-rules.md`, `fjs/effects/todo/node-module-layering.md`
       and ~40 others), since no such file may be authored any more.
 
-      All 21 files that still contain the old extension anywhere (22 before
+      All 21 files that still contain the old extension anywhere are listed
+      below, and each one is deliberate. (History of the count: `205.md` left
+      the set when
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
-      deleted `205.md`) are listed
-      below, and each one is deliberate. Describing the migration or the
+      deleted it, the formatter issue left when
+      [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
+      retitled it, and earlier revisions of this paragraph ran one short —
+      `fjs/emergent_testing/scenarios.md`, which quotes the deleted `run.sh`
+      verbatim, was in the measured set but never enumerated. Review on #1530
+      caught it.) Describing the migration or the
       extension itself: this file, `AGENTS.md`,
       [`fjs/fsc/README.md`](../fjs/fsc/README.md),
       [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
@@ -1039,8 +1060,12 @@ person can re-check rather than re-derive. Counts are as of
       [`plan/roadmap.md`](./plan/roadmap.md), [`lang/README.md`](./lang/README.md),
       [`demo/README.md`](./demo/README.md),
       [`nanvm-lib/todo/mvp-roadmap.md`](../nanvm-lib/todo/mvp-roadmap.md),
+      and
       [`blocked/js-extension-type-annotations.md`](./blocked/js-extension-type-annotations.md)
-      and [`formatter-for-f-js-and-f-ts-files.md`](../fjs/todo/formatter-for-f-js-and-f-ts-files.md).
+      (the formatter issue left the set when
+      [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
+      retitled it to
+      [`formatter-for-f-js-files.md`](../fjs/todo/formatter-for-f-js-files.md)).
       Quoting `shouldLoad`, which still matches `.f.ts`:
       [`664-emergent-testing-module-files.md`](../fjs/emergent_testing/todo/664-emergent-testing-module-files.md)
       and [`skip-property.md`](../fjs/emergent_testing/todo/skip-property.md)
@@ -1049,8 +1074,10 @@ person can re-check rather than re-derive. Counts are as of
       deleted it with the scenario suite it described).
       Recording a superseded convention or a completed move:
       [`028-unit-test-examples-api.md`](../fjs/emergent_testing/todo/028-unit-test-examples-api.md),
-      [`throw-payload-assertions.md`](../fjs/emergent_testing/todo/throw-payload-assertions.md)
-      and [`group-fs-subdirectories-by-concern.md`](../fjs/todo/group-fs-subdirectories-by-concern.md).
+      [`throw-payload-assertions.md`](../fjs/emergent_testing/todo/throw-payload-assertions.md),
+      [`group-fs-subdirectories-by-concern.md`](../fjs/todo/group-fs-subdirectories-by-concern.md)
+      and [`scenarios.md`](../fjs/emergent_testing/scenarios.md), which quotes
+      the deleted scenario harness verbatim.
       Plus [`browser-testing.md`](../fjs/emergent_testing/todo/browser-testing.md)
       and [`serializable-data.md`](../fjs/types/rtti/todo/serializable-data.md),
       each its own item below. Re-measure with the same resolve-against-the-tree
@@ -1067,11 +1094,10 @@ person can re-check rather than re-derive. Counts are as of
       have produced a plan that no longer describes anything. Decide whether the
       transpile step survives for `types.ts`-only reasons, shrinks to a bundling
       concern, or goes away — then rewrite the document to match.
-- [ ] **Retitle `formatter-for-f-js-and-f-ts-files.md`.**
-      [`fjs/todo/formatter-for-f-js-and-f-ts-files.md`](../fjs/todo/formatter-for-f-js-and-f-ts-files.md)
-      names `.f.ts` in its filename and title. A formatter no longer needs to
-      handle that extension; renaming the file is a trivial follow-up left out of
-      the prose sweep because it changes a path rather than prose.
+- [x] **Retitle `formatter-for-f-js-and-f-ts-files.md`.** Done in
+      [#1530](https://github.com/functionalscript/functionalscript/pull/1530):
+      now [`fjs/todo/formatter-for-f-js-files.md`](../fjs/todo/formatter-for-f-js-files.md),
+      naming `.f.mjs` (and the stage-2 `.f.js`) as the formatter's targets.
 - [ ] **Fix the one broken doc link that is not a rename artifact.**
       `fjs/types/rtti/todo/serializable-data.md` links to `../data/module.f.ts`;
       `fjs/types/rtti/data/` has never existed, so this needs an author decision
