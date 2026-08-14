@@ -295,7 +295,8 @@ the existing `option(true)` idiom (a presence-only flag) rather than
   revisions could share, and a revision field referencing such shared lock
   content. History for that content would still be ordinary revisions, so
   neither is a second history mechanism — but neither is designed yet, and
-  `lock` here stays an inline, per-revision map.
+  `lock` here stays an inline, per-revision map
+  ([fjs/media shared-lock-format](../todo/shared-lock-format.md)).
 - A dependency-resolution algorithm. The format records bindings; precedence,
   inheritance, and conflict rules are a resolver's, and are deliberately
   absent here (see [Lock maps](#lock-maps)).
