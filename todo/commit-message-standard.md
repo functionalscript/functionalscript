@@ -24,11 +24,18 @@ as version-bump commit titles.
 ### One squash commit per PR — no other merge method
 
 - **Squash and merge only.** Disable "Create a merge commit" and "Rebase and
-  merge" in the repository settings. A rebase merge fast-forwards the branch's
-  commits onto `main` as-is: they carry no ` (#NNN)` suffix and no reviewed
-  body, so the PR — the unit the changelog is written in — becomes invisible
-  to a generator. A merge commit keeps the PR number but buries the content in
-  a two-parent graph the generator would have to re-linearize.
+  merge" in the repository settings. A rebase merge replays the branch's
+  commits onto `main` (GitHub rewrites committer and SHAs, but keeps each
+  commit's own message): they carry no ` (#NNN)` suffix and no reviewed body,
+  so the PR — the unit the changelog is written in — becomes invisible to a
+  generator. A merge commit keeps the PR number but buries the content in a
+  two-parent graph the generator would have to re-linearize. A squash merge
+  never lands branch commits: it always creates one new commit, parented on
+  the `main` tip, titled `<PR title> (#NNN)` — every commit on `main` today
+  already has this shape.
+- **No true fast-forward is possible through the GitHub UI** — but `git push`
+  from a local clone fast-forwards `main` to arbitrary commits with no PR
+  information at all, which is what the branch-protection rule below closes.
 - **No direct pushes to `main`.** Branch protection: require a PR, require
   linear history. Every commit on `main` is then a squash commit of exactly
   one PR, in merge order — the "correct order, nothing missed" property comes
