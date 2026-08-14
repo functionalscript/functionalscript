@@ -4,6 +4,10 @@
 **Status:** open — do not start until the format from
 [commit-message-standard.md](./commit-message-standard.md) is adopted into
 AGENTS.md §8; the linter enforces the documented rule, not the proposal.
+The gap between adoption and enforcement is deliberate trial time: the
+format is used by hand on real PRs first, and whatever it gets wrong is
+fixed while a fix is still a documentation edit rather than a linter
+change plus a rule migration.
 
 ## Problem
 
