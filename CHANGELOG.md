@@ -20,6 +20,9 @@ history.
 
 ## Unreleased
 
+- `types/uint8array`: `toVec` attempts the conversion instead of precomputing a
+  byte-count bound; behavior and error message unchanged
+  [#1543](https://github.com/functionalscript/functionalscript/pull/1543)
 - `types/object`: new `structurallySame`, plus `assertStructurallySame` in
   `fjs/asserts` — structural comparison for proofs
   [#1538](https://github.com/functionalscript/functionalscript/pull/1538)
