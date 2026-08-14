@@ -2,10 +2,10 @@
  * Comparison function types and helpers.
  *
  * @module
+ *
+ * @import { Index, Tuple } from '../../array/types.ts'
+ * @import { Cmp1, Cmp2, Compare, Sign } from './types.ts'
  */
-
-/** @import { Index, Tuple } from '../../array/types.ts' */
-/** @import { Cmp1, Cmp2, Compare, Sign } from './types.ts' */
 
 /** @type {<T>(cmp: Compare<T>) => (value: T) => Index<3>} */
 export const index3

@@ -2,18 +2,19 @@
  * Ordered map operations with deterministic key traversal.
  *
  * @module
+ *
+ * @import { Sign } from '../function/compare/types.ts'
+ * @import { List } from '../list/types.ts'
+ * @import { Reduce } from '../function/operator/types.ts'
+ * @import { Entry, OrderedMap } from './types.ts'
  */
 
 import { value, find } from '../btree/find/module.f.mjs'
 import { set } from '../btree/set/module.f.mjs'
 import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
 import { values } from '../btree/module.f.mjs'
-/** @import { Sign } from '../function/compare/types.ts' */
 import { cmp } from '../string/module.f.mjs'
-/** @import { List } from '../list/types.ts' */
 import { fold } from '../list/module.f.mjs'
-/** @import { Reduce } from '../function/operator/types.ts' */
-/** @import { Entry, OrderedMap } from './types.ts' */
 
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */
 const keyCmp = a => ([b]) => cmp(a)(b)

@@ -2,19 +2,20 @@
  * Development utilities for indexing modules and loading FunctionalScript files.
  *
  * @module
+ *
+ * @import { Access, All, Env, Import, Readdir } from '../effects/node/types.ts'
+ * @import { Effect } from '../effects/types.ts'
+ * @import { Dir } from '../effects/node/virtual/types.ts'
+ * @import { Module, ModuleMap, LoadModuleOperations } from './types.ts'
  */
 
 import { all, import_, readdir } from '../effects/node/module.f.mjs'
-/** @import { Access, All, Env, Import, Readdir } from '../effects/node/types.ts' */
 import { cmp as strCmp } from '../types/string/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
 import { pure, step } from '../effects/module.f.mjs'
-/** @import { Effect } from '../effects/types.ts' */
 import { join, relativize, toPosix } from '../path/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
-/** @import { Dir } from '../effects/node/virtual/types.ts' */
-/** @import { Module, ModuleMap, LoadModuleOperations } from './types.ts' */
 
 /**
  * Returns `true` if the file should be loaded for proof discovery.

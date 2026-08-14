@@ -1,6 +1,9 @@
+/**
+ * @import { NodeProgramOptions } from '../../effects/node/types.ts'
+ */
+
 import { fgRed, reset, createConsoleText, backspace, csiWrite } from './module.f.mjs'
 import { virtual, emptyState, defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
-/** @import { NodeProgramOptions } from '../../effects/node/types.ts' */
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 /** @type {(isTTY: boolean) => NodeProgramOptions} */

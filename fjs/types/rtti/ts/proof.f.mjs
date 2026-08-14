@@ -1,6 +1,9 @@
+/**
+ * @import { Type } from '../types.ts'
+ */
+
 import { printer } from './module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, record, or, option, never } from '../module.f.mjs'
-/** @import { Type } from '../types.ts' */
 
 const toTs = printer()
 const toTsMut = printer(true)

@@ -3,10 +3,11 @@
  * See `./types.ts` for `Ts<T>` and the `*Ts` transformer types.
  *
  * @module
+ *
+ * @import { Const, Type } from '../types.ts'
  */
 
 import { primitive, union, printer as tsPrinter } from '../../ts/module.f.mjs'
-/** @import { Const, Type } from '../types.ts' */
 
 /**
  * Creates a printer that converts an RTTI schema `Type` to its TypeScript type expression as a string.

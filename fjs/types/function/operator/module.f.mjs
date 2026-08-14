@@ -2,9 +2,9 @@
  * Common higher-order operator type aliases.
  *
  * @module
+ *
+ * @import { Fold, Reduce, Scan, StateScan, Unary } from './types.ts'
  */
-
-/** @import { Fold, Reduce, Scan, StateScan, Unary } from './types.ts' */
 
 /** @type {(separator: string) => Reduce<string>} */
 export const join = separator => value => prior =>

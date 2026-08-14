@@ -2,11 +2,11 @@
  * JavaScript immutable arrays.
  *
  * @module
+ *
+ * @import { Tuple } from './types.ts'
  */
 
 import { fromUndefined, map } from '../nullable/module.f.mjs'
-
-/** @import { Tuple } from './types.ts' */
 
 /**
  * @type {(value: unknown) => value is readonly unknown[]}

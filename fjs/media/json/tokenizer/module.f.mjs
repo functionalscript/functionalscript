@@ -2,15 +2,16 @@
  * Tokenizer for JSON lexical analysis.
  *
  * @module
+ *
+ * @import { StateScan } from '../../../types/function/operator/types.ts'
+ * @import { List } from '../../../types/list/types.ts'
+ * @import { JsToken } from '../../../js/tokenizer/types.ts'
+ * @import { JsonToken, _ScanState, _ScanInput } from './types.ts'
  */
 
-/** @import { StateScan } from '../../../types/function/operator/types.ts' */
-/** @import { List } from '../../../types/list/types.ts' */
 import { concat, empty, flat, stateScan, toArray } from '../../../types/list/module.f.mjs'
 import { multiply } from '../../../types/bigfloat/module.f.mjs'
 import { tokenize as jsTokenize } from '../../../js/tokenizer/module.f.mjs'
-/** @import { JsToken } from '../../../js/tokenizer/types.ts' */
-/** @import { JsonToken, _ScanState, _ScanInput } from './types.ts' */
 import { assertEq } from '../../../asserts/module.f.mjs'
 
 /** @type {(input: JsToken) => List<JsonToken>} */

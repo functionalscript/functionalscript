@@ -11,6 +11,11 @@
  * globals directly instead.
  *
  * @module
+ *
+ * @import { Effect } from '../types.ts'
+ * @import { Server as EffectServer, Headers, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, WriteConsoles, TestContext, TestFn, } from './types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
  */
 
 import http from 'node:http'
@@ -23,30 +28,13 @@ import { once } from 'node:events'
 import * as testContext from 'node:test'
 
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
-/** @import { Effect } from '../types.ts' */
 import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
 import { usesInlineTestContext } from './module.f.mjs'
-/**
- * @import {
- *   Server as EffectServer,
- *   Headers,
- *   Module,
- *   NodeOp,
- *   RequestListener as Erl,
- *   NodeProgram,
- *   NodeProgramOptions,
- *   WriteConsoles,
- *   TestContext,
- *   TestFn,
- * } from './types.ts'
- */
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
-/** @import { Result } from '../../types/result/types.ts' */
 import { error, ok } from '../../types/result/module.f.mjs'
 import { asyncTryCatch } from '../../types/result/module.mjs'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.mjs'
-/** @import { StringMap } from '../../types/object/types.ts' */
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 
 /** @typedef {{ readonly listen: (port: number) => void }} _Server */

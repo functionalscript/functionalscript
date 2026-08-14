@@ -3,14 +3,15 @@
  * See `./types.ts` for the `Add`/`EncodeState` type-level API.
  *
  * @module
+ *
+ * @import { Create } from '../../../types/patricia_trie/types.ts'
+ * @import { Id } from '../../id/types.ts'
+ * @import { Add, EncodeState } from './types.ts'
  */
 
-/** @import { Create } from '../../../types/patricia_trie/types.ts' */
 import { emptyState, patriciaTrie } from '../../../types/patricia_trie/module.f.mjs'
 import { compress } from '../../id/module.f.mjs'
-/** @import { Id } from '../../id/types.ts' */
 import { asBase } from '../../../types/nominal/module.f.mjs'
-/** @import { Add, EncodeState } from './types.ts' */
 
 /**
  * Returns a streaming encoder for hash-level symbols.

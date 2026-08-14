@@ -3,9 +3,9 @@
  * themselves live in `./types.ts`.
  *
  * @module
+ *
+ * @import { Branch1, Branch3, Branch5, TNode } from './types.ts'
  */
-
-/** @import { Branch1, Branch3, Branch5, TNode } from './types.ts' */
 
 /**
  * Demotes a single-child branch root to its only child.

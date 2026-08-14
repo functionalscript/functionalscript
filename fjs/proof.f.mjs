@@ -1,8 +1,11 @@
+/**
+ * @import { NodeProgram, NodeProgramOptions } from './effects/node/types.ts'
+ * @import { Dir } from './effects/node/virtual/types.ts'
+ */
+
 import { assert, assertEq } from './asserts/module.f.mjs'
 import { pure } from './effects/module.f.mjs'
-/** @import { NodeProgram, NodeProgramOptions } from './effects/node/types.ts' */
 import { defaultNodeProgramOptions, emptyState, virtual } from './effects/node/virtual/module.f.mjs'
-/** @import { Dir } from './effects/node/virtual/types.ts' */
 import { main } from './module.f.mjs'
 
 /** @type {(args: readonly string[]) => NodeProgramOptions} */

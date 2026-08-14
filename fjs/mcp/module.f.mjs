@@ -25,26 +25,27 @@
  * store and one in-memory Evo cache scanned once at startup (`initEvo`).
  *
  * @module
+ *
+ * @import { Effect } from '../effects/types.ts'
+ * @import { MemOp } from '../effects/memory/types.ts'
+ * @import { Read, Write } from '../effects/node/types.ts'
+ * @import { McpConfig, McpHandlers } from '../protocol/mcp/types.ts'
+ * @import { FileCasOperation } from '../cas/types.ts'
+ * @import { Cache } from '../cas/evo/types.ts'
+ * @import { Key } from '../effects/memory/types.ts'
  */
 
 import { step } from '../effects/module.f.mjs'
-/** @import { Effect } from '../effects/types.ts' */
 import { create } from '../effects/memory/module.f.mjs'
-/** @import { MemOp } from '../effects/memory/types.ts' */
-/** @import { Read, Write } from '../effects/node/types.ts' */
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import {
     mcpStep, uninitializedState, fromRegistry,
 } from '../protocol/mcp/module.f.mjs'
-/** @import { McpConfig, McpHandlers } from '../protocol/mcp/types.ts' */
 import { fileCas } from '../cas/module.f.mjs'
-/** @import { FileCasOperation } from '../cas/types.ts' */
 import { initEvo, evo } from '../cas/evo/module.f.mjs'
-/** @import { Cache } from '../cas/evo/types.ts' */
 import { sha256 } from '../crypto/sha2/module.f.mjs'
 import { casToolRegistry } from './cas/module.f.mjs'
 import { evoToolRegistry } from './evo/module.f.mjs'
-/** @import { Key } from '../effects/memory/types.ts' */
 
 // ── Handlers ────────────────────────────────────────────────────────────────────
 
