@@ -35,7 +35,7 @@ This removes the partial-application footgun and drops one closure allocation pe
 
 ### Considerations
 
-- **Broad mechanical refactor.** ~20+ operator definitions across `bigint`, `prime_field`, `bit_vec`, `string`, `monoid`, `number`, `range_map`, plus `operator` itself and the `foldToScan`/`reduceToScan`/`fold`/`reduce` plumbing in `list`. `genericMerge`/`cmpReduce`/`mergeTail` in `sorted_list` and the `range_map` merge consumers change accordingly.
+- **Broad mechanical refactor.** ~20+ operator definitions across `bigint`, `prime_field`, `bit_vec`, `string`, `monoid`, `number`, `range_map`, plus `operator` itself and the `foldToScan`/`reduceToScan`/`fold`/`reduce` plumbing in `list`. `genericMerge`/`cmpReduce`/`keepTail` in `sorted_list` and the `range_map` merge consumers change accordingly.
 - **`Fold` can no longer be `Binary<I, O, O>`.** This draws a clean line between combinators where currying is genuinely useful (`Binary`/`Equal`/`Unary`) and accumulators where currying is dangerous (`Fold`/`Reduce`/`StateScan`/`ReduceOp`/`TailReduce`).
 - Could be split: `Fold`/`Reduce` first, `sorted_list`'s `ReduceOp`/`TailReduce` as a follow-up.
 
