@@ -47,6 +47,7 @@ import {
     unicodeMax,
     unicodeRange,
 } from '../../bnf/module.f.mjs'
+import { keywords } from '../../js/keywords/module.f.mjs'
 import { isKeywordToken } from '../../js/tokenizer/module.f.mjs'
 import { multiply } from '../../types/bigfloat/module.f.mjs'
 import {
@@ -389,15 +390,7 @@ const decodeNumber = value => {
     return [mantissa, exp]
 }
 
-const keywords = /** @type {ReadonlySet<string>} */ (new Set([
-    'true', 'false', 'null', 'undefined',
-    'arguments', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
-    'debugger', 'default', 'delete', 'do', 'else', 'enum', 'eval', 'export',
-    'extends', 'finally', 'for', 'function', 'if', 'implements', 'import', 'in',
-    'instanceof', 'interface', 'let', 'new', 'package', 'private', 'protected',
-    'public', 'return', 'static', 'super', 'switch', 'this', 'throw', 'try',
-    'typeof', 'var', 'void', 'while', 'with', 'yield',
-]))
+const keywordSet = /** @type {ReadonlySet<string>} */ (new Set(keywords))
 
 /** @type {(tk: _Token) => JsToken} */
 const toJsToken = tk => {
@@ -413,7 +406,7 @@ const toJsToken = tk => {
             return { kind: 'string', value: decodeJsonString(codePoints) }
         case 'id': {
             const value = codePointListToString(codePoints)
-            if (keywords.has(value)) return /** @type {JsToken} */ ({ kind: value })
+            if (keywordSet.has(value)) return /** @type {JsToken} */ ({ kind: value })
             return { kind: 'id', value }
         }
         case 'number': {
