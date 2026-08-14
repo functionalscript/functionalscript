@@ -94,7 +94,11 @@ design:
 - rule *names* are part of the structure, so two recursive schemas that
   differ only in the names of their defining functions are semantically equal
   yet structurally distinct — full graph canonicalization is
-  bisimulation-grade work the simple form deliberately avoids;
+  bisimulation-grade work the simple form deliberately avoids. `subset`
+  resolves references coinductively, so such a pair is a mutual `subset`
+  without being `equal` — mutual inclusion implies equality of the *sets*,
+  not of the spellings — and their union normalizes to whichever spelling
+  sorts first;
 - a reference is never recognized as `unknown` or `never`, so e.g. a cyclic
   rule whose fixpoint happens to be the whole domain is not collapsed to
   `unknown`.

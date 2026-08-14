@@ -417,16 +417,19 @@ export const subset = ([aRules, aNode]) => ([bRules, bNode]) =>
 /**
  * Drops every pattern subsumed by another pattern of the same list.
  *
- * Canonical lists hold no two distinct patterns with equal value sets — a
- * set has one canonical spelling and equal spellings are deduplicated — so
- * mutual subsumption cannot drop both members of a pair.
+ * Two *distinct* patterns can subsume each other: references to
+ * α-equivalent rules under different names spell the same value set two
+ * ways (e.g. `list` and a differently-named `X = readonly X[]`). A
+ * mutually-subsumed pattern is therefore dropped only in favor of an
+ * earlier one, keeping exactly the first member of each such group —
+ * dropping on subsumption alone would drop the whole group.
  *
  * @template T
  * @param {(p: T, q: T) => boolean} le
  * @returns {(list: readonly T[]) => readonly T[]}
  */
 const dropSubsumed = le => list =>
-    list.filter((p, i) => !list.some((q, j) => j !== i && le(p, q)))
+    list.filter((p, i) => !list.some((q, j) => j !== i && le(p, q) && (j < i || !le(q, p))))
 
 /**
  * @template T

@@ -246,6 +246,23 @@ export const proof = {
             // in nested positions too
             assertData(toData({ p: or(list) }))(toData({ p: list }))
         },
+        alphaEquivalence: () => {
+            // two α-equivalent recursive rules under different names spell
+            // the same set two ways; their union keeps the spelling that
+            // sorts first instead of dropping the mutually-subsumed pair
+            const listB = mkRec()
+            assertData(toData(or(list, listB)))(toData(listB))
+            assertData(toData(or(listB, list)))(toData(listB))
+            assert(subset(toData(list))(toData(or(list, listB))))
+            assert(subset(toData(listB))(toData(or(list, listB))))
+            assertEq(validate(toData(or(list, listB)))([[]])[0], 'ok')
+            // the pair is a mutual subset, yet `equal` stays structural
+            assert(subset(toData(list))(toData(listB)))
+            assert(subset(toData(listB))(toData(list)))
+            assert(!equal(toData(list))(toData(listB)))
+            // bisimilar mixed-kind recursions collapse the same way
+            assertData(toData(or(tree, y)))(toData(tree))
+        },
         names: () => {
             // colliding function names are disambiguated with a counter
             assertData(toData(/** @type {const} */ ([mkRec(), mkRec()])))([
