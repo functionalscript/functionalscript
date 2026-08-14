@@ -31,8 +31,12 @@ as version-bump commit titles.
   generator. A merge commit keeps the PR number but buries the content in a
   two-parent graph the generator would have to re-linearize. A squash merge
   never lands branch commits: it always creates one new commit, parented on
-  the `main` tip, titled `<PR title> (#NNN)` — every commit on `main` today
-  already has this shape.
+  the `main` tip, titled `<PR title> (#NNN)` — the last hundred first-parent
+  commits on `main` already have this shape. Older history does not (486 of
+  1803 first-parent commits lack the ` (#NNN)` suffix, 15 are merge commits,
+  and release `0.41.0` landed by direct push as recently as 2026-08-03),
+  which is the Problem section's point: the shape holds only while every
+  landing goes through a squash-merged PR, and nothing enforces that today.
 - **No true fast-forward is possible through the GitHub UI** — but `git push`
   from a local clone fast-forwards `main` to arbitrary commits with no PR
   information at all, which is what the branch-protection rule below closes.
@@ -54,17 +58,20 @@ before merge:
   (`ci`, `docs`, `changelog`, `AGENTS.md`) — the same topic the changelog
   entry starts with.
 - ≤ 72 characters including the ` (#NNN)` GitHub appends; no `(#…)` of your
-  own, no trailing period.
+  own, no trailing period. The limit is a deliberate tightening, not current
+  practice — 38 of the last 200 titles exceed it today.
 - A release PR's title is the bare version: `0.45.0`.
 
 ### Body: the PR description, carrying the changelog entry
 
 Set the repository's default squash message to **"Pull request title and
 description"**, so the body is reviewed prose instead of the intermediate
-commit list. The PR description then ends with a `Changelog:` section — the
-last section of the body, holding exactly the list items that would go into
-`changelog/unreleased/<PR>.md`, in the same restricted Markdown subset, no PR
-link (the title's `(#NNN)` identifies it):
+commit list. The PR description then contains a `Changelog:` section — the
+last section of the body *before an optional trailer block* (`Co-Authored-By:`,
+generated-with lines, session links; about half of recent PR bodies end with
+one, this PR's included, so "ends with" would be a spec bug) — holding exactly
+the list items that would go into `changelog/unreleased/<PR>.md`, in the same
+restricted Markdown subset, no PR link (the title's `(#NNN)` identifies it):
 
 ```
 <free prose: motivation, design, measurements — anything>

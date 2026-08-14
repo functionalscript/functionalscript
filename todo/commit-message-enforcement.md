@@ -22,9 +22,11 @@ time.
 The format is enforced *before* merge by a **required status check**: a
 workflow on `pull_request` with types `[opened, edited, synchronize,
 reopened]` reads the PR title and body from the event payload and fails
-unless the title matches the format and the body ends with a `Changelog:`
-section. The `edited` trigger makes the check re-run when the title or
-description is fixed — no push needed to re-green. Branch protection marks
+unless the title matches the format and the body contains a `Changelog:`
+section as its last section before an optional trailer block
+(`Co-Authored-By:`, generated-with lines, session links — about half of
+recent PR bodies end with one). The `edited` trigger makes the check re-run
+when the title or description is fixed — no push needed to re-green. Branch protection marks
 the check required, which disables the merge button until it passes. The
 linter itself is a self-hosted FunctionalScript module (`fjs/ci`), and the
 changelog-subset Markdown parser planned in
