@@ -20,6 +20,9 @@ history.
 
 ## Unreleased
 
+- `types/uint8array`: `toVec` attempts the conversion instead of precomputing a
+  byte-count bound; behavior and error message unchanged
+  [#1543](https://github.com/functionalscript/functionalscript/pull/1543)
 - `media/json/schema`: `toJsonSchema` supports recursive schemas — it converts
   through `fjs/types/rtti/data` (new `dataToJsonSchema`) and emits named
   recursion as `$defs`/`$ref`; output is canonical, so `anyOf` members and
