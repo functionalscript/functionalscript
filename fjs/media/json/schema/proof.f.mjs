@@ -84,6 +84,7 @@ export const proof = {
     tuple: eq(/** @type {const} */ ([number, string]), {
         type: 'array',
         prefixItems: [{ type: 'number' }, { type: 'string' }],
+        minItems: 2,
         items: false,
     }),
     struct: {
@@ -154,6 +155,7 @@ export const proof = {
         topInsideTuple: eq(/** @type {const} */ ([unknown, number]), {
             type: 'array',
             prefixItems: [{}, { type: 'number' }],
+            minItems: 2,
             items: false,
         }),
     },
@@ -218,6 +220,7 @@ export const proof = {
             eq(/** @type {const} */ ([person, person]), {
                 type: 'array',
                 prefixItems: [personSchema, personSchema],
+                minItems: 2,
                 items: false,
             })()
         },
@@ -239,6 +242,7 @@ export const proof = {
             tupleWithRest: eqData(tupleWithRest, {
                 type: 'array',
                 prefixItems: [{ type: 'number' }],
+                minItems: 1,
                 items: { type: 'string' },
             }),
             structWithRest: eqData(structWithRest, {
@@ -277,6 +281,7 @@ export const proof = {
                 { $ref: '#/$defs/a%20b' },
                 { $ref: '#/$defs/%C3%A9' },
             ],
+            minItems: 5,
             items: false,
             $defs: {
                 'a~b': { type: 'number' },

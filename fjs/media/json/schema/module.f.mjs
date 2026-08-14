@@ -25,7 +25,7 @@
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { at, definedEntries } from '../../../types/object/module.f.mjs'
-import { array, option, or, record, string } from '../../../types/rtti/module.f.mjs'
+import { array, number, option, or, record, string } from '../../../types/rtti/module.f.mjs'
 import { cmp, toData, unitBit, unknown as top } from '../../../types/rtti/data/module.f.mjs'
 import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
 
@@ -51,6 +51,7 @@ const unknownConst = /** @type {const} */ ({
     anyOf: option(array(unknown)),
     items: or(unknown, false, undefined),
     prefixItems: option(array(unknown)),
+    minItems: option(number),
     properties: option(record(unknown)),
     required: option(array(string)),
     additionalProperties: option(unknown),
@@ -77,6 +78,7 @@ const unknownConst = /** @type {const} */ ({
  *   readonly anyOf?: Ts<typeof unknownConst.anyOf>
  *   readonly items?: Ts<typeof unknownConst.items>
  *   readonly prefixItems?: Ts<typeof unknownConst.prefixItems>
+ *   readonly minItems?: Ts<typeof unknownConst.minItems>
  *   readonly properties?: Ts<typeof unknownConst.properties>
  *   readonly required?: Ts<typeof unknownConst.required>
  *   readonly additionalProperties?: Ts<typeof unknownConst.additionalProperties>
@@ -166,12 +168,17 @@ const unitSchemas = bits => [
  * A set of arrays: `prefixItems` for the tuple prefix, `items` for the
  * elements past it — `false` when the length is exact, so a tuple admits
  * nothing beyond its prefix and the empty tuple is `{ "items": false }`.
+ * `prefixItems` alone constrains only elements that exist (draft 2020-12
+ * implies no minimum length), so a non-empty prefix also emits `minItems`.
  *
  * @type {(rules: RuleSet) => (p: ArraySet) => Unknown}
  */
 const arraySetSchema = rules => p => ({
     type: 'array',
-    ...(p.prefix.length === 0 ? {} : { prefixItems: p.prefix.map(nodeSchema(rules)) }),
+    ...(p.prefix.length === 0 ? {} : {
+        prefixItems: p.prefix.map(nodeSchema(rules)),
+        minItems: p.prefix.length,
+    }),
     items: p.rest === undefined ? false : nodeSchema(rules)(p.rest),
 })
 
@@ -285,7 +292,7 @@ export const dataToJsonSchema = ([rules, entry]) => {
  * | `bigint` const                                | `{ "const": Number(value) }` (lossy for \|value\| > MAX_SAFE_INTEGER)               |
  * | `undefined` const                             | `{ "not": {} }`                                                                     |
  * | struct `{ a: T, … }`                          | `{ "type": "object", "properties": { "a": …T… }, "required": [non-optional keys] }` |
- * | tuple `[A, B]`                                | `{ "type": "array", "prefixItems": […A…, …B…], "items": false }`                    |
+ * | tuple `[A, B]`                                | `{ "type": "array", "prefixItems": […A…, …B…], "minItems": 2, "items": false }`     |
  * | `array(T)`                                    | `{ "type": "array", "items": …T… }`                                                 |
  * | `record(T)`                                   | `{ "type": "object", "additionalProperties": …T… }`                                 |
  * | `or(...types)`                                | `{ "anyOf": […each…] }`, normalized and in canonical kind order                     |
