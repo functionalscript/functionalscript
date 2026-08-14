@@ -14,6 +14,9 @@ A type-safe schema system for describing TypeScript types at runtime and validat
   the original value (or `Result` on error)
 - `parse/module.f.mjs` — runtime deserialization: `parse(schema)(value)` returns
   a freshly constructed value containing only the declared fields/elements
+- `data/module.f.mjs` — the serializable data form: `toData(schema)` converts a
+  thunk-form schema into a function-free, canonical representation with `cmp`,
+  `equal`, `subset`, and a data-driven `validate` (see `data/README.md`)
 
 ## Schema types
 

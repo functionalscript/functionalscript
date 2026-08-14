@@ -257,11 +257,11 @@ other lock maps.
 
 - [Stage 1 flat lock map](#stage-1-flat-lock-map)
 - [Recursive RTTI to JSON Schema](../json/todo/rtti-recursive-json-schema.md)
-- [RTTI serializable data representation](../../types/rtti/todo/serializable-data.md)
+- [RTTI serializable data form](../../types/rtti/data/README.md) — landed
 
-The recursive JSON Schema task is itself blocked by the RTTI serializable-data
-task. Stage 2 must not be emitted until Stage 1 and both recursive RTTI tasks are
-complete.
+The recursive JSON Schema task consumes the RTTI serializable data form, which
+has landed. Stage 2 must not be emitted until Stage 1 and the recursive JSON
+Schema task are complete.
 
 ### Media schema
 
@@ -376,6 +376,6 @@ reference shared lock content. Both are outside this TODO.
 
 - [Revision format](../revision/README.md)
 - [Recursive RTTI to JSON Schema](../json/todo/rtti-recursive-json-schema.md)
-- [RTTI serializable data representation](../../types/rtti/todo/serializable-data.md)
+- [RTTI serializable data form](../../types/rtti/data/README.md)
 - [Evo API](../../cas/evo/README.md)
 - [MCP Evo](../../mcp/evo/README.md)

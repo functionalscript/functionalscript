@@ -240,6 +240,6 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
 - [`fjs/types/rtti/parse`](../../../types/rtti/parse/module.f.mjs) — existing strict
   runtime-value parser whose structural behavior should be reused where possible,
   not changed to add JSON-specific coercion.
-- [RTTI serializable data representation](../../../types/rtti/todo/serializable-data.md)
+- [RTTI serializable data form](../../../types/rtti/data/README.md)
   — a future data-driven RTTI parser can support the same JSON numeric conversion
   policy.

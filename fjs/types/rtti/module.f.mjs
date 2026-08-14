@@ -85,7 +85,7 @@ export const record = type1('record')
  * `or` is intentionally a lazy, allocation-free constructor: it captures its
  * arguments in a thunk and does no flattening, deduplication, subset analysis,
  * or canonical-form work. All such algebra lives on the serializable data form
- * — see `issues/143-rtti-data.md`.
+ * — see `./data/README.md`.
  *
  * @template {readonly Type[]} T
  * @param {T} types

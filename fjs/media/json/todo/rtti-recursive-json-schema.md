@@ -16,12 +16,11 @@ Following this thunk never reaches a leaf. Recursive consumers therefore need a
 shared, finite RTTI graph representation rather than transformer-specific thunk
 identity tracking.
 
-### Blocked by
+### Depends on
 
-- [RTTI serializable data representation](../../../types/rtti/todo/serializable-data.md)
-
-That task defines the function-free rule set and named/indexed references used to
-represent recursion. This task must consume that representation.
+- [RTTI serializable data form](../../../types/rtti/data/README.md) — landed;
+  it defines the function-free rule set and named references used to represent
+  recursion. This task must consume that representation.
 
 A name-keyed rule set is an open map because a reference may name a missing
 definition:
@@ -145,7 +144,8 @@ Update proofs and MCP schema snapshots for intentional output-shape changes.
 
 ### Tasks
 
-- [ ] Complete the blocked RTTI serializable-data task.
+- [x] Complete the blocking RTTI serializable-data task
+      ([`fjs/types/rtti/data`](../../../types/rtti/data/README.md)).
 - [ ] Add `dataToJsonSchema` over the RTTI data rule set.
 - [ ] Treat name-keyed RTTI definitions as `StringMap<TypeData>` and explicitly
       reject absent referenced definitions.
@@ -183,7 +183,7 @@ Update proofs and MCP schema snapshots for intentional output-shape changes.
 
 ### Related
 
-- [RTTI serializable data representation](../../../types/rtti/todo/serializable-data.md)
+- [RTTI serializable data form](../../../types/rtti/data/README.md)
 - [`fjs/bnf/data`](../../../bnf/data/)
 - [`fjs/media/json/schema/module.f.mjs`](../schema/module.f.mjs)
 - [`fjs/protocol/mcp`](../../../protocol/mcp/)
