@@ -8,10 +8,10 @@
  * @import { ByteSet } from '../types/byte_set/types.ts'
  * @import { SortedSet } from '../types/sorted_set/types.ts'
  * @import { RangeMap, Properties, RangeMapArray, Entry } from '../types/range_map/types.ts'
- * @import { Fold, Scan } from '../types/function/operator/types.ts'
+ * @import { Fold } from '../types/function/operator/types.ts'
  */
 
-import { equal, isEmpty, fold, toArray, scan, foldScan, empty as emptyList } from '../types/list/module.f.mjs'
+import { equal, isEmpty, fold, map, toArray, foldScan, empty as emptyList } from '../types/list/module.f.mjs'
 import { toRangeMap, union as byteSetUnion, one, empty, range } from '../types/byte_set/module.f.mjs'
 import { intersect, union as sortedSetUnion } from '../types/sorted_set/module.f.mjs'
 import { merge, get as rangeMapGet } from '../types/range_map/module.f.mjs'
@@ -56,24 +56,32 @@ const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
     return rm
 }
 
-/** @type {Scan<Entry<SortedSet<string>>, Entry<string>>} */
-const stringifyOp = ([sortedSet, max]) => [[stringifyIdentity(sortedSet), max], stringifyOp]
+/**
+ * Renders an entry's state set as its `_Dfa` key, keeping the range boundary.
+ *
+ * @type {(entry: Entry<SortedSet<string>>) => Entry<string>}
+ */
+const stringifyEntry = ([sortedSet, max]) => [stringifyIdentity(sortedSet), max]
 
-const scanStringify = scan(stringifyOp)
+const stringifyEntries = map(stringifyEntry)
 
-/** @type {Scan<Entry<SortedSet<string>>, SortedSet<string>>} */
-const fetchOp = ([item, _]) => [item, fetchOp]
+/**
+ * Drops an entry's range boundary, leaving the state set.
+ *
+ * @type {(entry: Entry<SortedSet<string>>) => SortedSet<string>}
+ */
+const entryValue = ([value]) => value
 
-const scanFetch = scan(fetchOp)
+const entryValues = map(entryValue)
 
 /** @type {(grammar: Grammar) => Fold<SortedSet<string>, _Dfa>} */
 const addEntry = grammar => set => dfa => {
     const s = stringifyIdentity(set)
     if (s in dfa) { return dfa }
     const setMap = fold(foldOp(set))(emptyList)(grammar)
-    const stringMap = toArray(scanStringify(setMap))
+    const stringMap = toArray(stringifyEntries(setMap))
     const newDfa = { ...dfa, [s]: stringMap }
-    const newStates = scanFetch(setMap)
+    const newStates = entryValues(setMap)
     return fold(addEntry(grammar))(newDfa)(newStates)
 }
 
