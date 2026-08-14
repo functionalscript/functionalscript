@@ -175,6 +175,27 @@ export const proof = {
             if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
         },
         () => {
+            // A leading zero followed by another digit (not '0' itself, so
+            // digit19ToToken's own '0'-state arm, distinct from '00' above).
+            const result = stringify(tokenizeString('01'))
+            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            // 'e' right after a bare '.' (no fractional digits yet).
+            const result = stringify(tokenizeString('1.e5'))
+            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            // '+' after the exponent's digits have already started. A trailing
+            // digit (not just eof) matters here: if this branch were merged
+            // into the accepting 'e' arm, the '+' would restart the exponent
+            // and the trailing '3' would complete a *valid* number instead —
+            // 'invalid number' alone doesn't distinguish that from eof cutting
+            // the (still invalid) token short.
+            const result = stringify(tokenizeString('1e5+3'))
+            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
             // terminal char after invalidNumber state (covers invalidNumberStateOp terminal branch)
             const result = stringify(tokenizeString('00,'))
             if (result !== '[{"kind":"error","message":"invalid number"},{"kind":","},{"kind":"eof"}]') { throw result }
