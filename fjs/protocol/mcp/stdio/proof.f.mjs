@@ -3,7 +3,7 @@
  * @import { Effect } from '../../../effects/types.ts'
  * @import { State } from '../../../effects/node/virtual/types.ts'
  * @import { Id, Response } from '../../json_rpc/types.ts'
- * @import { Step } from './module.f.mjs'
+ * @import { Step } from './types.ts'
  */
 
 import { assertEq } from '../../../asserts/module.f.mjs'

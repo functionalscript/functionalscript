@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- **BREAKING CHANGES:** the last documented public typedefs authored in `.mjs`
+  move to sibling `types.ts` files — `ParseContext`/`djsResult` to
+  `fjs/djs/transpiler/types.ts` and `Step` to
+  `fjs/protocol/mcp/stdio/types.ts` — so their documentation survives
+  declaration emit; importers must use the `types.ts` specifier for these types
+  [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
 - `text/utf16`: `u16` now rejects non-integers, so a fractional word is
   reported invalid (`0xFFFFFFFF`) instead of being misclassified by the
   surrogate/BMP range checks — which only partition the integers in
