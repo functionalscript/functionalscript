@@ -289,6 +289,8 @@ export const proof = {
     })(),
     throw: {
         missingRootDefinition: () => dataToJsonSchema([{}, 'nope']),
+        // an `Object.prototype` member name is still a missing definition
+        missingPrototypeDefinition: () => dataToJsonSchema([{}, 'toString']),
         missingNestedDefinition: () => {
             /** @type {Data} */
             const d = [{ a: { array: [{ prefix: [], rest: 'missing' }] } }, 'a']

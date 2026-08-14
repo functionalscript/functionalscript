@@ -23,7 +23,7 @@
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
-import { definedEntries, definedValues } from '../../object/module.f.mjs'
+import { at, definedEntries, definedValues } from '../../object/module.f.mjs'
 import { ok } from '../../result/module.f.mjs'
 import { eachEntry, isArray, verror } from '../common/module.f.mjs'
 
@@ -311,8 +311,14 @@ const objectSet = (props, rest) => {
  */
 /** @typedef {StringMap<StringMap<true>>} _Assumed */
 
-/** @type {(rules: RuleSet) => (n: Node) => UnionSet} */
-const resolve = rules => n => typeof n === 'string' ? assertNotNullish(rules[n]) : n
+/**
+ * Own-property lookups only: a `RuleSet`/`props` map is a plain object, so
+ * reading through the prototype chain would return `Object.prototype`
+ * members (`toString`, `constructor`, …) for names that are not defined.
+ *
+ * @type {(rules: RuleSet) => (n: Node) => UnionSet}
+ */
+const resolve = rules => n => typeof n === 'string' ? assertNotNullish(at(n)(rules)) : n
 
 /** @type {<T>(a: T, b: T) => boolean} */
 const strictEqual = (a, b) => a === b
@@ -356,8 +362,8 @@ const arraySetSubset = ctx => assumed => (p, q) => {
  * @type {(rules: RuleSet) => (pattern: ObjectSet) => (k: string) => Node}
  */
 const objectAt = rules => pattern => k => {
-    const n = pattern.props[k]
-    if (n !== undefined) { return n }
+    const n = at(k)(pattern.props)
+    if (n !== null) { return n }
     const { rest } = pattern
     return rest === undefined
         ? unknown
@@ -966,7 +972,7 @@ const objectSetValidate = rules => p => value => {
     const { rest } = p
     if (rest === undefined) { return ok(value) }
     const extra = eachEntry(
-        Object.entries(value).filter(([k]) => p.props[k] === undefined),
+        Object.entries(value).filter(([k]) => at(k)(p.props) === null),
         (_k, v) => nodeValidate(rules)(rest)(v),
         undefined,
         noAccumulate,

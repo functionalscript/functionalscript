@@ -406,6 +406,9 @@ export const proof = {
             assert(subset(toData(record(number)))(toData({ a: option(number) })))
             // a struct leaves undeclared keys unconstrained, a record does not
             assert(!subset(toData({ a: number }))(toData(record(number))))
+            // a key inherited from Object.prototype is not a declared prop
+            assert(!subset(toData({ a: number }))(toData({ toString: number })))
+            assert(subset(toData({ toString: /** @type {const} */ (42) }))(toData({ toString: number })))
         },
         recursion: () => {
             assert(subset(toData(list))(toData(list)))
@@ -493,6 +496,9 @@ export const proof = {
             const vr = validate(toData(record(number)))
             assertEq(vr({})[0], 'ok')
             assertEq(vr({ p: 1 })[0], 'ok')
+            // a key inherited from Object.prototype is still an extra key
+            assertEq(vr({ toString: 1 })[0], 'ok')
+            assertEq(vr({ toString: 'x' })[0], 'error')
             assertEq(
                 JSON.stringify(vr({ p: 'a' })),
                 '["error",{"path":["p"],"message":"unexpected value"}]')
@@ -521,6 +527,12 @@ export const proof = {
             const vs = validate(toData(selfOr))
             assertEq(vs(5)[0], 'ok')
             assertEq(vs('x')[0], 'error')
+        },
+        throw: {
+            // a dangling reference is malformed data — even one naming an
+            // `Object.prototype` member, which own-property lookup rejects
+            danglingReference: () => validate([{}, 'nope'])(1),
+            danglingPrototypeReference: () => validate([{}, 'toString'])(1),
         },
     },
 }

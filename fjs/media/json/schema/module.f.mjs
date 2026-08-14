@@ -24,7 +24,7 @@
  */
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
-import { definedEntries } from '../../../types/object/module.f.mjs'
+import { at, definedEntries } from '../../../types/object/module.f.mjs'
 import { array, option, or, record, string } from '../../../types/rtti/module.f.mjs'
 import { cmp, toData, unitBit, unknown as top } from '../../../types/rtti/data/module.f.mjs'
 import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
@@ -109,12 +109,14 @@ const refEncode = name => {
 
 /**
  * A local `$ref` to a named definition. A reference must name an existing
- * definition — a dangling name is malformed data and panics.
+ * definition — a dangling name is malformed data and panics. The lookup is
+ * own-property only, so a name inherited from `Object.prototype`
+ * (`toString`, `constructor`, …) is still rejected.
  *
  * @type {(rules: RuleSet) => (name: string) => Unknown}
  */
 const refSchema = rules => name => {
-    assert(rules[name] !== undefined, `missing definition: ${name}`)
+    assert(at(name)(rules) !== null, `missing definition: ${name}`)
     return { $ref: `#/$defs/${refEncode(name)}` }
 }
 
@@ -178,7 +180,7 @@ const arraySetSchema = rules => p => ({
  * @type {(rules: RuleSet) => (n: Node) => boolean}
  */
 const admitsUndefined = rules => n => {
-    const u = typeof n === 'string' ? assertNotNullish(rules[n]) : n
+    const u = typeof n === 'string' ? assertNotNullish(at(n)(rules)) : n
     return ((u.unit ?? 0) & undefinedBit) !== 0
 }
 
