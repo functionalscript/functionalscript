@@ -48,10 +48,14 @@ Rules for the split:
   restates it, so the two cannot drift apart (the rule `CONTRIBUTING.md`
   already declares for itself).
 - **Scoped documents are `AGENTS.md` files co-located with the code they
-  govern** (`fjs/AGENTS.md`, `nanvm-lib/AGENTS.md`). Agent tooling
-  (Claude Code, Codex, Cursor) discovers nested `AGENTS.md` files when
-  working inside a subtree, so scoped conventions load exactly when they are
-  needed. Content that already has a natural home in an existing document
+  govern** (`fjs/AGENTS.md`, `nanvm-lib/AGENTS.md`). The root brief links to
+  each scoped file explicitly, so an agent that reads only the root still
+  finds them by following the link — auto-discovery is not load-bearing. It
+  is a real optimization where available, though: the nested-`AGENTS.md`
+  convention is documented at [agents.md](https://agents.md/) ("the closest
+  file takes precedence" in monorepos) and is followed by Codex and Cursor,
+  and Claude Code loads nested memory files on demand when working inside a
+  subtree. Content that already has a natural home in an existing document
   (`CONTRIBUTING.md`, `todo/README.md`, `changelog/README.md`, module
   `README.md`s) moves there instead of into a new file.
 - **At most ~5 sections in the root file**, and the same budget applies to
@@ -97,6 +101,7 @@ most important part of quality.
 | §6.7 Rust                                   | `nanvm-lib/AGENTS.md`                                              |
 | §7 Issues                                   | root brief + the filing table merged into `todo/README.md`         |
 | §8 Pull requests, changelog, versioning     | §8.3 entry rules and §8.4 versioning into `changelog/README.md`; §8.1–8.2 stay as the root brief |
+| §8.5 Commit messages (in flight in [#1561](https://github.com/functionalscript/functionalscript/pull/1561)) | `CONTRIBUTING.md` — the title-form and squash-merge rules are PR-process, not changelog content. `todo/commit-message-enforcement.md` will lint against wherever it lands, so repoint that issue's links in the same PR. |
 
 ### Open questions
 
@@ -114,9 +119,17 @@ most important part of quality.
 
 - Move text, don't rewrite it — a pure relocation PR is reviewable; combined
   relocation-plus-editing is not. Tightening a moved section is a follow-up.
-- Fix all inbound links in the same PR. Only four files link to `AGENTS.md#`
-  anchors today (`CONTRIBUTING.md` and a few `todo/` files), so no redirect
-  stubs are needed — update the links to the new homes.
+- Fix all inbound links in the same PR. Exactly four files link to
+  `AGENTS.md#` anchors today — `CONTRIBUTING.md` (five anchors),
+  `docker/README.md`, `changelog/README.md`, and
+  `fjs/bnf/todo/669-bnf-matcher-shared-core.md` — so no redirect stubs are
+  needed; update the links to the new homes. Two caveats: the `bnf` issue
+  links to deep `####` anchors inside §5.2 and §6.3, and the §5.2 one cannot
+  be repointed until the §5 open question is decided; and
+  [#1561](https://github.com/functionalscript/functionalscript/pull/1561)
+  adds more `AGENTS.md#` links (from `CONTRIBUTING.md` and two
+  commit-message `todo/` files), so re-run the inventory
+  (`grep -rn 'AGENTS\.md#' --include='*.md'`) when implementation starts.
 - No CHANGELOG entry: documentation-only PR.
 
 ## Tasks
@@ -128,10 +141,15 @@ most important part of quality.
 - [ ] Create `fjs/AGENTS.md` from §3, §4, §6.1–6.6.
 - [ ] Create `nanvm-lib/AGENTS.md` from §1.6 and §6.7.
 - [ ] Merge the §7 filing table into `todo/README.md`; move §8.3–8.4 into
-      `changelog/README.md`.
+      `changelog/README.md` and §8.5 (once
+      [#1561](https://github.com/functionalscript/functionalscript/pull/1561)
+      lands) into `CONTRIBUTING.md`.
 - [ ] Rewrite the root `AGENTS.md` as the header brief plus ≤5 brief+link
       sections per the outline above.
-- [ ] Update the four files with `AGENTS.md#` anchor links.
+- [ ] Re-run the inbound-link inventory, then update every file with
+      `AGENTS.md#` anchor links (today: `CONTRIBUTING.md`,
+      `docker/README.md`, `changelog/README.md`,
+      `fjs/bnf/todo/669-bnf-matcher-shared-core.md`).
 - [ ] Verify each moved fact exists in exactly one place (grep for duplicated
       sentences between root, scoped files, and `CONTRIBUTING.md`).
 
