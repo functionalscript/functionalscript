@@ -26,6 +26,13 @@ history.
   `fjs/protocol/mcp/stdio/types.ts` — so their documentation survives
   declaration emit; importers must use the `types.ts` specifier for these types
   [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
+- `text/utf16`: `u16` now rejects non-integers, so a fractional word is
+  reported invalid (`0xFFFFFFFF`) instead of being misclassified by the
+  surrogate/BMP range checks — which only partition the integers in
+  `0x0000`–`0xFFFF`. That closes the only path into
+  `utf16ByteToCodePointOp`'s trailing fallback arm, which is removed along
+  with its `isHighSurrogate` recheck
+  [#1540](https://github.com/functionalscript/functionalscript/pull/1540)
 - `media/json/parser`: `endArray`/`endObject` no longer branch on `state.top`
   and `tokenToValue` drops its defensive default arm — the parser's state
   machine already guarantees these invariants, so the dead branches are gone
