@@ -23,7 +23,7 @@
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
-import { definedEntries, definedValues } from '../../object/module.f.mjs'
+import { at, definedEntries, definedValues } from '../../object/module.f.mjs'
 import { ok } from '../../result/module.f.mjs'
 import { eachEntry, isArray, verror } from '../common/module.f.mjs'
 
@@ -306,13 +306,29 @@ const objectSet = (props, rest) => {
 /** @typedef {readonly [RuleSet, RuleSet]} _Ctx */
 
 /**
- * Reference pairs assumed included while they are being checked — the
- * standard coinductive treatment of reference cycles.
+ * Node pairs assumed included while they are being checked — the standard
+ * coinductive treatment of reference cycles, keyed by {@link _Keyed} node
+ * identities.
  */
 /** @typedef {StringMap<StringMap<true>>} _Assumed */
 
-/** @type {(rules: RuleSet) => (n: Node) => UnionSet} */
-const resolve = rules => n => typeof n === 'string' ? assertNotNullish(rules[n]) : n
+/**
+ * A node with a canonical identity for the coinductive memo: `r:<name>` a
+ * rule reference, `u:<name>` a rule's object read-set (its rest plus
+ * `undefined`), `t` the top set. A node synthesized from inline data has no
+ * identity (`undefined`) — recursion through it descends its finite tree,
+ * so every cycle still crosses identified pairs and the memo closes it.
+ */
+/** @typedef {readonly [Node, string | undefined]} _Keyed */
+
+/**
+ * Own-property lookups only: a `RuleSet`/`props` map is a plain object, so
+ * reading through the prototype chain would return `Object.prototype`
+ * members (`toString`, `constructor`, …) for names that are not defined.
+ *
+ * @type {(rules: RuleSet) => (n: Node) => UnionSet}
+ */
+const resolve = rules => n => typeof n === 'string' ? assertNotNullish(at(n)(rules)) : n
 
 /** @type {<T>(a: T, b: T) => boolean} */
 const strictEqual = (a, b) => a === b
@@ -348,20 +364,28 @@ const arraySetSubset = ctx => assumed => (p, q) => {
         && (p.rest === undefined || le(p.rest, assertNotNullish(q.rest)))
 }
 
+/** @type {(n: Node) => _Keyed} */
+const keyed = n => [n, typeof n === 'string' ? `r:${n}` : undefined]
+
 /**
  * The set of values *read* at key `k` from objects of the pattern: the
  * declared set, else — since the key may also be absent, reading
- * `undefined` — the `rest` set plus `undefined`, else anything.
+ * `undefined` — the `rest` set plus `undefined`, else anything. A read-set
+ * synthesized from a referenced rest keeps that rule's identity (`u:`), so
+ * the coinductive memo closes cycles through it.
  *
- * @type {(rules: RuleSet) => (pattern: ObjectSet) => (k: string) => Node}
+ * @type {(rules: RuleSet) => (pattern: ObjectSet) => (k: string) => _Keyed}
  */
-const objectAt = rules => pattern => k => {
-    const n = pattern.props[k]
-    if (n !== undefined) { return n }
+const objectReadSet = rules => pattern => k => {
+    const n = at(k)(pattern.props)
+    if (n !== null) { return keyed(n) }
     const { rest } = pattern
     return rest === undefined
-        ? unknown
-        : merge(resolve(rules)(rest), { unit: unitBit(undefined) })
+        ? [unknown, 't']
+        : [
+            merge(resolve(rules)(rest), { unit: unitBit(undefined) }),
+            typeof rest === 'string' ? `u:${rest}` : undefined,
+        ]
 }
 
 /** @type {(list: readonly string[]) => readonly string[]} */
@@ -369,14 +393,14 @@ const dedup = list => list.filter((n, i) => list.indexOf(n) === i)
 
 /** @type {(ctx: _Ctx) => (assumed: _Assumed) => (p: ObjectSet, q: ObjectSet) => boolean} */
 const objectSetSubset = ctx => assumed => (p, q) => {
-    const le = nodeSubset(ctx)(assumed)
+    const le = keyedSubset(ctx)(assumed)
     const keys = dedup([
         ...definedEntries(p.props).map(([k]) => k),
         ...definedEntries(q.props).map(([k]) => k),
     ])
-    return keys.every(k => le(objectAt(ctx[0])(p)(k), objectAt(ctx[1])(q)(k)))
+    return keys.every(k => le(objectReadSet(ctx[0])(p)(k), objectReadSet(ctx[1])(q)(k)))
         // values at the keys declared by neither side
-        && (q.rest === undefined || le(p.rest ?? unknown, q.rest))
+        && (q.rest === undefined || nodeSubset(ctx)(assumed)(p.rest ?? unknown, q.rest))
 }
 
 /** @type {(ctx: _Ctx) => (assumed: _Assumed) => (a: UnionSet, b: UnionSet) => boolean} */
@@ -388,16 +412,20 @@ const unionSubset = ctx => assumed => (a, b) =>
     && kindSubset(arraySetSubset(ctx)(assumed))(a.array, b.array)
     && kindSubset(objectSetSubset(ctx)(assumed))(a.object, b.object)
 
-/** @type {(ctx: _Ctx) => (assumed: _Assumed) => (a: Node, b: Node) => boolean} */
-const nodeSubset = ctx => assumed => (a, b) => {
+/** @type {(ctx: _Ctx) => (assumed: _Assumed) => (a: _Keyed, b: _Keyed) => boolean} */
+const keyedSubset = ctx => assumed => ([a, aKey], [b, bKey]) => {
     let assumed1 = assumed
-    if (typeof a === 'string' && typeof b === 'string') {
-        const inner = assumed[a]
-        if (inner !== undefined && inner[b] === true) { return true }
-        assumed1 = { ...assumed, [a]: inner === undefined ? { [b]: true } : { ...inner, [b]: true } }
+    if (aKey !== undefined && bKey !== undefined) {
+        const inner = assumed[aKey]
+        if (inner !== undefined && inner[bKey] === true) { return true }
+        assumed1 = { ...assumed, [aKey]: inner === undefined ? { [bKey]: true } : { ...inner, [bKey]: true } }
     }
     return unionSubset(ctx)(assumed1)(resolve(ctx[0])(a), resolve(ctx[1])(b))
 }
+
+/** @type {(ctx: _Ctx) => (assumed: _Assumed) => (a: Node, b: Node) => boolean} */
+const nodeSubset = ctx => assumed => (a, b) =>
+    keyedSubset(ctx)(assumed)(keyed(a), keyed(b))
 
 /**
  * Sound subset test: `true` means every value of `a` is a value of `b`.
@@ -966,7 +994,7 @@ const objectSetValidate = rules => p => value => {
     const { rest } = p
     if (rest === undefined) { return ok(value) }
     const extra = eachEntry(
-        Object.entries(value).filter(([k]) => p.props[k] === undefined),
+        Object.entries(value).filter(([k]) => at(k)(p.props) === null),
         (_k, v) => nodeValidate(rules)(rest)(v),
         undefined,
         noAccumulate,
