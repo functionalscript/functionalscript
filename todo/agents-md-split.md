@@ -124,8 +124,8 @@ most important part of quality.
   `docker/README.md`, `changelog/README.md`, and
   `fjs/bnf/todo/669-bnf-matcher-shared-core.md` — so no redirect stubs are
   needed; update the links to the new homes. Two caveats: the `bnf` issue
-  links to deep `####` anchors inside §5.2 and §6.3, and the §5.2 one cannot
-  be repointed until the §5 open question is decided; and
+  links to a deep `####` anchor inside §6.3 and to §5.2's own heading, and
+  the §5.2 one cannot be repointed until the §5 open question is decided; and
   [#1561](https://github.com/functionalscript/functionalscript/pull/1561)
   adds more `AGENTS.md#` links (from `CONTRIBUTING.md` and two
   commit-message `todo/` files), so re-run the inventory
