@@ -21,83 +21,83 @@ import { cmp, equal, never, subset, toData, unitBit, unitList, unknown, validate
 const assertData = actual => expected =>
     assert(equal(actual)(expected), [actual, expected])
 
-/** A recursive list: `type List = readonly List[]`. */
-/** @typedef {() => readonly ['array', List]} List */
-/** @type {List} */
+/** A recursive list: `type _List = readonly _List[]`. */
+/** @typedef {() => readonly ['array', _List]} _List */
+/** @type {_List} */
 const list = () => ['array', list]
 
-/** Mutual recursion through a container: `Tree = number | Forest`, `Forest = readonly Tree[]`. */
-/** @typedef {() => readonly ['or', typeof number, Forest]} Tree */
-/** @typedef {() => readonly ['array', Tree]} Forest */
-/** @type {Tree} */
+/** Mutual recursion through a container: `_Tree = number | _Forest`, `_Forest = readonly _Tree[]`. */
+/** @typedef {() => readonly ['or', typeof number, _Forest]} _Tree */
+/** @typedef {() => readonly ['array', _Tree]} _Forest */
+/** @type {_Tree} */
 const tree = () => ['or', number, forest]
-/** @type {Forest} */
+/** @type {_Forest} */
 const forest = () => ['array', tree]
 
-/** A pure `or` self-cycle: `SelfOr = number | SelfOr`. */
-/** @typedef {() => readonly ['or', typeof number, SelfOr]} SelfOr */
-/** @type {SelfOr} */
+/** A pure `or` self-cycle: `_SelfOr = number | _SelfOr`. */
+/** @typedef {() => readonly ['or', typeof number, _SelfOr]} _SelfOr */
+/** @type {_SelfOr} */
 const selfOr = () => ['or', number, selfOr]
 
-/** A mutual `or` cycle: `OrA = OrB | number`, `OrB = OrA | string`. */
-/** @typedef {() => readonly ['or', OrB, typeof number]} OrA */
-/** @typedef {() => readonly ['or', OrA, typeof string]} OrB */
-/** @type {OrA} */
+/** A mutual `or` cycle: `_OrA = _OrB | number`, `_OrB = _OrA | string`. */
+/** @typedef {() => readonly ['or', _OrB, typeof number]} _OrA */
+/** @typedef {() => readonly ['or', _OrA, typeof string]} _OrB */
+/** @type {_OrA} */
 const orA = () => ['or', orB, number]
-/** @type {OrB} */
+/** @type {_OrB} */
 const orB = () => ['or', orA, string]
 
 /** An `or` over a rule that still has pending merges when it is consumed. */
-/** @typedef {() => readonly ['or', typeof string, Inner]} Outer */
-/** @typedef {() => readonly ['or', Outer, T2]} Inner */
-/** @typedef {() => readonly ['array', Inner]} T2 */
-/** @type {Outer} */
+/** @typedef {() => readonly ['or', typeof string, _Inner]} _Outer */
+/** @typedef {() => readonly ['or', _Outer, _T2]} _Inner */
+/** @typedef {() => readonly ['array', _Inner]} _T2 */
+/** @type {_Outer} */
 const outer = () => ['or', string, inner]
-/** @type {Inner} */
+/** @type {_Inner} */
 const inner = () => ['or', outer, t2]
-/** @type {T2} */
+/** @type {_T2} */
 const t2 = () => ['array', inner]
 
 /** Two `or` operands deferred onto the same target rule. */
-/** @typedef {() => readonly ['array', Y]} X */
-/** @typedef {() => readonly ['array', W]} Y */
-/** @typedef {() => readonly ['or', X, Y, typeof number]} W */
-/** @type {X} */
+/** @typedef {() => readonly ['array', _Y]} _X */
+/** @typedef {() => readonly ['array', _W]} _Y */
+/** @typedef {() => readonly ['or', _X, _Y, typeof number]} _W */
+/** @type {_X} */
 const x = () => ['array', y]
-/** @type {Y} */
+/** @type {_Y} */
 const y = () => ['array', w]
-/** @type {W} */
+/** @type {_W} */
 const w = () => ['or', x, y, number]
 
 /** A cycle whose union is the whole value domain. */
-/** @typedef {() => readonly ['or', typeof unknownRtti, TopArr]} TopOr */
-/** @typedef {() => readonly ['array', TopOr]} TopArr */
-/** @type {TopOr} */
+/** @typedef {() => readonly ['or', typeof unknownRtti, _TopArr]} _TopOr */
+/** @typedef {() => readonly ['array', _TopOr]} _TopArr */
+/** @type {_TopOr} */
 const topOr = () => ['or', unknownRtti, topArr]
-/** @type {TopArr} */
+/** @type {_TopArr} */
 const topArr = () => ['array', topOr]
 
 /** Two named rules where only one is referenced by the entry. */
-/** @typedef {() => readonly ['array', B2]} B2 */
-/** @typedef {() => readonly ['array', readonly [A2, B2]]} A2 */
-/** @type {A2} */
+/** @typedef {() => readonly ['array', _B2]} _B2 */
+/** @typedef {() => readonly ['array', readonly [_A2, _B2]]} _A2 */
+/** @type {_A2} */
 const a2 = () => ['array', [a2, b2]]
-/** @type {B2} */
+/** @type {_B2} */
 const b2 = () => ['array', b2]
 
-/** @typedef {() => readonly ['array', Rec]} Rec */
+/** @typedef {() => readonly ['array', _Rec]} _Rec */
 /** Every call returns a fresh recursive thunk whose function name is `f`. */
-/** @type {() => Rec} */
+/** @type {() => _Rec} */
 const mkRec = () => {
-    /** @type {Rec} */
+    /** @type {_Rec} */
     const f = () => ['array', f]
     return f
 }
 
-/** @type {(f: Rec) => Rec} */
+/** @type {(f: _Rec) => _Rec} */
 const identityRec = f => f
 /** A recursive thunk whose function name is the empty string. */
-/** @type {Rec} */
+/** @type {_Rec} */
 const anon = identityRec(() => ['array', anon])
 
 const tupleNumber = /** @type {const} */ ([number])
@@ -216,19 +216,35 @@ export const proof = {
             ])
         },
         orCycles: () => {
-            // a pure `or` self-cycle contributes nothing: X = number | X is number
+            // a pure `or` self-cycle contributes nothing: _X = number | _X is number
             assertData(toData(selfOr))(toData(number))
             // a mutual `or` cycle is the union of the non-cyclic content
             assertData(toData(orA))(toData(or(number, string)))
+            // `outer` and `inner` denote the same set; the interning step
+            // recognizes the inlined entry as `inner`'s body
             assertData(toData(outer))([
                 { inner: { string: true, array: [{ prefix: [], rest: 'inner' }] } },
-                { string: true, array: [{ prefix: [], rest: 'inner' }] },
+                'inner',
             ])
+            assertData(toData(outer))(toData(inner))
             assertData(toData(x))([
                 { w: { number: true, array: [{ prefix: [], rest: 'w' }] } },
                 { array: [{ prefix: [], rest: { array: [{ prefix: [], rest: 'w' }] } }] },
             ])
             assertData(toData(topArr))([{ topOr: unknown }, { array: [{ prefix: [], rest: 'topOr' }] }])
+        },
+        intern: () => {
+            // a union equal to a rule's body reads back as a reference,
+            // so `or` is idempotent on recursive schemas
+            assertData(toData(or(list)))(toData(list))
+            assertData(toData(or(list, list)))(toData(list))
+            assertData(toData(or(tree, tree)))(toData(tree))
+            // a re-stated fixpoint collapses: `list = readonly list[]`,
+            // so `array(list)` is `list` itself
+            assertData(toData(array(list)))(toData(list))
+            assertData(toData(array(or(list))))(toData(list))
+            // in nested positions too
+            assertData(toData({ p: or(list) }))(toData({ p: list }))
         },
         names: () => {
             // colliding function names are disambiguated with a counter
@@ -482,6 +498,12 @@ export const proof = {
             const vp = validate(toData({ p: list }))
             assertEq(vp({ p: [] })[0], 'ok')
             assertEq(vp({ p: 0 })[0], 'error')
+            // the thunk-direct validator cannot terminate on a pure `or`
+            // cycle for a non-matching value; the data form dissolves the
+            // cycle to its least fixpoint and answers
+            const vs = validate(toData(selfOr))
+            assertEq(vs(5)[0], 'ok')
+            assertEq(vs('x')[0], 'error')
         },
     },
 }

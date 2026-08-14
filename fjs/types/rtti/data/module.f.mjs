@@ -8,8 +8,10 @@
  * (union normalization, coverage collapse, {@link equal}, {@link subset},
  * canonical ordering via {@link cmp}) reduces to kind-wise set operations.
  * {@link toData} is the single bridge from the thunk form; {@link validate}
- * is the data-driven counterpart of `../validate`. See `./README.md` for the
- * design rationale and `./types.ts` for the type-level API.
+ * is the data-driven counterpart of `../validate`. The form serializes as
+ * DJS — plain JSON when no `bigint` literals are involved. See `./README.md`
+ * for the design rationale and serialization notes, and `./types.ts` for the
+ * type-level API.
  *
  * @module
  *
@@ -436,47 +438,112 @@ const sortedDedup = cmpItem => list => {
     return sorted.filter((x, i) => i === 0 || cmpItem(sorted[i - 1], x) !== 0)
 }
 
-/** @type {(ctx: _Ctx) => (n: Node) => Node} */
-const collapseNode = ctx => n => typeof n === 'string' ? n : collapseUnion(ctx)(n)
+/** @typedef {(n: Node) => Node} _NodeMap */
 
-/** @type {(ctx: _Ctx) => (p: ArraySet) => ArraySet} */
-const collapseArraySet = ctx => p => ({
-    prefix: p.prefix.map(collapseNode(ctx)),
-    ...(p.rest === undefined ? {} : { rest: collapseNode(ctx)(p.rest) }),
+/** @type {(f: _NodeMap) => (p: ArraySet) => ArraySet} */
+const mapArraySet = f => p => ({
+    prefix: p.prefix.map(f),
+    ...(p.rest === undefined ? {} : { rest: f(p.rest) }),
 })
 
-/** @type {(ctx: _Ctx) => (p: ObjectSet) => ObjectSet} */
-const collapseObjectSet = ctx => p => ({
+/** @type {(f: _NodeMap) => (p: ObjectSet) => ObjectSet} */
+const mapObjectSet = f => p => ({
     props: Object.fromEntries(definedEntries(p.props).map(
-        ([k, v]) => /** @type {const} */ ([k, collapseNode(ctx)(v)]))),
-    ...(p.rest === undefined ? {} : { rest: collapseNode(ctx)(p.rest) }),
+        ([k, v]) => /** @type {const} */ ([k, f(v)]))),
+    ...(p.rest === undefined ? {} : { rest: f(p.rest) }),
 })
 
 /**
- * @template T
- * @param {(k: T) => T} onItem
- * @param {(p: T, q: T) => boolean} le
- * @param {(a: T, b: T) => number} cmpItem
- * @returns {(k: KindSet<T>) => KindSet<T>}
+ * Rewrites a union's nested nodes with `f`, keeping each pattern list
+ * sorted and deduplicated.
+ *
+ * @type {(f: _NodeMap) => (u: UnionSet) => UnionSet}
  */
-const collapseKind = (onItem, le, cmpItem) => k =>
-    k === true ? true : dropSubsumed(le)(sortedDedup(cmpItem)(k.map(onItem)))
+const mapChildren = f => u => ({
+    ...u,
+    ...(u.array === undefined || u.array === true ? {} : {
+        array: sortedDedup(cmpArraySet)(u.array.map(mapArraySet(f))),
+    }),
+    ...(u.object === undefined || u.object === true ? {} : {
+        object: sortedDedup(cmpObjectSet)(u.object.map(mapObjectSet(f))),
+    }),
+})
 
 /**
- * Rewrites a union with every subsumed array/object pattern dropped,
- * recursively through inline nodes.
+ * Bottom-up node rewrite: children first, then `post` on every node.
+ *
+ * @type {(post: _NodeMap) => _NodeMap}
+ */
+const rewriteNodes = post => {
+    /** @type {_NodeMap} */
+    const go = n => post(typeof n === 'string' ? n : mapChildren(go)(n))
+    return go
+}
+
+/**
+ * Drops every subsumed array/object pattern of one union.
  *
  * @type {(ctx: _Ctx) => (u: UnionSet) => UnionSet}
  */
-const collapseUnion = ctx => u => ({
+const dropSubsumedUnion = ctx => u => ({
     ...u,
-    ...(u.array === undefined ? {} : {
-        array: collapseKind(collapseArraySet(ctx), arraySetSubset(ctx)({}), cmpArraySet)(u.array),
+    ...(u.array === undefined || u.array === true ? {} : {
+        array: dropSubsumed(arraySetSubset(ctx)({}))(u.array),
     }),
-    ...(u.object === undefined ? {} : {
-        object: collapseKind(collapseObjectSet(ctx), objectSetSubset(ctx)({}), cmpObjectSet)(u.object),
+    ...(u.object === undefined || u.object === true ? {} : {
+        object: dropSubsumed(objectSetSubset(ctx)({}))(u.object),
     }),
 })
+
+/** @type {(ctx: _Ctx) => _NodeMap} */
+const collapsePost = ctx => n => typeof n === 'string' ? n : dropSubsumedUnion(ctx)(n)
+
+/**
+ * The coverage collapse: every subsumed array/object pattern dropped,
+ * recursively through inline nodes.
+ *
+ * @type {(ctx: _Ctx) => _NodeMap}
+ */
+const collapseNode = ctx => rewriteNodes(collapsePost(ctx))
+
+/** @type {(ctx: _Ctx) => (u: UnionSet) => UnionSet} */
+const collapseUnion = ctx => u => dropSubsumedUnion(ctx)(mapChildren(collapseNode(ctx))(u))
+
+/**
+ * Replaces a union structurally equal to a rule's body with a reference to
+ * that rule (the alphabetically first one on a tie). This is what keeps
+ * `or` idempotent over recursive schemas — the union of a rule with itself
+ * is the rule's body, which reads back as the rule — and it also collapses
+ * re-stated fixpoints such as `array(list)` for `list = readonly list[]`.
+ *
+ * @type {(rules: RuleSet) => _NodeMap}
+ */
+const internPost = rules => n => {
+    if (typeof n === 'string') { return n }
+    for (const [name, body] of definedEntries(rules)) {
+        if (cmpUnion(n, body) === 0) { return name }
+    }
+    return n
+}
+
+/** @type {(rules: RuleSet) => _NodeMap} */
+const internNode = rules => rewriteNodes(internPost(rules))
+
+/** @type {(rules: RuleSet) => (u: UnionSet) => UnionSet} */
+const internUnion = rules => mapChildren(internNode(rules))
+
+/**
+ * The final canonical step: interns rule-body copies in the entry and in
+ * every rule body's nested positions. `rules` must already be sorted so a
+ * tie between equal rule bodies resolves deterministically.
+ *
+ * @type {(rules: RuleSet, entry: Node) => Data}
+ */
+const internData = (rules, entry) => [
+    Object.fromEntries(definedEntries(rules).map(
+        ([n, u]) => /** @type {const} */ ([n, internUnion(rules)(u)]))),
+    internNode(rules)(entry),
+]
 
 // ── toData ───────────────────────────────────────────────────────────────────
 
@@ -784,10 +851,11 @@ const sortRules = rules =>
  * Runs once per consumer need; schemas that are built but never consumed pay
  * nothing. The output is normalized — unions are flattened and merged
  * kind-wise, literals are sorted and deduplicated, subsumed array/object
- * patterns are dropped, rules are pruned to the reachable set and sorted —
- * so schema identity is a property of this form: `toData(or(a, b))` and
+ * patterns are dropped, rules are pruned to the reachable set and sorted,
+ * and a union equal to a rule's body reads back as a reference — so schema
+ * identity is a property of this form: `toData(or(a, b))` and
  * `toData(or(b, a))` are structurally identical even though the two thunks
- * are distinct.
+ * are distinct, and `or` is idempotent on recursive schemas.
  *
  * Only recursive definitions become named rules (named after their defining
  * functions), everything else is inlined; a schema with no reference cycles
@@ -823,9 +891,9 @@ export const toData = t => {
         const entryUnion = assertNotNullish(kept[entry])
         /** @type {RuleSet} */
         const rest = Object.fromEntries(definedEntries(kept).filter(([n]) => n !== entry))
-        return [sortRules(rest), entryUnion]
+        return internData(sortRules(rest), entryUnion)
     }
-    return [sortRules(kept), entry]
+    return internData(sortRules(kept), entry)
 }
 
 // ── data-driven validation ───────────────────────────────────────────────────

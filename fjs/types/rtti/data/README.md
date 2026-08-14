@@ -78,7 +78,12 @@ disambiguated with a counter on collision.
   array kind;
 - pure `or` cycles dissolve (`X = number | X` is `number` — the least
   fixpoint), rules are pruned to the reachable set and sorted, and an entry
-  rule nothing else references is inlined.
+  rule nothing else references is inlined;
+- a union structurally equal to a named rule's body reads back as a
+  reference to that rule (the alphabetically first on a tie), so `or` is
+  idempotent on recursive schemas — `or(list)` and `or(list, list)` are
+  `list` — and a re-stated fixpoint collapses: for
+  `list = readonly list[]`, `array(list)` is `list` itself.
 
 Schema identity is a property of this form, not of thunks: two `or(a, b)`
 calls produce distinct thunks, but `toData(or(a, b))` and `toData(or(b, a))`
@@ -93,6 +98,17 @@ design:
 - a reference is never recognized as `unknown` or `never`, so e.g. a cyclic
   rule whose fixpoint happens to be the whole domain is not collapsed to
   `unknown`.
+
+## Serialization
+
+The form is plain immutable data — no functions — so it serializes with the
+repository's data serializers. DJS
+([`fjs/djs/serializer`](../../../djs/serializer/module.f.mjs)) covers the
+whole form, including `bigint` literal sets; plain `JSON.stringify` works
+only when no `bigint` literals are involved. One corner is shared by both:
+JSON's number model writes a `NaN` literal member as `null` and drops `-0`'s
+sign, so a schema using those two as literal members does not round-trip
+textually today and needs a serializer that preserves them.
 
 ## `subset` is sound and deliberately incomplete
 
