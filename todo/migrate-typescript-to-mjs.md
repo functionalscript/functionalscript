@@ -1065,7 +1065,7 @@ person can re-check rather than re-derive. Counts are as of
       [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md),
       [`f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md),
       [`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md),
-      [`plan/roadmap.md`](./plan/roadmap.md), [`lang/README.md`](./lang/README.md),
+      [`plan/roadmap.md`](./plan/roadmap.md), [`spec/README.md`](../spec/README.md),
       [`demo/README.md`](./demo/README.md),
       [`nanvm-lib/todo/mvp-roadmap.md`](../nanvm-lib/todo/mvp-roadmap.md),
       and

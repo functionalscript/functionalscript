@@ -9,6 +9,11 @@ FunctionalScript does not whitelist individual JavaScript operations in isolatio
 
 When we implement features of FunctionalScript, the first priority is a simplification of the VM.
 
+This directory is the language specification. A feature document lives here in
+`spec/` once the `fjs` parser recognizes the feature (checked items below);
+documents for features not yet recognized live in [`spec/todo/`](./todo/README.md)
+and move here when implemented.
+
 File Types:
 
 |File Type|Extension|Notes|
@@ -27,21 +32,21 @@ Repository source migration has two separate stages:
 
 Until Stage 2 begins, `.f.js` remains generated output and must not be authored.
 Stage 1 was independent of parser coverage; Stage 2 grows incrementally
-as compiler support grows. See [`fjs/fsc/README.md`](../../fjs/fsc/README.md) for
+as compiler support grows. See [`fjs/fsc/README.md`](../fjs/fsc/README.md) for
 the authoritative extension contract and
-[`todo/migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md) for the
+[`todo/migrate-typescript-to-mjs.md`](../todo/migrate-typescript-to-mjs.md) for the
 repository migration plan.
 
 **Note**: An FJS value can't be serialized without additional run-time infrastructure.
 
 ## 1. JSON
 
-- [ ] [JSON](./1000-json.md).
-- [ ] [undefined-property](./1010-undefined-property.md).
+- [x] [JSON](./1000-json.md).
+- [ ] [undefined-property](./todo/1010-undefined-property.md).
 
 String literals at every level use JSON string syntax; full JS string
 spellings are a deferred feature, see
-[js-string-literals](./2460-js-string-literals.md).
+[js-string-literals](./todo/2460-js-string-literals.md).
 
 **VM**:
 We are introducing new commands in such a way that every new command depends only on previous commands.
@@ -67,11 +72,11 @@ The DJS form a graph of values. It can be serialized without additional run-time
 |      |bigint_plus             | 08|Array<u64>|[bigint](./2320-bigint.md)                      |
 |      |bigint_minus            | 0A|Array<u64>|[bigint](./2320-bigint.md)                      |
 |      |undefined               | 0B|          |[undefined](./2310-undefined.md)                |
-|      |own_property            | 0C|          |[property-accessor](./2330-property-accessor.md)|
-|      |instance_property       | 0E|          |[property-accessor](./2330-property-accessor.md)|
-|      |instance_method_call    | 0F|          |[property-accessor](./2330-property-accessor.md)|
-|      |at                      | 10|          |[property-accessor](./2330-property-accessor.md)|
-|      |operators               |   |          |[operators](./2340-operators.md)                |
+|      |own_property            | 0C|          |[property-accessor](./todo/2330-property-accessor.md)|
+|      |instance_property       | 0E|          |[property-accessor](./todo/2330-property-accessor.md)|
+|      |instance_method_call    | 0F|          |[property-accessor](./todo/2330-property-accessor.md)|
+|      |at                      | 10|          |[property-accessor](./todo/2330-property-accessor.md)|
+|      |operators               |   |          |[operators](./todo/2340-operators.md)                |
 
 ### 2.1. Required
 
@@ -84,16 +89,16 @@ The DJS form a graph of values. It can be serialized without additional run-time
 We need it to use JSDoc and TypeScript.
 
 1. [x] [block-comment](./2210-block-comment.md),
-2. [ ] [namespace-import](./2220-namespace-import.md).
+2. [ ] [namespace-import](./todo/2220-namespace-import.md).
 
 ### 2.3. Priority 2
 
 1. [x] [undefined](./2310-undefined.md),
 2. [x] [bigint](./2320-bigint.md),
-3. [ ] [property-accessor](./2330-property-accessor.md),
-4. [ ] [operators](./2340-operators.md),
-5. [ ] [grouping](./2350-grouping.md),
-6. [ ] [built-in](./2360-built-in.md),
+3. [ ] [property-accessor](./todo/2330-property-accessor.md),
+4. [ ] [operators](./todo/2340-operators.md),
+5. [ ] [grouping](./todo/2350-grouping.md),
+6. [ ] [built-in](./todo/2360-built-in.md),
 7. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed).
 
 ### 2.4. Syntactic Sugar
@@ -101,9 +106,9 @@ We need it to use JSDoc and TypeScript.
 1. [x] [identifier-property](./2410-identifier-property.md),
 2. [x] [line-comment](./2420-line-comment.md),
 3. [x] [trailing-comma](./2430-trailing-comma.md),
-4. [ ] [shorthand](./2440-shorthand.md),
-5. [ ] [destructuring](./2450-destructuring.md),
-6. [ ] [js-string-literals](./2460-js-string-literals.md).
+4. [ ] [shorthand](./todo/2440-shorthand.md),
+5. [ ] [destructuring](./todo/2450-destructuring.md),
+6. [ ] [js-string-literals](./todo/2460-js-string-literals.md).
 
 ## 3. FJS
 
@@ -111,36 +116,36 @@ The FJS can have functions. The format requires additional run-time information 
 
 |format|any     |Tag|    |Notes                           |
 |------|--------|---|----|--------------------------------|
-|FJS   |function|   |Func|[function](./3110-function.md)  |
+|FJS   |function|   |Func|[function](./todo/3110-function.md)  |
 
 ### 3.1. Required
 
-1. [ ] [function](./3110-function.md)
-2. [ ] [parameters](./3120-parameters.md)
-3. [ ] [body-const](./3130-body-const.md)
-4. [ ] [forward-references](./3140-forward-references.md)
+1. [ ] [function](./todo/3110-function.md)
+2. [ ] [parameters](./todo/3120-parameters.md)
+3. [ ] [body-const](./todo/3130-body-const.md)
+4. [ ] [forward-references](./todo/3140-forward-references.md)
 
 ### 3.2. Priority 2
 
 1. [ ] `if`. See https://developer.mozilla.org/en-US/docs/Glossary/Falsy
-2. [ ] [let](./3220-let.md)
+2. [ ] [let](./todo/3220-let.md)
 3. [ ] `while`
-4. [ ] [export](./3240-export.md)
+4. [ ] [export](./todo/3240-export.md)
 5. [ ] Ownership of Mutable Objects (Singletons)
 
 ### 3.3. Priority 3
 
 1. [ ] Regular Expressions.
-2. [ ] [type inference](./3370-type-inference.md)
-3. [ ] [promise](./3380-promise.md)
-4. [ ] [class](./3390-class.md)
+2. [ ] [type inference](./todo/3370-type-inference.md)
+3. [ ] [promise](./todo/3380-promise.md)
+4. [ ] [class](./todo/3390-class.md)
 5. [ ] Temporal classes. See https://github.com/functionalscript/functionalscript/pull/801
 
 ### 3.4. Syntactic Sugar
 
-1. [ ] [expression](./3410-expression.md)
-2. [ ] [one-parameter](./3420-one-parameter.md)
-3. [ ] [assignments](./3430-assignments.md)
+1. [ ] [expression](./todo/3410-expression.md)
+2. [ ] [one-parameter](./todo/3420-one-parameter.md)
+3. [ ] [assignments](./todo/3430-assignments.md)
 4. [ ] `async`/`await`. Depends on the implementation of promises.
 
 ## 4. ECMAScript Proposals
@@ -431,8 +436,8 @@ m.push(s)    // error: `m` is immutable
 **Decision:** the stable, canonical representation of functions is the **AST**, expressed as an
 FJS value (`Any`) using the tag tables above. Code is data: the `Function` constructor accepts an
 `Any` that describes the code, and the VM knows how to execute it
-(see [function](./3110-function.md); the exact shape is specified by the
-[ast-spec](../ast-spec.md)). The reasons:
+(see [function](./todo/3110-function.md); the exact shape is specified by the
+[ast-spec](../todo/ast-spec.md)). The reasons:
 
 1. We need a canonical data representation of functions in FunctionalScript — and in the future
    content-addressable VM (CAVM) — to compute a hash.
@@ -469,7 +474,7 @@ arguments of a function call to devoted stack slots (before the proper call inst
 optimization opportunities for calling well-known host (built-in) functions that can be implemented
 without excessive copying / slot allocations.
 
-1. [ ] [Call-like instructions](./9100-call-like-instructions.md) — VM-internal bytecode design.
+1. [ ] [Call-like instructions](./todo/9100-call-like-instructions.md) — VM-internal bytecode design.
 
 ### Byte Code Structures
 

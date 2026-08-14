@@ -11,7 +11,7 @@
      // used by `toString(f)`.
      const astToSourceCode: (ast: Ast) => string = ...
      // the AST is the stable serializable representation of functions;
-     // see `todo/lang/README.md` §9. Bytecode is VM-internal only.
+     // see `spec/README.md` §9. Bytecode is VM-internal only.
      // The result is the CBOR byte stream as a `Vec` (`fjs/types/bit_vec`),
      // which preserves the exact byte length via its stop bit.
      const serializeAst: (ast: Ast) => Vec = ...

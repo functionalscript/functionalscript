@@ -102,4 +102,4 @@ comment, or in another issue — then delete the issue file.
 
 ## Language Specification
 
-See [lang/README.md](./lang/README.md).
+See [spec/README.md](../spec/README.md).

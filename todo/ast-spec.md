@@ -8,7 +8,7 @@
 The AST is the stable, canonical representation of functions, expressed as an
 FJS value (`Any`): the `Function` constructor accepts an `Any` that describes
 the code and executes it (see
-[`lang/README.md` §9](./lang/README.md#9-serialization-ast-as-data-not-bytecode)).
+[`spec/README.md` §9](../spec/README.md#9-serialization-ast-as-data-not-bytecode)).
 Several components must agree on the exact shape of that value (tags and
 shapes):
 
@@ -19,7 +19,7 @@ shapes):
 - the content hash (CAVM) and `toString(f)`, which require the shape to be
   exact — one AST, one byte sequence, one hash.
 
-The tag tables in [`lang/README.md`](./lang/README.md) sketch the tags, but
+The tag tables in [`spec/README.md`](../spec/README.md) sketch the tags, but
 there is no single specification of record, so the implementations have
 nothing precise to be checked against.
 
@@ -41,7 +41,7 @@ Why RTTI:
 - RTTI already supports the shapes an AST needs: structs, tuples, `or`
   (unions), and recursion via `Thunk`.
 
-The tag tables in [`lang/README.md`](./lang/README.md) become derived
+The tag tables in [`spec/README.md`](../spec/README.md) become derived
 documentation; the RTTI schema is normative.
 
 Serialization needs no separate treatment here: the AST is an `Any` value, so
@@ -65,5 +65,5 @@ for CAVM hashing) covers it — see the P3 task and open question in
 
 - [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — the
   `Function` constructor and interpreter tasks are blocked by this spec.
-- [`lang/README.md` §9](./lang/README.md#9-serialization-ast-as-data-not-bytecode)
+- [`spec/README.md` §9](../spec/README.md#9-serialization-ast-as-data-not-bytecode)
   — the AST-as-data decision and the two execution paths.
