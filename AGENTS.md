@@ -1305,3 +1305,9 @@ Only add CHANGELOG entries for code changes — PRs that only touch `todo/`,
   exactly as they are. The next PR that adds an entry recreates
   `changelog/unreleased/`. Releases through `0.44.0` are single
   `changelog/X.Y.Z.md` files; leave them as they are.
+- **After every update of the release PR from `main`, check that
+  `changelog/unreleased/` is empty.** A PR merged after the rename puts its
+  entry file back into `changelog/unreleased/`, and an update from `main`
+  carries it into the release branch — outside the renamed directory. Move any
+  such file into `changelog/X.Y.Z/` before merging the release, or its change
+  ships unrecorded in the changelog. Check again right before merging.
