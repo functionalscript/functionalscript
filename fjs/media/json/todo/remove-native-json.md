@@ -145,9 +145,12 @@ Consider a guard so it does not come back — the cheapest is a proof in
 - [`fjs/fsc/todo/66c-emit-literals-via-owner-modules.md`](../../../fsc/todo/66c-emit-literals-via-owner-modules.md)
   — already owns the source-text-quoting sites (`fjs/types/ts`,
   `fjs/emergent_testing`); phase 3 defers to it rather than re-deciding.
-- [`fjs/types/object/todo/structurally-same.md`](../../../types/object/todo/structurally-same.md)
-  — `fjs/cas/evo/proof.f.mjs:68` stringifies two values only to compare them;
-  `structurallySame` is the better fix for that one site.
+- [`fjs/types/object/structurally_same/README.md`](../../../types/object/structurally_same/README.md)
+  — done: `fjs/cas/evo/proof.f.mjs` stringified two values only to compare
+  them, and now uses `assertStructurallySame`. The proofs that still compare a
+  `JSON.stringify` result against a JSON *string literal* are tracked in
+  [`fjs/bnf/todo/serialized-proof-expectations.md`](../../../bnf/todo/serialized-proof-expectations.md);
+  those are not phase-2 work either way.
 - [`fjs/effects/node/todo/readjsonfile-writejsonfile-helpers.md`](../../../effects/node/todo/readjsonfile-writejsonfile-helpers.md)
   — an on-hold design whose `writeJsonFile` half waits on phase 4.
 - [stringify-sorted-canonical](./stringify-sorted-canonical.md) — the key-order

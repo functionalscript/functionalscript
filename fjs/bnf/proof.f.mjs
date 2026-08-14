@@ -4,7 +4,11 @@
  * @import { Rule } from './types.ts'
  */
 
-import { assert, assertEq } from '../asserts/module.f.mjs'
+import {
+    assert,
+    assertEq,
+    assertStructurallySame,
+} from '../asserts/module.f.mjs'
 import {
     eof,
     eofSymbol,
@@ -102,7 +106,7 @@ export const proof = {
         () => {
             const r = definedValues(notSet('a'))
             const decoded = r.map(rangeDecode)
-            assertEq(JSON.stringify(decoded), JSON.stringify([[0, 0x60], [0x62, maxSymbol]]))
+            assertStructurallySame(decoded, [[0, 0x60], [0x62, maxSymbol]])
         },
     ],
     str: [

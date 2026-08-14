@@ -20,12 +20,16 @@ const assertErrorPath = (expected: readonly string[]) =>
     }
 ```
 
-In addition, `parse/proof.f.mjs:19-27` hand-rolls an `unwrap` that duplicates
+In addition, `parse/proof.f.mjs` hand-rolls an `unwrap` that duplicates
 `unwrap` from `fjs/types/result/module.f.mjs:59` (assert `'ok'`, return the
-payload), and `assertErrorPath`/`assertDeepEqual`
-(`parse/proof.f.mjs:29-59`) still use raw `if`/`throw` instead of
-`assert`/`assertEq`, contrary to the proof-assertion rule in `AGENTS.md`
-(each local `if`/`throw` is a permanently-uncovered branch).
+payload).
+
+`assertDeepEqual` and `assertErrorPath`'s raw `if`/`throw` bodies are **done**:
+`structurallySame` / `assertStructurallySame` landed, `assertDeepEqual` is
+deleted in favour of `assertStructurallySame`, and `assertErrorPath` is now
+`assertStructurallySame(e.path, expected, 'unexpected error path')`. What
+remains below is the `unwrap` duplication, the `assertOk`/`assertError` move,
+and sharing `assertErrorPath` itself between the two proofs.
 
 Beyond the helpers, roughly 80% of the two proof trees are copy-pasted
 verbatim modulo the checker name (`validate` vs `parse`): the `boolean` /
@@ -33,7 +37,7 @@ verbatim modulo the checker name (`validate` vs `parse`): the `boolean` /
 `path` / `recursive` suites (`validate/proof.f.mjs:29-83,280-334` vs
 `parse/proof.f.mjs:60-113,311-362`). Only the container *success* cases
 legitimately differ (validate asserts identity of the returned value; parse
-asserts fresh construction and dropped extras via `assertDeepEqual`).
+asserts fresh construction and dropped extras via `assertStructurallySame`).
 
 ## Proposal
 
@@ -47,9 +51,8 @@ Two steps; the first is the high-confidence part:
      `fjs/asserts` dependency-free).
    - Replace `parse/proof.f.mjs`'s local `unwrap` with `unwrap` from
      `fjs/types/result/module.f.mjs`.
-   - Rewrite `assertErrorPath` with `assertEq` (compare `e.path.length` and
-     each element, or compare the joined path string), export it from one
-     place both proofs can import — since `ValidationError` is owned by
+   - Export `assertErrorPath` (already rewritten on `assertStructurallySame`)
+     from one place both proofs can import — since `ValidationError` is owned by
      `validate` (parse already reuses it per `AGENTS.md`), exporting the
      helper from a small shared rtti proof-helper module (or from
      `validate/proof.f.mjs`) keeps it next to the type it inspects.
@@ -67,8 +70,9 @@ Two steps; the first is the high-confidence part:
 - [ ] Move `assertOk`/`assertError` to `fjs/asserts/module.f.mjs` (with proof
       coverage) and update both rtti proofs.
 - [ ] Replace parse/proof's local `unwrap` with `fjs/types/result`'s `unwrap`.
-- [ ] Rewrite `assertErrorPath` (and `assertDeepEqual`) on top of
-      `assert`/`assertEq`; share `assertErrorPath` between the two proofs.
+- [x] Rewrite `assertErrorPath` and `assertDeepEqual` on top of the shared
+      assertion module — done via `assertStructurallySame`.
+- [ ] Share the rewritten `assertErrorPath` between the two proofs.
 - [ ] Evaluate the `commonSuite` factory; if adopted, keep the two proof
       files down to their genuinely divergent cases.
 - [ ] Run `npx tsc` and `fjs t`.
@@ -80,3 +84,6 @@ Two steps; the first is the high-confidence part:
   independent of it.
 - `AGENTS.md` proof-assertion rule — `assert`/`assertEq` over local
   `if`/`throw` in proof files.
+- `fjs/types/object/structurally_same/README.md` — `structurallySame` /
+  `assertStructurallySame`, which replaced this issue's `assertDeepEqual`
+  subtask.
