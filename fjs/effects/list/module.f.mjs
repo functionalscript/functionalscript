@@ -4,11 +4,12 @@
  * See `./types.ts` for the type-level API.
  *
  * @module
+ *
+ * @import { Effect, Operation } from "../types.ts"
+ * @import { List, Next } from "./types.ts"
  */
 
 import { pure } from "../module.f.mjs"
-/** @import { Effect, Operation } from "../types.ts" */
-/** @import { List, Next } from "./types.ts" */
 
 /**
  * The empty `List`: a pure end-of-stream marker (`undefined`).

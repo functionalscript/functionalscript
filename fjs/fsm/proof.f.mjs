@@ -1,4 +1,7 @@
-/** @import { Grammar } from './module.f.mjs' */
+/**
+ * @import { Grammar } from './module.f.mjs'
+ */
+
 import { dfa, run, toRange, toUnion } from './module.f.mjs'
 import { union } from '../types/byte_set/module.f.mjs'
 import { sort, fromEntries } from '../types/object/module.f.mjs'

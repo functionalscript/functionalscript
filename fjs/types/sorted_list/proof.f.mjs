@@ -1,4 +1,6 @@
-/** @import { Unknown } from '../../media/json/types.ts' */
+/**
+ * @import { Unknown } from '../../media/json/types.ts'
+ */
 
 import { find, merge } from './module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'

@@ -2,16 +2,14 @@
  * Insertion and update operations for persistent B-tree structures.
  *
  * @module
+ *
+ * @import { Branch1, Branch3, Branch5, Branch7, TNode, Tree } from '../types/types.ts'
+ * @import { First, PathItem, Result } from '../find/types.ts'
+ * @import { Compare } from '../../function/compare/types.ts'
  */
 
 import { collapseRoot } from '../types/module.f.mjs'
-/** @import { Branch1, Branch3, Branch5, Branch7, TNode, Tree } from '../types/types.ts' */
-
 import { find } from '../find/module.f.mjs'
-/** @import { First, PathItem, Result } from '../find/types.ts' */
-
-/** @import { Compare } from '../../function/compare/types.ts' */
-
 import { fold } from '../../list/module.f.mjs'
 
 /**

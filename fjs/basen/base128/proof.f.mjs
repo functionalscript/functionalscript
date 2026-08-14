@@ -1,4 +1,6 @@
-/** @import { Vec } from '../../types/bit_vec/types.ts' */
+/**
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ */
 
 import { empty, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { asBase } from '../../types/nominal/module.f.mjs'

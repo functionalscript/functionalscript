@@ -2,20 +2,16 @@
  * Removal operations for persistent B-tree structures.
  *
  * @module
+ *
+ * @import { Leaf1, TNode, Branch1, Branch3, Branch5, Tree } from '../types/types.ts'
+ * @import { Compare } from '../../function/compare/types.ts'
+ * @import { Path, PathItem } from '../find/types.ts'
+ * @import { Tuple } from '../../array/types.ts'
  */
 
 import { collapseRoot } from '../types/module.f.mjs'
-/** @import { Leaf1, TNode, Branch1, Branch3, Branch5, Tree } from '../types/types.ts' */
-
-/** @import { Compare } from '../../function/compare/types.ts' */
-
 import { find } from '../find/module.f.mjs'
-/** @import { Path, PathItem } from '../find/types.ts' */
-
 import { fold, concat, next } from '../../list/module.f.mjs'
-
-/** @import { Tuple } from '../../array/types.ts' */
-
 import { map } from '../../nullable/module.f.mjs'
 
 /**

@@ -2,12 +2,13 @@
  * Synchronizes local development configuration generated from canonical repository files.
  *
  * @module
+ *
+ * @import { Effect } from '../../effects/types.ts'
+ * @import { Mkdir, NodeProgram, ReadFile, WriteFile } from '../../effects/node/types.ts'
  */
 
 import { history, historyStep, mapStep, step } from '../../effects/module.f.mjs'
-/** @import { Effect } from '../../effects/types.ts' */
 import { mkdir, readUtf8File, writeUtf8File } from '../../effects/node/module.f.mjs'
-/** @import { Mkdir, NodeProgram, ReadFile, WriteFile } from '../../effects/node/types.ts' */
 import { unwrap } from '../../types/result/module.f.mjs'
 
 const source = /** @type {const} */ ('.copilot/mcp.json')

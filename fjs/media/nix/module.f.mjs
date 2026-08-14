@@ -7,9 +7,11 @@
  * type-level API.
  *
  * @module
+ *
+ * @import { List as ChunkList } from '../../types/list/types.ts'
+ * @import { Expression, _AttributePath, _Binding, _Reference, _AttributeSet, _NixList, _Application, _OpenSetPattern, _Lambda, _Let, _Chunks } from './types.ts'
  */
 
-/** @import { List as ChunkList } from '../../types/list/types.ts' */
 import { toArray } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { includes } from '../../types/array/module.f.mjs'
@@ -20,7 +22,6 @@ import {
     range,
 } from '../../text/ascii/module.f.mjs'
 import { fromRange, get, merge } from '../../types/range_set/module.f.mjs'
-/** @import { Expression, _AttributePath, _Binding, _Reference, _AttributeSet, _NixList, _Application, _OpenSetPattern, _Lambda, _Let, _Chunks } from './types.ts' */
 
 const reservedWords = /** @type {const} */ ([
     'assert',

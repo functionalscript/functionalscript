@@ -1,4 +1,7 @@
-/** @import { Handlers } from './types.ts' */
+/**
+ * @import { Handlers } from './types.ts'
+ */
+
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { ok, error } from '../../types/result/module.f.mjs'
 import { validate } from '../../types/rtti/validate/module.f.mjs'

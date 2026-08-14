@@ -5,12 +5,13 @@
  * `p % 4 === 3`.
  *
  * @module
+ *
+ * @import { Reduce, Unary } from '../bigint/types.ts'
+ * @import { PrimeField } from './types.ts'
  */
 
-/** @import { Reduce, Unary } from '../bigint/types.ts' */
 import { repeat } from '../../common/monoid/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-/** @import { PrimeField } from './types.ts' */
 
 /**
  * Creates a prime field with the specified prime modulus and associated operations.

@@ -1,5 +1,8 @@
-/** @import { Object as JsonObject } from '../json/types.ts' */
-/** @import { LockMap } from './types.ts' */
+/**
+ * @import { Object as JsonObject } from '../json/types.ts'
+ * @import { LockMap } from './types.ts'
+ */
+
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { dialect, mediaType, isHash, validate, decodeText, encodeText } from './module.f.mjs'
 

@@ -13,9 +13,9 @@
  * `ByteSet` is a `bigint`, which `JSON.stringify` cannot serialize.
  *
  * @module
+ *
+ * @import { Nibble, NibbleSet } from './types.ts'
  */
-
-/** @import { Nibble, NibbleSet } from './types.ts' */
 
 export const empty = 0
 

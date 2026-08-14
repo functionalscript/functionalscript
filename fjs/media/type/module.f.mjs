@@ -34,20 +34,21 @@
  * See `./types.ts` for the type-level API.
  *
  * @module
+ *
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Effect, Operation } from '../../effects/types.ts'
+ * @import { List } from '../../effects/list/types.ts'
+ * @import { IoResult } from '../../effects/node/types.ts'
+ * @import { DetectMeta, DetectState, _MagicState, _Signature, _Utf8Detect } from './types.ts'
  */
 
 import { msb, length, u8List } from '../../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/types.ts' */
 import { iterable } from '../../types/list/module.f.mjs'
-/** @import { Nullable } from '../../types/nullable/types.ts' */
 import { pure, step } from '../../effects/module.f.mjs'
-/** @import { Effect, Operation } from '../../effects/types.ts' */
-/** @import { List } from '../../effects/list/types.ts' */
-/** @import { IoResult } from '../../effects/node/types.ts' */
 import { ok, error } from '../../types/result/module.f.mjs'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.mjs'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
-/** @import { DetectMeta, DetectState, _MagicState, _Signature, _Utf8Detect } from './types.ts' */
 
 // ── Magic-byte signatures ─────────────────────────────────────────────────────────
 //

@@ -1,10 +1,13 @@
+/**
+ * @import { Sign } from '../function/compare/types.ts'
+ * @import { Vec, BitOrder } from './types.ts'
+ * @import { List } from '../list/types.ts'
+ */
+
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { mask } from '../bigint/module.f.mjs'
-/** @import { Sign } from '../function/compare/types.ts' */
 import { asBase, asNominal } from '../nominal/module.f.mjs'
-/** @import { Vec, BitOrder } from './types.ts' */
 import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, u8ListToVec, tryU8ListToVec, u8List, chunkList, fromSentinel } from './module.f.mjs'
-/** @import { List } from '../list/types.ts' */
 import { repeat as listRepeat, toArray } from '../list/module.f.mjs'
 
 /** @type {(a: bigint) => Vec} */

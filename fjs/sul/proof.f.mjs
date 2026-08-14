@@ -1,8 +1,11 @@
+/**
+ * @import { Id } from './id/types.ts'
+ * @import { Add } from './level/hash/types.ts'
+ */
+
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { compress } from './id/module.f.mjs'
-/** @import { Id } from './id/types.ts' */
 import { encode, emptyEncodeState } from './module.f.mjs'
-/** @import { Add } from './level/hash/types.ts' */
 
 /** @typedef {readonly [Id, Id, Id, boolean]} _Merge */
 

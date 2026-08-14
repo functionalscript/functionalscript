@@ -4,15 +4,16 @@
  * See `./types.ts` for the `EncodeState`/`Encode` type-level API.
  *
  * @module
+ *
+ * @import { Add } from './level/hash/types.ts'
+ * @import { Id } from './id/types.ts'
+ * @import { InternalState } from '../types/patricia_trie/types.ts'
+ * @import { EncodeState, Encode } from './types.ts'
  */
 
 import { emptyPipelineState, pipelineStep } from './level/literal/module.f.mjs'
 import { encode as hashEncode } from './level/hash/module.f.mjs'
-/** @import { Add } from './level/hash/types.ts' */
 import { level3Id } from './id/module.f.mjs'
-/** @import { Id } from './id/types.ts' */
-/** @import { InternalState } from '../types/patricia_trie/types.ts' */
-/** @import { EncodeState, Encode } from './types.ts' */
 
 /** @typedef {InternalState<Id>} _HashState */
 

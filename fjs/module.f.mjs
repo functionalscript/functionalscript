@@ -2,6 +2,9 @@
  * FunctionalScript compiler entry points and command handlers.
  *
  * @module
+ *
+ * @import { NodeOp, NodeProgram } from './effects/node/types.ts'
+ * @import { Commands } from './cli/types.ts'
  */
 
 import { compile } from './djs/module.f.mjs'
@@ -9,9 +12,7 @@ import { main as testMain } from './emergent_testing/module.f.mjs'
 import { commands as casCommands } from './cas/cli/module.f.mjs'
 import { main as ciMain } from './ci/module.f.mjs'
 import { import_ } from './effects/node/module.f.mjs'
-/** @import { NodeOp, NodeProgram } from './effects/node/types.ts' */
 import { dispatch } from './cli/module.f.mjs'
-/** @import { Commands } from './cli/types.ts' */
 import { casMcpServer } from './mcp/module.f.mjs'
 import { pure, step } from './effects/module.f.mjs'
 import { unwrap } from './types/result/module.f.mjs'
