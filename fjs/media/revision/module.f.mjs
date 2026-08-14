@@ -17,10 +17,11 @@
  * @import { Unknown } from '../json/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { DialectEntry } from '../types.ts'
- * @import { Revision, RevisionError } from './types.ts'
+ * @import { String as RttiString } from '../../types/rtti/types.ts'
+ * @import { LockMap, LockSchema, Revision, RevisionError } from './types.ts'
  */
 
-import { array, number, option, record, string } from '../../types/rtti/module.f.mjs'
+import { array, number, option, string } from '../../types/rtti/module.f.mjs'
 import { validate as rttiValidate } from '../../types/rtti/validate/module.f.mjs'
 import { parse as parseJson } from '../json/module.f.mjs'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
@@ -49,8 +50,40 @@ export const mediaType = /** @type {const} */ (`application/${dialect}+json`)
  */
 export const hash = string
 
-/** Structural schema for a Stage 1 flat lock map. */
-export const _lock = record(string)
+/**
+ * rtti schema for a lock map: an open map whose every value is either a
+ * direct hash string or a nested lock map, to any depth.
+ *
+ * Self-referential through {@link lockValue}, which is a module-level
+ * constant rather than a union rebuilt inside the thunk: the rtti data form
+ * (`fjs/types/rtti/data`, which `toJsonSchema` routes through) closes
+ * reference cycles by *identity*, so a schema handing out a fresh union thunk
+ * on every call would present an infinite graph and never terminate.
+ *
+ * The named `@type` — rather than `@type {const}` — is what a self-referential
+ * schema needs twice over: a `const` cannot reference itself in its own
+ * initializer at all, and naming the recursive position is also what keeps
+ * declaration emit from inlining the structure and giving up at depth (see
+ * AGENTS.md §6.2 and `../json/rtti/module.f.mjs`).
+ *
+ * Like `hash`, this is `string` at the structural level; cbase32 decodability
+ * of every direct value, at every depth, is enforced by
+ * {@link checkReferences}.
+ *
+ * @type {LockSchema}
+ */
+export const lock = () => ['record', lockValue]
+
+/**
+ * One lock-map value: a direct hash, or a nested lock map. Written as the
+ * union tuple rather than as `or(string, lock)` so the thunk carries the name
+ * `lockValue`: this is where the reference cycle closes, and the data form
+ * names a rule after its defining function — an anonymous thunk would publish
+ * the recursion as `$defs: { '': … }` in every derived JSON Schema.
+ *
+ * @type {() => readonly['or', RttiString, LockSchema]}
+ */
+const lockValue = () => ['or', string, lock]
 
 /**
  * rtti schema for a `revision` BLOB. See the README for the full semantics of
@@ -64,7 +97,7 @@ export const revisionSchema = /** @type {const} */ ({
     snapshot: hash,
     generation: number,
     archived: option(true),
-    lock: option(_lock),
+    lock: option(lock),
 })
 
 /** Serializes a revision canonically, recursively sorting every object's property names.
@@ -81,11 +114,33 @@ const validateShape = rttiValidate(revisionSchema)
 export const isHash = s => cBase32ToVec(s) !== null
 
 /**
+ * The first reason a structurally valid lock map is not a valid one, or
+ * `null` when every direct value at every depth is a cbase32 hash
+ * ({@link isHash}). Nested maps are scopes, not references, so only the
+ * strings are checked; `scope` names the path walked to reach the offending
+ * value, so a failure deep in a nested map still says where it is.
+ *
+ * @type {(scope: readonly string[]) => (lock: LockMap) => string | null}
+ */
+const lockError = scope => lock => {
+    for (const [subject, value] of definedEntries(lock)) {
+        const path = [...scope, subject]
+        const message = typeof value === 'string'
+            ? (isHash(value) ? null : `lock value for ${path.join('/')} is not a valid hash: ${value}`)
+            : lockError(path)(value)
+        if (message !== null) { return message }
+    }
+    return null
+}
+
+/**
  * Checks the semantic refinements the structural schema can't express on an
  * already shape-valid revision: every `parents` entry and the `snapshot` must
- * decode as a cbase32 hash ({@link isHash}), and `generation` must be a
+ * decode as a cbase32 hash ({@link isHash}), every direct `lock` value at
+ * every depth must too ({@link lockError}), and `generation` must be a
  * non-negative *safe* integer. `subject` is not checked — it is an identity
- * string, never a snapshot reference, so any string is valid.
+ * string, never a snapshot reference, so any string is valid, and the same
+ * goes for a lock map's keys, which are subjects.
  *
  * `generation` uses `Number.isSafeInteger`, not `Number.isInteger`: a value at
  * or above `2 ** 53` passes `isInteger` but is no longer uniquely
@@ -113,9 +168,8 @@ export const checkReferences = r => {
         if (!isHash(p)) { return error(`parent is not a valid hash: ${p}`) }
     }
     if (!isHash(r.snapshot)) { return error(`snapshot is not a valid hash: ${r.snapshot}`) }
-    for (const [subject, snapshot] of definedEntries(r.lock ?? {})) {
-        if (!isHash(snapshot)) { return error(`lock value for ${subject} is not a valid hash: ${snapshot}`) }
-    }
+    const lockMessage = lockError([])(r.lock ?? {})
+    if (lockMessage !== null) { return error(lockMessage) }
     if (!Number.isSafeInteger(r.generation) || r.generation < 0) {
         return error(`generation must be a non-negative safe integer: ${r.generation}`)
     }

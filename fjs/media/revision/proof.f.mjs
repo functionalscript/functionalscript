@@ -16,6 +16,11 @@ const alias = /** @type {const} */ ('I')
 /** @type {LockMap} */
 const _lockMapAllowsMissingSubjects = {}
 
+// A lock map's values are `string | LockMap | undefined` at every depth, so
+// the same value is a legal binding for a direct hash and for a nested scope.
+/** @type {LockMap} */
+const _lockMapNests = { direct: h1, scope: { direct: h2, deeper: { direct: h1 } } }
+
 // A shape-valid revision: every required field present (`snapshot` and
 // `generation` included), with `extra` overriding or adding fields per test.
 /** @type {(extra: JsonObject) => JsonObject} */
@@ -155,6 +160,38 @@ export const proof = {
             assertEq(t, 'ok')
         },
 
+        // A nested map scopes further bindings under a subject — the
+        // incompatible-diamond case from the README, where `B` and `C` each
+        // pick their own `D`.
+        nestedLockAccepted: () => {
+            const r = validate(revisionOf({ lock: { B: { B: h1, D: h1 }, C: { C: h2, D: h2 } } }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assert(encodeText(r[1]).includes(`"lock":{"B":{"B":"${h1}","D":"${h1}"},"C":{"C":"${h2}","D":"${h2}"}}`))
+        },
+
+        // Nesting has no depth limit, and a nested map may be sparse — it need
+        // not bind the subject it appears under, or anything at all.
+        deeplyNestedLockAccepted: () => {
+            const [t] = validate(revisionOf({ lock: { B: { C: { D: { E: h1 } } }, empty: {} } }))
+            assertEq(t, 'ok')
+        },
+
+        // A direct value must be a string or a map at every depth: a number
+        // nested two levels down fails structural (rtti) validation, exactly
+        // as it does at the root.
+        malformedNestedLockRejected: () => {
+            const [t] = validate(revisionOf({ lock: { B: { D: 1 } } }))
+            assertEq(t, 'error')
+        },
+
+        // Semantic reference checking recurses too: a non-hash string deep in
+        // a nested scope is rejected, and the message names the path to it.
+        invalidNestedHashLockRejected: () => {
+            const r = validate(revisionOf({ lock: { B: { D: 'https://example.com/x' } } }))
+            assert(r[0] === 'error', ['expected error', r])
+            assertEq(r[1], 'lock value for B/D is not a valid hash: https://example.com/x')
+        },
+
         // Wrong dialect tag: structural validation rejects it outright.
         wrongDialectRejected: () => {
             const [t] = validate({ dialect: 'vnd.fjs.other', subject: h1, parents: [], snapshot: h2, generation: 0 })
@@ -213,6 +250,25 @@ export const proof = {
                 `{"dialect":"${dialect}","generation":0,"lock":{"10":"${h1}","2":"${h2}"},"parents":[],"snapshot":"${h2}","subject":"${h1}"}`,
             )
         },
+        // The one `stringify(sort)` rule already reaches every depth, so a
+        // nested lock map needs no serialization special case: its keys sort
+        // as strings like every other object's ("10" before "2").
+        sortsNestedLockKeys: () => {
+            const revision = revisionOf({ lock: { scope: { '2': h2, '10': h1 }, '2': h2, '10': h1 } })
+            const decoded = validate(revision)
+            assert(decoded[0] === 'ok', ['expected ok', decoded])
+            assert(encodeText(decoded[1]).includes(
+                `"lock":{"10":"${h1}","2":"${h2}","scope":{"10":"${h1}","2":"${h2}"}}`))
+        },
+        // Two nested maps differing only in property order converge on one
+        // byte sequence, so they address the same CAS blob.
+        equivalentNestedLockOrdersConverge: () => {
+            const a = validate(revisionOf({ lock: { B: { B: h1, D: h2 }, C: { D: h1 } } }))
+            const b = validate(revisionOf({ lock: { C: { D: h1 }, B: { D: h2, B: h1 } } }))
+            assert(a[0] === 'ok', ['expected ok', a])
+            assert(b[0] === 'ok', ['expected ok', b])
+            assertEq(encodeText(a[1]), encodeText(b[1]))
+        },
         preservesArrayOrder: () => {
             const decoded = validate(revisionOf({ parents: [h2, h1] }))
             assert(decoded[0] === 'ok', ['expected ok', decoded])
@@ -229,3 +285,4 @@ export const proof = {
 }
 
 void _lockMapAllowsMissingSubjects
+void _lockMapNests
