@@ -1,7 +1,13 @@
 # Standard for commit messages merged into `main`
 
 **Priority:** P2
-**Status:** proposed
+**Status:** wip — the format is adopted, in
+[AGENTS.md §8.5](../AGENTS.md#85-commit-messages) (title, `Changelog:` section,
+squash-only) and [§8.4](../AGENTS.md#84-breaking-changes-and-versioning)
+(release tags). AGENTS.md is the normative text from now on; the proposal
+below is kept for the reasoning behind it, and only the repository settings
+remain undone — they need a maintainer with admin rights and cannot land in a
+PR.
 
 ## Problem
 
@@ -104,10 +110,14 @@ version-bump titles works but is a heuristic where a tag is a fact.
 
 - [ ] Repository settings: squash-only, default squash message "Pull request
       title and description", branch protection (PRs required, linear
-      history)
-- [ ] Document the title and `Changelog:` section format in AGENTS.md §8 once
-      adopted
-- [ ] Tag `v0.45.0` at the next release and each release after
+      history). Until these are set, AGENTS.md §8.5 is a convention a
+      maintainer can defeat with one click in the merge dialog or one
+      `git push`.
+- [x] Document the title and `Changelog:` section format in AGENTS.md §8 once
+      adopted — [§8.5](../AGENTS.md#85-commit-messages), with the release-tag
+      step in [§8.4](../AGENTS.md#84-breaking-changes-and-versioning)
+- [ ] Tag `v0.45.0` at the next release and each release after (now part of
+      the release procedure in AGENTS.md §8.4)
 
 Machine-checking the format before merge is a separate, later step:
 [commit-message-enforcement.md](./commit-message-enforcement.md), unblocked

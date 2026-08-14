@@ -1,13 +1,12 @@
 # Enforce the commit-message standard before merge
 
 **Priority:** P3
-**Status:** open — do not start until the format from
-[commit-message-standard.md](./commit-message-standard.md) is adopted into
-AGENTS.md §8; the linter enforces the documented rule, not the proposal.
-The gap between adoption and enforcement is deliberate trial time: the
-format is used by hand on real PRs first, and whatever it gets wrong is
-fixed while a fix is still a documentation edit rather than a linter
-change plus a rule migration.
+**Status:** open — the format is adopted, in
+[AGENTS.md §8.5](../AGENTS.md#85-commit-messages), so this is no longer
+waiting on it; the linter enforces that documented rule. The gap between
+adoption and enforcement is deliberate trial time, so let the format run by
+hand on real PRs first: whatever it gets wrong is fixed while a fix is still a
+documentation edit rather than a linter change plus a rule migration.
 
 ## Problem
 
@@ -50,8 +49,9 @@ would block it outright but require an Enterprise plan.
 
 ## Related
 
-- [commit-message-standard.md](./commit-message-standard.md) — the format
-  this enforces; adopting it into AGENTS.md §8 unblocks this issue
+- [AGENTS.md §8.5](../AGENTS.md#85-commit-messages) — the format this enforces
+- [commit-message-standard.md](./commit-message-standard.md) — the reasoning
+  behind that format, and the repository settings it still waits on
 - [changelog-website.md](./changelog-website.md) — plans the changelog
   Markdown-subset parser the `Changelog:` section validator reuses
 - [changelog-from-git-history.md](./changelog-from-git-history.md) — the

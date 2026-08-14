@@ -124,6 +124,15 @@ same pull request, and — for code changes — a changelog entry added as
 `changelog/unreleased/<PR>.md`, named by the real pull request number once the
 pull request exists (see [changelog/README.md](./changelog/README.md)).
 
+The pull request lands on `main` as a single squash commit titled
+`<pull request title> (#NNN)` with the pull request description as its body, so
+both are written as that commit message
+([AGENTS.md §8.5](./AGENTS.md#85-commit-messages)): a
+`<topic>: <short description>` title within 72 characters including the
+` (#NNN)` GitHub appends, and a description ending in a `Changelog:` section
+that repeats the changelog entry — or `Changelog: none` when the change needs
+no entry.
+
 ## OpenAI Codex environment
 
 Set Node.js to 22. Both `npm test` and `npm run cov` work in this environment;

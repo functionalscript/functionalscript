@@ -130,9 +130,11 @@ cargo fmt -- --check     # verify formatting
    cargo fmt -- --check
    ```
 5. Delete the `todo/` issue file in the same PR that fixes it.
-6. Open the PR. If it changes code, add the CHANGELOG entry using the real PR
-   number ([§8.3](#83-changelog)) — PRs that only touch `todo/`, `AGENTS.md`, or
-   other documentation don't need one.
+6. Open the PR. Its title and description become the commit message on `main`,
+   so write them as one ([§8.5](#85-commit-messages)). If it changes code, add
+   the CHANGELOG entry using the real PR number ([§8.3](#83-changelog)) — PRs
+   that only touch `todo/`, `AGENTS.md`, or other documentation don't need one,
+   and say `Changelog: none` in the description instead.
 
 ---
 
@@ -1311,3 +1313,50 @@ Only add CHANGELOG entries for code changes — PRs that only touch `todo/`,
   carries it into the release branch — outside the renamed directory. Move any
   such file into `changelog/X.Y.Z/` before merging the release, or its change
   ships unrecorded in the changelog. Check again right before merging.
+- **Tag the release commit `vX.Y.Z`** once it lands on `main`, and push the
+  tag. "Which entries shipped in this release" is then a range between two
+  tags — a fact — instead of a heuristic over version-bump commit titles.
+  Releases through `0.44.0` are untagged; leave them so.
+
+### 8.5 Commit messages
+
+`main` takes exactly one commit per PR: the squash merge, titled
+`<PR title> (#NNN)` with the PR description as its body. Both halves are
+reviewed text that outlives the PR page, and a changelog generated from Git
+history could read nothing else, so write the title and the description as the
+commit message they become. Commits on the branch are discarded by the squash,
+so their messages are working notes.
+
+- **Title.** `<topic>: <short description>` — `<topic>` is the module path
+  (`types/bit_vec`, `djs/tokenizer`) or an area (`ci`, `docs`, `changelog`,
+  `AGENTS.md`), the same topic the CHANGELOG entry starts with; the
+  description is imperative, lower-case after the colon, and has no trailing
+  period. Keep it within 72 characters **including** the ` (#NNN)` GitHub
+  appends, and never write a `(#NNN)` of your own. A release PR's title is the
+  bare version: `0.45.0`.
+- **Description.** Free prose — motivation, design, measurements, alternatives
+  considered — then a `Changelog:` section, the last section before an optional
+  trailer block (`Co-Authored-By:`, generated-with lines, session links):
+
+  ```
+  <free prose>
+
+  Changelog:
+  - `types/bit_vec`: `tryListToVec` reuses the shared balanced fold, at the
+    same cost as the accumulator it replaces
+  ```
+
+  The section holds exactly the list items of `changelog/unreleased/<PR>.md` —
+  same Markdown subset, same `**BREAKING CHANGES:**` prefix where it applies,
+  no PR link ([§8.3](#83-changelog)). A PR that needs no entry writes
+  `Changelog: none`. The section is **mandatory** either way, so a forgotten
+  entry is a visible omission rather than a silent one.
+
+  It duplicates the entry file on purpose: the file is what today's release
+  process reads, the section is what a generator reading Git history would
+  read. Neither is derived from the other, so keep them identical.
+- **How it lands.** Squash and merge, always. The merge box offers the reviewed
+  title and description as the default message — don't edit it there, where
+  nobody reviews the result. A rebase merge would replay the branch's commits
+  with their working-note messages and no `(#NNN)`; a merge commit would bury
+  the PR in a two-parent graph. Nothing lands on `main` outside a PR.
