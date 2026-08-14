@@ -3,8 +3,8 @@
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
-import { access, awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat } from '../module.f.mjs'
-import { maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
+import { access, awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive } from '../module.f.mjs'
+import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { emptyState, virtual } from './module.f.mjs'
 
 export const proof = {
@@ -19,7 +19,10 @@ export const proof = {
             const [, result] = virtual(emptyState)(rm('notexist.txt'))
             assert(result[0] === 'error')
         },
-        isDirectory: () => {
+        onDirectory: () => {
+            // `operation`'s wrapper descends into 'mydir' (a plain object),
+            // so rmOp itself runs with an empty remaining path and rejects
+            // via its `path.length !== 1` guard, not a directory-specific one.
             /** @type {Dir} */
             const inner = {}
             /** @type {Dir} */
@@ -110,6 +113,119 @@ export const proof = {
             const root = { 'a.f.ts': /** @type {JsModule} */ (() => ({})) }
             virtual({ ...emptyState, root })(readFile('a.f.ts'))
         },
+        readBytesOnJsModule: () => {
+            // readBytes on a JsModule path covers typeof file === 'function' branch
+            /** @type {Dir} */
+            const root = { 'a.f.ts': /** @type {JsModule} */ (() => ({})) }
+            virtual({ ...emptyState, root })(readBytes('a.f.ts', 0, 1))
+        },
+    },
+    readFileSkipsEmptyChunk: () => {
+        // A file stored with a zero-length chunk ahead of real data: readFile's
+        // loop must skip it (`chunkLen === 0n`) rather than concatenating it.
+        /** @type {Dir} */
+        const root = { 'f': [empty, vec8(0x42n)] }
+        const [, result] = virtual({ ...emptyState, root })(readFile('f'))
+        assert(result[0] === 'ok', result)
+        assertEq(length(result[1]), 8n)
+    },
+    readdirSkipsUndefinedEntry: () => {
+        // `Dir`'s index signature is optional (`{[name]?: _Entity}`), so an
+        // entry can legitimately be present with value `undefined` (e.g. after
+        // a rename leaves a stale key in some future refactor). readdir's loop
+        // must skip such entries rather than reporting them.
+        /** @type {Dir} */
+        const root = { 'd': { 'a': undefined, 'b': [vec8(0x42n)] } }
+        const [, result] = virtual({ ...emptyState, root })(readdir('d', {}))
+        assert(result[0] === 'ok', result)
+        assertEq(result[1].length, 1)
+    },
+    renameEmptySrc: () => {
+        // rename('', dst): src parses to the root path itself.
+        const [, result] = virtual(emptyState)(rename('', 'dst'))
+        assert(result[0] === 'error')
+        assertEq(result[1], 'cannot extract root')
+    },
+    renameSrcThroughFile: () => {
+        // rename('a/b', dst) where 'a' is a file, not a directory: the
+        // intermediate segment can't be descended into.
+        /** @type {Dir} */
+        const root = { 'a': [vec8(0x42n)] }
+        const [, result] = virtual({ ...emptyState, root })(rename('a/b', 'dst'))
+        assert(result[0] === 'error')
+    },
+    renameSrcThreeLevelsMissing: () => {
+        // rename('a/b/c', dst) where 'a/b' exists but 'c' doesn't: the error
+        // from the deepest extractEntity call propagates through two levels
+        // of recursion.
+        /** @type {Dir} */
+        const root = { 'a': { 'b': {} } }
+        const [, result] = virtual({ ...emptyState, root })(rename('a/b/c', 'dst'))
+        assert(result[0] === 'error')
+    },
+    renameDstMissingIntermediate: () => {
+        // rename(src, 'missingdir/x'): the destination's parent doesn't exist.
+        /** @type {Dir} */
+        const root = { 'src': [vec8(0x42n)] }
+        const [, result] = virtual({ ...emptyState, root })(rename('src', 'missingdir/x'))
+        assert(result[0] === 'error')
+    },
+    renameDstThroughFile: () => {
+        // rename(src, 'blocker/x') where 'blocker' is a file, not a directory.
+        /** @type {Dir} */
+        const root = { 'src': [vec8(0x42n)], 'blocker': [vec8(0x1n)] }
+        const [, result] = virtual({ ...emptyState, root })(rename('src', 'blocker/x'))
+        assert(result[0] === 'error')
+        assertEq(result[1], 'not a directory')
+    },
+    renameDstNestedError: () => {
+        // rename(src, 'a/b/c') where 'a/b' is a file: insertEntityAt's error
+        // one level down propagates through the outer recursive call.
+        /** @type {Dir} */
+        const root = { 'src': [vec8(0x1n)], 'a': { 'b': [vec8(0x2n)] } }
+        const [, result] = virtual({ ...emptyState, root })(rename('src', 'a/b/c'))
+        assert(result[0] === 'error')
+        assertEq(result[1], 'not a directory')
+    },
+    createExclusiveNestedMissing: () => {
+        // createExclusive('a/b') where 'a' doesn't exist: the operation
+        // wrapper falls through with the full remaining path.
+        const [, result] = virtual(emptyState)(createExclusive('a/b'))
+        assert(result[0] === 'error')
+    },
+    writeBytesNestedMissing: () => {
+        // writeBytes('a/b', ...) where 'a' doesn't exist.
+        const [, result] = virtual(emptyState)(writeBytes('a/b', 0, vec8(0x1n)))
+        assert(result[0] === 'error')
+    },
+    writeBytesMissingFile: () => {
+        // writeBytes on a path that doesn't exist at all: writeBytes never creates.
+        const [, result] = virtual(emptyState)(writeBytes('missing', 0, vec8(0x1n)))
+        assert(result[0] === 'error')
+    },
+    writeBytesOnJsModule: () => {
+        // writeBytes on a JsModule entry covers the `!Array.isArray(file)`
+        // branch (unlike readFile/readBytes, writeBytes has no separate throw
+        // for JsModule, so this is the reachable way to hit "not a file").
+        /** @type {Dir} */
+        const root = { 'a.f.ts': /** @type {JsModule} */ (() => ({})) }
+        const [, result] = virtual({ ...emptyState, root })(writeBytes('a.f.ts', 0, vec8(0x1n)))
+        assert(result[0] === 'error')
+    },
+    writeBytesNegativeOffset: () => {
+        /** @type {Dir} */
+        const root = { 'file': [vec8(0x1n)] }
+        const [, result] = virtual({ ...emptyState, root })(writeBytes('file', -1, vec8(0x2n)))
+        assert(result[0] === 'error')
+    },
+    statNestedMissing: () => {
+        // stat('a/b') where 'a' doesn't exist.
+        const [, result] = virtual(emptyState)(stat('a/b'))
+        assert(result[0] === 'error')
+    },
+    statMissingFile: () => {
+        const [, result] = virtual(emptyState)(stat('missing'))
+        assert(result[0] === 'error')
     },
     renameSamePath: () => {
         // rename('a', 'a') should succeed as a no-op, not reject
