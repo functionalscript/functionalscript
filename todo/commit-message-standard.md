@@ -93,15 +93,39 @@ Tag each release commit `vX.Y.Z` when it lands on `main`. Between-tags is the
 natural range query for "entries in this release"; falling back to parsing
 version-bump titles works but is a heuristic where a tag is a fact.
 
+## Enforcement
+
+The format is enforced *before* merge by a **required status check**: a
+workflow on `pull_request` with types `[opened, edited, synchronize,
+reopened]` reads the PR title and body from the event payload and fails
+unless the title matches the format and the body ends with a `Changelog:`
+section. The `edited` trigger makes the check re-run when the title or
+description is fixed — no push needed to re-green. Branch protection marks
+the check required, which disables the merge button until it passes. The
+linter itself is a self-hosted FunctionalScript module (`fjs/ci`), and the
+changelog-subset Markdown parser planned in
+[changelog-website.md](./changelog-website.md) is the validator for the
+section's items.
+
+One hole no pre-merge check covers: GitHub lets whoever clicks "Squash and
+merge" edit the commit message in the merge dialog. Backstops: don't touch
+the merge box (auto-merge sidesteps it entirely — it merges with the default
+message); a post-merge audit job on `push` to `main` that compares the
+landed message against the PR and fails loudly; commit-metadata rulesets
+would block it outright but require an Enterprise plan.
+
 ## Tasks
 
 - [ ] Repository settings: squash-only, default squash message "Pull request
       title and description", branch protection (PRs required, linear
       history)
+- [ ] PR-lint workflow (title format, `Changelog:` section present and
+      valid) as a self-hosted `fjs/ci` module; mark it a required status
+      check
+- [ ] Post-merge audit: on `push` to `main`, verify the landed commit
+      message matches the PR title `(#NNN)` and description
 - [ ] Document the title and `Changelog:` section format in AGENTS.md §8 once
       adopted
-- [ ] CI check on the PR (title lints against the format; body contains a
-      `Changelog:` section) — `fjs/ci` is the natural home
 - [ ] Tag `v0.45.0` at the next release and each release after
 
 ## Related
