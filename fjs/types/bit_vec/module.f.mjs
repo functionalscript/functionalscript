@@ -172,8 +172,6 @@ const op = norm => op => ap => bp => {
 
 /**
  * @typedef {{
- *  readonly front: (len: bigint) => (v: Vec) => bigint
- *  readonly removeFront: (len: bigint) => (v: Vec) => Vec
  *  readonly norm: _NormOp
  *  readonly uintCmp: (a: bigint) => (b: bigint) => Sign
  *  readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
@@ -182,6 +180,17 @@ const op = norm => op => ap => bp => {
  */
 
 const unpackEmpty = /** @type {const} */{ length: 0n, uint: 0n }
+
+/**
+ * Neither of these depends on a bit order or on the list being mapped, so both
+ * are bound once here rather than rebuilt per call (AGENTS.md §6.3).
+ */
+const mapUnpack = map(unpack)
+
+/** @type {(_: number) => Unpacked} */
+const u8ToUnpacked = b => ({ length: 8n, uint: BigInt(b) })
+
+const mapU8ToUnpacked = map(u8ToUnpacked)
 
 /**
  * Concatenation as a monoid over `Nullable<Unpacked>`, where `null` means "the
@@ -242,7 +251,7 @@ const unpackListToVec = unpackConcat =>
     compose(foldAbsorbing(tryUnpackConcat(unpackConcat)))(nullableMap(pack))
 
 /** @type {(base: _Base) => BitOrder} */
-const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }) => {
+const bo = ({ norm, uintCmp, unpackSplit, unpackConcatUint }) => {
     /** @param {bigint} len */
     const unpackPopFront = len => {
         const m = mask(len)
@@ -252,6 +261,19 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
             const [uint, rest] = us(v)
             return /** @type {const} */([uint & m, { length: v.length - len, uint: rest }])
         }
+    }
+    // `front` and `removeFront` are the two projections of `unpackPopFront`,
+    // so each bit order supplies only `unpackSplit` and both fall out of it.
+    // `pack` re-masks, so `removeFront` can hand on the unmasked rest.
+    /** @type {(len: bigint) => (v: Vec) => bigint} */
+    const front = len => {
+        const f = unpackPopFront(len)
+        return v => f(unpack(v))[0]
+    }
+    /** @type {(len: bigint) => (v: Vec) => Vec} */
+    const removeFront = len => {
+        const f = unpackPopFront(len)
+        return v => pack(f(unpack(v))[1])
     }
     /** @type {_UnpackConcat} */
     const unpackConcat = a => b => ({
@@ -274,7 +296,7 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
     }
     const unpackedListToVec = unpackListToVec(unpackConcat)
     /** @param {List<Vec>} list */
-    const tryListToVec = list => unpackedListToVec(map(unpack)(list))
+    const tryListToVec = list => unpackedListToVec(mapUnpack(list))
     return {
         front,
         removeFront,
@@ -298,7 +320,8 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
         unpackConcat,
         startsWith: prefix => {
             const { length: n, uint: u } = unpack(prefix)
-            return v => length(v) < n ? false : popFront(n)(v)[0] === u
+            const f = front(n)
+            return v => length(v) < n ? false : f(v) === u
         }
     }
 }
@@ -315,14 +338,6 @@ const lsbUnpackConcatUint =
  * Usually associated with Little-Endian (LE) byte order.
  */
 export const lsb = bo({
-    front: len => {
-        const m = mask(len)
-        return v => uint(v) & m
-    },
-    removeFront: len => v => {
-        const { length, uint } = unpack(v)
-        return vec(length - len)(uint >> len)
-    },
     norm: ({ uint: a }) => ({ uint: b }) => () =>
         ({ a, b }),
     uintCmp: a => b => {
@@ -341,17 +356,6 @@ export const lsb = bo({
  * Usually associated with Big-Endian (BE) byte order.
  */
 export const msb = bo({
-    front: len => {
-        const m = mask(len)
-        return v => {
-            const { length, uint } = unpack(v)
-            return (uint >> (length - len)) & m
-        }
-    },
-    removeFront: len => v => {
-        const { length, uint } = unpack(v)
-        return vec(length - len)(uint)
-    },
     norm: ({ length: al, uint: a }) => ({ length: bl, uint: b }) => len =>
         ({ a: a << (len - al), b: b << (len - bl) }),
     uintCmp: cmp,
@@ -368,8 +372,7 @@ export const msb = bo({
  */
 export const tryU8ListToVec = ({ unpackConcat }) => {
     const unpackedListToVec = unpackListToVec(unpackConcat)
-    return list => unpackedListToVec(
-        map(/** @type {(_: number) => Unpacked} */b => ({ length: 8n, uint: BigInt(b) }))(list))
+    return list => unpackedListToVec(mapU8ToUnpacked(list))
 }
 
 /**
