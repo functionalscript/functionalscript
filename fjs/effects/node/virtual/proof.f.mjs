@@ -189,19 +189,31 @@ export const proof = {
     },
     createExclusiveNestedMissing: () => {
         // createExclusive('a/b') where 'a' doesn't exist: the operation
-        // wrapper falls through with the full remaining path.
-        const [, result] = virtual(emptyState)(createExclusive('a/b'))
+        // wrapper falls through with the full remaining path. Start from a
+        // non-empty root and check it survives untouched, so a mutant that
+        // returns the right error tag alongside a wiped dir would be caught.
+        /** @type {Dir} */
+        const root = { keep: [vec8(0x1n)] }
+        const [state, result] = virtual({ ...emptyState, root })(createExclusive('a/b'))
         assert(result[0] === 'error')
+        assertEq(Object.keys(state.root).length, 1)
     },
     writeBytesNestedMissing: () => {
-        // writeBytes('a/b', ...) where 'a' doesn't exist.
-        const [, result] = virtual(emptyState)(writeBytes('a/b', 0, vec8(0x1n)))
+        // writeBytes('a/b', ...) where 'a' doesn't exist. Non-empty root, as above.
+        /** @type {Dir} */
+        const root = { keep: [vec8(0x1n)] }
+        const [state, result] = virtual({ ...emptyState, root })(writeBytes('a/b', 0, vec8(0x1n)))
         assert(result[0] === 'error')
+        assertEq(Object.keys(state.root).length, 1)
     },
     writeBytesMissingFile: () => {
-        // writeBytes on a path that doesn't exist at all: writeBytes never creates.
-        const [, result] = virtual(emptyState)(writeBytes('missing', 0, vec8(0x1n)))
+        // writeBytes on a path that doesn't exist at all: writeBytes never
+        // creates. Non-empty root, as above.
+        /** @type {Dir} */
+        const root = { keep: [vec8(0x1n)] }
+        const [state, result] = virtual({ ...emptyState, root })(writeBytes('missing', 0, vec8(0x1n)))
         assert(result[0] === 'error')
+        assertEq(Object.keys(state.root).length, 1)
     },
     writeBytesOnJsModule: () => {
         // writeBytes on a JsModule entry covers the `!Array.isArray(file)`
@@ -217,6 +229,7 @@ export const proof = {
         const root = { 'file': [vec8(0x1n)] }
         const [, result] = virtual({ ...emptyState, root })(writeBytes('file', -1, vec8(0x2n)))
         assert(result[0] === 'error')
+        assertEq(result[1], 'Offset -1 is invalid')
     },
     statNestedMissing: () => {
         // stat('a/b') where 'a' doesn't exist.
