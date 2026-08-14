@@ -1,4 +1,6 @@
-/** @import { Unknown } from '../../media/json/types.ts' */
+/**
+ * @import { Unknown } from '../../media/json/types.ts'
+ */
 
 import {
     toCodePointList,

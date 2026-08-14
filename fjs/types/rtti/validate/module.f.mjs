@@ -28,12 +28,14 @@
  * See `./types.ts` for the `Path`/`Result`/`Validate`/`ValidationError` type-level API.
  *
  * @module
+ *
+ * @import { Unknown } from '../ts/types.ts'
+ * @import { Info1, Struct, Tag1, Tuple, Type } from '../types.ts'
+ * @import { StringMap } from '../../object/types.ts'
+ * @import { Container, IsContainer, Validate, ValidateE, Visitor } from '../common/types.ts'
  */
 
-/** @import { Unknown } from '../ts/types.ts' */
-/** @import { Info1, Struct, Tag1, Tuple, Type } from '../types.ts' */
 import { ok } from '../../result/module.f.mjs'
-/** @import { StringMap } from '../../object/types.ts' */
 import {
     constPrimitiveValidate,
     eachEntry,
@@ -44,7 +46,6 @@ import {
     verror,
     visit,
 } from '../common/module.f.mjs'
-/** @import { Container, IsContainer, Validate, ValidateE, Visitor } from '../common/types.ts' */
 
 export {
     constPrimitiveValidate,

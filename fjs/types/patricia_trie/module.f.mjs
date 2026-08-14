@@ -2,9 +2,9 @@
  * Streaming Patricia trie for building content-addressed binary trees from sorted leaf sequences.
  *
  * @module
+ *
+ * @import { Candidate, Create, PatriciaTrie } from './types.ts'
  */
-
-/** @import { Candidate, Create, PatriciaTrie } from './types.ts' */
 
 /**
  * Creates a Patricia trie whose node merging is delegated to `create`.

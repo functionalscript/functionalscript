@@ -1,40 +1,33 @@
-/** @import { Unknown } from '../media/json/types.ts' */
+/**
+ * @import { Unknown } from '../media/json/types.ts'
+ * @import { Effect, Operation } from '../effects/types.ts'
+ * @import { Response } from '../protocol/json_rpc/types.ts'
+ * @import { Vec } from '../types/bit_vec/types.ts'
+ * @import { FileCasOperation } from '../cas/types.ts'
+ * @import { List } from '../effects/list/types.ts'
+ * @import { McpSessionState, ToolsCallResult } from '../protocol/mcp/types.ts'
+ * @import { IoResult, Mkdir, Now, RandomInt, ReadBytes, Rename, } from '../effects/node/types.ts'
+ * @import { Dir } from '../effects/node/virtual/types.ts'
+ */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { pure, step } from '../effects/module.f.mjs'
-/** @import { Effect, Operation } from '../effects/types.ts' */
 import { create } from '../effects/memory/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, option, string as rttiString } from '../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
-/** @import { Response } from '../protocol/json_rpc/types.ts' */
-/** @import { Vec } from '../types/bit_vec/types.ts' */
 import { msb, u8ListToVec, vec8, repeat, length, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 import { vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { encode as base64Encode } from '../basen/base64/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { fileCas } from '../cas/module.f.mjs'
-/** @import { FileCasOperation } from '../cas/types.ts' */
 import { dialect as revisionDialect, mediaType as revisionMediaType } from '../media/revision/module.f.mjs'
 import { sha256 } from '../crypto/sha2/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
-/** @import { List } from '../effects/list/types.ts' */
 import {
     mcpStep, uninitializedState,
 } from '../protocol/mcp/module.f.mjs'
-/** @import { McpSessionState, ToolsCallResult } from '../protocol/mcp/types.ts' */
-/**
- * @import {
- *   IoResult,
- *   Mkdir,
- *   Now,
- *   RandomInt,
- *   ReadBytes,
- *   Rename,
- * } from '../effects/node/types.ts'
- */
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
-/** @import { Dir } from '../effects/node/virtual/types.ts' */
 import { casConfig, casMcpHandlers } from './module.f.mjs'
 import { ok as resultOk, unwrap } from '../types/result/module.f.mjs'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'

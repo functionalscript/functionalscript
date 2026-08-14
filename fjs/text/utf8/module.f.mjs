@@ -2,11 +2,14 @@
  * UTF-8 byte-level encoding and decoding utilities for FunctionalScript streams.
  *
  * @module
+ *
+ * @import { List, Thunk } from '../../types/list/types.ts'
+ * @import { StateScan } from '../../types/function/operator/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { ByteOrEof, I32, U8, Utf8NonEmptyState, Utf8State, } from './types.ts'
  */
 
 import { flatMap, toArray } from '../../types/list/module.f.mjs'
-/** @import { List, Thunk } from '../../types/list/types.ts' */
-/** @import { StateScan } from '../../types/function/operator/types.ts' */
 import {
     decoder,
     eofFlush,
@@ -14,13 +17,7 @@ import {
     isValidCodePoint,
 } from '../code_point/module.f.mjs'
 import { msb, u8List, length } from '../../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/types.ts' */
 import { codePointListToString } from '../utf16/module.f.mjs'
-/**
- * @import {
- *  ByteOrEof, I32, U8, Utf8NonEmptyState, Utf8State,
- * } from './types.ts'
- */
 
 /**
  * UTF-8 byte-format constants. Each byte kind is defined by a tag — the fixed

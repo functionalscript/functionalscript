@@ -2,14 +2,15 @@
  * Sorted immutable list helpers and merge operations.
  *
  * @module
+ *
+ * @import { Cmp } from '../function/compare/types.ts'
+ * @import { List } from '../list/types.ts'
+ * @import { ReduceOp, SortedList, TailReduce, _MergeReduce } from './types.ts'
  */
 
 import { bsearch } from '../function/compare/module.f.mjs'
-/** @import { Cmp } from '../function/compare/types.ts' */
 import { next } from '../list/module.f.mjs'
-/** @import { List } from '../list/types.ts' */
 import { identity } from '../function/module.f.mjs'
-/** @import { ReduceOp, SortedList, _MergeReduce } from './types.ts' */
 
 /** @template T @typedef {readonly T[]} _SortedArray */
 

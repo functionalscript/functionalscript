@@ -26,16 +26,17 @@
  * `../data/module.f.mjs`) a stable shared base.
  *
  * @module
+ *
+ * @import { Primitive, Unknown } from '../ts/types.ts'
+ * @import { Const, Info0, Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts'
+ * @import { Error, Result as CommonResult } from '../../result/types.ts'
+ * @import { StringMap } from '../../object/types.ts'
+ * @import { Validate, Visitor, IsContainer, Container, ResultE, ValidateE, ValidationError } from './types.ts'
  */
 
-/** @import { Primitive, Unknown } from '../ts/types.ts' */
-/** @import { Const, Info0, Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts' */
-/** @import { Error, Result as CommonResult } from '../../result/types.ts' */
 import { error, ok } from '../../result/module.f.mjs'
 import { isArray as commonIsArray } from '../../array/module.f.mjs'
 import { isObject as commonIsObject } from '../../object/module.f.mjs'
-/** @import { StringMap } from '../../object/types.ts' */
-/** @import { Validate, Visitor, IsContainer, Container, ResultE, ValidateE, ValidationError } from './types.ts' */
 
 /** Builds an error result with empty path and the given message. */
 /** @type {(message: string) => Error<ValidationError>} */

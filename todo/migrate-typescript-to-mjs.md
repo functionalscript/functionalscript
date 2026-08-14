@@ -831,7 +831,7 @@ blocking, plus the prose sweep. The remaining items are listed under
       than by what the `.f.ts` happened to export or by what a pending refactor
       plans to delete. Types intentionally moved to `types.ts` use normal
       TypeScript source visibility instead.
-- [ ] Apply the module-header/import convention: `@module` belongs only to
+- [x] Apply the module-header/import convention: `@module` belongs only to
       `module.*` entry-point files, never to `proof.*` or other files; group
       module-level JavaScript `@import` tags into one leading JSDoc block —
       sharing it with `@module` in a `module.*` file, standing alone otherwise —
@@ -842,9 +842,13 @@ blocking, plus the prose sweep. The remaining items are listed under
       count was stale, and
       [#1526](https://github.com/functionalscript/functionalscript/pull/1526)
       fixed the measured 24 emit losses plus 4 sources with no `@module`
-      block, so all 127 emitted module declarations carry the header. Still
-      open in this item: sweeping scattered `@import` comments into the
-      leading block and the import-group ordering.
+      block, so all 127 emitted module declarations carry the header. The
+      convention half is done in
+      [#1545](https://github.com/functionalscript/functionalscript/pull/1545):
+      every scattered module-level `@import` comment (125 `.mjs` files,
+      multi-line blocks joined to one tag each) moved into its leading block,
+      the import-group ordering measured zero violations, and all 129 emitted
+      module declarations keep their header through the sweep.
 - [x] File an upstream issue for JSDoc typedef documentation being dropped from
       declaration emit, and keep writing type documentation in the source
       meanwhile; substantial type APIs may instead live directly in `types.ts`
@@ -889,8 +893,9 @@ blocking, plus the prose sweep. The remaining items are listed under
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
       `prepack` emits declarations only, then re-checks against them without
       emitting.
-- [ ] Then remove `**/*.js` from `.gitignore` when generated implementation
-      JavaScript no longer needs the blanket ignore.
+- [x] Then remove `**/*.js` from `.gitignore` when generated implementation
+      JavaScript no longer needs the blanket ignore. Done in
+      [#1545](https://github.com/functionalscript/functionalscript/pull/1545).
 - [ ] Keep the compiler-compatibility migration explicitly **blocked by** this
       task.
 
@@ -987,15 +992,15 @@ person can re-check rather than re-derive. Counts are as of
       naive one-pass one. `prepack` is therefore
       `tsc --noEmit false --emitDeclarationOnly && tsc`: declaration
       emit, then the same round-trip check with nothing emitted.
-- [ ] **Then drop the blanket `.gitignore` rule** for generated JavaScript
+- [x] **Then drop the blanket `.gitignore` rule** for generated JavaScript
       (`.gitignore` line 131). Unblocked by
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
-      no repository command generates `.js` any more, so the rule now guards
-      only stale artifacts in pre-existing working trees. Dropping it is a
-      policy decision, not a sequencing one — `**/*.js` deliberately stays in
-      `package.json` `files` because the extension may be used for other
-      purposes later, so a publish must keep coming from a clean checkout
-      either way.
+      no repository command generates `.js` any more, so the rule guarded
+      only stale artifacts in pre-existing working trees. Dropped in
+      [#1545](https://github.com/functionalscript/functionalscript/pull/1545);
+      `**/*.js` deliberately stays in `package.json` `files` because the
+      extension may be used for other purposes later, so a publish must keep
+      coming from a clean checkout either way.
 - [x] **Decide what happens to the `emergent_testing` scenario fixtures.**
       `fjs/emergent_testing/scenarios/*.ts`, `scenarios/all.ts` and
       `all.test.ts` were the only authored non-`types.ts` TypeScript left. Their
@@ -1040,13 +1045,16 @@ person can re-check rather than re-derive. Counts are as of
       (`fjs/bnf/todo/unicode-rules.md`, `fjs/effects/todo/node-module-layering.md`
       and ~40 others), since no such file may be authored any more.
 
-      All 21 files that still contain the old extension anywhere are listed
+      All 20 files that still contain the old extension anywhere are listed
       below, and each one is deliberate. (History of the count: `205.md` left
       the set when
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
       deleted it, the formatter issue left when
       [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
-      retitled it, and earlier revisions of this paragraph ran one short —
+      retitled it, `serializable-data.md` left when
+      [#1539](https://github.com/functionalscript/functionalscript/pull/1539)
+      implemented `fjs/types/rtti/data` and deleted it, and earlier revisions
+      of this paragraph ran one short —
       `fjs/emergent_testing/scenarios.md`, which quotes the deleted `run.sh`
       verbatim, was in the measured set but never enumerated. Review on #1530
       caught it.) Describing the migration or the
@@ -1079,20 +1087,24 @@ person can re-check rather than re-derive. Counts are as of
       and [`scenarios.md`](../fjs/emergent_testing/scenarios.md), which quotes
       the deleted scenario harness verbatim.
       Plus [`browser-testing.md`](../fjs/emergent_testing/todo/browser-testing.md),
-      its own item below. Re-measure with the same resolve-against-the-tree
+      rewritten browser-native in
+      [#1545](https://github.com/functionalscript/functionalscript/pull/1545)
+      down to one deliberate mention recording the retired transpile premise.
+      Re-measure with the same resolve-against-the-tree
       method, at the final commit, before claiming a number — prose that
       enumerates survivors can itself add mentions, which is how a stale count
       got published the first time.
-- [ ] **Redesign or retire `browser-testing.md`.**
+- [x] **Redesign or retire `browser-testing.md`.**
       [`fjs/emergent_testing/todo/browser-testing.md`](../fjs/emergent_testing/todo/browser-testing.md)
-      holds 10 of the surviving path-like mentions on 23 lines — the largest
-      single concentration — and they were left alone on
-      purpose: its whole design is a transpile step from `.f.ts` to `.f.js`
-      because browsers cannot load TypeScript. Authored source is now `.f.mjs`,
-      which a browser loads directly, so the premise is gone and a sweep would
-      have produced a plan that no longer describes anything. Decide whether the
-      transpile step survives for `types.ts`-only reasons, shrinks to a bundling
-      concern, or goes away — then rewrite the document to match.
+      held 10 of the surviving path-like mentions on 23 lines — its whole
+      design was a transpile step from `.f.ts` to `.f.js`, because browsers
+      cannot load TypeScript. Decided and done in
+      [#1545](https://github.com/functionalscript/functionalscript/pull/1545):
+      rewritten browser-native — authored `.f.mjs` loads directly, so the
+      transpile step, the generated module graph, and the mixed-graph
+      machinery are gone while the goal, the three-runner design, the report
+      protocol, and the validation list survive in condensed form (442 lines
+      to ~160, one deliberate historical `.f.ts` mention).
 - [x] **Retitle `formatter-for-f-js-and-f-ts-files.md`.** Done in
       [#1530](https://github.com/functionalscript/functionalscript/pull/1530):
       now [`fjs/todo/formatter-for-f-js-files.md`](../fjs/todo/formatter-for-f-js-files.md),

@@ -95,16 +95,17 @@
  * See `./types.ts` for the type-level API.
  *
  * @module
+ *
+ * @import { List } from '../types/list/types.ts'
+ * @import { Option } from '../types/option/types.ts'
+ * @import { Result } from '../types/result/types.ts'
+ * @import { Fold } from '../types/function/operator/types.ts'
+ * @import { Cont, Do, Effect, F, History, MatchResult, Operation, OperationMap, Param, Pr, Pure, Return, ToAsyncOperationMap } from './types.ts'
  */
 
 import { assert } from '../asserts/module.f.mjs'
-/** @import { List } from '../types/list/types.ts' */
 import { fold } from '../types/list/module.f.mjs'
 import { at } from '../types/object/module.f.mjs'
-/** @import { Option } from '../types/option/types.ts' */
-/** @import { Result } from '../types/result/types.ts' */
-/** @import { Fold } from '../types/function/operator/types.ts' */
-/** @import { Cont, Do, Effect, F, History, MatchResult, Operation, OperationMap, Param, Pr, Pure, Return, ToAsyncOperationMap } from './types.ts' */
 
 /** @type {<T>(v: T) => Effect<never, T>} */
 export const pure = v => () => v

@@ -1,7 +1,10 @@
+/**
+ * @import { Result } from '../../result/types.ts'
+ * @import { ValidationError } from './types.ts'
+ */
+
 import { eachEntry } from './module.f.mjs'
-/** @import { Result } from '../../result/types.ts' */
 import { error, ok } from '../../result/module.f.mjs'
-/** @import { ValidationError } from './types.ts' */
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
 /** @typedef {ReadonlyArray<readonly [string, number]>} _Entries */

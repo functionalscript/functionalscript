@@ -2,13 +2,14 @@
  * Static website generation program for project landing content.
  *
  * @module
+ *
+ * @import { WriteFile } from '../effects/node/types.ts'
+ * @import { Effect } from '../effects/types.ts'
  */
 
 import { htmlUtf8 } from '../media/html/module.f.mjs'
 import { writeFile } from '../effects/node/module.f.mjs'
-/** @import { WriteFile } from '../effects/node/types.ts' */
 import { pure, step } from '../effects/module.f.mjs'
-/** @import { Effect } from '../effects/types.ts' */
 
 const html = htmlUtf8()(
     ['a',

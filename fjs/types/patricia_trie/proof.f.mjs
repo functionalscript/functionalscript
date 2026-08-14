@@ -1,6 +1,9 @@
+/**
+ * @import { State } from './types.ts'
+ */
+
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { emptyState, patriciaTrie } from './module.f.mjs'
-/** @import { State } from './types.ts' */
 
 /** @typedef {readonly [bigint, bigint, bigint][]} _NodeList */
 

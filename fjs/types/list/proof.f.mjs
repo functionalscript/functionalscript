@@ -1,6 +1,8 @@
-/** @import { Unknown } from '../../media/json/types.ts' */
+/**
+ * @import { Unknown } from '../../media/json/types.ts'
+ * @import { List } from './types.ts'
+ */
 
-/** @import { List } from './types.ts' */
 import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, take, takeWhile, toArray, zip, first, filterMap, isEmpty, equal, tryFold } from './module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'

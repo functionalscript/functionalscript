@@ -25,12 +25,13 @@
  * has(cmp)(3)(setA) // true
  * has(cmp)(2)(setA) // false
  * ```
+ *
+ * @import { Cmp } from '../function/compare/types.ts'
+ * @import { SortedSet } from './types.ts'
  */
 
-/** @import { Cmp } from '../function/compare/types.ts' */
 import { toArray } from "../list/module.f.mjs"
 import { merge, intersect as listIntersect, find } from '../sorted_list/module.f.mjs'
-/** @import { SortedSet } from './types.ts' */
 
 export const union =
     /**
