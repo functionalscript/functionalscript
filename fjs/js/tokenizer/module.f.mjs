@@ -76,7 +76,7 @@ import {
     rightCurlyBracket,
     dollarSign
 }  from '../../text/ascii/module.f.mjs'
-import { todo, assertEq } from '../../asserts/module.f.mjs'
+import { todo, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 const { fromCharCode } = String
 
@@ -396,7 +396,7 @@ const initialStateOp = create(
 
 /** @type {_CreateToToken<_ParseNumberState>} */
 const invalidNumberToToken = () => input => {
-    const next = tokenizeOp(input, { kind: 'initial' })
+    const next = tokenizeCharCodeOp(input, { kind: 'initial' })
     return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
 }
 
@@ -405,14 +405,14 @@ const fullStopToToken = state => input => {
     switch (state.numberKind) {
         case '0':
         case 'int': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: '.' }]
-        default: return tokenizeOp(input, { kind: 'invalidNumber' })
+        default: return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
     }
 }
 
 /** @type {_CreateToToken<_ParseNumberState>} */
 const digit0ToToken = state => input => {
     switch (state.numberKind) {
-        case '0': return tokenizeOp(input, { kind: 'invalidNumber' })
+        case '0': return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
         case '.':
         case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addFracDigit(input)(state.b), numberKind: 'fractional' }]
         case 'e':
@@ -426,7 +426,7 @@ const digit0ToToken = state => input => {
 /** @type {_CreateToToken<_ParseNumberState>} */
 const digit19ToToken = state => input => {
     switch (state.numberKind) {
-        case '0': return tokenizeOp(input, { kind: 'invalidNumber' })
+        case '0': return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
         case '.':
         case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addFracDigit(input)(state.b), numberKind: 'fractional' }]
         case 'e':
@@ -443,7 +443,7 @@ const expToToken = state => input => {
         case '0':
         case 'int':
         case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: 'e' }]
-        default: return tokenizeOp(input, { kind: 'invalidNumber' })
+        default: return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
     }
 }
 
@@ -459,7 +459,7 @@ const hyphenMinusToToken = state => input => {
 const plusSignToToken = state => input => {
     switch (state.numberKind) {
         case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: 'e+' }]
-        default: return tokenizeOp(input, { kind: 'invalidNumber' })
+        default: return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
     }
 }
 
@@ -471,12 +471,12 @@ const terminalToToken = state => input => {
         case 'e+':
         case 'e-':
             {
-                const next = tokenizeOp(input, { kind: 'initial' })
+                const next = tokenizeCharCodeOp(input, { kind: 'initial' })
                 return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
             }
         default:
             {
-                const next = tokenizeOp(input, { kind: 'initial' })
+                const next = tokenizeCharCodeOp(input, { kind: 'initial' })
                 return [{ first: bufferToNumberToken(state), tail: next[0] }, next[1]]
             }
     }
@@ -492,7 +492,7 @@ const bigintToToken = state => input => {
             }
         default:
             {
-                const next = tokenizeOp(input, { kind: 'initial' })
+                const next = tokenizeCharCodeOp(input, { kind: 'initial' })
                 return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
             }
     }
@@ -515,7 +515,7 @@ const invalidNumberStateOp = create(
     /** @type {_CreateToToken<_InvalidNumberState>} */ (() => () => [empty, { kind: 'invalidNumber' }])
 )([
     rangeSetFunc(rangeSetTerminalForNumber)(/** @type {_CreateToToken<_InvalidNumberState>} */ (() => input => {
-        const next = tokenizeOp(input, { kind: 'initial' })
+        const next = tokenizeCharCodeOp(input, { kind: 'initial' })
         return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
     }))
 ])
@@ -539,7 +539,7 @@ const parseStringStateOp = create(
 
 /** @type {_CreateToToken<_ParseEscapeCharState>} */
 const parseEscapeDefault = state => input => {
-    const next = tokenizeOp(input, { kind: 'string', value: state.value })
+    const next = tokenizeCharCodeOp(input, { kind: 'string', value: state.value })
     return [{ first: { kind: 'error', message: 'unescaped character' }, tail: next[0] }, next[1]]
 }
 
@@ -556,7 +556,7 @@ const parseEscapeCharStateOp = create(parseEscapeDefault)([
 
 /** @type {_CreateToToken<_ParseUnicodeCharState>} */
 const parseUnicodeCharDefault = state => input => {
-    const next = tokenizeOp(input, { kind: 'string', value: state.value })
+    const next = tokenizeCharCodeOp(input, { kind: 'string', value: state.value })
     return [{ first: { kind: 'error', message: 'invalid hex value' }, tail: next[0] }, next[1]]
 }
 
@@ -582,7 +582,7 @@ const idToToken = s => at(s)(keywordMap) ?? { kind: 'id', value: s }
 /** @type {_CreateToToken<_ParseIdState>} */
 const parseIdDefault = state => input => {
     const keyWordToken = idToToken(state.value)
-    const next = tokenizeOp(input, { kind: 'initial' })
+    const next = tokenizeCharCodeOp(input, { kind: 'initial' })
     return [{ first: keyWordToken, tail: next[0] }, next[1]]
 }
 
@@ -600,7 +600,7 @@ const parseOperatorStateOp = state => input => {
         default: {
             if (hasOperatorToken(nextStateValue))
                 return [empty, { kind: 'op', value: nextStateValue }]
-            const next = tokenizeOp(input, { kind: 'initial' })
+            const next = tokenizeCharCodeOp(input, { kind: 'initial' })
             return [{ first: getOperatorToken(state.value), tail: next[0] }, next[1]]
         }
     }
@@ -636,7 +636,7 @@ const parseMultilineCommentAsteriskStateOp = create(
 
 /** @type {_CreateToToken<_ParseWhitespaceState>} */
 const parseWhitespaceDefault = () => input => {
-    const next = tokenizeOp(input, { kind: 'initial' })
+    const next = tokenizeCharCodeOp(input, { kind: 'initial' })
     return [{ first: { kind: 'ws' }, tail: next[0] }, next[1]]
 }
 
@@ -648,7 +648,7 @@ const parseWhitespaceStateOp = create(parseWhitespaceDefault)([
 
 /** @type {_CreateToToken<_ParseNewLineState>} */
 const parseNewLineDefault = () => input => {
-    const next = tokenizeOp(input, { kind: 'initial' })
+    const next = tokenizeCharCodeOp(input, { kind: 'initial' })
     return [{ first: { kind: 'nl' }, tail: next[0] }, next[1]]
 }
 
@@ -710,9 +710,6 @@ const tokenizeEofOp = state => {
     }
 }
 
-/** @type {StateScan<_CharCodeOrEof, _TokenizerState, List<JsToken>>} */
-const tokenizeOp = (input, state) => input === null ? tokenizeEofOp(state) : tokenizeCharCodeOp(input, state)
-
 /** @type {(metadata: TokenMetadata) => (token: JsToken) => JsTokenWithMetadata} */
 const mapTokenWithMetadata = metadata => token => { return { token, metadata } }
 
@@ -745,6 +742,18 @@ export const proof = {
     getOperatorTokenInvalid: () => {
         const result = getOperatorToken('@')
         assertEq(result.kind, 'error')
+    },
+    // `tokenize` appends exactly one trailing `null` after its input, so the
+    // scan reaches `{ kind: 'eof' }` only on that final step — nothing ever
+    // runs tokenizeCharCodeOp/tokenizeEofOp again afterward with that state.
+    // Call each directly to cover their otherwise-unreachable `'eof'` arms.
+    tokenizeCharCodeOpAfterEof: () => {
+        const [tokens] = tokenizeCharCodeOp('a'.charCodeAt(0), { kind: 'eof' })
+        assertStructurallySame(toArray(tokens), [{ kind: 'error', message: 'eof' }])
+    },
+    tokenizeEofOpAfterEof: () => {
+        const [tokens] = tokenizeEofOp({ kind: 'eof' })
+        assertStructurallySame(toArray(tokens), [{ kind: 'error', message: 'eof' }, { kind: 'eof' }])
     },
     throw: {
         // union throws when two distinct non-default handlers are merged for the same range;
