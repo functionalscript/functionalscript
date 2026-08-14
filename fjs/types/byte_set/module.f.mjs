@@ -5,7 +5,6 @@
  * @module
  *
  * @import { RangeMap } from '../range_map/types.ts'
- * @import { SortedSet } from '../sorted_set/types.ts'
  * @import { ByteSet } from './types.ts'
  */
 
@@ -57,12 +56,21 @@ export const unset = n => s => difference(s)(one(n))
 
 const counter = reverse(countdown(256))
 
-/** @type {(n: ByteSet) => (s: string) => (i: number) => RangeMap<SortedSet<string>>} */
-const toRangeMapOp = n => s => i => {
+/** @type {(n: ByteSet) => (i: number) => RangeMap<boolean>} */
+const toRangeMapOp = n => i => {
     const current = has(i + 1)(n)
     const prev = has(i)(n)
-    return current === prev ? null : [[prev ? [s] : [], i]]
+    return current === prev ? null : [[prev, i]]
 }
 
-/** @type {(n: ByteSet) => (s: string) => RangeMap<SortedSet<string>>} */
-export const toRangeMap = n => s => flat(map(toRangeMapOp(n)(s))(counter))
+/**
+ * Re-expresses the set as a range map: one entry per membership boundary,
+ * carrying whether the range up to that byte is in the set.
+ *
+ * The payload is the set's own answer — `boolean` — and nothing more. A caller
+ * that needs ranges labelled with something else maps over the result; that
+ * labelling belongs to the caller, not to a byte set.
+ *
+ * @type {(n: ByteSet) => RangeMap<boolean>}
+ */
+export const toRangeMap = n => flat(map(toRangeMapOp(n))(counter))
