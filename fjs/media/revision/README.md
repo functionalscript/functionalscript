@@ -22,8 +22,11 @@ export const revisionSchema = {
     snapshot: hash,
     generation: number,
     archived: option(true),
-    lock: option(record(string)),
+    lock: option(lock),
 } as const
+
+export const lock = () => ['record', lockValue] as const
+const lockValue = () => ['or', string, lock] as const
 ```
 
 | Field        | Type                    | Meaning                                                              |
@@ -34,7 +37,7 @@ export const revisionSchema = {
 | `snapshot`   | `hash`                  | Complete materialized content of this revision. Always stated explicitly. |
 | `generation` | `number`                | Generation number — `0` for the first revision, else `1 + max(parent.generation)` for conforming writers. |
 | `archived`   | `true` (optional)       | Marks the mutable object as archived/inactive.                         |
-| `lock`       | `{ [subject: string]?: hash }` (optional) | Flat resolver input binding dependency subjects to immutable content. |
+| `lock`       | `{ [subject: string]?: hash \| LockMap }` (optional) | Resolver input binding dependency subjects to immutable content, optionally scoped — see [Lock maps](#lock-maps). |
 
 `hash` is a cbase32 native CAS address ([fjs/basen/cbase32](../../basen/cbase32/)).
 It is the only snapshot-reference type this dialect accepts: `parents` and
@@ -43,20 +46,56 @@ other location-addressed reference form. `subject` is a pure identity string,
 never a snapshot reference, so it is never validated as a hash — any string is
 a valid `subject`.
 
-`lock` is an optional flat open map. Each direct value selects immutable
-content, like `snapshot`; it is not a revision-object hash. Missing bindings
-have no format-defined fallback or inheritance behavior: dependency discovery,
+## Lock maps
+
+`lock` is an optional open map from subject to either a **direct hash** or a
+**nested lock map**, to any depth. Each direct value selects immutable content,
+like `snapshot`; it is not a revision-object hash. Missing bindings have no
+format-defined fallback or inheritance behavior: dependency discovery,
 precedence, conflict handling, ancestry inspection, and mutable-head fallback
 belong to resolvers. An omitted lock means no bindings were recorded, while an
 explicit empty lock remains distinct as `{}`. A binding for the revision's own
 subject is structurally valid.
 
+A flat map is the normal representation. Nest only when one flat binding
+cannot express the available scoped choices — the incompatible diamond being
+the case that motivates nesting at all:
+
+```text
+A -> B        B -> D(v1)
+A -> C        C -> D(v2)
+```
+
+```json
+{
+  "B": { "B": "snapshot-hash-of-B", "D": "snapshot-hash-of-D-v1" },
+  "C": { "C": "snapshot-hash-of-C", "D": "snapshot-hash-of-D-v2" }
+}
+```
+
+The format **records** that information and stops there. It defines no
+overlay, replacement, inheritance, or lookup rule for a nested map, exactly as
+it defines none for a flat one — a nested map may be sparse and may omit the
+subject it appears under. What a scope means, and which of two enclosing
+bindings wins, is a resolver's decision; two resolvers reading the same
+revision may legitimately answer differently, and the blob has not lost
+anything either of them needs.
+
+Because entries select *content* hashes and never revisions containing further
+lock maps, a lock map cannot introduce a revision-hash cycle: a logical
+dependency cycle between subjects is expressible without one.
+
+Nesting only widens the value domain, so every flat map remains valid and
+means what it always did. It stays inside this dialect rather than becoming
+`vnd.fjs.revision2` — see [Widening `lock`](#widening-lock) below.
+
 ## Canonical serialization
 
 Conforming writers serialize revision JSON canonically by sorting every
 object's property names lexicographically. Sorting is recursive, so it applies
-to the top-level revision, `lock`, and future nested JSON objects; arrays retain
-their declared order. Names are compared as strings (`"10"` precedes `"2"`).
+to the top-level revision, `lock` at every depth, and future nested JSON
+objects; arrays retain their declared order. Names are compared as strings
+(`"10"` precedes `"2"`).
 Consequently parsed revisions that differ only in whitespace, escape spelling,
 or property construction order converge to identical bytes and one CAS address.
 Existing non-canonical blobs remain valid input and normalize when rewritten.
@@ -134,6 +173,24 @@ one. This is why incremental diffs are not a field here: an optional
 reader would still validate such a blob and materialize the base, silently
 ignoring the changes). Incremental changes are a future separate dialect,
 `vnd.fjs.change`, served as `application/vnd.fjs.change+json`.
+
+### Widening `lock`
+
+Allowing a nested map where only a hash string used to be legal is neither of
+those cases, and it keeps the tag. The versioning rule forbids reusing a tag
+when an old reader would still validate a new blob and **misread** it; a
+reader that validates `lock` as a map of strings rejects a nested map outright
+instead. So the two failure modes on offer are:
+
+- **keep the tag** — a nested-lock revision is unreadable to old readers, and
+  every flat-lock revision (the normal representation) keeps working;
+- **new tag** — *every* revision becomes unreadable to old readers, including
+  the flat ones, to announce a capability most blobs never use.
+
+The dialect tag is per blob, not per field, so the second option cannot be
+scoped to the revisions that actually nest. Widening keeps the tag, and an
+older reader's rejection of a nested map is the intended, fail-closed outcome
+rather than a compatibility break to route around.
 
 **Relaxing a required field is also incompatible.** Making a currently
 required field (`snapshot`, `generation`) optional again is allowed, but only
@@ -234,6 +291,14 @@ the existing `option(true)` idiom (a presence-only flag) rather than
   `hash.generation` alone does not pin a version across branches; undefined
   for now, only hashes are used). Subject identity strings are already
   unconstrained, since `subject` is never a snapshot reference.
+- A reusable, history-free lock format (`vnd.fjs.lock`) holding a map several
+  revisions could share, and a revision field referencing such shared lock
+  content. History for that content would still be ordinary revisions, so
+  neither is a second history mechanism — but neither is designed yet, and
+  `lock` here stays an inline, per-revision map.
+- A dependency-resolution algorithm. The format records bindings; precedence,
+  inheritance, and conflict rules are a resolver's, and are deliberately
+  absent here (see [Lock maps](#lock-maps)).
 - Digital signatures for filtering changes from unknown users — a future,
   separate spec. Further out, a `{public-key}/{name}.{generation}` reference
   form, where the key's owner defines what `{name}` means: anchoring the
