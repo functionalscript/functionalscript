@@ -60,6 +60,12 @@ const stringNamed = stringNamedHolder.string
 const t0NamedHolder = { T0: () => ['array', t0NamedHolder.T0] }
 const t0Named = t0NamedHolder.T0
 
+/** A recursive rule whose function name is the reserved word `if`. */
+/** @typedef {() => readonly ['array', _IfNamed]} _IfNamed */
+/** @type {{ readonly if: _IfNamed }} */
+const ifNamedHolder = { if: () => ['array', ifNamedHolder.if] }
+const ifNamed = ifNamedHolder.if
+
 export const proof = {
     tag0: {
         boolean: () => eq(boolean, 'boolean'),
@@ -163,6 +169,14 @@ export const proof = {
         // a predefined type name cannot name an alias — generated `T0`
         predefinedName: () => {
             eqData(toData(stringNamed), [[['T0', 'readonly(T0)[]']], 'T0'])
+        },
+        // reserved words cannot name an alias either — generated `T0`
+        reservedName: () => {
+            eqData(toData(ifNamed), [[['T0', 'readonly(T0)[]']], 'T0'])
+        },
+        typeOperatorName: () => {
+            eqData([{ infer: { array: [{ prefix: [], rest: 'infer' }] } }, 'infer'],
+                [[['T0', 'readonly(T0)[]']], 'T0'])
         },
         // a generated identifier skips names already kept
         generatedCollision: () => {

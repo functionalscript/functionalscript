@@ -23,8 +23,9 @@ history.
 - `types/rtti/ts`: the runtime printer supports recursive schemas — it
   converts through `fjs/types/rtti/data` (new `dataToTs`), so a recursive
   schema prints as `type <name> = <expression>` definitions plus an entry
-  expression instead of overflowing the stack; output follows the data form's
-  canonical order
+  expression instead of overflowing the stack; output is the data form's
+  canonical form, and a rule name that cannot name a type alias (reserved
+  word, predefined type name, non-identifier) gets a generated identifier
   [#1547](https://github.com/functionalscript/functionalscript/pull/1547).
 - `types/bit_vec`: `tryListToVec`/`tryU8ListToVec` reuse the shared balanced
   fold, at the same cost as the accumulator they replace

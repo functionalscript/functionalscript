@@ -29,10 +29,23 @@ const falseBit = unitBit(false)
 const trueBit = unitBit(true)
 const booleanBits = falseBit | trueBit
 
-/** Predefined type names that cannot name a TypeScript type alias. */
-const predefined = /** @type {const} */ ([
+/**
+ * Names that cannot name a TypeScript type alias: the predefined type
+ * names (`TS2457`), the ECMAScript reserved words, and the type-operator
+ * keywords that fail to parse in the alias-name position.
+ */
+const reserved = /** @type {const} */ ([
+    // predefined type names
     'any', 'bigint', 'boolean', 'false', 'never', 'null', 'number', 'object',
     'string', 'symbol', 'true', 'undefined', 'unknown', 'void',
+    // ECMAScript reserved words
+    'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
+    'debugger', 'default', 'delete', 'do', 'else', 'enum', 'export',
+    'extends', 'finally', 'for', 'function', 'if', 'import', 'in',
+    'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try',
+    'typeof', 'var', 'while', 'with',
+    // type-operator keywords
+    'infer', 'keyof', 'readonly', 'unique',
 ])
 
 /** @type {(c: string) => boolean} */
@@ -46,7 +59,7 @@ const isIdPart = c => isIdStart(c) || (c >= '0' && c <= '9')
 const isTypeName = s =>
     s !== ''
     && [...s].every((c, i) => i === 0 ? isIdStart(c) : isIdPart(c))
-    && !predefined.some(p => p === s)
+    && !reserved.some(p => p === s)
 
 /**
  * Maps every rule name to a TypeScript type-alias identifier: the name
@@ -176,10 +189,10 @@ const unionToTs = ctx => u => {
  * which references those identifiers. A schema with no reference cycles has
  * no definitions and the entry expression stands alone.
  *
- * Rule names come from the data form; one that cannot name a type alias (not
- * an identifier, or a predefined type name) gets a deterministic generated
- * identifier (`T0`, `T1`, …). A reference naming a missing definition
- * panics.
+ * Rule names come from the data form; one that cannot name a type alias —
+ * not an identifier, a predefined type name, an ECMAScript reserved word,
+ * or a type-operator keyword — gets a deterministic generated identifier
+ * (`T0`, `T1`, …). A reference naming a missing definition panics.
  *
  * @example
  * ```js
