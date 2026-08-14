@@ -26,6 +26,10 @@ history.
   expression instead of overflowing the stack; output follows the data form's
   canonical order
   [#1547](https://github.com/functionalscript/functionalscript/pull/1547).
+- `djs/serializer`: `stringify`'s `constSerialize` drops a defensive throw for
+  a `refs` lookup that can never miss — `consts` only ever holds values
+  `getConstants` already found an entry for
+  [#1544](https://github.com/functionalscript/functionalscript/pull/1544)
 - `types/uint8array`: `toVec` attempts the conversion instead of precomputing a
   byte-count bound; behavior and error message unchanged
   [#1543](https://github.com/functionalscript/functionalscript/pull/1543)
