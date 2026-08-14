@@ -13,7 +13,7 @@ import { assert, assertEq } from '../asserts/module.f.mjs'
 import {
     testAll, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
-    defaultTest, main,
+    defaultTest, main, register,
 } from './module.f.mjs'
 import { run as mockRun } from '../effects/mock/module.f.mjs'
 import { shouldLoad } from '../dev/module.f.mjs'
@@ -401,6 +401,26 @@ export const registerEmptyProof = () => {
     assertEq(names.length, 0)
 }
 
+// register (the NodeProgram entry point) against an empty virtual root: no
+// modules to register means registerModuleMap short-circuits before ever
+// calling the selected TestContext's `test` op, so this reaches register's
+// own branches (inlineTestContext, engine) without hitting the virtual
+// harness's `test: todo` stub. Node engine, non-inline context.
+export const registerEmptyModuleMap = () => {
+    const state = { ...emptyState, root: {} }
+    const [, exitCode] = virtual(state)(register(options('.')))
+    assertEq(exitCode, 0)
+}
+
+// Same as registerEmptyModuleMap, but selects the Bun engine's inline
+// TestContext instead of Node's.
+export const registerEmptyModuleMapInlineBun = () => {
+    const state = { ...emptyState, root: {} }
+    const opts = { ...options('.'), inlineTestContext: true, engine: /** @type {const} */ ('bun') }
+    const [, exitCode] = virtual(state)(register(opts))
+    assertEq(exitCode, 0)
+}
+
 // direct unit tests for the pure path-format helpers
 export const helpers = {
     isInteger: () => {
@@ -513,6 +533,8 @@ export const proof = {
     registerSuffixes,
     registerThrowsWithoutThrowing,
     registerEmptyProof,
+    registerEmptyModuleMap,
+    registerEmptyModuleMapInlineBun,
     defaultReporterExpectedToThrow,
     helpers
 }
