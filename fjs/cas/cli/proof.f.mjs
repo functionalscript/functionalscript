@@ -1,4 +1,6 @@
-/** @import { NodeProgramOptions } from '../../effects/node/types.ts' */
+/**
+ * @import { NodeProgramOptions } from '../../effects/node/types.ts'
+ */
 
 import { commands } from './module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'

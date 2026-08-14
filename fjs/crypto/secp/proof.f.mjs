@@ -1,4 +1,6 @@
-/** @import { Point, Curve, Init } from './types.ts' */
+/**
+ * @import { Point, Curve, Init } from './types.ts'
+ */
 
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { prime_field } from '../../types/prime_field/module.f.mjs'

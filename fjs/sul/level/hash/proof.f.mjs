@@ -1,8 +1,11 @@
+/**
+ * @import { Id } from '../../id/types.ts'
+ * @import { EncodeState } from './types.ts'
+ */
+
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { compress, level3Id } from '../../id/module.f.mjs'
-/** @import { Id } from '../../id/types.ts' */
 import { emptyEncodeState, encode } from './module.f.mjs'
-/** @import { EncodeState } from './types.ts' */
 
 /** @typedef {readonly (readonly [Id, Id, Id, boolean])[]} _NodeList */
 

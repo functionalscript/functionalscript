@@ -2,17 +2,18 @@
  * FunctionalScript command utilities for compile workflows.
  *
  * @module
+ *
+ * @import { RangeMapArray, RangeMerge } from '../types/range_map/types.ts'
+ * @import { List } from '../types/list/types.ts'
+ * @import { Range } from '../types/range/types.ts'
  */
 
 import { strictEqual } from '../types/function/operator/module.f.mjs'
 import { merge as rangeMapMerge, fromRange, get } from '../types/range_map/module.f.mjs'
-/** @import { RangeMapArray, RangeMerge } from '../types/range_map/types.ts' */
 import { reduce as listReduce, toArray, map } from '../types/list/module.f.mjs'
-/** @import { List } from '../types/list/types.ts' */
 import { range as asciiRange } from '../text/ascii/module.f.mjs'
 import { flip, fn } from '../types/function/module.f.mjs'
 import { one } from '../types/range/module.f.mjs'
-/** @import { Range } from '../types/range/types.ts' */
 import { assertEq } from '../asserts/module.f.mjs'
 
 const fromCharCode = String.fromCharCode

@@ -1,13 +1,16 @@
+/**
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { List } from '../../effects/list/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { DetectMeta } from './types.ts'
+ */
+
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { msb, u8ListToVec, vec8, repeat, empty } from '../../types/bit_vec/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/types.ts' */
 import { runPure } from '../../effects/module.f.mjs'
 import { nonEmpty, empty as emptyList } from '../../effects/list/module.f.mjs'
-/** @import { List } from '../../effects/list/types.ts' */
-/** @import { Result } from '../../types/result/types.ts' */
 import { ok } from '../../types/result/module.f.mjs'
 import { detect, detectStream, detectVec } from './module.f.mjs'
-/** @import { DetectMeta } from './types.ts' */
 
 // Builds a big-endian `Vec` from a list of byte values — mirrors how the CAS
 // store would hold the leading bytes of a stored blob.

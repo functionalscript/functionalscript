@@ -4,6 +4,10 @@
  * `stateScan` operations.
  *
  * @module
+ *
+ * @import { List, Result, Thunk } from '../../types/list/types.ts'
+ * @import { StateScan } from '../../types/function/operator/types.ts'
+ * @import { CodePoint, U16 } from './types.ts'
  */
 
 import {
@@ -12,13 +16,9 @@ import {
     flatMap,
     empty,
 } from '../../types/list/module.f.mjs'
-/** @import { List, Result, Thunk } from '../../types/list/types.ts' */
 
 import { concat } from '../../types/function/operator/module.f.mjs'
-/** @import { StateScan } from '../../types/function/operator/types.ts' */
-
 import { contains } from '../../types/range/module.f.mjs'
-
 import { fn } from '../../types/function/module.f.mjs'
 
 import {
@@ -37,8 +37,6 @@ import {
  *
  * @typedef {number | null} _Utf16State
  */
-
-/** @import { CodePoint, U16 } from './types.ts' */
 
 /**
  * The BMP / surrogate / supplementary-plane predicates used below live in
@@ -85,7 +83,6 @@ const codePointToUtf16 = codePoint => {
     }
     return [codePoint & 0xffff]
 }
-
 
 /**
  * Converts a UTF-16 sequence to its corresponding Unicode code points.
@@ -146,7 +143,6 @@ const isInU16Range = contains(0x0000, 0xFFFF)
  */
 const u16 = i => Number.isInteger(i) && isInU16Range(i)
 
-
 /**
  * A stateful operation that converts a UTF-16 word (U16) to a list of Unicode code points (CodePoint),
  * while maintaining the state of surrogate pair decoding.
@@ -205,7 +201,6 @@ const utf16ByteToCodePointOp = (word, state) => {
     return [[state | errorMask], word]
 }
 
-
 /**
  * Converts a pending UTF-16 decoding state — an unpaired high surrogate
  * (0xD800–0xDBFF) left from an earlier input — to an error code.
@@ -226,7 +221,6 @@ const utf16StateToError = state => state | errorMask
  * @type {(state: _Utf16State) => readonly[List<CodePoint>, _Utf16State]}
  */
 const utf16EofToCodePointOp = eofFlush(utf16StateToError)
-
 
 /**
  * Converts a list of UTF-16 code units to a list of Unicode code points (CodePoint).

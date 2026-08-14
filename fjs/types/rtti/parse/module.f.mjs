@@ -27,13 +27,17 @@
  * See `./types.ts` for the `Result`/`Parse` type-level API.
  *
  * @module
+ *
+ * @import { Info1, Struct, Tag1, Tuple, Type } from '../types.ts'
+ * @import { Result as CommonResult } from '../../result/types.ts'
+ * @import { StringMap } from '../../object/types.ts'
+ * @import { List } from '../../list/types.ts'
+ * @import { Container, IsContainer, ValidateE, ValidationError, Visitor } from '../common/types.ts'
+ * @import { Unknown } from '../ts/types.ts'
+ * @import { Parse } from './types.ts'
  */
 
-/** @import { Info1, Struct, Tag1, Tuple, Type } from '../types.ts' */
-/** @import { Result as CommonResult } from '../../result/types.ts' */
 import { ok } from '../../result/module.f.mjs'
-/** @import { StringMap } from '../../object/types.ts' */
-/** @import { List } from '../../list/types.ts' */
 import { reverse, toArray } from '../../list/module.f.mjs'
 import {
     constPrimitiveValidate,
@@ -45,9 +49,6 @@ import {
     verror,
     visit,
 } from '../common/module.f.mjs'
-/** @import { Container, IsContainer, ValidateE, ValidationError, Visitor } from '../common/types.ts' */
-/** @import { Unknown } from '../ts/types.ts' */
-/** @import { Parse } from './types.ts' */
 
 const { entries } = Object
 

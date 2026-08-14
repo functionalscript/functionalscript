@@ -6,13 +6,14 @@
  * ECMAScript `QuoteJSONString` result exactly, lone surrogates included.
  *
  * @module
+ *
+ * @import { List } from '../../../types/list/types.ts'
+ * @import { Reduce } from '../../../types/function/operator/types.ts'
+ * @import { CodePoint } from '../../../text/utf16/types.ts'
  */
 
-/** @import { List } from '../../../types/list/types.ts' */
 import { flat, map, reduce, empty } from '../../../types/list/module.f.mjs'
-/** @import { Reduce } from '../../../types/function/operator/types.ts' */
 import { concat } from '../../../types/string/module.f.mjs'
-/** @import { CodePoint } from '../../../text/utf16/types.ts' */
 import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { errorMask } from '../../../text/code_point/module.f.mjs'
 import {

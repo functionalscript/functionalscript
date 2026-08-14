@@ -15,12 +15,13 @@
  * const bitmask = mask(5n) // 31n
  * const c = combination([3n, 2n, 1n]) // 60n
  * ```
+ *
+ * @import { Sign } from '../function/compare/types.ts'
+ * @import { List } from '../list/types.ts'
+ * @import { Reduce, Unary } from './types.ts'
  */
 
 import { cmp } from '../function/compare/module.f.mjs'
-/** @import { Sign } from '../function/compare/types.ts' */
-/** @import { List } from '../list/types.ts' */
-/** @import { Reduce, Unary } from './types.ts' */
 import { fold } from '../../common/monoid/module.f.mjs'
 
 /**

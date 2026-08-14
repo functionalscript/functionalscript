@@ -20,9 +20,9 @@
  * const half = n => n % 2 === 0 ? ok(n / 2) : error('odd')
  * if (unwrap(okThen(half)(success)) !== 21) { throw 'error' }
  * ```
+ *
+ * @import { Ok, Error, Result } from './types.ts'
  */
-
-/** @import { Ok, Error, Result } from './types.ts' */
 
 /**
  * Creates a successful result.

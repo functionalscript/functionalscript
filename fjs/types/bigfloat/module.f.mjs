@@ -2,10 +2,11 @@
  * Big-float helpers built from bigint mantissa and exponent parts.
  *
  * @module
+ *
+ * @import { BigFloat } from './types.ts'
  */
 
 import { abs, sign } from '../bigint/module.f.mjs'
-/** @import { BigFloat } from './types.ts' */
 
 /** @typedef {readonly [BigFloat, bigint]} _BigFloatWithRemainder */
 

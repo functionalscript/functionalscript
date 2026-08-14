@@ -1,6 +1,9 @@
+/**
+ * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
+ */
+
 import { parseFromTokens } from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
-/** @import { DjsTokenWithMetadata } from '../tokenizer/types.ts' */
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'

@@ -128,7 +128,6 @@ _*
 .DS_Store
 **/*.d.mts
 **/*.d.ts
-**/*.js
 
 test-results/
 
