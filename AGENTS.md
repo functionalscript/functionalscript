@@ -702,6 +702,32 @@ Inline `@type` casts carried over from `as` assertions during the
 TypeScript-to-JavaScript migration still exist in the tree; converting one to the
 declaration form is a welcome cleanup wherever the rewrite is straightforward.
 
+When the value being narrowed is an invariant a comment would otherwise have to
+assert on trust — "this is never `undefined`/`null` because the caller already
+guaranteed X" — prefer `assert`/`assertNotNullish` from
+[`fjs/asserts/module.f.mjs`](./fjs/asserts/module.f.mjs) over a cast:
+
+```js
+const refCounter = assertNotNullish(refs.get(entry))
+```
+
+rather than
+
+```js
+const refCounter = /** @type {_RefCounter} */ (refs.get(entry))
+```
+
+A cast is a claim the compiler takes on faith and erases at runtime: if the
+invariant it documents ever breaks — a future edit to the code it depends on,
+a case the original reasoning missed — the narrowed value is silently wrong
+instead of the assertion failing where the break actually happened.
+`assert`/`assertNotNullish` narrow exactly the same way (via `asserts v` /
+a checked return type) but also check the claim every time, so a broken
+invariant throws immediately at the point that assumed it, not later at
+some unrelated crash site. Reach for a cast only when there is truly no
+runtime check to perform — e.g. `@type {const}` below, or narrowing across a
+boundary the type system cannot express at all.
+
 `@type {const}` (the JSDoc equivalent of `as const`, see "Pin literal
 `const`s" above) is the one case where this preference inverts: it **must**
 stay an inline cast on the expression —
