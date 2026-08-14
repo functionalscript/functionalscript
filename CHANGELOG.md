@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- `basen/base64`: `decode` drops an overflow check in its padded branch that
+  could never trigger — `head`'s length is always a multiple of 6, so the
+  largest value `stringToVec` can return without overflowing already lands
+  at or under `maxLength` once the trimmed last chunk is added back
+  [#1541](https://github.com/functionalscript/functionalscript/pull/1541)
+
 - RTTI: new `fjs/types/rtti/data` module — a function-free, serializable,
   canonical data form for schemas with `toData`, `cmp`, `equal`, `subset`, and a
   data-driven `validate`
