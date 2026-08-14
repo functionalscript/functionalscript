@@ -5,7 +5,7 @@
  *
  * @import { Cmp } from '../function/compare/types.ts'
  * @import { List } from '../list/types.ts'
- * @import { ReduceOp, SortedList, TailReduce, _MergeReduce } from './types.ts'
+ * @import { ReduceOp, SortedList, _MergeReduce } from './types.ts'
  */
 
 import { bsearch } from '../function/compare/module.f.mjs'
