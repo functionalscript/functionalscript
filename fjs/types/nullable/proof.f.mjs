@@ -1,3 +1,8 @@
+/**
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Equal } from '../ts/types.ts'
+ */
+
 import { fromUndefined, map, match, toOption } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
@@ -23,6 +28,16 @@ export const proof = [
         const double = match(twice)(() => -1)
         assertEq(double(3), 6)
         assertEq(double(null), -1)
+    },
+    () => {
+        // The two branches carry independent result types: `describe` is
+        // `(_: Nullable<number>) => number | string`, not one unified `R`.
+        /** @type {(v: number) => number} */
+        const twice = v => v * 2
+        const describe = match(twice)(() => 'none')
+        /** @typedef {Assert<Equal<ReturnType<typeof describe>, number | string>>} _Branches */
+        assertEq(describe(3), 6)
+        assertEq(describe(null), 'none')
     },
     () => {
         assertEq(fromUndefined(undefined), null, 0)
