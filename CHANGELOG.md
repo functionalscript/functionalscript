@@ -25,7 +25,7 @@ history.
   schema prints as `type <name> = <expression>` definitions plus an entry
   expression instead of overflowing the stack; output follows the data form's
   canonical order
-  [#1542](https://github.com/functionalscript/functionalscript/pull/1542).
+  [#1547](https://github.com/functionalscript/functionalscript/pull/1547).
 - `types/uint8array`: `toVec` attempts the conversion instead of precomputing a
   byte-count bound; behavior and error message unchanged
   [#1543](https://github.com/functionalscript/functionalscript/pull/1543)
