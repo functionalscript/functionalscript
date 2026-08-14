@@ -23,6 +23,14 @@ history.
 - `types/sorted_list`: the two merge tail policies are now named `keepTail` and
   `dropTail` instead of sharing one shadowed name; internal only
   [#1546](https://github.com/functionalscript/functionalscript/pull/1546)
+- `types/bit_vec`: `tryListToVec`/`tryU8ListToVec` reuse the shared balanced
+  fold, at the same cost as the accumulator they replace
+  [#1548](https://github.com/functionalscript/functionalscript/pull/1548)
+- `common/monoid`: `fold` reduces as a balanced tree instead of a left fold —
+  `bigint.product` drops from O(n²) to O(n log n), `string.concat` pays a little
+  for the one combinator, `number.sum` may round differently. New
+  `foldAbsorbing` stops at the first element reaching an absorbing value
+  [#1548](https://github.com/functionalscript/functionalscript/pull/1548)
 - Every module-level `@import` tag lives in its module's leading JSDoc block
   (125 files swept), so emitted declaration headers list their type imports
   in one place

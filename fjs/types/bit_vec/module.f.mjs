@@ -23,19 +23,20 @@
  *
  * @import { Reduce as BigintReduce } from '../bigint/types.ts'
  * @import { Fold } from '../function/operator/types.ts'
- * @import { Accumulator, List, Thunk } from '../list/types.ts'
+ * @import { List, Thunk } from '../list/types.ts'
+ * @import { Absorbing } from '../../common/monoid/types.ts'
  * @import { Sign } from '../function/compare/types.ts'
  * @import { Nullable } from '../nullable/types.ts'
  * @import { BitOrder, PopFront, Reduce, Unpacked, Vec, _NormOp, _UnpackConcat, } from './types.ts'
  */
 
 import { bitLength, divUp, mask, maxLength, xor } from '../bigint/module.f.mjs'
-import { flip, identity } from '../function/module.f.mjs'
-import { map, tryFold } from '../list/module.f.mjs'
+import { compose, flip, identity } from '../function/module.f.mjs'
+import { map } from '../list/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.mjs'
-import { repeat as mRepeat } from '../../common/monoid/module.f.mjs'
+import { foldAbsorbing, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
 import { cmp, max, min } from '../function/compare/module.f.mjs'
-import { mapUnwrap } from '../nullable/module.f.mjs'
+import { map as nullableMap, mapUnwrap } from '../nullable/module.f.mjs'
 
 /**
  * Maximum length of a bit vector in bits (1_048_576 = 0x10_0000).
@@ -183,55 +184,53 @@ const op = norm => op => ap => bp => {
 const unpackEmpty = /** @type {const} */{ length: 0n, uint: 0n }
 
 /**
- * @typedef {{
- *  readonly len: bigint
- *  readonly stack: readonly Unpacked[]
- * }} _ListToVecState
+ * Concatenation as a monoid over `Nullable<Unpacked>`, where `null` means "the
+ * concatenation is longer than `maxLength`" and is an **absorbing** element:
+ * combining it with anything is `null` again. The identity is the empty vector.
+ *
+ * This is a lawful monoid, so `monoid.fold` may re-associate it freely. Length
+ * is additive and non-negative, so any partial combine is at most the total: a
+ * partial can only overflow when the total does, and the top-level combine
+ * always sees the full total. The result is therefore `null` **iff** the total
+ * length exceeds `maxLength`, whatever the grouping.
+ *
+ * The cap is checked on the operands' lengths rather than on the concatenated
+ * result because the result is what must not be built: `maxLength` is the
+ * smallest `bigint` size supported across FunctionalScript's runtimes. The two
+ * lengths are exact and additive — this is the length, not an estimate of it
+ * (AGENTS.md §5.6).
+ *
+ * Being absorbing is also what keeps the fold's walk bounded: `foldAbsorbing`
+ * stops at the first merge that overflows instead of reading the rest of a list
+ * whose answer is already `null`. `List<T>` includes `Thunk<T>`, so that is the
+ * difference between answering and never returning on an unbounded lazy list —
+ * and at `maxLength` = 128 KiB, overflow is an ordinary outcome for a stream,
+ * not an exotic one. Since a single vector is never `null`, only a merge can
+ * reach the absorbing element, so the stop lags the element that crossed the cap
+ * by at most one doubling of the run size (measured: 65 536 elements read for a
+ * cap crossed at 32 769, and 4 for a cap crossed at 3).
+ *
+ * @type {(unpackConcat: _UnpackConcat) => Absorbing<Nullable<Unpacked>>}
  */
-
-/** @typedef {Accumulator<Unpacked, _ListToVecState, Vec>} _ListToVecOp */
-
-/** @type {(unpackConcat: _UnpackConcat) => _ListToVecOp} */
-const listToVecOp = unpackConcat => ({
-    init: { len: 0n, stack: [] },
-    update: (v, {len, stack}) => {
-        len += v.length
-        if (len > maxLength) { return null }
-        let i = 0
-        while (true) {
-            if (stack.length <= i) {
-                stack = [...stack, v]
-                break
-            }
-            const old = stack[i]
-            if (old.length === 0n) {
-                stack = stack.toSpliced(i, 1, v)
-                break
-            }
-            stack = stack.toSpliced(i, 1, unpackEmpty)
-            v = unpackConcat(old)(v)
-            i++
-        }
-        return { len, stack }
+const tryUnpackConcat = unpackConcat => ({
+    monoid: {
+        identity: unpackEmpty,
+        operation: a => b =>
+            a === null || b === null || a.length + b.length > maxLength
+                ? null
+                : unpackConcat(a)(b)
     },
-    end: ({stack}) => pack(stack.reduce((p, c) => unpackConcat(c)(p), unpackEmpty))
+    absorbing: null,
 })
 
 /**
- * Concatenates a list of unpacked vectors using a binary-counter accumulator,
- * giving O(n log n) total `bigint` shifting work instead of the O(n²) of a
- * naive left fold.
+ * Concatenates a list of unpacked vectors, or `null` if the result would be
+ * longer than `maxLength`.
  *
- * Slot `i` of `result` holds an already-combined run of the most recent
- * `2 ** i` elements. Each arriving element "carries" upward, merging only with
- * runs of comparable size — exactly like incrementing a binary number — so
- * every merge joins two runs of similar length. Left-to-right element order is
- * preserved: `unpackConcat(old)(cur)` keeps the earlier run on the left, and
- * the final reduce prepends higher (earlier) slots in front of accumulated
- * later runs. An empty list yields `unpackEmpty`.
- *
- * Returns `null` as soon as the accumulated length exceeds `maxLength`, which
- * `tryFold` propagates by abandoning the rest of the list.
+ * `monoid.foldAbsorbing` reduces as a balanced binary tree, so each merge joins
+ * two runs of comparable size — O(n log n) total `bigint` shifting work instead
+ * of the O(n²) a left fold would spend growing one accumulator against small
+ * operands — and stops reading at the first overflow.
  *
  * This is the bit-vector analogue of a builder that accumulates appended pieces
  * and materializes the combined result on demand, such as `StringBuilder`
@@ -239,7 +238,8 @@ const listToVecOp = unpackConcat => ({
  *
  * @param {_UnpackConcat} unpackConcat
  */
-const unpackListToVec = unpackConcat => tryFold(listToVecOp(unpackConcat))
+const unpackListToVec = unpackConcat =>
+    compose(foldAbsorbing(tryUnpackConcat(unpackConcat)))(nullableMap(pack))
 
 /** @type {(base: _Base) => BitOrder} */
 const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }) => {
@@ -272,9 +272,9 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
         const bu = unpack(b)
         return pack(unpackConcat(au)(bu))
     }
+    const unpackedListToVec = unpackListToVec(unpackConcat)
     /** @param {List<Vec>} list */
-    const tryListToVec = list =>
-        unpackListToVec(unpackConcat)(map(unpack)(list))
+    const tryListToVec = list => unpackedListToVec(map(unpack)(list))
     return {
         front,
         removeFront,
@@ -366,9 +366,11 @@ export const msb = bo({
  *
  * @type {(_: BitOrder) => (list: List<number>) => Nullable<Vec>}
  */
-export const tryU8ListToVec = ({ unpackConcat }) => list =>
-    unpackListToVec(unpackConcat)(
+export const tryU8ListToVec = ({ unpackConcat }) => {
+    const unpackedListToVec = unpackListToVec(unpackConcat)
+    return list => unpackedListToVec(
         map(/** @type {(_: number) => Unpacked} */b => ({ length: 8n, uint: BigInt(b) }))(list))
+}
 
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
