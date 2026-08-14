@@ -100,9 +100,10 @@ export const proof = {
         // ...and an invalid final character (the one holding the padding
         // bits) must be rejected via the last-character decode.
         assertEq(decode('A!=='), null)
-        // Same as `decodeOverflow`, but with a padded tail so it's the
-        // padded branch that measures the result against `maxLength` and
-        // rejects it.
+        // Same as `decodeOverflow`, but with a padded tail: `head` (all
+        // characters but the last) is still over `maxLength` on its own, so
+        // this is rejected by `head`'s own `stringToVec` overflow check, not
+        // by a separate `head`-plus-`realBits` measurement.
         assertEq(decode('A'.repeat(174_764) + '='), null)
     },
     encodeAtMaxLengthSucceeds: () => {
