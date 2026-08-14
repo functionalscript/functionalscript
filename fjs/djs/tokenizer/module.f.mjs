@@ -511,10 +511,13 @@ export const tokenizeString = s => {
 // Finds `tag` in flatTokens and returns the metadata of the next code point after it.
 // numError/unterminated tags are followed by the poisoning char / EOF-hitting position
 // in the flattened AST walk order, so this pinpoints roughly where tokenization failed.
+//
+// The single call site only passes a `tag` it already confirmed via
+// `flatTokens.includes(tag)`, so `indexOf` here is never -1.
 /** @type {(tag: string, flatTokens: readonly _FlatToken[], fallback: TokenMetadata) => TokenMetadata} */
 const metadataAfterTag = (tag, flatTokens, fallback) => {
     const idx = flatTokens.indexOf(tag)
-    const found = idx < 0 ? undefined : flatTokens.slice(idx + 1).find((/** @type {_FlatToken} */ t) => t instanceof Array)
+    const found = flatTokens.slice(idx + 1).find((/** @type {_FlatToken} */ t) => t instanceof Array)
     return found === undefined ? fallback : found[1]
 }
 
@@ -592,11 +595,16 @@ const parseDjsDefaultState = input => {
 
 // Folds a leading '-' into the following number/bigint token, mirroring the old
 // fjs/djs/tokenizer's minus-state exactly.
+//
+// No `case '-'` here: the underlying `js/tokenizer` always merges two adjacent
+// `-` characters into a single `'--'` token (the decrement operator), so this
+// state — entered only after a single, unmerged `-` — can never itself see
+// another `'-'`-kind input. Such an input falls through to `default`, which
+// handles it exactly like any other non-number/bigint/eof token.
 /** @type {(input: JsToken) => readonly [List<DjsToken>, _DjsScanState]} */
 const parseDjsMinusState = input => {
     switch (input.kind) {
         case 'eof': return [[{ kind: 'error', message: 'invalid token' }, { kind: 'eof' }], { kind: 'def' }]
-        case '-': return [[{ kind: 'error', message: 'invalid token' }], { kind: '-' }]
         case 'bigint': return [[{ kind: 'bigint', value: -1n * input.value }], { kind: 'def' }]
         case 'number': return [[{ kind: 'number', bf: multiply(input.bf)(-1n), value: `-${input.value}` }], { kind: 'def' }]
         default: return [{ first: { kind: 'error', message: 'invalid token' }, tail: mapDjsToken(input) }, { kind: 'def' }]

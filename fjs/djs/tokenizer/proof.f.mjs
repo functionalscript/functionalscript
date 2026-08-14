@@ -901,7 +901,10 @@ export const proof = {
             assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"bigint","value":-1234567890n}},{"metadata":{"column":13,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
-            // '-' followed by '-': one error, stays in minus-state waiting for what follows
+            // `js/tokenizer` merges '--' into one decrement-operator token, so
+            // this never enters (or re-enters) minus-state via a second '-';
+            // it's one error straight from the default state's unknown-token
+            // fallback, mapping the whole '--' token to a single error.
             const result = toArray(tokenize(stringToList('--'))(''))
             assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
@@ -913,6 +916,12 @@ export const proof = {
             // dangling '-' at eof
             const result = toArray(tokenize(stringToList('-'))(''))
             assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
+        () => {
+            // '-' followed by neither a number/bigint nor eof: one error for
+            // the dangling '-', then the following token maps through normally.
+            const result = toArray(tokenize(stringToList('-{'))(''))
+            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"{"}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
             const result = toArray(tokenize(stringToList('[-1234567890n]'))(''))
