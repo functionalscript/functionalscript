@@ -99,12 +99,20 @@ const push = operation => size => value => stack =>
         : push(operation)(size * 2)(operation(stack.value)(value))(stack.rest)
 
 /**
- * `push` as a one-element step over the stack, the {@link Fold} `list.fold`
- * takes.
+ * `push` seeded for a single element — the step both {@link fold} and
+ * {@link absorbingAccumulator} walk a list with.
+ *
+ * @type {<T>(operation: Reduce<T>) => (value: T) => (stack: _Stack<T>) => _Run<T>}
+ */
+const step = operation => push(operation)(1)
+
+/**
+ * {@link step} seen as the {@link Fold} `list.fold` takes: the same function,
+ * with its result widened from a run to the stack `list.fold` threads.
  *
  * @type {<T>(operation: Reduce<T>) => Fold<T, _Stack<T>>}
  */
-const step = operation => push(operation)(1)
+const foldStep = step
 
 /**
  * Combines the stack's runs into one value, earliest (bottom, largest) first,
@@ -173,7 +181,7 @@ const combine = monoid => stack =>
  * ```
  */
 export const fold = monoid =>
-    compose(listFold(step(monoid.operation))(null))(combine(monoid))
+    compose(listFold(foldStep(monoid.operation))(null))(combine(monoid))
 
 /**
  * The run stack as a short-circuiting {@link Accumulator}: `update` returns
@@ -182,6 +190,12 @@ export const fold = monoid =>
  *
  * Only the newest run can be `absorbing`: an earlier one would have stopped the
  * walk already.
+ *
+ * `end` wraps the folded value in a one-element tuple because `tryFold` reports
+ * both "stopped" and "finished with this result" through the same
+ * `Nullable<R>`: a monoid whose `T` includes `null` would otherwise be unable to
+ * tell a completed fold that produced `null` from an abandoned walk. The tuple
+ * costs one allocation per fold, not per element.
  */
 const absorbingAccumulator =
     /**
@@ -189,11 +203,11 @@ const absorbingAccumulator =
      * @param {Monoid<T>} monoid
      */
     monoid => {
-        const p = push(monoid.operation)(1)
-        const end = combine(monoid)
+        const p = step(monoid.operation)
+        const c = combine(monoid)
         /**
          * @param {T} absorbing
-         * @returns {Accumulator<T, _Stack<T>, T>}
+         * @returns {Accumulator<T, _Stack<T>, readonly[T]>}
          */
         return absorbing => ({
             init: null,
@@ -201,7 +215,7 @@ const absorbingAccumulator =
                 const next = p(value)(stack)
                 return next.value === absorbing ? null : next
             },
-            end,
+            end: stack => [c(stack)],
         })
     }
 
@@ -223,7 +237,8 @@ const absorbingAccumulator =
  * which is the property that matters against an unbounded list.
  *
  * Grouping, order, and the `log2(n)` stack bound are `fold`'s; only the walk
- * gains an exit.
+ * gains an exit. `foldAbsorbing(a)(list)` and `fold(a.monoid)(list)` agree on
+ * every finite list, including one whose folded value is itself `null`.
  *
  * @template T The type of the elements in the monoid.
  * @param {Absorbing<T>} absorbing The monoid together with its absorbing element.
@@ -245,6 +260,8 @@ export const foldAbsorbing = ({ monoid, absorbing }) => {
     const f = tryFold(absorbingAccumulator(monoid)(absorbing))
     return list => {
         const result = f(list)
-        return result === null ? absorbing : result
+        if (result === null) { return absorbing }
+        const [value] = result
+        return value
     }
 }

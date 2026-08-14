@@ -1,5 +1,6 @@
 /**
  * @import { List } from '../../types/list/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Absorbing, Monoid } from './types.ts'
  */
 
@@ -99,6 +100,26 @@ export const proof = {
         },
         absorbed: () => {
             assertEq(foldAbsorbing(multiply)([2, 0, 4]), 0)
+        },
+        nullValued: () => {
+            // `min` over non-negative numbers, where `null` is the identity
+            // (+infinity) and `0` is the absorbing element. `T` therefore
+            // includes `null` without `null` being the stop condition — and
+            // `tryFold` signals "stopped" and "finished" through one
+            // `Nullable`, so a completed fold whose value is `null` must not be
+            // read as an abandoned walk.
+            /** @type {Absorbing<Nullable<number>>} */
+            const min = {
+                monoid: {
+                    identity: null,
+                    operation: a => b =>
+                        a === null ? b : b === null ? a : a <= b ? a : b,
+                },
+                absorbing: 0,
+            }
+            assertEq(foldAbsorbing(min)([]), null)
+            assertEq(foldAbsorbing(min)([3, null, 5]), 3)
+            assertEq(foldAbsorbing(min)([3, 0, 5]), 0)
         },
         stopsEarly: () => {
             // `List` includes `Thunk`, so this list is unbounded: `fold` would
