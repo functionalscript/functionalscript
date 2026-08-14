@@ -50,3 +50,27 @@ export type Monoid<T> = {
     readonly identity: T
     readonly operation: Reduce<T>
 }
+
+/**
+ * A monoid that additionally has an
+ * {@link https://en.wikipedia.org/wiki/Absorbing_element absorbing element}
+ * (also called a zero or annihilator): a value that swallows the operation
+ * from either side.
+ *
+ * For all `a`: `operation(absorbing)(a) = operation(a)(absorbing) = absorbing`.
+ *
+ * Once a fold reaches `absorbing`, the result is decided — every remaining
+ * element combines to `absorbing` again — so `foldAbsorbing` may stop reading
+ * the list there instead of walking to its end. That is the difference between
+ * answering and not returning at all when the list is an unbounded `Thunk`.
+ *
+ * Multiplication over numbers has `0`; `bit_vec`'s length-capped concatenation
+ * has `null`, meaning "longer than `maxLength`".
+ *
+ * The monoid is carried as a field rather than intersected in, so it stays
+ * independently constructed and consumed (`AGENTS.md` §6.2).
+ */
+export type Absorbing<T> = {
+    readonly monoid: Monoid<T>
+    readonly absorbing: T
+}
