@@ -23,6 +23,11 @@ history.
 - `types/uint8array`: `toVec` attempts the conversion instead of precomputing a
   byte-count bound; behavior and error message unchanged
   [#1543](https://github.com/functionalscript/functionalscript/pull/1543)
+- `basen/base64`: `decode` drops an overflow check in its padded branch that
+  could never trigger — `head`'s length is always a multiple of 6, so the
+  largest value `stringToVec` can return without overflowing already lands
+  at or under `maxLength` once the trimmed last chunk is added back
+  [#1541](https://github.com/functionalscript/functionalscript/pull/1541)
 - `types/object`: new `structurallySame`, plus `assertStructurallySame` in
   `fjs/asserts` — structural comparison for proofs
   [#1538](https://github.com/functionalscript/functionalscript/pull/1538)
