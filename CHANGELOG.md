@@ -25,7 +25,6 @@ history.
   minus-state can never see another `-` — and `metadataAfterTag` drops an
   `indexOf` miss check its one call site can never trigger
   [#1553](https://github.com/functionalscript/functionalscript/pull/1553)
-
 - `types/rtti/ts`: the runtime printer supports recursive schemas — it
   converts through `fjs/types/rtti/data` (new `dataToTs`), so a recursive
   schema prints as `type <name> = <expression>` definitions plus an entry
