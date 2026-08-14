@@ -10,7 +10,7 @@
  * @import { Dir, State, _Entity } from './types.ts'
  */
 
-import { todo } from '../../../asserts/module.f.mjs'
+import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, parse } from '../../../path/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
@@ -92,8 +92,11 @@ const readFile = readOperation((dir, path) => {
     const file = dir[path[0]]
     if (typeof file === 'function') { throw new Error(`'${path[0]}' is a JsModule; readFile not supported`) }
     if (file === undefined) { return enoent }
-    if (!Array.isArray(file)) { return error(`'${path[0]}' is not a file`) }
-    const chunks = /** @type {readonly Vec[]} */ (file)
+    // `operation`'s wrapper descends into every plain-object (`Dir`) entry
+    // before this op ever runs, and the `JsModule` case already threw above,
+    // so `file` here is always a `Vec[]` — never a bare `Dir`.
+    assert(Array.isArray(file), `'${path[0]}' is not a file`)
+    const chunks = file
     const capBits = maxLengthBytes * 8n
     let result = empty
     for (const chunk of chunks) {
@@ -167,7 +170,11 @@ const rmOp = (dir, path) => {
     const [name] = path
     const entry = dir[name]
     if (entry === undefined) { return [dir, error('no such file')] }
-    if (!Array.isArray(entry) && typeof entry === 'object') { return [dir, error('is a directory')] }
+    // No "is a directory" guard here: `operation`'s wrapper descends into
+    // every plain-object (`Dir`) entry before this op ever runs, so `entry`
+    // is always a `Vec[]` or a `JsModule` — never a bare `Dir` — and rm can
+    // always proceed. (`rm` on a genuinely non-empty directory instead hits
+    // `path.length !== 1` above, once the wrapper has descended into it.)
     const { [name]: _, ...rest } = dir
     return [rest, okVoid]
 }
@@ -195,7 +202,13 @@ const extractEntity = (dir, path) => {
 
 /** @type {(dir: Dir, path: readonly string[], entity: _Entity) => readonly [Dir, IoResult<void>]} */
 const insertEntityAt = (dir, path, entity) => {
-    if (path.length === 0) { return [dir, error('cannot insert at root')] }
+    // `insertEntityAt`'s only external caller, `rename`, always rejects an
+    // empty `dst` earlier — `isProperPrefix([], srcParsed)` is true whenever
+    // `srcParsed` is non-empty, so renaming onto root is already caught as
+    // "onto an ancestor" before this function runs. The recursive self-calls
+    // below never pass an empty path either (they only recurse when
+    // `path.length > 1`, with a non-empty remainder).
+    assert(path.length > 0, 'cannot insert at root')
     if (path.length === 1) {
         const [name] = path
         const existing = dir[name]
@@ -250,13 +263,16 @@ const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
     const file = dir[p[0]]
     if (typeof file === 'function') { throw new Error(`'${p[0]}' is a JsModule; readBytes not supported`) }
     if (file === undefined) { return enoent }
-    if (!Array.isArray(file)) { return error(`'${p[0]}' is not a file`) }
+    // `operation`'s wrapper descends into every plain-object (`Dir`) entry
+    // before this op ever runs, and the `JsModule` case already threw above,
+    // so `file` here is always a `Vec[]` — never a bare `Dir`.
+    assert(Array.isArray(file), `'${p[0]}' is not a file`)
     if (!Number.isInteger(offset)) { return error(`Offset ${offset} is not an integer`) }
     if (!Number.isInteger(size)) { return error(`Chunk size ${size} is not an integer`) }
     if (offset < 0) { return error(`Offset ${offset} is negative`) }
     if (size < 0) { return error(`Chunk size ${size} is negative`) }
     if (BigInt(size) > maxLengthBytes) { return error(`Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes`) }
-    const chunks = /** @type {readonly Vec[]} */ (file)
+    const chunks = file
     let toSkip = BigInt(offset) * 8n
     let toRead = BigInt(size) * 8n
     let result = empty
