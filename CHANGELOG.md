@@ -20,10 +20,8 @@ history.
 
 ## Unreleased
 
-- `types/object`: new `structurallySame` compares two values by shape and
-  leaves (`Object.is` leaves, order-independent properties), and `fjs/asserts`
-  gains `assertStructurallySame` — the assertion to use instead of comparing
-  `JSON.stringify` output
+- `types/object`: new `structurallySame`, plus `assertStructurallySame` in
+  `fjs/asserts` — structural comparison for proofs
   [#1538](https://github.com/functionalscript/functionalscript/pull/1538)
 - `media/json/parser`: `endArray`/`endObject` no longer branch on `state.top`
   and `tokenToValue` drops its defensive default arm — the parser's state
