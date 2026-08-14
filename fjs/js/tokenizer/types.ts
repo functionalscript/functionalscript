@@ -7,6 +7,7 @@
 import type { RangeMapArray } from '../../types/range_map/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { BigFloat } from '../../types/bigfloat/types.ts'
+import type { keywords } from '../keywords/module.f.mjs'
 
 export type StringToken = {
     readonly kind: 'string'
@@ -42,14 +43,16 @@ export type _NullToken = {readonly kind: 'null'}
 /** @internal */
 export type _UndefinedToken = {readonly kind: 'undefined'}
 
-/** @internal */
-export type _KeywordToken = |
-    { readonly kind: 'arguments' | 'await' | 'break' | 'case' | 'catch' | 'class' | 'const' | 'continue' } |
-    { readonly kind: 'debugger' | 'default' | 'delete' | 'do' | 'else' | 'enum' | 'eval' | 'export' } |
-    { readonly kind: 'extends' | 'finally' | 'for' | 'function' | 'if' | 'implements' | 'import' | 'in' } |
-    { readonly kind: 'instanceof' | 'interface' | 'let' | 'new' | 'package' | 'private' | 'protected' | 'public' } |
-    { readonly kind: 'return' | 'static' | 'super' | 'switch' | 'this' | 'throw' | 'try' | 'typeof' } |
-    { readonly kind: 'var' | 'void' | 'while' | 'with'  | 'yield' }
+/**
+ * A keyword token, its kind drawn from the one source of truth for
+ * JavaScript keywords, `fjs/js/keywords` — minus the literal keywords
+ * (`true`/`false`/`null`/`undefined`), which have their own token types.
+ *
+ * @internal
+ */
+export type _KeywordToken = {
+    readonly kind: Exclude<typeof keywords[number], 'true' | 'false' | 'null' | 'undefined'>
+}
 
 export type IdToken = {
     readonly kind: 'id'
