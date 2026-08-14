@@ -64,6 +64,11 @@ export const printerReadonlyStruct = () => {
     if (r !== '{readonly"x":number,readonly"y":string}') { throw r }
 }
 
+export const printerOptionalField = () => {
+    const r = ro.struct([['x', 'number', true], ['y', 'string']])
+    if (r !== '{readonly"x"?:number,readonly"y":string}') { throw r }
+}
+
 export const printerReadonlyArray = () => {
     const r = ro.array('string')
     assertEq(r, 'readonly(string)[]')
