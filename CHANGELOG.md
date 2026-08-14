@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- `common/monoid`: `fold` reduces as a balanced tree instead of a left fold,
+  taking `bigint.product` and `string`/`bit_vec` concatenation from O(n²) to
+  O(n log n). Order is preserved; `number.sum` may round differently
+  [#1548](https://github.com/functionalscript/functionalscript/pull/1548)
 - `djs/serializer`: `stringify`'s `constSerialize` drops a defensive throw for
   a `refs` lookup that can never miss — `consts` only ever holds values
   `getConstants` already found an entry for
