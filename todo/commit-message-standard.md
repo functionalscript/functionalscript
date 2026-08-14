@@ -1,7 +1,12 @@
 # Standard for commit messages merged into `main`
 
 **Priority:** P2
-**Status:** proposed
+**Status:** wip — the format is adopted, in
+[AGENTS.md §8.5](../AGENTS.md#85-commit-messages): title, `Changelog:` section,
+squash-only. Release tagging was rejected, see below. AGENTS.md is the
+normative text from now on; the proposal below is kept for the reasoning
+behind it, and only the repository settings remain undone — they need a
+maintainer with admin rights and cannot land in a PR.
 
 ## Problem
 
@@ -94,20 +99,30 @@ Changelog:
   section remains; if it loses, the section cost was a few reviewed lines per
   PR.
 
-### Tag releases
+### Tag releases — rejected
 
-Tag each release commit `vX.Y.Z` when it lands on `main`. Between-tags is the
-natural range query for "entries in this release"; falling back to parsing
-version-bump titles works but is a heuristic where a tag is a fact.
+This section proposed tagging each release commit `vX.Y.Z`, so that "entries
+in this release" is a range between two tags rather than a parse of
+version-bump titles. **Decided against**: the repository has no tags and is
+not going to get any
+([#1561](https://github.com/functionalscript/functionalscript/pull/1561)).
+The changelog already records release membership per PR — `changelog/X.Y.Z/`
+holds one file per PR that shipped in that release — so a tag would be a
+second copy of a fact the tree already carries, and one a release could
+forget. A generator takes the boundary from the release commit, whose title is
+the bare version, or from the changelog directories themselves. Recorded in
+[AGENTS.md §8.4](../AGENTS.md#84-breaking-changes-and-versioning) so the
+question is not reopened by the next reader.
 
 ## Tasks
 
 - [ ] Repository settings: squash-only, default squash message "Pull request
       title and description", branch protection (PRs required, linear
-      history)
-- [ ] Document the title and `Changelog:` section format in AGENTS.md §8 once
-      adopted
-- [ ] Tag `v0.45.0` at the next release and each release after
+      history). Until these are set, AGENTS.md §8.5 is a convention a
+      maintainer can defeat with one click in the merge dialog or one
+      `git push`.
+- [x] Document the title and `Changelog:` section format in AGENTS.md §8 once
+      adopted — [§8.5](../AGENTS.md#85-commit-messages)
 
 Machine-checking the format before merge is a separate, later step:
 [commit-message-enforcement.md](./commit-message-enforcement.md), unblocked
