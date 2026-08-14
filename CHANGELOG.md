@@ -29,8 +29,12 @@ history.
   word — strict-mode ones included, predefined type name, non-identifier)
   gets a generated identifier
   [#1547](https://github.com/functionalscript/functionalscript/pull/1547).
-- `types/ts`: a `Printer.struct` field (`StructField`) takes an optional
-  third element marking the key optional (`"key"?: type`)
+- **BREAKING CHANGES:** `types/ts`: a `Printer.struct` field (`StructField`)
+  takes an optional third element marking the key optional (`"key"?: type`).
+  Callers and contextually-typed implementations are unaffected; an external
+  `Printer` implementation annotating the parameter as
+  `readonly (readonly [string, string])[]` must widen it to
+  `readonly StructField[]`
   [#1547](https://github.com/functionalscript/functionalscript/pull/1547).
 - `types/sorted_list`: the two merge tail policies are now named `keepTail` and
   `dropTail` instead of sharing one shadowed name; internal only

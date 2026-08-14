@@ -31,8 +31,9 @@ const booleanBits = falseBit | trueBit
 
 /**
  * Names that cannot name a TypeScript type alias: the predefined type
- * names (`TS2457`), the ECMAScript reserved words, and the type-operator
- * keywords that fail to parse in the alias-name position.
+ * names (`TS2457`), the ECMAScript reserved words — those reserved only in
+ * strict-mode code included, since every module is strict-mode code
+ * (`TS1214`) — and the type keywords that fail in the alias-name position.
  */
 const reserved = /** @type {const} */ ([
     // predefined type names
