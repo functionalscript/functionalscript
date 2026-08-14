@@ -24,7 +24,7 @@ export const printer = (mut = undefined) => {
     return {
         tuple: (mut ? complex('[', ']') : complex('readonly[', ']')),
         struct: fields =>
-            structX(fields.map(([k, v]) => `${ro}${JSON.stringify(k)}:${v}`)),
+            structX(fields.map(([k, v, opt]) => `${ro}${JSON.stringify(k)}${opt === true ? '?' : ''}:${v}`)),
         array: type => `${ro}(${type})[]`,
         // `[k:string]?:` is invalid TypeScript — optional keys on an infinite
         // key set require mapped-type syntax.

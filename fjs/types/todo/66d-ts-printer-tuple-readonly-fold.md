@@ -56,5 +56,6 @@ touched anyway, not on its own.
 
 ### Related
 
-- [i662-rtti-ts-printer-visit](todo.md) — adjacent
-  `ts` printer work.
+- [`fjs/types/rtti/ts`](../rtti/ts/module.f.mjs) — the rtti printer consuming
+  this `Printer` (data-driven; the former i662 proposal to route it through
+  `visit` was superseded when it stopped walking the thunk ADT at all).
