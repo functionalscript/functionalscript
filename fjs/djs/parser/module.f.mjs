@@ -10,7 +10,7 @@
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
  * @import { AstArray, AstConst, AstModule, AstModuleRef } from '../ast/types.ts'
  * @import { TokenMetadata } from '../../js/tokenizer/types.ts'
- * @import { ParseError } from './types.ts'
+ * @import { ParseError, _ValueToken } from './types.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -302,7 +302,12 @@ const endObject = state => {
     return pushValue(newState)(obj)
 }
 
-/** @type {(token: DjsToken) => AstConst} */
+/**
+ * Only ever called on a token `isValueToken` has already confirmed carries a
+ * value, so the switch covers every `_ValueToken` case with no fallback arm.
+ *
+ * @type {(token: _ValueToken) => AstConst}
+ */
 const tokenToValue = token => {
     switch (token.kind) {
         case 'null': return null
@@ -312,11 +317,13 @@ const tokenToValue = token => {
         case 'string': return token.value
         case 'bigint': return token.value
         case 'undefined': return undefined
-        default: return null
     }
 }
 
-/** @type {(token: DjsToken) => boolean} */
+/**
+ * @param {DjsToken} token
+ * @returns {token is _ValueToken}
+ */
 const isValueToken = token => {
     switch (token.kind) {
         case 'null':

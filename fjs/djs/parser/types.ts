@@ -6,8 +6,14 @@
  */
 
 import type { TokenMetadata } from '../../js/tokenizer/types.ts'
+import type { DjsToken } from '../tokenizer/types.ts'
 
 export type ParseError = {
     readonly message: string,
     readonly metadata: TokenMetadata | null
 }
+
+/** DJS tokens that carry a directly-usable value. */
+export type _ValueToken = Extract<DjsToken, {
+    readonly kind: 'null' | 'false' | 'true' | 'undefined' | 'string' | 'number' | 'bigint'
+}>
