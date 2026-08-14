@@ -1313,10 +1313,10 @@ Only add CHANGELOG entries for code changes — PRs that only touch `todo/`,
   carries it into the release branch — outside the renamed directory. Move any
   such file into `changelog/X.Y.Z/` before merging the release, or its change
   ships unrecorded in the changelog. Check again right before merging.
-- **Tag the release commit `vX.Y.Z`** once it lands on `main`, and push the
-  tag. "Which entries shipped in this release" is then a range between two
-  tags — a fact — instead of a heuristic over version-bump commit titles.
-  Releases through `0.44.0` are untagged; leave them so.
+- **The repository has no Git tags and is not going to get any.** "Which
+  entries shipped in this release" is answered by `changelog/X.Y.Z/`, which
+  holds one file per PR that shipped in it; a tag would be a second copy of
+  that fact, kept in step by hand.
 
 ### 8.5 Commit messages
 
