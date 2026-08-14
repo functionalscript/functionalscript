@@ -290,11 +290,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('0')
-            if (result !== '[{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('[0]')
-            if (result !== '[{"kind":"["},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"]"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"["},{"kind":"number","value":"0"},{"kind":"]"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('00')
@@ -306,15 +306,15 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('123456789012345678901234567890')
-            if (result !== '[{"bf":[123456789012345678901234567890n,0],"kind":"number","value":"123456789012345678901234567890"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"123456789012345678901234567890"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('{90}')
-            if (result !== '[{"kind":"{"},{"bf":[90n,0],"kind":"number","value":"90"},{"kind":"}"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"{"},{"kind":"number","value":"90"},{"kind":"}"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('1 2')
-            if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"kind":"ws"},{"bf":[2n,0],"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"1"},{"kind":"ws"},{"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('0. 2')
@@ -322,7 +322,7 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('10-0')
-            if (result !== '[{"bf":[10n,0],"kind":"number","value":"10"},{"kind":"-"},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"10"},{"kind":"-"},{"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('9a:')
@@ -330,11 +330,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('-10')
-            if (result !== '[{"kind":"-"},{"bf":[10n,0],"kind":"number","value":"10"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"kind":"number","value":"10"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('-0')
-            if (result !== '[{"kind":"-"},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('-00')
@@ -342,15 +342,15 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('-.123')
-            if (result !== '[{"kind":"-"},{"kind":"."},{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"kind":"."},{"kind":"number","value":"123"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('0.01')
-            if (result !== '[{"bf":[1n,-2],"kind":"number","value":"0.01"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"0.01"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('-0.9')
-            if (result !== '[{"kind":"-"},{"bf":[9n,-1],"kind":"number","value":"0.9"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"kind":"number","value":"0.9"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('-0.')
@@ -362,11 +362,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('12.34')
-            if (result !== '[{"bf":[1234n,-2],"kind":"number","value":"12.34"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"12.34"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('-12.00')
-            if (result !== '[{"kind":"-"},{"bf":[1200n,-2],"kind":"number","value":"12.00"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"kind":"number","value":"12.00"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('-12.')
@@ -378,27 +378,27 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('0e1')
-            if (result !== '[{"bf":[0n,1],"kind":"number","value":"0e1"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"0e1"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('0e+2')
-            if (result !== '[{"bf":[0n,2],"kind":"number","value":"0e+2"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"0e+2"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('0e-0')
-            if (result !== '[{"bf":[0n,0],"kind":"number","value":"0e-0"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"0e-0"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('12e0000')
-            if (result !== '[{"bf":[12n,0],"kind":"number","value":"12e0000"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"12e0000"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('-12e-0001')
-            if (result !== '[{"kind":"-"},{"bf":[12n,-1],"kind":"number","value":"12e-0001"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"kind":"number","value":"12e-0001"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('-12.34e1234')
-            if (result !== '[{"kind":"-"},{"bf":[1234n,1232],"kind":"number","value":"12.34e1234"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"kind":"number","value":"12.34e1234"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('0e')
@@ -418,11 +418,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('123 _123')
-            if (result !== '[{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"_123"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"_123"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('123 $123')
-            if (result !== '[{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"$123"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"$123"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('123_123')
@@ -477,7 +477,7 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('1*2')
-            if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"kind":"*"},{"bf":[2n,0],"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"1"},{"kind":"*"},{"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = tokenizeString('( )')
@@ -890,11 +890,11 @@ export const proof = {
         },
         () => {
             const result = toArray(tokenize(stringToList('-10'))(''))
-            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"bf":[-10n,0],"kind":"number","value":"-10"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"number","value":"-10"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
             const result = toArray(tokenize(stringToList('-0'))(''))
-            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"bf":[0n,0],"kind":"number","value":"-0"}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(/** @type {Unknown} */ (result)), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"number","value":"-0"}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
             const result = toArray(tokenize(stringToList('-1234567890n'))(''))

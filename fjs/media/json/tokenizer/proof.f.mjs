@@ -7,6 +7,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { stringifyAsTree } from '../../../djs/serializer/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.mjs'
+import { assertStructurallySame } from '../../../asserts/module.f.mjs'
 
 /** @type {(s: string) => readonly JsonToken[]} */
 const tokenizeString = s => toArray(tokenize(stringToList(s)))
@@ -109,11 +110,11 @@ export const proof = {
         },
         () => {
             const result = stringify(tokenizeString('0'))
-            if (result !== '[{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('[0]'))
-            if (result !== '[{"kind":"["},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"]"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"["},{"kind":"number","value":"0"},{"kind":"]"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('00'))
@@ -125,23 +126,23 @@ export const proof = {
         },
         () => {
             const result = stringify(tokenizeString('123456789012345678901234567890'))
-            if (result !== '[{"bf":[123456789012345678901234567890n,0],"kind":"number","value":"123456789012345678901234567890"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"123456789012345678901234567890"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('{90}'))
-            if (result !== '[{"kind":"{"},{"bf":[90n,0],"kind":"number","value":"90"},{"kind":"}"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"{"},{"kind":"number","value":"90"},{"kind":"}"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('1 2'))
-            if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"bf":[2n,0],"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"1"},{"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0. 2'))
-            if (result !== '[{"kind":"error","message":"invalid number"},{"bf":[2n,0],"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('10-0'))
-            if (result !== '[{"bf":[10n,0],"kind":"number","value":"10"},{"bf":[0n,0],"kind":"number","value":"-0"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"10"},{"kind":"number","value":"-0"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('9a:'))
@@ -149,7 +150,7 @@ export const proof = {
         },
         () => {
             const result = stringify(tokenizeString('-10'))
-            if (result !== '[{"bf":[-10n,0],"kind":"number","value":"-10"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"-10"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-'))
@@ -165,7 +166,7 @@ export const proof = {
         },
         () => {
             const result = stringify(tokenizeString('-0'))
-            if (result !== '[{"bf":[0n,0],"kind":"number","value":"-0"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"-0"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-00'))
@@ -173,15 +174,15 @@ export const proof = {
         },
         () => {
             const result = stringify(tokenizeString('-.123'))
-            if (result !== '[{"kind":"error","message":"invalid token"},{"kind":"error","message":"invalid token"},{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid token"},{"kind":"error","message":"invalid token"},{"kind":"number","value":"123"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0.01'))
-            if (result !== '[{"bf":[1n,-2],"kind":"number","value":"0.01"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"0.01"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-0.9'))
-            if (result !== '[{"bf":[-9n,-1],"kind":"number","value":"-0.9"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"-0.9"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-0.'))
@@ -193,11 +194,11 @@ export const proof = {
         },
         () => {
             const result = stringify(tokenizeString('12.34'))
-            if (result !== '[{"bf":[1234n,-2],"kind":"number","value":"12.34"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"12.34"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-12.00'))
-            if (result !== '[{"bf":[-1200n,-2],"kind":"number","value":"-12.00"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"-12.00"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-12.'))
@@ -209,27 +210,27 @@ export const proof = {
         },
         () => {
             const result = stringify(tokenizeString('0e1'))
-            if (result !== '[{"bf":[0n,1],"kind":"number","value":"0e1"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"0e1"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0e+2'))
-            if (result !== '[{"bf":[0n,2],"kind":"number","value":"0e+2"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"0e+2"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0e-0'))
-            if (result !== '[{"bf":[0n,0],"kind":"number","value":"0e-0"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"0e-0"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('12e0000'))
-            if (result !== '[{"bf":[12n,0],"kind":"number","value":"12e0000"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"12e0000"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-12e-0001'))
-            if (result !== '[{"bf":[-12n,-1],"kind":"number","value":"-12e-0001"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"-12e-0001"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-12.34e1234'))
-            if (result !== '[{"bf":[-1234n,1232],"kind":"number","value":"-12.34e1234"},{"kind":"eof"}]') { throw result }
+            if (result !== '[{"kind":"number","value":"-12.34e1234"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0e'))
@@ -287,5 +288,45 @@ export const proof = {
             const result = stringify(tokenizeString('[null]'))
             if (result !== '[{"kind":"["},{"kind":"null"},{"kind":"]"},{"kind":"eof"}]') { throw result }
         },
-    ]
+    ],
+    // Losslessness starts at the tokenizer boundary: a syntactically valid
+    // JSON number reaches `NumberToken.value` as its exact lexeme. Nothing
+    // derived from it — a coefficient bigint, an exponent number — is built
+    // while scanning, so no valid input can fail to tokenize because such a
+    // derived value would exceed a runtime numeric limit.
+    //
+    // The runtime's own bigint limit (V8 rejects magnitudes above 2^30 bits,
+    // roughly 3.2e8 decimal digits) is not exercised here: the smallest input
+    // that reaches it is a JSON document of some hundreds of megabytes. These
+    // cases stay far below that while still being far above what `number` and
+    // `Number.MAX_SAFE_INTEGER` can hold.
+    lossless: {
+        // a coefficient with more digits than any JavaScript number can carry
+        oversizedCoefficient: () => {
+            const value = `1${'0'.repeat(100000)}1`
+            assertStructurallySame(
+                tokenizeString(value),
+                [{ kind: 'number', value }, { kind: 'eof' }])
+        },
+        // exponent text far beyond JavaScript-number precision: `Number` of it
+        // is `Infinity`, yet every digit still has to reach the token
+        unboundedExponent: () => {
+            const value = '1e999999999999999999999'
+            assertStructurallySame(
+                tokenizeString(value),
+                [{ kind: 'number', value }, { kind: 'eof' }])
+        },
+        negativeUnboundedExponent: () => {
+            const value = '-1.5e-999999999999999999999'
+            assertStructurallySame(
+                tokenizeString(value),
+                [{ kind: 'number', value }, { kind: 'eof' }])
+        },
+        negativeOversized: () => {
+            const value = `-1${'0'.repeat(100000)}1`
+            assertStructurallySame(
+                tokenizeString(value),
+                [{ kind: 'number', value }, { kind: 'eof' }])
+        },
+    },
 }

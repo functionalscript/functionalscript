@@ -68,7 +68,7 @@ not cause additional P3 design work.
   FunctionalScript codec; should not wait for this task.
 - [Standard/extended value transforms](./standard-transform.md) — make gradual
   policy changes easier once the runtime layers exist.
-- [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — preserves
+- [`fjs/media/json/README.md`](../README.md) — the extended codec preserves
   more numeric information and provides the shared structural substrate.
 - [JSON numeric edge cases](./number-edge-cases.md) — owns only the decisions
   needed by the FunctionalScript codecs; native-only questions belong here.

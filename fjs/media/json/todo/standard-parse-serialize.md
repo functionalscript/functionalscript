@@ -1,8 +1,7 @@
 ## Standard JSON parse/serialize
 
 **Priority:** P3
-**Status:** blocked
-**Blocked by:** [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md)
+**Status:** open
 
 ### Problem
 
@@ -21,47 +20,30 @@ FunctionalScript contract over reproducing host-specific edge behavior.
 
 ### Shared structural core
 
-Use one tokenizer and one container-building parser. Numeric syntax remains
-lossless until a materializer chooses its runtime representation:
+The shared core exists — see [`fjs/media/json/README.md`](../README.md). One
+tokenizer keeps every number token as its exact lexeme, and one container state
+machine hands that token to the codec's own `NumberPolicy`:
 
 ```text
-JSON text
-   |
-   v
-JSON tokenizer
-   |
-   v
-shared structural parse
-(NumberToken leaves, original lexeme preserved)
-   |
-   +--> extended materializer -> ExtendedUnknown
-   |
-   +--> standard materializer -> json.Unknown
-   |
-   +--> RTTI materializer -> Ts<T>
+JSON text -> tokenizer -> parse(policy) -+-> json.Unknown       (number)
+                                         +-> extended.Unknown   (number | bigint)
+                                         +-> RTTI               (Ts<T>)
 ```
 
-Standard parsing may materialize `json.Unknown` directly from this tree rather
-than first constructing `ExtendedUnknown`. This matters for a valid integer token
-that exceeds the runtime bigint-construction limit: the standard parser can still
-choose its own `number` materialization without duplicating tokenization or the
-structural parser.
-
-Serialization should likewise share the recursive object/array traversal while
-using the standard codec's own numeric leaf formatter.
+Standard parsing therefore materializes `json.Unknown` directly, without an
+intermediate extended value and without ever constructing a bigint, and
+`treeSerialize` already gives both codecs one recursive object/array walk with
+a per-codec leaf formatter.
 
 ### Standard parse
 
-Materialize the shared lossless tree into `json.Unknown`.
+Done: `json.parse` reads each number token's lexeme with `parseFloat`, so a
+valid token materializes the way JavaScript itself reads that text. Malformed
+input remains an ordinary `Result` failure.
 
-For numeric leaves, convert valid JSON number syntax to the JavaScript `number`
-domain according to the explicit FunctionalScript policy settled by
-[number-edge-cases.md](./number-edge-cases.md). `NumberToken.value` remains the
-canonical source until materialization is complete so unbounded exponent text and
-oversized integer coefficients cannot fail through an accidental intermediate
-representation.
-
-Malformed input remains an ordinary `Result` failure.
+What is left here is the *serialization* side, plus deciding whether a
+non-finite parse result should be normalized at all — see
+[number-edge-cases.md](./number-edge-cases.md).
 
 ### Standard stringify
 
@@ -107,17 +89,17 @@ This keeps parser/serializer policy separate from generic runtime conversion.
 
 ### Tasks
 
-- [ ] Add/rebase the standard materializer from the shared lossless structural
-      tree to `fjs/media/json.Unknown`.
-- [ ] Keep `NumberToken.value` available until numeric materialization is complete.
-- [ ] Ensure oversized valid numeric tokens do not require successful intermediate
+- [x] Add/rebase the standard materializer onto the shared structural parse.
+- [x] Keep `NumberToken.value` available until numeric materialization is complete.
+- [x] Ensure oversized valid numeric tokens do not require successful intermediate
       bigint construction merely to reach the standard parser.
+- [x] Reuse one recursive structural serializer (`treeSerialize`); adapt numeric
+      leaf formatting rather than creating another object/array walker.
 - [ ] Define the FunctionalScript finite-number serialization contract: valid,
-      deterministic JSON with correct reparsing semantics.
+      deterministic JSON with correct reparsing semantics, without delegating to
+      the host's `JSON.stringify`.
 - [ ] Choose explicit default behavior for `-0`, non-finite programmatic numbers,
       and numeric overflow through [number-edge-cases.md](./number-edge-cases.md).
-- [ ] Reuse one recursive structural serializer; adapt numeric leaf formatting
-      rather than creating another object/array walker.
 - [ ] Keep the existing `Result`-returning parse API unless a separate task has a
       reason to change it.
 - [ ] Add proofs against the FunctionalScript codec contract, not against native
@@ -128,8 +110,8 @@ This keeps parser/serializer policy separate from generic runtime conversion.
 
 ### Related
 
-- [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — owns the
-  shared lossless structural parse and bigint-aware codec.
+- [`fjs/media/json/README.md`](../README.md) — the shared lossless structural
+  parse, its numeric-policy seam, and the extended codec built on it.
 - [Standard/extended value transforms](./standard-transform.md) — reusable
   runtime-tree conversions.
 - [JSON numeric edge cases](./number-edge-cases.md) — settles exceptional numeric

@@ -1,8 +1,7 @@
 ## Transform between extended and standard JSON values
 
 **Priority:** P3
-**Status:** blocked
-**Blocked by:** [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md)
+**Status:** open
 
 ### Problem
 
@@ -107,8 +106,8 @@ the P5 [native JSON compatibility](./native-json-compatibility.md) task.
 
 ### Related
 
-- [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — provides
-  the extended runtime value domain.
+- [`fjs/media/json/extended/types.ts`](../extended/types.ts) — the extended
+  runtime value domain these transforms convert to and from.
 - [Standard JSON parse/serialize](./standard-parse-serialize.md) — owns the
   ordinary `json.parse` / `json.stringify` codec.
 - [Native JSON compatibility](./native-json-compatibility.md) — P5 follow-up;

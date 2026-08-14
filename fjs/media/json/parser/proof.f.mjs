@@ -1,17 +1,25 @@
 /**
  * @import { JsonToken } from '../tokenizer/types.ts'
+ * @import { NumberPolicy } from './types.ts'
  */
 
-import { parse } from './module.f.mjs'
+import { parse as parseWithPolicy } from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { stringify as jsonStringify } from '../module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.mjs'
+import { error, ok } from '../../../types/result/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
 /** @type {(s: string) => readonly JsonToken[]} */
 const tokenizeString = s => toArray(tokenize(stringToList(s)))
+
+/** The structural machine is proved through the ordinary `number` policy. */
+/** @type {NumberPolicy<number>} */
+const numberPolicy = token => ok(parseFloat(token.value))
+
+const parse = parseWithPolicy(numberPolicy)
 
 const stringify = jsonStringify(sort)
 
@@ -311,4 +319,26 @@ export const proof = {
             assertEq(Array.isArray(value) ? value.length : -1, 12000)
         },
     ],
+    // The numeric policy is the parser's only opinion about numbers: it is
+    // handed the token, so it reads the exact lexeme, and it may reject one.
+    policy: {
+        // the lexeme reaches the policy unrounded — `1.0`, `1e0` and `1` are
+        // one `number` but three tokens
+        exactLexeme: () => {
+            /** @type {NumberPolicy<string>} */
+            const lexemePolicy = token => ok(token.value)
+            const [tag, value] = parseWithPolicy(lexemePolicy)(tokenizeString('[1.0,1e0,1,-0]'))
+            assertEq(tag, 'ok')
+            assertEq(stringify(value), '["1.0","1e0","1","-0"]')
+        },
+        // a policy that cannot represent the number fails the parse as an
+        // ordinary `Result`, with its own message
+        rejected: () => {
+            /** @type {NumberPolicy<never>} */
+            const rejectPolicy = () => error('no numbers here')
+            const [tag, message] = parseWithPolicy(rejectPolicy)(tokenizeString('{"a":[1]}'))
+            assertEq(tag, 'error')
+            assertEq(message, 'no numbers here')
+        },
+    },
 }

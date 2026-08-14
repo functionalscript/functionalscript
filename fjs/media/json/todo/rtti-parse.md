@@ -1,8 +1,7 @@
 ## RTTI-aware extended JSON parser
 
 **Priority:** P3
-**Status:** blocked
-**Blocked by:** [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md)
+**Status:** open
 
 ### Problem
 
@@ -230,8 +229,12 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
 
 ### Related
 
-- [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — owns the
-  lossless tokenizer/structural parse path and extended runtime materialization.
+- [`fjs/media/json/README.md`](../README.md) — the shipped lossless tokenizer,
+  the shared structural parse and its numeric-policy seam, and the extended
+  runtime materialization this parser reuses.
+- [`fjs/media/json/number/module.f.mjs`](../number/module.f.mjs) — the bounded
+  lexical helpers (`isBareInteger`, `isIntegral`) for exact checks on a token
+  before it is narrowed.
 - [Standard JSON transformer](./standard-transform.md) — runtime value conversion
   between already-materialized extended and ordinary JSON trees.
 - [`fjs/media/json/tokenizer/module.f.mjs`](../tokenizer/module.f.mjs) — JSON token
