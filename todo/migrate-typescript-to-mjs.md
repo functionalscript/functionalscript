@@ -1019,7 +1019,7 @@ person can re-check rather than re-derive. Counts are as of
       `fjs/emergent_testing/todo/205.md` is deleted with the suite.
 - [x] **Sweep the remaining stale prose.** Done. The measured set was 88
       mentions across 42 `.md` files naming an `X.f.ts` whose `X.f.mjs` now
-      exists (resolving each mention against the tree, excluding `CHANGELOG.md`,
+      exists (resolving each mention against the tree, excluding the changelog,
       whose history is correctly left alone); that measurement now returns **9**,
       and all 9 are the rename arrows (`module.f.ts -> module.f.mjs`) and
       completed `[x]` items in this file and `fjs/fsc/README.md`, where the
@@ -1027,7 +1027,7 @@ person can re-check rather than re-derive. Counts are as of
 
       Two other rulers get quoted for this and are easy to mix up, so name the
       one you mean. A **path-like mention** is one module-path token ending in
-      the old extension; a **line** may hold several. Whole tree, `CHANGELOG.md`
+      the old extension; a **line** may hold several. Whole tree, the changelog
       excluded:
 
       | ruler | `main` | after the sweep |

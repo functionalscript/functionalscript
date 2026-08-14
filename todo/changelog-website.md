@@ -1,8 +1,7 @@
 # Publish the changelog on the website
 
 **Priority:** P4
-**Status:** blocked
-**Blocked by:** [Replace `CHANGELOG.md` with a `changelog/` directory](./changelog-directory.md)
+**Status:** open
 
 ## Problem
 
@@ -29,5 +28,5 @@ format. The BNF machinery is a natural fit for the parser.
 
 ## Related
 
-- [changelog-directory.md](./changelog-directory.md) — defines the structure
-  and the Markdown subset this consumes
+- [changelog/README.md](../changelog/README.md) — defines the structure and the
+  Markdown subset this consumes
