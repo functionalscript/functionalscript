@@ -6,11 +6,12 @@
 
 /** @import { StateScan } from '../../../types/function/operator/types.ts' */
 /** @import { List } from '../../../types/list/types.ts' */
-import { concat, empty, flat, stateScan } from '../../../types/list/module.f.mjs'
+import { concat, empty, flat, stateScan, toArray } from '../../../types/list/module.f.mjs'
 import { multiply } from '../../../types/bigfloat/module.f.mjs'
 import { tokenize as jsTokenize } from '../../../js/tokenizer/module.f.mjs'
 /** @import { JsToken } from '../../../js/tokenizer/types.ts' */
 /** @import { JsonToken, _ScanState, _ScanInput } from './types.ts' */
+import { assertEq } from '../../../asserts/module.f.mjs'
 
 /** @type {(input: JsToken) => List<JsonToken>} */
 const mapToken = input => {
@@ -74,4 +75,21 @@ export const tokenize = input => {
     /** @type {List<_ScanInput>} */
     const jsTokens = jsTokenize(input)('')
     return flat(stateScan(scanToken)({ kind: 'def' })(concat(jsTokens)([null])))
+}
+
+export const proof = {
+    // `parseMinusState` only sees `null` if the JSON tokenizer's own EOF
+    // sentinel arrives while still in state '-' — i.e. input ends right after
+    // a lone `-`. Unreachable through the public `tokenize`: the underlying
+    // JS tokenizer always emits its own `eof` token first, and consuming that
+    // (the default branch, any kind other than '-' or 'number') resets state
+    // to 'def' before the sentinel `null` is ever seen. Call the private
+    // state handler directly to cover the branch anyway.
+    parseMinusStateEof: () => {
+        const [tokens, state] = parseMinusState(null)
+        assertEq(state.kind, 'def')
+        const a = toArray(tokens)
+        assertEq(a.length, 1)
+        assertEq(a[0].kind, 'error')
+    },
 }
