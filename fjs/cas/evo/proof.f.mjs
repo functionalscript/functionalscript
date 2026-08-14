@@ -655,6 +655,44 @@ export const proof = {
         assert(result[0] === 'ok', ['expected revision ok', result])
         assertEq(result[1].lock?.dependency, canonical)
     },
+    // A nested lock map round-trips with its scope structure intact, and
+    // canonicalization recurses into it: an alias spelling bound inside a
+    // scope comes back canonical, like a direct one.
+    revisionNestedLockRoundTripsAndCanonicalizes: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const canonical = vecToCBase32(vec8(0xffn))
+        const alias = canonical.toUpperCase()
+        const [state1, added] = virtual(state0)(e.add({
+            parents: [], subject: 'doc', snapshot: canonical,
+            lock: { B: { D: alias }, C: canonical },
+        }))
+        assert(added[0] === 'ok', ['expected add ok', added])
+        const [state2, result] = virtual(state1)(e.revision(added[1]))
+        assert(result[0] === 'ok', ['expected revision ok', result])
+        const scope = result[1].lock?.B
+        assert(typeof scope === 'object', ['expected a nested scope', scope])
+        assertEq(scope.D, canonical)
+        // The read value is still valid `add` input, and re-adding it reuses
+        // the same address — the round trip loses nothing.
+        const [, readded] = virtual(state2)(e.add(result[1]))
+        assert(readded[0] === 'ok', ['expected re-add ok', readded])
+        assertEq(readded[1], added[1])
+    },
+    // Semantic checking recurses: a non-hash string inside a nested scope
+    // fails the write, like one at the root.
+    revisionInvalidNestedLockValueIsRejected: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const [, result] = virtual(state0)(e.add({
+            parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x42n)),
+            lock: { B: { dependency: 'not a hash!' } },
+        }))
+        assert(result[0] === 'error', ['expected error', result])
+        assert(result[1].includes('B/dependency'))
+    },
     revisionAbsentAndEmptyLocksRemainDistinct: () => {
         const c = fileCas(sha256)(home)
         const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
@@ -691,6 +729,29 @@ export const proof = {
         const [state1, first] = virtual(state0)(e.add({ parents: [], subject: 'doc', snapshot, lock: { '2': b, '10': a } }))
         assert(first[0] === 'ok', ['expected add ok', first])
         const [, second] = virtual(state1)(e.add({ lock: { '10': a, '2': b }, snapshot, subject: 'doc', parents: [] }))
+        assert(second[0] === 'ok', ['expected add ok', second])
+        assertEq(second[1], first[1])
+    },
+    // Canonical serialization reaches into nested scopes, so two adds
+    // differing only in the property order of a nested map — at the root and
+    // inside the scope alike — deduplicate to one blob rather than leaving
+    // two heads.
+    equivalentNestedLockOrdersReuseOneCasAddress: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const a = vecToCBase32(vec8(0x1an))
+        const b = vecToCBase32(vec8(0x2bn))
+        const snapshot = vecToCBase32(vec8(0x3cn))
+        const [state1, first] = virtual(state0)(e.add({
+            parents: [], subject: 'doc', snapshot,
+            lock: { B: { '2': b, '10': a }, A: a },
+        }))
+        assert(first[0] === 'ok', ['expected add ok', first])
+        const [, second] = virtual(state1)(e.add({
+            parents: [], subject: 'doc', snapshot,
+            lock: { A: a, B: { '10': a, '2': b } },
+        }))
         assert(second[0] === 'ok', ['expected add ok', second])
         assertEq(second[1], first[1])
     },

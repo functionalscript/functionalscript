@@ -20,7 +20,7 @@ for how to run it and register it with an MCP client.
 | `evo_list`     | `{ archived? }`                              | `e.list(...)`     | subjects, as a JSON array of strings |
 | `evo_head`     | `{ subject }`                                | `e.head(...)`     | head hashes, one per line            |
 | `evo_revision` | `{ hash }`                                   | `e.revision(...)` | the revision, as JSON                |
-| `evo_add`      | `{ parents, snapshot?, subject?, archived? }` | `e.add(...)`      | hash (cBase32)                       |
+| `evo_add`      | `{ parents, snapshot?, subject?, archived?, lock? }` | `e.add(...)`      | hash (cBase32)                       |
 
 `evo_list` returns JSON rather than the newline-joined line format `evo_head`/`cas_list` use: subjects are arbitrary caller-supplied strings, not constrained to a newline-free alphabet the way hashes are, so a subject containing `\n` (or an empty subject) would be ambiguous in a line-based format.
 
@@ -34,7 +34,7 @@ derived from the heads and why there is no all-subjects mode.
 ## `evo_revision` vs `cas_get`
 
 `evo_revision` is the typed read of a single revision: `{ subject, parents,
-snapshot, generation, archived? }` — the JSON of `fjs/cas/evo`'s
+snapshot, generation, archived?, lock? }` — the JSON of `fjs/cas/evo`'s
 `RevisionData` (see [`fjs/cas/evo/README.md`](../../cas/evo/README.md)), with `dialect`
 dropped and every hash in its canonical cBase32 spelling, so `parents` and
 `snapshot` compare directly against `evo_head` output. `parents[0]` is the
@@ -52,6 +52,14 @@ so a revision read back can be added again as-is. The one field
 which the server computes; rtti struct validation ignores properties the
 schema does not name, so a whole `evo_revision` result can be passed straight
 back to `evo_add`.
+
+`evo_add`'s `lock` is not a restatement of the format's lock map but
+[`fjs/media/revision`](../../media/revision/)'s own `lock` schema, so what the
+server accepts and what `tools/list` advertises cannot drift apart. It is
+recursive — a value is a hash or a nested scope — which is why it is the one
+argument whose JSON Schema is not inlined: it comes out as a named `$defs`
+rule (`lockValue`) that the `lock` property reaches through a local `$ref`,
+the JSON Schema spelling of a cycle.
 
 Each tool's argument schema is an rtti struct declared once and used twice:
 [`toJsonSchema`](../../media/json/schema/module.f.mjs) derives the

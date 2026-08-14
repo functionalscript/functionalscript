@@ -73,7 +73,14 @@ documented rather than typed (no extension or intersection types):
 | `snapshot`   | absent → resolved from the parents         | always present, canonical   |
 | `archived`   | optional                                   | optional (the only one)     |
 | `generation` | **ignored** — the server computes it       | always present              |
-| `lock`       | optional flat open map; direct hashes validated and canonicalized | optional; present exactly when stored; direct hashes canonicalized |
+| `lock`       | optional open map; direct hashes validated and canonicalized at every depth | optional; present exactly when stored; direct hashes canonicalized |
+
+`lock` is the format's own map, recursive as
+[`fjs/media/revision`](../../media/revision/) defines it: a value is either a
+direct hash or a nested scope. `add` and `revision` walk it to the bottom —
+validating and re-spelling every direct hash, preserving every scope — so a
+nested lock round-trips like a flat one and neither direction has a depth of
+its own.
 
 `generation` is an input field purely so the round trip needs no field
 stripping; `add` always writes the value it computes itself.
