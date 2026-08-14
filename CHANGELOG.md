@@ -20,6 +20,9 @@ history.
 
 ## Unreleased
 
+- `types/sorted_list`: the two merge tail policies are now named `keepTail` and
+  `dropTail` instead of sharing one shadowed name; internal only
+  [#1546](https://github.com/functionalscript/functionalscript/pull/1546)
 - `types/bit_vec`: `tryListToVec`/`tryU8ListToVec` reuse the shared balanced
   fold, at the same cost as the accumulator they replace
   [#1548](https://github.com/functionalscript/functionalscript/pull/1548)
