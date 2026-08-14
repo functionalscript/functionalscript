@@ -24,9 +24,9 @@ call (AGENTS.md §6.3):
 
 - `:313` — `popFront(n)(v)[0]` rebuilds `popFront(n)` per `v`, though `n`
   comes from `prefix`, bound one scope up.
-- `:288-289` — `unpackListToVec(unpackConcat)` and `map(unpack)` are
-  independent of `list`; `map(unpack)` doesn't even depend on `bo` and belongs
-  at module scope.
+- `:277-278` — `map(unpack)` is independent of `list` and doesn't even depend
+  on `bo`, so it belongs at module scope. (`unpackListToVec(unpackConcat)` is
+  already bound once per bit order, here and in `tryU8ListToVec`.)
 - `:381-383` — the `b => ({ length: 8n, uint: BigInt(b) })` helper closes over
   nothing and is re-created per list.
 
@@ -44,8 +44,7 @@ partial applications to their dependency's scope.
 - [ ] Remove `front`/`removeFront` from `_Base` and derive them in `bo`
 - [ ] Rewrite `startsWith` through the derived `front`, binding it once per
       `prefix`
-- [ ] Hoist `map(unpack)` and the u8 `Unpacked` constructor to module scope;
-      bind `unpackListToVec(unpackConcat)` once per bit order
+- [ ] Hoist `map(unpack)` and the u8 `Unpacked` constructor to module scope
 
 ### Related
 
