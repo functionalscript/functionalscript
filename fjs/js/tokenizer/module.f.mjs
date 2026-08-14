@@ -16,6 +16,7 @@
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
 import { merge, fromRange, get } from '../../types/range_map/module.f.mjs'
 import { empty, stateScan, flat, toArray, reduce as listReduce, scan, map as listMap } from '../../types/list/module.f.mjs'
+import { keywords } from '../keywords/module.f.mjs'
 import { at, fromEntries } from '../../types/ordered_map/module.f.mjs'
 import { one } from '../../types/range/module.f.mjs'
 import {
@@ -251,60 +252,15 @@ const bufferToNumberToken = ({ numberKind, value, b }) => {
 }
 
 /**
- * @link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#keywords
+ * Derived from the one source of truth for JavaScript keywords,
+ * `fjs/js/keywords` — FunctionalScript is a strict subset of JavaScript, so
+ * the tokenizer recognizes exactly that module's `keywords`.
  */
 /** @type {List<Entry<JsToken>>} */
-const keywordEntries = [
-    ['arguments', { kind: 'arguments' }],
-    ['await', { kind: 'await' }],
-    ['break', { kind: 'break' }],
-    ['case', { kind: 'case' }],
-    ['catch', { kind: 'catch' }],
-    ['class', { kind: 'class' }],
-    ['const', { kind: 'const' }],
-    ['continue', { kind: 'continue' }],
-    ['debugger', { kind: 'debugger' }],
-    ['default', { kind: 'default' }],
-    ['delete', { kind: 'delete' }],
-    ['do', { kind: 'do' }],
-    ['else', { kind: 'else' }],
-    ['enum', { kind: 'enum' }],
-    ['eval', { kind: 'eval' }],
-    ['export', { kind: 'export' }],
-    ['extends', { kind: 'extends' }],
-    ['false', { kind: 'false' }],
-    ['finally', { kind: 'finally' }],
-    ['for', { kind: 'for' }],
-    ['function', { kind: 'function' }],
-    ['if', { kind: 'if' }],
-    ['implements', { kind: 'implements' }],
-    ['import', { kind: 'import' }],
-    ['in', { kind: 'in' }],
-    ['instanceof', { kind: 'instanceof' }],
-    ['interface', { kind: 'interface' }],
-    ['let', { kind: 'let' }],
-    ['new', { kind: 'new' }],
-    ['null', { kind: 'null' }],
-    ['package', { kind: 'package' }],
-    ['private', { kind: 'private' }],
-    ['protected', { kind: 'protected' }],
-    ['public', { kind: 'public' }],
-    ['return', { kind: 'return' }],
-    ['static', { kind: 'static' }],
-    ['super', { kind: 'super' }],
-    ['switch', { kind: 'switch' }],
-    ['this', { kind: 'this' }],
-    ['throw', { kind: 'throw' }],
-    ['true', { kind: 'true' }],
-    ['try', { kind: 'try' }],
-    ['typeof', { kind: 'typeof' }],
-    ['undefined', { kind: 'undefined' }],
-    ['var', { kind: 'var' }],
-    ['void', { kind: 'void' }],
-    ['while', { kind: 'while' }],
-    ['with', { kind: 'with' }],
-    ['yield', { kind: 'yield' }],
-]
+const keywordEntries = keywords.map(kind =>
+    // every keyword kind is a `JsToken` kind by construction: `_KeywordToken`
+    // derives its kinds from this same `keywords` list
+    [kind, /** @type {JsToken} */ ({ kind })])
 
 const keywordMap = fromEntries(keywordEntries)
 

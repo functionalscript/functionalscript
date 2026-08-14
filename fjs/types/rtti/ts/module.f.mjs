@@ -19,6 +19,7 @@
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { reservedWords, strictModeReservedWords } from '../../../js/keywords/module.f.mjs'
 import { at, definedEntries } from '../../object/module.f.mjs'
 import { primitive, union, printer as tsPrinter } from '../../ts/module.f.mjs'
 import { cmp, toData, unitBit, unknown as top } from '../data/module.f.mjs'
@@ -30,27 +31,22 @@ const trueBit = unitBit(true)
 const booleanBits = falseBit | trueBit
 
 /**
- * Names that cannot name a TypeScript type alias: the predefined type
- * names (`TS2457`), the ECMAScript reserved words — those reserved only in
- * strict-mode code included, since every module is strict-mode code
- * (`TS1214`) — and the type keywords that fail in the alias-name position.
+ * Names that cannot name a TypeScript type alias: the ECMAScript reserved
+ * words — from the one source of truth for JavaScript keywords,
+ * `fjs/js/keywords`, the strict-mode ones included since every module is
+ * strict-mode code (`TS1214`) — plus TypeScript's predefined type names
+ * (`TS2457`) and the type keywords that fail in the alias-name position.
  */
-const reserved = /** @type {const} */ ([
+/** @type {readonly string[]} */
+const reserved = [
+    ...reservedWords,
+    ...strictModeReservedWords,
     // predefined type names
-    'any', 'bigint', 'boolean', 'false', 'never', 'null', 'number', 'object',
-    'string', 'symbol', 'true', 'undefined', 'unknown', 'void',
-    // ECMAScript reserved words
-    'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
-    'debugger', 'default', 'delete', 'do', 'else', 'enum', 'export',
-    'extends', 'finally', 'for', 'function', 'if', 'import', 'in',
-    'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try',
-    'typeof', 'var', 'while', 'with',
-    // reserved in strict-mode code — and every module is strict-mode code
-    'implements', 'interface', 'let', 'package', 'private', 'protected',
-    'public', 'static', 'yield',
+    'any', 'bigint', 'boolean', 'never', 'number', 'object', 'string',
+    'symbol', 'undefined', 'unknown',
     // type-operator keywords, and `intrinsic` (TS2795 outside lib.d.ts)
     'infer', 'intrinsic', 'keyof', 'readonly', 'unique',
-])
+]
 
 /** @type {(c: string) => boolean} */
 const isIdStart = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_' || c === '$'
