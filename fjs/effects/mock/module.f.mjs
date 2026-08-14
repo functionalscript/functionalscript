@@ -4,11 +4,12 @@
  * See `./types.ts` for the `MemOperationMap`/`RunInstance` type-level API.
  *
  * @module
+ *
+ * @import { Operation } from '../types.ts'
+ * @import { MemOperationMap, RunInstance } from './types.ts'
  */
 
 import { match } from "../module.f.mjs"
-/** @import { Operation } from '../types.ts' */
-/** @import { MemOperationMap, RunInstance } from './types.ts' */
 
 /** @type {<O extends Operation, S>(o: MemOperationMap<O, S>) => RunInstance<O, S>} */
 export const run = o => state => effect => {

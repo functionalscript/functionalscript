@@ -2,13 +2,14 @@
  * Node.js interpreter helpers for memory effects.
  *
  * @module
+ *
+ * @import { Effect, ToAsyncOperationMap } from '../../types.ts'
+ * @import { Key, MemOp } from '../../memory/types.ts'
  */
 
 import { randomUUID } from 'node:crypto'
 import { asyncRun } from '../../module.mjs'
-/** @import { Effect, ToAsyncOperationMap } from '../../types.ts' */
 import { asBase, asNominal } from '../../memory/module.f.mjs'
-/** @import { Key, MemOp } from '../../memory/types.ts' */
 
 /** @typedef {ToAsyncOperationMap<MemOp>} MemoryOperationMap */
 

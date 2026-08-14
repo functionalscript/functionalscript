@@ -19,6 +19,9 @@
  * mySet = remove('banana')(mySet);
  * if (contains('banana')(mySet)) { throw '4' }
  * ```
+ *
+ * @import { List } from '../list/types.ts'
+ * @import { StringSet } from './types.ts'
  */
 
 import { empty as btEmpty, values as btValues } from '../btree/module.f.mjs'
@@ -26,10 +29,8 @@ import { find, isFound } from '../btree/find/module.f.mjs'
 import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
 import { set as btreeSet } from '../btree/set/module.f.mjs'
 import { cmp } from "../string/module.f.mjs"
-/** @import { List } from '../list/types.ts' */
 import { fold } from '../list/module.f.mjs'
 import { compose } from '../function/module.f.mjs'
-/** @import { StringSet } from './types.ts' */
 
 /** @type {(s: StringSet) => List<string>} */
 export const values = btValues

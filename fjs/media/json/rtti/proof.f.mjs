@@ -2,14 +2,14 @@
  * Proof for the JSON rtti schemas.
  *
  * @module
+ *
+ * @import { ValidateE } from '../../../types/rtti/common/types.ts'
+ * @import { Unknown } from '../../../types/rtti/ts/types.ts'
  */
 
 import { assertEq } from '../../../asserts/module.f.mjs'
 import { validate } from '../../../types/rtti/validate/module.f.mjs'
 import { primitive, unknown, object, array } from './module.f.mjs'
-
-/** @import { ValidateE } from '../../../types/rtti/common/types.ts' */
-/** @import { Unknown } from '../../../types/rtti/ts/types.ts' */
 
 // Reduces a validation to its `ok`/`error` tag: these schemas are about what is
 // accepted, not about the payload, which validation returns unchanged. The

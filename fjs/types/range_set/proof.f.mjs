@@ -1,7 +1,10 @@
+/**
+ * @import { Range } from '../range/types.ts'
+ */
+
 import { assert } from '../../asserts/module.f.mjs'
 import { toArray } from '../list/module.f.mjs'
 import { fromRange, merge, get } from './module.f.mjs'
-/** @import { Range } from '../range/types.ts' */
 
 /** @type {(a: string) => number} */
 const c = a => a.charCodeAt(0)

@@ -5,16 +5,17 @@
  * See `./types.ts` for the type-level API.
  *
  * @module
+ *
+ * @import { Write, WriteConsoles, NodeProgramOptions } from '../../effects/node/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
+ * @import { Stdout, WriteText, CsiConsole } from './types.ts'
  */
 
 // C0 control codes
 // https://en.wikipedia.org/wiki/ANSI_escape_code#C0_control_codes
 
 import { write } from '../../effects/node/module.f.mjs'
-/** @import { Write, WriteConsoles, NodeProgramOptions } from '../../effects/node/types.ts' */
-/** @import { Effect } from '../../effects/types.ts' */
 import { utf8 } from "../module.f.mjs"
-/** @import { Stdout, WriteText, CsiConsole } from './types.ts' */
 
 /** @type {string} */
 export const backspace = '\x08'

@@ -2,20 +2,21 @@
  * Virtual Node-effect operations for filesystem and process tests.
  *
  * @module
+ *
+ * @import { Vec } from '../../../types/bit_vec/types.ts'
+ * @import { MemOperationMap, RunInstance } from '../../mock/types.ts'
+ * @import { Key } from '../../memory/types.ts'
+ * @import { Dirent, FileStat, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts'
+ * @import { Dir, State, _Entity } from './types.ts'
  */
 
 import { todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, parse } from '../../../path/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
-/** @import { Vec } from '../../../types/bit_vec/types.ts' */
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
 import { run } from '../../mock/module.f.mjs'
-/** @import { MemOperationMap, RunInstance } from '../../mock/types.ts' */
 import { asBase, asNominal } from '../../memory/module.f.mjs'
-/** @import { Key } from '../../memory/types.ts' */
-/** @import { Dirent, FileStat, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts' */
-/** @import { Dir, State, _Entity } from './types.ts' */
 
 /** @type {State} */
 export const emptyState = {

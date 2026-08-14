@@ -6,16 +6,17 @@
  * `NotUnion` type-level API.
  *
  * @module
+ *
+ * @import { List } from '../list/types.ts'
+ * @import { Nullable } from '../nullable/types.ts'
+ * @import { OrderedMap } from '../ordered_map/types.ts'
+ * @import { StringMap, Entry } from './types.ts'
  */
 
 import { isArray } from '../array/module.f.mjs'
 import { iterable } from '../list/module.f.mjs'
-/** @import { List } from '../list/types.ts' */
 import { fromUndefined } from '../nullable/module.f.mjs'
-/** @import { Nullable } from '../nullable/types.ts' */
 import { entries as mapEntries, fromEntries as mapFromEntries } from '../ordered_map/module.f.mjs'
-/** @import { OrderedMap } from '../ordered_map/types.ts' */
-/** @import { StringMap, Entry } from './types.ts' */
 
 /**
  * `structurallySame` is implemented in a dependency-free leaf so `fjs/asserts`

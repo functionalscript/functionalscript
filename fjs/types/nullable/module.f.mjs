@@ -2,12 +2,13 @@
  * Utilities for nullable (`null`/`undefined`) value handling.
  *
  * @module
+ *
+ * @import { Option } from '../option/types.ts'
+ * @import { Nullable } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
 import { fn } from '../function/module.f.mjs'
-/** @import { Option } from '../option/types.ts' */
-/** @import { Nullable } from './types.ts' */
 
 /**
  * @type {<T, R>(f: (value: T) => R) => (value: Nullable<T>) => Nullable<R>}

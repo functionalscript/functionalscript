@@ -4,16 +4,17 @@
  * `Word`/`EncodeState`/`Level`/`PipelineState`/`LiteralToVec` type-level API.
  *
  * @module
+ *
+ * @import { Equal, StateScan } from '../../../types/function/operator/types.ts'
+ * @import { List } from '../../../types/list/types.ts'
+ * @import { EncodeState, Level, LiteralToVec, PipelineState } from './types.ts'
  */
 
 import { log2 } from '../../../types/bigint/module.f.mjs'
 import { msb, vec } from '../../../types/bit_vec/module.f.mjs'
-/** @import { Equal, StateScan } from '../../../types/function/operator/types.ts' */
 import { strictEqual } from '../../../types/function/operator/module.f.mjs'
-/** @import { List } from '../../../types/list/types.ts' */
 import { equal, map } from '../../../types/list/module.f.mjs'
 import { join } from '../../../types/string/module.f.mjs'
-/** @import { EncodeState, Level, LiteralToVec, PipelineState } from './types.ts' */
 
 /** @type {(s: bigint) => string} */
 export const symbolToString = s => s.toString(16)

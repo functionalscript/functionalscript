@@ -1,4 +1,7 @@
-/** @import { Vec } from '../types/bit_vec/types.ts' */
+/**
+ * @import { Vec } from '../types/bit_vec/types.ts'
+ */
+
 import { compile } from './module.f.mjs'
 import { virtual, emptyState } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'

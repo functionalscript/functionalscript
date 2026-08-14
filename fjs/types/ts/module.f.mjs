@@ -4,9 +4,9 @@
  * primitive literals, and unions as TypeScript type expressions.
  *
  * @module
+ *
+ * @import { Printer } from './types.ts'
  */
-
-/** @import { Printer } from './types.ts' */
 
 /** @type {(open: string, close: string) => (i: readonly string[]) => string} */
 const complex = (open, close) => i =>

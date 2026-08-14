@@ -20,35 +20,23 @@
  * ```
  *
  * @module
+ *
+ * @import { Reduce as BigintReduce } from '../bigint/types.ts'
+ * @import { Fold } from '../function/operator/types.ts'
+ * @import { List, Thunk } from '../list/types.ts'
+ * @import { Absorbing } from '../../common/monoid/types.ts'
+ * @import { Sign } from '../function/compare/types.ts'
+ * @import { Nullable } from '../nullable/types.ts'
+ * @import { BitOrder, PopFront, Reduce, Unpacked, Vec, _NormOp, _UnpackConcat, } from './types.ts'
  */
 
 import { bitLength, divUp, mask, maxLength, xor } from '../bigint/module.f.mjs'
-/** @import { Reduce as BigintReduce } from '../bigint/types.ts' */
-
 import { compose, flip, identity } from '../function/module.f.mjs'
-
-/** @import { Fold } from '../function/operator/types.ts' */
-
 import { map } from '../list/module.f.mjs'
-/** @import { List, Thunk } from '../list/types.ts' */
-
 import { asBase, asNominal } from '../nominal/module.f.mjs'
-
 import { foldAbsorbing, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
-/** @import { Absorbing } from '../../common/monoid/types.ts' */
-
 import { cmp, max, min } from '../function/compare/module.f.mjs'
-/** @import { Sign } from '../function/compare/types.ts' */
-
 import { map as nullableMap, mapUnwrap } from '../nullable/module.f.mjs'
-/** @import { Nullable } from '../nullable/types.ts' */
-
-/**
- * @import {
- *  BitOrder, PopFront, Reduce, Unpacked, Vec,
- *  _NormOp, _UnpackConcat,
- * } from './types.ts'
- */
 
 /**
  * Maximum length of a bit vector in bits (1_048_576 = 0x10_0000).

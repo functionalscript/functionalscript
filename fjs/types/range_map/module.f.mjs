@@ -34,21 +34,18 @@
  * //
  * if (get(16) !== 0) { throw 'error' }
  * ```
+ *
+ * @import { TailReduce, ReduceOp } from '../sorted_list/types.ts'
+ * @import { Nullable } from '../nullable/types.ts'
+ * @import { Equal } from '../function/operator/types.ts'
+ * @import { Range } from '../range/types.ts'
+ * @import { Entry, Properties, RangeMapArray, RangeMapOp, RangeMerge, } from './types.ts'
  */
 
 import { genericMerge } from '../sorted_list/module.f.mjs'
-/** @import { TailReduce, ReduceOp } from '../sorted_list/types.ts' */
 import { next } from '../list/module.f.mjs'
-/** @import { Nullable } from '../nullable/types.ts' */
 import { cmp } from '../number/module.f.mjs'
 import { bsearch } from '../function/compare/module.f.mjs'
-/** @import { Equal } from '../function/operator/types.ts' */
-/** @import { Range } from '../range/types.ts' */
-/**
- * @import {
- *  Entry, Properties, RangeMapArray, RangeMapOp, RangeMerge,
- * } from './types.ts'
- */
 
 /** @template T @typedef {Nullable<Entry<T>>} _RangeState */
 
