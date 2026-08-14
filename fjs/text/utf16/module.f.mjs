@@ -120,6 +120,8 @@ const codePointToUtf16 = codePoint => {
 export const fromCodePointList
     = flatMap(codePointToUtf16)
 
+const isInU16Range = contains(0x0000, 0xFFFF)
+
 /**
  * Validates whether a given 16-bit unsigned integer (U16) falls within the valid range for UTF-16 code units.
  *
@@ -135,9 +137,14 @@ export const fromCodePointList
  * const edgeCaseHigh = u16(0xFFFF)  // true: Maximum valid value for UTF-16
  * ```
  *
+ * `U16` is just `number`, so this also rejects non-integers — `isBmpCodePoint`,
+ * `isHighSurrogate`, and `isLowSurrogate` only partition the *integers* in
+ * `0x0000`–`0xFFFF` with no gap; a fractional value would fall between two of
+ * those ranges and be misclassified downstream if it were let through here.
+ *
  * @type {(i: U16) => boolean}
  */
-const u16 = contains(0x0000, 0xFFFF)
+const u16 = i => Number.isInteger(i) && isInU16Range(i)
 
 
 /**
@@ -191,9 +198,11 @@ const utf16ByteToCodePointOp = (word, state) => {
         const low = word - 0xdc00
         return [[(high << 10) + low + 0x10000], null]
     }
+    // `isLowSurrogate`, `isBmpCodePoint`, and `isHighSurrogate` partition the
+    // full `u16` range with no gap, and `isLowSurrogate` was already ruled out
+    // above, so a non-BMP `word` here is always a high surrogate.
     if (isBmpCodePoint(word)) { return [[state | errorMask, word], null] }
-    if (isHighSurrogate(word)) { return [[state | errorMask], word] }
-    return [[state | errorMask, word | errorMask], null]
+    return [[state | errorMask], word]
 }
 
 
