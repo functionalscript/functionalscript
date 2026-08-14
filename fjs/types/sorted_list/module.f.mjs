@@ -9,7 +9,7 @@ import { bsearch } from '../function/compare/module.f.mjs'
 import { next } from '../list/module.f.mjs'
 /** @import { List } from '../list/types.ts' */
 import { identity } from '../function/module.f.mjs'
-/** @import { ReduceOp, SortedList, TailReduce, _MergeReduce } from './types.ts' */
+/** @import { ReduceOp, SortedList, _MergeReduce } from './types.ts' */
 
 /** @template T @typedef {readonly T[]} _SortedArray */
 
@@ -53,11 +53,7 @@ export const merge =
      * @param {Cmp<T>} cmp
      * @returns {(a: SortedList<T>) => (b: SortedList<T>) => SortedList<T>}
      */
-    cmp => {
-        /** @type {TailReduce<T, null>} */
-        const tailReduce = mergeTail
-        return genericMerge({ reduceOp: cmpReduce(cmp), tailReduce })(null)
-    }
+    cmp => genericMerge({ reduceOp: cmpReduce(cmp), tailReduce: keepTail })(null)
 
 const cmpReduce =
     /**
@@ -70,10 +66,22 @@ const cmpReduce =
         return [sign === 1 ? b : a, sign, null]
     }
 
-/** @type {() => <T>(tail: List<T>) => List<T>} */
-const mergeTail = () => identity
+/**
+ * The two tail policies `genericMerge` takes, named for what they do with the
+ * list that has not been exhausted yet: `merge` keeps it, because everything
+ * still there belongs in the union, and `intersect` drops it, because with one
+ * side exhausted nothing remaining can be matched.
+ *
+ * Both are left to inference deliberately. An explicit
+ * `() => <T>(tail: List<T>) => List<T>` compiles here but introduces its own
+ * type parameter, which `genericMerge` then collects as an inference candidate
+ * alongside `reduceOp`'s; the best common supertype of the two is `unknown`, so
+ * `T` widens and both call sites fail to match their declared return type. With
+ * no annotation there is no second candidate and `reduceOp` alone fixes `T`.
+ */
+const keepTail = () => identity
 
-const tailReduce = () => () => null
+const dropTail = () => () => null
 
 const intersectReduce =
     /**
@@ -92,7 +100,7 @@ export const intersect =
      * @param {Cmp<T>} cmp
      * @returns {(a: SortedList<T>) => (b: SortedList<T>) => SortedList<T>}
      */
-    cmp => genericMerge({ reduceOp: intersectReduce(cmp), tailReduce })(null)
+    cmp => genericMerge({ reduceOp: intersectReduce(cmp), tailReduce: dropTail })(null)
 
 export const find =
     /**
