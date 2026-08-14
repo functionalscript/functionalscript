@@ -26,8 +26,10 @@ Evaluate at least these designs before removing `changelog/`:
 
 1. **Commit-message extraction.** The entry lives in the squash/merge commit
    message (e.g. a `Changelog:` trailer, reviewed as part of the PR). The
-   generator deterministically extracts trailers between release tags — no
-   summarization, reviewed text, `changelog/` genuinely redundant.
+   generator deterministically extracts trailers between release commits (the
+   repository has no tags and is not getting any, so the bare-version commit
+   title is the boundary) — no summarization, reviewed text, `changelog/`
+   genuinely redundant.
 2. **Authoring assistant.** A tool drafts the entry from the PR's diff at PR
    time; the reviewed result is still committed as a `changelog/` file. The
    generator stays out of the build; `changelog/` remains the source of truth.
