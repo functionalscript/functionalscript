@@ -1,4 +1,5 @@
 /**
+ * @import { Or } from '../types.ts'
  * @import { Data } from './types.ts'
  */
 
@@ -84,6 +85,19 @@ const topArr = () => ['array', topOr]
 const a2 = () => ['array', [a2, b2]]
 /** @type {_B2} */
 const b2 = () => ['array', b2]
+
+/** A self-recursive record: rest-based object recursion. */
+/** @typedef {() => readonly ['record', _RecordSelf]} _RecordSelf */
+/** @type {_RecordSelf} */
+const recordSelf = () => ['record', recordSelf]
+
+/** Mutual recursion through object *properties* rather than containers. */
+/** @typedef {() => readonly ['const', { readonly value: typeof number, readonly next: Or<readonly [_Odd, undefined]> }]} _Even */
+/** @typedef {() => readonly ['const', { readonly value: typeof number, readonly next: Or<readonly [_Even, undefined]> }]} _Odd */
+/** @type {_Even} */
+const even = () => ['const', { value: number, next: option(odd) }]
+/** @type {_Odd} */
+const odd = () => ['const', { value: number, next: option(even) }]
 
 /** @typedef {() => readonly ['array', _Rec]} _Rec */
 /** Every call returns a fresh recursive thunk whose function name is `f`. */
@@ -406,6 +420,9 @@ export const proof = {
             assert(subset(toData(record(number)))(toData({ a: option(number) })))
             // a struct leaves undeclared keys unconstrained, a record does not
             assert(!subset(toData({ a: number }))(toData(record(number))))
+            // a key inherited from Object.prototype is not a declared prop
+            assert(!subset(toData({ a: number }))(toData({ toString: number })))
+            assert(subset(toData({ toString: /** @type {const} */ (42) }))(toData({ toString: number })))
         },
         recursion: () => {
             assert(subset(toData(list))(toData(list)))
@@ -413,6 +430,20 @@ export const proof = {
             assert(!subset(toData(tree))(toData(forest)))
             assert(!subset(toData(list))(toData(array(number))))
             assert(subset(toData(array(neverRtti)))(toData(list)))
+        },
+        mixedObjectRecursion: () => {
+            // rest-based and property-based object recursion compared in one
+            // union used to overflow the stack: the synthesized `rest ∪
+            // undefined` read-sets never reached the coinductive memo
+            const v = validate(toData(or(recordSelf, even)))
+            assertEq(v({})[0], 'ok')
+            assertEq(v({ value: 1 })[0], 'ok')
+            assertEq(v({ value: 'x' })[0], 'error')
+            assert(!subset(toData(recordSelf))(toData(even)))
+            assert(!subset(toData(even))(toData(recordSelf)))
+            assert(subset(toData(recordSelf))(toData(or(recordSelf, even))))
+            assert(subset(toData(even))(toData(or(recordSelf, even))))
+            assert(subset(toData(even))(toData(odd)))
         },
         assumed: () => {
             // one left rule checked against two right rules on one path
@@ -493,6 +524,9 @@ export const proof = {
             const vr = validate(toData(record(number)))
             assertEq(vr({})[0], 'ok')
             assertEq(vr({ p: 1 })[0], 'ok')
+            // a key inherited from Object.prototype is still an extra key
+            assertEq(vr({ toString: 1 })[0], 'ok')
+            assertEq(vr({ toString: 'x' })[0], 'error')
             assertEq(
                 JSON.stringify(vr({ p: 'a' })),
                 '["error",{"path":["p"],"message":"unexpected value"}]')
@@ -521,6 +555,12 @@ export const proof = {
             const vs = validate(toData(selfOr))
             assertEq(vs(5)[0], 'ok')
             assertEq(vs('x')[0], 'error')
+        },
+        throw: {
+            // a dangling reference is malformed data — even one naming an
+            // `Object.prototype` member, which own-property lookup rejects
+            danglingReference: () => validate([{}, 'nope'])(1),
+            danglingPrototypeReference: () => validate([{}, 'toString'])(1),
         },
     },
 }

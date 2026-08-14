@@ -23,6 +23,18 @@ history.
 - `types/uint8array`: `toVec` attempts the conversion instead of precomputing a
   byte-count bound; behavior and error message unchanged
   [#1543](https://github.com/functionalscript/functionalscript/pull/1543)
+- `media/json/schema`: `toJsonSchema` supports recursive schemas — it converts
+  through `fjs/types/rtti/data` (new `dataToJsonSchema`) and emits named
+  recursion as `$defs`/`$ref`; output is canonical, so `anyOf` members and
+  object keys follow the data form's normalized order, and a non-empty tuple
+  prefix emits `minItems`
+  [#1542](https://github.com/functionalscript/functionalscript/pull/1542).
+- `types/rtti/data`: rule and property lookups are own-property only, so a
+  name shadowing an `Object.prototype` member (`toString`, …) is a missing
+  definition for `validate`/`subset` and an ordinary extra key when validating
+  values; `subset` and `toData`'s coverage collapse now terminate on unions
+  mixing rest-based and property-based object recursion
+  [#1542](https://github.com/functionalscript/functionalscript/pull/1542).
 - `basen/base64`: `decode` drops an overflow check in its padded branch that
   could never trigger — `head`'s length is always a multiple of 6, so the
   largest value `stringToVec` can return without overflowing already lands
