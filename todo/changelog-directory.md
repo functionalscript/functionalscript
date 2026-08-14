@@ -1,6 +1,6 @@
 # Replace `CHANGELOG.md` with a `changelog/` directory
 
-**Priority:** P1
+**Priority:** P2
 **Status:** open
 
 ## Problem
@@ -27,8 +27,12 @@ changelog/
   several entries puts them all in its one file. The `**BREAKING CHANGES:**`
   marker keeps its meaning; at release time it is found by scanning
   `changelog/unreleased/`.
-- Entry ordering: PR numbers are monotonic, so sorting filenames by number
-  descending reproduces the current newest-first order.
+- Entry ordering: filenames sort by PR number descending. Today's file is in
+  *merge* order, which this does not reproduce exactly — a PR opened earlier
+  can merge after one opened later. That deviation is accepted: PR-number
+  order is deterministic and conflict-free, and exact merge order can be
+  recovered later by generating from Git history
+  ([changelog-from-git-history.md](./changelog-from-git-history.md)).
 - Releasing: concatenate `unreleased/*.md` (descending) into
   `changelog/<version>.md` and delete the entry files. Git does not store
   empty directories, so `unreleased/` needs a permanent file (`.gitkeep` or a
