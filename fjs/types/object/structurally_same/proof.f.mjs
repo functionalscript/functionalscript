@@ -39,19 +39,28 @@ export const proof = {
         // length first, then elementwise
         () => differ([1], [1, 2]),
         () => differ([1, 2], [2, 1]),
-        // an array is never the same as a non-array, in either position
+        // an array is never the same as a non-array, in either position.
+        // `differ([], {})` alone does not pin this: it already fails on
+        // `0 === undefined`, so only an array-like with a matching `length`
+        // reaches the `b instanceof Array` check.
         () => differ([], {}),
         () => differ({}, []),
-        // an explicitly `undefined` element is an ordinary element
+        () => differ([1, 2], { 0: 1, 1: 2, length: 2 }),
+        // an explicitly `undefined` element is an ordinary element, so it
+        // counts towards the length
         () => same([undefined], [undefined]),
         () => differ([undefined], [1]),
+        () => differ([undefined], []),
     ],
     objects: [
         () => same({}, {}),
         // property order is not part of the structure
         () => same({ a: 1, b: { c: 2 } }, { b: { c: 2 }, a: 1 }),
-        // same count, different names
+        // same count, different names. The first is settled by the values
+        // (`1` vs `undefined`); only the second — disjoint names *and*
+        // `undefined` on both sides — pins the key-set check itself.
         () => differ({ a: 1 }, { b: 1 }),
+        () => differ({ a: undefined }, { b: undefined }),
         // same names, different values
         () => differ({ a: 1 }, { a: 2 }),
         () => differ({ a: { b: 1 } }, { a: { b: 2 } }),
