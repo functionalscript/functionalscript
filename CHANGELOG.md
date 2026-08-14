@@ -24,7 +24,7 @@ history.
   through `fjs/types/rtti/data` (new `dataToJsonSchema`) and emits named
   recursion as `$defs`/`$ref`; output is canonical, so `anyOf` members and
   object keys follow the data form's normalized order
-  [#1539](https://github.com/functionalscript/functionalscript/pull/1539).
+  [#1542](https://github.com/functionalscript/functionalscript/pull/1542).
 - `types/object`: new `structurallySame`, plus `assertStructurallySame` in
   `fjs/asserts` — structural comparison for proofs
   [#1538](https://github.com/functionalscript/functionalscript/pull/1538)
