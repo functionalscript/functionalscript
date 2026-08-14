@@ -65,22 +65,22 @@ export const proof = {
     },
     toRangeMap: [
         () => {
-            const result = stringify(toArray(toRangeMap(empty)('a')))
+            const result = stringify(toArray(toRangeMap(empty)))
             assertEq(result, '[]')
         },
         () => {
             const s = set(0)(empty)
-            const result = stringify(toArray(toRangeMap(s)('a')))
-            assertEq(result, '[[["a"],0]]')
+            const result = stringify(toArray(toRangeMap(s)))
+            assertEq(result, '[[true,0]]')
         },
         () => {
             const s = setRange([1, 2])(empty)
-            const result = stringify(toArray(toRangeMap(s)('a')))
-            assertEq(result, '[[[],0],[["a"],2]]')
+            const result = stringify(toArray(toRangeMap(s)))
+            assertEq(result, '[[false,0],[true,2]]')
         },
         () => {
-            const result = stringify(toArray(toRangeMap(universe)('a')))
-            assertEq(result, '[[["a"],255]]')
+            const result = stringify(toArray(toRangeMap(universe)))
+            assertEq(result, '[[true,255]]')
         },
     ]
 }
