@@ -2,9 +2,9 @@
  * Proofs for generated CI flakes.
  *
  * @module
+ *
+ * @import { NixJob } from './types.ts'
  */
-
-/** @import { NixJob } from './types.ts' */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { step } from '../../effects/module.f.mjs'

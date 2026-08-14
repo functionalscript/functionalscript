@@ -16,6 +16,7 @@ const { entries } = Object
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 
 const colon = [':']
 
@@ -183,12 +184,12 @@ const addRef = djs => refs => {
 export const stringify = sort => djs => {
     const refs = countRefs(djs)
     const consts = getConstants(refs)(djs)
+    // `consts` only ever holds values `getConstants` found `shared` for, i.e.
+    // values with an entry already in `refs` — so `refs.get(entry)` here is
+    // always defined.
     /** @type {(entry: Unknown) => List<string>} */
     const constSerialize = entry => {
-        const refCounter = refs.get(entry)
-        if (refCounter === undefined) {
-            throw 'unexpected behavior'
-        }
+        const refCounter = assertNotNullish(refs.get(entry))
         return flat([['const c'], numberSerialize(refCounter[0]), [' = '], serializeWithConst(sort)(refs)(entry)(entry), ['\n']])
     }
     const constStrings = flatMap(constSerialize)(consts)

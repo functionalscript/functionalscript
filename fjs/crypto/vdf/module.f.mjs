@@ -15,13 +15,14 @@
  * const y = sloth.eval(steps)(x)
  * if (y === null || !sloth.verify(steps)(x)(y)) { throw y }
  * ```
+ *
+ * @import { PrimeField } from '../../types/prime_field/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Unary } from '../../types/bigint/types.ts'
+ * @import { Sloth } from './types.ts'
  */
 
 import { modSqrt, prime_field } from '../../types/prime_field/module.f.mjs'
-/** @import { PrimeField } from '../../types/prime_field/types.ts' */
-/** @import { Nullable } from '../../types/nullable/types.ts' */
-/** @import { Unary } from '../../types/bigint/types.ts' */
-/** @import { Sloth } from './types.ts' */
 
 /** Sloth VDF modulus (3072-bit safe prime, same as reference implementations). */
 export const p =

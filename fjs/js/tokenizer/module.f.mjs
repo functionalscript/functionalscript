@@ -4,17 +4,19 @@
  * and numeric literals (including `BigFloat`).
  *
  * @module
+ *
+ * @import { Scan, StateScan } from '../../types/function/operator/types.ts'
+ * @import { RangeMapArray, RangeMerge } from '../../types/range_map/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Entry } from '../../types/ordered_map/types.ts'
+ * @import { Range as NumberRange } from '../../types/range/types.ts'
+ * @import { StringToken, NumberToken, BigIntToken, ErrorToken, WhitespaceToken, NewLineToken, IdToken, CommentToken, EofToken, JsToken, TokenMetadata, JsTokenWithMetadata, _TokenizerStateWithMetadata, _TokenizerState, _ErrorMessage, _InitialState, _ParseIdState, _ParseWhitespaceState, _ParseNewLineState, _ParseStringState, _ParseEscapeCharState, _ParseOperatorState, _ParseCommentState, _ParseUnicodeCharState, _ParseNumberState, _ParseNumberBuffer, _InvalidNumberState, _EofState, _CharCodeOrEof, _ToToken, _CreateToToken, _RangeFunc, _RangeMapToToken, } from './types.ts'
  */
 
-/** @import { Scan, StateScan } from '../../types/function/operator/types.ts' */
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
-/** @import { RangeMapArray, RangeMerge } from '../../types/range_map/types.ts' */
 import { merge, fromRange, get } from '../../types/range_map/module.f.mjs'
-/** @import { List } from '../../types/list/types.ts' */
 import { empty, stateScan, flat, toArray, reduce as listReduce, scan, map as listMap } from '../../types/list/module.f.mjs'
 import { at, fromEntries } from '../../types/ordered_map/module.f.mjs'
-/** @import { Entry } from '../../types/ordered_map/types.ts' */
-/** @import { Range as NumberRange } from '../../types/range/types.ts' */
 import { one } from '../../types/range/module.f.mjs'
 import {
     range,
@@ -75,41 +77,6 @@ import {
     dollarSign
 }  from '../../text/ascii/module.f.mjs'
 import { todo, assertEq } from '../../asserts/module.f.mjs'
-/** @import {
-    StringToken,
-    NumberToken,
-    BigIntToken,
-    ErrorToken,
-    WhitespaceToken,
-    NewLineToken,
-    IdToken,
-    CommentToken,
-    EofToken,
-    JsToken,
-    TokenMetadata,
-    JsTokenWithMetadata,
-    _TokenizerStateWithMetadata,
-    _TokenizerState,
-    _ErrorMessage,
-    _InitialState,
-    _ParseIdState,
-    _ParseWhitespaceState,
-    _ParseNewLineState,
-    _ParseStringState,
-    _ParseEscapeCharState,
-    _ParseOperatorState,
-    _ParseCommentState,
-    _ParseUnicodeCharState,
-    _ParseNumberState,
-    _ParseNumberBuffer,
-    _InvalidNumberState,
-    _EofState,
-    _CharCodeOrEof,
-    _ToToken,
-    _CreateToToken,
-    _RangeFunc,
-    _RangeMapToToken,
-} from './types.ts' */
 
 const { fromCharCode } = String
 

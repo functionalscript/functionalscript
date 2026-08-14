@@ -1,12 +1,15 @@
+/**
+ * @import { MemOperationMap } from '../mock/types.ts'
+ * @import { Key, MemOp } from './types.ts'
+ */
+
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { run } from '../mock/module.f.mjs'
-/** @import { MemOperationMap } from '../mock/types.ts' */
 import { pure, step } from '../module.f.mjs'
 import {
     asBase, asNominal,
     create, read, write,
 } from './module.f.mjs'
-/** @import { Key, MemOp } from './types.ts' */
 
 /**
  * @typedef {{

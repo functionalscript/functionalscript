@@ -9,31 +9,19 @@
  *   scheduling and pass/fail counting.
  *
  * @module
+ *
+ * @import { Effect, Operation } from '../effects/types.ts'
+ * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
+ * @import { TestFn, TestEntry, TestSet, Path, Reporter, _TestState, _TestAndPath } from './types.ts'
+ * @import { All, Await, Env, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  */
 
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { all, awaitIfPromise, sandbox, test } from '../effects/node/module.f.mjs'
-/** @import {
-    All,
-    Await,
-    Env,
-    NodeProgram,
-    NodeProgramOptions,
-    Program,
-    Sandbox,
-    SandboxResult,
-    Test,
-    TestContext,
-    Write,
-    WriteConsoles
-} from '../effects/node/types.ts' */
 import { history, historyStep, mapStep, pure, step } from '../effects/module.f.mjs'
-/** @import { Effect, Operation } from '../effects/types.ts' */
 import { loadModuleMap } from '../dev/module.f.mjs'
-/** @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts' */
 import { invert } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
-/** @import { TestFn, TestEntry, TestSet, Path, Reporter, _TestState, _TestAndPath } from './types.ts' */
 
 /** @type {(delta: number) => (ts: _TestState) => _TestState} */
 const addPass = delta => ts =>

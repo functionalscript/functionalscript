@@ -3,13 +3,14 @@
  * `ByteSet` type.
  *
  * @module
+ *
+ * @import { RangeMap } from '../range_map/types.ts'
+ * @import { SortedSet } from '../sorted_set/types.ts'
+ * @import { ByteSet } from './types.ts'
  */
 
 import { compose } from '../function/module.f.mjs'
-/** @import { RangeMap } from '../range_map/types.ts' */
-/** @import { SortedSet } from '../sorted_set/types.ts' */
 import { reverse, countdown, flat, map } from '../list/module.f.mjs'
-/** @import { ByteSet } from './types.ts' */
 
 /** @typedef {number} _Byte */
 

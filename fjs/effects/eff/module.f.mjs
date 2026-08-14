@@ -4,11 +4,12 @@
  * See `./types.ts` for the `Eff` type-level API.
  *
  * @module
+ *
+ * @import { Effect, Operation } from '../types.ts'
+ * @import { Eff } from './types.ts'
  */
 
 import { history, historyStep, mapStep, pure } from '../module.f.mjs'
-/** @import { Effect, Operation } from '../types.ts' */
-/** @import { Eff } from './types.ts' */
 
 /**
  * Builds an `Eff` from two views of the same chain: `value`, the effect for the

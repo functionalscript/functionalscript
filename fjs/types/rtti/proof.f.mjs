@@ -1,4 +1,6 @@
-/** @import { StringMap } from '../object/types.ts' */
+/**
+ * @import { StringMap } from '../object/types.ts'
+ */
 
 /** @typedef {StringMap<readonly unknown[]>} _Tests */
 

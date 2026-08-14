@@ -4,20 +4,21 @@
  * See `./types.ts` for the `Element`/`Node` type-level API.
  *
  * @module
+ *
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Entry, StringMap } from '../../types/object/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Element, Node } from './types.ts'
  */
 
-/** @import { List } from '../../types/list/types.ts' */
 import { map, flatMap, flat, concat as listConcat } from '../../types/list/module.f.mjs'
 import { concat, concat as stringConcat } from '../../types/string/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
-/** @import { Entry, StringMap } from '../../types/object/types.ts' */
 import { compose } from '../../types/function/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { includes } from '../../types/array/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/types.ts' */
 import { utf8 } from '../../text/module.f.mjs'
 import { quotationMark, ampersand, lessThanSign, greaterThanSign } from '../../text/ascii/module.f.mjs'
-/** @import { Element, Node } from './types.ts' */
 
 const { fromCharCode } = String
 

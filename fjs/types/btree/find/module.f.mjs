@@ -2,15 +2,14 @@
  * Lookup operations for persistent B-tree structures.
  *
  * @module
+ *
+ * @import { TNode } from '../types/types.ts'
+ * @import { Compare } from '../../function/compare/types.ts'
+ * @import { KeyOf } from '../../array/types.ts'
+ * @import { First, Path, PathItem, Result } from './types.ts'
  */
 
-/** @import { TNode } from '../types/types.ts' */
-
 import { index3, index5 } from '../../function/compare/module.f.mjs'
-/** @import { Compare } from '../../function/compare/types.ts' */
-
-/** @import { KeyOf } from '../../array/types.ts' */
-/** @import { First, Path, PathItem, Result } from './types.ts' */
 
 /** @type {<T>(item: PathItem<T>) => TNode<T>} */
 const child = item => {

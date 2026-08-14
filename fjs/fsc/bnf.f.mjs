@@ -1,5 +1,8 @@
+/**
+ * @import { Rule } from '../bnf/types.ts'
+ */
+
 import { range, remove, set, option } from '../bnf/module.f.mjs'
-/** @import { Rule } from '../bnf/types.ts' */
 import { digit, json, unicode, ws0, ws1, wsNoNewLine0 } from './json.f.mjs'
 
 /** @type {Rule} */

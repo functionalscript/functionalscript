@@ -1,8 +1,11 @@
+/**
+ * @import { OptionalMap, RequiredMap, StringMap } from './types.ts'
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Equal } from '../ts/types.ts'
+ */
+
 import { at } from './module.f.mjs'
-/** @import { OptionalMap, RequiredMap, StringMap } from './types.ts' */
 import { assertEq } from '../../asserts/module.f.mjs'
-/** @import { Assert } from '../../asserts/types.ts' */
-/** @import { Equal } from '../ts/types.ts' */
 
 /** @typedef {Assert<Equal<StringMap<bigint>, { readonly [k in string]?: bigint }>>} _StringMapIsOptional */
 

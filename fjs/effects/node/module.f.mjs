@@ -9,6 +9,11 @@
  * See `./types.ts` for the type-level API.
  *
  * @module
+ *
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Effect, Func, Operation } from '../types.ts'
+ * @import { List } from '../list/types.ts'
+ * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoResult, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop, } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -18,18 +23,6 @@ import { reverse } from '../../types/list/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
 import { ok, error as resultError, mapOk } from '../../types/result/module.f.mjs'
 import { do_, mapStep, okStep, pure, step } from '../module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/types.ts' */
-/** @import { Effect, Func, Operation } from '../types.ts' */
-/** @import { List } from '../list/types.ts' */
-/** @import {
-    All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine,
-    Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http,
-    IncomingMessage, Import, IoResult, Listen, MakeDirectoryOptions, Mkdir,
-    Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes,
-    ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename,
-    Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext,
-    TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop,
-} from './types.ts' */
 
 /**
  * True if `e` is a "file or directory does not exist" (`ENOENT`) error.

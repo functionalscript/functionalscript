@@ -4,16 +4,17 @@
  * strings and MSB-first UTF-8 bit vectors.
  *
  * @module
+ *
+ * @import { List } from '../types/list/types.ts'
+ * @import { Nullable } from '../types/nullable/types.ts'
+ * @import { Block, Item, Utf8 } from './types.ts'
  */
 
 import { msb, tryU8ListToVec, u8List } from '../types/bit_vec/module.f.mjs'
 import { flatMap } from '../types/list/module.f.mjs'
-/** @import { List } from '../types/list/types.ts' */
 import { fromCodePointList, toCodePointList } from './utf8/module.f.mjs'
 import { stringToCodePointList, codePointListToString } from './utf16/module.f.mjs'
 import { mapUnwrap } from '../types/nullable/module.f.mjs'
-/** @import { Nullable } from '../types/nullable/types.ts' */
-/** @import { Block, Item, Utf8 } from './types.ts' */
 
 /** @type {(indent: string) => (text: Block) => List<string>} */
 export const flat = indent => {
