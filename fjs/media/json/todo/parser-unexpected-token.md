@@ -6,9 +6,9 @@
 ### Problem
 
 `fjs/media/json/parser/module.f.mjs` builds `{ status: 'error', message:
-'unexpected token' }` inline at nine sites (lines 146, 151, 162, 170, 178,
-185, 193, 202, 212), plus a stray `{ status: 'error', message: 'error' }`
-at line 68 (the `pushKey` fallthrough). Example:
+'unexpected token' }` inline at nine sites (lines 133, 138, 148, 155, 162,
+168, 175, 183, 192), plus a stray `{ status: 'error', message: 'error' }`
+at line 35 (the `pushKey` fallthrough). Example:
 
 ```ts
 const parseObjectKeyOp = token => state => {
@@ -34,7 +34,7 @@ module-scope **value**:
 const unexpectedToken: JsonState = { status: 'error', message: 'unexpected token' } as const
 ```
 
-Replace the nine literals with `unexpectedToken`. For line 68, decide
+Replace the nine literals with `unexpectedToken`. For line 35, decide
 whether the `pushKey` fallthrough is genuinely a distinct condition — if
 it is reachable only via an unexpected token, reuse `unexpectedToken`
 (dropping the uninformative `'error'` message); if it is unreachable by
@@ -48,7 +48,7 @@ orthogonal to the larger shared-value-machine work in
 ### Tasks
 
 - [ ] Hoist `unexpectedToken`; replace the nine inline literals.
-- [ ] Resolve the line-68 `'error'` fallthrough (reuse or restructure).
+- [ ] Resolve the line-35 `'error'` fallthrough (reuse or restructure).
 - [ ] Run `npx tsc` and `fjs t`; confirm parser proofs keep full branch
       coverage.
 

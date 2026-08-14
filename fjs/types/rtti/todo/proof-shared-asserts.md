@@ -24,12 +24,14 @@ In addition, `parse/proof.f.mjs` hand-rolls an `unwrap` that duplicates
 `unwrap` from `fjs/types/result/module.f.mjs:59` (assert `'ok'`, return the
 payload).
 
-`assertDeepEqual` and `assertErrorPath`'s raw `if`/`throw` bodies are **done**:
-`structurallySame` / `assertStructurallySame` landed, `assertDeepEqual` is
-deleted in favour of `assertStructurallySame`, and `assertErrorPath` is now
-`assertStructurallySame(e.path, expected, 'unexpected error path')`. What
-remains below is the `unwrap` duplication, the `assertOk`/`assertError` move,
-and sharing `assertErrorPath` itself between the two proofs.
+`assertDeepEqual` is **done**: `structurallySame` / `assertStructurallySame`
+landed and `assertDeepEqual` is deleted in favour of it. `assertErrorPath` is
+only **half-migrated**: `parse/proof.f.mjs`'s copy is now
+`assertStructurallySame(e.path, expected, 'unexpected error path')`, but
+`validate/proof.f.mjs`'s copy still has the raw `if`/`throw` loop shown above.
+What remains below is migrating `validate/proof.f.mjs`'s `assertErrorPath`,
+the `unwrap` duplication, the `assertOk`/`assertError` move, and sharing
+`assertErrorPath` itself between the two proofs.
 
 Beyond the helpers, roughly 80% of the two proof trees are copy-pasted
 verbatim modulo the checker name (`validate` vs `parse`): the `boolean` /
@@ -70,8 +72,10 @@ Two steps; the first is the high-confidence part:
 - [ ] Move `assertOk`/`assertError` to `fjs/asserts/module.f.mjs` (with proof
       coverage) and update both rtti proofs.
 - [ ] Replace parse/proof's local `unwrap` with `fjs/types/result`'s `unwrap`.
-- [x] Rewrite `assertErrorPath` and `assertDeepEqual` on top of the shared
-      assertion module — done via `assertStructurallySame`.
+- [x] Delete `assertDeepEqual` in favour of `assertStructurallySame`.
+- [ ] Rewrite `validate/proof.f.mjs`'s `assertErrorPath` on top of
+      `assertStructurallySame` — `parse/proof.f.mjs`'s copy already is, but
+      `validate/proof.f.mjs`'s still has the raw `if`/`throw` loop.
 - [ ] Share the rewritten `assertErrorPath` between the two proofs.
 - [ ] Evaluate the `commonSuite` factory; if adopted, keep the two proof
       files down to their genuinely divergent cases.
