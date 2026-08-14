@@ -29,10 +29,10 @@
  *
  * @module
  *
- * @import { Unknown } from '../../../media/json/types.ts'
  * @import { Effect, Operation } from '../../../effects/types.ts'
  * @import { IoResult, Read, Write } from '../../../effects/node/types.ts'
  * @import { Response } from '../../json_rpc/types.ts'
+ * @import { Step } from './types.ts'
  */
 
 import { pure, step } from '../../../effects/module.f.mjs'
@@ -42,13 +42,6 @@ import { parse, stringify } from '../../../media/json/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
 import { internalError, jsonrpc, parseError } from '../../json_rpc/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
-
-/**
- * A transport step: maps one parsed JSON-RPC message to a response, or `null`
- * for a notification that needs no reply. The shape of `mcpStep(config)(handlers)(key)`.
- * @template {Operation} O
- * @typedef {(value: Unknown) => Effect<O, Response | null>} Step
- */
 
 const stringifyJson = stringify(sort)
 

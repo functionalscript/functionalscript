@@ -5,12 +5,11 @@
  *
  * @import { Unknown } from '../types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { List } from '../../types/list/types.ts'
- * @import { OrderedMap } from '../../types/ordered_map/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { AstModule } from '../ast/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadFile } from '../../effects/node/types.ts'
+ * @import { ParseContext } from './types.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -23,24 +22,6 @@ import { parseFromTokens } from '../parser/module.f.mjs'
 import { run } from '../ast/module.f.mjs'
 import { foldStep, pure, step } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
-
-/**
- * State threaded through the recursive transpilation of a DJS module graph.
- *
- * - `complete`: modules that have been fully parsed and evaluated, keyed by path.
- * - `stack`: import chain currently being resolved (used to detect circular dependencies).
- * - `error`: the first parse error encountered, or `null` while everything is clean.
- * @typedef {{
- *   readonly complete: OrderedMap<djsResult>
- *   readonly stack: List<string>
- *   readonly error: ParseError | null
- * }} ParseContext
- */
-
-/**
- * The evaluated DJS value produced for one successfully transpiled module.
- * @typedef {{ djs: Unknown }} djsResult
- */
 
 /** @type {(context: ParseContext) => (path: string) => Unknown} */
 const mapDjs = context => path => {
