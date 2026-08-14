@@ -20,6 +20,9 @@ history.
 
 ## Unreleased
 
+- `types/sorted_list`: the two merge tail policies are now named `keepTail` and
+  `dropTail` instead of sharing one shadowed name; internal only
+  [#1546](https://github.com/functionalscript/functionalscript/pull/1546)
 - `types/uint8array`: `toVec` attempts the conversion instead of precomputing a
   byte-count bound; behavior and error message unchanged
   [#1543](https://github.com/functionalscript/functionalscript/pull/1543)
