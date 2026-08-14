@@ -13,13 +13,13 @@
  *
  * @module
  *
- * @import { Printer } from '../../ts/types.ts'
+ * @import { Printer, StructField } from '../../ts/types.ts'
  * @import { Type } from '../types.ts'
  * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../data/types.ts'
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
-import { definedEntries } from '../../object/module.f.mjs'
+import { at, definedEntries } from '../../object/module.f.mjs'
 import { primitive, union, printer as tsPrinter } from '../../ts/module.f.mjs'
 import { cmp, toData, unitBit, unknown as top } from '../data/module.f.mjs'
 
@@ -44,8 +44,11 @@ const reserved = /** @type {const} */ ([
     'extends', 'finally', 'for', 'function', 'if', 'import', 'in',
     'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try',
     'typeof', 'var', 'while', 'with',
-    // type-operator keywords
-    'infer', 'keyof', 'readonly', 'unique',
+    // reserved in strict-mode code — and every module is strict-mode code
+    'implements', 'interface', 'let', 'package', 'private', 'protected',
+    'public', 'static', 'yield',
+    // type-operator keywords, and `intrinsic` (TS2795 outside lib.d.ts)
+    'infer', 'intrinsic', 'keyof', 'readonly', 'unique',
 ])
 
 /** @type {(c: string) => boolean} */
@@ -90,7 +93,13 @@ const identifiers = rules => {
     return result
 }
 
-/** @typedef {{ readonly ts: Printer, readonly ids: readonly (readonly [string, string])[] }} _Ctx */
+/**
+ * @typedef {{
+ *  readonly ts: Printer
+ *  readonly ids: readonly (readonly [string, string])[]
+ *  readonly rules: RuleSet
+ * }} _Ctx
+ */
 
 /** @type {(ids: readonly (readonly [string, string])[], name: string) => string | undefined} */
 const idOf = (ids, name) => {
@@ -152,17 +161,38 @@ const arraySetToTs = ctx => p => {
 }
 
 /**
- * A struct prints its fields, a record its value type, and a
- * props-with-rest combines them with an intersection.
+ * Whether the node's value set admits `undefined` — its unit bit, read
+ * through a reference (own-property only) if needed.
+ *
+ * @type {(ctx: _Ctx) => (n: Node) => boolean}
+ */
+const admitsUndefined = ctx => n => {
+    const u = typeof n === 'string' ? assertNotNullish(at(n)(ctx.rules)) : n
+    return ((u.unit ?? 0) & undefinedBit) !== 0
+}
+
+/** @type {(list: readonly string[]) => readonly string[]} */
+const dedup = list => list.filter((s, i) => list.indexOf(s) === i)
+
+/**
+ * A struct prints its fields — a key whose value set admits `undefined` may
+ * also be absent, so it prints optional, mirroring `Ts<>` — and a record
+ * prints its value type. A props-with-rest set combines them with an
+ * intersection; TypeScript requires an index signature to cover the
+ * declared keys too, so the index type widens to the union of the rest and
+ * the declared value types — the closest expressible supertype.
  *
  * @type {(ctx: _Ctx) => (p: ObjectSet) => string}
  */
 const objectSetToTs = ctx => p => {
-    const fields = definedEntries(p.props).map(
-        ([k, v]) => /** @type {const} */ ([k, nodeToTs(ctx)(v)]))
+    /** @type {readonly StructField[]} */
+    const fields = definedEntries(p.props).map(([k, v]) => {
+        const ts = nodeToTs(ctx)(v)
+        return admitsUndefined(ctx)(v) ? [k, ts, true] : [k, ts]
+    })
     const { rest } = p
     if (rest === undefined) { return ctx.ts.struct(fields) }
-    const restTs = ctx.ts.record(nodeToTs(ctx)(rest))
+    const restTs = ctx.ts.record(union(dedup([...fields.map(([, v]) => v), nodeToTs(ctx)(rest)])))
     return fields.length === 0 ? restTs : `${ctx.ts.struct(fields)}&${restTs}`
 }
 
@@ -206,7 +236,7 @@ const unionToTs = ctx => u => {
  */
 export const dataToTs = mut => ([rules, entry]) => {
     /** @type {_Ctx} */
-    const ctx = { ts: tsPrinter(mut), ids: identifiers(rules) }
+    const ctx = { ts: tsPrinter(mut), ids: identifiers(rules), rules }
     return [
         definedEntries(rules).map(([n, u]) =>
             /** @type {const} */ ([nodeToTs(ctx)(n), unionToTs(ctx)(u)])),

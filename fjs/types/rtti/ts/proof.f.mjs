@@ -4,7 +4,7 @@
  */
 
 import { assertEq } from '../../../asserts/module.f.mjs'
-import { toData } from '../data/module.f.mjs'
+import { toData, unitBit } from '../data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, record, or, option, never } from '../module.f.mjs'
 import { dataToTs, printer } from './module.f.mjs'
 
@@ -139,7 +139,11 @@ export const proof = {
         canonicalIdentity: () => {
             assertEq(toTs(or(string, number)), toTs(or(number, string)))
         },
-        optionalProp: () => eq({ x: option(string) }, '{readonly"x":undefined|string}'),
+        // a key admitting `undefined` may be absent — it prints optional
+        optionalProp: () => eq({ x: option(string) }, '{readonly"x"?:undefined|string}'),
+        mixedProps: () => eq(
+            { a: number, b: option(number) },
+            '{readonly"a":number,readonly"b"?:undefined|number}'),
     },
     recursion: {
         selfList: () => {
@@ -178,6 +182,13 @@ export const proof = {
             eqData([{ infer: { array: [{ prefix: [], rest: 'infer' }] } }, 'infer'],
                 [[['T0', 'readonly(T0)[]']], 'T0'])
         },
+        // reserved only in strict-mode code — but every module is strict
+        strictModeReservedName: () => {
+            eqData([{ let: { array: [{ prefix: [], rest: 'let' }] } }, 'let'],
+                [[['T0', 'readonly(T0)[]']], 'T0'])
+            eqData([{ intrinsic: { array: [{ prefix: [], rest: 'intrinsic' }] } }, 'intrinsic'],
+                [[['T0', 'readonly(T0)[]']], 'T0'])
+        },
         // a generated identifier skips names already kept
         generatedCollision: () => {
             eqData(toData(/** @type {const} */ ([t0Named, lock])), [
@@ -192,8 +203,19 @@ export const proof = {
                 [[], 'readonly[number,...readonly(string)[]]'])
         },
         structWithRest: () => {
+            // the index signature must cover the declared keys too, so the
+            // rest type widens to include the declared value types
             eqData([{}, { object: [{ props: { a: { number: true } }, rest: { string: true } }] }],
-                [[], '{readonly"a":number}&{readonly[k in string]?:string}'])
+                [[], '{readonly"a":number}&{readonly[k in string]?:number|string}'])
+            eqData([{}, { object: [{ props: { a: { string: true } }, rest: { string: true } }] }],
+                [[], '{readonly"a":string}&{readonly[k in string]?:string}'])
+        },
+        optionalByReference: () => {
+            eqData([{ r: { unit: unitBit(null) | unitBit(undefined), number: true } },
+                { object: [{ props: { p: 'r' } }] }],
+                [[['r', 'null|undefined|number']], '{readonly"p"?:r}'])
+            eqData([{ r: { number: true } }, { object: [{ props: { p: 'r' } }] }],
+                [[['r', 'number']], '{readonly"p":r}'])
         },
         wholeKinds: () => {
             eqData([{}, { array: true, object: true }],

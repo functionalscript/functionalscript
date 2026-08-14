@@ -24,8 +24,13 @@ history.
   converts through `fjs/types/rtti/data` (new `dataToTs`), so a recursive
   schema prints as `type <name> = <expression>` definitions plus an entry
   expression instead of overflowing the stack; output is the data form's
-  canonical form, and a rule name that cannot name a type alias (reserved
-  word, predefined type name, non-identifier) gets a generated identifier
+  canonical form, a struct key admitting `undefined` prints optional
+  (mirroring `Ts<>`), and a rule name that cannot name a type alias (reserved
+  word — strict-mode ones included, predefined type name, non-identifier)
+  gets a generated identifier
+  [#1547](https://github.com/functionalscript/functionalscript/pull/1547).
+- `types/ts`: a `Printer.struct` field (`StructField`) takes an optional
+  third element marking the key optional (`"key"?: type`)
   [#1547](https://github.com/functionalscript/functionalscript/pull/1547).
 - `types/sorted_list`: the two merge tail policies are now named `keepTail` and
   `dropTail` instead of sharing one shadowed name; internal only

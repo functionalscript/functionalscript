@@ -13,11 +13,17 @@ export type Equal<A, B> =
         : false
 
 /**
+ * A `struct` field: the key, its type expression, and — when the third
+ * element is `true` — an optional-key marker (`"key"?: type`).
+ */
+export type StructField = readonly [string, string, true?]
+
+/**
  * Functions for emitting TypeScript type expression strings.
  */
 export type Printer = {
     readonly tuple: (types: readonly string[]) => string
-    readonly struct: (fields: readonly (readonly [string, string])[]) => string
+    readonly struct: (fields: readonly StructField[]) => string
     readonly array: (type: string) => string
     readonly record: (type: string) => string
 }
