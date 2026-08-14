@@ -5,7 +5,7 @@
 
 ## Problem
 
-Even as per-PR files ([changelog-directory.md](./changelog-directory.md)),
+Even as per-PR files ([changelog/README.md](../changelog/README.md)),
 changelog entries are authored by hand while the same information — commits,
 diffs, PR links — already exists in Git history. It may be possible to remove
 the `changelog/` directory and derive the release history directly:
@@ -42,7 +42,7 @@ versioning comes from.
 
 ## Related
 
-- [changelog-directory.md](./changelog-directory.md) — the structure this
-  would replace
+- [changelog/README.md](../changelog/README.md) — the structure this would
+  replace
 - [changelog-website.md](./changelog-website.md) — the consumer that must not
   care which source feeds it

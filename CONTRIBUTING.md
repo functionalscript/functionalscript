@@ -120,8 +120,9 @@ For tool details and package-consumer setup for Claude and Codex, see
 The full workflow is in [AGENTS.md §2](./AGENTS.md#2-everyday-workflow) and
 [AGENTS.md §8](./AGENTS.md#8-pull-requests). In short: one feature or improvement
 per pull request, every check above passing, the `todo/` issue deleted in the
-same pull request, and — for code changes — a [CHANGELOG.md](./CHANGELOG.md)
-entry added with the real pull request number once the pull request exists.
+same pull request, and — for code changes — a changelog entry added as
+`changelog/unreleased/<PR>.md`, named by the real pull request number once the
+pull request exists (see [changelog/README.md](./changelog/README.md)).
 
 ## OpenAI Codex environment
 
