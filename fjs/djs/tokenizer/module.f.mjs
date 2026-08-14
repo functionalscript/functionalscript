@@ -390,7 +390,8 @@ const decodeNumber = value => {
     return [mantissa, exp]
 }
 
-const keywordSet = /** @type {ReadonlySet<string>} */ (new Set(keywords))
+/** @type {ReadonlySet<string>} */
+const keywordSet = new Set(keywords)
 
 /** @type {(tk: _Token) => JsToken} */
 const toJsToken = tk => {
