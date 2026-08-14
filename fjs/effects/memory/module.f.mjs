@@ -14,13 +14,14 @@
  * type-level API.
  *
  * @module
+ *
+ * @import { Nominal } from '../../types/nominal/types.ts'
+ * @import { Effect } from '../types.ts'
+ * @import { Key, MemCreate, MemRead, MemWrite, _MemKeyHash } from './types.ts'
  */
 
 import { asBase as nominalAsBase, asNominal as nominalAsNominal } from '../../types/nominal/module.f.mjs'
-/** @import { Nominal } from '../../types/nominal/types.ts' */
 import { do_ } from '../module.f.mjs'
-/** @import { Effect } from '../types.ts' */
-/** @import { Key, MemCreate, MemRead, MemWrite, _MemKeyHash } from './types.ts' */
 
 /** @type {(n: Nominal<'MemKey', _MemKeyHash, string>) => string} */
 export const asBase = nominalAsBase

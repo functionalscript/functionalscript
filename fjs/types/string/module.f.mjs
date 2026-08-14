@@ -14,14 +14,15 @@
  * repeat('abc')(3) // 'abcabcabc'
  * cmp('apple')('banana') // -1
  * ```
+ *
+ * @import { List } from '../list/types.ts'
+ * @import { Sign } from '../function/compare/types.ts'
+ * @import { Reduce } from '../function/operator/types.ts'
  */
 
-/** @import { List } from '../list/types.ts' */
 import { reduce as listReduce, repeat as listRepeat } from '../list/module.f.mjs'
 import { compose } from '../function/module.f.mjs'
-/** @import { Sign } from '../function/compare/types.ts' */
 import { cmp as uCmp } from '../function/compare/module.f.mjs'
-/** @import { Reduce } from '../function/operator/types.ts' */
 import { join as joinOp } from '../function/operator/module.f.mjs'
 import { fold } from '../../common/monoid/module.f.mjs'
 

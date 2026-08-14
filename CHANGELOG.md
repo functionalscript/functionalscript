@@ -20,6 +20,10 @@ history.
 
 ## Unreleased
 
+- Every module-level `@import` tag lives in its module's leading JSDoc block
+  (125 files swept), so emitted declaration headers list their type imports
+  in one place
+  [#1545](https://github.com/functionalscript/functionalscript/pull/1545)
 - `djs/serializer`: `stringify`'s `constSerialize` drops a defensive throw for
   a `refs` lookup that can never miss — `consts` only ever holds values
   `getConstants` already found an entry for

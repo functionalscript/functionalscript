@@ -1,8 +1,11 @@
+/**
+ * @import { Effect, OperationMap } from '../types.ts'
+ */
+
 import { do_, match, pure } from '../module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { assertPure } from '../proof.f.mjs'
 import { eff } from './module.f.mjs'
-/** @import { Effect, OperationMap } from '../types.ts' */
 
 /** @typedef {readonly['add', (a: number, b: number) => number]} _AddOp */
 

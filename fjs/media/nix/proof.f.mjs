@@ -1,7 +1,10 @@
+/**
+ * @import { Expression } from './types.ts'
+ */
+
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { nix, nixToString } from './module.f.mjs'
-/** @import { Expression } from './types.ts' */
 
 /** @type {(nodePackage: string, shellHook: boolean) => Expression} */
 const nodeFlake = (nodePackage, shellHook) => ['set',

@@ -1,5 +1,8 @@
+/**
+ * @import { Rule, TerminalRange } from '../bnf/types.ts'
+ */
+
 import { join0Plus, rangeEncode, range, remove, repeat0Plus, set, option } from '../bnf/module.f.mjs'
-/** @import { Rule, TerminalRange } from '../bnf/types.ts' */
 
 // space
 

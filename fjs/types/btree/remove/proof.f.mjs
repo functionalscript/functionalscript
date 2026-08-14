@@ -1,5 +1,8 @@
+/**
+ * @import { TNode } from '../types/types.ts'
+ */
+
 import { nodeRemove } from './module.f.mjs'
-/** @import { TNode } from '../types/types.ts' */
 import { set as setSet } from '../set/module.f.mjs'
 import { cmp } from '../../string/module.f.mjs'
 import { stringify } from '../../../media/json/module.f.mjs'

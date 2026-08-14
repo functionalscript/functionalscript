@@ -1,5 +1,7 @@
-/** @import { NodeOp, NodeProgramOptions } from '../effects/node/types.ts' */
-/** @import { Commands } from './types.ts' */
+/**
+ * @import { NodeOp, NodeProgramOptions } from '../effects/node/types.ts'
+ * @import { Commands } from './types.ts'
+ */
 
 import { pure } from '../effects/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'

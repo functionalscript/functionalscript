@@ -1,4 +1,7 @@
-/** @import { Unknown } from '../types.ts' */
+/**
+ * @import { Unknown } from '../types.ts'
+ */
+
 import { descentParser } from '../../bnf/descent/module.f.mjs'
 import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'

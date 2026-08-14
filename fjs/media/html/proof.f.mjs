@@ -1,5 +1,8 @@
+/**
+ * @import { Element } from './types.ts'
+ */
+
 import { htmlToString } from "./module.f.mjs"
-/** @import { Element } from './types.ts' */
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {

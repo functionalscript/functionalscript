@@ -5,21 +5,22 @@
  * See `./types.ts` for the `Id` type.
  *
  * @module
+ *
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Point2D } from '../../crypto/secp/types.ts'
+ * @import { V8 } from '../../crypto/sha2/types.ts'
+ * @import { Id } from './types.ts'
  */
 
 import { toArray } from '../../types/list/module.f.mjs'
-/** @import { Vec } from '../../types/bit_vec/types.ts' */
 import { length, msb, uint, uintChunkList, unpack, vec } from '../../types/bit_vec/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-/** @import { Point2D } from '../../crypto/secp/types.ts' */
 import { secp256r1 } from '../../crypto/secp/module.f.mjs'
-/** @import { V8 } from '../../crypto/sha2/types.ts' */
 import { base32 } from '../../crypto/sha2/module.f.mjs'
 import { literal3ToVec } from '../level/literal/module.f.mjs'
 import { log2 } from '../../types/bigint/module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
-/** @import { Id } from './types.ts' */
 
 // 32 bytes = 256 bits.
 //

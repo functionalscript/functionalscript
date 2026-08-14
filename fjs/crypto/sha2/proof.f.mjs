@@ -1,4 +1,6 @@
-/** @import { Sha2 } from './types.ts' */
+/**
+ * @import { Sha2 } from './types.ts'
+ */
 
 import { utf8 } from '../../text/module.f.mjs'
 import { repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'

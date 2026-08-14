@@ -1,5 +1,8 @@
+/**
+ * @import { TNode } from '../types/types.ts'
+ */
+
 import { set as setSet } from './module.f.mjs'
-/** @import { TNode } from '../types/types.ts' */
 import { cmp } from '../../string/module.f.mjs'
 import { stringify } from '../../../media/json/module.f.mjs'
 import { sort } from '../../object/module.f.mjs'

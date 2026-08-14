@@ -1,4 +1,6 @@
-/** @import { Monoid } from './types.ts' */
+/**
+ * @import { Monoid } from './types.ts'
+ */
 
 import { repeat, fold } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
