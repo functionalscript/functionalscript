@@ -11,7 +11,9 @@ import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { vec8 } from '../../types/bit_vec/module.f.mjs'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { initEvo, evo } from '../../cas/evo/module.f.mjs'
-import { evoToolRegistry } from './module.f.mjs'
+import { evoAddArgs, evoToolRegistry } from './module.f.mjs'
+import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
+import { at } from '../../types/object/module.f.mjs'
 import { parse as parseJson } from '../../media/json/module.f.mjs'
 import { array, string as rttiString } from '../../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
@@ -151,6 +153,46 @@ export const proof = {
         const [, result] = virtual(state0)(entry.handle(args))
         assert(!result.isError)
         assert(textOf(result).length > 0)
+    },
+    // `evo_add` accepts a nested lock map and `evo_revision` gives it back —
+    // the two tools speak one recursive schema, so a revision read out can be
+    // added again as-is however deep its lock nests.
+    evoAddAndRevisionCarryNestedLocks: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const registry = evoToolRegistry(e)
+        const snapshot = vecToCBase32(vec8(0x1n))
+        const d1 = vecToCBase32(vec8(0x2n))
+        const d2 = vecToCBase32(vec8(0x3n))
+        const args = {
+            parents: [], subject: 'doc', snapshot,
+            lock: { B: { D: d1 }, C: { D: d2 } },
+        }
+        const [state1, added] = virtual(state0)(findEntry(registry, 'evo_add').handle(args))
+        assert(!added.isError)
+        const [, read] = virtual(state1)(findEntry(registry, 'evo_revision').handle({ hash: textOf(added) }))
+        assert(!read.isError)
+        assertEq(
+            textOf(read),
+            `{"subject":"doc","parents":[],"snapshot":"${snapshot}","generation":0,"lock":{"B":{"D":"${d1}"},"C":{"D":"${d2}"}}}`)
+    },
+    // The advertised `inputSchema` publishes the recursion the way JSON
+    // Schema expresses one: a named `$defs` rule the `lock` property refers
+    // to through a local `$ref`, rather than a flat-only shape or an
+    // infinitely inlined one.
+    evoAddInputSchemaPublishesTheLockRecursion: () => {
+        const schema = toJsonSchema(evoAddArgs)
+        const lock = at('lock')(schema.properties ?? {})
+        assert(lock !== null, ['expected a lock property', schema])
+        const ref = '#/$defs/lockValue'
+        assertEq(at('$ref')(lock.additionalProperties ?? {}), ref)
+        const rule = at('lockValue')(schema.$defs ?? {})
+        assert(rule !== null, ['expected a lockValue definition', schema])
+        const [directHash, nestedMap] = rule.anyOf ?? []
+        assertEq(directHash?.type, 'string')
+        assertEq(nestedMap?.type, 'object')
+        assertEq(at('$ref')(nestedMap?.additionalProperties ?? {}), ref)
     },
     // Covers evo_add's error branch: a domain-level failure (Evo.add's
     // Result) is surfaced as isError with the failure message as text.
